@@ -1342,6 +1342,8 @@ def adjust_model_dependent_nullification(
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
+
+    # --- STEBBS ---
     stebbsmethod = get_value_safe(physics, "stebbsmethod")
 
     if stebbsmethod == 0:
@@ -1385,6 +1387,54 @@ def adjust_model_dependent_nullification(
                 props["stebbs"] = stebbs_block
                 site["properties"] = props
                 yaml_data["sites"][site_idx] = site
+
+    # --- ANTHROPOGENIC CO2 ---
+    emissionsmethod = get_value_safe(physics, "emissionsmethod")
+
+    if emissionsmethod < 5:
+        sites = yaml_data.get("sites", [])
+
+        for site_idx, site in enumerate(sites):
+            props = site.get("properties", {})
+            anth_emis = props.get("anthropogenic_emissions", {})
+            co2_block = anth_emis.get("co2", {})
+            site_gridid = get_site_gridid(site)
+
+            if co2_block:
+                nullified_params = []
+
+                def _recursive_nullify_co2(block: dict, path: str = ""):
+                    for key, val in block.items():
+                        current_path = f"{path}.{key}" if path else key
+
+                        if isinstance(val, dict):
+                            if "value" in val and val["value"] is not None:
+                                val["value"] = None
+                                nullified_params.append(current_path)
+                            else:
+                                _recursive_nullify_co2(val, current_path)
+
+                _recursive_nullify_co2(co2_block)
+
+                if nullified_params:
+                    param_list = ", ".join(nullified_params)
+
+                    adjustments.append(
+                        ScientificAdjustment(
+                            parameter="anthropogenic_emissions.co2",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            old_value=f"emissionsmethod 0..4 (CO2 disabled), nullified {len(nullified_params)} related parameters - {param_list}",
+                            new_value="null",
+                            reason=f"emissionsmethod 0..4 (CO2 disabled), nullified {len(nullified_params)} related parameters",
+                        )
+                    )
+
+                anth_emis["co2"] = co2_block
+                props["anthropogenic_emissions"] = anth_emis
+                site["properties"] = props
+                yaml_data["sites"][site_idx] = site
+
 
     return yaml_data, adjustments
 

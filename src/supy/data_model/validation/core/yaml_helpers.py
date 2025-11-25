@@ -1222,9 +1222,18 @@ def precheck_model_option_rules(data: dict) -> dict:
         data (dict): YAML configuration data loaded as a dict.
 
     Returns:
-        dict: The updated YAML dict after applying the STEBBS nullification rule.
+        dict: The updated YAML dict after applying the nullification rules.
     """
     physics = data.get("model", {}).get("physics", {})
+
+    # Helper: recursively nullify any "value" leaves in the passed block
+    def _recursive_nullify(block: dict):
+        for key, val in block.items():
+            if isinstance(val, dict):
+                if "value" in val:
+                    val["value"] = None
+                else:
+                    _recursive_nullify(val)
 
     # --- STEBBSMETHOD RULE: when stebbsmethod == 0, wipe out all stebbs params ---
     stebbsmethod = get_value_safe(physics, "stebbsmethod")
@@ -1233,21 +1242,27 @@ def precheck_model_option_rules(data: dict) -> dict:
             "[precheck] stebbsmethod==0 detected → nullifying all 'stebbs' values."
         )
         for site_idx, site in enumerate(data.get("sites", [])):
-            props = site.get("properties", {})
-            stebbs_block = props.get("stebbs", {})
+            props = site.get("properties", {}) or {}
+            stebbs_block = props.get("stebbs", {}) or {}
+            if isinstance(stebbs_block, dict):
+                _recursive_nullify(stebbs_block)
+                props["stebbs"] = stebbs_block
 
-            def _recursive_nullify(block: dict):
-                for key, val in block.items():
-                    if isinstance(val, dict):
-                        if "value" in val:
-                            val["value"] = None
-                        else:
-                            _recursive_nullify(val)
+    # --- EMISSIONS / CO2 RULE: when emissionsmethod 0..4, CO2 is not computed, nullify co2 params ---
+    emissionsmethod = get_value_safe(physics, "emissionsmethod")
+    if emissionsmethod < 5:
+        logger_supy.info(
+            "[precheck] emissionsmethod 0..4 detected → nullifying 'anthropogenic_emissions.co2' values."
+        )
+        for site_idx, site in enumerate(data.get("sites", [])):
+            props = site.get("properties", {}) or {}
+            anth_emis = props.get("anthropogenic_emissions", {}) or {}
+            co2_block = anth_emis.get("co2", {}) or {}
+            if isinstance(co2_block, dict):
+                _recursive_nullify(co2_block)
+                anth_emis["co2"] = co2_block
+                props["anthropogenic_emissions"] = anth_emis
 
-            _recursive_nullify(stebbs_block)
-            props["stebbs"] = stebbs_block
-
-    logger_supy.info("[precheck] STEBBS nullification complete.")
     return data
 
 

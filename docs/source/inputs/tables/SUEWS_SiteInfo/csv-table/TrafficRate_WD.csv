@@ -1,2 +1,2 @@
 "Referencing Table","Requirement","Comment"
-"`SUEWS_SiteSelect.txt`","`O`","Weekday traffic rate [veh km  |m^-2| s-1]. Used with EmissionMethod=4 to calculate CO2 and heat emissions."
+"`SUEWS_SiteSelect.txt`","`O`","Weekday traffic rate [veh km  |m^-2| s-1]. Used with EmissionsMethod=4 to calculate CO2 and heat emissions."

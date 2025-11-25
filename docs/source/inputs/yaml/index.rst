@@ -271,4 +271,4 @@ Getting Help
 - **Validation issues**: Check the report file (``report_*.txt``)
 - **Parameter documentation**: See the error messages from validation
 - **Examples**: Look in ``sample_data/`` directory
-- **Community support**: `UMEP Community Forum <https://github.com/UMEP-dev/UMEP/discussions>`_
+- **Community support**: `SUEWS Discussion Channel <https://github.com/UMEP-dev/SUEWS/discussions>`_

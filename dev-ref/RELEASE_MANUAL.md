@@ -37,7 +37,7 @@ SUEWS adopts a **rolling release model** that reflects the continuous nature of 
 
    Both deployed to PyPI → GitHub Release → Zenodo DOI
 5. **Verify**: Check [Actions](https://github.com/UMEP-dev/SUEWS/actions), [PyPI](https://pypi.org/project/supy/), [Zenodo dashboard](https://zenodo.org/me/uploads)
-6. **Announce**: [UMEP Discussions](https://github.com/UMEP-dev/UMEP/discussions) (optional)
+6. **Announce**: [SUEWS Discussions](https://github.com/UMEP-dev/SUEWS/discussions) (optional)
 
 **Everything else is automatic.** See below for detailed guidance.
 

@@ -1,5 +1,5 @@
 """
-Test wind profile calculations (RSL/MOST methods).
+Test suews_phys_rslprof - RSL/MOST wind profile calculations.
 
 Regression tests for Issue #572 where the MIN constraint on height arrays
 caused negative LOG arguments and negative wind speeds for tall buildings.

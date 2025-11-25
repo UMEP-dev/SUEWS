@@ -1,4 +1,8 @@
-"""Test for issue #240: nan QF due to zero population density"""
+"""
+Test suews_phys_anthro - anthropogenic heat flux calculations.
+
+Regression test for Issue #240: NaN QF due to zero population density.
+"""
 
 import pytest
 import supy as sp

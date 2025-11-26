@@ -233,7 +233,7 @@ sites:
         value: 1500.0
       WallCp:
         value: 1000.0
-      Wallx1:
+      OuterCapFracWall:
         value: 0.2
       WallExternalEmissivity:
         value: 0.85

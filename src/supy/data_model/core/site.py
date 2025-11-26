@@ -1288,10 +1288,10 @@ class ArchetypeProperties(BaseModel):
         json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Wallextcp"},
         gt=0.0,
     )
-    Wallx1: FlexibleRefValue(float) = Field(
+    OuterCapFracWall: FlexibleRefValue(float) = Field(
         default=1.0,
         description="Weighting factor for heat capacity of walls [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Wallx1"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "Outercapfracwall"},
         ge=0.0,
         le=1.0,
     )
@@ -1392,10 +1392,10 @@ class ArchetypeProperties(BaseModel):
         json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Roofextcp"},
         gt=0.0,
     )
-    Roofx1: FlexibleRefValue(float) = Field(
+    OuterCapFracRoof: FlexibleRefValue(float) = Field(
         default=1.0,
         description="Weighting factor for heat capacity of roof [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Roofx1"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "Outercapfracroof"},
         ge=0.0,
         le=1.0,
     )

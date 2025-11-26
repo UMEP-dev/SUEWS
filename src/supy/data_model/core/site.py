@@ -1460,7 +1460,7 @@ class ArchetypeProperties(BaseModel):
     )
     GroundFloorDensity: FlexibleRefValue(float) = Field(
         default=500.0,
-        description="Density of the ground floor [kg m-3]",
+        description="Effective density of the ground floor [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Groundfloordensity"},
         gt=0.0,
     )
@@ -1555,7 +1555,7 @@ class ArchetypeProperties(BaseModel):
     )
     InternalMassCp: FlexibleRefValue(float) = Field(
         default=0.0,
-        description="Specific heat capacity of internal mass [J kg-1 K-1]",
+        description="Effective specific heat capacity of internal mass [J kg-1 K-1]",
         json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Internalmasscp"},
     )
     InternalMassEmissivity: FlexibleRefValue(float) = Field(
@@ -1941,7 +1941,7 @@ class StebbsProperties(BaseModel):
     )
     HotWaterTankSpecificHeatCapacity: Optional[FlexibleRefValue(float)] = Field(
         default=500.0,
-        description="Specific heat capacity of hot water tank wal [J kg-1 K-1]",
+        description="Specific heat capacity of hot water tank wall [J kg-1 K-1]",
         json_schema_extra={
             "unit": "J kg^-1 K^-1",
             "display_name": "Hotwatertankspecificheatcapacity",

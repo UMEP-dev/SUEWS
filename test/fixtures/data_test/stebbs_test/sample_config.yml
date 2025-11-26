@@ -253,7 +253,7 @@ sites:
         value: 1724.7
       WallextCp:
         value: 1000.0
-      OuterCapFracWall:
+      WallOuterCapFrac:
         value: 0.5
       WallExternalEmissivity:
         value: 0.9
@@ -281,7 +281,7 @@ sites:
         value: 1222.0
       RoofextCp:
         value: 816.1
-      OuterCapFracRoof:
+      RoofOuterCapFrac:
         value: 0.5
       RoofExternalEmissivity:
         value: 0.9

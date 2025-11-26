@@ -157,8 +157,14 @@ endforeach
 # invoke make in the suews directory to build the objects
 build_suews = custom_target(
   'suews_objects',
-  command: ['make', '-C', meson.current_source_dir() / '../suews/'],
+  command: [
+    py,
+    '@CURRENT_SOURCE_DIR@/run_make.py',
+    meson.current_source_dir() / '../suews/',
+    '@OUTPUT@',
+  ],
   build_by_default: true,
+  build_always_stale: true,
   output: 'suews_objects',
 )
 

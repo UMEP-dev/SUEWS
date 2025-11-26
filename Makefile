@@ -58,16 +58,16 @@ dev:
 		uv pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran for macOS compatibility"; \
-			bash -c 'FC=/opt/homebrew/bin/gfortran uv pip install --reinstall --no-build-isolation -e ".[dev]"'; \
+			bash -c 'FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]"'; \
 		else \
-			uv pip install --reinstall --no-build-isolation -e ".[dev]"; \
+			uv pip install --no-build-isolation -e ".[dev]"; \
 		fi \
 	else \
 		$(PYTHON) -m pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
-			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --force-reinstall --no-build-isolation -e ".[dev]"; \
+			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation -e ".[dev]"; \
 		else \
-			$(PYTHON) -m pip install --force-reinstall --no-build-isolation -e ".[dev]"; \
+			$(PYTHON) -m pip install --no-build-isolation -e ".[dev]"; \
 		fi \
 	fi
 	@# Ensure meson build directory is initialized (fixes post-clean state)
@@ -81,7 +81,7 @@ reinstall:
 	@rm -rf build
 	@$(MAKE) dev
 
-# Initialize meson build after clean (fixes editable install)
+# Initialize meson build after clean OR rebuild if sources changed
 rebuild-meson:
 	@PYVER=$$($(PYTHON) -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')"); \
 	if [ ! -d "build/$$PYVER" ]; then \
@@ -89,6 +89,10 @@ rebuild-meson:
 		mkdir -p "build/$$PYVER"; \
 		cd "build/$$PYVER" && meson setup ../.. --prefix=$$VIRTUAL_ENV; \
 		echo "✓ Build directory initialized"; \
+	else \
+		echo "Rebuilding changed Fortran sources..."; \
+		cd "build/$$PYVER" && ninja; \
+		echo "✓ Fortran extension rebuilt"; \
 	fi
 
 # Run tests

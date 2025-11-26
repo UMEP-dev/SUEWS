@@ -1171,8 +1171,16 @@ class ArchetypeProperties(BaseModel):
     # BuildingCode='1'
     # BuildingClass='SampleClass'
 
-    BuildingType: str = "SampleType"
-    BuildingName: str = "SampleBuilding"
+    BuildingType: str = Field (
+        default="SampleType",
+        description="Building archetype type [-]",
+        json_schema_extra={"display_name": "Buildingtype"},
+    )
+    BuildingName: str = Field(
+        default="SampleBuilding",
+        description="Building archetype name [-]",
+        json_schema_extra={"display_name": "Buildingname"},
+    )
     BuildingCount: FlexibleRefValue(int) = Field(
         default=1,
         description="Number of buildings of this archetype [-]",

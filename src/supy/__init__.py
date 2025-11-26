@@ -121,7 +121,11 @@ def __getattr__(name):
         return _lazy_cache[name]
 
     # Validation functionality
-    if name in {"validate_suews_config_conditional", "ValidationController", "ValidationResult"}:
+    if name in {
+        "validate_suews_config_conditional",
+        "ValidationController",
+        "ValidationResult",
+    }:
         try:
             from .data_model.validation import (
                 validate_suews_config_conditional,
@@ -129,7 +133,9 @@ def __getattr__(name):
                 ValidationResult,
             )
 
-            _lazy_cache["validate_suews_config_conditional"] = validate_suews_config_conditional
+            _lazy_cache["validate_suews_config_conditional"] = (
+                validate_suews_config_conditional
+            )
             _lazy_cache["ValidationController"] = ValidationController
             _lazy_cache["ValidationResult"] = ValidationResult
             return _lazy_cache[name]

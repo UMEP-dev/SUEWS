@@ -34,6 +34,7 @@ def _load_heavy_imports():
     # Import YAML-based simulation class
     try:
         from ..suews_sim import SUEWSSimulation
+
         YAML_SUPPORT = True
     except ImportError:
         SUEWSSimulation = None
@@ -46,6 +47,7 @@ def _get_version():
     """Get version string without triggering heavy imports."""
     try:
         from .._version_scm import __version__
+
         return __version__
     except ImportError:
         return "unknown"

@@ -396,7 +396,9 @@ def test_validate_land_cover_fractions(
 
     if expected_has_issues:
         assert cfg._validation_summary["total_warnings"] >= 1
-        assert "Land cover fraction validation" in cfg._validation_summary["issue_types"]
+        assert (
+            "Land cover fraction validation" in cfg._validation_summary["issue_types"]
+        )
         if expected_sum_str:
             assert any(
                 "must sum to 1.0 within tolerance" in msg and expected_sum_str in msg

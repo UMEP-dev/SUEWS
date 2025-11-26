@@ -19,6 +19,7 @@ import pytest
 def _is_editable_install():
     """Check if supy is installed in editable mode."""
     import site
+
     for sp in site.getsitepackages() + [site.getusersitepackages() or ""]:
         if sp and (Path(sp) / "_supy_editable_loader.py").exists():
             return True

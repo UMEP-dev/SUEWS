@@ -1410,13 +1410,23 @@ def test_site_equatorial_sets_snowalb_none():
 @pytest.mark.parametrize(
     "start_date,lat,expected_season",
     [
-        ("2025-06-01", 0, "equatorial"),      # Equatorial
-        ("2025-06-01", 15.0, "tropical"),     # Tropical
-        ("2025-07-01", 51.5, "summer"),       # Northern summer
-        ("2025-01-15", 51.5, "winter"),       # Northern winter
-        ("2025-01-15", -30.0, "summer"),      # Southern summer (Jan = summer in S. hemisphere)
+        ("2025-06-01", 0, "equatorial"),  # Equatorial
+        ("2025-06-01", 15.0, "tropical"),  # Tropical
+        ("2025-07-01", 51.5, "summer"),  # Northern summer
+        ("2025-01-15", 51.5, "winter"),  # Northern winter
+        (
+            "2025-01-15",
+            -30.0,
+            "summer",
+        ),  # Southern summer (Jan = summer in S. hemisphere)
     ],
-    ids=["equatorial", "tropical", "northern_summer", "northern_winter", "southern_summer"],
+    ids=[
+        "equatorial",
+        "tropical",
+        "northern_summer",
+        "northern_winter",
+        "southern_summer",
+    ],
 )
 def test_season_check_by_latitude_and_date(start_date, lat, expected_season):
     """Test season determination based on latitude and date."""

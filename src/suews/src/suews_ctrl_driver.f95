@@ -3806,7 +3806,7 @@ CONTAINS
       WaterTankWallThickness, MainsWaterTemperature, WaterTankSurfaceArea, &
       HotWaterHeatingSetpointTemperature, HotWaterTankWallEmissivity, &
       DHWVesselWallThickness, DHWWaterVolume, &
-      DHWSurfaceArea, DHWVesselEmissivity, HotWaterFlowRate, DHWDrainFlowRate, &
+      DHWSurfaceArea, HotWaterFlowRate, DHWDrainFlowRate, &
       DHWSpecificHeatCapacity, HotWaterTankSpecificHeatCapacity, DHWVesselSpecificHeatCapacity, &
       DHWDensity, HotWaterTankWallDensity, DHWVesselDensity, HotWaterTankBuildingWallViewFactor, &
       HotWaterTankInternalMassViewFactor, HotWaterTankWallConductivity, HotWaterTankInternalWallConvectionCoefficient, &
@@ -4230,7 +4230,6 @@ CONTAINS
       REAL(KIND(1D0)) :: DHWVesselWallThickness
       REAL(KIND(1D0)) :: DHWWaterVolume
       REAL(KIND(1D0)) :: DHWSurfaceArea
-      REAL(KIND(1D0)) :: DHWVesselEmissivity
       REAL(KIND(1D0)) :: HotWaterFlowRate
       REAL(KIND(1D0)) :: DHWDrainFlowRate
       REAL(KIND(1D0)) :: DHWSpecificHeatCapacity
@@ -5115,7 +5114,6 @@ CONTAINS
       stebbsPrm%DHWVesselWallThickness = DHWVesselWallThickness
       stebbsPrm%DHWWaterVolume = DHWWaterVolume
       stebbsPrm%DHWSurfaceArea = DHWSurfaceArea
-      stebbsPrm%DHWVesselEmissivity = DHWVesselEmissivity
       stebbsPrm%HotWaterFlowRate = HotWaterFlowRate
       stebbsPrm%DHWDrainFlowRate = DHWDrainFlowRate
       stebbsPrm%DHWSpecificHeatCapacity = DHWSpecificHeatCapacity

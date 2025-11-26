@@ -112,7 +112,6 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: DHWVesselWallThickness = 0.0D0 ! Hot water vessel wall thickness [m]
       REAL(KIND(1D0)) :: DHWWaterVolume = 0.0D0 ! Volume of water held in use in building [m3]
       REAL(KIND(1D0)) :: DHWSurfaceArea = 0.0D0 ! Surface area of hot water in vessels in building [m2]
-      REAL(KIND(1D0)) :: DHWVesselEmissivity = 0.0D0 ! NEEDS CHECKED! NOT USED (assumed same as DHWVesselWallEmissivity) [-]
       REAL(KIND(1D0)) :: HotWaterFlowRate = 0.0D0 ! Hot water flow rate from tank to vessel [m3 s-1]
       REAL(KIND(1D0)) :: DHWDrainFlowRate = 0.0D0 ! Flow rate of hot water held in building to drain [m3 s-1]
       REAL(KIND(1D0)) :: DHWSpecificHeatCapacity = 0.0D0 ! Specific heat capacity of hot water [J kg-1 K-1]

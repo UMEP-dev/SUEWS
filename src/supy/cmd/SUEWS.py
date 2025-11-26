@@ -1,29 +1,56 @@
 # command line tools
-import os
 import click
 import sys
-from multiprocess.pool import ThreadPool
+from pathlib import Path
 
-from .._supy_module import (
-    _init_supy,
-    _run_supy,
-    _save_supy,
-    _load_forcing_grid,
-    pd,
-    Path,
-)
+# Lazy import flag - heavy modules imported only when needed
+_HEAVY_IMPORTS_LOADED = False
 
-from .._version import show_version, __version__
 
-from .._load import load_SUEWS_nml_simple
+def _load_heavy_imports():
+    """Load heavy imports only when needed for actual simulation.
 
-# Import YAML-based simulation class
-try:
-    from ..suews_sim import SUEWSSimulation
+    This defers slow imports (which can take 15+ seconds due to package discovery)
+    until they're actually needed, allowing quick responses for help, errors, etc.
+    """
+    global _HEAVY_IMPORTS_LOADED
+    if _HEAVY_IMPORTS_LOADED:
+        return
 
-    YAML_SUPPORT = True
-except ImportError:
-    YAML_SUPPORT = False
+    # These imports trigger slow package discovery via importlib.resources.files()
+    global _init_supy, _run_supy, _save_supy, _load_forcing_grid, pd
+    global load_SUEWS_nml_simple, SUEWSSimulation, YAML_SUPPORT, ThreadPool
+
+    from multiprocess.pool import ThreadPool
+    from .._supy_module import (
+        _init_supy,
+        _run_supy,
+        _save_supy,
+        _load_forcing_grid,
+        pd,
+    )
+    from .._load import load_SUEWS_nml_simple
+
+    # Import YAML-based simulation class
+    try:
+        from ..suews_sim import SUEWSSimulation
+
+        YAML_SUPPORT = True
+    except ImportError:
+        SUEWSSimulation = None
+        YAML_SUPPORT = False
+
+    _HEAVY_IMPORTS_LOADED = True
+
+
+def _get_version():
+    """Get version string without triggering heavy imports."""
+    try:
+        from .._version_scm import __version__
+
+        return __version__
+    except ImportError:
+        return "unknown"
 
 
 def _detect_config_format(config_path):
@@ -57,6 +84,8 @@ def _run_with_yaml(config_path):
     config_path : Path
         Path to YAML configuration file
     """
+    _load_heavy_imports()
+
     if not YAML_SUPPORT:
         click.echo(
             "Error: YAML support not available. Please install required dependencies.",
@@ -115,6 +144,8 @@ def _run_with_namelist(path_runcontrol):
     path_runcontrol : Path
         Path to RunControl.nml file
     """
+    _load_heavy_imports()
+
     # Issue deprecation warning to stderr
     click.echo(
         "\n"
@@ -242,11 +273,11 @@ For more information, see: https://suews.readthedocs.io/
 def SUEWS(config_file, path_runcontrol):
     """Run SUEWS simulation using YAML or namelist configuration."""
 
-    # show version info
+    # show version info (using lightweight version getter)
     click.echo(
         f"""
 ===========================================
-SUEWS version: {__version__}
+SUEWS version: {_get_version()}
 
 Documentation: https://suews.readthedocs.io/
 ===========================================

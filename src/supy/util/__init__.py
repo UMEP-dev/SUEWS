@@ -57,4 +57,11 @@ from ._debug import diag_rsl, diag_rsl_prm, save_zip_debug
 
 from ._spinup import get_spinup_state
 
+from ._attribution import (
+    attribute_t2,
+    diagnose_t2,
+    AttributionResult,
+    T2Attribution,
+)
+
 # from ._config import SUEWSConfig, init_config_from_yaml

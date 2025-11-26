@@ -397,6 +397,73 @@ class TestQGISEnvironment(TestCase):
         finally:
             sys.stdout = original_stdout
 
+    def test_safe_stdout_stderr_with_none_streams(self):
+        """Test that safe_stdout_stderr() handles None stdout/stderr (GH-902)."""
+        from supy.util._era5 import safe_stdout_stderr
+
+        # Save originals
+        orig_stdout = sys.stdout
+        orig_stderr = sys.stderr
+
+        try:
+            # Simulate QGIS Processing environment
+            sys.stdout = None
+            sys.stderr = None
+
+            # Inside context, streams should be valid file objects
+            with safe_stdout_stderr():
+                self.assertIsNotNone(sys.stdout)
+                self.assertIsNotNone(sys.stderr)
+                # Should be able to write without crash
+                sys.stdout.write("test")
+                sys.stderr.write("test")
+
+            # After context, streams should be restored to None
+            self.assertIsNone(sys.stdout)
+            self.assertIsNone(sys.stderr)
+
+        finally:
+            sys.stdout = orig_stdout
+            sys.stderr = orig_stderr
+
+    def test_safe_stdout_stderr_noop_with_valid_streams(self):
+        """Test that safe_stdout_stderr() is a no-op when streams are valid."""
+        from supy.util._era5 import safe_stdout_stderr
+
+        # With valid streams, context manager should not modify them
+        orig_stdout = sys.stdout
+        orig_stderr = sys.stderr
+
+        with safe_stdout_stderr():
+            self.assertIs(sys.stdout, orig_stdout)
+            self.assertIs(sys.stderr, orig_stderr)
+
+        # After context, streams should still be the same
+        self.assertIs(sys.stdout, orig_stdout)
+        self.assertIs(sys.stderr, orig_stderr)
+
+    def test_tqdm_with_none_stdout(self):
+        """Test that tqdm doesn't crash when stdout is None (GH-902)."""
+        from tqdm import tqdm
+
+        from supy.util._era5 import safe_stdout_stderr
+
+        orig_stdout = sys.stdout
+        orig_stderr = sys.stderr
+
+        try:
+            sys.stdout = None
+            sys.stderr = None
+
+            # This should NOT crash
+            with safe_stdout_stderr():
+                for _ in tqdm(range(3), desc="Testing"):
+                    pass
+
+        finally:
+            sys.stdout = orig_stdout
+            sys.stderr = orig_stderr
+
 
 class TestOutputPathHandling(TestCase):
     """Test output path handling used by UMEP Post-processor.

@@ -212,6 +212,44 @@ class DLSCheck(BaseModel):
         return start, end, utc_offset_hours
 
 
+def recursive_nullify_any(obj: Any) -> None:
+    """
+    In-place: nullify YAML leaves and day-profile structures.
+
+    Rules:
+    - If a dict is a RefValue leaf (has only "value"), set value -> None (lists -> list of None).
+    - If a dict contains working_day and/or holiday, set them to None.
+    - For other dicts: recurse; scalar leaves are set to None.
+    - For lists: recurse into dict/list items, scalar items -> None.
+    Safe and defensive for arbitrary structures.
+    """
+    if isinstance(obj, dict):
+        # RefValue leaf
+        if "value" in obj and len(obj) == 1:
+            val = obj["value"]
+            if isinstance(val, list):
+                obj["value"] = [None] * len(val)
+            else:
+                obj["value"] = None
+            return
+        # Day-profile style dict
+        if "working_day" in obj or "holiday" in obj:
+            obj["working_day"] = None
+            obj["holiday"] = None
+            return
+        # Recurse into entries; scalar leaves -> None
+        for k, v in list(obj.items()):
+            if isinstance(v, (dict, list)):
+                recursive_nullify_any(v)
+            else:
+                obj[k] = None
+    elif isinstance(obj, list):
+        for i, item in enumerate(obj):
+            if isinstance(item, (dict, list)):
+                recursive_nullify_any(item)
+            else:
+                obj[i] = None
+
 def collect_yaml_differences(original: Any, updated: Any, path: str = "") -> List[dict]:
     """
     Recursively compare two YAML data structures and collect all differences.
@@ -1258,51 +1296,12 @@ def precheck_model_option_rules(data: dict) -> dict:
             props = site.get("properties", {}) or {}
             anth_emis = props.get("anthropogenic_emissions", {}) or {}
 
-            # Nullify co2 block (existing behaviour)
+            # Nullify co2 block (use shared nullifier)
             co2_block = anth_emis.get("co2", {}) or {}
             if isinstance(co2_block, dict):
-                _recursive_nullify(co2_block)
+                recursive_nullify_any(co2_block)
                 anth_emis["co2"] = co2_block
                 props["anthropogenic_emissions"] = anth_emis
-
-            # Generic nullifier that handles both RefValue-style leaves ("value")
-            # and plain mappings/lists by setting scalar leaves to None and
-            # list elements to None (or recursively nullifying dict items).
-            def _recursive_nullify_any(obj):
-                if isinstance(obj, dict):
-                    for k, v in list(obj.items()):
-                        if isinstance(v, dict) and "value" in v:
-                            # Leaf with "value"
-                            val = v["value"]
-                            if isinstance(val, list):
-                                v["value"] = [None] * len(val)
-                            else:
-                                v["value"] = None
-                        elif isinstance(v, dict):
-                            # Nested dict: recurse
-                            _recursive_nullify_any(v)
-                        elif isinstance(v, list):
-                            # List of items: nullify scalars, recurse for dicts
-                            new_list = []
-                            for item in v:
-                                if isinstance(item, dict):
-                                    _recursive_nullify_any(item)
-                                    new_list.append(item)
-                                else:
-                                    new_list.append(None)
-                            obj[k] = new_list
-                        else:
-                            # Scalar leaf: nullify
-                            obj[k] = None
-                elif isinstance(obj, list):
-                    for i, item in enumerate(obj):
-                        if isinstance(item, dict):
-                            _recursive_nullify_any(item)
-                        else:
-                            obj[i] = None
-                            # Nullify entire anthropogenic_emissions (includes trafficrate, co2, etc.)
-                            _recursive_nullify_any(anth_emis)
-                            props["anthropogenic_emissions"] = anth_emis
 
     return data
 
@@ -1402,3 +1401,5 @@ def run_precheck(path: str) -> dict:
     # ---- Step 15: Print completion ----
     logger_supy.info("Precheck complete.\n")
     return data
+
+

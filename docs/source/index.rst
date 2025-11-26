@@ -80,8 +80,11 @@ The developers and other users are willing to help you.
 How has SUEWS been used?
 ------------------------------
 
+SUEWS has been applied in **68+ studies** across **24+ cities** worldwide, spanning Europe, Asia, North America, and Oceania.
+
 The scientific details and application examples of SUEWS can be found in:
 
+- :ref:`global_applications` - Overview of SUEWS applications worldwide with geographic and thematic analysis
 - :ref:`Recent_publications` - Core SUEWS publications from the development team describing model physics and validation
 - :ref:`community_publications` - Publications from the SUEWS user community showcasing diverse applications
 
@@ -170,5 +173,6 @@ How to support SUEWS?
    :numbered:
    :hidden:
 
+   global_applications
    community_publications
    Community <https://suews.discourse.group/>

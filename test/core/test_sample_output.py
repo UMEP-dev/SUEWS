@@ -282,6 +282,7 @@ def compare_arrays_with_tolerance(actual, expected, rtol, atol, var_name=""):
 # ============================================================================
 
 
+@pytest.mark.smoke
 class TestSampleOutput(TestCase):
     """Dedicated test class for validating SUEWS outputs against reference data."""
 
@@ -398,6 +399,8 @@ class TestSampleOutput(TestCase):
         for file in saved_files:
             print(f"   - {file}")
 
+    @pytest.mark.core
+    @pytest.mark.smoke
     def test_sample_output_validation(self):
         """
         Test SUEWS output against reference data with appropriate tolerances.

@@ -1171,7 +1171,7 @@ class ArchetypeProperties(BaseModel):
     # BuildingCode='1'
     # BuildingClass='SampleClass'
 
-    BuildingType: str = Field (
+    BuildingType: str = Field(
         default="SampleType",
         description="Building archetype type [-]",
         json_schema_extra={"display_name": "Buildingtype"},

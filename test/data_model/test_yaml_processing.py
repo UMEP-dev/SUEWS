@@ -1407,29 +1407,21 @@ def test_site_equatorial_sets_snowalb_none():
     assert result["sites"][0]["initial_states"]["snowalb"]["value"] is None
 
 
-def test_season_check_equatorial():
-    sc = SeasonCheck(start_date="2025-06-01", lat=0)
-    assert sc.get_season() == "equatorial"
-
-
-def test_season_check_tropical():
-    sc = SeasonCheck(start_date="2025-06-01", lat=15.0)
-    assert sc.get_season() == "tropical"
-
-
-def test_season_check_northern_summer():
-    sc = SeasonCheck(start_date="2025-07-01", lat=51.5)
-    assert sc.get_season() == "summer"
-
-
-def test_season_check_northern_winter():
-    sc = SeasonCheck(start_date="2025-01-15", lat=51.5)
-    assert sc.get_season() == "winter"
-
-
-def test_season_check_southern_summer():
-    sc = SeasonCheck(start_date="2025-01-15", lat=-30.0)
-    assert sc.get_season() == "summer"
+@pytest.mark.parametrize(
+    "start_date,lat,expected_season",
+    [
+        ("2025-06-01", 0, "equatorial"),      # Equatorial
+        ("2025-06-01", 15.0, "tropical"),     # Tropical
+        ("2025-07-01", 51.5, "summer"),       # Northern summer
+        ("2025-01-15", 51.5, "winter"),       # Northern winter
+        ("2025-01-15", -30.0, "summer"),      # Southern summer (Jan = summer in S. hemisphere)
+    ],
+    ids=["equatorial", "tropical", "northern_summer", "northern_winter", "southern_summer"],
+)
+def test_season_check_by_latitude_and_date(start_date, lat, expected_season):
+    """Test season determination based on latitude and date."""
+    sc = SeasonCheck(start_date=start_date, lat=lat)
+    assert sc.get_season() == expected_season
 
 
 def test_season_check_invalid_date():

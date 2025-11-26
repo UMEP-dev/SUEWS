@@ -5,259 +5,791 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SUEWS - Surface Urban Energy and Water Balance Scheme</title>
     <meta name="description" content="SUEWS is an urban land surface model for simulating energy and water balance in urban environments">
+    <link rel="canonical" href="https://suews.io/">
+
+    <!-- Fonts: Academic elegance meets technical clarity -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
     <style>
+        :root {
+            --bg-primary: #fafbfc;
+            --bg-secondary: #f4f6f8;
+            --bg-card: #ffffff;
+            --bg-accent: #1a365d;
+            --text-primary: #1a202c;
+            --text-secondary: #4a5568;
+            --text-muted: #718096;
+            --accent-primary: #2c5282;
+            --accent-secondary: #285e61;
+            --accent-warm: #c05621;
+            --border-light: #e2e8f0;
+            --border-medium: #cbd5e0;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+            --shadow-lg: 0 8px 30px rgba(0,0,0,0.1);
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--bg-primary);
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
         }
 
-        .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            padding: 60px;
-            max-width: 800px;
-            width: 100%;
-            animation: fadeIn 0.6s ease-out;
+        /* Subtle geometric pattern - evokes urban grid without being flashy */
+        .pattern-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(90deg, var(--border-light) 1px, transparent 1px);
+            background-size: 80px 80px;
+            opacity: 0.5;
+            pointer-events: none;
+            z-index: 0;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 50px;
-        }
-
-        .logo {
-            font-size: 4em;
-            margin-bottom: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-weight: bold;
-            letter-spacing: -2px;
-        }
-
-        .tagline {
-            font-size: 1.2em;
-            color: #666;
-            margin-bottom: 10px;
-        }
-
-        .description {
-            color: #888;
-            max-width: 600px;
-            margin: 0 auto 40px;
-            line-height: 1.8;
-        }
-
-        .nav-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-top: 40px;
-        }
-
-        .nav-card {
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 30px;
-            text-align: center;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            color: inherit;
-            display: block;
+        /* Header band */
+        .header-band {
+            background: linear-gradient(135deg, var(--bg-accent) 0%, #234876 100%);
+            padding: 60px 40px 80px;
             position: relative;
             overflow: hidden;
         }
 
-        .nav-card::before {
+        .header-band::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            transform: scaleX(0);
-            transition: transform 0.3s ease;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 30h60M30 0v60' stroke='%23ffffff' stroke-width='0.5' fill='none' opacity='0.1'/%3E%3C/svg%3E");
+            pointer-events: none;
         }
 
-        .nav-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            background: white;
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 1100px;
+            margin: 0 auto;
         }
 
-        .nav-card:hover::before {
-            transform: scaleX(1);
-        }
-
-        .nav-icon {
-            font-size: 2.5em;
-            margin-bottom: 15px;
-            display: block;
-        }
-
-        .nav-title {
-            font-size: 1.3em;
-            font-weight: 600;
-            margin-bottom: 10px;
-            color: #333;
-        }
-
-        .nav-description {
-            font-size: 0.95em;
-            color: #666;
-            line-height: 1.5;
-        }
-
-        .footer {
+        .header-content {
             text-align: center;
-            margin-top: 50px;
-            padding-top: 30px;
-            border-top: 1px solid #e0e0e0;
-            color: #888;
-            font-size: 0.9em;
+            color: white;
+            animation: fadeIn 0.6s ease-out;
         }
 
-        .footer a {
-            color: #667eea;
-            text-decoration: none;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .footer a:hover {
-            text-decoration: underline;
+        /* Logo area */
+        .logo-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
         }
 
+        .logo-image {
+            height: 280px;
+            width: auto;
+            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));
+        }
+
+        /* Animated wave - represents energy/water flow */
+        .wave-container {
+            width: 100%;
+            max-width: 550px;
+            height: 28px;
+            margin: 8px auto 0;
+            overflow: visible;
+        }
+
+        .wave-container svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .tagline {
+            font-family: 'Source Serif 4', Georgia, serif;
+            font-size: 1.5rem;
+            font-weight: 400;
+            font-style: italic;
+            color: rgba(255,255,255,0.85);
+            margin-bottom: 28px;
+            letter-spacing: 0.02em;
+        }
+
+        .description {
+            font-size: 1.1rem;
+            color: rgba(255,255,255,0.9);
+            max-width: 700px;
+            margin: 0 auto 32px;
+            line-height: 1.8;
+        }
+
+        /* Badges row */
         .badges {
             display: flex;
             justify-content: center;
-            gap: 10px;
-            margin-bottom: 30px;
+            gap: 16px;
             flex-wrap: wrap;
         }
 
         .badge {
             height: 20px;
+            opacity: 0.9;
+            transition: opacity 0.2s ease;
+        }
+
+        .badge:hover {
+            opacity: 1;
+        }
+
+        /* Main content area */
+        .main-content {
+            position: relative;
+            z-index: 2;
+            padding: 0 40px 80px;
+            margin-top: -40px;
+        }
+
+        /* Stats cards - pulled up into header */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            max-width: 700px;
+            margin: 0 auto 60px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 24px 20px;
+            text-align: center;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-light);
+            animation: fadeIn 0.5s ease-out both;
+        }
+
+        .stat-card:nth-child(1) { animation-delay: 0.1s; }
+        .stat-card:nth-child(2) { animation-delay: 0.15s; }
+        .stat-card:nth-child(3) { animation-delay: 0.2s; }
+
+        .stat-value {
+            font-family: 'Source Serif 4', Georgia, serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+            display: block;
+            line-height: 1.2;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        /* Section styling */
+        .section {
+            margin-bottom: 60px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-family: 'Source Serif 4', Georgia, serif;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .section-line {
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, var(--border-medium), transparent);
+        }
+
+        /* Navigation grid */
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .nav-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         @media (max-width: 600px) {
-            .container {
-                padding: 40px 30px;
-            }
-
-            .logo {
-                font-size: 3em;
-            }
-
-            .nav-grid {
+            .nav-grid, .stats-row {
                 grid-template-columns: 1fr;
+            }
+            .header-band {
+                padding: 40px 20px 60px;
+            }
+            .main-content {
+                padding: 0 20px 60px;
+            }
+            .logo-image {
+                height: 180px;
+            }
+            .wave-container {
+                max-width: 380px;
+            }
+        }
+
+        .nav-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            padding: 28px 24px;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: all 0.25s ease;
+            box-shadow: var(--shadow-sm);
+            animation: fadeIn 0.5s ease-out both;
+        }
+
+        .nav-card:nth-child(1) { animation-delay: 0.1s; }
+        .nav-card:nth-child(2) { animation-delay: 0.15s; }
+        .nav-card:nth-child(3) { animation-delay: 0.2s; }
+        .nav-card:nth-child(4) { animation-delay: 0.25s; }
+        .nav-card:nth-child(5) { animation-delay: 0.3s; }
+        .nav-card:nth-child(6) { animation-delay: 0.35s; }
+
+        .nav-card:hover {
+            border-color: var(--accent-primary);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .nav-card-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .nav-icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            flex-shrink: 0;
+            transition: all 0.25s ease;
+        }
+
+        .nav-card:hover .nav-icon {
+            background: var(--accent-primary);
+        }
+
+        .nav-icon svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--accent-primary);
+            stroke-width: 1.75;
+            fill: none;
+            transition: stroke 0.25s ease;
+        }
+
+        .nav-card:hover .nav-icon svg {
+            stroke: white;
+        }
+
+        .nav-title {
+            font-family: 'Source Serif 4', Georgia, serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .nav-description {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .nav-description code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            background: var(--bg-secondary);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--accent-secondary);
+        }
+
+        /* Research applications section */
+        .applications {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 32px;
+            border: 1px solid var(--border-light);
+        }
+
+        .applications-title {
+            font-family: 'Source Serif 4', Georgia, serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+        }
+
+        .applications-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px 24px;
+        }
+
+        .application-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+
+        .application-bullet {
+            width: 6px;
+            height: 6px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        /* Footer */
+        .footer {
+            border-top: 1px solid var(--border-light);
+            padding: 40px;
+            text-align: center;
+            background: var(--bg-secondary);
+        }
+
+        .footer-institutions {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .footer-legal {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .footer-legal a {
+            color: var(--text-muted);
+            text-decoration: none;
+        }
+
+        .footer-legal a:hover {
+            color: var(--accent-primary);
+        }
+
+        .footer-divider {
+            color: var(--border-medium);
+        }
+
+        @media (max-width: 600px) {
+            .footer-legal {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .footer-divider {
+                display: none;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="logo">SUEWS</div>
-            <div class="tagline">Surface Urban Energy and Water Balance Scheme</div>
-            <div class="description">
-                An urban land surface model designed for simulating energy, water, and carbon dioxide fluxes
-                in urban environments. SUEWS provides critical insights for urban climate research,
-                city planning, and environmental assessment.
-            </div>
+    <div class="pattern-bg"></div>
 
-            <div class="badges">
-                <img class="badge" src="https://img.shields.io/github/v/release/UMEP-dev/SUEWS" alt="Latest Release">
-                <img class="badge" src="https://img.shields.io/pypi/v/supy" alt="PyPI version">
-                <img class="badge" src="https://img.shields.io/github/license/UMEP-dev/SUEWS" alt="License">
-                <img class="badge" src="https://img.shields.io/github/stars/UMEP-dev/SUEWS?style=social" alt="GitHub stars">
+    <header class="header-band">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo-area">
+                    <!-- Embedded Monochromatic Animated Logo -->
+                    <svg class="logo-image" version="1.1" id="SUEWS_Logo_White" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+                        viewBox="0 0 3280.4 2536.2" xml:space="preserve">
+                    <style type="text/css">
+                        .st0{fill:#FFFFFF;}
+                        .st1{fill:#FFFFFF;stroke:#FFFFFF;stroke-width:3;stroke-miterlimit:10;}
+                        /* Main elements (Text, Building outlines) - Solid White */
+                        .st2{fill:#FFFFFF;}
+                        /* Secondary elements (Vegetation, Roofs) - High Opacity White */
+                        .st3{fill:#FFFFFF;opacity:0.85;}
+                        /* Unused in main paths but kept for compatibility - White Stroke */
+                        .st4{fill:none;stroke:#FFFFFF;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;}
+                        /* Inner Waves - Medium Opacity White */
+                        .st5{fill:#FFFFFF;opacity:0.6;}
+                        /* Outer Waves - Low Opacity White */
+                        .st6{fill:#FFFFFF;opacity:0.35;}
+                    </style>
+
+                    <g id="logo-content">
+                        <!-- SUEWS Text Layer 1 -->
+                        <g id="text-layer-1">
+                            <g>
+                                <path class="st2" d="M956.7,1611.1c-5-9.9-13.2-20.9-21.5-27.6c-7.2-5.5-20.4-12.7-41.3-12.7c-36.4,0-61.7,22.6-61.7,56.8
+                                    c0,14.3,3.9,22.6,13.8,32c11,11,24.8,17.1,38.6,23.2l35.3,15.4c21.5,9.4,41.3,19.3,56.8,34.7c18.7,18.7,26.5,40.2,26.5,66.7
+                                    c0,67.8-50.2,113-116.3,113c-24.3,0-54.6-5-79.9-29.8c-18.2-17.6-29.2-43-34.2-65l39.7-11c2.8,19.3,11.6,35.8,22,46.9
+                                    c16,16,34.2,20.4,52.9,20.4c50.2,0,73.9-35.8,73.9-72.8c0-16.5-5-30.9-18.2-43c-10.5-9.9-24.8-16.5-44.1-25.4l-33.1-15.4
+                                    c-14.3-6.6-32.5-14.3-49.1-30.3c-16-15.4-25.4-32.5-25.4-60.1c0-56.8,43.5-94.8,103.1-94.8c22.6,0,40.8,4.4,59,16.5
+                                    c14.9,9.9,27.6,24.8,35.8,40.8L956.7,1611.1z"/>
+                            </g>
+                            <g>
+                                <path class="st2" d="M1118.8,1763.8c0,30.9,0,64.5,29.2,89.3c14.9,12.7,40.2,20.9,60.6,20.9c20.4,0,45.8-8.3,60.6-20.9
+                                    c29.2-24.8,29.2-58.4,29.2-89.3v-225.5h40.8v236.5c0,30.9-3.3,60.6-23.2,88.2c-22,30.3-60.6,49.6-107.5,49.6
+                                    s-85.4-19.3-107.5-49.6c-19.8-27.6-23.2-57.3-23.2-88.2v-236.5h40.8V1763.8z"/>
+                            </g>
+                            <g>
+                                <path class="st2" d="M1624.8,1576.9h-149.9V1686h145.5v38.6h-145.5v142.8h149.9v38.6h-190.7v-367.7h190.7V1576.9z"/>
+                            </g>
+                            <g>
+                                <path class="st2" d="M1702,1538.3l97,275.6l115.2-294.4l109.1,294.4l107.5-275.6h45.2l-154.3,387l-108-294.4l-115.8,294.4
+                                    l-141.1-387H1702z"/>
+                            </g>
+                            <g>
+                                <path class="st2" d="M2392.1,1611.1c-5-9.9-13.2-20.9-21.5-27.6c-7.2-5.5-20.4-12.7-41.3-12.7c-36.4,0-61.7,22.6-61.7,56.8
+                                    c0,14.3,3.9,22.6,13.8,32c11,11,24.8,17.1,38.6,23.2l35.3,15.4c21.5,9.4,41.3,19.3,56.8,34.7c18.7,18.7,26.5,40.2,26.5,66.7
+                                    c0,67.8-50.2,113-116.3,113c-24.3,0-54.6-5-79.9-29.8c-18.2-17.6-29.2-43-34.2-65l39.7-11c2.8,19.3,11.6,35.8,22,46.9
+                                    c16,16,34.2,20.4,52.9,20.4c50.2,0,73.9-35.8,73.9-72.8c0-16.5-5-30.9-18.2-43c-10.5-9.9-24.8-16.5-44.1-25.4l-33.1-15.4
+                                    c-14.3-6.6-32.5-14.3-49.1-30.3c-16-15.4-25.4-32.5-25.4-60.1c0-56.8,43.5-94.8,103.1-94.8c22.6,0,40.8,4.4,59,16.5
+                                    c14.9,9.9,27.6,24.8,35.8,40.8L2392.1,1611.1z"/>
+                            </g>
+                        </g>
+
+                        <!-- SUEWS Text Layer 2 -->
+                        <g id="text-layer-2">
+                            <g>
+                                <path class="st2" d="M956.7,1611.1c-5-9.9-13.2-20.9-21.5-27.6c-7.2-5.5-20.4-12.7-41.3-12.7c-36.4,0-61.7,22.6-61.7,56.8
+                                    c0,14.3,3.9,22.6,13.8,32c11,11,24.8,17.1,38.6,23.2l35.3,15.4c21.5,9.4,41.3,19.3,56.8,34.7c18.7,18.7,26.5,40.2,26.5,66.7
+                                    c0,67.8-50.2,113-116.3,113c-24.3,0-54.6-5-79.9-29.8c-18.2-17.6-29.2-43-34.2-65l39.7-11c2.8,19.3,11.6,35.8,22,46.9
+                                    c16,16,34.2,20.4,52.9,20.4c50.2,0,73.9-35.8,73.9-72.8c0-16.5-5-30.9-18.2-43c-10.5-9.9-24.8-16.5-44.1-25.4l-33.1-15.4
+                                    c-14.3-6.6-32.5-14.3-49.1-30.3c-16-15.4-25.4-32.5-25.4-60.1c0-56.8,43.5-94.8,103.1-94.8c22.6,0,40.8,4.4,59,16.5
+                                    c14.9,9.9,27.6,24.8,35.8,40.8L956.7,1611.1z"/>
+                            </g>
+                            <g>
+                                <path class="st2" d="M1118.8,1763.8c0,30.9,0,64.5,29.2,89.3c14.9,12.7,40.2,20.9,60.6,20.9c20.4,0,45.8-8.3,60.6-20.9
+                                    c29.2-24.8,29.2-58.4,29.2-89.3v-225.5h40.8v236.5c0,30.9-3.3,60.6-23.2,88.2c-22,30.3-60.6,49.6-107.5,49.6
+                                    s-85.4-19.3-107.5-49.6c-19.8-27.6-23.2-57.3-23.2-88.2v-236.5h40.8V1763.8z"/>
+                            </g>
+                            <g>
+                                <path class="st2" d="M1624.8,1576.9h-149.9V1686h145.5v38.6h-145.5v142.8h149.9v38.6h-190.7v-367.7h190.7V1576.9z"/>
+                            </g>
+                            <g>
+                                <path class="st2" d="M1702,1538.3l97,275.6l115.2-294.4l109.1,294.4l107.5-275.6h45.2l-154.3,387l-108-294.4l-115.8,294.4
+                                    l-141.1-387H1702z"/>
+                            </g>
+                            <g>
+                                <path class="st2" d="M2392.1,1611.1c-5-9.9-13.2-20.9-21.5-27.6c-7.2-5.5-20.4-12.7-41.3-12.7c-36.4,0-61.7,22.6-61.7,56.8
+                                    c0,14.3,3.9,22.6,13.8,32c11,11,24.8,17.1,38.6,23.2l35.3,15.4c21.5,9.4,41.3,19.3,56.8,34.7c18.7,18.7,26.5,40.2,26.5,66.7
+                                    c0,67.8-50.2,113-116.3,113c-24.3,0-54.6-5-79.9-29.8c-18.2-17.6-29.2-43-34.2-65l39.7-11c2.8,19.3,11.6,35.8,22,46.9
+                                    c16,16,34.2,20.4,52.9,20.4c50.2,0,73.9-35.8,73.9-72.8c0-16.5-5-30.9-18.2-43c-10.5-9.9-24.8-16.5-44.1-25.4l-33.1-15.4
+                                    c-14.3-6.6-32.5-14.3-49.1-30.3c-16-15.4-25.4-32.5-25.4-60.1c0-56.8,43.5-94.8,103.1-94.8c22.6,0,40.8,4.4,59,16.5
+                                    c14.9,9.9,27.6,24.8,35.8,40.8L2392.1,1611.1z"/>
+                            </g>
+                        </g>
+
+                        <!-- Tower building windows -->
+                        <g id="tower-windows">
+                            <rect x="1684.9" y="1074.7" class="st3" width="73.3" height="73.3"/>
+                            <rect x="1865.6" y="1074.7" class="st3" width="73.3" height="73.3"/>
+                            <rect x="1684.9" y="947.6" class="st3" width="73.3" height="73.3"/>
+                            <rect x="1865.6" y="947.6" class="st3" width="73.3" height="73.3"/>
+                            <rect x="1684.9" y="820.5" class="st3" width="73.3" height="73.3"/>
+                            <rect x="1865.6" y="820.5" class="st3" width="73.3" height="73.3"/>
+                            <rect x="1684.9" y="693.4" class="st3" width="73.3" height="73.3"/>
+                            <rect x="1865.6" y="693.4" class="st3" width="73.3" height="73.3"/>
+                        </g>
+
+                        <!-- Roof/vegetation triangles -->
+                        <g id="roof-elements">
+                            <g>
+                                <path class="st3" d="M1555.6,849.1c-3,0-5.8-1.8-7-4.7L1467.2,639l-77.6,200.6c-1.5,3.9-5.8,5.8-9.7,4.3
+                                    c-3.9-1.5-5.8-5.8-4.3-9.7l84.5-218.5c1.1-2.9,3.9-4.8,7-4.8c0,0,0,0,0,0c3.1,0,5.8,1.9,7,4.7l88.5,223.2
+                                    c1.5,3.9-0.4,8.2-4.2,9.7C1557.4,849,1556.5,849.1,1555.6,849.1z"/>
+                            </g>
+                            <g>
+                                <polyline class="st3" points="2245.4,1238.1 2157,1015 2072.5,1233.4"/>
+                            </g>
+                            <g>
+                                <polyline class="st3" points="1373.2,1077.8 1303,900.7 1235.9,1074.1"/>
+                            </g>
+                            <g>
+                                <path class="st3" d="M2367.6,833.6c-3,0-5.8-1.8-7-4.7l-63.1-159.3l-60.1,155.5c-1.5,3.9-5.8,5.8-9.7,4.3
+                                    c-3.9-1.5-5.8-5.8-4.3-9.7l67-173.3c1.1-2.9,3.9-4.8,7-4.8c0,0,0,0,0,0c3.1,0,5.8,1.9,7,4.7l70.2,177.1c1.5,3.9-0.4,8.2-4.2,9.7
+                                    C2369.5,833.5,2368.6,833.6,2367.6,833.6z"/>
+                            </g>
+                            <g>
+                                <polyline class="st3" points="2159,737.3 2111.6,617.9 2066.4,734.7"/>
+                            </g>
+                        </g>
+
+                        <!-- Energy flow indicators (vertical bars) -->
+                        <g id="energy-indicators">
+                            <path class="st2" d="M1304.6,1153.3c-5.5,0-10-4.5-10-10v-79.2c0-5.5,4.5-10,10-10s10,4.5,10,10v79.2
+                                C1314.6,1148.8,1310.1,1153.3,1304.6,1153.3z"/>
+                            <path class="st2" d="M2112.7,781.1c-5.5,0-10-4.5-10-10v-52.2c0-5.5,4.5-10,10-10s10,4.5,10,10v52.2
+                                C2122.7,776.6,2118.2,781.1,2112.7,781.1z"/>
+                            <path class="st2" d="M1469.1,949.6c-5.5,0-10-4.5-10-10V816.5c0-5.5,4.5-10,10-10s10,4.5,10,10v123.1
+                                C1479.1,945.1,1474.6,949.6,1469.1,949.6z"/>
+                            <path class="st2" d="M2299,921.9c-5.5,0-10-4.5-10-10V807.5c0-5.5,4.5-10,10-10s10,4.5,10,10v104.3
+                                C2309,917.4,2304.6,921.9,2299,921.9z"/>
+                            <path class="st2" d="M2159,1339.1c-5.5,0-10-4.5-10-10v-112.7c0-5.5,4.5-10,10-10s10,4.5,10,10v112.7
+                                C2169,1334.6,2164.5,1339.1,2159,1339.1z"/>
+                        </g>
+
+                        <!-- ANIMATED WATER/ATMOSPHERE WAVES - Using pure SMIL -->
+                        <g id="water-waves">
+                            <!-- Wave 1: Left inner flow (st5) -->
+                            <g id="wave-left-inner">
+                                <path class="st5" d="M1621.6,1118.1c-66.4,95.7-159.4,147.5-276.5,154c-88.7,4.9-158.8-19.4-159.7-19.7c-3.9-1.4-8.2,0.7-9.6,4.6
+                                    c-1.4,3.9,0.7,8.2,4.6,9.6c2.7,1,60.9,21.3,140.2,21.3c8,0,16.3-0.2,24.8-0.7c54-2.9,104.1-15.6,148.9-37.7
+                                    c49.1-24.2,91.8-59.8,127.2-105.9V1118.1z"/>
+                                <animateTransform attributeName="transform" type="translate"
+                                    values="0,0; 0,-35; 0,0" dur="4s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
+                                <animate attributeName="opacity" values="0.6; 0.3; 0.6" dur="4s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
+                            </g>
+
+                            <!-- Wave 2: Left outer atmosphere (st6) -->
+                            <g id="wave-left-outer">
+                                <path class="st6" d="M1621.6,1008.2c-0.8,0.4-1.6,1-2.3,1.7c-9.2,10-18.3,20.7-27,31.6c-82,103.3-176.5,161.2-280.9,172.2
+                                    c-77.4,8.2-133.1-13.8-133.7-14c-3.8-1.6-8.2,0.3-9.8,4.1c-1.6,3.8,0.2,8.2,4,9.8l0.2,0.1c0.2,0.1,0.3,0.1,0.5,0.2
+                                    c5.5,2.1,45.8,16.7,103.9,16.7c11.5,0,23.6-0.6,36.4-1.9c108.6-11.5,206.5-71.3,291.1-177.8c5.7-7.1,11.5-14.1,17.5-20.9V1008.2z"/>
+                                <animateTransform attributeName="transform" type="translate"
+                                    values="0,0; 0,30; 0,0" dur="5s" repeatCount="indefinite" begin="0.5s" calcMode="spline" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
+                                <animate attributeName="opacity" values="0.35; 0.15; 0.35" dur="5s" repeatCount="indefinite" begin="0.5s" calcMode="spline" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
+                            </g>
+
+                            <!-- Wave 3: Right outer sweep (st6) -->
+                            <g id="wave-right-outer">
+                                <path class="st6" d="M2484.7,1117.7c-30.1-72.8-78.8-112.1-83-115.4c-52.1-46.2-123.5-86.9-201.2-114.8
+                                    c-67-24-134.8-36.9-201.5-38.4v15c65,1.4,131.1,14,196.5,37.5c76,27.2,145.8,67,196.5,112c0.1,0.1,0.3,0.2,0.4,0.3
+                                    c0.5,0.4,49.6,39.1,78.8,110.1c39.1,95.1,25.9,200-39.1,311.9c-2.1,3.6-0.9,8.2,2.7,10.3c1.2,0.7,2.5,1,3.8,1
+                                    c2.6,0,5.1-1.3,6.5-3.7c37.1-63.9,58-126.8,62.1-187C2510.3,1208.2,2502.8,1161.5,2484.7,1117.7z"/>
+                                <animateTransform attributeName="transform" type="translate"
+                                    values="0,0; 15,-25; 0,0" dur="6s" repeatCount="indefinite" begin="1s" calcMode="spline" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
+                                <animate attributeName="opacity" values="0.35; 0.15; 0.35" dur="6s" repeatCount="indefinite" begin="1s" calcMode="spline" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
+                            </g>
+
+                            <!-- Wave 4: Right inner flow (st5) -->
+                            <g id="wave-right-inner">
+                                <path class="st5" d="M2308.1,1109.2c-20.7-30.9-50.8-61-86.9-87.2c-68.6-49.7-153.4-81.6-222.2-83.8v15
+                                    c129.2,4.5,329.7,123.9,329.1,261.2c-0.5,107.4-84.3,188.1-230.1,221.6c-4,0.9-6.6,5-5.6,9c0.8,3.5,3.9,5.8,7.3,5.8
+                                    c0.6,0,1.1-0.1,1.7-0.2c82.4-18.9,145.3-51.5,186.8-96.9c35.7-39,54.7-87.2,54.9-139.3C2343.3,1179.5,2331.5,1144.1,2308.1,1109.2z"/>
+                                <animateTransform attributeName="transform" type="translate"
+                                    values="0,0; 0,30; 0,0" dur="4.5s" repeatCount="indefinite" begin="0.25s" calcMode="spline" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
+                                <animate attributeName="opacity" values="0.6; 0.3; 0.6" dur="4.5s" repeatCount="indefinite" begin="0.25s" calcMode="spline" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
+                            </g>
+                        </g>
+
+                        <!-- Main building with windows -->
+                        <g id="main-building">
+                            <path class="st3" d="M823.1,777.3v560.8h359.8V777.3H823.1z M926.6,1225.4h-36.7v-98.8h36.7V1225.4z M926.6,1074.4h-36.7v-98.8
+                                h36.7V1074.4z M926.6,923.3h-36.7v-98.8h36.7V923.3z M1021.4,1225.4h-36.7v-98.8h36.7V1225.4z M1021.4,1074.4h-36.7v-98.8h36.7
+                                V1074.4z M1021.4,923.3h-36.7v-98.8h36.7V923.3z M1116.2,1225.4h-36.7v-98.8h36.7V1225.4z M1116.2,1074.4h-36.7v-98.8h36.7V1074.4
+                                z M1116.2,923.3h-36.7v-98.8h36.7V923.3z"/>
+                        </g>
+
+                        <!-- Tower building outline -->
+                        <g id="tower-outline">
+                            <path class="st2" d="M1629.6,624.5h4c-2.2,0-4,1.8-4,4V624.5z M1629.6,1344.1v-4c0,2.2,1.8,4,4,4H1629.6z M1991,1344.1h-4
+                                c2.2,0,4-1.8,4-4V1344.1z M1991,628.5c0-2.2-1.8-4-4-4h4V628.5z M1995,616.5h-369.4c-2.2,0-4,1.8-4,4v727.6c0,2.2,1.8,4,4,4H1995
+                                c2.2,0,4-1.8,4-4V620.5C1999,618.2,1997.2,616.5,1995,616.5z M1637.6,632.5H1983v703.6h-345.4V632.5z"/>
+                        </g>
+                    </g>
+                    </svg>
+                </div>
+
+                <p class="tagline">Surface Urban Energy and Water Balance Scheme</p>
+
+                <p class="description">
+                    A physically-based urban land surface model for simulating energy, water, and carbon dioxide fluxes
+                    in cities. Developed through international collaboration for urban climate research,
+                    planning applications, and environmental assessment.
+                </p>
+
+                <div class="badges">
+                    <a href="https://github.com/UMEP-dev/SUEWS/releases/latest"><img class="badge" src="https://img.shields.io/github/v/release/UMEP-dev/SUEWS?style=flat-square&label=release" alt="Latest Release"></a>
+                    <a href="https://pypi.org/project/supy/"><img class="badge" src="https://img.shields.io/pypi/v/supy?style=flat-square" alt="PyPI version"></a>
+                    <a href="https://github.com/UMEP-dev/SUEWS/blob/master/LICENSE"><img class="badge" src="https://img.shields.io/github/license/UMEP-dev/SUEWS?style=flat-square" alt="License"></a>
+                    <a href="https://doi.org/10.5281/zenodo.5721639"><img class="badge" src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.5721639-blue?style=flat-square" alt="DOI"></a>
+                </div>
             </div>
         </div>
+    </header>
 
-        <nav class="nav-grid">
-            <a href="https://github.com/UMEP-dev/SUEWS" class="nav-card">
-                <span class="nav-icon">📦</span>
-                <div class="nav-title">GitHub Repository</div>
-                <div class="nav-description">
-                    Source code, issues, and development
+    <main class="main-content">
+        <div class="container">
+            <div class="stats-row">
+                <div class="stat-card">
+                    <span class="stat-value">15+</span>
+                    <span class="stat-label">Years Active</span>
                 </div>
-            </a>
-
-            <a href="https://suews.readthedocs.io" class="nav-card">
-                <span class="nav-icon">📚</span>
-                <div class="nav-title">Documentation</div>
-                <div class="nav-description">
-                    User guide, tutorials, and API reference
+                <div class="stat-card">
+                    <span class="stat-value">200+</span>
+                    <span class="stat-label">Citations</span>
                 </div>
-            </a>
-
-            <a href="schemas/suews-config/" class="nav-card">
-                <span class="nav-icon">📋</span>
-                <div class="nav-title">Schema Registry</div>
-                <div class="nav-description">
-                    YAML configuration schemas and versions
+                <div class="stat-card">
+                    <span class="stat-value">50+</span>
+                    <span class="stat-label">Global Sites</span>
                 </div>
-            </a>
+            </div>
 
-            <a href="https://pypi.org/project/supy/" class="nav-card">
-                <span class="nav-icon">🐍</span>
-                <div class="nav-title">Python Package</div>
-                <div class="nav-description">
-                    Install via pip: <code>pip install supy</code>
+            <section class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Resources</h2>
+                    <div class="section-line"></div>
                 </div>
-            </a>
 
-            <a href="https://umep-docs.readthedocs.io" class="nav-card">
-                <span class="nav-icon">🌆</span>
-                <div class="nav-title">UMEP</div>
-                <div class="nav-description">
-                    Urban Multi-scale Environmental Predictor
+                <nav class="nav-grid">
+                    <a href="https://github.com/UMEP-dev/SUEWS" class="nav-card">
+                        <div class="nav-card-header">
+                            <div class="nav-icon">
+                                <svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                            </div>
+                            <h3 class="nav-title">Source Code</h3>
+                        </div>
+                        <p class="nav-description">GitHub repository with source code, issue tracking, and development</p>
+                    </a>
+
+                    <a href="https://suews.readthedocs.io" class="nav-card">
+                        <div class="nav-card-header">
+                            <div class="nav-icon">
+                                <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                            </div>
+                            <h3 class="nav-title">Documentation</h3>
+                        </div>
+                        <p class="nav-description">User guide, scientific background, tutorials, and API reference</p>
+                    </a>
+
+                    <a href="schemas/suews-config/" class="nav-card">
+                        <div class="nav-card-header">
+                            <div class="nav-icon">
+                                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                            </div>
+                            <h3 class="nav-title">Schema Registry</h3>
+                        </div>
+                        <p class="nav-description">YAML configuration schemas for model input validation</p>
+                    </a>
+
+                    <a href="https://pypi.org/project/supy/" class="nav-card">
+                        <div class="nav-card-header">
+                            <div class="nav-icon">
+                                <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                            </div>
+                            <h3 class="nav-title">Python Package</h3>
+                        </div>
+                        <p class="nav-description">SuPy wrapper for Python: <code>pip install supy</code></p>
+                    </a>
+
+                    <a href="https://umep-docs.readthedocs.io" class="nav-card">
+                        <div class="nav-card-header">
+                            <div class="nav-icon">
+                                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+                            </div>
+                            <h3 class="nav-title">UMEP</h3>
+                        </div>
+                        <p class="nav-description">Urban Multi-scale Environmental Predictor - QGIS plugin</p>
+                    </a>
+
+                    <a href="https://github.com/UMEP-dev/SUEWS/discussions" class="nav-card">
+                        <div class="nav-card-header">
+                            <div class="nav-icon">
+                                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            </div>
+                            <h3 class="nav-title">Community</h3>
+                        </div>
+                        <p class="nav-description">Discussions, questions, and community support</p>
+                    </a>
+                </nav>
+            </section>
+
+            <section class="section">
+                <div class="applications">
+                    <h3 class="applications-title">Research Applications</h3>
+                    <div class="applications-list">
+                        <div class="application-item">
+                            <span class="application-bullet"></span>
+                            <span>Urban heat island analysis</span>
+                        </div>
+                        <div class="application-item">
+                            <span class="application-bullet"></span>
+                            <span>Building energy demand</span>
+                        </div>
+                        <div class="application-item">
+                            <span class="application-bullet"></span>
+                            <span>Urban water management</span>
+                        </div>
+                        <div class="application-item">
+                            <span class="application-bullet"></span>
+                            <span>Green infrastructure planning</span>
+                        </div>
+                        <div class="application-item">
+                            <span class="application-bullet"></span>
+                            <span>Climate adaptation strategies</span>
+                        </div>
+                        <div class="application-item">
+                            <span class="application-bullet"></span>
+                            <span>Carbon flux estimation</span>
+                        </div>
+                    </div>
                 </div>
-            </a>
 
-            <a href="https://github.com/UMEP-dev/SUEWS/discussions" class="nav-card">
-                <span class="nav-icon">💬</span>
-                <div class="nav-title">Community</div>
-                <div class="nav-description">
-                    Discussions, Q&A, and support
-                </div>
-            </a>
-        </nav>
-
-        <div class="footer">
-            <p>
-                SUEWS is developed and maintained by the
-                <a href="https://github.com/UMEP-dev">UMEP Development Team</a>
-            </p>
-            <p style="margin-top: 10px;">
-                Contributors from University of Reading, University of Gothenburg,
-                and institutions worldwide
-            </p>
-            <p style="margin-top: 20px; font-size: 0.85em; color: #aaa;">
-                © 2025 SUEWS Development Team ·
-                <a href="https://github.com/UMEP-dev/SUEWS/blob/master/LICENSE">GPL-3.0 License</a>
-            </p>
+            </section>
         </div>
-    </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p class="footer-institutions">
+                University of Reading &middot; University College London &middot; University of Helsinki<br>
+                and collaborators worldwide
+            </p>
+            <div class="footer-legal">
+                <span>&copy; 2025 SUEWS Development Team</span>
+            </div>
+        </div>
+    </footer>
 </body>
 </html>

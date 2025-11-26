@@ -188,11 +188,18 @@ jobs:
               mkdir -p _site/schemas
               echo '{"message": "No schemas yet"}' > _site/schemas/placeholder.json
             fi
-            
+
             # Copy landing page
             if [ -f .github/pages/index.html ]; then
               cp .github/pages/index.html _site/index.html
-            else
+            fi
+
+            # Copy CNAME for custom domain
+            if [ -f .github/pages/CNAME ]; then
+              cp .github/pages/CNAME _site/CNAME
+            fi
+
+            if [ ! -f _site/index.html ]; then
               # Simple fallback
               cat > _site/index.html << 'EOF'
           <!DOCTYPE html>

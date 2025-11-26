@@ -3785,10 +3785,10 @@ CONTAINS
       ! hhs0, age_0_4, age_5_11, age_12_18, age_19_64, age_65plus, ! NOT USED
       stebbs_Height, &
       FootprintArea, WallExternalArea, RatioInternalVolume, WWR, WallThickness, WallEffectiveConductivity, &
-      WallDensity, WallCp, WallextThickness, WallextEffectiveConductivity, WallextDensity, WallextCp, Wallx1, WallExternalEmissivity, WallInternalEmissivity, WallTransmissivity, &
+      WallDensity, WallCp, WallextThickness, WallextEffectiveConductivity, WallextDensity, WallextCp, WallOuterCapFrac, WallExternalEmissivity, WallInternalEmissivity, WallTransmissivity, &
       WallAbsorbtivity, WallReflectivity, &
       RoofThickness, RoofEffectiveConductivity, RoofDensity, RoofCp, RoofextThickness, RoofextEffectiveConductivity, RoofextDensity, RoofextCp,&
-      Roofx1, RoofExternalEmissivity, RoofInternalEmissivity, RoofTransmissivity, &
+      RoofOuterCapFrac, RoofExternalEmissivity, RoofInternalEmissivity, RoofTransmissivity, &
       RoofAbsorbtivity, RoofReflectivity, &
       FloorThickness, GroundFloorEffectiveConductivity, &
       GroundFloorDensity, GroundFloorCp, WindowThickness, WindowEffectiveConductivity, &
@@ -3806,7 +3806,7 @@ CONTAINS
       WaterTankWallThickness, MainsWaterTemperature, WaterTankSurfaceArea, &
       HotWaterHeatingSetpointTemperature, HotWaterTankWallEmissivity, &
       DHWVesselWallThickness, DHWWaterVolume, &
-      DHWSurfaceArea, DHWVesselEmissivity, HotWaterFlowRate, DHWDrainFlowRate, &
+      DHWSurfaceArea, HotWaterFlowRate, DHWDrainFlowRate, &
       DHWSpecificHeatCapacity, HotWaterTankSpecificHeatCapacity, DHWVesselSpecificHeatCapacity, &
       DHWDensity, HotWaterTankWallDensity, DHWVesselDensity, HotWaterTankBuildingWallViewFactor, &
       HotWaterTankInternalMassViewFactor, HotWaterTankWallConductivity, HotWaterTankInternalWallConvectionCoefficient, &
@@ -4230,7 +4230,6 @@ CONTAINS
       REAL(KIND(1D0)) :: DHWVesselWallThickness
       REAL(KIND(1D0)) :: DHWWaterVolume
       REAL(KIND(1D0)) :: DHWSurfaceArea
-      REAL(KIND(1D0)) :: DHWVesselEmissivity
       REAL(KIND(1D0)) :: HotWaterFlowRate
       REAL(KIND(1D0)) :: DHWDrainFlowRate
       REAL(KIND(1D0)) :: DHWSpecificHeatCapacity
@@ -4279,7 +4278,7 @@ CONTAINS
       REAL(KIND(1D0)) :: WallextEffectiveConductivity
       REAL(KIND(1D0)) :: WallextDensity
       REAL(KIND(1D0)) :: WallextCp
-      REAL(KIND(1D0)) :: Wallx1
+      REAL(KIND(1D0)) :: WallOuterCapFrac
       REAL(KIND(1D0)) :: WallExternalEmissivity
       REAL(KIND(1D0)) :: WallInternalEmissivity
       REAL(KIND(1D0)) :: WallTransmissivity
@@ -4293,7 +4292,7 @@ CONTAINS
       REAL(KIND(1D0)) :: RoofextEffectiveConductivity
       REAL(KIND(1D0)) :: RoofextDensity
       REAL(KIND(1D0)) :: RoofextCp
-      REAL(KIND(1D0)) :: Roofx1
+      REAL(KIND(1D0)) :: RoofOuterCapFrac
       REAL(KIND(1D0)) :: RoofExternalEmissivity
       REAL(KIND(1D0)) :: RoofInternalEmissivity
       REAL(KIND(1D0)) :: RoofTransmissivity
@@ -5115,7 +5114,6 @@ CONTAINS
       stebbsPrm%DHWVesselWallThickness = DHWVesselWallThickness
       stebbsPrm%DHWWaterVolume = DHWWaterVolume
       stebbsPrm%DHWSurfaceArea = DHWSurfaceArea
-      stebbsPrm%DHWVesselEmissivity = DHWVesselEmissivity
       stebbsPrm%HotWaterFlowRate = HotWaterFlowRate
       stebbsPrm%DHWDrainFlowRate = DHWDrainFlowRate
       stebbsPrm%DHWSpecificHeatCapacity = DHWSpecificHeatCapacity
@@ -5206,7 +5204,7 @@ CONTAINS
       building_archtype%WallextEffectiveConductivity = WallextEffectiveConductivity
       building_archtype%WallextDensity = WallextDensity
       building_archtype%WallextCp = WallextCp
-      building_archtype%Wallx1 = Wallx1
+      building_archtype%WallOuterCapFrac = WallOuterCapFrac
       building_archtype%WallExternalEmissivity = WallExternalEmissivity
       building_archtype%WallInternalEmissivity = WallInternalEmissivity
       building_archtype%WallTransmissivity = WallTransmissivity
@@ -5220,7 +5218,7 @@ CONTAINS
       building_archtype%RoofextEffectiveConductivity = RoofextEffectiveConductivity
       building_archtype%RoofextDensity = RoofextDensity
       building_archtype%RoofextCp = RoofextCp
-      building_archtype%Roofx1 = Roofx1
+      building_archtype%RoofOuterCapFrac = RoofOuterCapFrac
       building_archtype%RoofExternalEmissivity = RoofExternalEmissivity
       building_archtype%RoofInternalEmissivity = RoofInternalEmissivity
       building_archtype%RoofTransmissivity = RoofTransmissivity

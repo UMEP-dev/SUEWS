@@ -168,7 +168,6 @@ class SUEWSConfig(BaseModel):
         "DHWVesselWallThickness",
         "DHWWaterVolume",
         "DHWSurfaceArea",
-        "DHWVesselEmissivity",
         "HotWaterFlowRate",
         "DHWDrainFlowRate",
         "DHWSpecificHeatCapacity",

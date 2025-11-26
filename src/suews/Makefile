@@ -153,6 +153,19 @@ clean: TARGET := $(strip $(TARGET))$(strip $(suffix))
 # NB: DO KEEP ALL FILE NAMES in lowercase for compatability across platforms
 # utilities
 UTILS = suews_ctrl_const.o \
+	suews_type_stebbs.o \
+	suews_type_surface.o \
+	suews_type_vegetation.o \
+	suews_type_anthro.o \
+	suews_type_waterdist.o \
+	suews_type_snow.o \
+	suews_type_spartacus.o \
+	suews_type_ehc.o \
+	suews_type_heat.o \
+	suews_type_hydro.o \
+	suews_type_atmosphere.o \
+	suews_type_soil.o \
+	suews_type_landcover.o \
 	suews_ctrl_type.o \
 	suews_util_stringmod.o \
 	suews_util_qsort.o\

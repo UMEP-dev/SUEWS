@@ -250,6 +250,46 @@ def chdir(path):
         os.chdir(orig)
 
 
+@contextlib.contextmanager
+def safe_stdout_stderr():
+    """Ensure stdout/stderr are valid file objects for libraries that assume they exist.
+
+    Some GUI environments (e.g., QGIS Processing toolbox) set stdout/stderr to None,
+    which causes libraries like tqdm to crash with:
+        AttributeError: 'NoneType' object has no attribute 'write'
+
+    This context manager temporarily replaces None streams with os.devnull, which is
+    more robust than setting TQDM_DISABLE as it works for any library that writes to
+    stdout/stderr.
+
+    See: https://github.com/UMEP-dev/SUEWS/issues/902
+    """
+    import sys
+
+    stdout_was_none = sys.stdout is None
+    stderr_was_none = sys.stderr is None
+
+    # Only act if streams are None
+    if not stdout_was_none and not stderr_was_none:
+        yield
+        return
+
+    # Replace None streams with devnull
+    devnull = open(os.devnull, "w")
+    try:
+        if stdout_was_none:
+            sys.stdout = devnull
+        if stderr_was_none:
+            sys.stderr = devnull
+        yield
+    finally:
+        if stdout_was_none:
+            sys.stdout = None
+        if stderr_was_none:
+            sys.stderr = None
+        devnull.close()
+
+
 def download_cds(fn, dict_req):
     import cdsapi
     import tempfile
@@ -264,7 +304,9 @@ def download_cds(fn, dict_req):
         # this will download the file to a secure temporary directory without requirement for extra permission
         with tempfile.TemporaryDirectory() as td:
             with chdir(td):
-                c.retrieve(**dict_req)
+                # Ensure stdout/stderr exist for tqdm in headless environments
+                with safe_stdout_stderr():
+                    c.retrieve(**dict_req)
                 # move the downloaded file to desired location
                 shutil.move(path_fn.name, fn)
         # hold on a bit for the next request
@@ -379,7 +421,9 @@ def download_era5_timeseries(
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir) / "download.zip"
-            client.retrieve(dataset, request).download(str(tmp_path))
+            # Ensure stdout/stderr exist for tqdm in headless environments
+            with safe_stdout_stderr():
+                client.retrieve(dataset, request).download(str(tmp_path))
 
             # extract CSV from zip archive
             with zipfile.ZipFile(tmp_path, "r") as zip_ref:

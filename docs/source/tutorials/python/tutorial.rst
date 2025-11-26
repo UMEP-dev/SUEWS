@@ -15,6 +15,7 @@ Start here for your SUEWS learning journey:
 
   quick-start
   impact-studies
+  attribution-tutorial
 
 .. Comment: setup-own-site not ready yet - forcing height issue to fix
 
@@ -23,10 +24,12 @@ Start here for your SUEWS learning journey:
 1. **[Quick Start](quick-start.ipynb)** - Your first SUEWS simulation using built-in sample data
 2. **[Setup Your Own Site](setup-own-site.ipynb)** - Configure SUEWS for your research location
 3. **[Impact Studies](impact-studies.ipynb)** - Climate change and scenario analysis
+4. **[Attribution Analysis](attribution-tutorial.ipynb)** - Understand *why* temperatures change between scenarios
 
 **Advanced Topics:**
 
 - **Model Coupling**: See :doc:`../../integration/index` for external model integration examples
+- **Temperature Attribution**: Decompose T2 changes into physical mechanisms (flux, resistance, air properties)
 
 Prerequisites
 -------------

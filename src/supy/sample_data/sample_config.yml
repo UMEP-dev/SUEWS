@@ -168,8 +168,6 @@ sites:
         value: 15.0
       DHWSurfaceArea:
         value: 1.5
-      # DHWVesselEmissivity:
-      #   value: 0.8
       HotWaterFlowRate:
         value: 0.001
       DHWDrainFlowRate:

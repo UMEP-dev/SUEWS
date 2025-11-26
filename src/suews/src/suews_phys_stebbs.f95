@@ -454,7 +454,7 @@ CONTAINS
 
       ! limit the output x1 between 0 and 1
       IF (x1 <= 0 .OR. x1 >= 1) THEN
-         PRINT *, "x1 should be between 0 and 1."
+         PRINT *, "OuterCapFrac should be between 0 and 1."
          STOP
       END IF
    END FUNCTION calculate_x1
@@ -2272,20 +2272,20 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%HeatingPower_DHW = building_archtype%MaximumHotWaterHeatingPower
 
    self%HWPowerAverage = (/30000, 30000, 30000/)
-   self%weighting_factor_heatcapacity_wall = building_archtype%Wallx1
-   self%weighting_factor_heatcapacity_roof = building_archtype%Roofx1
+   self%weighting_factor_heatcapacity_wall = building_archtype%WallOuterCapFrac
+   self%weighting_factor_heatcapacity_roof = building_archtype%RoofOuterCapFrac
 
    IF (config%rcmethod  == 2) THEN
-      !recalculate the weighting factor for splitting heat capacity (x1)
+      !recalculate the weighting factor for splitting heat capacity (OuterCapFrac)
       self%weighting_factor_heatcapacity_wall = calculate_x1(self%thickness_wall, self%cp_wall, self%density_wall, &
                                              self%thickness_wallext, self%cp_wallext, self%density_wallext, self%conductivity_wallext)
       self%weighting_factor_heatcapacity_roof = calculate_x1(self%thickness_roof, self%cp_roof, self%density_roof, &
                                              self%thickness_roofext, self%cp_roofext, self%density_roofext, self%conductivity_roofext)
       IF ((self%weighting_factor_heatcapacity_wall>1) .OR. (self%weighting_factor_heatcapacity_wall>1)) THEN
-         print*, "x1_wall = ", self%weighting_factor_heatcapacity_wall, 'parameterisation should not be used'
+         print*, "Wall_OuterCapFrac = ", self%weighting_factor_heatcapacity_wall, 'parameterisation should not be used'
       END IF   
       IF ((self%weighting_factor_heatcapacity_roof>1) .OR. (self%weighting_factor_heatcapacity_roof>1)) THEN
-         print*, "x1_roof = ", self%weighting_factor_heatcapacity_roof, 'parameterisation should not be used'
+         print*, "Roof_OuterCapFrac = ", self%weighting_factor_heatcapacity_roof, 'parameterisation should not be used'
       END IF  
    END IF                                                    
 END SUBROUTINE gen_building

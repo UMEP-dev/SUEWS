@@ -1908,16 +1908,16 @@ class StebbsProperties(BaseModel):
         json_schema_extra={"unit": "m^2", "display_name": "Dhwsurfacearea"},
         gt=0.0,
     )
-    DHWVesselEmissivity: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="NEEDS CHECKED! NOT USED (assumed same as DHWVesselWallEmissivity) [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Dhwvesselemissivity",
-        },
-        ge=0.0,
-        le=1.0,
-    )
+    # DHWVesselEmissivity: Optional[FlexibleRefValue(float)] = Field(
+    #     default=0.0,
+    #     description="NEEDS CHECKED! NOT USED (assumed same as DHWVesselWallEmissivity) [-]",
+    #     json_schema_extra={
+    #         "unit": "dimensionless",
+    #         "display_name": "Dhwvesselemissivity",
+    #     },
+    #     ge=0.0,
+    #     le=1.0,
+    # )
     HotWaterFlowRate: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Hot water flow rate from tank to vessel [m3 s-1]",

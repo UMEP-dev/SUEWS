@@ -250,6 +250,7 @@ def recursive_nullify_any(obj: Any) -> None:
             else:
                 obj[i] = None
 
+
 def collect_yaml_differences(original: Any, updated: Any, path: str = "") -> List[dict]:
     """
     Recursively compare two YAML data structures and collect all differences.
@@ -1401,5 +1402,3 @@ def run_precheck(path: str) -> dict:
     # ---- Step 15: Print completion ----
     logger_supy.info("Precheck complete.\n")
     return data
-
-

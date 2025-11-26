@@ -193,38 +193,6 @@ class TestSUEWSConfig(unittest.TestCase):
         self.assertEqual(len(config_reconst.sites), 3)
         self.assertEqual([site.gridiv for site in config_reconst.sites], [0, 1, 2])
 
-    @pytest.mark.parametrize(
-        "input_value,expected_value,should_be_same_object",
-        [
-            (5.0, 5.0, False),  # Plain numeric -> new RefValue
-            (10.0, 10.0, False),  # Another plain numeric
-            (RefValue(7.0), 7.0, True),  # Existing RefValue -> same object
-        ],
-    )
-    def test_refvalue_wrap(self, input_value, expected_value, should_be_same_object):
-        """Test that wrap creates RefValue from numeric or returns existing RefValue."""
-        wrapped = RefValue.wrap(input_value)
-        self.assertIsInstance(wrapped, RefValue)
-        self.assertEqual(wrapped.value, expected_value)
-        if should_be_same_object:
-            self.assertIs(wrapped, input_value)
-
-    @pytest.mark.parametrize(
-        "value_a,value_b,should_equal",
-        [
-            (RefValue(5.0), RefValue(5.0), True),  # RefValue == RefValue (same value)
-            (RefValue(5.0), RefValue(10.0), False),  # RefValue != RefValue (diff value)
-            (RefValue(5.0), 5.0, True),  # RefValue == plain value
-            (RefValue(5.0), 10.0, False),  # RefValue != plain value
-        ],
-    )
-    def test_refvalue_equality(self, value_a, value_b, should_equal):
-        """Test equality comparisons for RefValue."""
-        if should_equal:
-            self.assertEqual(value_a, value_b)
-        else:
-            self.assertNotEqual(value_a, value_b)
-
     def test_refvalue_comparison_with_none(self):
         """Test that comparison with None always returns True (for conditional validation)."""
         a = RefValue(None)
@@ -239,6 +207,44 @@ class TestSUEWSConfig(unittest.TestCase):
         self.assertTrue(b > a)
         self.assertTrue(a >= b)
         self.assertTrue(b >= a)
+
+
+# Standalone pytest parametrized tests for RefValue
+# (Cannot use @pytest.mark.parametrize inside unittest.TestCase classes)
+
+
+@pytest.mark.parametrize(
+    "input_value,expected_value,should_be_same_object",
+    [
+        (5.0, 5.0, False),  # Plain numeric -> new RefValue
+        (10.0, 10.0, False),  # Another plain numeric
+        (RefValue(7.0), 7.0, True),  # Existing RefValue -> same object
+    ],
+)
+def test_refvalue_wrap(input_value, expected_value, should_be_same_object):
+    """Test that wrap creates RefValue from numeric or returns existing RefValue."""
+    wrapped = RefValue.wrap(input_value)
+    assert isinstance(wrapped, RefValue)
+    assert wrapped.value == expected_value
+    if should_be_same_object:
+        assert wrapped is input_value
+
+
+@pytest.mark.parametrize(
+    "value_a,value_b,should_equal",
+    [
+        (RefValue(5.0), RefValue(5.0), True),  # RefValue == RefValue (same value)
+        (RefValue(5.0), RefValue(10.0), False),  # RefValue != RefValue (diff value)
+        (RefValue(5.0), 5.0, True),  # RefValue == plain value
+        (RefValue(5.0), 10.0, False),  # RefValue != plain value
+    ],
+)
+def test_refvalue_equality(value_a, value_b, should_equal):
+    """Test equality comparisons for RefValue."""
+    if should_equal:
+        assert value_a == value_b
+    else:
+        assert value_a != value_b
 
 
 class TestGrididErrorTransformation(unittest.TestCase):

@@ -9,6 +9,7 @@ import warnings
 
 import numpy as np
 import pandas as pd
+import pytest
 
 import supy as sp
 from supy import SUEWSSimulation
@@ -53,15 +54,8 @@ class TestSuPy(TestCase):
     def setUp(self):
         warnings.simplefilter("ignore", category=ImportWarning)
 
-    # test if supy_driver can be connected
-    def test_is_driver_connected(self):
-        print("\n========================================")
-        print("Testing if supy_driver can be connected...")
-        sd = sp.supy_driver.Suews_Driver()
-        self.assertTrue(sd is not None)
-        # self.assertTrue(isinstance(s[0], np.str_))
-
     # test if single-tstep mode can run
+    @pytest.mark.smoke
     def test_is_supy_running_single_step(self):
         print("\n========================================")
         print("Testing if single-tstep mode can run...")
@@ -79,6 +73,7 @@ class TestSuPy(TestCase):
         self.assertFalse(sim.state_final.empty)
 
     # test if multi-tstep mode can run
+    @pytest.mark.core
     @debug_on_ci
     @debug_dataframe_output
     @capture_test_artifacts("multi_step")

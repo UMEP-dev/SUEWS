@@ -62,10 +62,9 @@ def test_timezone_enum_support():
         Path(temp_config_path).unlink(missing_ok=True)
 
 
-def test_timezone_boundary_values():
-    """Test timezone boundary values"""
-
-    test_values = [
+@pytest.mark.parametrize(
+    "tz_value",
+    [
         -12.0,  # Baker Island Time
         -11.0,  # Niue Time
         -9.5,  # Marquesas Islands Time
@@ -80,57 +79,57 @@ def test_timezone_boundary_values():
         12.0,  # New Zealand Standard Time
         12.75,  # Chatham Standard Time
         14.0,  # Line Islands Time
-    ]
+    ],
+)
+def test_timezone_boundary_values(tz_value):
+    """Test timezone boundary values"""
+    config_dict = {
+        "forcing": {"file": "test/benchmark1/forcing/Kc1_2011_data_5.txt"},
+        "sites": [
+            {
+                "name": f"Test Site TZ {tz_value}",
+                "properties": {
+                    "lat": 0,
+                    "lng": 0,
+                    "timezone": {"value": tz_value},
+                    "surfacearea": 1000000,
+                    "z": 10,
+                    "z0m_in": 0.1,
+                    "zdm_in": 2,
+                },
+            }
+        ],
+    }
 
-    for tz_value in test_values:
-        config_dict = {
-            "forcing": {"file": "test/benchmark1/forcing/Kc1_2011_data_5.txt"},
-            "sites": [
-                {
-                    "name": f"Test Site TZ {tz_value}",
-                    "properties": {
-                        "lat": 0,
-                        "lng": 0,
-                        "timezone": {"value": tz_value},
-                        "surfacearea": 1000000,
-                        "z": 10,
-                        "z0m_in": 0.1,
-                        "zdm_in": 2,
-                    },
-                }
-            ],
-        }
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_dict, f)
+        temp_config_path = f.name
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
-            yaml.dump(config_dict, f)
-            temp_config_path = f.name
+    try:
+        # This should not raise ValidationError
+        config = sp.data_model.init_config_from_yaml(temp_config_path)
 
-        try:
-            # This should not raise ValidationError
-            config = sp.data_model.init_config_from_yaml(temp_config_path)
+        # Verify timezone value
+        site = config.sites[0]
+        timezone_value_loaded = (
+            site.properties.timezone.value
+            if hasattr(site.properties.timezone, "value")
+            else site.properties.timezone
+        )
+        assert isinstance(timezone_value_loaded, TimezoneOffset), (
+            f"Expected TimezoneOffset enum, got {type(timezone_value_loaded)}"
+        )
+        assert timezone_value_loaded.value == tz_value, (
+            f"Expected timezone {tz_value}, got {timezone_value_loaded.value}"
+        )
 
-            # Verify timezone value
-            site = config.sites[0]
-            timezone_value_loaded = (
-                site.properties.timezone.value
-                if hasattr(site.properties.timezone, "value")
-                else site.properties.timezone
-            )
-            assert isinstance(timezone_value_loaded, TimezoneOffset), (
-                f"Expected TimezoneOffset enum, got {type(timezone_value_loaded)}"
-            )
-            assert timezone_value_loaded.value == tz_value, (
-                f"Expected timezone {tz_value}, got {timezone_value_loaded.value}"
-            )
-
-        finally:
-            Path(temp_config_path).unlink(missing_ok=True)
+    finally:
+        Path(temp_config_path).unlink(missing_ok=True)
 
 
-def test_timezone_validation_errors():
-    """Test that invalid timezone values still raise errors"""
-
-    invalid_values = [
+@pytest.mark.parametrize(
+    "tz_value",
+    [
         -13.0,
         15.0,
         -12.1,
@@ -140,44 +139,43 @@ def test_timezone_validation_errors():
         -0.5,
         -11.5,
         13.5,
-    ]  # Not standard timezone offsets
+    ],
+)
+def test_timezone_validation_errors(tz_value):
+    """Test that invalid timezone values still raise errors"""
+    config_dict = {
+        "forcing": {"file": "test/benchmark1/forcing/Kc1_2011_data_5.txt"},
+        "sites": [
+            {
+                "name": "Test Site",
+                "properties": {
+                    "lat": 0,
+                    "lng": 0,
+                    "timezone": {"value": tz_value},
+                    "surfacearea": 1000000,
+                    "z": 10,
+                    "z0m_in": 0.1,
+                    "zdm_in": 2,
+                },
+            }
+        ],
+    }
 
-    for tz_value in invalid_values:
-        config_dict = {
-            "forcing": {"file": "test/benchmark1/forcing/Kc1_2011_data_5.txt"},
-            "sites": [
-                {
-                    "name": "Test Site",
-                    "properties": {
-                        "lat": 0,
-                        "lng": 0,
-                        "timezone": {"value": tz_value},
-                        "surfacearea": 1000000,
-                        "z": 10,
-                        "z0m_in": 0.1,
-                        "zdm_in": 2,
-                    },
-                }
-            ],
-        }
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        yaml.dump(config_dict, f)
+        temp_config_path = f.name
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
-            yaml.dump(config_dict, f)
-            temp_config_path = f.name
+    try:
+        # This should raise ValidationError
+        with pytest.raises(
+            Exception
+        ):  # Could be ValidationError or other pydantic error
+            sp.data_model.init_config_from_yaml(temp_config_path)
 
-        try:
-            # This should raise ValidationError
-            with pytest.raises(
-                Exception
-            ):  # Could be ValidationError or other pydantic error
-                sp.data_model.init_config_from_yaml(temp_config_path)
-
-        finally:
-            Path(temp_config_path).unlink(missing_ok=True)
+    finally:
+        Path(temp_config_path).unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
-    test_timezone_enum_support()
-    test_timezone_boundary_values()
-    test_timezone_validation_errors()
-    print("All timezone tests passed!")
+    # Run via pytest for parametrized tests
+    pytest.main([__file__, "-v"])

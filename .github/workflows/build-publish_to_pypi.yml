@@ -178,7 +178,11 @@ jobs:
     # Only run for pull requests (push/tag/schedule always build)
     if: github.event_name == 'pull_request'
     outputs:
-      needs-build: ${{ steps.filter.outputs.code }}
+      needs-build: ${{ steps.filter.outputs.core == 'true' || steps.filter.outputs.util == 'true' || steps.filter.outputs.cfg == 'true' || steps.filter.outputs.tests == 'true' }}
+      core-changed: ${{ steps.filter.outputs.core }}
+      util-changed: ${{ steps.filter.outputs.util }}
+      cfg-changed: ${{ steps.filter.outputs.cfg }}
+      tests-changed: ${{ steps.filter.outputs.tests }}
     steps:
       - uses: actions/checkout@v4
 
@@ -186,26 +190,52 @@ jobs:
         id: filter
         with:
           filters: |
-            code:
-              - 'src/suews/**'
-              - 'src/supy/**'
+            core:
+              # Fortran physics
+              - 'src/suews/src/**'
+              # Fortran driver interface
               - 'src/supy_driver/**'
-              - '.github/workflows/build-publish_to_pypi.yml'
-              - '.github/actions/build-suews/**'
-              - 'test/**'
-              - 'scripts/**'
-              # NOTE: schemas/** excluded - JSON metadata files don't require builds
-              # Bot-created schema PRs use schema-pr-validation.yml instead
+              - 'src/supy/supy_driver/**'
+              # Core Python files that affect scientific rigour
+              - 'src/supy/_run.py'
+              - 'src/supy/_supy_module.py'
+              - 'src/supy/_load.py'
+              - 'src/supy/_post.py'
+              - 'src/supy/_check.py'
+              - 'src/supy/_save.py'
+              - 'src/supy/suews_sim.py'
+              # Catch-all for core package changes
+              - 'src/suews/**'
+            util:
+              # Utility modules (nice-to-have)
+              - 'src/supy/util/**'
+              # Default category for remaining supy changes
+              - 'src/supy/**'
+            cfg:
+              # Config validation
+              - 'src/supy/data_model/**'
+              # CLI commands
+              - 'src/supy/cmd/**'
+              # JSON configs
+              - 'src/supy/*.json'
+              # Schemas
+              - 'schemas/**'
+              # Build system / infra
+              - '.github/**'
               - 'pyproject.toml'
               - 'meson.build'
               - 'meson_options.txt'
               - 'Makefile'
               - 'get_ver_git.py'
+              - 'scripts/**'
+            tests:
+              - 'test/**'
 
   # Determine if we should run limited or full matrix
   determine_matrix:
     name: Determine build matrix
     runs-on: ubuntu-latest
+    needs: [detect-changes]
     outputs:
       buildplat: ${{ steps.set-matrix.outputs.buildplat }}
       python: ${{ steps.set-matrix.outputs.python }}
@@ -221,31 +251,60 @@ jobs:
           PR_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
           MINIMAL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"]]'
 
+          CORE_CHANGED="${{ needs.detect-changes.outputs.core-changed || 'false' }}"
+          UTIL_CHANGED="${{ needs.detect-changes.outputs.util-changed || 'false' }}"
+          CFG_CHANGED="${{ needs.detect-changes.outputs.cfg-changed || 'false' }}"
+          TESTS_CHANGED="${{ needs.detect-changes.outputs.tests-changed || 'false' }}"
+
           # Python version strategies:
           # - Draft PR: minimal (1 platform, bookend versions) for fastest feedback
           # - PR/Master: reduced (ARM Mac + Linux + Windows, bookend versions) for speed with good coverage
           # - Tags/Schedule/Manual: full (all platforms including x86_64 Mac, all Python versions) for comprehensive testing
 
           if [[ "${{ github.event_name }}" == "pull_request" ]] && [[ "${{ github.event.pull_request.draft }}" == "true" ]]; then
-            echo "Running minimal matrix for draft PR (1 platform, bookend Python versions, smoke tests)"
-            echo "buildplat=$MINIMAL_PLATFORMS" >> $GITHUB_OUTPUT
-            echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
-            echo "test_tier=smoke" >> $GITHUB_OUTPUT
+            if [[ "$CORE_CHANGED" == "true" ]]; then
+              echo "Draft PR with core changes - reduced platforms, core tests"
+              echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
+              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+              echo "test_tier=core" >> $GITHUB_OUTPUT
+            elif [[ "$CFG_CHANGED" == "true" ]]; then
+              echo "Draft PR with cfg changes - reduced platforms, cfg tests"
+              echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
+              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+              echo "test_tier=cfg" >> $GITHUB_OUTPUT
+            else
+              echo "Draft PR with util/tests changes - minimal platform, smoke tests"
+              echo "buildplat=$MINIMAL_PLATFORMS" >> $GITHUB_OUTPUT
+              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+              echo "test_tier=smoke" >> $GITHUB_OUTPUT
+            fi
           elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "Running reduced matrix for PR (ARM Mac + Linux + Windows, bookend Python versions, standard tests)"
-            echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
-            echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
-            echo "test_tier=standard" >> $GITHUB_OUTPUT
+            if [[ "$CORE_CHANGED" == "true" ]]; then
+              echo "Ready PR with core changes - reduced platforms, standard tests"
+              echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
+              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+              echo "test_tier=standard" >> $GITHUB_OUTPUT
+            elif [[ "$CFG_CHANGED" == "true" ]]; then
+              echo "Ready PR with cfg changes - reduced platforms, standard tests"
+              echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
+              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+              echo "test_tier=standard" >> $GITHUB_OUTPUT
+            else
+              echo "Ready PR with util/tests changes - reduced platforms, smoke tests"
+              echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
+              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+              echo "test_tier=smoke" >> $GITHUB_OUTPUT
+            fi
           elif [[ "${{ github.event_name }}" == "schedule" ]]; then
             echo "Running full matrix for nightly (all platforms, all Python versions, all tests)"
             echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
             echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]' >> $GITHUB_OUTPUT
             echo "test_tier=all" >> $GITHUB_OUTPUT
           else
-            echo "Running full matrix for tags/manual (all platforms, all Python versions, standard tests)"
+            echo "Running full matrix for tags/manual (all platforms, all Python versions, all tests)"
             echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
             echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]' >> $GITHUB_OUTPUT
-            echo "test_tier=standard" >> $GITHUB_OUTPUT
+            echo "test_tier=all" >> $GITHUB_OUTPUT
           fi
 
           # UMEP builds: Python 3.12 only (aligned with QGIS 3.40 LTR bundled Python)

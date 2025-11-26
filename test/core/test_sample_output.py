@@ -399,6 +399,8 @@ class TestSampleOutput(TestCase):
         for file in saved_files:
             print(f"   - {file}")
 
+    @pytest.mark.core
+    @pytest.mark.smoke
     def test_sample_output_validation(self):
         """
         Test SUEWS output against reference data with appropriate tolerances.

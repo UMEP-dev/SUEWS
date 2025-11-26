@@ -66,6 +66,7 @@ class TestSUEWSConfig(unittest.TestCase):
 
         pd.testing.assert_frame_equal(df_state, df_state_2, check_dtype=False)
 
+    @pytest.mark.cfg
     def test_df_state_conversion_cycle(self):
         """Test conversion cycle starting from a DataFrame state."""
         print("\n========================================")

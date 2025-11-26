@@ -73,6 +73,7 @@ class TestSuPy(TestCase):
         self.assertFalse(sim.state_final.empty)
 
     # test if multi-tstep mode can run
+    @pytest.mark.core
     @debug_on_ci
     @debug_dataframe_output
     @capture_test_artifacts("multi_step")

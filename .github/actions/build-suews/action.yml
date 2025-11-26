@@ -23,7 +23,7 @@ inputs:
     required: false
     default: ''
   test_tier:
-    description: 'Test tier to run: smoke (~30-60s), standard (~2-3min), all (~4-5min)'
+    description: 'Test tier: smoke, core, cfg, standard, or all'
     required: false
     default: 'standard'
 
@@ -133,11 +133,14 @@ runs:
           pip install delvewheel
         CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
         CIBW_TEST_REQUIRES: ${{ inputs.is_umep_variant == 'true' && 'pytest oldest-supported-numpy' || 'pytest' }}
-        # Test tiers: smoke (~30-60s) for draft PRs, standard (~2-3min) for PRs, all (~4-5min) for nightly
-        CIBW_TEST_COMMAND: >-
-          ${{ inputs.test_tier == 'smoke' && 'python -m pytest {project}/test -m smoke -v --tb=short --durations=10' ||
-              inputs.test_tier == 'all' && 'python -m pytest {project}/test -v --tb=short --durations=10' ||
-              'python -m pytest {project}/test -m "not slow" -v --tb=short --durations=10' }}
+        # Test tiers: choose subset based on path detection and trigger
+        CIBW_TEST_COMMAND: >
+          python -m pytest {project}/test -v --tb=short
+          ${{ inputs.test_tier == 'smoke' && '-m smoke' ||
+              inputs.test_tier == 'core' && '-m "smoke or core"' ||
+              inputs.test_tier == 'cfg' && '-m "smoke or cfg"' ||
+              inputs.test_tier == 'standard' && '-m "not slow"' ||
+              '--durations=10' }}
         MACOSX_DEPLOYMENT_TARGET: ${{ inputs.buildplat == 'macos-13' && '13.0' || '15.0' }}
 
     - name: Upload wheels

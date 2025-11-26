@@ -56,6 +56,7 @@ class TestInit:
         assert sim._df_state_init.shape == df_state.shape
         assert sim._df_forcing.shape == df_forcing.shape
 
+    @pytest.mark.core
     def test_from_sample_data_can_run(self):
         """Test that simulation created from sample data can run successfully."""
         sim = SUEWSSimulation.from_sample_data()
@@ -70,6 +71,8 @@ class TestInit:
 
 class TestConfig:
     """Test configuration updates."""
+
+    pytestmark = pytest.mark.cfg
 
     def test_update_config_yaml(self):
         """Test updating config from another YAML file."""

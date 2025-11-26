@@ -459,9 +459,20 @@ class AttributionResult:
             ax.set_yticks(range(24))
             ax.set_yticklabels(range(24))
             ax.set_xticks(range(12))
-            ax.set_xticklabels(
-                ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]
-            )
+            ax.set_xticklabels([
+                "J",
+                "F",
+                "M",
+                "A",
+                "M",
+                "J",
+                "J",
+                "A",
+                "S",
+                "O",
+                "N",
+                "D",
+            ])
             ax.set_xlabel("Month")
             ax.set_ylabel("Hour")
             ax.set_title(f"{self.variable} Attribution - Seasonal-Diurnal Pattern")
@@ -540,7 +551,7 @@ def attribute_t2(
       resistance     : -0.42 degC (28.6%)
       air_props      : -0.16 degC (10.9%)
 
-    >>> result.plot(kind='bar')  # Visualise contributions
+    >>> result.plot(kind="bar")  # Visualise contributions
     """
     # Extract SUEWS output group
     df_A = _extract_suews_group(df_output_A)
@@ -697,7 +708,7 @@ def diagnose_t2(
     --------
     Quick anomaly diagnosis:
 
-    >>> result = diagnose_t2(df_output, method='anomaly')
+    >>> result = diagnose_t2(df_output, method="anomaly")
     >>> print(result)
     T2 Attribution Results
     ========================================
@@ -741,7 +752,9 @@ def diagnose_t2(
         normal_mask = (hour >= 6) & (hour <= 10)  # Morning
 
     else:
-        raise ValueError(f"Unknown method: {method}. Use 'anomaly', 'extreme', 'diurnal'")
+        raise ValueError(
+            f"Unknown method: {method}. Use 'anomaly', 'extreme', 'diurnal'"
+        )
 
     # Check we have enough data in each group
     n_anomaly = anomaly_mask.sum()
@@ -754,8 +767,7 @@ def diagnose_t2(
         )
     if n_normal < 10:
         raise ValueError(
-            f"Only {n_normal} reference timesteps found. "
-            "Cannot establish baseline."
+            f"Only {n_normal} reference timesteps found. Cannot establish baseline."
         )
 
     # Create reference and anomaly DataFrames

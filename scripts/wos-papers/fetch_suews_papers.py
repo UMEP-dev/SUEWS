@@ -50,6 +50,7 @@ except ImportError:
 @dataclass
 class Paper:
     """Represents a single academic paper."""
+
     uid: str
     title: str
     authors: list[str]
@@ -81,10 +82,7 @@ class WoSClient:
         self.api_key = api_key
         self.rate_limit = rate_limit
         self.last_request = 0
-        self.headers = {
-            'X-ApiKey': api_key,
-            'Accept': 'application/json'
-        }
+        self.headers = {"X-ApiKey": api_key, "Accept": "application/json"}
 
     def _respect_rate_limit(self):
         """Implement rate limiting between API calls."""
@@ -94,11 +92,7 @@ class WoSClient:
         self.last_request = time.time()
 
     def search(
-        self,
-        query: str,
-        database: str = "WOS",
-        count: int = 50,
-        first_record: int = 1
+        self, query: str, database: str = "WOS", count: int = 50, first_record: int = 1
     ) -> dict:
         """
         Execute a search query against WoS.
@@ -115,17 +109,14 @@ class WoSClient:
         self._respect_rate_limit()
 
         params = {
-            'databaseId': database,
-            'usrQuery': query,
-            'count': min(count, 50),
-            'firstRecord': first_record
+            "databaseId": database,
+            "usrQuery": query,
+            "count": min(count, 50),
+            "firstRecord": first_record,
         }
 
         response = requests.get(
-            self.BASE_URL,
-            headers=self.headers,
-            params=params,
-            timeout=60
+            self.BASE_URL, headers=self.headers, params=params, timeout=60
         )
 
         response.raise_for_status()
@@ -134,7 +125,7 @@ class WoSClient:
     def get_total_records(self, query: str) -> int:
         """Get total number of records matching query."""
         result = self.search(query, count=1)
-        return result.get('QueryResult', {}).get('RecordsFound', 0)
+        return result.get("QueryResult", {}).get("RecordsFound", 0)
 
     def fetch_all(self, query: str, progress_callback=None) -> list[dict]:
         """
@@ -156,10 +147,12 @@ class WoSClient:
 
         while first_record <= total:
             result = self.search(query, count=50, first_record=first_record)
-            records = (result.get('Data', {})
-                      .get('Records', {})
-                      .get('records', {})
-                      .get('REC', []))
+            records = (
+                result.get("Data", {})
+                .get("Records", {})
+                .get("records", {})
+                .get("REC", [])
+            )
 
             all_records.extend(records)
             first_record += 50
@@ -180,69 +173,69 @@ def parse_record(record: dict) -> Paper:
     Returns:
         Parsed Paper object
     """
-    uid = record.get('UID', '')
-    static_data = record.get('static_data', {})
-    summary = static_data.get('summary', {})
-    fullrecord = static_data.get('fullrecord_metadata', {})
+    uid = record.get("UID", "")
+    static_data = record.get("static_data", {})
+    summary = static_data.get("summary", {})
+    fullrecord = static_data.get("fullrecord_metadata", {})
 
     # Title
-    titles = summary.get('titles', {}).get('title', [])
-    title = next(
-        (t.get('content', '') for t in titles if t.get('type') == 'item'),
-        ''
-    )
+    titles = summary.get("titles", {}).get("title", [])
+    title = next((t.get("content", "") for t in titles if t.get("type") == "item"), "")
     # Clean HTML tags from title
-    title = re.sub(r'<[^>]+>', '', title)
+    title = re.sub(r"<[^>]+>", "", title)
 
     # Journal
     journal = next(
-        (t.get('content', '') for t in titles if t.get('type') == 'source'),
-        ''
+        (t.get("content", "") for t in titles if t.get("type") == "source"), ""
     )
 
     # Publication info
-    pub_info = summary.get('pub_info', {})
-    year = pub_info.get('pubyear', 0)
-    volume = str(pub_info.get('vol', ''))
-    issue = str(pub_info.get('issue', ''))
-    page_data = pub_info.get('page', {})
-    pages = page_data.get('content', '') if isinstance(page_data, dict) else ''
+    pub_info = summary.get("pub_info", {})
+    year = pub_info.get("pubyear", 0)
+    volume = str(pub_info.get("vol", ""))
+    issue = str(pub_info.get("issue", ""))
+    page_data = pub_info.get("page", {})
+    pages = page_data.get("content", "") if isinstance(page_data, dict) else ""
 
     # Authors
-    names_data = summary.get('names', {}).get('name', [])
+    names_data = summary.get("names", {}).get("name", [])
     authors = []
     for n in names_data:
-        if n.get('role') == 'author':
-            name = n.get('full_name', n.get('display_name', ''))
+        if n.get("role") == "author":
+            name = n.get("full_name", n.get("display_name", ""))
             if name:
                 authors.append(name)
 
     # DOI
-    doi = ''
-    identifiers = (static_data.get('dynamic_data', {})
-                  .get('cluster_related', {})
-                  .get('identifiers', {})
-                  .get('identifier', []))
+    doi = ""
+    identifiers = (
+        static_data.get("dynamic_data", {})
+        .get("cluster_related", {})
+        .get("identifiers", {})
+        .get("identifier", [])
+    )
     for ident in identifiers:
-        if ident.get('type') == 'doi':
-            doi = ident.get('value', '')
+        if ident.get("type") == "doi":
+            doi = ident.get("value", "")
             break
 
     # Abstract
-    abstract_data = (fullrecord.get('abstracts', {})
-                    .get('abstract', {})
-                    .get('abstract_text', {})
-                    .get('p', ''))
+    abstract_data = (
+        fullrecord.get("abstracts", {})
+        .get("abstract", {})
+        .get("abstract_text", {})
+        .get("p", "")
+    )
     if isinstance(abstract_data, list):
-        abstract = ' '.join(abstract_data)
+        abstract = " ".join(abstract_data)
     else:
-        abstract = abstract_data or ''
+        abstract = abstract_data or ""
 
     # Keywords
     keywords = []
-    kw_data = fullrecord.get('keywords', {}).get('keyword', [])
+    kw_data = fullrecord.get("keywords", {}).get("keyword", [])
     if isinstance(kw_data, list):
-        keywords = [k if isinstance(k, str) else k.get('content', '') for k in kw_data]
+        keywords = [k if isinstance(k, str) else k.get("content", "") for k in kw_data]
 
     return Paper(
         uid=uid,
@@ -256,7 +249,7 @@ def parse_record(record: dict) -> Paper:
         pages=pages,
         doi=doi,
         abstract=abstract,
-        keywords=keywords
+        keywords=keywords,
     )
 
 
@@ -272,39 +265,136 @@ def analyse_papers(papers: list[Paper]) -> dict:
     """
     # City/location patterns
     locations = {
-        'Asia': ['Beijing', 'Shanghai', 'Singapore', 'Hong Kong', 'Mumbai', 'Delhi',
-                 'Tokyo', 'Seoul', 'Taipei', 'Bangkok', 'Guangzhou', 'Nanjing',
-                 "Xiong'an", 'Xiongan', 'Baoding', 'Hangzhou', 'Wuhan'],
-        'Europe': ['London', 'Helsinki', 'Swindon', 'Dublin', 'Berlin', 'Hamburg',
-                   'Zurich', 'Vienna', 'Amsterdam', 'Madrid', 'Barcelona', 'Rome',
-                   'Stockholm', 'Copenhagen', 'Bordeaux', 'Heraklion', 'Freiburg',
-                   'Porto', 'Lisbon', 'Marseille', 'Rotterdam'],
-        'North America': ['Vancouver', 'Los Angeles', 'Montreal', 'Phoenix',
-                         'New York', 'Toronto', 'Baltimore', 'Chicago', 'Boston'],
-        'Oceania': ['Melbourne', 'Sydney', 'Brisbane', 'Auckland', 'Perth'],
-        'Other': ['Cairo', 'Johannesburg', 'Lagos', 'São Paulo']
+        "Asia": [
+            "Beijing",
+            "Shanghai",
+            "Singapore",
+            "Hong Kong",
+            "Mumbai",
+            "Delhi",
+            "Tokyo",
+            "Seoul",
+            "Taipei",
+            "Bangkok",
+            "Guangzhou",
+            "Nanjing",
+            "Xiong'an",
+            "Xiongan",
+            "Baoding",
+            "Hangzhou",
+            "Wuhan",
+        ],
+        "Europe": [
+            "London",
+            "Helsinki",
+            "Swindon",
+            "Dublin",
+            "Berlin",
+            "Hamburg",
+            "Zurich",
+            "Vienna",
+            "Amsterdam",
+            "Madrid",
+            "Barcelona",
+            "Rome",
+            "Stockholm",
+            "Copenhagen",
+            "Bordeaux",
+            "Heraklion",
+            "Freiburg",
+            "Porto",
+            "Lisbon",
+            "Marseille",
+            "Rotterdam",
+        ],
+        "North America": [
+            "Vancouver",
+            "Los Angeles",
+            "Montreal",
+            "Phoenix",
+            "New York",
+            "Toronto",
+            "Baltimore",
+            "Chicago",
+            "Boston",
+        ],
+        "Oceania": ["Melbourne", "Sydney", "Brisbane", "Auckland", "Perth"],
+        "Other": ["Cairo", "Johannesburg", "Lagos", "São Paulo"],
     }
 
     # Application types
     applications = {
-        'Surface Energy Balance': ['energy balance', 'energy flux', 'sensible heat',
-                                   'latent heat', 'heat flux', 'SEB'],
-        'Urban Heat Island': ['urban heat island', 'UHI', 'heat island',
-                             'thermal environment', 'overheating'],
-        'CO2/Carbon Flux': ['CO2', 'carbon', 'carbon dioxide', 'carbon flux',
-                           'carbon neutral', 'sequestration'],
-        'Building Energy': ['building energy', 'air conditioning', 'heat pump',
-                           'HVAC', 'energy consumption', 'cooling load'],
-        'Urban Vegetation': ['vegetation', 'tree', 'green', 'LAI', 'leaf area',
-                            'photosynthesis'],
-        'Water Balance': ['water balance', 'runoff', 'hydrological', 'precipitation',
-                         'drainage', 'flood'],
-        'Climate Scenarios': ['climate change', 'climate scenario', 'future climate',
-                             'RCP', 'SSP', '2050', '2080'],
-        'Model Development': ['model development', 'parameterization', 'parameterisation',
-                             'scheme', 'module', 'coupled'],
-        'Model Evaluation': ['evaluation', 'validation', 'comparison',
-                            'intercomparison', 'performance']
+        "Surface Energy Balance": [
+            "energy balance",
+            "energy flux",
+            "sensible heat",
+            "latent heat",
+            "heat flux",
+            "SEB",
+        ],
+        "Urban Heat Island": [
+            "urban heat island",
+            "UHI",
+            "heat island",
+            "thermal environment",
+            "overheating",
+        ],
+        "CO2/Carbon Flux": [
+            "CO2",
+            "carbon",
+            "carbon dioxide",
+            "carbon flux",
+            "carbon neutral",
+            "sequestration",
+        ],
+        "Building Energy": [
+            "building energy",
+            "air conditioning",
+            "heat pump",
+            "HVAC",
+            "energy consumption",
+            "cooling load",
+        ],
+        "Urban Vegetation": [
+            "vegetation",
+            "tree",
+            "green",
+            "LAI",
+            "leaf area",
+            "photosynthesis",
+        ],
+        "Water Balance": [
+            "water balance",
+            "runoff",
+            "hydrological",
+            "precipitation",
+            "drainage",
+            "flood",
+        ],
+        "Climate Scenarios": [
+            "climate change",
+            "climate scenario",
+            "future climate",
+            "RCP",
+            "SSP",
+            "2050",
+            "2080",
+        ],
+        "Model Development": [
+            "model development",
+            "parameterization",
+            "parameterisation",
+            "scheme",
+            "module",
+            "coupled",
+        ],
+        "Model Evaluation": [
+            "evaluation",
+            "validation",
+            "comparison",
+            "intercomparison",
+            "performance",
+        ],
     }
 
     # Count locations
@@ -313,7 +403,7 @@ def analyse_papers(papers: list[Paper]) -> dict:
         text = f"{paper.title} {paper.abstract}".lower()
         for region, cities in locations.items():
             for city in cities:
-                if re.search(rf'\b{city.lower()}\b', text):
+                if re.search(rf"\b{city.lower()}\b", text):
                     location_counts[region][city].append(paper.uid)
 
     # Count applications
@@ -330,21 +420,21 @@ def analyse_papers(papers: list[Paper]) -> dict:
     year_counts = Counter(p.year for p in papers if p.year)
 
     return {
-        'total_papers': len(papers),
-        'papers_with_abstracts': sum(1 for p in papers if p.abstract),
-        'year_range': (min(year_counts.keys()), max(year_counts.keys())),
-        'year_distribution': dict(sorted(year_counts.items())),
-        'locations_by_region': {
+        "total_papers": len(papers),
+        "papers_with_abstracts": sum(1 for p in papers if p.abstract),
+        "year_range": (min(year_counts.keys()), max(year_counts.keys())),
+        "year_distribution": dict(sorted(year_counts.items())),
+        "locations_by_region": {
             region: {city: len(uids) for city, uids in cities.items()}
             for region, cities in location_counts.items()
         },
-        'applications': {
-            app: len(uids) for app, uids in
-            sorted(application_counts.items(), key=lambda x: -len(x[1]))
+        "applications": {
+            app: len(uids)
+            for app, uids in sorted(
+                application_counts.items(), key=lambda x: -len(x[1])
+            )
         },
-        'unique_locations': sum(
-            len(cities) for cities in location_counts.values()
-        )
+        "unique_locations": sum(len(cities) for cities in location_counts.values()),
     }
 
 
@@ -365,18 +455,18 @@ def generate_bibtex(papers: list[Paper]) -> str:
             continue
 
         # Generate citation key
-        first_author = paper.authors[0].split(',')[0] if paper.authors else 'Unknown'
+        first_author = paper.authors[0].split(",")[0] if paper.authors else "Unknown"
         key = f"{first_author}{paper.year}"
-        key = re.sub(r'[^a-zA-Z0-9]', '', key)
+        key = re.sub(r"[^a-zA-Z0-9]", "", key)
 
         # Build entry
         entry_lines = [f"@article{{{key},"]
         entry_lines.append(f"  title = {{{paper.title}}},")
 
         if paper.authors:
-            authors_str = ' and '.join(paper.authors[:10])
+            authors_str = " and ".join(paper.authors[:10])
             if paper.author_count > 10:
-                authors_str += ' and others'
+                authors_str += " and others"
             entry_lines.append(f"  author = {{{authors_str}}},")
 
         entry_lines.append(f"  journal = {{{paper.journal}}},")
@@ -393,22 +483,22 @@ def generate_bibtex(papers: list[Paper]) -> str:
 
         if paper.abstract:
             # Escape special characters in abstract
-            abstract = paper.abstract.replace('{', '\\{').replace('}', '\\}')
-            abstract = abstract.replace('%', '\\%').replace('&', '\\&')
+            abstract = paper.abstract.replace("{", "\\{").replace("}", "\\}")
+            abstract = abstract.replace("%", "\\%").replace("&", "\\&")
             entry_lines.append(f"  abstract = {{{abstract}}},")
 
         entry_lines.append("}")
-        entries.append('\n'.join(entry_lines))
+        entries.append("\n".join(entry_lines))
 
     header = f"""% SUEWS-related publications from Web of Science
-% Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+% Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 % Total papers: {len(papers)}
 %
 % This file is auto-generated by fetch_suews_papers.py
 % Repository: https://github.com/UMEP-dev/SUEWS
 """
 
-    return header + '\n\n' + '\n\n'.join(entries)
+    return header + "\n\n" + "\n\n".join(entries)
 
 
 def generate_markdown(papers: list[Paper], analysis: dict) -> str:
@@ -438,10 +528,12 @@ def generate_markdown(papers: list[Paper], analysis: dict) -> str:
         "",
     ]
 
-    for region, cities in sorted(analysis['locations_by_region'].items()):
+    for region, cities in sorted(analysis["locations_by_region"].items()):
         if cities:
-            city_list = ', '.join(f"{c} ({n})" for c, n in
-                                 sorted(cities.items(), key=lambda x: -x[1])[:10])
+            city_list = ", ".join(
+                f"{c} ({n})"
+                for c, n in sorted(cities.items(), key=lambda x: -x[1])[:10]
+            )
             lines.append(f"### {region}")
             lines.append(f"{city_list}")
             lines.append("")
@@ -450,8 +542,8 @@ def generate_markdown(papers: list[Paper], analysis: dict) -> str:
         "## Application Areas",
         "",
     ])
-    for app, count in analysis['applications'].items():
-        pct = count / analysis['total_papers'] * 100
+    for app, count in analysis["applications"].items():
+        pct = count / analysis["total_papers"] * 100
         lines.append(f"- **{app}**: {count} papers ({pct:.0f}%)")
 
     lines.extend([
@@ -459,7 +551,7 @@ def generate_markdown(papers: list[Paper], analysis: dict) -> str:
         "## Publications by Year",
         "",
     ])
-    for year, count in sorted(analysis['year_distribution'].items()):
+    for year, count in sorted(analysis["year_distribution"].items()):
         bar = "█" * count
         lines.append(f"- {year}: {bar} ({count})")
 
@@ -470,7 +562,7 @@ def generate_markdown(papers: list[Paper], analysis: dict) -> str:
     ])
 
     for i, paper in enumerate(sorted(papers, key=lambda p: -p.year), 1):
-        authors = ', '.join(paper.authors[:3])
+        authors = ", ".join(paper.authors[:3])
         if paper.author_count > 3:
             authors += f" et al."
 
@@ -486,12 +578,12 @@ def generate_markdown(papers: list[Paper], analysis: dict) -> str:
             lines.append(f"\n> {abstract}")
         lines.append("")
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Fetch SUEWS papers from Web of Science',
+        description="Fetch SUEWS papers from Web of Science",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -501,31 +593,34 @@ Examples:
 
 Environment:
     WOS_API_KEY - Web of Science API key (required)
-        """
+        """,
     )
     parser.add_argument(
-        '--output-dir', '-o',
+        "--output-dir",
+        "-o",
         type=Path,
-        default=Path('.'),
-        help='Output directory (default: current directory)'
+        default=Path("."),
+        help="Output directory (default: current directory)",
     )
     parser.add_argument(
-        '--formats', '-f',
-        nargs='+',
-        choices=['json', 'bibtex', 'markdown', 'all'],
-        default=['all'],
-        help='Output formats (default: all)'
+        "--formats",
+        "-f",
+        nargs="+",
+        choices=["json", "bibtex", "markdown", "all"],
+        default=["all"],
+        help="Output formats (default: all)",
     )
     parser.add_argument(
-        '--query', '-q',
+        "--query",
+        "-q",
         default='TS=SUEWS OR TS="Surface Urban Energy and Water Balance Scheme" OR TI=SUEWS',
-        help='WoS search query'
+        help="WoS search query",
     )
 
     args = parser.parse_args()
 
     # Check API key
-    api_key = os.environ.get('WOS_API_KEY')
+    api_key = os.environ.get("WOS_API_KEY")
     if not api_key:
         print("Error: WOS_API_KEY environment variable not set")
         print("Set it with: export WOS_API_KEY='your-key'")
@@ -536,8 +631,8 @@ Environment:
 
     # Determine formats
     formats = set(args.formats)
-    if 'all' in formats:
-        formats = {'json', 'bibtex', 'markdown'}
+    if "all" in formats:
+        formats = {"json", "bibtex", "markdown"}
 
     print("=" * 60)
     print("SUEWS Papers - Web of Science Fetcher")
@@ -551,7 +646,7 @@ Environment:
 
     # Progress callback
     def progress(current, total):
-        print(f"\rFetching: {current}/{total} papers", end='', flush=True)
+        print(f"\rFetching: {current}/{total} papers", end="", flush=True)
 
     # Fetch papers
     print("Connecting to Web of Science API...")
@@ -574,31 +669,35 @@ Environment:
     print()
 
     # Write outputs
-    timestamp = datetime.now().strftime('%Y%m%d')
+    timestamp = datetime.now().strftime("%Y%m%d")
 
-    if 'json' in formats:
-        json_path = args.output_dir / f'suews_wos_papers_{timestamp}.json'
-        with open(json_path, 'w') as f:
-            json.dump({
-                'metadata': {
-                    'query': args.query,
-                    'fetched': datetime.now().isoformat(),
-                    'total': len(papers)
+    if "json" in formats:
+        json_path = args.output_dir / f"suews_wos_papers_{timestamp}.json"
+        with open(json_path, "w") as f:
+            json.dump(
+                {
+                    "metadata": {
+                        "query": args.query,
+                        "fetched": datetime.now().isoformat(),
+                        "total": len(papers),
+                    },
+                    "analysis": analysis,
+                    "papers": [asdict(p) for p in papers],
                 },
-                'analysis': analysis,
-                'papers': [asdict(p) for p in papers]
-            }, f, indent=2)
+                f,
+                indent=2,
+            )
         print(f"JSON: {json_path}")
 
-    if 'bibtex' in formats:
-        bib_path = args.output_dir / f'suews_wos_papers_{timestamp}.bib'
-        with open(bib_path, 'w') as f:
+    if "bibtex" in formats:
+        bib_path = args.output_dir / f"suews_wos_papers_{timestamp}.bib"
+        with open(bib_path, "w") as f:
             f.write(generate_bibtex(papers))
         print(f"BibTeX: {bib_path}")
 
-    if 'markdown' in formats:
-        md_path = args.output_dir / f'suews_wos_papers_{timestamp}.md'
-        with open(md_path, 'w') as f:
+    if "markdown" in formats:
+        md_path = args.output_dir / f"suews_wos_papers_{timestamp}.md"
+        with open(md_path, "w") as f:
             f.write(generate_markdown(papers, analysis))
         print(f"Markdown: {md_path}")
 
@@ -606,5 +705,5 @@ Environment:
     print("Done!")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

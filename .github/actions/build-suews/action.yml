@@ -42,11 +42,10 @@ runs:
         # This notice only appears in TestPyPI releases, not production PyPI
         # Insert after line 3 (after "This is the SUEWS urban climate model repository.")
         head -n 3 README.md > README.tmp
-        cat >> README.tmp << 'EOF'
-
-> **📦 TestPyPI Release**: This is a development version published to [test.pypi.org](https://test.pypi.org/project/supy/).
-> For installation instructions, see [Testing Development Versions](https://docs.suews.io/latest/installation.html#testing-development-versions) in the documentation.
-EOF
+        # Note: Using printf to avoid YAML parsing issues with '>' at line start
+        printf '\n' >> README.tmp
+        printf '**TestPyPI Release**: This is a development version published to [test.pypi.org](https://test.pypi.org/project/supy/).\n' >> README.tmp
+        printf 'For installation instructions, see [Testing Development Versions](https://docs.suews.io/latest/installation.html#testing-development-versions) in the documentation.\n' >> README.tmp
         tail -n +4 README.md >> README.tmp
         mv README.tmp README.md
         echo "Added TestPyPI notice to README.md"

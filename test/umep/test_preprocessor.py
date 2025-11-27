@@ -156,7 +156,9 @@ class TestERA5DownloadAPI(TestCase):
 
         # These may be named differently but should exist
         # UMEP uses: hgt_agl_diag, dir_save
-        height_params = [p for p in params if "hgt" in p.lower() or "height" in p.lower()]
+        height_params = [
+            p for p in params if "hgt" in p.lower() or "height" in p.lower()
+        ]
         self.assertGreater(
             len(height_params),
             0,

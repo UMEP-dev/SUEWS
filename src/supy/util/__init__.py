@@ -58,10 +58,18 @@ from ._debug import diag_rsl, diag_rsl_prm, save_zip_debug
 from ._spinup import get_spinup_state
 
 from ._attribution import (
+    # Variable-specific functions
     attribute_t2,
+    attribute_q2,
     diagnose_t2,
+    diagnose_q2,
+    # Generic dispatchers
+    attribute,
+    diagnose,
+    # Result container
     AttributionResult,
     T2Attribution,
+    Q2Attribution,
 )
 
 # from ._config import SUEWSConfig, init_config_from_yaml

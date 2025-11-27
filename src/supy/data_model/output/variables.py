@@ -92,7 +92,9 @@ class OutputVariable(BaseModel):
     description: str = Field(description="Long-form description")
     aggregation: AggregationMethod = Field(description="Resampling aggregation method")
     group: OutputGroup = Field(description="Output group membership")
-    level: OutputLevel = Field(description="Output priority level (vestigial - not used in modern output system)")
+    level: OutputLevel = Field(
+        description="Output priority level (vestigial - not used in modern output system)"
+    )
 
     class Config:
         use_enum_values = True

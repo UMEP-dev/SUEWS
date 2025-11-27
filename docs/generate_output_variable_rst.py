@@ -265,7 +265,6 @@ class OutputVariableRSTGenerator:
         }
         return descriptions.get(method_val, str(method))
 
-
     @staticmethod
     def _get_group_description(group: Any) -> str:
         """Get description for an output group."""

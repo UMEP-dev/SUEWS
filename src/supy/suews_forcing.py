@@ -149,7 +149,7 @@ class SUEWSForcing:
     Access variables with intuitive names:
 
     >>> forcing.temperature  # Same as forcing.Tair
-    >>> forcing.wind_speed   # Same as forcing.U
+    >>> forcing.wind_speed  # Same as forcing.U
 
     Validate forcing data:
 
@@ -188,9 +188,7 @@ class SUEWSForcing:
     # =========================================================================
 
     @classmethod
-    def from_file(
-        cls, path: Union[str, Path], tstep_mod: int = 300
-    ) -> "SUEWSForcing":
+    def from_file(cls, path: Union[str, Path], tstep_mod: int = 300) -> "SUEWSForcing":
         """
         Load forcing from a single file.
 
@@ -787,7 +785,7 @@ class SUEWSForcing:
                 <tr><td><strong>Timestep:</strong></td><td>{tstep} seconds</td></tr>
                 <tr><td><strong>Timesteps:</strong></td><td>{n_steps}</td></tr>
                 <tr><td><strong>Variables:</strong></td><td>{complete_vars}/{total_vars} complete</td></tr>
-                <tr><td><strong>Source:</strong></td><td>{self._source or 'Unknown'}</td></tr>
+                <tr><td><strong>Source:</strong></td><td>{self._source or "Unknown"}</td></tr>
             </table>
         </div>
         """

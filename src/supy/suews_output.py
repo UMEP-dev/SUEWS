@@ -5,6 +5,7 @@ Provides a structured interface for accessing, analysing, and exporting
 SUEWS model output data.
 """
 
+import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -144,12 +145,30 @@ class SUEWSOutput:
 
     @property
     def n_grids(self) -> int:
-        """Number of grids."""
+        """Number of grids.
+
+        .. deprecated::
+            Use ``len(output.grids)`` instead.
+        """
+        warnings.warn(
+            "SUEWSOutput.n_grids is deprecated, use len(output.grids) instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return len(self.grids)
 
     @property
     def n_timesteps(self) -> int:
-        """Number of output timesteps."""
+        """Number of output timesteps.
+
+        .. deprecated::
+            Use ``len(output.times)`` instead.
+        """
+        warnings.warn(
+            "SUEWSOutput.n_timesteps is deprecated, use len(output.times) instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return len(self.times)
 
     @property
@@ -685,7 +704,16 @@ class SUEWSOutput:
     # =========================================================================
 
     def to_dataframe(self) -> pd.DataFrame:
-        """Return copy of full output DataFrame."""
+        """Return copy of full output DataFrame.
+
+        .. deprecated::
+            Use :attr:`df` property instead.
+        """
+        warnings.warn(
+            "SUEWSOutput.to_dataframe() is deprecated, use .df instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._df_output.copy()
 
     def save(

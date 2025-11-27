@@ -5,6 +5,7 @@ Provides a structured interface for loading, validating, and analysing
 meteorological forcing data for SUEWS simulations.
 """
 
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -293,7 +294,16 @@ class SUEWSForcing:
 
     @property
     def times(self) -> pd.DatetimeIndex:
-        """Datetime index of forcing data (alias for index)."""
+        """Datetime index of forcing data.
+
+        .. deprecated::
+            Use :attr:`index` instead for pandas-compatible access.
+        """
+        warnings.warn(
+            "SUEWSForcing.times is deprecated, use .index instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._data.index
 
     @property
@@ -320,7 +330,16 @@ class SUEWSForcing:
 
     @property
     def n_timesteps(self) -> int:
-        """Number of timesteps."""
+        """Number of timesteps.
+
+        .. deprecated::
+            Use ``len(forcing)`` instead.
+        """
+        warnings.warn(
+            "SUEWSForcing.n_timesteps is deprecated, use len(forcing) instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return len(self._data)
 
     @property
@@ -715,7 +734,16 @@ class SUEWSForcing:
     # =========================================================================
 
     def to_dataframe(self) -> pd.DataFrame:
-        """Return copy of underlying DataFrame."""
+        """Return copy of underlying DataFrame.
+
+        .. deprecated::
+            Use :attr:`df` property instead.
+        """
+        warnings.warn(
+            "SUEWSForcing.to_dataframe() is deprecated, use .df instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._data.copy()
 
     def to_suews_format(self, path: Union[str, Path]) -> Path:

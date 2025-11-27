@@ -36,8 +36,12 @@ Input/output and data handling tests:
 - **test_yaml_annotation.py** - YAML annotation features
 
 ### UMEP/QGIS Tests (`umep/`)
-UMEP plugin compatibility tests (Windows + Python 3.12 only):
-- **test_qgis_compatibility.py** - QGIS environment compatibility (GH-901)
+UMEP plugin compatibility tests (Windows + Python 3.12 only, GH-901):
+- **test_preprocessor.py** - Database Manager, Database Prepare, ERA5 Download APIs
+- **test_processor.py** - SUEWS model runs (init, run, save)
+- **test_postprocessor.py** - Output path handling
+- **test_environment.py** - QGIS-specific environment (None stdout/stderr)
+- **test_imports.py** - Import path verification
 
 ### Test Fixtures (`fixtures/`)
 Test data and resources:

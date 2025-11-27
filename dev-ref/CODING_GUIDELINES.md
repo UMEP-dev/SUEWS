@@ -134,7 +134,9 @@ except Exception:
 
 ## Fortran Guidelines
 
-**Complete naming conventions**: See **[FORTRAN_NAMING_CONVENTIONS.md](FORTRAN_NAMING_CONVENTIONS.md)** for comprehensive guidelines.
+**Complete documentation**:
+- **[FORTRAN_NAMING_CONVENTIONS.md](FORTRAN_NAMING_CONVENTIONS.md)** - Comprehensive naming standards
+- **[FORTRAN_CODING_CONDUCT.md](FORTRAN_CODING_CONDUCT.md)** - Code structure, safety practices, and conduct guidelines
 
 ### 3.1 Module Structure
 

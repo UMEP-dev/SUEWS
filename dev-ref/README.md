@@ -22,6 +22,11 @@ This directory contains internal documentation for SUEWS core developers.
   - Migration strategy from legacy code
   - Validation tools and enforcement
 
+- **[Fortran Coding Conduct](FORTRAN_CODING_CONDUCT.md)** - Fortran coding standards and best practices
+  - Code structure and organisation
+  - Precision, safety, and error handling
+  - Performance guidelines and documentation standards
+
 - **[Feature Development Workflow](FEATURE_DEVELOPMENT_WORKFLOW.md)** - Managing large features with incremental PRs
   - Breaking down features into reviewable chunks
   - Stacked and parallel PR strategies

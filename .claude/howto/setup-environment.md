@@ -4,7 +4,9 @@ This guide covers Python environment setup for SUEWS development, with uv as the
 
 ## Quick Start
 
-**See `.claude/reference/quick-start.md` for canonical setup commands.**
+**Run `make` in the repository root to see quick start workflows and available commands.**
+
+See also: `.claude/reference/quick-start.md`
 
 ## Why uv?
 
@@ -138,11 +140,7 @@ Each worktree MUST have its own environment to avoid conflicts. See `.claude/ref
 
 ## Makefile Commands
 
-- `make setup` - Create virtual environment with uv
-- `make dev` - Install SUEWS in editable mode
-- `make test` - Run test suite
-- `make clean` - Smart clean (keeps .venv if active)
-- `make format` - Format Python and Fortran code
+Run `make` to see all available commands and quick start workflows.
 
 ## Best Practices
 

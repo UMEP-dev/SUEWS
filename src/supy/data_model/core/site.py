@@ -1171,8 +1171,16 @@ class ArchetypeProperties(BaseModel):
     # BuildingCode='1'
     # BuildingClass='SampleClass'
 
-    BuildingType: str = "SampleType"
-    BuildingName: str = "SampleBuilding"
+    BuildingType: str = Field(
+        default="SampleType",
+        description="Building archetype type [-]",
+        json_schema_extra={"display_name": "Buildingtype"},
+    )
+    BuildingName: str = Field(
+        default="SampleBuilding",
+        description="Building archetype name [-]",
+        json_schema_extra={"display_name": "Buildingname"},
+    )
     BuildingCount: FlexibleRefValue(int) = Field(
         default=1,
         description="Number of buildings of this archetype [-]",
@@ -1288,10 +1296,10 @@ class ArchetypeProperties(BaseModel):
         json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Wallextcp"},
         gt=0.0,
     )
-    Wallx1: FlexibleRefValue(float) = Field(
+    WallOuterCapFrac: FlexibleRefValue(float) = Field(
         default=1.0,
         description="Weighting factor for heat capacity of walls [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Wallx1"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "Walloutercapfrac"},
         ge=0.0,
         le=1.0,
     )
@@ -1392,10 +1400,10 @@ class ArchetypeProperties(BaseModel):
         json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Roofextcp"},
         gt=0.0,
     )
-    Roofx1: FlexibleRefValue(float) = Field(
+    RoofOuterCapFrac: FlexibleRefValue(float) = Field(
         default=1.0,
         description="Weighting factor for heat capacity of roof [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Roofx1"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "Roofoutercapfrac"},
         ge=0.0,
         le=1.0,
     )
@@ -1460,7 +1468,7 @@ class ArchetypeProperties(BaseModel):
     )
     GroundFloorDensity: FlexibleRefValue(float) = Field(
         default=500.0,
-        description="Density of the ground floor [kg m-3]",
+        description="Effective density of the ground floor [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Groundfloordensity"},
         gt=0.0,
     )
@@ -1555,7 +1563,7 @@ class ArchetypeProperties(BaseModel):
     )
     InternalMassCp: FlexibleRefValue(float) = Field(
         default=0.0,
-        description="Specific heat capacity of internal mass [J kg-1 K-1]",
+        description="Effective specific heat capacity of internal mass [J kg-1 K-1]",
         json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Internalmasscp"},
     )
     InternalMassEmissivity: FlexibleRefValue(float) = Field(
@@ -1908,16 +1916,6 @@ class StebbsProperties(BaseModel):
         json_schema_extra={"unit": "m^2", "display_name": "Dhwsurfacearea"},
         gt=0.0,
     )
-    DHWVesselEmissivity: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="NEEDS CHECKED! NOT USED (assumed same as DHWVesselWallEmissivity) [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Dhwvesselemissivity",
-        },
-        ge=0.0,
-        le=1.0,
-    )
     HotWaterFlowRate: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Hot water flow rate from tank to vessel [m3 s-1]",
@@ -1941,7 +1939,7 @@ class StebbsProperties(BaseModel):
     )
     HotWaterTankSpecificHeatCapacity: Optional[FlexibleRefValue(float)] = Field(
         default=500.0,
-        description="Specific heat capacity of hot water tank wal [J kg-1 K-1]",
+        description="Specific heat capacity of hot water tank wall [J kg-1 K-1]",
         json_schema_extra={
             "unit": "J kg^-1 K^-1",
             "display_name": "Hotwatertankspecificheatcapacity",

@@ -116,13 +116,10 @@ For local development without containerisation, follow these steps:
 
 5. **Build SUEWS**:
    ```bash
-   # Fast editable install (recommended)
-   make dev
-
-   # Optional: run tests
-   make test
+   make dev       # Install in editable mode
+   make test      # Run tests (optional)
    ```
-   *Running `make` with no target just prints the help summary.*
+   *Run `make` to see all available commands and quick start workflows.*
 
 6. **Verify installation**:
    ```bash

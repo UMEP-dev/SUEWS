@@ -180,8 +180,6 @@ sites:
         value: 15.0
       DHWSurfaceArea:
         value: 1.5
-      DHWVesselEmissivity:
-        value: 0.8
       HotWaterFlowRate:
         value: 0.0
       DHWDrainFlowRate:
@@ -253,7 +251,7 @@ sites:
         value: 1724.7
       WallextCp:
         value: 1000.0
-      Wallx1:
+      WallOuterCapFrac:
         value: 0.5
       WallExternalEmissivity:
         value: 0.9
@@ -281,7 +279,7 @@ sites:
         value: 1222.0
       RoofextCp:
         value: 816.1
-      Roofx1:
+      RoofOuterCapFrac:
         value: 0.5
       RoofExternalEmissivity:
         value: 0.9

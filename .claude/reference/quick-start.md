@@ -1,6 +1,6 @@
 # Quick Start Commands
 
-**Single source of truth for SUEWS development environment setup.**
+**Run `make` in the repository root to see quick start workflows and available commands.**
 
 ## Recommended: uv (Ultra-fast)
 
@@ -52,11 +52,12 @@ make test
 
 ## Makefile Commands
 
-- `make setup` - Create virtual environment with uv (if available)
-- `make dev` - Install SUEWS in editable mode (self-healing, works after clean)
+Run `make` to see all commands. Key ones:
+
+- `make setup` - Create virtual environment with uv
+- `make dev` - Install SUEWS in editable mode
 - `make test` - Run test suite
 - `make clean` - Smart clean (keeps .venv if active)
-- `make format` - Format Python and Fortran code
 
 ## Common Workflows
 

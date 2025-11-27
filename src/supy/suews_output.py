@@ -103,6 +103,16 @@ class SUEWSOutput:
         return self._df_output.copy()
 
     @property
+    def empty(self) -> bool:
+        """Check if output is empty (pandas-compatible)."""
+        return self._df_output.empty
+
+    @property
+    def columns(self) -> pd.Index:
+        """Column index of output DataFrame (pandas-compatible)."""
+        return self._df_output.columns
+
+    @property
     def state_final(self) -> pd.DataFrame:
         """
         Final model state for restart runs.
@@ -157,18 +167,38 @@ class SUEWSOutput:
         """Metadata about the simulation."""
         return self._metadata.copy()
 
+    @property
+    def loc(self):
+        """Label-based indexer (pandas-compatible)."""
+        return self._df_output.loc
+
+    @property
+    def iloc(self):
+        """Integer-based indexer (pandas-compatible)."""
+        return self._df_output.iloc
+
+    def xs(self, key, axis=0, level=None, drop_level=True):
+        """Cross-section from MultiIndex DataFrame (pandas-compatible)."""
+        return self._df_output.xs(key, axis=axis, level=level, drop_level=drop_level)
+
     def __getattr__(self, name: str) -> pd.DataFrame:
         """
-        Dynamic attribute access for output variables.
+        Dynamic attribute access for output variables and groups.
 
-        Allows access like `output.QH` instead of `output.get_variable('QH')`.
+        Allows access like `output.QH` instead of `output.get_variable('QH')`,
+        and `output.SUEWS` instead of `output.get_group('SUEWS')`.
         """
+        # Check if it's a group name first
+        all_groups = self._df_output.columns.get_level_values("group").unique()
+        if name in all_groups:
+            return self.get_group(name)
+
         # Check if it's a variable name in any group
         all_vars = self._df_output.columns.get_level_values("var").unique()
         if name in all_vars:
             return self.get_variable(name)
 
-        # Check case-insensitively
+        # Check case-insensitively for variables
         name_lower = name.lower()
         for var in all_vars:
             if var.lower() == name_lower:
@@ -176,6 +206,7 @@ class SUEWSOutput:
 
         raise AttributeError(
             f"'{type(self).__name__}' has no attribute '{name}'. "
+            f"Available groups: {list(all_groups)}, "
             f"Available variables (first 10): {list(all_vars[:10])}..."
         )
 

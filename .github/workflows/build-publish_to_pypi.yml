@@ -236,6 +236,8 @@ jobs:
     name: Determine build matrix
     runs-on: ubuntu-latest
     needs: [detect-changes]
+    # Always run - detect-changes is skipped for non-PR events, but we still need matrix
+    if: always() && (needs.detect-changes.result == 'success' || needs.detect-changes.result == 'skipped')
     outputs:
       buildplat: ${{ steps.set-matrix.outputs.buildplat }}
       python: ${{ steps.set-matrix.outputs.python }}

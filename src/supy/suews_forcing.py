@@ -277,8 +277,23 @@ class SUEWSForcing:
         return self._data.copy()
 
     @property
+    def index(self) -> pd.DatetimeIndex:
+        """Datetime index of forcing data (pandas-compatible)."""
+        return self._data.index
+
+    @property
+    def loc(self):
+        """Label-based indexer (pandas-compatible)."""
+        return self._data.loc
+
+    @property
+    def iloc(self):
+        """Integer-based indexer (pandas-compatible)."""
+        return self._data.iloc
+
+    @property
     def times(self) -> pd.DatetimeIndex:
-        """Datetime index of forcing data."""
+        """Datetime index of forcing data (alias for index)."""
         return self._data.index
 
     @property

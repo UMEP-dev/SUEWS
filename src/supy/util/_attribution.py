@@ -24,12 +24,17 @@ exact closure: sum(contributions) == delta_T2.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, Literal
+import logging
+from typing import Literal, Optional
+import warnings
 
 import numpy as np
 import pandas as pd
 
-from ._atm import cal_dens_air, cal_cp_with_rh, cal_lat_vap, cal_qa
+from ._atm import cal_cp_with_rh, cal_dens_air, cal_lat_vap, cal_qa
+
+# Module logger
+_logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -68,12 +73,23 @@ def _shapley_triple_product(
 
     Notes
     -----
-    The Shapley decomposition for triple products:
+    The Shapley value assigns each factor's contribution based on its average
+    marginal contribution across all coalition orderings. For f = xyz with
+    3! = 6 orderings, each factor appears first/middle/last in 2 orderings each.
+
+    The resulting decomposition formulas:
         Phi_x = (dx/6) * [2*y_A*z_A + 2*y_B*z_B + y_A*z_B + y_B*z_A]
         Phi_y = (dy/6) * [2*x_A*z_A + 2*x_B*z_B + x_A*z_B + x_B*z_A]
         Phi_z = (dz/6) * [2*x_A*y_A + 2*x_B*y_B + x_A*y_B + x_B*y_A]
 
-    This ensures exact closure by construction.
+    This ensures exact closure by construction: Phi_x + Phi_y + Phi_z = f_B - f_A.
+
+    NaN values in any input will propagate to outputs. This is intentional
+    for timesteps where physical calculations are undefined (e.g., near-zero flux).
+
+    References
+    ----------
+    Owen, G. (1972). Multilinear extensions of games. Management Science, 18(5), 64-79.
     """
     dx = x_B - x_A
     dy = y_B - y_A
@@ -142,11 +158,13 @@ def _cal_gamma_heat(
     Returns
     -------
     gamma : array-like
-        Scale factor (K m2 / W)
+        Scale factor (K*m^3/J) - combines with r[s/m]*Q_H[W/m^2] to give
+        temperature change [K]. Equivalent to 1/(rho*cp).
     """
     rho = cal_dens_air(press_hPa, temp_C)
     cp = cal_cp_with_rh(temp_C, rh_pct, press_hPa)
-    gamma = 1.0 / (rho * cp)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        gamma = 1.0 / (rho * cp)
     return gamma
 
 
@@ -170,20 +188,22 @@ def _cal_gamma_humidity(
     Returns
     -------
     gamma : array-like
-        Scale factor (kg/kg m2 / W) - converts latent heat flux to humidity change
+        Scale factor (m^3/J) - combines with r[s/m]*Q_E[W/m^2] to give
+        humidity change [kg/kg]. Equivalent to 1/(rho*Lv).
     """
     # Calculate air density
     rho = cal_dens_air(press_hPa, temp_C)
 
     # Calculate specific humidity from RH for latent heat calculation
-    theta_K = temp_C + 273.16
+    theta_K = temp_C + 273.15  # Celsius to Kelvin
     qa = cal_qa(rh_pct, theta_K, press_hPa)
 
     # Calculate latent heat of vaporisation
     Lv = cal_lat_vap(qa, theta_K, press_hPa)
 
     # Scale factor: delta_q = gamma * QE (where QE in W/m2)
-    gamma = 1.0 / (rho * Lv)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        gamma = 1.0 / (rho * Lv)
     return gamma
 
 
@@ -216,13 +236,24 @@ def _cal_r_eff_heat(
     Returns
     -------
     r_eff : array-like
-        Effective heat resistance (s/m)
+        Effective heat resistance (s/m). NaN for timesteps with |Q_H| < min_flux.
     """
     # Avoid division by near-zero flux
     denom = QH * gamma
-    denom = np.where(np.abs(denom) < min_flux * np.abs(gamma), np.nan, denom)
+    low_flux_mask = np.abs(denom) < min_flux * np.abs(gamma)
+    n_low_flux = int(np.sum(low_flux_mask))
 
-    r_eff = (T2 - T_ref) / denom
+    if n_low_flux > 0:
+        _logger.debug(
+            "Setting %d timesteps to NaN due to flux below threshold (%.1f W/m2)",
+            n_low_flux,
+            min_flux,
+        )
+
+    denom = np.where(low_flux_mask, np.nan, denom)
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        r_eff = (T2 - T_ref) / denom
     return r_eff
 
 
@@ -255,13 +286,24 @@ def _cal_r_eff_humidity(
     Returns
     -------
     r_eff : array-like
-        Effective moisture resistance (s/m)
+        Effective moisture resistance (s/m). NaN for timesteps with |Q_E| < min_flux.
     """
     # Avoid division by near-zero flux
     denom = QE * gamma
-    denom = np.where(np.abs(denom) < min_flux * np.abs(gamma), np.nan, denom)
+    low_flux_mask = np.abs(denom) < min_flux * np.abs(gamma)
+    n_low_flux = int(np.sum(low_flux_mask))
 
-    r_eff = (q2 - q_ref) / denom
+    if n_low_flux > 0:
+        _logger.debug(
+            "Setting %d timesteps to NaN due to latent flux below threshold (%.1f W/m2)",
+            n_low_flux,
+            min_flux,
+        )
+
+    denom = np.where(low_flux_mask, np.nan, denom)
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        r_eff = (q2 - q_ref) / denom
     return r_eff
 
 
@@ -292,24 +334,34 @@ def _decompose_flux_budget(
     Returns
     -------
     dict
-        Contributions from each budget component
+        Contributions from each budget component. NaN for timesteps where
+        the total flux change is near-zero (< 1e-10 W/m2).
+
+    Notes
+    -----
+    The threshold of 1e-10 W/m2 is chosen to be well below machine precision
+    for typical flux magnitudes (1-1000 W/m2), ensuring numerical stability
+    while capturing essentially all physically meaningful flux changes.
     """
     # Calculate change in each component
     d_components = {
-        name: components_B[name] - components_A[name] for name in components_A.keys()
+        name: components_B[name] - components_A[name] for name in components_A
     }
 
     # Total flux change
     d_flux = flux_B - flux_A
 
     # Allocate total contribution proportionally
-    # Handle zero denominator
-    d_flux_safe = np.where(np.abs(d_flux) < 1e-10, np.nan, d_flux)
+    # Threshold: 1e-10 W/m2 is well below machine precision for typical flux values
+    # This prevents division-by-zero while preserving all meaningful decompositions
+    FLUX_CHANGE_THRESHOLD = 1e-10  # W/m2
+    d_flux_safe = np.where(np.abs(d_flux) < FLUX_CHANGE_THRESHOLD, np.nan, d_flux)
 
-    contributions = {}
-    for name, d_comp in d_components.items():
-        weight = d_comp / d_flux_safe
-        contributions[name] = weight * total_contribution
+    with np.errstate(divide="ignore", invalid="ignore"):
+        contributions = {}
+        for name, d_comp in d_components.items():
+            weight = d_comp / d_flux_safe
+            contributions[name] = weight * total_contribution
 
     return contributions
 
@@ -629,14 +681,31 @@ def attribute_t2(
 
     >>> result.plot(kind="bar")  # Visualise contributions
     """
-    # Extract SUEWS output group
-    df_A = _extract_suews_group(df_output_A)
-    df_B = _extract_suews_group(df_output_B)
+    # Extract SUEWS output group with column validation
+    required_cols = {"T2", "QH"}
+    df_A = _extract_suews_group(df_output_A, required_cols=required_cols)
+    df_B = _extract_suews_group(df_output_B, required_cols=required_cols)
 
     # Align indices
+    n_A_original = len(df_A.index)
+    n_B_original = len(df_B.index)
     common_idx = df_A.index.intersection(df_B.index)
+
     if len(common_idx) == 0:
         raise ValueError("No overlapping timestamps between scenarios A and B")
+
+    # Warn if significant data loss during alignment
+    pct_A_kept = 100 * len(common_idx) / n_A_original
+    pct_B_kept = 100 * len(common_idx) / n_B_original
+    if pct_A_kept < 90 or pct_B_kept < 90:
+        warnings.warn(
+            f"Significant data loss during alignment: keeping {pct_A_kept:.1f}% of "
+            f"scenario A ({len(common_idx)}/{n_A_original}), {pct_B_kept:.1f}% of "
+            f"scenario B ({len(common_idx)}/{n_B_original}). "
+            "Check that time indices match between scenarios.",
+            UserWarning,
+            stacklevel=2,
+        )
 
     df_A = df_A.loc[common_idx]
     df_B = df_B.loc[common_idx]
@@ -656,9 +725,17 @@ def attribute_t2(
         P_A = df_forcing_A.loc[common_idx, "pres"].values
         P_B = df_forcing_B.loc[common_idx, "pres"].values
     else:
+        # Warn user about approximation
+        warnings.warn(
+            "Forcing data not provided. Using T2 as proxy for reference temperature "
+            "and default values for RH (60%) and pressure (1013.25 hPa). "
+            "Air property contributions (air_props) may be unreliable. "
+            "For accurate attribution, provide df_forcing_A and df_forcing_B.",
+            UserWarning,
+            stacklevel=2,
+        )
         # Use T2 as proxy for reference temperature (simplified)
-        # This is an approximation - ideally forcing should be provided
-        T_ref_A = df_A["T2"].values  # Approximation
+        T_ref_A = df_A["T2"].values
         T_ref_B = df_B["T2"].values
         # Use typical values for RH and pressure
         RH_A = np.full_like(T2_A, 60.0)  # 60% RH default
@@ -790,31 +867,38 @@ def attribute_q2(
 
     >>> result.plot(kind="bar")  # Visualise contributions
     """
-    # Extract SUEWS output group
-    df_A = _extract_suews_group(df_output_A)
-    df_B = _extract_suews_group(df_output_B)
+    # Extract SUEWS output group with column validation
+    required_cols = {"q2", "QE", "T2"}
+    df_A = _extract_suews_group(df_output_A, required_cols=required_cols)
+    df_B = _extract_suews_group(df_output_B, required_cols=required_cols)
 
     # Align indices
+    n_A_original = len(df_A.index)
+    n_B_original = len(df_B.index)
     common_idx = df_A.index.intersection(df_B.index)
+
     if len(common_idx) == 0:
         raise ValueError("No overlapping timestamps between scenarios A and B")
+
+    # Warn if significant data loss during alignment
+    pct_A_kept = 100 * len(common_idx) / n_A_original
+    pct_B_kept = 100 * len(common_idx) / n_B_original
+    if pct_A_kept < 90 or pct_B_kept < 90:
+        warnings.warn(
+            f"Significant data loss during alignment: keeping {pct_A_kept:.1f}% of "
+            f"scenario A ({len(common_idx)}/{n_A_original}), {pct_B_kept:.1f}% of "
+            f"scenario B ({len(common_idx)}/{n_B_original}). "
+            "Check that time indices match between scenarios.",
+            UserWarning,
+            stacklevel=2,
+        )
 
     df_A = df_A.loc[common_idx]
     df_B = df_B.loc[common_idx]
 
     # Extract required variables
-    # q2 may not be directly in output - calculate from T2 and RH if available
-    if "q2" in df_A.columns:
-        q2_A = df_A["q2"].values
-        q2_B = df_B["q2"].values
-    else:
-        # Approximate using T2 and relative humidity from forcing
-        # This is a simplified approach - ideally q2 should be in output
-        raise ValueError(
-            "q2 not found in SUEWS output. "
-            "Ensure SUEWS is configured to output near-surface humidity."
-        )
-
+    q2_A = df_A["q2"].values
+    q2_B = df_B["q2"].values
     QE_A = df_A["QE"].values
     QE_B = df_B["QE"].values
 
@@ -829,11 +913,20 @@ def attribute_q2(
         P_B = df_forcing_B.loc[common_idx, "pres"].values
 
         # Calculate reference specific humidity
-        theta_A = T_ref_A + 273.16
-        theta_B = T_ref_B + 273.16
+        theta_A = T_ref_A + 273.15  # Celsius to Kelvin
+        theta_B = T_ref_B + 273.15
         q_ref_A = cal_qa(RH_A, theta_A, P_A)
         q_ref_B = cal_qa(RH_B, theta_B, P_B)
     else:
+        # Warn user about approximation
+        warnings.warn(
+            "Forcing data not provided. Using q2 as proxy for reference humidity "
+            "and default values for RH (60%) and pressure (1013.25 hPa). "
+            "Air property contributions (air_props) may be unreliable. "
+            "For accurate attribution, provide df_forcing_A and df_forcing_B.",
+            UserWarning,
+            stacklevel=2,
+        )
         # Use approximations
         T_ref_A = df_A["T2"].values
         T_ref_B = df_B["T2"].values
@@ -902,7 +995,6 @@ def diagnose_t2(
     df_forcing: Optional[pd.DataFrame] = None,
     method: Literal["anomaly", "extreme", "diurnal"] = "anomaly",
     threshold: float = 2.0,
-    reference: str = "auto",
     hierarchical: bool = True,
 ) -> AttributionResult:
     """
@@ -925,12 +1017,6 @@ def diagnose_t2(
         Default 'anomaly'.
     threshold : float, optional
         Standard deviation threshold for anomaly detection. Default 2.0.
-    reference : str, optional
-        Reference period:
-        - 'auto': Automatically select based on method
-        - 'morning': 06:00-10:00
-        - 'daily_mean': Use timesteps near daily mean
-        Default 'auto'.
     hierarchical : bool, optional
         Include flux budget breakdown. Default True.
 
@@ -947,11 +1033,15 @@ def diagnose_t2(
     >>> print(result)
     T2 Attribution Results
     ========================================
-    Found 47 anomalous timesteps (3.2% of data)
-    Mean anomaly: +2.8 degC
+    Mean delta_T2: +2.80 degC
 
-    Primary driver: Flux (62%)
-      -> Check evaporation and radiation forcing
+    Component Breakdown:
+    ----------------------------------------
+      flux_total     : +1.74 degC (62.1%)
+      resistance     : +0.78 degC (27.9%)
+      air_props      : +0.28 degC (10.0%)
+
+    Closure residual: 1.23e-15 degC
 
     >>> result.plot()  # Visualise decomposition
     """
@@ -1042,7 +1132,6 @@ def diagnose_q2(
     df_forcing: Optional[pd.DataFrame] = None,
     method: Literal["anomaly", "extreme", "diurnal"] = "anomaly",
     threshold: float = 2.0,
-    reference: str = "auto",
 ) -> AttributionResult:
     """
     Automatically identify anomalous q2 values and attribute the causes.
@@ -1064,12 +1153,6 @@ def diagnose_q2(
         Default 'anomaly'.
     threshold : float, optional
         Standard deviation threshold for anomaly detection. Default 2.0.
-    reference : str, optional
-        Reference period:
-        - 'auto': Automatically select based on method
-        - 'morning': 06:00-10:00
-        - 'daily_mean': Use timesteps near daily mean
-        Default 'auto'.
 
     Returns
     -------
@@ -1084,8 +1167,15 @@ def diagnose_q2(
     >>> print(result)
     q2 Attribution Results
     ========================================
-    Found 35 anomalous timesteps (2.4% of data)
-    Mean anomaly: +0.8 g/kg
+    Mean delta_q2: +0.80 g/kg
+
+    Component Breakdown:
+    ----------------------------------------
+      flux_total     : +0.53 g/kg (66.7%)
+      resistance     : +0.20 g/kg (25.0%)
+      air_props      : +0.07 g/kg ( 8.3%)
+
+    Closure residual: 1.23e-15 g/kg
 
     >>> result.plot()  # Visualise decomposition
     """
@@ -1282,11 +1372,31 @@ def diagnose(
 # =============================================================================
 
 
-def _extract_suews_group(df_output: pd.DataFrame) -> pd.DataFrame:
+def _extract_suews_group(
+    df_output: pd.DataFrame,
+    required_cols: Optional[set[str]] = None,
+) -> pd.DataFrame:
     """
     Extract SUEWS output group from MultiIndex DataFrame.
 
     Handles both MultiIndex column structure and flat DataFrames.
+
+    Parameters
+    ----------
+    df_output : pd.DataFrame
+        SUEWS output DataFrame, possibly with MultiIndex columns
+    required_cols : set of str, optional
+        Columns that must be present after extraction. If None, no validation.
+
+    Returns
+    -------
+    pd.DataFrame
+        Extracted DataFrame with flat column structure
+
+    Raises
+    ------
+    ValueError
+        If required columns are missing from the extracted DataFrame
     """
     # Check if MultiIndex columns
     if isinstance(df_output.columns, pd.MultiIndex):
@@ -1296,12 +1406,24 @@ def _extract_suews_group(df_output: pd.DataFrame) -> pd.DataFrame:
             if isinstance(df_output.index, pd.MultiIndex):
                 # Get first grid
                 grid = df_output.index.get_level_values(0)[0]
-                return df_output.loc[grid, "SUEWS"]
+                df = df_output.loc[grid, "SUEWS"]
             else:
-                return df_output["SUEWS"]
+                df = df_output["SUEWS"]
         else:
             # Return first level
-            return df_output.droplevel(0, axis=1)
+            df = df_output.droplevel(0, axis=1)
     else:
         # Already flat DataFrame
-        return df_output
+        df = df_output
+
+    # Validate required columns if specified
+    if required_cols is not None:
+        missing = required_cols - set(df.columns)
+        if missing:
+            available = list(df.columns)[:10]
+            raise ValueError(
+                f"Required columns missing from SUEWS output: {missing}. "
+                f"Available columns (first 10): {available}"
+            )
+
+    return df

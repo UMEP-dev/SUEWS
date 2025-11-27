@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 from pathlib import Path
 import pandas as pd
@@ -33,24 +35,8 @@ def read_suews(path_suews_file: str) -> pd.DataFrame:
     return df_suews
 
 
-def read_forcing(path_suews_file: str, tstep_mod=300) -> pd.DataFrame:
-    """read in SUEWS forcing files as DataFrame ready for SuPy simulation.
-
-    Parameters
-    ----------
-    path_suews_file : str
-        a string that represents wildcard pattern can locate SUEWS forcing files, which should follow `SUEWS convention <https://suews.readthedocs.io/en/latest/input_files/met_input.html>`_.
-
-    tstep_mod: int or None, optional
-        time step [s] for resampling, by default 300.
-        If `None`, resampling will be skipped.
-
-    Returns
-    -------
-    pd.DataFrame
-        datetime-aware DataFrame
-    """
-
+def _read_forcing_impl(path_suews_file: str, tstep_mod=300) -> pd.DataFrame:
+    """Internal implementation of read_forcing (no deprecation warning)."""
     path_suews_file = Path(path_suews_file)
     path_input = path_suews_file.parent
     str_pattern = path_suews_file.name
@@ -73,3 +59,38 @@ def read_forcing(path_suews_file: str, tstep_mod=300) -> pd.DataFrame:
             df_forcing = from_nan(df_forcing)
 
     return df_forcing
+
+
+def read_forcing(path_suews_file: str, tstep_mod=300) -> pd.DataFrame:
+    """Read in SUEWS forcing files as DataFrame ready for SuPy simulation.
+
+    .. deprecated::
+        Use :class:`supy.SUEWSForcing.from_file` instead for the modern
+        object-oriented interface with additional validation and analysis features.
+
+    Parameters
+    ----------
+    path_suews_file : str
+        a string that represents wildcard pattern can locate SUEWS forcing files,
+        which should follow `SUEWS convention
+        <https://suews.readthedocs.io/en/latest/input_files/met_input.html>`_.
+
+    tstep_mod: int or None, optional
+        time step [s] for resampling, by default 300.
+        If `None`, resampling will be skipped.
+
+    Returns
+    -------
+    pd.DataFrame
+        datetime-aware DataFrame
+
+    See Also
+    --------
+    supy.SUEWSForcing.from_file : Modern OOP interface (recommended)
+    """
+    warnings.warn(
+        "supy.util.read_forcing is deprecated, use SUEWSForcing.from_file() instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return _read_forcing_impl(path_suews_file, tstep_mod)

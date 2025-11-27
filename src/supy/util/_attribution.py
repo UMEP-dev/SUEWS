@@ -788,7 +788,7 @@ def attribute_q2(
       resistance     : +0.0003 g/kg (25.0%)
       air_props      : +0.0001 g/kg ( 8.3%)
 
-    >>> result.plot(kind='bar')  # Visualise contributions
+    >>> result.plot(kind="bar")  # Visualise contributions
     """
     # Extract SUEWS output group
     df_A = _extract_suews_group(df_output_A)
@@ -1080,7 +1080,7 @@ def diagnose_q2(
     --------
     Quick anomaly diagnosis:
 
-    >>> result = diagnose_q2(df_output, method='anomaly')
+    >>> result = diagnose_q2(df_output, method="anomaly")
     >>> print(result)
     q2 Attribution Results
     ========================================
@@ -1128,7 +1128,9 @@ def diagnose_q2(
         normal_mask = (hour >= 6) & (hour <= 10)  # Morning
 
     else:
-        raise ValueError(f"Unknown method: {method}. Use 'anomaly', 'extreme', 'diurnal'")
+        raise ValueError(
+            f"Unknown method: {method}. Use 'anomaly', 'extreme', 'diurnal'"
+        )
 
     # Check we have enough data in each group
     n_anomaly = anomaly_mask.sum()
@@ -1141,8 +1143,7 @@ def diagnose_q2(
         )
     if n_normal < 10:
         raise ValueError(
-            f"Only {n_normal} reference timesteps found. "
-            "Cannot establish baseline."
+            f"Only {n_normal} reference timesteps found. Cannot establish baseline."
         )
 
     # Create reference and anomaly DataFrames
@@ -1213,10 +1214,10 @@ def attribute(
 
     Examples
     --------
-    >>> result = attribute(df_baseline, df_scenario, variable='T2')
+    >>> result = attribute(df_baseline, df_scenario, variable="T2")
     >>> print(result)
 
-    >>> result = attribute(df_baseline, df_scenario, variable='q2')
+    >>> result = attribute(df_baseline, df_scenario, variable="q2")
     >>> print(result)
     """
     if variable == "T2":
@@ -1225,8 +1226,7 @@ def attribute(
         return attribute_q2(df_output_A, df_output_B, **kwargs)
     else:
         raise ValueError(
-            f"Unknown variable: {variable}. "
-            f"Supported variables: 'T2', 'q2'"
+            f"Unknown variable: {variable}. Supported variables: 'T2', 'q2'"
         )
 
 
@@ -1261,10 +1261,10 @@ def diagnose(
 
     Examples
     --------
-    >>> result = diagnose(df_output, variable='T2', method='anomaly')
+    >>> result = diagnose(df_output, variable="T2", method="anomaly")
     >>> print(result)
 
-    >>> result = diagnose(df_output, variable='q2', method='diurnal')
+    >>> result = diagnose(df_output, variable="q2", method="diurnal")
     >>> print(result)
     """
     if variable == "T2":
@@ -1273,8 +1273,7 @@ def diagnose(
         return diagnose_q2(df_output, **kwargs)
     else:
         raise ValueError(
-            f"Unknown variable: {variable}. "
-            f"Supported variables: 'T2', 'q2'"
+            f"Unknown variable: {variable}. Supported variables: 'T2', 'q2'"
         )
 
 

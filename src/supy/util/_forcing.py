@@ -152,8 +152,9 @@ def _convert_xsmd_series(
     """Convert volumetric/gravimetric xsmd measurements to a soil moisture deficit.
 
     Dimensional analysis:
-    - SMDMethod=1 (volumetric): [fraction] × [mm] × [fraction] = [mm]
-    - SMDMethod=2 (gravimetric): [g/g] × [g/cm³] × [mm] × [fraction] = [mm]
+    - SMDMethod=1 (volumetric): [m³/m³] × [mm] × [-] = [mm]
+    - SMDMethod=2 (gravimetric): [g/g] × [g/cm³] / [g/cm³] × [mm] × [-] = [mm]
+      (division by ρ_water=1 g/cm³ is implicit in the formula)
     """
 
     values = xsmd.to_numpy(dtype=float, copy=True)
@@ -169,7 +170,8 @@ def _convert_xsmd_series(
         clipped = np.clip(clipped, 0.0, meta.smcap)
         deficit = (meta.smcap - clipped) * meta.depth_mm * meta.soil_not_rocks
     elif smd_method == 2:
-        # Gravimetric: deficit [mm] = (w_max - w_obs) [g/g] × ρ_soil [g/cm³] × depth [mm] × soil_fraction
+        # Gravimetric: deficit = (w_max - w_obs) × (ρ_soil / ρ_water) × depth × soil_fraction
+        # Since ρ_water = 1 g/cm³, formula simplifies to: (w_max - w_obs) × ρ_soil × depth × soil_fraction
         clipped = np.clip(clipped, 0.0, meta.smcap)
         deficit = (
             (meta.smcap - clipped)

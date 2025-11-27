@@ -135,12 +135,8 @@ def attribute_u10(
 
     # Calculate profile components for each scenario
     # F = u*/k, R = ln((z-d)/z0m), S = -psi_m
-    F_A, R_A, S_A = cal_u10_profile_components(
-        ustar_A, z0m_A, zd_A, Lob_A, z_ref=z_ref
-    )
-    F_B, R_B, S_B = cal_u10_profile_components(
-        ustar_B, z0m_B, zd_B, Lob_B, z_ref=z_ref
-    )
+    F_A, R_A, S_A = cal_u10_profile_components(ustar_A, z0m_A, zd_A, Lob_A, z_ref=z_ref)
+    F_B, R_B, S_B = cal_u10_profile_components(ustar_B, z0m_B, zd_B, Lob_B, z_ref=z_ref)
 
     # Shapley decomposition for f = F * (R + S)
     Phi_F, Phi_R, Phi_S = shapley_forcing_profile(F_A, F_B, R_A, R_B, S_A, S_B)

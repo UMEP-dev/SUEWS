@@ -131,10 +131,14 @@ suews-schema = "supy.cmd.schema_cli:main"
 filterwarnings = [
     "ignore::UserWarning:pydantic.main",
 ]
-# Test markers
+# Test markers for tiered CI testing
 markers = [
-    "slow: marks tests as slow (e.g., Fortran state persistence tests taking ~3-4 minutes)",
-    "qgis: marks UMEP plugin compatibility tests (Windows + Python 3.12 only, GH-901)",
+    "smoke: Minimal wheel validation (~6 tests, ~60s)",
+    "core: Core physics & logic tests (Fortran, driver)",
+    "util: Utility function tests (non-critical)",
+    "cfg: Config/schema validation tests",
+    "slow: Tests taking >30s individually",
+    "qgis: UMEP plugin tests in test/umep/ (Windows + Python 3.12 only)",
 ]
 
 [tool.ruff]

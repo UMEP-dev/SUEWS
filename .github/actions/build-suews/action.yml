@@ -26,10 +26,32 @@ inputs:
     description: 'Test tier: smoke, core, cfg, standard, or all'
     required: false
     default: 'standard'
+  is_testpypi_build:
+    description: 'Whether this is a TestPyPI build (adds notice to README)'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
   steps:
+    - name: Inject TestPyPI notice into README
+      if: inputs.is_testpypi_build == 'true'
+      shell: bash
+      run: |
+        # Add TestPyPI notice after the first heading in README.md
+        # This notice only appears in TestPyPI releases, not production PyPI
+        # Insert after line 3 (after "This is the SUEWS urban climate model repository.")
+        head -n 3 README.md > README.tmp
+        cat >> README.tmp << 'EOF'
+
+> **📦 TestPyPI Release**: This is a development version published to [test.pypi.org](https://test.pypi.org/project/supy/).
+> For installation instructions, see [Testing Development Versions](https://docs.suews.io/latest/installation.html#testing-development-versions) in the documentation.
+EOF
+        tail -n +4 README.md >> README.tmp
+        mv README.tmp README.md
+        echo "Added TestPyPI notice to README.md"
+        head -15 README.md
+
     - name: Modify pyproject.toml for NumPy 1.x compatibility
       if: inputs.is_umep_variant == 'true'
       shell: bash

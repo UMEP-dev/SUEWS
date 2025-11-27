@@ -351,6 +351,7 @@ jobs:
           is_umep_variant: 'false'
           wheel_name_suffix: ''
           test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
+          is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
 
   build_umep:
     name: Build UMEP wheel (rc1/dev1) for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
@@ -393,6 +394,7 @@ jobs:
           is_umep_variant: 'true'
           wheel_name_suffix: '-umep'
           test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
+          is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
 
   # PR gate: single consolidated check for branch protection
   # This job ALWAYS runs for PRs and reports pass/fail based on build results

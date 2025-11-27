@@ -2,6 +2,7 @@
 
 Called by the meson build system during f2py wrapper generation.
 """
+
 from pathlib import Path
 import sys
 
@@ -28,7 +29,5 @@ for f in list_p_out:
         elif p_target.is_dir():
             p_target.rmdir()
         else:
-            raise FileExistsError(
-                f"{p_target} exists and is not a file or directory."
-            )
+            raise FileExistsError(f"{p_target} exists and is not a file or directory.")
     f.rename(p_target)

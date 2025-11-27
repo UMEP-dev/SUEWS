@@ -196,7 +196,7 @@ class HourlyProfile(BaseModel):
             if val is None:
                 out[str(k)] = None
             else:
-                out[str(k)] = float(val)  
+                out[str(k)] = float(val)
         return out
 
     def to_df_state(self, grid_id: int, param_name: str) -> pd.DataFrame:

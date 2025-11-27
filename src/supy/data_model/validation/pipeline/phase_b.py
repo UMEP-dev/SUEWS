@@ -1404,20 +1404,18 @@ def adjust_model_dependent_nullification(
                     Handles dicts with 'value' keys, nested dicts, lists of scalars/dicts,
                     and plain scalar values (e.g., trafficrate.working_day: 0.01).
                     """
-                    # iterate over a static list of keys to allow in-place modification
                     for key in list(block.keys()):
                         val = block[key]
                         current_path = f"{path}.{key}" if path else key
 
-                        # dict with explicit 'value' wrapper
                         if isinstance(val, dict) and "value" in val:
                             if val["value"] is not None:
                                 val["value"] = None
                                 nullified_params.append(current_path)
-                        # nested dict - recurse
+
                         elif isinstance(val, dict):
                             _recursive_nullify_co2(val, current_path)
-                        # list/tuple - iterate elements
+ 
                         elif isinstance(val, (list, tuple)):
                             for idx, item in enumerate(list(val)):
                                 item_path = f"{current_path}[{idx}]"
@@ -1426,17 +1424,16 @@ def adjust_model_dependent_nullification(
                                 else:
                                     # replace scalar/list item with None
                                     try:
-                                        # for lists we need to assign back (tuples skipped)
                                         if isinstance(val, list):
                                             val[idx] = None
                                             nullified_params.append(item_path)
                                         else:
-                                            # tuples are immutable; replace whole entry with None
+                                            
                                             block[key] = None
                                             nullified_params.append(current_path)
                                             break
                                     except Exception:
-                                        # If assignment fails for any reason, set parent key to None
+                                        
                                         block[key] = None
                                         nullified_params.append(current_path)
                                         break

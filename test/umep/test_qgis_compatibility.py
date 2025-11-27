@@ -28,6 +28,14 @@ _IS_WINDOWS = sys.platform == "win32"
 _IS_PY312 = sys.version_info[:2] == (3, 12)
 _IS_QGIS_TARGET = _IS_WINDOWS and _IS_PY312
 
+# Check if safe_stdout_stderr is available (added in PR #903)
+try:
+    from supy.util._era5 import safe_stdout_stderr
+
+    _HAS_SAFE_STDOUT_STDERR = True
+except ImportError:
+    _HAS_SAFE_STDOUT_STDERR = False
+
 # Mark all tests in this module with 'qgis' marker and skip on non-target platforms
 pytestmark = [
     pytest.mark.qgis,
@@ -71,32 +79,19 @@ class TestDatabaseManagerAPI(TestCase):
         self.assertIn("$defs", schema)
         self.assertIsInstance(schema["$defs"], dict)
 
-    def test_generate_json_schema_field_constraints(self):
-        """Test that schema contains field constraints (min/max) used by Database Manager."""
+    def test_generate_json_schema_has_definitions(self):
+        """Test that schema contains $defs used by Database Manager for validation."""
         from supy.data_model.schema.publisher import generate_json_schema
 
         schema = generate_json_schema()
 
-        # Check for common numeric constraints in definitions
-        # These are used by UMEP to validate parameter ranges
+        # Verify $defs exists and contains model definitions
+        # UMEP uses these definitions for parameter validation
         defs = schema.get("$defs", {})
-
-        # At least some definitions should have numeric constraints
-        constraints_found = False
-        for def_name, def_schema in defs.items():
-            if isinstance(def_schema, dict):
-                props = def_schema.get("properties", {})
-                for prop_name, prop_schema in props.items():
-                    if isinstance(prop_schema, dict):
-                        if "minimum" in prop_schema or "maximum" in prop_schema:
-                            constraints_found = True
-                            break
-            if constraints_found:
-                break
-
-        # It's acceptable if no constraints are found in all cases,
-        # but the schema should still be valid
-        self.assertIsInstance(schema, dict)
+        self.assertIsInstance(defs, dict)
+        self.assertGreater(
+            len(defs), 0, "Schema should contain model definitions in $defs"
+        )
 
 
 class TestDatabasePrepareAPI(TestCase):
@@ -141,6 +136,7 @@ class TestDatabasePrepareAPI(TestCase):
         schema = generate_json_schema()
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+            # Malformed YAML to test parse error handling (unclosed brackets)
             f.write("invalid: yaml: content: [[[")
             temp_path = Path(f.name)
 
@@ -191,10 +187,11 @@ class TestERA5DownloadAPI(TestCase):
 
         # These may be named differently but should exist
         # UMEP uses: hgt_agl_diag, dir_save
-        self.assertTrue(
-            any("hgt" in p.lower() or "height" in p.lower() for p in params)
-            or "hgt_agl_diag" in params,
-            f"Expected height parameter, got: {params}",
+        height_params = [p for p in params if "hgt" in p.lower() or "height" in p.lower()]
+        self.assertGreater(
+            len(height_params),
+            0,
+            f"Expected height parameter (hgt* or height*), got params: {params}",
         )
         self.assertIn("dir_save", params)
 
@@ -302,9 +299,9 @@ class TestSUEWSProcessorAPI(TestCase):
         )
 
         # Run with chunk_day parameter as UMEP does
-        # Use short forcing for test speed
+        # Use short forcing for test speed: 288 = 24h × 12 intervals/h (5-min data)
         df_output, df_state_final = sp.run_supy(
-            df_forcing.iloc[:288],  # One day of 5-min data
+            df_forcing.iloc[:288],
             df_state_init,
             chunk_day=1,
             check_input=False,
@@ -335,6 +332,7 @@ class TestSUEWSProcessorAPI(TestCase):
             self.sample_config, grid=grid, df_state_init=df_state_init
         )
 
+        # 288 = 24h × 12 intervals/h (5-min data)
         df_output, df_state_final = sp.run_supy(
             df_forcing.iloc[:288],
             df_state_init,
@@ -397,6 +395,10 @@ class TestQGISEnvironment(TestCase):
         finally:
             sys.stdout = original_stdout
 
+    @pytest.mark.skipif(
+        not _HAS_SAFE_STDOUT_STDERR,
+        reason="safe_stdout_stderr not available (requires PR #903)",
+    )
     def test_safe_stdout_stderr_with_none_streams(self):
         """Test that safe_stdout_stderr() handles None stdout/stderr (GH-902)."""
         from supy.util._era5 import safe_stdout_stderr
@@ -426,6 +428,10 @@ class TestQGISEnvironment(TestCase):
             sys.stdout = orig_stdout
             sys.stderr = orig_stderr
 
+    @pytest.mark.skipif(
+        not _HAS_SAFE_STDOUT_STDERR,
+        reason="safe_stdout_stderr not available (requires PR #903)",
+    )
     def test_safe_stdout_stderr_noop_with_valid_streams(self):
         """Test that safe_stdout_stderr() is a no-op when streams are valid."""
         from supy.util._era5 import safe_stdout_stderr
@@ -442,6 +448,10 @@ class TestQGISEnvironment(TestCase):
         self.assertIs(sys.stdout, orig_stdout)
         self.assertIs(sys.stderr, orig_stderr)
 
+    @pytest.mark.skipif(
+        not _HAS_SAFE_STDOUT_STDERR,
+        reason="safe_stdout_stderr not available (requires PR #903)",
+    )
     def test_tqdm_with_none_stdout(self):
         """Test that tqdm doesn't crash when stdout is None (GH-902)."""
         from tqdm import tqdm

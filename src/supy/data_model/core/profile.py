@@ -188,26 +188,16 @@ class HourlyProfile(BaseModel):
 
     @field_validator("working_day", "holiday", mode="before")
     def convert_keys_to_str(cls, v: Dict) -> Dict[str, Optional[float]]:
-        # Accept dicts that can contain None and preserve None values.
-        if isinstance(v, dict):
-            out = {}
-            for k, val in v.items():
-                if val is None:
-                    out[str(k)] = None
-                else:
-                    # If value is pandas NA / numpy nan, treat as None
-                    try:
-                        # float(np.nan) is nan, but we may want None; convert nan->None
-                        f = float(val)
-                        if f != f:  # nan check
-                            out[str(k)] = None
-                        else:
-                            out[str(k)] = f
-                    except (TypeError, ValueError):
-                        # If conversion fails, preserve original or set None
-                        out[str(k)] = None
-            return out
-        return v
+        if not isinstance(v, dict):
+            return v
+
+        out: Dict[str, Optional[float]] = {}
+        for k, val in v.items():
+            if val is None:
+                out[str(k)] = None
+            else:
+                out[str(k)] = float(val)  
+        return out
 
     def to_df_state(self, grid_id: int, param_name: str) -> pd.DataFrame:
         """Convert hourly profile to DataFrame state format.

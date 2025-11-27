@@ -5,14 +5,9 @@ from pathlib import Path
 
 
 def main():
-    for i, arg in enumerate(sys.argv):
-        print(f"sys.argv[{i}]: {arg}")
     fn_this_script = sys.argv[0]
     current_source_dir = Path(fn_this_script).parent
-    print(f"current_source_dir: {current_source_dir.resolve()}")
-
     current_build_dir = Path.cwd()
-    print(f"current_build_dir: {current_build_dir.resolve()}")
 
     p_fn_supy_driver = Path(
         sys.argv[2]
@@ -20,15 +15,12 @@ def main():
     if p_fn_supy_driver.exists():
         # supy_driver.py is already patched and moved to the output directory
         p_supy_driver = p_fn_supy_driver
-        print(f"path to supy_driver: {p_supy_driver}")
     else:
         # supy_driver.py is not patched and placed in the build directory
         p_supy_driver = current_build_dir / p_fn_supy_driver.name
         if not p_supy_driver.exists():
             # if the file does not exist, then there's error in the meson build and need to stop here for debugging
-            raise FileNotFoundError(f"path to supy_driver: {p_supy_driver}")
-        else:
-            print(f"path to supy_driver: {p_supy_driver}")
+            raise FileNotFoundError(f"supy_driver.py not found at: {p_supy_driver}")
 
         # Move generated files to the output directory
         fn_supy_driver = p_fn_supy_driver.name
@@ -40,10 +32,8 @@ def main():
                 fn_supy_driver,
                 output_dir,
             ])
-            print("Output files moved successfully")
         except subprocess.CalledProcessError as e:
-            print(f"Error moving output files: {e}")
-            return 1
+            raise RuntimeError(f"Error moving output files: {e}")
 
         p_supy_driver = Path(output_dir) / fn_supy_driver
         # patch supy_driver.py

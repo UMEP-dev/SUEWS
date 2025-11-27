@@ -181,16 +181,15 @@ Development build
 
 To install the development build of SUEWS, you need to install ``supy`` in the development mode:
 
-1. git clone the repository::
+1. Clone the repository::
 
     git clone https://github.com/UMEP-dev/SUEWS.git
-
-2. navigate to the directory of the cloned repository::
-
     cd SUEWS
 
-3. install the package in the development mode::
+2. Run ``make`` to see quick start instructions and available commands::
 
-    make dev
+    make
+
+3. Follow the quick start workflow shown (activate a virtual environment, then ``make dev``)
 
 

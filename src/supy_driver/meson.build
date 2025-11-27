@@ -35,6 +35,7 @@ if fortran_compiler.get_id() == 'gcc'
       '-ffree-line-length-none',  # Allow unlimited line length
       '-g',
       '-O1',  # Faster than -O0
+      '-Wno-missing-include-dirs',  # Suppress f2py-generated spurious include path warnings
       # Remove -fcheck=all for faster compilation
     ]
   else
@@ -45,6 +46,7 @@ if fortran_compiler.get_id() == 'gcc'
       '-g',
       '-O0',
       '-fcheck=all',
+      '-Wno-missing-include-dirs',  # Suppress f2py-generated spurious include path warnings
     ]
   endif
   fortran_program = find_program('gfortran')

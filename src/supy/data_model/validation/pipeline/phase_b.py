@@ -1415,7 +1415,7 @@ def adjust_model_dependent_nullification(
 
                         elif isinstance(val, dict):
                             _recursive_nullify_co2(val, current_path)
- 
+
                         elif isinstance(val, (list, tuple)):
                             for idx, item in enumerate(list(val)):
                                 item_path = f"{current_path}[{idx}]"
@@ -1428,12 +1428,10 @@ def adjust_model_dependent_nullification(
                                             val[idx] = None
                                             nullified_params.append(item_path)
                                         else:
-                                            
                                             block[key] = None
                                             nullified_params.append(current_path)
                                             break
                                     except Exception:
-                                        
                                         block[key] = None
                                         nullified_params.append(current_path)
                                         break

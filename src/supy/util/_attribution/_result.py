@@ -83,7 +83,9 @@ class AttributionResult:
 
         # Closure check
         lines.append("")
-        avail_components = [c for c in main_components if c in self.contributions.columns]
+        avail_components = [
+            c for c in main_components if c in self.contributions.columns
+        ]
         sum_components = self.contributions[avail_components].sum(axis=1).mean()
         residual = total - sum_components
         lines.append(f"Closure residual: {residual:.2e} {unit}")

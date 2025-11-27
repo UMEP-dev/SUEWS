@@ -34,6 +34,7 @@ py.install_sources(
             'util/_UMEP2epw.py',
             'util/__init__.py',
             'util/_atm.py',
+            'util/_attribution.py',
             'util/_debug.py',
             'util/_era5.py',
             'util/code_manager.py',

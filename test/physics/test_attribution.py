@@ -21,15 +21,19 @@ import pytest
 
 from supy.util._attribution import (
     AttributionResult,
-    _cal_gamma_heat,
-    _cal_gamma_humidity,
-    _cal_r_eff_heat,
-    _decompose_flux_budget,
-    _extract_suews_group,
-    _shapley_binary_product,
-    _shapley_triple_product,
     attribute_t2,
     diagnose_t2,
+)
+from supy.util._attribution._core import (
+    shapley_binary_product,
+    shapley_triple_product,
+)
+from supy.util._attribution._helpers import extract_suews_group
+from supy.util._attribution._physics import (
+    cal_gamma_heat,
+    cal_gamma_humidity,
+    cal_r_eff_heat,
+    decompose_flux_budget,
 )
 
 
@@ -43,7 +47,7 @@ class TestShapleyDecomposition(TestCase):
         x_B, y_B, z_B = 3.0, 4.0, 5.0  # f_B = 60
         expected_delta = 60 - 24  # = 36
 
-        Phi_x, Phi_y, Phi_z = _shapley_triple_product(
+        Phi_x, Phi_y, Phi_z = shapley_triple_product(
             np.array([x_A]),
             np.array([x_B]),
             np.array([y_A]),
@@ -75,7 +79,7 @@ class TestShapleyDecomposition(TestCase):
         f_B = x_B * y_B * z_B
         expected_delta = f_B - f_A
 
-        Phi_x, Phi_y, Phi_z = _shapley_triple_product(x_A, x_B, y_A, y_B, z_A, z_B)
+        Phi_x, Phi_y, Phi_z = shapley_triple_product(x_A, x_B, y_A, y_B, z_A, z_B)
 
         actual_sum = Phi_x + Phi_y + Phi_z
 
@@ -95,7 +99,7 @@ class TestShapleyDecomposition(TestCase):
         z_A = np.array([5.0, 5.0, 5.0])
         z_B = np.array([10.0, 10.0, 10.0])
 
-        Phi_x, Phi_y, Phi_z = _shapley_triple_product(x_A, x_B, y_A, y_B, z_A, z_B)
+        Phi_x, Phi_y, Phi_z = shapley_triple_product(x_A, x_B, y_A, y_B, z_A, z_B)
 
         np.testing.assert_allclose(
             Phi_x,
@@ -116,7 +120,7 @@ class TestShapleyDecomposition(TestCase):
         y_B = np.array([base * 2])
         z_B = np.array([base * 2])
 
-        Phi_x, Phi_y, Phi_z = _shapley_triple_product(x_A, x_B, y_A, y_B, z_A, z_B)
+        Phi_x, Phi_y, Phi_z = shapley_triple_product(x_A, x_B, y_A, y_B, z_A, z_B)
 
         # All contributions should be equal due to symmetry
         self.assertAlmostEqual(
@@ -145,7 +149,7 @@ class TestShapleyDecomposition(TestCase):
         f_B = x_B * y_B
         expected_delta = f_B - f_A
 
-        Phi_x, Phi_y = _shapley_binary_product(x_A, x_B, y_A, y_B)
+        Phi_x, Phi_y = shapley_binary_product(x_A, x_B, y_A, y_B)
 
         actual_sum = Phi_x + Phi_y
 
@@ -169,7 +173,7 @@ class TestPhysicalCalculations(TestCase):
         rh_pct = np.array([50.0])
         press_hPa = np.array([1013.25])
 
-        gamma = _cal_gamma_heat(temp_C, rh_pct, press_hPa)
+        gamma = cal_gamma_heat(temp_C, rh_pct, press_hPa)
 
         # Check order of magnitude
         self.assertGreater(gamma[0], 1e-4, "gamma_heat too small")
@@ -181,7 +185,7 @@ class TestPhysicalCalculations(TestCase):
         rh_pct = np.array([50.0])
         press_hPa = np.array([1013.25])
 
-        gamma = _cal_gamma_humidity(temp_C, rh_pct, press_hPa)
+        gamma = cal_gamma_humidity(temp_C, rh_pct, press_hPa)
 
         # gamma_humidity ~ 1/(rho*Lv) ~ 1/(1.2*2.5e6) ~ 3e-7
         self.assertGreater(gamma[0], 1e-8, "gamma_humidity too small")
@@ -195,7 +199,7 @@ class TestPhysicalCalculations(TestCase):
         gamma = np.array([8e-4, 8e-4, 8e-4])
         min_flux = 0.1
 
-        r_eff = _cal_r_eff_heat(T2, T_ref, QH, gamma, min_flux)
+        r_eff = cal_r_eff_heat(T2, T_ref, QH, gamma, min_flux)
 
         self.assertFalse(np.isnan(r_eff[0]), "Valid flux should not produce NaN")
         self.assertTrue(np.isnan(r_eff[1]), "Low flux should produce NaN")
@@ -232,7 +236,7 @@ class TestFluxBudgetDecomposition(TestCase):
         # Total flux contribution (arbitrary for this test)
         total_contribution = np.random.uniform(-10, 10, n)
 
-        contributions = _decompose_flux_budget(
+        contributions = decompose_flux_budget(
             QH_A, QH_B, components_A, components_B, total_contribution
         )
 
@@ -258,7 +262,7 @@ class TestExtractSuewsGroup(TestCase):
         """Flat DataFrame should pass through unchanged."""
         df = pd.DataFrame({"T2": [20, 21, 22], "QH": [100, 150, 200]})
 
-        result = _extract_suews_group(df)
+        result = extract_suews_group(df)
 
         pd.testing.assert_frame_equal(result, df)
 
@@ -267,7 +271,7 @@ class TestExtractSuewsGroup(TestCase):
         df = pd.DataFrame({"T2": [20, 21, 22]})  # Missing QH
 
         with self.assertRaises(ValueError) as context:
-            _extract_suews_group(df, required_cols={"T2", "QH"})
+            extract_suews_group(df, required_cols={"T2", "QH"})
 
         self.assertIn("QH", str(context.exception))
 
@@ -281,7 +285,7 @@ class TestExtractSuewsGroup(TestCase):
         }
         df = pd.DataFrame(data)
 
-        result = _extract_suews_group(df, required_cols={"T2", "QH"})
+        result = extract_suews_group(df, required_cols={"T2", "QH"})
 
         self.assertIn("T2", result.columns)
         self.assertIn("QH", result.columns)

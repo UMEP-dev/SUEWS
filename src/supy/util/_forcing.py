@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -27,9 +27,9 @@ except ImportError:  # pragma: no cover
     logger_supy = logging.getLogger("SuPy")
 
 MISSING_VALUE = -999.0
-# SUEWS surface type indices: 0=paved, 1=buildings, 2=evergreen, 3=deciduous,
-# 4=grass, 5=bare soil, 6=water. Soil moisture only applies to surfaces 0-5.
-NON_WATER_SURFACE_INDICES: Tuple[int, ...] = tuple(range(6))
+# Surface index used for soil observation metadata (paved=0 by convention)
+# Users only need to set metadata on this surface; other surfaces are ignored.
+SOIL_OBS_SURFACE_INDEX = 0
 
 
 @dataclass(frozen=True)
@@ -65,8 +65,9 @@ def convert_observed_soil_moisture(
         # Nothing to do if the column is not present (legacy df_state)
         return df_forcing
 
-    smd_methods = df_state_init[("smdmethod", "0")].astype(int)
-    active_methods = set(int(m) for m in smd_methods if int(m) > 0)
+    # NaN values in smdmethod are treated as 0 (no observation), which is the default
+    smd_methods = df_state_init[("smdmethod", "0")].fillna(0).astype(int)
+    active_methods = set(m for m in smd_methods if m > 0)
     if not active_methods:
         return df_forcing
 
@@ -184,13 +185,27 @@ def _convert_xsmd_series(
 
 
 def _extract_soil_obs_metadata(row: pd.Series, grid: int) -> SoilObservationMetadata:
-    """Aggregate per-surface metadata into a single set of observation parameters."""
+    """Extract soil observation metadata from the designated surface.
 
-    weights = _surface_weights(row, grid)
-    depth = _weighted_average(row, "obs_sm_depth", weights)
-    smcap = _weighted_average(row, "obs_sm_cap", weights)
-    soil_not_rocks = _weighted_average(row, "obs_soil_not_rocks", weights)
-    soil_density = _weighted_average(row, "soildensity", weights)
+    Observed soil moisture is a single point measurement, so we only read
+    metadata from one surface (index 0 by convention). Users should set
+    the observation parameters on this surface; other surfaces are ignored.
+    """
+    surf = SOIL_OBS_SURFACE_INDEX
+
+    def get_value(column: str) -> Optional[float]:
+        key = (column, f"({surf},)")
+        if key not in row.index:
+            return None
+        val = row[key]
+        if val is None or pd.isna(val) or val <= (MISSING_VALUE + 1):
+            return None
+        return float(val)
+
+    depth = get_value("obs_sm_depth")
+    smcap = get_value("obs_sm_cap")
+    soil_not_rocks = get_value("obs_soil_not_rocks")
+    soil_density = get_value("soildensity")
 
     missing = []
     if depth is None:
@@ -204,9 +219,9 @@ def _extract_soil_obs_metadata(row: pd.Series, grid: int) -> SoilObservationMeta
 
     if missing:
         raise ValueError(
-            "Observed soil moisture requires the following metadata columns "
-            f"for grid {grid}: {', '.join(missing)}. Please provide these values "
-            "in the land-cover soil definitions (SUEWS_Soil.txt or YAML config)."
+            f"Observed soil moisture requires metadata for grid {grid} "
+            f"(surface index {surf}): {', '.join(missing)}. "
+            "Set these values in SUEWS_Soil.txt or YAML config."
         )
 
     if depth <= 0:
@@ -215,7 +230,7 @@ def _extract_soil_obs_metadata(row: pd.Series, grid: int) -> SoilObservationMeta
         )
     if not (0 < soil_not_rocks <= 1):
         raise ValueError(
-            f"`obs_soil_not_rocks` must be within (0, 1]. Grid {grid} has {soil_not_rocks}."
+            f"`obs_soil_not_rocks` must be in (0, 1]. Grid {grid} has {soil_not_rocks}."
         )
     if smcap <= 0:
         raise ValueError(f"`obs_sm_cap` must be positive for grid {grid}. Got {smcap}.")
@@ -225,52 +240,8 @@ def _extract_soil_obs_metadata(row: pd.Series, grid: int) -> SoilObservationMeta
         )
 
     return SoilObservationMetadata(
-        depth_mm=float(depth),
-        smcap=float(smcap),
-        soil_density=float(soil_density),
-        soil_not_rocks=float(soil_not_rocks),
+        depth_mm=depth,
+        smcap=smcap,
+        soil_density=soil_density,
+        soil_not_rocks=soil_not_rocks,
     )
-
-
-def _surface_weights(row: pd.Series, grid: int) -> Dict[int, float]:
-    """Return normalised surface fractions for non-water surfaces."""
-
-    weights: Dict[int, float] = {}
-    for surf in NON_WATER_SURFACE_INDICES:
-        key = ("sfr_surf", f"({surf},)")
-        if key in row.index:
-            val = row[key]
-            if val is not None and not pd.isna(val):
-                weights[surf] = float(val)
-
-    total = sum(weights.values())
-    if total <= 0:
-        raise ValueError(
-            f"Could not determine non-water surface fractions for grid {grid}. "
-            "Check `sfr_surf` values in the initial state dataframe."
-        )
-    return {surf: weight / total for surf, weight in weights.items()}
-
-
-def _weighted_average(
-    row: pd.Series,
-    column: str,
-    weights: Dict[int, float],
-) -> Optional[float]:
-    """Weighted average across surfaces, ignoring missing values."""
-
-    totals = []
-    weight_sum = 0.0
-    for surf, weight in weights.items():
-        key = (column, f"({surf},)")
-        if key not in row.index:
-            continue
-        val = row[key]
-        if val is None or pd.isna(val) or val <= (MISSING_VALUE + 1):
-            continue
-        totals.append(float(val) * weight)
-        weight_sum += weight
-
-    if weight_sum == 0.0:
-        return None
-    return sum(totals) / weight_sum

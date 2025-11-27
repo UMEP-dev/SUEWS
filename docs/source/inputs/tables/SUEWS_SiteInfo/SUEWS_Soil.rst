@@ -16,14 +16,16 @@ forcing file (the `xsmd` column when `SMDMethod` = 1 or 2 in `RunControl.nml`) t
 
 .. note::
 
-   From v2025.11.13 onwards, observed soil moisture is fully supported in SuPy.
-   When ``SMDMethod`` is set to 1 (volumetric) or 2 (gravimetric) you **must** provide the following fields in :file:`SUEWS_Soil.txt` for every non-water soil code that participates in the observation:
+   From v2025.11.14 onwards, observed soil moisture is fully supported in SuPy.
+   When ``SMDMethod`` is set to 1 (volumetric) or 2 (gravimetric) you **must** provide the following fields in :file:`SUEWS_Soil.txt` for the **Paved** surface type (the first non-water surface):
 
    - ``OBS_SMDepth`` – depth of the instrumented soil layer [mm]
    - ``OBS_SMCap`` – maximum observed soil moisture (volumetric or gravimetric)
    - ``OBS_SoilNotRocks`` – fraction of the sampled volume that is soil (not rocks)
    - ``SoilDensity`` – soil bulk density (use g cm\ :sup:`-3` for historical datasets)
 
+   Since observed soil moisture is a single point measurement, only one set of metadata is needed.
+   Values on other surface types are ignored.
    These properties are used to convert the observed values in ``xsmd`` to a soil moisture deficit before they are passed to the SUEWS kernel.
 
 

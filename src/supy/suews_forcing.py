@@ -205,13 +205,13 @@ class SUEWSForcing:
         SUEWSForcing
             Loaded forcing data
         """
-        from .util._io import read_forcing
+        from .util._io import _read_forcing_impl
 
         path = Path(path).expanduser().resolve()
         if not path.exists():
             raise FileNotFoundError(f"Forcing file not found: {path}")
 
-        df = read_forcing(str(path), tstep_mod=tstep_mod)
+        df = _read_forcing_impl(str(path), tstep_mod=tstep_mod)
         return cls(df, source=str(path))
 
     @classmethod
@@ -233,7 +233,7 @@ class SUEWSForcing:
         SUEWSForcing
             Concatenated forcing data
         """
-        from .util._io import read_forcing
+        from .util._io import _read_forcing_impl
 
         if not paths:
             raise ValueError("Empty forcing file list provided")
@@ -243,7 +243,7 @@ class SUEWSForcing:
             path = Path(p).expanduser().resolve()
             if not path.exists():
                 raise FileNotFoundError(f"Forcing file not found: {path}")
-            df = read_forcing(str(path), tstep_mod=tstep_mod)
+            df = _read_forcing_impl(str(path), tstep_mod=tstep_mod)
             dfs.append(df)
 
         combined = pd.concat(dfs, axis=0).sort_index()

@@ -61,8 +61,10 @@ from ._attribution import (
     # Variable-specific functions
     attribute_t2,
     attribute_q2,
+    attribute_u10,
     diagnose_t2,
     diagnose_q2,
+    diagnose_u10,
     # Generic dispatchers
     attribute,
     diagnose,
@@ -70,6 +72,7 @@ from ._attribution import (
     AttributionResult,
     T2Attribution,
     Q2Attribution,
+    U10Attribution,
 )
 
 # from ._config import SUEWSConfig, init_config_from_yaml

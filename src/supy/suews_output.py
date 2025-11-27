@@ -246,9 +246,7 @@ class SUEWSOutput:
         matching_groups = []
         for grp in self.groups:
             try:
-                _ = self._df_output.xs(
-                    (grp, var_name), level=("group", "var"), axis=1
-                )
+                _ = self._df_output.xs((grp, var_name), level=("group", "var"), axis=1)
                 matching_groups.append(grp)
             except KeyError:
                 continue
@@ -812,7 +810,7 @@ class SUEWSOutput:
                 <tr><td><strong>Time range:</strong></td><td>{start} to {end}</td></tr>
                 <tr><td><strong>Grids:</strong></td><td>{n_grids}</td></tr>
                 <tr><td><strong>Timesteps:</strong></td><td>{n_timesteps}</td></tr>
-                <tr><td><strong>Groups:</strong></td><td>{', '.join(self.groups)}</td></tr>
+                <tr><td><strong>Groups:</strong></td><td>{", ".join(self.groups)}</td></tr>
                 <tr><td><strong>Variables:</strong></td><td>{total_vars} total</td></tr>
             </table>
         </div>

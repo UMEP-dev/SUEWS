@@ -9,7 +9,19 @@ from ._env import logger_supy
 ##############################################################################
 # post-processing part
 # get variable information from Fortran
+# Note: Once OUTPUT_REGISTRY is synced with Fortran output (see #931),
+# this can be replaced with OUTPUT_REGISTRY.to_dataframe()
 def get_output_info_df():
+    """Get output variable information as a DataFrame.
+
+    Returns a DataFrame with MultiIndex (group, var) and columns:
+    aggm, outlevel, func
+
+    Returns
+    -------
+    pd.DataFrame
+        Variable metadata indexed by (group, var)
+    """
     from packaging.version import parse as LooseVersion
 
     size_var_list = sd.output_size()
@@ -20,10 +32,8 @@ def get_output_info_df():
     # strip leading and trailing spaces
     fun_strip = lambda x: x.decode().strip()
     if LooseVersion(pd.__version__) >= LooseVersion("2.1.0"):
-        # if pandas version is 2.1.0 or above, we can use `df.map`
         df_var_list = df_var_list.map(fun_strip)
     else:
-        # otherwise, we need to use `df.applymap`
         df_var_list = df_var_list.applymap(fun_strip)
 
     df_var_list_x = df_var_list.replace(r"^\s*$", np.nan, regex=True).dropna()
@@ -38,7 +48,7 @@ df_var = get_output_info_df()
 # dict as df_var but keys in lowercase
 dict_var_lower = {group.lower(): group for group in df_var.index.levels[0].str.strip()}
 
-#  generate dict of functions to apply for each variable
+# generate dict of functions to apply for each variable
 # Use lambda for 'last' to avoid pandas compatibility issues
 dict_func_aggm = {
     "T": lambda x: x.iloc[-1] if len(x) > 0 else np.nan,  # last value
@@ -48,7 +58,7 @@ dict_func_aggm = {
 }
 df_var["func"] = df_var.aggm.apply(lambda x: dict_func_aggm[x])
 
-# dict of resampling ruls:
+# dict of resampling rules:
 #  {group: {var: agg_method}}
 dict_var_aggm = {
     group: df_var.loc[group, "func"].to_dict() for group in df_var.index.levels[0]

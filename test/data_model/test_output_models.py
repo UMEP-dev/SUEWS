@@ -44,19 +44,19 @@ from output.nhood_vars import NHOOD_VARIABLES
 # Expected variable counts - MUST match Fortran output exactly
 # These counts are verified against Fortran runtime output (see #931)
 EXPECTED_COUNTS = {
-    OutputGroup.DATETIME: 5,    # Year, DOY, Hour, Min, Dectime
-    OutputGroup.SUEWS: 99,      # Core SUEWS variables including Ts_* surface temps
-    OutputGroup.SNOW: 98,       # Snow variables (7 surface types × 14 vars)
-    OutputGroup.ESTM: 27,       # ESTM variables
-    OutputGroup.RSL: 135,       # RSL profile variables (30 levels × 4 vars + 15)
-    OutputGroup.DAILYSTATE: 47, # Daily state variables
-    OutputGroup.BL: 17,         # Boundary layer variables
-    OutputGroup.BEERS: 29,      # BEERS radiation variables
-    OutputGroup.DEBUG: 131,     # Debug variables (matches Fortran dataOutLineDebug)
-    OutputGroup.EHC: 224,       # EHC variables (2 + 7×15 roof + 7×15 wall)
-    OutputGroup.SPARTACUS: 194, # SPARTACUS variables (10 scalars + 12×15 layers)
-    OutputGroup.STEBBS: 78,     # STEBBS variables (matches Fortran truncated names)
-    OutputGroup.NHOOD: 1,       # Neighbourhood variables
+    OutputGroup.DATETIME: 5,  # Year, DOY, Hour, Min, Dectime
+    OutputGroup.SUEWS: 99,  # Core SUEWS variables including Ts_* surface temps
+    OutputGroup.SNOW: 98,  # Snow variables (7 surface types × 14 vars)
+    OutputGroup.ESTM: 27,  # ESTM variables
+    OutputGroup.RSL: 135,  # RSL profile variables (30 levels × 4 vars + 15)
+    OutputGroup.DAILYSTATE: 47,  # Daily state variables
+    OutputGroup.BL: 17,  # Boundary layer variables
+    OutputGroup.BEERS: 29,  # BEERS radiation variables
+    OutputGroup.DEBUG: 131,  # Debug variables (matches Fortran dataOutLineDebug)
+    OutputGroup.EHC: 224,  # EHC variables (2 + 7×15 roof + 7×15 wall)
+    OutputGroup.SPARTACUS: 194,  # SPARTACUS variables (10 scalars + 12×15 layers)
+    OutputGroup.STEBBS: 78,  # STEBBS variables (matches Fortran truncated names)
+    OutputGroup.NHOOD: 1,  # Neighbourhood variables
 }
 
 # Assemble registry manually for testing (matching production)

@@ -70,14 +70,14 @@ Variables organized by group in separate modules:
 
 - `datetime_vars.py`: Timestamp variables (Year, DOY, Hour, Min, Dectime)
 - `suews_vars.py`: Core SUEWS variables (QH, QE, T2, Rain, etc.)
-- *(Future)* `snow_vars.py`, `estm_vars.py`, `rsl_vars.py`, etc.
+- `snow_vars.py`, `estm_vars.py`, `rsl_vars.py`, `dailystate_vars.py`, etc.
 
 ### 3. Integration
 
 The registry integrates with existing SUEWS code via `_post.py`:
 
 ```python
-# _post.py attempts Pydantic first, falls back to Fortran
+# Python OUTPUT_REGISTRY is the single source of truth
 df_var = get_output_info_df()  # Returns same structure as before
 ```
 
@@ -216,7 +216,6 @@ The implementation maintains full backward compatibility:
 
 - Same DataFrame structure from `get_output_info_df()`
 - Same aggregation rules for `resample_output()`
-- Automatic fallback to Fortran if Pydantic fails
 - No changes required to existing code
 
 ## File Structure
@@ -227,16 +226,17 @@ src/supy/data_model/output/
 ├── README.md                # This file
 ├── variables.py             # Core Pydantic models & enums
 ├── datetime_vars.py         # Datetime variables (5 vars)
-└── suews_vars.py            # Core SUEWS variables (85 vars)
-
-Future additions:
-├── snow_vars.py             # Snow variables
-├── estm_vars.py             # ESTM variables
-├── rsl_vars.py              # RSL profile variables
-├── dailystate_vars.py       # Daily state variables
-├── bl_vars.py               # Boundary layer variables
-├── beers_vars.py            # BEERS radiation variables
-└── debug_vars.py            # Debug variables
+├── suews_vars.py            # Core SUEWS variables (99 vars)
+├── snow_vars.py             # Snow variables (98 vars)
+├── estm_vars.py             # ESTM variables (27 vars)
+├── rsl_vars.py              # RSL profile variables (135 vars)
+├── dailystate_vars.py       # Daily state variables (47 vars)
+├── bl_vars.py               # Boundary layer variables (17 vars)
+├── beers_vars.py            # BEERS radiation variables (29 vars)
+├── debug_vars.py            # Debug variables (185 vars)
+├── ehc_vars.py              # EHC variables (224 vars)
+├── spartacus_vars.py        # SPARTACUS variables (194 vars)
+└── stebbs_vars.py           # STEBBS variables (78 vars)
 ```
 
 ## References

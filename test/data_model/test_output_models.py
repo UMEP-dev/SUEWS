@@ -301,7 +301,7 @@ def main():
         print(f"  - STEBBS: {len(OUTPUT_REGISTRY.by_group(OutputGroup.STEBBS))}")
         print(f"  - NHOOD: {len(OUTPUT_REGISTRY.by_group(OutputGroup.NHOOD))}")
         print()
-        print("✨ All SUEWS output variables successfully migrated to Python/Pydantic!")
+        print("All SUEWS output variables successfully migrated to Python/Pydantic!")
         print("The registry is ready for integration with SUEWS runtime.")
 
         return 0

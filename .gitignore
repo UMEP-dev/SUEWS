@@ -598,8 +598,8 @@ docs/source/inputs/yaml/config-reference/*.rst
 docs/source/inputs/yaml/config-reference/.generated.stamp
 
 # Auto-generated RST files for output variables
-docs/source/output_files/variables/*.rst
-docs/source/output_files/variables/.generated.stamp
+docs/source/outputs/variables/*.rst
+docs/source/outputs/variables/.generated.stamp
 
 
 # Git worktrees directory for Claude Code access

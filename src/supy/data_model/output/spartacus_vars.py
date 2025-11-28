@@ -17,7 +17,7 @@ LEGACY_SPARTACUS_DEFS = [
         "sw downwelling direct radiation at top-of-canopy",
         0,
     ),
-    ("Kup", "W m-2", "f104", "bulk albedo from spartacus", 0),
+    ("Kup", "W m-2", "f104", "sw upward flux from spartacus", 0),
     ("LTopDn", "W m-2", "f104", "lw downwelling radiation at top-of-canopy", 0),
     ("Lup", "W m-2", "f104", "lw upward flux from spartacus", 0),
     ("Qn", "W m-2", "f104", "net all-wave radiation from spartacus", 0),

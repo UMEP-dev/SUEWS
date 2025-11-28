@@ -248,7 +248,7 @@ def test_dataframe_conversion():
 
 def test_enum_values():
     """Test that enum values work correctly."""
-    print("Testing enum value behavior...")
+    print("Testing enum value behaviour...")
 
     # Test aggregation methods
     assert AggregationMethod.AVERAGE.value == "A"
@@ -271,6 +271,84 @@ def test_enum_values():
     print()
 
 
+def test_by_name_returns_none_for_nonexistent():
+    """Test that by_name returns None for variables that don't exist."""
+    print("Testing by_name with non-existent variable...")
+
+    result = OUTPUT_REGISTRY.by_name("NONEXISTENT_VARIABLE_XYZ")
+    assert result is None, "by_name should return None for non-existent variables"
+    print("[OK] by_name returns None for non-existent variable")
+
+    print()
+
+
+def test_duplicate_variable_within_group_raises_error():
+    """Ensure duplicate variable names within same group are rejected."""
+    print("Testing duplicate variable validation...")
+
+    from pydantic import ValidationError
+
+    duplicate_vars = [
+        OutputVariable(
+            name="TestVar",
+            unit="W m-2",
+            description="First test variable",
+            aggregation=AggregationMethod.AVERAGE,
+            group=OutputGroup.SUEWS,
+            level=OutputLevel.DEFAULT,
+        ),
+        OutputVariable(
+            name="TestVar",  # Duplicate name in same group
+            unit="W m-2",
+            description="Second test variable",
+            aggregation=AggregationMethod.AVERAGE,
+            group=OutputGroup.SUEWS,
+            level=OutputLevel.DEFAULT,
+        ),
+    ]
+
+    try:
+        OutputVariableRegistry(variables=duplicate_vars)
+        assert False, "Should have raised ValidationError for duplicate names"
+    except ValidationError as e:
+        assert "Duplicate variable names within groups" in str(e)
+        print("[OK] Duplicate variable names within group correctly rejected")
+
+    print()
+
+
+def test_same_variable_name_in_different_groups_allowed():
+    """Verify the same variable name can exist in different output groups."""
+    print("Testing cross-group duplicate names (should be allowed)...")
+
+    # Same variable name in different groups is valid
+    cross_group_vars = [
+        OutputVariable(
+            name="QS",
+            unit="W m-2",
+            description="Storage heat flux (SUEWS)",
+            aggregation=AggregationMethod.AVERAGE,
+            group=OutputGroup.SUEWS,
+            level=OutputLevel.DEFAULT,
+        ),
+        OutputVariable(
+            name="QS",
+            unit="W m-2",
+            description="Storage heat flux (ESTM)",
+            aggregation=AggregationMethod.AVERAGE,
+            group=OutputGroup.ESTM,
+            level=OutputLevel.DEFAULT,
+        ),
+    ]
+
+    # Should NOT raise
+    registry = OutputVariableRegistry(variables=cross_group_vars)
+    assert len(registry.variables) == 2, "Registry should contain both variables"
+    print("[OK] Same variable name in different groups is allowed")
+
+    print()
+
+
 def main():
     """Run all tests."""
     print("=" * 70)
@@ -285,6 +363,9 @@ def main():
         test_aggregation_rules()
         test_dataframe_conversion()
         test_enum_values()
+        test_by_name_returns_none_for_nonexistent()
+        test_duplicate_variable_within_group_raises_error()
+        test_same_variable_name_in_different_groups_allowed()
 
         print("=" * 70)
         print("[PASS] ALL TESTS PASSED!")

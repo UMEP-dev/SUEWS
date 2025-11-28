@@ -20,6 +20,11 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 │   └── README.md
 ├── commands/            # Custom slash commands
 │   └── log-changes.md
+├── skills/              # Claude skills for SUEWS workflows
+│   ├── lint-code/
+│   ├── verify-build/
+│   ├── sync-docs/
+│   └── prep-release/
 ├── scripts/             # Automation scripts
 └── agents/              # Custom agent definitions
 ```
@@ -48,6 +53,13 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 **Purpose**: Custom slash commands for automation
 - `/log-changes` - Analyse recent changes and update docs/CHANGELOG
 - Add new commands as .md files in this directory
+
+### skills/
+**Purpose**: Claude skills for SUEWS-specific workflows
+- `lint-code` - Code conventions (Fortran + Python)
+- `verify-build` - Build configuration checks
+- `sync-docs` - Documentation-code consistency
+- `prep-release` - Release preparation workflow
 
 ## Quick Navigation
 
@@ -78,7 +90,18 @@ Analyses recent code changes and updates documentation:
 
 **Usage**: `/log-changes`
 
-This command helps maintain up-to-date documentation by automatically detecting what has changed and where updates are needed.
+## Skills
+
+SUEWS-specific skills in `.claude/skills/` provide specialised knowledge for development workflows:
+
+| Skill | Purpose |
+|-------|---------|
+| `lint-code` | Code conventions for Fortran and Python |
+| `verify-build` | Build configuration consistency |
+| `sync-docs` | Documentation-code consistency (science, API, config) |
+| `prep-release` | Release preparation with pre-flight checks |
+
+Skills are triggered automatically based on context (e.g., "lint this code" triggers `lint-code`).
 
 ## Git Policy
 - ✅ Commit: All directories and files (except settings.local.json)

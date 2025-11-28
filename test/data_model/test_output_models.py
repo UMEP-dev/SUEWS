@@ -7,16 +7,17 @@ without requiring a full SUEWS build.
 
 import sys
 import os
+from pathlib import Path
 
 import pytest
 
 # Add src/supy/data_model directly to path to avoid importing full supy package
-data_model_path = os.path.join(
-    os.path.dirname(__file__), "..", "..", "src", "supy", "data_model"
-)
-sys.path.insert(0, data_model_path)
+# This allows testing the output variable definitions without building the Fortran components
+_DATA_MODEL_PATH = Path(__file__).resolve().parent.parent.parent / "src" / "supy" / "data_model"
+if str(_DATA_MODEL_PATH) not in sys.path:
+    sys.path.insert(0, str(_DATA_MODEL_PATH))
 
-# Direct import from output module
+# Direct import from output module (uses path modification above)
 from output.variables import (
     OutputVariable,
     OutputVariableRegistry,
@@ -36,19 +37,7 @@ from output.debug_vars import DEBUG_VARIABLES
 from output.ehc_vars import EHC_VARIABLES
 from output.spartacus_vars import SPARTACUS_VARIABLES
 from output.stebbs_vars import STEBBS_VARIABLES
-
-# NHood variables (defined here to match production __init__.py)
-NHOOD_VARIABLES = [
-    OutputVariable(
-        name="iter_count",
-        unit="-",
-        description="iteration count of convergence loop",
-        aggregation=AggregationMethod.AVERAGE,
-        group=OutputGroup.NHOOD,
-        level=OutputLevel.DEFAULT,
-        format="f104",
-    ),
-]
+from output.nhood_vars import NHOOD_VARIABLES
 
 # Expected variable counts (for test stability during development)
 EXPECTED_COUNTS = {
@@ -95,6 +84,9 @@ def test_registry_basic():
     assert len(OUTPUT_REGISTRY.variables) > 0, "Registry should not be empty"
     print(f"[OK] Registry contains {len(OUTPUT_REGISTRY.variables)} variables")
 
+    # Track any drift for summary warning
+    drift_warnings = []
+
     # Check all groups are present using centralised expected counts
     for group, expected_count in EXPECTED_COUNTS.items():
         group_vars = OUTPUT_REGISTRY.by_group(group)
@@ -102,12 +94,17 @@ def test_registry_basic():
 
         # For groups with variable counts, use tolerance-based checking
         if group in [OutputGroup.SNOW, OutputGroup.RSL, OutputGroup.DEBUG]:
-            # Allow ±10% tolerance for groups that may vary
+            # Allow +/-10% tolerance for groups that may vary
             tolerance = max(1, int(expected_count * 0.1))
             assert abs(actual_count - expected_count) <= tolerance, (
                 f"{group.value} should have ~{expected_count} variables "
-                f"(±{tolerance}), got {actual_count}"
+                f"(+/-{tolerance}), got {actual_count}"
             )
+            # Log drift even within tolerance for tracking
+            if actual_count != expected_count:
+                drift_warnings.append(
+                    f"{group.value}: {actual_count} (expected {expected_count}, diff {actual_count - expected_count:+d})"
+                )
             print(
                 f"[OK] {group.value}: {actual_count} variables (~{expected_count} expected)"
             )
@@ -118,6 +115,14 @@ def test_registry_basic():
                 f"got {actual_count}"
             )
             print(f"[OK] {group.value}: {actual_count} variables")
+
+    # Report any drift for awareness
+    if drift_warnings:
+        print()
+        print("[INFO] Variable count drift detected (within tolerance):")
+        for warning in drift_warnings:
+            print(f"  - {warning}")
+        print("  Consider updating EXPECTED_COUNTS if these changes are intentional.")
 
     print()
 

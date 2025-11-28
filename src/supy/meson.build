@@ -109,6 +109,7 @@ py.install_sources(
             'data_model/output/ehc_vars.py',
             'data_model/output/spartacus_vars.py',
             'data_model/output/stebbs_vars.py',
+            'data_model/output/nhood_vars.py',
         ],
         [
             'ext_data/CRU_TS4.06_1991_2020.parquet',

@@ -38,19 +38,7 @@ from .debug_vars import DEBUG_VARIABLES
 from .ehc_vars import EHC_VARIABLES
 from .spartacus_vars import SPARTACUS_VARIABLES
 from .stebbs_vars import STEBBS_VARIABLES
-
-# NHood variables (legacy headers retained)
-NHOOD_VARIABLES = [
-    OutputVariable(
-        name="iter_count",
-        unit="-",
-        description="iteration count of convergence loop",
-        aggregation=AggregationMethod.AVERAGE,
-        group=OutputGroup.NHOOD,
-        level=OutputLevel.DEFAULT,
-        format="f104",
-    ),
-]
+from .nhood_vars import NHOOD_VARIABLES
 
 # Assemble the global registry from all variable modules
 OUTPUT_REGISTRY = OutputVariableRegistry(

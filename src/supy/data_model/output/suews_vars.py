@@ -790,9 +790,9 @@ SUEWS_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f94",
     ),
-    # Surface temperature by surface type
+    # Surface temperature by surface type (names match Fortran output)
     OutputVariable(
-        name="TsfcPaved",
+        name="Ts_Paved",
         unit="degC",
         description="Surface temperature for paved surface",
         aggregation=AggregationMethod.AVERAGE,
@@ -801,7 +801,7 @@ SUEWS_VARIABLES = [
         format="f94",
     ),
     OutputVariable(
-        name="TsfcBldgs",
+        name="Ts_Bldgs",
         unit="degC",
         description="Surface temperature for building surface",
         aggregation=AggregationMethod.AVERAGE,
@@ -810,7 +810,7 @@ SUEWS_VARIABLES = [
         format="f94",
     ),
     OutputVariable(
-        name="TsfcEveTr",
+        name="Ts_EveTr",
         unit="degC",
         description="Surface temperature for evergreen tree surface",
         aggregation=AggregationMethod.AVERAGE,
@@ -819,7 +819,7 @@ SUEWS_VARIABLES = [
         format="f94",
     ),
     OutputVariable(
-        name="TsfcDecTr",
+        name="Ts_DecTr",
         unit="degC",
         description="Surface temperature for deciduous tree surface",
         aggregation=AggregationMethod.AVERAGE,
@@ -828,7 +828,7 @@ SUEWS_VARIABLES = [
         format="f94",
     ),
     OutputVariable(
-        name="TsfcGrass",
+        name="Ts_Grass",
         unit="degC",
         description="Surface temperature for grass surface",
         aggregation=AggregationMethod.AVERAGE,
@@ -837,7 +837,7 @@ SUEWS_VARIABLES = [
         format="f94",
     ),
     OutputVariable(
-        name="TsfcBSoil",
+        name="Ts_BSoil",
         unit="degC",
         description="Surface temperature for bare soil surface",
         aggregation=AggregationMethod.AVERAGE,
@@ -846,7 +846,7 @@ SUEWS_VARIABLES = [
         format="f94",
     ),
     OutputVariable(
-        name="TsfcWater",
+        name="Ts_Water",
         unit="degC",
         description="Surface temperature for water surface",
         aggregation=AggregationMethod.AVERAGE,
@@ -854,9 +854,9 @@ SUEWS_VARIABLES = [
         level=OutputLevel.EXTENDED,
         format="f94",
     ),
-    # Surface temperature with dynamic OHM by surface type
+    # Surface temperature with dynamic OHM by surface type (names match Fortran output)
     OutputVariable(
-        name="TsfcOhmPaved",
+        name="Ts_Paved_dyohm",
         unit="degC",
         description="Surface temperature (dynamic OHM) for paved surface",
         aggregation=AggregationMethod.AVERAGE,
@@ -865,7 +865,7 @@ SUEWS_VARIABLES = [
         format="f94",
     ),
     OutputVariable(
-        name="TsfcOhmBldgs",
+        name="Ts_Bldgs_dyohm",
         unit="degC",
         description="Surface temperature (dynamic OHM) for building surface",
         aggregation=AggregationMethod.AVERAGE,
@@ -874,7 +874,7 @@ SUEWS_VARIABLES = [
         format="f94",
     ),
     OutputVariable(
-        name="TsfcOhmEveTr",
+        name="Ts_EveTr_dyohm",
         unit="degC",
         description="Surface temperature (dynamic OHM) for evergreen tree surface",
         aggregation=AggregationMethod.AVERAGE,
@@ -883,7 +883,7 @@ SUEWS_VARIABLES = [
         format="f94",
     ),
     OutputVariable(
-        name="TsfcOhmDecTr",
+        name="Ts_DecTr_dyohm",
         unit="degC",
         description="Surface temperature (dynamic OHM) for deciduous tree surface",
         aggregation=AggregationMethod.AVERAGE,
@@ -892,7 +892,7 @@ SUEWS_VARIABLES = [
         format="f94",
     ),
     OutputVariable(
-        name="TsfcOhmGrass",
+        name="Ts_Grass_dyohm",
         unit="degC",
         description="Surface temperature (dynamic OHM) for grass surface",
         aggregation=AggregationMethod.AVERAGE,
@@ -901,7 +901,7 @@ SUEWS_VARIABLES = [
         format="f94",
     ),
     OutputVariable(
-        name="TsfcOhmBSoil",
+        name="Ts_BSoil_dyohm",
         unit="degC",
         description="Surface temperature (dynamic OHM) for bare soil surface",
         aggregation=AggregationMethod.AVERAGE,
@@ -910,7 +910,7 @@ SUEWS_VARIABLES = [
         format="f94",
     ),
     OutputVariable(
-        name="TsfcOhmWater",
+        name="Ts_Water_dyohm",
         unit="degC",
         description="Surface temperature (dynamic OHM) for water surface",
         aggregation=AggregationMethod.AVERAGE,

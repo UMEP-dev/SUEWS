@@ -13,7 +13,9 @@ import pytest
 
 # Add src/supy/data_model directly to path to avoid importing full supy package
 # This allows testing the output variable definitions without building the Fortran components
-_DATA_MODEL_PATH = Path(__file__).resolve().parent.parent.parent / "src" / "supy" / "data_model"
+_DATA_MODEL_PATH = (
+    Path(__file__).resolve().parent.parent.parent / "src" / "supy" / "data_model"
+)
 if str(_DATA_MODEL_PATH) not in sys.path:
     sys.path.insert(0, str(_DATA_MODEL_PATH))
 

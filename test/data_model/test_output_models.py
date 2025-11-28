@@ -8,6 +8,8 @@ without requiring a full SUEWS build.
 import sys
 import os
 
+import pytest
+
 # Add src/supy/data_model directly to path to avoid importing full supy package
 data_model_path = os.path.join(
     os.path.dirname(__file__), "..", "..", "src", "supy", "data_model"
@@ -91,7 +93,7 @@ def test_registry_basic():
 
     # Check registry is not empty
     assert len(OUTPUT_REGISTRY.variables) > 0, "Registry should not be empty"
-    print(f"✓ Registry contains {len(OUTPUT_REGISTRY.variables)} variables")
+    print(f"[OK] Registry contains {len(OUTPUT_REGISTRY.variables)} variables")
 
     # Check all groups are present using centralised expected counts
     for group, expected_count in EXPECTED_COUNTS.items():
@@ -107,7 +109,7 @@ def test_registry_basic():
                 f"(±{tolerance}), got {actual_count}"
             )
             print(
-                f"✓ {group.value}: {actual_count} variables (~{expected_count} expected)"
+                f"[OK] {group.value}: {actual_count} variables (~{expected_count} expected)"
             )
         else:
             # Exact count for stable groups
@@ -115,7 +117,7 @@ def test_registry_basic():
                 f"{group.value} should have exactly {expected_count} variables, "
                 f"got {actual_count}"
             )
-            print(f"✓ {group.value}: {actual_count} variables")
+            print(f"[OK] {group.value}: {actual_count} variables")
 
     print()
 
@@ -133,7 +135,7 @@ def test_specific_variables():
     )
     assert qh.group == OutputGroup.SUEWS, "QH should be in SUEWS group"
     assert qh.level == OutputLevel.DEFAULT, "QH should be DEFAULT level"
-    print(f"✓ QH: {qh.description} [{qh.unit}]")
+    print(f"[OK] QH: {qh.description} [{qh.unit}]")
 
     # Test T2 (Air temperature at 2m)
     t2 = OUTPUT_REGISTRY.by_name("T2")
@@ -142,19 +144,19 @@ def test_specific_variables():
     assert t2.aggregation == AggregationMethod.AVERAGE, (
         "T2 should use AVERAGE aggregation"
     )
-    print(f"✓ T2: {t2.description} [{t2.unit}]")
+    print(f"[OK] T2: {t2.description} [{t2.unit}]")
 
     # Test Rain (precipitation)
     rain = OUTPUT_REGISTRY.by_name("Rain")
     assert rain is not None, "Rain variable should exist"
     assert rain.aggregation == AggregationMethod.SUM, "Rain should use SUM aggregation"
-    print(f"✓ Rain: {rain.description} [{rain.unit}] (aggregation: SUM)")
+    print(f"[OK] Rain: {rain.description} [{rain.unit}] (aggregation: SUM)")
 
     # Test SMD (Soil Moisture Deficit)
     smd = OUTPUT_REGISTRY.by_name("SMD")
     assert smd is not None, "SMD variable should exist"
     assert smd.aggregation == AggregationMethod.LAST, "SMD should use LAST aggregation"
-    print(f"✓ SMD: {smd.description} [{smd.unit}] (aggregation: LAST)")
+    print(f"[OK] SMD: {smd.description} [{smd.unit}] (aggregation: LAST)")
 
     print()
 
@@ -165,15 +167,15 @@ def test_output_levels():
 
     # Get DEFAULT level variables
     default_vars = OUTPUT_REGISTRY.by_level(OutputLevel.DEFAULT)
-    print(f"✓ DEFAULT level: {len(default_vars)} variables")
+    print(f"[OK] DEFAULT level: {len(default_vars)} variables")
 
     # Get up to EXTENDED level
     extended_vars = OUTPUT_REGISTRY.by_level(OutputLevel.EXTENDED)
-    print(f"✓ Up to EXTENDED level: {len(extended_vars)} variables")
+    print(f"[OK] Up to EXTENDED level: {len(extended_vars)} variables")
 
     # Get up to SNOW_DETAILED level
     all_vars = OUTPUT_REGISTRY.by_level(OutputLevel.SNOW_DETAILED)
-    print(f"✓ Up to SNOW_DETAILED level: {len(all_vars)} variables")
+    print(f"[OK] Up to SNOW_DETAILED level: {len(all_vars)} variables")
 
     # DEFAULT should be subset of EXTENDED
     assert len(default_vars) <= len(extended_vars), (
@@ -206,7 +208,7 @@ def test_aggregation_rules():
     assert suews_rules["Rain"] == "sum", "Rain should use 'sum' aggregation"
     assert callable(suews_rules["SMD"]), "SMD should use callable (lambda) for LAST"
 
-    print(f"✓ Generated aggregation rules for {len(agg_rules)} groups")
+    print(f"[OK] Generated aggregation rules for {len(agg_rules)} groups")
     for group, rules in agg_rules.items():
         print(f"  - {group}: {len(rules)} variables")
 
@@ -230,7 +232,7 @@ def test_dataframe_conversion():
     assert qh_row["aggm"] == "A", "QH aggregation method should be 'A'"
     assert qh_row["outlevel"] == "0", "QH output level should be '0'"
 
-    print(f"✓ DataFrame has correct structure: {df.shape}")
+    print(f"[OK] DataFrame has correct structure: {df.shape}")
     print(f"  - Index: {df.index.names}")
     print(f"  - Columns: {list(df.columns)}")
 
@@ -246,18 +248,18 @@ def test_enum_values():
     assert AggregationMethod.SUM.value == "S"
     assert AggregationMethod.LAST.value == "L"
     assert AggregationMethod.TIME.value == "T"
-    print("✓ AggregationMethod enums have correct values")
+    print("[OK] AggregationMethod enums have correct values")
 
     # Test output levels
     assert OutputLevel.DEFAULT.value == 0
     assert OutputLevel.EXTENDED.value == 1
     assert OutputLevel.SNOW_DETAILED.value == 2
-    print("✓ OutputLevel enums have correct values")
+    print("[OK] OutputLevel enums have correct values")
 
     # Test output groups
     assert OutputGroup.DATETIME.value == "datetime"
     assert OutputGroup.SUEWS.value == "SUEWS"
-    print("✓ OutputGroup enums have correct values")
+    print("[OK] OutputGroup enums have correct values")
 
     print()
 
@@ -278,7 +280,7 @@ def main():
         test_enum_values()
 
         print("=" * 70)
-        print("✅ ALL TESTS PASSED!")
+        print("[PASS] ALL TESTS PASSED!")
         print("=" * 70)
         print()
         print("Summary - Variable counts by group:")
@@ -307,13 +309,13 @@ def main():
     except AssertionError as e:
         print()
         print("=" * 70)
-        print(f"❌ TEST FAILED: {e}")
+        print(f"[FAIL] TEST FAILED: {e}")
         print("=" * 70)
         return 1
     except Exception as e:
         print()
         print("=" * 70)
-        print(f"❌ UNEXPECTED ERROR: {e}")
+        print(f"[FAIL] UNEXPECTED ERROR: {e}")
         import traceback
 
         traceback.print_exc()
@@ -345,11 +347,11 @@ def test_fortran_python_output_consistency():
         for group in OutputGroup:
             n_vars = len(OUTPUT_REGISTRY.by_group(group))
             total_vars += n_vars
-            print(f"  ✓ {group.value:12s}: {n_vars:3d} variables")
+            print(f"  [OK] {group.value:12s}: {n_vars:3d} variables")
 
         print()
         print("=" * 70)
-        print("✅ OUTPUT_REGISTRY VALIDATION PASSED")
+        print("[PASS] OUTPUT_REGISTRY VALIDATION PASSED")
         print("=" * 70)
         print(f"Python OUTPUT_REGISTRY is properly loaded")
         print(f"({len(OutputGroup)} groups with {total_vars} total variables)")
@@ -358,21 +360,19 @@ def test_fortran_python_output_consistency():
         print("Python OUTPUT_REGISTRY is now the ONLY source of truth.")
         print()
 
-        return 0
-
     except ImportError as e:
         print()
         print("=" * 70)
-        print("⚠ SKIPPED: OUTPUT_REGISTRY not available")
+        print("[SKIP] SKIPPED: OUTPUT_REGISTRY not available")
         print("=" * 70)
         print(f"Reason: {e}")
         print()
-        return 0
+        pytest.skip(f"OUTPUT_REGISTRY not available: {e}")
 
     except AssertionError as e:
         print()
         print("=" * 70)
-        print(f"❌ CONSISTENCY CHECK FAILED")
+        print("[FAIL] CONSISTENCY CHECK FAILED")
         print("=" * 70)
         print(f"{e}")
         print()
@@ -380,18 +380,18 @@ def test_fortran_python_output_consistency():
         print("1. Check if recent changes were made to OUTPUT_REGISTRY")
         print("2. Ensure corresponding updates were made to Fortran varListAll")
         print()
-        return 1
+        pytest.fail(f"Consistency check failed: {e}")
 
     except Exception as e:
         print()
         print("=" * 70)
-        print(f"❌ UNEXPECTED ERROR")
+        print("[FAIL] UNEXPECTED ERROR")
         print("=" * 70)
         print(f"{e}")
         import traceback
 
         traceback.print_exc()
-        return 1
+        pytest.fail(f"Unexpected error: {e}")
 
 
 if __name__ == "__main__":

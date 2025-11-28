@@ -4,43 +4,43 @@
 
 This module provides **Python-first** definitions of SUEWS output variables using Pydantic models, replacing the previous Fortran-first runtime extraction approach.
 
-## Status: Complete ✅
+## Status: Complete
 
 **Implementation:**
-- ✅ Core Pydantic models with full metadata
-- ✅ **All 1,104 variables implemented** across 13 groups
-- ✅ Type-safe variable registry
-- ✅ Backward-compatible DataFrame conversion
-- ✅ Aggregation rules generation
-- ✅ Integration with `_post.py` (Python-only, single source of truth)
-- ✅ Comprehensive test suite (all tests passing)
+- Core Pydantic models with full metadata
+- **All 1,139 variables implemented** across 13 groups
+- Type-safe variable registry
+- Backward-compatible DataFrame conversion
+- Aggregation rules generation
+- Integration with `_post.py` (Python-only, single source of truth)
+- Comprehensive test suite (all tests passing)
 
 **Variable Coverage:**
 - datetime: 5 variables (Year, DOY, Hour, Min, Dectime)
-- SUEWS: 85 variables (core energy, water, met, carbon)
+- SUEWS: 99 variables (core energy, water, met, carbon, surface temperatures)
 - snow: 98 variables (snow properties by surface type)
 - ESTM: 27 variables (element surface temperatures)
-- EHC: 224 variables (element heat capacity: 2 surface + 7×15 roof + 7×15 wall)
+- EHC: 224 variables (element heat capacity: 2 surface + 7x15 roof + 7x15 wall)
 - RSL: 135 variables (roughness sublayer profiles)
 - DailyState: 47 variables (daily accumulated states)
 - BL: 17 variables (boundary layer profiles)
 - BEERS: 29 variables (detailed radiation)
 - debug: 185 variables (diagnostic outputs with soil store and atmospheric vars)
-- SPARTACUS: 194 variables (SPARTACUS radiation model: 10 scalars + 12×15 layers)
-- STEBBS: 57 variables (building energy model)
+- SPARTACUS: 194 variables (SPARTACUS radiation model: 10 scalars + 12x15 layers)
+- STEBBS: 78 variables (building energy model)
 - NHood: 1 variable (neighbourhood iteration count)
 
 **Architecture:**
-- ✅ Python OUTPUT_REGISTRY is the **single source of truth** for all output metadata
-- ✅ Fortran removed: suews_ctrl_output.f95 deleted (2,566 lines eliminated)
-- ✅ No code generation needed - Python defines, Fortran produces raw arrays
-- ✅ Eliminated manual synchronisation burden between Fortran and Python
-- ✅ Documentation auto-generated from Pydantic models via `docs/generate_output_variable_rst.py`
+- Python OUTPUT_REGISTRY is the **single source of truth** for all output metadata
+- Fortran removed: suews_ctrl_output.f95 deleted (2,566 lines eliminated)
+- No code generation needed - Python defines, Fortran produces raw arrays
+- Eliminated manual synchronisation burden between Fortran and Python
+- Documentation auto-generated from Pydantic models via `docs/generate_output_variable_rst.py`
 
 **Completed:**
-- ✅ All variable groups migrated (including experimental: SPARTACUS, EHC, STEBBS, NHood)
-- ✅ Full integration testing with compiled Fortran
-- ✅ Water balance tests passing (including soil store variables)
+- All variable groups migrated (including experimental: SPARTACUS, EHC, STEBBS, NHood)
+- Full integration testing with compiled Fortran
+- Water balance tests passing (including soil store variables)
 
 ## Architecture
 
@@ -178,12 +178,12 @@ python test_output_models.py
 
 Expected output:
 ```
-✅ ALL TESTS PASSED!
+[PASS] ALL TESTS PASSED!
 
 Summary:
-- Total variables in registry: 90
+- Total variables in registry: 1139
 - Datetime variables: 5
-- SUEWS variables: 85
+- SUEWS variables: 99
 ```
 
 ## Migration Plan
@@ -202,13 +202,13 @@ See `.claude/reference/output-variables-migration.md` for the complete migration
 
 ### Compared to Fortran-First Approach
 
-✅ **Type Safety**: Pydantic validation ensures correctness
-✅ **IDE Support**: Autocomplete and type hints
-✅ **Self-Documenting**: Rich metadata in Python
-✅ **Extensibility**: Easy to add variables in Python
-✅ **Testing**: Unit tests for variable definitions
-✅ **Integration**: Better integration with Python ecosystem
-✅ **Maintainability**: Centralised, version-controlled definitions
+- **Type Safety**: Pydantic validation ensures correctness
+- **IDE Support**: Autocomplete and type hints
+- **Self-Documenting**: Rich metadata in Python
+- **Extensibility**: Easy to add variables in Python
+- **Testing**: Unit tests for variable definitions
+- **Integration**: Better integration with Python ecosystem
+- **Maintainability**: Centralised, version-controlled definitions
 
 ### Backward Compatibility
 

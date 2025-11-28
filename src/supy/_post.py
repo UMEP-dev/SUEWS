@@ -322,14 +322,15 @@ def proc_df_rsl(df_output, debug=False):
     try:
         # If we work on the whole output with multi-index columns
         df_rsl_raw = df_output["RSL"].copy()
-    except:
-        # If we directly work on the RSL output
+    except KeyError:
+        # If we directly work on the RSL output (no "RSL" key present)
         df_rsl_raw = df_output.copy()
 
     try:
         # Drop unnecessary timestamp columns if existing
         df_rsl_data = df_rsl_raw.drop(["Year", "DOY", "Hour", "Min", "Dectime"], axis=1)
-    except:
+    except KeyError:
+        # Timestamp columns not present, use data as-is
         df_rsl_data = df_rsl_raw
 
     # Extract the first 120 columns (30 levels × 4 variables)

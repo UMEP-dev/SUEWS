@@ -4,7 +4,7 @@ This module defines the data structures for output variable metadata,
 transitioning from Fortran-first to Python-first architecture.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from enum import Enum
 from typing import List, Dict, Optional, Callable
 import pandas as pd
@@ -96,9 +96,10 @@ class OutputVariable(BaseModel):
         description="Output priority level (vestigial - not used in modern output system)"
     )
 
-    class Config:
-        use_enum_values = True
-        extra = "ignore"  # Ignore extra fields like 'format' for backward compatibility
+    model_config = ConfigDict(
+        use_enum_values=True,
+        extra="ignore",  # Ignore extra fields like 'format' for backward compatibility
+    )
 
 
 class OutputVariableRegistry(BaseModel):
@@ -111,6 +112,41 @@ class OutputVariableRegistry(BaseModel):
     variables: List[OutputVariable] = Field(
         default_factory=list, description="All registered output variables"
     )
+
+    @model_validator(mode="after")
+    def validate_no_duplicate_names_within_groups(self) -> "OutputVariableRegistry":
+        """Ensure no duplicate variable names exist within each output group.
+
+        Note: The same variable name CAN appear in different groups (e.g., QS in
+        SUEWS and ESTM, UStar in SUEWS and BL). This is valid as they appear in
+        different output files. Only duplicates within the same group are errors.
+        """
+        from collections import defaultdict
+
+        # Group variables by their output group
+        by_group: dict[str, list[str]] = defaultdict(list)
+        for v in self.variables:
+            group_key = v.group.value if hasattr(v.group, "value") else v.group
+            by_group[group_key].append(v.name)
+
+        # Check for duplicates within each group
+        all_duplicates: dict[str, list[str]] = {}
+        for group, names in by_group.items():
+            seen = set()
+            group_dups = set()
+            for name in names:
+                if name in seen:
+                    group_dups.add(name)
+                seen.add(name)
+            if group_dups:
+                all_duplicates[group] = sorted(group_dups)
+
+        if all_duplicates:
+            msg_parts = [f"{group}: {dups}" for group, dups in all_duplicates.items()]
+            raise ValueError(
+                f"Duplicate variable names within groups: {'; '.join(msg_parts)}"
+            )
+        return self
 
     def by_group(self, group: OutputGroup) -> List[OutputVariable]:
         """Get all variables in a specific group.

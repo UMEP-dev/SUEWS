@@ -537,7 +537,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="TStar",
-        unit="m s-1",
+        unit="K",
         description="Temperature scale",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,

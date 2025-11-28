@@ -270,12 +270,6 @@ dep_fortranobject = declare_dependency(
   dependencies: [inc_np_dep],
 )
 
-dep_lib_src = declare_dependency(
-  link_args: [
-    '-L' + meson.current_build_dir(), # the path is relative to the build directory when running meson
-    '-lsrc',
-  ],
-)
 dep_lib_suews = declare_dependency(
   link_args: [
     '-L' + dir_suews / 'lib', # the path is relative to the build directory when running meson
@@ -283,7 +277,7 @@ dep_lib_suews = declare_dependency(
     '-lsuewsdriver',
   ],
 )
-dep_suews = [dep_lib_src, dep_lib_suews]
+dep_suews = [dep_lib_suews]
 
 inc_suews_mod = include_directories('../suews/mod')
 
@@ -318,6 +312,7 @@ ext_supy_driver = py.extension_module(
     inc_np_dep,
     dep_suews,
   ],
+  link_with: build_lib,  # Proper dependency tracking for libsrc.a
   link_args: link_args_windows,
   install: true,
   subdir: 'supy',

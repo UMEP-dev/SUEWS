@@ -89,7 +89,7 @@ MODULE module_ctrl_const_allocate
                          ncolumnsDataOutEHC = 5 + 7*2 + 15*(1 + 4 + 2)*2, &
                          ncolumnsDataOutDailyState = 52, &
                          ncolumnsDataOutRSL = 30*4 + 5 + 13 + 2, &
-                         ncolumnsDataOutDebug = 1 + 5 + 103 + 14 + 5 + 4 + 3 + 1, &
+                         ncolumnsDataOutDebug = 5 + 1 + 7 + 5*7 + 4*7 + 4*7 + (4 + 7) + 4*7 + 5*7 + 6 + 1 + 4 + 1, & ! datetime(5) + flag(1) + tsfc(7) + energy(35) + water(28) + state(28) + resist(11) + cond(28) + g(35) + atmos(6) + iter(1) + FAI(4) + dqndt(1) = 190
                          ncolumnsDataOutSPARTACUS = 5 + 7 + 4*15 + 3 + 6*15 + 2*15 + 4, &
                          ncolumnsDataOutSTEBBS = 5 + 78, &
                          ncolumnsDataOutNHood = 5 + 1

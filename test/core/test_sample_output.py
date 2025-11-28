@@ -653,12 +653,25 @@ class TestSTEBBSOutput(TestCase):
 
         # Define STEBBS-specific variables to test with tolerances
         # Higher tolerances for building energy due to complex thermal dynamics
+        # Note: output_name is from OUTPUT_REGISTRY, ref_name is from reference CSV
         stebbs_variables = {
             # Indoor conditions - affected by complex heat transfer
-            "Tair_ind": {"rtol": 0.02, "atol": 0.5},  # 2% / 0.5K tolerance
+            "Tair_ind": {
+                "rtol": 0.02,
+                "atol": 0.5,
+                "ref_name": "Tair_ind",
+            },  # 2% / 0.5K tolerance
             # Building loads - higher tolerance due to control logic
-            "Qload_heating_F": {"rtol": 0.05, "atol": 5.0},  # 5% / 5W tolerance
-            "Qload_cooling_F": {"rtol": 0.05, "atol": 5.0},  # 5% / 5W tolerance
+            "QHload_heating": {
+                "rtol": 0.05,
+                "atol": 5.0,
+                "ref_name": "Qload_heating_F",
+            },  # 5% / 5W tolerance
+            "QHload_cooling": {
+                "rtol": 0.05,
+                "atol": 5.0,
+                "ref_name": "Qload_cooling_F",
+            },  # 5% / 5W tolerance
         }
 
         print(f"\nValidating STEBBS variables: {', '.join(stebbs_variables.keys())}")
@@ -680,6 +693,9 @@ class TestSTEBBSOutput(TestCase):
         failed_variables = []
 
         for var, tolerance in stebbs_variables.items():
+            # Get reference name (may differ from OUTPUT_REGISTRY name)
+            ref_name = tolerance.get("ref_name", var)
+
             # Get data from output
             if var not in df_output_day2.STEBBS.columns:
                 report = f"\n[ERROR] Variable {var} not found in STEBBS output!"
@@ -689,8 +705,8 @@ class TestSTEBBSOutput(TestCase):
                 failed_variables.append(var)
                 continue
 
-            if var not in df_reference.columns:
-                report = f"\n[ERROR] Variable {var} not found in reference output!"
+            if ref_name not in df_reference.columns:
+                report = f"\n[ERROR] Variable {ref_name} not found in reference output!"
                 full_report.append(report)
                 print(report)
                 all_passed = False
@@ -698,7 +714,7 @@ class TestSTEBBSOutput(TestCase):
                 continue
 
             actual = df_output_day2.STEBBS[var].values
-            expected = df_reference[var].values
+            expected = df_reference[ref_name].values
 
             # Handle length mismatch (should not occur after filtering)
             if len(actual) != len(expected):

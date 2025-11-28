@@ -51,7 +51,7 @@ NHOOD_VARIABLES = [
 # Expected variable counts (for test stability during development)
 EXPECTED_COUNTS = {
     OutputGroup.DATETIME: 5,
-    OutputGroup.SUEWS: 85,
+    OutputGroup.SUEWS: 99,  # Updated: added 14 Tsfc surface temperature variables
     OutputGroup.SNOW: 98,  # Approximate, can vary by surface types
     OutputGroup.ESTM: 27,
     OutputGroup.RSL: 135,  # Approximate, depends on levels
@@ -61,7 +61,7 @@ EXPECTED_COUNTS = {
     OutputGroup.DEBUG: 185,  # Approximate, may vary
     OutputGroup.EHC: 224,  # 2 + 7×15 roof + 7×15 wall
     OutputGroup.SPARTACUS: 194,  # 10 scalars + 12×15 layers
-    OutputGroup.STEBBS: 57,
+    OutputGroup.STEBBS: 78,  # Updated: 78 variables matching Fortran STEBBS output
     OutputGroup.NHOOD: 1,
 }
 

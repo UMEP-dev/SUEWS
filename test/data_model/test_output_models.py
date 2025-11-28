@@ -41,21 +41,22 @@ from output.spartacus_vars import SPARTACUS_VARIABLES
 from output.stebbs_vars import STEBBS_VARIABLES
 from output.nhood_vars import NHOOD_VARIABLES
 
-# Expected variable counts (for test stability during development)
+# Expected variable counts - MUST match Fortran output exactly
+# These counts are verified against Fortran runtime output (see #931)
 EXPECTED_COUNTS = {
-    OutputGroup.DATETIME: 5,
-    OutputGroup.SUEWS: 99,  # Updated: added 14 Tsfc surface temperature variables
-    OutputGroup.SNOW: 98,  # Approximate, can vary by surface types
-    OutputGroup.ESTM: 27,
-    OutputGroup.RSL: 135,  # Approximate, depends on levels
-    OutputGroup.DAILYSTATE: 47,
-    OutputGroup.BL: 17,  # Corrected count from review feedback
-    OutputGroup.BEERS: 29,
-    OutputGroup.DEBUG: 131,  # Exact count matching Fortran dataOutLineDebug
-    OutputGroup.EHC: 224,  # 2 + 7×15 roof + 7×15 wall
-    OutputGroup.SPARTACUS: 194,  # 10 scalars + 12×15 layers
-    OutputGroup.STEBBS: 78,  # Updated: 78 variables matching Fortran STEBBS output
-    OutputGroup.NHOOD: 1,
+    OutputGroup.DATETIME: 5,    # Year, DOY, Hour, Min, Dectime
+    OutputGroup.SUEWS: 99,      # Core SUEWS variables including Ts_* surface temps
+    OutputGroup.SNOW: 98,       # Snow variables (7 surface types × 14 vars)
+    OutputGroup.ESTM: 27,       # ESTM variables
+    OutputGroup.RSL: 135,       # RSL profile variables (30 levels × 4 vars + 15)
+    OutputGroup.DAILYSTATE: 47, # Daily state variables
+    OutputGroup.BL: 17,         # Boundary layer variables
+    OutputGroup.BEERS: 29,      # BEERS radiation variables
+    OutputGroup.DEBUG: 131,     # Debug variables (matches Fortran dataOutLineDebug)
+    OutputGroup.EHC: 224,       # EHC variables (2 + 7×15 roof + 7×15 wall)
+    OutputGroup.SPARTACUS: 194, # SPARTACUS variables (10 scalars + 12×15 layers)
+    OutputGroup.STEBBS: 78,     # STEBBS variables (matches Fortran truncated names)
+    OutputGroup.NHOOD: 1,       # Neighbourhood variables
 }
 
 # Assemble registry manually for testing (matching production)
@@ -79,52 +80,29 @@ OUTPUT_REGISTRY = OutputVariableRegistry(
 
 
 def test_registry_basic():
-    """Test that registry loads and has expected variables."""
+    """Test that registry loads and has expected variables.
+
+    All output groups MUST match Fortran output exactly. The EXPECTED_COUNTS
+    are verified against Fortran runtime output and any mismatch indicates
+    the Python registry is out of sync with Fortran.
+    """
     print("Testing OUTPUT_REGISTRY basic functionality...")
 
     # Check registry is not empty
     assert len(OUTPUT_REGISTRY.variables) > 0, "Registry should not be empty"
     print(f"[OK] Registry contains {len(OUTPUT_REGISTRY.variables)} variables")
 
-    # Track any drift for summary warning
-    drift_warnings = []
-
-    # Check all groups are present using centralised expected counts
+    # Check all groups match Fortran output EXACTLY
     for group, expected_count in EXPECTED_COUNTS.items():
         group_vars = OUTPUT_REGISTRY.by_group(group)
         actual_count = len(group_vars)
 
-        # For groups with variable counts, use tolerance-based checking
-        if group in [OutputGroup.SNOW, OutputGroup.RSL, OutputGroup.DEBUG]:
-            # Allow +/-10% tolerance for groups that may vary
-            tolerance = max(1, int(expected_count * 0.1))
-            assert abs(actual_count - expected_count) <= tolerance, (
-                f"{group.value} should have ~{expected_count} variables "
-                f"(+/-{tolerance}), got {actual_count}"
-            )
-            # Log drift even within tolerance for tracking
-            if actual_count != expected_count:
-                drift_warnings.append(
-                    f"{group.value}: {actual_count} (expected {expected_count}, diff {actual_count - expected_count:+d})"
-                )
-            print(
-                f"[OK] {group.value}: {actual_count} variables (~{expected_count} expected)"
-            )
-        else:
-            # Exact count for stable groups
-            assert actual_count == expected_count, (
-                f"{group.value} should have exactly {expected_count} variables, "
-                f"got {actual_count}"
-            )
-            print(f"[OK] {group.value}: {actual_count} variables")
-
-    # Report any drift for awareness
-    if drift_warnings:
-        print()
-        print("[INFO] Variable count drift detected (within tolerance):")
-        for warning in drift_warnings:
-            print(f"  - {warning}")
-        print("  Consider updating EXPECTED_COUNTS if these changes are intentional.")
+        # ALL groups must match Fortran output exactly - no tolerance allowed
+        assert actual_count == expected_count, (
+            f"{group.value} should have exactly {expected_count} variables "
+            f"(matching Fortran output), got {actual_count}"
+        )
+        print(f"[OK] {group.value}: {actual_count} variables")
 
     print()
 

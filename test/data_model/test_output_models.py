@@ -440,9 +440,13 @@ def test_fortran_python_output_consistency():
             fortran_count = sd.output_ncolumns(fortran_name)
 
             if python_count == fortran_count:
-                print(f"  [OK] {py_group.value:12s}: Python={python_count:3d}, Fortran={fortran_count:3d}")
+                print(
+                    f"  [OK] {py_group.value:12s}: Python={python_count:3d}, Fortran={fortran_count:3d}"
+                )
             else:
-                print(f"  [FAIL] {py_group.value:12s}: Python={python_count:3d}, Fortran={fortran_count:3d} MISMATCH!")
+                print(
+                    f"  [FAIL] {py_group.value:12s}: Python={python_count:3d}, Fortran={fortran_count:3d} MISMATCH!"
+                )
                 mismatches.append((py_group.value, python_count, fortran_count))
 
         print()
@@ -455,14 +459,20 @@ def test_fortran_python_output_consistency():
                 print(f"  - {group}: Python has {py_count}, Fortran expects {f_count}")
             print()
             print("ACTION REQUIRED:")
-            print("1. If Fortran changed: update Python registry in src/supy/data_model/output/")
-            print("2. If Python changed: update ncolumnsDataOut* in src/suews/src/suews_ctrl_const.f95")
+            print(
+                "1. If Fortran changed: update Python registry in src/supy/data_model/output/"
+            )
+            print(
+                "2. If Python changed: update ncolumnsDataOut* in src/suews/src/suews_ctrl_const.f95"
+            )
             pytest.fail(f"Fortran/Python mismatch: {mismatches}")
         else:
             print("=" * 70)
             print("[PASS] CONSISTENCY CHECK PASSED")
             print("=" * 70)
-            print("Python OUTPUT_REGISTRY matches Fortran ncolumnsDataOut* constants exactly.")
+            print(
+                "Python OUTPUT_REGISTRY matches Fortran ncolumnsDataOut* constants exactly."
+            )
             print()
 
     except ImportError as e:

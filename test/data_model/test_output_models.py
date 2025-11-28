@@ -51,7 +51,7 @@ EXPECTED_COUNTS = {
     OutputGroup.DAILYSTATE: 47,
     OutputGroup.BL: 17,  # Corrected count from review feedback
     OutputGroup.BEERS: 29,
-    OutputGroup.DEBUG: 185,  # Approximate, may vary
+    OutputGroup.DEBUG: 131,  # Exact count matching Fortran dataOutLineDebug
     OutputGroup.EHC: 224,  # 2 + 7×15 roof + 7×15 wall
     OutputGroup.SPARTACUS: 194,  # 10 scalars + 12×15 layers
     OutputGroup.STEBBS: 78,  # Updated: 78 variables matching Fortran STEBBS output

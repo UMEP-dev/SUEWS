@@ -1,7 +1,23 @@
-.. _output_files:
+.. _output_files_legacy:
 
-Output files
-============
+Output files (Legacy)
+=====================
+
+.. deprecated:: 2025.0
+
+   This page is deprecated and retained for reference only.
+
+   **Please use the new documentation:**
+
+   - :doc:`../outputs/index` - Main output documentation
+   - :doc:`../outputs/variables/index` - Auto-generated variable reference (1,085 variables)
+   - :doc:`../outputs/text_format` - Text format details
+   - :doc:`../outputs/parquet_format` - Parquet format details
+
+   The CSV tables below show the legacy text file column mappings and may be useful
+   for users working with older output files or migrating existing workflows.
+
+----
 
 Runtime diagnostic information
 ------------------------------

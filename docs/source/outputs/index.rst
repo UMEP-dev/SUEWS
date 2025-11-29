@@ -91,6 +91,15 @@ Temporal Information
    between ``2021-09-12 12:00`` (inclusive) and ``2021-09-12 13:00`` (exclusive).
 
 
+Legacy Documentation
+--------------------
+
+For users working with older output files or migrating existing workflows,
+the legacy output documentation with CSV column mappings is available:
+
+- :doc:`../output_files/output_files` - Legacy output file documentation (deprecated)
+
+
 .. toctree::
    :hidden:
    :maxdepth: 2
@@ -99,3 +108,4 @@ Temporal Information
    parquet_format
    variables/index
    legacy_diagnostics
+   ../output_files/output_files

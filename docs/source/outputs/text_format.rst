@@ -131,6 +131,12 @@ SUEWS supports multiple output levels controlled by :option:`WriteOutOption`:
 
 See :doc:`variables/index` for the complete list of variables and their output levels.
 
+.. note::
+
+   For detailed column-by-column mappings showing which variables appear at each
+   WriteOutOption level, see the :doc:`legacy output documentation <../output_files/output_files>`
+   which contains CSV tables with column numbers and WriteOutOption mappings.
+
 
 Initial Conditions Output
 -------------------------

@@ -223,13 +223,20 @@ class OutputVariableRSTGenerator:
     # Known base units that can have exponents (exact matches only)
     # This ensures we don't accidentally match words like "moles^-1"
     KNOWN_BASE_UNITS = frozenset({
-        "m", "mm", "km",  # length
-        "s",              # time
-        "kg", "g",        # mass
-        "K",              # temperature
-        "W", "J",         # energy/power
-        "h", "d", "day",  # time (alternative)
-        "cap", "ha",      # special (per capita, hectare)
+        "m",
+        "mm",
+        "km",  # length
+        "s",  # time
+        "kg",
+        "g",  # mass
+        "K",  # temperature
+        "W",
+        "J",  # energy/power
+        "h",
+        "d",
+        "day",  # time (alternative)
+        "cap",
+        "ha",  # special (per capita, hectare)
     })
 
     @staticmethod

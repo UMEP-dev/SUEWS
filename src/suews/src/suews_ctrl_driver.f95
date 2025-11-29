@@ -47,7 +47,6 @@ MODULE SUEWS_Driver
       ReDistributeWater, SUEWS_cal_HorizontalSoilWater, &
       SUEWS_cal_HorizontalSoilWater_DTS, &
       SUEWS_cal_WaterUse
-   USE module_ctrl_output, ONLY: varListAll
    USE module_phys_lumps, ONLY: LUMPS_cal_QHQE_DTS
    USE module_phys_evap, ONLY: cal_evap_multi
    USE module_phys_rslprof, ONLY: RSLProfile, RSLProfile_DTS
@@ -3703,42 +3702,6 @@ CONTAINS
       xx = x**2
 
    END FUNCTION square_real
-
-   SUBROUTINE output_name_n(i, name, group, aggreg, outlevel)
-      ! used by f2py module  to handle output names
-      IMPLICIT NONE
-      ! the dimension is potentially incorrect,
-      ! which should be consistent with that in output module
-      INTEGER, INTENT(in) :: i
-      CHARACTER(len=15), INTENT(out) :: name, group, aggreg
-      INTEGER, INTENT(out) :: outlevel
-
-      INTEGER :: nVar
-      nVar = SIZE(varListAll, dim=1)
-      IF (i < nVar .AND. i > 0) THEN
-         name = TRIM(varListAll(i)%header)
-         group = TRIM(varListAll(i)%group)
-         aggreg = TRIM(varListAll(i)%aggreg)
-         outlevel = varListAll(i)%level
-      ELSE
-         name = ''
-         group = ''
-         aggreg = ''
-         outlevel = 0
-      END IF
-
-   END SUBROUTINE output_name_n
-
-   SUBROUTINE output_size(nVar)
-      ! used by f2py module  to get size of the output list
-      IMPLICIT NONE
-      ! the dimension is potentially incorrect,
-      ! which should be consistent with that in output module
-      INTEGER, INTENT(out) :: nVar
-
-      nVar = SIZE(varListAll, dim=1)
-
-   END SUBROUTINE output_size
 
    SUBROUTINE output_ncolumns(group_name, ncols)
       ! Returns the number of data columns (excluding datetime) for a given output group.

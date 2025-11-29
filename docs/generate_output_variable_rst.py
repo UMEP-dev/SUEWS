@@ -183,7 +183,9 @@ class OutputVariableRSTGenerator:
         unit = re.sub(r"([a-zA-Z])(\d+)(?!\^)", r"\1^\2", unit)
 
         # Convert to RST substitution format for proper rendering
-        unit = unit.replace("\u00b3", "^3").replace("\u00b2", "^2").replace("\u207b", "^-")
+        unit = (
+            unit.replace("\u00b3", "^3").replace("\u00b2", "^2").replace("\u207b", "^-")
+        )
 
         # Handle division
         if "/" in unit:

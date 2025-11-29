@@ -212,6 +212,45 @@ class DLSCheck(BaseModel):
         return start, end, utc_offset_hours
 
 
+def recursive_nullify_any(obj: Any) -> None:
+    """
+    In-place: nullify YAML leaves and day-profile structures.
+
+    Rules:
+    - If a dict is a RefValue leaf (has only "value"), set value -> None (lists -> list of None).
+    - If a dict contains working_day and/or holiday, set them to None.
+    - For other dicts: recurse; scalar leaves are set to None.
+    - For lists: recurse into dict/list items, scalar items -> None.
+    Safe and defensive for arbitrary structures.
+    """
+    if isinstance(obj, dict):
+        # RefValue leaf
+        if "value" in obj and len(obj) == 1:
+            val = obj["value"]
+            if isinstance(val, list):
+                obj["value"] = [None] * len(val)
+            else:
+                obj["value"] = None
+            return
+        # Day-profile style dict
+        if "working_day" in obj or "holiday" in obj:
+            obj["working_day"] = None
+            obj["holiday"] = None
+            return
+        # Recurse into entries; scalar leaves -> None
+        for k, v in list(obj.items()):
+            if isinstance(v, (dict, list)):
+                recursive_nullify_any(v)
+            else:
+                obj[k] = None
+    elif isinstance(obj, list):
+        for i, item in enumerate(obj):
+            if isinstance(item, (dict, list)):
+                recursive_nullify_any(item)
+            else:
+                obj[i] = None
+
+
 def collect_yaml_differences(original: Any, updated: Any, path: str = "") -> List[dict]:
     """
     Recursively compare two YAML data structures and collect all differences.
@@ -1222,9 +1261,18 @@ def precheck_model_option_rules(data: dict) -> dict:
         data (dict): YAML configuration data loaded as a dict.
 
     Returns:
-        dict: The updated YAML dict after applying the STEBBS nullification rule.
+        dict: The updated YAML dict after applying the nullification rules.
     """
     physics = data.get("model", {}).get("physics", {})
+
+    # Helper: recursively nullify any "value" leaves in the passed block
+    def _recursive_nullify(block: dict):
+        for key, val in block.items():
+            if isinstance(val, dict):
+                if "value" in val:
+                    val["value"] = None
+                else:
+                    _recursive_nullify(val)
 
     # --- STEBBSMETHOD RULE: when stebbsmethod == 0, wipe out all stebbs params ---
     stebbsmethod = get_value_safe(physics, "stebbsmethod")
@@ -1233,21 +1281,29 @@ def precheck_model_option_rules(data: dict) -> dict:
             "[precheck] stebbsmethod==0 detected → nullifying all 'stebbs' values."
         )
         for site_idx, site in enumerate(data.get("sites", [])):
-            props = site.get("properties", {})
-            stebbs_block = props.get("stebbs", {})
+            props = site.get("properties", {}) or {}
+            stebbs_block = props.get("stebbs", {}) or {}
+            if isinstance(stebbs_block, dict):
+                _recursive_nullify(stebbs_block)
+                props["stebbs"] = stebbs_block
 
-            def _recursive_nullify(block: dict):
-                for key, val in block.items():
-                    if isinstance(val, dict):
-                        if "value" in val:
-                            val["value"] = None
-                        else:
-                            _recursive_nullify(val)
+    # --- EMISSIONS / CO2 RULE: when emissionsmethod 0..4, CO2 is not computed, nullify co2 params ---
+    emissionsmethod = get_value_safe(physics, "emissionsmethod")
+    if emissionsmethod is not None and emissionsmethod in (0, 1, 2, 3, 4):
+        logger_supy.info(
+            "[precheck] emissionsmethod 0..4 detected → nullifying 'anthropogenic_emissions.co2' values."
+        )
+        for site_idx, site in enumerate(data.get("sites", [])):
+            props = site.get("properties", {}) or {}
+            anth_emis = props.get("anthropogenic_emissions", {}) or {}
 
-            _recursive_nullify(stebbs_block)
-            props["stebbs"] = stebbs_block
+            # Nullify co2 block (use shared nullifier)
+            co2_block = anth_emis.get("co2", {}) or {}
+            if isinstance(co2_block, dict):
+                recursive_nullify_any(co2_block)
+                anth_emis["co2"] = co2_block
+                props["anthropogenic_emissions"] = anth_emis
 
-    logger_supy.info("[precheck] STEBBS nullification complete.")
     return data
 
 

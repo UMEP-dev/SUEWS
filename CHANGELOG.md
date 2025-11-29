@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 39 | 27 | 18 | 36 | 19 | 135 |
+| 2025 | 40 | 27 | 21 | 38 | 19 | 141 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -32,6 +32,14 @@
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2025
+
+### 27 Nov 2025
+- [feature] Nullifying all CO2-related site parameters when emissionsmethod is 0–4 to avoid unintended Pydantic validation
+- [change] Updated DayProfile and HourlyProfile models to accept None
+- [change] Modified field_validator in profile.py to allow None values in CO2 profiles
+- [change] Added recursive CO2-parameter nullification to yaml_helpers.py
+- [maintenance] Ensured recursively nullified CO2 parameters are included in the Phase B report
+- [maintenance] Added test validating CO2 parameter nullification for emissionsmethod 0–4
 
 ### 26 Nov 2025
 - [maintenance] Corrected typos and improved parameter descriptions in site.py for STEBBS parameters

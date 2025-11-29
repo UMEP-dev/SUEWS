@@ -6,62 +6,28 @@ Output Files
 SUEWS produces comprehensive output data documenting the simulation results, including
 energy balance, water balance, meteorological variables, and model diagnostics.
 
-Overview
---------
+The output format is configured in the YAML configuration file.
+See :doc:`../inputs/yaml/index` for configuration details.
 
-SUEWS output is organised into logical groups, each containing related variables:
+.. toctree::
+   :maxdepth: 1
+   :caption: Output Formats
 
-**Core Output Groups:**
+   text_format
+   parquet_format
 
-- **datetime** - Temporal indices for all output records
-- **SUEWS** - Main energy and water balance outputs (sensible heat, latent heat, etc.)
-- **snow** - Snow-specific outputs for each surface type
-- **DailyState** - Daily accumulated state variables
+.. toctree::
+   :maxdepth: 1
+   :caption: Variable Reference
 
-**Advanced Physics:**
+   variables/index
 
-- **ESTM** - Element Surface Temperature Model outputs
-- **EHC** - Element Heat Capacity model outputs for building thermal layers
-- **RSL** - Roughness Sublayer vertical profile outputs
-- **BL** - Boundary Layer model outputs
+.. toctree::
+   :maxdepth: 1
+   :caption: Legacy Documentation
 
-**Specialised Models:**
-
-- **BEERS** - BEERS radiation model outputs
-- **SPARTACUS** - SPARTACUS radiation model outputs (experimental)
-- **STEBBS** - STEBBS building energy model outputs (experimental)
-- **NHood** - Neighbourhood-scale outputs (experimental)
-
-**Diagnostics:**
-
-- **debug** - Debug and diagnostic outputs for model development
-
-
-Output Format Options
----------------------
-
-SUEWS supports two output formats:
-
-- :doc:`text_format` - Traditional tab-delimited text files (one file per year and output group)
-- :doc:`parquet_format` - Modern columnar storage format (all data in consolidated files)
-
-The output format is configured in the YAML configuration file. See :doc:`../inputs/yaml/index` for configuration details.
-
-
-Output Variable Reference
--------------------------
-
-For a complete reference of all output variables organised by group, see:
-
-- :doc:`variables/index` - Auto-generated documentation for all 1,100+ output variables
-
-
-Legacy Diagnostics
-------------------
-
-For information about runtime diagnostic files (error messages, warnings, etc.), see:
-
-- :doc:`legacy_diagnostics`
+   legacy_diagnostics
+   legacy_text_columns
 
 
 State Output
@@ -89,23 +55,3 @@ Temporal Information
 
    For example, for hourly data, ``2021-09-12 13:00`` indicates a record for the period
    between ``2021-09-12 12:00`` (inclusive) and ``2021-09-12 13:00`` (exclusive).
-
-
-Legacy Documentation
---------------------
-
-For users working with older output files or migrating existing workflows,
-the legacy output documentation with CSV column mappings is available:
-
-- :doc:`legacy_text_columns` - Legacy text column reference (deprecated)
-
-
-.. toctree::
-   :hidden:
-   :maxdepth: 2
-
-   text_format
-   parquet_format
-   variables/index
-   legacy_diagnostics
-   legacy_text_columns

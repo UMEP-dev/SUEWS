@@ -3,6 +3,9 @@
 Parquet Format Output
 =====================
 
+.. versionadded:: 2025.10.15
+   See :ref:`release notes <new_2025.10.15>` for details.
+
 Parquet is a modern columnar storage format that provides significant advantages for
 large-scale SUEWS simulations.
 
@@ -11,44 +14,21 @@ large-scale SUEWS simulations.
    Parquet output is only available when using YAML configuration files,
    not with the legacy namelist format.
 
-Advantages
-----------
-
-- **70-80% smaller file sizes** compared to text format
-- **2-5x compression** compared to uncompressed CSV/text
-- **Faster reading** in Python, R, and MATLAB
-- **All data in two files** (output and state)
-- **Multi-year data** stored together efficiently
-
 
 Output Files
 ------------
 
-SSss_SUEWS_output.parquet
-^^^^^^^^^^^^^^^^^^^^^^^^^
+When using parquet format, SUEWS produces two output files:
 
-Contains all simulation output in a single file:
+- **SSss_SUEWS_output.parquet** - All simulation output in a single file, including
+  all output groups and years. See :doc:`variables/index` for variable details.
 
-- All output groups (SUEWS, DailyState, ESTM, RSL, BL, snow, debug, etc.)
-- All years of simulation data
-- Multi-index structure preserving grid and temporal information
-- Columnar format for efficient compression
-
-SSss_SUEWS_state_final.parquet
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Contains the final model state:
-
-- All state variables at simulation end
-- Full state structure for restart runs
-- Grid-specific state preservation
+- **SSss_SUEWS_state_final.parquet** - Final model state for restart runs.
+  See :ref:`State Persistence <state-persistence>` for details.
 
 
 Reading Parquet Files
 ---------------------
-
-Python (pandas)
-^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
@@ -66,33 +46,8 @@ Python (pandas)
    # Filter by time
    summer = df_output.loc['2012-06':'2012-08']
 
-Python (polars)
-^^^^^^^^^^^^^^^
-
-.. code-block:: python
-
-   import polars as pl
-
-   # Read with polars (faster for large files)
-   df = pl.read_parquet('London_KCL_SUEWS_output.parquet')
-
-R
-^
-
-.. code-block:: r
-
-   library(arrow)
-
-   # Read parquet file
-   df <- read_parquet('London_KCL_SUEWS_output.parquet')
-
-MATLAB
-^^^^^^
-
-.. code-block:: matlab
-
-   % Requires MATLAB R2019a or later
-   df = parquetread('London_KCL_SUEWS_output.parquet');
+For other languages (R, MATLAB, Julia), see the
+`Apache Parquet documentation <https://parquet.apache.org/>`_.
 
 
 Configuration
@@ -102,15 +57,27 @@ To enable parquet output in your YAML configuration:
 
 .. code-block:: yaml
 
-   output:
-     format: parquet
-     # Other output options...
+   model:
+     control:
+       output_file:
+         format: parquet
+         freq: 3600
 
 See :doc:`../inputs/yaml/index` for complete configuration options.
 
 
-Comparison with Text Format
----------------------------
+Why Parquet?
+------------
+
+Parquet format offers several advantages over traditional text output:
+
+- **70-80% smaller file sizes** compared to text format
+- **2-5x compression** compared to uncompressed CSV/text
+- **Faster reading** in data analysis tools
+- **All data in two files** (output and state) rather than many separate files
+- **Multi-year data** stored together efficiently
+
+**Comparison with Text Format:**
 
 +------------------+------------------+------------------+
 | Feature          | Text Format      | Parquet Format   |

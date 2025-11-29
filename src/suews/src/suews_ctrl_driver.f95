@@ -3740,6 +3740,47 @@ CONTAINS
 
    END SUBROUTINE output_size
 
+   SUBROUTINE output_ncolumns(group_name, ncols)
+      ! Returns the number of data columns (excluding datetime) for a given output group.
+      ! Used by Python tests to verify OUTPUT_REGISTRY matches Fortran array sizes.
+      USE module_ctrl_const_allocate
+      IMPLICIT NONE
+      CHARACTER(len=*), INTENT(IN) :: group_name
+      INTEGER, INTENT(OUT) :: ncols
+
+      SELECT CASE (TRIM(group_name))
+      CASE ('datetime')
+         ncols = 5  ! Year, DOY, Hour, Min, Dectime
+      CASE ('SUEWS')
+         ncols = ncolumnsDataOutSUEWS - 5
+      CASE ('snow')
+         ncols = ncolumnsDataOutSnow - 5
+      CASE ('ESTM')
+         ncols = ncolumnsDataOutESTM - 5
+      CASE ('EHC')
+         ncols = ncolumnsDataOutEHC - 5
+      CASE ('RSL')
+         ncols = ncolumnsDataOutRSL - 5
+      CASE ('BL')
+         ncols = ncolumnsdataOutBL - 5
+      CASE ('debug')
+         ncols = ncolumnsDataOutDebug - 5
+      CASE ('BEERS')
+         ncols = ncolumnsDataOutBEERS - 5
+      CASE ('DailyState')
+         ncols = ncolumnsDataOutDailyState - 5
+      CASE ('SPARTACUS')
+         ncols = ncolumnsDataOutSPARTACUS - 5
+      CASE ('STEBBS')
+         ncols = ncolumnsDataOutSTEBBS - 5
+      CASE ('NHood')
+         ncols = ncolumnsDataOutNHood - 5
+      CASE DEFAULT
+         ncols = -1  ! Unknown group
+      END SELECT
+
+   END SUBROUTINE output_ncolumns
+
    SUBROUTINE SUEWS_cal_multitsteps( &
       n_buildings, h_std, &
       flag_test, &

@@ -41,21 +41,24 @@ from output.spartacus_vars import SPARTACUS_VARIABLES
 from output.stebbs_vars import STEBBS_VARIABLES
 from output.nhood_vars import NHOOD_VARIABLES
 
-# Expected variable counts (for test stability during development)
+# Expected variable counts derived from Fortran ncolumnsDataOut* constants.
+# Used for unit testing without Fortran build. The actual runtime verification
+# against Fortran is done in test_fortran_python_output_consistency().
+# Formula: ncolumnsDataOut* - 5 (subtract datetime columns)
 EXPECTED_COUNTS = {
-    OutputGroup.DATETIME: 5,
-    OutputGroup.SUEWS: 99,  # Updated: added 14 Tsfc surface temperature variables
-    OutputGroup.SNOW: 98,  # Approximate, can vary by surface types
-    OutputGroup.ESTM: 27,
-    OutputGroup.RSL: 135,  # Approximate, depends on levels
-    OutputGroup.DAILYSTATE: 47,
-    OutputGroup.BL: 17,  # Corrected count from review feedback
-    OutputGroup.BEERS: 29,
-    OutputGroup.DEBUG: 185,  # Approximate, may vary
-    OutputGroup.EHC: 224,  # 2 + 7×15 roof + 7×15 wall
-    OutputGroup.SPARTACUS: 194,  # 10 scalars + 12×15 layers
-    OutputGroup.STEBBS: 78,  # Updated: 78 variables matching Fortran STEBBS output
-    OutputGroup.NHOOD: 1,
+    OutputGroup.DATETIME: 5,  # Year, DOY, Hour, Min, Dectime
+    OutputGroup.SUEWS: 99,  # Core SUEWS variables including Ts_* surface temps
+    OutputGroup.SNOW: 98,  # Snow variables (7 surface types × 14 vars)
+    OutputGroup.ESTM: 27,  # ESTM variables
+    OutputGroup.RSL: 135,  # RSL profile variables (30 levels × 4 vars + 15)
+    OutputGroup.DAILYSTATE: 47,  # Daily state variables
+    OutputGroup.BL: 17,  # Boundary layer variables
+    OutputGroup.BEERS: 29,  # BEERS radiation variables
+    OutputGroup.DEBUG: 131,  # Debug variables (matches Fortran dataOutLineDebug)
+    OutputGroup.EHC: 224,  # EHC variables (2 + 7×15 roof + 7×15 wall)
+    OutputGroup.SPARTACUS: 194,  # SPARTACUS variables (10 scalars + 12×15 layers)
+    OutputGroup.STEBBS: 78,  # STEBBS variables (matches Fortran truncated names)
+    OutputGroup.NHOOD: 1,  # Neighbourhood variables
 }
 
 # Assemble registry manually for testing (matching production)
@@ -79,52 +82,32 @@ OUTPUT_REGISTRY = OutputVariableRegistry(
 
 
 def test_registry_basic():
-    """Test that registry loads and has expected variables."""
+    """Test that registry loads and has expected variable counts.
+
+    This unit test verifies Python registry against hardcoded EXPECTED_COUNTS
+    (derived from Fortran ncolumnsDataOut* constants). It can run without
+    building Fortran, providing quick feedback during development.
+
+    For actual runtime verification against Fortran, see
+    test_fortran_python_output_consistency() which calls Fortran directly.
+    """
     print("Testing OUTPUT_REGISTRY basic functionality...")
 
     # Check registry is not empty
     assert len(OUTPUT_REGISTRY.variables) > 0, "Registry should not be empty"
     print(f"[OK] Registry contains {len(OUTPUT_REGISTRY.variables)} variables")
 
-    # Track any drift for summary warning
-    drift_warnings = []
-
-    # Check all groups are present using centralised expected counts
+    # Check all groups match Fortran output EXACTLY
     for group, expected_count in EXPECTED_COUNTS.items():
         group_vars = OUTPUT_REGISTRY.by_group(group)
         actual_count = len(group_vars)
 
-        # For groups with variable counts, use tolerance-based checking
-        if group in [OutputGroup.SNOW, OutputGroup.RSL, OutputGroup.DEBUG]:
-            # Allow +/-10% tolerance for groups that may vary
-            tolerance = max(1, int(expected_count * 0.1))
-            assert abs(actual_count - expected_count) <= tolerance, (
-                f"{group.value} should have ~{expected_count} variables "
-                f"(+/-{tolerance}), got {actual_count}"
-            )
-            # Log drift even within tolerance for tracking
-            if actual_count != expected_count:
-                drift_warnings.append(
-                    f"{group.value}: {actual_count} (expected {expected_count}, diff {actual_count - expected_count:+d})"
-                )
-            print(
-                f"[OK] {group.value}: {actual_count} variables (~{expected_count} expected)"
-            )
-        else:
-            # Exact count for stable groups
-            assert actual_count == expected_count, (
-                f"{group.value} should have exactly {expected_count} variables, "
-                f"got {actual_count}"
-            )
-            print(f"[OK] {group.value}: {actual_count} variables")
-
-    # Report any drift for awareness
-    if drift_warnings:
-        print()
-        print("[INFO] Variable count drift detected (within tolerance):")
-        for warning in drift_warnings:
-            print(f"  - {warning}")
-        print("  Consider updating EXPECTED_COUNTS if these changes are intentional.")
+        # ALL groups must match Fortran output exactly - no tolerance allowed
+        assert actual_count == expected_count, (
+            f"{group.value} should have exactly {expected_count} variables "
+            f"(matching Fortran output), got {actual_count}"
+        )
+        print(f"[OK] {group.value}: {actual_count} variables")
 
     print()
 
@@ -412,63 +395,95 @@ def main():
 
 
 def test_fortran_python_output_consistency():
-    """Verify Python OUTPUT_REGISTRY completeness.
+    """Verify Python OUTPUT_REGISTRY matches Fortran ncolumnsDataOut* constants.
 
-    HISTORICAL NOTE (2025-10-25):
-    This test previously verified Fortran varListAll matched Python OUTPUT_REGISTRY.
-    The Fortran output variable definitions (varListAll) have now been REMOVED as
-    Python OUTPUT_REGISTRY is the single source of truth.
+    This test calls Fortran's output_ncolumns() function at runtime to get the
+    expected number of columns for each output group, then verifies Python's
+    OUTPUT_REGISTRY has the exact same count.
 
-    This test is kept as a placeholder for future OUTPUT_REGISTRY validation.
+    This provides runtime verification that Python and Fortran stay in sync.
+    If this test fails, either:
+    - Fortran ncolumnsDataOut* constants were changed (update Python registry)
+    - Python registry was changed (update Fortran constants)
     """
     print("=" * 70)
-    print("Python OUTPUT_REGISTRY validation...")
+    print("Fortran/Python Output Consistency Verification...")
     print("=" * 70)
     print()
 
     try:
         from supy.data_model.output import OUTPUT_REGISTRY, OutputGroup
+        from supy.supy_driver import suews_driver as sd
 
-        # Validate OUTPUT_REGISTRY is properly loaded
-        print("Per-group variable counts:")
-        total_vars = 0
-        for group in OutputGroup:
-            n_vars = len(OUTPUT_REGISTRY.by_group(group))
-            total_vars += n_vars
-            print(f"  [OK] {group.value:12s}: {n_vars:3d} variables")
+        # Mapping from Python OutputGroup to Fortran group name strings
+        # These must match the CASE statements in output_ncolumns()
+        GROUP_MAPPING = {
+            OutputGroup.DATETIME: "datetime",
+            OutputGroup.SUEWS: "SUEWS",
+            OutputGroup.SNOW: "snow",
+            OutputGroup.ESTM: "ESTM",
+            OutputGroup.EHC: "EHC",
+            OutputGroup.RSL: "RSL",
+            OutputGroup.BL: "BL",
+            OutputGroup.DEBUG: "debug",
+            OutputGroup.BEERS: "BEERS",
+            OutputGroup.DAILYSTATE: "DailyState",
+            OutputGroup.SPARTACUS: "SPARTACUS",
+            OutputGroup.STEBBS: "STEBBS",
+            OutputGroup.NHOOD: "NHood",
+        }
+
+        print("Verifying Python registry against Fortran ncolumnsDataOut* constants:")
+        mismatches = []
+        for py_group, fortran_name in GROUP_MAPPING.items():
+            python_count = len(OUTPUT_REGISTRY.by_group(py_group))
+            fortran_count = sd.output_ncolumns(fortran_name)
+
+            if python_count == fortran_count:
+                print(
+                    f"  [OK] {py_group.value:12s}: Python={python_count:3d}, Fortran={fortran_count:3d}"
+                )
+            else:
+                print(
+                    f"  [FAIL] {py_group.value:12s}: Python={python_count:3d}, Fortran={fortran_count:3d} MISMATCH!"
+                )
+                mismatches.append((py_group.value, python_count, fortran_count))
 
         print()
-        print("=" * 70)
-        print("[PASS] OUTPUT_REGISTRY VALIDATION PASSED")
-        print("=" * 70)
-        print(f"Python OUTPUT_REGISTRY is properly loaded")
-        print(f"({len(OutputGroup)} groups with {total_vars} total variables)")
-        print()
-        print("NOTE: Fortran varListAll has been deprecated (2025-10-25).")
-        print("Python OUTPUT_REGISTRY is now the ONLY source of truth.")
-        print()
+        if mismatches:
+            print("=" * 70)
+            print("[FAIL] CONSISTENCY CHECK FAILED")
+            print("=" * 70)
+            print("Mismatches found:")
+            for group, py_count, f_count in mismatches:
+                print(f"  - {group}: Python has {py_count}, Fortran expects {f_count}")
+            print()
+            print("ACTION REQUIRED:")
+            print(
+                "1. If Fortran changed: update Python registry in src/supy/data_model/output/"
+            )
+            print(
+                "2. If Python changed: update ncolumnsDataOut* in src/suews/src/suews_ctrl_const.f95"
+            )
+            pytest.fail(f"Fortran/Python mismatch: {mismatches}")
+        else:
+            print("=" * 70)
+            print("[PASS] CONSISTENCY CHECK PASSED")
+            print("=" * 70)
+            print(
+                "Python OUTPUT_REGISTRY matches Fortran ncolumnsDataOut* constants exactly."
+            )
+            print()
 
     except ImportError as e:
         print()
         print("=" * 70)
-        print("[SKIP] SKIPPED: OUTPUT_REGISTRY not available")
+        print("[SKIP] SKIPPED: supy not available")
         print("=" * 70)
         print(f"Reason: {e}")
+        print("This test requires a full supy build with Fortran components.")
         print()
-        pytest.skip(f"OUTPUT_REGISTRY not available: {e}")
-
-    except AssertionError as e:
-        print()
-        print("=" * 70)
-        print("[FAIL] CONSISTENCY CHECK FAILED")
-        print("=" * 70)
-        print(f"{e}")
-        print()
-        print("ACTION REQUIRED:")
-        print("1. Check if recent changes were made to OUTPUT_REGISTRY")
-        print("2. Ensure corresponding updates were made to Fortran varListAll")
-        print()
-        pytest.fail(f"Consistency check failed: {e}")
+        pytest.skip(f"supy not available: {e}")
 
     except Exception as e:
         print()

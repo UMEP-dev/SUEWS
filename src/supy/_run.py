@@ -2,10 +2,18 @@ from ast import literal_eval
 from shutil import rmtree
 import tempfile
 import copy
-import multiprocess
 import os
 import sys
 import time
+import subprocess
+
+# Patch subprocess for compatibility with dill serialization on macOS
+# dill tries to access subprocess._USE_VFORK which only exists on Linux
+# (see https://github.com/python/cpython/issues/121381)
+if not hasattr(subprocess, "_USE_VFORK"):
+    subprocess._USE_VFORK = False
+
+import multiprocess
 
 # import logging
 import traceback
@@ -646,7 +654,12 @@ def run_supy_par(
         list_dir_temp = [path_dir_temp for _ in range(n_grid)]
 
         # parallel run
-        with multiprocess.Pool() as pool:
+        # Use spawn context on macOS to avoid fork warnings in multi-threaded contexts
+        # (see GH-916: "Forking a process in a multi-threaded context is not safe")
+        pool_context = (
+            multiprocess.get_context("spawn") if sys.platform == "darwin" else multiprocess
+        )
+        with pool_context.Pool() as pool:
             pool.starmap(
                 run_save_supy,
                 zip(

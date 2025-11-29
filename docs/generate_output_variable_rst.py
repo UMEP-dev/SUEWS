@@ -19,10 +19,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 try:
     from supy.data_model.output import OUTPUT_REGISTRY
-    from supy.data_model.output.variables import (
-        OutputGroup,
-        AggregationMethod,
-    )
+    from supy.data_model.output.variables import OutputGroup
 except ImportError as e:
     print(
         "ERROR: Cannot import supy. Documentation build requires supy to be installed.",
@@ -175,11 +172,17 @@ class OutputVariableRSTGenerator:
         if not unit:
             return unit
 
-        # Normalise hyphen-style exponents to caret-style for consistent processing
+        # Normalise hyphen-style exponents to caret-style for consistent processing.
         # Convert patterns like "m-2" to "m^-2", "s-1" to "s^-1", "m2" to "m^2", etc.
+        #
+        # ORDER MATTERS: Process negative exponents first (e.g., "m-2" -> "m^-2"),
+        # then positive exponents. This prevents the positive pattern from incorrectly
+        # matching the "2" in "m-2" before the hyphen is processed.
+        #
         # Match letter followed by hyphen and digit(s) for negative exponents
         unit = re.sub(r"([a-zA-Z])(\d*)-(\d+)", r"\1\2^-\3", unit)
         # Match letter followed directly by digit(s) for positive exponents (e.g., m2 -> m^2)
+        # The (?!\^) lookahead prevents double-conversion of already-processed patterns
         unit = re.sub(r"([a-zA-Z])(\d+)(?!\^)", r"\1^\2", unit)
 
         # Convert to RST substitution format for proper rendering

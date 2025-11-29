@@ -198,9 +198,6 @@ State Persistence
 SUEWS automatically saves model state for restart and analysis purposes using the
 modern CSV-based state file format.
 
-df_state_SSss.csv
-^^^^^^^^^^^^^^^^^
-
 At the end of each simulation, SUEWS writes a ``df_state_SSss.csv`` file containing:
 
 - Model configuration parameters
@@ -259,7 +256,7 @@ Legacy Initial Conditions Output
 
 **InitialConditionsSSss_YYYY.nml**
    The legacy namelist-based initial conditions files are deprecated.
-   Use the modern ``df_state_SSss.csv`` files instead (see :ref:`State Persistence <text_output_format>`).
+   Use the modern ``df_state_SSss.csv`` files instead (see :ref:`State Persistence <state-persistence>`).
 
 See :doc:`variables/index` for the complete list of output variables.
 

@@ -1,11 +1,15 @@
 ---
 name: lint-code
-description: Check code style against SUEWS conventions for all languages (Fortran and Python). Use when reviewing code, before committing changes, or when asked to check style/conventions. For Fortran validates file/module/type/subroutine naming, units, precision. For Python validates variable prefixes (df_, dict_), config separation, logging, pathlib, type hints, NumPy docstrings. Complements ruff and fprettify with SUEWS-specific patterns.
+description: Check code style against SUEWS conventions for all languages (Fortran, Python, RST, Markdown). Use when reviewing code, before committing changes, or when asked to check style/conventions. For Fortran validates file/module/type/subroutine naming, units, precision. For Python validates variable prefixes (df_, dict_), config separation, logging, pathlib, type hints, NumPy docstrings. For RST/Markdown validates structure, spelling, and formatting. Complements ruff and fprettify with SUEWS-specific patterns.
 ---
 
 # SUEWS Code Style Checker
 
-Check code against `dev-ref/CODING_GUIDELINES.md` and `dev-ref/FORTRAN_NAMING_CONVENTIONS.md`.
+Check code and documentation against project conventions. Human language is code too.
+
+References:
+- `dev-ref/CODING_GUIDELINES.md`
+- `dev-ref/FORTRAN_NAMING_CONVENTIONS.md`
 
 ---
 
@@ -102,6 +106,143 @@ Complements ruff for SUEWS-specific patterns.
 
 ---
 
+## RST Style
+
+reStructuredText files in `docs/source/`.
+
+### Heading Hierarchy (MAX 3 LEVELS)
+
+| Level | Marker | Usage |
+|-------|--------|-------|
+| 1 | `=` overline+underline | Document title only |
+| 2 | `=` underline only | Major sections |
+| 3 | `-` underline | Subsections |
+
+- **NO Level 4+**: Do not use `~`, `^`, or deeper nesting
+- OK: 3.2.2 | NOT OK: 2.3.4.5
+- Underline length must match title length
+
+### RST Checks
+
+**Critical**:
+1. **Max 3 heading levels**: No `~`, `^`, or deeper
+2. **No nested markup**: Cannot combine `**` with `:doc:`, `:ref:`
+3. **Images require `:alt:`**: All figures must have alt text
+4. **Image path**: Must be `/assets/img/` (absolute from docs/source)
+5. **Auto-generated files**: NEVER manually edit CSV tables
+
+**Style**:
+6. Admonitions: Only `note`, `warning`, `tip`, `important`
+7. Code blocks: Always specify language (`python`, `bash`, `fortran`, `yaml`)
+8. Cross-references: `:ref:` for sections, `:doc:` for documents, `:option:` for parameters
+9. Scientific notation: `Q\ :sub:`F`` (backslash-space before `:sub:`)
+10. British English: organise, analyse, colour, behaviour
+
+### RST Terminology
+
+| Term | Correct | Wrong |
+|------|---------|-------|
+| Project name | SUEWS | Suews, suews |
+| Python wrapper | SuPy | supy, SUPY |
+| First mention | "SUEWS (Surface Urban Energy and Water Balance Scheme)" | Just "SUEWS" |
+
+### RST Examples
+
+```rst
+.. BAD
+~~~~~~~~~~~~~~~
+Deep Subsection    (Level 4 - too deep!)
+~~~~~~~~~~~~~~~
+
+.. image:: ../../random/fig.png
+
+.. GOOD
+-----------
+Subsection    (Level 3 - max allowed)
+-----------
+
+.. figure:: /assets/img/SUEWS_Overview_s.png
+   :alt: Overview of SUEWS
+
+   Caption text here.
+```
+
+---
+
+## Markdown Style
+
+Markdown files: `README.md`, `CHANGELOG.md`, `.claude/` docs, `dev-ref/`.
+
+### CHANGELOG Format
+
+**Date format**: `### DD Mon YYYY` (e.g., `### 26 Nov 2025`)
+- No leading zero on single-digit days
+- Three-letter month abbreviation
+
+**References**:
+- Issue/PR: `(#123)` with `#`
+- Commit SHA: `(abc1234)` without `#`
+
+**Multi-line entries**:
+```markdown
+- [category] Main description (#123)
+  - Sub-bullet with 2-space indent
+  - Additional details (abc1234)
+```
+
+**CRITICAL**: NEVER modify the Annual Statistics table
+
+### CHANGELOG Categories
+
+| Category | Use for |
+|----------|---------|
+| `[feature]` | New functionality |
+| `[bugfix]` | Bug fixes (link issue) |
+| `[change]` | User-facing changes |
+| `[maintenance]` | Internal/dev tooling, CLAUDE.md |
+| `[doc]` | User documentation (not CLAUDE.md) |
+
+### Markdown Checks
+
+**Critical**:
+1. **CHANGELOG date**: `### DD Mon YYYY` format
+2. **CHANGELOG categories**: Only `[feature]`, `[bugfix]`, `[change]`, `[maintenance]`, `[doc]`
+3. **SKILL.md frontmatter**: Must have `name` and `description`
+4. **Blank line before lists**: Required for rendering
+
+**Style**:
+5. README headings: h2-h5 only (no h1)
+6. dev-ref file naming: `UPPERCASE_UNDERSCORES.md` for guidelines, `lowercase-hyphens.md` for guides
+7. dev-ref sections: `### X.Y` numbering pattern
+8. Code blocks: Specify language
+9. British English: organise, analyse, colour, behaviour
+
+### Markdown Terminology
+
+| Term | Correct | Wrong |
+|------|---------|-------|
+| NumPy | NumPy | numpy, Numpy |
+| Pandas | Pandas | pandas, PANDAS |
+| GitHub | GitHub | Github, github |
+| PyPI | PyPI | Pypi, pypi |
+| QGIS | QGIS | Qgis |
+| UMEP | UMEP | Umep |
+
+### Markdown Examples
+
+```markdown
+.. BAD
+### 26-Nov-2025              (Wrong date format)
+- [new-feature] Added X      (Wrong category)
+
+.. GOOD
+### 26 Nov 2025
+- [feature] Added new validation system (#123)
+  - Implemented Phase A checks (abc1234)
+```
+
+---
+
 ## Output Format
 
 ```
@@ -116,6 +257,20 @@ Complements ruff for SUEWS-specific patterns.
   _load.py:
     L23: forcing = ... -> df_forcing = ...
     L78: os.path.join -> use pathlib
+
+=== RST ===
+  docs/source/physics.rst:
+    L34: Level 4 heading detected (max 3 levels allowed)
+    L56: Image missing :alt: attribute
+    L78: Image path should be /assets/img/ not ../../images/
+
+=== Markdown ===
+  CHANGELOG.md:
+    L12: Date format "26-Nov-2025" -> "26 Nov 2025"
+    L15: Category "[new-feature]" -> "[feature]"
+  README.md:
+    L45: "organized" -> "organised" (British English)
+    L67: "Github" -> "GitHub" (terminology)
 
 Summary: N files, M issues (X critical, Y style)
 ```

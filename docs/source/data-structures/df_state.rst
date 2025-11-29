@@ -12,7 +12,7 @@
 
    These variables are automatically managed by SuPy and should not be modified directly unless you are developing or debugging the model internals.
 
-.. note:: Data structure of ``df_state`` is explained `here <supy-io.html#df_state_init:-model-initial-states>`_.
+.. note:: Data structure of ``df_state`` is explained `here <../api/io-data-structures.html#df-state-init>`_.
 
 .. option:: aerodynamicresistancemethod
 

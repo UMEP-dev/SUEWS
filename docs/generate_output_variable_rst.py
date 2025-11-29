@@ -37,6 +37,8 @@ class OutputVariableRSTGenerator:
         """Initialize the RST generator."""
         self.registry = OUTPUT_REGISTRY
 
+    VALID_STYLES = frozenset({"simple", "tabbed", "dropdown"})
+
     def generate_all_rst(self, output_dir: Path, style: str = "tabbed") -> None:
         """
         Generate RST files for all output variable groups.
@@ -44,7 +46,15 @@ class OutputVariableRSTGenerator:
         Args:
             output_dir: Directory to write RST files to
             style: Style to use ("simple", "tabbed", "dropdown")
+
+        Raises:
+            ValueError: If style is not one of the valid options
         """
+        if style not in self.VALID_STYLES:
+            raise ValueError(
+                f"Invalid style '{style}'. Must be one of: {', '.join(sorted(self.VALID_STYLES))}"
+            )
+
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate RST for each output group
@@ -210,6 +220,18 @@ class OutputVariableRSTGenerator:
 
         return OutputVariableRSTGenerator._process_unit_part(unit)
 
+    # Known base units that can have exponents (exact matches only)
+    # This ensures we don't accidentally match words like "moles^-1"
+    KNOWN_BASE_UNITS = frozenset({
+        "m", "mm", "km",  # length
+        "s",              # time
+        "kg", "g",        # mass
+        "K",              # temperature
+        "W", "J",         # energy/power
+        "h", "d", "day",  # time (alternative)
+        "cap", "ha",      # special (per capita, hectare)
+    })
+
     @staticmethod
     def _process_unit_part(part: str) -> str:
         """Process a single unit part."""
@@ -241,12 +263,16 @@ class OutputVariableRSTGenerator:
         words = part.split()
         formatted = []
         for word in words:
-            if word in known_patterns or (
-                "^" in word
-                and any(
-                    word.startswith(b) for b in ["m", "s", "kg", "K", "W", "h", "d"]
+            # Check if word is a known pattern or a valid unit with exponent
+            # Extract base unit (part before ^) and check against known base units
+            is_valid_unit_pattern = False
+            if "^" in word:
+                base_unit = word.split("^")[0]
+                is_valid_unit_pattern = (
+                    base_unit in OutputVariableRSTGenerator.KNOWN_BASE_UNITS
                 )
-            ):
+
+            if word in known_patterns or is_valid_unit_pattern:
                 formatted.append(f"|{word}|")
             else:
                 formatted.append(word)

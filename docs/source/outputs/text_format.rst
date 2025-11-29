@@ -210,7 +210,7 @@ This file can be used to:
 2. **Analyse model state** - Inspect internal variables
 3. **Chain simulations** - Use end state as input for subsequent runs
 
-See :doc:`index` for more details on state output.
+See `df_state_final: model final states <../api/io-data-structures.html#df-state-final>`_ for details on the state data structure.
 
 
 .. _legacy-output-control:
@@ -218,7 +218,7 @@ See :doc:`index` for more details on state output.
 Legacy Features (Deprecated)
 ----------------------------
 
-.. deprecated:: 2024
+.. deprecated:: 2025.10.15
 
    The features in this section are deprecated and retained for backwards
    compatibility only. Use the YAML-based :ref:`OutputConfig <outputconfig>` instead.

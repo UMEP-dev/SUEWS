@@ -134,7 +134,6 @@ How to support SUEWS?
    inputs/index
    outputs/index
    api
-   data-structures/supy-io
    integration/index
    troubleshooting
    benchmark/benchmark_report

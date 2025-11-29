@@ -3,7 +3,7 @@
 Legacy Text Column Reference
 ============================
 
-.. deprecated:: 2025.0
+.. deprecated:: 2025.10.15
 
    This page is deprecated and retained for reference only.
 

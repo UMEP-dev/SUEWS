@@ -71,9 +71,12 @@ Main Driver Subroutine
 
 - ``suews_ctrl_driver``: Main computation wrapper and physics orchestration
 - ``suews_ctrl_input``: Input data processing, validation, and forcing interpolation
-- ``suews_ctrl_output``: Output formatting, variable selection, and file I/O
 - ``suews_ctrl_error``: Error handling and diagnostic message management
 - ``suews_ctrl_type``: Data type definitions and derived type structures
+
+.. note::
+
+   Output variable metadata is now managed by the Python registry (``src/supy/data_model/output/``) rather than Fortran. See the :doc:`Python API <api>` for output variable documentation.
 
 **Utility Modules** (``suews_util_*``)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -36,7 +36,9 @@ class TestResampleOutput(TestCase):
         print("Testing resample_output to hourly...")
 
         # Resample to hourly
-        df_hourly = resample_output(self.df_output, freq="60min", dict_aggm=dict_var_aggm)
+        df_hourly = resample_output(
+            self.df_output, freq="60min", dict_aggm=dict_var_aggm
+        )
 
         # Validation
         self.assertIsInstance(df_hourly, pd.DataFrame)

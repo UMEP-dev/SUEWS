@@ -141,7 +141,7 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
             order="F",
         ),
         "ts5mindata_ir": np.array(df_forcing_block["ts5mindata_ir"], order="F"),
-        "len_sim": np.array(df_forcing_block.shape[0], dtype=int),
+        "len_sim": int(df_forcing_block.shape[0]),
     })
 
     if debug_mode:
@@ -799,6 +799,16 @@ def pack_grid_dict(ser_grid):
         var: dict_var[var].astype(int) for var in list_var if var in list_var_int
     }
     dict_var.update(dict_var_int)
+
+    # Extract scalars from single-element arrays for rank-0 variables
+    # This fixes NumPy 2.0 deprecation warning about array-to-scalar conversion
+    list_var_scalar = df_var_info[df_var_info["rank"] == 0].index
+    for var in list_var_scalar:
+        if var in dict_var:
+            val = dict_var[var]
+            if isinstance(val, np.ndarray) and val.size == 1:
+                dict_var[var] = val.item()
+
     return dict_var
 
 

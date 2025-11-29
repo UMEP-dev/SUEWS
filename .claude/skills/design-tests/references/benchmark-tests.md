@@ -1,4 +1,4 @@
-# SUEWS Testing Guide
+# SUEWS Benchmark Testing Guide
 
 ## Benchmark Test Files
 

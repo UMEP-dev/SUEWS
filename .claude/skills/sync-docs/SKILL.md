@@ -7,6 +7,45 @@ description: Check consistency between SUEWS code and documentation. Use when mo
 
 Check that documentation accurately reflects the codebase.
 
+## Workflow
+
+### 1. Analyse Recent Code Changes
+
+Review the most recent code modifications, focusing on:
+- New functions, methods, or classes
+- Modified function signatures or parameters
+- Changed behaviour or logic
+- New configuration options or settings
+- Deprecated or removed features
+
+### 2. Identify Documentation Locations
+
+Determine where documentation should exist:
+- API documentation in docstrings
+- User guides in the `docs/` directory
+- README files for module-level changes
+- Configuration documentation for new settings
+- Migration guides for breaking changes
+
+### 3. Detect Synchronisation Issues
+
+Compare code against documentation to find:
+- Missing documentation for new features
+- Outdated parameter descriptions
+- Incorrect usage examples
+- Obsolete references to removed functionality
+- Inconsistent terminology or naming
+
+### 4. Provide Recommendations
+
+For each issue found, classify by importance:
+- **Critical**: User-facing API changes without documentation
+- **High**: New features lacking usage examples
+- **Medium**: Internal changes affecting developer documentation
+- **Low**: Minor clarifications or formatting improvements
+
+---
+
 ## Areas to Check
 
 ### 1. Scientific Documentation (Critical)
@@ -107,7 +146,7 @@ ISSUE: Range mismatch
 
 Check `Makefile` against:
 - `README.md` quick start section
-- `.claude/reference/quick-start.md`
+- `.claude/skills/setup-dev/SKILL.md`
 - `docs/source/installation.rst`
 
 ```

@@ -1,21 +1,26 @@
-# Function Renamer Agent
+---
+name: check-naming
+description: Ensure function, variable, and module names are neutral to both British and American English variants, following best practices for scientific computing codebases. Use when renaming functions, reviewing naming conventions, or ensuring codebase consistency.
+---
 
-## Purpose
-Ensure function, variable, and module names are neutral to both British and American English variants, following best practices for scientific computing codebases.
+# SUEWS Naming Guide
+
+Ensure function, variable, and module names are neutral to both British and American English variants.
 
 ## Core Principles
 
 ### 1. Avoid Variant-Specific Spellings
-- **Avoid**: sanitise/sanitize → **Use**: clean, validate, check
-- **Avoid**: normalise/normalize → **Use**: scale, adjust, standard
-- **Avoid**: initialise/initialize → **Use**: init, setup, prepare
-- **Avoid**: optimise/optimize → **Use**: improve, enhance, tune
-- **Avoid**: analyse/analyze → **Use**: examine, process, compute
-- **Avoid**: summarise/summarize → **Use**: aggregate, total, combine
-- **Avoid**: categorise/categorize → **Use**: classify, group, sort
-- **Avoid**: serialise/serialize → **Use**: save, write, export
-- **Avoid**: visualise/visualize → **Use**: plot, display, show
-- **Avoid**: synchronise/synchronize → **Use**: sync, align, match
+
+- **Avoid**: sanitise/sanitize -> **Use**: clean, validate, check
+- **Avoid**: normalise/normalize -> **Use**: scale, adjust, standard
+- **Avoid**: initialise/initialize -> **Use**: init, setup, prepare
+- **Avoid**: optimise/optimize -> **Use**: improve, enhance, tune
+- **Avoid**: analyse/analyze -> **Use**: examine, process, compute
+- **Avoid**: summarise/summarize -> **Use**: aggregate, total, combine
+- **Avoid**: categorise/categorize -> **Use**: classify, group, sort
+- **Avoid**: serialise/serialize -> **Use**: save, write, export
+- **Avoid**: visualise/visualize -> **Use**: plot, display, show
+- **Avoid**: synchronise/synchronize -> **Use**: sync, align, match
 
 ### 2. Naming Conventions
 
@@ -49,8 +54,9 @@ Ensure function, variable, and module names are neutral to both British and Amer
 ### 4. Replacement Patterns
 
 #### Common Replacements
+
 ```python
-# British/American conflicts → Neutral alternatives
+# British/American conflicts -> Neutral alternatives
 {
     "initialise/initialize": ["init", "setup", "prepare", "create"],
     "finalise/finalize": ["complete", "finish", "close", "cleanup"],
@@ -95,25 +101,25 @@ Ensure function, variable, and module names are neutral to both British and Amer
 ### 6. Review Checklist
 
 When renaming:
-1. ✓ Is the name variant-neutral?
-2. ✓ Is it descriptive and clear?
-3. ✓ Does it follow verb_noun pattern (for functions)?
-4. ✓ Are units clear when needed?
-5. ✓ Is it consistent with existing codebase patterns?
-6. ✓ Does it avoid unnecessary abbreviations?
-7. ✓ Is it appropriate for the domain (urban climate/meteorology)?
+1. Is the name variant-neutral?
+2. Is it descriptive and clear?
+3. Does it follow verb_noun pattern (for functions)?
+4. Are units clear when needed?
+5. Is it consistent with existing codebase patterns?
+6. Does it avoid unnecessary abbreviations?
+7. Is it appropriate for the domain (urban climate/meteorology)?
 
 ### 7. Examples
 
-#### Bad → Good
-- `sanitize_forcing_data()` → `clean_forcing_data()`
-- `initialize_suews_model()` → `init_suews_model()`
-- `normalise_temperature()` → `scale_temperature()`
-- `optimise_parameters()` → `tune_parameters()`
-- `analyse_results()` → `process_results()`
-- `synchronise_timesteps()` → `align_timesteps()`
-- `serialise_output()` → `save_output()`
-- `visualise_fluxes()` → `plot_fluxes()`
+#### Bad -> Good
+- `sanitize_forcing_data()` -> `clean_forcing_data()`
+- `initialize_suews_model()` -> `init_suews_model()`
+- `normalise_temperature()` -> `scale_temperature()`
+- `optimise_parameters()` -> `tune_parameters()`
+- `analyse_results()` -> `process_results()`
+- `synchronise_timesteps()` -> `align_timesteps()`
+- `serialise_output()` -> `save_output()`
+- `visualise_fluxes()` -> `plot_fluxes()`
 
 #### Good Examples
 - `calculate_net_radiation()`
@@ -161,8 +167,8 @@ When implementing renames:
 - `_flag`, `_status`, `_state` (for indicators)
 
 **Avoid These Patterns**:
-- ❌ Any -ise/-ize endings
-- ❌ Single letter variables (except loop counters)
-- ❌ Unclear abbreviations
-- ❌ Generic names without context
-- ❌ Mixed naming styles in same module
+- Any -ise/-ize endings
+- Single letter variables (except loop counters)
+- Unclear abbreviations
+- Generic names without context
+- Mixed naming styles in same module

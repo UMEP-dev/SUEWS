@@ -1,7 +1,7 @@
-.. _output_files_legacy:
+.. _legacy_text_columns:
 
-Output files (Legacy)
-=====================
+Legacy Text Column Reference
+============================
 
 .. deprecated:: 2025.0
 
@@ -9,10 +9,10 @@ Output files (Legacy)
 
    **Please use the new documentation:**
 
-   - :doc:`../outputs/index` - Main output documentation
-   - :doc:`../outputs/variables/index` - Auto-generated variable reference (1,085 variables)
-   - :doc:`../outputs/text_format` - Text format details
-   - :doc:`../outputs/parquet_format` - Parquet format details
+   - :doc:`index` - Main output documentation
+   - :doc:`variables/index` - Auto-generated variable reference (1,100+ variables)
+   - :doc:`text_format` - Text format details
+   - :doc:`parquet_format` - Parquet format details
 
    The CSV tables below show the legacy text file column mappings and may be useful
    for users working with older output files or migrating existing workflows.
@@ -131,7 +131,7 @@ The variables included in the main output file are determined according to :opti
    **Consistent Naming**: All surface temperature variables now use the ``Ts`` prefix consistently across all output groups. The same ``Ts_[Surface]`` variables appear in both EHC and debug output. For detailed surface temperatures by urban facet (walls, roofs, ground layers), see the :ref:`ESTM output file <SSss_YYYY_ESTM_TT.txt>` which provides 5-layer temperature profiles for different surface elements.
 
 .. csv-table::
-  :file: SSss_YYYY_SUEWS_TT.csv
+  :file: legacy_csv/SSss_YYYY_SUEWS_TT.csv
   :header-rows: 1
   :widths: auto
 
@@ -144,7 +144,7 @@ vegetation parameters at a time resolution of one day. One file is
 written for each grid so it may contain multiple years.
 
 .. csv-table::
-  :file: SSss_DailyState.csv
+  :file: legacy_csv/SSss_DailyState.csv
   :header-rows: 1
   :widths: auto
 
@@ -163,7 +163,7 @@ SUEWS produces a separate output file for snow (when :option:`SnowUse` = 1 in `R
 File format of SSss_YYYY_snow_TT.txt
 
 .. csv-table::
-  :file: SSss_YYYY_snow_TT.csv
+  :file: legacy_csv/SSss_YYYY_snow_TT.csv
   :header-rows: 1
   :widths: auto
 
@@ -175,7 +175,7 @@ SUEWS produces a separate output file for wind, temperature and humidity profile
 File format of SSss_YYYY_RSL_TT.txt:
 
 .. csv-table::
-  :file: SSss_YYYY_RSL_TT.csv
+  :file: legacy_csv/SSss_YYYY_RSL_TT.csv
   :header-rows: 1
   :widths: auto
 
@@ -185,7 +185,7 @@ SSss_YYYY_BL_TT.txt
 Meteorological variables modelled by CBL portion of the model are output in to this file created for each day with time step (see :ref:`CBL input files`).
 
 .. csv-table::
-  :file: SSss_YYYY_BL_TT.csv
+  :file: legacy_csv/SSss_YYYY_BL_TT.csv
   :header-rows: 1
   :widths: auto
 
@@ -249,7 +249,7 @@ The ESTM model calculates detailed surface temperatures for different urban face
 ESTM output file format
 
 .. csv-table::
-  :file: SSss_YYYY_ESTM_TT.csv
+  :file: legacy_csv/SSss_YYYY_ESTM_TT.csv
   :header-rows: 1
   :widths: auto
 
@@ -263,7 +263,7 @@ If the SPARTACUS model option is run, the following output file is created.
 SPARTACUS output file format
 
 .. csv-table::
-  :file: SSss_YYYY_SPARTACUS_TT.csv
+  :file: legacy_csv/SSss_YYYY_SPARTACUS_TT.csv
   :header-rows: 1
   :widths: auto
 

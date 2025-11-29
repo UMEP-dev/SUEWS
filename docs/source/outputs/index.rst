@@ -97,7 +97,7 @@ Legacy Documentation
 For users working with older output files or migrating existing workflows,
 the legacy output documentation with CSV column mappings is available:
 
-- :doc:`../output_files/output_files` - Legacy output file documentation (deprecated)
+- :doc:`legacy_text_columns` - Legacy text column reference (deprecated)
 
 
 .. toctree::
@@ -108,4 +108,4 @@ the legacy output documentation with CSV column mappings is available:
    parquet_format
    variables/index
    legacy_diagnostics
-   ../output_files/output_files
+   legacy_text_columns

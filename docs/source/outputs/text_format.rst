@@ -134,7 +134,7 @@ See :doc:`variables/index` for the complete list of variables and their output l
 .. note::
 
    For detailed column-by-column mappings showing which variables appear at each
-   WriteOutOption level, see the :doc:`legacy output documentation <../output_files/output_files>`
+   WriteOutOption level, see the :doc:`legacy text column reference <legacy_text_columns>`
    which contains CSV tables with column numbers and WriteOutOption mappings.
 
 

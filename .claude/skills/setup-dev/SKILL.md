@@ -1,12 +1,63 @@
-# Environment Setup Guide
+---
+name: setup-dev
+description: Set up SUEWS development environment. Use when starting a new worktree, troubleshooting environment issues, or helping users configure their Python environment. Covers uv (recommended), venv, and mamba setup options with Fortran compiler requirements.
+---
 
-This guide covers Python environment setup for SUEWS development, with uv as the recommended approach.
+# SUEWS Development Environment Setup
+
+Set up a working SUEWS development environment with Python and Fortran compilers.
 
 ## Quick Start
 
 **Run `make` in the repository root to see quick start workflows and available commands.**
 
-See also: `.claude/reference/quick-start.md`
+### Recommended: uv (Ultra-fast)
+
+```bash
+# Create environment (if .venv doesn't exist)
+uv venv
+
+# Activate environment
+source .venv/bin/activate
+
+# Install SUEWS in editable mode
+make dev
+
+# Verify installation
+python -c "import supy; print(f'SuPy {supy.__version__} ready')"
+
+# Run tests
+make test
+```
+
+### Alternative: Standard venv
+
+```bash
+# Create environment (if .venv doesn't exist)
+python -m venv .venv
+
+# Activate environment
+source .venv/bin/activate
+
+# Install SUEWS in editable mode
+make dev
+
+# Run tests
+make test
+```
+
+### Alternative: mamba
+
+```bash
+# Activate mamba environment
+mamba activate suews-dev
+
+# Install SUEWS in editable mode
+make dev
+
+# Run tests
+make test
+```
 
 ## Why uv?
 
@@ -53,20 +104,7 @@ uv pip install pandas scipy matplotlib matplotlib-inline scikit-learn scikit-ima
     pytest pytest-cov ruff f90wrap==0.2.16 atmosp "meson-python>=0.17.0"
 ```
 
-### Option 3: Standard Python venv
-
-If uv is not available:
-
-```bash
-# Create and activate venv
-python -m venv .venv
-source .venv/bin/activate
-
-# Install SUEWS (automatically installs dependencies)
-make dev
-```
-
-### Option 4: Mamba Environment
+### Option 3: Mamba Environment
 
 For complex dependencies or when system packages are needed:
 
@@ -104,8 +142,8 @@ FC=/opt/homebrew/bin/gfortran make dev
 ## Package Name Differences
 
 When migrating from mamba, note these package name differences:
-- mamba: `matplotlib-base` → pip/uv: `matplotlib`
-- mamba: `pytables` → pip/uv: `tables`
+- mamba: `matplotlib-base` -> pip/uv: `matplotlib`
+- mamba: `pytables` -> pip/uv: `tables`
 
 ## Python 3.13 Compatibility
 
@@ -118,7 +156,36 @@ uv venv --python 3.12  # Use Python 3.12 if 3.13 causes issues
 
 ## Working with Git Worktrees
 
-Each worktree MUST have its own environment to avoid conflicts. See `.claude/reference/quick-start.md` for setup commands.
+Each worktree MUST have its own environment to avoid conflicts:
+
+```bash
+# In new worktree
+uv venv
+source .venv/bin/activate
+make dev
+```
+
+## Makefile Commands
+
+Run `make` to see all commands. Key ones:
+
+- `make setup` - Create virtual environment with uv
+- `make dev` - Install SUEWS in editable mode
+- `make test` - Run test suite
+- `make clean` - Smart clean (keeps .venv if active)
+
+## Common Workflows
+
+```bash
+# Fresh start (most common for troubleshooting)
+make clean && make dev
+
+# Update code and rebuild
+git pull && make dev
+
+# Build and test changes
+make dev && make test
+```
 
 ## Troubleshooting
 
@@ -138,10 +205,6 @@ Each worktree MUST have its own environment to avoid conflicts. See `.claude/ref
 - Check version: `python --version`
 - Use specific version: `uv venv --python 3.12`
 
-## Makefile Commands
-
-Run `make` to see all available commands and quick start workflows.
-
 ## Best Practices
 
 1. **One environment per worktree** - Avoid conflicts
@@ -149,9 +212,5 @@ Run `make` to see all available commands and quick start workflows.
 3. **Use Makefile recipes** - Handles environment detection
 4. **Test after setup** - `make test` to verify installation
 5. **Document deviations** - If you use a different setup
-
-## Quick Reference
-
-See `.claude/reference/quick-start.md` for essential commands.
 
 For additional details on uv capabilities and advanced usage, see the [uv documentation](https://github.com/astral-sh/uv).

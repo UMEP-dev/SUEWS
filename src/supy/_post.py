@@ -165,7 +165,7 @@ def pack_df_output_block(dict_output_block, df_forcing_block):
 
 
 # resample supy output
-def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
+def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
     # Helper function to resample a group with specified parameters
     def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None):
         """Resample a dataframe group with specified aggregation rules.

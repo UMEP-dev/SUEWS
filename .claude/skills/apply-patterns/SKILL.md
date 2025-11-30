@@ -1,6 +1,6 @@
 ---
 name: apply-patterns
-description: SUEWS code and documentation patterns. Use when implementing features with configuration objects, updating CHANGELOG, writing RST documentation, or following maintenance principles. Covers configuration separation, documentation DRY principles, and CHANGELOG formatting.
+description: SUEWS code and documentation patterns. Use when implementing features with configuration objects, adding output variables, updating CHANGELOG, writing RST documentation, or following maintenance principles. Covers configuration separation, variable definition patterns (output and input), documentation DRY principles, and CHANGELOG formatting.
 ---
 
 # SUEWS Code Patterns
@@ -147,6 +147,52 @@ When generating RST programmatically:
 5. **Centralise Common Lists**
    - Package lists, commands, requirements -> single file
    - Example: `core-requirements.txt` instead of inline lists everywhere
+
+---
+
+## Variable Definition Patterns
+
+SUEWS uses two distinct patterns for variable definitions:
+
+### Output Variables (Python-Only)
+
+All 1,100+ output variables are defined in Python/Pydantic as the **single source of truth**.
+
+**Location**: `src/supy/data_model/output/`
+
+**Adding a new output variable**:
+```python
+# In the appropriate *_vars.py file (e.g., suews_vars.py)
+OutputVariable(
+    name="NewVar",
+    unit="W m-2",
+    description="Description of new variable",
+    aggregation=AggregationMethod.AVERAGE,  # or SUM, LAST, TIME
+    group=OutputGroup.SUEWS,
+    level=OutputLevel.DEFAULT,              # or EXTENDED, SNOW_DETAILED
+)
+```
+
+**Registry access**:
+```python
+from supy.data_model.output import OUTPUT_REGISTRY, OutputGroup
+
+# Get variables by group
+suews_vars = OUTPUT_REGISTRY.by_group(OutputGroup.SUEWS)
+
+# Get aggregation rules for resampling
+agg_rules = OUTPUT_REGISTRY.get_aggregation_rules()
+```
+
+See `src/supy/data_model/output/README.md` for architecture details.
+
+### Input Configuration (Dual-Source)
+
+Input configuration uses both Fortran TYPE definitions and Python Pydantic models:
+- **Fortran**: TYPE definitions and runtime calculations
+- **Python**: Pydantic models for YAML parsing, validation, and documentation
+
+This dual-source pattern ensures Fortran independence whilst providing type safety and auto-generated documentation.
 
 ---
 

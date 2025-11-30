@@ -4,16 +4,14 @@
 
 This module provides **Python-first** definitions of SUEWS output variables using Pydantic models, replacing the previous Fortran-first runtime extraction approach.
 
-## Status: Complete
+## Implementation Status
 
-**Implementation:**
-- Core Pydantic models with full metadata
-- **All 1,139 variables implemented** across 13 groups
-- Type-safe variable registry
+**Complete.** All 1,100+ output variables are defined in Python/Pydantic:
+- Type-safe variable registry with Pydantic validation
 - Backward-compatible DataFrame conversion
-- Aggregation rules generation
-- Integration with `_post.py` (Python-only, single source of truth)
-- Comprehensive test suite (all tests passing)
+- Aggregation rules generation for pandas
+- Integration with `_post.py` (Python as single source of truth)
+- Comprehensive test suite
 
 **Variable Coverage:**
 - datetime: 5 variables (Year, DOY, Hour, Min, Dectime)
@@ -186,18 +184,6 @@ Summary:
 - SUEWS variables: 99
 ```
 
-## Migration Plan
-
-See `.claude/reference/output-variables-migration.md` for the complete migration strategy.
-
-### Next Steps
-
-1. **Extend variable coverage**: Add remaining variable groups
-2. **Documentation integration**: Update `docs/generate_datamodel_rst.py`
-3. **Validation**: Compare Pydantic vs Fortran metadata
-4. **Testing**: Full integration tests with compiled SUEWS
-5. **Deprecation**: Eventually remove Fortran metadata dependency
-
 ## Benefits
 
 ### Compared to Fortran-First Approach
@@ -236,12 +222,12 @@ src/supy/data_model/output/
 ├── debug_vars.py            # Debug variables (185 vars)
 ├── ehc_vars.py              # EHC variables (224 vars)
 ├── spartacus_vars.py        # SPARTACUS variables (194 vars)
-└── stebbs_vars.py           # STEBBS variables (78 vars)
+├── stebbs_vars.py           # STEBBS variables (57 vars)
+└── nhood_vars.py            # NHood variables (1 var)
 ```
 
 ## References
 
-- **Migration plan**: `.claude/reference/output-variables-migration.md`
-- **Legacy Fortran definitions**: `src/suews/src/suews_ctrl_output.f95` (removed)
 - **Integration point**: `src/supy/_post.py`
-- **Test script**: `test_output_models.py`
+- **Documentation generator**: `docs/generate_output_variable_rst.py`
+- **Test module**: `test/data_model/test_output_models.py`

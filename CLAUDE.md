@@ -82,6 +82,13 @@ When implementing features with configuration objects, follow strict separation 
 
 See `.claude/reference/config-patterns.md` for detailed pattern and examples.
 
+## Variable Definition Patterns
+
+- **Output variables**: Python-only (OUTPUT_REGISTRY in `src/supy/data_model/output/`)
+- **Input configuration**: Dual-source (Fortran + Python Pydantic models)
+
+Use the `apply-patterns` skill for detailed patterns and examples.
+
 ## Documentation Principles
 
 Follow DRY (Don't Repeat Yourself) and "Brief Overview Pattern":

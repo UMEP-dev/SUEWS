@@ -189,6 +189,21 @@ class SUEWSConfig(BaseModel):
         "MinimumVolumeOfDHWinUse",
     ]
 
+    ARCHETYPE_REQUIRED_PARAMS: ClassVar[List[str]] = [ 
+        "BuildingType", "BuildingName", "BuildingCount", "Occupants", "stebbs_Height",
+        "FootprintArea", "WallExternalArea", "RatioInternalVolume", "WWR",
+        "WallThickness", "WallEffectiveConductivity", "WallDensity", "WallCp",
+        "WallOuterCapFrac", "WallExternalEmissivity", "WallInternalEmissivity",
+        "WallTransmissivity", "WallAbsorbtivity", "WallReflectivity", "FloorThickness",
+        "GroundFloorEffectiveConductivity", "GroundFloorDensity", "GroundFloorCp",
+        "WindowThickness", "WindowEffectiveConductivity", "WindowDensity", "WindowCp",
+        "WindowExternalEmissivity", "WindowInternalEmissivity", "WindowTransmissivity",
+        "WindowAbsorbtivity", "WindowReflectivity", "InternalMassDensity", "InternalMassCp",
+        "InternalMassEmissivity", "MaxHeatingPower", "WaterTankWaterVolume",
+        "MaximumHotWaterHeatingPower", "HeatingSetpointTemperature", "CoolingSetpointTemperature",
+    ]
+    
+
     # Sort the filtered columns numerically
     @staticmethod
     def sort_key(col):
@@ -1110,7 +1125,8 @@ class SUEWSConfig(BaseModel):
     def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
         """
         If stebbsmethod==1, enforce that site.properties.stebbs
-        has all required parameters with non-null values.
+        and site.properties.building_archetype have all 
+        required parameters with non-null values.
         Returns a list of issue messages.
         """
         issues: List[str] = []
@@ -1128,10 +1144,17 @@ class SUEWSConfig(BaseModel):
         if not hasattr(props, "stebbs") or props.stebbs is None:
             issues.append("Missing 'stebbs' section (required when stebbsmethod=1)")
             return issues
+        
+        ## Must have a building_archetype block
+        if not hasattr(props, "building_archetype") or props.building_archetype is None:
+            issues.append("Missing 'building_archetype' section (required when stebbsmethod=1)")
+            return issues
 
         stebbs = props.stebbs
+        building_archetype = props.building_archetype
 
-        ## Check each parameter
+        ## Check each parameter in stebbs and building_archetype
+        ## First stebbs
         missing_params = []
         for param in self.STEBBS_REQUIRED_PARAMS:
             ## Check if parameter exists
@@ -1141,6 +1164,25 @@ class SUEWSConfig(BaseModel):
 
             ## Get parameter value
             param_obj = getattr(stebbs, param)
+
+            ## Check if the parameter has a value attribute that is None
+            if hasattr(param_obj, "value") and param_obj.value is None:
+                missing_params.append(param)
+                continue
+
+            ## If the parameter itself is None
+            if param_obj is None:
+                missing_params.append(param)
+
+        ## Then building_archetype
+        for param in self.ARCHETYPE_REQUIRED_PARAMS:
+            ## Check if parameter exists
+            if not hasattr(building_archetype, param):
+                missing_params.append(param)
+                continue
+
+            ## Get parameter value
+            param_obj = getattr(building_archetype, param)
 
             ## Check if the parameter has a value attribute that is None
             if hasattr(param_obj, "value") and param_obj.value is None:

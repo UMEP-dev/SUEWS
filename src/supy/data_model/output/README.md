@@ -107,7 +107,7 @@ print(f"{qh.name}: {qh.description} [{qh.unit}]")
 agg_rules = OUTPUT_REGISTRY.get_aggregation_rules()
 
 # Use in resampling
-df_resampled = df.resample('1H').agg(agg_rules['SUEWS'])
+df_resampled = df.resample('1h').agg(agg_rules['SUEWS'])
 ```
 
 ### DataFrame Conversion

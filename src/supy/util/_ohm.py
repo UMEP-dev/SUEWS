@@ -35,7 +35,7 @@ def derive_ohm_coef(ser_QS, ser_QN):
     from sklearn.linear_model import LinearRegression
 
     # derive dt in hours
-    dt_hr = ser_QN.index.freq / pd.Timedelta("1H")
+    dt_hr = ser_QN.index.freq / pd.Timedelta("1h")
 
     # Calculate difference between neighbouring QN values
     ser_delta_QN_dt = ser_QN.diff() / dt_hr

@@ -9,6 +9,7 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # - Nightly: 2 AM UTC daily for development releases
 # - Tags: Any tag push (for releases to PyPI/TestPyPI)
 # - PR: On pull requests for validation (strict mode ensures up-to-date)
+# - Merge queue: On merge_group events for queue validation
 # - Manual: Via workflow_dispatch
 # - Master push: SKIPPED (PR already validated, no deployment needed)
 #
@@ -119,6 +120,10 @@ on:
     # No path filters - workflow ALWAYS runs for branch protection
     # Path detection happens in detect-changes job (secure, inside workflow)
 
+  merge_group:
+    # Handle merge queue validation - required for merge queue to work
+    types: [checks_requested]
+
   schedule:
     # Run nightly builds at 2 AM UTC
     - cron: '0 2 * * *'
@@ -175,8 +180,8 @@ jobs:
   detect-changes:
     name: Detect code changes
     runs-on: ubuntu-latest
-    # Only run for pull requests (push/tag/schedule always build)
-    if: github.event_name == 'pull_request'
+    # Only run for pull requests and merge queue (push/tag/schedule always build)
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     outputs:
       needs-build: ${{ steps.filter.outputs.core == 'true' || steps.filter.outputs.util == 'true' || steps.filter.outputs.cfg == 'true' || steps.filter.outputs.tests == 'true' }}
       core-changed: ${{ steps.filter.outputs.core }}
@@ -297,6 +302,11 @@ jobs:
               echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
               echo "test_tier=smoke" >> $GITHUB_OUTPUT
             fi
+          elif [[ "${{ github.event_name }}" == "merge_group" ]]; then
+            echo "Running reduced matrix for merge queue validation"
+            echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
+            echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+            echo "test_tier=standard" >> $GITHUB_OUTPUT
           elif [[ "${{ github.event_name }}" == "schedule" ]]; then
             echo "Running full matrix for nightly (all platforms, all Python versions, all tests)"
             echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
@@ -397,12 +407,12 @@ jobs:
           is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
 
   # PR gate: single consolidated check for branch protection
-  # This job ALWAYS runs for PRs and reports pass/fail based on build results
+  # This job ALWAYS runs for PRs and merge queue and reports pass/fail based on build results
   pr-gate:
     name: PR build validation
     runs-on: ubuntu-latest
-    # Only run for pull requests, but ALWAYS run (even if builds skip)
-    if: always() && github.event_name == 'pull_request'
+    # Only run for pull requests and merge queue, but ALWAYS run (even if builds skip)
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
     needs: [build_wheels, build_umep, detect-changes]
     steps:
       - name: Check build results

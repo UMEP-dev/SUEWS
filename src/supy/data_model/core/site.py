@@ -652,8 +652,8 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert evergreen tree properties to DataFrame state format."""
-        # Get base properties from parent
-        df_state = super().to_df_state(grid_id)
+        # Get base properties from parent and sort immediately to avoid PerformanceWarning
+        df_state = super().to_df_state(grid_id).sort_index(axis=1)
         surf_idx = self.get_surface_index()
 
         # Helper function to set values in DataFrame
@@ -689,9 +689,6 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
         df_state.loc[grid_id, ("albmax_evetr", "0")] = (
             self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
         )
-
-        # Sort the MultiIndex columns to avoid performance warnings
-        df_state = df_state.sort_index(axis=1)
 
         return df_state
 
@@ -772,8 +769,8 @@ class DectrProperties(VegetatedSurfaceProperties):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert deciduous tree properties to DataFrame state format."""
-        # Get base properties from parent
-        df_state = super().to_df_state(grid_id)
+        # Get base properties from parent and sort immediately to avoid PerformanceWarning
+        df_state = super().to_df_state(grid_id).sort_index(axis=1)
 
         list_properties = [
             "faidectree",
@@ -807,9 +804,6 @@ class DectrProperties(VegetatedSurfaceProperties):
         df_state.loc[grid_id, ("albmax_dectr", "0")] = (
             self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
         )
-
-        # Sort the MultiIndex columns to avoid performance warnings
-        df_state = df_state.sort_index(axis=1)
 
         return df_state
 
@@ -858,8 +852,8 @@ class GrassProperties(VegetatedSurfaceProperties):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert grass properties to DataFrame state format."""
-        # Get base properties from parent
-        df_state = super().to_df_state(grid_id)
+        # Get base properties from parent and sort immediately to avoid PerformanceWarning
+        df_state = super().to_df_state(grid_id).sort_index(axis=1)
 
         # add specific properties
         df_state.loc[grid_id, ("alb", "(4,)")] = (
@@ -871,9 +865,6 @@ class GrassProperties(VegetatedSurfaceProperties):
         df_state[("albmax_grass", "0")] = (
             self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
         )
-
-        # Sort the MultiIndex columns to avoid performance warnings
-        df_state = df_state.sort_index(axis=1)
 
         return df_state
 

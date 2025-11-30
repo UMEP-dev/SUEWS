@@ -64,6 +64,21 @@ import os
 import warnings
 
 
+class ConditionalValidationWarning(UserWarning):
+    """Warning issued when conditional validation is requested but not available.
+
+    This warning indicates that the enhanced validation feature has been requested
+    via use_conditional_validation=True, but the validation module is not loaded.
+    The conversion will proceed without additional validation checks.
+
+    To suppress this warning, either:
+    - Set use_conditional_validation=False when calling to_df_state()
+    - Filter with: warnings.filterwarnings('ignore', category=ConditionalValidationWarning)
+    """
+
+    pass
+
+
 def _unwrap_value(val):
     """
     Unwrap RefValue and Enum values consistently.
@@ -2422,7 +2437,12 @@ class SUEWSConfig(BaseModel):
                     raise
                 # Continue with warnings already issued
         elif use_conditional_validation and not _validation_available:
-            warnings.warn("Conditional validation requested but not available.")
+            warnings.warn(
+                "Conditional validation requested but validation module not available. "
+                "Proceeding without additional validation checks.",
+                ConditionalValidationWarning,
+                stacklevel=2,
+            )
 
         # Proceed with DataFrame conversion
         try:

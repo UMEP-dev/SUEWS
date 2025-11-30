@@ -1153,45 +1153,25 @@ class SUEWSConfig(BaseModel):
         stebbs = props.stebbs
         building_archetype = props.building_archetype
 
-        ## Check each parameter in stebbs and building_archetype
-        ## First stebbs
-        missing_params = []
-        for param in self.STEBBS_REQUIRED_PARAMS:
-            ## Check if parameter exists
-            if not hasattr(stebbs, param):
-                missing_params.append(param)
-                continue
+        missing_params: List[str] = []
 
-            ## Get parameter value
-            param_obj = getattr(stebbs, param)
+        # helper to check and append missing params
+        def _check_required(container, param_list):
+            for param in param_list:
+                # existence
+                if not hasattr(container, param):
+                    missing_params.append(param)
+                    continue
+                param_obj = getattr(container, param)
+                # unwrap any RefValue/Enum wrappers
+                val = _unwrap_value(param_obj) if param_obj is not None else None
+                if val is None:
+                    missing_params.append(param)
 
-            ## Check if the parameter has a value attribute that is None
-            if hasattr(param_obj, "value") and param_obj.value is None:
-                missing_params.append(param)
-                continue
-
-            ## If the parameter itself is None
-            if param_obj is None:
-                missing_params.append(param)
-
-        ## Then building_archetype
-        for param in self.ARCHETYPE_REQUIRED_PARAMS:
-            ## Check if parameter exists
-            if not hasattr(building_archetype, param):
-                missing_params.append(param)
-                continue
-
-            ## Get parameter value
-            param_obj = getattr(building_archetype, param)
-
-            ## Check if the parameter has a value attribute that is None
-            if hasattr(param_obj, "value") and param_obj.value is None:
-                missing_params.append(param)
-                continue
-
-            ## If the parameter itself is None
-            if param_obj is None:
-                missing_params.append(param)
+        # Validate stebbs required params
+        _check_required(stebbs, self.STEBBS_REQUIRED_PARAMS)
+        # Validate building_archetype required params
+        _check_required(building_archetype, self.ARCHETYPE_REQUIRED_PARAMS)
 
         ## Always list all missing parameters, regardless of count
         if missing_params:
@@ -1789,12 +1769,12 @@ class SUEWSConfig(BaseModel):
     #     missing_data = any(cut_forcing.isna().any())
     #     if missing_data:
     #         raise ValueError("Forcing data contains missing values.")
-
+    #
     #     # Check initial meteorology (for initial_states)
     #     first_day_forcing = cut_forcing.loc[self.model.control.start_time]
     #     first_day_min_temp = first_day_forcing.iloc[0]["Tair"]
     #     first_day_precip = first_day_forcing.iloc[0]["rain"] # Could check previous day if available
-
+    #
     #     # Use min temp for surface temperature states
     #     for site in self.site:
     #         for surf_type in SurfaceType:
@@ -1802,7 +1782,7 @@ class SUEWSConfig(BaseModel):
     #             surface.temperature.value = [first_day_min_temp]*5
     #             surface.tsfc.value = first_day_min_temp
     #             surface.tin.value = first_day_min_temp
-
+    #
     #     # Use precip to determine wetness state
     #     for site in self.site:
     #         for surf_type in SurfaceType:

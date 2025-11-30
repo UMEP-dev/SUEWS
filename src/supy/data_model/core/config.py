@@ -1373,7 +1373,7 @@ class SUEWSConfig(BaseModel):
             "gsmodel",
             "snowuse",
             "stebbsmethod",
-            "rcmethod"
+            "rcmethod",
         ]
 
         critical_issues = []

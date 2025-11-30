@@ -33,6 +33,11 @@
 
 ## 2025
 
+### 30 Nov 2025
+- [bugfix] Add missing `rcmethod` to CRITICAL_PHYSICS_PARAMS in _check_critical_null_physics_params (config.py).
+- [bugfix] Add check on ARCHETYPE_REQUIRED_PARAMS in _validate_stebbs (config.py).
+- [bugfix] Fix nullification logic in phase_b.py for stebbs parameters to include building_archetype block when stebbsmethod == 0.
+
 ### 29 Nov 2025
 - [maintenance] Reorganise `.claude/` directory structure from 7 to 3 directories (#945)
   - Skills now single source of truth for all Claude Code knowledge

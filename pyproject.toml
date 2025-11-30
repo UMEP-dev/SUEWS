@@ -59,7 +59,7 @@ dependencies = [
     "pytz",
     
     # Parallel processing
-    "multiprocess",
+    "multiprocess>=0.70.18",  # 0.70.18+ required for Python 3.14 support
     
     # Schema validation (for YAML configs)
     "jsonschema",

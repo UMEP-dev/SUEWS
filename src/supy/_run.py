@@ -7,8 +7,11 @@ import sys
 import time
 import subprocess
 
-# Patch subprocess for compatibility with dill serialization on macOS
-# dill tries to access subprocess._USE_VFORK which only exists on Linux
+# Patch subprocess for dill serialization compatibility
+# dill tries to access subprocess._USE_VFORK which:
+# - Only exists on Linux (not macOS/Windows)
+# - Was removed in Python 3.14 on ALL platforms
+# This must be done BEFORE importing multiprocess/dill
 # (see https://github.com/python/cpython/issues/121381)
 if not hasattr(subprocess, "_USE_VFORK"):
     subprocess._USE_VFORK = False
@@ -654,13 +657,15 @@ def run_supy_par(
         list_dir_temp = [path_dir_temp for _ in range(n_grid)]
 
         # parallel run
-        # Use spawn context on macOS to avoid fork warnings in multi-threaded contexts
-        # (see GH-916: "Forking a process in a multi-threaded context is not safe")
-        pool_context = (
-            multiprocess.get_context("spawn")
-            if sys.platform == "darwin"
-            else multiprocess
-        )
+        # Always use spawn context for consistent, portable behaviour:
+        # - Avoids fork warnings in multi-threaded contexts (macOS, GH-916)
+        # - Avoids fork_exec signature issues (Python 3.14+)
+        # - Aligns with Python's direction (3.14 changed default to forkserver)
+        # - Performance overhead (~40ms/worker startup) is negligible for SUEWS
+        #   since each grid runs heavy Fortran code taking seconds
+        # Allow override via SUPY_MP_CONTEXT for edge cases
+        mp_context = os.environ.get("SUPY_MP_CONTEXT", "spawn")
+        pool_context = multiprocess.get_context(mp_context)
         with pool_context.Pool() as pool:
             pool.starmap(
                 run_save_supy,

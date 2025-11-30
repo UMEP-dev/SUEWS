@@ -13,6 +13,7 @@ py.install_sources(
         '_version.py',
         '_version_scm.py',
         'suews_sim.py',
+        'validation.py',
         'code2file.json',
         'checker_rules_indiv.json',
         'checker_rules_joint.json',
@@ -20,6 +21,7 @@ py.install_sources(
         [
             'cmd/__init__.py',
             'cmd/SUEWS.py',
+            'cmd/json_output.py',
             'cmd/table_converter.py',
             'cmd/to_yaml.py',
             'cmd/validate_config.py',

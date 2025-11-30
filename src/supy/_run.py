@@ -2,21 +2,10 @@ from ast import literal_eval
 from shutil import rmtree
 import tempfile
 import copy
+import multiprocessing
 import os
 import sys
 import time
-import subprocess
-
-# Patch subprocess for dill serialization compatibility
-# dill tries to access subprocess._USE_VFORK which:
-# - Only exists on Linux (not macOS/Windows)
-# - Was removed in Python 3.14 on ALL platforms
-# This must be done BEFORE importing multiprocess/dill
-# (see https://github.com/python/cpython/issues/121381)
-if not hasattr(subprocess, "_USE_VFORK"):
-    subprocess._USE_VFORK = False
-
-import multiprocess
 
 # import logging
 import traceback
@@ -665,8 +654,8 @@ def run_supy_par(
         #   since each grid runs heavy Fortran code taking seconds
         # Allow override via SUPY_MP_CONTEXT for edge cases
         mp_context = os.environ.get("SUPY_MP_CONTEXT", "spawn")
-        pool_context = multiprocess.get_context(mp_context)
-        with pool_context.Pool() as pool:
+        ctx = multiprocessing.get_context(mp_context)
+        with ctx.Pool() as pool:
             pool.starmap(
                 run_save_supy,
                 zip(

@@ -12,6 +12,8 @@ py.install_sources(
         '_supy_module.py',
         '_version.py',
         '_version_scm.py',
+        'suews_forcing.py',
+        'suews_output.py',
         'suews_sim.py',
         'code2file.json',
         'checker_rules_indiv.json',

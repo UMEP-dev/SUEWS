@@ -40,6 +40,8 @@ from .type import SurfaceType
 from datetime import datetime
 import pytz
 
+from types import SimpleNamespace
+
 # Optional import of logger - use standalone if supy not available
 try:
     from ..._env import logger_supy
@@ -1175,13 +1177,13 @@ class SUEWSConfig(BaseModel):
 
         ## Must have a building_archetype block
         if not hasattr(props, "building_archetype") or props.building_archetype is None:
-            issues.append(
-                "Missing 'building_archetype' section (required when stebbsmethod=1)"
-            )
-            return issues
+            # Do not return early — create an empty container so we can list all
+            # missing ARCHETYPE_REQUIRED_PARAMS alongside missing stebbs params.
+            building_archetype = SimpleNamespace()
+        else:
+            building_archetype = props.building_archetype
 
         stebbs = props.stebbs
-        building_archetype = props.building_archetype
 
         missing_params: List[str] = []
 

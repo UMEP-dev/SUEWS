@@ -1,46 +1,30 @@
-# SUEWS Output Variable Definitions - Python/Pydantic Implementation
+# SUEWS Output Variable Definitions
 
 ## Overview
 
-This module provides **Python-first** definitions of SUEWS output variables using Pydantic models, replacing the previous Fortran-first runtime extraction approach.
+This module defines all SUEWS output variables using Python Pydantic models. The `OUTPUT_REGISTRY` serves as the **single source of truth** for output variable metadata, providing type-safe definitions with validation, aggregation rules for temporal resampling, and automatic documentation generation.
 
-## Status: Complete
+## Variable Groups
 
-**Implementation:**
-- Core Pydantic models with full metadata
-- **All 1,139 variables implemented** across 13 groups
-- Type-safe variable registry
-- Backward-compatible DataFrame conversion
-- Aggregation rules generation
-- Integration with `_post.py` (Python-only, single source of truth)
-- Comprehensive test suite (all tests passing)
+Output variables are organised by group:
 
-**Variable Coverage:**
-- datetime: 5 variables (Year, DOY, Hour, Min, Dectime)
-- SUEWS: 99 variables (core energy, water, met, carbon, surface temperatures)
-- snow: 98 variables (snow properties by surface type)
-- ESTM: 27 variables (element surface temperatures)
-- EHC: 224 variables (element heat capacity: 2 surface + 7x15 roof + 7x15 wall)
-- RSL: 135 variables (roughness sublayer profiles)
-- DailyState: 47 variables (daily accumulated states)
-- BL: 17 variables (boundary layer profiles)
-- BEERS: 29 variables (detailed radiation)
-- debug: 185 variables (diagnostic outputs with soil store and atmospheric vars)
-- SPARTACUS: 194 variables (SPARTACUS radiation model: 10 scalars + 12x15 layers)
-- STEBBS: 78 variables (building energy model)
-- NHood: 1 variable (neighbourhood iteration count)
+| Group | Description |
+|-------|-------------|
+| datetime | Year, DOY, Hour, Min, Dectime |
+| SUEWS | Core energy, water, met, carbon, surface temperatures |
+| snow | Snow properties by surface type |
+| ESTM | Element surface temperatures |
+| EHC | Element heat capacity (surface, roof layers, wall layers) |
+| RSL | Roughness sublayer profiles |
+| DailyState | Daily accumulated states |
+| BL | Boundary layer profiles |
+| BEERS | Detailed radiation |
+| debug | Diagnostic outputs with soil store and atmospheric vars |
+| SPARTACUS | SPARTACUS radiation model (scalars and layer profiles) |
+| STEBBS | Building energy model |
+| NHood | Neighbourhood iteration count |
 
-**Architecture:**
-- Python OUTPUT_REGISTRY is the **single source of truth** for all output metadata
-- Fortran removed: suews_ctrl_output.f95 deleted (2,566 lines eliminated)
-- No code generation needed - Python defines, Fortran produces raw arrays
-- Eliminated manual synchronisation burden between Fortran and Python
-- Documentation auto-generated from Pydantic models via `docs/generate_output_variable_rst.py`
-
-**Completed:**
-- All variable groups migrated (including experimental: SPARTACUS, EHC, STEBBS, NHood)
-- Full integration testing with compiled Fortran
-- Water balance tests passing (including soil store variables)
+To get the current count: `len(OUTPUT_REGISTRY)`
 
 ## Architecture
 
@@ -53,6 +37,11 @@ Runtime metadata (DataFrame compatible)
     ↓
 Post-processing & output
 ```
+
+Key design principles:
+- **Python as source of truth**: All output metadata defined in Python, Fortran produces raw arrays
+- **No code generation**: Definitions are used directly at runtime
+- **Auto-generated documentation**: Sphinx docs built from Pydantic models via `docs/generate_output_variable_rst.py`
 
 ## Key Components
 
@@ -152,11 +141,11 @@ Each variable has complete metadata:
 
 Variables are prioritised for selective output:
 
-- **Level 0 (DEFAULT)**: Core variables always included (39 vars currently)
+- **Level 0 (DEFAULT)**: Core variables always included
   - Example: QH, QE, T2, RH2, Rain, Evap
-- **Level 1 (EXTENDED)**: Extended variable set (78 vars currently)
+- **Level 1 (EXTENDED)**: Extended variable set
   - Example: RA, RS, QHlumps, SMD by surface type
-- **Level 2 (SNOW_DETAILED)**: Snow-specific detailed output (90 vars currently)
+- **Level 2 (SNOW_DETAILED)**: Snow-specific detailed output
   - Example: QNSnow, AlbSnow, SWE, MeltWater
 
 ## Aggregation Methods
@@ -170,53 +159,28 @@ Variables are prioritised for selective output:
 
 ## Testing
 
-Run the standalone test to verify the implementation:
+Run the test suite:
 
 ```bash
-python test_output_models.py
+make test  # or: pytest test/data_model/test_output_models.py
 ```
 
-Expected output:
-```
-[PASS] ALL TESTS PASSED!
+## Design Benefits
 
-Summary:
-- Total variables in registry: 1139
-- Datetime variables: 5
-- SUEWS variables: 99
-```
+- **Type Safety**: Pydantic validation ensures correctness at definition time
+- **IDE Support**: Full autocomplete and type hints for variable metadata
+- **Self-Documenting**: Rich metadata enables automatic documentation generation
+- **Extensibility**: Adding new variables requires only Python changes
+- **Testing**: Variable definitions have unit test coverage
+- **Ecosystem Integration**: Works naturally with pandas, numpy, and scientific Python stack
 
-## Migration Plan
+## Backward Compatibility
 
-See `.claude/reference/output-variables-migration.md` for the complete migration strategy.
+The registry provides backward-compatible interfaces:
 
-### Next Steps
-
-1. **Extend variable coverage**: Add remaining variable groups
-2. **Documentation integration**: Update `docs/generate_datamodel_rst.py`
-3. **Validation**: Compare Pydantic vs Fortran metadata
-4. **Testing**: Full integration tests with compiled SUEWS
-5. **Deprecation**: Eventually remove Fortran metadata dependency
-
-## Benefits
-
-### Compared to Fortran-First Approach
-
-- **Type Safety**: Pydantic validation ensures correctness
-- **IDE Support**: Autocomplete and type hints
-- **Self-Documenting**: Rich metadata in Python
-- **Extensibility**: Easy to add variables in Python
-- **Testing**: Unit tests for variable definitions
-- **Integration**: Better integration with Python ecosystem
-- **Maintainability**: Centralised, version-controlled definitions
-
-### Backward Compatibility
-
-The implementation maintains full backward compatibility:
-
-- Same DataFrame structure from `get_output_info_df()`
-- Same aggregation rules for `resample_output()`
-- No changes required to existing code
+- `get_output_info_df()` returns the same DataFrame structure used historically
+- `resample_output()` uses aggregation rules from the registry
+- Existing code continues to work without modification
 
 ## File Structure
 
@@ -225,23 +189,23 @@ src/supy/data_model/output/
 ├── __init__.py              # Registry assembly & exports
 ├── README.md                # This file
 ├── variables.py             # Core Pydantic models & enums
-├── datetime_vars.py         # Datetime variables (5 vars)
-├── suews_vars.py            # Core SUEWS variables (99 vars)
-├── snow_vars.py             # Snow variables (98 vars)
-├── estm_vars.py             # ESTM variables (27 vars)
-├── rsl_vars.py              # RSL profile variables (135 vars)
-├── dailystate_vars.py       # Daily state variables (47 vars)
-├── bl_vars.py               # Boundary layer variables (17 vars)
-├── beers_vars.py            # BEERS radiation variables (29 vars)
-├── debug_vars.py            # Debug variables (185 vars)
-├── ehc_vars.py              # EHC variables (224 vars)
-├── spartacus_vars.py        # SPARTACUS variables (194 vars)
-└── stebbs_vars.py           # STEBBS variables (78 vars)
+├── datetime_vars.py         # Datetime variables
+├── suews_vars.py            # Core SUEWS variables
+├── snow_vars.py             # Snow variables
+├── estm_vars.py             # ESTM variables
+├── rsl_vars.py              # RSL profile variables
+├── dailystate_vars.py       # Daily state variables
+├── bl_vars.py               # Boundary layer variables
+├── beers_vars.py            # BEERS radiation variables
+├── debug_vars.py            # Debug variables
+├── ehc_vars.py              # EHC variables
+├── spartacus_vars.py        # SPARTACUS variables
+├── stebbs_vars.py           # STEBBS variables
+└── nhood_vars.py            # NHood variables
 ```
 
 ## References
 
-- **Migration plan**: `.claude/reference/output-variables-migration.md`
-- **Legacy Fortran definitions**: `src/suews/src/suews_ctrl_output.f95` (removed)
 - **Integration point**: `src/supy/_post.py`
-- **Test script**: `test_output_models.py`
+- **Documentation generator**: `docs/generate_output_variable_rst.py`
+- **Test module**: `test/data_model/test_output_models.py`

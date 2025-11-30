@@ -657,7 +657,9 @@ def run_supy_par(
         # Use spawn context on macOS to avoid fork warnings in multi-threaded contexts
         # (see GH-916: "Forking a process in a multi-threaded context is not safe")
         pool_context = (
-            multiprocess.get_context("spawn") if sys.platform == "darwin" else multiprocess
+            multiprocess.get_context("spawn")
+            if sys.platform == "darwin"
+            else multiprocess
         )
         with pool_context.Pool() as pool:
             pool.starmap(

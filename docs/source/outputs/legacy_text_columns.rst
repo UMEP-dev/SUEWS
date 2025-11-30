@@ -1,7 +1,23 @@
-.. _output_files:
+.. _legacy_text_columns:
 
-Output files
-============
+Legacy Text Column Reference
+============================
+
+.. deprecated:: 2025.10.15
+
+   This page is deprecated and retained for reference only.
+
+   **Please use the new documentation:**
+
+   - :doc:`index` - Main output documentation
+   - :doc:`variables/index` - Auto-generated variable reference (1,100+ variables)
+   - :doc:`text_format` - Text format details
+   - :doc:`parquet_format` - Parquet format details
+
+   The CSV tables below show the legacy text file column mappings and may be useful
+   for users working with older output files or migrating existing workflows.
+
+----
 
 Runtime diagnostic information
 ------------------------------
@@ -115,7 +131,7 @@ The variables included in the main output file are determined according to :opti
    **Consistent Naming**: All surface temperature variables now use the ``Ts`` prefix consistently across all output groups. The same ``Ts_[Surface]`` variables appear in both EHC and debug output. For detailed surface temperatures by urban facet (walls, roofs, ground layers), see the :ref:`ESTM output file <SSss_YYYY_ESTM_TT.txt>` which provides 5-layer temperature profiles for different surface elements.
 
 .. csv-table::
-  :file: SSss_YYYY_SUEWS_TT.csv
+  :file: legacy_csv/SSss_YYYY_SUEWS_TT.csv
   :header-rows: 1
   :widths: auto
 
@@ -128,7 +144,7 @@ vegetation parameters at a time resolution of one day. One file is
 written for each grid so it may contain multiple years.
 
 .. csv-table::
-  :file: SSss_DailyState.csv
+  :file: legacy_csv/SSss_DailyState.csv
   :header-rows: 1
   :widths: auto
 
@@ -147,7 +163,7 @@ SUEWS produces a separate output file for snow (when :option:`SnowUse` = 1 in `R
 File format of SSss_YYYY_snow_TT.txt
 
 .. csv-table::
-  :file: SSss_YYYY_snow_TT.csv
+  :file: legacy_csv/SSss_YYYY_snow_TT.csv
   :header-rows: 1
   :widths: auto
 
@@ -159,7 +175,7 @@ SUEWS produces a separate output file for wind, temperature and humidity profile
 File format of SSss_YYYY_RSL_TT.txt:
 
 .. csv-table::
-  :file: SSss_YYYY_RSL_TT.csv
+  :file: legacy_csv/SSss_YYYY_RSL_TT.csv
   :header-rows: 1
   :widths: auto
 
@@ -169,7 +185,7 @@ SSss_YYYY_BL_TT.txt
 Meteorological variables modelled by CBL portion of the model are output in to this file created for each day with time step (see :ref:`CBL input files`).
 
 .. csv-table::
-  :file: SSss_YYYY_BL_TT.csv
+  :file: legacy_csv/SSss_YYYY_BL_TT.csv
   :header-rows: 1
   :widths: auto
 
@@ -233,7 +249,7 @@ The ESTM model calculates detailed surface temperatures for different urban face
 ESTM output file format
 
 .. csv-table::
-  :file: SSss_YYYY_ESTM_TT.csv
+  :file: legacy_csv/SSss_YYYY_ESTM_TT.csv
   :header-rows: 1
   :widths: auto
 
@@ -247,56 +263,6 @@ If the SPARTACUS model option is run, the following output file is created.
 SPARTACUS output file format
 
 .. csv-table::
-  :file: SSss_YYYY_SPARTACUS_TT.csv
+  :file: legacy_csv/SSss_YYYY_SPARTACUS_TT.csv
   :header-rows: 1
   :widths: auto
-
-
-Parquet Format Output Files
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. note:: The parquet output format was introduced alongside the YAML input format. It is only available when using YAML configuration files, not with the legacy namelist format.
-
-When using parquet format, SUEWS produces two output files containing all simulation data:
-
-SSss_SUEWS_output.parquet
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Contains all output data from the simulation in a single file:
-
-- All output groups (SUEWS, DailyState, ESTM, RSL, BL, snow, debug) are included
-- All years of simulation data are stored together
-- Data is stored in columnar format for efficient compression and fast queries
-- Multi-index structure preserves grid and temporal information
-
-Typical file size reduction:
-
-- Parquet files are typically 70-80% smaller than equivalent text files
-- Provides 2-5x compression compared to uncompressed CSV/text files
-- Exact compression ratio depends on data characteristics and patterns
-
-SSss_SUEWS_state_final.parquet
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Contains the final model state for all grids:
-
-- Used for restart runs
-- Contains all state variables at the end of simulation
-- Preserves the full state structure for seamless continuation
-
-Reading Parquet Files
-^^^^^^^^^^^^^^^^^^^^^
-
-Example Python code to read parquet output::
-
-   import pandas as pd
-   
-   # Read output data
-   df_output = pd.read_parquet('London_KCL_SUEWS_output.parquet')
-   
-   # Access specific group (e.g., SUEWS variables)
-   df_suews = df_output['SUEWS']
-   
-   # Access specific variable
-   qh = df_output[('SUEWS', 'QH')]
-

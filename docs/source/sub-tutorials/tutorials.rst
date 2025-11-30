@@ -55,7 +55,7 @@ For experienced users working with custom parameterisations and model modificati
 Additional Data Analysis Tools
 ------------------------------
 
-- **Data structures**: :doc:`../data-structures/supy-io` - Understanding SuPy's pandas-based data organisation
+- **Data structures**: :doc:`../api/io-data-structures` - Understanding pandas-based data organisation
 - **API reference**: :doc:`../api` - Complete function documentation
 
 Legacy UMEP/QGIS Tutorials

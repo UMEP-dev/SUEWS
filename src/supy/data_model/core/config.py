@@ -189,20 +189,48 @@ class SUEWSConfig(BaseModel):
         "MinimumVolumeOfDHWinUse",
     ]
 
-    ARCHETYPE_REQUIRED_PARAMS: ClassVar[List[str]] = [ 
-        "BuildingType", "BuildingName", "BuildingCount", "Occupants", "stebbs_Height",
-        "FootprintArea", "WallExternalArea", "RatioInternalVolume", "WWR",
-        "WallThickness", "WallEffectiveConductivity", "WallDensity", "WallCp",
-        "WallOuterCapFrac", "WallExternalEmissivity", "WallInternalEmissivity",
-        "WallTransmissivity", "WallAbsorbtivity", "WallReflectivity", "FloorThickness",
-        "GroundFloorEffectiveConductivity", "GroundFloorDensity", "GroundFloorCp",
-        "WindowThickness", "WindowEffectiveConductivity", "WindowDensity", "WindowCp",
-        "WindowExternalEmissivity", "WindowInternalEmissivity", "WindowTransmissivity",
-        "WindowAbsorbtivity", "WindowReflectivity", "InternalMassDensity", "InternalMassCp",
-        "InternalMassEmissivity", "MaxHeatingPower", "WaterTankWaterVolume",
-        "MaximumHotWaterHeatingPower", "HeatingSetpointTemperature", "CoolingSetpointTemperature",
+    ARCHETYPE_REQUIRED_PARAMS: ClassVar[List[str]] = [
+        "BuildingType",
+        "BuildingName",
+        "BuildingCount",
+        "Occupants",
+        "stebbs_Height",
+        "FootprintArea",
+        "WallExternalArea",
+        "RatioInternalVolume",
+        "WWR",
+        "WallThickness",
+        "WallEffectiveConductivity",
+        "WallDensity",
+        "WallCp",
+        "WallOuterCapFrac",
+        "WallExternalEmissivity",
+        "WallInternalEmissivity",
+        "WallTransmissivity",
+        "WallAbsorbtivity",
+        "WallReflectivity",
+        "FloorThickness",
+        "GroundFloorEffectiveConductivity",
+        "GroundFloorDensity",
+        "GroundFloorCp",
+        "WindowThickness",
+        "WindowEffectiveConductivity",
+        "WindowDensity",
+        "WindowCp",
+        "WindowExternalEmissivity",
+        "WindowInternalEmissivity",
+        "WindowTransmissivity",
+        "WindowAbsorbtivity",
+        "WindowReflectivity",
+        "InternalMassDensity",
+        "InternalMassCp",
+        "InternalMassEmissivity",
+        "MaxHeatingPower",
+        "WaterTankWaterVolume",
+        "MaximumHotWaterHeatingPower",
+        "HeatingSetpointTemperature",
+        "CoolingSetpointTemperature",
     ]
-    
 
     # Sort the filtered columns numerically
     @staticmethod
@@ -1125,7 +1153,7 @@ class SUEWSConfig(BaseModel):
     def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
         """
         If stebbsmethod==1, enforce that site.properties.stebbs
-        and site.properties.building_archetype have all 
+        and site.properties.building_archetype have all
         required parameters with non-null values.
         Returns a list of issue messages.
         """
@@ -1144,10 +1172,12 @@ class SUEWSConfig(BaseModel):
         if not hasattr(props, "stebbs") or props.stebbs is None:
             issues.append("Missing 'stebbs' section (required when stebbsmethod=1)")
             return issues
-        
+
         ## Must have a building_archetype block
         if not hasattr(props, "building_archetype") or props.building_archetype is None:
-            issues.append("Missing 'building_archetype' section (required when stebbsmethod=1)")
+            issues.append(
+                "Missing 'building_archetype' section (required when stebbsmethod=1)"
+            )
             return issues
 
         stebbs = props.stebbs

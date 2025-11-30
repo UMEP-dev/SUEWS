@@ -25,7 +25,7 @@ dependencies = [
     "numpy>=2.0",
     "scipy",
     # xarray removed - only needed for gridded ERA5 (install separately)
-    # dask removed - was redundant with multiprocess (see Parallel processing below)
+    # dask removed - stdlib multiprocessing used for parallelisation
 
     # Model requirements
     "f90wrap==0.2.16",  # Required at runtime by generated supy_driver code
@@ -57,10 +57,9 @@ dependencies = [
     # Time/location
     "tzfpy>=1.0.0",  # Faster timezone finder with Windows wheels
     "pytz",
-    
-    # Parallel processing
-    "multiprocess",
-    
+
+    # Parallel processing: uses stdlib multiprocessing (no external dependency needed)
+
     # Schema validation (for YAML configs)
     "jsonschema",
     "rich",

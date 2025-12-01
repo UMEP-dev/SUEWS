@@ -2416,12 +2416,13 @@ class SUEWSConfig(BaseModel):
         return pd.MultiIndex.from_tuples(tuples)
 
     def to_df_state(
-        self, use_conditional_validation: bool = True, strict: bool = False
+        self, use_conditional_validation: bool = False, strict: bool = False
     ) -> pd.DataFrame:
         """Convert config to DataFrame state format with optional conditional validation.
 
         Args:
-            use_conditional_validation (bool): Whether to run conditional validation before conversion
+            use_conditional_validation (bool): Whether to run conditional validation before conversion.
+                Defaults to False since validation module is not loaded by default.
             strict (bool): If True, fail on validation errors; if False, warn and continue
 
         Returns:

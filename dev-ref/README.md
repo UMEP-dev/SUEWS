@@ -27,6 +27,11 @@ This directory contains internal documentation for SUEWS core developers.
   - Stacked and parallel PR strategies
   - Git worktree for parallel development
 
+- **[Merge Queue](MERGE_QUEUE.md)** - GitHub merge queue best practices
+  - Adding PRs to queue and monitoring status
+  - Batching strategies and queue etiquette
+  - Troubleshooting queue failures
+
 - **[Review Process](REVIEW_PROCESS.md)** - Pull request review procedures
   - How we review code
   - What to look for in reviews

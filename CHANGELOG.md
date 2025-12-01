@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 40 | 27 | 21 | 38 | 19 | 141 |
+| 2025 | 40 | 28 | 21 | 38 | 19 | 142 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -32,6 +32,18 @@
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2025
+
+### 30 Nov 2025
+- [bugfix] Add missing `rcmethod` to CRITICAL_PHYSICS_PARAMS in _check_critical_null_physics_params (config.py).
+
+### 29 Nov 2025
+- [maintenance] Reorganise `.claude/` directory structure from 7 to 3 directories (#945)
+  - Skills now single source of truth for all Claude Code knowledge
+  - Commands are thin wrappers that invoke skills with dynamic context
+  - Consolidated: howto/, reference/, templates/, agents/ → skills/
+  - Added new skills: `review-pr`, `design-tests`, `check-naming`, `apply-patterns`
+  - Enhanced `lint-code` skill with RST and Markdown conventions
+  - Updated `validate-claude-md.py` for new directory structure
 
 ### 27 Nov 2025
 - [feature] Nullifying all CO2-related site parameters when emissionsmethod is 0–4 to avoid unintended Pydantic validation

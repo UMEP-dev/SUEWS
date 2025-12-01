@@ -34,12 +34,11 @@ For developers, see the [Developer Note](#developer-note) section below.
 
 #### Claude Code Integration
 
-For enhanced development productivity, SUEWS includes integration with Claude Code in a containerised environment:
+SUEWS includes Claude Code configuration in the `.claude/` directory:
 
-* **Setup Guide**: See [`claude-dev/README.md`](claude-dev/README.md) for complete setup instructions
-* **Quick Start**:
-  - **Workspace Manager** (recommended): `./claude-dev/claude.sh start myproject`
-  - **Direct Setup**: `./claude-dev/setup-claude-dev.sh` from repository root
+* **Setup Guide**: See [`.claude/README.md`](.claude/README.md) for workspace structure
+* **Quick Start**: See [`.claude/reference/quick-start.md`](.claude/reference/quick-start.md) for environment setup
+* **Custom Commands**: `/log-changes` for automatic CHANGELOG updates
 
 #### CLAUDE.md Protection System
 
@@ -59,12 +58,10 @@ This repository includes automatic protection for the CLAUDE.md configuration fi
   - Git pre-commit validation
   - Local backup system
   - Manual validation: `python3 .claude/scripts/validate-claude-md.py`
-* **Features**: Intelligent code assistance, automated testing, British academic standards, multi-workspace support
-* **Benefits**: Isolated environment, reproducible development, AI-powered debugging, parallel project development
 
-#### Traditional Development
+#### Local Development
 
-For local development without containerisation, follow these steps:
+Follow these steps to set up local development:
 
 ##### Prerequisites
 
@@ -116,13 +113,10 @@ For local development without containerisation, follow these steps:
 
 5. **Build SUEWS**:
    ```bash
-   # Fast editable install (recommended)
-   make dev
-
-   # Optional: run tests
-   make test
+   make dev       # Install in editable mode
+   make test      # Run tests (optional)
    ```
-   *Running `make` with no target just prints the help summary.*
+   *Run `make` to see all available commands and quick start workflows.*
 
 6. **Verify installation**:
    ```bash

@@ -2,7 +2,7 @@ from ast import literal_eval
 from shutil import rmtree
 import tempfile
 import copy
-import multiprocess
+import multiprocessing
 import os
 import sys
 import time
@@ -141,7 +141,7 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
             order="F",
         ),
         "ts5mindata_ir": np.array(df_forcing_block["ts5mindata_ir"], order="F"),
-        "len_sim": np.array(df_forcing_block.shape[0], dtype=int),
+        "len_sim": int(df_forcing_block.shape[0]),
     })
 
     if debug_mode:
@@ -646,7 +646,16 @@ def run_supy_par(
         list_dir_temp = [path_dir_temp for _ in range(n_grid)]
 
         # parallel run
-        with multiprocess.Pool() as pool:
+        # Always use spawn context for consistent, portable behaviour:
+        # - Avoids fork warnings in multi-threaded contexts (macOS, GH-916)
+        # - Avoids fork_exec signature issues (Python 3.14+)
+        # - Aligns with Python's direction (3.14 changed default to forkserver)
+        # - Performance overhead (~40ms/worker startup) is negligible for SUEWS
+        #   since each grid runs heavy Fortran code taking seconds
+        # Allow override via SUPY_MP_CONTEXT for edge cases
+        mp_context = os.environ.get("SUPY_MP_CONTEXT", "spawn")
+        ctx = multiprocessing.get_context(mp_context)
+        with ctx.Pool() as pool:
             pool.starmap(
                 run_save_supy,
                 zip(
@@ -799,6 +808,16 @@ def pack_grid_dict(ser_grid):
         var: dict_var[var].astype(int) for var in list_var if var in list_var_int
     }
     dict_var.update(dict_var_int)
+
+    # Extract scalars from single-element arrays for rank-0 variables
+    # This fixes NumPy 2.0 deprecation warning about array-to-scalar conversion
+    list_var_scalar = df_var_info[df_var_info["rank"] == 0].index
+    for var in list_var_scalar:
+        if var in dict_var:
+            val = dict_var[var]
+            if isinstance(val, np.ndarray) and val.size == 1:
+                dict_var[var] = val.item()
+
     return dict_var
 
 

@@ -219,9 +219,6 @@ read_the_docs_build = os.environ.get("READTHEDOCS", None) == "True"
 path_source = Path(__file__).parent
 
 if read_the_docs_build:
-    # Doxygen disabled to avoid Fortran documentation generation logs
-    # subprocess.call("doxygen", shell=True)
-
     # generate summary tables using info in `Input_Options.rst`
     path_csv = path_source / "inputs/tables/SUEWS_SiteInfo/csv-table"
     gen_csv_suews(path_csv)
@@ -230,7 +227,6 @@ if read_the_docs_build:
     dt_today = datetime.today()
 else:
     dt_today = datetime.today()  # Use current date for local builds too
-    # subprocess.call("doxygen", shell=True)
     pass
 
 
@@ -284,10 +280,7 @@ extensions = [
     "yaml_domain",  # Custom domain for YAML configuration options
     "recommonmark",
     "nbsphinx",
-    "sphinx.ext.mathjax",
-    # "breathe",  # Disabled along with Doxygen to avoid Fortran documentation logs
-    "sphinx_panels",
-    "sphinx_design",  # For collapsible sections in YAML config reference
+    "sphinx_design",  # For collapsible sections, tabs, and dropdowns in YAML config reference
     "sphinx_last_updated_by_git",
     "sphinx_click.ext",
     # 'exhale'
@@ -297,10 +290,6 @@ extensions = [
 ]
 
 # email_automode = True
-
-# Breathe configuration disabled along with Doxygen
-# breathe_projects = {"SUEWS": "./doxygenoutput/xml"}
-# breathe_default_project = "SUEWS"
 
 # sphinx_last_updated_by_git options
 git_last_updated_metatags = True
@@ -315,24 +304,6 @@ git_last_updated_metatags = True
 #         "issue-term": "title",
 #         #   "optional": "config",
 #     },
-# }
-
-
-# exhale_args = {
-#     # These arguments are required
-#     "containmentFolder": "./api",
-#     "rootFileName": "library_root.rst",
-#     "rootFileTitle": "API",
-#     "doxygenStripFromPath": "..",
-#     # Suggested optional arguments
-#     "createTreeView": True,
-#     # TIP: if using the sphinx-bootstrap-theme, you need
-#     "treeViewIsBootstrap": True,
-#     "exhaleExecutesDoxygen": True,
-#     "exhaleUseDoxyfile": True,
-#     # "exhaleDoxygenStdin":    '''INPUT = ../../../SUEWS-SourceCode\n
-#     #                            GENERATE_HTML  = YES
-#     #                            '''
 # }
 
 # The suffix(es) of source filenames.
@@ -420,11 +391,11 @@ rst_prolog = rf"""
 
     .. tip::
 
-      1. Need help? Please let us know in the `UMEP Community`_.
+      1. Need help? Please let us know in the `SUEWS Discussion Channel`_.
       2. Please report issues with the manual on `GitHub Issues`_ (or use `Report Issue for This Page`_ for page-specific feedback).
       3. Please cite SUEWS with proper information from our `Zenodo page`_.
 
-.. _UMEP Community: https://github.com/UMEP-dev/UMEP/discussions/
+.. _SUEWS Discussion Channel: https://github.com/UMEP-dev/SUEWS/discussions/
 .. _GitHub Issues: https://github.com/UMEP-dev/SUEWS/issues
 .. _SUEWS download page: https://forms.office.com/r/4qGfYu8LaR
 
@@ -513,14 +484,12 @@ else:
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 #
-html_static_path = ["_static"]  # Removed "doxygenoutput" since Doxygen is disabled
+html_static_path = ["_static"]
 # html_context = {
 #     'css_files': [
 #         '_static/theme_overrides.css',  # override wide tables in RTD theme
 #         ],
 #      }
-
-# html_extra_path = ['doxygenoutput']
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.

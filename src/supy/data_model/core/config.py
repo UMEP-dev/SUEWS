@@ -40,6 +40,8 @@ from .type import SurfaceType
 from datetime import datetime
 import pytz
 
+from types import SimpleNamespace
+
 # Optional import of logger - use standalone if supy not available
 try:
     from ..._env import logger_supy
@@ -62,6 +64,21 @@ enhanced_to_df_state_validation = None
 
 import os
 import warnings
+
+
+class ConditionalValidationWarning(UserWarning):
+    """Warning issued when conditional validation is requested but not available.
+
+    This warning indicates that the enhanced validation feature has been requested
+    via use_conditional_validation=True, but the validation module is not loaded.
+    The conversion will proceed without additional validation checks.
+
+    To suppress this warning, either:
+    - Set use_conditional_validation=False when calling to_df_state()
+    - Filter with: warnings.filterwarnings('ignore', category=ConditionalValidationWarning)
+    """
+
+    pass
 
 
 def _unwrap_value(val):
@@ -148,8 +165,6 @@ class SUEWSConfig(BaseModel):
         "WindowExternalConvectionCoefficient",
         "GroundDepth",
         "ExternalGroundConductivity",
-        "IndoorAirDensity",
-        "IndoorAirCp",
         "MetabolicRate",
         "LatentSensibleRatio",
         "ApplianceRating",
@@ -159,29 +174,17 @@ class SUEWSConfig(BaseModel):
         "MaxCoolingPower",
         "CoolingSystemCOP",
         "VentilationRate",
-        "IndoorAirStartTemperature",
-        "IndoorMassStartTemperature",
-        "WallIndoorSurfaceTemperature",
-        "WallOutdoorSurfaceTemperature",
-        "WindowIndoorSurfaceTemperature",
-        "WindowOutdoorSurfaceTemperature",
-        "GroundFloorIndoorSurfaceTemperature",
-        "GroundFloorOutdoorSurfaceTemperature",
-        "WaterTankTemperature",
-        "InternalWallWaterTankTemperature",
-        "ExternalWallWaterTankTemperature",
+        "InitialOutdoorTemperature",
+        "InitialIndoorTemperature",
+        "DeepSoilTemperature",
         "WaterTankWallThickness",
         "MainsWaterTemperature",
         "WaterTankSurfaceArea",
         "HotWaterHeatingSetpointTemperature",
         "HotWaterTankWallEmissivity",
-        "DomesticHotWaterTemperatureInUseInBuilding",
-        "InternalWallDHWVesselTemperature",
-        "ExternalWallDHWVesselTemperature",
         "DHWVesselWallThickness",
         "DHWWaterVolume",
         "DHWSurfaceArea",
-        "DHWVesselEmissivity",
         "HotWaterFlowRate",
         "DHWDrainFlowRate",
         "DHWSpecificHeatCapacity",
@@ -201,6 +204,49 @@ class SUEWSConfig(BaseModel):
         "DHWVesselWallEmissivity",
         "HotWaterHeatingEfficiency",
         "MinimumVolumeOfDHWinUse",
+    ]
+
+    ARCHETYPE_REQUIRED_PARAMS: ClassVar[List[str]] = [
+        "BuildingType",
+        "BuildingName",
+        "BuildingCount",
+        "Occupants",
+        "stebbs_Height",
+        "FootprintArea",
+        "WallExternalArea",
+        "RatioInternalVolume",
+        "WWR",
+        "WallThickness",
+        "WallEffectiveConductivity",
+        "WallDensity",
+        "WallCp",
+        "WallOuterCapFrac",
+        "WallExternalEmissivity",
+        "WallInternalEmissivity",
+        "WallTransmissivity",
+        "WallAbsorbtivity",
+        "WallReflectivity",
+        "FloorThickness",
+        "GroundFloorEffectiveConductivity",
+        "GroundFloorDensity",
+        "GroundFloorCp",
+        "WindowThickness",
+        "WindowEffectiveConductivity",
+        "WindowDensity",
+        "WindowCp",
+        "WindowExternalEmissivity",
+        "WindowInternalEmissivity",
+        "WindowTransmissivity",
+        "WindowAbsorbtivity",
+        "WindowReflectivity",
+        "InternalMassDensity",
+        "InternalMassCp",
+        "InternalMassEmissivity",
+        "MaxHeatingPower",
+        "WaterTankWaterVolume",
+        "MaximumHotWaterHeatingPower",
+        "HeatingSetpointTemperature",
+        "CoolingSetpointTemperature",
     ]
 
     # Sort the filtered columns numerically
@@ -1124,7 +1170,8 @@ class SUEWSConfig(BaseModel):
     def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
         """
         If stebbsmethod==1, enforce that site.properties.stebbs
-        has all required parameters with non-null values.
+        and site.properties.building_archetype have all
+        required parameters with non-null values.
         Returns a list of issue messages.
         """
         issues: List[str] = []
@@ -1143,95 +1190,35 @@ class SUEWSConfig(BaseModel):
             issues.append("Missing 'stebbs' section (required when stebbsmethod=1)")
             return issues
 
+        ## Must have a building_archetype block
+        if not hasattr(props, "building_archetype") or props.building_archetype is None:
+            # Do not return early — create an empty container so we can list all
+            # missing ARCHETYPE_REQUIRED_PARAMS alongside missing stebbs params.
+            building_archetype = SimpleNamespace()
+        else:
+            building_archetype = props.building_archetype
+
         stebbs = props.stebbs
 
-        # ## Define all required STEBBS parameters
-        # required_params = [
-        #     "WallInternalConvectionCoefficient",
-        #     "InternalMassConvectionCoefficient",
-        #     "FloorInternalConvectionCoefficient",
-        #     "WindowInternalConvectionCoefficient",
-        #     "WallExternalConvectionCoefficient",
-        #     "WindowExternalConvectionCoefficient",
-        #     "GroundDepth",
-        #     "ExternalGroundConductivity",
-        #     "IndoorAirDensity",
-        #     "IndoorAirCp",
-        #     "WallBuildingViewFactor",
-        #     "WallGroundViewFactor",
-        #     "WallSkyViewFactor",
-        #     "MetabolicRate",
-        #     "LatentSensibleRatio",
-        #     "ApplianceRating",
-        #     "TotalNumberofAppliances",
-        #     "ApplianceUsageFactor",
-        #     "HeatingSystemEfficiency",
-        #     "MaxCoolingPower",
-        #     "CoolingSystemCOP",
-        #     "VentilationRate",
-        #     "IndoorAirStartTemperature",
-        #     "IndoorMassStartTemperature",
-        #     "WallIndoorSurfaceTemperature",
-        #     "WallOutdoorSurfaceTemperature",
-        #     "WindowIndoorSurfaceTemperature",
-        #     "WindowOutdoorSurfaceTemperature",
-        #     "GroundFloorIndoorSurfaceTemperature",
-        #     "GroundFloorOutdoorSurfaceTemperature",
-        #     "WaterTankTemperature",
-        #     "InternalWallWaterTankTemperature",
-        #     "ExternalWallWaterTankTemperature",
-        #     "WaterTankWallThickness",
-        #     "MainsWaterTemperature",
-        #     "WaterTankSurfaceArea",
-        #     "HotWaterHeatingSetpointTemperature",
-        #     "HotWaterTankWallEmissivity",
-        #     "DomesticHotWaterTemperatureInUseInBuilding",
-        #     "InternalWallDHWVesselTemperature",
-        #     "ExternalWallDHWVesselTemperature",
-        #     "DHWVesselWallThickness",
-        #     "DHWWaterVolume",
-        #     "DHWSurfaceArea",
-        #     "DHWVesselEmissivity",
-        #     "HotWaterFlowRate",
-        #     "DHWDrainFlowRate",
-        #     "DHWSpecificHeatCapacity",
-        #     "HotWaterTankSpecificHeatCapacity",
-        #     "DHWVesselSpecificHeatCapacity",
-        #     "DHWDensity",
-        #     "HotWaterTankWallDensity",
-        #     "DHWVesselDensity",
-        #     "HotWaterTankBuildingWallViewFactor",
-        #     "HotWaterTankInternalMassViewFactor",
-        #     "HotWaterTankWallConductivity",
-        #     "HotWaterTankInternalWallConvectionCoefficient",
-        #     "HotWaterTankExternalWallConvectionCoefficient",
-        #     "DHWVesselWallConductivity",
-        #     "DHWVesselInternalWallConvectionCoefficient",
-        #     "DHWVesselExternalWallConvectionCoefficient",
-        #     "DHWVesselWallEmissivity",
-        #     "HotWaterHeatingEfficiency",
-        #     "MinimumVolumeOfDHWinUse"
-        # ]
+        missing_params: List[str] = []
 
-        ## Check each parameter
-        missing_params = []
-        for param in self.STEBBS_REQUIRED_PARAMS:
-            ## Check if parameter exists
-            if not hasattr(stebbs, param):
-                missing_params.append(param)
-                continue
+        # helper to check and append missing params
+        def _check_required(container, param_list):
+            for param in param_list:
+                # existence
+                if not hasattr(container, param):
+                    missing_params.append(param)
+                    continue
+                param_obj = getattr(container, param)
+                # unwrap any RefValue/Enum wrappers
+                val = _unwrap_value(param_obj) if param_obj is not None else None
+                if val is None:
+                    missing_params.append(param)
 
-            ## Get parameter value
-            param_obj = getattr(stebbs, param)
-
-            ## Check if the parameter has a value attribute that is None
-            if hasattr(param_obj, "value") and param_obj.value is None:
-                missing_params.append(param)
-                continue
-
-            ## If the parameter itself is None
-            if param_obj is None:
-                missing_params.append(param)
+        # Validate stebbs required params
+        _check_required(stebbs, self.STEBBS_REQUIRED_PARAMS)
+        # Validate building_archetype required params
+        _check_required(building_archetype, self.ARCHETYPE_REQUIRED_PARAMS)
 
         ## Always list all missing parameters, regardless of count
         if missing_params:
@@ -1455,6 +1442,7 @@ class SUEWSConfig(BaseModel):
             "gsmodel",
             "snowuse",
             "stebbsmethod",
+            "rcmethod",
         ]
 
         critical_issues = []
@@ -1829,12 +1817,12 @@ class SUEWSConfig(BaseModel):
     #     missing_data = any(cut_forcing.isna().any())
     #     if missing_data:
     #         raise ValueError("Forcing data contains missing values.")
-
+    #
     #     # Check initial meteorology (for initial_states)
     #     first_day_forcing = cut_forcing.loc[self.model.control.start_time]
     #     first_day_min_temp = first_day_forcing.iloc[0]["Tair"]
     #     first_day_precip = first_day_forcing.iloc[0]["rain"] # Could check previous day if available
-
+    #
     #     # Use min temp for surface temperature states
     #     for site in self.site:
     #         for surf_type in SurfaceType:
@@ -1842,7 +1830,7 @@ class SUEWSConfig(BaseModel):
     #             surface.temperature.value = [first_day_min_temp]*5
     #             surface.tsfc.value = first_day_min_temp
     #             surface.tin.value = first_day_min_temp
-
+    #
     #     # Use precip to determine wetness state
     #     for site in self.site:
     #         for surf_type in SurfaceType:
@@ -1875,7 +1863,8 @@ class SUEWSConfig(BaseModel):
         from .type import RefValue  # Import here to avoid circular import
 
         for site_index, site in enumerate(self.sites):
-            site_name = f"Site {site_index + 1}"
+            # Get site name (Site class has name field with default "test site")
+            site_name = getattr(site, "name", f"Site {site_index + 1}")
 
             # Get vertical layers (building validation is on vertical layers, not bldgs)
             if not site.properties or not site.properties.vertical_layers:
@@ -1957,7 +1946,8 @@ class SUEWSConfig(BaseModel):
         from .type import SurfaceType  # Import here to avoid circular import
 
         for site_index, site in enumerate(self.sites):
-            site_name = f"Site {site_index + 1}"
+            # Get site name (Site class has name field with default "test site")
+            site_name = getattr(site, "name", f"Site {site_index + 1}")
 
             # Get initial states
             if not site.initial_states:
@@ -2099,7 +2089,8 @@ class SUEWSConfig(BaseModel):
         Migrated from HourlyProfile.validate_hours for centralized validation.
         """
         for site_index, site in enumerate(self.sites):
-            site_name = f"Site {site_index + 1}" if len(self.sites) > 1 else "Site"
+            # Get site name (Site class has name field with default "test site")
+            site_name = getattr(site, "name", f"Site {site_index + 1}")
             errors = []
 
             # Collect all HourlyProfile instances from this site
@@ -2204,7 +2195,7 @@ class SUEWSConfig(BaseModel):
         Performs validation checks:
         1. Consistency: both startdls and enddls set, or both None (ERROR)
         2. Leap year refinement: DOY 366 only valid in leap years (ERROR)
-        3. Hemisphere-aware pattern check: Informs about unusual DST patterns (INFO)
+        3. Compare user values with calculated DLS: Informs if values differ from location-based calculations (INFO)
 
         These validations are particularly useful when Phase C runs standalone
         or when loading YAML directly via SUEWSConfig.from_yaml().
@@ -2232,7 +2223,8 @@ class SUEWSConfig(BaseModel):
         errors = []
 
         for site_index, site in enumerate(self.sites):
-            site_name = f"Site {site_index + 1}" if len(self.sites) > 1 else "Site"
+            # Get site name (Site class has name field with default "test site")
+            site_name = getattr(site, "name", f"Site {site_index + 1}")
 
             if not (site.properties and site.properties.anthropogenic_emissions):
                 continue
@@ -2279,53 +2271,64 @@ class SUEWSConfig(BaseModel):
                         f"Must be in range [1, {max_doy}]"
                     )
 
-            # 3. Hemisphere-aware pattern check (informational only, no errors)
-            # Get latitude for hemisphere determination
+            # 3. Compare user values with calculated DLS values (informational only)
+            # Get latitude and longitude for DLS calculation
             try:
                 lat_val = (
                     site.properties.lat.value
                     if hasattr(site.properties.lat, "value")
                     else site.properties.lat
                 )
+                lng_val = (
+                    site.properties.lng.value
+                    if hasattr(site.properties.lng, "value")
+                    else site.properties.lng
+                )
 
-                if lat_val is not None:
-                    # Determine hemisphere and typical DST ranges
-                    if lat_val > 0:
-                        # Northern Hemisphere
-                        hemisphere = "Northern"
-                        typical_start_range = (60, 120)  # ~March-April
-                        typical_end_range = (270, 330)  # ~October-November
-                    else:
-                        # Southern Hemisphere
-                        hemisphere = "Southern"
-                        typical_start_range = (250, 310)  # ~September-November
-                        typical_end_range = (60, 120)  # ~March-April
+                if lat_val is not None and lng_val is not None and year:
+                    # Import DLSCheck dynamically to avoid circular imports
+                    from ..validation.core.yaml_helpers import DLSCheck
 
-                    # Check if values are outside typical ranges
-                    unusual_patterns = []
-                    if not (
-                        typical_start_range[0] <= startdls_val <= typical_start_range[1]
-                    ):
-                        unusual_patterns.append(
-                            f"startdls={int(startdls_val)} (typical: {typical_start_range[0]}-{typical_start_range[1]})"
-                        )
+                    # Calculate what DLS values should be
+                    dls = DLSCheck(lat=lat_val, lng=lng_val, year=year)
+                    calculated_start, calculated_end, _ = dls.compute_dst_transitions()
 
-                    if not (typical_end_range[0] <= enddls_val <= typical_end_range[1]):
-                        unusual_patterns.append(
-                            f"enddls={int(enddls_val)} (typical: {typical_end_range[0]}-{typical_end_range[1]})"
-                        )
+                    if calculated_start and calculated_end:
+                        # Compare user values with calculated values
+                        # Create separate messages for each parameter
 
-                    if unusual_patterns:
-                        info_msg = (
-                            f"{site_name} ({hemisphere} Hemisphere, lat={lat_val:.2f}): "
-                            f"Unusual DST pattern detected: {', '.join(unusual_patterns)}. "
-                            f"Please verify these values are correct for your location."
-                        )
-                        self._validation_summary["detailed_messages"].append(info_msg)
-                        self._validation_summary["info_messages"].append(info_msg)
+                        if calculated_start != startdls_val:
+                            info_msg = (
+                                f"startdls for site {site_name}: DLS values differ from calculated "
+                                f"values based on your location (lat={lat_val:.2f}, lng={lng_val:.2f}). "
+                                f"Check your value ({int(startdls_val)}) against the calculated one "
+                                f"({int(calculated_start)}). You might need to change your startdls."
+                            )
+                            self._validation_summary["detailed_messages"].append(
+                                info_msg
+                            )
+                            self._validation_summary["info_messages"].append(info_msg)
 
-            except (AttributeError, TypeError):
-                # Cannot access latitude, skip hemisphere check
+                        if calculated_end != enddls_val:
+                            info_msg = (
+                                f"enddls for site {site_name}: DLS values differ from calculated "
+                                f"values based on your location (lat={lat_val:.2f}, lng={lng_val:.2f}). "
+                                f"Check your value ({int(enddls_val)}) against the calculated one "
+                                f"({int(calculated_end)}). You might need to change your enddls."
+                            )
+                            self._validation_summary["detailed_messages"].append(
+                                info_msg
+                            )
+                            self._validation_summary["info_messages"].append(info_msg)
+                elif lat_val is not None and lng_val is not None:
+                    info_msg = (
+                        f"{site_name}: Cannot compare DLS values because simulation year "
+                        f"is not specified. Consider setting model.control.start_time."
+                    )
+                    self._validation_summary["info_messages"].append(info_msg)
+
+            except (AttributeError, TypeError, ImportError):
+                # Cannot calculate DLS, skip comparison
                 pass
 
         # Raise errors if any
@@ -2433,14 +2436,14 @@ class SUEWSConfig(BaseModel):
             if message:
                 logger_supy.info(message)
         else:
-            logger_supy.info(
+            logger_supy.debug(
                 f"No schema version specified, assuming current ({CURRENT_SCHEMA_VERSION})"
             )
             # Set default schema version
             config_data["schema_version"] = CURRENT_SCHEMA_VERSION
 
         if use_conditional_validation:
-            logger_supy.info(
+            logger_supy.debug(
                 "Running comprehensive Pydantic validation with conditional checks."
             )
             try:
@@ -2467,12 +2470,13 @@ class SUEWSConfig(BaseModel):
         return pd.MultiIndex.from_tuples(tuples)
 
     def to_df_state(
-        self, use_conditional_validation: bool = True, strict: bool = False
+        self, use_conditional_validation: bool = False, strict: bool = False
     ) -> pd.DataFrame:
         """Convert config to DataFrame state format with optional conditional validation.
 
         Args:
-            use_conditional_validation (bool): Whether to run conditional validation before conversion
+            use_conditional_validation (bool): Whether to run conditional validation before conversion.
+                Defaults to False since validation module is not loaded by default.
             strict (bool): If True, fail on validation errors; if False, warn and continue
 
         Returns:
@@ -2488,7 +2492,12 @@ class SUEWSConfig(BaseModel):
                     raise
                 # Continue with warnings already issued
         elif use_conditional_validation and not _validation_available:
-            warnings.warn("Conditional validation requested but not available.")
+            warnings.warn(
+                "Conditional validation requested but validation module not available. "
+                "Proceeding without additional validation checks.",
+                ConditionalValidationWarning,
+                stacklevel=2,
+            )
 
         # Proceed with DataFrame conversion
         try:

@@ -22,10 +22,35 @@ inputs:
     description: 'Suffix for wheel artifact name (e.g., "", "-umep")'
     required: false
     default: ''
+  test_tier:
+    description: 'Test tier: smoke, core, cfg, standard, or all'
+    required: false
+    default: 'standard'
+  is_testpypi_build:
+    description: 'Whether this is a TestPyPI build (adds notice to README)'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
   steps:
+    - name: Inject TestPyPI notice into README
+      if: inputs.is_testpypi_build == 'true'
+      shell: bash
+      run: |
+        # Add TestPyPI notice after the first heading in README.md
+        # This notice only appears in TestPyPI releases, not production PyPI
+        # Insert after line 3 (after "This is the SUEWS urban climate model repository.")
+        head -n 3 README.md > README.tmp
+        # Note: Using printf to avoid YAML parsing issues with '>' at line start
+        printf '\n' >> README.tmp
+        printf '**TestPyPI Release**: This is a development version published to [test.pypi.org](https://test.pypi.org/project/supy/).\n' >> README.tmp
+        printf 'For installation instructions, see [Testing Development Versions](https://docs.suews.io/latest/installation.html#testing-development-versions) in the documentation.\n' >> README.tmp
+        tail -n +4 README.md >> README.tmp
+        mv README.tmp README.md
+        echo "Added TestPyPI notice to README.md"
+        head -15 README.md
+
     - name: Modify pyproject.toml for NumPy 1.x compatibility
       if: inputs.is_umep_variant == 'true'
       shell: bash
@@ -129,7 +154,14 @@ runs:
           pip install delvewheel
         CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
         CIBW_TEST_REQUIRES: ${{ inputs.is_umep_variant == 'true' && 'pytest oldest-supported-numpy' || 'pytest' }}
-        CIBW_TEST_COMMAND: "python -m pytest {project}/test -v --tb=short --durations=10"
+        # Test tiers: choose subset based on path detection and trigger
+        CIBW_TEST_COMMAND: >
+          python -m pytest {project}/test -v --tb=short
+          ${{ inputs.test_tier == 'smoke' && '-m smoke' ||
+              inputs.test_tier == 'core' && '-m "smoke or core"' ||
+              inputs.test_tier == 'cfg' && '-m "smoke or cfg"' ||
+              inputs.test_tier == 'standard' && '-m "not slow"' ||
+              '--durations=10' }}
         MACOSX_DEPLOYMENT_TARGET: ${{ inputs.buildplat == 'macos-13' && '13.0' || '15.0' }}
 
     - name: Upload wheels

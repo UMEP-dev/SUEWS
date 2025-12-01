@@ -6,80 +6,91 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 
 ```
 .claude/
-├── howto/               # Step-by-step guides
-│   └── setup-environment.md
-├── reference/           # Technical documentation
-│   ├── quick-start.md
-│   ├── testing-guide.md
-│   ├── config-patterns.md
-│   ├── maintenance-principles.md
-│   └── README.md
-├── templates/           # Reusable templates
-│   ├── feature-plan.md
-│   ├── commit-message.md
-│   └── README.md
-├── commands/            # Custom slash commands
-│   └── log-changes.md
-├── scripts/             # Automation scripts
-└── agents/              # Custom agent definitions
+├── commands/              # Thin wrappers that invoke skills
+│   ├── setup-dev.md       # Set up development environment
+│   ├── lint-code.md       # Check code style
+│   ├── log-changes.md     # Analyse code changes, update CHANGELOG
+│   ├── prep-release.md    # Prepare release
+│   ├── sync-docs.md       # Check doc-code consistency
+│   └── verify-build.md    # Verify build configuration
+│
+├── skills/                # All knowledge + functionality
+│   ├── apply-patterns/    # Config patterns, DRY principles
+│   ├── check-naming/      # Variant-neutral naming
+│   ├── design-tests/      # Test design with FIRST principles
+│   ├── lint-code/         # Code style conventions
+│   ├── log-changes/       # CHANGELOG management
+│   ├── prep-release/      # Release preparation
+│   ├── setup-dev/         # Environment setup guide
+│   ├── sync-docs/         # Documentation consistency
+│   └── verify-build/      # Build configuration checks
+│
+├── scripts/               # Shared infrastructure
+│   ├── validate-claude-md.py
+│   ├── pre-commit-hook.sh
+│   └── setup-claude-protection.sh
+│
+└── README.md              # This file
 ```
 
-## Directory Purposes
+## Concepts
 
-### howto/
-**Purpose**: Step-by-step guides for common tasks
-- `setup-environment.md` - Python environment setup options and troubleshooting
-- **Quick start**: See `reference/quick-start.md`
+### Skills (Single Source of Truth)
 
-### reference/
-**Purpose**: Technical documentation and analysis
-- `quick-start.md` - Canonical setup commands (single source of truth)
-- `testing-guide.md` - Testing requirements and benchmark details
-- `config-patterns.md` - Configuration design patterns
-- `maintenance-principles.md` - Documentation and code principles
+Skills contain all the knowledge Claude needs for specific workflows. Each skill has:
+- `SKILL.md` - Main content with frontmatter (name, description)
+- Optional subdirectories for references, templates, or scripts
 
-### templates/
-**Purpose**: Reusable templates for consistency
-- Feature plan template
-- Commit message format
-- Other common documents
+### Commands (Thin Wrappers)
 
-### commands/
-**Purpose**: Custom slash commands for automation
-- `/log-changes` - Analyse recent changes and update docs/CHANGELOG
-- Add new commands as .md files in this directory
+Commands are entry points that invoke skills. They provide:
+- Short description for the command menu
+- Any dynamic context (git status, dates, etc.)
+- Reference to the skill to invoke
+
+### Scripts (Infrastructure)
+
+Scripts handle CLAUDE.md protection and Git hooks - shared infrastructure that isn't skill-specific.
+
+## Available Skills
+
+| Skill | Purpose |
+|-------|---------|
+| `apply-patterns` | Configuration patterns, DRY principles |
+| `check-naming` | Variant-neutral naming conventions |
+| `design-tests` | Test design with FIRST principles |
+| `lint-code` | Code conventions for Fortran and Python |
+| `log-changes` | CHANGELOG management and formatting |
+| `prep-release` | Release preparation with pre-flight checks |
+| `setup-dev` | Environment setup (uv, venv, mamba, compilers) |
+| `sync-docs` | Documentation-code consistency |
+| `verify-build` | Build configuration consistency |
+
+## Available Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/setup-dev` | Set up development environment |
+| `/lint-code` | Check code style |
+| `/log-changes` | Update CHANGELOG |
+| `/prep-release` | Prepare release |
+| `/sync-docs` | Check doc-code consistency |
+| `/verify-build` | Verify build configuration |
 
 ## Quick Navigation
 
-**"How do I...?"** → Check `howto/`
-**"Why does X work this way?"** → Check `reference/`
-**"What's the status of feature Y?"** → Check GitHub issues and PRs
-**"I need to create a new Z"** → Check `templates/`
+**"How do I set up my environment?"** -> `/setup-dev` or `setup-dev` skill
+**"Check my code style"** -> `/lint-code` or `lint-code` skill
+**"Update the CHANGELOG"** -> `/log-changes`
+**"Prepare for release"** -> `/prep-release`
 
 ## For Claude Code Sessions
 
 1. Check current branch: `git branch --show-current`
-2. Check related GitHub issue or PR for context
-3. Environment setup: See `.claude/reference/quick-start.md`
-
-
-## Slash Commands
-
-Custom commands for streamlined workflows:
-
-### /log-changes
-Analyses recent code changes and updates documentation:
-
-- Checks commits since last CHANGELOG.md update
-- Categorises changes by type ([feature], [bugfix], etc.)
-- Updates CHANGELOG.md with new entries
-- Identifies and updates affected documentation
-- Runs documentation generation scripts as needed
-
-**Usage**: `/log-changes`
-
-This command helps maintain up-to-date documentation by automatically detecting what has changed and where updates are needed.
+2. Environment setup: Use `setup-dev` skill
+3. Before committing: Use `lint-code` skill
 
 ## Git Policy
-- ✅ Commit: All directories and files (except settings.local.json)
-- ❌ Ignore: settings.local.json, any temp-* files
+
+- Commit: All directories and files
+- Ignore: settings.local.json, any temp-* files

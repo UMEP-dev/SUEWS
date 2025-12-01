@@ -47,7 +47,6 @@ MODULE SUEWS_Driver
       ReDistributeWater, SUEWS_cal_HorizontalSoilWater, &
       SUEWS_cal_HorizontalSoilWater_DTS, &
       SUEWS_cal_WaterUse
-   USE module_ctrl_output, ONLY: varListAll
    USE module_phys_lumps, ONLY: LUMPS_cal_QHQE_DTS
    USE module_phys_evap, ONLY: cal_evap_multi
    USE module_phys_rslprof, ONLY: RSLProfile, RSLProfile_DTS
@@ -806,7 +805,7 @@ CONTAINS
             QS_surf => heatState%qs_surf, &
             k_surf => ehcPrm%k_surf, &
             cp_surf => ehcPrm%cp_surf, &
-            T_bottom => stebbsState%OutdoorAirAnnualTemperature &
+            T_bottom => stebbsState%DeepSoilTemperature &
             )
 
             !============= calculate surface temperature based on QS ===============
@@ -3704,41 +3703,46 @@ CONTAINS
 
    END FUNCTION square_real
 
-   SUBROUTINE output_name_n(i, name, group, aggreg, outlevel)
-      ! used by f2py module  to handle output names
+   SUBROUTINE output_ncolumns(group_name, ncols)
+      ! Returns the number of data columns (excluding datetime) for a given output group.
+      ! Used by Python tests to verify OUTPUT_REGISTRY matches Fortran array sizes.
+      USE module_ctrl_const_allocate
       IMPLICIT NONE
-      ! the dimension is potentially incorrect,
-      ! which should be consistent with that in output module
-      INTEGER, INTENT(in) :: i
-      CHARACTER(len=15), INTENT(out) :: name, group, aggreg
-      INTEGER, INTENT(out) :: outlevel
+      CHARACTER(len=*), INTENT(IN) :: group_name
+      INTEGER, INTENT(OUT) :: ncols
 
-      INTEGER :: nVar
-      nVar = SIZE(varListAll, dim=1)
-      IF (i < nVar .AND. i > 0) THEN
-         name = TRIM(varListAll(i)%header)
-         group = TRIM(varListAll(i)%group)
-         aggreg = TRIM(varListAll(i)%aggreg)
-         outlevel = varListAll(i)%level
-      ELSE
-         name = ''
-         group = ''
-         aggreg = ''
-         outlevel = 0
-      END IF
+      SELECT CASE (TRIM(group_name))
+      CASE ('datetime')
+         ncols = 5  ! Year, DOY, Hour, Min, Dectime
+      CASE ('SUEWS')
+         ncols = ncolumnsDataOutSUEWS - 5
+      CASE ('snow')
+         ncols = ncolumnsDataOutSnow - 5
+      CASE ('ESTM')
+         ncols = ncolumnsDataOutESTM - 5
+      CASE ('EHC')
+         ncols = ncolumnsDataOutEHC - 5
+      CASE ('RSL')
+         ncols = ncolumnsDataOutRSL - 5
+      CASE ('BL')
+         ncols = ncolumnsdataOutBL - 5
+      CASE ('debug')
+         ncols = ncolumnsDataOutDebug - 5
+      CASE ('BEERS')
+         ncols = ncolumnsDataOutBEERS - 5
+      CASE ('DailyState')
+         ncols = ncolumnsDataOutDailyState - 5
+      CASE ('SPARTACUS')
+         ncols = ncolumnsDataOutSPARTACUS - 5
+      CASE ('STEBBS')
+         ncols = ncolumnsDataOutSTEBBS - 5
+      CASE ('NHood')
+         ncols = ncolumnsDataOutNHood - 5
+      CASE DEFAULT
+         ncols = -1  ! Unknown group
+      END SELECT
 
-   END SUBROUTINE output_name_n
-
-   SUBROUTINE output_size(nVar)
-      ! used by f2py module  to get size of the output list
-      IMPLICIT NONE
-      ! the dimension is potentially incorrect,
-      ! which should be consistent with that in output module
-      INTEGER, INTENT(out) :: nVar
-
-      nVar = SIZE(varListAll, dim=1)
-
-   END SUBROUTINE output_size
+   END SUBROUTINE output_ncolumns
 
    SUBROUTINE SUEWS_cal_multitsteps( &
       n_buildings, h_std, &
@@ -3785,10 +3789,10 @@ CONTAINS
       ! hhs0, age_0_4, age_5_11, age_12_18, age_19_64, age_65plus, ! NOT USED
       stebbs_Height, &
       FootprintArea, WallExternalArea, RatioInternalVolume, WWR, WallThickness, WallEffectiveConductivity, &
-      WallDensity, WallCp, WallextThickness, WallextEffectiveConductivity, WallextDensity, WallextCp, Wallx1, WallExternalEmissivity, WallInternalEmissivity, WallTransmissivity, &
+      WallDensity, WallCp, WallextThickness, WallextEffectiveConductivity, WallextDensity, WallextCp, WallOuterCapFrac, WallExternalEmissivity, WallInternalEmissivity, WallTransmissivity, &
       WallAbsorbtivity, WallReflectivity, &
       RoofThickness, RoofEffectiveConductivity, RoofDensity, RoofCp, RoofextThickness, RoofextEffectiveConductivity, RoofextDensity, RoofextCp,&
-      Roofx1, RoofExternalEmissivity, RoofInternalEmissivity, RoofTransmissivity, &
+      RoofOuterCapFrac, RoofExternalEmissivity, RoofInternalEmissivity, RoofTransmissivity, &
       RoofAbsorbtivity, RoofReflectivity, &
       FloorThickness, GroundFloorEffectiveConductivity, &
       GroundFloorDensity, GroundFloorCp, WindowThickness, WindowEffectiveConductivity, &
@@ -3799,22 +3803,14 @@ CONTAINS
       WallInternalConvectionCoefficient, RoofInternalConvectionCoefficient, InternalMassConvectionCoefficient, & ! stebbs general input
       FloorInternalConvectionCoefficient, WindowInternalConvectionCoefficient, &
       WallExternalConvectionCoefficient, RoofExternalConvectionCoefficient, WindowExternalConvectionCoefficient, &
-      GroundDepth, ExternalGroundConductivity, IndoorAirDensity, IndoorAirCp, &
-      !WallBuildingViewFactor, WallGroundViewFactor, WallSkyViewFactor, &
-      !RoofBuildingViewFactor, RoofGroundViewFactor, RoofSkyViewFactor, &
+      GroundDepth, ExternalGroundConductivity, &
       MetabolicRate, LatentSensibleRatio, ApplianceRating, &
       TotalNumberofAppliances, ApplianceUsageFactor, HeatingSystemEfficiency, &
-      MaxCoolingPower, CoolingSystemCOP, VentilationRate, OutdoorAirAnnualTemperature, OutdoorAirStartTemperature, IndoorAirStartTemperature, &
-      IndoorMassStartTemperature, WallIndoorSurfaceTemperature, RoofIndoorSurfaceTemperature, &
-      WallOutdoorSurfaceTemperature, RoofOutdoorSurfaceTemperature, WindowIndoorSurfaceTemperature, &
-      WindowOutdoorSurfaceTemperature, GroundFloorIndoorSurfaceTemperature, &
-      GroundFloorOutdoorSurfaceTemperature, WaterTankTemperature, &
-      InternalWallWaterTankTemperature, ExternalWallWaterTankTemperature, &
+      MaxCoolingPower, CoolingSystemCOP, VentilationRate, DeepSoilTemperature, InitialOutdoorTemperature, InitialIndoorTemperature, &
       WaterTankWallThickness, MainsWaterTemperature, WaterTankSurfaceArea, &
       HotWaterHeatingSetpointTemperature, HotWaterTankWallEmissivity, &
-      DomesticHotWaterTemperatureInUseInBuilding, InternalWallDHWVesselTemperature, &
-      ExternalWallDHWVesselTemperature, DHWVesselWallThickness, DHWWaterVolume, &
-      DHWSurfaceArea, DHWVesselEmissivity, HotWaterFlowRate, DHWDrainFlowRate, &
+      DHWVesselWallThickness, DHWWaterVolume, &
+      DHWSurfaceArea, HotWaterFlowRate, DHWDrainFlowRate, &
       DHWSpecificHeatCapacity, HotWaterTankSpecificHeatCapacity, DHWVesselSpecificHeatCapacity, &
       DHWDensity, HotWaterTankWallDensity, DHWVesselDensity, HotWaterTankBuildingWallViewFactor, &
       HotWaterTankInternalMassViewFactor, HotWaterTankWallConductivity, HotWaterTankInternalWallConvectionCoefficient, &
@@ -4218,14 +4214,6 @@ CONTAINS
       REAL(KIND(1D0)) :: WindowExternalConvectionCoefficient
       REAL(KIND(1D0)) :: GroundDepth
       REAL(KIND(1D0)) :: ExternalGroundConductivity
-      REAL(KIND(1D0)) :: IndoorAirDensity
-      REAL(KIND(1D0)) :: IndoorAirCp
-      !REAL(KIND(1D0)) :: WallBuildingViewFactor
-      !REAL(KIND(1D0)) :: WallGroundViewFactor
-      !REAL(KIND(1D0)) :: WallSkyViewFactor
-      !REAL(KIND(1D0)) :: RoofBuildingViewFactor
-      !REAL(KIND(1D0)) :: RoofGroundViewFactor
-      !REAL(KIND(1D0)) :: RoofSkyViewFactor
       REAL(KIND(1D0)) :: MetabolicRate
       REAL(KIND(1D0)) :: LatentSensibleRatio
       REAL(KIND(1D0)) :: ApplianceRating
@@ -4235,33 +4223,17 @@ CONTAINS
       REAL(KIND(1D0)) :: MaxCoolingPower
       REAL(KIND(1D0)) :: CoolingSystemCOP
       REAL(KIND(1D0)) :: VentilationRate
-      REAL(KIND(1D0)) :: OutdoorAirAnnualTemperature
-      REAL(KIND(1D0)) :: OutdoorAirStartTemperature
-      REAL(KIND(1D0)) :: IndoorAirStartTemperature
-      REAL(KIND(1D0)) :: IndoorMassStartTemperature
-      REAL(KIND(1D0)) :: WallIndoorSurfaceTemperature
-      REAL(KIND(1D0)) :: WallOutdoorSurfaceTemperature
-      REAL(KIND(1D0)) :: RoofIndoorSurfaceTemperature
-      REAL(KIND(1D0)) :: RoofOutdoorSurfaceTemperature
-      REAL(KIND(1D0)) :: WindowIndoorSurfaceTemperature
-      REAL(KIND(1D0)) :: WindowOutdoorSurfaceTemperature
-      REAL(KIND(1D0)) :: GroundFloorIndoorSurfaceTemperature
-      REAL(KIND(1D0)) :: GroundFloorOutdoorSurfaceTemperature
-      REAL(KIND(1D0)) :: WaterTankTemperature
-      REAL(KIND(1D0)) :: InternalWallWaterTankTemperature
-      REAL(KIND(1D0)) :: ExternalWallWaterTankTemperature
+      REAL(KIND(1D0)) :: DeepSoilTemperature
+      REAL(KIND(1D0)) :: InitialOutdoorTemperature
+      REAL(KIND(1D0)) :: InitialIndoorTemperature
       REAL(KIND(1D0)) :: WaterTankWallThickness
       REAL(KIND(1D0)) :: MainsWaterTemperature
       REAL(KIND(1D0)) :: WaterTankSurfaceArea
       REAL(KIND(1D0)) :: HotWaterHeatingSetpointTemperature
       REAL(KIND(1D0)) :: HotWaterTankWallEmissivity
-      REAL(KIND(1D0)) :: DomesticHotWaterTemperatureInUseInBuilding
-      REAL(KIND(1D0)) :: InternalWallDHWVesselTemperature
-      REAL(KIND(1D0)) :: ExternalWallDHWVesselTemperature
       REAL(KIND(1D0)) :: DHWVesselWallThickness
       REAL(KIND(1D0)) :: DHWWaterVolume
       REAL(KIND(1D0)) :: DHWSurfaceArea
-      REAL(KIND(1D0)) :: DHWVesselEmissivity
       REAL(KIND(1D0)) :: HotWaterFlowRate
       REAL(KIND(1D0)) :: DHWDrainFlowRate
       REAL(KIND(1D0)) :: DHWSpecificHeatCapacity
@@ -4310,7 +4282,7 @@ CONTAINS
       REAL(KIND(1D0)) :: WallextEffectiveConductivity
       REAL(KIND(1D0)) :: WallextDensity
       REAL(KIND(1D0)) :: WallextCp
-      REAL(KIND(1D0)) :: Wallx1
+      REAL(KIND(1D0)) :: WallOuterCapFrac
       REAL(KIND(1D0)) :: WallExternalEmissivity
       REAL(KIND(1D0)) :: WallInternalEmissivity
       REAL(KIND(1D0)) :: WallTransmissivity
@@ -4324,7 +4296,7 @@ CONTAINS
       REAL(KIND(1D0)) :: RoofextEffectiveConductivity
       REAL(KIND(1D0)) :: RoofextDensity
       REAL(KIND(1D0)) :: RoofextCp
-      REAL(KIND(1D0)) :: Roofx1
+      REAL(KIND(1D0)) :: RoofOuterCapFrac
       REAL(KIND(1D0)) :: RoofExternalEmissivity
       REAL(KIND(1D0)) :: RoofInternalEmissivity
       REAL(KIND(1D0)) :: RoofTransmissivity
@@ -5130,14 +5102,6 @@ CONTAINS
       stebbsPrm%WindowExternalConvectionCoefficient = WindowExternalConvectionCoefficient
       stebbsPrm%GroundDepth = GroundDepth
       stebbsPrm%ExternalGroundConductivity = ExternalGroundConductivity
-      stebbsPrm%IndoorAirDensity = IndoorAirDensity
-      stebbsPrm%IndoorAirCp = IndoorAirCp
-      !stebbsPrm%WallBuildingViewFactor = WallBuildingViewFactor
-      !stebbsPrm%WallGroundViewFactor = WallGroundViewFactor
-      !stebbsPrm%WallSkyViewFactor = WallSkyViewFactor
-      !stebbsPrm%RoofBuildingViewFactor = RoofBuildingViewFactor
-      !stebbsPrm%RoofGroundViewFactor = RoofGroundViewFactor
-      !stebbsPrm%RoofSkyViewFactor = RoofSkyViewFactor
       stebbsPrm%MetabolicRate = MetabolicRate
       stebbsPrm%LatentSensibleRatio = LatentSensibleRatio
       stebbsPrm%ApplianceRating = ApplianceRating
@@ -5154,7 +5118,6 @@ CONTAINS
       stebbsPrm%DHWVesselWallThickness = DHWVesselWallThickness
       stebbsPrm%DHWWaterVolume = DHWWaterVolume
       stebbsPrm%DHWSurfaceArea = DHWSurfaceArea
-      stebbsPrm%DHWVesselEmissivity = DHWVesselEmissivity
       stebbsPrm%HotWaterFlowRate = HotWaterFlowRate
       stebbsPrm%DHWDrainFlowRate = DHWDrainFlowRate
       stebbsPrm%DHWSpecificHeatCapacity = DHWSpecificHeatCapacity
@@ -5178,27 +5141,25 @@ CONTAINS
       ! states - updated during the simulation
       ! TODO: STEBBS States act as parameters for building generation (move all but allocation?)
       CALL stebbsState%ALLOCATE(nbtypes, nlayer)
-      stebbsState%OutdoorAirAnnualTemperature = OutdoorAirAnnualTemperature
-      stebbsState%OutdoorAirStartTemperature = OutdoorAirStartTemperature
-      stebbsState%IndoorAirStartTemperature = IndoorAirStartTemperature
-      stebbsState%IndoorMassStartTemperature = IndoorMassStartTemperature
-      stebbsState%WallIndoorSurfaceTemperature = WallIndoorSurfaceTemperature
-      stebbsState%WallOutdoorSurfaceTemperature = WallOutdoorSurfaceTemperature
-      stebbsState%RoofIndoorSurfaceTemperature = RoofIndoorSurfaceTemperature
-      stebbsState%RoofOutdoorSurfaceTemperature = RoofOutdoorSurfaceTemperature
-      stebbsState%WindowIndoorSurfaceTemperature = WindowIndoorSurfaceTemperature
-      stebbsState%WindowOutdoorSurfaceTemperature = WindowOutdoorSurfaceTemperature
-      stebbsState%GroundFloorIndoorSurfaceTemperature = GroundFloorIndoorSurfaceTemperature
-      stebbsState%GroundFloorOutdoorSurfaceTemperature = GroundFloorOutdoorSurfaceTemperature
-      stebbsState%WaterTankTemperature = WaterTankTemperature
-      stebbsState%InternalWallWaterTankTemperature = InternalWallWaterTankTemperature
-      stebbsState%ExternalWallWaterTankTemperature = ExternalWallWaterTankTemperature
+      stebbsState%DeepSoilTemperature = DeepSoilTemperature
+      stebbsState%OutdoorAirStartTemperature = InitialOutdoorTemperature
+      stebbsState%IndoorAirStartTemperature = InitialIndoorTemperature
+      stebbsState%IndoorMassStartTemperature = InitialIndoorTemperature
+      stebbsState%WallIndoorSurfaceTemperature = InitialIndoorTemperature
+      stebbsState%WallOutdoorSurfaceTemperature = InitialOutdoorTemperature
+      stebbsState%RoofIndoorSurfaceTemperature = InitialIndoorTemperature
+      stebbsState%RoofOutdoorSurfaceTemperature = InitialOutdoorTemperature
+      stebbsState%WindowIndoorSurfaceTemperature = InitialIndoorTemperature
+      stebbsState%WindowOutdoorSurfaceTemperature = InitialOutdoorTemperature
+      stebbsState%GroundFloorIndoorSurfaceTemperature = InitialIndoorTemperature
+      stebbsState%GroundFloorOutdoorSurfaceTemperature = DeepSoilTemperature
+      stebbsState%WaterTankTemperature = HotWaterHeatingSetpointTemperature
+      stebbsState%InternalWallWaterTankTemperature = HotWaterHeatingSetpointTemperature
+      stebbsState%ExternalWallWaterTankTemperature = InitialIndoorTemperature
       stebbsState%MainsWaterTemperature = MainsWaterTemperature
-      stebbsState%DomesticHotWaterTemperatureInUseInBuilding = DomesticHotWaterTemperatureInUseInBuilding
-      stebbsState%InternalWallDHWVesselTemperature = InternalWallDHWVesselTemperature
-      stebbsState%ExternalWallDHWVesselTemperature = ExternalWallDHWVesselTemperature
-      !stebbsState%Textroof_C(:) =  RoofOutdoorSurfaceTemperature
-      !stebbsState%Textwall_C(:) =  WallOutdoorSurfaceTemperature
+      stebbsState%DomesticHotWaterTemperatureInUseInBuilding = HotWaterHeatingSetpointTemperature
+      stebbsState%InternalWallDHWVesselTemperature = HotWaterHeatingSetpointTemperature
+      stebbsState%ExternalWallDHWVesselTemperature = InitialIndoorTemperature
 
       ! ! transfer states into modState
       mod_State%anthroemisState = anthroEmisState
@@ -5247,7 +5208,7 @@ CONTAINS
       building_archtype%WallextEffectiveConductivity = WallextEffectiveConductivity
       building_archtype%WallextDensity = WallextDensity
       building_archtype%WallextCp = WallextCp
-      building_archtype%Wallx1 = Wallx1
+      building_archtype%WallOuterCapFrac = WallOuterCapFrac
       building_archtype%WallExternalEmissivity = WallExternalEmissivity
       building_archtype%WallInternalEmissivity = WallInternalEmissivity
       building_archtype%WallTransmissivity = WallTransmissivity
@@ -5261,7 +5222,7 @@ CONTAINS
       building_archtype%RoofextEffectiveConductivity = RoofextEffectiveConductivity
       building_archtype%RoofextDensity = RoofextDensity
       building_archtype%RoofextCp = RoofextCp
-      building_archtype%Roofx1 = Roofx1
+      building_archtype%RoofOuterCapFrac = RoofOuterCapFrac
       building_archtype%RoofExternalEmissivity = RoofExternalEmissivity
       building_archtype%RoofInternalEmissivity = RoofInternalEmissivity
       building_archtype%RoofTransmissivity = RoofTransmissivity

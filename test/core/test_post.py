@@ -36,7 +36,9 @@ class TestResampleOutput(TestCase):
         print("Testing resample_output to hourly...")
 
         # Resample to hourly
-        df_hourly = resample_output(self.df_output, freq="60T", dict_aggm=dict_var_aggm)
+        df_hourly = resample_output(
+            self.df_output, freq="60min", dict_aggm=dict_var_aggm
+        )
 
         # Validation
         self.assertIsInstance(df_hourly, pd.DataFrame)
@@ -107,10 +109,10 @@ class TestResampleOutput(TestCase):
         print("Testing resample_output with custom frequency...")
 
         # Resample to 30 minutes
-        df_30min = resample_output(self.df_output, freq="30T")
+        df_30min = resample_output(self.df_output, freq="30min")
 
         # Should have twice as many records as hourly
-        df_hourly = resample_output(self.df_output, freq="60T")
+        df_hourly = resample_output(self.df_output, freq="60min")
         self.assertAlmostEqual(len(df_30min), len(df_hourly) * 2, delta=2)
 
         print("✓ Custom frequency resampling works correctly")
@@ -149,7 +151,7 @@ class TestResampleOutput(TestCase):
         print("Testing MultiIndex preservation in resampling...")
 
         # Resample
-        df_resampled = resample_output(self.df_output, freq="60T")
+        df_resampled = resample_output(self.df_output, freq="60min")
 
         # Check MultiIndex structure
         self.assertIsInstance(df_resampled.columns, pd.MultiIndex)
@@ -393,7 +395,7 @@ class TestMultiGridPostProcessing(TestCase):
         print("Testing multi-grid resampling...")
 
         # Resample to hourly
-        df_hourly = resample_output(self.df_output, freq="60T")
+        df_hourly = resample_output(self.df_output, freq="60min")
 
         # Check that grid structure is preserved
         self.assertEqual(df_hourly.index.nlevels, 2)  # datetime and grid
@@ -478,7 +480,7 @@ class TestErrorHandling(TestCase):
         # resample_output expects grids to exist, so it will raise an error
         # This is expected behavior - empty dataframes should not be resampled
         with self.assertRaises((ValueError, KeyError, IndexError)):
-            resample_output(df_empty, freq="60T", dict_aggm=dict_var_aggm)
+            resample_output(df_empty, freq="60min", dict_aggm=dict_var_aggm)
 
         print("✓ Empty DataFrame error handling works correctly")
 

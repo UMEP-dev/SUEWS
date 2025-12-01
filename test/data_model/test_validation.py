@@ -16,6 +16,8 @@ import tempfile
 from types import SimpleNamespace
 import warnings
 
+import pytest
+
 import supy as sp
 from supy._env import trv_supy_module
 from supy.data_model.core import SUEWSConfig
@@ -265,517 +267,153 @@ def test_validate_lai_ranges_none_values():
     assert has_issues is False
 
 
-def test_validate_land_cover_fractions_no_land_cover():
-    """Test land cover fraction validation with no land cover."""
+# Land cover fraction test data: (description, land_cover, expected_has_issues, expected_sum_str, check_details)
+LAND_COVER_TEST_CASES = [
+    # No land cover
+    ("no_land_cover", None, False, None, False),
+    # Sum to exactly 1.0
+    (
+        "sum_to_one",
+        SimpleNamespace(
+            paved=SimpleNamespace(sfr=SimpleNamespace(value=0.4)),
+            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
+            grass=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
+            dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
+            evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+            bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+            water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+        ),
+        False,
+        None,
+        False,
+    ),
+    # Sum > 1.0
+    (
+        "sum_too_high",
+        SimpleNamespace(
+            paved=SimpleNamespace(sfr=SimpleNamespace(value=0.6)),
+            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
+            grass=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
+            dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
+            evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+            bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+            water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+        ),
+        True,
+        "1.400000",
+        False,
+    ),
+    # Sum < 1.0
+    (
+        "sum_too_low",
+        SimpleNamespace(
+            paved=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
+            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
+            grass=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
+            dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+            evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+            bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+            water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+        ),
+        True,
+        "0.600000",
+        False,
+    ),
+    # Missing surfaces (defaults to 0.0, sum = 1.0)
+    (
+        "missing_surfaces",
+        SimpleNamespace(
+            paved=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
+            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
+        ),
+        False,
+        None,
+        False,
+    ),
+    # None sfr values (treated as 0.0, sum = 1.0)
+    (
+        "none_values",
+        SimpleNamespace(
+            paved=SimpleNamespace(sfr=None),
+            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=1.0)),
+            grass=SimpleNamespace(),  # No sfr attribute
+            dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+            evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+            bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+            water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
+        ),
+        False,
+        None,
+        False,
+    ),
+    # Direct values (not RefValue, sum = 1.0)
+    (
+        "direct_values",
+        SimpleNamespace(
+            paved=SimpleNamespace(sfr=0.4),
+            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
+            grass=SimpleNamespace(sfr=0.2),
+            dectr=SimpleNamespace(sfr=0.1),
+            evetr=SimpleNamespace(sfr=0.0),
+            bsoil=SimpleNamespace(sfr=0.0),
+            water=SimpleNamespace(sfr=0.0),
+        ),
+        False,
+        None,
+        False,
+    ),
+    # Detailed message check (sum = 0.95)
+    (
+        "detailed_message",
+        SimpleNamespace(
+            paved=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
+            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
+            grass=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
+            dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
+            evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
+            bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
+            water=SimpleNamespace(sfr=SimpleNamespace(value=0.05)),
+        ),
+        True,
+        "0.950000",
+        True,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "case_name,land_cover,expected_has_issues,expected_sum_str,check_details",
+    LAND_COVER_TEST_CASES,
+    ids=[case[0] for case in LAND_COVER_TEST_CASES],
+)
+def test_validate_land_cover_fractions(
+    case_name, land_cover, expected_has_issues, expected_sum_str, check_details
+):
+    """Test land cover fraction validation across all scenarios."""
     cfg = SUEWSConfig.model_construct()
-    has_issues = cfg._check_land_cover_fractions(None, "TestSite")
-    assert has_issues is False
-
-
-def test_validate_land_cover_fractions_sum_to_one():
-    """Test land cover fraction validation passes when fractions sum to 1.0."""
-    cfg = SUEWSConfig.model_construct()
-    # Create land cover with fractions that sum to 1.0
-    lc = SimpleNamespace(
-        paved=SimpleNamespace(sfr=SimpleNamespace(value=0.4)),
-        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
-        grass=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
-        dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-        evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-    )
-
-    has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
-    assert has_issues is False
-    assert cfg._validation_summary["total_warnings"] == 0
-
-
-def test_validate_land_cover_fractions_sum_too_high():
-    """Test land cover fraction validation detects fractions that sum > 1.0."""
-    cfg = SUEWSConfig.model_construct()
-    # Create land cover with fractions that sum to > 1.0
-    lc = SimpleNamespace(
-        paved=SimpleNamespace(sfr=SimpleNamespace(value=0.6)),
-        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
-        grass=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
-        dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-        evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-    )
-
-    has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
-    assert has_issues is True
-    assert cfg._validation_summary["total_warnings"] >= 1
-    assert "Land cover fraction validation" in cfg._validation_summary["issue_types"]
-    assert any(
-        "must sum to 1.0 within tolerance" in msg and "got 1.400000" in msg
-        for msg in cfg._validation_summary["detailed_messages"]
-    )
-
-
-def test_validate_land_cover_fractions_sum_too_low():
-    """Test land cover fraction validation detects fractions that sum < 1.0."""
-    cfg = SUEWSConfig.model_construct()
-    # Create land cover with fractions that sum to < 1.0
-    lc = SimpleNamespace(
-        paved=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
-        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
-        grass=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-        dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-    )
-
-    has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
-    assert has_issues is True
-    assert cfg._validation_summary["total_warnings"] >= 1
-    assert "Land cover fraction validation" in cfg._validation_summary["issue_types"]
-    assert any(
-        "must sum to 1.0 within tolerance" in msg and "got 0.600000" in msg
-        for msg in cfg._validation_summary["detailed_messages"]
-    )
-
-
-def test_validate_land_cover_fractions_handles_missing_surfaces():
-    """Test land cover fraction validation handles missing surface types."""
-    cfg = SUEWSConfig.model_construct()
-    # Create land cover with only some surface types
-    lc = SimpleNamespace(
-        paved=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
-        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
-        # Missing other surface types
-    )
-
-    has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
-    assert (
-        has_issues is False
-    )  # Sum is 1.0 (0.5 + 0.5 + 0.0 + 0.0 + 0.0 + 0.0 + 0.0 = 1.0)
-
-
-def test_validate_land_cover_fractions_handles_none_values():
-    """Test land cover fraction validation handles None sfr values."""
-    cfg = SUEWSConfig.model_construct()
-    # Create land cover with None sfr values
-    lc = SimpleNamespace(
-        paved=SimpleNamespace(sfr=None),
-        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=1.0)),
-        grass=SimpleNamespace(),  # No sfr attribute
-        dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-    )
-
-    has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
-    assert (
-        has_issues is False
-    )  # Sum is 1.0 (0.0 + 1.0 + 0.0 + 0.0 + 0.0 + 0.0 + 0.0 = 1.0)
-
-
-def test_validate_land_cover_fractions_handles_direct_values():
-    """Test land cover fraction validation handles direct (non-RefValue) values."""
-    cfg = SUEWSConfig.model_construct()
-    # Create land cover with direct values (not RefValue)
-    lc = SimpleNamespace(
-        paved=SimpleNamespace(sfr=0.4),  # Direct value
-        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),  # RefValue
-        grass=SimpleNamespace(sfr=0.2),  # Direct value
-        dectr=SimpleNamespace(sfr=0.1),  # Direct value
-        evetr=SimpleNamespace(sfr=0.0),
-        bsoil=SimpleNamespace(sfr=0.0),
-        water=SimpleNamespace(sfr=0.0),
-    )
-
-    has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
-    assert has_issues is False  # Sum is 1.0
-
-
-def test_validate_land_cover_fractions_detailed_message():
-    """Test land cover fraction validation provides detailed error message."""
-    cfg = SUEWSConfig.model_construct()
-    # Create land cover with fractions that sum to != 1.0
-    lc = SimpleNamespace(
-        paved=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
-        bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
-        grass=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-        dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-        evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-        bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-        water=SimpleNamespace(sfr=SimpleNamespace(value=0.05)),
-    )
-
-    has_issues = cfg._check_land_cover_fractions(lc, "TestSite")
-    assert has_issues is True
-
-    # Check detailed message contains all surface types
-    messages = cfg._validation_summary["detailed_messages"]
-    assert len(messages) >= 1
-    message = messages[0]
-    assert "TestSite" in message
-    assert "paved=0.300" in message
-    assert "bldgs=0.200" in message
-    assert "grass=0.100" in message
-    assert "got 0.950000" in message  # Sum is 0.95
-
-
-# """
-# Test cases for conditional validation system in SUEWS.
-
-# ===============================================================================
-# IMPORTANT NOTE FOR SILVIA (Issue #400):
-# ===============================================================================
-# These tests have been temporarily disabled because they expect the old
-# component-level validation approach. They need to be updated for the new
-# top-down validation system.
-
-# Key changes needed:
-# 1. Move all validation logic to SUEWSConfig.validate_parameter_completeness()
-# 2. Remove expectations of component-level warnings
-# 3. Use ValidationResult structure for reporting issues
-# 4. See NOTE_FOR_SILVIA_VALIDATION_UPDATE.md for migration guide
-
-# To re-enable: Remove the @pytest.mark.skip decorator from the test module
-# ===============================================================================
-
-# These tests verify that the conditional validation system correctly:
-# 1. Validates only relevant parameters based on enabled methods
-# 2. Skips validation for parameters of disabled methods
-# 3. Provides clear error messages for validation failures
-# 4. Integrates properly with from_yaml and to_df_state workflows
-# """
-
-# import pytest
-# import tempfile
-# import os
-# import yaml
-# import warnings
-
-# # Basic imports that should always work
-# from supy.data_model import SUEWSConfig
-# from supy.data_model.model import RSLMethod, RoughnessMethod
-# from supy.data_model.core.type import RefValue
-
-# # Skip all tests in this module until updated for new validation approach
-# pytestmark = pytest.mark.skip(
-#     reason="Needs update for new top-down validation approach (Issue #400 - Silvia)"
-# )
-
-
-# # Test if enhanced functionality is working
-# def test_suews_config_basic():
-#     """Test basic SUEWSConfig functionality works."""
-#     # Create config with at least one site
-#     config = SUEWSConfig(sites=[{
-#         "gridiv": 1,
-#         "properties": {
-#             "lat": {"value": 51.5},
-#             "lng": {"value": -0.1},
-#             "alt": {"value": 10.0},
-#             "timezone": {"value": 0}
-#         }
-#     }])
-#     assert config.name == "sample config"
-#     assert hasattr(config.model.physics, "rslmethod")
-
-#     # Test to_df_state works
-#     df_state = config.to_df_state()
-#     assert df_state is not None
-#     assert not df_state.empty
-
-
-# def test_suews_config_enhanced_methods():
-#     """Test that enhanced methods exist and can be called."""
-#     # Create config with at least one site
-#     config = SUEWSConfig(sites=[{
-#         "gridiv": 1,
-#         "properties": {
-#             "lat": {"value": 51.5},
-#             "lng": {"value": -0.1},
-#             "alt": {"value": 10.0},
-#             "timezone": {"value": 0}
-#         }
-#     }])
-
-#     # Test validation method exists
-#     assert hasattr(config, 'run_conditional_validation')
-#     # Test it can be called
-#     try:
-#         result = config.run_conditional_validation()
-#         assert hasattr(result, 'success')
-#         assert hasattr(result, 'errors')
-#     except Exception as e:
-#         pytest.fail(f"Could not run conditional validation: {e}")
-
-
-# def test_suews_config_different_rslmethods():
-#     """Test config can be created with different RSL methods."""
-#     # Test with CONSTANT
-#     config1 = SUEWSConfig(
-#         model={"physics": {"rslmethod": {"value": RSLMethod.CONSTANT}}},
-#         sites=[{
-#             "gridiv": 1,
-#             "properties": {
-#                 "lat": {"value": 51.5},
-#                 "lng": {"value": -0.1},
-#                 "alt": {"value": 10.0},
-#                 "timezone": {"value": 0}
-#             }
-#         }]
-#     )
-#     assert config1.model.physics.rslmethod.value == RSLMethod.CONSTANT
-
-#     # Test with VARIABLE
-#     config2 = SUEWSConfig(
-#         model={"physics": {"rslmethod": {"value": RSLMethod.VARIABLE}}},
-#         sites=[{
-#             "gridiv": 1,
-#             "properties": {
-#                 "lat": {"value": 51.5},
-#                 "lng": {"value": -0.1},
-#                 "alt": {"value": 10.0},
-#                 "timezone": {"value": 0}
-#             }
-#         }]
-#     )
-#     assert config2.model.physics.rslmethod.value == RSLMethod.VARIABLE
-
-
-# def test_yaml_loading_basic():
-#     """Test loading a basic configuration from YAML."""
-#     yaml_content = """
-# model:
-#   physics:
-#     rslmethod: {value: 2}  # CONSTANT
-# sites:
-#   - gridiv: 1
-#     properties:
-#       lat: {value: 51.5}
-#       lng: {value: -0.1}
-#       alt: {value: 10.0}
-#       timezone: {value: 0}
-# """
-
-#     with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
-#         f.write(yaml_content)
-#         temp_path = f.name
-
-#     try:
-#         config = SUEWSConfig.from_yaml(temp_path)
-#         assert config.model.physics.rslmethod.value == RSLMethod.CONSTANT
-#         assert len(config.sites) == 1
-#     finally:
-#         os.unlink(temp_path)
-
-
-# def test_conditional_validation_warnings():
-#     """Test that warnings are generated for missing parameters based on enabled methods."""
-#     # This test expects warnings - which should now come from top-level validation
-#     yaml_content = """
-# model:
-#   physics:
-#     rslmethod: {value: 4}  # VARIABLE - requires variable roughness parameters
-# sites:
-#   - gridiv: 1
-#     properties:
-#       lat: {value: 51.5}
-#       lng: {value: -0.1}
-#       alt: {value: 10.0}
-#       timezone: {value: 0}
-#       # Missing variable roughness parameters
-# """
-
-#     with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
-#         f.write(yaml_content)
-#         temp_path = f.name
-
-#     try:
-#         with warnings.catch_warnings(record=True) as w:
-#             warnings.simplefilter("always")
-#             config = SUEWSConfig.from_yaml(temp_path)
-
-#             # Run validation
-#             result = config.run_conditional_validation()
-
-#             # Should have validation errors for missing variable roughness params
-#             assert not result.success
-#             assert len(result.errors) > 0
-
-#             # Check for specific missing parameters
-#             error_msgs = [e.message for e in result.errors]
-#             assert any("variable roughness" in msg.lower() for msg in error_msgs)
-#     finally:
-#         os.unlink(temp_path)
-
-
-# def test_backward_compatibility():
-#     """Test that old-style validation still works for existing code."""
-#     # Create a config that should trigger validation
-#     config = SUEWSConfig(
-#         model={"physics": {"rslmethod": {"value": RSLMethod.VARIABLE}}},
-#         sites=[{
-#             "gridiv": 1,
-#             "properties": {
-#                 "lat": {"value": 51.5},
-#                 "lng": {"value": -0.1},
-#                 "alt": {"value": 10.0},
-#                 "timezone": {"value": 0}
-#                 # Missing variable roughness parameters
-#             }
-#         }]
-#     )
-
-#     # Should be able to run validation
-#     result = config.run_conditional_validation()
-#     assert hasattr(result, 'success')
-#     assert hasattr(result, 'errors')
-
-#     # Should fail due to missing parameters
-#     assert not result.success
-
-
-# def test_storage_heat_validation():
-#     """Test validation for StorageHeatMethod configurations."""
-#     # Test ESTM method requires thermal parameters
-#     yaml_content = """
-# model:
-#   physics:
-#     storageheatmethod: {value: 4}  # ESTM - requires thermal parameters
-# sites:
-#   - gridiv: 1
-#     properties:
-#       lat: {value: 51.5}
-#       lng: {value: -0.1}
-#       alt: {value: 10.0}
-#       timezone: {value: 0}
-#       land_cover:
-#         paved:
-#           sfr: {value: 0.5}
-#           # Missing thermal_layers
-# """
-
-#     with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
-#         f.write(yaml_content)
-#         temp_path = f.name
-
-#     try:
-#         config = SUEWSConfig.from_yaml(temp_path)
-#         result = config.run_conditional_validation()
-
-#         # Should fail due to missing thermal parameters
-#         assert not result.success
-#         assert any("thermal" in e.message.lower() for e in result.errors)
-#     finally:
-#         os.unlink(temp_path)
-
-
-# def test_netradiation_validation():
-#     """Test validation for NetRadiationMethod configurations."""
-#     # Test SPARTACUS method requires specific parameters
-#     yaml_content = """
-# model:
-#   physics:
-#     netradiationmethod: {value: 1003}  # SPARTACUS requires additional params
-# sites:
-#   - gridiv: 1
-#     properties:
-#       lat: {value: 51.5}
-#       lng: {value: -0.1}
-#       alt: {value: 10.0}
-#       timezone: {value: 0}
-#       # Missing SPARTACUS parameters
-# """
-
-#     with tempfile.NamedTemporaryFile(mode='w', suffix='.yml', delete=False) as f:
-#         f.write(yaml_content)
-#         temp_path = f.name
-
-#     try:
-#         config = SUEWSConfig.from_yaml(temp_path)
-#         result = config.run_conditional_validation()
-
-#         # Should fail due to missing SPARTACUS parameters
-#         assert not result.success
-#         assert any("spartacus" in e.message.lower() for e in result.errors)
-#     finally:
-#         os.unlink(temp_path)
-
-
-# def test_comprehensive_method_combinations():
-#     """Test various combinations of method settings."""
-#     test_cases = [
-#         # (rslmethod, roughnessmethod, storageheatmethod, netradiationmethod, should_pass)
-#         (RSLMethod.CONSTANT, RoughnessMethod.FIXED, 1, 1, True),  # Basic config
-#         (RSLMethod.VARIABLE, RoughnessMethod.VARIABLE, 1, 1, False),  # Missing var roughness
-#         (RSLMethod.CONSTANT, RoughnessMethod.FIXED, 4, 1, False),  # ESTM without thermal
-#         (RSLMethod.CONSTANT, RoughnessMethod.FIXED, 1, 1003, False),  # SPARTACUS without params
-#     ]
-
-#     for rsl, rough, storage, netrad, should_pass in test_cases:
-#         config = SUEWSConfig(
-#             model={
-#                 "physics": {
-#                     "rslmethod": {"value": rsl},
-#                     "roughnessmethod": {"value": rough},
-#                     "storageheatmethod": {"value": storage},
-#                     "netradiationmethod": {"value": netrad}
-#                 }
-#             },
-#             sites=[{
-#                 "gridiv": 1,
-#                 "properties": {
-#                     "lat": {"value": 51.5},
-#                     "lng": {"value": -0.1},
-#                     "alt": {"value": 10.0},
-#                     "timezone": {"value": 0}
-#                 }
-#             }]
-#         )
-
-#         result = config.run_conditional_validation()
-#         assert result.success == should_pass, (
-#             f"Test case failed: RSL={rsl}, Rough={rough}, Storage={storage}, "
-#             f"NetRad={netrad}, expected success={should_pass}"
-#         )
-
-
-# def test_integration_summary():
-#     """Test that validation summary provides useful information."""
-#     # Create a config with multiple validation issues
-#     config = SUEWSConfig(
-#         model={
-#             "physics": {
-#                 "rslmethod": {"value": RSLMethod.VARIABLE},
-#                 "roughnessmethod": {"value": RoughnessMethod.VARIABLE},
-#                 "storageheatmethod": {"value": 4},  # ESTM
-#                 "netradiationmethod": {"value": 1003}  # SPARTACUS
-#             }
-#         },
-#         sites=[{
-#             "gridiv": 1,
-#             "properties": {
-#                 "lat": {"value": 51.5},
-#                 "lng": {"value": -0.1},
-#                 "alt": {"value": 10.0},
-#                 "timezone": {"value": 0}
-#             }
-#         }]
-#     )
-
-#     result = config.run_conditional_validation()
-
-#     # Should have multiple types of errors
-#     assert not result.success
-#     assert len(result.errors) > 1
-
-#     # Check summary information
-#     assert hasattr(result, 'get_summary')
-#     summary = result.get_summary()
-#     assert "variable roughness" in summary.lower()
-#     assert "thermal" in summary.lower()
-#     assert "spartacus" in summary.lower()
+    has_issues = cfg._check_land_cover_fractions(land_cover, "TestSite")
+    assert has_issues is expected_has_issues
+
+    if expected_has_issues:
+        assert cfg._validation_summary["total_warnings"] >= 1
+        assert (
+            "Land cover fraction validation" in cfg._validation_summary["issue_types"]
+        )
+        if expected_sum_str:
+            assert any(
+                "must sum to 1.0 within tolerance" in msg and expected_sum_str in msg
+                for msg in cfg._validation_summary["detailed_messages"]
+            )
+        if check_details:
+            messages = cfg._validation_summary["detailed_messages"]
+            assert len(messages) >= 1
+            message = messages[0]
+            assert "TestSite" in message
+            assert "paved=0.300" in message
+            assert "bldgs=0.200" in message
+            assert "grass=0.100" in message
+    elif case_name == "sum_to_one":
+        assert cfg._validation_summary["total_warnings"] == 0
 
 
 # From test_validation_topdown.py
@@ -833,6 +471,10 @@ sites:
             handler = logging.StreamHandler(log_capture)
             handler.setLevel(logging.WARNING)
             logger = logging.getLogger("SuPy")
+
+            # Ensure logger level allows WARNING messages
+            original_level = logger.level
+            logger.setLevel(logging.WARNING)
             logger.addHandler(handler)
 
             # Load config
@@ -845,6 +487,7 @@ sites:
             assert "generate_annotated_yaml" in log_output
 
             logger.removeHandler(handler)
+            logger.setLevel(original_level)
 
         finally:
             yaml_path.unlink()
@@ -1169,8 +812,8 @@ def test_phase_b_model_option_dependencies_comprehensive():
     assert isinstance(results, list)  # Should return a list, not crash
 
 
-def test_phase_b_outdoor_air_annual_temperature_from_cru():
-    """Test that OutdoorAirAnnualTemperature is populated from CRU annual mean data."""
+def test_phase_b_deep_soil_temperature_from_cru():
+    """Test that DeepSoilTemperature is populated from CRU annual mean data."""
     from supy.data_model.validation.pipeline.phase_b import (
         adjust_surface_temperatures,
         get_mean_annual_air_temperature,
@@ -1197,10 +840,10 @@ def test_phase_b_outdoor_air_annual_temperature_from_cru():
                     "lat": {"value": test_lat},
                     "lng": {"value": test_lon},
                     "stebbs": {
-                        "OutdoorAirAnnualTemperature": {
+                        "DeepSoilTemperature": {
                             "value": 999.0
                         },  # Wrong value to be updated
-                        "OutdoorAirStartTemperature": {
+                        "InitialOutdoorTemperature": {
                             "value": 999.0
                         },  # Will be updated with monthly temp
                     },
@@ -1213,9 +856,9 @@ def test_phase_b_outdoor_air_annual_temperature_from_cru():
     # Run adjustment
     updated_data, adjustments = adjust_surface_temperatures(yaml_data, start_date)
 
-    # Check that OutdoorAirAnnualTemperature was updated
+    # Check that DeepSoilTemperature was updated
     updated_annual_temp = updated_data["sites"][0]["properties"]["stebbs"][
-        "OutdoorAirAnnualTemperature"
+        "DeepSoilTemperature"
     ]["value"]
     assert updated_annual_temp == annual_temp, (
         f"Expected {annual_temp}, got {updated_annual_temp}"
@@ -1223,9 +866,7 @@ def test_phase_b_outdoor_air_annual_temperature_from_cru():
 
     # Check that adjustment was recorded
     annual_temp_adjustments = [
-        adj
-        for adj in adjustments
-        if adj.parameter == "stebbs.OutdoorAirAnnualTemperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.DeepSoilTemperature"
     ]
     assert len(annual_temp_adjustments) == 1
     adj = annual_temp_adjustments[0]
@@ -1235,8 +876,8 @@ def test_phase_b_outdoor_air_annual_temperature_from_cru():
     assert "1991-2020" in adj.reason
 
 
-def test_phase_b_outdoor_air_annual_temperature_no_update_if_same():
-    """Test that OutdoorAirAnnualTemperature is not updated if already correct."""
+def test_phase_b_deep_soil_temperature_no_update_if_same():
+    """Test that DeepSoilTemperature is not updated if already correct."""
     from supy.data_model.validation.pipeline.phase_b import (
         adjust_surface_temperatures,
         get_mean_annual_air_temperature,
@@ -1263,7 +904,7 @@ def test_phase_b_outdoor_air_annual_temperature_no_update_if_same():
                     "lat": {"value": test_lat},
                     "lng": {"value": test_lon},
                     "stebbs": {
-                        "OutdoorAirAnnualTemperature": {
+                        "DeepSoilTemperature": {
                             "value": annual_temp
                         },  # Already correct
                     },
@@ -1278,17 +919,15 @@ def test_phase_b_outdoor_air_annual_temperature_no_update_if_same():
 
     # Check that NO adjustment was made (value already correct)
     annual_temp_adjustments = [
-        adj
-        for adj in adjustments
-        if adj.parameter == "stebbs.OutdoorAirAnnualTemperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.DeepSoilTemperature"
     ]
     assert len(annual_temp_adjustments) == 0, (
         "Should not adjust if value already correct"
     )
 
 
-def test_phase_b_outdoor_air_annual_temperature_missing_stebbs():
-    """Test graceful handling when OutdoorAirAnnualTemperature is not in stebbs."""
+def test_phase_b_deep_soil_temperature_missing_stebbs():
+    """Test graceful handling when DeepSoilTemperature is not in stebbs."""
     from supy.data_model.validation.pipeline.phase_b import adjust_surface_temperatures
 
     # Test coordinates
@@ -1296,7 +935,7 @@ def test_phase_b_outdoor_air_annual_temperature_missing_stebbs():
     test_lon = -0.1
     start_date = "2020-01-15"
 
-    # Create test YAML without OutdoorAirAnnualTemperature
+    # Create test YAML without DeepSoilTemperature
     yaml_data = {
         "sites": [
             {
@@ -1304,10 +943,8 @@ def test_phase_b_outdoor_air_annual_temperature_missing_stebbs():
                     "lat": {"value": test_lat},
                     "lng": {"value": test_lon},
                     "stebbs": {
-                        "OutdoorAirStartTemperature": {
-                            "value": 10.0
-                        },  # Other param present
-                        # OutdoorAirAnnualTemperature NOT present
+                        "InitialOutdoorTemperature": {"value": 10.0},
+                        # DeepSoilTemperature NOT present
                     },
                 },
                 "initial_states": {},
@@ -1318,11 +955,9 @@ def test_phase_b_outdoor_air_annual_temperature_missing_stebbs():
     # Run adjustment - should not crash
     updated_data, adjustments = adjust_surface_temperatures(yaml_data, start_date)
 
-    # Check that no OutdoorAirAnnualTemperature adjustment was attempted
+    # Check that no DeepSoilTemperature adjustment was attempted
     annual_temp_adjustments = [
-        adj
-        for adj in adjustments
-        if adj.parameter == "stebbs.OutdoorAirAnnualTemperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.DeepSoilTemperature"
     ]
     assert len(annual_temp_adjustments) == 0
 
@@ -2397,8 +2032,8 @@ def test_dls_leap_year_validation_in_suews_config():
     assert "366" in str(exc_info.value)
 
 
-def test_dls_hemisphere_informational_messages_in_suews_config():
-    """Test DLS hemisphere informational messages are collected in validation_summary."""
+def test_dls_location_based_informational_messages_in_suews_config():
+    """Test DLS location-based comparison messages are collected in validation_summary."""
     import pytest
     import yaml
     from supy.data_model.core import SUEWSConfig
@@ -2407,74 +2042,72 @@ def test_dls_hemisphere_informational_messages_in_suews_config():
     with sample_path.open() as f:
         config_data = yaml.safe_load(f)
 
-    # Set year to avoid leap year issues
+    # Set year to 2024 (leap year) and add site name
     config_data["model"]["control"]["start_time"] = "2024-01-01T00:00:00"
+    config_data["sites"][0]["name"] = "TestSite"
 
-    # Test 1: Northern Hemisphere with typical DST pattern (no info message)
+    # Test 1: Correct DLS values for London (should match calculated values, no info message)
+    # For London (51.5, -0.12) in 2024, DST starts at DOY 91 and ends at DOY 301
     config_data["sites"][0]["properties"]["lat"] = 51.5  # London
-    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = (
-        86  # Late March (typical for NH)
-    )
-    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = (
-        300  # Late October (typical for NH)
-    )
+    config_data["sites"][0]["properties"]["lng"] = -0.12
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = 91
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = 301
 
     config = SUEWSConfig(**config_data)
     assert config is not None
 
-    # Check that no hemisphere warnings were generated (values are typical)
+    # Check that no DLS comparison messages were generated (values match calculated)
     if hasattr(config, "_validation_summary"):
-        detailed_messages = config._validation_summary.get("detailed_messages", [])
-        hemisphere_messages = [
-            msg for msg in detailed_messages if "Unusual DST pattern" in msg
-        ]
-        assert len(hemisphere_messages) == 0, (
-            "Should not generate message for typical NH DST pattern"
+        info_messages = config._validation_summary.get("info_messages", [])
+        dls_messages = [msg for msg in info_messages if "DLS values differ" in msg]
+        assert len(dls_messages) == 0, (
+            "Should not generate message when user values match calculated values"
         )
 
-    # Test 2: Northern Hemisphere with unusual DST pattern (should generate info message)
-    config_data["sites"][0]["properties"]["lat"] = 51.5  # London
-    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = (
-        200  # July (unusual for NH start)
-    )
-    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = (
-        150  # May (unusual for NH end)
-    )
+    # Test 2: Incorrect DLS values (should generate info messages for both startdls and enddls)
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = 15
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = 200
 
     config = SUEWSConfig(**config_data)
     assert config is not None
 
-    # Check that hemisphere info messages were generated
+    # Check that DLS comparison info messages were generated
     assert hasattr(config, "_validation_summary")
-    detailed_messages = config._validation_summary.get("detailed_messages", [])
-    hemisphere_messages = [
-        msg for msg in detailed_messages if "Unusual DST pattern" in msg
-    ]
-    assert len(hemisphere_messages) > 0, (
-        "Should generate info message for unusual NH DST pattern"
+    info_messages = config._validation_summary.get("info_messages", [])
+    dls_messages = [msg for msg in info_messages if "DLS values differ" in msg]
+    assert len(dls_messages) == 2, (
+        "Should generate separate info messages for startdls and enddls"
     )
-    assert "Northern Hemisphere" in hemisphere_messages[0]
-    assert "startdls=200" in hemisphere_messages[0]
-    assert "enddls=150" in hemisphere_messages[0]
 
-    # Test 3: Southern Hemisphere with unusual DST pattern
-    config_data["sites"][0]["properties"]["lat"] = -33.9  # Sydney
-    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = (
-        86  # Late March (unusual for SH start, typical for NH)
-    )
+    # Check startdls message
+    startdls_messages = [msg for msg in dls_messages if "startdls for site" in msg]
+    assert len(startdls_messages) == 1
+    assert "TestSite" in startdls_messages[0]
+    assert "lat=51.50" in startdls_messages[0]
+    assert "lng=-0.12" in startdls_messages[0]
+    assert "15" in startdls_messages[0]  # User value
+    assert "91" in startdls_messages[0]  # Calculated value
+
+    # Check enddls message
+    enddls_messages = [msg for msg in dls_messages if "enddls for site" in msg]
+    assert len(enddls_messages) == 1
+    assert "TestSite" in enddls_messages[0]
+    assert "200" in enddls_messages[0]  # User value
+    assert "301" in enddls_messages[0]  # Calculated value
+
+    # Test 3: Only startdls differs (should generate only one info message)
+    config_data["sites"][0]["properties"]["anthropogenic_emissions"]["startdls"] = 50
     config_data["sites"][0]["properties"]["anthropogenic_emissions"]["enddls"] = (
-        300  # Late October (unusual for SH end, typical for NH)
+        301  # Correct
     )
 
     config = SUEWSConfig(**config_data)
     assert config is not None
 
-    # Check that hemisphere info messages were generated
-    detailed_messages = config._validation_summary.get("detailed_messages", [])
-    hemisphere_messages = [
-        msg for msg in detailed_messages if "Unusual DST pattern" in msg
-    ]
-    assert len(hemisphere_messages) > 0, (
-        "Should generate info message for unusual SH DST pattern"
+    info_messages = config._validation_summary.get("info_messages", [])
+    dls_messages = [msg for msg in info_messages if "DLS values differ" in msg]
+    assert len(dls_messages) == 1, (
+        "Should generate only one message when only startdls differs"
     )
-    assert "Southern Hemisphere" in hemisphere_messages[0]
+    assert "startdls for site" in dls_messages[0]
+    assert "enddls for site" not in dls_messages[0]

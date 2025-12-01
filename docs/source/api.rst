@@ -15,6 +15,7 @@ The Python interface provides the complete API for SUEWS with comprehensive func
    api/command-line
    api/python-cli-equivalents
    api/data-structures
+   api/io-data-structures
    api/converter
 
 **Object-Oriented Interface**

@@ -61,19 +61,19 @@ Get started immediately with the :ref:`Getting Started with SUEWS <Workflow>` gu
 
 **For existing users:**
 
-- **Migration guide**: :ref:`Transition from table-based inputs <inputs/transition_guide>` to modern YAML configuration
+- **Migration guide**: :ref:`Transition from table-based inputs <transition_guide>` to modern YAML configuration
 - **Version changes**: See :ref:`new_latest` for updates in this version
 - **Legacy support**: The :doc:`SUEWS Format Converter <inputs/converter>` helps convert existing input files
 
 **Scientific Background:**
 
-Before performing SUEWS simulations, users should understand the :ref:`physical principles <parameterisations-and-sub-models>` and review `input requirements <input_files>` for their specific application.
+Before performing SUEWS simulations, users should understand the :ref:`physical principles <physics_schemes>` and review `input requirements <input_files>` for their specific application.
 
 
 How to get help in using SUEWS?
 ---------------------------------------------
 
-Please let us know in the `UMEP Community`_.
+Please let us know in the `SUEWS Discussion Channel`_.
 The developers and other users are willing to help you.
 
 
@@ -132,9 +132,8 @@ How to support SUEWS?
    workflow
    sub-tutorials/tutorials
    inputs/index
-   output_files/output_files
+   outputs/index
    api
-   data-structures/supy-io
    integration/index
    troubleshooting
    benchmark/benchmark_report
@@ -172,4 +171,4 @@ How to support SUEWS?
    :hidden:
 
    community_publications
-   GitHub discussion <https://github.com/UMEP-dev/UMEP/discussions>
+   GitHub discussion <https://github.com/UMEP-dev/SUEWS/discussions>

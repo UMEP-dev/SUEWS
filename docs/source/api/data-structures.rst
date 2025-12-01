@@ -36,17 +36,15 @@ All SUEWS data uses pandas DataFrames with proper indexing, allowing powerful da
 
 .. code-block:: python
 
-   import supy as sp
+   from supy import SUEWSSimulation
 
-   # Load sample data
-   df_state, df_forcing = sp.load_sample_data()
-
-   # Run simulation
-   df_output, df_state_final = sp.run_supy(df_forcing, df_state)
+   # Load sample data and run simulation
+   sim = SUEWSSimulation.from_sample_data()
+   sim.run()
 
    # Analyse results using pandas
-   monthly_temp = df_output['T2'].resample('M').mean()
-   energy_balance = df_output[['QE', 'QH', 'QS', 'QF']].describe()
+   monthly_temp = sim.results['T2'].resample('M').mean()
+   energy_balance = sim.results[['QE', 'QH', 'QS', 'QF']].describe()
 
 Benefits of DataFrame Structure
 --------------------------------
@@ -60,5 +58,6 @@ Benefits of DataFrame Structure
 Related Documentation
 ---------------------
 
+- :doc:`io-data-structures` - Overview of key IO data structures
 - `pandas documentation <https://pandas.pydata.org/docs/>`_ - Official pandas guide
 - :doc:`/tutorials/python/tutorial` - Python tutorials with DataFrame examples

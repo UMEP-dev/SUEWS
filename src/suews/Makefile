@@ -142,9 +142,6 @@ export LIBS    = $(DEBUGFLAGS) $(LDFLAGS) \
 clean: suffix :=
 clean: TARGET := $(strip $(TARGET))$(strip $(suffix))
 
-# WRF coupling (SuMin) related options
-sumin: FFLAGS += -Dwrf=1
-
 
 ###################################
 ###  -- SOURCE CODE GROUPS  --  ###
@@ -156,6 +153,19 @@ sumin: FFLAGS += -Dwrf=1
 # NB: DO KEEP ALL FILE NAMES in lowercase for compatability across platforms
 # utilities
 UTILS = suews_ctrl_const.o \
+	suews_type_stebbs.o \
+	suews_type_surface.o \
+	suews_type_vegetation.o \
+	suews_type_anthro.o \
+	suews_type_waterdist.o \
+	suews_type_snow.o \
+	suews_type_spartacus.o \
+	suews_type_ehc.o \
+	suews_type_heat.o \
+	suews_type_hydro.o \
+	suews_type_atmosphere.o \
+	suews_type_soil.o \
+	suews_type_landcover.o \
 	suews_ctrl_type.o \
 	suews_util_stringmod.o \
 	suews_util_qsort.o\
@@ -179,7 +189,6 @@ PHYS =	suews_phys_narp.o \
 	suews_phys_ehc.o \
 	suews_phys_estm.o \
 	suews_ctrl_ver.o \
-	suews_ctrl_output.o \
 	suews_phys_ohm.o \
 	suews_phys_anohm.o \
 	suews_phys_lumps.o \
@@ -201,9 +210,6 @@ DRIVER = suews_ctrl_driver.o
 
 # modules under rapid development
 TEST =
-
-# modules for WRF coupling
-WRF =  suews_ctrl_sumin.o
 
 #############################
 ### --- EXTERNAL LIBS --- ###
@@ -376,10 +382,6 @@ $(OTHERS): $(UTILS) $(PHYS) $(subst .o,$(suffix_code), $(OTHERS))
 
 # If TEST have changed, compile them again
 $(TEST): $(subst .o,$(suffix_code), $(TEST))
-
-# WRF coupling required files
-$(WRF): $(subst .o,$(suffix_code), $(WRF))
-
 
 
 .PHONY: libutil libphys libdriver exe clean-toplevel test force

@@ -62,12 +62,8 @@ class TestCsvFileConversion:
     @pytest.fixture
     def old_csv_path(self):
         """Path to the provided old format CSV."""
-        # Use the fixture file in the test directory
-        csv_path = Path("test/fixtures/legacy_format/old_df_state.csv")
-        if csv_path.exists():
-            return csv_path
-        else:
-            pytest.skip("Test CSV file not available")
+        # Use __file__-based path to work regardless of CWD
+        return Path(__file__).parent.parent / "fixtures/legacy_format/old_df_state.csv"
 
     def test_load_old_csv(self, old_csv_path):
         """Test loading the provided old CSV file."""
@@ -92,9 +88,55 @@ class TestCsvFileConversion:
 
         # Check structure
         assert len(df_new) == len(df_old)
-        assert (
-            len(df_new.columns) == 1423
-        )  # New format has 1423 columns (1420 + 3 view factors from master)
+
+        # Avoid brittle total-column assertions or add here a more robust/reproducible logic to calculate len df_new columns.
+        # Verify specific expected changes:
+        def top_name(col):
+            return (col[0] if isinstance(col, tuple) else col).lower()
+
+        new_names = {top_name(c) for c in df_new.columns}
+
+        # consolidated outdoor parameter present
+        assert "initialoutdoortemperature" in new_names
+        # consolidated indoor parameter present
+        assert "initialindoortemperature" in new_names
+
+        # old per-surface OUTDOOR parameters removed
+        for removed in (
+            "walloutdoorsurfacetemperature",
+            "windowoutdoorsurfacetemperature",
+            "roofoutdoorsurfacetemperature",
+            "outdoorairstarttemperature",
+        ):
+            assert removed not in new_names
+        # old per-surface INDOOR parameters removed
+        for removed in (
+            "indoorairstarttemperature",
+            "externalwalldhwvesseltemperature",
+            "externalwallwatertanktemperature",
+            "groundfloorindoorsurfacetemperature",
+            "indoormassstarttemperature",
+            "roofindoorsurfacetemperature",
+            "wallindoorsurfacetemperature",
+            "windowindoorsurfacetemperature",
+        ):
+            assert removed not in new_names
+
+        # old hot water INDOOR parameters removed
+        for removed in (
+            "domestichotwatertemperatureinuseinbuilding",
+            "internalwalldhwvesseltemperature",
+            "watertanktemperature",
+            "internalwallwatertanktemperature",
+        ):
+            assert removed not in new_names
+
+        # old deep soil parameter removed
+        for removed in (
+            "groundflooroutdoorsurfacetemperature",
+            "outdoorairannualtemperature",
+        ):
+            assert removed not in new_names
 
         # Check old columns removed
         col_names = {

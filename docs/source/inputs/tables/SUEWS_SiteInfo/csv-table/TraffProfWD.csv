@@ -1,2 +1,2 @@
 "Referencing Table","Requirement","Comment"
-"`SUEWS_AnthropogenicEmission.txt`","`O`","Used with EmissionMethod=4 to calculate CO2 and heat emissions."
+"`SUEWS_AnthropogenicEmission.txt`","`O`","Used with EmissionsMethod=4 to calculate CO2 and heat emissions."

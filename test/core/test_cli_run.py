@@ -2,12 +2,35 @@
 
 Tests YAML and namelist format support, auto-detection,
 backward compatibility, and deprecation warnings.
+
+Note on editable installs:
+    With meson-python editable installs, the first import of the supy package
+    triggers a build check via ninja (10-20+ seconds). CI should use wheel-based
+    installs (`pip install .`) to avoid this overhead. Tests that require fast
+    CLI responses are skipped when running in editable mode.
 """
 
 import subprocess
 import tempfile
 from pathlib import Path
 import pytest
+
+
+def _is_editable_install():
+    """Check if supy is installed in editable mode."""
+    import site
+
+    for sp in site.getsitepackages() + [site.getusersitepackages() or ""]:
+        if sp and (Path(sp) / "_supy_editable_loader.py").exists():
+            return True
+    return False
+
+
+# Skip marker for tests that need fast CLI responses
+skip_if_editable = pytest.mark.skipif(
+    _is_editable_install(),
+    reason="Skipped in editable mode - ninja rebuild adds 10-20s overhead. Use wheel install for CI.",
+)
 
 
 class TestCLIRun:
@@ -50,7 +73,7 @@ class TestCLIRun:
         check : bool, optional
             Whether to raise on non-zero exit code
         timeout : int, optional
-            Timeout in seconds
+            Timeout in seconds (default 120 to accommodate editable install rebuild)
 
         Returns
         -------
@@ -165,13 +188,14 @@ sites:
             cwd=str(tmp_path),
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=120,
             check=False,
         )
 
         if result.returncode == 0:
             assert "Using default configuration: config.yml" in result.stdout
 
+    @skip_if_editable
     def test_no_default_file_error(self, tmp_path):
         """Test error when no default config file exists."""
         # Run in empty temp directory

@@ -41,7 +41,7 @@
   - Skills now single source of truth for all Claude Code knowledge
   - Commands are thin wrappers that invoke skills with dynamic context
   - Consolidated: howto/, reference/, templates/, agents/ → skills/
-  - Added new skills: `review-pr`, `design-tests`, `check-naming`, `apply-patterns`
+  - Added new skills: `audit-pr`, `design-tests`, `check-naming`, `apply-patterns`
   - Enhanced `lint-code` skill with RST and Markdown conventions
   - Updated `validate-claude-md.py` for new directory structure
 

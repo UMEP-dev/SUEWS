@@ -863,10 +863,14 @@ class GrassProperties(VegetatedSurfaceProperties):
                 self.alb.value if isinstance(self.alb, RefValue) else self.alb
             ),
             ("albmin_grass", "0"): (
-                self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
+                self.alb_min.value
+                if isinstance(self.alb_min, RefValue)
+                else self.alb_min
             ),
             ("albmax_grass", "0"): (
-                self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
+                self.alb_max.value
+                if isinstance(self.alb_max, RefValue)
+                else self.alb_max
             ),
         }
 

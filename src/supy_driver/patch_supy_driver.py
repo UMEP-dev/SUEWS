@@ -59,7 +59,9 @@ except ImportError:
                 # Then accesses: f90wrap.runtime.FortranDerivedType, etc.
                 # We redirect to the vendored copy
                 elif "import f90wrap.runtime" in line:
-                    lines[i] = """# Redirected to vendored f90wrap runtime (eliminates pip dependency)
+                    lines[
+                        i
+                    ] = """# Redirected to vendored f90wrap runtime (eliminates pip dependency)
 import sys
 from supy._vendor import f90wrap as _vendored_f90wrap
 # Create a fake f90wrap module structure so f90wrap.runtime.X works

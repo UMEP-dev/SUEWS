@@ -27,9 +27,9 @@ except ImportError:  # pragma: no cover
     logger_supy = logging.getLogger("SuPy")
 
 MISSING_VALUE = -999.0
-# Surface index used for soil observation metadata (paved=0 by convention)
-# Users only need to set metadata on this surface; other surfaces are ignored.
-SOIL_OBS_SURFACE_INDEX = 0
+# Non-water surface indices (0=paved, 1=bldgs, 2=evetr, 3=dectr, 4=grass, 5=bsoil)
+# Water (6) is excluded as it has no soil store.
+NON_WATER_SURFACE_INDICES = range(6)
 
 
 @dataclass(frozen=True)
@@ -187,15 +187,14 @@ def _convert_xsmd_series(
 
 
 def _extract_soil_obs_metadata(row: pd.Series, grid: int) -> SoilObservationMetadata:
-    """Extract soil observation metadata from the designated surface.
+    """Extract soil observation metadata from the first surface with complete data.
 
-    Observed soil moisture is a single point measurement, so we only read
-    metadata from one surface (index 0 by convention). Users should set
-    the observation parameters on this surface; other surfaces are ignored.
+    Observed soil moisture is a single point measurement. We search through
+    non-water surfaces (0-5) and use the first one with complete observation
+    metadata. Users should set their observation parameters on any one surface.
     """
-    surf = SOIL_OBS_SURFACE_INDEX
 
-    def get_value(column: str) -> Optional[float]:
+    def get_value(column: str, surf: int) -> Optional[float]:
         key = (column, f"({surf},)")
         if key not in row.index:
             return None
@@ -204,46 +203,53 @@ def _extract_soil_obs_metadata(row: pd.Series, grid: int) -> SoilObservationMeta
             return None
         return float(val)
 
-    depth = get_value("obs_sm_depth")
-    smcap = get_value("obs_sm_cap")
-    soil_not_rocks = get_value("obs_soil_not_rocks")
-    soil_density = get_value("soildensity")
+    def try_surface(surf: int) -> Optional[SoilObservationMetadata]:
+        """Try to extract complete metadata from a surface, return None if incomplete."""
+        depth = get_value("obs_sm_depth", surf)
+        smcap = get_value("obs_sm_cap", surf)
+        soil_not_rocks = get_value("obs_soil_not_rocks", surf)
+        soil_density = get_value("soildensity", surf)
 
-    missing = []
-    if depth is None:
-        missing.append("obs_sm_depth")
-    if smcap is None:
-        missing.append("obs_sm_cap")
-    if soil_not_rocks is None:
-        missing.append("obs_soil_not_rocks")
-    if soil_density is None:
-        missing.append("soildensity")
+        # All four must be present for a complete metadata set
+        if any(v is None for v in (depth, smcap, soil_not_rocks, soil_density)):
+            return None
 
-    if missing:
-        raise ValueError(
-            f"Observed soil moisture requires metadata for grid {grid} "
-            f"(surface index {surf}): {', '.join(missing)}. "
-            "Set these values in SUEWS_Soil.txt or YAML config."
+        return SoilObservationMetadata(
+            depth_mm=depth,
+            smcap=smcap,
+            soil_density=soil_density,
+            soil_not_rocks=soil_not_rocks,
         )
 
-    if depth <= 0:
-        raise ValueError(
-            f"`obs_sm_depth` must be positive for grid {grid}. Got {depth}."
-        )
-    if not (0 < soil_not_rocks <= 1):
-        raise ValueError(
-            f"`obs_soil_not_rocks` must be in (0, 1]. Grid {grid} has {soil_not_rocks}."
-        )
-    if smcap <= 0:
-        raise ValueError(f"`obs_sm_cap` must be positive for grid {grid}. Got {smcap}.")
-    if soil_density <= 0:
-        raise ValueError(
-            f"`soildensity` must be positive for grid {grid}. Got {soil_density}."
-        )
+    # Search through non-water surfaces for first with complete metadata
+    for surf in NON_WATER_SURFACE_INDICES:
+        meta = try_surface(surf)
+        if meta is not None:
+            # Validate the extracted values
+            if meta.depth_mm <= 0:
+                raise ValueError(
+                    f"`obs_sm_depth` must be positive for grid {grid}. Got {meta.depth_mm}."
+                )
+            if not (0 < meta.soil_not_rocks <= 1):
+                raise ValueError(
+                    f"`obs_soil_not_rocks` must be in (0, 1]. Grid {grid} has {meta.soil_not_rocks}."
+                )
+            if meta.smcap <= 0:
+                raise ValueError(
+                    f"`obs_sm_cap` must be positive for grid {grid}. Got {meta.smcap}."
+                )
+            if meta.soil_density <= 0:
+                raise ValueError(
+                    f"`soildensity` must be positive for grid {grid}. Got {meta.soil_density}."
+                )
+            logger_supy.debug(
+                f"Grid {grid}: using soil observation metadata from surface index {surf}"
+            )
+            return meta
 
-    return SoilObservationMetadata(
-        depth_mm=depth,
-        smcap=smcap,
-        soil_density=soil_density,
-        soil_not_rocks=soil_not_rocks,
+    # No surface had complete metadata
+    raise ValueError(
+        f"Observed soil moisture requires metadata for grid {grid}. "
+        "Set obs_sm_depth, obs_sm_cap, obs_soil_not_rocks, and soildensity "
+        "on any non-water surface (0-5) in SUEWS_Soil.txt or YAML config."
     )

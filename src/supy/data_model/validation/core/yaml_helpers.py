@@ -212,42 +212,127 @@ class DLSCheck(BaseModel):
         return start, end, utc_offset_hours
 
 
-def recursive_nullify_any(obj: Any) -> None:
+def nullify_co2_block_recursive(block: Any) -> None:
     """
-    In-place: nullify YAML leaves and day-profile structures.
+    In-place canonical nullifier for CO2 / RefValue / DayProfile-like YAML blocks.
 
-    Rules:
-    - If a dict is a RefValue leaf (has only "value"), set value -> None (lists -> list of None).
-    - If a dict contains working_day and/or holiday, set them to None.
-    - For other dicts: recurse; scalar leaves are set to None.
-    - For lists: recurse into dict/list items, scalar items -> None.
-    Safe and defensive for arbitrary structures.
+    Behaviour:
+    - If a dict looks like a RefValue leaf (contains "value"), set "value" to None.
+      If the value is a list, replace it with a list of the same length of None.
+    - If a dict contains day-profile keys ("working_day" and/or "holiday"), preserve
+      the inner structure but nullify its contents:
+        - dict -> keep keys, set each value to None
+        - list -> list of same length of None
+        - otherwise -> set to None
+    - Recurse into nested dicts and lists; scalar leaves are replaced with None.
+    - Robust to empty/missing keys and arbitrary shapes.
     """
-    if isinstance(obj, dict):
-        # RefValue leaf
-        if "value" in obj and len(obj) == 1:
-            val = obj["value"]
+    if isinstance(block, dict):
+        # Handle RefValue leaf ({"value": ...})
+        if "value" in block:
+            val = block["value"]
             if isinstance(val, list):
-                obj["value"] = [None] * len(val)
+                block["value"] = [None] * len(val)
             else:
-                obj["value"] = None
+                block["value"] = None
             return
-        # Day-profile style dict
-        if "working_day" in obj or "holiday" in obj:
-            obj["working_day"] = None
-            obj["holiday"] = None
-        # Recurse into entries; scalar leaves -> None
-        for k, v in list(obj.items()):
+
+        # Handle DayProfile / HourlyProfile style dicts by preserving shape but nulling contents
+        def _nullify_profile_field(field):
+            if field in block:
+                v = block[field]
+                if isinstance(v, dict):
+                    # Keep keys, set each inner value to None (preserve shape)
+                    for k in list(v.keys()):
+                        v[k] = None
+                    block[field] = v
+                elif isinstance(v, list):
+                    block[field] = [None] * len(v)
+                else:
+                    block[field] = None
+
+        if "working_day" in block or "holiday" in block:
+            _nullify_profile_field("working_day")
+            _nullify_profile_field("holiday")
+            return
+
+        # Recurse into dict entries; scalar leaves -> None
+        for k, v in list(block.items()):
             if isinstance(v, (dict, list)):
-                recursive_nullify_any(v)
+                nullify_co2_block_recursive(v)
             else:
-                obj[k] = None
-    elif isinstance(obj, list):
-        for i, item in enumerate(obj):
+                block[k] = None
+
+    elif isinstance(block, list):
+        for i, item in enumerate(block):
             if isinstance(item, (dict, list)):
-                recursive_nullify_any(item)
+                nullify_co2_block_recursive(item)
             else:
-                obj[i] = None
+                block[i] = None
+
+
+def collect_nullified_paths(before: Any, after: Any, path: str = "") -> List[str]:
+    """
+    Return list of dot/list-index paths that were non-null in `before` and
+    became null/empty in `after`.
+
+    Recognises RefValue leaves ({"value": ...}) and DayProfile keys
+    ("working_day", "holiday") and handles dicts, lists and scalars.
+    """
+    paths: List[str] = []
+
+    def _p(base: str, key: str) -> str:
+        return f"{base}.{key}" if base else key
+
+    # Dict vs Dict
+    if isinstance(before, dict) and isinstance(after, dict):
+        # RefValue leaf detection
+        if "value" in before and "value" in after:
+            if before.get("value") not in (None, "") and after.get("value") in (None, ""):
+                paths.append(path or "value")
+            return paths
+
+        # Day/profile keys
+        if ("working_day" in before or "holiday" in before) and (
+            ("working_day" in after) or ("holiday" in after)
+        ):
+            if before.get("working_day") not in (None, "") and after.get("working_day") in (None, ""):
+                paths.append(_p(path, "working_day"))
+            if before.get("holiday") not in (None, "") and after.get("holiday") in (None, ""):
+                paths.append(_p(path, "holiday"))
+            return paths
+
+        # Recurse into keys
+        for k in set(list(before.keys()) + list(after.keys())):
+            b = before.get(k)
+            a = after.get(k)
+            if b in (None, "") and a in (None, ""):
+                continue
+            new_path = _p(path, k)
+            if a in (None, "") and b not in (None, ""):
+                paths.append(new_path)
+                continue
+            paths.extend(collect_nullified_paths(b, a, new_path))
+        return paths
+
+    # List vs List
+    if isinstance(before, list) and isinstance(after, list):
+        for i, (b_item, a_item) in enumerate(zip(before, after)):
+            item_path = f"{path}[{i}]" if path else f"[{i}]"
+            if a_item in (None, "") and b_item not in (None, ""):
+                paths.append(item_path)
+            else:
+                paths.extend(collect_nullified_paths(b_item, a_item, item_path))
+        if len(before) > len(after):
+            for i in range(len(after), len(before)):
+                if before[i] not in (None, ""):
+                    paths.append(f"{path}[{i}]")
+        return paths
+
+    # Scalar comparison
+    if before not in (None, "") and after in (None, ""):
+        paths.append(path or "")
+    return paths
 
 
 def collect_yaml_differences(original: Any, updated: Any, path: str = "") -> List[dict]:
@@ -1299,7 +1384,7 @@ def precheck_model_option_rules(data: dict) -> dict:
             # Nullify co2 block (use shared nullifier)
             co2_block = anth_emis.get("co2", {}) or {}
             if isinstance(co2_block, dict):
-                recursive_nullify_any(co2_block)
+                nullify_co2_block_recursive(co2_block)
                 anth_emis["co2"] = co2_block
                 props["anthropogenic_emissions"] = anth_emis
 

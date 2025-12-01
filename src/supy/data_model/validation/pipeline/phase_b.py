@@ -63,6 +63,8 @@ try:
     from supy.data_model.validation.core.yaml_helpers import (
         get_mean_monthly_air_temperature as _get_mean_monthly_air_temperature,
         get_mean_annual_air_temperature as _get_mean_annual_air_temperature,
+        nullify_co2_block_recursive,
+        collect_nullified_paths,
     )
 
     HAS_SUPY = True
@@ -1349,24 +1351,16 @@ def adjust_model_dependent_nullification(
             site_gridid = get_site_gridid(site)
 
             if stebbs_block:
-                nullified_params = []
+                # Snapshot then apply canonical nullifier
+                before_snapshot = deepcopy(stebbs_block)
+                try:
+                    nullify_co2_block_recursive(stebbs_block)
+                except Exception:
+                    logger_supy.exception("[precheck] failed to nullify stebbs block with shared helper")
 
-                def _recursive_nullify(block: dict, path: str = ""):
-                    for key, val in block.items():
-                        current_path = f"{path}.{key}" if path else key
-
-                        if isinstance(val, dict):
-                            if "value" in val and val["value"] is not None:
-                                val["value"] = None
-                                nullified_params.append(current_path)
-                            else:
-                                _recursive_nullify(val, current_path)
-
-                _recursive_nullify(stebbs_block)
-
+                nullified_params = collect_nullified_paths(before_snapshot, stebbs_block)
                 if nullified_params:
                     param_list = ", ".join(nullified_params)
-
                     adjustments.append(
                         ScientificAdjustment(
                             parameter="stebbs",
@@ -1395,58 +1389,15 @@ def adjust_model_dependent_nullification(
             site_gridid = get_site_gridid(site)
 
             if co2_block:
-                nullified_params = []
+                before_snapshot = deepcopy(co2_block)
+                try:
+                    nullify_co2_block_recursive(co2_block)
+                except Exception:
+                    logger_supy.exception("[precheck] failed to nullify co2 block with shared helper")
 
-                def _recursive_nullify_co2(block: dict, path: str = ""):
-                    """
-                    Recursively nullify CO2-related parameters.
-
-                    Handles dicts with 'value' keys, nested dicts, lists of scalars/dicts,
-                    and plain scalar values (e.g., trafficrate.working_day: 0.01).
-                    """
-                    for key in list(block.keys()):
-                        val = block[key]
-                        current_path = f"{path}.{key}" if path else key
-
-                        if isinstance(val, dict) and "value" in val:
-                            if val["value"] is not None:
-                                val["value"] = None
-                                nullified_params.append(current_path)
-
-                        elif isinstance(val, dict):
-                            _recursive_nullify_co2(val, current_path)
-
-                        elif isinstance(val, (list, tuple)):
-                            for idx, item in enumerate(list(val)):
-                                item_path = f"{current_path}[{idx}]"
-                                if isinstance(item, dict):
-                                    _recursive_nullify_co2(item, item_path)
-                                else:
-                                    # replace scalar/list item with None
-                                    try:
-                                        if isinstance(val, list):
-                                            val[idx] = None
-                                            nullified_params.append(item_path)
-                                        else:
-                                            block[key] = None
-                                            nullified_params.append(current_path)
-                                            break
-                                    except Exception:
-                                        block[key] = None
-                                        nullified_params.append(current_path)
-                                        break
-                        # plain scalar (e.g., 0.01) - nullify it
-                        else:
-                            # Only nullify if the value is not already None
-                            if val is not None:
-                                block[key] = None
-                                nullified_params.append(current_path)
-
-                _recursive_nullify_co2(co2_block)
-
+                nullified_params = collect_nullified_paths(before_snapshot, co2_block)
                 if nullified_params:
                     param_list = ", ".join(nullified_params)
-
                     adjustments.append(
                         ScientificAdjustment(
                             parameter="anthropogenic_emissions.co2",

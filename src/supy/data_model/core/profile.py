@@ -159,8 +159,8 @@ class HourlyProfile(BaseModel):
 
     model_config = ConfigDict(title="Hourly Profile")
 
-    working_day: Optional[Dict[str, Optional[float]]] = None
-    holiday: Optional[Dict[str, Optional[float]]] = None
+    working_day: Optional[Dict[str, Optional[float]]]
+    holiday: Optional[Dict[str, Optional[float]]] 
 
     ref: Optional[Reference] = None
 

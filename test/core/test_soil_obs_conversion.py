@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from supy.util._forcing import convert_observed_soil_moisture, SOIL_OBS_SURFACE_INDEX
+from supy.util._forcing import convert_observed_soil_moisture
 
 
 def _make_state(
@@ -11,13 +11,14 @@ def _make_state(
     obs_cap: float,
     obs_soil_not_rocks: float,
     soil_density: float,
+    surface_index: int = 0,
 ):
-    """Create a minimal df_state with soil observation metadata on surface 0.
+    """Create a minimal df_state with soil observation metadata on a single surface.
 
-    The simplified implementation only reads from surface index 0, so we only
-    need to populate that surface's metadata columns.
+    The implementation searches through surfaces 0-5 and uses the first one
+    with complete metadata. By default we set it on surface 0.
     """
-    surf = SOIL_OBS_SURFACE_INDEX
+    surf = surface_index
 
     columns = [
         ("smdmethod", "0"),
@@ -80,10 +81,10 @@ def test_convert_observed_soil_moisture_gravimetric():
 
 def test_missing_metadata_raises_error():
     """Test that missing metadata raises a clear error."""
-    surf = SOIL_OBS_SURFACE_INDEX
+    # Only provide depth on surface 0, other required fields missing
     columns = [
         ("smdmethod", "0"),
-        ("obs_sm_depth", f"({surf},)"),  # Only depth provided, others missing
+        ("obs_sm_depth", "(0,)"),  # Only depth provided, others missing
     ]
     data = [1, 200.0]
 
@@ -188,3 +189,46 @@ def test_xsmd_all_missing():
 
     # All missing values should be preserved
     assert df_result["xsmd"].tolist() == [-999.0, -999.0, -999.0]
+
+
+def test_metadata_from_non_zero_surface():
+    """Test that metadata can be set on any surface (e.g., grass=4, bare soil=5)."""
+    # Set metadata on surface 4 (grass) instead of default surface 0
+    df_state = _make_state(
+        smdmethod=1,
+        obs_depth=200.0,
+        obs_cap=0.4,
+        obs_soil_not_rocks=0.8,
+        soil_density=1.2,
+        surface_index=4,  # Grass surface
+    )
+    df_forcing = pd.DataFrame(
+        {"xsmd": [0.25]},
+        index=pd.date_range("2024-07-01", periods=1, freq="h"),
+    )
+
+    df_result = convert_observed_soil_moisture(df_forcing, df_state)
+
+    # Same formula as volumetric: (0.4 - 0.25) * 200 * 0.8 = 24.0
+    assert pytest.approx(df_result["xsmd"].iloc[0], rel=1e-6) == 24.0
+
+
+def test_metadata_from_bare_soil_surface():
+    """Test that metadata set on bare soil (surface 5) works correctly."""
+    df_state = _make_state(
+        smdmethod=2,
+        obs_depth=300.0,
+        obs_cap=0.5,
+        obs_soil_not_rocks=0.9,
+        soil_density=1.2,
+        surface_index=5,  # Bare soil surface
+    )
+    df_forcing = pd.DataFrame(
+        {"xsmd": [0.3]},
+        index=pd.date_range("2024-08-01", periods=1, freq="h"),
+    )
+
+    df_result = convert_observed_soil_moisture(df_forcing, df_state)
+
+    # Gravimetric: (0.5 - 0.3) * 1.2 * 300 * 0.9 = 64.8
+    assert pytest.approx(df_result["xsmd"].iloc[0], rel=1e-6) == 64.8

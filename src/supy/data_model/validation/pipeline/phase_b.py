@@ -1385,7 +1385,7 @@ def adjust_model_dependent_nullification(
     # --- ANTHROPOGENIC CO2 ---
     emissionsmethod = get_value_safe(physics, "emissionsmethod")
 
-    if emissionsmethod in [0, 1, 2, 3, 4]:
+    if emissionsmethod is not None and emissionsmethod in [0, 1, 2, 3, 4]:
         sites = yaml_data.get("sites", [])
 
         for site_idx, site in enumerate(sites):

@@ -21,7 +21,8 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 43 | 33 | 18 | 43 | 22 | 159 |
+| 2025 | 39 | 29 | 18 | 36 | 19 | 137 |
+| 2025 | 43 | 35 | 18 | 43 | 22 | 159 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -34,6 +35,9 @@
 ## 2025
 
 ### 30 Nov 2025
+
+- [bugfix] Add missing `rcmethod` to CRITICAL_PHYSICS_PARAMS in _check_critical_null_physics_params (config.py).
+- [bugfix] Add check on ARCHETYPE_REQUIRED_PARAMS in _validate_stebbs (config.py).
 - [bugfix] Included missing Python modules (`run`, `_version`) in wheel installation (#960)
   - Fixed packaging to include all required modules in distributed wheel
 - [bugfix] Configured spawn start method on macOS to avoid fork warnings (#946)
@@ -51,6 +55,7 @@
   - Enhanced documentation for build process and developer workflows
 - [doc] Reorganised output documentation for clarity (#944)
   - Improved structure and navigation of output variable documentation
+
 
 ### 29 Nov 2025
 - [feature] Integrated Python output registry with SuPy post-processing (#937)

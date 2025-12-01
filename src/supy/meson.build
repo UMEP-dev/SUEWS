@@ -1,6 +1,9 @@
 py.install_sources(
     [
         '__init__.py',
+        # Vendored packages (wrapper modules - actual files copied from submodule)
+        '_vendor/__init__.py',
+        '_vendor/f90wrap/__init__.py',
         '_check.py',
         '_env.py',
         '_load.py',
@@ -118,4 +121,16 @@ py.install_sources(
     ],
     subdir: 'supy',
     preserve_path: true,
+)
+
+# Install vendored f90wrap runtime files from submodule
+# These are the only runtime files needed - code generation tools are build-time only
+dir_f90wrap_submodule = meson.current_source_dir() / '_vendor' / 'f90wrap_src' / 'f90wrap'
+
+py.install_sources(
+    [
+        dir_f90wrap_submodule / 'runtime.py',
+        dir_f90wrap_submodule / 'fortrantype.py',
+    ],
+    subdir: 'supy/_vendor/f90wrap',
 )

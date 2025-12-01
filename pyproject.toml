@@ -28,7 +28,9 @@ dependencies = [
     # dask removed - stdlib multiprocessing used for parallelisation
 
     # Model requirements
-    "f90wrap==0.2.16",  # Required at runtime by generated supy_driver code
+    # NOTE: f90wrap is NO LONGER a runtime dependency!
+    # The f90wrap runtime is vendored into supy._vendor.f90wrap
+    # This eliminates the need for f90wrap wheels on Python 3.13+
     "pydantic",
     "pyyaml",  # YAML configuration parsing (used in data_model/core/config.py)
     "f90nml",

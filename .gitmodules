@@ -1,6 +1,6 @@
-[submodule "SUEWS-SourceCode/ext_lib/spartacus-surface"]
-	path = SUEWS-SourceCode/ext_lib/spartacus-surface
+[submodule "spartacus-surface"]
+	path = src/suews/ext_lib/spartacus-surface
 	url = git@github.com:Urban-Meteorology-Reading/spartacus-surface.git
-[submodule "ext_lib/f90wrap"]
+[submodule "f90wrap"]
 	path = src/supy/_vendor/f90wrap_src
 	url = git@github.com:UMEP-dev/f90wrap.git

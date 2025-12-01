@@ -652,45 +652,42 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert evergreen tree properties to DataFrame state format."""
-        # Get base properties from parent and sort immediately to avoid PerformanceWarning
-        df_state = super().to_df_state(grid_id).sort_index(axis=1)
-        surf_idx = self.get_surface_index()
+        df_state = super().to_df_state(grid_id)
 
-        # Helper function to set values in DataFrame
-        def set_df_value(col_name: str, value: float):
-            idx_str = f"({surf_idx},)"
-            if (col_name, idx_str) not in df_state.columns:
-                # df_state[(col_name, idx_str)] = np.nan
-                df_state[(col_name, idx_str)] = None
-            df_state.loc[grid_id, (col_name, idx_str)] = value
+        # Collect all values to assign
+        defaults = {"faievetree": 0.1, "evetreeh": 15.0}
+        values_to_assign = {}
 
-        # Add all non-inherited properties
-        list_properties = ["faievetree", "evetreeh"]
-        for attr in list_properties:
+        for attr in ["faievetree", "evetreeh"]:
             field_val = getattr(self, attr)
             if field_val is not None:
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
-                # Default values for None parameters
-                defaults = {
-                    "faievetree": 0.1,
-                    "evetreeh": 15.0,
-                }
                 val = defaults.get(attr, 0.0)
-            df_state.loc[grid_id, (attr, "0")] = val
+            values_to_assign[(attr, "0")] = val
 
-        # specific properties
-        df_state.loc[grid_id, ("alb", "(2,)")] = (
+        values_to_assign[("alb", "(2,)")] = (
             self.alb.value if isinstance(self.alb, RefValue) else self.alb
         )
-        df_state.loc[grid_id, ("albmin_evetr", "0")] = (
+        values_to_assign[("albmin_evetr", "0")] = (
             self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
         )
-        df_state.loc[grid_id, ("albmax_evetr", "0")] = (
+        values_to_assign[("albmax_evetr", "0")] = (
             self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
         )
 
-        return df_state
+        # Create new columns DataFrame and merge (avoids PerformanceWarning)
+        new_cols = {col: [val] for col, val in values_to_assign.items()}
+        new_df = pd.DataFrame(new_cols, index=[grid_id])
+        new_df.columns = pd.MultiIndex.from_tuples(new_df.columns)
+
+        # Drop existing columns from df_state that we're updating, then concat
+        cols_to_drop = [c for c in new_df.columns if c in df_state.columns]
+        if cols_to_drop:
+            df_state = df_state.drop(columns=cols_to_drop)
+        df_state = pd.concat([df_state, new_df], axis=1)
+
+        return df_state.sort_index(axis=1)
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "EvetrProperties":
@@ -769,43 +766,49 @@ class DectrProperties(VegetatedSurfaceProperties):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert deciduous tree properties to DataFrame state format."""
-        # Get base properties from parent and sort immediately to avoid PerformanceWarning
-        df_state = super().to_df_state(grid_id).sort_index(axis=1)
+        df_state = super().to_df_state(grid_id)
 
-        list_properties = [
+        # Collect all values to assign
+        defaults = {"faidectree": 0.1, "dectreeh": 15.0}
+        values_to_assign = {}
+
+        for attr in [
             "faidectree",
             "dectreeh",
             "pormin_dec",
             "pormax_dec",
             "capmax_dec",
             "capmin_dec",
-        ]
-        # Add all non-inherited properties
-        for attr in list_properties:
+        ]:
             field_val = getattr(self, attr)
             if field_val is not None:
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
-                # Default values for None parameters
-                defaults = {
-                    "faidectree": 0.1,
-                    "dectreeh": 15.0,
-                }
-                val = defaults.get(attr, field_val)  # Keep existing defaults for others
-            df_state.loc[grid_id, (attr, "0")] = val
+                val = defaults.get(attr, field_val)
+            values_to_assign[(attr, "0")] = val
 
-        # specific properties
-        df_state.loc[grid_id, ("alb", "(3,)")] = (
+        values_to_assign[("alb", "(3,)")] = (
             self.alb.value if isinstance(self.alb, RefValue) else self.alb
         )
-        df_state.loc[grid_id, ("albmin_dectr", "0")] = (
+        values_to_assign[("albmin_dectr", "0")] = (
             self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
         )
-        df_state.loc[grid_id, ("albmax_dectr", "0")] = (
+        values_to_assign[("albmax_dectr", "0")] = (
             self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
         )
 
-        return df_state
+        # Create new columns DataFrame and merge (avoids PerformanceWarning)
+        new_cols = {col: [val] for col, val in values_to_assign.items()}
+        new_df = pd.DataFrame(new_cols, index=[grid_id])
+        new_df.columns = pd.MultiIndex.from_tuples(new_df.columns)
+
+        # Drop existing columns from df_state that we're updating, then concat
+        cols_to_drop = [c for c in new_df.columns if c in df_state.columns]
+        if cols_to_drop:
+            df_state = df_state.drop(columns=cols_to_drop)
+        df_state = pd.concat([df_state, new_df], axis=1)
+
+        return df_state.sort_index(axis=1)
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "DectrProperties":
@@ -852,21 +855,33 @@ class GrassProperties(VegetatedSurfaceProperties):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert grass properties to DataFrame state format."""
-        # Get base properties from parent and sort immediately to avoid PerformanceWarning
-        df_state = super().to_df_state(grid_id).sort_index(axis=1)
+        df_state = super().to_df_state(grid_id)
 
-        # add specific properties
-        df_state.loc[grid_id, ("alb", "(4,)")] = (
-            self.alb.value if isinstance(self.alb, RefValue) else self.alb
-        )
-        df_state[("albmin_grass", "0")] = (
-            self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
-        )
-        df_state[("albmax_grass", "0")] = (
-            self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
-        )
+        # Collect all values to assign
+        values_to_assign = {
+            ("alb", "(4,)"): (
+                self.alb.value if isinstance(self.alb, RefValue) else self.alb
+            ),
+            ("albmin_grass", "0"): (
+                self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
+            ),
+            ("albmax_grass", "0"): (
+                self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
+            ),
+        }
 
-        return df_state
+        # Create new columns DataFrame and merge (avoids PerformanceWarning)
+        new_cols = {col: [val] for col, val in values_to_assign.items()}
+        new_df = pd.DataFrame(new_cols, index=[grid_id])
+        new_df.columns = pd.MultiIndex.from_tuples(new_df.columns)
+
+        # Drop existing columns from df_state that we're updating, then concat
+        cols_to_drop = [c for c in new_df.columns if c in df_state.columns]
+        if cols_to_drop:
+            df_state = df_state.drop(columns=cols_to_drop)
+        df_state = pd.concat([df_state, new_df], axis=1)
+
+        return df_state.sort_index(axis=1)
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "GrassProperties":

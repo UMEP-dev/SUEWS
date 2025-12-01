@@ -236,7 +236,6 @@ def recursive_nullify_any(obj: Any) -> None:
         if "working_day" in obj or "holiday" in obj:
             obj["working_day"] = None
             obj["holiday"] = None
-            return
         # Recurse into entries; scalar leaves -> None
         for k, v in list(obj.items()):
             if isinstance(v, (dict, list)):

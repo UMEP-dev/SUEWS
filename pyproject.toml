@@ -1,7 +1,7 @@
 [build-system]
 requires = [
     "wheel",
-    "f90wrap==0.2.16",
+    "f90wrap==0.2.16",  # Build-time only: generates wrapper code (runtime is vendored)
     "numpy>=2.0",
     "meson-python>=0.12.0",
 ]

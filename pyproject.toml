@@ -128,16 +128,11 @@ suews-schema = "supy.cmd.schema_cli:main"
 
 [tool.pytest.ini_options]
 filterwarnings = [
-    "ignore::UserWarning:pydantic.main",
-    # Suppress PerformanceWarning from DataFrame MultiIndex operations in site.py
-    # These are performance hints, not functional errors
-    "ignore:indexing past lexsort depth may impact performance:pandas.errors.PerformanceWarning",
-    # Suppress PerformanceWarning about DataFrame fragmentation from config.py
-    "ignore:DataFrame is highly fragmented:pandas.errors.PerformanceWarning",
-    # Suppress SyntaxWarning from third-party atmosp package (invalid escape sequence '\*')
+    # Third-party library issues we cannot fix (upstream packages)
+    # atmosp: invalid escape sequence in docstrings - reported but unfixed
     "ignore:invalid escape sequence:SyntaxWarning:atmosp",
-    # Suppress ConditionalValidationWarning during tests (validation module not loaded)
-    "ignore:Conditional validation requested:supy.data_model.core.config.ConditionalValidationWarning",
+    # multiprocess: Python 3.13+ fork() warning in multi-threaded context
+    "ignore:This process .* is multi-threaded, use of fork:DeprecationWarning:multiprocess",
 ]
 # Test markers for tiered CI testing
 markers = [

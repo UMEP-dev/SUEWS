@@ -32,7 +32,7 @@ dependencies = [
     "pydantic",
     "pyyaml",  # YAML configuration parsing (used in data_model/core/config.py)
     "f90nml",
-    
+
     # Utilities
     "matplotlib",
     "seaborn",
@@ -43,14 +43,14 @@ dependencies = [
     "pyarrow>=22; python_version >= '3.14'",  # 22.x provides cp314 wheels on manylinux_2_28/macOS/Windows
 
     # Scientific packages
-    "atmosp",
+    "atmosp==0.2.16",
     "scikit-learn",
-    
+
     # Optimization
     "lmfit",
     "numdifftools",
     "platypus-opt==1.0.4",
-    
+
     # Data access
     "cdsapi",  # ERA5 data download (timeseries uses CSV, gridded requires optional h5netcdf)
 
@@ -95,14 +95,14 @@ dev = [
     # Testing
     "pytest",
     "pytest-cov",
-    
+
     # Code formatting
     "ruff",
     "fprettify",
-    
+
     # Development
     "ipykernel",
-    
+
     # Documentation - Essential only (based on conf.py usage)
     "sphinx>=4.0,<8.2",
     "sphinx-autobuild",
@@ -127,13 +127,6 @@ suews-validate = "supy.cmd.validate_config:main"
 suews-schema = "supy.cmd.schema_cli:main"
 
 [tool.pytest.ini_options]
-filterwarnings = [
-    # Third-party library issues we cannot fix (upstream packages)
-    # atmosp: invalid escape sequence in docstrings - reported but unfixed
-    "ignore:invalid escape sequence:SyntaxWarning:atmosp",
-    # multiprocess: Python 3.13+ fork() warning in multi-threaded context
-    "ignore:This process .* is multi-threaded, use of fork:DeprecationWarning:multiprocess",
-]
 # Test markers for tiered CI testing
 markers = [
     "smoke: Minimal wheel validation (~6 tests, ~60s)",

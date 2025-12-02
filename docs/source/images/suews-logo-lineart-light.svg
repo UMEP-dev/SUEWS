@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <!-- SUEWS Logo - Line Art Light Variant (for dark backgrounds) -->
+  <!-- Outer circle -->
+  <circle cx="60" cy="60" r="56" fill="none" stroke="#E2E8F0" stroke-width="2"/>
+  <!-- Sun -->
+  <circle cx="82" cy="44" r="13" fill="#F7B538"/>
+  <circle cx="82" cy="44" r="8" fill="#E85D04"/>
+  <!-- Urban buildings -->
+  <rect x="24" y="54" width="14" height="32" rx="2" fill="none" stroke="#E2E8F0" stroke-width="2"/>
+  <rect x="42" y="46" width="16" height="40" rx="2" fill="none" stroke="#E2E8F0" stroke-width="2"/>
+  <rect x="62" y="50" width="14" height="36" rx="2" fill="none" stroke="#E2E8F0" stroke-width="2"/>
+  <rect x="80" y="58" width="14" height="28" rx="2" fill="none" stroke="#E2E8F0" stroke-width="2"/>
+  <!-- Water wave -->
+  <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="2" stroke-linecap="round" fill="none"/>
+</svg>

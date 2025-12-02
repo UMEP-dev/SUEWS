@@ -6,7 +6,7 @@
   <title>SUEWS Logo Design</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Instrument+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Instrument+Sans:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --sun-gold: #F7B538;
@@ -15,6 +15,8 @@
       --water-light: #90E0EF;
       --urban-slate: #2D3142;
       --urban-dark: #1A1D2E;
+      --veg-green: #4A7C59;
+      --veg-light: #6B9B7A;
       --surface-warm: #FFF8F0;
       --surface-cool: #F0F7FF;
     }
@@ -33,7 +35,7 @@
     }
 
     .container {
-      max-width: 1200px;
+      max-width: 900px;
       margin: 0 auto;
     }
 
@@ -55,9 +57,9 @@
 
     .logo-showcase {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      grid-template-columns: repeat(2, 1fr);
       gap: 2rem;
-      margin-bottom: 4rem;
+      margin-bottom: 3rem;
     }
 
     .logo-card {
@@ -99,53 +101,7 @@
       opacity: 0.5;
     }
 
-    /* The main SUEWS logo SVG */
-    .suews-logo {
-      width: 180px;
-      height: 180px;
-    }
-
-    .suews-logo-small {
-      width: 64px;
-      height: 64px;
-    }
-
-    .suews-logo-tiny {
-      width: 32px;
-      height: 32px;
-    }
-
-    /* Logo wordmark */
-    .wordmark {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .wordmark-text {
-      font-family: 'Instrument Sans', sans-serif;
-      font-weight: 700;
-      font-size: 2.5rem;
-      letter-spacing: -0.03em;
-      color: var(--urban-dark);
-    }
-
-    .wordmark.dark .wordmark-text {
-      color: white;
-    }
-
-    /* Horizontal lockup */
-    .horizontal-lockup {
-      display: flex;
-      align-items: center;
-      gap: 1.25rem;
-    }
-
-    .horizontal-lockup .wordmark-text {
-      font-size: 1.75rem;
-    }
-
-    /* Variations section */
+    /* Size variations */
     .variations {
       margin-top: 2rem;
     }
@@ -171,13 +127,9 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
 
-    .variation-item.dark {
-      background: var(--urban-dark);
-    }
-
     /* Colour palette */
     .palette {
-      margin-top: 4rem;
+      margin-top: 3rem;
     }
 
     .palette h2 {
@@ -212,193 +164,229 @@
     .swatch.water-light { background: var(--water-light); color: var(--urban-dark); }
     .swatch.slate { background: var(--urban-slate); color: white; }
     .swatch.dark { background: var(--urban-dark); color: white; }
+    .swatch.veg { background: var(--veg-green); color: white; }
+    .swatch.veg-light { background: var(--veg-light); color: white; }
 
-    /* Animation for the logo */
-    @keyframes pulse-glow {
-      0%, 100% { opacity: 0.6; }
-      50% { opacity: 1; }
-    }
-
-    .logo-glow {
-      animation: pulse-glow 3s ease-in-out infinite;
-    }
   </style>
 </head>
 <body>
+  <!-- ====== SINGLE SOURCE: Edit this symbol to update ALL logos ====== -->
+  <svg style="display: none;" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="suews-logo-dark" viewBox="0 0 120 120">
+      <!-- Background circle -->
+      <circle cx="60" cy="60" r="56" fill="#2D3142"/>
+      <!-- Sun: r=13/8, center at (82,44) - inner edge tangent to bldg3 corner (76,50) -->
+      <circle cx="82" cy="44" r="13" fill="#F7B538"/>
+      <circle cx="82" cy="44" r="8" fill="#E85D04"/>
+      <!-- Urban buildings (warm concrete grey) -->
+      <rect x="24" y="54" width="14" height="32" rx="2" fill="#5D5852"/>
+      <rect x="42" y="46" width="16" height="40" rx="2" fill="#5D5852"/>
+      <rect x="62" y="50" width="14" height="36" rx="2" fill="#5D5852"/>
+      <rect x="80" y="58" width="14" height="28" rx="2" fill="#5D5852"/>
+      <!-- Water wave -->
+      <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none"/>
+    </symbol>
+
+    <symbol id="suews-logo-light" viewBox="0 0 120 120">
+      <!-- Background circle with border -->
+      <circle cx="60" cy="60" r="56" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="2"/>
+      <!-- Sun: r=13/8, center at (82,44) - inner edge tangent to bldg3 corner (76,50) -->
+      <circle cx="82" cy="44" r="13" fill="#F7B538"/>
+      <circle cx="82" cy="44" r="8" fill="#E85D04"/>
+      <!-- Urban buildings (dark for light bg) -->
+      <rect x="24" y="54" width="14" height="32" rx="2" fill="#2D3142"/>
+      <rect x="42" y="46" width="16" height="40" rx="2" fill="#2D3142"/>
+      <rect x="62" y="50" width="14" height="36" rx="2" fill="#2D3142"/>
+      <rect x="80" y="58" width="14" height="28" rx="2" fill="#2D3142"/>
+      <!-- Water wave -->
+      <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none"/>
+    </symbol>
+
+    <!-- Animated version with moving wave (SMIL path animation) -->
+    <symbol id="suews-logo-animated" viewBox="0 0 120 120">
+      <!-- Background circle -->
+      <circle cx="60" cy="60" r="56" fill="#2D3142"/>
+      <!-- Sun -->
+      <circle cx="82" cy="44" r="13" fill="#F7B538"/>
+      <circle cx="82" cy="44" r="8" fill="#E85D04"/>
+      <!-- Urban buildings -->
+      <rect x="24" y="54" width="14" height="32" rx="2" fill="#5D5852"/>
+      <rect x="42" y="46" width="16" height="40" rx="2" fill="#5D5852"/>
+      <rect x="62" y="50" width="14" height="36" rx="2" fill="#5D5852"/>
+      <rect x="80" y="58" width="14" height="28" rx="2" fill="#5D5852"/>
+      <!-- Animated water wave - same amplitude as logo, slow motion -->
+      <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none">
+        <animate attributeName="d" dur="9s" repeatCount="indefinite"
+          values="M18 94 Q40 86 60 94 Q80 102 102 94;
+                  M18 94 Q40 102 60 94 Q80 86 102 94;
+                  M18 94 Q40 86 60 94 Q80 102 102 94"/>
+      </path>
+    </symbol>
+
+    <!-- Animated version for light backgrounds -->
+    <symbol id="suews-logo-animated-light" viewBox="0 0 120 120">
+      <!-- Background circle with border -->
+      <circle cx="60" cy="60" r="56" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="2"/>
+      <!-- Sun -->
+      <circle cx="82" cy="44" r="13" fill="#F7B538"/>
+      <circle cx="82" cy="44" r="8" fill="#E85D04"/>
+      <!-- Urban buildings (dark for light bg) -->
+      <rect x="24" y="54" width="14" height="32" rx="2" fill="#2D3142"/>
+      <rect x="42" y="46" width="16" height="40" rx="2" fill="#2D3142"/>
+      <rect x="62" y="50" width="14" height="36" rx="2" fill="#2D3142"/>
+      <rect x="80" y="58" width="14" height="28" rx="2" fill="#2D3142"/>
+      <!-- Animated water wave -->
+      <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none">
+        <animate attributeName="d" dur="9s" repeatCount="indefinite"
+          values="M18 94 Q40 86 60 94 Q80 102 102 94;
+                  M18 94 Q40 102 60 94 Q80 86 102 94;
+                  M18 94 Q40 86 60 94 Q80 102 102 94"/>
+      </path>
+    </symbol>
+
+    <!-- Line art version - dark strokes (for light backgrounds) -->
+    <symbol id="suews-logo-lineart" viewBox="0 0 120 120">
+      <!-- Outer circle -->
+      <circle cx="60" cy="60" r="56" fill="none" stroke="#2D3142" stroke-width="2"/>
+      <!-- Sun (filled for visual clarity) -->
+      <circle cx="82" cy="44" r="13" fill="#F7B538"/>
+      <circle cx="82" cy="44" r="8" fill="#E85D04"/>
+      <!-- Urban buildings -->
+      <rect x="24" y="54" width="14" height="32" rx="2" fill="none" stroke="#2D3142" stroke-width="2"/>
+      <rect x="42" y="46" width="16" height="40" rx="2" fill="none" stroke="#2D3142" stroke-width="2"/>
+      <rect x="62" y="50" width="14" height="36" rx="2" fill="none" stroke="#2D3142" stroke-width="2"/>
+      <rect x="80" y="58" width="14" height="28" rx="2" fill="none" stroke="#2D3142" stroke-width="2"/>
+      <!-- Water wave -->
+      <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="2" stroke-linecap="round" fill="none"/>
+    </symbol>
+
+    <!-- Line art version - light strokes (for dark backgrounds) -->
+    <symbol id="suews-logo-lineart-light" viewBox="0 0 120 120">
+      <!-- Outer circle -->
+      <circle cx="60" cy="60" r="56" fill="none" stroke="#E2E8F0" stroke-width="2"/>
+      <!-- Sun (filled for visual clarity) -->
+      <circle cx="82" cy="44" r="13" fill="#F7B538"/>
+      <circle cx="82" cy="44" r="8" fill="#E85D04"/>
+      <!-- Urban buildings -->
+      <rect x="24" y="54" width="14" height="32" rx="2" fill="none" stroke="#E2E8F0" stroke-width="2"/>
+      <rect x="42" y="46" width="16" height="40" rx="2" fill="none" stroke="#E2E8F0" stroke-width="2"/>
+      <rect x="62" y="50" width="14" height="36" rx="2" fill="none" stroke="#E2E8F0" stroke-width="2"/>
+      <rect x="80" y="58" width="14" height="28" rx="2" fill="none" stroke="#E2E8F0" stroke-width="2"/>
+      <!-- Water wave -->
+      <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="2" stroke-linecap="round" fill="none"/>
+    </symbol>
+
+    <!-- Simplified version for favicon/small sizes -->
+    <symbol id="suews-logo-favicon" viewBox="0 0 120 120">
+      <circle cx="60" cy="60" r="56" fill="#2D3142"/>
+      <circle cx="82" cy="44" r="13" fill="#F7B538"/>
+      <rect x="25" y="52" width="70" height="38" rx="2" fill="#5D5852"/>
+      <path d="M18 98 Q60 85 102 98" stroke="#0077B6" stroke-width="6" stroke-linecap="round" fill="none"/>
+    </symbol>
+
+    <!-- Logo with text variants -->
+    <symbol id="suews-logo-text-dark" viewBox="0 0 340 120">
+      <!-- Dark icon + dark text (for light backgrounds) -->
+      <circle cx="60" cy="60" r="56" fill="#2D3142"/>
+      <circle cx="82" cy="44" r="13" fill="#F7B538"/>
+      <circle cx="82" cy="44" r="8" fill="#E85D04"/>
+      <rect x="24" y="54" width="14" height="32" rx="2" fill="#5D5852"/>
+      <rect x="42" y="46" width="16" height="40" rx="2" fill="#5D5852"/>
+      <rect x="62" y="50" width="14" height="36" rx="2" fill="#5D5852"/>
+      <rect x="80" y="58" width="14" height="28" rx="2" fill="#5D5852"/>
+      <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <text x="136" y="72" font-family="Inter, SF Pro Display, Segoe UI, system-ui, sans-serif" font-weight="600" font-size="48" fill="#2D3142" letter-spacing="-0.02em">SUEWS</text>
+    </symbol>
+
+    <symbol id="suews-logo-text-light" viewBox="0 0 340 120">
+      <!-- Light icon + dark text (for light backgrounds) -->
+      <circle cx="60" cy="60" r="56" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="2"/>
+      <circle cx="82" cy="44" r="13" fill="#F7B538"/>
+      <circle cx="82" cy="44" r="8" fill="#E85D04"/>
+      <rect x="24" y="54" width="14" height="32" rx="2" fill="#2D3142"/>
+      <rect x="42" y="46" width="16" height="40" rx="2" fill="#2D3142"/>
+      <rect x="62" y="50" width="14" height="36" rx="2" fill="#2D3142"/>
+      <rect x="80" y="58" width="14" height="28" rx="2" fill="#2D3142"/>
+      <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <text x="136" y="72" font-family="Inter, SF Pro Display, Segoe UI, system-ui, sans-serif" font-weight="600" font-size="48" fill="#2D3142" letter-spacing="-0.02em">SUEWS</text>
+    </symbol>
+
+    <symbol id="suews-logo-text-white" viewBox="0 0 340 120">
+      <!-- Dark icon + white text (for dark backgrounds) -->
+      <circle cx="60" cy="60" r="56" fill="#2D3142"/>
+      <circle cx="82" cy="44" r="13" fill="#F7B538"/>
+      <circle cx="82" cy="44" r="8" fill="#E85D04"/>
+      <rect x="24" y="54" width="14" height="32" rx="2" fill="#5D5852"/>
+      <rect x="42" y="46" width="16" height="40" rx="2" fill="#5D5852"/>
+      <rect x="62" y="50" width="14" height="36" rx="2" fill="#5D5852"/>
+      <rect x="80" y="58" width="14" height="28" rx="2" fill="#5D5852"/>
+      <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <text x="136" y="72" font-family="Inter, SF Pro Display, Segoe UI, system-ui, sans-serif" font-weight="600" font-size="48" fill="#FFFFFF" letter-spacing="-0.02em">SUEWS</text>
+    </symbol>
+  </svg>
+  <!-- ====== END SINGLE SOURCE ====== -->
+
   <div class="container">
     <h1>SUEWS Logo</h1>
     <p class="subtitle">Surface Urban Energy and Water Balance Scheme</p>
 
-    <div class="logo-showcase">
-      <!-- Main logo on light -->
+    <div class="logo-showcase" style="grid-template-columns: repeat(2, 1fr);">
+      <!-- Dark background variant -->
       <div class="logo-card">
-        <svg class="suews-logo" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <!-- Background circle - representing the cycle/balance -->
-          <circle cx="100" cy="100" r="90" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="2"/>
-
-          <!-- Sun/Energy arc at top -->
-          <path d="M40 85 Q100 20 160 85" stroke="#F7B538" stroke-width="8" stroke-linecap="round" fill="none"/>
-          <circle cx="100" cy="52" r="16" fill="#F7B538"/>
-          <circle cx="100" cy="52" r="10" fill="#E85D04"/>
-
-          <!-- Urban skyline - simplified geometric buildings -->
-          <g fill="#2D3142">
-            <!-- Left building -->
-            <rect x="45" y="95" width="25" height="55" rx="2"/>
-            <rect x="49" y="100" width="5" height="8" fill="#90E0EF" opacity="0.8"/>
-            <rect x="57" y="100" width="5" height="8" fill="#90E0EF" opacity="0.8"/>
-            <rect x="49" y="112" width="5" height="8" fill="#F7B538" opacity="0.8"/>
-            <rect x="57" y="112" width="5" height="8" fill="#90E0EF" opacity="0.8"/>
-
-            <!-- Centre tall building -->
-            <rect x="75" y="80" width="30" height="70" rx="2"/>
-            <rect x="80" y="86" width="6" height="10" fill="#F7B538" opacity="0.8"/>
-            <rect x="89" y="86" width="6" height="10" fill="#90E0EF" opacity="0.8"/>
-            <rect x="80" y="100" width="6" height="10" fill="#90E0EF" opacity="0.8"/>
-            <rect x="89" y="100" width="6" height="10" fill="#F7B538" opacity="0.8"/>
-            <rect x="80" y="114" width="6" height="10" fill="#90E0EF" opacity="0.8"/>
-            <rect x="89" y="114" width="6" height="10" fill="#90E0EF" opacity="0.8"/>
-            <rect x="80" y="128" width="6" height="10" fill="#F7B538" opacity="0.8"/>
-            <rect x="89" y="128" width="6" height="10" fill="#90E0EF" opacity="0.8"/>
-
-            <!-- Right building -->
-            <rect x="110" y="100" width="28" height="50" rx="2"/>
-            <rect x="115" y="106" width="5" height="8" fill="#90E0EF" opacity="0.8"/>
-            <rect x="123" y="106" width="5" height="8" fill="#F7B538" opacity="0.8"/>
-            <rect x="115" y="118" width="5" height="8" fill="#F7B538" opacity="0.8"/>
-            <rect x="123" y="118" width="5" height="8" fill="#90E0EF" opacity="0.8"/>
-
-            <!-- Small right building -->
-            <rect x="143" y="115" width="18" height="35" rx="2"/>
-            <rect x="147" y="120" width="4" height="6" fill="#90E0EF" opacity="0.8"/>
-            <rect x="153" y="120" width="4" height="6" fill="#90E0EF" opacity="0.8"/>
-            <rect x="147" y="130" width="4" height="6" fill="#F7B538" opacity="0.8"/>
-          </g>
-
-          <!-- Ground/Surface line -->
-          <rect x="35" y="150" width="130" height="4" rx="2" fill="#2D3142"/>
-
-          <!-- Water cycle - flowing beneath -->
-          <path d="M35 165 Q70 158 100 165 Q130 172 165 165" stroke="#0077B6" stroke-width="5" stroke-linecap="round" fill="none"/>
-          <path d="M45 178 Q80 171 110 178 Q140 185 155 178" stroke="#90E0EF" stroke-width="3" stroke-linecap="round" fill="none"/>
-
-          <!-- Energy arrows/rays from sun -->
-          <g stroke="#F7B538" stroke-width="2" stroke-linecap="round" opacity="0.6" class="logo-glow">
-            <line x1="70" y1="65" x2="60" y2="80"/>
-            <line x1="130" y1="65" x2="140" y2="80"/>
-          </g>
-        </svg>
-        <h3>Primary Mark</h3>
+        <svg width="160" height="160"><use href="#suews-logo-dark"/></svg>
+        <h3>Dark Background</h3>
       </div>
 
-      <!-- Logo on dark -->
-      <div class="logo-card dark">
-        <svg class="suews-logo" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="100" cy="100" r="90" fill="#1A1D2E" stroke="#3D4155" stroke-width="2"/>
-
-          <path d="M40 85 Q100 20 160 85" stroke="#F7B538" stroke-width="8" stroke-linecap="round" fill="none"/>
-          <circle cx="100" cy="52" r="16" fill="#F7B538"/>
-          <circle cx="100" cy="52" r="10" fill="#E85D04"/>
-
-          <g fill="#4A5068">
-            <rect x="45" y="95" width="25" height="55" rx="2"/>
-            <rect x="49" y="100" width="5" height="8" fill="#90E0EF" opacity="0.9"/>
-            <rect x="57" y="100" width="5" height="8" fill="#90E0EF" opacity="0.9"/>
-            <rect x="49" y="112" width="5" height="8" fill="#F7B538" opacity="0.9"/>
-            <rect x="57" y="112" width="5" height="8" fill="#90E0EF" opacity="0.9"/>
-
-            <rect x="75" y="80" width="30" height="70" rx="2"/>
-            <rect x="80" y="86" width="6" height="10" fill="#F7B538" opacity="0.9"/>
-            <rect x="89" y="86" width="6" height="10" fill="#90E0EF" opacity="0.9"/>
-            <rect x="80" y="100" width="6" height="10" fill="#90E0EF" opacity="0.9"/>
-            <rect x="89" y="100" width="6" height="10" fill="#F7B538" opacity="0.9"/>
-            <rect x="80" y="114" width="6" height="10" fill="#90E0EF" opacity="0.9"/>
-            <rect x="89" y="114" width="6" height="10" fill="#90E0EF" opacity="0.9"/>
-            <rect x="80" y="128" width="6" height="10" fill="#F7B538" opacity="0.9"/>
-            <rect x="89" y="128" width="6" height="10" fill="#90E0EF" opacity="0.9"/>
-
-            <rect x="110" y="100" width="28" height="50" rx="2"/>
-            <rect x="115" y="106" width="5" height="8" fill="#90E0EF" opacity="0.9"/>
-            <rect x="123" y="106" width="5" height="8" fill="#F7B538" opacity="0.9"/>
-            <rect x="115" y="118" width="5" height="8" fill="#F7B538" opacity="0.9"/>
-            <rect x="123" y="118" width="5" height="8" fill="#90E0EF" opacity="0.9"/>
-
-            <rect x="143" y="115" width="18" height="35" rx="2"/>
-            <rect x="147" y="120" width="4" height="6" fill="#90E0EF" opacity="0.9"/>
-            <rect x="153" y="120" width="4" height="6" fill="#90E0EF" opacity="0.9"/>
-            <rect x="147" y="130" width="4" height="6" fill="#F7B538" opacity="0.9"/>
-          </g>
-
-          <rect x="35" y="150" width="130" height="4" rx="2" fill="#4A5068"/>
-
-          <path d="M35 165 Q70 158 100 165 Q130 172 165 165" stroke="#0077B6" stroke-width="5" stroke-linecap="round" fill="none"/>
-          <path d="M45 178 Q80 171 110 178 Q140 185 155 178" stroke="#90E0EF" stroke-width="3" stroke-linecap="round" fill="none"/>
-
-          <g stroke="#F7B538" stroke-width="2" stroke-linecap="round" opacity="0.7" class="logo-glow">
-            <line x1="70" y1="65" x2="60" y2="80"/>
-            <line x1="130" y1="65" x2="140" y2="80"/>
-          </g>
-        </svg>
-        <h3>Dark Variant</h3>
+      <!-- Light background variant -->
+      <div class="logo-card">
+        <svg width="160" height="160"><use href="#suews-logo-light"/></svg>
+        <h3>Light Background</h3>
       </div>
 
-      <!-- With wordmark -->
+      <!-- Line art variant (dark strokes) -->
+      <div class="logo-card" style="background: linear-gradient(135deg, #f0f0f0 25%, #e0e0e0 25%, #e0e0e0 50%, #f0f0f0 50%, #f0f0f0 75%, #e0e0e0 75%); background-size: 20px 20px;">
+        <svg width="160" height="160"><use href="#suews-logo-lineart"/></svg>
+        <h3>Line Art (Dark)</h3>
+      </div>
+
+      <!-- Line art variant (light strokes) -->
+      <div class="logo-card dark" style="background: linear-gradient(135deg, #2D3142 25%, #1A1D2E 25%, #1A1D2E 50%, #2D3142 50%, #2D3142 75%, #1A1D2E 75%); background-size: 20px 20px;">
+        <svg width="160" height="160"><use href="#suews-logo-lineart-light"/></svg>
+        <h3>Line Art (Light)</h3>
+      </div>
+
+      <!-- Animated variant (dark) -->
       <div class="logo-card">
-        <div class="wordmark">
-          <svg class="suews-logo-small" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="100" cy="100" r="90" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="2"/>
-            <path d="M40 85 Q100 20 160 85" stroke="#F7B538" stroke-width="8" stroke-linecap="round" fill="none"/>
-            <circle cx="100" cy="52" r="16" fill="#F7B538"/>
-            <circle cx="100" cy="52" r="10" fill="#E85D04"/>
-            <g fill="#2D3142">
-              <rect x="45" y="95" width="25" height="55" rx="2"/>
-              <rect x="75" y="80" width="30" height="70" rx="2"/>
-              <rect x="110" y="100" width="28" height="50" rx="2"/>
-              <rect x="143" y="115" width="18" height="35" rx="2"/>
-            </g>
-            <rect x="35" y="150" width="130" height="4" rx="2" fill="#2D3142"/>
-            <path d="M35 165 Q70 158 100 165 Q130 172 165 165" stroke="#0077B6" stroke-width="5" stroke-linecap="round" fill="none"/>
-            <path d="M45 178 Q80 171 110 178 Q140 185 155 178" stroke="#90E0EF" stroke-width="3" stroke-linecap="round" fill="none"/>
-          </svg>
-          <span class="wordmark-text">SUEWS</span>
+        <svg width="160" height="160"><use href="#suews-logo-animated"/></svg>
+        <h3>Animated (Dark)</h3>
+      </div>
+
+      <!-- Animated variant (light) -->
+      <div class="logo-card">
+        <svg width="160" height="160"><use href="#suews-logo-animated-light"/></svg>
+        <h3>Animated (Light)</h3>
+      </div>
+    </div>
+
+    <!-- Logo with Text -->
+    <div class="variations" style="margin-top: 3rem;">
+      <h2>Logo with Text</h2>
+      <p style="color: var(--urban-slate); opacity: 0.7; margin-bottom: 1.5rem; font-size: 0.9rem;">
+        Using <strong>Inter</strong> (open source, <a href="https://rsms.me/inter/" style="color: var(--water-blue);">rsms.me/inter</a>)
+      </p>
+      <div class="variation-grid">
+        <div class="variation-item">
+          <svg width="340" height="120"><use href="#suews-logo-text-dark"/></svg>
+          <p style="margin-top: 0.75rem; font-size: 0.75rem; color: var(--urban-slate); opacity: 0.6;">Dark icon + Dark text (for light backgrounds)</p>
         </div>
-        <h3>With Wordmark</h3>
-      </div>
-
-      <!-- Simplified icon - golden ratio sun behind buildings -->
-      <div class="logo-card">
-        <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="60" cy="60" r="56" fill="#2D3142"/>
-          <!-- Sun at golden ratio (0.618) - behind buildings -->
-          <circle cx="74" cy="74" r="18" fill="#F7B538"/>
-          <circle cx="74" cy="74" r="11" fill="#E85D04"/>
-          <!-- Buildings - drawn after sun to overlap -->
-          <rect x="24" y="54" width="14" height="32" rx="2" fill="#4A5068"/>
-          <rect x="42" y="46" width="16" height="40" rx="2" fill="#4A5068"/>
-          <rect x="62" y="50" width="14" height="36" rx="2" fill="#4A5068"/>
-          <rect x="80" y="58" width="14" height="28" rx="2" fill="#4A5068"/>
-          <!-- Water wave -->
-          <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none"/>
-        </svg>
-        <h3>Simplified Icon</h3>
-      </div>
-
-      <!-- Simplified on light background -->
-      <div class="logo-card">
-        <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="60" cy="60" r="56" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="2"/>
-          <!-- Sun at golden ratio (0.618) - behind buildings -->
-          <circle cx="74" cy="74" r="18" fill="#F7B538"/>
-          <circle cx="74" cy="74" r="11" fill="#E85D04"/>
-          <!-- Buildings - drawn after sun to overlap -->
-          <rect x="24" y="54" width="14" height="32" rx="2" fill="#2D3142"/>
-          <rect x="42" y="46" width="16" height="40" rx="2" fill="#2D3142"/>
-          <rect x="62" y="50" width="14" height="36" rx="2" fill="#2D3142"/>
-          <rect x="80" y="58" width="14" height="28" rx="2" fill="#2D3142"/>
-          <!-- Water wave -->
-          <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none"/>
-        </svg>
-        <h3>Light Variant</h3>
+        <div class="variation-item">
+          <svg width="340" height="120"><use href="#suews-logo-text-light"/></svg>
+          <p style="margin-top: 0.75rem; font-size: 0.75rem; color: var(--urban-slate); opacity: 0.6;">Light icon + Dark text (for light backgrounds)</p>
+        </div>
+        <div class="variation-item" style="background: var(--urban-dark); border-radius: 16px;">
+          <svg width="340" height="120"><use href="#suews-logo-text-white"/></svg>
+          <p style="margin-top: 0.75rem; font-size: 0.75rem; color: white; opacity: 0.5;">Dark icon + White text (for dark backgrounds)</p>
+        </div>
       </div>
     </div>
 
@@ -407,48 +395,49 @@
       <h2>Size Variations</h2>
       <div class="variation-grid">
         <div class="variation-item">
-          <svg width="128" height="128" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="60" cy="60" r="56" fill="#2D3142"/>
-            <circle cx="74" cy="74" r="18" fill="#F7B538"/>
-            <circle cx="74" cy="74" r="11" fill="#E85D04"/>
-            <rect x="24" y="54" width="14" height="32" rx="2" fill="#4A5068"/>
-            <rect x="42" y="46" width="16" height="40" rx="2" fill="#4A5068"/>
-            <rect x="62" y="50" width="14" height="36" rx="2" fill="#4A5068"/>
-            <rect x="80" y="58" width="14" height="28" rx="2" fill="#4A5068"/>
-            <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none"/>
-          </svg>
+          <svg width="128" height="128"><use href="#suews-logo-dark"/></svg>
         </div>
         <div class="variation-item">
-          <svg width="64" height="64" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="60" cy="60" r="56" fill="#2D3142"/>
-            <circle cx="74" cy="74" r="18" fill="#F7B538"/>
-            <circle cx="74" cy="74" r="11" fill="#E85D04"/>
-            <rect x="24" y="54" width="14" height="32" rx="2" fill="#4A5068"/>
-            <rect x="42" y="46" width="16" height="40" rx="2" fill="#4A5068"/>
-            <rect x="62" y="50" width="14" height="36" rx="2" fill="#4A5068"/>
-            <rect x="80" y="58" width="14" height="28" rx="2" fill="#4A5068"/>
-            <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none"/>
-          </svg>
+          <svg width="64" height="64"><use href="#suews-logo-dark"/></svg>
         </div>
         <div class="variation-item">
-          <svg width="32" height="32" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="60" cy="60" r="56" fill="#2D3142"/>
-            <circle cx="74" cy="74" r="18" fill="#F7B538"/>
-            <circle cx="74" cy="74" r="11" fill="#E85D04"/>
-            <rect x="24" y="54" width="14" height="32" rx="2" fill="#4A5068"/>
-            <rect x="42" y="46" width="16" height="40" rx="2" fill="#4A5068"/>
-            <rect x="62" y="50" width="14" height="36" rx="2" fill="#4A5068"/>
-            <rect x="80" y="58" width="14" height="28" rx="2" fill="#4A5068"/>
-            <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none"/>
-          </svg>
+          <svg width="32" height="32"><use href="#suews-logo-dark"/></svg>
         </div>
-        <div class="variation-item">
-          <svg width="16" height="16" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="60" cy="60" r="56" fill="#2D3142"/>
-            <circle cx="74" cy="74" r="20" fill="#F7B538"/>
-            <rect x="25" y="52" width="70" height="38" rx="2" fill="#4A5068"/>
-            <path d="M18 98 Q60 85 102 98" stroke="#0077B6" stroke-width="6" stroke-linecap="round" fill="none"/>
-          </svg>
+      </div>
+    </div>
+
+    <!-- Design Philosophy -->
+    <div class="palette" style="margin-top: 3rem;">
+      <h2>Design Philosophy</h2>
+      <div style="display: grid; grid-template-columns: 200px 1fr; gap: 3rem; margin-top: 1.5rem; align-items: start;">
+        <div style="background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: center;">
+          <svg width="160" height="160"><use href="#suews-logo-dark"/></svg>
+        </div>
+        <div style="color: var(--urban-slate); line-height: 1.7;">
+          <p style="margin-bottom: 1rem;">
+            The SUEWS logo distils the model's core function: simulating <strong>energy</strong> and <strong>water</strong> exchanges in <strong>urban</strong> environments.
+          </p>
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: linear-gradient(135deg, #F7B538 40%, #E85D04 100%); flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong>Sun</strong> — Solar radiation driving the surface energy balance; the warm gradient represents shortwave and longwave radiation fluxes</span>
+            </li>
+            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 4px; background: #5D5852; flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong>Buildings</strong> — Urban morphology with varying heights representing the heterogeneous built environment that SUEWS characterises</span>
+            </li>
+            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 16px; height: 4px; border-radius: 2px; background: #0077B6; flex-shrink: 0; margin-top: 10px;"></span>
+              <span><strong>Water wave</strong> — The hydrological cycle: precipitation, runoff, evaporation, and storage that form the water balance component</span>
+            </li>
+            <li style="display: flex; align-items: flex-start; gap: 0.75rem;">
+              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: #2D3142; flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong>Circle</strong> — The bounded urban domain, a contained system where all fluxes are accounted for</span>
+            </li>
+          </ul>
+          <p style="margin-top: 1.25rem; font-size: 0.9rem; opacity: 0.7;">
+            The composition follows golden ratio proportions, with the sun positioned at the upper-right intersection point — where energy enters the system.
+          </p>
         </div>
       </div>
     </div>
@@ -469,17 +458,9 @@
           <span>Water</span>
           <span>#0077B6</span>
         </div>
-        <div class="swatch water-light">
-          <span>Water Light</span>
-          <span>#90E0EF</span>
-        </div>
         <div class="swatch slate">
           <span>Urban Slate</span>
           <span>#2D3142</span>
-        </div>
-        <div class="swatch dark">
-          <span>Urban Dark</span>
-          <span>#1A1D2E</span>
         </div>
       </div>
     </div>

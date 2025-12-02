@@ -122,12 +122,13 @@ runs:
           brew install gfortran &&
           brew unlink gfortran &&
           brew link gfortran
-        # Windows pacman with retry logic and timeout handling
-        # MSYS2 mirrors can be slow/overloaded causing "Operation too slow" errors
-        # Solution: retry loop + --disable-download-timeout (pacman 6.0+)
+        # Windows MSYS2/pacman setup with two workarounds:
+        # 1. Core package updates (pacman, msys2-runtime) terminate the shell - run twice, ignore first exit
+        # 2. Mirror timeouts cause "Operation too slow" errors - use --disable-download-timeout + retry
         CIBW_BEFORE_ALL_WINDOWS: >
-          C:\msys64\usr\bin\bash.exe -lc "for i in 1 2 3; do pacman -Syu --noconfirm --disable-download-timeout && break || { echo 'Retry $i/3: pacman -Syu failed'; sleep 15; }; done" &&
-          C:\msys64\usr\bin\bash.exe -lc "for i in 1 2 3; do pacman -S --needed --noconfirm --disable-download-timeout mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas && break || { echo 'Retry $i/3: pacman -S failed'; sleep 15; }; done"
+          C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm --disable-download-timeout || true" &&
+          C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm --disable-download-timeout" &&
+          C:\msys64\usr\bin\bash.exe -lc "for i in 1 2 3; do pacman -S --needed --noconfirm --disable-download-timeout mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas && break || { echo Retry $i/3 && sleep 15; }; done"
         # Platform-specific: Windows compiler and toolchain settings
         CIBW_ENVIRONMENT_WINDOWS: >
           PATH="C:\\msys64\\ucrt64\\bin;$PATH"

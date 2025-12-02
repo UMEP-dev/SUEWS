@@ -138,7 +138,7 @@ markers = [
     "util: Utility function tests (non-critical)",
     "cfg: Config/schema validation tests",
     "slow: Tests taking >30s individually",
-    "qgis: UMEP plugin tests (Windows + Python 3.12 only)",
+    "qgis: UMEP plugin tests in test/umep/ (Windows + Python 3.12 only)",
 ]
 
 [tool.ruff]

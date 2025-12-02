@@ -2,7 +2,7 @@ from ast import literal_eval
 from shutil import rmtree
 import tempfile
 import copy
-import multiprocess
+import multiprocessing
 import os
 import sys
 import time
@@ -646,7 +646,16 @@ def run_supy_par(
         list_dir_temp = [path_dir_temp for _ in range(n_grid)]
 
         # parallel run
-        with multiprocess.Pool() as pool:
+        # Always use spawn context for consistent, portable behaviour:
+        # - Avoids fork warnings in multi-threaded contexts (macOS, GH-916)
+        # - Avoids fork_exec signature issues (Python 3.14+)
+        # - Aligns with Python's direction (3.14 changed default to forkserver)
+        # - Performance overhead (~40ms/worker startup) is negligible for SUEWS
+        #   since each grid runs heavy Fortran code taking seconds
+        # Allow override via SUPY_MP_CONTEXT for edge cases
+        mp_context = os.environ.get("SUPY_MP_CONTEXT", "spawn")
+        ctx = multiprocessing.get_context(mp_context)
+        with ctx.Pool() as pool:
             pool.starmap(
                 run_save_supy,
                 zip(

@@ -21,7 +21,7 @@ def _load_heavy_imports():
     global _init_supy, _run_supy, _save_supy, _load_forcing_grid, pd
     global load_SUEWS_nml_simple, SUEWSSimulation, YAML_SUPPORT, ThreadPool
 
-    from multiprocess.pool import ThreadPool
+    from multiprocessing.pool import ThreadPool
     from .._supy_module import (
         _init_supy,
         _run_supy,

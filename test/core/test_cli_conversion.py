@@ -6,6 +6,7 @@ simulation tests.
 """
 
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 import pytest
@@ -35,9 +36,14 @@ class TestCLIConversion:
 
     @staticmethod
     def run_suews_convert(*args):
-        """Run suews-convert command and return result."""
+        """Run suews-convert command and return result.
+
+        Uses sys.executable to ensure the CLI runs in the same Python
+        environment as the tests, avoiding issues with system PATH
+        pointing to different Python installations.
+        """
         result = subprocess.run(
-            ["suews-convert", *args],
+            [sys.executable, "-m", "supy.cmd.table_converter", *args],
             capture_output=True,
             text=True,
             timeout=60,

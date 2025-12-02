@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 39 | 30 | 18 | 36 | 19 | 138 |
+| 2025 | 56 | 66 | 20 | 68 | 36 | 246 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -34,20 +34,68 @@
 ## 2025
 
 ### 30 Nov 2025
+
 - [bugfix] Add missing `rcmethod` to CRITICAL_PHYSICS_PARAMS in _check_critical_null_physics_params (config.py).
 - [bugfix] Add check on ARCHETYPE_REQUIRED_PARAMS in _validate_stebbs (config.py).
+- [bugfix] Included missing Python modules (`run`, `_version`) in wheel installation (#960)
+  - Fixed packaging to include all required modules in distributed wheel
+- [bugfix] Configured spawn start method on macOS to avoid fork warnings (#946)
+  - Multiprocessing now uses spawn method on macOS to prevent fork-related issues
+- [bugfix] Added missing `rcmethod` to CRITICAL_PHYSICS_PARAMS in _check_critical_null_physics_params (config.py) (#955)
+- [maintenance] Added merge queue support to CI workflow (#954)
+  - Enhanced GitHub Actions workflow to support merge queue feature
+- [maintenance] Replaced deprecated pandas frequency aliases ('T'/'H') with modern equivalents (#947)
+  - Changed 'T' to 'min' and 'H' to 'h' for pandas 3.x compatibility
+- [maintenance] Resolved pandas FutureWarning and PerformanceWarning (#949)
+  - Fixed MultiIndex lexsort warnings and deprecated DataFrame operations
+- [maintenance] Replaced deprecated `fillna(method=...)` with `ffill()` and `bfill()` (#948)
+  - Updated to modern pandas API for forward/backward fill operations
+- [doc] Updated build system and developer documentation (#951)
+  - Enhanced documentation for build process and developer workflows
+- [doc] Reorganised output documentation for clarity (#944)
+  - Improved structure and navigation of output variable documentation
 - [bugfix] Fix nullification logic in phase_b.py for stebbs parameters to include building_archetype block when stebbsmethod == 0.
 
 ### 29 Nov 2025
-- [maintenance] Reorganise `.claude/` directory structure from 7 to 3 directories (#945)
+- [feature] Integrated Python output registry with SuPy post-processing (#937)
+  - Output variable metadata now sourced from Python registry
+  - Part of epic #929: Migrate Output Variable Metadata to Python-First Architecture
+- [bugfix] Fixed NumPy 2.0 deprecation warning by extracting scalars in Fortran-Python interface (#938)
+  - Replaced deprecated array-to-scalar conversion with explicit `.item()` calls
+- [bugfix] Sorted MultiIndex columns to avoid lexsort performance warnings (#939)
+  - Fixed pandas PerformanceWarning in output DataFrame handling
+- [maintenance] Removed deprecated Fortran output metadata (#942)
+  - Completed migration to Python-first output variable registry
+  - Part of epic #929: Migrate Output Variable Metadata to Python-First Architecture
+- [maintenance] Reorganised `.claude/` directory structure from 7 to 3 directories (#945)
   - Skills now single source of truth for all Claude Code knowledge
   - Commands are thin wrappers that invoke skills with dynamic context
   - Consolidated: howto/, reference/, templates/, agents/ → skills/
-  - Added new skills: `review-pr`, `design-tests`, `check-naming`, `apply-patterns`
+  - Added new skills: `audit-pr`, `design-tests`, `check-naming`, `apply-patterns`
   - Enhanced `lint-code` skill with RST and Markdown conventions
   - Updated `validate-claude-md.py` for new directory structure
 
+### 28 Nov 2025
+- [feature] Added Python output variable registry with 1,139 variables (#935)
+  - Established Python as single source of truth for output variable metadata
+  - Part of epic #929: Migrate Output Variable Metadata to Python-First Architecture
+- [feature] Added SUEWS Claude skills for development workflows (#928)
+  - New skills for code review, documentation sync, and development automation
+
+### 27 Nov 2025
+- [bugfix] Added venv guard and clean build output (#926)
+  - Prevents build issues when virtual environment is not activated
+- [maintenance] Enabled determine_matrix job for scheduled builds (#923)
+  - Fixed CI workflow for nightly builds
+- [maintenance] Added TestPyPI notice to README for dev builds (#924)
+  - Improved documentation for testing development versions
+- [doc] Archived historical manuals to Zenodo (#927)
+  - Historical PDF manuals now preserved with DOI for long-term accessibility
+
 ### 26 Nov 2025
+- [feature] Slimmed CI with tiered test strategy (#900)
+  - Fast tests run on all PRs, comprehensive tests on merge to master
+  - Reduces CI time while maintaining test coverage
 - [maintenance] Corrected typos and improved parameter descriptions in site.py for STEBBS parameters
 - [change] Removed unused DHWVesselEmissivity parameter across the codebase
 - [change] Renamed Wallx1 and Roofx1 across the codebase

@@ -1046,6 +1046,7 @@ from supy.data_model.validation.core.yaml_helpers import (
     precheck_site_season_adjustments,
     precheck_start_end_date,
     precheck_update_temperature,
+    _nullify_biogenic_in_props,
 )
 
 
@@ -2012,6 +2013,49 @@ def test_phase_b_adjust_model_dependent_nullification_reports_changes():
     co2 = yaml_after["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
     assert co2["co2pointsource"]["value"] is None
     assert co2["nested"]["x"]["value"] is None
+
+def test_nullify_biogenic_in_props_nullifies_values_and_lists():
+    """Ensure _nullify_biogenic_in_props nullifies scalar and list 'value' entries."""
+    props = {
+        "land_cover": {
+            "dectr": {
+                "alpha_bioco2": {"value": 0.8},
+                "beta_bioco2": {"value": [1.0, 2.0, 3.0]},
+                "theta_bioco2": 42.0,  # scalar -> should become None
+                "unrelated_param": {"value": 2.5},
+            }
+        }
+    }
+
+    changed = _nullify_biogenic_in_props(props)
+    assert changed is True
+
+    dectr = props["land_cover"]["dectr"]
+
+    # dict-with-value -> value set to None
+    assert isinstance(dectr["alpha_bioco2"], dict)
+    assert dectr["alpha_bioco2"]["value"] is None
+
+    # list -> replaced with list-of-None of same length
+    assert isinstance(dectr["beta_bioco2"], dict)
+    assert dectr["beta_bioco2"]["value"] == [None, None, None]
+
+    # scalar -> replaced with None
+    assert dectr["theta_bioco2"] is None
+
+    # unrelated param not in the target list remains unchanged
+    assert dectr["unrelated_param"]["value"] == 2.5
+
+
+def test_nullify_biogenic_in_props_noop_when_missing():
+    """Ensure helper returns False and doesn't change props when dectr/params absent."""
+    # No land_cover
+    props_a = {}
+    # land_cover present but no dectr
+    props_b = {"land_cover": {"grass": {"sfr": {"value": 0.5}}}}
+    assert _nullify_biogenic_in_props(props_a) is False
+    assert _nullify_biogenic_in_props(props_b) is False
+
 
 def test_collect_yaml_differences_simple():
     original = {

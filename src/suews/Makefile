@@ -200,7 +200,8 @@ PHYS =	suews_phys_narp.o \
 	suews_phys_stebbs.o
 
 # SUEWS driver module (wrapper of all main calculations)
-DRIVER = suews_ctrl_driver.o
+DRIVER = suews_ctrl_driver.o \
+	suews_state_accessors.o
 
 # Rest of the files including modules and functions which are independent
 # OTHERS =  suews_ctrl_translate.o \

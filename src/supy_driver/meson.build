@@ -120,6 +120,7 @@ src_f95_all = [
   'suews_phys_spartacus.f95',
   'suews_phys_stebbs.f95',
   'suews_ctrl_driver.f95',
+  'suews_state_accessors.f95',  # Accessor functions for nested state arrays
 ]
 
 src_f95_files = []
@@ -144,6 +145,7 @@ src_f95_sub = [
   #'suews_phys_stebbs.f95',
   'suews_phys_waterdist.f95',
   'suews_util_meteo.f95',
+  'suews_state_accessors.f95',  # Accessor functions for nested state arrays
 ]
 src_to_wrap = src_f95_sub
 

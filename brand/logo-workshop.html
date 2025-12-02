@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SUEWS Logo Workshop</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #1a1a2e;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    h1, h2 { color: #fff; font-weight: 300; }
+    h2 { font-size: 1.2rem; margin: 2rem 0 1rem; opacity: 0.7; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    .card.dark { background: #2d3142; }
+    .card.checker {
+      background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 20px 20px;
+    }
+    .card h3 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #666;
+    }
+    .card.dark h3 { color: #aaa; }
+    .sizes {
+      display: flex;
+      gap: 2rem;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .size-item { text-align: center; }
+    .size-item p { font-size: 0.7rem; color: #666; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>SUEWS Logo Workshop</h1>
+    <p style="color: #888; margin-bottom: 2rem;">Edit the SVG below, save file, refresh browser</p>
+
+    <!-- ============================================================
+         EDIT THIS SVG - All paths are labelled with comments
+         ============================================================ -->
+    <svg id="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" style="display:none;">
+
+      <!-- SUN - clean circles (cx=600, cy=580) -->
+      <!-- Outer gold ring -->
+      <circle id="sun-outer" cx="600" cy="580" r="280" fill="#F7B538"/>
+      <!-- White gap -->
+      <!-- <circle id="sun-gap" cx="600" cy="580" r="220" fill="white"/> -->
+      <!-- Inner gold disk -->
+      <circle id="sun-inner" cx="600" cy="580" r="170" fill="#E85D04"/>
+
+      <!-- BUILDINGS - main outline with peaked roofs -->
+      <path id="buildings-main"
+            fill="none"
+            stroke="#066fab"
+            stroke-width="68"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="
+              M 500,1350
+              L 500,1050
+              L 700,1050
+              L 750,1050
+              L 750,1320
+              L 750,900
+              L 850,800
+              L 950,900
+              L 950,700
+              L 1150,500
+              L 1150,1150
+            "/>
+
+      <!-- BUILDINGS - inner detail line (3D perspective effect) -->
+      <path id="buildings-detail"
+            fill="none"
+            stroke="#066fab"
+            stroke-width="68"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="
+              M 1250,1100
+              L 1250,620
+              L 1500,660
+              L 1500,1050
+            "/>
+
+      <!-- LEAF/GROUND - green organic shape -->
+      <!-- Simplified: absolute coords, integers only -->
+      <path id="leaf-ground" fill="#09a25c" d="
+        M 1754,1130
+        C 1789,1280 1725,1446 1631,1565
+        C 1503,1731 1265,1776 1077,1691
+        C 898,1622 725,1465 520,1536
+        C 440,1540 256,1708 381,1558
+        C 524,1394 773,1424 938,1535
+        C 1097,1639 1325,1723 1495,1594
+        C 1605,1515 1678,1342 1686,1184
+        C 1561,1240 1451,1207 1336,1307
+        C 1254,1342 1205,1536 1089,1449
+        C 1197,1418 1289,1349 1381,1287
+        C 1296,1428 1058,1601 921,1499
+        C 902,1342 1055,1202 1204,1173
+        C 1387,1147 1506,1095 1754,1130
+        Z"/>
+
+      <!-- WAVE - blue water element at bottom -->
+      <!-- Simplified: 4 clean bezier curves, integers only -->
+      <path id="wave" fill="#0558a5" d="
+        M 624,1557
+        C 785,1558 983,1697 1084,1746
+        C 928,1775 808,1669 660,1636
+        C 524,1577 431,1784 313,1719
+        C 349,1597 516,1572 624,1557
+        Z"/>
+
+    </svg>
+
+    <h2>Preview</h2>
+    <div class="grid">
+      <div class="card checker">
+        <svg viewBox="0 0 2048 2048" width="300" height="300"><use href="#logo > *"/></svg>
+        <h3>Transparent</h3>
+      </div>
+      <div class="card dark">
+        <svg viewBox="0 0 2048 2048" width="300" height="300"><use href="#logo > *"/></svg>
+        <h3>Dark Background</h3>
+      </div>
+      <div class="card">
+        <svg viewBox="0 0 2048 2048" width="300" height="300"><use href="#logo > *"/></svg>
+        <h3>Light Background</h3>
+      </div>
+    </div>
+
+    <h2>Size Test</h2>
+    <div class="card" style="margin-top: 1rem;">
+      <div class="sizes">
+        <div class="size-item">
+          <svg viewBox="0 0 2048 2048" width="128" height="128"><use href="#logo > *"/></svg>
+          <p>128px</p>
+        </div>
+        <div class="size-item">
+          <svg viewBox="0 0 2048 2048" width="64" height="64"><use href="#logo > *"/></svg>
+          <p>64px</p>
+        </div>
+        <div class="size-item">
+          <svg viewBox="0 0 2048 2048" width="32" height="32"><use href="#logo > *"/></svg>
+          <p>32px</p>
+        </div>
+        <div class="size-item">
+          <svg viewBox="0 0 2048 2048" width="16" height="16"><use href="#logo > *"/></svg>
+          <p>16px</p>
+        </div>
+      </div>
+    </div>
+
+    <h2>Individual Elements</h2>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+      <div class="card checker" style="padding: 1rem;">
+        <svg viewBox="0 0 2048 2048" width="100" height="100">
+          <use href="#sun-outer"/><use href="#sun-white-ring"/><use href="#sun-inner"/>
+        </svg>
+        <h3>Sun</h3>
+      </div>
+      <div class="card checker" style="padding: 1rem;">
+        <svg viewBox="0 0 2048 2048" width="100" height="100">
+          <use href="#buildings-main"/><use href="#buildings-detail"/>
+        </svg>
+        <h3>Buildings</h3>
+      </div>
+      <div class="card checker" style="padding: 1rem;">
+        <svg viewBox="0 0 2048 2048" width="100" height="100">
+          <use href="#leaf-ground"/>
+        </svg>
+        <h3>Leaf/Ground</h3>
+      </div>
+      <div class="card checker" style="padding: 1rem;">
+        <svg viewBox="0 0 2048 2048" width="100" height="100">
+          <use href="#wave"/>
+        </svg>
+        <h3>Wave</h3>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Clone all paths from hidden SVG to visible ones
+    document.querySelectorAll('svg[viewBox="0 0 2048 2048"]:not(#logo)').forEach(svg => {
+      const source = document.getElementById('logo');
+      svg.innerHTML = source.innerHTML;
+    });
+  </script>
+</body>
+</html>

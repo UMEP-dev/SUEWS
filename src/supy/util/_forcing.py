@@ -152,9 +152,9 @@ def _convert_xsmd_series(
     """Convert volumetric/gravimetric xsmd measurements to a soil moisture deficit.
 
     Dimensional analysis:
-    - SMDMethod=1 (volumetric): [m³/m³] × [mm] × [-] = [mm]
-    - SMDMethod=2 (gravimetric): [g/g] × [g/cm³] / [g/cm³] × [mm] × [-] = [mm]
-      (division by ρ_water=1 g/cm³ is implicit in the formula)
+    - SMDMethod=1 (volumetric): [m3/m3] * [mm] * [-] = [mm]
+    - SMDMethod=2 (gravimetric): [g/g] * [g/cm3] / [g/cm3] * [mm] * [-] = [mm]
+      (division by rho_water=1 g/cm3 is implicit in the formula)
     """
 
     values = xsmd.to_numpy(dtype=float, copy=True)
@@ -166,12 +166,12 @@ def _convert_xsmd_series(
 
     clipped = values[mask_valid].copy()
     if smd_method == 1:
-        # Volumetric: deficit [mm] = (θ_max - θ_obs) [fraction] × depth [mm] × soil_fraction
+        # Volumetric: deficit [mm] = (theta_max - theta_obs) [fraction] * depth [mm] * soil_fraction
         clipped = np.clip(clipped, 0.0, meta.smcap)
         deficit = (meta.smcap - clipped) * meta.depth_mm * meta.soil_not_rocks
     elif smd_method == 2:
-        # Gravimetric: deficit = (w_max - w_obs) × (ρ_soil / ρ_water) × depth × soil_fraction
-        # Since ρ_water = 1 g/cm³, formula simplifies to: (w_max - w_obs) × ρ_soil × depth × soil_fraction
+        # Gravimetric: deficit = (w_max - w_obs) * (rho_soil / rho_water) * depth * soil_fraction
+        # Since rho_water = 1 g/cm3, formula simplifies to: (w_max - w_obs) * rho_soil * depth * soil_fraction
         clipped = np.clip(clipped, 0.0, meta.smcap)
         deficit = (
             (meta.smcap - clipped)
@@ -187,14 +187,28 @@ def _convert_xsmd_series(
 
 
 def _extract_soil_obs_metadata(row: pd.Series, grid: int) -> SoilObservationMetadata:
-    """Extract soil observation metadata from the first surface with complete data.
+    """Extract soil observation metadata, preferring site-level config.
 
-    Observed soil moisture is a single point measurement. We search through
-    non-water surfaces (0-5) and use the first one with complete observation
-    metadata. Users should set their observation parameters on any one surface.
+    Lookup order:
+    1. Site-level config (new YAML-based approach): columns with index "0"
+    2. Per-surface fallback (legacy): search surfaces 0-5 for complete metadata
+
+    The site-level approach is preferred as it correctly models observed soil
+    moisture as a site property rather than a per-surface property.
     """
 
-    def get_value(column: str, surf: int) -> Optional[float]:
+    def get_site_value(column: str) -> Optional[float]:
+        """Get value from site-level column (index "0")."""
+        key = (column, "0")
+        if key not in row.index:
+            return None
+        val = row[key]
+        if val is None or pd.isna(val) or val <= (MISSING_VALUE + 1):
+            return None
+        return float(val)
+
+    def get_surface_value(column: str, surf: int) -> Optional[float]:
+        """Get value from per-surface column (legacy format)."""
         key = (column, f"({surf},)")
         if key not in row.index:
             return None
@@ -203,14 +217,13 @@ def _extract_soil_obs_metadata(row: pd.Series, grid: int) -> SoilObservationMeta
             return None
         return float(val)
 
-    def try_surface(surf: int) -> Optional[SoilObservationMetadata]:
-        """Try to extract complete metadata from a surface, return None if incomplete."""
-        depth = get_value("obs_sm_depth", surf)
-        smcap = get_value("obs_sm_cap", surf)
-        soil_not_rocks = get_value("obs_soil_not_rocks", surf)
-        soil_density = get_value("soildensity", surf)
+    def try_site_level() -> Optional[SoilObservationMetadata]:
+        """Try to extract metadata from site-level config (new approach)."""
+        depth = get_site_value("obs_sm_depth")
+        smcap = get_site_value("obs_sm_smcap")
+        soil_not_rocks = get_site_value("obs_sm_soil_not_rocks")
+        soil_density = get_site_value("obs_sm_bulk_density")
 
-        # All four must be present for a complete metadata set
         if any(v is None for v in (depth, smcap, soil_not_rocks, soil_density)):
             return None
 
@@ -221,35 +234,65 @@ def _extract_soil_obs_metadata(row: pd.Series, grid: int) -> SoilObservationMeta
             soil_not_rocks=soil_not_rocks,
         )
 
-    # Search through non-water surfaces for first with complete metadata
+    def try_surface(surf: int) -> Optional[SoilObservationMetadata]:
+        """Try to extract complete metadata from a surface (legacy fallback)."""
+        depth = get_surface_value("obs_sm_depth", surf)
+        smcap = get_surface_value("obs_sm_cap", surf)
+        soil_not_rocks = get_surface_value("obs_soil_not_rocks", surf)
+        soil_density = get_surface_value("soildensity", surf)
+
+        if any(v is None for v in (depth, smcap, soil_not_rocks, soil_density)):
+            return None
+
+        return SoilObservationMetadata(
+            depth_mm=depth,
+            smcap=smcap,
+            soil_density=soil_density,
+            soil_not_rocks=soil_not_rocks,
+        )
+
+    def validate_metadata(meta: SoilObservationMetadata) -> None:
+        """Validate extracted metadata values."""
+        if meta.depth_mm <= 0:
+            raise ValueError(
+                f"`obs_sm_depth` must be positive for grid {grid}. Got {meta.depth_mm}."
+            )
+        if not (0 < meta.soil_not_rocks <= 1):
+            raise ValueError(
+                f"`obs_soil_not_rocks` must be in (0, 1]. Grid {grid} has {meta.soil_not_rocks}."
+            )
+        if meta.smcap <= 0:
+            raise ValueError(
+                f"`obs_sm_cap` (or `smcap`) must be positive for grid {grid}. Got {meta.smcap}."
+            )
+        if meta.soil_density <= 0:
+            raise ValueError(
+                f"`bulk_density` (or `soildensity`) must be positive for grid {grid}. "
+                f"Got {meta.soil_density}."
+            )
+
+    # 1. Try site-level config first (new approach)
+    meta = try_site_level()
+    if meta is not None:
+        validate_metadata(meta)
+        logger_supy.debug(f"Grid {grid}: using site-level soil observation config")
+        return meta
+
+    # 2. Fall back to per-surface search (legacy approach)
     for surf in NON_WATER_SURFACE_INDICES:
         meta = try_surface(surf)
         if meta is not None:
-            # Validate the extracted values
-            if meta.depth_mm <= 0:
-                raise ValueError(
-                    f"`obs_sm_depth` must be positive for grid {grid}. Got {meta.depth_mm}."
-                )
-            if not (0 < meta.soil_not_rocks <= 1):
-                raise ValueError(
-                    f"`obs_soil_not_rocks` must be in (0, 1]. Grid {grid} has {meta.soil_not_rocks}."
-                )
-            if meta.smcap <= 0:
-                raise ValueError(
-                    f"`obs_sm_cap` must be positive for grid {grid}. Got {meta.smcap}."
-                )
-            if meta.soil_density <= 0:
-                raise ValueError(
-                    f"`soildensity` must be positive for grid {grid}. Got {meta.soil_density}."
-                )
+            validate_metadata(meta)
             logger_supy.debug(
-                f"Grid {grid}: using soil observation metadata from surface index {surf}"
+                f"Grid {grid}: using soil observation metadata from surface index {surf} "
+                "(legacy per-surface config)"
             )
             return meta
 
-    # No surface had complete metadata
+    # No metadata found
     raise ValueError(
         f"Observed soil moisture requires metadata for grid {grid}. "
-        "Set obs_sm_depth, obs_sm_cap, obs_soil_not_rocks, and soildensity "
-        "on any non-water surface (0-5) in SUEWS_Soil.txt or YAML config."
+        "Preferred: Set `soil_observation` in site properties (YAML config). "
+        "Legacy fallback: Set obs_sm_depth, obs_sm_cap, obs_soil_not_rocks, and soildensity "
+        "on any non-water surface (0-5) in SUEWS_Soil.txt."
     )

@@ -4,6 +4,35 @@ import pytest
 from supy.util._forcing import convert_observed_soil_moisture
 
 
+def _make_site_level_state(
+    smdmethod: int,
+    *,  # keyword-only for clarity
+    depth: float,
+    smcap: float,
+    soil_not_rocks: float,
+    bulk_density: float,
+):
+    """Create a df_state with site-level soil observation config (new approach).
+
+    Site-level config uses columns with index "0" instead of surface indices.
+    This is the preferred approach for YAML-based configurations.
+    """
+    columns = [
+        ("smdmethod", "0"),
+        ("obs_sm_depth", "0"),
+        ("obs_sm_smcap", "0"),
+        ("obs_sm_soil_not_rocks", "0"),
+        ("obs_sm_bulk_density", "0"),
+    ]
+    data = [smdmethod, depth, smcap, soil_not_rocks, bulk_density]
+
+    multi_cols = pd.MultiIndex.from_tuples(columns)
+    df_state = pd.DataFrame(
+        [data], columns=multi_cols, index=pd.Index([1], name="grid")
+    )
+    return df_state
+
+
 def _make_state(
     smdmethod: int,
     *,  # keyword-only for clarity
@@ -232,3 +261,123 @@ def test_metadata_from_bare_soil_surface():
 
     # Gravimetric: (0.5 - 0.3) * 1.2 * 300 * 0.9 = 64.8
     assert pytest.approx(df_result["xsmd"].iloc[0], rel=1e-6) == 64.8
+
+
+# =============================================================================
+# Site-level configuration tests (new approach)
+# =============================================================================
+
+
+def test_site_level_config_volumetric():
+    """Test conversion using site-level config (new YAML approach)."""
+    df_state = _make_site_level_state(
+        smdmethod=1,
+        depth=200.0,
+        smcap=0.4,
+        soil_not_rocks=0.8,
+        bulk_density=1.2,
+    )
+    df_forcing = pd.DataFrame(
+        {"xsmd": [0.25, 0.35, -999.0]},
+        index=pd.date_range("2024-07-01", periods=3, freq="h"),
+    )
+
+    df_result = convert_observed_soil_moisture(df_forcing, df_state)
+
+    # Volumetric deficit = (smcap - xsmd) * depth * soil_not_rocks
+    # = (0.4 - 0.25) * 200 * 0.8 = 24.0
+    # = (0.4 - 0.35) * 200 * 0.8 = 8.0
+    expected = [24.0, 8.0, -999.0]
+    assert pytest.approx(df_result["xsmd"].tolist(), rel=1e-6) == expected
+
+
+def test_site_level_config_gravimetric():
+    """Test gravimetric conversion using site-level config."""
+    df_state = _make_site_level_state(
+        smdmethod=2,
+        depth=300.0,
+        smcap=0.5,
+        soil_not_rocks=0.9,
+        bulk_density=1.2,
+    )
+    df_forcing = pd.DataFrame(
+        {"xsmd": [0.3, 0.45]},
+        index=pd.date_range("2024-08-01", periods=2, freq="h"),
+    )
+
+    df_result = convert_observed_soil_moisture(df_forcing, df_state)
+
+    # Gravimetric deficit = (smcap - xsmd) * bulk_density * depth * soil_not_rocks
+    # = (0.5 - 0.3) * 1.2 * 300 * 0.9 = 64.8
+    # = (0.5 - 0.45) * 1.2 * 300 * 0.9 = 16.2
+    assert pytest.approx(df_result["xsmd"].tolist(), rel=1e-6) == [64.8, 16.2]
+
+
+def test_site_level_takes_precedence_over_per_surface():
+    """Test that site-level config takes precedence over per-surface config."""
+    # Create a state with BOTH site-level and per-surface config
+    # Site-level should be used
+    columns = [
+        ("smdmethod", "0"),
+        # Site-level config (should be used)
+        ("obs_sm_depth", "0"),
+        ("obs_sm_smcap", "0"),
+        ("obs_sm_soil_not_rocks", "0"),
+        ("obs_sm_bulk_density", "0"),
+        # Per-surface config (should be ignored)
+        ("obs_sm_depth", "(0,)"),
+        ("obs_sm_cap", "(0,)"),
+        ("obs_soil_not_rocks", "(0,)"),
+        ("soildensity", "(0,)"),
+    ]
+    # Site-level: depth=200, smcap=0.4, soil_not_rocks=0.8, bulk_density=1.0
+    # Per-surface: depth=100, smcap=0.2, soil_not_rocks=1.0, bulk_density=2.0
+    data = [1, 200.0, 0.4, 0.8, 1.0, 100.0, 0.2, 1.0, 2.0]
+
+    multi_cols = pd.MultiIndex.from_tuples(columns)
+    df_state = pd.DataFrame(
+        [data], columns=multi_cols, index=pd.Index([1], name="grid")
+    )
+    df_forcing = pd.DataFrame(
+        {"xsmd": [0.25]},
+        index=pd.date_range("2024-07-01", periods=1, freq="h"),
+    )
+
+    df_result = convert_observed_soil_moisture(df_forcing, df_state)
+
+    # Should use site-level: (0.4 - 0.25) * 200 * 0.8 = 24.0
+    # If per-surface were used: (0.2 - 0.2) * 100 * 1.0 = 0.0 (clipped to smcap)
+    assert pytest.approx(df_result["xsmd"].iloc[0], rel=1e-6) == 24.0
+
+
+def test_fallback_to_per_surface_when_site_level_incomplete():
+    """Test fallback to per-surface when site-level config is incomplete."""
+    # Create state with incomplete site-level but complete per-surface
+    columns = [
+        ("smdmethod", "0"),
+        # Incomplete site-level (missing bulk_density)
+        ("obs_sm_depth", "0"),
+        ("obs_sm_smcap", "0"),
+        ("obs_sm_soil_not_rocks", "0"),
+        # obs_sm_bulk_density intentionally missing
+        # Complete per-surface config on surface 0
+        ("obs_sm_depth", "(0,)"),
+        ("obs_sm_cap", "(0,)"),
+        ("obs_soil_not_rocks", "(0,)"),
+        ("soildensity", "(0,)"),
+    ]
+    data = [1, 200.0, 0.4, 0.8, 100.0, 0.3, 1.0, 1.5]
+
+    multi_cols = pd.MultiIndex.from_tuples(columns)
+    df_state = pd.DataFrame(
+        [data], columns=multi_cols, index=pd.Index([1], name="grid")
+    )
+    df_forcing = pd.DataFrame(
+        {"xsmd": [0.2]},
+        index=pd.date_range("2024-07-01", periods=1, freq="h"),
+    )
+
+    df_result = convert_observed_soil_moisture(df_forcing, df_state)
+
+    # Should fall back to per-surface: (0.3 - 0.2) * 100 * 1.0 = 10.0
+    assert pytest.approx(df_result["xsmd"].iloc[0], rel=1e-6) == 10.0

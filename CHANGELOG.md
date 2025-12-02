@@ -253,6 +253,13 @@
   - Same functionality, lighter dependencies
   - Consolidates all parallel processing to one library
 
+### 1 Dec 2025
+- [feature] Added site-level soil observation configuration (GH-3 improvement)
+  - New `soil_observation` block in site properties for cleaner YAML configuration
+  - Soil observation metadata now correctly modelled as a site-level property (not per-surface)
+  - Maintains backwards compatibility with legacy per-surface configuration
+  - Documentation updated with preferred YAML approach and legacy fallback
+
 ### 16 Nov 2025
 - [maintenance] Reorganised soil observation conversion logic from top-level `_soil_obs.py` to `util/_forcing.py`
   - Follows SuPy's established pattern where specialized utilities live in the `util/` subdirectory

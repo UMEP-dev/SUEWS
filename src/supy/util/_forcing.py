@@ -27,9 +27,6 @@ except ImportError:  # pragma: no cover
     logger_supy = logging.getLogger("SuPy")
 
 MISSING_VALUE = -999.0
-# Non-water surface indices (0=paved, 1=bldgs, 2=evetr, 3=dectr, 4=grass, 5=bsoil)
-# Water (6) is excluded as it has no soil store.
-NON_WATER_SURFACE_INDICES = range(6)
 
 
 @dataclass(frozen=True)
@@ -187,14 +184,10 @@ def _convert_xsmd_series(
 
 
 def _extract_soil_obs_metadata(row: pd.Series, grid: int) -> SoilObservationMetadata:
-    """Extract soil observation metadata, preferring site-level config.
+    """Extract soil observation metadata from site-level config.
 
-    Lookup order:
-    1. Site-level config (new YAML-based approach): columns with index "0"
-    2. Per-surface fallback (legacy): search surfaces 0-5 for complete metadata
-
-    The site-level approach is preferred as it correctly models observed soil
-    moisture as a site property rather than a per-surface property.
+    Site-level config uses columns with index "0" in df_state.
+    This is set via the `soil_observation` block in YAML site properties.
     """
 
     def get_site_value(column: str) -> Optional[float]:
@@ -207,92 +200,42 @@ def _extract_soil_obs_metadata(row: pd.Series, grid: int) -> SoilObservationMeta
             return None
         return float(val)
 
-    def get_surface_value(column: str, surf: int) -> Optional[float]:
-        """Get value from per-surface column (legacy format)."""
-        key = (column, f"({surf},)")
-        if key not in row.index:
-            return None
-        val = row[key]
-        if val is None or pd.isna(val) or val <= (MISSING_VALUE + 1):
-            return None
-        return float(val)
+    depth = get_site_value("obs_sm_depth")
+    smcap = get_site_value("obs_sm_smcap")
+    soil_not_rocks = get_site_value("obs_sm_soil_not_rocks")
+    soil_density = get_site_value("obs_sm_bulk_density")
 
-    def try_site_level() -> Optional[SoilObservationMetadata]:
-        """Try to extract metadata from site-level config (new approach)."""
-        depth = get_site_value("obs_sm_depth")
-        smcap = get_site_value("obs_sm_smcap")
-        soil_not_rocks = get_site_value("obs_sm_soil_not_rocks")
-        soil_density = get_site_value("obs_sm_bulk_density")
-
-        if any(v is None for v in (depth, smcap, soil_not_rocks, soil_density)):
-            return None
-
-        return SoilObservationMetadata(
-            depth_mm=depth,
-            smcap=smcap,
-            soil_density=soil_density,
-            soil_not_rocks=soil_not_rocks,
+    if any(v is None for v in (depth, smcap, soil_not_rocks, soil_density)):
+        raise ValueError(
+            f"Observed soil moisture requires complete metadata for grid {grid}. "
+            "Set `soil_observation` in site properties (YAML config) with: "
+            "depth, smcap, soil_not_rocks, and bulk_density."
         )
 
-    def try_surface(surf: int) -> Optional[SoilObservationMetadata]:
-        """Try to extract complete metadata from a surface (legacy fallback)."""
-        depth = get_surface_value("obs_sm_depth", surf)
-        smcap = get_surface_value("obs_sm_cap", surf)
-        soil_not_rocks = get_surface_value("obs_soil_not_rocks", surf)
-        soil_density = get_surface_value("soildensity", surf)
-
-        if any(v is None for v in (depth, smcap, soil_not_rocks, soil_density)):
-            return None
-
-        return SoilObservationMetadata(
-            depth_mm=depth,
-            smcap=smcap,
-            soil_density=soil_density,
-            soil_not_rocks=soil_not_rocks,
-        )
-
-    def validate_metadata(meta: SoilObservationMetadata) -> None:
-        """Validate extracted metadata values."""
-        if meta.depth_mm <= 0:
-            raise ValueError(
-                f"`obs_sm_depth` must be positive for grid {grid}. Got {meta.depth_mm}."
-            )
-        if not (0 < meta.soil_not_rocks <= 1):
-            raise ValueError(
-                f"`obs_soil_not_rocks` must be in (0, 1]. Grid {grid} has {meta.soil_not_rocks}."
-            )
-        if meta.smcap <= 0:
-            raise ValueError(
-                f"`obs_sm_cap` (or `smcap`) must be positive for grid {grid}. Got {meta.smcap}."
-            )
-        if meta.soil_density <= 0:
-            raise ValueError(
-                f"`bulk_density` (or `soildensity`) must be positive for grid {grid}. "
-                f"Got {meta.soil_density}."
-            )
-
-    # 1. Try site-level config first (new approach)
-    meta = try_site_level()
-    if meta is not None:
-        validate_metadata(meta)
-        logger_supy.debug(f"Grid {grid}: using site-level soil observation config")
-        return meta
-
-    # 2. Fall back to per-surface search (legacy approach)
-    for surf in NON_WATER_SURFACE_INDICES:
-        meta = try_surface(surf)
-        if meta is not None:
-            validate_metadata(meta)
-            logger_supy.debug(
-                f"Grid {grid}: using soil observation metadata from surface index {surf} "
-                "(legacy per-surface config)"
-            )
-            return meta
-
-    # No metadata found
-    raise ValueError(
-        f"Observed soil moisture requires metadata for grid {grid}. "
-        "Preferred: Set `soil_observation` in site properties (YAML config). "
-        "Legacy fallback: Set obs_sm_depth, obs_sm_cap, obs_soil_not_rocks, and soildensity "
-        "on any non-water surface (0-5) in SUEWS_Soil.txt."
+    meta = SoilObservationMetadata(
+        depth_mm=depth,
+        smcap=smcap,
+        soil_density=soil_density,
+        soil_not_rocks=soil_not_rocks,
     )
+
+    # Validate metadata values
+    if meta.depth_mm <= 0:
+        raise ValueError(
+            f"`depth` must be positive for grid {grid}. Got {meta.depth_mm}."
+        )
+    if not (0 < meta.soil_not_rocks <= 1):
+        raise ValueError(
+            f"`soil_not_rocks` must be in (0, 1]. Grid {grid} has {meta.soil_not_rocks}."
+        )
+    if meta.smcap <= 0:
+        raise ValueError(
+            f"`smcap` must be positive for grid {grid}. Got {meta.smcap}."
+        )
+    if meta.soil_density <= 0:
+        raise ValueError(
+            f"`bulk_density` must be positive for grid {grid}. Got {meta.soil_density}."
+        )
+
+    logger_supy.debug(f"Grid {grid}: using site-level soil observation config")
+    return meta

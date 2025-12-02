@@ -22,6 +22,12 @@ build:
       - git fetch --tags || true
       - git update-index --assume-unchanged docs/source/conf.py
     post_create_environment:
+      # Pre-install Sphinx with upper bound to work around pip resolver issue
+      # When using --index-url with --extra-index-url, pip may not properly
+      # apply constraints from TestPyPI metadata when resolving PyPI dependencies.
+      # Installing Sphinx first ensures the constraint is respected.
+      # See: Sphinx 9.0 breaks sphinx_click (sphinx.ext.autodoc.mock removed)
+      - python -m pip install "sphinx>=4.0,<8.2"
       # Detect version type and install appropriate pre-built wheel
       - |
         SUPY_VERSION=$(python get_ver_git.py 2>/dev/null || echo "unknown")

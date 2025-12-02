@@ -288,7 +288,10 @@ def collect_nullified_paths(before: Any, after: Any, path: str = "") -> List[str
     if isinstance(before, dict) and isinstance(after, dict):
         # RefValue leaf detection
         if "value" in before and "value" in after:
-            if before.get("value") not in (None, "") and after.get("value") in (None, ""):
+            if before.get("value") not in (None, "") and after.get("value") in (
+                None,
+                "",
+            ):
                 paths.append(path or "value")
             return paths
 
@@ -296,9 +299,14 @@ def collect_nullified_paths(before: Any, after: Any, path: str = "") -> List[str
         if ("working_day" in before or "holiday" in before) and (
             ("working_day" in after) or ("holiday" in after)
         ):
-            if before.get("working_day") not in (None, "") and after.get("working_day") in (None, ""):
+            if before.get("working_day") not in (None, "") and after.get(
+                "working_day"
+            ) in (None, ""):
                 paths.append(_p(path, "working_day"))
-            if before.get("holiday") not in (None, "") and after.get("holiday") in (None, ""):
+            if before.get("holiday") not in (None, "") and after.get("holiday") in (
+                None,
+                "",
+            ):
                 paths.append(_p(path, "holiday"))
             return paths
 
@@ -333,6 +341,7 @@ def collect_nullified_paths(before: Any, after: Any, path: str = "") -> List[str
     if before not in (None, "") and after in (None, ""):
         paths.append(path or "")
     return paths
+
 
 def _nullify_biogenic_in_props(props: dict) -> bool:
     """Nullify biogenic CO2 params under properties.land_cover.dectr in-place.
@@ -371,6 +380,7 @@ def _nullify_biogenic_in_props(props: dict) -> bool:
         land_cover["dectr"] = dectr_props
         props["land_cover"] = land_cover
     return changed
+
 
 def collect_yaml_differences(original: Any, updated: Any, path: str = "") -> List[dict]:
     """
@@ -1434,7 +1444,8 @@ def precheck_model_option_rules(data: dict) -> dict:
                         data["sites"][site_idx] = site
             except Exception:
                 logger_supy.exception(
-                    "[precheck] failed to nullify biogenic dectr params for site %d", site_idx
+                    "[precheck] failed to nullify biogenic dectr params for site %d",
+                    site_idx,
                 )
 
             # ALWAYS write back props after making changes above
@@ -1443,6 +1454,7 @@ def precheck_model_option_rules(data: dict) -> dict:
                 data["sites"][site_idx] = site
 
     return data
+
 
 def run_precheck(path: str) -> dict:
     """
@@ -1539,6 +1551,3 @@ def run_precheck(path: str) -> dict:
     # ---- Step 15: Print completion ----
     logger_supy.info("Precheck complete.\n")
     return data
-
-
-

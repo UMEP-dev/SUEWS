@@ -1357,9 +1357,13 @@ def adjust_model_dependent_nullification(
                 try:
                     nullify_co2_block_recursive(stebbs_block)
                 except Exception:
-                    logger_supy.exception("[precheck] failed to nullify stebbs block with shared helper")
+                    logger_supy.exception(
+                        "[precheck] failed to nullify stebbs block with shared helper"
+                    )
 
-                nullified_params = collect_nullified_paths(before_snapshot, stebbs_block)
+                nullified_params = collect_nullified_paths(
+                    before_snapshot, stebbs_block
+                )
                 if nullified_params:
                     param_list = ", ".join(nullified_params)
                     adjustments.append(
@@ -1394,7 +1398,9 @@ def adjust_model_dependent_nullification(
                 try:
                     nullify_co2_block_recursive(co2_block)
                 except Exception:
-                    logger_supy.exception("[precheck] failed to nullify co2 block with shared helper")
+                    logger_supy.exception(
+                        "[precheck] failed to nullify co2 block with shared helper"
+                    )
 
                 nullified_params = collect_nullified_paths(before_snapshot, co2_block)
                 if nullified_params:
@@ -1431,7 +1437,8 @@ def adjust_model_dependent_nullification(
                     )
             except Exception:
                 logger_supy.exception(
-                    "[phase_b] failed to nullify dectr biogenic params for site %d", site_idx
+                    "[phase_b] failed to nullify dectr biogenic params for site %d",
+                    site_idx,
                 )
 
     return yaml_data, adjustments

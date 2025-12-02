@@ -75,12 +75,22 @@
   - Enhanced `lint-code` skill with RST and Markdown conventions
   - Updated `validate-claude-md.py` for new directory structure
 
+### 28 Nov 2025
+- [feature] Added Python output variable registry with 1,139 variables (#935)
+  - Established Python as single source of truth for output variable metadata
+  - Part of epic #929: Migrate Output Variable Metadata to Python-First Architecture
+- [feature] Added SUEWS Claude skills for development workflows (#928)
+  - New skills for code review, documentation sync, and development automation
+
 ### 27 Nov 2025
-- [feature] Disable CO2 site parameters when model.emissionsmethod is 0..4 by nullifying CO2 blocks so Pydantic validation does not fail.
-- [change] Adjust CO2 profile models so DayProfile / HourlyProfile fields accept null (None) while preserving backwards-compatible defaults for normal configs.
-- [change] Add a robust, recursive nullification helper in src/supy/data_model/validation/core/yaml_helpers.py.
-- [maintenance] Add tests covering CO2 nullification (nested structures, day/hour profiles and emissionsmethod cases).
-- [maintenance] Added comments and small defensive fixes around profile handling to make the behaviour explicit and avoid regressions.
+- [bugfix] Added venv guard and clean build output (#926)
+  - Prevents build issues when virtual environment is not activated
+- [maintenance] Enabled determine_matrix job for scheduled builds (#923)
+  - Fixed CI workflow for nightly builds
+- [maintenance] Added TestPyPI notice to README for dev builds (#924)
+  - Improved documentation for testing development versions
+- [doc] Archived historical manuals to Zenodo (#927)
+  - Historical PDF manuals now preserved with DOI for long-term accessibility
 
 ### 26 Nov 2025
 - [feature] Slimmed CI with tiered test strategy (#900)

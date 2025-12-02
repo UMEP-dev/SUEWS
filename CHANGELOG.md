@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 56 | 65 | 20 | 68 | 36 | 245 |
+| 2025 | 57 | 65 | 22 | 70 | 36 | 250 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -32,6 +32,14 @@
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2025
+
+### 2 Dec 2025
+
+- [feature] Disable CO2 site parameters when model.emissionsmethod is 0..4 by nullifying CO2 blocks so Pydantic validation does not fail.
+- [change] Adjust CO2 profile models so DayProfile / HourlyProfile fields accept null (None) while preserving backwards-compatible defaults for normal configs.
+- [change] Add a robust, recursive nullification helper in src/supy/data_model/validation/core/yaml_helpers.py.
+- [maintenance] Add tests covering CO2 nullification (nested structures, day/hour profiles and emissionsmethod cases).
+- [maintenance] Added comments and small defensive fixes around profile handling to make the behaviour explicit and avoid regressions.
 
 ### 30 Nov 2025
 

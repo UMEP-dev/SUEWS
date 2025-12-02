@@ -2395,7 +2395,9 @@ class SoilObservationConfig(BaseModel):
             field_val = getattr(self, attr)
             val = field_val.value if isinstance(field_val, RefValue) else field_val
             # Use obs_sm_ prefix for clarity in df_state
-            col_name = f"obs_sm_{attr}" if attr != "bulk_density" else "obs_sm_bulk_density"
+            col_name = (
+                f"obs_sm_{attr}" if attr != "bulk_density" else "obs_sm_bulk_density"
+            )
             df_state[(col_name, "0")] = val
 
         return df_state

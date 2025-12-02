@@ -35,6 +35,14 @@ Input/output and data handling tests:
 - **test_forcing_file_list.py** - Forcing file list handling
 - **test_yaml_annotation.py** - YAML annotation features
 
+### UMEP/QGIS Tests (`umep/`)
+UMEP plugin compatibility tests (Windows + Python 3.12 only, GH-901):
+- **test_preprocessor.py** - Database Manager, Database Prepare, ERA5 Download APIs
+- **test_processor.py** - SUEWS model runs (init, run, save)
+- **test_postprocessor.py** - Output path handling
+- **test_environment.py** - QGIS-specific environment (None stdout/stderr)
+- **test_imports.py** - Import path verification
+
 ### Test Fixtures (`fixtures/`)
 Test data and resources:
 - **benchmark1/** - Benchmark test configuration and data
@@ -52,6 +60,7 @@ pytest test/core/ -v              # Core functionality
 pytest test/data_model/ -v        # Data model tests
 pytest test/physics/ -v           # Physics validation
 pytest test/io_tests/ -v          # I/O tests
+pytest test/umep/ -v -m qgis      # UMEP/QGIS tests (Windows + Python 3.12 only)
 
 # Run specific key tests
 pytest test/core/test_sample_output.py -v    # Fast validation

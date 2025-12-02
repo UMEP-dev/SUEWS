@@ -229,9 +229,7 @@ def _extract_soil_obs_metadata(row: pd.Series, grid: int) -> SoilObservationMeta
             f"`soil_not_rocks` must be in (0, 1]. Grid {grid} has {meta.soil_not_rocks}."
         )
     if meta.smcap <= 0:
-        raise ValueError(
-            f"`smcap` must be positive for grid {grid}. Got {meta.smcap}."
-        )
+        raise ValueError(f"`smcap` must be positive for grid {grid}. Got {meta.smcap}.")
     if meta.soil_density <= 0:
         raise ValueError(
             f"`bulk_density` must be positive for grid {grid}. Got {meta.soil_density}."

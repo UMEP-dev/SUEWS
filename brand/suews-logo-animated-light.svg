@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
   <!-- SUEWS Logo - Animated - For LIGHT MODE (light-filled icon) -->
   <circle cx="60" cy="60" r="56" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="2"/>
-  <!-- Sun with breathing animation -->
+  <!-- Sun with breathing animation (max=13, shrinks to ~60%) -->
   <circle cx="82" cy="44" r="13" fill="#F7B538">
     <animate attributeName="r" dur="9s" repeatCount="indefinite"
-      values="13;15;13"/>
+      values="13;11;13"/>
   </circle>
   <circle cx="82" cy="44" r="8" fill="#E85D04"/>
   <!-- Building 1 -->

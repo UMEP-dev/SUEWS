@@ -1,0 +1,20 @@
+<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- SUEWS Logo - Simplified icon with golden ratio sun placement -->
+
+  <!-- Dark background circle -->
+  <circle cx="60" cy="60" r="56" fill="#2D3142"/>
+
+  <!-- Sun - golden ratio position (0.618), drawn first to appear behind buildings -->
+  <!-- cx = 120 * 0.618 = 74, cy = 120 * 0.618 = 74 -->
+  <circle cx="74" cy="74" r="18" fill="#F7B538"/>
+  <circle cx="74" cy="74" r="11" fill="#E85D04"/>
+
+  <!-- Buildings - varied skyline (drawn after sun to overlap it) -->
+  <rect x="24" y="54" width="14" height="32" rx="2" fill="#4A5068"/>
+  <rect x="42" y="46" width="16" height="40" rx="2" fill="#4A5068"/>
+  <rect x="62" y="50" width="14" height="36" rx="2" fill="#4A5068"/>
+  <rect x="80" y="58" width="14" height="28" rx="2" fill="#4A5068"/>
+
+  <!-- Water wave -->
+  <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none"/>
+</svg>

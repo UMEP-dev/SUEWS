@@ -1,5 +1,5 @@
 ---
-name: review-pr
+name: audit-pr
 description: Review SUEWS pull requests comprehensively. Use when reviewing PRs, checking code before merge, or when asked to review changes. Performs scientific validity assessment for physics modules, code style checking (Fortran and Python conventions), test coverage analysis, documentation verification, and merge readiness evaluation. Posts line-specific comments via GitHub API and provides concise summary. Coordinates with lint-code, sync-docs, and verify-build skills.
 ---
 

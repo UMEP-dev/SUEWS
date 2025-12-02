@@ -40,6 +40,8 @@ from .type import SurfaceType
 from datetime import datetime
 import pytz
 
+from types import SimpleNamespace
+
 # Optional import of logger - use standalone if supy not available
 try:
     from ..._env import logger_supy
@@ -62,6 +64,21 @@ enhanced_to_df_state_validation = None
 
 import os
 import warnings
+
+
+class ConditionalValidationWarning(UserWarning):
+    """Warning issued when conditional validation is requested but not available.
+
+    This warning indicates that the enhanced validation feature has been requested
+    via use_conditional_validation=True, but the validation module is not loaded.
+    The conversion will proceed without additional validation checks.
+
+    To suppress this warning, either:
+    - Set use_conditional_validation=False when calling to_df_state()
+    - Filter with: warnings.filterwarnings('ignore', category=ConditionalValidationWarning)
+    """
+
+    pass
 
 
 def _unwrap_value(val):
@@ -187,6 +204,49 @@ class SUEWSConfig(BaseModel):
         "DHWVesselWallEmissivity",
         "HotWaterHeatingEfficiency",
         "MinimumVolumeOfDHWinUse",
+    ]
+
+    ARCHETYPE_REQUIRED_PARAMS: ClassVar[List[str]] = [
+        "BuildingType",
+        "BuildingName",
+        "BuildingCount",
+        "Occupants",
+        "stebbs_Height",
+        "FootprintArea",
+        "WallExternalArea",
+        "RatioInternalVolume",
+        "WWR",
+        "WallThickness",
+        "WallEffectiveConductivity",
+        "WallDensity",
+        "WallCp",
+        "WallOuterCapFrac",
+        "WallExternalEmissivity",
+        "WallInternalEmissivity",
+        "WallTransmissivity",
+        "WallAbsorbtivity",
+        "WallReflectivity",
+        "FloorThickness",
+        "GroundFloorEffectiveConductivity",
+        "GroundFloorDensity",
+        "GroundFloorCp",
+        "WindowThickness",
+        "WindowEffectiveConductivity",
+        "WindowDensity",
+        "WindowCp",
+        "WindowExternalEmissivity",
+        "WindowInternalEmissivity",
+        "WindowTransmissivity",
+        "WindowAbsorbtivity",
+        "WindowReflectivity",
+        "InternalMassDensity",
+        "InternalMassCp",
+        "InternalMassEmissivity",
+        "MaxHeatingPower",
+        "WaterTankWaterVolume",
+        "MaximumHotWaterHeatingPower",
+        "HeatingSetpointTemperature",
+        "CoolingSetpointTemperature",
     ]
 
     # Sort the filtered columns numerically
@@ -1110,7 +1170,8 @@ class SUEWSConfig(BaseModel):
     def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
         """
         If stebbsmethod==1, enforce that site.properties.stebbs
-        has all required parameters with non-null values.
+        and site.properties.building_archetype have all
+        required parameters with non-null values.
         Returns a list of issue messages.
         """
         issues: List[str] = []
@@ -1129,27 +1190,35 @@ class SUEWSConfig(BaseModel):
             issues.append("Missing 'stebbs' section (required when stebbsmethod=1)")
             return issues
 
+        ## Must have a building_archetype block
+        if not hasattr(props, "building_archetype") or props.building_archetype is None:
+            # Do not return early — create an empty container so we can list all
+            # missing ARCHETYPE_REQUIRED_PARAMS alongside missing stebbs params.
+            building_archetype = SimpleNamespace()
+        else:
+            building_archetype = props.building_archetype
+
         stebbs = props.stebbs
 
-        ## Check each parameter
-        missing_params = []
-        for param in self.STEBBS_REQUIRED_PARAMS:
-            ## Check if parameter exists
-            if not hasattr(stebbs, param):
-                missing_params.append(param)
-                continue
+        missing_params: List[str] = []
 
-            ## Get parameter value
-            param_obj = getattr(stebbs, param)
+        # helper to check and append missing params
+        def _check_required(container, param_list):
+            for param in param_list:
+                # existence
+                if not hasattr(container, param):
+                    missing_params.append(param)
+                    continue
+                param_obj = getattr(container, param)
+                # unwrap any RefValue/Enum wrappers
+                val = _unwrap_value(param_obj) if param_obj is not None else None
+                if val is None:
+                    missing_params.append(param)
 
-            ## Check if the parameter has a value attribute that is None
-            if hasattr(param_obj, "value") and param_obj.value is None:
-                missing_params.append(param)
-                continue
-
-            ## If the parameter itself is None
-            if param_obj is None:
-                missing_params.append(param)
+        # Validate stebbs required params
+        _check_required(stebbs, self.STEBBS_REQUIRED_PARAMS)
+        # Validate building_archetype required params
+        _check_required(building_archetype, self.ARCHETYPE_REQUIRED_PARAMS)
 
         ## Always list all missing parameters, regardless of count
         if missing_params:
@@ -1748,12 +1817,12 @@ class SUEWSConfig(BaseModel):
     #     missing_data = any(cut_forcing.isna().any())
     #     if missing_data:
     #         raise ValueError("Forcing data contains missing values.")
-
+    #
     #     # Check initial meteorology (for initial_states)
     #     first_day_forcing = cut_forcing.loc[self.model.control.start_time]
     #     first_day_min_temp = first_day_forcing.iloc[0]["Tair"]
     #     first_day_precip = first_day_forcing.iloc[0]["rain"] # Could check previous day if available
-
+    #
     #     # Use min temp for surface temperature states
     #     for site in self.site:
     #         for surf_type in SurfaceType:
@@ -1761,7 +1830,7 @@ class SUEWSConfig(BaseModel):
     #             surface.temperature.value = [first_day_min_temp]*5
     #             surface.tsfc.value = first_day_min_temp
     #             surface.tin.value = first_day_min_temp
-
+    #
     #     # Use precip to determine wetness state
     #     for site in self.site:
     #         for surf_type in SurfaceType:
@@ -2401,12 +2470,13 @@ class SUEWSConfig(BaseModel):
         return pd.MultiIndex.from_tuples(tuples)
 
     def to_df_state(
-        self, use_conditional_validation: bool = True, strict: bool = False
+        self, use_conditional_validation: bool = False, strict: bool = False
     ) -> pd.DataFrame:
         """Convert config to DataFrame state format with optional conditional validation.
 
         Args:
-            use_conditional_validation (bool): Whether to run conditional validation before conversion
+            use_conditional_validation (bool): Whether to run conditional validation before conversion.
+                Defaults to False since validation module is not loaded by default.
             strict (bool): If True, fail on validation errors; if False, warn and continue
 
         Returns:
@@ -2422,7 +2492,12 @@ class SUEWSConfig(BaseModel):
                     raise
                 # Continue with warnings already issued
         elif use_conditional_validation and not _validation_available:
-            warnings.warn("Conditional validation requested but not available.")
+            warnings.warn(
+                "Conditional validation requested but validation module not available. "
+                "Proceeding without additional validation checks.",
+                ConditionalValidationWarning,
+                stacklevel=2,
+            )
 
         # Proceed with DataFrame conversion
         try:

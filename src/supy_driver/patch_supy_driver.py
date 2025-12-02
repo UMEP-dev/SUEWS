@@ -40,6 +40,7 @@ def main():
         with open(p_supy_driver, "r") as f:
             lines = f.readlines()
             for i, line in enumerate(lines):
+                # Patch the _supy_driver import
                 if line.startswith("import _supy_driver"):
                     lines[i] = """
 try:
@@ -52,7 +53,22 @@ except ImportError:
 
 
 """
-                    break
+                # Patch f90wrap.runtime to use vendored version
+                # This eliminates the runtime dependency on f90wrap
+                # The generated code does: import f90wrap.runtime
+                # Then accesses: f90wrap.runtime.FortranDerivedType, etc.
+                # We redirect to the vendored copy
+                elif "import f90wrap.runtime" in line:
+                    lines[
+                        i
+                    ] = """# Redirected to vendored f90wrap runtime (eliminates pip dependency)
+import sys
+from supy._vendor import f90wrap as _vendored_f90wrap
+# Create a fake f90wrap module structure so f90wrap.runtime.X works
+class _F90WrapShim:
+    runtime = _vendored_f90wrap
+f90wrap = _F90WrapShim()
+"""
 
         # write back to supy_driver.py
         with open(p_supy_driver, "w") as f:

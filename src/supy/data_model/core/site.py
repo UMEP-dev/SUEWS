@@ -2348,6 +2348,82 @@ class SPARTACUSParams(BaseModel):
         return cls(**params)
 
 
+class SoilObservationConfig(BaseModel):
+    """Configuration for observed soil moisture measurements.
+
+    Required when SMDMethod = 1 (volumetric) or 2 (gravimetric).
+    These parameters describe the sensor installation and measurement setup,
+    not the physical soil properties used by the SUEWS water balance model.
+
+    Note:
+        - `depth`: Where the sensor is installed, not SUEWS's modelled soil depth
+        - `smcap`: Maximum observable moisture, not SUEWS's soil storage capacity
+        - `bulk_density`: Only used for gravimetric (SMDMethod=2) conversion
+    """
+
+    model_config = ConfigDict(title="Soil Observation Configuration")
+
+    depth: FlexibleRefValue(float) = Field(
+        gt=0,
+        description="Depth of the soil moisture sensor installation",
+        json_schema_extra={"unit": "mm", "display_name": "Observation Depth"},
+    )
+    smcap: FlexibleRefValue(float) = Field(
+        gt=0,
+        description="Maximum observable soil moisture (saturated θ or w at sensor location)",
+        json_schema_extra={"unit": "fraction", "display_name": "Saturation Capacity"},
+    )
+    soil_not_rocks: FlexibleRefValue(float) = Field(
+        gt=0,
+        le=1,
+        description="Fraction of the measured soil volume that is soil (not rocks)",
+        json_schema_extra={"unit": "dimensionless", "display_name": "Soil Fraction"},
+    )
+    bulk_density: FlexibleRefValue(float) = Field(
+        gt=0,
+        description="Soil bulk density at the measurement point (used for gravimetric conversion)",
+        json_schema_extra={"unit": "g cm^-3", "display_name": "Bulk Density"},
+    )
+
+    ref: Optional[Reference] = None
+
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """Convert soil observation config to DataFrame state format."""
+        df_state = init_df_state(grid_id)
+
+        for attr in ["depth", "smcap", "soil_not_rocks", "bulk_density"]:
+            field_val = getattr(self, attr)
+            val = field_val.value if isinstance(field_val, RefValue) else field_val
+            # Use obs_sm_ prefix for clarity in df_state
+            col_name = f"obs_sm_{attr}" if attr != "bulk_density" else "obs_sm_bulk_density"
+            df_state[(col_name, "0")] = val
+
+        return df_state
+
+    @classmethod
+    def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "SoilObservationConfig":
+        """Create SoilObservationConfig from DataFrame state format."""
+        params = {}
+        field_mapping = {
+            "depth": "obs_sm_depth",
+            "smcap": "obs_sm_smcap",
+            "soil_not_rocks": "obs_sm_soil_not_rocks",
+            "bulk_density": "obs_sm_bulk_density",
+        }
+
+        for field_name, col_name in field_mapping.items():
+            if (col_name, "0") in df.columns:
+                val = df.loc[grid_id, (col_name, "0")]
+                if val is not None and not pd.isna(val) and val > -998:
+                    params[field_name] = RefValue(val)
+
+        # Return None if no valid parameters found
+        if not params or len(params) < 4:
+            return None
+
+        return cls(**params)
+
+
 class LUMPSParams(BaseModel):
     """LUMPS model parameters for surface moisture."""
 
@@ -2547,6 +2623,10 @@ class SiteProperties(BaseModel):
     snow: SnowParams = Field(
         default_factory=SnowParams, description="Parameters for snow modelling"
     )
+    soil_observation: Optional[SoilObservationConfig] = Field(
+        default=None,
+        description="Soil moisture observation metadata (required if SMDMethod > 0)",
+    )
     land_cover: LandCover = Field(
         default_factory=LandCover,
         description="Parameters for land cover characteristics",
@@ -2650,22 +2730,26 @@ class SiteProperties(BaseModel):
         df_stebbs = self.stebbs.to_df_state(grid_id)
         df_building_archetype = self.building_archetype.to_df_state(grid_id)
 
-        df_state = pd.concat(
-            [
-                df_state,
-                df_lumps,
-                df_spartacus,
-                df_conductance,
-                df_irrigation,
-                df_anthropogenic_emissions,
-                df_snow,
-                df_land_cover,
-                df_vertical_layers,
-                df_stebbs,
-                df_building_archetype,
-            ],
-            axis=1,
-        )
+        dfs_to_concat = [
+            df_state,
+            df_lumps,
+            df_spartacus,
+            df_conductance,
+            df_irrigation,
+            df_anthropogenic_emissions,
+            df_snow,
+            df_land_cover,
+            df_vertical_layers,
+            df_stebbs,
+            df_building_archetype,
+        ]
+
+        # Optional soil observation config (only when SMDMethod > 0)
+        if self.soil_observation is not None:
+            df_soil_obs = self.soil_observation.to_df_state(grid_id)
+            dfs_to_concat.append(df_soil_obs)
+
+        df_state = pd.concat(dfs_to_concat, axis=1)
         return df_state
 
     @classmethod
@@ -2724,6 +2808,9 @@ class SiteProperties(BaseModel):
 
         params["stebbs"] = StebbsProperties.from_df_state(df, grid_id)
         params["building_archetype"] = ArchetypeProperties.from_df_state(df, grid_id)
+
+        # Optional soil observation config (returns None if not present)
+        params["soil_observation"] = SoilObservationConfig.from_df_state(df, grid_id)
 
         return cls(**params)
 

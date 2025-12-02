@@ -171,11 +171,15 @@
       "properties": {
         "BuildingType": {
           "default": "SampleType",
+          "description": "Building archetype type [-]",
+          "display_name": "Buildingtype",
           "title": "Buildingtype",
           "type": "string"
         },
         "BuildingName": {
           "default": "SampleBuilding",
+          "description": "Building archetype name [-]",
+          "display_name": "Buildingname",
           "title": "Buildingname",
           "type": "string"
         },
@@ -417,7 +421,7 @@
           "title": "Wallextcp",
           "unit": "J kg^-1 K^-1"
         },
-        "Wallx1": {
+        "WallOuterCapFrac": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -428,10 +432,10 @@
           ],
           "default": 1.0,
           "description": "Weighting factor for heat capacity of walls [-]",
-          "display_name": "Wallx1",
+          "display_name": "Walloutercapfrac",
           "ge": 0.0,
           "le": 1.0,
-          "title": "Wallx1",
+          "title": "Walloutercapfrac",
           "unit": "dimensionless"
         },
         "WallExternalEmissivity": {
@@ -645,7 +649,7 @@
           "title": "Roofextcp",
           "unit": "J kg^-1 K^-1"
         },
-        "Roofx1": {
+        "RoofOuterCapFrac": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -656,10 +660,10 @@
           ],
           "default": 1.0,
           "description": "Weighting factor for heat capacity of roof [-]",
-          "display_name": "Roofx1",
+          "display_name": "Roofoutercapfrac",
           "ge": 0.0,
           "le": 1.0,
-          "title": "Roofx1",
+          "title": "Roofoutercapfrac",
           "unit": "dimensionless"
         },
         "RoofExternalEmissivity": {
@@ -789,7 +793,7 @@
             }
           ],
           "default": 500.0,
-          "description": "Density of the ground floor [kg m-3]",
+          "description": "Effective density of the ground floor [kg m-3]",
           "display_name": "Groundfloordensity",
           "gt": 0.0,
           "title": "Groundfloordensity",
@@ -985,7 +989,7 @@
             }
           ],
           "default": 0.0,
-          "description": "Specific heat capacity of internal mass [J kg-1 K-1]",
+          "description": "Effective specific heat capacity of internal mass [J kg-1 K-1]",
           "display_name": "Internalmasscp",
           "title": "Internalmasscp",
           "unit": "J kg^-1 K^-1"
@@ -1811,7 +1815,14 @@
           "unit": "J km^-1"
         },
         "fcef_v_kgkm": {
-          "$ref": "#/$defs/DayProfile",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DayProfile"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Fuel consumption efficiency for vehicles",
           "display_name": "Fuel Carbon Emission Factor Vehicles"
         },
@@ -1936,7 +1947,14 @@
           "unit": "W m^-2"
         },
         "trafficrate": {
-          "$ref": "#/$defs/DayProfile",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DayProfile"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Traffic rate",
           "display_name": "Traffic Rate"
         },
@@ -1959,12 +1977,26 @@
           "unit": "vehicle km ha^-1"
         },
         "traffprof_24hr": {
-          "$ref": "#/$defs/HourlyProfile",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HourlyProfile"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "24-hour profile of traffic rate",
           "display_name": "Traffic Profile (24hr)"
         },
         "humactivity_24hr": {
-          "$ref": "#/$defs/HourlyProfile",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HourlyProfile"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "24-hour profile of human activity",
           "display_name": "Human Activity Profile (24hr)"
         },
@@ -2207,16 +2239,30 @@
       "description": "Daily values that can vary by day of year.",
       "properties": {
         "working_day": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 1.0,
           "display_name": "Working Day",
-          "title": "Working Day",
-          "type": "number"
+          "title": "Working Day"
         },
         "holiday": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.0,
           "display_name": "Holiday",
-          "title": "Holiday",
-          "type": "number"
+          "title": "Holiday"
         },
         "ref": {
           "anyOf": [
@@ -2593,6 +2639,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.7,
@@ -2626,6 +2675,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.9,
@@ -2710,6 +2762,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.1,
@@ -3229,6 +3284,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.7,
@@ -3262,6 +3320,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.9,
@@ -3346,6 +3407,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.1,
@@ -3806,6 +3870,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.7,
@@ -3839,6 +3906,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.9,
@@ -3923,6 +3993,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.1,
@@ -4100,18 +4173,46 @@
       "description": "24-hour profile for diurnal variations.",
       "properties": {
         "working_day": {
-          "additionalProperties": {
-            "type": "number"
-          },
-          "title": "Working Day",
-          "type": "object"
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Working Day"
         },
         "holiday": {
-          "additionalProperties": {
-            "type": "number"
-          },
-          "title": "Holiday",
-          "type": "object"
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Holiday"
         },
         "ref": {
           "anyOf": [
@@ -9656,124 +9757,6 @@
           "title": "Externalgroundconductivity",
           "unit": "W m^-1 K^-1"
         },
-        "IndoorAirDensity": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "gt": 0.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 1.2,
-          "description": "Density of indoor air [kg m-3]",
-          "display_name": "Indoorairdensity",
-          "title": "Indoorairdensity",
-          "unit": "kg m^-3"
-        },
-        "IndoorAirCp": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "gt": 0.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 1005.0,
-          "description": "Specific heat capacity of indoor air [J kg-1 K-1]",
-          "display_name": "Indooraircp",
-          "title": "Indooraircp",
-          "unit": "J kg^-1 K^-1"
-        },
-        "WallBuildingViewFactor": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0,
-              "le": 1.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Building view factor of external walls [-]",
-          "display_name": "Wallbuildingviewfactor",
-          "title": "Wallbuildingviewfactor",
-          "unit": "dimensionless"
-        },
-        "WallGroundViewFactor": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0,
-              "le": 1.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Ground view factor of external walls [-]",
-          "display_name": "Wallgroundviewfactor",
-          "title": "Wallgroundviewfactor",
-          "unit": "dimensionless"
-        },
-        "WallSkyViewFactor": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0,
-              "le": 1.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Sky view factor of external walls [-]",
-          "display_name": "Wallskyviewfactor",
-          "title": "Wallskyviewfactor",
-          "unit": "dimensionless"
-        },
         "MetabolicRate": {
           "anyOf": [
             {
@@ -9983,276 +9966,58 @@
           "title": "Ventilationrate",
           "unit": "h^-1"
         },
-        "OutdoorAirAnnualTemperature": {
+        "InitialOutdoorTemperature": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0.0,
+          "description": "Initial outdoor temperature [degC]",
+          "display_name": "Initialoutdoortemperature",
+          "title": "Initialoutdoortemperature",
+          "unit": "degC"
+        },
+        "InitialIndoorTemperature": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0.0,
+          "description": "Initial indoor temperature [degC]",
+          "display_name": "Initialindoortemperature",
+          "title": "Initialindoortemperature",
+          "unit": "degC"
+        },
+        "DeepSoilTemperature": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 10.0,
-          "description": "Annual mean air temperature, which can be used as deep soil temperature",
-          "display_name": "Annual mean air temperature",
-          "title": "Outdoorairannualtemperature",
-          "unit": "degC"
-        },
-        "OutdoorAirStartTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial outdoor air temperature [degC]",
-          "display_name": "Outdoorairstarttemperature",
-          "title": "Outdoorairstarttemperature",
-          "unit": "degC"
-        },
-        "IndoorAirStartTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial indoor air temperature [degC]",
-          "display_name": "Indoorairstarttemperature",
-          "title": "Indoorairstarttemperature",
-          "unit": "degC"
-        },
-        "IndoorMassStartTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial indoor mass temperature [degC]",
-          "display_name": "Indoormassstarttemperature",
-          "title": "Indoormassstarttemperature",
-          "unit": "degC"
-        },
-        "WallIndoorSurfaceTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial wall indoor surface temperature [degC]",
-          "display_name": "Wallindoorsurfacetemperature",
-          "title": "Wallindoorsurfacetemperature",
-          "unit": "degC"
-        },
-        "WallOutdoorSurfaceTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial wall outdoor surface temperature [degC]",
-          "display_name": "Walloutdoorsurfacetemperature",
-          "title": "Walloutdoorsurfacetemperature",
-          "unit": "degC"
-        },
-        "RoofIndoorSurfaceTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial roof indoor surface temperature [degC]",
-          "display_name": "Roofindoorsurfacetemperature",
-          "title": "Roofindoorsurfacetemperature",
-          "unit": "degC"
-        },
-        "RoofOutdoorSurfaceTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial roof outdoor surface temperature [degC]",
-          "display_name": "Roofoutdoorsurfacetemperature",
-          "title": "Roofoutdoorsurfacetemperature",
-          "unit": "degC"
-        },
-        "WindowIndoorSurfaceTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial window indoor surface temperature [degC]",
-          "display_name": "Windowindoorsurfacetemperature",
-          "title": "Windowindoorsurfacetemperature",
-          "unit": "degC"
-        },
-        "WindowOutdoorSurfaceTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial window outdoor surface temperature [degC]",
-          "display_name": "Windowoutdoorsurfacetemperature",
-          "title": "Windowoutdoorsurfacetemperature",
-          "unit": "degC"
-        },
-        "GroundFloorIndoorSurfaceTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial ground floor indoor surface temperature [degC]",
-          "display_name": "Groundfloorindoorsurfacetemperature",
-          "title": "Groundfloorindoorsurfacetemperature",
-          "unit": "degC"
-        },
-        "GroundFloorOutdoorSurfaceTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial ground floor outdoor surface temperature [degC]",
-          "display_name": "Groundflooroutdoorsurfacetemperature",
-          "title": "Groundflooroutdoorsurfacetemperature",
-          "unit": "degC"
-        },
-        "WaterTankTemperature": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "gt": 0.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 50.0,
-          "description": "Initial water temperature in hot water tank [degC]",
-          "display_name": "Watertanktemperature",
-          "title": "Watertanktemperature",
-          "unit": "degC"
-        },
-        "InternalWallWaterTankTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial hot water tank internal wall temperature [degC]",
-          "display_name": "Internalwallwatertanktemperature",
-          "title": "Internalwallwatertanktemperature",
-          "unit": "degC"
-        },
-        "ExternalWallWaterTankTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial hot water tank external wall temperature [degC]",
-          "display_name": "Externalwallwatertanktemperature",
-          "title": "Externalwallwatertanktemperature",
+          "description": "Initial deep soil temperature [degC]",
+          "display_name": "Deepsoiltemperature",
+          "title": "Deepsoiltemperature",
           "unit": "degC"
         },
         "WaterTankWallThickness": {
@@ -10361,65 +10126,6 @@
           "title": "Hotwatertankwallemissivity",
           "unit": "dimensionless"
         },
-        "DomesticHotWaterTemperatureInUseInBuilding": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "gt": 0.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 40.0,
-          "description": "Initial water temperature of water held in use in building [degC]",
-          "display_name": "Domestichotwatertemperatureinuseinbuilding",
-          "title": "Domestichotwatertemperatureinuseinbuilding",
-          "unit": "degC"
-        },
-        "InternalWallDHWVesselTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial hot water vessel internal wall temperature [degC]",
-          "display_name": "Internalwalldhwvesseltemperature",
-          "title": "Internalwalldhwvesseltemperature",
-          "unit": "degC"
-        },
-        "ExternalWallDHWVesselTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial hot water vessel external wall temperature [degC]",
-          "display_name": "Externalwalldhwvesseltemperature",
-          "title": "Externalwalldhwvesseltemperature",
-          "unit": "degC"
-        },
         "DHWVesselWallThickness": {
           "anyOf": [
             {
@@ -10490,30 +10196,6 @@
           "display_name": "Dhwsurfacearea",
           "title": "Dhwsurfacearea",
           "unit": "m^2"
-        },
-        "DHWVesselEmissivity": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0,
-              "le": 1.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "NEEDS CHECKED! NOT USED (assumed same as DHWVesselWallEmissivity) [-]",
-          "display_name": "Dhwvesselemissivity",
-          "title": "Dhwvesselemissivity",
-          "unit": "dimensionless"
         },
         "HotWaterFlowRate": {
           "anyOf": [
@@ -10602,7 +10284,7 @@
             }
           ],
           "default": 500.0,
-          "description": "Specific heat capacity of hot water tank wal [J kg-1 K-1]",
+          "description": "Specific heat capacity of hot water tank wall [J kg-1 K-1]",
           "display_name": "Hotwatertankspecificheatcapacity",
           "title": "Hotwatertankspecificheatcapacity",
           "unit": "J kg^-1 K^-1"
@@ -12412,39 +12094,88 @@
       "description": "Weekly pattern for 7-day variations.",
       "properties": {
         "monday": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.0,
-          "title": "Monday",
-          "type": "number"
+          "title": "Monday"
         },
         "tuesday": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.0,
-          "title": "Tuesday",
-          "type": "number"
+          "title": "Tuesday"
         },
         "wednesday": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.0,
-          "title": "Wednesday",
-          "type": "number"
+          "title": "Wednesday"
         },
         "thursday": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.0,
-          "title": "Thursday",
-          "type": "number"
+          "title": "Thursday"
         },
         "friday": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.0,
-          "title": "Friday",
-          "type": "number"
+          "title": "Friday"
         },
         "saturday": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.0,
-          "title": "Saturday",
-          "type": "number"
+          "title": "Saturday"
         },
         "sunday": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.0,
-          "title": "Sunday",
-          "type": "number"
+          "title": "Sunday"
         },
         "ref": {
           "anyOf": [

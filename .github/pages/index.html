@@ -7,28 +7,92 @@
     <meta name="description" content="SUEWS is an urban land surface model for simulating energy and water balance in urban environments">
     <link rel="canonical" href="https://suews.io/">
 
-    <!-- Fonts: Academic elegance meets technical clarity -->
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
     <style>
+        /* ========== Theme Variables ========== */
         :root {
-            --bg-primary: #fafbfc;
-            --bg-secondary: #f4f6f8;
-            --bg-card: #ffffff;
-            --bg-accent: #1a365d;
-            --text-primary: #1a202c;
-            --text-secondary: #4a5568;
-            --text-muted: #718096;
-            --accent-primary: #2c5282;
-            --accent-secondary: #285e61;
-            --accent-warm: #c05621;
-            --border-light: #e2e8f0;
-            --border-medium: #cbd5e0;
-            --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
-            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
-            --shadow-lg: 0 8px 30px rgba(0,0,0,0.1);
+            /* Logo palette (constant) */
+            --sun-gold: #F7B538;
+            --sun-gold-dark: #D4940F;
+            --energy-orange: #E85D04;
+            --water-blue: #0077B6;
+            --water-blue-light: #48CAE4;
+            --urban-slate: #2D3142;
+            --urban-dark: #1A1D2E;
+            --urban-deeper: #0F1119;
+
+            /* Default: Dark theme */
+            --bg-primary: #0F1119;
+            --bg-secondary: #1A1D2E;
+            --bg-card: rgba(255,255,255,0.02);
+            --bg-card-hover: rgba(255,255,255,0.04);
+            --border-light: rgba(255,255,255,0.06);
+            --border-medium: rgba(255,255,255,0.12);
+            --text-primary: rgba(255,255,255,0.92);
+            --text-secondary: rgba(255,255,255,0.6);
+            --text-muted: rgba(255,255,255,0.35);
+            --shadow-card: 0 4px 20px rgba(0,0,0,0.3);
+            --accent-highlight: var(--sun-gold);
+            --accent-label: var(--sun-gold);
+            --grid-line: rgba(45,49,66,0.4);
+            --contour-opacity: 0.15;
+            --glow-opacity: 0.12;
+            --logo-bg: #2D3142;
+            --logo-buildings: #5D5852;
+            --logo-stroke: none;
+            --logo-stroke-width: 0;
+        }
+
+        /* Light theme */
+        [data-theme="light"] {
+            --bg-primary: #FAFBFC;
+            --bg-secondary: #F1F5F9;
+            --bg-card: #FFFFFF;
+            --bg-card-hover: #FFFFFF;
+            --border-light: #E2E8F0;
+            --border-medium: #CBD5E1;
+            --text-primary: #1E293B;
+            --text-secondary: #475569;
+            --text-muted: #94A3B8;
+            --shadow-card: 0 4px 20px rgba(0,0,0,0.06);
+            --accent-highlight: var(--water-blue);
+            --accent-label: var(--sun-gold-dark);
+            --grid-line: #E2E8F0;
+            --contour-opacity: 0.08;
+            --glow-opacity: 0.08;
+            --logo-bg: #F8FAFC;
+            --logo-buildings: #2D3142;
+            --logo-stroke: #E2E8F0;
+            --logo-stroke-width: 2;
+        }
+
+        /* System preference detection */
+        @media (prefers-color-scheme: light) {
+            :root:not([data-theme="dark"]) {
+                --bg-primary: #FAFBFC;
+                --bg-secondary: #F1F5F9;
+                --bg-card: #FFFFFF;
+                --bg-card-hover: #FFFFFF;
+                --border-light: #E2E8F0;
+                --border-medium: #CBD5E1;
+                --text-primary: #1E293B;
+                --text-secondary: #475569;
+                --text-muted: #94A3B8;
+                --shadow-card: 0 4px 20px rgba(0,0,0,0.06);
+                --accent-highlight: var(--water-blue);
+                --accent-label: var(--sun-gold-dark);
+                --grid-line: #E2E8F0;
+                --contour-opacity: 0.08;
+                --glow-opacity: 0.08;
+                --logo-bg: #F8FAFC;
+                --logo-buildings: #2D3142;
+                --logo-stroke: #E2E8F0;
+                --logo-stroke-width: 2;
+            }
         }
 
         * {
@@ -42,195 +106,369 @@
         }
 
         body {
-            font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
-            line-height: 1.7;
+            font-family: 'Instrument Sans', system-ui, sans-serif;
+            line-height: 1.6;
             color: var(--text-primary);
             background: var(--bg-primary);
             min-height: 100vh;
+            overflow-x: hidden;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
-        /* Subtle geometric pattern - evokes urban grid without being flashy */
-        .pattern-bg {
+        /* ========== Theme Toggle Button ========== */
+        .theme-toggle {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 1000;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: 1px solid var(--border-light);
+            background: var(--bg-card);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(8px);
+        }
+
+        .theme-toggle:hover {
+            border-color: var(--border-medium);
+            transform: scale(1.05);
+        }
+
+        .theme-toggle svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--text-secondary);
+            stroke-width: 2;
+            fill: none;
+            transition: stroke 0.3s ease;
+        }
+
+        .theme-toggle:hover svg {
+            stroke: var(--text-primary);
+        }
+
+        .theme-toggle .icon-sun,
+        .theme-toggle .icon-moon {
+            position: absolute;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        /* Dark mode: show sun icon (to switch to light) */
+        :root:not([data-theme="light"]) .theme-toggle .icon-sun { opacity: 1; transform: rotate(0deg); }
+        :root:not([data-theme="light"]) .theme-toggle .icon-moon { opacity: 0; transform: rotate(-90deg); }
+
+        /* Light mode: show moon icon (to switch to dark) */
+        [data-theme="light"] .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg); }
+        [data-theme="light"] .theme-toggle .icon-moon { opacity: 1; transform: rotate(0deg); }
+
+        /* System light preference without explicit theme */
+        @media (prefers-color-scheme: light) {
+            :root:not([data-theme]) .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg); }
+            :root:not([data-theme]) .theme-toggle .icon-moon { opacity: 1; transform: rotate(0deg); }
+        }
+
+        /* ========== Background Elements ========== */
+        .topo-grid {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
             background-image:
-                linear-gradient(90deg, var(--border-light) 1px, transparent 1px);
-            background-size: 80px 80px;
-            opacity: 0.5;
+                radial-gradient(ellipse 800px 600px at 20% 30%, rgba(247,181,56,0.04) 0%, transparent 70%),
+                radial-gradient(ellipse 600px 400px at 80% 70%, rgba(0,119,182,0.05) 0%, transparent 70%),
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 60px 60px, 60px 60px;
             pointer-events: none;
             z-index: 0;
+            opacity: 0.6;
+            transition: opacity 0.3s ease;
         }
 
-        /* Header band */
-        .header-band {
-            background: linear-gradient(135deg, var(--bg-accent) 0%, #234876 100%);
-            padding: 60px 40px 80px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header-band::before {
-            content: '';
-            position: absolute;
+        .contours {
+            position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 30h60M30 0v60' stroke='%23ffffff' stroke-width='0.5' fill='none' opacity='0.1'/%3E%3C/svg%3E");
             pointer-events: none;
+            z-index: 1;
+            opacity: var(--contour-opacity);
+            transition: opacity 0.3s ease;
         }
 
+        .contour-line {
+            position: absolute;
+            border: 1px solid var(--water-blue);
+            border-radius: 50%;
+            animation: pulse 8s ease-in-out infinite;
+        }
+
+        .contour-line:nth-child(1) { width: 300px; height: 300px; top: 10%; left: -100px; }
+        .contour-line:nth-child(2) { width: 500px; height: 500px; top: 5%; left: -150px; animation-delay: 0.5s; }
+        .contour-line:nth-child(3) { width: 700px; height: 700px; top: 0%; left: -200px; animation-delay: 1s; }
+        .contour-line:nth-child(4) { width: 400px; height: 400px; bottom: 10%; right: -150px; border-color: var(--sun-gold); animation-delay: 2s; }
+        .contour-line:nth-child(5) { width: 600px; height: 600px; bottom: 5%; right: -200px; border-color: var(--sun-gold); animation-delay: 2.5s; }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.3; }
+            50% { transform: scale(1.05); opacity: 0.15; }
+        }
+
+        /* ========== Layout ========== */
         .container {
             position: relative;
-            z-index: 2;
-            max-width: 1100px;
+            z-index: 10;
+            max-width: 1200px;
             margin: 0 auto;
+            padding: 0 40px;
         }
 
-        .header-content {
-            text-align: center;
-            color: white;
-            animation: fadeIn 0.6s ease-out;
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 80px 0;
+            position: relative;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(15px); }
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: center;
+        }
+
+        @media (max-width: 900px) {
+            .hero-grid {
+                grid-template-columns: 1fr;
+                gap: 60px;
+                text-align: center;
+            }
+        }
+
+        /* ========== Logo ========== */
+        .logo-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .logo-glow {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(247,181,56,var(--glow-opacity)) 0%, transparent 70%);
+            filter: blur(40px);
+            transition: opacity 0.3s ease;
+        }
+
+        .logo-svg {
+            width: 320px;
+            height: 320px;
+            position: relative;
+            z-index: 2;
+            filter: drop-shadow(0 12px 40px rgba(0,0,0,0.15));
+        }
+
+        .logo-svg .logo-circle {
+            fill: var(--logo-bg);
+            stroke: var(--logo-stroke);
+            stroke-width: var(--logo-stroke-width);
+            transition: fill 0.3s ease, stroke 0.3s ease;
+        }
+
+        .logo-svg .logo-building {
+            fill: var(--logo-buildings);
+            transition: fill 0.3s ease;
+        }
+
+        .logo-link {
+            display: block;
+            transition: transform 0.3s ease;
+        }
+
+        .logo-link:hover {
+            transform: scale(1.02);
+        }
+
+        .logo-link:hover .logo-svg {
+            filter: drop-shadow(0 16px 50px rgba(0,0,0,0.2));
+        }
+
+        /* ========== Hero Content ========== */
+        .hero-content {
+            animation: slideUp 0.8s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Logo area */
-        .logo-area {
+        .hero-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--accent-label);
+            margin-bottom: 16px;
             display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 16px;
-            margin-bottom: 24px;
+            gap: 12px;
         }
 
-        .logo-image {
-            height: 280px;
-            width: auto;
-            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));
+        .hero-label::before {
+            content: '';
+            width: 40px;
+            height: 1px;
+            background: var(--sun-gold);
         }
 
-        /* Animated wave - represents energy/water flow */
-        .wave-container {
-            width: 100%;
-            max-width: 550px;
-            height: 28px;
-            margin: 8px auto 0;
-            overflow: visible;
+        @media (max-width: 900px) {
+            .hero-label { justify-content: center; }
         }
 
-        .wave-container svg {
-            width: 100%;
-            height: 100%;
+        .hero-title {
+            font-family: 'Crimson Pro', Georgia, serif;
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 500;
+            line-height: 1.1;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
         }
 
-        .tagline {
-            font-family: 'Source Serif 4', Georgia, serif;
-            font-size: 1.5rem;
-            font-weight: 400;
+        .hero-title .highlight {
+            color: var(--accent-highlight);
             font-style: italic;
-            color: rgba(255,255,255,0.85);
-            margin-bottom: 28px;
-            letter-spacing: 0.02em;
         }
 
-        .description {
+        .hero-subtitle {
+            font-family: 'Crimson Pro', Georgia, serif;
+            font-size: 1.5rem;
+            font-style: italic;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+        }
+
+        .hero-description {
             font-size: 1.1rem;
-            color: rgba(255,255,255,0.9);
-            max-width: 700px;
-            margin: 0 auto 32px;
+            color: var(--text-secondary);
             line-height: 1.8;
+            max-width: 500px;
+            margin-bottom: 40px;
         }
 
-        /* Badges row */
+        @media (max-width: 900px) {
+            .hero-description { margin-left: auto; margin-right: auto; }
+        }
+
+        /* ========== Badges ========== */
         .badges {
             display: flex;
-            justify-content: center;
-            gap: 16px;
+            gap: 12px;
             flex-wrap: wrap;
         }
 
-        .badge {
-            height: 20px;
-            opacity: 0.9;
-            transition: opacity 0.2s ease;
+        @media (max-width: 900px) {
+            .badges { justify-content: center; }
         }
 
-        .badge:hover {
-            opacity: 1;
+        .badges a {
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
         }
 
-        /* Main content area */
-        .main-content {
-            position: relative;
-            z-index: 2;
-            padding: 0 40px 80px;
-            margin-top: -40px;
+        .badges a:hover { opacity: 1; }
+        .badges img { height: 22px; }
+
+        /* ========== Stats Bar ========== */
+        .stats-bar {
+            position: absolute;
+            bottom: 60px;
+            left: 0;
+            right: 0;
+            z-index: 10;
         }
 
-        /* Stats cards - pulled up into header */
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            max-width: 700px;
-            margin: 0 auto 60px;
+        .stats-grid {
+            display: flex;
+            justify-content: center;
+            gap: 60px;
+            padding: 24px 0;
+            border-top: 1px solid var(--border-light);
+            border-bottom: 1px solid var(--border-light);
+            transition: border-color 0.3s ease;
         }
 
-        .stat-card {
-            background: var(--bg-card);
-            border-radius: 8px;
-            padding: 24px 20px;
+        @media (max-width: 600px) {
+            .stats-grid { gap: 30px; flex-wrap: wrap; }
+        }
+
+        .stat {
             text-align: center;
-            box-shadow: var(--shadow-md);
-            border: 1px solid var(--border-light);
-            animation: fadeIn 0.5s ease-out both;
+            animation: fadeIn 0.6s ease-out both;
         }
 
-        .stat-card:nth-child(1) { animation-delay: 0.1s; }
-        .stat-card:nth-child(2) { animation-delay: 0.15s; }
-        .stat-card:nth-child(3) { animation-delay: 0.2s; }
+        .stat:nth-child(1) { animation-delay: 0.3s; }
+        .stat:nth-child(2) { animation-delay: 0.4s; }
+        .stat:nth-child(3) { animation-delay: 0.5s; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
         .stat-value {
-            font-family: 'Source Serif 4', Georgia, serif;
+            font-family: 'JetBrains Mono', monospace;
             font-size: 2rem;
-            font-weight: 700;
-            color: var(--accent-primary);
-            display: block;
-            line-height: 1.2;
+            font-weight: 500;
+            line-height: 1;
         }
 
         .stat-label {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-top: 4px;
+            font-size: 0.7rem;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.15em;
+            color: var(--text-muted);
+            margin-top: 8px;
         }
 
-        /* Section styling */
-        .section {
-            margin-bottom: 60px;
+        /* ========== Resources Section ========== */
+        .resources {
+            padding: 120px 0;
+            position: relative;
+            background: var(--bg-secondary);
+            transition: background-color 0.3s ease;
         }
 
         .section-header {
             display: flex;
             align-items: center;
-            gap: 16px;
-            margin-bottom: 24px;
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+
+        .section-number {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--water-blue);
+            letter-spacing: 0.1em;
         }
 
         .section-title {
-            font-family: 'Source Serif 4', Georgia, serif;
-            font-size: 1.4rem;
-            font-weight: 600;
-            color: var(--text-primary);
+            font-family: 'Crimson Pro', Georgia, serif;
+            font-size: 2rem;
+            font-weight: 400;
+            letter-spacing: -0.01em;
         }
 
         .section-line {
@@ -239,575 +477,493 @@
             background: linear-gradient(90deg, var(--border-medium), transparent);
         }
 
-        /* Navigation grid */
-        .nav-grid {
+        /* ========== Resource Cards ========== */
+        .resource-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
+            gap: 24px;
         }
 
         @media (max-width: 900px) {
-            .nav-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
+            .resource-grid { grid-template-columns: repeat(2, 1fr); }
         }
 
         @media (max-width: 600px) {
-            .nav-grid, .stats-row {
-                grid-template-columns: 1fr;
-            }
-            .header-band {
-                padding: 40px 20px 60px;
-            }
-            .main-content {
-                padding: 0 20px 60px;
-            }
-            .logo-image {
-                height: 180px;
-            }
-            .wave-container {
-                max-width: 380px;
-            }
+            .resource-grid { grid-template-columns: 1fr; }
         }
 
-        .nav-card {
+        .resource-card {
             background: var(--bg-card);
             border: 1px solid var(--border-light);
-            border-radius: 8px;
-            padding: 28px 24px;
+            border-radius: 12px;
+            padding: 32px 28px;
             text-decoration: none;
             color: inherit;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            transition: all 0.25s ease;
-            box-shadow: var(--shadow-sm);
-            animation: fadeIn 0.5s ease-out both;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            animation: cardReveal 0.6s ease-out both;
+            box-shadow: var(--shadow-card);
         }
 
-        .nav-card:nth-child(1) { animation-delay: 0.1s; }
-        .nav-card:nth-child(2) { animation-delay: 0.15s; }
-        .nav-card:nth-child(3) { animation-delay: 0.2s; }
-        .nav-card:nth-child(4) { animation-delay: 0.25s; }
-        .nav-card:nth-child(5) { animation-delay: 0.3s; }
-        .nav-card:nth-child(6) { animation-delay: 0.35s; }
+        .resource-card:nth-child(1) { animation-delay: 0.1s; }
+        .resource-card:nth-child(2) { animation-delay: 0.15s; }
+        .resource-card:nth-child(3) { animation-delay: 0.2s; }
+        .resource-card:nth-child(4) { animation-delay: 0.25s; }
+        .resource-card:nth-child(5) { animation-delay: 0.3s; }
+        .resource-card:nth-child(6) { animation-delay: 0.35s; }
 
-        .nav-card:hover {
-            border-color: var(--accent-primary);
-            box-shadow: var(--shadow-md);
-            transform: translateY(-2px);
+        @keyframes cardReveal {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .nav-card-header {
-            display: flex;
-            align-items: center;
-            gap: 14px;
+        .resource-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--water-blue), var(--sun-gold));
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .nav-icon {
-            width: 40px;
-            height: 40px;
+        .resource-card:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--border-medium);
+            transform: translateY(-4px);
+        }
+
+        .resource-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .card-icon {
+            width: 44px;
+            height: 44px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: var(--bg-secondary);
-            border-radius: 8px;
-            flex-shrink: 0;
-            transition: all 0.25s ease;
+            background: rgba(0,119,182,0.1);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
         }
 
-        .nav-card:hover .nav-icon {
-            background: var(--accent-primary);
+        .resource-card:hover .card-icon {
+            background: rgba(0,119,182,0.15);
+            transform: scale(1.05);
         }
 
-        .nav-icon svg {
-            width: 20px;
-            height: 20px;
-            stroke: var(--accent-primary);
-            stroke-width: 1.75;
+        .card-icon svg {
+            width: 22px;
+            height: 22px;
+            stroke: var(--water-blue);
+            stroke-width: 1.5;
             fill: none;
-            transition: stroke 0.25s ease;
         }
 
-        .nav-card:hover .nav-icon svg {
-            stroke: white;
-        }
-
-        .nav-title {
-            font-family: 'Source Serif 4', Georgia, serif;
+        .card-title {
             font-size: 1.1rem;
             font-weight: 600;
-            color: var(--text-primary);
+            margin-bottom: 10px;
         }
 
-        .nav-description {
-            font-size: 0.95rem;
+        .card-description {
+            font-size: 0.9rem;
             color: var(--text-secondary);
             line-height: 1.6;
         }
 
-        .nav-description code {
+        .card-description code {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-            background: var(--bg-secondary);
-            padding: 2px 8px;
+            font-size: 0.8rem;
+            background: rgba(0,119,182,0.1);
+            color: var(--water-blue);
+            padding: 3px 8px;
             border-radius: 4px;
-            color: var(--accent-secondary);
         }
 
-        /* Research applications section */
+        /* ========== Applications Section ========== */
         .applications {
-            background: var(--bg-secondary);
-            border-radius: 8px;
-            padding: 32px;
+            padding: 80px 0 120px;
+            background: var(--bg-primary);
+            transition: background-color 0.3s ease;
+        }
+
+        .applications-box {
+            background: linear-gradient(135deg, rgba(0,119,182,0.04) 0%, rgba(247,181,56,0.04) 100%);
             border: 1px solid var(--border-light);
+            border-radius: 16px;
+            padding: 48px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s ease;
+        }
+
+        .applications-box::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(0,119,182,0.06) 0%, transparent 70%);
+            pointer-events: none;
         }
 
         .applications-title {
-            font-family: 'Source Serif 4', Georgia, serif;
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 16px;
+            font-family: 'Crimson Pro', Georgia, serif;
+            font-size: 1.5rem;
+            font-weight: 400;
+            margin-bottom: 32px;
+            position: relative;
         }
 
-        .applications-list {
+        .applications-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px 24px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px 40px;
+            position: relative;
         }
 
-        .application-item {
+        @media (max-width: 800px) {
+            .applications-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 500px) {
+            .applications-grid { grid-template-columns: 1fr; }
+            .applications-box { padding: 32px 24px; }
+        }
+
+        .app-item {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             font-size: 0.95rem;
             color: var(--text-secondary);
+            padding: 8px 0;
+            transition: color 0.3s ease;
         }
 
-        .application-bullet {
+        .app-item:hover { color: var(--text-primary); }
+
+        .app-bullet {
             width: 6px;
             height: 6px;
-            background: var(--accent-primary);
+            background: linear-gradient(135deg, var(--water-blue), var(--water-blue-light));
             border-radius: 50%;
             flex-shrink: 0;
         }
 
-        /* Footer */
+        /* ========== Footer ========== */
         .footer {
             border-top: 1px solid var(--border-light);
-            padding: 40px;
+            padding: 60px 0;
             text-align: center;
             background: var(--bg-secondary);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
 
         .footer-institutions {
+            font-size: 0.85rem;
             color: var(--text-muted);
-            font-size: 0.9rem;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
+            line-height: 1.8;
         }
 
         .footer-legal {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* ========== Scroll Indicator ========== */
+        .scroll-indicator {
+            position: absolute;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            gap: 16px;
-            font-size: 0.85rem;
+            gap: 8px;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(8px); }
+        }
+
+        .scroll-indicator span {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
             color: var(--text-muted);
         }
 
-        .footer-legal a {
-            color: var(--text-muted);
-            text-decoration: none;
+        .scroll-indicator svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--text-muted);
+            stroke-width: 2;
+            fill: none;
         }
 
-        .footer-legal a:hover {
-            color: var(--accent-primary);
-        }
-
-        .footer-divider {
-            color: var(--border-medium);
-        }
-
-        @media (max-width: 600px) {
-            .footer-legal {
-                flex-direction: column;
-                gap: 8px;
-            }
-            .footer-divider {
-                display: none;
-            }
+        @media (max-width: 900px) {
+            .scroll-indicator { display: none; }
         }
     </style>
 </head>
 <body>
-    <div class="pattern-bg"></div>
+    <!-- Theme Toggle Button -->
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+        <svg class="icon-sun" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+    </button>
 
-    <header class="header-band">
+    <!-- Background -->
+    <div class="topo-grid"></div>
+    <div class="contours">
+        <div class="contour-line"></div>
+        <div class="contour-line"></div>
+        <div class="contour-line"></div>
+        <div class="contour-line"></div>
+        <div class="contour-line"></div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero">
         <div class="container">
-            <div class="header-content">
-                <div class="logo-area">
-                    <!-- Embedded Monochromatic Animated Logo -->
-                    <svg class="logo-image" version="1.1" id="SUEWS_Logo_White" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-                        viewBox="400 400 2480 1700" xml:space="preserve">
-                    <style type="text/css">
-                        .st0{fill:#FFFFFF;}
-                        .st1{fill:#FFFFFF;stroke:#FFFFFF;stroke-width:3;stroke-miterlimit:10;}
-                        /* Main elements (Text, Building outlines) - Solid White */
-                        .st2{fill:#FFFFFF;}
-                        /* Secondary elements (Vegetation, Roofs) - High Opacity White */
-                        .st3{fill:#FFFFFF;opacity:0.85;}
-                        /* Unused in main paths but kept for compatibility - White Stroke */
-                        .st4{fill:none;stroke:#FFFFFF;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;}
-                        /* Inner Waves - Medium Opacity White */
-                        .st5{fill:#FFFFFF;opacity:0.6;}
-                        /* Outer Waves - Low Opacity White */
-                        .st6{fill:#FFFFFF;opacity:0.35;}
-                    </style>
-
-                    <g id="logo-content">
-                        <!-- SUEWS Text Layer 1 -->
-                        <g id="text-layer-1">
-                            <g>
-                                <path class="st2" d="M956.7,1611.1c-5-9.9-13.2-20.9-21.5-27.6c-7.2-5.5-20.4-12.7-41.3-12.7c-36.4,0-61.7,22.6-61.7,56.8
-                                    c0,14.3,3.9,22.6,13.8,32c11,11,24.8,17.1,38.6,23.2l35.3,15.4c21.5,9.4,41.3,19.3,56.8,34.7c18.7,18.7,26.5,40.2,26.5,66.7
-                                    c0,67.8-50.2,113-116.3,113c-24.3,0-54.6-5-79.9-29.8c-18.2-17.6-29.2-43-34.2-65l39.7-11c2.8,19.3,11.6,35.8,22,46.9
-                                    c16,16,34.2,20.4,52.9,20.4c50.2,0,73.9-35.8,73.9-72.8c0-16.5-5-30.9-18.2-43c-10.5-9.9-24.8-16.5-44.1-25.4l-33.1-15.4
-                                    c-14.3-6.6-32.5-14.3-49.1-30.3c-16-15.4-25.4-32.5-25.4-60.1c0-56.8,43.5-94.8,103.1-94.8c22.6,0,40.8,4.4,59,16.5
-                                    c14.9,9.9,27.6,24.8,35.8,40.8L956.7,1611.1z"/>
-                            </g>
-                            <g>
-                                <path class="st2" d="M1118.8,1763.8c0,30.9,0,64.5,29.2,89.3c14.9,12.7,40.2,20.9,60.6,20.9c20.4,0,45.8-8.3,60.6-20.9
-                                    c29.2-24.8,29.2-58.4,29.2-89.3v-225.5h40.8v236.5c0,30.9-3.3,60.6-23.2,88.2c-22,30.3-60.6,49.6-107.5,49.6
-                                    s-85.4-19.3-107.5-49.6c-19.8-27.6-23.2-57.3-23.2-88.2v-236.5h40.8V1763.8z"/>
-                            </g>
-                            <g>
-                                <path class="st2" d="M1624.8,1576.9h-149.9V1686h145.5v38.6h-145.5v142.8h149.9v38.6h-190.7v-367.7h190.7V1576.9z"/>
-                            </g>
-                            <g>
-                                <path class="st2" d="M1702,1538.3l97,275.6l115.2-294.4l109.1,294.4l107.5-275.6h45.2l-154.3,387l-108-294.4l-115.8,294.4
-                                    l-141.1-387H1702z"/>
-                            </g>
-                            <g>
-                                <path class="st2" d="M2392.1,1611.1c-5-9.9-13.2-20.9-21.5-27.6c-7.2-5.5-20.4-12.7-41.3-12.7c-36.4,0-61.7,22.6-61.7,56.8
-                                    c0,14.3,3.9,22.6,13.8,32c11,11,24.8,17.1,38.6,23.2l35.3,15.4c21.5,9.4,41.3,19.3,56.8,34.7c18.7,18.7,26.5,40.2,26.5,66.7
-                                    c0,67.8-50.2,113-116.3,113c-24.3,0-54.6-5-79.9-29.8c-18.2-17.6-29.2-43-34.2-65l39.7-11c2.8,19.3,11.6,35.8,22,46.9
-                                    c16,16,34.2,20.4,52.9,20.4c50.2,0,73.9-35.8,73.9-72.8c0-16.5-5-30.9-18.2-43c-10.5-9.9-24.8-16.5-44.1-25.4l-33.1-15.4
-                                    c-14.3-6.6-32.5-14.3-49.1-30.3c-16-15.4-25.4-32.5-25.4-60.1c0-56.8,43.5-94.8,103.1-94.8c22.6,0,40.8,4.4,59,16.5
-                                    c14.9,9.9,27.6,24.8,35.8,40.8L2392.1,1611.1z"/>
-                            </g>
-                        </g>
-
-                        <!-- SUEWS Text Layer 2 -->
-                        <g id="text-layer-2">
-                            <g>
-                                <path class="st2" d="M956.7,1611.1c-5-9.9-13.2-20.9-21.5-27.6c-7.2-5.5-20.4-12.7-41.3-12.7c-36.4,0-61.7,22.6-61.7,56.8
-                                    c0,14.3,3.9,22.6,13.8,32c11,11,24.8,17.1,38.6,23.2l35.3,15.4c21.5,9.4,41.3,19.3,56.8,34.7c18.7,18.7,26.5,40.2,26.5,66.7
-                                    c0,67.8-50.2,113-116.3,113c-24.3,0-54.6-5-79.9-29.8c-18.2-17.6-29.2-43-34.2-65l39.7-11c2.8,19.3,11.6,35.8,22,46.9
-                                    c16,16,34.2,20.4,52.9,20.4c50.2,0,73.9-35.8,73.9-72.8c0-16.5-5-30.9-18.2-43c-10.5-9.9-24.8-16.5-44.1-25.4l-33.1-15.4
-                                    c-14.3-6.6-32.5-14.3-49.1-30.3c-16-15.4-25.4-32.5-25.4-60.1c0-56.8,43.5-94.8,103.1-94.8c22.6,0,40.8,4.4,59,16.5
-                                    c14.9,9.9,27.6,24.8,35.8,40.8L956.7,1611.1z"/>
-                            </g>
-                            <g>
-                                <path class="st2" d="M1118.8,1763.8c0,30.9,0,64.5,29.2,89.3c14.9,12.7,40.2,20.9,60.6,20.9c20.4,0,45.8-8.3,60.6-20.9
-                                    c29.2-24.8,29.2-58.4,29.2-89.3v-225.5h40.8v236.5c0,30.9-3.3,60.6-23.2,88.2c-22,30.3-60.6,49.6-107.5,49.6
-                                    s-85.4-19.3-107.5-49.6c-19.8-27.6-23.2-57.3-23.2-88.2v-236.5h40.8V1763.8z"/>
-                            </g>
-                            <g>
-                                <path class="st2" d="M1624.8,1576.9h-149.9V1686h145.5v38.6h-145.5v142.8h149.9v38.6h-190.7v-367.7h190.7V1576.9z"/>
-                            </g>
-                            <g>
-                                <path class="st2" d="M1702,1538.3l97,275.6l115.2-294.4l109.1,294.4l107.5-275.6h45.2l-154.3,387l-108-294.4l-115.8,294.4
-                                    l-141.1-387H1702z"/>
-                            </g>
-                            <g>
-                                <path class="st2" d="M2392.1,1611.1c-5-9.9-13.2-20.9-21.5-27.6c-7.2-5.5-20.4-12.7-41.3-12.7c-36.4,0-61.7,22.6-61.7,56.8
-                                    c0,14.3,3.9,22.6,13.8,32c11,11,24.8,17.1,38.6,23.2l35.3,15.4c21.5,9.4,41.3,19.3,56.8,34.7c18.7,18.7,26.5,40.2,26.5,66.7
-                                    c0,67.8-50.2,113-116.3,113c-24.3,0-54.6-5-79.9-29.8c-18.2-17.6-29.2-43-34.2-65l39.7-11c2.8,19.3,11.6,35.8,22,46.9
-                                    c16,16,34.2,20.4,52.9,20.4c50.2,0,73.9-35.8,73.9-72.8c0-16.5-5-30.9-18.2-43c-10.5-9.9-24.8-16.5-44.1-25.4l-33.1-15.4
-                                    c-14.3-6.6-32.5-14.3-49.1-30.3c-16-15.4-25.4-32.5-25.4-60.1c0-56.8,43.5-94.8,103.1-94.8c22.6,0,40.8,4.4,59,16.5
-                                    c14.9,9.9,27.6,24.8,35.8,40.8L2392.1,1611.1z"/>
-                            </g>
-                        </g>
-
-                        <!-- Tower building windows -->
-                        <g id="tower-windows">
-                            <rect x="1684.9" y="1074.7" class="st3" width="73.3" height="73.3"/>
-                            <rect x="1865.6" y="1074.7" class="st3" width="73.3" height="73.3"/>
-                            <rect x="1684.9" y="947.6" class="st3" width="73.3" height="73.3"/>
-                            <rect x="1865.6" y="947.6" class="st3" width="73.3" height="73.3"/>
-                            <rect x="1684.9" y="820.5" class="st3" width="73.3" height="73.3"/>
-                            <rect x="1865.6" y="820.5" class="st3" width="73.3" height="73.3"/>
-                            <rect x="1684.9" y="693.4" class="st3" width="73.3" height="73.3"/>
-                            <rect x="1865.6" y="693.4" class="st3" width="73.3" height="73.3"/>
-                        </g>
-
-                        <!-- Roof/vegetation triangles -->
-                        <g id="roof-elements">
-                            <g>
-                                <path class="st3" d="M1555.6,849.1c-3,0-5.8-1.8-7-4.7L1467.2,639l-77.6,200.6c-1.5,3.9-5.8,5.8-9.7,4.3
-                                    c-3.9-1.5-5.8-5.8-4.3-9.7l84.5-218.5c1.1-2.9,3.9-4.8,7-4.8c0,0,0,0,0,0c3.1,0,5.8,1.9,7,4.7l88.5,223.2
-                                    c1.5,3.9-0.4,8.2-4.2,9.7C1557.4,849,1556.5,849.1,1555.6,849.1z"/>
-                            </g>
-                            <g>
-                                <polyline class="st3" points="2245.4,1238.1 2157,1015 2072.5,1233.4"/>
-                            </g>
-                            <g>
-                                <polyline class="st3" points="1373.2,1077.8 1303,900.7 1235.9,1074.1"/>
-                            </g>
-                            <g>
-                                <path class="st3" d="M2367.6,833.6c-3,0-5.8-1.8-7-4.7l-63.1-159.3l-60.1,155.5c-1.5,3.9-5.8,5.8-9.7,4.3
-                                    c-3.9-1.5-5.8-5.8-4.3-9.7l67-173.3c1.1-2.9,3.9-4.8,7-4.8c0,0,0,0,0,0c3.1,0,5.8,1.9,7,4.7l70.2,177.1c1.5,3.9-0.4,8.2-4.2,9.7
-                                    C2369.5,833.5,2368.6,833.6,2367.6,833.6z"/>
-                            </g>
-                            <g>
-                                <polyline class="st3" points="2159,737.3 2111.6,617.9 2066.4,734.7"/>
-                            </g>
-                        </g>
-
-                        <!-- Energy flow indicators (vertical bars) -->
-                        <g id="energy-indicators">
-                            <path class="st2" d="M1304.6,1153.3c-5.5,0-10-4.5-10-10v-79.2c0-5.5,4.5-10,10-10s10,4.5,10,10v79.2
-                                C1314.6,1148.8,1310.1,1153.3,1304.6,1153.3z"/>
-                            <path class="st2" d="M2112.7,781.1c-5.5,0-10-4.5-10-10v-52.2c0-5.5,4.5-10,10-10s10,4.5,10,10v52.2
-                                C2122.7,776.6,2118.2,781.1,2112.7,781.1z"/>
-                            <path class="st2" d="M1469.1,949.6c-5.5,0-10-4.5-10-10V816.5c0-5.5,4.5-10,10-10s10,4.5,10,10v123.1
-                                C1479.1,945.1,1474.6,949.6,1469.1,949.6z"/>
-                            <path class="st2" d="M2299,921.9c-5.5,0-10-4.5-10-10V807.5c0-5.5,4.5-10,10-10s10,4.5,10,10v104.3
-                                C2309,917.4,2304.6,921.9,2299,921.9z"/>
-                            <path class="st2" d="M2159,1339.1c-5.5,0-10-4.5-10-10v-112.7c0-5.5,4.5-10,10-10s10,4.5,10,10v112.7
-                                C2169,1334.6,2164.5,1339.1,2159,1339.1z"/>
-                        </g>
-
-                        <!-- ANIMATED WATER/ATMOSPHERE WAVES - Using pure SMIL -->
-                        <g id="water-waves">
-                            <!-- Wave 1: Left inner flow (st5) -->
-                            <g id="wave-left-inner">
-                                <path class="st5" d="M1621.6,1118.1c-66.4,95.7-159.4,147.5-276.5,154c-88.7,4.9-158.8-19.4-159.7-19.7c-3.9-1.4-8.2,0.7-9.6,4.6
-                                    c-1.4,3.9,0.7,8.2,4.6,9.6c2.7,1,60.9,21.3,140.2,21.3c8,0,16.3-0.2,24.8-0.7c54-2.9,104.1-15.6,148.9-37.7
-                                    c49.1-24.2,91.8-59.8,127.2-105.9V1118.1z"/>
-                                <animateTransform attributeName="transform" type="translate"
-                                    values="0,0; 0,-35; 0,0" dur="4s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
-                                <animate attributeName="opacity" values="0.6; 0.3; 0.6" dur="4s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
-                            </g>
-
-                            <!-- Wave 2: Left outer atmosphere (st6) -->
-                            <g id="wave-left-outer">
-                                <path class="st6" d="M1621.6,1008.2c-0.8,0.4-1.6,1-2.3,1.7c-9.2,10-18.3,20.7-27,31.6c-82,103.3-176.5,161.2-280.9,172.2
-                                    c-77.4,8.2-133.1-13.8-133.7-14c-3.8-1.6-8.2,0.3-9.8,4.1c-1.6,3.8,0.2,8.2,4,9.8l0.2,0.1c0.2,0.1,0.3,0.1,0.5,0.2
-                                    c5.5,2.1,45.8,16.7,103.9,16.7c11.5,0,23.6-0.6,36.4-1.9c108.6-11.5,206.5-71.3,291.1-177.8c5.7-7.1,11.5-14.1,17.5-20.9V1008.2z"/>
-                                <animateTransform attributeName="transform" type="translate"
-                                    values="0,0; 0,30; 0,0" dur="5s" repeatCount="indefinite" begin="0.5s" calcMode="spline" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
-                                <animate attributeName="opacity" values="0.35; 0.15; 0.35" dur="5s" repeatCount="indefinite" begin="0.5s" calcMode="spline" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
-                            </g>
-
-                            <!-- Wave 3: Right outer sweep (st6) -->
-                            <g id="wave-right-outer">
-                                <path class="st6" d="M2484.7,1117.7c-30.1-72.8-78.8-112.1-83-115.4c-52.1-46.2-123.5-86.9-201.2-114.8
-                                    c-67-24-134.8-36.9-201.5-38.4v15c65,1.4,131.1,14,196.5,37.5c76,27.2,145.8,67,196.5,112c0.1,0.1,0.3,0.2,0.4,0.3
-                                    c0.5,0.4,49.6,39.1,78.8,110.1c39.1,95.1,25.9,200-39.1,311.9c-2.1,3.6-0.9,8.2,2.7,10.3c1.2,0.7,2.5,1,3.8,1
-                                    c2.6,0,5.1-1.3,6.5-3.7c37.1-63.9,58-126.8,62.1-187C2510.3,1208.2,2502.8,1161.5,2484.7,1117.7z"/>
-                                <animateTransform attributeName="transform" type="translate"
-                                    values="0,0; 15,-25; 0,0" dur="6s" repeatCount="indefinite" begin="1s" calcMode="spline" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
-                                <animate attributeName="opacity" values="0.35; 0.15; 0.35" dur="6s" repeatCount="indefinite" begin="1s" calcMode="spline" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
-                            </g>
-
-                            <!-- Wave 4: Right inner flow (st5) -->
-                            <g id="wave-right-inner">
-                                <path class="st5" d="M2308.1,1109.2c-20.7-30.9-50.8-61-86.9-87.2c-68.6-49.7-153.4-81.6-222.2-83.8v15
-                                    c129.2,4.5,329.7,123.9,329.1,261.2c-0.5,107.4-84.3,188.1-230.1,221.6c-4,0.9-6.6,5-5.6,9c0.8,3.5,3.9,5.8,7.3,5.8
-                                    c0.6,0,1.1-0.1,1.7-0.2c82.4-18.9,145.3-51.5,186.8-96.9c35.7-39,54.7-87.2,54.9-139.3C2343.3,1179.5,2331.5,1144.1,2308.1,1109.2z"/>
-                                <animateTransform attributeName="transform" type="translate"
-                                    values="0,0; 0,30; 0,0" dur="4.5s" repeatCount="indefinite" begin="0.25s" calcMode="spline" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
-                                <animate attributeName="opacity" values="0.6; 0.3; 0.6" dur="4.5s" repeatCount="indefinite" begin="0.25s" calcMode="spline" keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"/>
-                            </g>
-                        </g>
-
-                        <!-- Main building with windows -->
-                        <g id="main-building">
-                            <path class="st3" d="M823.1,777.3v560.8h359.8V777.3H823.1z M926.6,1225.4h-36.7v-98.8h36.7V1225.4z M926.6,1074.4h-36.7v-98.8
-                                h36.7V1074.4z M926.6,923.3h-36.7v-98.8h36.7V923.3z M1021.4,1225.4h-36.7v-98.8h36.7V1225.4z M1021.4,1074.4h-36.7v-98.8h36.7
-                                V1074.4z M1021.4,923.3h-36.7v-98.8h36.7V923.3z M1116.2,1225.4h-36.7v-98.8h36.7V1225.4z M1116.2,1074.4h-36.7v-98.8h36.7V1074.4
-                                z M1116.2,923.3h-36.7v-98.8h36.7V923.3z"/>
-                        </g>
-
-                        <!-- Tower building outline -->
-                        <g id="tower-outline">
-                            <path class="st2" d="M1629.6,624.5h4c-2.2,0-4,1.8-4,4V624.5z M1629.6,1344.1v-4c0,2.2,1.8,4,4,4H1629.6z M1991,1344.1h-4
-                                c2.2,0,4-1.8,4-4V1344.1z M1991,628.5c0-2.2-1.8-4-4-4h4V628.5z M1995,616.5h-369.4c-2.2,0-4,1.8-4,4v727.6c0,2.2,1.8,4,4,4H1995
-                                c2.2,0,4-1.8,4-4V620.5C1999,618.2,1997.2,616.5,1995,616.5z M1637.6,632.5H1983v703.6h-345.4V632.5z"/>
-                        </g>
-                    </g>
+            <div class="hero-grid">
+                <div class="logo-container">
+                    <div class="logo-glow"></div>
+                    <a href="../../brand/showcase.html" class="logo-link" title="View brand assets">
+                    <svg class="logo-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+                        <circle class="logo-circle" cx="60" cy="60" r="56"/>
+                        <circle cx="82" cy="44" r="13" fill="#F7B538"/>
+                        <circle cx="82" cy="44" r="8" fill="#E85D04"/>
+                        <rect class="logo-building" x="24" y="54" width="14" height="32" rx="2"/>
+                        <rect class="logo-building" x="42" y="46" width="16" height="40" rx="2"/>
+                        <rect class="logo-building" x="62" y="50" width="14" height="36" rx="2"/>
+                        <rect class="logo-building" x="80" y="58" width="14" height="28" rx="2"/>
+                        <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none">
+                            <animate attributeName="d" dur="9s" repeatCount="indefinite"
+                                values="M18 94 Q40 86 60 94 Q80 102 102 94;
+                                        M18 94 Q40 102 60 94 Q80 86 102 94;
+                                        M18 94 Q40 86 60 94 Q80 102 102 94"/>
+                        </path>
                     </svg>
-
-                    <!-- Animated wave representing energy/water balance -->
-                    <div class="wave-container">
-                        <svg viewBox="0 0 400 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M0 12 Q50 4 100 12 T200 12 T300 12 T400 12" stroke="rgba(255,255,255,0.5)" stroke-width="2" fill="none">
-                                <animate attributeName="d" dur="3s" repeatCount="indefinite"
-                                    values="M0 12 Q50 4 100 12 T200 12 T300 12 T400 12;
-                                            M0 12 Q50 20 100 12 T200 12 T300 12 T400 12;
-                                            M0 12 Q50 4 100 12 T200 12 T300 12 T400 12"/>
-                            </path>
-                            <path d="M0 16 Q50 22 100 16 T200 16 T300 16 T400 16" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" fill="none">
-                                <animate attributeName="d" dur="4s" repeatCount="indefinite"
-                                    values="M0 16 Q50 22 100 16 T200 16 T300 16 T400 16;
-                                            M0 16 Q50 10 100 16 T200 16 T300 16 T400 16;
-                                            M0 16 Q50 22 100 16 T200 16 T300 16 T400 16"/>
-                            </path>
-                        </svg>
-                    </div>
+                    </a>
                 </div>
 
-                <p class="tagline">Surface Urban Energy and Water Balance Scheme</p>
-
-                <p class="description">
-                    A physically-based urban land surface model for simulating energy, water, and carbon dioxide fluxes
-                    in cities. Developed through international collaboration for urban climate research,
-                    planning applications, and environmental assessment.
-                </p>
-
-                <div class="badges">
-                    <a href="https://github.com/UMEP-dev/SUEWS/releases/latest"><img class="badge" src="https://img.shields.io/github/v/release/UMEP-dev/SUEWS?style=flat-square&label=release" alt="Latest Release"></a>
-                    <a href="https://pypi.org/project/supy/"><img class="badge" src="https://img.shields.io/pypi/v/supy?style=flat-square" alt="PyPI version"></a>
-                    <a href="https://github.com/UMEP-dev/SUEWS/blob/master/LICENSE"><img class="badge" src="https://img.shields.io/github/license/UMEP-dev/SUEWS?style=flat-square" alt="License"></a>
-                    <a href="https://doi.org/10.5281/zenodo.5721639"><img class="badge" src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.5721639-blue?style=flat-square" alt="DOI"></a>
+                <div class="hero-content">
+                    <div class="hero-label">Urban Climate Model</div>
+                    <h1 class="hero-title">
+                        <span class="highlight">SUEWS</span>
+                    </h1>
+                    <p class="hero-subtitle">Surface Urban Energy & Water Balance Scheme</p>
+                    <p class="hero-description">
+                        A physically-based model for simulating energy, water, and carbon dioxide fluxes
+                        in cities. Developed through international collaboration for urban climate research,
+                        planning applications, and environmental assessment.
+                    </p>
+                    <div class="badges">
+                        <a href="https://github.com/UMEP-dev/SUEWS/releases/latest"><img src="https://img.shields.io/github/v/release/UMEP-dev/SUEWS?style=flat-square&label=release" alt="Latest Release"></a>
+                        <a href="https://pypi.org/project/supy/"><img src="https://img.shields.io/pypi/v/supy?style=flat-square" alt="PyPI version"></a>
+                        <a href="https://docs.suews.io/"><img src="https://img.shields.io/readthedocs/suews?style=flat-square&label=docs" alt="Documentation"></a>
+                        <a href="https://github.com/UMEP-dev/SUEWS/blob/master/LICENSE"><img src="https://img.shields.io/github/license/UMEP-dev/SUEWS?style=flat-square" alt="License"></a>
+                        <a href="https://doi.org/10.5281/zenodo.5721639"><img src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.5721639-blue?style=flat-square" alt="DOI"></a>
+                    </div>
                 </div>
             </div>
         </div>
-    </header>
 
-    <main class="main-content">
+        <div class="stats-bar">
+            <div class="container">
+                <div class="stats-grid">
+                    <div class="stat">
+                        <div class="stat-value">15+</div>
+                        <div class="stat-label">Years Active</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">200+</div>
+                        <div class="stat-label">Citations</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">20+</div>
+                        <div class="stat-label">Global Sites</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="scroll-indicator">
+            <span>Scroll</span>
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+        </div>
+    </section>
+
+    <!-- Resources Section -->
+    <section class="resources">
         <div class="container">
-            <div class="stats-row">
-                <div class="stat-card">
-                    <span class="stat-value">15+</span>
-                    <span class="stat-label">Years Active</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-value">200+</span>
-                    <span class="stat-label">Citations</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-value">20+</span>
-                    <span class="stat-label">Global Sites</span>
-                </div>
+            <div class="section-header">
+                <span class="section-number">01</span>
+                <h2 class="section-title">Resources</h2>
+                <div class="section-line"></div>
             </div>
 
-            <section class="section">
-                <div class="section-header">
-                    <h2 class="section-title">Resources</h2>
-                    <div class="section-line"></div>
-                </div>
+            <div class="resource-grid">
+                <a href="https://github.com/UMEP-dev/SUEWS" class="resource-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                    </div>
+                    <h3 class="card-title">Source Code</h3>
+                    <p class="card-description">GitHub repository with source code, issue tracking, and development</p>
+                </a>
 
-                <nav class="nav-grid">
-                    <a href="https://github.com/UMEP-dev/SUEWS" class="nav-card">
-                        <div class="nav-card-header">
-                            <div class="nav-icon">
-                                <svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-                            </div>
-                            <h3 class="nav-title">Source Code</h3>
-                        </div>
-                        <p class="nav-description">GitHub repository with source code, issue tracking, and development</p>
-                    </a>
+                <a href="https://suews.readthedocs.io" class="resource-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                    </div>
+                    <h3 class="card-title">Documentation</h3>
+                    <p class="card-description">User guide, scientific background, tutorials, and API reference</p>
+                </a>
 
-                    <a href="https://suews.readthedocs.io" class="nav-card">
-                        <div class="nav-card-header">
-                            <div class="nav-icon">
-                                <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-                            </div>
-                            <h3 class="nav-title">Documentation</h3>
-                        </div>
-                        <p class="nav-description">User guide, scientific background, tutorials, and API reference</p>
-                    </a>
+                <a href="schemas/suews-config/" class="resource-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                    </div>
+                    <h3 class="card-title">Schema Registry</h3>
+                    <p class="card-description">YAML configuration schemas for model input validation</p>
+                </a>
 
-                    <a href="schemas/suews-config/" class="nav-card">
-                        <div class="nav-card-header">
-                            <div class="nav-icon">
-                                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-                            </div>
-                            <h3 class="nav-title">Schema Registry</h3>
-                        </div>
-                        <p class="nav-description">YAML configuration schemas for model input validation</p>
-                    </a>
+                <a href="https://pypi.org/project/supy/" class="resource-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                    </div>
+                    <h3 class="card-title">Python Package</h3>
+                    <p class="card-description">SuPy wrapper for Python: <code>pip install supy</code></p>
+                </a>
 
-                    <a href="https://pypi.org/project/supy/" class="nav-card">
-                        <div class="nav-card-header">
-                            <div class="nav-icon">
-                                <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                            </div>
-                            <h3 class="nav-title">Python Package</h3>
-                        </div>
-                        <p class="nav-description">SuPy wrapper for Python: <code>pip install supy</code></p>
-                    </a>
+                <a href="https://umep-docs.readthedocs.io" class="resource-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+                    </div>
+                    <h3 class="card-title">UMEP</h3>
+                    <p class="card-description">Urban Multi-scale Environmental Predictor - QGIS plugin</p>
+                </a>
 
-                    <a href="https://umep-docs.readthedocs.io" class="nav-card">
-                        <div class="nav-card-header">
-                            <div class="nav-icon">
-                                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
-                            </div>
-                            <h3 class="nav-title">UMEP</h3>
-                        </div>
-                        <p class="nav-description">Urban Multi-scale Environmental Predictor - QGIS plugin</p>
-                    </a>
+                <a href="https://github.com/UMEP-dev/SUEWS/discussions" class="resource-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </div>
+                    <h3 class="card-title">Community</h3>
+                    <p class="card-description">Discussions, questions, and community support</p>
+                </a>
+            </div>
+        </div>
+    </section>
 
-                    <a href="https://github.com/UMEP-dev/SUEWS/discussions" class="nav-card">
-                        <div class="nav-card-header">
-                            <div class="nav-icon">
-                                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                            </div>
-                            <h3 class="nav-title">Community</h3>
-                        </div>
-                        <p class="nav-description">Discussions, questions, and community support</p>
-                    </a>
-                </nav>
-            </section>
-
-            <section class="section">
-                <div class="applications">
-                    <h3 class="applications-title">Research Applications</h3>
-                    <div class="applications-list">
-                        <div class="application-item">
-                            <span class="application-bullet"></span>
-                            <span>Urban heat island analysis</span>
-                        </div>
-                        <div class="application-item">
-                            <span class="application-bullet"></span>
-                            <span>Building energy demand</span>
-                        </div>
-                        <div class="application-item">
-                            <span class="application-bullet"></span>
-                            <span>Urban water management</span>
-                        </div>
-                        <div class="application-item">
-                            <span class="application-bullet"></span>
-                            <span>Green infrastructure planning</span>
-                        </div>
-                        <div class="application-item">
-                            <span class="application-bullet"></span>
-                            <span>Climate adaptation strategies</span>
-                        </div>
-                        <div class="application-item">
-                            <span class="application-bullet"></span>
-                            <span>Carbon flux estimation</span>
-                        </div>
+    <!-- Applications Section -->
+    <section class="applications">
+        <div class="container">
+            <div class="applications-box">
+                <h3 class="applications-title">Research Applications</h3>
+                <div class="applications-grid">
+                    <div class="app-item">
+                        <span class="app-bullet"></span>
+                        <span>Urban heat island analysis</span>
+                    </div>
+                    <div class="app-item">
+                        <span class="app-bullet"></span>
+                        <span>Building energy demand</span>
+                    </div>
+                    <div class="app-item">
+                        <span class="app-bullet"></span>
+                        <span>Urban water management</span>
+                    </div>
+                    <div class="app-item">
+                        <span class="app-bullet"></span>
+                        <span>Green infrastructure planning</span>
+                    </div>
+                    <div class="app-item">
+                        <span class="app-bullet"></span>
+                        <span>Climate adaptation strategies</span>
+                    </div>
+                    <div class="app-item">
+                        <span class="app-bullet"></span>
+                        <span>Carbon flux estimation</span>
                     </div>
                 </div>
-
-            </section>
+            </div>
         </div>
-    </main>
+    </section>
 
+    <!-- Footer -->
     <footer class="footer">
         <div class="container">
             <p class="footer-institutions">
-                University of Reading &middot; University College London &middot; University of Helsinki<br>
+                University of Reading · University College London · University of Helsinki<br>
                 and collaborators worldwide
             </p>
-            <div class="footer-legal">
-                <span>&copy; 2025 SUEWS Development Team</span>
-            </div>
+            <p class="footer-legal">© 2025 SUEWS Development Team</p>
         </div>
     </footer>
+
+    <script>
+        // Theme Toggle Logic
+        const toggle = document.getElementById('themeToggle');
+        const root = document.documentElement;
+
+        // Check for saved preference or system preference
+        function getPreferredTheme() {
+            const saved = localStorage.getItem('theme');
+            if (saved) return saved;
+            return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+
+        // Apply theme
+        function setTheme(theme) {
+            if (theme === 'light') {
+                root.setAttribute('data-theme', 'light');
+            } else {
+                root.setAttribute('data-theme', 'dark');
+            }
+            localStorage.setItem('theme', theme);
+        }
+
+        // Initialize
+        setTheme(getPreferredTheme());
+
+        // Toggle handler
+        toggle.addEventListener('click', () => {
+            const current = root.getAttribute('data-theme') ||
+                (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            setTheme(current === 'light' ? 'dark' : 'light');
+        });
+
+        // Listen for system preference changes
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) {
+                setTheme(e.matches ? 'light' : 'dark');
+            }
+        });
+    </script>
 </body>
 </html>

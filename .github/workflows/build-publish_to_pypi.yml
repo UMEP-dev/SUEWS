@@ -549,11 +549,11 @@ jobs:
               c.user.type === 'Bot' && c.body.includes('Documentation Preview')
             );
 
-            const body = `## 📚 Documentation Preview
+            const body = `## Documentation Preview
 
-**Preview URL:** ${previewUrl}
+Preview URL: ${previewUrl}
 
-⚠️ This is a PR preview. Production docs remain at ${rtdUrl}`;
+This is a PR preview. Production docs remain at ${rtdUrl}`;
 
             if (botComment) {
               await github.rest.issues.updateComment({

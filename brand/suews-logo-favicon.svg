@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
   <!-- SUEWS Logo - Favicon (Simplified for small sizes) -->
   <circle cx="60" cy="60" r="56" fill="#2D3142"/>
-  <circle cx="82" cy="44" r="13" fill="#F7B538"/>
+  <circle cx="83" cy="51" r="13" fill="#F7B538"/>
   <!-- Simplified: building + tree + building block -->
   <rect x="18" y="56" width="12" height="30" rx="2" fill="#5D5852"/>
   <path d="M42 51 L35 79 Q33 82 36 82 L52 82 Q55 82 53 79 L46 51 Q44 49 42 51 Z" fill="#4A7C59"/>

@@ -65,6 +65,7 @@ try:
         get_mean_annual_air_temperature as _get_mean_annual_air_temperature,
         nullify_co2_block_recursive,
         collect_nullified_paths,
+        _nullify_biogenic_in_props,
     )
 
     HAS_SUPY = True
@@ -1413,6 +1414,25 @@ def adjust_model_dependent_nullification(
                 props["anthropogenic_emissions"] = anth_emis
                 site["properties"] = props
                 yaml_data["sites"][site_idx] = site
+
+            # Nullify biogenic dectr params here as well (same canonical helper)
+            try:
+                if _nullify_biogenic_in_props(props):
+                    yaml_data["sites"][site_idx]["properties"] = props
+                    adjustments.append(
+                        ScientificAdjustment(
+                            parameter="land_cover.dectr.biogenic_params",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            old_value="biogenic dectr params present",
+                            new_value="null",
+                            reason="emissionsmethod 0..4 (CO2 disabled) – nullified dectr biogenic parameters",
+                        )
+                    )
+            except Exception:
+                logger_supy.exception(
+                    "[phase_b] failed to nullify dectr biogenic params for site %d", site_idx
+                )
 
     return yaml_data, adjustments
 

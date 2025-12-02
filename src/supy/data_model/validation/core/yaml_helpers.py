@@ -334,6 +334,43 @@ def collect_nullified_paths(before: Any, after: Any, path: str = "") -> List[str
         paths.append(path or "")
     return paths
 
+def _nullify_biogenic_in_props(props: dict) -> bool:
+    """Nullify biogenic CO2 params under properties.land_cover.dectr in-place.
+    Returns True if any change was made.
+    """
+    if not isinstance(props, dict):
+        return False
+    land_cover = props.get("land_cover") or {}
+    if not isinstance(land_cover, dict):
+        return False
+    dectr_props = land_cover.get("dectr")
+    if not isinstance(dectr_props, dict):
+        return False
+    changed = False
+    for param in (
+        "alpha_bioco2",
+        "alpha_enh_bioco2",
+        "beta_bioco2",
+        "beta_enh_bioco2",
+        "min_res_bioco2",
+        "theta_bioco2",
+    ):
+        if param not in dectr_props:
+            continue
+        val = dectr_props[param]
+        if isinstance(val, dict) and "value" in val:
+            if isinstance(val["value"], list):
+                val["value"] = [None] * len(val["value"])
+            else:
+                val["value"] = None
+            dectr_props[param] = val
+        else:
+            dectr_props[param] = None
+        changed = True
+    if changed:
+        land_cover["dectr"] = dectr_props
+        props["land_cover"] = land_cover
+    return changed
 
 def collect_yaml_differences(original: Any, updated: Any, path: str = "") -> List[dict]:
     """
@@ -1377,19 +1414,35 @@ def precheck_model_option_rules(data: dict) -> dict:
         logger_supy.info(
             "[precheck] emissionsmethod 0..4 detected → nullifying 'anthropogenic_emissions.co2' values."
         )
+
         for site_idx, site in enumerate(data.get("sites", [])):
             props = site.get("properties", {}) or {}
             anth_emis = props.get("anthropogenic_emissions", {}) or {}
 
-            # Nullify co2 block (use shared nullifier)
             co2_block = anth_emis.get("co2", {}) or {}
             if isinstance(co2_block, dict):
                 nullify_co2_block_recursive(co2_block)
                 anth_emis["co2"] = co2_block
                 props["anthropogenic_emissions"] = anth_emis
 
-    return data
+            # Ensure biogenic dectr fields are nullified during the same precheck pass
+            try:
+                if _nullify_biogenic_in_props(props):
+                    # write back modified props into site
+                    if isinstance(site, dict):
+                        site["properties"] = props
+                        data["sites"][site_idx] = site
+            except Exception:
+                logger_supy.exception(
+                    "[precheck] failed to nullify biogenic dectr params for site %d", site_idx
+                )
 
+            # ALWAYS write back props after making changes above
+            if isinstance(site, dict):
+                site["properties"] = props
+                data["sites"][site_idx] = site
+
+    return data
 
 def run_precheck(path: str) -> dict:
     """
@@ -1486,3 +1539,6 @@ def run_precheck(path: str) -> dict:
     # ---- Step 15: Print completion ----
     logger_supy.info("Precheck complete.\n")
     return data
+
+
+

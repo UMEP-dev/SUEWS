@@ -2,22 +2,55 @@
 
 This directory contains official SUEWS branding assets including logos, colours, and usage guidelines.
 
+## Logo Naming Convention
+
+**Theme-mode naming**: File suffix indicates which **mode** the logo is designed for:
+- `-light.svg` = For **light mode** (dark elements visible on light backgrounds)
+- `-dark.svg` = For **dark mode** (light elements visible on dark backgrounds)
+
 ## Logo Variants
 
-| File | Description | Use Case |
-|------|-------------|----------|
-| `suews-logo-dark.svg` | Full logo, dark background | Dark UI, presentations |
-| `suews-logo-light.svg` | Full logo, light background | Light UI, documents |
-| `suews-logo-animated.svg` | Animated wave, dark bg | Hero sections, splash screens |
-| `suews-logo-animated-light.svg` | Animated wave, light bg | Light-themed hero sections |
-| `suews-logo-animated-white.svg` | Animated wave, white bg | Print-ready, white backgrounds |
-| `suews-logo-lineart.svg` | Line art version, dark | Minimalist contexts |
-| `suews-logo-lineart-light.svg` | Line art version, light | Light minimalist contexts |
-| `suews-logo-favicon.svg` | Simplified icon | Browser favicon |
-| `suews-logo-text-dark.svg` | Logo with text, dark bg | Documentation headers |
-| `suews-logo-text-light.svg` | Logo with text, light bg | Light documentation |
-| `suews-logo-text-white.svg` | Logo with text, white bg | Print materials |
-| `suews-logo-icon.svg` | Icon only | App icons, small sizes |
+### Icon Logos (120x120)
+
+| File | Mode | Description |
+|------|------|-------------|
+| `suews-logo-light.svg` | Light mode | Full logo with light background fill |
+| `suews-logo-dark.svg` | Dark mode | Full logo with dark background fill |
+| `suews-logo-icon.svg` | Universal | Standalone icon (dark variant) |
+| `suews-logo-mask.svg` | Universal | Mask/silhouette version |
+| `suews-logo-favicon.svg` | Universal | Browser favicon (simplified) |
+
+### Animated Logos (120x120)
+
+| File | Mode | Description |
+|------|------|-------------|
+| `suews-logo-animated-light.svg` | Light mode | Animated wave on light fill |
+| `suews-logo-animated-dark.svg` | Dark mode | Animated wave on dark fill |
+
+### Line Art Logos (120x120)
+
+| File | Mode | Description |
+|------|------|-------------|
+| `suews-logo-lineart-light.svg` | Light mode | Dark strokes on transparent |
+| `suews-logo-lineart-dark.svg` | Dark mode | Light strokes on transparent |
+
+### Logo with Text (340x120)
+
+| File | Mode | Description |
+|------|------|-------------|
+| `suews-logo-text-light.svg` | Light mode | Dark text (#2D3142) |
+| `suews-logo-text-dark.svg` | Dark mode | White text (#FFFFFF) |
+
+## Usage in Sphinx Documentation
+
+The logos are configured for automatic theme adaptation in `docs/source/conf.py`:
+
+```python
+html_theme_options["logo"] = {
+    "image_light": "../../brand/suews-logo-text-light.svg",  # For light mode
+    "image_dark": "../../brand/suews-logo-text-dark.svg",    # For dark mode
+}
+```
 
 ## Colour Palette
 
@@ -25,27 +58,28 @@ This directory contains official SUEWS branding assets including logos, colours,
 
 | Colour | Hex | Usage |
 |--------|-----|-------|
-| Deep Blue | `#2D3142` | Primary brand colour, backgrounds |
+| Deep Blue | `#2D3142` | Primary brand colour, dark backgrounds |
 | Warm Stone | `#5D5852` | Buildings, urban elements |
-| Golden Sun | `#D4A84B` | Sun symbol, accent highlights |
+| Golden Sun | `#F7B538` | Sun outer glow |
+| Sun Core | `#E85D04` | Sun inner core |
+| Forest Green | `#4A7C59` | Tree/vegetation |
+| Ocean Blue | `#0077B6` | Water wave |
 
 ### Theme-Specific
 
 **Dark Theme:**
 | Colour | Hex | Usage |
 |--------|-----|-------|
-| Background | `#0F1119` | Page backgrounds |
-| Surface | `#1A1D2E` | Cards, containers |
-| Text | `#E8ECF4` | Primary text |
-| Muted | `#8B95A8` | Secondary text |
+| Background | `#2D3142` | Logo background |
+| Buildings | `#5D5852` | Building elements |
+| Strokes | `#E2E8F0` | Line art strokes |
 
 **Light Theme:**
 | Colour | Hex | Usage |
 |--------|-----|-------|
-| Background | `#FAFBFC` | Page backgrounds |
-| Surface | `#FFFFFF` | Cards, containers |
-| Text | `#2D3142` | Primary text |
-| Muted | `#6B7280` | Secondary text |
+| Background | `#F8FAFC` | Logo background |
+| Buildings | `#2D3142` | Building elements |
+| Strokes | `#2D3142` | Line art strokes |
 
 ## Logo Construction
 
@@ -89,5 +123,5 @@ To use a logo in HTML:
 ## File History
 
 - Created: December 2024
+- Updated: December 2024 (theme-mode naming convention)
 - Location: `/brand/` (project root)
-- Previous location: `docs/source/images/`

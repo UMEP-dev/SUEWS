@@ -1,0 +1,72 @@
+name: Cleanup docs preview
+
+# Clean up GitHub Pages preview directories when PRs are closed
+# This prevents accumulation of stale preview content
+
+on:
+  pull_request:
+    types: [closed]
+
+# Serialise with main docs deployment to avoid conflicts
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Remove PR preview
+    runs-on: ubuntu-latest
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages-preview
+
+    steps:
+      - name: Fetch current Pages content
+        run: |
+          mkdir -p _site
+
+          PR_NUM="${{ github.event.pull_request.number }}"
+          echo "Cleaning up preview for PR #${PR_NUM}"
+
+          # Fetch existing site content
+          if timeout 60 wget -q -r -np -nH --cut-dirs=1 -P _site \
+               --reject "index.html*" \
+               https://umep-dev.github.io/SUEWS/ 2>&1; then
+            echo "✓ Fetched existing site content"
+          else
+            echo "⚠ Could not fetch existing content - nothing to clean up"
+            exit 0
+          fi
+
+          # Check if preview directory exists
+          if [ -d "_site/preview/pr-${PR_NUM}" ]; then
+            echo "Removing _site/preview/pr-${PR_NUM}/"
+            rm -rf "_site/preview/pr-${PR_NUM}"
+            echo "✓ Preview directory removed"
+
+            # Check if preview parent directory is empty and clean up
+            if [ -d "_site/preview" ] && [ -z "$(ls -A _site/preview)" ]; then
+              echo "Removing empty preview directory"
+              rm -rf "_site/preview"
+            fi
+          else
+            echo "No preview found for PR #${PR_NUM} - nothing to clean up"
+            exit 0
+          fi
+
+          touch _site/.nojekyll
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4

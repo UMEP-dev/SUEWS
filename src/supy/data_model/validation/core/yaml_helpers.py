@@ -358,6 +358,8 @@ def _nullify_biogenic_in_props(props: dict) -> bool:
         "beta_enh_bioco2",
         "min_res_bioco2",
         "theta_bioco2",
+        "resp_a",
+        "resp_b",
     )
     surfaces = ("dectr", "evetr", "grass")
 

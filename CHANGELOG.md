@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 57 | 65 | 22 | 70 | 36 | 250 |
+| 2025 | 57 | 66 | 22 | 71 | 36 | 252 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -40,6 +40,8 @@
 - [change] Add a robust, recursive nullification helper in src/supy/data_model/validation/core/yaml_helpers.py.
 - [maintenance] Add tests covering CO2 nullification (nested structures, day/hour profiles and emissionsmethod cases).
 - [maintenance] Added comments and small defensive fixes around profile handling to make the behaviour explicit and avoid regressions.
+- [bugfix] Added resp_a, resp_b, and *_bioco2 grass and evetr params to carbon switch-off logic in yaml_helpers.py
+- [maintenance] Added tests for resp_b, and *_bioco2 grass and evetr params in test/data_model/test_yaml_processing.py
 
 ### 30 Nov 2025
 

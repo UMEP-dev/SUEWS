@@ -2095,6 +2095,7 @@ def test_nullify_biogenic_in_props_handles_grass_and_evetr():
     assert evetr["theta_bioco2"]["value"] is None
     assert evetr["beta_bioco2"] is None
 
+
 def test_nullify_biogenic_in_props_handles_resp_params():
     props = {
         "land_cover": {
@@ -2133,6 +2134,7 @@ def test_nullify_biogenic_in_props_resp_params_scalar_and_missing_value_key():
     assert grass["resp_a"] is None
     assert grass["resp_b"]["value"] is None
     assert grass["other_param"]["value"] == 2.2
+
 
 def test_collect_yaml_differences_simple():
     original = {

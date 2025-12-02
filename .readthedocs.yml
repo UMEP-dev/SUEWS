@@ -30,9 +30,9 @@ build:
         # Use POSIX-compliant case statement (not bash-specific [[)
         case "$SUPY_VERSION" in
           *".dev"*|"unknown")
-            # Normalize dev version: Test PyPI daily builds are always .dev1 for each date
-            # e.g., 2025.11.7.dev13 -> 2025.11.7.dev1
-            PYPI_VERSION=$(echo "$SUPY_VERSION" | sed 's/\.dev[0-9]*/\.dev1/')
+            # Normalize dev version: Test PyPI daily builds use .dev0 for standard builds
+            # e.g., 2025.11.7.dev13 -> 2025.11.7.dev0 (UMEP variant uses .dev1)
+            PYPI_VERSION=$(echo "$SUPY_VERSION" | sed 's/\.dev[0-9]*/\.dev0/')
             echo "Installing dev version from Test PyPI: $PYPI_VERSION"
             # --extra-index-url: Fallback to PyPI for dependencies (numpy, sphinx, etc.) not on Test PyPI
             # [dev]: Includes Sphinx and documentation dependencies (see pyproject.toml)

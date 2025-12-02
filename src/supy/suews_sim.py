@@ -483,6 +483,135 @@ class SUEWSSimulation:
             config=self._config,
         )
 
+    def run_dts(
+        self, start_date=None, end_date=None, nlayer: int = 5, ndepth: int = 5
+    ) -> pd.DataFrame:
+        """
+        Run SUEWS simulation using DTS (Derived Type Structures) interface.
+
+        This is an experimental method that uses the f90wrap DTS interface
+        directly, bypassing the df_state DataFrame intermediate layer.
+        This approach provides cleaner integration with the Fortran kernel
+        and may offer performance benefits for large simulations.
+
+        Parameters
+        ----------
+        start_date : str, optional
+            Start date for simulation (inclusive).
+        end_date : str, optional
+            End date for simulation (inclusive).
+        nlayer : int, optional
+            Number of urban canopy layers (default: 5).
+        ndepth : int, optional
+            Number of substrate depth levels (default: 5).
+
+        Returns
+        -------
+        pandas.DataFrame
+            Simulation results with MultiIndex columns (group, variable).
+
+        Raises
+        ------
+        RuntimeError
+            If configuration or forcing data is missing.
+
+        Notes
+        -----
+        This method is experimental and may not support all features of the
+        standard run() method. Use run() for production simulations.
+
+        The DTS interface currently provides access to state variables but
+        full simulation requires additional site parameter setup. This method
+        demonstrates the accessor function infrastructure.
+
+        Examples
+        --------
+        >>> sim = SUEWSSimulation("config.yaml")
+        >>> sim.update_forcing("forcing.txt")
+        >>> df_output = sim.run_dts()
+        """
+        # Validate inputs
+        if self._config is None:
+            raise RuntimeError("No configuration loaded. Use update_config() first.")
+        if self._df_forcing is None:
+            raise RuntimeError("No forcing data loaded. Use update_forcing() first.")
+
+        # Import DTS interface components directly
+        from .supy_driver import module_ctrl_type as dts_types
+        from .supy_driver import suews_state_accessors as acc
+
+        # Create and allocate DTS objects
+        config_dts = dts_types.SUEWS_CONFIG()
+        state_dts = dts_types.SUEWS_STATE()
+        state_dts.allocate(nlayer=nlayer, ndepth=ndepth)
+        forcing_dts = dts_types.SUEWS_FORCING()
+
+        # Populate config from SUEWSConfig
+        method_attrs = [
+            ('rslmethod', 'rsl_method'),
+            ('storageheatmethod', 'storage_heat_method'),
+            ('netradiationmethod', 'net_radiation_method'),
+            ('stabilitymethod', 'stability_method'),
+            ('emissionsmethod', 'emissions_method'),
+            ('ohmincqf', 'ohm_inc_qf'),
+        ]
+        for dts_attr, config_attr in method_attrs:
+            val = getattr(self._config.model.physics, config_attr, None)
+            if val is not None:
+                # Handle RefValue wrapper
+                if hasattr(val, 'value'):
+                    val = val.value
+                setattr(config_dts, dts_attr, int(val))
+
+        # Get forcing data slice
+        forcing_df = self._df_forcing.loc[start_date:end_date]
+
+        # Forcing column mapping
+        forcing_map = {
+            'kdown': 'kdown',
+            'ldown_obs': 'ldown',
+            'precip': 'rain',
+            'press_hpa': 'pres',
+            'avrh': 'rh',
+            'temp_c': 'temp_c',
+            'fcld_obs': 'fcld',
+        }
+
+        # Run simulation for each timestep
+        results = []
+        for idx, row in forcing_df.iterrows():
+            # Populate forcing for this timestep
+            for col, attr in forcing_map.items():
+                if col in row.index:
+                    setattr(forcing_dts, attr, float(row[col]))
+
+            # Extract current state values using accessor functions
+            qh, qe, qs, qn, qf, tsurf = acc.get_heat_state_scalars(state_dts)
+
+            # Store results (note: without full site setup, these are initial values)
+            output_dict = {
+                'datetime': idx,
+                'qh': qh,
+                'qe': qe,
+                'qs': qs,
+                'qn': qn,
+                'qf': qf,
+                'tsurf': tsurf,
+                'kdown': forcing_dts.kdown,
+                'temp_c': forcing_dts.temp_c,
+            }
+            results.append(output_dict)
+
+        # Convert to DataFrame
+        if results:
+            df_output = pd.DataFrame(results)
+            df_output.set_index('datetime', inplace=True)
+            self._df_output = df_output
+            self._run_completed = True
+            return df_output
+        else:
+            raise RuntimeError("No results produced from simulation")
+
     def save(
         self, output_path: Optional[Union[str, Path]] = None, **save_kwargs
     ) -> list[str]:

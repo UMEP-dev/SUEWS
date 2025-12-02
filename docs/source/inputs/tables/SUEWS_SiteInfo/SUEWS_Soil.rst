@@ -21,9 +21,7 @@ forcing file (the `xsmd` column when `SMDMethod` = 1 or 2 in `RunControl.nml`) t
    When ``SMDMethod`` is set to 1 (volumetric) or 2 (gravimetric), you must provide soil observation metadata.
    Since observed soil moisture is a single point measurement, this is a **site-level** property (not per-surface).
 
-   **Preferred approach (YAML configuration)**:
-
-   Set the ``soil_observation`` block in site properties:
+   Set the ``soil_observation`` block in site properties (YAML configuration):
 
    .. code-block:: yaml
 
@@ -33,18 +31,7 @@ forcing file (the `xsmd` column when `SMDMethod` = 1 or 2 in `RunControl.nml`) t
             depth: 200          # sensor depth [mm]
             smcap: 0.4          # saturated moisture at sensor [fraction]
             soil_not_rocks: 0.8 # soil fraction (no rocks) [0-1]
-            bulk_density: 1.2   # soil bulk density [g/cm³]
-
-   **Legacy approach (SUEWS_Soil.txt)**:
-
-   Set the following fields for **any one** non-water surface (Paved, Bldgs, EveTr, DecTr, Grass, or BSoil):
-
-   - ``OBS_SMDepth`` – depth of the instrumented soil layer [mm]
-   - ``OBS_SMCap`` – maximum observed soil moisture (volumetric or gravimetric)
-   - ``OBS_SoilNotRocks`` – fraction of the sampled volume that is soil (not rocks)
-   - ``SoilDensity`` – soil bulk density (g cm\ :sup:`-3`)
-
-   SuPy searches surfaces 0–5 in order and uses the first one with complete metadata.
+            bulk_density: 1.2   # soil bulk density [g/cm3]
 
    These properties are used to convert the observed values in ``xsmd`` to a soil moisture deficit before they are passed to the SUEWS kernel.
 

@@ -12,29 +12,8 @@ Each of the non-water surface types need to link to soil characteristics specifi
 If the soil characteristics are assumed to be the same for all surface types, use a single code value to link the characteristics here with the SoilTypeCode columns in `SUEWS_NonVeg.txt` and `SUEWS_Veg.txt`.
 
 Soil moisture can either be provided using observational data in the met
-forcing file (the `xsmd` column when `SMDMethod` = 1 or 2 in `RunControl.nml`) together with additional soil observation metadata below, or modelled by SUEWS (`SMDMethod` = 0 in `RunControl.nml`).
-
-.. note::
-
-   **Observed Soil Moisture Configuration**
-
-   When ``SMDMethod`` is set to 1 (volumetric) or 2 (gravimetric), you must provide soil observation metadata.
-   Since observed soil moisture is a single point measurement, this is a **site-level** property (not per-surface).
-
-   Set the ``soil_observation`` block in site properties (YAML configuration):
-
-   .. code-block:: yaml
-
-      site:
-        properties:
-          soil_observation:
-            depth: 200          # sensor depth [mm]
-            smcap: 0.4          # saturated moisture at sensor [fraction]
-            soil_not_rocks: 0.8 # soil fraction (no rocks) [0-1]
-            bulk_density: 1.2   # soil bulk density [g/cm3]
-
-   These properties are used to convert the observed values in ``xsmd`` to a soil moisture deficit before they are passed to the SUEWS kernel.
-
+forcing file (the `xsmd` column when `SMDMethod` = 1 or 2 in `RunControl.nml`), or modelled by SUEWS (`SMDMethod` = 0 in `RunControl.nml`).
+When using observed soil moisture, see the YAML configuration documentation for required site-level metadata.
 
 .. DON'T manually modify the csv file below
 .. as it is always automatically regenrated by each build:

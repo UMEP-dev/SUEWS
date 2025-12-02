@@ -344,40 +344,51 @@ def collect_nullified_paths(before: Any, after: Any, path: str = "") -> List[str
 
 
 def _nullify_biogenic_in_props(props: dict) -> bool:
-    """Nullify biogenic CO2 params under properties.land_cover.dectr in-place.
-    Returns True if any change was made.
-    """
+    """Nullify biogenic CO2 params under properties.land_cover for selected surfaces."""
     if not isinstance(props, dict):
         return False
     land_cover = props.get("land_cover") or {}
     if not isinstance(land_cover, dict):
         return False
-    dectr_props = land_cover.get("dectr")
-    if not isinstance(dectr_props, dict):
-        return False
-    changed = False
-    for param in (
+
+    params = (
         "alpha_bioco2",
         "alpha_enh_bioco2",
         "beta_bioco2",
         "beta_enh_bioco2",
         "min_res_bioco2",
         "theta_bioco2",
-    ):
-        if param not in dectr_props:
+        "resp_a",
+        "resp_b",
+    )
+    surfaces = ("dectr", "evetr", "grass")
+
+    changed = False
+    for surface in surfaces:
+        surface_props = land_cover.get(surface)
+        if not isinstance(surface_props, dict):
             continue
-        val = dectr_props[param]
-        if isinstance(val, dict) and "value" in val:
-            if isinstance(val["value"], list):
-                val["value"] = [None] * len(val["value"])
+
+        surface_changed = False
+        for param in params:
+            if param not in surface_props:
+                continue
+            val = surface_props[param]
+            if isinstance(val, dict) and "value" in val:
+                if isinstance(val["value"], list):
+                    val["value"] = [None] * len(val["value"])
+                else:
+                    val["value"] = None
+                surface_props[param] = val
             else:
-                val["value"] = None
-            dectr_props[param] = val
-        else:
-            dectr_props[param] = None
-        changed = True
+                surface_props[param] = None
+            surface_changed = True
+
+        if surface_changed:
+            land_cover[surface] = surface_props
+            changed = True
+
     if changed:
-        land_cover["dectr"] = dectr_props
         props["land_cover"] = land_cover
     return changed
 

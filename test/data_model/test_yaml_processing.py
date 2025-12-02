@@ -2067,14 +2067,73 @@ def test_nullify_biogenic_in_props_nullifies_values_and_lists():
     assert dectr["unrelated_param"]["value"] == 2.5
 
 
-def test_nullify_biogenic_in_props_noop_when_missing():
-    """Ensure helper returns False and doesn't change props when dectr/params absent."""
-    # No land_cover
-    props_a = {}
-    # land_cover present but no dectr
-    props_b = {"land_cover": {"grass": {"sfr": {"value": 0.5}}}}
-    assert _nullify_biogenic_in_props(props_a) is False
-    assert _nullify_biogenic_in_props(props_b) is False
+def test_nullify_biogenic_in_props_handles_grass_and_evetr():
+    """Ensure helper nullifies biogenic params for multiple vegetation surfaces."""
+    props = {
+        "land_cover": {
+            "grass": {
+                "alpha_bioco2": {"value": 0.4},
+                "beta_bioco2": {"value": [1.0, 2.0]},
+                "unrelated": {"value": 9.9},
+            },
+            "evetr": {
+                "theta_bioco2": {"value": 3.1},
+                "beta_bioco2": 5.6,
+            },
+        }
+    }
+
+    changed = _nullify_biogenic_in_props(props)
+    assert changed is True
+
+    grass = props["land_cover"]["grass"]
+    assert grass["alpha_bioco2"]["value"] is None
+    assert grass["beta_bioco2"]["value"] == [None, None]
+    assert grass["unrelated"]["value"] == 9.9
+
+    evetr = props["land_cover"]["evetr"]
+    assert evetr["theta_bioco2"]["value"] is None
+    assert evetr["beta_bioco2"] is None
+
+
+def test_nullify_biogenic_in_props_handles_resp_params():
+    props = {
+        "land_cover": {
+            "evetr": {
+                "resp_a": {"value": 0.4},
+                "resp_b": {"value": [0.1, 0.2, 0.3]},
+                "unrelated": {"value": 1.0},
+            }
+        }
+    }
+
+    changed = _nullify_biogenic_in_props(props)
+    assert changed is True
+
+    evetr = props["land_cover"]["evetr"]
+    assert evetr["resp_a"]["value"] is None
+    assert evetr["resp_b"]["value"] == [None, None, None]
+    assert evetr["unrelated"]["value"] == 1.0
+
+
+def test_nullify_biogenic_in_props_resp_params_scalar_and_missing_value_key():
+    props = {
+        "land_cover": {
+            "grass": {
+                "resp_a": 0.5,  # scalar should become None
+                "resp_b": {"value": 0.7},
+                "other_param": {"value": 2.2},
+            }
+        }
+    }
+
+    changed = _nullify_biogenic_in_props(props)
+    assert changed is True
+
+    grass = props["land_cover"]["grass"]
+    assert grass["resp_a"] is None
+    assert grass["resp_b"]["value"] is None
+    assert grass["other_param"]["value"] == 2.2
 
 
 def test_collect_yaml_differences_simple():

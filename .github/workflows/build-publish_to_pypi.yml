@@ -432,6 +432,12 @@ jobs:
       needs.detect-changes.result == 'success' &&
       needs.detect-changes.outputs.docs-changed == 'true'
 
+    # Serialise Pages deployments to avoid race conditions
+    # (multiple PRs deploying simultaneously could conflict)
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
+
     # Required for GitHub Pages deployment
     permissions:
       pages: write
@@ -462,7 +468,10 @@ jobs:
           sudo apt-get install -y gfortran
 
       - name: Install package with dev dependencies
-        run: uv pip install --system -e ".[dev]"
+        # IMPORTANT: Do NOT use -e (editable) here. Meson-python editable installs
+        # store references to temporary build paths that become stale in CI.
+        # A normal install builds a wheel properly and avoids this issue.
+        run: uv pip install --system ".[dev]"
 
       - name: Generate RST from data models
         run: cd docs && make generate-rst
@@ -487,13 +496,27 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           mkdir -p _site
-          # Fetch current production (schemas) to preserve
-          wget -q -r -np -nH --cut-dirs=1 -P _site https://umep-dev.github.io/SUEWS/ 2>/dev/null || true
+
+          # Fetch existing content from production site to preserve (schemas, other previews)
+          # GitHub Pages deploys replace the entire site, so we must preserve existing content
+          # Use timeout to avoid hanging if site is unavailable
+          echo "Fetching existing GitHub Pages content..."
+          if timeout 60 wget -q -r -np -nH --cut-dirs=1 -P _site \
+               --reject "index.html*" \
+               https://umep-dev.github.io/SUEWS/ 2>&1; then
+            echo "✓ Fetched existing site content"
+          else
+            echo "⚠ Could not fetch existing content (site may be empty or unavailable)"
+            echo "  Proceeding with preview-only deployment"
+          fi
+
           # Add docs preview to subdirectory
           PR_DIR="preview/pr-${{ github.event.pull_request.number }}/docs"
           mkdir -p "_site/${PR_DIR}"
           cp -r docs/build/html/* "_site/${PR_DIR}/"
           touch _site/.nojekyll
+
+          echo "✓ Preview prepared at /${PR_DIR}/"
 
       - name: Upload Pages artifact
         if: github.event_name == 'pull_request'
@@ -528,9 +551,9 @@ jobs:
 
             const body = `## 📚 Documentation Preview
 
-            **Preview URL:** ${previewUrl}
+**Preview URL:** ${previewUrl}
 
-            ⚠️ This is a PR preview. Production docs remain at ${rtdUrl}`;
+⚠️ This is a PR preview. Production docs remain at ${rtdUrl}`;
 
             if (botComment) {
               await github.rest.issues.updateComment({

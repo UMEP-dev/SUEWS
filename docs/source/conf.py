@@ -507,8 +507,8 @@ html_favicon = "../../brand/suews-logo-favicon.svg"
 
 # Override with theme-specific logos (sphinx_book_theme feature)
 html_theme_options["logo"] = {
-    "image_light": "../../brand/suews-logo-text-dark.svg",   # Dark text for light background
-    "image_dark": "../../brand/suews-logo-text-white.svg",   # White text for dark background
+    "image_light": "../../brand/suews-logo-text-dark.svg",  # Dark text for light background
+    "image_dark": "../../brand/suews-logo-text-white.svg",  # White text for dark background
 }
 # html_theme_options = {
 # "logo_only": True,

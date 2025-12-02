@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <!-- SUEWS Logo - Simplified for Favicon/Small Sizes -->
+  <!-- Background -->
+  <circle cx="60" cy="60" r="56" fill="#2D3142"/>
+  <!-- Sun (two-tone, positioned at golden ratio) -->
+  <circle cx="82" cy="44" r="13" fill="#F7B538"/>
+  <circle cx="82" cy="44" r="8" fill="#E85D04"/>
+  <!-- Buildings (simplified to 3 for clarity at small sizes) -->
+  <rect x="28" y="52" width="18" height="34" rx="2" fill="#5D5852"/>
+  <rect x="50" y="44" width="20" height="42" rx="2" fill="#5D5852"/>
+  <rect x="74" y="56" width="18" height="30" rx="2" fill="#5D5852"/>
+  <!-- Wave -->
+  <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none"/>
+</svg>

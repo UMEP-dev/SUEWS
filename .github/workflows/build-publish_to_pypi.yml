@@ -462,10 +462,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
 
-      - name: Install gfortran
+      - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gfortran
+          sudo apt-get install -y gfortran pandoc
 
       - name: Install package with dev dependencies
         # IMPORTANT: Do NOT use -e (editable) here. Meson-python editable installs

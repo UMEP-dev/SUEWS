@@ -56,6 +56,7 @@ from supy.data_model.validation.pipeline.phase_a import (
     is_physics_option,
 )
 
+from supy.data_model.validation.pipeline.phase_b import adjust_model_dependent_nullification
 
 class TestUptodateYaml(unittest.TestCase):
     """Test suite for uptodate_yaml.py functionality."""
@@ -1951,6 +1952,66 @@ def test_emissionsmethod_less_than_5_nullifies_co2_block():
     assert out["co2pointsource"]["value"] is None
     assert out["nested"]["ef_umolco2perj"]["value"] is None
 
+def test_empty_co2_block_is_handled_gracefully():
+    data = {
+        "model": {"physics": {"emissionsmethod": 0}},
+        "sites": [_build_site_with_co2({})],
+    }
+    out = precheck_model_option_rules(deepcopy(data))
+    co2 = out["sites"][0]["properties"]["anthropogenic_emissions"].get("co2", {})
+    assert isinstance(co2, dict)
+    assert co2 == {} or co2 == {"value": None}  # accept either empty or normalized empty
+
+def test_emissionsmethod_none_leaves_co2_untouched():
+    co2_block = {"co2pointsource": {"value": 0.1}}
+    data = {
+        "model": {"physics": {"emissionsmethod": None}},
+        "sites": [_build_site_with_co2(co2_block)],
+    }
+    out = precheck_model_option_rules(deepcopy(data))
+    co2 = out["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
+    # should remain numeric value because emissionsmethod not in 0..4
+    assert co2["co2pointsource"]["value"] == 0.1
+
+def test_deeply_nested_co2_structures_get_nullified():
+    co2_block = {
+        "traffic": {
+            "traffprof_24hr": {
+                "working_day": {"1": 0.1, "2": 0.2},
+                "holiday": {"1": 0.0},
+            }
+        },
+        "nested": {"level1": {"level2": {"ef_umolco2perj": {"value": 2.0}}}},
+        "arr": {"value": [0.1, 0.2, 0.3]},
+    }
+    data = {"model": {"physics": {"emissionsmethod": 0}}, "sites": [_build_site_with_co2(co2_block)]}
+    out = precheck_model_option_rules(deepcopy(data))
+    co2 = out["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
+
+    # nested numeric leaf must be nullified
+    assert co2["nested"]["level1"]["level2"]["ef_umolco2perj"]["value"] is None
+
+    # arrays should become list-of-None (or value -> None); accept either
+    arr_val = co2["arr"]["value"]
+    assert arr_val is None or (isinstance(arr_val, list) and all(x is None for x in arr_val))
+
+    # profile working_day/holiday should be nullified (either whole field None or inner keys None)
+    tp = co2["traffic"]["traffprof_24hr"]
+    assert "working_day" in tp and ("working_day" is None or isinstance(tp["working_day"], dict))
+    # if dict, its inner values must be None
+    if isinstance(tp["working_day"], dict):
+        assert all(v is None for v in tp["working_day"].values())
+
+def test_phase_b_adjust_model_dependent_nullification_reports_changes():
+    co2_block = {"co2pointsource": {"value": 0.5}, "nested": {"x": {"value": 1.0}}}
+    data = {"model": {"physics": {"emissionsmethod": 0}}, "sites": [_build_site_with_co2(co2_block)]}
+    yaml_after, adjustments = adjust_model_dependent_nullification(deepcopy(data))
+    # check that an adjustment for CO2 was recorded
+    assert any("anthropogenic_emissions.co2" in adj.parameter for adj in adjustments)
+    # confirm the co2 values were nullified in-place
+    co2 = yaml_after["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
+    assert co2["co2pointsource"]["value"] is None
+    assert co2["nested"]["x"]["value"] is None
 
 def test_collect_yaml_differences_simple():
     original = {

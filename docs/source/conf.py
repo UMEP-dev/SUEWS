@@ -501,8 +501,8 @@ html_static_path = ["_static"]
 #
 # html_sidebars = {}
 numfig = True
-html_logo = "images/logo/suews-logo-text-light.svg"
-html_favicon = "images/logo/suews-logo-favicon.svg"
+html_logo = "../../brand/suews-logo-text-light.svg"
+html_favicon = "../../brand/suews-logo-favicon.svg"
 # html_theme_options = {
 # "logo_only": True,
 #     "display_version": True,

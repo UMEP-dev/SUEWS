@@ -1,2 +1,0 @@
-"Referencing Table","Requirement","Comment"
-"`SUEWS_Soil.txt`","`O`","Required when soil moisture observations are used (`SMDMethod` = 1 or 2). Maximum observed volumetric/gravimetric soil moisture."

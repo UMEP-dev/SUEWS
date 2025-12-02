@@ -5,6 +5,3 @@ No.,Column Name,Use,Description
 4,`SatHydraulicCond`,`MD`,Hydraulic conductivity for saturated soil [mm |s^-1|]
 5,`SoilDensity`,`MD`,Soil density [kg |m^-3|]
 6,`InfiltrationRate`,`O`,Infiltration rate.
-7,`OBS_SMDepth`,`O`,The depth of soil moisture measurements. [mm]
-8,`OBS_SMCap`,`O`,The maximum observed soil moisture. [|m^3| |m^-3| or kg |kg^-1|]
-9,`OBS_SoilNotRocks`,`O`,Fraction of soil without rocks. [-]

@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 39 | 28 | 18 | 36 | 19 | 136 |
+| 2025 | 40 | 28 | 20 | 37 | 19 | 141 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -74,6 +74,13 @@
   - Added new skills: `audit-pr`, `design-tests`, `check-naming`, `apply-patterns`
   - Enhanced `lint-code` skill with RST and Markdown conventions
   - Updated `validate-claude-md.py` for new directory structure
+
+### 27 Nov 2025
+- [feature] Disable CO2 site parameters when model.emissionsmethod is 0..4 by nullifying CO2 blocks so Pydantic validation does not fail.
+- [change] Adjust CO2 profile models so DayProfile / HourlyProfile fields accept null (None) while preserving backwards-compatible defaults for normal configs.
+- [change] Add a robust, recursive nullification helper in src/supy/data_model/validation/core/yaml_helpers.py.
+- [maintenance] Add tests covering CO2 nullification (nested structures, day/hour profiles and emissionsmethod cases).
+- [maintenance] Added comments and small defensive fixes around profile handling to make the behaviour explicit and avoid regressions.
 
 ### 26 Nov 2025
 - [feature] Slimmed CI with tiered test strategy (#900)

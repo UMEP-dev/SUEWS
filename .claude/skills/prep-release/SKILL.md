@@ -113,6 +113,16 @@ Then edit the issue to fill in Version, Title, and Why fields.
 
 ## Step 2: Pre-Flight Checks
 
+### 2a. Invoke Related Skills
+
+Before proceeding, run these skills for comprehensive validation:
+
+1. **`verify-build` skill**: Check meson.build, pyproject.toml, CI matrix consistency
+2. **`sync-docs` skill**: Verify documentation matches code
+3. **`lint-code` skill**: Check code style compliance
+
+### 2b. Core Checks
+
 ```bash
 # Must pass before release
 git branch --show-current        # Must be master
@@ -126,12 +136,16 @@ Report format:
 ```
 [PASS] On master branch
 [PASS] No uncommitted changes
+[PASS] verify-build: No issues
+[PASS] sync-docs: Documentation consistent
 [PASS] Tests pass
 [PASS] Docs build
 Ready: YES/NO
 ```
 
 ## Step 3: CHANGELOG Analysis
+
+**Invoke the `log-changes` skill** for comprehensive CHANGELOG management, or use these commands for quick analysis:
 
 ```bash
 # Find last release
@@ -141,7 +155,7 @@ git describe --tags --abbrev=0
 git log $(git describe --tags --abbrev=0)..HEAD --format="%h %s" --no-merges
 ```
 
-Categorise as:
+Categorise as (see `log-changes` skill for details):
 - `[feature]`: New functionality
 - `[bugfix]`: Bug fixes (link GitHub issue)
 - `[change]`: User-facing changes

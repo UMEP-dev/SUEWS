@@ -1,6 +1,6 @@
 ---
 name: lint-code
-description: Check code style against SUEWS conventions for all languages (Fortran, Python, RST, Markdown). Use when reviewing code, before committing changes, or when asked to check style/conventions. For Fortran validates file/module/type/subroutine naming, units, precision. For Python validates variable prefixes (df_, dict_), config separation, logging, pathlib, type hints, NumPy docstrings. For RST/Markdown validates structure, spelling, and formatting. Complements ruff and fprettify with SUEWS-specific patterns.
+description: Check code style against SUEWS conventions for all languages (Fortran, Python, RST, Markdown). Use when reviewing code, before committing changes, or when asked to check style/conventions. For Fortran validates file/module/type/subroutine naming, units, precision. For Python validates variable prefixes (df_, dict_), config separation, logging, pathlib, type hints, NumPy docstrings, and variant-neutral naming. For RST/Markdown validates structure, spelling, and formatting. Complements ruff and fprettify with SUEWS-specific patterns.
 ---
 
 # SUEWS Code Style Checker
@@ -10,6 +10,47 @@ Check code and documentation against project conventions. Human language is code
 References:
 - `dev-ref/CODING_GUIDELINES.md`
 - `dev-ref/FORTRAN_NAMING_CONVENTIONS.md`
+
+---
+
+## Variant-Neutral Naming
+
+Avoid British/American spelling variants (-ise/-ize) in identifiers. Use neutral alternatives.
+
+### Common Replacements
+
+| Avoid | Use Instead |
+|-------|-------------|
+| initialise/initialize | `init`, `setup`, `prepare` |
+| finalise/finalize | `complete`, `finish`, `cleanup` |
+| normalise/normalize | `scale`, `adjust`, `rescale` |
+| analyse/analyze | `examine`, `process`, `compute` |
+| optimise/optimize | `improve`, `tune`, `refine` |
+| serialise/serialize | `save`, `write`, `export` |
+| visualise/visualize | `plot`, `display`, `show` |
+| synchronise/synchronize | `sync`, `align`, `match` |
+| sanitise/sanitize | `clean`, `validate`, `check` |
+| summarise/summarize | `aggregate`, `total`, `reduce` |
+
+### Examples
+
+```python
+# BAD - variant-specific
+def initialize_model(): ...
+def analyse_results(): ...
+def serialize_output(): ...
+
+# GOOD - neutral alternatives
+def init_model(): ...
+def process_results(): ...
+def save_output(): ...
+```
+
+### Exceptions
+
+- External library methods (e.g., pandas `.normalize()`)
+- Established scientific terms (e.g., vector normalization)
+- Legacy code (document why spelling is retained)
 
 ---
 

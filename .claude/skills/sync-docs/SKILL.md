@@ -1,11 +1,14 @@
 ---
 name: sync-docs
-description: Check consistency between SUEWS code and documentation. Use when modifying physics parameters, adding new features, changing APIs, updating Makefiles, or before releases. Validates scientific documentation against Fortran code, API docs against Python signatures, configuration docs against Pydantic models, parameter units/ranges/defaults, and build logic consistency.
+description: Check consistency between SUEWS code and documentation CONTENT. Use when modifying physics parameters, adding new features, changing APIs, updating Makefiles, or before releases. Validates scientific documentation against Fortran code, API docs against Python signatures, configuration docs against Pydantic models, parameter units/ranges/defaults, and build logic consistency. Note: RST/Markdown FORMATTING is handled by lint-code skill.
 ---
 
 # SUEWS Documentation-Code Consistency Checker
 
-Check that documentation accurately reflects the codebase.
+Check that documentation **content** accurately reflects the codebase.
+
+> **Scope**: This skill checks doc-code **content consistency** (values, signatures, parameters).
+> For **formatting** checks (RST heading levels, image attributes, markdown style), use the `lint-code` skill.
 
 ## Workflow
 

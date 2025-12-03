@@ -2514,9 +2514,15 @@ class SUEWSConfig(BaseModel):
 
             df = pd.concat(list_df_site, axis=0)
 
-            # Add metadata columns directly to maintain MultiIndex structure
-            df[("config", "0")] = self.name
-            df[("description", "0")] = self.description
+            # Add metadata columns using batch-concat pattern to avoid fragmentation warning
+            metadata_df = pd.DataFrame(
+                {
+                    ("config", "0"): self.name,
+                    ("description", "0"): self.description,
+                },
+                index=df.index,
+            )
+            df = pd.concat([df, metadata_df], axis=1)
         except Exception as e:
             if use_conditional_validation and not strict:
                 warnings.warn(

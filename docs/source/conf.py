@@ -391,11 +391,11 @@ rst_prolog = rf"""
 
     .. tip::
 
-      1. Need help? Please let us know in the `SUEWS Discussion Channel`_.
+      1. Need help? Please let us know in the `SUEWS Community`_.
       2. Please report issues with the manual on `GitHub Issues`_ (or use `Report Issue for This Page`_ for page-specific feedback).
       3. Please cite SUEWS with proper information from our `Zenodo page`_.
 
-.. _SUEWS Discussion Channel: https://github.com/UMEP-dev/SUEWS/discussions/
+.. _SUEWS Community: https://suews.discourse.group/
 .. _GitHub Issues: https://github.com/UMEP-dev/SUEWS/issues
 .. _SUEWS download page: https://forms.office.com/r/4qGfYu8LaR
 
@@ -459,8 +459,9 @@ html_theme_options = dict(
     extra_navbar="",
     navbar_footer_text="",
     logo_only=True,
-    extra_footer=f"""<p>Version: {git_version_string} | 
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/{git_commit_full}">{git_commit_short}</a></p>""",
+    extra_footer=f"""<p>Version: {git_version_string} |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/{git_commit_full}">{git_commit_short}</a> |
+    <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>""",
     # twitter_url="https://twitter.com/xarray_devs",
 )
 
@@ -469,9 +470,9 @@ if is_dev_version:
     print(f"DEBUG: Adding announcement banner for dev version: {git_version_string}")
     html_theme_options["announcement"] = f"""
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
-        <strong>⚠️ Development Version:</strong> This documentation was built from a development version 
+        <strong>⚠️ Development Version:</strong> This documentation was built from a development version
         ({git_version_string}, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/{git_commit_full}" style="color: #31708f;">{git_commit_short}</a>).
-        Features described here may be unstable or subject to change. For stable documentation, please visit the 
+        Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
     """
@@ -501,7 +502,15 @@ html_static_path = ["_static"]
 #
 # html_sidebars = {}
 numfig = True
-html_logo = "images/logo/SUEWS_LOGO-display.png"
+# Logo configuration - stacked logo with text, theme-adaptive
+html_logo = "../../brand/suews-logo-text-light.svg"  # Fallback
+html_favicon = "../../brand/suews-logo.svg"
+
+# Theme-specific logos (sphinx_book_theme feature)
+html_theme_options["logo"] = {
+    "image_light": "../../brand/suews-logo-text-light.svg",  # Dark text for light theme
+    "image_dark": "../../brand/suews-logo-text-dark.svg",  # White text for dark theme
+}
 # html_theme_options = {
 # "logo_only": True,
 #     "display_version": True,

@@ -1,5 +1,5 @@
 # SUEWS Simplified Makefile - Essential recipes only
-.PHONY: help setup dev reinstall test test-smoke test-all docs clean format
+.PHONY: help setup submodules dev reinstall test test-smoke test-all docs clean format
 
 # Default Python
 PYTHON := python
@@ -43,6 +43,10 @@ setup:
 		exit 1; \
 	fi
 
+# Initialise git submodules (idempotent - safe to run multiple times)
+submodules:
+	@git submodule update --init --recursive
+
 # Install in editable mode (self-healing - works after clean)
 dev:
 	@# Check for activated virtual environment
@@ -58,6 +62,7 @@ dev:
 		echo ""; \
 		exit 1; \
 	fi
+	@$(MAKE) submodules
 	@echo "Installing SUEWS in editable mode..."
 	@# Get current Python version tag
 	@PYVER=$$($(PYTHON) -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')") || { \

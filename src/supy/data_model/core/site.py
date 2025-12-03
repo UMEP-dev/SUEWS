@@ -927,6 +927,7 @@ class SnowParams(BaseModel):
         default=0.1,
         description="Precipitation threshold for snow albedo aging",
         json_schema_extra={"unit": "mm", "display_name": "Preciplimitalb"},
+        ge=0.0,
     )
     snowalbmax: FlexibleRefValue(float) = Field(
         default=0.85,

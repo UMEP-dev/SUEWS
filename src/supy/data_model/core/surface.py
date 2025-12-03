@@ -693,7 +693,7 @@ class BuildingLayer(
     )
     roof_albedo_dir_mult_fact: Optional[FlexibleRefValue(float)] = Field(
         default=0.1,
-        ge=0,
+        ge=0.0, 
         description="Directional albedo multiplication factor for roofs",
         json_schema_extra={
             "unit": "dimensionless",

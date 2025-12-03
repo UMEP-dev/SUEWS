@@ -625,7 +625,7 @@ Getting Support and Community
 **SuPy and SUEWS Community:**
 
 - **GitHub Repository**: `SUEWS on GitHub <https://github.com/UMEP-dev/SUEWS>`__ for issues and contributions
-- **Discussion Forum**: `Join the SUEWS community <https://suews.discourse.group/>`__ for discussions
+- **Community**: `Join the SUEWS community <https://suews.discourse.group/>`__ for discussions
 - **Documentation**: :doc:`Complete API reference <inputs/yaml/index>` and parameter guides
 
 **Essential Reading:**

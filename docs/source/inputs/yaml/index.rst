@@ -271,4 +271,4 @@ Getting Help
 - **Validation issues**: Check the report file (``report_*.txt``)
 - **Parameter documentation**: See the error messages from validation
 - **Examples**: Look in ``sample_data/`` directory
-- **Community support**: `SUEWS Discussion Channel <https://suews.discourse.group/>`_
+- **Community support**: `SUEWS Community <https://suews.discourse.group/>`_

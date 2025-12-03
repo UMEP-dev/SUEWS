@@ -916,6 +916,8 @@ class SnowParams(BaseModel):
     narp_emis_snow: FlexibleRefValue(float) = Field(
         default=0.99,
         description="Snow surface emissivity",
+        ge=0.0,
+        le=1.0,
         json_schema_extra={"unit": "dimensionless", "display_name": "Narp Emis Snow"},
     )
     preciplimit: Optional[FlexibleRefValue(float)] = Field(

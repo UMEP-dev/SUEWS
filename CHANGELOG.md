@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 57 | 66 | 22 | 71 | 36 | 252 |
+| 2025 | 59 | 66 | 22 | 71 | 36 | 254 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -32,6 +32,10 @@
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2025
+
+### 3 Dec 2025
+- [feat] Improved albedos ranges (ge=0.0 and le=1.0) in Field of Pydantic classes for alb_id, air_ssa_lw, air_ssa_sw, veg_ssa_lw, veg_ssa_sw (PR #978)
+- [feat] Improved ranges (ge=0.0) in Field of Pydantic classes for preciplimitalb, roof_albedo_dir_mult_fact, and ground_albedo_dir_mult_fact. (PR #978)
 
 ### 2 Dec 2025
 

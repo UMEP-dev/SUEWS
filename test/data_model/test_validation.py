@@ -1655,10 +1655,15 @@ def test_forcing_validation_multiple_files():
 
 
 def test_forcing_validation_cli_integration():
-    """Test CLI integration: forcing validation can be enabled/disabled via --forcing flag."""
-    import subprocess
+    """Test CLI integration: forcing validation can be enabled/disabled via --forcing flag.
+
+    Uses Click's CliRunner for in-process testing to avoid subprocess overhead.
+    """
+    import os
     import yaml
     import pandas as pd
+    from click.testing import CliRunner
+    from supy.cmd.validate_config import cli as validate_cli
 
     sample_data_dir = Path(sp.__file__).parent / "sample_data"
     sample_config = sample_data_dir / "sample_config.yml"
@@ -1695,6 +1700,8 @@ def test_forcing_validation_cli_integration():
         "wdir": [180.0] * 3,
     }
 
+    runner = CliRunner()
+
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir_path = Path(tmpdir)
 
@@ -1713,13 +1720,13 @@ def test_forcing_validation_cli_integration():
         with open(test_config_path, "w") as f:
             yaml.dump(test_config_data, f)
 
+        # Change to tmpdir so output files are created there
+        old_cwd = os.getcwd()
         try:
+            os.chdir(tmpdir_path)
+
             # Test 1: Default behavior (forcing validation enabled)
-            result = subprocess.run(
-                ["suews-validate", str(test_config_path)],
-                capture_output=True,
-                text=True,
-            )
+            result = runner.invoke(validate_cli, [str(test_config_path)])
 
             # Should detect forcing errors in report
             report_files = list(tmpdir_path.glob("report_*.txt"))
@@ -1739,10 +1746,8 @@ def test_forcing_validation_cli_integration():
                 f.unlink()
 
             # Test 2: Disable forcing validation with --forcing off
-            result = subprocess.run(
-                ["suews-validate", "--forcing", "off", str(test_config_path)],
-                capture_output=True,
-                text=True,
+            result = runner.invoke(
+                validate_cli, ["--forcing", "off", str(test_config_path)]
             )
 
             # Should NOT detect forcing errors
@@ -1757,8 +1762,7 @@ def test_forcing_validation_cli_integration():
             )
 
         finally:
-            # Cleanup happens automatically with TemporaryDirectory context manager
-            pass
+            os.chdir(old_cwd)
 
 
 # ============================================================================

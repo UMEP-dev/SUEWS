@@ -3,38 +3,56 @@
 Tests YAML and namelist format support, auto-detection,
 backward compatibility, and deprecation warnings.
 
-Note on editable installs:
-    With meson-python editable installs, the first import of the supy package
-    triggers a build check via ninja (10-20+ seconds). CI should use wheel-based
-    installs (`pip install .`) to avoid this overhead. Tests that require fast
-    CLI responses are skipped when running in editable mode.
+Uses Click's CliRunner for in-process testing to avoid subprocess overhead.
+This is especially important for editable installs where each subprocess
+triggers a ninja rebuild check (10-20+ seconds).
 """
 
 import subprocess
 import tempfile
 from pathlib import Path
 import pytest
+from click.testing import CliRunner
+
+# Import the CLI command for in-process testing
+from supy.cmd.SUEWS import SUEWS
 
 
-def _is_editable_install():
-    """Check if supy is installed in editable mode."""
-    import site
+class _CliResult:
+    """Adapter to make CliRunner results look like subprocess.CompletedProcess."""
 
-    for sp in site.getsitepackages() + [site.getusersitepackages() or ""]:
-        if sp and (Path(sp) / "_supy_editable_loader.py").exists():
-            return True
-    return False
-
-
-# Skip marker for tests that need fast CLI responses
-skip_if_editable = pytest.mark.skipif(
-    _is_editable_install(),
-    reason="Skipped in editable mode - ninja rebuild adds 10-20s overhead. Use wheel install for CI.",
-)
+    def __init__(self, click_result):
+        self._result = click_result
+        self.returncode = click_result.exit_code
+        self.stdout = click_result.output or ""
+        # CliRunner captures stderr in output when mix_stderr=False (default)
+        # For compatibility, we split based on common patterns
+        self.stderr = ""
+        if click_result.output:
+            lines = click_result.output.split("\n")
+            stderr_lines = []
+            stdout_lines = []
+            for line in lines:
+                # Deprecation warnings and errors go to stderr
+                if any(
+                    kw in line.upper()
+                    for kw in ["DEPRECAT", "ERROR", "WARNING", "====="]
+                ):
+                    stderr_lines.append(line)
+                else:
+                    stdout_lines.append(line)
+            # If we detected stderr content, split it out
+            if stderr_lines:
+                self.stderr = "\n".join(stderr_lines)
 
 
 class TestCLIRun:
     """Test suews-run CLI command functionality."""
+
+    @pytest.fixture
+    def runner(self):
+        """Create a Click CliRunner for in-process testing."""
+        return CliRunner()
 
     @pytest.fixture
     def test_data_dir(self):
@@ -62,23 +80,39 @@ class TestCLIRun:
             pytest.skip(f"Sample namelist not found: {nml_file}")
         return nml_file
 
-    @staticmethod
-    def run_suews_run(*args, check=True, timeout=120):
-        """Run suews-run command and return result.
+    def run_suews_run(self, runner, *args, check=True):
+        """Run suews-run command in-process using CliRunner.
 
         Parameters
         ----------
+        runner : CliRunner
+            Click test runner
         *args : str
             Command-line arguments
         check : bool, optional
             Whether to raise on non-zero exit code
-        timeout : int, optional
-            Timeout in seconds (default 120 to accommodate editable install rebuild)
 
         Returns
         -------
-        subprocess.CompletedProcess
-            Result with returncode, stdout, stderr
+        _CliResult
+            Result with returncode, stdout, stderr (subprocess-compatible)
+        """
+        click_result = runner.invoke(SUEWS, args, catch_exceptions=False)
+        result = _CliResult(click_result)
+        if check and result.returncode != 0:
+            raise subprocess.CalledProcessError(
+                result.returncode,
+                ["suews-run", *args],
+                result.stdout,
+                result.stderr,
+            )
+        return result
+
+    @staticmethod
+    def run_suews_run_subprocess(*args, check=True, timeout=120):
+        """Run suews-run as subprocess (for tests that truly need isolation).
+
+        Only use this for tests that specifically need subprocess behaviour.
         """
         result = subprocess.run(
             ["suews-run", *args],
@@ -98,9 +132,9 @@ class TestCLIRun:
 
     # ========== HELP AND VERSION TESTS ==========
 
-    def test_cli_help(self):
+    def test_cli_help(self, runner):
         """Test that the CLI help works."""
-        result = self.run_suews_run("--help", check=False)
+        result = self.run_suews_run(runner, "--help", check=False)
         assert result.returncode == 0
         assert "YAML" in result.stdout
         assert "config.yml" in result.stdout
@@ -108,10 +142,11 @@ class TestCLIRun:
 
     # ========== YAML FORMAT TESTS ==========
 
-    def test_yaml_positional_argument(self, sample_yaml, tmp_path):
+    def test_yaml_positional_argument(self, runner, sample_yaml, tmp_path):
         """Test running with YAML file as positional argument."""
         # Run in temp directory to avoid polluting test fixtures
         result = self.run_suews_run(
+            runner,
             str(sample_yaml),
             check=True,
         )
@@ -119,14 +154,14 @@ class TestCLIRun:
         assert "YAML configuration" in result.stdout
         assert "successfully done" in result.stdout
 
-    def test_yaml_auto_detection(self, sample_yaml):
+    def test_yaml_auto_detection(self, runner, sample_yaml):
         """Test that .yml extension is auto-detected as YAML format."""
-        result = self.run_suews_run(str(sample_yaml), check=True)
+        result = self.run_suews_run(runner, str(sample_yaml), check=True)
         assert "YAML configuration" in result.stdout
         # Should NOT show namelist deprecation warning
         assert "DEPRECATION WARNING" not in result.stderr
 
-    def test_yaml_missing_forcing(self, tmp_path):
+    def test_yaml_missing_forcing(self, runner, tmp_path):
         """Test error handling when YAML config lacks forcing data."""
         # Create minimal YAML without forcing_file
         minimal_yaml = tmp_path / "minimal.yml"
@@ -141,89 +176,90 @@ sites:
 """
         )
 
-        result = self.run_suews_run(str(minimal_yaml), check=False)
+        result = self.run_suews_run(runner, str(minimal_yaml), check=False)
         assert result.returncode != 0
-        assert "No forcing data" in result.stderr
+        # Error may be in stdout (click echo) or stderr
+        assert "No forcing data" in result.stderr or "No forcing data" in result.stdout
 
     # ========== NAMELIST FORMAT TESTS ==========
 
-    def test_namelist_with_p_option(self, sample_nml):
+    def test_namelist_with_p_option(self, runner, sample_nml):
         """Test running with namelist using -p option (deprecated)."""
-        result = self.run_suews_run("-p", str(sample_nml), check=False)
+        result = self.run_suews_run(runner, "-p", str(sample_nml), check=False)
 
         # Should show both deprecation warnings (for -p option and namelist format)
-        stderr_lower = result.stderr.lower()
-        assert "deprecat" in stderr_lower
+        combined = (result.stderr + result.stdout).lower()
+        assert "deprecat" in combined
         # Should show SUEWS version banner
         assert "SUEWS version" in result.stdout
 
-    def test_namelist_positional_argument(self, sample_nml):
+    def test_namelist_positional_argument(self, runner, sample_nml):
         """Test running with namelist as positional argument."""
-        result = self.run_suews_run(str(sample_nml), check=False)
+        result = self.run_suews_run(runner, str(sample_nml), check=False)
 
-        # Should show namelist deprecation warning
-        assert "DEPRECATION WARNING" in result.stderr
-        assert "suews-convert" in result.stderr
+        # Should show namelist deprecation warning (may be in stdout with CliRunner)
+        combined = result.stderr + result.stdout
+        assert "DEPRECATION WARNING" in combined
+        assert "suews-convert" in combined
         # Should show SUEWS version banner
         assert "SUEWS version" in result.stdout
 
-    def test_namelist_auto_detection(self, sample_nml):
+    def test_namelist_auto_detection(self, runner, sample_nml):
         """Test that .nml extension is auto-detected as namelist format."""
-        result = self.run_suews_run(str(sample_nml), check=False)
+        result = self.run_suews_run(runner, str(sample_nml), check=False)
         # Should show deprecation warning for namelist format
-        assert "DEPRECATION WARNING" in result.stderr
-        assert "Namelist format is deprecated" in result.stderr
+        combined = result.stderr + result.stdout
+        assert "DEPRECATION WARNING" in combined
+        assert "Namelist format is deprecated" in combined
 
     # ========== DEFAULT FILE SEARCH TESTS ==========
 
-    def test_default_yaml_search(self, sample_yaml, tmp_path):
+    def test_default_yaml_search(self, runner, sample_yaml, tmp_path):
         """Test that config.yml is found by default if it exists."""
         # Copy sample YAML to config.yml in temp dir
         config_yml = tmp_path / "config.yml"
         config_yml.write_text(sample_yaml.read_text())
 
-        # Run without arguments from temp directory
-        result = subprocess.run(
-            ["suews-run"],
-            cwd=str(tmp_path),
-            capture_output=True,
-            text=True,
-            timeout=120,
-            check=False,
-        )
+        # Use CliRunner's isolated_filesystem for cwd simulation
+        import os
 
-        if result.returncode == 0:
-            assert "Using default configuration: config.yml" in result.stdout
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = self.run_suews_run(runner, check=False)
+            if result.returncode == 0:
+                assert "Using default configuration: config.yml" in result.stdout
+        finally:
+            os.chdir(old_cwd)
 
-    @skip_if_editable
-    def test_no_default_file_error(self, tmp_path):
+    def test_no_default_file_error(self, runner, tmp_path):
         """Test error when no default config file exists."""
-        # Run in empty temp directory
-        result = subprocess.run(
-            ["suews-run"],
-            cwd=str(tmp_path),
-            capture_output=True,
-            text=True,
-            timeout=10,
-            check=False,
-        )
+        import os
 
-        assert result.returncode != 0
-        assert "No configuration file found" in result.stderr
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = self.run_suews_run(runner, check=False)
+            assert result.returncode != 0
+            combined = result.stderr + result.stdout
+            assert "No configuration file found" in combined
+        finally:
+            os.chdir(old_cwd)
 
     # ========== ERROR HANDLING TESTS ==========
 
-    def test_invalid_file_path(self):
+    def test_invalid_file_path(self, runner):
         """Test that CLI handles non-existent file gracefully."""
-        result = self.run_suews_run("/nonexistent/config.yml", check=False)
-        assert result.returncode != 0
+        # Click's exists=True validator catches this before our code
+        click_result = runner.invoke(SUEWS, ["/nonexistent/config.yml"])
+        assert click_result.exit_code != 0
 
-    def test_invalid_yaml_syntax(self, tmp_path):
+    def test_invalid_yaml_syntax(self, runner, tmp_path):
         """Test error handling for malformed YAML."""
         bad_yaml = tmp_path / "bad.yml"
         bad_yaml.write_text("model:\n  control\n    invalid yaml")
 
-        result = self.run_suews_run(str(bad_yaml), check=False)
+        result = self.run_suews_run(runner, str(bad_yaml), check=False)
         assert result.returncode != 0
 
     # ========== INTEGRATION TESTS ==========
@@ -234,44 +270,34 @@ sites:
         ).exists(),
         reason="Benchmark data not available",
     )
-    def test_yaml_full_simulation(self, benchmark_dir, tmp_path):
+    def test_yaml_full_simulation(self, runner, benchmark_dir, tmp_path):
         """End-to-end test: YAML config → run → output files created."""
         yaml_file = benchmark_dir / "benchmark1_short.yml"
 
-        # Run in temp directory to check output files
-        result = subprocess.run(
-            ["suews-run", str(yaml_file)],
-            cwd=str(tmp_path),
-            capture_output=True,
-            text=True,
-            timeout=120,
-            check=False,
-        )
+        # Use CliRunner for in-process testing
+        result = self.run_suews_run(runner, str(yaml_file), check=False)
 
         if result.returncode == 0:
             assert "successfully done" in result.stdout
-            # Check that some output file was created
-            output_files = list(tmp_path.glob("*output*.txt")) + list(
-                tmp_path.glob("*Output*.txt")
-            )
-            # Note: Output location depends on config, so this might not always work
             # Just verify successful execution
             assert "The following files have been written out:" in result.stdout
 
     # ========== DEPRECATION WARNING TESTS ==========
 
-    def test_p_option_deprecation_warning(self, sample_yaml):
+    def test_p_option_deprecation_warning(self, runner, sample_yaml):
         """Test that -p option shows deprecation warning."""
-        result = self.run_suews_run("-p", str(sample_yaml), check=False)
+        result = self.run_suews_run(runner, "-p", str(sample_yaml), check=False)
 
-        # Should show deprecation for -p option
-        assert "deprecated" in result.stderr.lower()
-        assert "positional argument" in result.stderr.lower()
+        # Should show deprecation for -p option (may be in stdout with CliRunner)
+        combined = (result.stderr + result.stdout).lower()
+        assert "deprecated" in combined
+        assert "positional argument" in combined
 
-    def test_migration_guide_in_warning(self, sample_nml):
+    def test_migration_guide_in_warning(self, runner, sample_nml):
         """Test that namelist deprecation includes migration guide."""
-        result = self.run_suews_run(str(sample_nml), check=False)
+        result = self.run_suews_run(runner, str(sample_nml), check=False)
 
-        # Should show migration instructions
-        assert "suews-convert" in result.stderr
-        assert "config.yml" in result.stderr
+        # Should show migration instructions (may be in stdout with CliRunner)
+        combined = result.stderr + result.stdout
+        assert "suews-convert" in combined
+        assert "config.yml" in combined

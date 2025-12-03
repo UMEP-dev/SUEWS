@@ -9,14 +9,15 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Instrument+Sans:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
+      /* ★★★ SINGLE SOURCE: Organic logo colours ★★★ */
       --sun-gold: #F7B538;
       --energy-orange: #E85D04;
-      --water-blue: #0077B6;
-      --water-light: #90E0EF;
+      --sky-blue: #5DADE2;      /* Buildings - urban skyline */
+      --veg-green: #09a25c;     /* Vegetation/leaf */
+      --wave-blue: #0558a5;     /* Wave - water balance */
+      /* UI colours */
       --urban-slate: #2D3142;
       --urban-dark: #1A1D2E;
-      --veg-green: #4A7C59;
-      --veg-light: #6B9B7A;
       --surface-warm: #FFF8F0;
       --surface-cool: #F0F7FF;
     }
@@ -63,7 +64,7 @@
     }
 
     .logo-card {
-      background: white;
+      background: linear-gradient(to bottom, rgba(255,255,255,0.95) 0%, rgba(240,247,255,0.9) 100%);
       border-radius: 24px;
       padding: 3rem;
       display: flex;
@@ -121,7 +122,7 @@
     }
 
     .variation-item {
-      background: white;
+      background: linear-gradient(to bottom, rgba(255,255,255,0.95) 0%, rgba(240,247,255,0.9) 100%);
       padding: 2rem;
       border-radius: 16px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
@@ -160,12 +161,33 @@
 
     .swatch.sun { background: var(--sun-gold); color: var(--urban-dark); }
     .swatch.energy { background: var(--energy-orange); color: white; }
-    .swatch.water { background: var(--water-blue); color: white; }
-    .swatch.water-light { background: var(--water-light); color: var(--urban-dark); }
+    .swatch.water { background: var(--wave-blue); color: white; }
     .swatch.slate { background: var(--urban-slate); color: white; }
     .swatch.dark { background: var(--urban-dark); color: white; }
     .swatch.veg { background: var(--veg-green); color: white; }
-    .swatch.veg-light { background: var(--veg-light); color: white; }
+
+    /* ★★★ SINGLE SOURCE: Icon disk styles ★★★ */
+    .icon-disk {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+    .icon-disk-light {
+      background: #F5F5F0;
+      border: 4px solid var(--wave-blue);
+    }
+    .icon-disk-dark {
+      background: var(--urban-slate);
+      border: 4px solid var(--sun-gold);
+    }
+    .icon-disk-transparent {
+      background: transparent;
+      border: 4px solid #666666;
+    }
 
   </style>
 </head>
@@ -332,41 +354,54 @@
     <h1>SUEWS Logo</h1>
     <p class="subtitle">Surface Urban Energy and Water Balance Scheme</p>
 
-    <div class="logo-showcase" style="grid-template-columns: repeat(2, 1fr);">
-      <!-- Dark background variant -->
-      <div class="logo-card">
-        <svg width="160" height="160"><use href="#suews-logo-dark"/></svg>
-        <h3>Dark Background</h3>
+    <!-- Alternative Organic Logo -->
+    <div class="variations" style="margin-bottom: 3rem;">
+      <h2>Organic Logo</h2>
+      <p style="color: var(--urban-slate); opacity: 0.7; margin-bottom: 1.5rem; font-size: 0.9rem;">
+        Organic style with flowing, natural shapes
+      </p>
+      <div class="logo-showcase" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 0;">
+        <div class="logo-card">
+          <img src="suews-logo.svg" width="200" height="200" alt="Organic logo">
+          <h3>Light Background</h3>
+        </div>
+        <div class="logo-card dark">
+          <img src="suews-logo.svg" width="200" height="200" alt="Organic logo">
+          <h3>Dark Background</h3>
+        </div>
+        <div class="logo-card" style="background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 20px 20px;">
+          <img src="suews-logo.svg" width="200" height="200" alt="Organic logo">
+          <h3>Transparent</h3>
+        </div>
       </div>
+    </div>
 
-      <!-- Light background variant -->
-      <div class="logo-card">
-        <svg width="160" height="160"><use href="#suews-logo-light"/></svg>
-        <h3>Light Background</h3>
-      </div>
-
-      <!-- Line art variant (dark strokes) -->
-      <div class="logo-card" style="background: linear-gradient(135deg, #f0f0f0 25%, #e0e0e0 25%, #e0e0e0 50%, #f0f0f0 50%, #f0f0f0 75%, #e0e0e0 75%); background-size: 20px 20px;">
-        <svg width="160" height="160"><use href="#suews-logo-lineart"/></svg>
-        <h3>Line Art (Dark)</h3>
-      </div>
-
-      <!-- Line art variant (light strokes) -->
-      <div class="logo-card dark" style="background: linear-gradient(135deg, #2D3142 25%, #1A1D2E 25%, #1A1D2E 50%, #2D3142 50%, #2D3142 75%, #1A1D2E 75%); background-size: 20px 20px;">
-        <svg width="160" height="160"><use href="#suews-logo-lineart-light"/></svg>
-        <h3>Line Art (Light)</h3>
-      </div>
-
-      <!-- Animated variant (dark) -->
-      <div class="logo-card">
-        <svg width="160" height="160"><use href="#suews-logo-animated"/></svg>
-        <h3>Animated (Dark)</h3>
-      </div>
-
-      <!-- Animated variant (light) -->
-      <div class="logo-card">
-        <svg width="160" height="160"><use href="#suews-logo-animated-light"/></svg>
-        <h3>Animated (Light)</h3>
+    <!-- Icon Versions (Round/Disk) -->
+    <!-- ★★★ SINGLE SOURCE: Uses suews-logo.svg with CSS disk backgrounds ★★★ -->
+    <div class="variations" style="margin-bottom: 3rem;">
+      <h2>Icon Versions</h2>
+      <p style="color: var(--urban-slate); opacity: 0.7; margin-bottom: 1.5rem; font-size: 0.9rem;">
+        Circular contained versions for app icons, favicons, and social media
+      </p>
+      <div class="logo-showcase" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 0;">
+        <div class="logo-card">
+          <div class="icon-disk icon-disk-light">
+            <img src="suews-logo.svg" width="140" height="140" alt="SUEWS icon">
+          </div>
+          <h3>Light Background</h3>
+        </div>
+        <div class="logo-card dark">
+          <div class="icon-disk icon-disk-dark">
+            <img src="suews-logo.svg" width="140" height="140" alt="SUEWS icon">
+          </div>
+          <h3>Dark Background</h3>
+        </div>
+        <div class="logo-card" style="background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 20px 20px;">
+          <div class="icon-disk icon-disk-transparent">
+            <img src="suews-logo.svg" width="140" height="140" alt="SUEWS icon">
+          </div>
+          <h3>Transparent</h3>
+        </div>
       </div>
     </div>
 
@@ -374,76 +409,16 @@
     <div class="variations" style="margin-top: 3rem;">
       <h2>Logo with Text</h2>
       <p style="color: var(--urban-slate); opacity: 0.7; margin-bottom: 1.5rem; font-size: 0.9rem;">
-        Using <strong>Inter</strong> (open source, <a href="https://rsms.me/inter/" style="color: var(--water-blue);">rsms.me/inter</a>)
+        Using <strong>Inter</strong> (open source, <a href="https://rsms.me/inter/" style="color: var(--wave-blue);">rsms.me/inter</a>)
       </p>
-      <div class="variation-grid">
-        <div class="variation-item">
-          <svg width="340" height="120"><use href="#suews-logo-text-dark"/></svg>
-          <p style="margin-top: 0.75rem; font-size: 0.75rem; color: var(--urban-slate); opacity: 0.6;">Dark icon + Dark text (for light backgrounds)</p>
+      <div class="logo-showcase" style="grid-template-columns: repeat(2, 1fr);">
+        <div class="logo-card" style="flex-direction: row; gap: 0.75rem; padding: 2rem; align-items: center;">
+          <img src="suews-logo.svg" width="64" height="64" alt="SUEWS logo">
+          <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 600; font-size: 2.25rem; color: var(--urban-dark); letter-spacing: -0.03em;">SUEWS</span>
         </div>
-        <div class="variation-item">
-          <svg width="340" height="120"><use href="#suews-logo-text-light"/></svg>
-          <p style="margin-top: 0.75rem; font-size: 0.75rem; color: var(--urban-slate); opacity: 0.6;">Light icon + Dark text (for light backgrounds)</p>
-        </div>
-        <div class="variation-item" style="background: var(--urban-dark); border-radius: 16px;">
-          <svg width="340" height="120"><use href="#suews-logo-text-white"/></svg>
-          <p style="margin-top: 0.75rem; font-size: 0.75rem; color: white; opacity: 0.5;">Dark icon + White text (for dark backgrounds)</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Size variations -->
-    <div class="variations">
-      <h2>Size Variations</h2>
-      <div class="variation-grid">
-        <div class="variation-item">
-          <svg width="128" height="128"><use href="#suews-logo-dark"/></svg>
-        </div>
-        <div class="variation-item">
-          <svg width="64" height="64"><use href="#suews-logo-dark"/></svg>
-        </div>
-        <div class="variation-item">
-          <svg width="32" height="32"><use href="#suews-logo-dark"/></svg>
-        </div>
-      </div>
-    </div>
-
-    <!-- Design Philosophy -->
-    <div class="palette" style="margin-top: 3rem;">
-      <h2>Design Philosophy</h2>
-      <div style="display: grid; grid-template-columns: 200px 1fr; gap: 3rem; margin-top: 1.5rem; align-items: start;">
-        <div style="background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: center;">
-          <svg width="160" height="160"><use href="#suews-logo-dark"/></svg>
-        </div>
-        <div style="color: var(--urban-slate); line-height: 1.7;">
-          <p style="margin-bottom: 1rem;">
-            The SUEWS logo distils the model's core function: simulating <strong>energy</strong> and <strong>water</strong> exchanges in <strong>urban</strong> environments.
-          </p>
-          <ul style="list-style: none; padding: 0; margin: 0;">
-            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
-              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: linear-gradient(135deg, #F7B538 40%, #E85D04 100%); flex-shrink: 0; margin-top: 4px;"></span>
-              <span><strong>Sun</strong> — Solar radiation driving the surface energy balance; the warm gradient represents shortwave and longwave radiation fluxes</span>
-            </li>
-            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
-              <span style="display: inline-block; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 16px solid #4A7C59; flex-shrink: 0; margin-top: 4px;"></span>
-              <span><strong>Tree</strong> — Urban vegetation (parks, street trees, gardens) that SUEWS models as a key land cover type driving evapotranspiration and shading</span>
-            </li>
-            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
-              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 4px; background: #5D5852; flex-shrink: 0; margin-top: 4px;"></span>
-              <span><strong>Buildings</strong> — Urban morphology with varying heights representing the heterogeneous built environment that SUEWS characterises</span>
-            </li>
-            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
-              <span style="display: inline-block; width: 16px; height: 4px; border-radius: 2px; background: #0077B6; flex-shrink: 0; margin-top: 10px;"></span>
-              <span><strong>Water wave</strong> — The hydrological cycle: precipitation, runoff, evaporation, and storage that form the water balance component</span>
-            </li>
-            <li style="display: flex; align-items: flex-start; gap: 0.75rem;">
-              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: #2D3142; flex-shrink: 0; margin-top: 4px;"></span>
-              <span><strong>Circle</strong> — The bounded urban domain, a contained system where all fluxes are accounted for</span>
-            </li>
-          </ul>
-          <p style="margin-top: 1.25rem; font-size: 0.9rem; opacity: 0.7;">
-            The composition follows golden ratio proportions, with the sun positioned at the upper-right intersection point — where energy enters the system.
-          </p>
+        <div class="logo-card dark" style="flex-direction: row; gap: 0.75rem; padding: 2rem; align-items: center;">
+          <img src="suews-logo.svg" width="64" height="64" alt="SUEWS logo">
+          <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 600; font-size: 2.25rem; color: white; letter-spacing: -0.03em;">SUEWS</span>
         </div>
       </div>
     </div>
@@ -460,13 +435,17 @@
           <span>Energy</span>
           <span>#E85D04</span>
         </div>
-        <div class="swatch veg">
-          <span>Vegetation</span>
-          <span>#4A7C59</span>
+        <div class="swatch" style="background: #5DADE2; color: white;">
+          <span>Sky Blue</span>
+          <span>#5DADE2</span>
         </div>
-        <div class="swatch water">
-          <span>Water</span>
-          <span>#0077B6</span>
+        <div class="swatch" style="background: #09a25c; color: white;">
+          <span>Vegetation</span>
+          <span>#09a25c</span>
+        </div>
+        <div class="swatch" style="background: #0558a5; color: white;">
+          <span>Wave</span>
+          <span>#0558a5</span>
         </div>
         <div class="swatch slate">
           <span>Urban Slate</span>
@@ -474,6 +453,72 @@
         </div>
       </div>
     </div>
+
+    <!-- Design Philosophy -->
+    <div class="palette" style="margin-top: 3rem;">
+      <h2>Design Philosophy</h2>
+      <div style="display: grid; grid-template-columns: 200px 1fr; gap: 3rem; margin-top: 1.5rem; align-items: start;">
+        <div style="background: linear-gradient(to bottom, rgba(255,255,255,0.95) 0%, rgba(240,247,255,0.9) 100%); padding: 2rem; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: center;">
+          <img src="suews-logo.svg" width="200" height="200" alt="SUEWS logo">
+        </div>
+        <div style="color: var(--urban-slate); line-height: 1.7;">
+          <p style="margin-bottom: 1rem;">
+            The logo embraces <strong>natural, flowing forms</strong> that mirror the continuous exchange of energy and water in urban environments. These traced contours reflect how real-world processes blend and interact.
+          </p>
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: #F7B538; flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong>Sun Gold</strong> — Outer disk representing incoming solar radiation; the primary energy input that drives all urban climate processes</span>
+            </li>
+            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: #E85D04; flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong>Energy Orange</strong> — Inner core symbolising thermal energy; sensible and latent heat fluxes that SUEWS models at the urban surface</span>
+            </li>
+            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 4px; background: #5DADE2; flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong>Sky Blue</strong> — Urban skyline silhouette; buildings against the atmosphere where surface-air energy exchanges occur</span>
+            </li>
+            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 16px solid #09a25c; flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong>Vegetation Green</strong> — Organic leaf sweeping across the composition; evapotranspiration, urban greenery, and living systems</span>
+            </li>
+            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 16px; height: 4px; border-radius: 2px; background: #0558a5; flex-shrink: 0; margin-top: 10px;"></span>
+              <span><strong>Wave Blue</strong> — Deep blue flowing curve at the base; the water balance foundation — precipitation, runoff, storage, evaporation</span>
+            </li>
+            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 4px; background: #2D3142; flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong>Urban Slate</strong> — Used for icon disk backgrounds and text; a sophisticated neutral that grounds the vibrant palette</span>
+            </li>
+          </ul>
+          <p style="margin-top: 1.25rem; font-size: 0.9rem; opacity: 0.7;">
+            The style preserves natural irregularities that echo how energy and water actually flow through cities — never in perfect lines, always in dynamic equilibrium.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Design Approach -->
+    <div class="palette" style="margin-top: 3rem;">
+      <h2>Design Approach</h2>
+      <div style="color: var(--urban-slate); line-height: 1.7; margin-top: 1.5rem;">
+        <p style="margin-bottom: 1rem;">
+          As researchers and developers rather than design professionals, we used AI tools to assist with branding. The process involved:
+        </p>
+        <ol style="padding-left: 1.5rem;">
+          <li style="margin-bottom: 0.75rem;">
+            <strong>Prototyping with <a href="https://deepmind.google/models/gemini-image/pro/" style="color: var(--wave-blue);">Gemini 3 Pro Image (Nano Banana Pro)</a></strong> — Initial concepts generated from prompts describing SUEWS's core scientific elements: energy balance, hydrological cycle, urban form and natural landscape.
+          </li>
+          <li style="margin-bottom: 0.75rem;">
+            <strong>Iterative refinement</strong> — Designs simplified for clear communication at various sizes
+          </li>
+          <li style="margin-bottom: 0.75rem;">
+            <strong>Vector conversion with <a href="https://www.anthropic.com/claude/opus" style="color: var(--wave-blue);">Claude Opus 4.5</a></strong> — Raster images traced and converted to clean SVG format for scalability
+          </li>
+        </ol>
+      </div>
+    </div>
   </div>
+
 </body>
 </html>

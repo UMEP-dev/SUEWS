@@ -70,7 +70,7 @@
   - Enhanced documentation for build process and developer workflows
 - [doc] Reorganised output documentation for clarity (#944)
   - Improved structure and navigation of output variable documentation
-
+- [bugfix] Fix nullification logic in phase_b.py for stebbs parameters to include building_archetype block when stebbsmethod == 0. (PR #958)
 
 ### 29 Nov 2025
 - [feature] Integrated Python output registry with SuPy post-processing (#937)

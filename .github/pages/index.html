@@ -308,9 +308,9 @@
         }
 
         /* Logo animations */
-        @keyframes sun-breathe {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(0.95); }
+        @keyframes sun-glow {
+            0%, 100% { transform: scale(0.96); }
+            50% { transform: scale(1.06); }
         }
 
         @keyframes wave-undulate {
@@ -321,16 +321,12 @@
         }
 
         .logo-svg #sun-outer {
-            animation: sun-breathe 6s ease-in-out infinite;
-            transform-origin: 620px 560px;
-        }
-
-        .logo-svg #sun-inner {
+            animation: sun-glow 6s ease-in-out infinite;
             transform-origin: 620px 560px;
         }
 
         .logo-svg #wave {
-            animation: wave-undulate 5s ease-in-out infinite;
+            animation: wave-undulate 6s ease-in-out infinite;
             transform-origin: center bottom;
             transform-box: fill-box;
         }
@@ -894,15 +890,15 @@
                         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
                     </div>
                     <h3 class="card-title">UMEP</h3>
-                    <p class="card-description">Urban Multi-scale Environmental Predictor - QGIS plugin</p>
+                    <p class="card-description">Comprehensive urban climate tool in QGIS, also provides GUI for running SUEWS</p>
                 </a>
 
-                <a href="https://github.com/UMEP-dev/SUEWS/discussions" class="resource-card">
+                <a href="https://suews.discourse.group/" class="resource-card">
                     <div class="card-icon">
                         <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                     </div>
                     <h3 class="card-title">Community</h3>
-                    <p class="card-description">Discussions, questions, and community support</p>
+                    <p class="card-description">Discussion forum for questions and community support</p>
                 </a>
             </div>
         </div>

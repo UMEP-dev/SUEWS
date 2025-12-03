@@ -395,7 +395,7 @@ rst_prolog = rf"""
       2. Please report issues with the manual on `GitHub Issues`_ (or use `Report Issue for This Page`_ for page-specific feedback).
       3. Please cite SUEWS with proper information from our `Zenodo page`_.
 
-.. _SUEWS Discussion Channel: https://github.com/UMEP-dev/SUEWS/discussions/
+.. _SUEWS Discussion Channel: https://suews.discourse.group/
 .. _GitHub Issues: https://github.com/UMEP-dev/SUEWS/issues
 .. _SUEWS download page: https://forms.office.com/r/4qGfYu8LaR
 
@@ -459,8 +459,9 @@ html_theme_options = dict(
     extra_navbar="",
     navbar_footer_text="",
     logo_only=True,
-    extra_footer=f"""<p>Version: {git_version_string} | 
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/{git_commit_full}">{git_commit_short}</a></p>""",
+    extra_footer=f"""<p>Version: {git_version_string} |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/{git_commit_full}">{git_commit_short}</a> |
+    <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>""",
     # twitter_url="https://twitter.com/xarray_devs",
 )
 
@@ -501,14 +502,14 @@ html_static_path = ["_static"]
 #
 # html_sidebars = {}
 numfig = True
-# Theme-adaptive logo: light logo for dark theme, dark logo for light theme
+# Logo configuration - stacked logo with text, theme-adaptive
 html_logo = "../../brand/suews-logo-text-light.svg"  # Fallback
-html_favicon = "../../brand/suews-logo-favicon.svg"
+html_favicon = "../../brand/suews-logo.svg"
 
-# Override with theme-specific logos (sphinx_book_theme feature)
+# Theme-specific logos (sphinx_book_theme feature)
 html_theme_options["logo"] = {
-    "image_light": "../../brand/suews-logo-text-light.svg",  # For light mode (dark text)
-    "image_dark": "../../brand/suews-logo-text-dark.svg",  # For dark mode (white text)
+    "image_light": "../../brand/suews-logo-text-light.svg",  # Dark text for light theme
+    "image_dark": "../../brand/suews-logo-text-dark.svg",    # White text for dark theme
 }
 # html_theme_options = {
 # "logo_only": True,

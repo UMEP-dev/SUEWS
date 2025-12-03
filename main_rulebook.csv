@@ -180,18 +180,18 @@ rainmaxres,nc,LUMPS,site,LUMPSParams,LUMPSParams,C/Pydantic,C1,range,"[0,20]",,
 veg_type,nc,LUMPS,site,LUMPSParams,LUMPSParams,,,,,,
 air_ext_lw,radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,,CM,,,,
 air_ext_sw,radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,,CM,,,,
-air_ssa_lw,radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,,CM,,,single scattering albedo,
-air_ssa_sw,radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,,CM,,,single scattering albedo,
-ground_albedo_dir_mult_fact,radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,,CM,,,,
+air_ssa_lw,radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,C/Pydantic,C0,fraction_0_1,"[0,1]",,single scattering albedo
+air_ssa_sw,radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,C/Pydantic,C0,fraction_0_1,"[0,1]",,single scattering albedo
+ground_albedo_dir_mult_fact,radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,C/Pydantic,C0,non_negative,>=0,,
 n_stream_lw_urban,radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,,CM,,,,
 n_stream_sw_urban,radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,,CM,,,,
 n_vegetation_region_urban,vegetation_morphology,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,,CM,,,,
 sw_dn_direct_frac,radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,,CM,,,,
-use_sw_direct_albedo,radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,,CM,,,,
+use_sw_direct_albedo,radiation; physics_model_option,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,,CM,,,,This is not an albedo but a switch / boolean flag
 veg_contact_fraction_const,vegetation_radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,,CM,,,,
 veg_fsd_const,vegetation_radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,,CM,,,,
-veg_ssa_lw,vegetation_radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,,CM,,,,
-veg_ssa_sw,vegetation_radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,,CM,,,,
+veg_ssa_lw,vegetation_radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,C/Pydantic,C0,fraction_0_1,"[0,1]",,
+veg_ssa_sw,vegetation_radiation,SPARTACUS,site,SPARTACUSParams,SPARTACUSParams,C/Pydantic,C0,fraction_0_1,"[0,1]",,
 gridiv,grid,SUEWS,site,Site,Site,,CM,,,,
 name,grid,SUEWS,site,Site,Site,,CM,,,,
 alt,grid,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C0; C2,positive,>0,,
@@ -200,7 +200,7 @@ lambda_c,grid,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C0; C2,non_neg
 lat,grid,SUEWS,site,SiteProperties,SiteProperties,B; C/Pydantic,C1; C2,range,"[-90,90]",,
 lng,grid,SUEWS,site,SiteProperties,SiteProperties,B; C/Pydantic,C1; C2,range,"[-180,180]",,
 n_buildings,building_morphology,SUEWS,site,SiteProperties,SiteProperties,,CM,,,,
-narp_trans_site,nc,na,site,SiteProperties,SiteProperties,C/Pydantic,C2,,,,
+narp_trans_site,nc,NARP,site,SiteProperties,SiteProperties,C/Pydantic,C2,,,,
 pipecapacity,nc,na,site,SiteProperties,SiteProperties,C/Pydantic,C0; C2,positive,>0,,
 runofftowater,nc,na,site,SiteProperties,SiteProperties,C/Pydantic,C0; C2,fraction_0_1,"[0,1]",,
 surfacearea,grid,SUEWS,site,SiteProperties,SiteProperties,C/Pydantic,C0; C2,positive,>0,,
@@ -210,9 +210,9 @@ z0m_in,aerodynamic,na,site,SiteProperties,SiteProperties,C/Pydantic,C0; C2,posit
 zdm_in,aerodynamic,na,site,SiteProperties,SiteProperties,C/Pydantic,C0; C2,positive,>0,,
 crwmax,snow,Snow,site,SnowParams,SnowParams,C/Pydantic,C0; C2,fraction_0_1,"[0,1]",,
 crwmin,snow,Snow,site,SnowParams,SnowParams,C/Pydantic,C0; C2,fraction_0_1,"[0,1]",,
-narp_emis_snow,radiation,Snow,site,SnowParams,SnowParams,,CM,,,,This is distinct from SurfaceProperties.emis (per‑surface emissivity) and is used by the snow/NARP routines
+narp_emis_snow,snow_radiation,Snow; NARP,site,SnowParams,SnowParams,,CM,,,,This is distinct from SurfaceProperties.emis (per‑surface emissivity) and is used by the snow/NARP routines
 preciplimit,snow,Snow,site,SnowParams,SnowParams,,CM,,,,
-preciplimitalb,radiation,Snow,site,SnowParams,SnowParams,,CM,,,,
+preciplimitalb,snow_radiation,Snow,site,SnowParams,SnowParams,C/Pydantic,C0,non_negative,>=0,,"This is NOT directly an albedo, but a precipitation‑amount threshold controlling when snow fully covers the surface for the purposes of albedo/aging."
 radmeltfact,nc,Snow,site,SnowParams,SnowParams,,CM,,,,
 snowalbmax,radiation,Snow,site,SnowParams,SnowParams,C/Pydantic,C0; C2,fraction_0_1,"[0,1]",,
 snowalbmin,radiation,Snow,site,SnowParams,SnowParams,C/Pydantic,C0; C2,fraction_0_1,"[0,1]",,
@@ -233,7 +233,6 @@ DHWDrainFlowRate,building_dhw,STEBBS,site,StebbsProperties,StebbsProperties,C/Py
 DHWSpecificHeatCapacity,building_dhw; thermal_property,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive,>0,,
 DHWSurfaceArea,building_dhw,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive,>0,,
 DHWVesselDensity,building_dhw,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive,>0,,
-DHWVesselEmissivity,building_dhw,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,fraction_0_1,"[0,1]",,
 DHWVesselExternalWallConvectionCoefficient,building_dhw,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,,,,
 DHWVesselInternalWallConvectionCoefficient,building_dhw,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C2,,,,
 DHWVesselSpecificHeatCapacity,building_dhw; thermal_property,STEBBS,site,StebbsProperties,StebbsProperties,C/Pydantic,C0; C2,positive,>0,,
@@ -303,8 +302,8 @@ ie_a,irrigation,na,site,VegetatedSurfaceProperties,DectrProperties; EvetrPropert
 ie_m,irrigation,na,site,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,,CM,,,,allow overriding irrigation-related coefficients on a per-surface or per-vegetation-type basis
 maxconductance,vegetation_conductance,na,site,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,,CM,,,,
 min_res_bioco2,carbon,na,site,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,B,C2,,,,
-resp_a,carbon,na,site,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,,CM,,,,needs to be added to the nullification carbon logic
-resp_b,carbon,na,site,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,,CM,,,,needs to be added to the nullification carbon logic
+resp_a,carbon,na,site,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,,C2,,,,needs to be added to the nullification carbon logic
+resp_b,carbon,na,site,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,,C2,,,,needs to be added to the nullification carbon logic
 theta_bioco2,carbon,na,site,VegetatedSurfaceProperties,DectrProperties; EvetrProperties; GrassProperties; VegetatedSurfaceProperties,B,C2,,,,
 gdd_id,nc,na,site,VegetationParams,VegetationParams,,CM,,,,
 ie_a,irrigation,na,site,VegetationParams,VegetationParams,,CM,,,,"global irrigation model coefficients for the whole site (ie_a, ie_m arrays of length 3 for vegetation classes) used by the automatic/manual irrigation calculation"
@@ -325,7 +324,7 @@ temp_accum,nc,na,state,HDD_ID,HDD_ID,,CM,,,,
 temp_daily_mean,nc,na,state,HDD_ID,HDD_ID,,CM,,,,
 decidcap_id,vegetation_initial_condition,na,state,InitialStateDectr,InitialStateDectr,C/Pydantic,C0,non_negative,>=0,,
 porosity_id,vegetation_initial_condition,na,state,InitialStateDectr,InitialStateDectr,C/Pydantic,C0,fraction_0_1,"[0,1]",,
-alb_id,vegetation_radiation; vegetation_initial_condition,SUEWS,state,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStateVeg,,CM,,,,
+alb_id,vegetation_radiation; vegetation_initial_condition,SUEWS,state,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStateVeg,C/Pydantic,C0,fraction_0_1,"[0,1]",,
 gdd_id,vegetation_initial_condition,na,state,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStateVeg,,CM,,,,
 lai_id,vegetation_initial_condition,na,state,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStateVeg,B,C2,,,,
 sdd_id,vegetation_initial_condition,na,state,InitialStateVeg,InitialStateDectr; InitialStateEvetr; InitialStateGrass; InitialStateVeg,,CM,,,,
@@ -358,20 +357,20 @@ wu_manual,nc,na,state,WaterUse,WaterUse,C/Pydantic,C0,non_negative,>=0,,
 wu_total,nc,na,state,WaterUse,WaterUse,C/Pydantic,C0,non_negative,>=0,,
 bldgh,building_morphology,SUEWS,surface,BldgsProperties,BldgsProperties,C/Pydantic,C0,non_negative,>=0,height; stebbs_Height,
 faibldg,building_morphology,SUEWS,surface,BldgsProperties,BldgsProperties,C/Pydantic,C0; C2,non_negative,>=0,,
-alb,building_radiation,SPARTACUS,surface,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,C/Pydantic,C0,fraction_0_1,"[0,1]",,SPARTACUS roofs and walls albedo
+alb,building_radiation,SPARTACUS,surface,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,C/Pydantic,C0,fraction_0_1,"[0,1]",be sure that it doesn't need consistency with alb of buildings if SS is off,SPARTACUS roofs and walls albedo
 emis,building_radiation,SPARTACUS,surface,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,C/Pydantic,C0,fraction_0_1,"[0,1]",,"Per‑roof/wall layer emissivities supplied to the SPARTACUS surface module and used when coupling is enabled, overriding bulk emissivity for detailed top‑of‑canopy radiative transfer."
-roof_albedo_dir_mult_fact,building_radiation,SPARTACUS,surface,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,,CM,,,,
+roof_albedo_dir_mult_fact,building_radiation,SPARTACUS,surface,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,C/Pydantic,C0,non_negative,>=0,,
 soilstorecap,nc,na,surface,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,,CM,,,,
 statelimit,nc,na,surface,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,,CM,,,,
 wall_specular_frac,nc,SPARTACUS,surface,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,,CM,,,,
 wetthresh,nc,na,surface,BuildingLayer,BuildingLayer; RoofLayer; WallLayer,,CM,,,,
-alb,building_radiation; soil_radiation; paved_radiation; water_radiation,SUEWS,surface,NonVegetatedSurfaceProperties,BldgsProperties; BsoilProperties; NonVegetatedSurfaceProperties; PavedProperties; WaterProperties,C/Pydantic,C0,fraction_0_1,"[0,1]",,non-vegetation area‑averaged albedo used by the core SUEWS radiation routines when SPARTACUS is not supplying finer detail
+alb,building_radiation; soil_radiation; paved_radiation; water_radiation,SUEWS,surface,NonVegetatedSurfaceProperties,BldgsProperties; BsoilProperties; NonVegetatedSurfaceProperties; PavedProperties; WaterProperties,C/Pydantic,C0,fraction_0_1,"[0,1]",be sure that it doesn't need consistency with SS if SS is off,non-vegetation area‑averaged albedo used by the core SUEWS radiation routines when SPARTACUS is not supplying finer detail
 dz,thermal_property,SPARTACUS,surface,ThermalLayers,VerticalLayers; BuildingLayer; RoofLayer; WallLayer,C/Pydantic,C2,,,must be consistent with dz bldgs thermal layer if DyOHM on?,per‑layer dz arrays (5 layers) SPARTACUS related. Only wall[0] entry is checked when DyOHM (storageheatmethod == 6) is on
-dz,thermal_property,na,surface,ThermalLayers,ThermalLayers,C/Pydantic,CM,,,must be consistent with dz SPARTACUS vertical layer.thermal layer if DyOHM on?,per‑layer dz arrays (5 layers) feed the thermal/ESTM/EHC/Storage/DyOHM/STEBBS routines that compute heat conduction and storage
+dz,thermal_property,na,surface,ThermalLayers,ThermalLayers,,CM,,,must be consistent with dz SPARTACUS vertical layer.thermal layer if DyOHM on?,per‑layer dz arrays (5 layers) feed the thermal/ESTM/EHC/Storage/DyOHM/STEBBS routines that compute heat conduction and storage
 k,thermal_property,SPARTACUS,surface,ThermalLayers,VerticalLayers; BuildingLayer; RoofLayer; WallLayer,C/Pydantic,C2,,,must be consistent with k bldgs thermal layer if DyOHM on?,per‑layer k arrays (5 layers) SPARTACUS related. Only wall[0] entry is checked when DyOHM (storageheatmethod == 6) is on
-k,thermal_property,na,surface,ThermalLayers,ThermalLayers,C/Pydantic,CM,,,must be consistent with k SPARTACUS vertical layer.thermal layer if DyOHM on?,per‑layer k arrays (5 layers) feed the thermal/ESTM/EHC/Storage/DyOHM/STEBBS routines that compute heat conduction and storage
+k,thermal_property,na,surface,ThermalLayers,ThermalLayers,,CM,,,must be consistent with k SPARTACUS vertical layer.thermal layer if DyOHM on?,per‑layer k arrays (5 layers) feed the thermal/ESTM/EHC/Storage/DyOHM/STEBBS routines that compute heat conduction and storage
 rho_cp,thermal_property,SPARTACUS,surface,ThermalLayers,VerticalLayers; BuildingLayer; RoofLayer; WallLayer,C/Pydantic,C2,,,must be consistent with cp bldgs thermal layer if DyOHM on?,per‑layer cp arrays (5 layers) SPARTACUS related. Only wall[0] entry is checked when DyOHM (storageheatmethod == 6) is on
-rho_cp,thermal_property,na,surface,ThermalLayers,ThermalLayers,C/Pydantic,CM,,,must be consistent with cp SPARTACUS vertical layer.thermal layer if DyOHM on?,per‑layer cp arrays (5 layers) feed the thermal/ESTM/EHC/Storage/DyOHM/STEBBS routines that compute heat conduction and storage
+rho_cp,thermal_property,na,surface,ThermalLayers,ThermalLayers,,CM,,,must be consistent with cp SPARTACUS vertical layer.thermal layer if DyOHM on?,per‑layer cp arrays (5 layers) feed the thermal/ESTM/EHC/Storage/DyOHM/STEBBS routines that compute heat conduction and storage
 building_frac,building_morphology,SPARTACUS,surface,VerticalLayers,VerticalLayers,A,C2,,,,
 building_scale,building_morphology,SPARTACUS,surface,VerticalLayers,VerticalLayers,A,C2,,,,
 height,building_morphology,SPARTACUS,surface,VerticalLayers,VerticalLayers,A,C2,,,bldgh; stebbs_Height,

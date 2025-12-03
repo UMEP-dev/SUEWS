@@ -171,4 +171,4 @@ How to support SUEWS?
    :hidden:
 
    community_publications
-   GitHub discussion <https://github.com/UMEP-dev/SUEWS/discussions>
+   Discussion Forum <https://suews.discourse.group/>

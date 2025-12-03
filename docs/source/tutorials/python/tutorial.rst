@@ -104,7 +104,7 @@ Getting Help
 ------------
 
 **Community Resources:**
-- **GitHub Repository**: `Issues and discussions <https://github.com/UMEP-dev/SUEWS>`__
+- **Discussion Forum**: `SUEWS community discussions <https://suews.discourse.group/>`__
 - **Mailing List**: `SUEWS community forum <https://www.lists.reading.ac.uk/mailman/listinfo/met-suews>`__
 - **Documentation**: :doc:`Complete API reference <../../inputs/yaml/index>`
 

@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 59 | 66 | 22 | 71 | 36 | 254 |
+| 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -34,8 +34,10 @@
 ## 2025
 
 ### 3 Dec 2025
-- [feat] Improved albedos ranges (ge=0.0 and le=1.0) in Field of Pydantic classes for alb_id, air_ssa_lw, air_ssa_sw, veg_ssa_lw, veg_ssa_sw (PR #978)
-- [feat] Improved ranges (ge=0.0) in Field of Pydantic classes for preciplimitalb, roof_albedo_dir_mult_fact, and ground_albedo_dir_mult_fact. (PR #978)
+- [feature] Improved albedos ranges (ge=0.0 and le=1.0) in Field of Pydantic classes for alb_id, air_ssa_lw, air_ssa_sw, veg_ssa_lw, veg_ssa_sw (PR #978)
+- [feature] Improved ranges (ge=0.0) in Field of Pydantic classes for preciplimitalb, roof_albedo_dir_mult_fact, and ground_albedo_dir_mult_fact. (PR #978)
+- [feature] Improved emissivities ranges (ge=0.0 and le=1.0) in Field of Pydantic classes for InternalMassEmissivity and narp_emis_snow (PR #979)
+- [bugfix] Fix range (gt=0.0 -> ge=0.0) in Field of Pydantic class for DHWVesselWallEmissivity (PR #979)
 
 ### 2 Dec 2025
 

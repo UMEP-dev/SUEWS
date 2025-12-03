@@ -916,6 +916,8 @@ class SnowParams(BaseModel):
     narp_emis_snow: FlexibleRefValue(float) = Field(
         default=0.99,
         description="Snow surface emissivity",
+        ge=0.0,
+        le=1.0,
         json_schema_extra={"unit": "dimensionless", "display_name": "Narp Emis Snow"},
     )
     preciplimit: Optional[FlexibleRefValue(float)] = Field(
@@ -1586,6 +1588,8 @@ class ArchetypeProperties(BaseModel):
     InternalMassEmissivity: FlexibleRefValue(float) = Field(
         default=0.0,
         description="Emissivity of internal mass [-]",
+        ge=0.0,
+        le=1.0,
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Internalmassemissivity",
@@ -2078,7 +2082,7 @@ class StebbsProperties(BaseModel):
             "unit": "dimensionless",
             "display_name": "Dhwvesselwallemissivity",
         },
-        gt=0.0,
+        ge=0.0,
         le=1.0,
     )
     HotWaterHeatingEfficiency: Optional[FlexibleRefValue(float)] = Field(

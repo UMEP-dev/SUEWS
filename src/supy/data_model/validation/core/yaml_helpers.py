@@ -1428,6 +1428,16 @@ def precheck_model_option_rules(data: dict) -> dict:
             if isinstance(stebbs_block, dict):
                 _recursive_nullify(stebbs_block)
                 props["stebbs"] = stebbs_block
+        for site_idx, site in enumerate(data.get("sites", [])):
+            props = site.get("properties", {}) or {}
+            archetype_block = props.get("building_archetype", {}) or {}
+            if isinstance(archetype_block, dict):
+                _recursive_nullify(archetype_block)
+                props["building_archetype"] = archetype_block
+            # ALWAYS write back props after making changes above
+            if isinstance(site, dict):
+                site["properties"] = props
+                data["sites"][site_idx] = site
 
     # --- EMISSIONS / CO2 RULE: when emissionsmethod 0..4, CO2 is not computed, nullify co2 params ---
     emissionsmethod = get_value_safe(physics, "emissionsmethod")

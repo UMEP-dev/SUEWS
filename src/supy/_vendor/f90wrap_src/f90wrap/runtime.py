@@ -17,7 +17,7 @@
 #
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with f90wrap. If not, see <http://www.gnu.org/licenses/>.
-# 
+#
 #  If you would like to license the source code under different terms,
 #  please contact James Kermode, james.kermode@gmail.com
 
@@ -27,17 +27,20 @@ f90wrap.runtime
 Contains everything needed by f90wrap generated Python modules at runtime
 """
 
-from f90wrap.fortrantype import (FortranDerivedType,
-                                FortranDerivedTypeArray,
-                                FortranModule)
+from f90wrap.fortrantype import (
+    FortranDerivedType,
+    FortranDerivedTypeArray,
+    FortranModule,
+)
 from f90wrap.arraydata import get_array
 from f90wrap.sizeof_fortran_t import sizeof_fortran_t as _sizeof_fortran_t
 
 sizeof_fortran_t = _sizeof_fortran_t()
-empty_handle = [0]*sizeof_fortran_t
+empty_handle = [0] * sizeof_fortran_t
 empty_type = FortranDerivedType.from_handle(empty_handle)
 
 _f90wrap_classes = {}
+
 
 class register_class(object):
     def __init__(self, cls_name):
@@ -49,6 +52,7 @@ class register_class(object):
             raise RuntimeError("Duplicate Fortran class name {0}".format(self.cls_name))
         _f90wrap_classes[self.cls_name] = cls
         return cls
+
 
 def lookup_class(cls_name):
     global _f90wrap_classes

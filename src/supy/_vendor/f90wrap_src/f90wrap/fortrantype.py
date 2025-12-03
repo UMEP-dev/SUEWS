@@ -17,7 +17,7 @@
 #
 #  You should have received a copy of the GNU Lesser General Public License
 #  along with f90wrap. If not, see <http://www.gnu.org/licenses/>.
-# 
+#
 #  If you would like to license the source code under different terms,
 #  please contact James Kermode, james.kermode@gmail.com
 import weakref
@@ -81,15 +81,18 @@ class FortranDerivedType(object):
     def __copy__(self):
         out = FortranDerivedType()
         for attr in dir(self):
-            if attr.startswith('_') : continue
+            if attr.startswith("_"):
+                continue
             # skip some attributes
-            if attr in ['from_handle', 'copy'] : continue
+            if attr in ["from_handle", "copy"]:
+                continue
             try:
                 value = getattr(self, attr)
-            except Exception :
+            except Exception:
                 pass
             else:
-                if hasattr(value, 'copy') : value = value.copy()
+                if hasattr(value, "copy"):
+                    value = value.copy()
                 setattr(out, attr, value)
         return out
 
@@ -136,7 +139,9 @@ class FortranDerivedTypeArray(object):
         try:
             obj = parent._objs[tuple(element_handle)]
         except KeyError:
-            obj = parent._objs[tuple(element_handle)] = self.arraytype.from_handle(element_handle)
+            obj = parent._objs[tuple(element_handle)] = self.arraytype.from_handle(
+                element_handle
+            )
         return obj
 
     def __setitem__(self, i, value):
@@ -150,8 +155,9 @@ class FortranDerivedTypeArray(object):
 
     def __copy__(self):
         out = []
-        for item in self :
-            if hasattr(item, 'copy') : item = item.copy()
+        for item in self:
+            if hasattr(item, "copy"):
+                item = item.copy()
             out.append(item)
         return out
 

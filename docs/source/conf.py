@@ -509,7 +509,7 @@ html_favicon = "../../brand/suews-logo.svg"
 # Theme-specific logos (sphinx_book_theme feature)
 html_theme_options["logo"] = {
     "image_light": "../../brand/suews-logo-text-light.svg",  # Dark text for light theme
-    "image_dark": "../../brand/suews-logo-text-dark.svg",    # White text for dark theme
+    "image_dark": "../../brand/suews-logo-text-dark.svg",  # White text for dark theme
 }
 # html_theme_options = {
 # "logo_only": True,

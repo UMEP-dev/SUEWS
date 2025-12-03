@@ -67,16 +67,14 @@ on:
       - 'src/supy/data_model/**'
       - '.github/scripts/generate_schema.py'
       - '.github/workflows/pages-deploy.yml'
-      - '.github/pages/**'
-      - 'brand/**'
+      - 'site/**'
 
   pull_request:
     paths:
       - 'src/supy/data_model/**'
       - '.github/scripts/generate_schema.py'
       - '.github/workflows/pages-deploy.yml'
-      - '.github/pages/**'
-      - 'brand/**'
+      - 'site/**'
 
   workflow_dispatch:
 
@@ -139,11 +137,11 @@ jobs:
             # Now add PR preview in subdirectory
             PR_DIR="preview/pr-${{ github.event.pull_request.number }}"
             mkdir -p "_site/${PR_DIR}"
-            
-            # Copy PR schemas to preview subdirectory
-            if [ -d schemas ]; then
-              cp -r schemas "_site/${PR_DIR}/"
-              
+
+            # Copy PR site content to preview subdirectory
+            if [ -d site ]; then
+              cp -r site/* "_site/${PR_DIR}/"
+
               # Add banner to PR preview schema index
               if [ -f "_site/${PR_DIR}/schemas/suews-config/index.html" ]; then
                 sed -i '/<body>/a\
@@ -179,33 +177,16 @@ jobs:
           EOF
             
             # Ensure production index.html exists (without banner)
-            if [ -f .github/pages/index.html ] && [ ! -f _site/index.html ]; then
-              cp .github/pages/index.html _site/index.html
+            if [ -f site/index.html ] && [ ! -f _site/index.html ]; then
+              cp site/index.html _site/index.html
             fi
-            
+
           else
             # For master: normal deployment
-            if [ -d schemas ]; then
-              cp -r schemas _site/
-            else
-              mkdir -p _site/schemas
-              echo '{"message": "No schemas yet"}' > _site/schemas/placeholder.json
-            fi
-
-            # Copy landing page
-            if [ -f .github/pages/index.html ]; then
-              cp .github/pages/index.html _site/index.html
-            fi
-
-            # Copy CNAME for custom domain
-            if [ -f .github/pages/CNAME ]; then
-              cp .github/pages/CNAME _site/CNAME
-            fi
-
-            # Copy brand assets (logo, showcase, etc.)
-            if [ -d brand ]; then
-              cp -r brand _site/
-              echo "✅ Brand assets copied to _site/brand/"
+            # Copy site/ contents (index.html, CNAME, brand/, schemas/, etc.)
+            if [ -d site ]; then
+              cp -r site/* _site/
+              echo "✅ Site contents copied to _site/"
             fi
 
             if [ ! -f _site/index.html ]; then
@@ -245,12 +226,12 @@ jobs:
           # PAT should have 'repo' and 'workflow' scopes
           GH_TOKEN: ${{ secrets.SCHEMA_UPDATE_PAT || secrets.GITHUB_TOKEN }}
         run: |
-          if ! git diff --quiet schemas/; then
+          if ! git diff --quiet site/schemas/; then
             BRANCH="auto/schemas-$(date +%Y%m%d-%H%M%S)"
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git checkout -b "$BRANCH"
-            git add schemas/
+            git add site/schemas/
             git commit -m "chore: Update schemas [auto-generated]"
             git push origin "$BRANCH"
 

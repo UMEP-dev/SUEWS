@@ -141,13 +141,13 @@
     }
 
     .colour-swatches {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
       gap: 1rem;
     }
 
     .swatch {
-      width: 100px;
+      width: 100%;
       height: 100px;
       border-radius: 16px;
       display: flex;
@@ -535,6 +535,10 @@
         </p>
       </div>
     </div>
+
+    <footer style="margin-top: 4rem; padding: 2rem 0; border-top: 1px solid rgba(45, 49, 66, 0.1); text-align: center; color: var(--urban-slate); opacity: 0.6; font-size: 0.875rem;">
+      <p>&copy; 2025 SUEWS Development Team. Licensed under <a href="https://www.gnu.org/licenses/gpl-3.0.html" style="color: var(--wave-blue);">GPL-3.0</a>.</p>
+    </footer>
   </div>
 
 </body>

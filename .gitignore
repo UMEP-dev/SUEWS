@@ -310,7 +310,7 @@ pythonenv*
 .ropeproject
 
 # mkdocs documentation
-/site
+# /site  # Removed: we use site/ for GitHub Pages content
 
 # mypy
 .mypy_cache/

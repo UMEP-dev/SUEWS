@@ -2174,11 +2174,15 @@ class SPARTACUSParams(BaseModel):
         default=0.5,
         description="Air single scattering albedo for longwave radiation",
         json_schema_extra={"unit": "dimensionless", "display_name": "Air Ssa Lw"},
+        ge=0.0,
+        le=1.0,
     )
     air_ssa_sw: FlexibleRefValue(float) = Field(
         default=0.5,
         description="Air single scattering albedo for shortwave radiation",
         json_schema_extra={"unit": "dimensionless", "display_name": "Air Ssa Sw"},
+        ge=0.0,
+        le=1.0,
     )
     ground_albedo_dir_mult_fact: FlexibleRefValue(float) = Field(
         default=1.0,
@@ -2245,11 +2249,15 @@ class SPARTACUSParams(BaseModel):
         default=0.5,
         description="Vegetation single scattering albedo for longwave radiation",
         json_schema_extra={"unit": "dimensionless", "display_name": "Veg Ssa Lw"},
+        ge=0.0,
+        le=1.0,
     )
     veg_ssa_sw: FlexibleRefValue(float) = Field(
         default=0.5,
         description="Vegetation single scattering albedo for shortwave radiation",
         json_schema_extra={"unit": "dimensionless", "display_name": "Veg Ssa Sw"},
+        ge=0.0,
+        le=1.0,
     )
 
     ref: Optional[Reference] = None

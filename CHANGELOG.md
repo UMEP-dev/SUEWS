@@ -34,8 +34,8 @@
 ## 2025
 
 ### 3 Dec 2025
-- [feat] Improved albedos ranges (ge=0.0 and le=1.0) in Field of Pydantic classes for alb_id, air_ssa_lw, air_ssa_sw, veg_ssa_lw, veg_ssa_sw
-- [feat] Improved ranges (ge=0.0) in Field of Pydantic classes for preciplimitalb, roof_albedo_dir_mult_fact, and ground_albedo_dir_mult_fact. 
+- [feat] Improved albedos ranges (ge=0.0 and le=1.0) in Field of Pydantic classes for alb_id, air_ssa_lw, air_ssa_sw, veg_ssa_lw, veg_ssa_sw (PR #978)
+- [feat] Improved ranges (ge=0.0) in Field of Pydantic classes for preciplimitalb, roof_albedo_dir_mult_fact, and ground_albedo_dir_mult_fact. (PR #978)
 
 ### 2 Dec 2025
 

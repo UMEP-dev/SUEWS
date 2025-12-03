@@ -1936,20 +1936,26 @@ def test_stebbsmethod1_leaves_stebbs_untouched():
     out = result["sites"][0]["properties"]["stebbs"]
     assert out["WallInternalConvectionCoefficient"]["value"] == 5.0
 
+
 def test_stebbsmethod0_nullifies_building_archetype_values():
     yaml_input = {
         "model": {"physics": {"stebbsmethod": {"value": 0}}},
-        "sites": [{"properties": {
-            "building_archetype": {
-                "BuildingType": {"value": "SampleType"},
-                "stebbs_Height": {"value": 10.0},
+        "sites": [
+            {
+                "properties": {
+                    "building_archetype": {
+                        "BuildingType": {"value": "SampleType"},
+                        "stebbs_Height": {"value": 10.0},
+                    }
+                }
             }
-        }}],
+        ],
     }
     result = precheck_model_option_rules(deepcopy(yaml_input))
     out = result["sites"][0]["properties"]["building_archetype"]
     assert out["BuildingType"]["value"] is None
     assert out["stebbs_Height"]["value"] is None
+
 
 def _build_site_with_co2(co2_block):
     return {"properties": {"anthropogenic_emissions": {"co2": co2_block}}}

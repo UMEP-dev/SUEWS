@@ -475,7 +475,7 @@ class VegetatedSurfaceProperties(SurfaceProperties):
         description="Biogenic CO2 exchange coefficient",
         json_schema_extra={"unit": "dimensionless", "display_name": "Beta Bioco2"},
     )
-    beta_enh_bioco2: FlexibleRefValue(float) = Field(
+    beta_enh_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=0.7,
         description="Enhanced biogenic CO2 exchange coefficient",
         json_schema_extra={"unit": "dimensionless", "display_name": "Beta Enh Bioco2"},
@@ -485,7 +485,7 @@ class VegetatedSurfaceProperties(SurfaceProperties):
         description="Biogenic CO2 exchange coefficient",
         json_schema_extra={"unit": "dimensionless", "display_name": "Alpha Bioco2"},
     )
-    alpha_enh_bioco2: FlexibleRefValue(float) = Field(
+    alpha_enh_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Enhanced biogenic CO2 exchange coefficient",
         json_schema_extra={"unit": "dimensionless", "display_name": "Alpha Enh Bioco2"},
@@ -510,7 +510,7 @@ class VegetatedSurfaceProperties(SurfaceProperties):
         description="Maximum surface conductance",
         json_schema_extra={"unit": "mm s^-1", "display_name": "Maxconductance"},
     )
-    min_res_bioco2: FlexibleRefValue(float) = Field(
+    min_res_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=0.1,
         description="Minimum respiratory biogenic CO2",
         json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Min Res Bioco2"},

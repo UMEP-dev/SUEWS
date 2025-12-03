@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 56 | 66 | 20 | 68 | 36 | 246 |
+| 2025 | 57 | 66 | 22 | 71 | 36 | 252 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -32,6 +32,16 @@
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2025
+
+### 2 Dec 2025
+
+- [feature] Disable CO2 site parameters when model.emissionsmethod is 0..4 by nullifying CO2 blocks so Pydantic validation does not fail.
+- [change] Adjust CO2 profile models so DayProfile / HourlyProfile fields accept null (None) while preserving backwards-compatible defaults for normal configs.
+- [change] Add a robust, recursive nullification helper in src/supy/data_model/validation/core/yaml_helpers.py.
+- [maintenance] Add tests covering CO2 nullification (nested structures, day/hour profiles and emissionsmethod cases).
+- [maintenance] Added comments and small defensive fixes around profile handling to make the behaviour explicit and avoid regressions.
+- [bugfix] Added resp_a, resp_b, and *_bioco2 grass and evetr params to carbon switch-off logic in yaml_helpers.py
+- [maintenance] Added tests for resp_b, and *_bioco2 grass and evetr params in test/data_model/test_yaml_processing.py
 
 ### 30 Nov 2025
 
@@ -54,7 +64,7 @@
   - Enhanced documentation for build process and developer workflows
 - [doc] Reorganised output documentation for clarity (#944)
   - Improved structure and navigation of output variable documentation
-- [bugfix] Fix nullification logic in phase_b.py for stebbs parameters to include building_archetype block when stebbsmethod == 0.
+- [bugfix] Fix nullification logic in phase_b.py for stebbs parameters to include building_archetype block when stebbsmethod == 0. (PR #958)
 
 ### 29 Nov 2025
 - [feature] Integrated Python output registry with SuPy post-processing (#937)

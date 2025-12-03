@@ -373,11 +373,15 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
             "display_name": "Energy Emission Factor Vehicles",
         },
     )
-    fcef_v_kgkm: DayProfile = Field(
+    fcef_v_kgkm: Optional[DayProfile] = Field(
         description="Fuel consumption efficiency for vehicles",
         default_factory=DayProfile,
         json_schema_extra={"display_name": "Fuel Carbon Emission Factor Vehicles"},
     )
+    # Field is Optional[DayProfile] but has default_factory=DayProfile,
+    # so it will never actually be None unless explicitly set during
+    # validation preprocessing.
+
     frfossilfuel_heat: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Fraction of heating energy from fossil fuels",
@@ -430,26 +434,37 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
             "display_name": "Minimum Metabolic Heat Flux",
         },
     )
-    trafficrate: DayProfile = Field(
+    trafficrate: Optional[DayProfile] = Field(
         description="Traffic rate",
         default_factory=DayProfile,
         json_schema_extra={"display_name": "Traffic Rate"},
     )
+    # Field is Optional[DayProfile] but has default_factory=DayProfile,
+    # so it will never actually be None unless explicitly set during
+    # validation preprocessing.
+
     trafficunits: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Units for traffic density normalisation",
         json_schema_extra={"unit": "vehicle km ha^-1", "display_name": "Traffic Units"},
     )
-    traffprof_24hr: HourlyProfile = Field(
+    traffprof_24hr: Optional[HourlyProfile] = Field(
         description="24-hour profile of traffic rate",
         default_factory=HourlyProfile,
         json_schema_extra={"display_name": "Traffic Profile (24hr)"},
     )
-    humactivity_24hr: HourlyProfile = Field(
+    # Field is Optional[HourlyProfile] but has default_factory=HourlyProfile,
+    # so it will never actually be None unless explicitly set during
+    # validation preprocessing.
+
+    humactivity_24hr: Optional[HourlyProfile] = Field(
         description="24-hour profile of human activity",
         default_factory=HourlyProfile,
         json_schema_extra={"display_name": "Human Activity Profile (24hr)"},
     )
+    # Field is Optional[HourlyProfile] but has default_factory=HourlyProfile,
+    # so it will never actually be None unless explicitly set during
+    # validation preprocessing.
 
     ref: Optional[Reference] = None
 

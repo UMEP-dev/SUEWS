@@ -1,11 +1,10 @@
----
-name: apply-patterns
-description: SUEWS code and documentation patterns. Use when implementing features with configuration objects, adding output variables, updating CHANGELOG, writing RST documentation, or following maintenance principles. Covers configuration separation, variable definition patterns (output and input), documentation DRY principles, and CHANGELOG formatting.
----
-
-# SUEWS Code Patterns
+# SUEWS Code Patterns Reference
 
 Patterns for maintaining clean code and documentation in SUEWS.
+
+> **Note**: This is a reference document, not an actionable skill. Use when implementing features, writing documentation, or following project conventions.
+
+---
 
 ## Configuration Pattern
 
@@ -252,11 +251,3 @@ This dual-source pattern ensures Fortran independence whilst providing type safe
 - **Cross-reference related content**: "See also:" sections for navigation
 - **Use templates for repetitive patterns**: Avoid explaining the same structure multiple times
 - **Document package name differences ONCE**: Create mappings, reference everywhere
-
----
-
-## Templates
-
-See [templates/](templates/) for reusable templates:
-- `feature-plan.md` - Feature planning template
-- `commit-message.md` - Commit message format

@@ -127,6 +127,8 @@ def run_cli_command(runner, command, args, *, check=False):
         )
 
     return result
+
+
 from supy._supy_module import (
     _init_config,
     _init_supy,

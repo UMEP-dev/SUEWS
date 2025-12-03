@@ -214,7 +214,9 @@ class TestCLIConversion:
 
     @pytest.mark.skipif(not SUPY_AVAILABLE, reason="SuPy not available")
     @pytest.mark.parametrize("version", ["2020a", "2019a", "2018a"])
-    def test_legacy_version_auto_detection(self, cli_runner, version, legacy_format_dir):
+    def test_legacy_version_auto_detection(
+        self, cli_runner, version, legacy_format_dir
+    ):
         """Test auto-detection of legacy table versions."""
         test_dir = legacy_format_dir / version
         if not test_dir.exists():

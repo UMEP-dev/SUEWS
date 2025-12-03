@@ -1654,15 +1654,18 @@ def test_forcing_validation_multiple_files():
         Path(forcing_path2).unlink()
 
 
-def test_forcing_validation_cli_integration():
+def test_forcing_validation_cli_integration(cli_runner):
     """Test CLI integration: forcing validation can be enabled/disabled via --forcing flag.
 
     Uses Click's CliRunner for in-process testing to avoid subprocess overhead.
+
+    Parameters
+    ----------
+    cli_runner : CliRunner
+        Shared Click test runner fixture from conftest
     """
-    import os
     import yaml
     import pandas as pd
-    from click.testing import CliRunner
     from supy.cmd.validate_config import cli as validate_cli
 
     sample_data_dir = Path(sp.__file__).parent / "sample_data"
@@ -1700,17 +1703,16 @@ def test_forcing_validation_cli_integration():
         "wdir": [180.0] * 3,
     }
 
-    runner = CliRunner()
-
-    with tempfile.TemporaryDirectory() as tmpdir:
+    # Use isolated_filesystem for clean working directory (reports are written to cwd)
+    with cli_runner.isolated_filesystem() as tmpdir:
         tmpdir_path = Path(tmpdir)
 
-        # Create forcing file with invalid data in tmpdir
+        # Create forcing file with invalid data
         bad_forcing_path = tmpdir_path / "forcing_bad.txt"
         df = pd.DataFrame(forcing_data)
         df.to_csv(bad_forcing_path, sep=" ", index=False)
 
-        # Create test config with bad forcing file in tmpdir
+        # Create test config with bad forcing file
         test_config_data = config_data.copy()
         test_config_data["model"]["control"]["forcing_file"] = {
             "value": str(bad_forcing_path)
@@ -1720,49 +1722,39 @@ def test_forcing_validation_cli_integration():
         with open(test_config_path, "w") as f:
             yaml.dump(test_config_data, f)
 
-        # Change to tmpdir so output files are created there
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(tmpdir_path)
+        # Test 1: Default behavior (forcing validation enabled)
+        cli_runner.invoke(validate_cli, [str(test_config_path)])
 
-            # Test 1: Default behavior (forcing validation enabled)
-            result = runner.invoke(validate_cli, [str(test_config_path)])
+        # Should detect forcing errors in report
+        report_files = list(tmpdir_path.glob("report_*.txt"))
+        assert len(report_files) == 1, (
+            f"Expected 1 report file, found {len(report_files)}: {list(tmpdir_path.iterdir())}"
+        )
+        with open(report_files[0], "r") as f:
+            report_content = f.read()
+        assert "forcing data validation error" in report_content.lower(), (
+            f"Expected forcing validation error in report, but got:\n{report_content[:500]}"
+        )
 
-            # Should detect forcing errors in report
-            report_files = list(tmpdir_path.glob("report_*.txt"))
-            assert len(report_files) == 1, (
-                f"Expected 1 report file, found {len(report_files)}: {list(tmpdir_path.iterdir())}"
-            )
-            with open(report_files[0], "r") as f:
-                report_content = f.read()
-            assert "forcing data validation error" in report_content.lower(), (
-                f"Expected forcing validation error in report, but got:\n{report_content[:500]}"
-            )
+        # Clean up for next test
+        for f in tmpdir_path.glob("report_*.txt"):
+            f.unlink()
+        for f in tmpdir_path.glob("updated_*.yml"):
+            f.unlink()
 
-            # Clean up for next test
-            for f in tmpdir_path.glob("report_*.txt"):
-                f.unlink()
-            for f in tmpdir_path.glob("updated_*.yml"):
-                f.unlink()
+        # Test 2: Disable forcing validation with --forcing off
+        cli_runner.invoke(validate_cli, ["--forcing", "off", str(test_config_path)])
 
-            # Test 2: Disable forcing validation with --forcing off
-            result = runner.invoke(
-                validate_cli, ["--forcing", "off", str(test_config_path)]
-            )
-
-            # Should NOT detect forcing errors
-            report_files = list(tmpdir_path.glob("report_*.txt"))
-            assert len(report_files) == 1, (
-                f"Expected 1 report file, found {len(report_files)}"
-            )
-            with open(report_files[0], "r") as f:
-                report_content = f.read()
-            assert "forcing data validation error" not in report_content.lower(), (
-                f"Expected no forcing validation errors when disabled, but got:\n{report_content[:500]}"
-            )
-
-        finally:
-            os.chdir(old_cwd)
+        # Should NOT detect forcing errors
+        report_files = list(tmpdir_path.glob("report_*.txt"))
+        assert len(report_files) == 1, (
+            f"Expected 1 report file, found {len(report_files)}"
+        )
+        with open(report_files[0], "r") as f:
+            report_content = f.read()
+        assert "forcing data validation error" not in report_content.lower(), (
+            f"Expected no forcing validation errors when disabled, but got:\n{report_content[:500]}"
+        )
 
 
 # ============================================================================

@@ -9,12 +9,13 @@ This is especially important for editable installs where each subprocess
 triggers a ninja rebuild check (10-20+ seconds).
 """
 
-import subprocess
-import sys
 import tempfile
 from pathlib import Path
+
 import pytest
-from click.testing import CliRunner
+
+# Import shared CLI testing utilities from conftest
+from conftest import run_cli_command
 
 # Import for simulation testing and CLI
 try:
@@ -28,26 +29,8 @@ except ImportError:
     convert_table_cmd = None
 
 
-class _CliResult:
-    """Adapter to make CliRunner results look like subprocess.CompletedProcess."""
-
-    def __init__(self, click_result):
-        self._result = click_result
-        self.returncode = click_result.exit_code
-        self.stdout = click_result.output or ""
-        self.stderr = ""
-        # Extract error messages if present
-        if click_result.output and "Error" in click_result.output:
-            self.stderr = click_result.output
-
-
 class TestCLIConversion:
     """Streamlined CLI conversion tests - end-to-end focus."""
-
-    @pytest.fixture
-    def runner(self):
-        """Create a Click CliRunner for in-process testing."""
-        return CliRunner()
 
     @pytest.fixture
     def test_data_dir(self):
@@ -59,55 +42,45 @@ class TestCLIConversion:
         """Get the path to legacy format fixtures."""
         return Path(__file__).parent.parent / "fixtures/legacy_format"
 
-    def run_suews_convert(self, runner, *args):
-        """Run suews-convert command in-process using CliRunner.
+    def run_suews_convert(self, cli_runner, *args):
+        """Run suews-convert command in-process using shared CLI utilities.
 
         Parameters
         ----------
-        runner : CliRunner
-            Click test runner
+        cli_runner : CliRunner
+            Click test runner (from conftest fixture)
         *args : str
             Command-line arguments
 
         Returns
         -------
-        _CliResult
+        CliResultAdapter
             Result with returncode, stdout, stderr (subprocess-compatible)
         """
         if convert_table_cmd is None:
             pytest.skip("supy.cmd.table_converter not available")
-        click_result = runner.invoke(convert_table_cmd, args, catch_exceptions=False)
-        return _CliResult(click_result)
-
-    @staticmethod
-    def run_suews_convert_subprocess(*args):
-        """Run suews-convert as subprocess (fallback for tests needing isolation)."""
-        result = subprocess.run(
-            [sys.executable, "-m", "supy.cmd.table_converter", *args],
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-        return result
+        return run_cli_command(cli_runner, convert_table_cmd, args, check=False)
 
     # ========== BASIC CLI INTERFACE TESTS ==========
 
-    def test_cli_help(self, runner):
+    def test_cli_help(self, cli_runner):
         """Test that the CLI help works."""
-        result = self.run_suews_convert(runner, "--help")
+        result = self.run_suews_convert(cli_runner, "--help")
         assert result.returncode == 0
         assert "Convert SUEWS tables" in result.stdout or "Usage:" in result.stdout
 
-    def test_invalid_input_via_cli(self, runner):
+    def test_invalid_input_via_cli(self, cli_runner):
         """Test that CLI handles invalid input gracefully."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Click validates path exists, so this will fail at Click level
-            click_result = runner.invoke(
-                convert_table_cmd,
-                ["-i", "/nonexistent/file.nml", "-o", str(Path(tmpdir) / "output.yml")],
+            result = self.run_suews_convert(
+                cli_runner,
+                "-i",
+                "/nonexistent/file.nml",
+                "-o",
+                str(Path(tmpdir) / "output.yml"),
             )
-            assert click_result.exit_code != 0
-            combined = click_result.output or ""
+            assert result.returncode != 0
+            combined = result.stdout + result.stderr
             assert (
                 "Error" in combined
                 or "not found" in combined.lower()
@@ -122,7 +95,7 @@ class TestCLIConversion:
         not (Path(__file__).parent.parent / "fixtures/data_test/AVL_1_LDN1").exists(),
         reason="Single-layer test data not available",
     )
-    def test_single_layer_end_to_end(self, runner, test_data_dir):
+    def test_single_layer_end_to_end(self, cli_runner, test_data_dir):
         """End-to-end test: nlayer=1 conversion → load → simulate.
 
         Replaces:
@@ -148,7 +121,7 @@ class TestCLIConversion:
 
             # Convert NML → YAML (in-process)
             result = self.run_suews_convert(
-                runner, "-i", str(input_file), "-o", str(output_file)
+                cli_runner, "-i", str(input_file), "-o", str(output_file)
             )
             assert result.returncode == 0, f"Conversion failed: {result.stderr}"
             assert output_file.exists()
@@ -179,7 +152,7 @@ class TestCLIConversion:
         not (Path(__file__).parent.parent / "fixtures/data_test/AVL_6_310").exists(),
         reason="Multi-layer test data not available",
     )
-    def test_multi_layer_end_to_end(self, runner, test_data_dir):
+    def test_multi_layer_end_to_end(self, cli_runner, test_data_dir):
         """End-to-end test: nlayer=7 conversion → load → simulate.
 
         Replaces:
@@ -207,7 +180,7 @@ class TestCLIConversion:
 
             # Convert NML → YAML (in-process, auto-detects version)
             result = self.run_suews_convert(
-                runner, "-i", str(input_file), "-o", str(output_file)
+                cli_runner, "-i", str(input_file), "-o", str(output_file)
             )
             assert result.returncode == 0, f"Conversion failed: {result.stderr}"
             assert output_file.exists()
@@ -241,7 +214,7 @@ class TestCLIConversion:
 
     @pytest.mark.skipif(not SUPY_AVAILABLE, reason="SuPy not available")
     @pytest.mark.parametrize("version", ["2020a", "2019a", "2018a"])
-    def test_legacy_version_auto_detection(self, runner, version, legacy_format_dir):
+    def test_legacy_version_auto_detection(self, cli_runner, version, legacy_format_dir):
         """Test auto-detection of legacy table versions."""
         test_dir = legacy_format_dir / version
         if not test_dir.exists():
@@ -256,6 +229,6 @@ class TestCLIConversion:
                 pytest.skip(f"No RunControl.nml found for {version}")
 
             result = self.run_suews_convert(
-                runner, "-i", str(nml_files[0]), "-o", str(output_file)
+                cli_runner, "-i", str(nml_files[0]), "-o", str(output_file)
             )
             assert result.returncode == 0

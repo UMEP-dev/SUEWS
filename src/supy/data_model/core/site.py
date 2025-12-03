@@ -1585,6 +1585,8 @@ class ArchetypeProperties(BaseModel):
     InternalMassEmissivity: FlexibleRefValue(float) = Field(
         default=0.0,
         description="Emissivity of internal mass [-]",
+        ge=0.0,
+        le=1.0,
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Internalmassemissivity",

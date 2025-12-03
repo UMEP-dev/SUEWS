@@ -170,14 +170,32 @@
       "description": "Urban morphology and archetype properties.",
       "properties": {
         "BuildingType": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": "SampleType",
-          "title": "Buildingtype",
-          "type": "string"
+          "description": "Building archetype type [-]",
+          "display_name": "Buildingtype",
+          "title": "Buildingtype"
         },
         "BuildingName": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": "SampleBuilding",
-          "title": "Buildingname",
-          "type": "string"
+          "description": "Building archetype name [-]",
+          "display_name": "Buildingname",
+          "title": "Buildingname"
         },
         "BuildingCount": {
           "anyOf": [
@@ -186,6 +204,9 @@
             },
             {
               "type": "integer"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 1,
@@ -201,6 +222,9 @@
             },
             {
               "type": "integer"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 1,
@@ -212,751 +236,1073 @@
         "stebbs_Height": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 10.0,
           "description": "Building height [m]",
           "display_name": "Stebbs Height",
-          "gt": 0.0,
           "title": "Stebbs Height",
           "unit": "m"
         },
         "FootprintArea": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 64.0,
           "description": "Building footprint area [m2]",
           "display_name": "Footprintarea",
-          "gt": 0.0,
           "title": "Footprintarea",
           "unit": "m^2"
         },
         "WallExternalArea": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 80.0,
           "description": "External wall area (including window area) [m2]",
           "display_name": "Wallexternalarea",
-          "gt": 0.0,
           "title": "Wallexternalarea",
           "unit": "m^2"
         },
         "RatioInternalVolume": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.01,
           "description": "Ratio of internal mass volume to total building volume [-]",
           "display_name": "Ratiointernalvolume",
-          "ge": 0.0,
-          "le": 1.0,
           "title": "Ratiointernalvolume",
           "unit": "dimensionless"
         },
         "WWR": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.2,
           "description": "window to wall ratio [-]",
           "display_name": "Wwr",
-          "ge": 0.0,
-          "le": 1.0,
           "title": "Wwr",
           "unit": "dimensionless"
         },
         "WallThickness": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.2,
           "description": "Thickness of external wall [m]",
           "display_name": "Wallthickness",
-          "gt": 0.0,
           "title": "Wallthickness",
           "unit": "m"
         },
         "WallEffectiveConductivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.6,
           "description": "Effective thermal conductivity of walls [W m-1 K-1]",
           "display_name": "Walleffectiveconductivity",
-          "gt": 0.0,
           "title": "Walleffectiveconductivity",
           "unit": "W m^-1 K^-1"
         },
         "WallDensity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 1600.0,
           "description": "Effective density of the walls [kg m-3]",
           "display_name": "Walldensity",
-          "gt": 0.0,
           "title": "Walldensity",
           "unit": "kg m^-3"
         },
         "WallCp": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 850.0,
           "description": "Effective specific heat capacity of walls [J kg-1 K-1]",
-          "gt": 0.0,
           "title": "Wallcp"
         },
         "WallextThickness": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 20.0,
           "description": "Thickness of layers external to insulation in external wall [m]",
           "display_name": "Wallextthickness",
-          "gt": 0.0,
           "title": "Wallextthickness",
           "unit": "m"
         },
         "WallextEffectiveConductivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 60.0,
           "description": "Effective thermal conductivity of layers external to insulation in walls [W m-1 K-1]",
           "display_name": "Walleffectiveconductivity",
-          "gt": 0.0,
           "title": "Wallexteffectiveconductivity",
           "unit": "W m^-1 K^-1"
         },
         "WallextDensity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 1600.0,
           "description": "Effective density of layers external to insulation in the walls [kg m-3]",
           "display_name": "Wallextdensity",
-          "gt": 0.0,
           "title": "Wallextdensity",
           "unit": "kg m^-3"
         },
         "WallextCp": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 850.0,
           "description": "Effective specific heat capacity of layers external to insulation in walls [J kg-1 K-1]",
           "display_name": "Wallextcp",
-          "gt": 0.0,
           "title": "Wallextcp",
           "unit": "J kg^-1 K^-1"
         },
-        "Wallx1": {
+        "WallOuterCapFrac": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 1.0,
           "description": "Weighting factor for heat capacity of walls [-]",
-          "display_name": "Wallx1",
-          "ge": 0.0,
-          "le": 1.0,
-          "title": "Wallx1",
+          "display_name": "Walloutercapfrac",
+          "title": "Walloutercapfrac",
           "unit": "dimensionless"
         },
         "WallExternalEmissivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.9,
           "description": "Emissivity of the external surface of walls [-]",
           "display_name": "Wallexternalemissivity",
-          "ge": 0.0,
-          "le": 1.0,
           "title": "Wallexternalemissivity",
           "unit": "dimensionless"
         },
         "WallInternalEmissivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.9,
           "description": "Emissivity of the internal surface of walls [-]",
           "display_name": "Wallinternalemissivity",
-          "ge": 0.0,
-          "le": 1.0,
           "title": "Wallinternalemissivity",
           "unit": "dimensionless"
         },
         "WallTransmissivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.0,
           "description": "Transmissivity of walls [-]",
           "display_name": "Walltransmissivity",
-          "ge": 0.0,
-          "le": 1.0,
           "title": "Walltransmissivity",
           "unit": "dimensionless"
         },
         "WallAbsorbtivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.8,
           "description": "Absorbtivity of walls [-]",
           "display_name": "Wallabsorbtivity",
-          "ge": 0.0,
-          "le": 1.0,
           "title": "Wallabsorbtivity",
           "unit": "dimensionless"
         },
         "WallReflectivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.2,
           "description": "Reflectivity of the external surface of walls [-]",
           "display_name": "Wallreflectivity",
-          "ge": 0.0,
-          "le": 1.0,
           "title": "Wallreflectivity",
           "unit": "dimensionless"
         },
         "RoofThickness": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 20.0,
           "description": "Thickness of roof [m]",
           "display_name": "Roofthickness",
-          "gt": 0.0,
           "title": "Roofthickness",
           "unit": "m"
         },
         "RoofEffectiveConductivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 60.0,
           "description": "Effective thermal conductivity of roof [W m-1 K-1]",
           "display_name": "Roofeffectiveconductivity",
-          "gt": 0.0,
           "title": "Roofeffectiveconductivity",
           "unit": "W m^-1 K^-1"
         },
         "RoofDensity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 1600.0,
           "description": "Effective density of the roof [kg m-3]",
           "display_name": "Roofdensity",
-          "gt": 0.0,
           "title": "Roofdensity",
           "unit": "kg m^-3"
         },
         "RoofCp": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 850.0,
           "description": "Effective specific heat capacity of roof [J kg-1 K-1]",
-          "gt": 0.0,
           "title": "Roofcp"
         },
         "RoofextThickness": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 20.0,
           "description": "Thickness of layers external to insulation in roof [m]",
           "display_name": "Roofextthickness",
-          "gt": 0.0,
           "title": "Roofextthickness",
           "unit": "m"
         },
         "RoofextEffectiveConductivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 60.0,
           "description": "Effective thermal conductivity of layers external to insulation in roof [W m-1 K-1]",
           "display_name": "Roofeffectiveconductivity",
-          "gt": 0.0,
           "title": "Roofexteffectiveconductivity",
           "unit": "W m^-1 K^-1"
         },
         "RoofextDensity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 1600.0,
           "description": "Effective density of layers external to insulation in the roof [kg m-3]",
           "display_name": "Roofextdensity",
-          "gt": 0.0,
           "title": "Roofextdensity",
           "unit": "kg m^-3"
         },
         "RoofextCp": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 850.0,
           "description": "Effective specific heat capacity of layers external to insulation in roof [J kg-1 K-1]",
           "display_name": "Roofextcp",
-          "gt": 0.0,
           "title": "Roofextcp",
           "unit": "J kg^-1 K^-1"
         },
-        "Roofx1": {
+        "RoofOuterCapFrac": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 1.0,
           "description": "Weighting factor for heat capacity of roof [-]",
-          "display_name": "Roofx1",
-          "ge": 0.0,
-          "le": 1.0,
-          "title": "Roofx1",
+          "display_name": "Roofoutercapfrac",
+          "title": "Roofoutercapfrac",
           "unit": "dimensionless"
         },
         "RoofExternalEmissivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.9,
           "description": "Emissivity of the external surface of roof [-]",
           "display_name": "Roofexternalemissivity",
-          "ge": 0.0,
-          "le": 1.0,
           "title": "Roofexternalemissivity",
           "unit": "dimensionless"
         },
         "RoofInternalEmissivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.9,
           "description": "Emissivity of the internal surface of roof [-]",
           "display_name": "Roofinternalemissivity",
-          "ge": 0.0,
-          "le": 1.0,
           "title": "Roofinternalemissivity",
           "unit": "dimensionless"
         },
         "RoofTransmissivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.0,
           "description": "Transmissivity of roof [-]",
           "display_name": "Rooftransmissivity",
-          "ge": 0.0,
-          "le": 1.0,
           "title": "Rooftransmissivity",
           "unit": "dimensionless"
         },
         "RoofAbsorbtivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.8,
           "description": "Absorbtivity of roof [-]",
           "display_name": "Roofabsorbtivity",
-          "ge": 0.0,
-          "le": 1.0,
           "title": "Roofabsorbtivity",
           "unit": "dimensionless"
         },
         "RoofReflectivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.2,
           "description": "Reflectivity of the external surface of roof [-]",
           "display_name": "RoofReflectivity",
-          "ge": 0.0,
-          "le": 1.0,
           "title": "Roofreflectivity",
           "unit": "dimensionless"
         },
         "FloorThickness": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.2,
           "description": "Thickness of ground floor [m]",
           "display_name": "Floorthickness",
-          "gt": 0.0,
           "title": "Floorthickness",
           "unit": "m"
         },
         "GroundFloorEffectiveConductivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.15,
           "description": "Effective thermal conductivity of ground floor [W m-1 K-1]",
           "display_name": "Groundflooreffectiveconductivity",
-          "gt": 0.0,
           "title": "Groundflooreffectiveconductivity",
           "unit": "W m^-1 K^-1"
         },
         "GroundFloorDensity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 500.0,
-          "description": "Density of the ground floor [kg m-3]",
+          "description": "Effective density of the ground floor [kg m-3]",
           "display_name": "Groundfloordensity",
-          "gt": 0.0,
           "title": "Groundfloordensity",
           "unit": "kg m^-3"
         },
         "GroundFloorCp": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 1500.0,
           "description": "Effective specific heat capacity of the ground floor [J kg-1 K-1]",
           "display_name": "Groundfloorcp",
-          "gt": 0.0,
           "title": "Groundfloorcp",
           "unit": "J kg^-1 K^-1"
         },
         "WindowThickness": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.015,
           "description": "Window thickness [m]",
           "display_name": "Windowthickness",
-          "gt": 0.0,
           "title": "Windowthickness",
           "unit": "m"
         },
         "WindowEffectiveConductivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 1.0,
           "description": "Effective thermal conductivity of windows [W m-1 K-1]",
           "display_name": "Windoweffectiveconductivity",
-          "gt": 0.0,
           "title": "Windoweffectiveconductivity",
           "unit": "W m^-1 K^-1"
         },
         "WindowDensity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 2500.0,
           "description": "Effective density of the windows [kg m-3]",
           "display_name": "Windowdensity",
-          "gt": 0.0,
           "title": "Windowdensity",
           "unit": "kg m^-3"
         },
         "WindowCp": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 840.0,
           "description": "Effective specific heat capacity of windows [J kg-1 K-1]",
           "display_name": "Windowcp",
-          "gt": 0.0,
           "title": "Windowcp",
           "unit": "J kg^-1 K^-1"
         },
         "WindowExternalEmissivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.9,
           "description": "Emissivity of the external surface of windows [-]",
           "display_name": "Windowexternalemissivity",
-          "ge": 0.0,
-          "le": 1.0,
           "title": "Windowexternalemissivity",
           "unit": "dimensionless"
         },
         "WindowInternalEmissivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.9,
           "description": "Emissivity of the internal surface of windows [-]",
           "display_name": "Windowinternalemissivity",
-          "ge": 0.0,
-          "le": 1.0,
           "title": "Windowinternalemissivity",
           "unit": "dimensionless"
         },
         "WindowTransmissivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.9,
           "description": "Transmissivity of windows [-]",
           "display_name": "Windowtransmissivity",
-          "ge": 0.0,
-          "le": 1.0,
           "title": "Windowtransmissivity",
           "unit": "dimensionless"
         },
         "WindowAbsorbtivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.01,
           "description": "Absorbtivity of windows [-]",
           "display_name": "Windowabsorbtivity",
-          "ge": 0.0,
-          "le": 1.0,
           "title": "Windowabsorbtivity",
           "unit": "dimensionless"
         },
         "WindowReflectivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.09,
           "description": "Reflectivity of the external surface of windows [-]",
           "display_name": "Windowreflectivity",
-          "ge": 0.0,
-          "le": 1.0,
           "title": "Windowreflectivity",
           "unit": "dimensionless"
         },
@@ -967,6 +1313,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.0,
@@ -982,10 +1331,13 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.0,
-          "description": "Specific heat capacity of internal mass [J kg-1 K-1]",
+          "description": "Effective specific heat capacity of internal mass [J kg-1 K-1]",
           "display_name": "Internalmasscp",
           "title": "Internalmasscp",
           "unit": "J kg^-1 K^-1"
@@ -993,10 +1345,19 @@
         "InternalMassEmissivity": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0,
+              "le": 1.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.0,
@@ -1008,48 +1369,69 @@
         "MaxHeatingPower": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.0,
           "description": "Maximum power demand of heating system [W]",
           "display_name": "Maxheatingpower",
-          "ge": 0.0,
           "title": "Maxheatingpower",
           "unit": "W"
         },
         "WaterTankWaterVolume": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 0.15,
           "description": "Volume of water in hot water tank [m3]",
           "display_name": "Watertankwatervolume",
-          "gt": 0.0,
           "title": "Watertankwatervolume",
           "unit": "m^3"
         },
         "MaximumHotWaterHeatingPower": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
             },
             {
-              "type": "number"
+              "type": "null"
             }
           ],
           "default": 3000.0,
           "description": "Maximum power demand of water heating system [W]",
           "display_name": "Maximumhotwaterheatingpower",
-          "gt": 0.0,
           "title": "Maximumhotwaterheatingpower",
           "unit": "W"
         },
@@ -1060,6 +1442,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.0,
@@ -1075,6 +1460,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.0,
@@ -1811,7 +2199,14 @@
           "unit": "J km^-1"
         },
         "fcef_v_kgkm": {
-          "$ref": "#/$defs/DayProfile",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DayProfile"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Fuel consumption efficiency for vehicles",
           "display_name": "Fuel Carbon Emission Factor Vehicles"
         },
@@ -1936,7 +2331,14 @@
           "unit": "W m^-2"
         },
         "trafficrate": {
-          "$ref": "#/$defs/DayProfile",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DayProfile"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Traffic rate",
           "display_name": "Traffic Rate"
         },
@@ -1959,12 +2361,26 @@
           "unit": "vehicle km ha^-1"
         },
         "traffprof_24hr": {
-          "$ref": "#/$defs/HourlyProfile",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HourlyProfile"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "24-hour profile of traffic rate",
           "display_name": "Traffic Profile (24hr)"
         },
         "humactivity_24hr": {
-          "$ref": "#/$defs/HourlyProfile",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HourlyProfile"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "24-hour profile of human activity",
           "display_name": "Human Activity Profile (24hr)"
         },
@@ -2207,16 +2623,30 @@
       "description": "Daily values that can vary by day of year.",
       "properties": {
         "working_day": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 1.0,
           "display_name": "Working Day",
-          "title": "Working Day",
-          "type": "number"
+          "title": "Working Day"
         },
         "holiday": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.0,
           "display_name": "Holiday",
-          "title": "Holiday",
-          "type": "number"
+          "title": "Holiday"
         },
         "ref": {
           "anyOf": [
@@ -2593,6 +3023,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.7,
@@ -2626,6 +3059,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.9,
@@ -2710,6 +3146,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.1,
@@ -3229,6 +3668,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.7,
@@ -3262,6 +3704,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.9,
@@ -3346,6 +3791,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.1,
@@ -3806,6 +4254,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.7,
@@ -3839,6 +4290,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.9,
@@ -3923,6 +4377,9 @@
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 0.1,
@@ -4100,18 +4557,46 @@
       "description": "24-hour profile for diurnal variations.",
       "properties": {
         "working_day": {
-          "additionalProperties": {
-            "type": "number"
-          },
-          "title": "Working Day",
-          "type": "object"
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Working Day"
         },
         "holiday": {
-          "additionalProperties": {
-            "type": "number"
-          },
-          "title": "Holiday",
-          "type": "object"
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Holiday"
         },
         "ref": {
           "anyOf": [
@@ -4819,6 +5304,8 @@
           "default": 0.25,
           "description": "Albedo at the start of the model run.",
           "display_name": "Alb Id",
+          "ge": 0.0,
+          "le": 1.0,
           "title": "Alb Id",
           "unit": "dimensionless"
         },
@@ -5143,6 +5630,8 @@
           "default": 0.25,
           "description": "Albedo at the start of the model run.",
           "display_name": "Alb Id",
+          "ge": 0.0,
+          "le": 1.0,
           "title": "Alb Id",
           "unit": "dimensionless"
         },
@@ -5434,6 +5923,8 @@
           "default": 0.25,
           "description": "Albedo at the start of the model run.",
           "display_name": "Alb Id",
+          "ge": 0.0,
+          "le": 1.0,
           "title": "Alb Id",
           "unit": "dimensionless"
         },
@@ -8532,10 +9023,15 @@
         "roof_albedo_dir_mult_fact": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0
             },
             {
               "type": "null"
@@ -8635,6 +9131,8 @@
           "default": 0.5,
           "description": "Air single scattering albedo for longwave radiation",
           "display_name": "Air Ssa Lw",
+          "ge": 0.0,
+          "le": 1.0,
           "title": "Air Ssa Lw",
           "unit": "dimensionless"
         },
@@ -8650,6 +9148,8 @@
           "default": 0.5,
           "description": "Air single scattering albedo for shortwave radiation",
           "display_name": "Air Ssa Sw",
+          "ge": 0.0,
+          "le": 1.0,
           "title": "Air Ssa Sw",
           "unit": "dimensionless"
         },
@@ -8665,6 +9165,7 @@
           "default": 1.0,
           "description": "Multiplication factor for direct ground albedo",
           "display_name": "Ground Albedo Dir Mult Fact",
+          "ge": 0.0,
           "title": "Ground Albedo Dir Mult Fact",
           "unit": "dimensionless"
         },
@@ -8785,6 +9286,8 @@
           "default": 0.5,
           "description": "Vegetation single scattering albedo for longwave radiation",
           "display_name": "Veg Ssa Lw",
+          "ge": 0.0,
+          "le": 1.0,
           "title": "Veg Ssa Lw",
           "unit": "dimensionless"
         },
@@ -8800,6 +9303,8 @@
           "default": 0.5,
           "description": "Vegetation single scattering albedo for shortwave radiation",
           "display_name": "Veg Ssa Sw",
+          "ge": 0.0,
+          "le": 1.0,
           "title": "Veg Ssa Sw",
           "unit": "dimensionless"
         },
@@ -9174,6 +9679,8 @@
           "default": 0.99,
           "description": "Snow surface emissivity",
           "display_name": "Narp Emis Snow",
+          "ge": 0.0,
+          "le": 1.0,
           "title": "Narp Emis Snow",
           "unit": "dimensionless"
         },
@@ -9207,6 +9714,7 @@
           "default": 0.1,
           "description": "Precipitation threshold for snow albedo aging",
           "display_name": "Preciplimitalb",
+          "ge": 0.0,
           "title": "Preciplimitalb",
           "unit": "mm"
         },
@@ -9656,124 +10164,6 @@
           "title": "Externalgroundconductivity",
           "unit": "W m^-1 K^-1"
         },
-        "IndoorAirDensity": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "gt": 0.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 1.2,
-          "description": "Density of indoor air [kg m-3]",
-          "display_name": "Indoorairdensity",
-          "title": "Indoorairdensity",
-          "unit": "kg m^-3"
-        },
-        "IndoorAirCp": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "gt": 0.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 1005.0,
-          "description": "Specific heat capacity of indoor air [J kg-1 K-1]",
-          "display_name": "Indooraircp",
-          "title": "Indooraircp",
-          "unit": "J kg^-1 K^-1"
-        },
-        "WallBuildingViewFactor": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0,
-              "le": 1.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Building view factor of external walls [-]",
-          "display_name": "Wallbuildingviewfactor",
-          "title": "Wallbuildingviewfactor",
-          "unit": "dimensionless"
-        },
-        "WallGroundViewFactor": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0,
-              "le": 1.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Ground view factor of external walls [-]",
-          "display_name": "Wallgroundviewfactor",
-          "title": "Wallgroundviewfactor",
-          "unit": "dimensionless"
-        },
-        "WallSkyViewFactor": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0,
-              "le": 1.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Sky view factor of external walls [-]",
-          "display_name": "Wallskyviewfactor",
-          "title": "Wallskyviewfactor",
-          "unit": "dimensionless"
-        },
         "MetabolicRate": {
           "anyOf": [
             {
@@ -9983,276 +10373,58 @@
           "title": "Ventilationrate",
           "unit": "h^-1"
         },
-        "OutdoorAirAnnualTemperature": {
+        "InitialOutdoorTemperature": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
             },
             {
               "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0.0,
+          "description": "Initial outdoor temperature [degC]",
+          "display_name": "Initialoutdoortemperature",
+          "title": "Initialoutdoortemperature",
+          "unit": "degC"
+        },
+        "InitialIndoorTemperature": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0.0,
+          "description": "Initial indoor temperature [degC]",
+          "display_name": "Initialindoortemperature",
+          "title": "Initialindoortemperature",
+          "unit": "degC"
+        },
+        "DeepSoilTemperature": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
             }
           ],
           "default": 10.0,
-          "description": "Annual mean air temperature, which can be used as deep soil temperature",
-          "display_name": "Annual mean air temperature",
-          "title": "Outdoorairannualtemperature",
-          "unit": "degC"
-        },
-        "OutdoorAirStartTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial outdoor air temperature [degC]",
-          "display_name": "Outdoorairstarttemperature",
-          "title": "Outdoorairstarttemperature",
-          "unit": "degC"
-        },
-        "IndoorAirStartTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial indoor air temperature [degC]",
-          "display_name": "Indoorairstarttemperature",
-          "title": "Indoorairstarttemperature",
-          "unit": "degC"
-        },
-        "IndoorMassStartTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial indoor mass temperature [degC]",
-          "display_name": "Indoormassstarttemperature",
-          "title": "Indoormassstarttemperature",
-          "unit": "degC"
-        },
-        "WallIndoorSurfaceTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial wall indoor surface temperature [degC]",
-          "display_name": "Wallindoorsurfacetemperature",
-          "title": "Wallindoorsurfacetemperature",
-          "unit": "degC"
-        },
-        "WallOutdoorSurfaceTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial wall outdoor surface temperature [degC]",
-          "display_name": "Walloutdoorsurfacetemperature",
-          "title": "Walloutdoorsurfacetemperature",
-          "unit": "degC"
-        },
-        "RoofIndoorSurfaceTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial roof indoor surface temperature [degC]",
-          "display_name": "Roofindoorsurfacetemperature",
-          "title": "Roofindoorsurfacetemperature",
-          "unit": "degC"
-        },
-        "RoofOutdoorSurfaceTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial roof outdoor surface temperature [degC]",
-          "display_name": "Roofoutdoorsurfacetemperature",
-          "title": "Roofoutdoorsurfacetemperature",
-          "unit": "degC"
-        },
-        "WindowIndoorSurfaceTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial window indoor surface temperature [degC]",
-          "display_name": "Windowindoorsurfacetemperature",
-          "title": "Windowindoorsurfacetemperature",
-          "unit": "degC"
-        },
-        "WindowOutdoorSurfaceTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial window outdoor surface temperature [degC]",
-          "display_name": "Windowoutdoorsurfacetemperature",
-          "title": "Windowoutdoorsurfacetemperature",
-          "unit": "degC"
-        },
-        "GroundFloorIndoorSurfaceTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial ground floor indoor surface temperature [degC]",
-          "display_name": "Groundfloorindoorsurfacetemperature",
-          "title": "Groundfloorindoorsurfacetemperature",
-          "unit": "degC"
-        },
-        "GroundFloorOutdoorSurfaceTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial ground floor outdoor surface temperature [degC]",
-          "display_name": "Groundflooroutdoorsurfacetemperature",
-          "title": "Groundflooroutdoorsurfacetemperature",
-          "unit": "degC"
-        },
-        "WaterTankTemperature": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "gt": 0.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 50.0,
-          "description": "Initial water temperature in hot water tank [degC]",
-          "display_name": "Watertanktemperature",
-          "title": "Watertanktemperature",
-          "unit": "degC"
-        },
-        "InternalWallWaterTankTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial hot water tank internal wall temperature [degC]",
-          "display_name": "Internalwallwatertanktemperature",
-          "title": "Internalwallwatertanktemperature",
-          "unit": "degC"
-        },
-        "ExternalWallWaterTankTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial hot water tank external wall temperature [degC]",
-          "display_name": "Externalwallwatertanktemperature",
-          "title": "Externalwallwatertanktemperature",
+          "description": "Initial deep soil temperature [degC]",
+          "display_name": "Deepsoiltemperature",
+          "title": "Deepsoiltemperature",
           "unit": "degC"
         },
         "WaterTankWallThickness": {
@@ -10361,65 +10533,6 @@
           "title": "Hotwatertankwallemissivity",
           "unit": "dimensionless"
         },
-        "DomesticHotWaterTemperatureInUseInBuilding": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "gt": 0.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 40.0,
-          "description": "Initial water temperature of water held in use in building [degC]",
-          "display_name": "Domestichotwatertemperatureinuseinbuilding",
-          "title": "Domestichotwatertemperatureinuseinbuilding",
-          "unit": "degC"
-        },
-        "InternalWallDHWVesselTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial hot water vessel internal wall temperature [degC]",
-          "display_name": "Internalwalldhwvesseltemperature",
-          "title": "Internalwalldhwvesseltemperature",
-          "unit": "degC"
-        },
-        "ExternalWallDHWVesselTemperature": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Initial hot water vessel external wall temperature [degC]",
-          "display_name": "Externalwalldhwvesseltemperature",
-          "title": "Externalwalldhwvesseltemperature",
-          "unit": "degC"
-        },
         "DHWVesselWallThickness": {
           "anyOf": [
             {
@@ -10490,30 +10603,6 @@
           "display_name": "Dhwsurfacearea",
           "title": "Dhwsurfacearea",
           "unit": "m^2"
-        },
-        "DHWVesselEmissivity": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0,
-              "le": 1.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "NEEDS CHECKED! NOT USED (assumed same as DHWVesselWallEmissivity) [-]",
-          "display_name": "Dhwvesselemissivity",
-          "title": "Dhwvesselemissivity",
-          "unit": "dimensionless"
         },
         "HotWaterFlowRate": {
           "anyOf": [
@@ -10602,7 +10691,7 @@
             }
           ],
           "default": 500.0,
-          "description": "Specific heat capacity of hot water tank wal [J kg-1 K-1]",
+          "description": "Specific heat capacity of hot water tank wall [J kg-1 K-1]",
           "display_name": "Hotwatertankspecificheatcapacity",
           "title": "Hotwatertankspecificheatcapacity",
           "unit": "J kg^-1 K^-1"
@@ -10876,7 +10965,7 @@
                   "type": "number"
                 }
               ],
-              "gt": 0.0,
+              "ge": 0.0,
               "le": 1.0
             },
             {
@@ -11724,10 +11813,15 @@
         "roof_albedo_dir_mult_fact": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
-            },
-            {
-              "type": "number"
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0.0
             },
             {
               "type": "null"
@@ -12412,39 +12506,88 @@
       "description": "Weekly pattern for 7-day variations.",
       "properties": {
         "monday": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.0,
-          "title": "Monday",
-          "type": "number"
+          "title": "Monday"
         },
         "tuesday": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.0,
-          "title": "Tuesday",
-          "type": "number"
+          "title": "Tuesday"
         },
         "wednesday": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.0,
-          "title": "Wednesday",
-          "type": "number"
+          "title": "Wednesday"
         },
         "thursday": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.0,
-          "title": "Thursday",
-          "type": "number"
+          "title": "Thursday"
         },
         "friday": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.0,
-          "title": "Friday",
-          "type": "number"
+          "title": "Friday"
         },
         "saturday": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.0,
-          "title": "Saturday",
-          "type": "number"
+          "title": "Saturday"
         },
         "sunday": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.0,
-          "title": "Sunday",
-          "type": "number"
+          "title": "Sunday"
         },
         "ref": {
           "anyOf": [

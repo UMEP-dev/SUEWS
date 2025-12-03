@@ -108,7 +108,11 @@ class TestCLIConversion:
             )
             assert click_result.exit_code != 0
             combined = click_result.output or ""
-            assert "Error" in combined or "not found" in combined.lower() or "does not exist" in combined.lower()
+            assert (
+                "Error" in combined
+                or "not found" in combined.lower()
+                or "does not exist" in combined.lower()
+            )
 
     # ========== END-TO-END SIMULATION TESTS ==========
     # These replace redundant conversion/validation tests

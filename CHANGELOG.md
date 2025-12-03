@@ -33,6 +33,11 @@
 
 ## 2025
 
+### 3 Dec 2025
+- [feat] Improved albedos ranges (ge=0.0 and le=1.0) in Field of Pydantic classes for alb_id, air_ssa_lw, air_ssa_sw, veg_ssa_lw, veg_ssa_sw (PR #978)
+- [feat] Improved ranges (ge=0.0) in Field of Pydantic classes for preciplimitalb, roof_albedo_dir_mult_fact, and ground_albedo_dir_mult_fact. (PR #978)
+- [feat] Improved emissivities ranges (ge=0.0 and le=1.0) in Field of Pydantic classes for InternalMassEmissivity and narp_emis_snow (PR #979)
+
 ### 2 Dec 2025
 
 - [feature] Disable CO2 site parameters when model.emissionsmethod is 0..4 by nullifying CO2 blocks so Pydantic validation does not fail.

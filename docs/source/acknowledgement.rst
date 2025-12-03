@@ -132,6 +132,10 @@ Dependency Libraries
     - netCDF output for QGIS-compliant grid layout
   * - `Fortran Strings Module by Dr George Benthien <http://gbenthien.net/strings/str-index.html>`_
     - string processing
+  * - `f90wrap <https://github.com/jameskermode/f90wrap>`_ by Dr James Kermode
+    - Fortran to Python interface generator with derived type support; used to generate SuPy bindings (LGPL-3.0)
+  * - `SPARTACUS-Surface <https://github.com/ecmwf/spartacus-surface>`_
+    - 3D radiative transfer for urban canopy; used for radiation calculations in complex urban geometry
 
 
 Funding

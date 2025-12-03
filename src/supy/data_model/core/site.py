@@ -2187,6 +2187,7 @@ class SPARTACUSParams(BaseModel):
     ground_albedo_dir_mult_fact: FlexibleRefValue(float) = Field(
         default=1.0,
         description="Multiplication factor for direct ground albedo",
+        ge=0.0,
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Ground Albedo Dir Mult Fact",

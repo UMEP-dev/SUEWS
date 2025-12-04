@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-import pandas as pd
 import pytest
 
 try:
@@ -427,26 +426,35 @@ class TestRun:
         # Create simulation from sample data
         sim = SUEWSSimulation.from_sample_data()
 
-        # Note the full forcing range
+        # Note the full forcing range and resolution
         full_forcing_start = sim._df_forcing.index.min()
-        full_forcing_end = sim._df_forcing.index.max()
+        full_forcing_len = len(sim._df_forcing)
+
+        # Determine the forcing timestep resolution (in minutes)
+        timestep_minutes = (
+            sim._df_forcing.index[1] - sim._df_forcing.index[0]
+        ).total_seconds() / 60
+
+        # Calculate expected timesteps for one day based on actual resolution
+        # (24 hours * 60 minutes / timestep_minutes)
+        expected_timesteps_per_day = int(24 * 60 / timestep_minutes)
 
         # Set a narrow date range via config (just first day of forcing)
-        # Both start and end should be the same date for a single day
-        config_date = str(full_forcing_start.date())  # e.g., '2012-01-01'
+        config_start = str(full_forcing_start.date())  # e.g., '2012-01-01'
+        config_end = str(full_forcing_start.date())
 
         sim.update_config({
             "model": {
                 "control": {
-                    "start_time": config_date,
-                    "end_time": config_date,
+                    "start_time": config_start,
+                    "end_time": config_end,
                 }
             }
         })
 
         # Verify config was updated
-        assert sim._config.model.control.start_time == config_date
-        assert sim._config.model.control.end_time == config_date
+        assert sim._config.model.control.start_time == config_start
+        assert sim._config.model.control.end_time == config_end
 
         # Run WITHOUT passing start_date/end_date arguments
         # Should use config values as fallback
@@ -456,11 +464,13 @@ class TestRun:
         assert results is not None
         assert len(results) > 0
 
-        # Results should be much smaller than full forcing (105408 timesteps)
-        # For one day at 5-min resolution: ~287 timesteps (starts at 00:05, ends at 23:55)
-        assert len(results) < 300, (
-            f"Expected ~287 timesteps for 1 day, got {len(results)}. "
-            "Config date range not being respected (full forcing has 105408 timesteps)."
+        # Results should be approximately one day of timesteps, with small tolerance
+        # for edge effects (first/last timestep handling)
+        tolerance = 5
+        assert len(results) <= expected_timesteps_per_day + tolerance, (
+            f"Expected ~{expected_timesteps_per_day} timesteps for 1 day "
+            f"(at {timestep_minutes}-min resolution), got {len(results)}. "
+            f"Config date range not being respected (full forcing has {full_forcing_len})."
         )
 
         # Verify the results are within the configured date

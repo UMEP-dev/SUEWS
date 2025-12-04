@@ -418,152 +418,8 @@ jobs:
           test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
           is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
 
-  # Build documentation and deploy preview to GitHub Pages
-  # Runs in PARALLEL with build_wheels and build_umep (only needs detect-changes)
-  build_docs:
-    name: Build documentation
-    runs-on: ubuntu-latest
-    needs: [detect-changes]
-    # Run for PRs with docs changes, skip for other events
-    if: |
-      always() &&
-      needs.detect-changes.result == 'success' &&
-      needs.detect-changes.outputs.docs-changed == 'true'
-
-    # Serialise Pages deployments to avoid race conditions
-    # (multiple PRs deploying simultaneously could conflict)
-    concurrency:
-      group: pages-deploy
-      cancel-in-progress: false
-
-    # Required for GitHub Pages deployment
-    permissions:
-      pages: write
-      id-token: write
-      pull-requests: write
-
-    environment:
-      name: github-pages-preview
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: recursive
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gfortran pandoc
-
-      - name: Install package with dev dependencies
-        # IMPORTANT: Do NOT use -e (editable) here. Meson-python editable installs
-        # store references to temporary build paths that become stale in CI.
-        # A normal install builds a wheel properly and avoids this issue.
-        run: uv pip install --system ".[dev]"
-
-      - name: Generate RST from data models
-        run: cd docs && make generate-rst
-
-      - name: Build documentation
-        run: cd docs && make html
-
-      - name: Upload docs artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: docs-html
-          path: docs/build/html/
-          retention-days: 7
-
-      # GitHub Pages Preview (PR only)
-      - name: Configure Pages
-        if: github.event_name == 'pull_request'
-        uses: actions/configure-pages@v5
-
-      - name: Prepare Pages preview
-        if: github.event_name == 'pull_request'
-        run: |
-          mkdir -p _site
-
-          # Fetch existing content from production site to preserve (schemas, other previews)
-          # GitHub Pages deploys replace the entire site, so we must preserve existing content
-          # Use timeout to avoid hanging if site is unavailable
-          echo "Fetching existing GitHub Pages content..."
-          if timeout 60 wget -q -r -np -nH -P _site \
-               --reject "index.html*" \
-               https://suews.io/ 2>&1; then
-            echo "✓ Fetched existing site content"
-          else
-            echo "⚠ Could not fetch existing content (site may be empty or unavailable)"
-            echo "  Proceeding with preview-only deployment"
-          fi
-
-          # Add docs preview to subdirectory
-          PR_DIR="preview/pr-${{ github.event.pull_request.number }}/docs"
-          mkdir -p "_site/${PR_DIR}"
-          cp -r docs/build/html/* "_site/${PR_DIR}/"
-          touch _site/.nojekyll
-
-          echo "✓ Preview prepared at /${PR_DIR}/"
-
-      - name: Upload Pages artifact
-        if: github.event_name == 'pull_request'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-
-      - name: Deploy to GitHub Pages
-        if: github.event_name == 'pull_request'
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Comment preview URL
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const prNumber = context.issue.number;
-            const previewUrl = `https://suews.io/preview/pr-${prNumber}/docs/`;
-            const rtdUrl = 'https://docs.suews.io';
-
-            // Check for existing bot comment
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber
-            });
-
-            const botComment = comments.data.find(c =>
-              c.user.type === 'Bot' && c.body.includes('Documentation Preview')
-            );
-
-            const body = '## Documentation Preview\n\nPreview URL: ' + previewUrl + '\n\nThis is a PR preview. Production docs remain at ' + rtdUrl;
-
-            if (botComment) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                body
-              });
-            }
+  # NOTE: Documentation preview deployment moved to pages-deploy.yml
+  # This consolidates all GitHub Pages content (site, schemas, docs) in one workflow
 
   # PR gate: single consolidated check for branch protection
   # This job ALWAYS runs for PRs and merge queue and reports pass/fail based on build results
@@ -572,7 +428,7 @@ jobs:
     runs-on: ubuntu-latest
     # Only run for pull requests and merge queue, but ALWAYS run (even if builds skip)
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
-    needs: [build_wheels, build_umep, build_docs, detect-changes]
+    needs: [build_wheels, build_umep, detect-changes]
     steps:
       - name: Check build results
         run: |
@@ -580,9 +436,7 @@ jobs:
           echo "detect-changes: ${{ needs.detect-changes.result }}"
           echo "build_wheels: ${{ needs.build_wheels.result }}"
           echo "build_umep: ${{ needs.build_umep.result }}"
-          echo "build_docs: ${{ needs.build_docs.result }}"
           echo "needs-build: ${{ needs.detect-changes.outputs.needs-build }}"
-          echo "docs-changed: ${{ needs.detect-changes.outputs.docs-changed }}"
           echo ""
 
           # STEP 1: Verify detect-changes succeeded
@@ -595,9 +449,8 @@ jobs:
           # Track validation status
           VALIDATION_PASSED=true
 
-          # STEP 2: Check if code changes require builds
+          # Check if code changes require builds
           NEEDS_BUILD="${{ needs.detect-changes.outputs.needs-build }}"
-          DOCS_CHANGED="${{ needs.detect-changes.outputs.docs-changed }}"
 
           if [[ "$NEEDS_BUILD" == "true" ]]; then
             # Code changes detected - builds must run and pass
@@ -635,25 +488,7 @@ jobs:
             fi
           fi
 
-          # STEP 3: Check if docs changes require docs build
-          if [[ "$DOCS_CHANGED" == "true" ]]; then
-            echo ""
-            echo "Docs changes detected - validating docs build..."
-
-            if [[ "${{ needs.build_docs.result }}" == "success" ]]; then
-              echo "✓ Docs build passed"
-            else
-              echo "✗ Docs build failed or incomplete"
-              echo "  build_docs: ${{ needs.build_docs.result }}"
-              VALIDATION_PASSED=false
-            fi
-          else
-            echo ""
-            echo "No docs changes - docs build not required"
-            if [[ "${{ needs.build_docs.result }}" == "skipped" ]]; then
-              echo "✓ Docs build correctly skipped"
-            fi
-          fi
+          # NOTE: Docs build validation moved to pages-deploy.yml
 
           # Final result
           echo ""

@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="512" height="512">
-    <g transform="translate(175, 120) scale(0.3173828125)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 565.8333129882812 250" width="452.66665039062497" height="200">
+    <g transform="translate(0, 25) scale(0.09765625)">
   <!-- ========== SUN ========== -->
   <circle id="sun-outer" cx="620" cy="560" r="320" fill="#F7B538"></circle>
   <circle id="sun-inner" cx="620" cy="560" r="200" fill="#E85D04"></circle>
@@ -14,11 +14,10 @@
   <!-- ========== WAVE ========== -->
   <path id="wave" fill="#0558a5" d="M624 1557h26q20 0 39 5l10 1 33 9 11 3a200 200 0 0 1 40 15l15 7 3 1 56 27v2l3 1 9 4 3 2 3 2 4 1 38 22 18 10 13 7a1153 1153 0 0 0 134 57l33 10v2l-46 7h-35q-25 0-50-3h-3q-47-6-91-23l-5-2-20-8-3-1-6-3-5-2-53-26a470 470 0 0 0-132-46q-47-7-93 2l-4 1q-38 7-74 24l-5 1v2l-3 1q-19 8-35 18l-5 3-30 19-38 29q-6 7-15 10l-3 1q-14 4-29-2-16-9-22-26-3-19 8-35l17-15 2-1a553 553 0 0 1 155-89l2-1 33-10 3-1a288 288 0 0 1 56-10q19-3 38-2"></path>
 </g>
-    <text x="500" y="873.6"
+    <text x="205" y="160"
           font-family="Inter, system-ui, -apple-system, sans-serif"
-          font-size="117"
+          font-size="100"
           font-weight="600"
-          fill="#f8fafc"
-          text-anchor="middle"
-          letter-spacing="-2">SUEWS</text>
+          fill="#1a1a2e"
+          letter-spacing="-1">SUEWS</text>
   </svg>

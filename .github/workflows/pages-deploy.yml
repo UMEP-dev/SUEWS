@@ -188,48 +188,42 @@ jobs:
               mkdir -p "_site/${PR_DIR}/docs"
               cp -r docs-html/* "_site/${PR_DIR}/docs/"
               echo "Docs copied to preview"
-              DOCS_LINK="<div class=\"link-card\"><strong>Documentation</strong><br><a href=\"docs/\">View docs preview</a></div>"
-            else
-              DOCS_LINK=""
             fi
 
-            # Create preview landing page
-            cat > "_site/${PR_DIR}/index.html" << EOF
-          <!DOCTYPE html>
-          <html>
-          <head>
-              <title>SUEWS Preview - PR #${PR_NUM}</title>
-              <meta charset="utf-8">
-              <style>
-                  body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 2em; }
-                  .warning { background: #ffeb3b; color: #333; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
-                  a { color: #0066cc; text-decoration: none; }
-                  a:hover { text-decoration: underline; }
-                  .links { display: flex; flex-direction: column; gap: 1em; }
-                  .link-card { padding: 1em; border: 1px solid #ddd; border-radius: 8px; }
-              </style>
-          </head>
-          <body>
-              <div class="warning">
-                  <h2>Preview - PR #${PR_NUM}</h2>
-                  <p>This is a preview deployment. Do not use these URLs in production.</p>
-                  <p><a href="../../">Back to production site</a></p>
-              </div>
-              <h1>SUEWS PR Preview</h1>
-              <div class="links">
-                  <div class="link-card">
-                      <strong>Brand Assets</strong><br>
-                      <a href="brand/">View brand workshop</a>
-                  </div>
-                  <div class="link-card">
-                      <strong>Schema Registry</strong><br>
-                      <a href="schemas/suews-config/">View schemas</a>
-                  </div>
-                  ${DOCS_LINK}
-              </div>
-          </body>
-          </html>
-          EOF
+            # Rewrite absolute paths for preview context
+            # /brand/ → /preview/pr-N/brand/ so links work within preview
+            echo "Rewriting absolute paths for preview..."
+            find "_site/${PR_DIR}" -name "*.html" -type f | while read -r f; do
+              sed -i "s|href=\"/brand/|href=\"/preview/pr-${PR_NUM}/brand/|g" "$f"
+              sed -i "s|href=\"/\"|href=\"/preview/pr-${PR_NUM}/\"|g" "$f"
+            done
+
+            # Inject preview banner into site pages
+            # Banner is fixed at top with links to production and PR
+            PREVIEW_BANNER='<div id="preview-banner" style="background:linear-gradient(90deg,#ffeb3b,#ffc107);color:#333;padding:10px 20px;text-align:center;font-family:system-ui,-apple-system,sans-serif;font-size:13px;position:fixed;top:0;left:0;right:0;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);"><strong>Preview - PR #'"${PR_NUM}"'</strong> &nbsp;\| <a href="https://suews.io/" style="color:#1565c0;text-decoration:underline;">Production</a> &nbsp;\| <a href="https://github.com/UMEP-dev/SUEWS/pull/'"${PR_NUM}"'" style="color:#1565c0;text-decoration:underline;">View PR</a></div><style>body{padding-top:40px !important;}</style>'
+
+            for page in index.html brand/index.html schemas/suews-config/index.html; do
+              target="_site/${PR_DIR}/${page}"
+              if [ -f "$target" ]; then
+                sed -i "s|<body>|<body>${PREVIEW_BANNER}|g" "$target"
+                sed -i "s|<body |<body>${PREVIEW_BANNER}<body-placeholder |g" "$target"
+                sed -i "s|<body-placeholder |<div |g" "$target"
+                echo "Injected preview banner into ${page}"
+              fi
+            done
+
+            # Inject preview banner into docs pages (if docs were built)
+            if [ "$DOCS_BUILT" = "true" ] && [ -d "_site/${PR_DIR}/docs" ]; then
+              DOCS_BANNER='<div id="preview-banner" style="background:linear-gradient(90deg,#ffeb3b,#ffc107);color:#333;padding:8px 16px;text-align:center;font-family:system-ui,-apple-system,sans-serif;font-size:12px;position:fixed;top:0;left:0;right:0;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);"><strong>Docs Preview - PR #'"${PR_NUM}"'</strong> &nbsp;\| <a href="https://docs.suews.io/" style="color:#1565c0;text-decoration:underline;">Production docs</a> &nbsp;\| <a href="https://github.com/UMEP-dev/SUEWS/pull/'"${PR_NUM}"'" style="color:#1565c0;text-decoration:underline;">View PR</a></div><style>.bd-header{top:32px !important;}.bd-sidebar-primary{top:calc(var(--pst-header-height) + 32px) !important;}</style>'
+
+              echo "Injecting preview banner into docs pages..."
+              find "_site/${PR_DIR}/docs" -name "*.html" -type f | while read -r f; do
+                sed -i "s|<body>|<body>${DOCS_BANNER}|g" "$f"
+                sed -i "s|<body |<body>${DOCS_BANNER}<body-placeholder |g" "$f"
+                sed -i "s|<body-placeholder |<div |g" "$f"
+              done
+              echo "Docs preview banner injected"
+            fi
 
             # Ensure production landing exists
             if [ -f site/index.html ] && [ ! -f _site/index.html ]; then

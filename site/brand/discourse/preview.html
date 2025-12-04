@@ -341,8 +341,6 @@
       font-size: 12px;
       line-height: 1.7;
       color: var(--text-secondary);
-      max-height: 300px;
-      overflow-y: auto;
     }
 
     .info-section {
@@ -404,6 +402,7 @@
 
     .toast.show { transform: translateY(0); opacity: 1; }
     .toast.success { border-left: 4px solid var(--success); }
+    .toast.warning { border-left: 4px solid var(--warning); }
 
     /* Tab Content */
     .tab-content { display: none; }
@@ -477,7 +476,8 @@
   <nav class="tabs">
     <button class="tab active" onclick="switchTab('banner')">Banner</button>
     <button class="tab" onclick="switchTab('stacked')">Stacked Icon</button>
-    <button class="tab" onclick="switchTab('discourse')">Discourse Assets</button>
+    <button class="tab" onclick="switchTab('discourse')">Discourse</button>
+    <button class="tab" onclick="switchTab('github')">GitHub</button>
   </nav>
 
   <main class="main">
@@ -595,80 +595,92 @@
     <aside class="sidebar" id="sidebar-stacked" style="display: none;">
       <div class="panel">
         <div class="panel-header">
-          <span class="panel-title">Quick Actions</span>
+          <span class="panel-title">Canvas</span>
         </div>
-        <div class="presets">
-          <button class="preset-btn" onclick="suggestStackedOptimal()">Auto-Optimise</button>
-          <button class="preset-btn" onclick="applyStackedPreset('512')">512px</button>
-          <button class="preset-btn" onclick="applyStackedPreset('256')">256px</button>
-          <button class="preset-btn" onclick="applyStackedPreset('128')">128px</button>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">Icon Size</span>
-        </div>
-
         <div class="control-group">
           <div class="control-label">
-            <span>Canvas Size</span>
+            <span>Size</span>
             <span class="control-value" id="iconSize-display">512px</span>
           </div>
           <div class="control-row">
             <input type="range" id="iconSize" min="64" max="512" value="512" step="1">
-            <input type="number" id="iconSizeNum" min="64" max="512" value="512" step="0.1">
+            <input type="number" id="iconSizeNum" min="64" max="512" value="512" step="1">
           </div>
         </div>
+        <div class="presets" style="margin-top: 8px;">
+          <button class="preset-btn" onclick="applyStackedPreset('512')">512</button>
+          <button class="preset-btn" onclick="applyStackedPreset('256')">256</button>
+          <button class="preset-btn" onclick="applyStackedPreset('128')">128</button>
+        </div>
+      </div>
 
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Logo</span>
+        </div>
         <div class="control-group">
           <div class="control-label">
-            <span>Fill %</span>
-            <span class="control-value" id="stackFillPercent-display">100%</span>
+            <span>Size (% of canvas)</span>
+            <span class="control-value" id="stackLogoPercent-display">75%</span>
           </div>
           <div class="control-row">
-            <input type="range" id="stackFillPercent" min="80" max="130" value="100" step="1">
-            <input type="number" id="stackFillPercentNum" min="80" max="130" value="100" step="1">
+            <input type="range" id="stackLogoPercent" min="50" max="98" value="75" step="0.5">
+            <input type="number" id="stackLogoPercentNum" min="50" max="98" value="75" step="0.5">
+          </div>
+        </div>
+        <div class="control-group">
+          <div class="control-label">
+            <span>Actual size</span>
+            <span class="control-value" id="logoActualSize-display">384px</span>
           </div>
         </div>
       </div>
 
       <div class="panel">
         <div class="panel-header">
-          <span class="panel-title">Logo & Text</span>
+          <span class="panel-title">Text</span>
         </div>
-
         <div class="control-group">
           <div class="control-label">
-            <span>Logo Size</span>
-            <span class="control-value" id="stackLogoPercent-display">75%</span>
-          </div>
-          <div class="control-row">
-            <input type="range" id="stackLogoPercent" min="50" max="95" value="75" step="0.1">
-            <input type="number" id="stackLogoPercentNum" min="50" max="95" value="75" step="0.1">
-          </div>
-        </div>
-
-        <div class="control-group">
-          <div class="control-label">
-            <span>Text Size</span>
+            <span>Size (px)</span>
             <span class="control-value" id="stackTextSize-display">72px</span>
           </div>
           <div class="control-row">
-            <input type="range" id="stackTextSize" min="20" max="120" value="72" step="0.1">
-            <input type="number" id="stackTextSizeNum" min="20" max="120" value="72" step="0.1">
+            <input type="range" id="stackTextSize" min="20" max="150" value="72" step="1">
+            <input type="number" id="stackTextSizeNum" min="20" max="150" value="72" step="1">
           </div>
         </div>
-
         <div class="control-group">
           <div class="control-label">
-            <span>Text Offset</span>
-            <span class="control-value" id="stackTextOffset-display">-50px</span>
+            <span>Gap (from logo bottom)</span>
+            <span class="control-value" id="stackGap-display">-50px</span>
           </div>
           <div class="control-row">
-            <input type="range" id="stackTextOffset" min="-80" max="20" value="-50" step="0.1">
-            <input type="number" id="stackTextOffsetNum" min="-80" max="20" value="-50" step="0.1">
+            <input type="range" id="stackGap" min="-100" max="50" value="-50" step="1">
+            <input type="number" id="stackGapNum" min="-100" max="50" value="-50" step="1">
           </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Auto Symmetry</span>
+        </div>
+        <div class="btn-group" style="margin-top: 0;">
+          <button class="btn btn-success" onclick="autoSymmetry()">Perfect Symmetry</button>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
+          Calculates exact padding to centre content with equal visual margins (compensating for SVG whitespace)
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Guide Lines</span>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <input type="checkbox" id="showGuides" onchange="toggleGuides()" style="cursor: pointer;">
+            <span style="font-size: 12px; color: var(--text-secondary);">Show</span>
+          </label>
         </div>
       </div>
 
@@ -748,10 +760,24 @@
           <div class="preview-label">Live Preview</div>
           <div class="stacked-preview-grid">
             <div class="stacked-item">
-              <div class="preview-wrapper" style="padding: 8px;">
-                <div id="stacked-icon" style="display: flex; flex-direction: column; align-items: center; justify-content: flex-start; background: #f8fafc;">
+              <div class="preview-wrapper" style="padding: 8px; position: relative;">
+                <div id="stacked-icon" style="display: flex; flex-direction: column; align-items: center; justify-content: flex-start; background: #f8fafc; position: relative;">
                   <img id="stacked-logo" src="../suews-logo.svg" alt="SUEWS">
                   <span id="stacked-text" style="font-family: 'Inter', system-ui, sans-serif; font-weight: 600; color: #1a1d2e; letter-spacing: -0.02em;">SUEWS</span>
+                  <!-- Guide lines overlay -->
+                  <div id="guide-overlay" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none;">
+                    <div id="guide-top" style="position: absolute; left: 0; right: 0; border-top: 1px dashed #ef4444; opacity: 0.8;"></div>
+                    <div id="guide-bottom" style="position: absolute; left: 0; right: 0; border-top: 1px dashed #ef4444; opacity: 0.8;"></div>
+                    <div id="guide-left" style="position: absolute; top: 0; bottom: 0; border-left: 1px dashed #3b82f6; opacity: 0.8;"></div>
+                    <div id="guide-right" style="position: absolute; top: 0; bottom: 0; border-left: 1px dashed #3b82f6; opacity: 0.8;"></div>
+                    <div id="guide-vcenter" style="position: absolute; left: 50%; top: 0; bottom: 0; border-left: 1px dotted #22c55e; opacity: 0.5;"></div>
+                    <div id="guide-hcenter" style="position: absolute; top: 50%; left: 0; right: 0; border-top: 1px dotted #22c55e; opacity: 0.5;"></div>
+                    <!-- Margin labels -->
+                    <div id="margin-top-label" style="position: absolute; left: 50%; transform: translateX(-50%); font-size: 9px; color: #ef4444; background: rgba(255,255,255,0.9); padding: 1px 4px; border-radius: 2px;"></div>
+                    <div id="margin-bottom-label" style="position: absolute; left: 50%; transform: translateX(-50%); font-size: 9px; color: #ef4444; background: rgba(255,255,255,0.9); padding: 1px 4px; border-radius: 2px;"></div>
+                    <div id="margin-left-label" style="position: absolute; top: 50%; transform: translateY(-50%); font-size: 9px; color: #3b82f6; background: rgba(255,255,255,0.9); padding: 1px 4px; border-radius: 2px;"></div>
+                    <div id="margin-right-label" style="position: absolute; top: 50%; transform: translateY(-50%); font-size: 9px; color: #3b82f6; background: rgba(255,255,255,0.9); padding: 1px 4px; border-radius: 2px;"></div>
+                  </div>
                 </div>
               </div>
               <div class="stacked-item-size" id="stacked-size-label">512 x 512</div>
@@ -837,6 +863,53 @@
       </div>
     </aside>
 
+    <!-- GitHub Assets Tab Sidebar -->
+    <aside class="sidebar" id="sidebar-github" style="display: none;">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Required Assets</span>
+        </div>
+        <div class="info-panel" style="background: transparent; padding: 0;">
+          <div class="info-section">
+            <div class="info-title">Repository</div>
+            <div class="info-row"><span>Social Preview</span><span class="info-value">1280 x 640</span></div>
+          </div>
+          <div class="info-section">
+            <div class="info-title">Organisation</div>
+            <div class="info-row"><span>Avatar</span><span class="info-value">500 x 500</span></div>
+          </div>
+          <div class="info-section">
+            <div class="info-title">Documentation (Sphinx)</div>
+            <div class="info-row"><span>Sidebar Logo</span><span class="info-value">200px wide</span></div>
+            <div class="info-row"><span>Favicon</span><span class="info-value">32 x 32</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Quick Export</span>
+        </div>
+        <div class="btn-group" style="margin-top: 0; flex-direction: column;">
+          <button class="btn btn-success" onclick="exportGitHubAll()">Export All GitHub Assets</button>
+        </div>
+        <div class="btn-group" style="flex-direction: column;">
+          <button class="btn btn-primary btn-sm" onclick="exportGitHubSingle('social-preview')">Social Preview</button>
+          <button class="btn btn-primary btn-sm" onclick="exportGitHubSingle('org-avatar')">Org Avatar</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Documentation Assets</span>
+        </div>
+        <div class="btn-group" style="margin-top: 0; flex-wrap: wrap;">
+          <button class="btn btn-secondary btn-sm" onclick="exportGitHubSingle('docs-logo')">Sidebar Logo</button>
+          <button class="btn btn-secondary btn-sm" onclick="exportGitHubSingle('docs-favicon')">Favicon</button>
+        </div>
+      </div>
+    </aside>
+
     <!-- Preview Area - Discourse -->
     <section class="preview-area" id="preview-discourse" style="display: none;">
       <div class="preview-container">
@@ -871,7 +944,7 @@
               <span class="preview-item-label">Logo Small (120px)</span>
               <div class="preview-wrapper" style="padding: 8px;">
                 <div id="discourse-logo-small" style="width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; background: #f8fafc;">
-                  <img src="../suews-logo.svg" style="width: 84px; height: 84px;" alt="SUEWS">
+                  <img src="../suews-logo.svg" style="width: 114px; height: 114px;" alt="SUEWS">
                 </div>
               </div>
             </div>
@@ -879,7 +952,7 @@
               <span class="preview-item-label">Logo Small Dark</span>
               <div class="preview-wrapper" style="padding: 8px;">
                 <div id="discourse-logo-small-dark" style="width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; background: #1a1d2e;">
-                  <img src="../suews-logo.svg" style="width: 84px; height: 84px;" alt="SUEWS">
+                  <img src="../suews-logo.svg" style="width: 114px; height: 114px;" alt="SUEWS">
                 </div>
               </div>
             </div>
@@ -887,8 +960,8 @@
               <span class="preview-item-label">Large Icon (512px scaled)</span>
               <div class="preview-wrapper" style="padding: 8px;">
                 <div id="discourse-large-icon-preview" style="width: 120px; height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8fafc;">
-                  <img src="../suews-logo.svg" style="width: 90px; height: 90px;" alt="SUEWS">
-                  <span style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 17px; color: #1a1d2e; letter-spacing: -0.02em; margin-top: -10px;">SUEWS</span>
+                  <img src="../suews-logo.svg" style="width: 98px; height: 98px;" alt="SUEWS">
+                  <span style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 19px; color: #1a1d2e; letter-spacing: -0.02em; margin-top: -14px;">SUEWS</span>
                 </div>
               </div>
             </div>
@@ -902,7 +975,7 @@
               <span class="preview-item-label">Favicon (32px)</span>
               <div class="preview-wrapper" style="padding: 16px;">
                 <div id="discourse-favicon" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #f8fafc;">
-                  <img src="../suews-logo.svg" style="width: 28px; height: 28px;" alt="SUEWS">
+                  <img src="../suews-logo.svg" style="width: 32px; height: 32px;" alt="SUEWS">
                 </div>
               </div>
             </div>
@@ -910,7 +983,7 @@
               <span class="preview-item-label">Apple Touch (180px)</span>
               <div class="preview-wrapper" style="padding: 8px;">
                 <div id="discourse-apple-touch" style="width: 180px; height: 180px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: 36px;">
-                  <img src="../suews-logo.svg" style="width: 126px; height: 126px;" alt="SUEWS">
+                  <img src="../suews-logo.svg" style="width: 172px; height: 172px;" alt="SUEWS">
                 </div>
               </div>
             </div>
@@ -926,6 +999,92 @@
               <div class="info-row"><span>Banners</span><span class="info-value">4 files (light, dark, mobile, digest)</span></div>
               <div class="info-row"><span>Square Icons</span><span class="info-value">5 files (small, small-dark, large, manifest, opengraph)</span></div>
               <div class="info-row"><span>Special</span><span class="info-value">2 files (favicon, apple-touch)</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Preview Area - GitHub -->
+    <section class="preview-area" id="preview-github" style="display: none;">
+      <div class="preview-container">
+        <div class="preview-card">
+          <div class="preview-label">Repository Social Preview (1280 x 640)</div>
+          <div class="preview-wrapper" style="padding: 16px;">
+            <div id="github-social-preview" style="width: 640px; height: 320px; display: flex; align-items: center; justify-content: center; gap: 0; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+              <img src="../suews-logo.svg" style="width: 240px; height: 240px;" alt="SUEWS">
+              <span style="font-family: 'Inter', sans-serif; font-weight: 700; font-size: 120px; color: #1a1d2e; letter-spacing: -0.03em;">SUEWS</span>
+            </div>
+          </div>
+          <div style="text-align: center; margin-top: 8px; color: var(--text-muted); font-size: 11px;">
+            Preview at 50% scale (actual: 1280 x 640)
+          </div>
+        </div>
+
+        <div class="preview-card">
+          <div class="preview-label">Organisation Avatar (500 x 500)</div>
+          <div class="stacked-preview-grid">
+            <div class="stacked-item">
+              <span class="preview-item-label">Square (full)</span>
+              <div class="preview-wrapper" style="padding: 8px;">
+                <div id="github-org-avatar" style="width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: 8px;">
+                  <img src="../suews-logo.svg" style="width: 180px; height: 180px;" alt="SUEWS">
+                </div>
+              </div>
+              <div class="stacked-item-size">500 x 500 (scaled to 200)</div>
+            </div>
+            <div class="stacked-item">
+              <span class="preview-item-label">As circular mask</span>
+              <div class="preview-wrapper" style="padding: 8px;">
+                <div style="width: 150px; height: 150px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #f8fafc;">
+                  <img src="../suews-logo.svg" style="width: 135px; height: 135px;" alt="SUEWS">
+                </div>
+              </div>
+              <div class="stacked-item-size">GitHub circular display</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="preview-card">
+          <div class="preview-label">Documentation Assets (Sphinx)</div>
+          <div class="stacked-preview-grid">
+            <div class="stacked-item">
+              <span class="preview-item-label">Sidebar Logo (200px wide)</span>
+              <div class="preview-wrapper" style="padding: 16px;">
+                <div id="github-docs-logo" style="display: inline-flex; align-items: center; gap: 0; background: #ffffff;">
+                  <img src="../suews-logo.svg" style="width: 60px; height: 60px;" alt="SUEWS">
+                  <span style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 36px; color: #1a1d2e; letter-spacing: -0.02em;">SUEWS</span>
+                </div>
+              </div>
+            </div>
+            <div class="stacked-item">
+              <span class="preview-item-label">Favicon (32 x 32)</span>
+              <div class="preview-wrapper" style="padding: 16px;">
+                <div id="github-docs-favicon" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #ffffff;">
+                  <img src="../suews-logo.svg" style="width: 32px; height: 32px;" alt="SUEWS">
+                </div>
+              </div>
+              <div class="stacked-item-size">32 x 32</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="preview-card">
+          <div class="preview-label">Asset Specifications</div>
+          <div class="info-panel">
+            <div class="info-section">
+              <div class="info-title">Export Summary</div>
+              <div class="info-row"><span>Total Assets</span><span class="info-value">4 files</span></div>
+              <div class="info-row"><span>Social Preview</span><span class="info-value">1280 x 640 PNG</span></div>
+              <div class="info-row"><span>Org Avatar</span><span class="info-value">500 x 500 PNG</span></div>
+              <div class="info-row"><span>Docs Logo</span><span class="info-value">~200px wide PNG</span></div>
+              <div class="info-row"><span>Docs Favicon</span><span class="info-value">32 x 32 PNG</span></div>
+            </div>
+            <div class="info-section">
+              <div class="info-title">Where to Upload</div>
+              <div class="info-row"><span>Social Preview</span><span class="info-value">Settings > General</span></div>
+              <div class="info-row"><span>Org Avatar</span><span class="info-value">Org Settings > Profile</span></div>
+              <div class="info-row"><span>Docs Assets</span><span class="info-value">docs/source/_static/</span></div>
             </div>
           </div>
         </div>
@@ -951,9 +1110,11 @@
       document.getElementById('sidebar-banner').style.display = tab === 'banner' ? 'block' : 'none';
       document.getElementById('sidebar-stacked').style.display = tab === 'stacked' ? 'block' : 'none';
       document.getElementById('sidebar-discourse').style.display = tab === 'discourse' ? 'block' : 'none';
+      document.getElementById('sidebar-github').style.display = tab === 'github' ? 'block' : 'none';
       document.getElementById('preview-banner').style.display = tab === 'banner' ? 'flex' : 'none';
       document.getElementById('preview-stacked').style.display = tab === 'stacked' ? 'flex' : 'none';
       document.getElementById('preview-discourse').style.display = tab === 'discourse' ? 'flex' : 'none';
+      document.getElementById('preview-github').style.display = tab === 'github' ? 'flex' : 'none';
     }
 
     // ============ BANNER CONTROLS ============
@@ -1100,10 +1261,9 @@
     // ============ STACKED ICON CONTROLS ============
     const stackedControls = {
       iconSize: { range: 'iconSize', num: 'iconSizeNum', display: 'iconSize-display', unit: 'px', default: 512 },
-      stackFillPercent: { range: 'stackFillPercent', num: 'stackFillPercentNum', display: 'stackFillPercent-display', unit: '%', default: 100 },
       stackLogoPercent: { range: 'stackLogoPercent', num: 'stackLogoPercentNum', display: 'stackLogoPercent-display', unit: '%', default: 75 },
       stackTextSize: { range: 'stackTextSize', num: 'stackTextSizeNum', display: 'stackTextSize-display', unit: 'px', default: 72 },
-      stackTextOffset: { range: 'stackTextOffset', num: 'stackTextOffsetNum', display: 'stackTextOffset-display', unit: 'px', default: -50 }
+      stackGap: { range: 'stackGap', num: 'stackGapNum', display: 'stackGap-display', unit: 'px', default: -50 }
     };
 
     const stackedIcon = document.getElementById('stacked-icon');
@@ -1124,78 +1284,43 @@
       document.getElementById(ctrl.display).textContent = value + ctrl.unit;
     }
 
+    // Current padding values (set by autoSymmetry or manually)
+    let currentPaddingTop = 0;
+    let currentPaddingBottom = 0;
+
     async function updateStackedPreview() {
       const iconSize = getStackedValue('iconSize');
-      const fillPercent = getStackedValue('stackFillPercent');
       const logoPercent = getStackedValue('stackLogoPercent');
       const textSize = getStackedValue('stackTextSize');
-      const textOffset = getStackedValue('stackTextOffset');
+      const gap = getStackedValue('stackGap');
       const logoSize = iconSize * logoPercent / 100;
 
-      // SVG internal whitespace ratios
-      const svgTopRatio = 240 / 2048;    // ~11.7%
-
-      // Step 1: Set basic dimensions without padding first
+      // Step 1: Set basic dimensions
       stackedIcon.style.width = iconSize + 'px';
       stackedIcon.style.height = iconSize + 'px';
-      stackedIcon.style.paddingTop = '0px';
-      stackedIcon.style.paddingBottom = '0px';
+      stackedIcon.style.paddingTop = currentPaddingTop + 'px';
+      stackedIcon.style.paddingBottom = currentPaddingBottom + 'px';
       stackedIcon.style.boxSizing = 'border-box';
       stackedLogo.style.width = logoSize + 'px';
       stackedLogo.style.height = logoSize + 'px';
       stackedText.style.fontSize = textSize + 'px';
-      stackedText.style.marginTop = textOffset + 'px';
+      stackedText.style.marginTop = gap + 'px';
 
       // Wait for render
       await document.fonts.ready;
       await new Promise(r => requestAnimationFrame(r));
 
-      // Step 2: Measure actual rendered dimensions
-      const textRect = stackedText.getBoundingClientRect();
-      const actualTextHeight = textRect.height;
-
-      // Total content bounding box height (logo + text with offset)
-      const contentHeight = logoSize + actualTextHeight + textOffset;
-
-      // Step 3: Calculate perfect padding for true visual symmetry
-      // Visual content height = logo visual + text
-      // Logo visual top margin = logo * svgTopRatio
-      // For perfect symmetry:
-      // paddingTop + logo * svgTopRatio = paddingBottom
-      // paddingTop + paddingBottom = iconSize - contentHeight
-      // Solving: paddingBottom = (iconSize - contentHeight + logo * svgTopRatio) / 2
-      //          paddingTop = paddingBottom - logo * svgTopRatio
-
-      const svgTopOffset = logoSize * svgTopRatio;
-      const totalPadding = iconSize - contentHeight;
-
-      // Full symmetry padding values (baseline at 100%)
-      const fullPaddingBottom = (totalPadding + svgTopOffset) / 2;
-      const fullPaddingTop = (totalPadding - svgTopOffset) / 2;
-
-      // Apply fill percentage - scales padding while maintaining symmetry ratio
-      // Fill 100% = use full calculated padding (baseline, multiplier = 1.0)
-      // Fill 130% = reduce padding by ~23% (content fills more, multiplier = 0.77)
-      // Fill 80% = increase padding by 25% (content fills less, multiplier = 1.25)
-      const paddingMultiplier = Math.max(0, 100 / fillPercent);
-      const paddingTop = fullPaddingTop * paddingMultiplier;
-      const paddingBottom = fullPaddingBottom * paddingMultiplier;
-
-      // Step 4: Apply calculated padding
-      stackedIcon.style.paddingTop = Math.max(0, paddingTop) + 'px';
-      stackedIcon.style.paddingBottom = Math.max(0, paddingBottom) + 'px';
-
       // Small preview (scaled)
       const scale = 120 / iconSize;
       stackedIconSmall.style.width = '120px';
       stackedIconSmall.style.height = '120px';
-      stackedIconSmall.style.paddingTop = Math.max(0, paddingTop * scale) + 'px';
-      stackedIconSmall.style.paddingBottom = Math.max(0, paddingBottom * scale) + 'px';
+      stackedIconSmall.style.paddingTop = (currentPaddingTop * scale) + 'px';
+      stackedIconSmall.style.paddingBottom = (currentPaddingBottom * scale) + 'px';
       stackedIconSmall.style.boxSizing = 'border-box';
       stackedLogoSmall.style.width = (logoSize * scale) + 'px';
       stackedLogoSmall.style.height = (logoSize * scale) + 'px';
       stackedTextSmall.style.fontSize = (textSize * scale) + 'px';
-      stackedTextSmall.style.marginTop = (textOffset * scale) + 'px';
+      stackedTextSmall.style.marginTop = (gap * scale) + 'px';
 
       // Update displays
       Object.keys(stackedControls).forEach(name => {
@@ -1203,14 +1328,94 @@
         document.getElementById(ctrl.display).textContent = getStackedValue(name) + ctrl.unit;
       });
 
+      // Update actual logo size display
+      document.getElementById('logoActualSize-display').textContent = logoSize.toFixed(0) + 'px';
       document.getElementById('stacked-size-label').textContent = `${iconSize} x ${iconSize}`;
 
-      // Wait for padding to apply, then measure final symmetry
+      // Wait for layout, then measure and update info
       await new Promise(r => requestAnimationFrame(r));
-      updateStackedInfo(iconSize, logoSize, textSize, textOffset, Math.max(0, paddingTop), Math.max(0, paddingBottom));
+      updateStackedInfo(iconSize, logoSize, textSize, gap, currentPaddingTop, currentPaddingBottom);
+
+      // Update guide lines if enabled
+      updateGuideLines();
     }
 
-    async function updateStackedInfo(iconSize, logoSize, textSize, textOffset, paddingTop, paddingBottom) {
+    // ============ AUTO SYMMETRY ============
+    async function autoSymmetry() {
+      const iconSize = getStackedValue('iconSize');
+      const logoPercent = getStackedValue('stackLogoPercent');
+      const textSize = getStackedValue('stackTextSize');
+      const gap = getStackedValue('stackGap');
+      const logoSize = iconSize * logoPercent / 100;
+
+      // SVG internal whitespace ratios
+      const svgTopRatio = 240 / 2048;    // ~11.7%
+
+      // Temporarily set padding to 0 to measure content
+      currentPaddingTop = 0;
+      currentPaddingBottom = 0;
+      await updateStackedPreview();
+
+      // Measure actual text height
+      const textRect = stackedText.getBoundingClientRect();
+      const actualTextHeight = textRect.height;
+
+      // Content bounding box height
+      const contentHeight = logoSize + actualTextHeight + gap;
+
+      // Calculate perfect padding for true visual symmetry
+      // We want: visualTop = visualBottom
+      // visualTop = paddingTop + logoSize * svgTopRatio
+      // visualBottom = paddingBottom (text has no internal whitespace)
+      // Total padding available = iconSize - contentHeight
+      //
+      // For symmetry: paddingTop + svgTopOffset = paddingBottom
+      // And: paddingTop + paddingBottom = totalPadding
+      //
+      // Solving:
+      // paddingBottom = (totalPadding + svgTopOffset) / 2
+      // paddingTop = totalPadding - paddingBottom
+
+      const svgTopOffset = logoSize * svgTopRatio;
+      const totalPadding = iconSize - contentHeight;
+
+      // Check if content fits within canvas
+      if (totalPadding < 0) {
+        // Content overflow - cannot achieve symmetry
+        const overflow = -totalPadding;
+        currentPaddingTop = 0;
+        currentPaddingBottom = 0;
+        await updateStackedPreview();
+        showToast(`Content overflow by ${overflow.toFixed(0)}px - reduce logo/text or increase gap (more negative)`, 'warning');
+        return;
+      }
+
+      // Check if we have enough padding for asymmetric correction
+      // We need: paddingTop >= 0 and paddingBottom >= 0
+      // paddingBottom = (totalPadding + svgTopOffset) / 2
+      // paddingTop = totalPadding - paddingBottom = (totalPadding - svgTopOffset) / 2
+      // For paddingTop >= 0: totalPadding >= svgTopOffset
+
+      if (totalPadding < svgTopOffset) {
+        // Not enough padding to fully compensate for SVG whitespace
+        // Apply what we can: all padding goes to bottom
+        currentPaddingTop = 0;
+        currentPaddingBottom = totalPadding;
+        await updateStackedPreview();
+        const shortfall = svgTopOffset - totalPadding;
+        showToast(`Partial symmetry - ${shortfall.toFixed(0)}px short of perfect balance`, 'warning');
+        return;
+      }
+
+      // Full symmetry possible
+      currentPaddingBottom = (totalPadding + svgTopOffset) / 2;
+      currentPaddingTop = totalPadding - currentPaddingBottom;
+
+      await updateStackedPreview();
+      showToast('Perfect symmetry applied');
+    }
+
+    async function updateStackedInfo(iconSize, logoSize, textSize, gap, paddingTop, paddingBottom) {
       await document.fonts.ready;
 
       const iconRect = stackedIcon.getBoundingClientRect();
@@ -1254,65 +1459,171 @@
 
       const infoHTML = `
 <div class="info-section">
-  <div class="info-title">Visual Margins</div>
-  <div class="info-row"><span>Left</span><span class="info-value">${visualLogoLeft.toFixed(1)}px</span></div>
-  <div class="info-row"><span>Right</span><span class="info-value">${visualLogoRight.toFixed(1)}px</span></div>
+  <div class="info-title">Visual Margins (after SVG whitespace)</div>
   <div class="info-row"><span>Top</span><span class="info-value">${visualTop.toFixed(1)}px</span></div>
   <div class="info-row"><span>Bottom</span><span class="info-value">${visualBottom.toFixed(1)}px</span></div>
+  <div class="info-row"><span>Left</span><span class="info-value">${visualLogoLeft.toFixed(1)}px</span></div>
+  <div class="info-row"><span>Right</span><span class="info-value">${visualLogoRight.toFixed(1)}px</span></div>
 </div>
 <div class="info-section">
-  <div class="info-title">Symmetry Analysis</div>
-  <div class="info-row"><span>Horizontal Diff</span><span class="${hDiff < 2 ? 'info-good' : 'info-warn'}">${hDiff.toFixed(1)}px</span></div>
-  <div class="info-row"><span>Vertical Diff</span><span class="${vDiff < 5 ? 'info-good' : vDiff < 15 ? 'info-warn' : 'info-bad'}">${vDiff.toFixed(1)}px</span></div>
+  <div class="info-title">Symmetry Check</div>
+  <div class="info-row"><span>V-Diff (Top - Bottom)</span><span class="${vDiff < 5 ? 'info-good' : vDiff < 15 ? 'info-warn' : 'info-bad'}">${vDiff.toFixed(1)}px</span></div>
+  <div class="info-row"><span>H-Diff (Left - Right)</span><span class="${hDiff < 2 ? 'info-good' : 'info-warn'}">${hDiff.toFixed(1)}px</span></div>
 </div>
 <div class="info-section">
-  <div class="info-title">Computed Padding (asymmetric for symmetry)</div>
-  <div class="info-row"><span>Padding Top</span><span class="info-value">${paddingTop.toFixed(1)}px</span></div>
-  <div class="info-row"><span>Padding Bottom</span><span class="info-value">${paddingBottom.toFixed(1)}px</span></div>
-  <div class="info-row"><span>Correction</span><span class="info-value">${(paddingBottom - paddingTop).toFixed(1)}px</span></div>
-  <div class="info-row"><span>Fill Scale</span><span class="info-value">${getStackedValue('stackFillPercent')}% (${(100 / getStackedValue('stackFillPercent') * 100).toFixed(0)}% of baseline)</span></div>
+  <div class="info-title">CSS Padding (applied to container)</div>
+  <div class="info-row"><span>padding-top</span><span class="info-value">${paddingTop.toFixed(1)}px</span></div>
+  <div class="info-row"><span>padding-bottom</span><span class="info-value">${paddingBottom.toFixed(1)}px</span></div>
+  <div class="info-row"><span>Asymmetric correction</span><span class="info-value">${(paddingBottom - paddingTop).toFixed(1)}px</span></div>
+</div>
+<div class="info-section">
+  <div class="info-title">SVG Internal Whitespace</div>
+  <div class="info-row"><span>Top (~11.7%)</span><span class="info-value">${svgInternalTop.toFixed(1)}px</span></div>
+  <div class="info-row"><span>Bottom (~14.5%)</span><span class="info-value">${svgInternalBottom.toFixed(1)}px</span></div>
+  <div class="info-row"><span>Sides (~14.2%)</span><span class="info-value">${svgInternalLeft.toFixed(1)}px</span></div>
 </div>`;
 
       document.getElementById('info-stacked').innerHTML = infoHTML;
     }
 
-    function suggestStackedOptimal() {
-      const iconSize = getStackedValue('iconSize');
-      const svgBottomRatio = 296 / 2048;
+    async function applyStackedPreset(size) {
+      const iconSize = parseInt(size);
+      setStackedValue('iconSize', iconSize);
 
-      const logoPercent = 75;
-      const logoSize = iconSize * logoPercent / 100;
+      // Scale text proportionally
       const textSize = Math.round(iconSize * 0.14);
-      const textOffset = Math.round(-logoSize * svgBottomRatio * 0.9);
-
-      setStackedValue('stackFillPercent', 100);
-      setStackedValue('stackLogoPercent', logoPercent);
       setStackedValue('stackTextSize', textSize);
-      setStackedValue('stackTextOffset', textOffset);
-      updateStackedPreview();
-      showToast('Applied optimal values');
+
+      // Keep logo at 75% and gap at -50 (will be scaled by symmetry)
+      setStackedValue('stackLogoPercent', 75);
+      setStackedValue('stackGap', Math.round(-iconSize * 0.1));
+
+      // Auto-apply symmetry
+      await autoSymmetry();
     }
 
-    function applyStackedPreset(size) {
-      setStackedValue('iconSize', parseInt(size));
-      suggestStackedOptimal();
-    }
-
-    function resetStacked() {
+    async function resetStacked() {
       setStackedValue('iconSize', 512);
-      setStackedValue('stackFillPercent', 100);
       setStackedValue('stackLogoPercent', 75);
       setStackedValue('stackTextSize', 72);
-      setStackedValue('stackTextOffset', -50);
-      updateStackedPreview();
+      setStackedValue('stackGap', -50);
+      currentPaddingTop = 0;
+      currentPaddingBottom = 0;
+      await updateStackedPreview();
       showToast('Reset to defaults');
+    }
+
+    // ============ DESIGN SCALING HELPERS ============
+    // Scale current stacked icon design to any target size
+    function getStackedDesignForSize(targetSize) {
+      const baseSize = getStackedValue('iconSize');
+      const scale = targetSize / baseSize;
+
+      const logoPercent = getStackedValue('stackLogoPercent');
+      const textSize = getStackedValue('stackTextSize');
+      const gap = getStackedValue('stackGap');
+
+      return {
+        size: targetSize,
+        logoSize: targetSize * logoPercent / 100,
+        textSize: Math.round(textSize * scale),
+        gap: Math.round(gap * scale),
+        paddingTop: Math.round(currentPaddingTop * scale),
+        paddingBottom: Math.round(currentPaddingBottom * scale)
+      };
+    }
+
+    // Scale current banner design to any target height
+    function getBannerDesignForHeight(targetHeight) {
+      const baseLogoSize = getBannerValue('logoSize');
+      const baseTextSize = getBannerValue('textSize');
+      const baseGap = getBannerValue('gap');
+      const basePaddingLeft = getBannerValue('paddingLeft');
+      const basePaddingRight = getBannerValue('paddingRight');
+      const basePaddingY = getBannerValue('paddingY');
+
+      // Approximate base height from logo + padding
+      const baseHeight = baseLogoSize + basePaddingY * 2;
+      const scale = targetHeight / baseHeight;
+
+      return {
+        logoSize: Math.round(baseLogoSize * scale),
+        textSize: Math.round(baseTextSize * scale),
+        gap: Math.round(baseGap * scale),
+        paddingLeft: Math.round(basePaddingLeft * scale),
+        paddingRight: Math.round(basePaddingRight * scale),
+        paddingY: Math.round(basePaddingY * scale)
+      };
+    }
+
+    // ============ GUIDE LINES ============
+    let guidesEnabled = false;
+
+    function toggleGuides() {
+      guidesEnabled = document.getElementById('showGuides').checked;
+      document.getElementById('guide-overlay').style.display = guidesEnabled ? 'block' : 'none';
+      if (guidesEnabled) {
+        updateGuideLines();
+      }
+    }
+
+    async function updateGuideLines() {
+      if (!guidesEnabled) return;
+
+      await document.fonts.ready;
+      await new Promise(r => requestAnimationFrame(r));
+
+      const iconRect = stackedIcon.getBoundingClientRect();
+      const logoRect = stackedLogo.getBoundingClientRect();
+      const textRect = stackedText.getBoundingClientRect();
+
+      // SVG internal whitespace
+      const logoSize = getStackedValue('iconSize') * getStackedValue('stackLogoPercent') / 100;
+      const svgInternalLeft = (290 / 2048) * logoSize;
+      const svgInternalTop = (240 / 2048) * logoSize;
+      const svgInternalBottom = (296 / 2048) * logoSize;
+
+      // Calculate visual margins
+      const visualTop = (logoRect.top - iconRect.top) + svgInternalTop;
+      const visualBottom = iconRect.bottom - textRect.bottom;
+      const visualLeft = (logoRect.left - iconRect.left) + svgInternalLeft;
+      const visualRight = (iconRect.right - logoRect.right) + svgInternalLeft;
+
+      // Position guide lines at visual content edges
+      const guideTop = document.getElementById('guide-top');
+      const guideBottom = document.getElementById('guide-bottom');
+      const guideLeft = document.getElementById('guide-left');
+      const guideRight = document.getElementById('guide-right');
+
+      guideTop.style.top = visualTop + 'px';
+      guideBottom.style.top = (iconRect.height - visualBottom) + 'px';
+      guideLeft.style.left = visualLeft + 'px';
+      guideRight.style.left = (iconRect.width - visualRight) + 'px';
+
+      // Position margin labels
+      const topLabel = document.getElementById('margin-top-label');
+      const bottomLabel = document.getElementById('margin-bottom-label');
+      const leftLabel = document.getElementById('margin-left-label');
+      const rightLabel = document.getElementById('margin-right-label');
+
+      topLabel.textContent = visualTop.toFixed(0) + 'px';
+      topLabel.style.top = (visualTop / 2 - 6) + 'px';
+
+      bottomLabel.textContent = visualBottom.toFixed(0) + 'px';
+      bottomLabel.style.bottom = (visualBottom / 2 - 6) + 'px';
+
+      leftLabel.textContent = visualLeft.toFixed(0) + 'px';
+      leftLabel.style.left = (visualLeft / 2 - 12) + 'px';
+
+      rightLabel.textContent = visualRight.toFixed(0) + 'px';
+      rightLabel.style.right = (visualRight / 2 - 12) + 'px';
     }
 
     function copyStackedCSS() {
       const iconSize = getStackedValue('iconSize');
       const logoPercent = getStackedValue('stackLogoPercent');
       const textSize = getStackedValue('stackTextSize');
-      const textOffset = getStackedValue('stackTextOffset');
+      const gap = getStackedValue('stackGap');
       const logoSize = iconSize * logoPercent / 100;
 
       const css = `.stacked-icon {
@@ -1321,7 +1632,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-top: ${currentPaddingTop.toFixed(0)}px;
+  padding-bottom: ${currentPaddingBottom.toFixed(0)}px;
+  box-sizing: border-box;
   background: #f8fafc;
 }
 .stacked-icon img { width: ${logoSize.toFixed(0)}px; height: ${logoSize.toFixed(0)}px; }
@@ -1329,7 +1643,7 @@
   font-family: 'Inter', sans-serif;
   font-weight: 600;
   font-size: ${textSize}px;
-  margin-top: ${textOffset}px;
+  margin-top: ${gap}px;
   letter-spacing: -0.02em;
 }`;
 
@@ -1450,70 +1764,75 @@
         case 'logo':
         case 'mobile-logo':
         case 'digest-logo':
-          // Wide banner, height 120px (Discourse spec: aspect ratio >3:1)
+          // Wide banner, height 120px - uses Banner settings
+          const bLight = getBannerDesignForHeight(120);
           element = document.createElement('div');
-          element.style.cssText = 'display: inline-flex; align-items: center; padding: 8px 16px 8px 8px; background: #f8fafc;';
+          element.style.cssText = `display: inline-flex; align-items: center; gap: ${bLight.gap}px; padding: ${bLight.paddingY}px ${bLight.paddingRight}px ${bLight.paddingY}px ${bLight.paddingLeft}px; background: #f8fafc;`;
           element.innerHTML = `
-            <img src="../suews-logo.svg" style="width: 104px; height: 104px;">
-            <span style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 78px; color: #1a1d2e; letter-spacing: -0.02em;">SUEWS</span>
+            <img src="../suews-logo.svg" style="width: ${bLight.logoSize}px; height: ${bLight.logoSize}px;">
+            <span style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: ${bLight.textSize}px; color: #1a1d2e; letter-spacing: -0.02em;">SUEWS</span>
           `;
           break;
 
         case 'logo-dark':
+          // Wide banner dark - uses Banner settings
+          const bDark = getBannerDesignForHeight(120);
           element = document.createElement('div');
-          element.style.cssText = 'display: inline-flex; align-items: center; padding: 8px 16px 8px 8px; background: #1a1d2e;';
+          element.style.cssText = `display: inline-flex; align-items: center; gap: ${bDark.gap}px; padding: ${bDark.paddingY}px ${bDark.paddingRight}px ${bDark.paddingY}px ${bDark.paddingLeft}px; background: #1a1d2e;`;
           element.innerHTML = `
-            <img src="../suews-logo.svg" style="width: 104px; height: 104px;">
-            <span style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 78px; color: #ffffff; letter-spacing: -0.02em;">SUEWS</span>
+            <img src="../suews-logo.svg" style="width: ${bDark.logoSize}px; height: ${bDark.logoSize}px;">
+            <span style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: ${bDark.textSize}px; color: #ffffff; letter-spacing: -0.02em;">SUEWS</span>
           `;
           break;
 
         case 'logo-small':
-          // 120x120 square icon
+          // 120x120 square icon - logo fills ~95% to minimize blank
           element = document.createElement('div');
           element.style.cssText = 'width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; background: #f8fafc;';
-          element.innerHTML = `<img src="../suews-logo.svg" style="width: 100px; height: 100px;">`;
+          element.innerHTML = `<img src="../suews-logo.svg" style="width: 114px; height: 114px;">`;
           break;
 
         case 'logo-small-dark':
           element = document.createElement('div');
           element.style.cssText = 'width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; background: #1a1d2e;';
-          element.innerHTML = `<img src="../suews-logo.svg" style="width: 100px; height: 100px;">`;
+          element.innerHTML = `<img src="../suews-logo.svg" style="width: 114px; height: 114px;">`;
           break;
 
         case 'large-icon':
         case 'manifest-icon':
         case 'opengraph':
-          // 512x512 square with logo + text stacked
+          // 512x512 square with logo + text stacked - uses Stacked Icon settings
+          const d512 = getStackedDesignForSize(512);
           element = document.createElement('div');
-          element.style.cssText = 'width: 512px; height: 512px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8fafc;';
+          element.style.cssText = `width: 512px; height: 512px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: ${d512.paddingTop}px; padding-bottom: ${d512.paddingBottom}px; box-sizing: border-box; background: #f8fafc;`;
           element.innerHTML = `
-            <img src="../suews-logo.svg" style="width: 384px; height: 384px;">
-            <span style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 72px; color: #1a1d2e; letter-spacing: -0.02em; margin-top: -55px;">SUEWS</span>
+            <img src="../suews-logo.svg" style="width: ${d512.logoSize}px; height: ${d512.logoSize}px;">
+            <span style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: ${d512.textSize}px; color: #1a1d2e; letter-spacing: -0.02em; margin-top: ${d512.gap}px;">SUEWS</span>
           `;
           break;
 
         case 'favicon':
-          // 32x32 PNG
+          // 32x32 PNG - logo fills fully
           element = document.createElement('div');
           element.style.cssText = 'width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #f8fafc;';
-          element.innerHTML = `<img src="../suews-logo.svg" style="width: 28px; height: 28px;">`;
+          element.innerHTML = `<img src="../suews-logo.svg" style="width: 32px; height: 32px;">`;
           break;
 
         case 'apple-touch':
-          // 180x180 with rounded corners appearance
+          // 180x180 - logo fills ~95%
           element = document.createElement('div');
           element.style.cssText = 'width: 180px; height: 180px; display: flex; align-items: center; justify-content: center; background: #f8fafc;';
-          element.innerHTML = `<img src="../suews-logo.svg" style="width: 150px; height: 150px;">`;
+          element.innerHTML = `<img src="../suews-logo.svg" style="width: 172px; height: 172px;">`;
           break;
 
         case 'twitter-card':
-          // Min 280x150, we'll do 560x300 for retina
+          // Min 280x150, we'll do 560x300 - uses Banner settings
+          const bTwitter = getBannerDesignForHeight(300);
           element = document.createElement('div');
-          element.style.cssText = 'width: 560px; height: 300px; display: flex; align-items: center; justify-content: center; gap: 0; background: #f8fafc;';
+          element.style.cssText = `width: 560px; height: 300px; display: flex; align-items: center; justify-content: center; gap: ${bTwitter.gap}px; background: #f8fafc;`;
           element.innerHTML = `
-            <img src="../suews-logo.svg" style="width: 200px; height: 200px;">
-            <span style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 100px; color: #1a1d2e; letter-spacing: -0.02em;">SUEWS</span>
+            <img src="../suews-logo.svg" style="width: ${bTwitter.logoSize}px; height: ${bTwitter.logoSize}px;">
+            <span style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: ${bTwitter.textSize}px; color: #1a1d2e; letter-spacing: -0.02em;">SUEWS</span>
           `;
           break;
       }
@@ -1584,9 +1903,97 @@
       showToast('All 9 assets exported!');
     }
 
+    // ============ GITHUB EXPORT FUNCTIONS ============
+    async function createGitHubElement(type) {
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      document.body.appendChild(container);
+
+      let element;
+
+      switch(type) {
+        case 'social-preview':
+          // 1280 x 640 - uses Banner settings scaled to 640px height
+          const bSocial = getBannerDesignForHeight(640);
+          element = document.createElement('div');
+          element.style.cssText = `width: 1280px; height: 640px; display: flex; align-items: center; justify-content: center; gap: ${bSocial.gap}px; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);`;
+          element.innerHTML = `
+            <img src="../suews-logo.svg" style="width: ${bSocial.logoSize}px; height: ${bSocial.logoSize}px;">
+            <span style="font-family: 'Inter', sans-serif; font-weight: 700; font-size: ${bSocial.textSize}px; color: #1a1d2e; letter-spacing: -0.03em;">SUEWS</span>
+          `;
+          break;
+
+        case 'org-avatar':
+          // 500 x 500 - uses Stacked Icon logo % (logo only, no text)
+          const dAvatar = getStackedDesignForSize(500);
+          element = document.createElement('div');
+          element.style.cssText = 'width: 500px; height: 500px; display: flex; align-items: center; justify-content: center; background: #f8fafc;';
+          element.innerHTML = `<img src="../suews-logo.svg" style="width: ${dAvatar.logoSize}px; height: ${dAvatar.logoSize}px;">`;
+          break;
+
+        case 'docs-logo':
+          // ~200px wide - uses Banner settings scaled to 60px height
+          const bDocs = getBannerDesignForHeight(60);
+          element = document.createElement('div');
+          element.style.cssText = `display: inline-flex; align-items: center; gap: ${bDocs.gap}px; background: #ffffff; padding: ${bDocs.paddingY}px ${bDocs.paddingRight}px ${bDocs.paddingY}px ${bDocs.paddingLeft}px;`;
+          element.innerHTML = `
+            <img src="../suews-logo.svg" style="width: ${bDocs.logoSize}px; height: ${bDocs.logoSize}px;">
+            <span style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: ${bDocs.textSize}px; color: #1a1d2e; letter-spacing: -0.02em;">SUEWS</span>
+          `;
+          break;
+
+        case 'docs-favicon':
+          // 32 x 32 - logo only, fills entire space
+          element = document.createElement('div');
+          element.style.cssText = 'width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: transparent;';
+          element.innerHTML = `<img src="../suews-logo.svg" style="width: 32px; height: 32px;">`;
+          break;
+      }
+
+      container.appendChild(element);
+      return { element, container };
+    }
+
+    async function exportGitHubSingle(type) {
+      await document.fonts.ready;
+
+      const { element, container } = await createGitHubElement(type);
+
+      // Wait for images to load
+      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => requestAnimationFrame(r));
+
+      try {
+        const dataUrl = await domtoimage.toPng(element, { quality: 1 });
+        const link = document.createElement('a');
+        link.download = `suews-${type}.png`;
+        link.href = dataUrl;
+        link.click();
+        showToast(`Exported ${type}`);
+      } catch (err) {
+        console.error('Export failed:', err);
+        showToast('Export failed - check console');
+      } finally {
+        document.body.removeChild(container);
+      }
+    }
+
+    async function exportGitHubAll() {
+      showToast('Exporting GitHub assets...');
+      const assets = ['social-preview', 'org-avatar', 'docs-logo', 'docs-favicon'];
+
+      for (const asset of assets) {
+        await exportGitHubSingle(asset);
+        await new Promise(r => setTimeout(r, 300));
+      }
+
+      showToast('All 4 GitHub assets exported!');
+    }
+
     // ============ INIT ============
     updateBannerPreview();
-    updateStackedPreview();
+    autoSymmetry();  // Apply perfect symmetry on load
   </script>
 </body>
 </html>

@@ -1,0 +1,1529 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>SUEWS Brand Workshop</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.1.6/dom-to-image-more.min.js"></script>
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-card: #334155;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --border: #475569;
+      --preview-light: #f8fafc;
+      --preview-dark: #1a1d2e;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: var(--bg-secondary);
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header h1 img { width: 28px; height: 28px; }
+
+    /* Main Layout */
+    .main {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      height: calc(100vh - 60px);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .panel {
+      background: var(--bg-card);
+      border-radius: 10px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .panel-header:hover { background: rgba(255,255,255,0.03); }
+
+    .panel-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .panel-toggle {
+      font-size: 10px;
+      color: var(--text-muted);
+      transition: transform 0.2s;
+    }
+
+    .panel.collapsed .panel-toggle { transform: rotate(-90deg); }
+    .panel.collapsed .panel-body { display: none; }
+
+    .panel-body { padding: 0 16px 16px; }
+
+    .control-group { margin-bottom: 14px; }
+    .control-group:last-child { margin-bottom: 0; }
+
+    .control-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .control-label span {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .control-value {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      height: 4px;
+      -webkit-appearance: none;
+      background: var(--bg-primary);
+      border-radius: 2px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: var(--accent);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    input[type="number"] {
+      width: 60px;
+      padding: 6px 8px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-size: 12px;
+      text-align: right;
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    input[type="number"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-success:hover { background: #16a34a; }
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      background: var(--bg-card);
+      color: var(--text-primary);
+    }
+    .btn-sm { padding: 5px 10px; font-size: 11px; }
+
+    .btn-group {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    /* Preview Area */
+    .preview-area {
+      padding: 24px;
+      overflow-y: auto;
+      background: var(--bg-primary);
+    }
+
+    .preview-section {
+      margin-bottom: 32px;
+    }
+
+    .preview-section:last-child { margin-bottom: 0; }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .preview-grid {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+
+    .preview-item {
+      text-align: center;
+    }
+
+    .preview-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .preview-wrapper {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      border-radius: 8px;
+      background: repeating-conic-gradient(#e5e7eb 0% 25%, white 0% 50%) 50% / 12px 12px;
+    }
+
+    .preview-size {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    /* Export Panel */
+    .export-panel {
+      background: var(--bg-card);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .export-section {
+      margin-bottom: 16px;
+    }
+
+    .export-section:last-child { margin-bottom: 0; }
+
+    .export-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .export-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.25s ease;
+      z-index: 1000;
+    }
+
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-left: 3px solid var(--success); }
+    .toast.warning { border-left: 3px solid var(--warning); }
+
+    /* Design Elements */
+    .banner {
+      display: inline-flex;
+      align-items: center;
+      position: relative;
+    }
+
+    .banner .text {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .stacked {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    .stacked .text {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    /* Guidelines overlay - container */
+    .show-guidelines .preview-wrapper > div {
+      position: relative;
+      outline: 1px dashed rgba(255, 0, 0, 0.3);
+    }
+
+    /* Centre crosshairs on container */
+    .show-guidelines .preview-wrapper > div::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%;
+      width: 1px;
+      height: 100%;
+      background: rgba(255, 0, 0, 0.4);
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .show-guidelines .preview-wrapper > div::after {
+      content: '';
+      position: absolute;
+      left: 0; top: 50%;
+      width: 100%;
+      height: 1px;
+      background: rgba(255, 0, 0, 0.4);
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    /* Logo bounding box */
+    .show-guidelines .preview-wrapper img {
+      outline: 1px solid rgba(0, 128, 255, 0.6);
+      position: relative;
+    }
+
+    /* Logo centre crosshairs */
+    .show-guidelines .preview-wrapper > div > img {
+      background:
+        linear-gradient(rgba(0, 128, 255, 0.4), rgba(0, 128, 255, 0.4)) no-repeat center/1px 100%,
+        linear-gradient(rgba(0, 128, 255, 0.4), rgba(0, 128, 255, 0.4)) no-repeat center/100% 1px;
+    }
+
+    /* Numeric indicators */
+    .guide-indicator {
+      position: absolute;
+      font-size: 9px;
+      font-family: 'SF Mono', Monaco, monospace;
+      padding: 1px 3px;
+      border-radius: 2px;
+      pointer-events: none;
+      z-index: 200;
+      white-space: nowrap;
+    }
+
+    .guide-indicator.top {
+      top: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 100, 100, 0.9);
+      color: white;
+    }
+
+    .guide-indicator.bottom {
+      bottom: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 100, 100, 0.9);
+      color: white;
+    }
+
+    .guide-indicator.svg-top {
+      background: rgba(0, 128, 255, 0.9);
+      color: white;
+    }
+
+    .guide-indicator.svg-bottom {
+      background: rgba(0, 128, 255, 0.9);
+      color: white;
+    }
+
+    .guide-indicator.visual-centre {
+      background: rgba(34, 197, 94, 0.9);
+      color: white;
+      right: 2px;
+    }
+
+    /* SVG internal whitespace markers */
+    .svg-whitespace-marker {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      border-top: 1px dashed rgba(0, 128, 255, 0.6);
+      pointer-events: none;
+      z-index: 150;
+    }
+
+    /* Toggle switch */
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toggle-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .toggle {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      background: var(--bg-card);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .toggle.active {
+      background: var(--accent);
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+
+    .toggle.active::after {
+      transform: translateX(16px);
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>
+      <img src="suews-logo.svg" alt="">
+      Brand Workshop
+    </h1>
+    <div class="toggle-container">
+      <span class="toggle-label">Guidelines</span>
+      <div class="toggle" id="guidelines-toggle" onclick="toggleGuidelines()"></div>
+    </div>
+  </header>
+
+  <main class="main">
+    <aside class="sidebar">
+      <!-- Solo Logo Template -->
+      <div class="panel" id="panel-solo">
+        <div class="panel-header" onclick="togglePanel('solo')">
+          <span class="panel-title">Solo Logo</span>
+          <span class="panel-toggle">▼</span>
+        </div>
+        <div class="panel-body">
+          <div class="control-group">
+            <div class="control-label">
+              <span>Fill %</span>
+              <span class="control-value" id="soloFill-display">90%</span>
+            </div>
+            <div class="control-row">
+              <input type="range" id="soloFill" min="50" max="100" value="90" step="1">
+              <input type="number" id="soloFillNum" min="50" max="100" value="90" step="1">
+            </div>
+          </div>
+          <p style="font-size: 10px; color: var(--text-muted); margin-top: 8px;">
+            Used for: favicons, org avatars, small icons
+          </p>
+        </div>
+      </div>
+
+      <!-- Banner Template -->
+      <div class="panel" id="panel-banner">
+        <div class="panel-header" onclick="togglePanel('banner')">
+          <span class="panel-title">Banner (Horizontal)</span>
+          <span class="panel-toggle">▼</span>
+        </div>
+        <div class="panel-body">
+          <div class="control-group">
+            <div class="control-label">
+              <span>Logo %</span>
+              <span class="control-value" id="bannerLogo-display">85%</span>
+            </div>
+            <div class="control-row">
+              <input type="range" id="bannerLogo" min="50" max="100" value="85" step="1">
+              <input type="number" id="bannerLogoNum" min="50" max="100" value="85" step="1">
+            </div>
+          </div>
+          <div class="control-group">
+            <div class="control-label">
+              <span>Text % (of logo)</span>
+              <span class="control-value" id="bannerText-display">75%</span>
+            </div>
+            <div class="control-row">
+              <input type="range" id="bannerText" min="50" max="100" value="75" step="1">
+              <input type="number" id="bannerTextNum" min="50" max="100" value="75" step="1">
+            </div>
+          </div>
+          <div class="control-group">
+            <div class="control-label">
+              <span>Gap % (of logo)</span>
+              <span class="control-value" id="bannerGap-display">0%</span>
+            </div>
+            <div class="control-row">
+              <input type="range" id="bannerGap" min="-20" max="30" value="0" step="1">
+              <input type="number" id="bannerGapNum" min="-20" max="30" value="0" step="1">
+            </div>
+          </div>
+          <div class="btn-group" style="margin-top: 12px;">
+            <button class="btn btn-primary btn-sm" onclick="autoBannerSymmetry()">Auto Symmetry</button>
+          </div>
+          <p style="font-size: 10px; color: var(--text-muted); margin-top: 8px;">
+            Used for: Discourse banners, social previews, docs sidebar
+          </p>
+        </div>
+      </div>
+
+      <!-- Stacked Template -->
+      <div class="panel" id="panel-stacked">
+        <div class="panel-header" onclick="togglePanel('stacked')">
+          <span class="panel-title">Stacked (Vertical)</span>
+          <span class="panel-toggle">▼</span>
+        </div>
+        <div class="panel-body">
+          <div class="control-group">
+            <div class="control-label">
+              <span>Logo %</span>
+              <span class="control-value" id="stackedLogo-display">75%</span>
+            </div>
+            <div class="control-row">
+              <input type="range" id="stackedLogo" min="50" max="95" value="75" step="1">
+              <input type="number" id="stackedLogoNum" min="50" max="95" value="75" step="1">
+            </div>
+          </div>
+          <div class="control-group">
+            <div class="control-label">
+              <span>Text % (of container)</span>
+              <span class="control-value" id="stackedText-display">14%</span>
+            </div>
+            <div class="control-row">
+              <input type="range" id="stackedText" min="8" max="25" value="14" step="0.5">
+              <input type="number" id="stackedTextNum" min="8" max="25" value="14" step="0.5">
+            </div>
+          </div>
+          <div class="control-group">
+            <div class="control-label">
+              <span>Gap % (of container)</span>
+              <span class="control-value" id="stackedGap-display">-10%</span>
+            </div>
+            <div class="control-row">
+              <input type="range" id="stackedGap" min="-20" max="10" value="-10" step="0.5">
+              <input type="number" id="stackedGapNum" min="-20" max="10" value="-10" step="0.5">
+            </div>
+          </div>
+          <div class="btn-group" style="margin-top: 12px;">
+            <button class="btn btn-primary btn-sm" onclick="autoSymmetry()">Auto Symmetry</button>
+          </div>
+          <p style="font-size: 10px; color: var(--text-muted); margin-top: 8px;">
+            Used for: large icons, opengraph images
+          </p>
+        </div>
+      </div>
+
+      <!-- Export Panel -->
+      <div class="export-panel">
+        <div class="export-section">
+          <div class="export-title">Discourse</div>
+          <div class="btn-group">
+            <button class="btn btn-success btn-sm" onclick="exportDiscourse()">All</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportSingle('discourse-banner-light')">Banner L</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportSingle('discourse-banner-dark')">Banner D</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportSingle('discourse-large-light')">512 L</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportSingle('discourse-large-dark')">512 D</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportSingle('discourse-small-stacked-light')">120 L</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportSingle('discourse-small-stacked-dark')">120 D</button>
+          </div>
+        </div>
+        <div class="export-section">
+          <div class="export-title">GitHub</div>
+          <div class="btn-group">
+            <button class="btn btn-success btn-sm" onclick="exportGitHub()">All</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportSingle('github-social')">Social</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportSingle('github-avatar')">Avatar</button>
+          </div>
+        </div>
+        <div class="export-section">
+          <div class="export-title">Documentation</div>
+          <div class="btn-group">
+            <button class="btn btn-success btn-sm" onclick="exportDocs()">All</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportSingle('docs-logo')">Logo</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportSingle('docs-favicon')">Favicon</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="preview-area">
+      <!-- Solo Logo Preview -->
+      <div class="preview-section">
+        <div class="section-title">Solo Logo</div>
+        <div class="preview-grid">
+          <div class="preview-item">
+            <div class="preview-label">Light</div>
+            <div class="preview-wrapper">
+              <div id="solo-light" style="width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; background: #f8fafc;">
+                <img src="suews-logo.svg" id="solo-light-img" style="width: 108px; height: 108px;" alt="SUEWS">
+              </div>
+            </div>
+            <div class="preview-size">120 x 120</div>
+          </div>
+          <div class="preview-item">
+            <div class="preview-label">Dark</div>
+            <div class="preview-wrapper">
+              <div id="solo-dark" style="width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; background: #1a1d2e;">
+                <img src="suews-logo.svg" id="solo-dark-img" style="width: 108px; height: 108px;" alt="SUEWS">
+              </div>
+            </div>
+            <div class="preview-size">120 x 120</div>
+          </div>
+          <div class="preview-item">
+            <div class="preview-label">Favicon</div>
+            <div class="preview-wrapper" style="padding: 20px;">
+              <div id="solo-favicon" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #f8fafc;">
+                <img src="suews-logo.svg" id="solo-favicon-img" style="width: 29px; height: 29px;" alt="SUEWS">
+              </div>
+            </div>
+            <div class="preview-size">32 x 32</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Banner Preview -->
+      <div class="preview-section">
+        <div class="section-title">Banner (Horizontal)</div>
+        <div class="preview-grid">
+          <div class="preview-item">
+            <div class="preview-label">Light</div>
+            <div class="preview-wrapper">
+              <div id="banner-light" class="banner" style="background: #f8fafc; padding: 8px;">
+                <img src="suews-logo.svg" id="banner-light-logo" style="width: 100px; height: 100px;" alt="SUEWS">
+                <span class="text" id="banner-light-text" style="font-size: 75px; color: #1a1d2e;">SUEWS</span>
+              </div>
+            </div>
+          </div>
+          <div class="preview-item">
+            <div class="preview-label">Dark</div>
+            <div class="preview-wrapper">
+              <div id="banner-dark" class="banner" style="background: #1a1d2e; padding: 8px;">
+                <img src="suews-logo.svg" id="banner-dark-logo" style="width: 100px; height: 100px;" alt="SUEWS">
+                <span class="text" id="banner-dark-text" style="font-size: 75px; color: #ffffff;">SUEWS</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stacked Preview -->
+      <div class="preview-section">
+        <div class="section-title">Stacked (Vertical)</div>
+        <div class="preview-grid">
+          <div class="preview-item">
+            <div class="preview-label">Light (512px)</div>
+            <div class="preview-wrapper" style="padding: 8px;">
+              <div id="stacked-light" class="stacked" style="width: 200px; height: 200px; background: #f8fafc;">
+                <img src="suews-logo.svg" id="stacked-light-logo" style="width: 150px; height: 150px;" alt="SUEWS">
+                <span class="text" id="stacked-light-text" style="font-size: 28px; color: #1a1d2e; margin-top: -20px;">SUEWS</span>
+              </div>
+            </div>
+            <div class="preview-size">512 x 512 (39% scale)</div>
+          </div>
+          <div class="preview-item">
+            <div class="preview-label">Dark (512px)</div>
+            <div class="preview-wrapper" style="padding: 8px;">
+              <div id="stacked-dark" class="stacked" style="width: 200px; height: 200px; background: #1a1d2e;">
+                <img src="suews-logo.svg" id="stacked-dark-logo" style="width: 150px; height: 150px;" alt="SUEWS">
+                <span class="text" id="stacked-dark-text" style="font-size: 28px; color: #ffffff; margin-top: -20px;">SUEWS</span>
+              </div>
+            </div>
+            <div class="preview-size">512 x 512 (39% scale)</div>
+          </div>
+          <div class="preview-item">
+            <div class="preview-label">Small Light (120px)</div>
+            <div class="preview-wrapper" style="padding: 8px;">
+              <div id="stacked-small-light" class="stacked" style="width: 120px; height: 120px; background: #f8fafc;">
+                <img src="suews-logo.svg" id="stacked-small-light-logo" style="width: 90px; height: 90px;" alt="SUEWS">
+                <span class="text" id="stacked-small-light-text" style="font-size: 17px; color: #1a1d2e; margin-top: -12px;">SUEWS</span>
+              </div>
+            </div>
+            <div class="preview-size">120 x 120</div>
+          </div>
+          <div class="preview-item">
+            <div class="preview-label">Small Dark (120px)</div>
+            <div class="preview-wrapper" style="padding: 8px;">
+              <div id="stacked-small-dark" class="stacked" style="width: 120px; height: 120px; background: #1a1d2e;">
+                <img src="suews-logo.svg" id="stacked-small-dark-logo" style="width: 90px; height: 90px;" alt="SUEWS">
+                <span class="text" id="stacked-small-dark-text" style="font-size: 17px; color: #ffffff; margin-top: -12px;">SUEWS</span>
+              </div>
+            </div>
+            <div class="preview-size">120 x 120</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Info Panel -->
+      <div class="preview-section">
+        <div class="section-title">Design Analysis</div>
+        <div id="info-panel" style="background: var(--bg-secondary); border-radius: 8px; padding: 16px; font-family: 'SF Mono', Monaco, monospace; font-size: 11px; color: var(--text-secondary); line-height: 1.8;">
+          <!-- Filled by JS -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ============ UTILITIES ============
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast ' + type + ' show';
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    function togglePanel(id) {
+      document.getElementById('panel-' + id).classList.toggle('collapsed');
+    }
+
+    function toggleGuidelines() {
+      const toggle = document.getElementById('guidelines-toggle');
+      const previewArea = document.querySelector('.preview-area');
+      toggle.classList.toggle('active');
+      previewArea.classList.toggle('show-guidelines');
+
+      if (previewArea.classList.contains('show-guidelines')) {
+        updateGuidelineIndicators();
+      } else {
+        clearGuidelineIndicators();
+      }
+    }
+
+    function clearGuidelineIndicators() {
+      document.querySelectorAll('.guide-indicator, .svg-whitespace-marker').forEach(el => el.remove());
+    }
+
+    function updateGuidelineIndicators() {
+      clearGuidelineIndicators();
+
+      // Large Stacked previews (512px export, 200px preview)
+      ['light', 'dark'].forEach(theme => {
+        const container = document.getElementById('stacked-' + theme);
+        const logo = document.getElementById('stacked-' + theme + '-logo');
+        const text = document.getElementById('stacked-' + theme + '-text');
+        if (!container || !logo || !text) return;
+
+        const containerRect = container.getBoundingClientRect();
+        const logoRect = logo.getBoundingClientRect();
+        const textRect = text.getBoundingClientRect();
+
+        const logoSize = parseFloat(logo.style.width);
+        const svgTopWs = logoSize * SVG_WHITESPACE.top;
+        const svgBottomWs = logoSize * SVG_WHITESPACE.bottom;
+
+        // Actual visual margins at preview scale
+        const logoTopInContainer = logoRect.top - containerRect.top;
+        const visualTopMargin = logoTopInContainer + svgTopWs;
+        const textBottom = textRect.bottom - containerRect.top;
+        const visualBottomMargin = containerRect.height - textBottom;
+
+        // Scale to 512px export
+        const scale = 512 / 200;
+        const exportTop = visualTopMargin * scale;
+        const exportBottom = visualBottomMargin * scale;
+        const exportDiff = Math.abs(exportTop - exportBottom);
+
+        // Top margin indicator
+        const topIndicator = document.createElement('div');
+        topIndicator.className = 'guide-indicator top';
+        topIndicator.textContent = 'T:' + exportTop.toFixed(0);
+        container.appendChild(topIndicator);
+
+        // Bottom margin indicator
+        const bottomIndicator = document.createElement('div');
+        bottomIndicator.className = 'guide-indicator bottom';
+        bottomIndicator.textContent = 'B:' + exportBottom.toFixed(0);
+        container.appendChild(bottomIndicator);
+
+        // Symmetry status
+        const statusIndicator = document.createElement('div');
+        statusIndicator.className = 'guide-indicator visual-centre';
+        statusIndicator.style.top = '50%';
+        statusIndicator.style.transform = 'translateY(-50%)';
+        statusIndicator.style.background = exportDiff < 5 ? 'rgba(34, 197, 94, 0.9)' : 'rgba(245, 158, 11, 0.9)';
+        statusIndicator.textContent = exportDiff < 5 ? 'OK' : 'd:' + exportDiff.toFixed(0);
+        container.appendChild(statusIndicator);
+
+        // Visual content boundary markers
+        const topMarker = document.createElement('div');
+        topMarker.className = 'svg-whitespace-marker';
+        topMarker.style.top = (logoTopInContainer + svgTopWs) + 'px';
+        container.appendChild(topMarker);
+
+        const bottomMarker = document.createElement('div');
+        bottomMarker.className = 'svg-whitespace-marker';
+        bottomMarker.style.top = (logoTopInContainer + logoSize - svgBottomWs) + 'px';
+        container.appendChild(bottomMarker);
+      });
+
+      // Small Stacked (120px export, shown at actual size)
+      ['light', 'dark'].forEach(theme => {
+        const container = document.getElementById('stacked-small-' + theme);
+        const logo = document.getElementById('stacked-small-' + theme + '-logo');
+        const text = document.getElementById('stacked-small-' + theme + '-text');
+        if (!container || !logo || !text) return;
+
+        const containerRect = container.getBoundingClientRect();
+        const logoRect = logo.getBoundingClientRect();
+        const textRect = text.getBoundingClientRect();
+
+        const logoSize = parseFloat(logo.style.width);
+        const svgTopWs = logoSize * SVG_WHITESPACE.top;
+
+        const logoTopInContainer = logoRect.top - containerRect.top;
+        const visualTopMargin = logoTopInContainer + svgTopWs;
+        const textBottom = textRect.bottom - containerRect.top;
+        const visualBottomMargin = containerRect.height - textBottom;
+        const diff = Math.abs(visualTopMargin - visualBottomMargin);
+
+        // Top indicator
+        const topIndicator = document.createElement('div');
+        topIndicator.className = 'guide-indicator top';
+        topIndicator.textContent = 'T:' + visualTopMargin.toFixed(0);
+        container.appendChild(topIndicator);
+
+        // Bottom indicator
+        const bottomIndicator = document.createElement('div');
+        bottomIndicator.className = 'guide-indicator bottom';
+        bottomIndicator.textContent = 'B:' + visualBottomMargin.toFixed(0);
+        container.appendChild(bottomIndicator);
+
+        // Status indicator
+        const statusIndicator = document.createElement('div');
+        statusIndicator.className = 'guide-indicator visual-centre';
+        statusIndicator.style.top = '50%';
+        statusIndicator.style.transform = 'translateY(-50%)';
+        statusIndicator.style.background = diff < 2 ? 'rgba(34, 197, 94, 0.9)' : 'rgba(245, 158, 11, 0.9)';
+        statusIndicator.textContent = diff < 2 ? 'OK' : 'd:' + diff.toFixed(0);
+        container.appendChild(statusIndicator);
+      });
+
+      // Solo logos - show fill % and centred status
+      [
+        { id: 'solo-light', size: 120 },
+        { id: 'solo-dark', size: 120 },
+        { id: 'solo-favicon', size: 32 }
+      ].forEach(({ id, size }) => {
+        const container = document.getElementById(id);
+        if (!container) return;
+
+        const fill = getValue('solo', 'fill');
+        const indicator = document.createElement('div');
+        indicator.className = 'guide-indicator';
+        indicator.style.cssText = 'left: 50%; top: 2px; transform: translateX(-50%); background: rgba(34, 197, 94, 0.9); color: white;';
+        indicator.textContent = fill + '% centred';
+        container.appendChild(indicator);
+      });
+
+      // Banner indicators - show actual margins
+      ['light', 'dark'].forEach(theme => {
+        const banner = document.getElementById('banner-' + theme);
+        const logo = document.getElementById('banner-' + theme + '-logo');
+        const text = document.getElementById('banner-' + theme + '-text');
+        if (!banner || !logo || !text) return;
+
+        const bannerRect = banner.getBoundingClientRect();
+        const logoRect = logo.getBoundingClientRect();
+        const textRect = text.getBoundingClientRect();
+
+        const logoSize = parseFloat(logo.style.width);
+        const svgSideWs = logoSize * SVG_WHITESPACE.sides;
+        const svgTopWs = logoSize * SVG_WHITESPACE.top;
+        const svgBottomWs = logoSize * SVG_WHITESPACE.bottom;
+
+        // Left margin (container edge to logo visual edge)
+        const logoLeftInBanner = logoRect.left - bannerRect.left;
+        const visualLeftMargin = logoLeftInBanner + svgSideWs;
+
+        // Right margin (text end to container edge)
+        const visualRightMargin = bannerRect.right - textRect.right;
+
+        // Gap between logo visual edge and text
+        const logoVisualRight = logoRect.right - bannerRect.left - svgSideWs;
+        const textLeft = textRect.left - bannerRect.left;
+        const visualGap = textLeft - logoVisualRight;
+
+        // Top/bottom visual margins
+        const logoTopInBanner = logoRect.top - bannerRect.top;
+        const visualTopMargin = logoTopInBanner + svgTopWs;
+        const visualBottomMargin = bannerRect.bottom - (logoRect.bottom - svgBottomWs);
+
+        // Left margin indicator
+        const leftIndicator = document.createElement('div');
+        leftIndicator.className = 'guide-indicator';
+        leftIndicator.style.cssText = 'left: 2px; top: 50%; transform: translateY(-50%); background: rgba(255, 100, 100, 0.9); color: white;';
+        leftIndicator.textContent = 'L:' + visualLeftMargin.toFixed(0);
+        banner.appendChild(leftIndicator);
+
+        // Right margin indicator
+        const rightIndicator = document.createElement('div');
+        rightIndicator.className = 'guide-indicator';
+        rightIndicator.style.cssText = 'right: 2px; top: 50%; transform: translateY(-50%); background: rgba(255, 100, 100, 0.9); color: white;';
+        rightIndicator.textContent = 'R:' + visualRightMargin.toFixed(0);
+        banner.appendChild(rightIndicator);
+
+        // Gap indicator (between logo and text)
+        const gapIndicator = document.createElement('div');
+        gapIndicator.className = 'guide-indicator';
+        gapIndicator.style.cssText = 'left: 50%; top: 2px; transform: translateX(-50%); background: rgba(0, 128, 255, 0.9); color: white;';
+        gapIndicator.textContent = 'gap:' + visualGap.toFixed(0);
+        banner.appendChild(gapIndicator);
+
+        // Symmetry status (L vs R)
+        const hDiff = Math.abs(visualLeftMargin - visualRightMargin);
+        const vDiff = Math.abs(visualTopMargin - visualBottomMargin);
+        const statusIndicator = document.createElement('div');
+        statusIndicator.className = 'guide-indicator';
+        statusIndicator.style.cssText = 'left: 50%; bottom: 2px; transform: translateX(-50%);';
+        statusIndicator.style.background = (hDiff < 3 && vDiff < 3) ? 'rgba(34, 197, 94, 0.9)' : 'rgba(245, 158, 11, 0.9)';
+        statusIndicator.textContent = (hDiff < 3 && vDiff < 3) ? 'symmetric' : 'H:' + hDiff.toFixed(0) + ' V:' + vDiff.toFixed(0);
+        banner.appendChild(statusIndicator);
+
+        // Vertical line showing logo visual edge
+        const edgeMarker = document.createElement('div');
+        edgeMarker.style.cssText = `
+          position: absolute;
+          top: 0;
+          left: ${logoVisualRight}px;
+          width: 1px;
+          height: 100%;
+          background: rgba(0, 128, 255, 0.6);
+          pointer-events: none;
+          z-index: 150;
+        `;
+        banner.appendChild(edgeMarker);
+      });
+    }
+
+    // ============ DESIGN TEMPLATES ============
+    // All values are percentages - they scale to any output size
+
+    const templates = {
+      solo: {
+        fill: { id: 'soloFill', default: 90 }
+      },
+      banner: {
+        logo: { id: 'bannerLogo', default: 85 },    // % of container height
+        text: { id: 'bannerText', default: 75 },    // % of logo size
+        gap: { id: 'bannerGap', default: 0 }        // % of logo size
+      },
+      stacked: {
+        logo: { id: 'stackedLogo', default: 75 },   // % of container
+        text: { id: 'stackedText', default: 14 },   // % of container
+        gap: { id: 'stackedGap', default: -10 }     // % of container
+      }
+    };
+
+    // SVG internal whitespace ratios (from original 2048x2048 viewBox)
+    const SVG_WHITESPACE = {
+      top: 240 / 2048,      // ~11.7%
+      bottom: 296 / 2048,   // ~14.5%
+      sides: 290 / 2048     // ~14.2%
+    };
+
+    // Current symmetry padding (calculated by autoSymmetry)
+    let stackedPaddingTop = 0;
+    let stackedPaddingBottom = 0;
+
+    function getValue(templateName, propName) {
+      const id = templates[templateName][propName].id;
+      return parseFloat(document.getElementById(id).value);
+    }
+
+    function setValue(templateName, propName, value) {
+      const id = templates[templateName][propName].id;
+      document.getElementById(id).value = value;
+      document.getElementById(id + 'Num').value = value;
+      updateDisplay(templateName, propName);
+    }
+
+    function updateDisplay(templateName, propName) {
+      const id = templates[templateName][propName].id;
+      const value = getValue(templateName, propName);
+      document.getElementById(id + '-display').textContent = value + '%';
+    }
+
+    // ============ DESIGN CALCULATORS ============
+    // These return pixel values for a given container size
+
+    function getSoloDesign(containerSize) {
+      const fill = getValue('solo', 'fill');
+      return {
+        logoSize: containerSize * fill / 100
+      };
+    }
+
+    function getBannerDesign(height) {
+      const logoPct = getValue('banner', 'logo');
+      const textPct = getValue('banner', 'text');
+      const gapPct = getValue('banner', 'gap');
+
+      const logoSize = height * logoPct / 100;
+      const textSize = logoSize * textPct / 100;
+      const gap = logoSize * gapPct / 100;
+      const padding = (height - logoSize) / 2;
+
+      return { logoSize, textSize, gap, padding };
+    }
+
+    function getStackedDesign(containerSize) {
+      const logoPct = getValue('stacked', 'logo');
+      const textPct = getValue('stacked', 'text');
+      const gapPct = getValue('stacked', 'gap');
+
+      const logoSize = containerSize * logoPct / 100;
+      const textSize = containerSize * textPct / 100;
+      const gap = containerSize * gapPct / 100;
+
+      // Scale padding proportionally
+      const baseSize = 512;
+      const scale = containerSize / baseSize;
+
+      return {
+        logoSize,
+        textSize,
+        gap,
+        paddingTop: stackedPaddingTop * scale,
+        paddingBottom: stackedPaddingBottom * scale
+      };
+    }
+
+    // ============ PREVIEW UPDATES ============
+    function updatePreviews() {
+      updateSoloPreviews();
+      updateBannerPreviews();
+      updateStackedPreviews();
+      updateInfoPanel();
+
+      // Update guideline indicators if visible
+      if (document.querySelector('.preview-area').classList.contains('show-guidelines')) {
+        setTimeout(updateGuidelineIndicators, 10); // Small delay for DOM to update
+      }
+    }
+
+    function updateSoloPreviews() {
+      const d120 = getSoloDesign(120);
+      const d32 = getSoloDesign(32);
+
+      document.getElementById('solo-light-img').style.width = d120.logoSize + 'px';
+      document.getElementById('solo-light-img').style.height = d120.logoSize + 'px';
+      document.getElementById('solo-dark-img').style.width = d120.logoSize + 'px';
+      document.getElementById('solo-dark-img').style.height = d120.logoSize + 'px';
+      document.getElementById('solo-favicon-img').style.width = d32.logoSize + 'px';
+      document.getElementById('solo-favicon-img').style.height = d32.logoSize + 'px';
+
+      updateDisplay('solo', 'fill');
+    }
+
+    function updateBannerPreviews() {
+      const d = getBannerDesign(100); // 100px preview height
+
+      ['light', 'dark'].forEach(theme => {
+        const logo = document.getElementById('banner-' + theme + '-logo');
+        const text = document.getElementById('banner-' + theme + '-text');
+        const banner = document.getElementById('banner-' + theme);
+
+        logo.style.width = d.logoSize + 'px';
+        logo.style.height = d.logoSize + 'px';
+        text.style.fontSize = d.textSize + 'px';
+        banner.style.gap = d.gap + 'px';
+
+        // Apply asymmetric padding if in symmetric mode
+        if (bannerSymmetricMode && bannerPaddingLeft !== null) {
+          banner.style.paddingLeft = bannerPaddingLeft + 'px';
+          banner.style.paddingRight = bannerPaddingRight + 'px';
+          banner.style.paddingTop = d.padding + 'px';
+          banner.style.paddingBottom = d.padding + 'px';
+        } else {
+          banner.style.padding = d.padding + 'px';
+        }
+      });
+
+      updateDisplay('banner', 'logo');
+      updateDisplay('banner', 'text');
+      updateDisplay('banner', 'gap');
+    }
+
+    function updateStackedPreviews() {
+      // Preview at 200px represents 512px at ~39% scale
+      const d200 = getStackedDesign(200);
+
+      // Light theme preview
+      ['light', 'dark'].forEach(theme => {
+        const container = document.getElementById('stacked-' + theme);
+        const logo = document.getElementById('stacked-' + theme + '-logo');
+        const text = document.getElementById('stacked-' + theme + '-text');
+
+        container.style.paddingTop = d200.paddingTop + 'px';
+        container.style.paddingBottom = d200.paddingBottom + 'px';
+        container.style.boxSizing = 'border-box';
+        logo.style.width = d200.logoSize + 'px';
+        logo.style.height = d200.logoSize + 'px';
+        text.style.fontSize = d200.textSize + 'px';
+        text.style.marginTop = d200.gap + 'px';
+      });
+
+      // Small previews (120px) - light and dark
+      const d120 = getStackedDesign(120);
+      ['light', 'dark'].forEach(theme => {
+        const small = document.getElementById('stacked-small-' + theme);
+        const smallLogo = document.getElementById('stacked-small-' + theme + '-logo');
+        const smallText = document.getElementById('stacked-small-' + theme + '-text');
+
+        small.style.paddingTop = d120.paddingTop + 'px';
+        small.style.paddingBottom = d120.paddingBottom + 'px';
+        small.style.boxSizing = 'border-box';
+        smallLogo.style.width = d120.logoSize + 'px';
+        smallLogo.style.height = d120.logoSize + 'px';
+        smallText.style.fontSize = d120.textSize + 'px';
+        smallText.style.marginTop = d120.gap + 'px';
+      });
+
+      updateDisplay('stacked', 'logo');
+      updateDisplay('stacked', 'text');
+      updateDisplay('stacked', 'gap');
+    }
+
+    function autoBannerSymmetry() {
+      // For L = R symmetry, we need asymmetric padding
+      // L = paddingLeft + svgSideWs
+      // R = paddingRight
+      // For L = R: paddingLeft + svgSideWs = paddingRight
+      // So: paddingLeft = paddingRight - svgSideWs
+
+      const banner = document.getElementById('banner-light');
+      const logo = document.getElementById('banner-light-logo');
+      const text = document.getElementById('banner-light-text');
+      if (!banner || !logo || !text) return;
+
+      const d = getBannerDesign(100); // Get current design for 100px height
+      const logoSize = d.logoSize;
+      const svgSideWs = logoSize * SVG_WHITESPACE.sides;
+
+      // Target: equal visual margins
+      // With symmetric padding P: L = P + svgSideWs, R = P
+      // Total margin = L + R = 2P + svgSideWs
+      // For symmetric visual: target = (2P + svgSideWs) / 2 = P + svgSideWs/2
+      // paddingLeft = target - svgSideWs = P - svgSideWs/2
+      // paddingRight = target = P + svgSideWs/2
+
+      const currentPadding = d.padding;
+      const paddingLeft = currentPadding - svgSideWs / 2;
+      const paddingRight = currentPadding + svgSideWs / 2;
+
+      // Store asymmetric padding values
+      bannerPaddingLeft = paddingLeft;
+      bannerPaddingRight = paddingRight;
+      bannerSymmetricMode = true;
+
+      updateBannerPreviews();
+      showToast(`Asymmetric padding: L=${paddingLeft.toFixed(1)}, R=${paddingRight.toFixed(1)}`);
+
+      setTimeout(() => {
+        if (document.querySelector('.preview-area').classList.contains('show-guidelines')) {
+          updateGuidelineIndicators();
+        }
+      }, 50);
+    }
+
+    // Banner asymmetric padding state
+    let bannerPaddingLeft = null;
+    let bannerPaddingRight = null;
+    let bannerSymmetricMode = false;
+
+    async function autoSymmetry() {
+      // First reset padding to measure natural layout
+      stackedPaddingTop = 0;
+      stackedPaddingBottom = 0;
+      updateStackedPreviews();
+
+      // Wait for DOM to update
+      await new Promise(r => setTimeout(r, 50));
+
+      // Measure actual rendered positions
+      const container = document.getElementById('stacked-light');
+      const logo = document.getElementById('stacked-light-logo');
+      const text = document.getElementById('stacked-light-text');
+      if (!container || !logo || !text) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const logoRect = logo.getBoundingClientRect();
+      const textRect = text.getBoundingClientRect();
+
+      const logoSize = parseFloat(logo.style.width);
+      const svgTopWs = logoSize * SVG_WHITESPACE.top;
+
+      // Current visual margins (with zero padding)
+      const logoTopInContainer = logoRect.top - containerRect.top;
+      const visualTopMargin = logoTopInContainer + svgTopWs;
+      const textBottom = textRect.bottom - containerRect.top;
+      const visualBottomMargin = containerRect.height - textBottom;
+
+      // To make top = bottom, we need to add padding
+      // Adding paddingTop pushes content down, increasing visualTopMargin
+      // Adding paddingBottom doesn't directly help (container has fixed size)
+
+      // Total visual margin available
+      const totalVisualMargin = visualTopMargin + visualBottomMargin;
+      const targetMargin = totalVisualMargin / 2;
+
+      // How much to add to top padding to achieve target
+      const paddingTopNeeded = targetMargin - visualTopMargin;
+
+      if (paddingTopNeeded < 0) {
+        // Content is too tall, can't achieve symmetry
+        showToast(`Content overflow - reduce logo/text size`, 'warning');
+        stackedPaddingTop = 0;
+        stackedPaddingBottom = 0;
+      } else {
+        // Scale from preview (200px) to base (512px)
+        const scale = 512 / 200;
+        stackedPaddingTop = paddingTopNeeded * scale;
+        stackedPaddingBottom = (visualBottomMargin - targetMargin + visualTopMargin) * scale;
+
+        // Ensure non-negative
+        if (stackedPaddingBottom < 0) stackedPaddingBottom = 0;
+
+        showToast(`Symmetry applied (T=${stackedPaddingTop.toFixed(0)}, B=${stackedPaddingBottom.toFixed(0)})`);
+      }
+
+      updateStackedPreviews();
+      updateInfoPanel();
+
+      // Update guidelines if visible
+      setTimeout(() => {
+        if (document.querySelector('.preview-area').classList.contains('show-guidelines')) {
+          updateGuidelineIndicators();
+        }
+      }, 50);
+    }
+
+    function updateInfoPanel() {
+      const solo = getSoloDesign(120);
+      const banner = getBannerDesign(120);
+      const stacked = getStackedDesign(512);
+
+      // Calculate SVG whitespace at 512px
+      const svgTopWs = stacked.logoSize * SVG_WHITESPACE.top;
+      const svgBottomWs = stacked.logoSize * SVG_WHITESPACE.bottom;
+      const visualOffset = (svgTopWs - svgBottomWs) / 2;
+
+      const html = `
+<div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px;">
+  <div>
+    <div style="color: var(--text-muted); font-size: 10px; text-transform: uppercase; margin-bottom: 8px;">Solo Logo</div>
+    <div>Fill: <span style="color: var(--text-primary);">${getValue('solo', 'fill')}%</span></div>
+    <div>At 120px: <span style="color: var(--text-primary);">${solo.logoSize.toFixed(0)}px logo</span></div>
+  </div>
+  <div>
+    <div style="color: var(--text-muted); font-size: 10px; text-transform: uppercase; margin-bottom: 8px;">Banner</div>
+    <div>Logo: <span style="color: var(--text-primary);">${getValue('banner', 'logo')}%</span></div>
+    <div>Text: <span style="color: var(--text-primary);">${getValue('banner', 'text')}% of logo</span></div>
+    <div>Gap: <span style="color: var(--text-primary);">${getValue('banner', 'gap')}% of logo</span></div>
+  </div>
+  <div>
+    <div style="color: var(--text-muted); font-size: 10px; text-transform: uppercase; margin-bottom: 8px;">Stacked</div>
+    <div>Logo: <span style="color: var(--text-primary);">${getValue('stacked', 'logo')}%</span></div>
+    <div>Text: <span style="color: var(--text-primary);">${getValue('stacked', 'text')}%</span></div>
+    <div>Gap: <span style="color: var(--text-primary);">${getValue('stacked', 'gap')}%</span></div>
+    <div>Pad T/B: <span style="color: var(--text-primary);">${stackedPaddingTop.toFixed(1)} / ${stackedPaddingBottom.toFixed(1)}</span></div>
+  </div>
+  <div>
+    <div style="color: var(--text-muted); font-size: 10px; text-transform: uppercase; margin-bottom: 8px;">SVG Whitespace (512)</div>
+    <div>Top: <span style="color: #3b82f6;">${svgTopWs.toFixed(1)}px</span> (${(SVG_WHITESPACE.top * 100).toFixed(1)}%)</div>
+    <div>Bottom: <span style="color: #3b82f6;">${svgBottomWs.toFixed(1)}px</span> (${(SVG_WHITESPACE.bottom * 100).toFixed(1)}%)</div>
+    <div>Visual offset: <span style="color: #22c55e;">${visualOffset.toFixed(1)}px</span></div>
+  </div>
+</div>`;
+
+      document.getElementById('info-panel').innerHTML = html;
+    }
+
+    // ============ EXPORT FUNCTIONS ============
+    async function createExportElement(type) {
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      document.body.appendChild(container);
+
+      let element;
+
+      switch(type) {
+        // Solo exports
+        case 'discourse-small-light':
+          const ds120 = getSoloDesign(120);
+          element = createSoloElement(120, ds120.logoSize, '#f8fafc');
+          break;
+        case 'discourse-small-dark':
+          const dsd120 = getSoloDesign(120);
+          element = createSoloElement(120, dsd120.logoSize, '#1a1d2e');
+          break;
+        case 'github-avatar':
+          const ga500 = getSoloDesign(500);
+          element = createSoloElement(500, ga500.logoSize, '#f8fafc');
+          break;
+        case 'docs-favicon':
+          const df32 = getSoloDesign(32);
+          element = createSoloElement(32, df32.logoSize, 'transparent');
+          break;
+
+        // Banner exports
+        case 'discourse-banner-light':
+          element = createBannerElement(120, '#f8fafc', '#1a1d2e');
+          break;
+        case 'discourse-banner-dark':
+          element = createBannerElement(120, '#1a1d2e', '#ffffff');
+          break;
+        case 'github-social':
+          element = createBannerElement(640, 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', '#1a1d2e', 1280);
+          break;
+        case 'docs-logo':
+          element = createBannerElement(60, '#ffffff', '#1a1d2e');
+          break;
+
+        // Stacked exports - large (512px)
+        case 'discourse-large-light':
+          element = createStackedElement(512, '#f8fafc', '#1a1d2e');
+          break;
+        case 'discourse-large-dark':
+          element = createStackedElement(512, '#1a1d2e', '#ffffff');
+          break;
+
+        // Stacked exports - small (120px)
+        case 'discourse-small-stacked-light':
+          element = createStackedElement(120, '#f8fafc', '#1a1d2e');
+          break;
+        case 'discourse-small-stacked-dark':
+          element = createStackedElement(120, '#1a1d2e', '#ffffff');
+          break;
+      }
+
+      container.appendChild(element);
+      return { element, container };
+    }
+
+    function createSoloElement(size, logoSize, bg) {
+      const el = document.createElement('div');
+      el.style.cssText = `width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center; background: ${bg};`;
+      el.innerHTML = `<img src="suews-logo.svg" style="width: ${logoSize}px; height: ${logoSize}px;">`;
+      return el;
+    }
+
+    function createBannerElement(height, bg, textColor, fixedWidth = null) {
+      const d = getBannerDesign(height);
+      const el = document.createElement('div');
+      const widthStyle = fixedWidth ? `width: ${fixedWidth}px;` : '';
+
+      // Calculate padding - use asymmetric if in symmetric mode
+      let paddingStyle;
+      if (bannerSymmetricMode && bannerPaddingLeft !== null) {
+        // Scale asymmetric padding from 100px preview to export height
+        const scale = height / 100;
+        const pLeft = bannerPaddingLeft * scale;
+        const pRight = bannerPaddingRight * scale;
+        paddingStyle = `padding: ${d.padding}px ${pRight}px ${d.padding}px ${pLeft}px;`;
+      } else {
+        paddingStyle = `padding: ${d.padding}px;`;
+      }
+
+      el.style.cssText = `${widthStyle} display: inline-flex; align-items: center; justify-content: center; gap: ${d.gap}px; ${paddingStyle} background: ${bg};`;
+      el.innerHTML = `
+        <img src="suews-logo.svg" style="width: ${d.logoSize}px; height: ${d.logoSize}px;">
+        <span style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: ${d.textSize}px; color: ${textColor}; letter-spacing: -0.02em;">SUEWS</span>
+      `;
+      return el;
+    }
+
+    function createStackedElement(size, bg, textColor) {
+      const d = getStackedDesign(size);
+      const el = document.createElement('div');
+      el.style.cssText = `width: ${size}px; height: ${size}px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: ${d.paddingTop}px; padding-bottom: ${d.paddingBottom}px; box-sizing: border-box; background: ${bg};`;
+      el.innerHTML = `
+        <img src="suews-logo.svg" style="width: ${d.logoSize}px; height: ${d.logoSize}px;">
+        <span style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: ${d.textSize}px; color: ${textColor}; letter-spacing: -0.02em; margin-top: ${d.gap}px;">SUEWS</span>
+      `;
+      return el;
+    }
+
+    async function exportSingle(type) {
+      await document.fonts.ready;
+      const { element, container } = await createExportElement(type);
+
+      await new Promise(r => setTimeout(r, 100));
+
+      try {
+        const dataUrl = await domtoimage.toPng(element, { quality: 1 });
+        const link = document.createElement('a');
+        link.download = `suews-${type}.png`;
+        link.href = dataUrl;
+        link.click();
+        showToast(`Exported ${type}`);
+      } catch (err) {
+        console.error('Export failed:', err);
+        showToast('Export failed', 'warning');
+      } finally {
+        document.body.removeChild(container);
+      }
+    }
+
+    async function exportDiscourse() {
+      showToast('Exporting Discourse assets...');
+      const assets = [
+        'discourse-banner-light', 'discourse-banner-dark',
+        'discourse-small-light', 'discourse-small-dark',
+        'discourse-large-light', 'discourse-large-dark',
+        'discourse-small-stacked-light', 'discourse-small-stacked-dark'
+      ];
+      for (const a of assets) {
+        await exportSingle(a);
+        await new Promise(r => setTimeout(r, 200));
+      }
+      showToast('Discourse assets exported!');
+    }
+
+    async function exportGitHub() {
+      showToast('Exporting GitHub assets...');
+      await exportSingle('github-social');
+      await new Promise(r => setTimeout(r, 200));
+      await exportSingle('github-avatar');
+      showToast('GitHub assets exported!');
+    }
+
+    async function exportDocs() {
+      showToast('Exporting Docs assets...');
+      await exportSingle('docs-logo');
+      await new Promise(r => setTimeout(r, 200));
+      await exportSingle('docs-favicon');
+      showToast('Docs assets exported!');
+    }
+
+    // ============ EVENT LISTENERS ============
+    Object.entries(templates).forEach(([templateName, props]) => {
+      Object.entries(props).forEach(([propName, config]) => {
+        const range = document.getElementById(config.id);
+        const num = document.getElementById(config.id + 'Num');
+
+        range.addEventListener('input', () => {
+          num.value = range.value;
+          // Reset symmetric mode when user adjusts banner controls
+          if (templateName === 'banner') {
+            bannerSymmetricMode = false;
+          }
+          updatePreviews();
+        });
+
+        num.addEventListener('input', () => {
+          range.value = num.value;
+          if (templateName === 'banner') {
+            bannerSymmetricMode = false;
+          }
+          updatePreviews();
+        });
+      });
+    });
+
+    // ============ INIT ============
+    autoSymmetry();
+    updatePreviews();
+  </script>
+</body>
+</html>

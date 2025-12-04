@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>SUEWS Brand Workshop</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     :root {
       /* Refined dark palette */
@@ -2094,7 +2095,7 @@ function createIconSVG(theme, shape, fill) {
 }
 
 // ============================================
-// Unified Export Centre
+// Unified Export Centre (ZIP Bundle)
 // ============================================
 
 function toggleIconExportOptions() {
@@ -2134,30 +2135,85 @@ async function exportAll() {
     return;
   }
 
+  // Create ZIP file
+  const zip = new JSZip();
+  let fileCount = 0;
+
+  // Helper: Add SVG to zip
+  function addSVGToZip(folder, filename, svgString) {
+    zip.folder(folder).file(filename, svgString);
+    fileCount++;
+  }
+
+  // Helper: Generate PNG blob from SVG and add to zip
+  async function addPNGToZip(folder, filename, svgString, width, height, bgColor) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+
+        if (bgColor) {
+          ctx.fillStyle = bgColor;
+          ctx.fillRect(0, 0, width, height);
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        URL.revokeObjectURL(url);
+
+        canvas.toBlob(blob => {
+          zip.folder(folder).file(filename, blob);
+          fileCount++;
+          resolve();
+        }, 'image/png');
+      };
+      img.src = url;
+    });
+  }
+
+  // Background colors for themes
+  const bgColors = {
+    light: '#f8fafc',
+    dark: '#1a1d2e',
+    transparent: null
+  };
+
   // Export Stacked logos (512px fixed)
   if (exportStacked) {
+    const settings = getSettings('stacked');
     for (const theme of themes) {
+      const svgString = createStackedSVG({ ...settings, size: 512, theme });
       if (wantSVG) {
-        exportSVG('stacked', theme);
-        await sleep(100);
+        addSVGToZip('stacked', `suews-stacked-${theme}.svg`, svgString);
       }
       if (wantPNG) {
-        await exportPNG('stacked', theme, 512);
-        await sleep(100);
+        await addPNGToZip('stacked', `suews-stacked-${theme}-512px.png`, svgString, 512, 512, bgColors[theme]);
       }
     }
   }
 
   // Export Banner logos (200px height fixed)
   if (exportBanner) {
+    const settings = getSettings('banner');
     for (const theme of themes) {
+      const svgString = createBannerSVG({ ...settings, height: 200, theme });
+      // Parse SVG to get actual dimensions
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
+      const svgEl = svgDoc.querySelector('svg');
+      const width = parseFloat(svgEl.getAttribute('width'));
+      const height = parseFloat(svgEl.getAttribute('height'));
+
       if (wantSVG) {
-        exportSVG('banner', theme);
-        await sleep(100);
+        addSVGToZip('banner', `suews-banner-${theme}.svg`, svgString);
       }
       if (wantPNG) {
-        await exportPNG('banner', theme, 200);
-        await sleep(100);
+        await addPNGToZip('banner', `suews-banner-${theme}-${Math.round(width)}x${Math.round(height)}.png`, svgString, width, height, bgColors[theme]);
       }
     }
   }
@@ -2189,29 +2245,39 @@ async function exportAll() {
 
     for (const shape of shapes) {
       const shapeLabel = shape === 'disk' ? '-disk' : '';
+      const folderName = shape === 'disk' ? 'icon-disk' : 'icon';
+
       for (const theme of iconThemes) {
         const svg = createIconSVG(theme, shape, fill);
 
-        // Export SVG (one per theme/shape)
+        // SVG (one per theme/shape)
         if (wantSVG) {
-          const blob = new Blob([svg], { type: 'image/svg+xml' });
-          const link = document.createElement('a');
-          link.download = `suews-icon-${theme}${shapeLabel}.svg`;
-          link.href = URL.createObjectURL(blob);
-          link.click();
-          await sleep(100);
+          addSVGToZip(folderName, `suews-icon-${theme}${shapeLabel}.svg`, svg);
         }
 
-        // Export PNGs (one per size)
+        // PNGs (one per size)
         if (wantPNG) {
           for (const size of sizes) {
-            await exportIconPNGAsync(svg, size, theme, shapeLabel);
-            await sleep(100);
+            // For icons, the background is baked into the SVG
+            await addPNGToZip(folderName, `suews-icon-${size}-${theme}${shapeLabel}.png`, svg, size, size, null);
           }
         }
       }
     }
   }
+
+  // Generate and download the ZIP
+  if (fileCount === 0) {
+    alert('No files to export.');
+    return;
+  }
+
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(zipBlob);
+  link.download = 'suews-brand-assets.zip';
+  link.click();
+  URL.revokeObjectURL(link.href);
 }
 
 function sleep(ms) {

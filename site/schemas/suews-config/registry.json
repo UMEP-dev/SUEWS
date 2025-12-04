@@ -4,9 +4,14 @@
       "path": "0.1.json",
       "description": "Initial YAML schema with full Pydantic data model (2025.8)",
       "added": "2025-08-18T06:59:49.482784",
+      "is_current": false
+    },
+    "2025.12": {
+      "path": "2025.12.json",
+      "description": "Initial YAML schema with full Pydantic data model",
       "is_current": true
     }
   },
-  "current": "0.1",
+  "current": "2025.12",
   "updated": "2025-10-21T13:26:25.028684"
 }

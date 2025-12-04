@@ -535,8 +535,8 @@ jobs:
         with:
           script: |
             const prNumber = context.issue.number;
-            const previewUrl = `https://umep-dev.github.io/SUEWS/preview/pr-${prNumber}/docs/`;
-            const rtdUrl = 'https://suews.readthedocs.io';
+            const previewUrl = `https://suews.io/preview/pr-${prNumber}/docs/`;
+            const rtdUrl = 'https://docs.suews.io';
 
             // Check for existing bot comment
             const comments = await github.rest.issues.listComments({

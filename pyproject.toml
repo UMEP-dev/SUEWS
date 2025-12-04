@@ -28,7 +28,6 @@ dependencies = [
     # dask removed - was redundant with multiprocess (see Parallel processing below)
 
     # Model requirements
-    "f90wrap==0.2.16",  # Required at runtime by generated supy_driver code
     "pydantic",
     "pyyaml",  # YAML configuration parsing (used in data_model/core/config.py)
     "f90nml",

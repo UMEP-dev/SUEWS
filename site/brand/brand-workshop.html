@@ -265,6 +265,54 @@
       border-radius: 4px;
     }
 
+    /* Toggle button group */
+    .toggle-group {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .toggle-btn {
+      padding: 6px 12px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      min-width: 44px;
+      text-align: center;
+    }
+    .toggle-btn:hover {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+    }
+    .toggle-btn.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    /* Checkbox group */
+    .checkbox-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .checkbox-group label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .checkbox-group input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--accent);
+    }
+
     /* Range slider */
     input[type="range"] {
       width: 100%;
@@ -594,36 +642,93 @@
     /* ═══════════════════════════════════════════
        BREATHING CITY ANIMATIONS
        ═══════════════════════════════════════════ */
-    @keyframes sun-breathe {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(0.95); opacity: 0.9; }
+    /* Aligned with site/index.html animations */
+    @keyframes sun-glow {
+      0%, 100% { transform: scale(0.96); }
+      50% { transform: scale(1.06); }
     }
-    @keyframes sun-core-pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-    }
-    @keyframes wave-roll {
-      0%   { transform: translate(0, 0) scale(1, 1) skewX(0deg); }
-      25%  { transform: translate(-4px, -6px) scale(1.01, 1.02) skewX(-1deg); }
-      50%  { transform: translate(0, 2px) scale(1.02, 0.99) skewX(0deg); }
-      75%  { transform: translate(4px, -6px) scale(1.01, 1.02) skewX(1deg); }
-      100% { transform: translate(0, 0) scale(1, 1) skewX(0deg); }
+    @keyframes wave-undulate {
+      0%, 100% { transform: translateY(0) scaleY(1); }
+      25% { transform: translateY(-8px) scaleY(1.05); }
+      50% { transform: translateY(4px) scaleY(0.95); }
+      75% { transform: translateY(-8px) scaleY(1.05); }
     }
 
-    .animated-logo #sun-outer {
-      animation: sun-breathe 6s ease-in-out infinite;
+    /* Animation controls via CSS variables */
+    :root {
+      --anim-duration: 6s;
+      --anim-state: running;
+    }
+
+    /* Target <use> elements by their href attribute */
+    .animated-logo use[href="#sun-outer"] {
+      animation: sun-glow var(--anim-duration) ease-in-out infinite;
+      animation-play-state: var(--anim-state);
       transform-box: fill-box;
       transform-origin: center center;
     }
-    .animated-logo #sun-inner {
-      animation: sun-core-pulse 6s ease-in-out infinite;
-      transform-box: fill-box;
-      transform-origin: center center;
-    }
-    .animated-logo #wave {
-      animation: wave-roll 6s ease-in-out infinite;
+    .animated-logo use[href="#wave"] {
+      animation: wave-undulate var(--anim-duration) ease-in-out infinite;
+      animation-play-state: var(--anim-state);
       transform-box: fill-box;
       transform-origin: center bottom;
+    }
+
+    /* Pause individual elements */
+    .animated-logo.pause-sun use[href="#sun-outer"] { animation-play-state: paused; }
+    .animated-logo.pause-wave use[href="#wave"] { animation-play-state: paused; }
+
+    /* Animation controls panel */
+    .anim-controls {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 12px 16px;
+      background: var(--bg-elevated);
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    .anim-controls label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .anim-controls input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+    }
+    .anim-controls input[type="range"] {
+      width: 100px;
+    }
+    .anim-controls button {
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .anim-controls button:hover {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    .anim-controls button.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    .anim-controls .speed-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      min-width: 32px;
     }
 
     /* Individual element preview cards */
@@ -754,7 +859,7 @@
         <div class="section-icon">S</div>
         <h2>Stacked Logo</h2>
       </div>
-      <span class="size-badge">512px / 120px</span>
+      <span class="size-badge">512px</span>
     </div>
     <div class="section-content">
       <!-- Controls -->
@@ -792,42 +897,17 @@
           <button class="action-btn" onclick="presetStacked()">Preset</button>
           <button class="action-btn secondary" onclick="centreStacked()">Centre</button>
         </div>
+        <p class="info-text" style="margin-top: 12px;">Use Export Centre below for batch export.</p>
       </div>
       <!-- Previews -->
       <div class="preview-grid">
-        <!-- 512px Light -->
         <div class="preview-card light">
-          <span class="preview-label">512px Light</span>
+          <span class="preview-label">Light</span>
           <div class="preview-wrapper" id="stacked-light-wrapper" style="width: 200px; height: 200px;"></div>
-          <div class="export-group">
-            <button class="export-btn" onclick="exportPNG('stacked', 'light', 512)">PNG</button>
-            <button class="export-btn secondary" onclick="exportSVG('stacked', 'light')">SVG</button>
-          </div>
         </div>
-        <!-- 512px Dark -->
         <div class="preview-card dark">
-          <span class="preview-label">512px Dark</span>
+          <span class="preview-label">Dark</span>
           <div class="preview-wrapper" id="stacked-dark-wrapper" style="width: 200px; height: 200px;"></div>
-          <div class="export-group">
-            <button class="export-btn" onclick="exportPNG('stacked', 'dark', 512)">PNG</button>
-            <button class="export-btn secondary" onclick="exportSVG('stacked', 'dark')">SVG</button>
-          </div>
-        </div>
-        <!-- 120px Light -->
-        <div class="preview-card light">
-          <span class="preview-label">120px Light</span>
-          <div class="preview-wrapper" id="stacked-small-light-wrapper" style="width: 120px; height: 120px;"></div>
-          <div class="export-group">
-            <button class="export-btn" onclick="exportPNG('stacked', 'light', 120)">PNG</button>
-          </div>
-        </div>
-        <!-- 120px Dark -->
-        <div class="preview-card dark">
-          <span class="preview-label">120px Dark</span>
-          <div class="preview-wrapper" id="stacked-small-dark-wrapper" style="width: 120px; height: 120px;"></div>
-          <div class="export-group">
-            <button class="export-btn" onclick="exportPNG('stacked', 'dark', 120)">PNG</button>
-          </div>
         </div>
       </div>
     </div>
@@ -880,24 +960,17 @@
           <button class="action-btn" onclick="presetBanner()">Preset</button>
           <button class="action-btn secondary" onclick="centreBanner()">Centre</button>
         </div>
+        <p class="info-text" style="margin-top: 12px;">Use Export Centre below for batch export.</p>
       </div>
       <!-- Previews -->
       <div class="preview-grid">
         <div class="preview-card light">
           <span class="preview-label">Light</span>
           <div class="preview-wrapper" id="banner-light-wrapper" style="height: 100px;"></div>
-          <div class="export-group">
-            <button class="export-btn" onclick="exportPNG('banner', 'light', 200)">PNG</button>
-            <button class="export-btn secondary" onclick="exportSVG('banner', 'light')">SVG</button>
-          </div>
         </div>
         <div class="preview-card dark">
           <span class="preview-label">Dark</span>
           <div class="preview-wrapper" id="banner-dark-wrapper" style="height: 100px;"></div>
-          <div class="export-group">
-            <button class="export-btn" onclick="exportPNG('banner', 'dark', 200)">PNG</button>
-            <button class="export-btn secondary" onclick="exportSVG('banner', 'dark')">SVG</button>
-          </div>
         </div>
       </div>
     </div>
@@ -912,78 +985,40 @@
         <div class="section-icon">I</div>
         <h2>Icon / Favicon</h2>
       </div>
-      <span class="size-badge">512 / 256 / 64 / 32px</span>
+      <span class="size-badge">Square &amp; Disk</span>
     </div>
     <div class="section-content">
-      <!-- Controls -->
+      <!-- Design Controls -->
       <div class="controls-panel">
+        <div class="control-group">
+          <div class="control-label"><span>Shape</span></div>
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="shape-square" onclick="setIconShape('square')">Square</button>
+            <button class="toggle-btn" id="shape-disk" onclick="setIconShape('disk')">Disk</button>
+          </div>
+        </div>
         <div class="control-group">
           <div class="control-label">
             <span>Fill</span>
             <span class="control-value" id="solo-fill-value">90%</span>
           </div>
-          <input type="range" id="solo-fill" min="60" max="100" value="90" oninput="updateSolo()">
+          <input type="range" id="solo-fill" min="60" max="100" value="90" oninput="updateIconPreviews()">
         </div>
-        <p class="info-text">Logo is always centred. Fill controls canvas coverage.</p>
+        <p class="info-text" style="margin-top: 12px;">Use Export Centre below for batch export.</p>
       </div>
       <!-- Previews -->
-      <div class="preview-grid">
-        <!-- 512px -->
+      <div class="preview-grid" id="icon-previews">
         <div class="preview-card light">
-          <span class="preview-label">512px Light</span>
-          <div class="preview-wrapper" id="solo-large-light-wrapper" style="width: 128px; height: 128px;"></div>
-          <div class="export-group">
-            <button class="export-btn" onclick="exportPNG('solo', 'light', 512)">PNG</button>
-            <button class="export-btn secondary" onclick="exportSVG('solo', 'light')">SVG</button>
-          </div>
+          <span class="preview-label">Light</span>
+          <div class="preview-wrapper" id="icon-preview-light" style="width: 128px; height: 128px;"></div>
         </div>
         <div class="preview-card dark">
-          <span class="preview-label">512px Dark</span>
-          <div class="preview-wrapper" id="solo-large-dark-wrapper" style="width: 128px; height: 128px;"></div>
-          <div class="export-group">
-            <button class="export-btn" onclick="exportPNG('solo', 'dark', 512)">PNG</button>
-            <button class="export-btn secondary" onclick="exportSVG('solo', 'dark')">SVG</button>
-          </div>
+          <span class="preview-label">Dark</span>
+          <div class="preview-wrapper" id="icon-preview-dark" style="width: 128px; height: 128px;"></div>
         </div>
-        <!-- 256px -->
-        <div class="preview-card light">
-          <span class="preview-label">256px Light</span>
-          <div class="preview-wrapper" id="solo-medium-light-wrapper" style="width: 96px; height: 96px;"></div>
-          <div class="export-group">
-            <button class="export-btn" onclick="exportPNG('solo', 'light', 256)">PNG</button>
-          </div>
-        </div>
-        <div class="preview-card dark">
-          <span class="preview-label">256px Dark</span>
-          <div class="preview-wrapper" id="solo-medium-dark-wrapper" style="width: 96px; height: 96px;"></div>
-          <div class="export-group">
-            <button class="export-btn" onclick="exportPNG('solo', 'dark', 256)">PNG</button>
-          </div>
-        </div>
-        <!-- 64/32px -->
-        <div class="preview-card light">
-          <span class="preview-label">64px Light</span>
-          <div class="preview-wrapper" id="solo-small-light-wrapper" style="width: 64px; height: 64px;"></div>
-          <div class="export-group">
-            <button class="export-btn" onclick="exportPNG('solo', 'light', 64)">64</button>
-            <button class="export-btn" onclick="exportPNG('solo', 'light', 32)">32</button>
-          </div>
-        </div>
-        <div class="preview-card dark">
-          <span class="preview-label">64px Dark</span>
-          <div class="preview-wrapper" id="solo-small-dark-wrapper" style="width: 64px; height: 64px;"></div>
-          <div class="export-group">
-            <button class="export-btn" onclick="exportPNG('solo', 'dark', 64)">64</button>
-            <button class="export-btn" onclick="exportPNG('solo', 'dark', 32)">32</button>
-          </div>
-        </div>
-        <!-- Favicon (transparent) -->
         <div class="preview-card transparent">
-          <span class="preview-label">Favicon</span>
-          <div class="preview-wrapper" id="favicon-wrapper" style="width: 64px; height: 64px;"></div>
-          <div class="export-group">
-            <button class="export-btn" onclick="exportPNG('solo', 'favicon', 32)">32px ICO</button>
-          </div>
+          <span class="preview-label">Transparent</span>
+          <div class="preview-wrapper" id="icon-preview-transparent" style="width: 128px; height: 128px;"></div>
         </div>
       </div>
     </div>
@@ -1001,6 +1036,22 @@
       <span class="size-badge">Breathing City</span>
     </div>
     <div class="section-content" style="grid-template-columns: 1fr;">
+      <div class="anim-controls">
+        <button id="anim-play" class="active" onclick="toggleAnimPlay()">Pause</button>
+        <label>
+          Cycle
+          <input type="range" id="anim-speed" min="2" max="12" step="1" value="6" oninput="updateAnimSpeed()">
+          <span class="speed-value" id="speed-val">6s</span>
+        </label>
+        <label>
+          <input type="checkbox" id="anim-sun" checked onchange="toggleAnimElement('sun')">
+          Sun
+        </label>
+        <label>
+          <input type="checkbox" id="anim-wave" checked onchange="toggleAnimElement('wave')">
+          Wave
+        </label>
+      </div>
       <p class="info-text" style="margin-bottom: 16px;">Subtle animations: sun pulses (energy input) and wave flows (water cycle)</p>
       <div class="preview-grid">
         <div class="preview-card light">
@@ -1034,42 +1085,6 @@
               <use href="#leaf-ground"/>
               <use href="#wave"/>
             </svg>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══════════════════════════════════════════
-       DISK VARIANTS SECTION
-       ═══════════════════════════════════════════ -->
-  <section class="logo-section">
-    <div class="section-header">
-      <div class="section-title">
-        <div class="section-icon">D</div>
-        <h2>Disk Variants</h2>
-      </div>
-      <span class="size-badge">Round Icons</span>
-    </div>
-    <div class="section-content" style="grid-template-columns: 1fr;">
-      <p class="info-text" style="margin-bottom: 16px;">Circular icon variants with theme-adaptive backgrounds</p>
-      <div class="preview-grid" id="disk-previews">
-        <div class="preview-card transparent">
-          <span class="preview-label">Transparent</span>
-          <div class="preview-wrapper" style="width: 150px; height: 150px;">
-            <svg class="icon-transparent" viewBox="-180 -155 2360 2360" width="150" height="150"></svg>
-          </div>
-        </div>
-        <div class="preview-card dark">
-          <span class="preview-label">Dark Theme</span>
-          <div class="preview-wrapper" style="width: 150px; height: 150px;">
-            <svg class="icon-dark" viewBox="-180 -155 2360 2360" width="150" height="150"></svg>
-          </div>
-        </div>
-        <div class="preview-card light">
-          <span class="preview-label">Light Theme</span>
-          <div class="preview-wrapper" style="width: 150px; height: 150px;">
-            <svg class="icon-light" viewBox="-180 -155 2360 2360" width="150" height="150"></svg>
           </div>
         </div>
       </div>
@@ -1149,6 +1164,74 @@
             <svg viewBox="0 0 2048 2048" width="16" height="16" id="size-16"></svg>
             <p>16px</p>
           </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════
+       EXPORT CENTRE (Unified Batch Export)
+       ═══════════════════════════════════════════ -->
+  <section class="logo-section">
+    <div class="section-header">
+      <div class="section-title">
+        <div class="section-icon">↓</div>
+        <h2>Export Centre</h2>
+      </div>
+      <span class="size-badge">Batch Export</span>
+    </div>
+    <div class="section-content" style="grid-template-columns: 1fr;">
+      <div class="controls-panel" style="max-width: 700px;">
+        <!-- Logo Types -->
+        <div class="control-group">
+          <div class="control-label"><span>Logo Types</span></div>
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="export-type-stacked" checked> Stacked (512px)</label>
+            <label><input type="checkbox" id="export-type-banner" checked> Banner (200px h)</label>
+            <label><input type="checkbox" id="export-type-icon" checked onchange="toggleIconExportOptions()"> Icon</label>
+          </div>
+        </div>
+        <!-- Icon-specific options -->
+        <div id="icon-export-options">
+          <div class="control-group">
+            <div class="control-label"><span>Icon Shape</span></div>
+            <div class="checkbox-group">
+              <label><input type="checkbox" id="export-shape-square" checked> Square</label>
+              <label><input type="checkbox" id="export-shape-disk"> Disk</label>
+            </div>
+          </div>
+          <div class="control-group">
+            <div class="control-label"><span>Icon Sizes</span></div>
+            <div class="checkbox-group">
+              <label><input type="checkbox" id="export-size-512" checked> 512px</label>
+              <label><input type="checkbox" id="export-size-256"> 256px</label>
+              <label><input type="checkbox" id="export-size-128"> 128px</label>
+              <label><input type="checkbox" id="export-size-64"> 64px</label>
+              <label><input type="checkbox" id="export-size-32"> 32px</label>
+            </div>
+          </div>
+        </div>
+        <!-- Themes -->
+        <div class="control-group">
+          <div class="control-label"><span>Themes</span></div>
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="export-theme-light" checked> Light</label>
+            <label><input type="checkbox" id="export-theme-dark" checked> Dark</label>
+            <label><input type="checkbox" id="export-theme-transparent"> Transparent (Icon only)</label>
+          </div>
+        </div>
+        <!-- Format -->
+        <div class="control-group">
+          <div class="control-label"><span>Format</span></div>
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="export-format-png" checked> PNG</label>
+            <label><input type="checkbox" id="export-format-svg" checked> SVG</label>
+          </div>
+        </div>
+        <p class="info-text">Exports use current design settings from each section above.</p>
+        <!-- Export button -->
+        <div class="button-row">
+          <button class="action-btn" onclick="exportAll()">Export All Selected</button>
         </div>
       </div>
     </div>
@@ -1339,12 +1422,6 @@ function updateStacked() {
     createStackedSVG({ ...settings, size: 200, theme: 'light' });
   document.getElementById('stacked-dark-wrapper').innerHTML =
     createStackedSVG({ ...settings, size: 200, theme: 'dark' });
-
-  // Small previews (120px)
-  document.getElementById('stacked-small-light-wrapper').innerHTML =
-    createStackedSVG({ ...settings, size: 120, theme: 'light' });
-  document.getElementById('stacked-small-dark-wrapper').innerHTML =
-    createStackedSVG({ ...settings, size: 120, theme: 'dark' });
 
   updateIndicators();
 }
@@ -1544,21 +1621,10 @@ function updateIndicators() {
   // Stacked indicators
   updateStackedIndicators('stacked-light-wrapper', 512, 200);
   updateStackedIndicators('stacked-dark-wrapper', 512, 200);
-  updateStackedIndicators('stacked-small-light-wrapper', 120, 120);
-  updateStackedIndicators('stacked-small-dark-wrapper', 120, 120);
 
   // Banner indicators
   updateBannerIndicators('banner-light-wrapper');
   updateBannerIndicators('banner-dark-wrapper');
-
-  // Solo indicators (Large: 512px, Medium: 256px, Small: 64px)
-  updateSoloIndicators('solo-large-light-wrapper', 512);
-  updateSoloIndicators('solo-large-dark-wrapper', 512);
-  updateSoloIndicators('solo-medium-light-wrapper', 256);
-  updateSoloIndicators('solo-medium-dark-wrapper', 256);
-  updateSoloIndicators('solo-small-light-wrapper', 64);
-  updateSoloIndicators('solo-small-dark-wrapper', 64);
-  updateSoloIndicators('favicon-wrapper', 32);
 }
 
 function updateStackedIndicators(wrapperId, exportSize, previewSize) {
@@ -1821,67 +1887,70 @@ function getSettings(type) {
   }
 }
 
-async function exportPNG(type, theme, size) {
-  const settings = getSettings(type);
-  let svgString, width, height;
+function exportPNG(type, theme, size) {
+  return new Promise((resolve) => {
+    const settings = getSettings(type);
+    let svgString, width, height;
 
-  if (type === 'stacked') {
-    svgString = createStackedSVG({ ...settings, size, theme });
-    width = height = size;
-  } else if (type === 'banner') {
-    // Banner has dynamic width - create SVG and extract dimensions from it
-    svgString = createBannerSVG({ ...settings, height: size, theme });
-    // Parse the SVG to get actual dimensions
-    const parser = new DOMParser();
-    const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
-    const svgEl = svgDoc.querySelector('svg');
-    width = parseFloat(svgEl.getAttribute('width'));
-    height = parseFloat(svgEl.getAttribute('height'));
-  } else if (type === 'solo') {
-    svgString = createSoloSVG({ ...settings, size, theme });
-    width = height = size;
-  }
-
-  // Create image from SVG
-  const img = new Image();
-  const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(svgBlob);
-
-  img.onload = () => {
-    // Draw to canvas
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-
-    // Fill background for non-transparent exports
-    if (theme === 'light') {
-      ctx.fillStyle = '#f8fafc';
-    } else if (theme === 'dark') {
-      ctx.fillStyle = '#1a1d2e';
-    }
-    // For favicon, keep transparent
-    if (theme !== 'favicon') {
-      ctx.fillRect(0, 0, width, height);
+    if (type === 'stacked') {
+      svgString = createStackedSVG({ ...settings, size, theme });
+      width = height = size;
+    } else if (type === 'banner') {
+      // Banner has dynamic width - create SVG and extract dimensions from it
+      svgString = createBannerSVG({ ...settings, height: size, theme });
+      // Parse the SVG to get actual dimensions
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
+      const svgEl = svgDoc.querySelector('svg');
+      width = parseFloat(svgEl.getAttribute('width'));
+      height = parseFloat(svgEl.getAttribute('height'));
+    } else if (type === 'solo') {
+      svgString = createSoloSVG({ ...settings, size, theme });
+      width = height = size;
     }
 
-    ctx.drawImage(img, 0, 0, width, height);
+    // Create image from SVG
+    const img = new Image();
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
 
-    // Download
-    canvas.toBlob(blob => {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      // Use WxH for banner, just size for others
-      const filename = type === 'banner'
-        ? `suews-${type}-${theme}-${Math.round(width)}x${Math.round(height)}.png`
-        : `suews-${type}-${theme}-${size}px.png`;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-    }, 'image/png');
-  };
+    img.onload = () => {
+      // Draw to canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
 
-  img.src = url;
+      // Fill background for non-transparent exports
+      if (theme === 'light') {
+        ctx.fillStyle = '#f8fafc';
+      } else if (theme === 'dark') {
+        ctx.fillStyle = '#1a1d2e';
+      }
+      // For favicon, keep transparent
+      if (theme !== 'favicon') {
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Download
+      canvas.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        // Use WxH for banner, just size for others
+        const filename = type === 'banner'
+          ? `suews-${type}-${theme}-${Math.round(width)}x${Math.round(height)}.png`
+          : `suews-${type}-${theme}-${size}px.png`;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        resolve();
+      }, 'image/png');
+    };
+
+    img.src = url;
+  });
 }
 
 function exportSVG(type, theme) {
@@ -1901,44 +1970,276 @@ function exportSVG(type, theme) {
 document.addEventListener('DOMContentLoaded', () => {
   updateStacked();
   updateBanner();
-  updateSolo();
 
-  // Initialize disk variants (from logo-workshop)
-  initDiskVariants();
+  // Initialize icon previews (merged from disk variants)
+  initIconPreviews();
 
   // Initialize size test SVGs
   initSizeTest();
 });
 
 // ============================================
-// Disk Variants Initialization
+// Animation Controls
 // ============================================
 
-function initDiskVariants() {
+function toggleAnimPlay() {
+  const btn = document.getElementById('anim-play');
+  const isPlaying = btn.classList.contains('active');
+
+  if (isPlaying) {
+    document.documentElement.style.setProperty('--anim-state', 'paused');
+    btn.textContent = 'Play';
+    btn.classList.remove('active');
+  } else {
+    document.documentElement.style.setProperty('--anim-state', 'running');
+    btn.textContent = 'Pause';
+    btn.classList.add('active');
+  }
+}
+
+function updateAnimSpeed() {
+  const duration = document.getElementById('anim-speed').value;
+  document.documentElement.style.setProperty('--anim-duration', duration + 's');
+  document.getElementById('speed-val').textContent = duration + 's';
+}
+
+function toggleAnimElement(element) {
+  const checked = document.getElementById('anim-' + element).checked;
+  const logos = document.querySelectorAll('.animated-logo');
+  logos.forEach(logo => {
+    if (checked) {
+      logo.classList.remove('pause-' + element);
+    } else {
+      logo.classList.add('pause-' + element);
+    }
+  });
+}
+
+// ============================================
+// Icon System (merged Square + Disk variants)
+// ============================================
+
+let iconState = {
+  shape: 'square',
+  fill: 90
+};
+
+function setIconShape(shape) {
+  iconState.shape = shape;
+  document.querySelectorAll('.toggle-group button[id^="shape-"]').forEach(btn => {
+    btn.classList.toggle('active', btn.id === 'shape-' + shape);
+  });
+  updateIconPreviews();
+}
+
+function initIconPreviews() {
+  updateIconPreviews();
+}
+
+function updateIconPreviews() {
+  const fill = document.getElementById('solo-fill')?.value || 90;
+  iconState.fill = fill;
+  document.getElementById('solo-fill-value').textContent = fill + '%';
+
+  // Generate SVG for each theme preview
+  ['light', 'dark', 'transparent'].forEach(theme => {
+    const wrapper = document.getElementById('icon-preview-' + theme);
+    if (wrapper) {
+      wrapper.innerHTML = createIconSVG(theme, iconState.shape, fill);
+    }
+  });
+}
+
+function createIconSVG(theme, shape, fill) {
   const logo = document.getElementById('logo');
   const logoContent = logo.innerHTML;
 
-  const diskTransparent = document.getElementById('disk-transparent');
-  const diskDark = document.getElementById('disk-dark');
-  const diskLight = document.getElementById('disk-light');
+  // Calculate logo positioning based on fill percentage
+  const canvasSize = 2048;
+  const logoSize = 2048; // Original logo viewBox
+  const scale = (fill / 100);
+  const offset = (canvasSize - logoSize * scale) / 2;
 
-  const diskTransparentContent = diskTransparent ? diskTransparent.innerHTML : '';
-  const diskDarkContent = diskDark ? diskDark.innerHTML : '';
-  const diskLightContent = diskLight ? diskLight.innerHTML : '';
+  let background = '';
+  let viewBox = '0 0 2048 2048';
 
-  // Populate transparent disk icons
-  document.querySelectorAll('svg.icon-transparent').forEach(svg => {
-    svg.innerHTML = diskTransparentContent + logoContent;
-  });
+  if (shape === 'disk') {
+    // Disk shape - circular background
+    viewBox = '-180 -155 2360 2360';
+    const diskColors = {
+      light: { fill: '#F5F5F0', stroke: '#0077B6' },
+      dark: { fill: '#2D3142', stroke: '#F7B538' },
+      transparent: { fill: 'none', stroke: '#666666' }
+    };
+    const c = diskColors[theme];
+    background = `<circle cx="1000" cy="1025" r="1068" fill="${c.fill}" stroke="${c.stroke}" stroke-width="20"/>`;
+  } else {
+    // Square shape - rectangular background
+    const bgColors = {
+      light: '#F5F5F0',
+      dark: '#2D3142',
+      transparent: 'none'
+    };
+    if (bgColors[theme] !== 'none') {
+      background = `<rect width="2048" height="2048" fill="${bgColors[theme]}"/>`;
+    }
+  }
 
-  // Populate dark disk icons
-  document.querySelectorAll('svg.icon-dark').forEach(svg => {
-    svg.innerHTML = diskDarkContent + logoContent;
-  });
+  const scaledLogo = `<g transform="translate(${offset}, ${offset}) scale(${scale})">${logoContent}</g>`;
 
-  // Populate light disk icons
-  document.querySelectorAll('svg.icon-light').forEach(svg => {
-    svg.innerHTML = diskLightContent + logoContent;
+  return `<svg viewBox="${viewBox}" width="128" height="128" xmlns="http://www.w3.org/2000/svg">
+    ${background}
+    ${shape === 'disk' ? logoContent : scaledLogo}
+  </svg>`;
+}
+
+// ============================================
+// Unified Export Centre
+// ============================================
+
+function toggleIconExportOptions() {
+  const iconChecked = document.getElementById('export-type-icon')?.checked;
+  const iconOptions = document.getElementById('icon-export-options');
+  if (iconOptions) {
+    iconOptions.style.display = iconChecked ? 'block' : 'none';
+  }
+}
+
+async function exportAll() {
+  // Get selected logo types
+  const exportStacked = document.getElementById('export-type-stacked')?.checked;
+  const exportBanner = document.getElementById('export-type-banner')?.checked;
+  const exportIcon = document.getElementById('export-type-icon')?.checked;
+
+  // Get themes (light/dark apply to all, transparent only for icon)
+  const themes = ['light', 'dark'].filter(t =>
+    document.getElementById('export-theme-' + t)?.checked
+  );
+  const transparentChecked = document.getElementById('export-theme-transparent')?.checked;
+
+  // Get formats
+  const wantPNG = document.getElementById('export-format-png')?.checked;
+  const wantSVG = document.getElementById('export-format-svg')?.checked;
+
+  if (!exportStacked && !exportBanner && !exportIcon) {
+    alert('Please select at least one logo type.');
+    return;
+  }
+  if (themes.length === 0 && !transparentChecked) {
+    alert('Please select at least one theme.');
+    return;
+  }
+  if (!wantPNG && !wantSVG) {
+    alert('Please select at least one format.');
+    return;
+  }
+
+  // Export Stacked logos (512px fixed)
+  if (exportStacked) {
+    for (const theme of themes) {
+      if (wantSVG) {
+        exportSVG('stacked', theme);
+        await sleep(100);
+      }
+      if (wantPNG) {
+        await exportPNG('stacked', theme, 512);
+        await sleep(100);
+      }
+    }
+  }
+
+  // Export Banner logos (200px height fixed)
+  if (exportBanner) {
+    for (const theme of themes) {
+      if (wantSVG) {
+        exportSVG('banner', theme);
+        await sleep(100);
+      }
+      if (wantPNG) {
+        await exportPNG('banner', theme, 200);
+        await sleep(100);
+      }
+    }
+  }
+
+  // Export Icons (multiple shapes, sizes, and themes including transparent)
+  if (exportIcon) {
+    const shapes = [];
+    if (document.getElementById('export-shape-square')?.checked) shapes.push('square');
+    if (document.getElementById('export-shape-disk')?.checked) shapes.push('disk');
+
+    const sizes = [512, 256, 128, 64, 32].filter(s =>
+      document.getElementById('export-size-' + s)?.checked
+    );
+
+    // Icon themes include transparent
+    const iconThemes = [...themes];
+    if (transparentChecked) iconThemes.push('transparent');
+
+    if (shapes.length === 0) {
+      alert('Please select at least one icon shape.');
+      return;
+    }
+    if (sizes.length === 0) {
+      alert('Please select at least one icon size.');
+      return;
+    }
+
+    const fill = iconState.fill;
+
+    for (const shape of shapes) {
+      const shapeLabel = shape === 'disk' ? '-disk' : '';
+      for (const theme of iconThemes) {
+        const svg = createIconSVG(theme, shape, fill);
+
+        // Export SVG (one per theme/shape)
+        if (wantSVG) {
+          const blob = new Blob([svg], { type: 'image/svg+xml' });
+          const link = document.createElement('a');
+          link.download = `suews-icon-${theme}${shapeLabel}.svg`;
+          link.href = URL.createObjectURL(blob);
+          link.click();
+          await sleep(100);
+        }
+
+        // Export PNGs (one per size)
+        if (wantPNG) {
+          for (const size of sizes) {
+            await exportIconPNGAsync(svg, size, theme, shapeLabel);
+            await sleep(100);
+          }
+        }
+      }
+    }
+  }
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function exportIconPNGAsync(svg, size, theme, shapeLabel) {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    const img = new Image();
+    const svgBlob = new Blob([svg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(svgBlob);
+
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+
+      const link = document.createElement('a');
+      link.download = `suews-icon-${size}-${theme}${shapeLabel}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      resolve();
+    };
+    img.src = url;
   });
 }
 

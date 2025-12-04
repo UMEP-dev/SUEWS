@@ -41,14 +41,22 @@ This directory contains official SUEWS branding assets including logos, colours,
 | `suews-logo-text-light.svg` | Light mode | Dark text (#2D3142) |
 | `suews-logo-text-dark.svg` | Dark mode | White text (#FFFFFF) |
 
+## Asset Downloads
+
+Exportable SVG files are available in the `assets/` subdirectory:
+- `assets/suews-logo.svg` - Icon logo (square)
+- `assets/suews-logo-text-light.svg` - Logo with text (light theme)
+- `assets/suews-logo-text-dark.svg` - Logo with text (dark theme)
+- `assets/suews-logo-raw.svg` - Source/editable version
+
 ## Usage in Sphinx Documentation
 
-The logos are configured for automatic theme adaptation in `docs/source/conf.py`:
+The logos are stored in `docs/source/_static/` for reliable ReadTheDocs access:
 
 ```python
 html_theme_options["logo"] = {
-    "image_light": "../../brand/suews-logo-text-light.svg",  # For light mode
-    "image_dark": "../../brand/suews-logo-text-dark.svg",    # For dark mode
+    "image_light": "_static/suews-logo-text-light.svg",  # For light mode
+    "image_dark": "_static/suews-logo-text-dark.svg",    # For dark mode
 }
 ```
 
@@ -104,11 +112,11 @@ The SUEWS logo uses **golden ratio** (1:1.618) for proportional balance:
 
 ## Design Showcase
 
-Open `showcase.html` in a browser to preview all logo variants with their intended backgrounds.
+Open `index.html` (or visit `/brand/`) to preview all logo variants with their intended backgrounds.
 
 ## SVG Symbol Pattern
 
-The `showcase.html` file serves as the **single source of truth** for all logo SVG definitions using the `<symbol>` + `<use>` pattern. This allows:
+The `index.html` file serves as the **single source of truth** for all logo SVG definitions using the `<symbol>` + `<use>` pattern. This allows:
 - Consistent logos across the codebase
 - Easy updates from one location
 - Reduced file duplication
@@ -116,12 +124,12 @@ The `showcase.html` file serves as the **single source of truth** for all logo S
 To use a logo in HTML:
 ```html
 <svg viewBox="0 0 200 150">
-  <use href="brand/showcase.html#suews-logo-dark"/>
+  <use href="/brand/index.html#suews-logo-dark"/>
 </svg>
 ```
 
 ## File History
 
 - Created: December 2024
-- Updated: December 2024 (theme-mode naming convention)
-- Location: `/brand/` (project root)
+- Updated: December 2024 (assets reorganisation, theme-mode naming)
+- Location: `site/brand/` (deployed to suews.io/brand/)

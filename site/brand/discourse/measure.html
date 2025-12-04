@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, sans-serif; padding: 40px; }
+    #output { font-family: monospace; white-space: pre; background: #f5f5f5; padding: 20px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h2>Element Measurement</h2>
+
+  <!-- SVG for measuring -->
+  <div id="svg-container" style="display: inline-block;">
+    <img id="logo-img" src="../suews-logo.svg" width="56" height="56">
+  </div>
+
+  <!-- Text for measuring -->
+  <span id="text-span" style="font-family: 'Inter', system-ui, sans-serif; font-weight: 600; font-size: 42px; letter-spacing: -0.02em; display: inline-block;">SUEWS</span>
+
+  <!-- Full banner -->
+  <div id="banner" style="display: inline-flex; align-items: center; gap: 12px; padding: 4px 8px; background: #f8fafc; margin-top: 20px;">
+    <img id="banner-logo" src="../suews-logo.svg" width="56" height="56">
+    <span id="banner-text" style="font-family: 'Inter', system-ui, sans-serif; font-weight: 600; font-size: 42px; letter-spacing: -0.02em;">SUEWS</span>
+  </div>
+
+  <div id="output"></div>
+
+  <script>
+    window.onload = async function() {
+      // Wait for fonts to load
+      await document.fonts.ready;
+
+      const output = [];
+
+      // 1. Measure text element
+      const textSpan = document.getElementById('text-span');
+      const textRect = textSpan.getBoundingClientRect();
+      output.push('=== TEXT ELEMENT (SUEWS) ===');
+      output.push(`Font: Inter 600, 42px, letter-spacing: -0.02em`);
+      output.push(`Bounding box width: ${textRect.width.toFixed(2)}px`);
+      output.push(`Bounding box height: ${textRect.height.toFixed(2)}px`);
+
+      // 2. Measure logo img element
+      const logoImg = document.getElementById('logo-img');
+      const logoRect = logoImg.getBoundingClientRect();
+      output.push('');
+      output.push('=== LOGO IMG ELEMENT ===');
+      output.push(`Set dimensions: 56x56`);
+      output.push(`Actual bounding box: ${logoRect.width.toFixed(2)} x ${logoRect.height.toFixed(2)}px`);
+
+      // 3. Measure banner
+      const banner = document.getElementById('banner');
+      const bannerRect = banner.getBoundingClientRect();
+      const bannerLogo = document.getElementById('banner-logo');
+      const bannerText = document.getElementById('banner-text');
+      const bannerLogoRect = bannerLogo.getBoundingClientRect();
+      const bannerTextRect = bannerText.getBoundingClientRect();
+
+      output.push('');
+      output.push('=== BANNER LAYOUT ===');
+      output.push(`Banner total: ${bannerRect.width.toFixed(2)} x ${bannerRect.height.toFixed(2)}px`);
+      output.push('');
+      output.push('Logo in banner:');
+      output.push(`  Position: x=${(bannerLogoRect.left - bannerRect.left).toFixed(2)}, y=${(bannerLogoRect.top - bannerRect.top).toFixed(2)}`);
+      output.push(`  Size: ${bannerLogoRect.width.toFixed(2)} x ${bannerLogoRect.height.toFixed(2)}`);
+      output.push('');
+      output.push('Text in banner:');
+      output.push(`  Position: x=${(bannerTextRect.left - bannerRect.left).toFixed(2)}, y=${(bannerTextRect.top - bannerRect.top).toFixed(2)}`);
+      output.push(`  Size: ${bannerTextRect.width.toFixed(2)} x ${bannerTextRect.height.toFixed(2)}`);
+      output.push('');
+      output.push('Margins/spacing:');
+      output.push(`  Left padding (banner left to logo left): ${(bannerLogoRect.left - bannerRect.left).toFixed(2)}px`);
+      output.push(`  Gap (logo right to text left): ${(bannerTextRect.left - bannerLogoRect.right).toFixed(2)}px`);
+      output.push(`  Right padding (text right to banner right): ${(bannerRect.right - bannerTextRect.right).toFixed(2)}px`);
+
+      // 4. Design ratio analysis
+      output.push('');
+      output.push('=== DESIGN RATIO ANALYSIS ===');
+      output.push(`Text height / Logo height: ${(bannerTextRect.height / bannerLogoRect.height * 100).toFixed(1)}%`);
+      output.push(`Text width / Logo width: ${(bannerTextRect.width / bannerLogoRect.width * 100).toFixed(1)}%`);
+
+      // 5. SVG internal content bounds (load SVG and measure)
+      output.push('');
+      output.push('=== SVG INTERNAL CONTENT ===');
+
+      // Fetch and parse SVG
+      const response = await fetch('../suews-logo.svg');
+      const svgText = await response.text();
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+      const svgElement = svgDoc.querySelector('svg');
+
+      // Create temporary container to measure
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      document.body.appendChild(tempDiv);
+      tempDiv.appendChild(svgElement);
+
+      // Get bounding box of all content
+      const gElement = svgElement.querySelector('g');
+      if (gElement) {
+        const bbox = gElement.getBBox();
+        const transformAttr = gElement.getAttribute('transform') || '';
+        const translateMatch = transformAttr.match(/translate\(\s*(-?\d+(?:\.\d+)?)\s*,?\s*(-?\d+(?:\.\d+)?)?\s*\)/);
+        const translateX = translateMatch ? parseFloat(translateMatch[1]) : 0;
+        const translateY = translateMatch && translateMatch[2] ? parseFloat(translateMatch[2]) : 0;
+
+        const localCenterX = bbox.x + bbox.width/2;
+        const localCenterY = bbox.y + bbox.height/2;
+        const renderedCenterX = localCenterX + translateX;
+        const renderedCenterY = localCenterY + translateY;
+
+        output.push(`Group transform: ${transformAttr}`);
+        output.push(`Local getBBox(): x=${bbox.x.toFixed(2)}, y=${bbox.y.toFixed(2)}, width=${bbox.width.toFixed(2)}, height=${bbox.height.toFixed(2)}`);
+        output.push(`Local center: x=${localCenterX.toFixed(2)}, y=${localCenterY.toFixed(2)}`);
+        output.push(`Translate applied: x=${translateX}, y=${translateY}`);
+        output.push(`Rendered center: x=${renderedCenterX.toFixed(2)}, y=${renderedCenterY.toFixed(2)}`);
+        output.push(`ViewBox center: x=1024, y=1024`);
+        output.push(`Horizontal offset from center: ${(renderedCenterX - 1024).toFixed(2)}`);
+      }
+
+      document.body.removeChild(tempDiv);
+
+      document.getElementById('output').textContent = output.join('\n');
+    };
+  </script>
+</body>
+</html>

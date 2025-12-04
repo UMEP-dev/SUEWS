@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048">
   <!-- SUEWS Alternative Logo - Organic traced version -->
+  <!-- Content centered with translate to balance left/right margins -->
+  <g transform="translate(-10, 0)">
 
   <!-- Sun -->
   <circle cx="620" cy="560" r="320" fill="#F7B538"/>
@@ -15,4 +17,5 @@
 
   <!-- Wave -->
   <path fill="#0558a5" d="M624 1557h26q20 0 39 5l10 1 33 9 11 3a200 200 0 0 1 40 15l15 7 3 1 56 27v2l3 1 9 4 3 2 3 2 4 1 38 22 18 10 13 7a1153 1153 0 0 0 134 57l33 10v2l-46 7h-35q-25 0-50-3h-3q-47-6-91-23l-5-2-20-8-3-1-6-3-5-2-53-26a470 470 0 0 0-132-46q-47-7-93 2l-4 1q-38 7-74 24l-5 1v2l-3 1q-19 8-35 18l-5 3-30 19-38 29q-6 7-15 10l-3 1q-14 4-29-2-16-9-22-26-3-19 8-35l17-15 2-1a553 553 0 0 1 155-89l2-1 33-10 3-1a288 288 0 0 1 56-10q19-3 38-2"/>
+  </g>
 </svg>

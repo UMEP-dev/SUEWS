@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 try:
@@ -420,6 +421,53 @@ class TestRun:
 
         with pytest.raises(RuntimeError, match="No forcing"):
             sim.run()
+
+    def test_run_respects_config_date_range(self):
+        """Test that config start_time/end_time filters the model run period (GH-996)."""
+        # Create simulation from sample data
+        sim = SUEWSSimulation.from_sample_data()
+
+        # Note the full forcing range
+        full_forcing_start = sim._df_forcing.index.min()
+        full_forcing_end = sim._df_forcing.index.max()
+
+        # Set a narrow date range via config (just first day of forcing)
+        # Both start and end should be the same date for a single day
+        config_date = str(full_forcing_start.date())  # e.g., '2012-01-01'
+
+        sim.update_config({
+            "model": {
+                "control": {
+                    "start_time": config_date,
+                    "end_time": config_date,
+                }
+            }
+        })
+
+        # Verify config was updated
+        assert sim._config.model.control.start_time == config_date
+        assert sim._config.model.control.end_time == config_date
+
+        # Run WITHOUT passing start_date/end_date arguments
+        # Should use config values as fallback
+        results = sim.run()
+
+        # Verify results are filtered to the config date range
+        assert results is not None
+        assert len(results) > 0
+
+        # Results should be much smaller than full forcing (105408 timesteps)
+        # For one day at 5-min resolution: ~287 timesteps (starts at 00:05, ends at 23:55)
+        assert len(results) < 300, (
+            f"Expected ~287 timesteps for 1 day, got {len(results)}. "
+            "Config date range not being respected (full forcing has 105408 timesteps)."
+        )
+
+        # Verify the results are within the configured date
+        results_start_date = results.index.get_level_values("datetime").min().date()
+        results_end_date = results.index.get_level_values("datetime").max().date()
+        assert results_start_date == full_forcing_start.date()
+        assert results_end_date == full_forcing_start.date()
 
 
 class TestSave:

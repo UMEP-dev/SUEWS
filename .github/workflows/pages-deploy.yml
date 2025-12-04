@@ -151,27 +151,39 @@ jobs:
             fi
             
             # Create PR preview landing page
-            cat > "_site/${PR_DIR}/index.html" << 'EOF'
+            PR_NUM="${{ github.event.pull_request.number }}"
+            cat > "_site/${PR_DIR}/index.html" << EOF
           <!DOCTYPE html>
           <html>
           <head>
-              <title>SUEWS Schema Preview - PR #${{ github.event.pull_request.number }}</title>
+              <title>SUEWS Preview - PR #${PR_NUM}</title>
               <meta charset="utf-8">
               <style>
-                  body { font-family: system-ui, -apple-system, sans-serif; margin: 2em; max-width: 800px; margin: 0 auto; padding: 2em; }
+                  body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 2em; }
                   .warning { background: #ffeb3b; color: #333; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
                   a { color: #0066cc; text-decoration: none; }
                   a:hover { text-decoration: underline; }
+                  .links { display: flex; flex-direction: column; gap: 1em; }
+                  .link-card { padding: 1em; border: 1px solid #ddd; border-radius: 8px; }
               </style>
           </head>
           <body>
               <div class="warning">
-                  <h2>⚠️ PREVIEW - PR #${{ github.event.pull_request.number }}</h2>
-                  <p>This is a preview of schema changes. Do not use these URLs in production.</p>
-                  <p><a href="../../">← Back to production schemas</a></p>
+                  <h2>Preview - PR #${PR_NUM}</h2>
+                  <p>This is a preview deployment. Do not use these URLs in production.</p>
+                  <p><a href="../../">Back to production site</a></p>
               </div>
-              <h1>SUEWS Schema Preview</h1>
-              <p>Preview schemas: <a href="schemas/suews-config/">View schema registry →</a></p>
+              <h1>SUEWS PR Preview</h1>
+              <div class="links">
+                  <div class="link-card">
+                      <strong>Brand Assets</strong><br>
+                      <a href="brand/">View brand workshop</a>
+                  </div>
+                  <div class="link-card">
+                      <strong>Schema Registry</strong><br>
+                      <a href="schemas/suews-config/">View schemas</a>
+                  </div>
+              </div>
           </body>
           </html>
           EOF

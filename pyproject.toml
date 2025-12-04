@@ -25,7 +25,7 @@ dependencies = [
     "numpy>=2.0",
     "scipy",
     # xarray removed - only needed for gridded ERA5 (install separately)
-    # dask removed - was redundant with multiprocess (see Parallel processing below)
+    # dask removed - CLI uses stdlib multiprocessing.pool.ThreadPool
 
     # Model requirements
     "pydantic",
@@ -47,8 +47,6 @@ dependencies = [
     
     # Optimization
     "lmfit",
-    "numdifftools",
-    "platypus-opt==1.0.4",
     
     # Data access
     "cdsapi",  # ERA5 data download (timeseries uses CSV, gridded requires optional h5netcdf)
@@ -56,9 +54,6 @@ dependencies = [
     # Time/location
     "tzfpy>=1.0.0",  # Faster timezone finder with Windows wheels
     "pytz",
-    
-    # Parallel processing
-    "multiprocess",
     
     # Schema validation (for YAML configs)
     "jsonschema",

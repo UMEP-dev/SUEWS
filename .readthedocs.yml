@@ -3,9 +3,9 @@
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
 #
 # Build strategy (in order of preference):
-# 1. Pre-built wheel from Test PyPI (dev versions) or PyPI (releases)
-# 2. Fallback: Build from source if wheel unavailable
-# Using wheels is much faster (~30 seconds vs 2-3 minutes)
+# 1. Build from source (ensures docs match exact code in repository)
+# 2. Fallback: Pre-built wheel from Test PyPI (dev) or PyPI (releases)
+# Source build takes 2-3 minutes; wheel fallback ~30 seconds
 
 # Required
 version: 2
@@ -15,7 +15,7 @@ build:
   tools:
     python: "3.13"  # Use 3.13 on ubuntu-24.04 for latest Python support
   apt_packages:
-    - gfortran  # Required for building from source (fallback only)
+    - gfortran  # Required for building from source (primary method)
   jobs:
     pre_install:
       # Fetch all tags for proper version detection
@@ -27,33 +27,33 @@ build:
       - python -m pip install uv
       # Pre-install Sphinx with upper bound (Sphinx 9.0 breaks sphinx_click)
       - uv pip install --system "sphinx>=4.0,<8.2"
-      # Detect version type and install (wheel preferred, source fallback)
+      # Detect version type and install (source preferred, wheel fallback)
       - |
         SUPY_VERSION=$(python get_ver_git.py 2>/dev/null || echo "unknown")
         echo "Detected SuPy version: $SUPY_VERSION"
         INSTALLED=0
 
-        case "$SUPY_VERSION" in
-          *".dev"*|"unknown")
-            # Normalize dev version: Test PyPI daily builds use .dev0
-            PYPI_VERSION=$(echo "$SUPY_VERSION" | sed 's/\.dev[0-9]*/\.dev0/')
-            echo "Trying Test PyPI wheel: $PYPI_VERSION"
-            if uv pip install --system --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "supy[dev]==$PYPI_VERSION"; then
-              INSTALLED=1
-            fi
-            ;;
-          *)
-            echo "Trying PyPI wheel: $SUPY_VERSION"
-            if uv pip install --system "supy[dev]==$SUPY_VERSION"; then
-              INSTALLED=1
-            fi
-            ;;
-        esac
+        # Try building from source first (ensures docs match exact code)
+        echo "Attempting to build from source..."
+        if uv pip install --system ".[dev]"; then
+          INSTALLED=1
+        fi
 
-        # Fallback: build from source if wheel unavailable
+        # Fallback: try wheel if source build fails
         if [ "$INSTALLED" -eq 0 ]; then
-          echo "Wheel not available, building from source..."
-          uv pip install --system ".[dev]"
+          echo "Source build failed, trying wheel fallback..."
+          case "$SUPY_VERSION" in
+            *".dev"*|"unknown")
+              # Normalize dev version: Test PyPI daily builds use .dev0
+              PYPI_VERSION=$(echo "$SUPY_VERSION" | sed 's/\.dev[0-9]*/\.dev0/')
+              echo "Trying Test PyPI wheel: $PYPI_VERSION"
+              uv pip install --system --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "supy[dev]==$PYPI_VERSION" || true
+              ;;
+            *)
+              echo "Trying PyPI wheel: $SUPY_VERSION"
+              uv pip install --system "supy[dev]==$SUPY_VERSION" || true
+              ;;
+          esac
         fi
     post_install:
       # Generate RST files after package is installed

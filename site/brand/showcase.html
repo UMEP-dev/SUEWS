@@ -4,22 +4,55 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SUEWS Brand Showcase</title>
+  <link rel="icon" type="image/svg+xml" href="suews-logo.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Instrument+Sans:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
+    /* ========== Theme Variables (aligned with index.html) ========== */
     :root {
-      /* ★★★ SINGLE SOURCE: Organic logo colours ★★★ */
+      /* Logo palette (constant) */
       --sun-gold: #F7B538;
+      --sun-gold-dark: #D4940F;
       --energy-orange: #E85D04;
-      --sky-blue: #5DADE2;      /* Buildings - urban skyline */
-      --veg-green: #09a25c;     /* Vegetation/leaf */
-      --wave-blue: #0558a5;     /* Wave - water balance */
-      /* UI colours */
+      --water-blue: #0077B6;
+      --water-blue-light: #48CAE4;
+      --sky-blue: #5DADE2;
+      --veg-green: #09a25c;
+      --wave-blue: #0558a5;
       --urban-slate: #2D3142;
       --urban-dark: #1A1D2E;
-      --surface-warm: #FFF8F0;
-      --surface-cool: #F0F7FF;
+      --urban-deeper: #0F1119;
+
+      /* Default: Light theme (showcase is primarily light) */
+      --bg-primary: #FAFBFC;
+      --bg-secondary: #F1F5F9;
+      --bg-card: #FFFFFF;
+      --bg-card-hover: #FFFFFF;
+      --border-light: #E2E8F0;
+      --border-medium: #CBD5E1;
+      --text-primary: #1E293B;
+      --text-secondary: #475569;
+      --text-muted: #94A3B8;
+      --shadow-card: 0 4px 20px rgba(0,0,0,0.06);
+      --accent-highlight: var(--water-blue);
+      --accent-label: var(--sun-gold-dark);
+    }
+
+    /* Dark theme */
+    [data-theme="dark"] {
+      --bg-primary: #0F1119;
+      --bg-secondary: #1A1D2E;
+      --bg-card: rgba(255,255,255,0.02);
+      --bg-card-hover: rgba(255,255,255,0.04);
+      --border-light: rgba(255,255,255,0.06);
+      --border-medium: rgba(255,255,255,0.12);
+      --text-primary: rgba(255,255,255,0.92);
+      --text-secondary: rgba(255,255,255,0.6);
+      --text-muted: rgba(255,255,255,0.35);
+      --shadow-card: 0 4px 20px rgba(0,0,0,0.3);
+      --accent-highlight: var(--sun-gold);
+      --accent-label: var(--sun-gold);
     }
 
     * {
@@ -28,32 +61,89 @@
       box-sizing: border-box;
     }
 
-    body {
-      font-family: 'DM Sans', system-ui, sans-serif;
-      background: linear-gradient(145deg, var(--surface-warm) 0%, var(--surface-cool) 100%);
-      min-height: 100vh;
-      padding: 4rem 2rem;
+    html {
+      scroll-behavior: smooth;
     }
 
+    body {
+      font-family: 'Instrument Sans', system-ui, sans-serif;
+      line-height: 1.6;
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      min-height: 100vh;
+      padding: 4rem 2rem;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* ========== Theme Toggle Button ========== */
+    .theme-toggle {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 1000;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: 1px solid var(--border-light);
+      background: var(--bg-card);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(8px);
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--border-medium);
+      transform: scale(1.05);
+    }
+
+    .theme-toggle svg {
+      width: 20px;
+      height: 20px;
+      stroke: var(--text-secondary);
+      stroke-width: 2;
+      fill: none;
+      transition: stroke 0.3s ease;
+    }
+
+    .theme-toggle:hover svg {
+      stroke: var(--text-primary);
+    }
+
+    .theme-toggle .icon-sun,
+    .theme-toggle .icon-moon {
+      position: absolute;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    /* Light mode (default): show moon icon (to switch to dark) */
+    :root:not([data-theme="dark"]) .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg); }
+    :root:not([data-theme="dark"]) .theme-toggle .icon-moon { opacity: 1; transform: rotate(0deg); }
+
+    /* Dark mode: show sun icon (to switch to light) */
+    [data-theme="dark"] .theme-toggle .icon-sun { opacity: 1; transform: rotate(0deg); }
+    [data-theme="dark"] .theme-toggle .icon-moon { opacity: 0; transform: rotate(-90deg); }
+
     .container {
-      max-width: 900px;
+      max-width: 1200px;
       margin: 0 auto;
     }
 
     h1 {
-      font-family: 'Instrument Sans', sans-serif;
-      font-size: 2.5rem;
-      font-weight: 700;
-      color: var(--urban-dark);
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: clamp(2rem, 4vw, 2.75rem);
+      font-weight: 500;
+      color: var(--text-primary);
       margin-bottom: 0.5rem;
       letter-spacing: -0.02em;
     }
 
     .subtitle {
-      color: var(--urban-slate);
+      color: var(--text-secondary);
       font-size: 1.1rem;
       margin-bottom: 3rem;
-      opacity: 0.8;
     }
 
     .logo-showcase {
@@ -63,43 +153,49 @@
       margin-bottom: 3rem;
     }
 
+    @media (max-width: 768px) {
+      .logo-showcase {
+        grid-template-columns: 1fr;
+      }
+    }
+
     .logo-card {
-      background: linear-gradient(to bottom, rgba(255,255,255,0.95) 0%, rgba(240,247,255,0.9) 100%);
-      border-radius: 24px;
+      /* Fixed white background for logo showcase - demonstrates logo on light backgrounds */
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 16px;
       padding: 3rem;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      box-shadow:
-        0 4px 6px -1px rgba(0,0,0,0.05),
-        0 10px 15px -3px rgba(0,0,0,0.08);
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+      transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
     }
 
     .logo-card:hover {
       transform: translateY(-4px);
-      box-shadow:
-        0 10px 15px -3px rgba(0,0,0,0.08),
-        0 20px 25px -5px rgba(0,0,0,0.1);
+      border-color: #CBD5E1;
     }
 
     .logo-card.dark {
+      /* Fixed dark background for logo showcase - demonstrates logo on dark backgrounds */
       background: var(--urban-dark);
+      border-color: transparent;
     }
 
     .logo-card h3 {
       margin-top: 1.5rem;
-      font-size: 0.875rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.1em;
-      color: var(--urban-slate);
-      opacity: 0.6;
+      /* Fixed colour for light background cards */
+      color: #94A3B8;
     }
 
     .logo-card.dark h3 {
-      color: white;
-      opacity: 0.5;
+      color: rgba(255,255,255,0.5);
     }
 
     /* Size variations */
@@ -108,9 +204,10 @@
     }
 
     .variations h2 {
-      font-family: 'Instrument Sans', sans-serif;
+      font-family: 'Crimson Pro', Georgia, serif;
       font-size: 1.5rem;
-      color: var(--urban-dark);
+      font-weight: 400;
+      color: var(--text-primary);
       margin-bottom: 1.5rem;
     }
 
@@ -122,10 +219,11 @@
     }
 
     .variation-item {
-      background: linear-gradient(to bottom, rgba(255,255,255,0.95) 0%, rgba(240,247,255,0.9) 100%);
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
       padding: 2rem;
-      border-radius: 16px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      border-radius: 12px;
+      box-shadow: var(--shadow-card);
     }
 
     /* Colour palette */
@@ -134,9 +232,10 @@
     }
 
     .palette h2 {
-      font-family: 'Instrument Sans', sans-serif;
+      font-family: 'Crimson Pro', Georgia, serif;
       font-size: 1.5rem;
-      color: var(--urban-dark);
+      font-weight: 400;
+      color: var(--text-primary);
       margin-bottom: 1.5rem;
     }
 
@@ -146,17 +245,24 @@
       gap: 1rem;
     }
 
+    @media (max-width: 768px) {
+      .colour-swatches {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
     .swatch {
       width: 100%;
       height: 100px;
-      border-radius: 16px;
+      border-radius: 12px;
       display: flex;
       flex-direction: column;
       justify-content: flex-end;
       padding: 0.75rem;
-      font-size: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
       font-weight: 500;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      box-shadow: var(--shadow-card);
     }
 
     .swatch.sun { background: var(--sun-gold); color: var(--urban-dark); }
@@ -178,7 +284,7 @@
     }
     .icon-disk-light {
       background: #F5F5F0;
-      border: 4px solid var(--wave-blue);
+      border: 4px solid var(--water-blue);
     }
     .icon-disk-dark {
       background: var(--urban-slate);
@@ -189,9 +295,51 @@
       border: 4px solid #666666;
     }
 
+    /* Links */
+    a {
+      color: var(--water-blue);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 4rem;
+      padding: 2rem 0;
+      border-top: 1px solid var(--border-light);
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    footer a {
+      color: var(--water-blue);
+    }
   </style>
 </head>
 <body>
+  <!-- Theme Toggle Button -->
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+    <svg class="icon-sun" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="1" x2="12" y2="3"/>
+      <line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/>
+      <line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+    <svg class="icon-moon" viewBox="0 0 24 24">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </button>
+
   <!-- ====== SINGLE SOURCE: Edit defs below to update ALL logos ====== -->
   <svg style="display: none;" xmlns="http://www.w3.org/2000/svg">
     <defs>
@@ -356,7 +504,7 @@
     <!-- Organic Logo -->
     <div class="variations" style="margin-bottom: 3rem;">
       <h2>Organic Logo</h2>
-      <p style="color: var(--urban-slate); opacity: 0.7; margin-bottom: 1.5rem; font-size: 0.9rem;">
+      <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.9rem;">
         Organic style with flowing, natural shapes
       </p>
       <div class="logo-showcase" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 0;">
@@ -379,7 +527,7 @@
     <!-- ★★★ SINGLE SOURCE: Uses suews-logo.svg with CSS disk backgrounds ★★★ -->
     <div class="variations" style="margin-bottom: 3rem;">
       <h2>Icon Versions</h2>
-      <p style="color: var(--urban-slate); opacity: 0.7; margin-bottom: 1.5rem; font-size: 0.9rem;">
+      <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.9rem;">
         Circular contained versions for app icons, favicons, and social media
       </p>
       <div class="logo-showcase" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 0;">
@@ -407,11 +555,11 @@
     <!-- Logo with Text -->
     <div class="variations" style="margin-top: 3rem;">
       <h2>Logo with Text</h2>
-      <p style="color: var(--urban-slate); opacity: 0.7; margin-bottom: 1.5rem; font-size: 0.9rem;">
+      <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.9rem;">
         Using <strong>Inter</strong> (open source, <a href="https://rsms.me/inter/" style="color: var(--wave-blue);">rsms.me/inter</a>)
       </p>
       <!-- Banner style (horizontal) -->
-      <p style="color: var(--urban-slate); opacity: 0.5; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem;">Banner</p>
+      <p style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem;">Banner</p>
       <div class="logo-showcase" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 2rem;">
         <div class="logo-card" style="flex-direction: row; gap: 1.5rem; padding: 1.5rem 3rem; align-items: center;">
           <img src="suews-logo.svg" width="120" height="120" alt="SUEWS logo">
@@ -423,7 +571,7 @@
         </div>
       </div>
       <!-- Stacked style (vertical) -->
-      <p style="color: var(--urban-slate); opacity: 0.5; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem;">Stacked</p>
+      <p style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem;">Stacked</p>
       <div class="logo-showcase" style="grid-template-columns: repeat(2, 1fr);">
         <div class="logo-card" style="flex-direction: column; gap: 0; padding: 2rem; align-items: center; text-align: center;">
           <img src="suews-logo.svg" width="160" height="160" alt="SUEWS logo">
@@ -471,40 +619,40 @@
     <div class="palette" style="margin-top: 3rem;">
       <h2>Design Philosophy</h2>
       <div style="display: grid; grid-template-columns: 200px 1fr; gap: 3rem; margin-top: 1.5rem; align-items: start;">
-        <div style="background: linear-gradient(to bottom, rgba(255,255,255,0.95) 0%, rgba(240,247,255,0.9) 100%); padding: 2rem; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: center;">
+        <div style="background: var(--bg-card); border: 1px solid var(--border-light); padding: 2rem; border-radius: 16px; box-shadow: var(--shadow-card); display: flex; align-items: center; justify-content: center;">
           <img src="suews-logo.svg" width="200" height="200" alt="SUEWS logo">
         </div>
-        <div style="color: var(--urban-slate); line-height: 1.7;">
+        <div style="color: var(--text-secondary); line-height: 1.7;">
           <p style="margin-bottom: 1rem;">
-            The logo embraces <strong>natural, flowing forms</strong> that mirror the continuous exchange of energy and water in urban environments. These traced contours reflect how real-world processes blend and interact.
+            The logo embraces <strong style="color: var(--text-primary);">natural, flowing forms</strong> that mirror the continuous exchange of energy and water in urban environments. These traced contours reflect how real-world processes blend and interact.
           </p>
           <ul style="list-style: none; padding: 0; margin: 0;">
             <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
-              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: #F7B538; flex-shrink: 0; margin-top: 4px;"></span>
-              <span><strong>Sun Gold</strong> — Outer disk representing incoming solar radiation; the primary energy input that drives all urban climate processes</span>
+              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: var(--sun-gold); flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong style="color: var(--text-primary);">Sun Gold</strong> — Outer disk representing incoming solar radiation; the primary energy input that drives all urban climate processes</span>
             </li>
             <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
-              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: #E85D04; flex-shrink: 0; margin-top: 4px;"></span>
-              <span><strong>Energy Orange</strong> — Inner core symbolising thermal energy; sensible and latent heat fluxes that SUEWS models at the urban surface</span>
+              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: var(--energy-orange); flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong style="color: var(--text-primary);">Energy Orange</strong> — Inner core symbolising thermal energy; sensible and latent heat fluxes that SUEWS models at the urban surface</span>
             </li>
             <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
-              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 4px; background: #5DADE2; flex-shrink: 0; margin-top: 4px;"></span>
-              <span><strong>Sky Blue</strong> — Urban skyline silhouette; buildings against the atmosphere where surface-air energy exchanges occur</span>
+              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 4px; background: var(--sky-blue); flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong style="color: var(--text-primary);">Sky Blue</strong> — Urban skyline silhouette; buildings against the atmosphere where surface-air energy exchanges occur</span>
             </li>
             <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
-              <span style="display: inline-block; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 16px solid #09a25c; flex-shrink: 0; margin-top: 4px;"></span>
-              <span><strong>Vegetation Green</strong> — Organic leaf sweeping across the composition; evapotranspiration, urban greenery, and living systems</span>
+              <span style="display: inline-block; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 16px solid var(--veg-green); flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong style="color: var(--text-primary);">Vegetation Green</strong> — Organic leaf sweeping across the composition; evapotranspiration, urban greenery, and living systems</span>
             </li>
             <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
-              <span style="display: inline-block; width: 16px; height: 4px; border-radius: 2px; background: #0558a5; flex-shrink: 0; margin-top: 10px;"></span>
-              <span><strong>Wave Blue</strong> — Deep blue flowing curve at the base; the water balance foundation — precipitation, runoff, storage, evaporation</span>
+              <span style="display: inline-block; width: 16px; height: 4px; border-radius: 2px; background: var(--wave-blue); flex-shrink: 0; margin-top: 10px;"></span>
+              <span><strong style="color: var(--text-primary);">Wave Blue</strong> — Deep blue flowing curve at the base; the water balance foundation — precipitation, runoff, storage, evaporation</span>
             </li>
             <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
-              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 4px; background: #2D3142; flex-shrink: 0; margin-top: 4px;"></span>
-              <span><strong>Urban Slate</strong> — Used for icon disk backgrounds and text; a sophisticated neutral that grounds the vibrant palette</span>
+              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 4px; background: var(--urban-slate); flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong style="color: var(--text-primary);">Urban Slate</strong> — Used for icon disk backgrounds and text; a sophisticated neutral that grounds the vibrant palette</span>
             </li>
           </ul>
-          <p style="margin-top: 1.25rem; font-size: 0.9rem; opacity: 0.7;">
+          <p style="margin-top: 1.25rem; font-size: 0.9rem; color: var(--text-muted);">
             The style preserves natural irregularities that echo how energy and water actually flow through cities — never in perfect lines, always in dynamic equilibrium.
           </p>
         </div>
@@ -514,28 +662,28 @@
     <!-- Design Approach -->
     <div class="palette" style="margin-top: 3rem;">
       <h2>Design Approach</h2>
-      <div style="color: var(--urban-slate); line-height: 1.7; margin-top: 1.5rem;">
+      <div style="color: var(--text-secondary); line-height: 1.7; margin-top: 1.5rem;">
         <p style="margin-bottom: 1rem;">
           We used AI tools to create this branding and are sharing our process openly — both for transparency and to help other research teams who may benefit from a similar approach.
         </p>
         <ol style="padding-left: 1.5rem;">
           <li style="margin-bottom: 0.75rem;">
-            <strong>Initial concepts with <a href="https://deepmind.google/models/gemini-image/pro/" style="color: var(--wave-blue);">Gemini 3 Pro Image (Nano Banana Pro)</a></strong> — We generated early designs by describing SUEWS's core scientific elements: energy balance, hydrological cycle, urban form, and natural landscape.
+            <strong style="color: var(--text-primary);">Initial concepts with <a href="https://deepmind.google/models/gemini-image/pro/">Gemini 3 Pro Image (Nano Banana Pro)</a></strong> — We generated early designs by describing SUEWS's core scientific elements: energy balance, hydrological cycle, urban form, and natural landscape.
           </li>
           <li style="margin-bottom: 0.75rem;">
-            <strong>Iterative refinement</strong> — Through multiple rounds of feedback, we simplified designs for clarity and legibility at different scales.
+            <strong style="color: var(--text-primary);">Iterative refinement</strong> — Through multiple rounds of feedback, we simplified designs for clarity and legibility at different scales.
           </li>
           <li style="margin-bottom: 0.75rem;">
-            <strong>Vector conversion with <a href="https://www.anthropic.com/claude/opus" style="color: var(--wave-blue);">Claude Opus 4.5</a></strong> — We worked with the AI to trace raster images into clean, scalable SVG format.
+            <strong style="color: var(--text-primary);">Vector conversion with <a href="https://www.anthropic.com/claude/opus">Claude Opus 4.5</a></strong> — We worked with the AI to trace raster images into clean, scalable SVG format.
           </li>
         </ol>
-        <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.8;">
+        <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-muted);">
           We hope sharing this workflow encourages other open-source projects to explore AI-assisted design — it's increasingly accessible and can produce meaningful results for teams without dedicated design resources.
         </p>
         <p style="margin-top: 1.25rem;">
-          <a href="brand-workshop.html" style="display: inline-flex; align-items: center; gap: 0.5rem; color: var(--wave-blue); font-weight: 500; text-decoration: none; padding: 0.5rem 1rem; border: 2px solid var(--wave-blue); border-radius: 8px; transition: all 0.2s ease;"
-             onmouseover="this.style.background='var(--wave-blue)'; this.style.color='white';"
-             onmouseout="this.style.background='transparent'; this.style.color='var(--wave-blue)';">
+          <a href="brand-workshop.html" style="display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 500; text-decoration: none; padding: 0.5rem 1rem; border: 2px solid var(--water-blue); border-radius: 8px; transition: all 0.2s ease;"
+             onmouseover="this.style.background='var(--water-blue)'; this.style.color='white';"
+             onmouseout="this.style.background='transparent'; this.style.color='';">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
             Brand Workshop — Customise and export assets
           </a>
@@ -543,14 +691,45 @@
       </div>
     </div>
 
-    <footer style="margin-top: 4rem; padding: 2rem 0; border-top: 1px solid rgba(45, 49, 66, 0.1); text-align: center; color: var(--urban-slate); opacity: 0.6; font-size: 0.875rem;">
+    <footer>
       <p style="margin-bottom: 0.5rem;">
-        <a href="../" style="color: var(--wave-blue); text-decoration: none;">Home</a> ·
-        <a href="brand-workshop.html" style="color: var(--wave-blue); text-decoration: none;">Brand Workshop</a>
+        <a href="../">Home</a> ·
+        <a href="brand-workshop.html">Brand Workshop</a>
       </p>
-      <p>&copy; 2025 SUEWS Development Team. Licensed under <a href="https://www.mozilla.org/en-US/MPL/2.0/" style="color: var(--wave-blue);">MPL-2.0</a>.</p>
+      <p>&copy; 2025 SUEWS Development Team. Licensed under <a href="https://www.mozilla.org/en-US/MPL/2.0/">MPL-2.0</a>.</p>
     </footer>
   </div>
 
+  <script>
+    // Theme Toggle Logic (aligned with index.html)
+    const toggle = document.getElementById('themeToggle');
+    const root = document.documentElement;
+
+    // Check for saved preference or default to light for showcase
+    function getPreferredTheme() {
+      const saved = localStorage.getItem('theme');
+      if (saved) return saved;
+      return 'light'; // Showcase defaults to light
+    }
+
+    // Apply theme
+    function setTheme(theme) {
+      if (theme === 'dark') {
+        root.setAttribute('data-theme', 'dark');
+      } else {
+        root.removeAttribute('data-theme');
+      }
+      localStorage.setItem('theme', theme);
+    }
+
+    // Initialize
+    setTheme(getPreferredTheme());
+
+    // Toggle handler
+    toggle.addEventListener('click', () => {
+      const current = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      setTheme(current === 'light' ? 'dark' : 'light');
+    });
+  </script>
 </body>
 </html>

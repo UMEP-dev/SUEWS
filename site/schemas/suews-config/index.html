@@ -1,71 +1,269 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>SUEWS Schema Registry</title>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="/brand/suews-logo.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
+        /* ========== Theme Variables (aligned with index.html) ========== */
+        :root {
+            /* Logo palette (constant) */
+            --sun-gold: #F7B538;
+            --sun-gold-dark: #D4940F;
+            --energy-orange: #E85D04;
+            --water-blue: #0077B6;
+            --water-blue-light: #48CAE4;
+            --urban-slate: #2D3142;
+            --urban-dark: #1A1D2E;
+            --urban-deeper: #0F1119;
+
+            /* Default: Light theme */
+            --bg-primary: #FAFBFC;
+            --bg-secondary: #F1F5F9;
+            --bg-card: #FFFFFF;
+            --border-light: #E2E8F0;
+            --border-medium: #CBD5E1;
+            --text-primary: #1E293B;
+            --text-secondary: #475569;
+            --text-muted: #94A3B8;
+            --shadow-card: 0 4px 20px rgba(0,0,0,0.06);
+            --accent-highlight: var(--water-blue);
+        }
+
+        /* Dark theme */
+        [data-theme="dark"] {
+            --bg-primary: #0F1119;
+            --bg-secondary: #1A1D2E;
+            --bg-card: rgba(255,255,255,0.02);
+            --border-light: rgba(255,255,255,0.06);
+            --border-medium: rgba(255,255,255,0.12);
+            --text-primary: rgba(255,255,255,0.92);
+            --text-secondary: rgba(255,255,255,0.6);
+            --text-muted: rgba(255,255,255,0.35);
+            --shadow-card: 0 4px 20px rgba(0,0,0,0.3);
+            --accent-highlight: var(--sun-gold);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
-            font-family: system-ui, -apple-system, sans-serif;
-            margin: 2em;
+            font-family: 'Instrument Sans', system-ui, sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            min-height: 100vh;
+            padding: 3rem 2rem;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 2em;
         }
-        h1 { color: #333; }
-        .version {
-            margin: 1em 0;
-            padding: 1em;
-            background: #f5f5f5;
-            border-radius: 5px;
-            border: 1px solid #ddd;
+
+        /* ========== Theme Toggle Button ========== */
+        .theme-toggle {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 1000;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: 1px solid var(--border-light);
+            background: var(--bg-card);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(8px);
         }
-        .current {
-            background: #e8f4f8;
-            border: 2px solid #0066cc;
+
+        .theme-toggle:hover {
+            border-color: var(--border-medium);
+            transform: scale(1.05);
         }
-        .warning-banner {
-            background: #fff3cd;
-            border: 2px solid #ffc107;
-            padding: 1em;
-            margin-bottom: 2em;
-            border-radius: 5px;
+
+        .theme-toggle svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--text-secondary);
+            stroke-width: 2;
+            fill: none;
+            transition: stroke 0.3s ease;
         }
-        .warning-banner h2 {
-            color: #856404;
+
+        .theme-toggle:hover svg {
+            stroke: var(--text-primary);
+        }
+
+        .theme-toggle .icon-sun,
+        .theme-toggle .icon-moon {
+            position: absolute;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        :root:not([data-theme="dark"]) .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg); }
+        :root:not([data-theme="dark"]) .theme-toggle .icon-moon { opacity: 1; transform: rotate(0deg); }
+        [data-theme="dark"] .theme-toggle .icon-sun { opacity: 1; transform: rotate(0deg); }
+        [data-theme="dark"] .theme-toggle .icon-moon { opacity: 0; transform: rotate(-90deg); }
+
+        h1 {
+            font-family: 'Crimson Pro', Georgia, serif;
+            font-size: clamp(1.75rem, 4vw, 2.5rem);
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            letter-spacing: -0.02em;
+        }
+
+        h2 {
+            font-family: 'Crimson Pro', Georgia, serif;
+            font-size: 1.5rem;
+            font-weight: 400;
+            color: var(--text-primary);
+            margin: 2.5rem 0 1rem;
+        }
+
+        h3 {
+            font-family: 'Instrument Sans', sans-serif;
+            font-weight: 600;
             margin-top: 0;
         }
-        .warning-banner p {
-            color: #856404;
-            margin-bottom: 0;
+
+        p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
         }
-        a { color: #0066cc; text-decoration: none; }
-        a:hover { text-decoration: underline; }
+
+        .version {
+            margin: 1rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-card);
+            transition: all 0.3s ease;
+        }
+
+        .version:hover {
+            border-color: var(--border-medium);
+        }
+
+        .current {
+            background: var(--bg-secondary);
+            border: 2px solid var(--water-blue);
+        }
+
+        a {
+            color: var(--water-blue);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
         code {
-            background: #f0f0f0;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-size: 0.9em;
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-secondary);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            color: var(--text-primary);
         }
+
         code.url {
             display: inline-block;
             max-width: 100%;
             overflow-x: auto;
             margin-top: 0.5em;
+            color: var(--text-muted);
         }
-        h3 { margin-top: 0; }
-        .meta {
-            color: #666;
-            font-size: 0.9em;
-        }
+
         pre {
-            background: #f5f5f5;
-            padding: 1em;
-            border-radius: 5px;
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 12px;
             overflow-x: auto;
+            border: 1px solid var(--border-light);
+        }
+
+        pre code {
+            background: transparent;
+            padding: 0;
+        }
+
+        ul {
+            color: var(--text-secondary);
+            padding-left: 1.5rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid var(--border-light);
+            margin: 2.5rem 0;
+        }
+
+        footer {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border-light);
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        footer a {
+            color: var(--water-blue);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
         }
     </style>
 </head>
 <body>
+    <!-- Theme Toggle Button -->
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+        <svg class="icon-sun" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+    </button>
+
+    <div class="container">
     <h1>SUEWS Configuration Schema Registry</h1>
     
     <p>
@@ -104,11 +302,46 @@ $schema: "https://suews.io/schemas/suews-config/0.1.json"</code></pre>
         <li>Schema versions are independent of SUEWS release versions</li>
     </ul>
 
-    <hr>
-    <p>
-        <a href="https://github.com/UMEP-dev/SUEWS">GitHub Repository</a> |
-        <a href="https://docs.suews.io/latest/inputs/yaml/schema_versioning.html">Documentation</a> |
-        <a href="registry.json">Registry JSON</a>
-    </p>
+    <footer>
+        <p style="margin-bottom: 0.5rem;">
+            <a href="../../">Home</a> ·
+            <a href="../../brand/showcase.html">Brand</a>
+        </p>
+        <div class="nav-links" style="margin-bottom: 1rem;">
+            <a href="https://github.com/UMEP-dev/SUEWS">GitHub</a> ·
+            <a href="https://docs.suews.io/latest/inputs/yaml/schema_versioning.html">Documentation</a> ·
+            <a href="registry.json">Registry JSON</a>
+        </div>
+        <p>&copy; 2025 SUEWS Development Team</p>
+    </footer>
+    </div>
+
+    <script>
+        // Theme Toggle Logic (aligned with index.html)
+        const toggle = document.getElementById('themeToggle');
+        const root = document.documentElement;
+
+        function getPreferredTheme() {
+            const saved = localStorage.getItem('theme');
+            if (saved) return saved;
+            return 'light';
+        }
+
+        function setTheme(theme) {
+            if (theme === 'dark') {
+                root.setAttribute('data-theme', 'dark');
+            } else {
+                root.removeAttribute('data-theme');
+            }
+            localStorage.setItem('theme', theme);
+        }
+
+        setTheme(getPreferredTheme());
+
+        toggle.addEventListener('click', () => {
+            const current = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+            setTheme(current === 'light' ? 'dark' : 'light');
+        });
+    </script>
 </body>
 </html>

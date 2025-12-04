@@ -1,27 +1,41 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SUEWS Brand Workshop</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="suews-logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     :root {
-      /* Refined dark palette */
+      /* ========== Brand Palette (aligned with site) ========== */
+      --sun-gold: #F7B538;
+      --sun-gold-dark: #D4940F;
+      --energy-orange: #E85D04;
+      --water-blue: #0077B6;
+      --water-blue-light: #48CAE4;
+      --urban-slate: #2D3142;
+      --urban-dark: #1A1D2E;
+      --urban-deeper: #0F1119;
+
+      /* Workshop dark palette (functional UI) */
       --bg-base: #09090b;
       --bg-elevated: #18181b;
       --bg-surface: #27272a;
       --bg-hover: #3f3f46;
 
-      /* Accent - warm amber for energy theme */
-      --accent: #f59e0b;
-      --accent-hover: #d97706;
-      --accent-subtle: rgba(245, 158, 11, 0.15);
+      /* Accent - using brand sun-gold */
+      --accent: var(--sun-gold);
+      --accent-hover: var(--sun-gold-dark);
+      --accent-subtle: rgba(247, 181, 56, 0.15);
 
       /* Semantic colors */
       --success: #10b981;
       --success-subtle: rgba(16, 185, 129, 0.15);
-      --warning: #f59e0b;
+      --warning: var(--sun-gold);
 
       /* Text hierarchy */
       --text-primary: #fafafa;
@@ -49,7 +63,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: 'Inter', system-ui, sans-serif;
+      font-family: 'Instrument Sans', 'Inter', system-ui, sans-serif;
       background: var(--bg-base);
       color: var(--text-primary);
       min-height: 100vh;
@@ -2327,12 +2341,12 @@ function initSizeTest() {
 }
 </script>
 
-<footer style="margin-top: 4rem; padding: 2rem; border-top: 1px solid rgba(45, 49, 66, 0.1); text-align: center; color: #2D3142; opacity: 0.6; font-size: 0.875rem;">
+<footer style="margin-top: 2rem; padding: 2rem; border-top: 1px solid var(--border-subtle); text-align: center; color: var(--text-muted); font-size: 0.875rem;">
   <p style="margin-bottom: 0.5rem;">
-    <a href="../" style="color: #0558a5; text-decoration: none;">Home</a> ·
-    <a href="showcase.html" style="color: #0558a5; text-decoration: none;">Logo Showcase</a>
+    <a href="../" style="color: var(--water-blue); text-decoration: none;">Home</a> ·
+    <a href="showcase.html" style="color: var(--water-blue); text-decoration: none;">Brand Showcase</a>
   </p>
-  <p>&copy; 2025 SUEWS Development Team. Licensed under <a href="https://www.mozilla.org/en-US/MPL/2.0/" style="color: #0558a5;">MPL-2.0</a>.</p>
+  <p>&copy; 2025 SUEWS Development Team. Licensed under <a href="https://www.mozilla.org/en-US/MPL/2.0/" style="color: var(--water-blue);">MPL-2.0</a>.</p>
 </footer>
 
 </body>

@@ -42,19 +42,19 @@ Schema versions are independent of SUEWS release versions.
 
 Once deployed to GitHub Pages, schemas are accessible at:
 
-- Specific version: `https://umep-dev.github.io/SUEWS/schema/suews-config/{version}.json`
-- Latest version: `https://umep-dev.github.io/SUEWS/schema/suews-config/latest.json`
-- Registry: `https://umep-dev.github.io/SUEWS/schema/suews-config/registry.json`
+- Specific version: `https://suews.io/schemas/suews-config/{version}.json`
+- Latest version: `https://suews.io/schemas/suews-config/latest.json`
+- Registry: `https://suews.io/schemas/suews-config/registry.json`
 
 ## Usage in YAML Files
 
 ```yaml
 # Pin to specific version (recommended for production)
 schema_version: "0.1"
-$schema: "https://umep-dev.github.io/SUEWS/schema/suews-config/0.1.json"
+$schema: "https://suews.io/schemas/suews-config/0.1.json"
 
 # Or use latest (for development)
-$schema: "https://umep-dev.github.io/SUEWS/schema/suews-config/latest.json"
+$schema: "https://suews.io/schemas/suews-config/latest.json"
 ```
 
 ## Workflow

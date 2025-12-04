@@ -55,14 +55,14 @@ def _add_schema_metadata(schema: dict[str, Any], is_preview: bool, pr_number: Op
     from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION  # noqa: PLC0415
 
     if is_preview and pr_number:
-        schema["$id"] = f"{base_url}/preview/pr-{pr_number}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
+        schema["$id"] = f"{base_url}/preview/pr-{pr_number}/schemas/suews-config/{CURRENT_SCHEMA_VERSION}.json"
         schema["title"] = f"SUEWS Configuration Schema v{CURRENT_SCHEMA_VERSION} (PR #{pr_number} Preview)"
         schema["description"] = (
             f"⚠️ PREVIEW VERSION - PR #{pr_number} - DO NOT USE IN PRODUCTION. "
             f"Schema version {CURRENT_SCHEMA_VERSION}."
         )
     else:
-        schema["$id"] = f"{base_url}/schema/suews-config/{CURRENT_SCHEMA_VERSION}.json"
+        schema["$id"] = f"{base_url}/schemas/suews-config/{CURRENT_SCHEMA_VERSION}.json"
         schema["title"] = f"SUEWS Configuration Schema v{CURRENT_SCHEMA_VERSION}"
         schema["description"] = (
             f"JSON Schema for SUEWS YAML configuration files. "
@@ -120,8 +120,8 @@ def generate_schema(
         print(f"✓ Generated schema: {len(schema.get('properties', {}))} properties, "
               f"{len(schema.get('$defs', {}))} definitions")
 
-        # Save to permanent storage
-        output_dir = project_root / "schemas" / "suews-config"
+        # Save to permanent storage (site/ directory for GitHub Pages)
+        output_dir = project_root / "site" / "schemas" / "suews-config"
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Add auto-generated headers

@@ -12463,7 +12463,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 0.1. See https://suews.readthedocs.io for documentation.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 0.1. See https://docs.suews.io for documentation.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -12512,5 +12512,5 @@
   "title": "SUEWS Configuration Schema v0.1",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/0.1.json"
+  "$id": "https://suews.io/schemas/suews-config/0.1.json"
 }

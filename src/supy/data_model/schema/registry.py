@@ -113,9 +113,9 @@ class SchemaRegistry:
             card_class = "current" if is_current else "version"
 
             if is_preview and pr_number:
-                schema_url = f"{base_url}/preview/pr-{pr_number}/schema/suews-config/{version}.json"
+                schema_url = f"{base_url}/preview/pr-{pr_number}/schemas/suews-config/{version}.json"
             else:
-                schema_url = f"{base_url}/schema/suews-config/{version}.json"
+                schema_url = f"{base_url}/schemas/suews-config/{version}.json"
 
             version_cards.append(f"""
     <div class="version {card_class}">
@@ -137,7 +137,7 @@ class SchemaRegistry:
             This is a preview schema from an unmerged pull request.
             <strong>DO NOT use this schema URL in production configurations.</strong>
             <br>
-            <a href="{base_url}/schema/suews-config/">View stable schemas →</a>
+            <a href="{base_url}/schemas/suews-config/">View stable schemas →</a>
         </p>
     </div>"""
 
@@ -222,20 +222,16 @@ class SchemaRegistry:
     <h2>Usage in YAML Configuration</h2>
     <pre><code># Use specific version:
 schema_version: "{self._registry.get("current", CURRENT_SCHEMA_VERSION)}"
-$schema: "{base_url}/schema/suews-config/{self._registry.get("current", CURRENT_SCHEMA_VERSION)}.json"
+$schema: "{base_url}/schemas/suews-config/{self._registry.get("current", CURRENT_SCHEMA_VERSION)}.json"
 
 # Or use latest (always points to current version):
-$schema: "{base_url}/schema/suews-config/latest.json"
-
-# For older versions (if needed for compatibility):
-schema_version: "0.1"
-$schema: "{base_url}/schema/suews-config/0.1.json"</code></pre>
+$schema: "{base_url}/schemas/suews-config/latest.json"</code></pre>
 
     <h2>Version Policy</h2>
     <ul>
-        <li><strong>Major version (1.0 → 2.0):</strong> Breaking changes requiring migration</li>
-        <li><strong>Minor version (1.0 → 1.1):</strong> Backward compatible additions</li>
-        <li>Schema versions are independent of SUEWS release versions</li>
+        <li>Schema versions use <strong>CalVer (YYYY.MM)</strong> aligned with SUEWS releases</li>
+        <li>Breaking changes result in a new calendar version</li>
+        <li>Older configs are auto-migrated when possible</li>
     </ul>
 
     <hr>

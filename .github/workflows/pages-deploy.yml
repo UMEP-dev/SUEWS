@@ -196,6 +196,10 @@ jobs:
             find "_site/${PR_DIR}" -name "*.html" -type f | while read -r f; do
               sed -i "s|href=\"/brand/|href=\"/preview/pr-${PR_NUM}/brand/|g" "$f"
               sed -i "s|href=\"/\"|href=\"/preview/pr-${PR_NUM}/\"|g" "$f"
+              # If docs were built, rewrite docs.suews.io links to preview docs
+              if [ "$DOCS_BUILT" = "true" ]; then
+                sed -i "s|https://docs.suews.io|/preview/pr-${PR_NUM}/docs|g" "$f"
+              fi
             done
 
             # Inject preview banner into site pages

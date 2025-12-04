@@ -421,6 +421,64 @@ class TestRun:
         with pytest.raises(RuntimeError, match="No forcing"):
             sim.run()
 
+    def test_run_respects_config_date_range(self):
+        """Test that config start_time/end_time filters the model run period (GH-996)."""
+        # Create simulation from sample data
+        sim = SUEWSSimulation.from_sample_data()
+
+        # Note the full forcing range and resolution
+        full_forcing_start = sim._df_forcing.index.min()
+        full_forcing_len = len(sim._df_forcing)
+
+        # Determine the forcing timestep resolution (in minutes)
+        timestep_minutes = (
+            sim._df_forcing.index[1] - sim._df_forcing.index[0]
+        ).total_seconds() / 60
+
+        # Calculate expected timesteps for one day based on actual resolution
+        # (24 hours * 60 minutes / timestep_minutes)
+        expected_timesteps_per_day = int(24 * 60 / timestep_minutes)
+
+        # Set a narrow date range via config (just first day of forcing)
+        config_start = str(full_forcing_start.date())  # e.g., '2012-01-01'
+        config_end = str(full_forcing_start.date())
+
+        sim.update_config({
+            "model": {
+                "control": {
+                    "start_time": config_start,
+                    "end_time": config_end,
+                }
+            }
+        })
+
+        # Verify config was updated
+        assert sim._config.model.control.start_time == config_start
+        assert sim._config.model.control.end_time == config_end
+
+        # Run WITHOUT passing start_date/end_date arguments
+        # Should use config values as fallback
+        results = sim.run()
+
+        # Verify results are filtered to the config date range
+        assert results is not None
+        assert len(results) > 0
+
+        # Results should be approximately one day of timesteps, with small tolerance
+        # for edge effects (first/last timestep handling)
+        tolerance = 5
+        assert len(results) <= expected_timesteps_per_day + tolerance, (
+            f"Expected ~{expected_timesteps_per_day} timesteps for 1 day "
+            f"(at {timestep_minutes}-min resolution), got {len(results)}. "
+            f"Config date range not being respected (full forcing has {full_forcing_len})."
+        )
+
+        # Verify the results are within the configured date
+        results_start_date = results.index.get_level_values("datetime").min().date()
+        results_end_date = results.index.get_level_values("datetime").max().date()
+        assert results_start_date == full_forcing_start.date()
+        assert results_end_date == full_forcing_start.date()
+
 
 class TestSave:
     """Test result saving."""

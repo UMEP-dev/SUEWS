@@ -499,9 +499,9 @@ jobs:
           # GitHub Pages deploys replace the entire site, so we must preserve existing content
           # Use timeout to avoid hanging if site is unavailable
           echo "Fetching existing GitHub Pages content..."
-          if timeout 60 wget -q -r -np -nH --cut-dirs=1 -P _site \
+          if timeout 60 wget -q -r -np -nH -P _site \
                --reject "index.html*" \
-               https://umep-dev.github.io/SUEWS/ 2>&1; then
+               https://suews.io/ 2>&1; then
             echo "✓ Fetched existing site content"
           else
             echo "⚠ Could not fetch existing content (site may be empty or unavailable)"

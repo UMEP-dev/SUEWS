@@ -224,9 +224,7 @@ jobs:
               - 'src/supy/cmd/**'
               # JSON configs
               - 'src/supy/*.json'
-              # Schemas
-              - 'schemas/**'
-              # Build system / infra
+              # Build system / infra (excludes schemas/ - auto-generated metadata)
               - '.github/**'
               - 'pyproject.toml'
               - 'meson.build'

@@ -2,11 +2,10 @@
 # Read the Docs configuration file
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
 #
-# Build strategy: Use pre-built wheels from PyPI instead of building from source
-# - For formal releases: Use standard PyPI (pip install supy)
-# - For dev versions: Use Test PyPI (pip install -i https://test.pypi.org/simple/ supy)
-# - Much faster than building from source (~30 seconds vs 2-3 minutes)
-# - No need for gfortran or build toolchain
+# Build strategy (in order of preference):
+# 1. Pre-built wheel from Test PyPI (dev versions) or PyPI (releases)
+# 2. Fallback: Build from source if wheel unavailable
+# Using wheels is much faster (~30 seconds vs 2-3 minutes)
 
 # Required
 version: 2
@@ -15,6 +14,8 @@ build:
   os: ubuntu-24.04
   tools:
     python: "3.13"  # Use 3.13 on ubuntu-24.04 for latest Python support
+  apt_packages:
+    - gfortran  # Required for building from source (fallback only)
   jobs:
     pre_install:
       # Fetch all tags for proper version detection
@@ -22,34 +23,38 @@ build:
       - git fetch --tags || true
       - git update-index --assume-unchanged docs/source/conf.py
     post_create_environment:
-      # Pre-install Sphinx with upper bound to work around pip resolver issue
-      # When using --index-url with --extra-index-url, pip may not properly
-      # apply constraints from TestPyPI metadata when resolving PyPI dependencies.
-      # Installing Sphinx first ensures the constraint is respected.
-      # See: Sphinx 9.0 breaks sphinx_click (sphinx.ext.autodoc.mock removed)
-      - python -m pip install "sphinx>=4.0,<8.2"
-      # Detect version type and install appropriate pre-built wheel
+      # Install uv for faster package management
+      - python -m pip install uv
+      # Pre-install Sphinx with upper bound (Sphinx 9.0 breaks sphinx_click)
+      - uv pip install --system "sphinx>=4.0,<8.2"
+      # Detect version type and install (wheel preferred, source fallback)
       - |
         SUPY_VERSION=$(python get_ver_git.py 2>/dev/null || echo "unknown")
         echo "Detected SuPy version: $SUPY_VERSION"
+        INSTALLED=0
 
-        # Use POSIX-compliant case statement (not bash-specific [[)
         case "$SUPY_VERSION" in
           *".dev"*|"unknown")
-            # Normalize dev version: Test PyPI daily builds use .dev0 for standard builds
-            # e.g., 2025.11.7.dev13 -> 2025.11.7.dev0 (UMEP variant uses .dev1)
+            # Normalize dev version: Test PyPI daily builds use .dev0
             PYPI_VERSION=$(echo "$SUPY_VERSION" | sed 's/\.dev[0-9]*/\.dev0/')
-            echo "Installing dev version from Test PyPI: $PYPI_VERSION"
-            # --extra-index-url: Fallback to PyPI for dependencies (numpy, sphinx, etc.) not on Test PyPI
-            # [dev]: Includes Sphinx and documentation dependencies (see pyproject.toml)
-            python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "supy[dev]==$PYPI_VERSION"
+            echo "Trying Test PyPI wheel: $PYPI_VERSION"
+            if uv pip install --system --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "supy[dev]==$PYPI_VERSION"; then
+              INSTALLED=1
+            fi
             ;;
           *)
-            echo "Installing release version from PyPI..."
-            # [dev]: Includes Sphinx and documentation dependencies needed for RTD build
-            python -m pip install "supy[dev]==$SUPY_VERSION"
+            echo "Trying PyPI wheel: $SUPY_VERSION"
+            if uv pip install --system "supy[dev]==$SUPY_VERSION"; then
+              INSTALLED=1
+            fi
             ;;
         esac
+
+        # Fallback: build from source if wheel unavailable
+        if [ "$INSTALLED" -eq 0 ]; then
+          echo "Wheel not available, building from source..."
+          uv pip install --system ".[dev]"
+        fi
     post_install:
       # Generate RST files after package is installed
       - cd docs && make generate-rst

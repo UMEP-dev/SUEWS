@@ -78,6 +78,11 @@ on:
 
   workflow_dispatch:
 
+# Coordinate with build-publish_to_pypi.yml docs deployment
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: false
+
 permissions:
   contents: write
   pages: write

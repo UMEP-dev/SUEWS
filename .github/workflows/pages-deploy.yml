@@ -127,7 +127,7 @@ jobs:
             # First, fetch current production deployment to preserve it
             echo "📥 Fetching current production schemas..."
             mkdir -p _site_prod
-            wget -q -r -np -nH --cut-dirs=1 -P _site_prod https://umep-dev.github.io/SUEWS/ || true
+            wget -q -r -np -nH -P _site_prod https://suews.io/ || true
             
             # Copy production to _site
             if [ -d _site_prod ]; then

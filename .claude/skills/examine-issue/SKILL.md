@@ -199,10 +199,11 @@ For issues that are too large for single implementation, suggest decomposition.
 
 **When to suggest breakdown:**
 - Issue spans multiple components or modules
-- Estimated effort exceeds 1-2 days
+- High cognitive complexity (many interacting parts)
 - Multiple independent workstreams identified
 - Different expertise required for different parts
 - Risk of scope creep without clear boundaries
+- Would benefit from separate review/testing cycles
 
 **Breakdown Strategies:**
 
@@ -226,17 +227,17 @@ Sub-issues to create:
 1. **[Sub-issue title 1]**
    - Scope: [what's included]
    - Dependencies: [what must be done first]
-   - Effort: [relative size]
+   - Complexity: [low/medium/high - based on interacting parts, not time]
 
 2. **[Sub-issue title 2]**
    - Scope: [what's included]
    - Dependencies: [depends on #1 or independent]
-   - Effort: [relative size]
+   - Complexity: [low/medium/high]
 
 3. **[Sub-issue title 3]**
    - Scope: [what's included]
    - Dependencies: [depends on #1, #2, or independent]
-   - Effort: [relative size]
+   - Complexity: [low/medium/high]
 
 Suggested order: [1] → [2] → [3] (or parallel if independent)
 

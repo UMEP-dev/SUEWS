@@ -4,18 +4,29 @@ Detailed guidance for decomposing complex issues into manageable sub-issues.
 
 ## When to Suggest Breakdown
 
-Score 1 point for each indicator:
+Score 1 point for each complexity indicator:
 
 - [ ] Issue affects 4+ files or modules
 - [ ] Multiple distinct problem areas identified
-- [ ] Estimated effort exceeds 2 days
+- [ ] High cognitive load (many interacting parts to reason about)
 - [ ] Different expertise needed for different parts
 - [ ] Contains both "must have" and "nice to have" elements
 - [ ] Has sequential dependencies that could be parallelised
 - [ ] Risk varies across different parts
 - [ ] Would benefit from separate review/testing cycles
+- [ ] Requires understanding multiple domains simultaneously
 
 **Score 3+ = Suggest breakdown**
+
+## Complexity Assessment (Not Time)
+
+Measure complexity by cognitive load, not human-hours:
+
+| Level | Indicators |
+|-------|------------|
+| Low | Single concern, isolated change, clear boundaries |
+| Medium | 2-3 interacting concerns, moderate context needed |
+| High | Many interacting parts, requires deep domain knowledge, affects system invariants |
 
 ## Strategy Selection Guide
 
@@ -152,8 +163,8 @@ gh sub-issue remove <parent> <child>
 
 ## Anti-Patterns
 
-**Too Granular:** Creating 10+ sub-issues for a 1-day task
-- Solution: Group related changes
+**Too Granular:** Creating 10+ sub-issues for a low-complexity task
+- Solution: Group related changes into coherent units
 
 **No Clear Boundaries:** Sub-issues that overlap in scope
 - Solution: Define explicit "in scope" and "out of scope" for each

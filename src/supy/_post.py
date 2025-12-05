@@ -166,6 +166,67 @@ def pack_df_output_block(dict_output_block, df_forcing_block):
 
 # resample supy output
 def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
+    """Resample SUEWS simulation output to a different temporal frequency.
+
+    This function resamples time series data using variable-appropriate
+    aggregation methods. Different variable types are handled correctly:
+
+    - **Instantaneous** (temperature, humidity, wind): averaged (mean)
+    - **Accumulated** (rainfall, runoff): summed
+    - **State** (soil moisture, daily state): last value
+
+    Parameters
+    ----------
+    df_output : pandas.DataFrame
+        Output DataFrame from `run_supy`, with MultiIndex (grid, datetime)
+        and MultiIndex columns (group, var).
+    freq : str, optional
+        Target frequency using pandas offset aliases.
+        Common values: '30min', '60min' or 'h', '3h', 'D'.
+        Default is '60min' (hourly).
+    dict_aggm : dict, optional
+        Custom aggregation rules. Default uses OUTPUT_REGISTRY rules.
+        Format: {group: {variable: agg_function}}
+
+    Returns
+    -------
+    pandas.DataFrame
+        Resampled DataFrame with same structure as input.
+
+    Notes
+    -----
+    The SUEWS convention uses right-closed intervals with right labels,
+    meaning timestamps represent the END of each period.
+
+    Examples
+    --------
+    Basic usage - resample to hourly:
+
+    >>> import supy as sp
+    >>> df_state_init, df_forcing = sp.load_SampleData()
+    >>> df_output, df_state_final = sp.run_supy(df_forcing, df_state_init)
+    >>> df_hourly = sp.resample_output(df_output, freq='h')
+
+    Resample for EPW generation:
+
+    >>> df_hourly = sp.resample_output(df_output, freq='h')
+    >>> grid = df_hourly.index.get_level_values('grid')[0]
+    >>> df_epw, meta, path = sp.util.gen_epw(
+    ...     df_hourly.loc[grid, 'SUEWS'],
+    ...     lat=51.5, lon=-0.1
+    ... )
+
+    Or use the convenience freq parameter in gen_epw:
+
+    >>> df_epw, meta, path = sp.util.gen_epw(
+    ...     df_output, lat=51.5, lon=-0.1, freq='h'
+    ... )
+
+    See Also
+    --------
+    supy.util.gen_epw : Generate EPW files (supports freq parameter)
+    supy.data_model.output.OUTPUT_REGISTRY : Aggregation rules source
+    """
     # Helper function to resample a group with specified parameters
     def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None):
         """Resample a dataframe group with specified aggregation rules.

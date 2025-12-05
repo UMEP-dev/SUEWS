@@ -16,7 +16,7 @@ Start here for your SUEWS learning journey:
   quick-start
   impact-studies
 
-  .. setup-own-site (not ready yet - some issue about forcing height to fix)
+.. Comment: setup-own-site not ready yet - forcing height issue to fix
 
 **Recommended Learning Path:**
 

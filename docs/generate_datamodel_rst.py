@@ -109,6 +109,11 @@ class RSTGenerator:
         """Format a single model as RST."""
         lines = []
 
+        # Add orphan directive for utility models not in toctree (see GH#984)
+        if model_name in {"RefValue", "Reference"}:
+            lines.append(":orphan:")
+            lines.append("")
+
         # Add meta tags
         lines.extend(self._format_meta_tags(model_name, model_doc))
 

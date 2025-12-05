@@ -3,7 +3,32 @@
 Meteorological Forcing Data
 ============================
 
-SUEWS requires continuous meteorological data to drive the urban energy and water balance calculations. This page describes the format and requirements for forcing data files.
+SUEWS requires continuous meteorological data representative of the neighbourhood scale, within the inertial sublayer (i.e. a blended response above the roughness elements of buildings and trees), to drive the urban energy and water balance calculations. This page describes the format and requirements for forcing data files.
+
+.. important:: **Forcing Height**
+
+   Forcing data must represent the urban neighbourhood as a whole, not individual buildings or trees. This requires measurements from within the inertial sublayer, where turbulent mixing produces spatially blended values. The forcing height (``z``) tells SUEWS where your data originate, enabling correct profile calculations between this reference level and the surface. In urban environments, the atmospheric boundary layer is divided into:
+
+   - **Urban Canopy Layer (UCL)**: Within the urban canopy, among buildings and trees
+   - **Roughness Sublayer (RSL)**: Extends from the surface to approximately 2-5 times the mean building/tree height; flow is spatially heterogeneous
+   - **Inertial Sublayer (ISL)**: Above the RSL, where Monin-Obukhov Similarity Theory applies and fluxes are approximately constant with height
+
+   **Guidance for choosing z:**
+
+   - For in-situ measurements: use the actual measurement height (typically flux tower height)
+   - For reanalysis data (e.g., ERA5): check the reference height of the dataset
+   - For nested model output: use the height of the lowest model level above the surface
+
+   Set the forcing height in your YAML configuration:
+
+   .. code-block:: yaml
+
+      sites:
+        - name: "MySite"
+          properties:
+            z: 50.0  # Forcing height in metres
+
+   See :yaml:option:`z` for full documentation, and :ref:`rsl_mod` in :doc:`/parameterisations-and-sub-models` for details on profile calculations.
 
 Data Requirements
 -----------------

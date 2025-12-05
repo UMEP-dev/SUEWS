@@ -2464,7 +2464,7 @@ class SiteProperties(BaseModel):
     )
     z: FlexibleRefValue(float) = Field(
         gt=0,
-        description="Forcing height",
+        description="Height at which forcing data are specified, should be within the inertial sublayer above the blending height where values are spatially representative of the urban neighbourhood",
         json_schema_extra={
             "unit": "m",
             "display_name": "Forcing height",

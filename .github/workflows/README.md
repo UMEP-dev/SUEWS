@@ -52,7 +52,22 @@ Automated build and publish workflow that:
 - Publishes to PyPI on tagged releases
 - Skips builds for auto-format commits (via `[skip ci]`)
 
-### 4. Debug cibuildwheel (`cibuildwheel-debug.yml`)
+### 4. GitHub Pages Deploy (`pages-deploy.yml`)
+Deploys static site content to GitHub Pages at suews.io:
+- Deploys `site/` directory content on push to master
+- Creates ephemeral PR previews at `/preview/pr-{number}/`
+- Manual dispatch for force redeploys
+- Simple, reliable design with no wget dependencies
+
+**Content served:**
+- Landing page (`site/index.html`)
+- Brand assets (`site/brand/`)
+- CNAME configuration for suews.io
+
+**PR Previews:**
+Previews are ephemeral - they exist only until the next deployment. Each deployment includes full production content from the repository (single source of truth).
+
+### 5. Debug cibuildwheel (`cibuildwheel-debug.yml`)
 Interactive debugging environment for cibuildwheel build issues with SSH access, Claude Code CLI integration, and comprehensive error capture.
 
 **Key Features:**

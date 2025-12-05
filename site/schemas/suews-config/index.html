@@ -264,15 +264,17 @@
     </button>
 
     <div class="container">
+    <!-- BEGIN:PREVIEW_BANNER --><!-- END:PREVIEW_BANNER -->
     <h1>SUEWS Configuration Schema Registry</h1>
-    
+
     <p>
         JSON Schema definitions for SUEWS YAML configuration files.
         All schema versions are preserved and accessible.
     </p>
 
-    <h2>Available Schema Versions (1)</h2>
-    
+    <h2>Available Schema Versions (<!-- BEGIN:VERSION_COUNT -->1<!-- END:VERSION_COUNT -->)</h2>
+
+    <!-- BEGIN:VERSION_CARDS -->
     <div class="version current">
         <h3>Version 0.1 (Current)</h3>
         <p>Initial YAML schema with full Pydantic data model (2025.8)</p>
@@ -282,18 +284,15 @@
             <code class="url">https://suews.io/schemas/suews-config/0.1.json</code>
         </p>
     </div>
+    <!-- END:VERSION_CARDS -->
 
     <h2>Usage in YAML Configuration</h2>
     <pre><code># Use specific version:
-schema_version: "0.1"
-$schema: "https://suews.io/schemas/suews-config/0.1.json"
+schema_version: "<!-- BEGIN:CURRENT_VERSION -->0.1<!-- END:CURRENT_VERSION -->"
+$schema: "<!-- BEGIN:BASE_URL -->https://suews.io<!-- END:BASE_URL -->/schemas/suews-config/<!-- BEGIN:CURRENT_VERSION -->0.1<!-- END:CURRENT_VERSION -->.json"
 
 # Or use latest (always points to current version):
-$schema: "https://suews.io/schemas/suews-config/latest.json"
-
-# For older versions (if needed for compatibility):
-schema_version: "0.1"
-$schema: "https://suews.io/schemas/suews-config/0.1.json"</code></pre>
+$schema: "<!-- BEGIN:BASE_URL -->https://suews.io<!-- END:BASE_URL -->/schemas/suews-config/latest.json"</code></pre>
 
     <h2>Version Policy</h2>
     <ul>

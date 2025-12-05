@@ -22,14 +22,12 @@ on:
     branches: [master]
     paths:
       - 'src/supy/data_model/**'
-      - '.github/scripts/generate_schema.py'
       - '.github/workflows/pages-deploy.yml'
       - 'site/**'
 
   pull_request:
     paths:
       - 'src/supy/data_model/**'
-      - '.github/scripts/generate_schema.py'
       - '.github/workflows/pages-deploy.yml'
       - 'site/**'
       - 'docs/**'
@@ -136,15 +134,19 @@ jobs:
         with:
           python-version: '3.13'
 
-      - run: |
-          python -m pip install --upgrade pip
-          pip install pydantic pyyaml numpy pandas pytz timezonefinder f90nml packaging
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y gfortran
 
-      # Generate schemas
+      - uses: astral-sh/setup-uv@v3
+
+      - name: Install package
+        run: uv pip install --system .
+
+      # Generate schemas using the installed package (no mocking needed)
       - name: Generate schemas
         run: |
           echo "Generating schemas..."
-          python .github/scripts/generate_schema.py
+          python -m supy.data_model.schema.exporter
           echo "Schema generation complete"
 
       # Download docs artifact if it was built

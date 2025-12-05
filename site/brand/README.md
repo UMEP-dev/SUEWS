@@ -6,13 +6,17 @@ This directory contains official SUEWS branding assets including logos, colours,
 
 ```
 brand/
-  index.html          # Brand workshop (SVG symbol definitions + showcase)
+  brand-workshop.html # Interactive design tool with export functionality
+  index.html          # Brand showcase (SVG symbol definitions)
   README.md           # This file
   assets/             # Downloadable/exportable files
-    banner/           # Horizontal logos with text (453x200)
+    banner/           # Horizontal logos with text (200px height)
     icon/             # Square icons (512x512)
-    icon-disk/        # Icons with circular background
+    icon-disk/        # Icons with circular background (multiple sizes)
     stacked/          # Logo with text stacked below (512x512)
+  fonts/              # Bundled fonts for consistent export
+    Inter-SemiBold.woff   # Inter font (OFL licensed)
+    LICENSE.txt           # SIL Open Font License
 ```
 
 ## Logo Naming Convention
@@ -124,8 +128,33 @@ To use a logo in HTML:
 </svg>
 ```
 
+## Regenerating Assets
+
+The `brand-workshop.html` file is an interactive tool for generating brand assets:
+
+1. Open `brand-workshop.html` in a browser
+2. Wait for "Inter font loaded" status in the header (ensures consistent text rendering)
+3. Adjust design settings (logo size, gap, padding, crop toggle) in each section
+4. Use the **Export Centre** at the bottom to select logo types, sizes, themes, and formats
+5. Click **Export All Selected** to download a ZIP file with all assets
+6. Extract and replace files in `assets/`
+
+### Font Bundling
+
+The Inter font is bundled locally (`fonts/Inter-SemiBold.woff`) to ensure consistent text-to-path conversion. This eliminates network dependency and CORS issues that could cause fallback to system fonts.
+
+When the font loads successfully:
+- Text is converted to SVG `<path>` elements (vector, platform-independent)
+- PNG exports render identically across all systems
+
+If font loading fails:
+- A warning appears before export
+- Text falls back to `<text>` elements with `font-family: Inter, system-ui, sans-serif`
+- PNG rendering may vary by platform (uses local system fonts)
+
 ## File History
 
 - Created: December 2024
 - Updated: December 2024 (assets reorganisation, theme-mode naming)
+- Updated: December 2025 (bundled Inter font for reliable exports)
 - Location: `site/brand/` (deployed to suews.io/brand/)

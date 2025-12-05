@@ -4,7 +4,6 @@ name: GitHub Pages Deploy
 # ===============================
 # This workflow handles ALL GitHub Pages content:
 # - Site content (landing page, brand assets)
-# - Schema registry
 # - Documentation previews (for PRs)
 #
 # TRIGGER CONDITIONS:
@@ -13,21 +12,20 @@ name: GitHub Pages Deploy
 # - Manual dispatch: Force regeneration
 #
 # CONTENT TYPES:
-# - site/** → Landing page, brand assets, schemas
+# - site/** → Landing page, brand assets
 # - docs/** → Sphinx documentation (PR previews only)
-# - src/supy/data_model/** → Triggers schema regeneration
+#
+# NOTE: Schema generation temporarily disabled - to be redesigned in separate PR
 
 on:
   push:
     branches: [master]
     paths:
-      - 'src/supy/data_model/**'
       - '.github/workflows/pages-deploy.yml'
       - 'site/**'
 
   pull_request:
     paths:
-      - 'src/supy/data_model/**'
       - '.github/workflows/pages-deploy.yml'
       - 'site/**'
       - 'docs/**'
@@ -63,13 +61,10 @@ jobs:
           filters: |
             docs:
               - 'docs/**'
-              - 'src/supy/data_model/**'
               - '.readthedocs.yml'
               - 'pyproject.toml'
             site:
               - 'site/**'
-              - 'src/supy/data_model/**'
-              - '.github/scripts/generate_schema.py'
 
   # Build docs if changed (PR only - production uses ReadTheDocs)
   build-docs:
@@ -129,27 +124,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Required for git describe to access tags for version detection
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y gfortran
-
-      - uses: astral-sh/setup-uv@v3
-
-      - name: Install package
-        run: uv pip install --system .
-
-      # Generate schemas using the installed package (no mocking needed)
-      - name: Generate schemas
-        run: |
-          echo "Generating schemas..."
-          python -m supy.data_model.schema.exporter
-          echo "Schema generation complete"
 
       # Download docs artifact if it was built
       - name: Download docs artifact
@@ -210,7 +184,7 @@ jobs:
             # Banner is fixed at top with links to production and PR
             PREVIEW_BANNER='<div id="preview-banner" style="background:linear-gradient(90deg,#ffeb3b,#ffc107);color:#333;padding:10px 20px;text-align:center;font-family:system-ui,-apple-system,sans-serif;font-size:13px;position:fixed;top:0;left:0;right:0;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);"><strong>Preview - PR #'"${PR_NUM}"'</strong> \&nbsp;\| <a href="https://suews.io/" style="color:#1565c0;text-decoration:underline;">Production</a> \&nbsp;\| <a href="https://github.com/UMEP-dev/SUEWS/pull/'"${PR_NUM}"'" style="color:#1565c0;text-decoration:underline;">View PR</a></div><style>body{padding-top:40px !important;}</style>'
 
-            for page in index.html brand/index.html brand/brand-workshop.html brand/suews-logo-source.html schemas/suews-config/index.html; do
+            for page in index.html brand/index.html brand/brand-workshop.html brand/suews-logo-source.html; do
               target="_site/${PR_DIR}/${page}"
               if [ -f "$target" ]; then
                 sed -i "s|<body>|<body>${PREVIEW_BANNER}|g" "$target"
@@ -271,25 +245,6 @@ jobs:
       - uses: actions/deploy-pages@v4
         id: deployment
 
-      # Create PR for schema updates (master only)
-      - name: Create PR for schema updates
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        env:
-          GH_TOKEN: ${{ secrets.SCHEMA_UPDATE_PAT || secrets.GITHUB_TOKEN }}
-        run: |
-          if ! git diff --quiet site/schemas/; then
-            BRANCH="auto/schemas-$(date +%Y%m%d-%H%M%S)"
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git checkout -b "$BRANCH"
-            git add site/schemas/
-            git commit -m "chore: Update schemas [auto-generated]"
-            git push origin "$BRANCH"
-            gh pr create --base master --head "$BRANCH" \
-              --title "Update schemas" \
-              --body "Auto-generated schema update. Already deployed to GitHub Pages."
-          fi
-
       # Comment preview URLs on PR
       - name: Comment preview URL
         if: github.event_name == 'pull_request'
@@ -306,8 +261,7 @@ jobs:
 
             **Preview URLs:**
             - Landing: ${baseUrl}/preview/pr-${prNumber}/
-            - Brand: ${baseUrl}/preview/pr-${prNumber}/brand/
-            - Schemas: ${baseUrl}/preview/pr-${prNumber}/schemas/suews-config/`;
+            - Brand: ${baseUrl}/preview/pr-${prNumber}/brand/`;
 
             if (docsBuilt) {
               body += `

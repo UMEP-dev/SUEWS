@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>SUEWS Schema Registry</title>
+    <title>SUEWS Schema Registry - Coming Soon</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/svg+xml" href="/brand/assets/icon/suews-icon-dark.svg">
@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        /* ========== Theme Variables (aligned with index.html) ========== */
+        /* ========== Theme Variables (aligned with site index.html) ========== */
         :root {
             /* Logo palette (constant) */
             --sun-gold: #F7B538;
@@ -64,13 +64,12 @@
             color: var(--text-primary);
             background: var(--bg-primary);
             min-height: 100vh;
-            padding: 3rem 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
             transition: background-color 0.3s ease, color 0.3s ease;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
         }
 
         /* ========== Theme Toggle Button ========== */
@@ -101,246 +100,194 @@
             width: 20px;
             height: 20px;
             stroke: var(--text-secondary);
-            stroke-width: 2;
             fill: none;
-            transition: stroke 0.3s ease;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
 
-        .theme-toggle:hover svg {
-            stroke: var(--text-primary);
+        .theme-toggle .sun { display: block; }
+        .theme-toggle .moon { display: none; }
+        [data-theme="dark"] .theme-toggle .sun { display: none; }
+        [data-theme="dark"] .theme-toggle .moon { display: block; }
+
+        /* ========== Content ========== */
+        .container {
+            text-align: center;
+            max-width: 600px;
         }
 
-        .theme-toggle .icon-sun,
-        .theme-toggle .icon-moon {
-            position: absolute;
-            transition: opacity 0.3s ease, transform 0.3s ease;
+        .logo {
+            width: 120px;
+            height: 120px;
+            margin-bottom: 2rem;
         }
-
-        :root:not([data-theme="dark"]) .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg); }
-        :root:not([data-theme="dark"]) .theme-toggle .icon-moon { opacity: 1; transform: rotate(0deg); }
-        [data-theme="dark"] .theme-toggle .icon-sun { opacity: 1; transform: rotate(0deg); }
-        [data-theme="dark"] .theme-toggle .icon-moon { opacity: 0; transform: rotate(-90deg); }
 
         h1 {
-            font-family: 'Crimson Pro', Georgia, serif;
-            font-size: clamp(1.75rem, 4vw, 2.5rem);
-            font-weight: 500;
-            color: var(--text-primary);
-            margin-bottom: 1rem;
-            letter-spacing: -0.02em;
-        }
-
-        h2 {
-            font-family: 'Crimson Pro', Georgia, serif;
-            font-size: 1.5rem;
-            font-weight: 400;
-            color: var(--text-primary);
-            margin: 2.5rem 0 1rem;
-        }
-
-        h3 {
-            font-family: 'Instrument Sans', sans-serif;
+            font-size: 2.5rem;
             font-weight: 600;
-            margin-top: 0;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--sun-gold) 0%, var(--energy-orange) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
-        p {
+        .subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--shadow-card);
+            margin-bottom: 2rem;
+        }
+
+        .card p {
             color: var(--text-secondary);
             margin-bottom: 1rem;
         }
 
-        .version {
-            margin: 1rem 0;
-            padding: 1.5rem;
-            background: var(--bg-card);
-            border-radius: 12px;
-            border: 1px solid var(--border-light);
-            box-shadow: var(--shadow-card);
-            transition: all 0.3s ease;
+        .card p:last-child {
+            margin-bottom: 0;
         }
 
-        .version:hover {
-            border-color: var(--border-medium);
+        .links {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
         }
 
-        .current {
-            background: var(--bg-secondary);
-            border: 2px solid var(--water-blue);
-        }
-
-        a {
-            color: var(--water-blue);
+        .links a {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
             text-decoration: none;
-            transition: color 0.2s ease;
+            font-weight: 500;
+            transition: all 0.2s ease;
         }
 
-        a:hover {
-            text-decoration: underline;
+        .links a.primary {
+            background: linear-gradient(135deg, var(--water-blue) 0%, var(--water-blue-light) 100%);
+            color: white;
         }
 
-        code {
-            font-family: 'JetBrains Mono', monospace;
+        .links a.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 119, 182, 0.3);
+        }
+
+        .links a.secondary {
             background: var(--bg-secondary);
-            padding: 2px 8px;
-            border-radius: 6px;
-            font-size: 0.85em;
             color: var(--text-primary);
-        }
-
-        code.url {
-            display: inline-block;
-            max-width: 100%;
-            overflow-x: auto;
-            margin-top: 0.5em;
-            color: var(--text-muted);
-        }
-
-        pre {
-            background: var(--bg-secondary);
-            padding: 1.5rem;
-            border-radius: 12px;
-            overflow-x: auto;
             border: 1px solid var(--border-light);
         }
 
-        pre code {
-            background: transparent;
-            padding: 0;
-        }
-
-        ul {
-            color: var(--text-secondary);
-            padding-left: 1.5rem;
-        }
-
-        li {
-            margin-bottom: 0.5rem;
-        }
-
-        hr {
-            border: none;
-            border-top: 1px solid var(--border-light);
-            margin: 2.5rem 0;
+        .links a.secondary:hover {
+            border-color: var(--border-medium);
+            background: var(--bg-card);
         }
 
         footer {
             margin-top: 3rem;
-            padding-top: 2rem;
-            border-top: 1px solid var(--border-light);
-            text-align: center;
             color: var(--text-muted);
             font-size: 0.875rem;
         }
 
         footer a {
-            color: var(--water-blue);
+            color: var(--text-secondary);
+            text-decoration: none;
         }
 
-        .nav-links {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-            justify-content: center;
+        footer a:hover {
+            color: var(--accent-highlight);
         }
     </style>
 </head>
 <body>
-    <!-- Theme Toggle Button -->
-    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
-        <svg class="icon-sun" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1" x2="12" y2="3"/>
-            <line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1" y1="12" x2="3" y2="12"/>
-            <line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    <!-- Theme Toggle -->
+    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+        <svg class="sun" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
         </svg>
-        <svg class="icon-moon" viewBox="0 0 24 24">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        <svg class="moon" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
         </svg>
     </button>
 
     <div class="container">
-    <!-- BEGIN:PREVIEW_BANNER --><!-- END:PREVIEW_BANNER -->
-    <h1>SUEWS Configuration Schema Registry</h1>
+        <img src="/brand/assets/icon/suews-icon-dark.svg" alt="SUEWS" class="logo">
 
-    <p>
-        JSON Schema definitions for SUEWS YAML configuration files.
-        All schema versions are preserved and accessible.
-    </p>
+        <h1>Schema Registry</h1>
+        <p class="subtitle">Coming Soon</p>
 
-    <h2>Available Schema Versions (<!-- BEGIN:VERSION_COUNT -->1<!-- END:VERSION_COUNT -->)</h2>
+        <div class="card">
+            <p>
+                The SUEWS JSON Schema Registry is being redesigned to provide
+                a better experience for validating YAML configuration files.
+            </p>
+            <p>
+                In the meantime, please refer to the documentation for
+                configuration guidance.
+            </p>
+        </div>
 
-    <!-- BEGIN:VERSION_CARDS -->
-    <div class="version current">
-        <h3>Version 0.1 (Current)</h3>
-        <p>Initial YAML schema with full Pydantic data model (2025.8)</p>
-        <p>
-            <a href="0.1.json">View Schema</a> |
-            <a href="latest.json">Latest</a> |
-            <code class="url">https://suews.io/schemas/suews-config/0.1.json</code>
-        </p>
+        <div class="links">
+            <a href="https://suews.readthedocs.io/en/latest/input_files/RunControl/scheme_options.html" class="primary">
+                Documentation
+            </a>
+            <a href="https://github.com/UMEP-dev/SUEWS" class="secondary">
+                GitHub
+            </a>
+            <a href="/" class="secondary">
+                Home
+            </a>
+        </div>
     </div>
-    <!-- END:VERSION_CARDS -->
-
-    <h2>Usage in YAML Configuration</h2>
-    <pre><code># Use specific version:
-schema_version: "<!-- BEGIN:CURRENT_VERSION -->0.1<!-- END:CURRENT_VERSION -->"
-$schema: "<!-- BEGIN:BASE_URL -->https://suews.io<!-- END:BASE_URL -->/schemas/suews-config/<!-- BEGIN:CURRENT_VERSION -->0.1<!-- END:CURRENT_VERSION -->.json"
-
-# Or use latest (always points to current version):
-$schema: "<!-- BEGIN:BASE_URL -->https://suews.io<!-- END:BASE_URL -->/schemas/suews-config/latest.json"</code></pre>
-
-    <h2>Version Policy</h2>
-    <ul>
-        <li><strong>Major version (1.0 → 2.0):</strong> Breaking changes requiring migration</li>
-        <li><strong>Minor version (1.0 → 1.1):</strong> Backward compatible additions</li>
-        <li>Schema versions are independent of SUEWS release versions</li>
-    </ul>
 
     <footer>
-        <p style="margin-bottom: 0.5rem;">
-            <a href="../../">Home</a> ·
-            <a href="../../brand/">Brand</a>
+        <p>
+            <a href="https://github.com/UMEP-dev/SUEWS">SUEWS</a> |
+            Surface Urban Energy and Water Balance Scheme
         </p>
-        <div class="nav-links" style="margin-bottom: 1rem;">
-            <a href="https://github.com/UMEP-dev/SUEWS">GitHub</a> ·
-            <a href="https://docs.suews.io/latest/inputs/yaml/schema_versioning.html">Documentation</a> ·
-            <a href="registry.json">Registry JSON</a>
-        </div>
-        <p>&copy; 2025 SUEWS Development Team</p>
     </footer>
-    </div>
 
     <script>
-        // Theme Toggle Logic (aligned with index.html)
-        const toggle = document.getElementById('themeToggle');
-        const root = document.documentElement;
-
+        // Theme handling
         function getPreferredTheme() {
-            const saved = localStorage.getItem('theme');
-            if (saved) return saved;
-            return 'light';
+            const stored = localStorage.getItem('theme');
+            if (stored) return stored;
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         }
 
         function setTheme(theme) {
-            if (theme === 'dark') {
-                root.setAttribute('data-theme', 'dark');
-            } else {
-                root.removeAttribute('data-theme');
-            }
+            document.documentElement.setAttribute('data-theme', theme);
             localStorage.setItem('theme', theme);
         }
 
-        setTheme(getPreferredTheme());
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme') || 'light';
+            setTheme(current === 'dark' ? 'light' : 'dark');
+        }
 
-        toggle.addEventListener('click', () => {
-            const current = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-            setTheme(current === 'light' ? 'dark' : 'light');
-        });
+        // Initialize theme
+        setTheme(getPreferredTheme());
     </script>
 </body>
 </html>

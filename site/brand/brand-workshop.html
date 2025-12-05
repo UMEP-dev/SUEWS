@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
   <style>
     :root {
       /* ========== Brand Palette (aligned with site) ========== */
@@ -328,6 +329,24 @@
       accent-color: var(--accent);
     }
 
+    /* Single checkbox label */
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .checkbox-label input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+    }
+    .checkbox-label span {
+      user-select: none;
+    }
+
     /* Range slider */
     input[type="range"] {
       width: 100%;
@@ -583,6 +602,33 @@
       bottom: 0;
       right: 0;
       border-left: 1px dashed rgba(245, 158, 11, 0.8);
+    }
+
+    /* Logo content bounding box - cyan */
+    .guide-box-logo {
+      position: absolute;
+      border: 2px solid rgba(6, 182, 212, 0.8);
+      background: rgba(6, 182, 212, 0.1);
+      pointer-events: none;
+      box-sizing: border-box;
+    }
+
+    /* Text bounding box - magenta */
+    .guide-box-text {
+      position: absolute;
+      border: 2px solid rgba(236, 72, 153, 0.8);
+      background: rgba(236, 72, 153, 0.1);
+      pointer-events: none;
+      box-sizing: border-box;
+    }
+
+    /* Combined content bounding box (logo+text) - lime green */
+    .guide-box-content {
+      position: absolute;
+      border: 2px dashed rgba(132, 204, 22, 0.9);
+      background: rgba(132, 204, 22, 0.05);
+      pointer-events: none;
+      box-sizing: border-box;
     }
 
     /* Info panel */
@@ -882,16 +928,16 @@
         <div class="control-group">
           <div class="control-label">
             <span>Logo Size</span>
-            <span class="control-value" id="stacked-logo-value">65%</span>
+            <span class="control-value" id="stacked-logo-value">62%</span>
           </div>
-          <input type="range" id="stacked-logo" min="40" max="80" value="65" oninput="updateStacked()">
+          <input type="range" id="stacked-logo" min="40" max="80" value="62" oninput="updateStacked()">
         </div>
         <div class="control-group">
           <div class="control-label">
             <span>Text Size</span>
-            <span class="control-value" id="stacked-text-value">18%</span>
+            <span class="control-value" id="stacked-text-value">22%</span>
           </div>
-          <input type="range" id="stacked-text" min="10" max="25" value="18" oninput="updateStacked()">
+          <input type="range" id="stacked-text" min="10" max="30" value="22" oninput="updateStacked()">
           <p class="info-text">% of logo size</p>
         </div>
         <div class="control-group">
@@ -902,15 +948,14 @@
           <input type="range" id="stacked-gap" min="0" max="10" value="1" oninput="updateStacked()">
         </div>
         <div class="control-group">
-          <div class="control-label">
-            <span>Padding</span>
-            <span class="control-value" id="stacked-pad-value">12%</span>
-          </div>
-          <input type="range" id="stacked-pad" min="0" max="25" value="12" oninput="updateStacked()">
+          <label class="checkbox-label">
+            <input type="checkbox" id="stacked-crop" checked onchange="updateStacked()">
+            <span>Tight crop</span>
+          </label>
+          <p class="info-text">Remove logo whitespace for precise positioning</p>
         </div>
         <div class="button-row">
           <button class="action-btn" onclick="presetStacked()">Preset</button>
-          <button class="action-btn secondary" onclick="centreStacked()">Centre</button>
         </div>
         <p class="info-text" style="margin-top: 12px;">Use Export Centre below for batch export.</p>
       </div>
@@ -945,16 +990,16 @@
         <div class="control-group">
           <div class="control-label">
             <span>Logo Height</span>
-            <span class="control-value" id="banner-logo-value">80%</span>
+            <span class="control-value" id="banner-logo-value">82%</span>
           </div>
-          <input type="range" id="banner-logo" min="50" max="95" value="80" oninput="updateBanner()">
+          <input type="range" id="banner-logo" min="50" max="95" value="82" oninput="updateBanner()">
         </div>
         <div class="control-group">
           <div class="control-label">
             <span>Text Size</span>
-            <span class="control-value" id="banner-text-value">50%</span>
+            <span class="control-value" id="banner-text-value">52%</span>
           </div>
-          <input type="range" id="banner-text" min="30" max="70" value="50" oninput="updateBanner()">
+          <input type="range" id="banner-text" min="30" max="70" value="52" oninput="updateBanner()">
           <p class="info-text">% of logo size</p>
         </div>
         <div class="control-group">
@@ -965,15 +1010,14 @@
           <input type="range" id="banner-gap" min="0" max="15" value="2" oninput="updateBanner()">
         </div>
         <div class="control-group">
-          <div class="control-label">
-            <span>Padding</span>
-            <span class="control-value" id="banner-padding-value">5%</span>
-          </div>
-          <input type="range" id="banner-padding" min="0" max="20" value="5" oninput="updateBanner()">
+          <label class="checkbox-label">
+            <input type="checkbox" id="banner-crop" checked onchange="updateBanner()">
+            <span>Tight crop</span>
+          </label>
+          <p class="info-text">Remove logo whitespace for precise positioning</p>
         </div>
         <div class="button-row">
           <button class="action-btn" onclick="presetBanner()">Preset</button>
-          <button class="action-btn secondary" onclick="centreBanner()">Centre</button>
         </div>
         <p class="info-text" style="margin-top: 12px;">Use Export Centre below for batch export.</p>
       </div>
@@ -1015,9 +1059,16 @@
         <div class="control-group">
           <div class="control-label">
             <span>Fill</span>
-            <span class="control-value" id="solo-fill-value">90%</span>
+            <span class="control-value" id="solo-fill-value">88%</span>
           </div>
-          <input type="range" id="solo-fill" min="60" max="100" value="90" oninput="updateIconPreviews()">
+          <input type="range" id="solo-fill" min="60" max="100" value="88" oninput="updateIconPreviews()">
+        </div>
+        <div class="control-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="icon-crop" checked onchange="updateIconPreviews()">
+            <span>Tight crop</span>
+          </label>
+          <p class="info-text">Remove logo whitespace for precise sizing</p>
         </div>
         <p class="info-text" style="margin-top: 12px;">Use Export Centre below for batch export.</p>
       </div>
@@ -1197,6 +1248,13 @@
     </div>
     <div class="section-content" style="grid-template-columns: 1fr;">
       <div class="controls-panel" style="max-width: 700px;">
+        <!-- Quick selection buttons -->
+        <div class="control-group">
+          <div class="button-row" style="justify-content: flex-start; gap: 8px;">
+            <button class="action-btn secondary" onclick="selectAllExports()">Select All</button>
+            <button class="action-btn secondary" onclick="deselectAllExports()">Deselect All</button>
+          </div>
+        </div>
         <!-- Logo Types -->
         <div class="control-group">
           <div class="control-label"><span>Logo Types</span></div>
@@ -1271,6 +1329,64 @@ const SVG_WS = {
   sides: 290 / 2048     // 14.2%
 };
 
+// Crop constants for tight viewBox (removes embedded whitespace)
+const LOGO_CROP = {
+  originalSize: 2048,
+  // Cropped region in original coordinates
+  x: 290,               // Left edge (14.2%)
+  y: 240,               // Top edge (11.7%)
+  width: 2048 - 290 * 2,  // 1468 (72% of original)
+  height: 2048 - 240 - 296  // 1512 (74% of original)
+};
+
+// ============================================
+// Font Loading and Text-to-Path Conversion
+// ============================================
+
+let interFont = null;  // Will hold the loaded Inter font
+
+// Load Inter font for text-to-path conversion
+async function loadInterFont() {
+  if (interFont) return interFont;
+  try {
+    // Use Google Fonts static URL for Inter SemiBold (600 weight)
+    const fontUrl = 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuGKYAZ9hjp-Ek-_EeA.woff';
+    interFont = await opentype.load(fontUrl);
+    console.log('Inter font loaded successfully');
+    return interFont;
+  } catch (err) {
+    console.error('Failed to load Inter font:', err);
+    return null;
+  }
+}
+
+// Convert text to SVG path data
+// Returns { path: pathData, width, height, x, y } for precise bounds
+function textToPath(text, fontSize, x = 0, y = 0, options = {}) {
+  if (!interFont) {
+    console.warn('Font not loaded, cannot convert text to path');
+    return null;
+  }
+
+  const letterSpacing = options.letterSpacing || 0;
+
+  // Get the path from opentype
+  const path = interFont.getPath(text, x, y, fontSize, {
+    letterSpacing: letterSpacing / fontSize  // opentype uses ratio
+  });
+
+  // Get precise bounding box
+  const bbox = path.getBoundingBox();
+
+  return {
+    pathData: path.toPathData(2),  // 2 decimal precision
+    width: bbox.x2 - bbox.x1,
+    height: bbox.y2 - bbox.y1,
+    x: bbox.x1,
+    y: bbox.y1
+  };
+}
+
 // Logo graphic as SVG group - uses master SVG source (single source of truth)
 function logoGraphic(offsetX = 0, offsetY = 0, scale = 1) {
   const logo = document.getElementById('logo');
@@ -1282,39 +1398,81 @@ function logoGraphic(offsetX = 0, offsetY = 0, scale = 1) {
 // ============================================
 
 function createStackedSVG(settings) {
-  const { size, theme, logoSizePct, textSizePct, gapPct, paddingPct } = settings;
+  const { size, theme, logoSizePct, textSizePct, gapPct, paddingPct, crop = true } = settings;
 
   const textColor = theme === 'light' ? '#1a1a2e' : '#f8fafc';
 
   // Calculate in viewBox units (using 1000 as base for simplicity)
   const vbSize = 1000;
-  const logoSize = vbSize * (logoSizePct / 100);
   const gap = vbSize * (gapPct / 100);
   const padding = vbSize * (paddingPct / 100);
 
-  // Text size (textSizePct is % of logo size, matching banner approach)
+  // Logo element and positioning depends on crop mode
+  let logoElement;
+  let logoVisualBottom;
+  let logoVisualWidth;
+
+  if (crop) {
+    // Tight crop: logoSizePct controls the visual height (no whitespace)
+    const logoVisualHeight = vbSize * (logoSizePct / 100);
+    // Maintain aspect ratio of cropped region
+    logoVisualWidth = logoVisualHeight * (LOGO_CROP.width / LOGO_CROP.height);
+
+    // Centre horizontally
+    const logoX = (vbSize - logoVisualWidth) / 2;
+    const logoY = padding;
+    logoVisualBottom = logoY + logoVisualHeight;
+
+    // Use nested SVG with cropped viewBox
+    const logo = document.getElementById('logo');
+    logoElement = `<svg x="${logoX}" y="${logoY}" width="${logoVisualWidth}" height="${logoVisualHeight}"
+        viewBox="${LOGO_CROP.x} ${LOGO_CROP.y} ${LOGO_CROP.width} ${LOGO_CROP.height}">${logo.innerHTML}</svg>`;
+  } else {
+    // Original mode: logoSizePct controls bounding box size (includes whitespace)
+    const logoSize = vbSize * (logoSizePct / 100);
+    const logoX = (vbSize - logoSize) / 2;
+    const logoY = padding;
+    const logoScale = logoSize / 2048;
+
+    // Visual bottom excludes internal whitespace
+    logoVisualBottom = logoY + logoSize - (logoSize * SVG_WS.bottom);
+    logoVisualWidth = logoSize;
+
+    logoElement = logoGraphic(logoX, logoY, logoScale);
+  }
+
+  // Text size (textSizePct is % of logo visual width)
   const textSizeRatio = (textSizePct || 18) / 100;
-  const textHeight = logoSize * textSizeRatio;
+  const textHeight = logoVisualWidth * textSizeRatio;
 
-  // Position logo (centred horizontally)
-  const logoX = (vbSize - logoSize) / 2;
-  const logoY = padding;
+  // Text as path (if font loaded) or fallback to text element
+  let textElement;
+  if (interFont) {
+    // Convert text to path for precise bounds
+    const textPath = textToPath('SUEWS', textHeight, 0, 0, { letterSpacing: -2 });
+    if (textPath) {
+      // Centre the path horizontally, position below logo visual edge + gap
+      const textX = (vbSize - textPath.width) / 2 - textPath.x;
+      const textY = logoVisualBottom + gap - textPath.y;
+      textElement = `<path d="${textPath.pathData}" fill="${textColor}" transform="translate(${textX}, ${textY})" class="text-path"/>`;
+    }
+  }
 
-  // Logo scale from 2048 units to our size
-  const logoScale = logoSize / 2048;
-
-  // Text position (below logo + gap)
-  const textY = logoY + logoSize + gap + textHeight * 0.8; // baseline adjustment
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbSize} ${vbSize}" width="${size}" height="${size}">
-    ${logoGraphic(logoX, logoY, logoScale)}
-    <text x="${vbSize/2}" y="${textY}"
+  // Fallback to text element if path conversion failed
+  if (!textElement) {
+    const textY = logoVisualBottom + gap + textHeight * 0.8;
+    textElement = `<text x="${vbSize/2}" y="${textY}"
           font-family="Inter, system-ui, -apple-system, sans-serif"
           font-size="${textHeight}"
           font-weight="600"
           fill="${textColor}"
           text-anchor="middle"
-          letter-spacing="-2">SUEWS</text>
+          letter-spacing="-2">SUEWS</text>`;
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbSize} ${vbSize}" width="${size}" height="${size}">
+    ${logoElement}
+    ${textElement}
   </svg>`;
 }
 
@@ -1336,16 +1494,66 @@ function measureTextWidth(text, fontSize, fontFamily = 'Inter, system-ui, sans-s
   return width;
 }
 
+// Measure actual ink bounds using canvas pixel scanning
+// Returns { top, left, width, height } relative to the baseline position
+function measureTextInkBounds(text, fontSize, fontFamily = 'Inter, system-ui, sans-serif', fontWeight = '600', letterSpacing = '-1px') {
+  const canvas = document.createElement('canvas');
+  const padding = Math.ceil(fontSize * 0.5);  // Extra space around text
+  canvas.width = Math.ceil(fontSize * text.length * 0.8) + padding * 2;
+  canvas.height = Math.ceil(fontSize * 1.5) + padding * 2;
+
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'black';
+  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+  ctx.letterSpacing = letterSpacing;
+
+  // Draw text with baseline at a known position
+  const baselineY = padding + fontSize;
+  ctx.fillText(text, padding, baselineY);
+
+  // Scan pixels to find ink bounds
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  let minX = canvas.width, maxX = 0, minY = canvas.height, maxY = 0;
+  let foundPixel = false;
+
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      const alpha = data[(y * canvas.width + x) * 4 + 3];
+      if (alpha > 10) {  // Threshold for anti-aliased edges
+        foundPixel = true;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (!foundPixel) {
+    return { top: 0, left: 0, width: 0, height: 0, baseline: baselineY };
+  }
+
+  return {
+    left: minX - padding,           // Relative to text start
+    top: minY - padding,            // Relative to top padding
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+    baseline: baselineY - padding,  // Baseline position relative to top padding
+    // Useful derived values
+    ascent: baselineY - minY,       // How far ink extends above baseline
+    descent: maxY - baselineY       // How far ink extends below baseline (usually 0 for caps)
+  };
+}
+
 function createBannerSVG(settings) {
-  const { height, theme, logoHeightPct, textSizePct, gapPct, paddingPct, paddingLeft, paddingRight } = settings;
+  const { height, theme, logoHeightPct, textSizePct, gapPct, paddingPct, paddingLeft, paddingRight, crop = true } = settings;
 
   const textColor = theme === 'light' ? '#1a1a2e' : '#f8fafc';
 
   // Fixed height, dynamic width based on content
   const vbHeight = 250;
-
-  const logoHeight = vbHeight * (logoHeightPct / 100);
-  const logoWidth = logoHeight; // Logo is square
   const gap = vbHeight * (gapPct / 100);
   const padding = vbHeight * (paddingPct / 100);
 
@@ -1353,24 +1561,77 @@ function createBannerSVG(settings) {
   const pLeft = paddingLeft !== undefined ? vbHeight * (paddingLeft / 100) : padding;
   const pRight = paddingRight !== undefined ? vbHeight * (paddingRight / 100) : padding;
 
-  // Text size (textSizePct is % of logo height)
+  // Logo element and positioning depends on crop mode
+  let logoElement;
+  let logoVisualRight;
+  let logoVisualHeight;
+
+  if (crop) {
+    // Tight crop: logoHeightPct controls the visual height (no whitespace)
+    logoVisualHeight = vbHeight * (logoHeightPct / 100);
+    // Maintain aspect ratio of cropped region
+    const logoVisualWidth = logoVisualHeight * (LOGO_CROP.width / LOGO_CROP.height);
+
+    // Centre vertically
+    const logoY = (vbHeight - logoVisualHeight) / 2;
+    const logoX = pLeft;
+    logoVisualRight = logoX + logoVisualWidth;
+
+    // Use nested SVG with cropped viewBox
+    const logo = document.getElementById('logo');
+    logoElement = `<svg x="${logoX}" y="${logoY}" width="${logoVisualWidth}" height="${logoVisualHeight}"
+        viewBox="${LOGO_CROP.x} ${LOGO_CROP.y} ${LOGO_CROP.width} ${LOGO_CROP.height}">${logo.innerHTML}</svg>`;
+  } else {
+    // Original mode: logoHeightPct controls bounding box size (includes whitespace)
+    const logoHeight = vbHeight * (logoHeightPct / 100);
+    const logoWidth = logoHeight; // Logo is square
+    logoVisualHeight = logoHeight;
+
+    // Centre vertically
+    const logoY = (vbHeight - logoHeight) / 2;
+    const logoX = pLeft;
+    const logoScale = logoHeight / 2048;
+
+    // Visual right excludes internal whitespace
+    logoVisualRight = logoX + logoWidth - (logoWidth * SVG_WS.sides);
+
+    logoElement = logoGraphic(logoX, logoY, logoScale);
+  }
+
+  // Text size (textSizePct is % of logo visual height)
   const textSizeRatio = (textSizePct || 50) / 100;
-  const textHeight = logoHeight * textSizeRatio;
+  const textHeight = logoVisualHeight * textSizeRatio;
 
-  // Measure text width precisely using SVG
-  const textWidth = measureTextWidth('SUEWS', textHeight, 'Inter, system-ui, sans-serif', '600', '-1');
+  // Text as path (if font loaded) or fallback to text element
+  let textElement;
+  let textWidth;
 
-  // Calculate total width dynamically
-  const vbWidth = pLeft + logoWidth + gap + textWidth + pRight;
+  if (interFont) {
+    const textPath = textToPath('SUEWS', textHeight, 0, 0, { letterSpacing: -1 });
+    if (textPath) {
+      textWidth = textPath.width;
+      // Position text: after logo visual edge + gap, vertically centred
+      const textX = logoVisualRight + gap - textPath.x;
+      const textY = (vbHeight - textPath.height) / 2 - textPath.y;
+      textElement = `<path d="${textPath.pathData}" fill="${textColor}" transform="translate(${textX}, ${textY})" class="text-path"/>`;
+    }
+  }
 
-  // Position logo
-  const logoY = (vbHeight - logoHeight) / 2;
-  const logoX = pLeft;
-  const logoScale = logoHeight / 2048;
+  // Fallback to text element if path conversion failed
+  if (!textElement) {
+    textWidth = measureTextWidth('SUEWS', textHeight, 'Inter, system-ui, sans-serif', '600', '-1');
+    const textX = logoVisualRight + gap;
+    const textY = vbHeight / 2 + textHeight * 0.35;
+    textElement = `<text x="${textX}" y="${textY}"
+          font-family="Inter, system-ui, -apple-system, sans-serif"
+          font-size="${textHeight}"
+          font-weight="600"
+          fill="${textColor}"
+          letter-spacing="-1">SUEWS</text>`;
+  }
 
-  // Text position
-  const textX = logoX + logoWidth + gap;
-  const textY = vbHeight / 2 + textHeight * 0.35; // vertical centre with baseline adjustment
+  // Calculate total width dynamically (using visual right, not box right)
+  const vbWidth = logoVisualRight + gap + textWidth + pRight;
 
   // Calculate aspect ratio for output dimensions
   const aspectRatio = vbWidth / vbHeight;
@@ -1378,13 +1639,8 @@ function createBannerSVG(settings) {
   const outputWidth = outputHeight * aspectRatio;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbWidth} ${vbHeight}" width="${outputWidth}" height="${outputHeight}">
-    ${logoGraphic(logoX, logoY, logoScale)}
-    <text x="${textX}" y="${textY}"
-          font-family="Inter, system-ui, -apple-system, sans-serif"
-          font-size="${textHeight}"
-          font-weight="600"
-          fill="${textColor}"
-          letter-spacing="-1">SUEWS</text>
+    ${logoElement}
+    ${textElement}
   </svg>`;
 }
 
@@ -1393,8 +1649,15 @@ function createSoloSVG(settings) {
 
   const vbSize = 1000;
   const logoSize = vbSize * (fillPct / 100);
+
+  // Compensate for asymmetric whitespace in the SVG
+  // Logo has more bottom whitespace (14.5%) than top (11.7%)
+  const wsTopPx = logoSize * SVG_WS.top;
+  const wsBottomPx = logoSize * SVG_WS.bottom;
+  const yOffset = (wsBottomPx - wsTopPx) / 2;  // Positive = shift down
+
   const logoX = (vbSize - logoSize) / 2;
-  const logoY = (vbSize - logoSize) / 2;
+  const logoY = (vbSize - logoSize) / 2 + yOffset;  // Visually centred
   const logoScale = logoSize / 2048;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbSize} ${vbSize}" width="${size}" height="${size}">
@@ -1407,73 +1670,158 @@ function createSoloSVG(settings) {
 // ============================================
 
 let showGuidelines = false;
+let stackedPaddingPct = 12;  // Auto-calculated padding for stacked layout
+let stackedCrop = true;       // Tight crop for stacked layout
+let bannerPaddingPct = 5;    // Base padding for banner layout
 let bannerPaddingLeft = null;
 let bannerPaddingRight = null;
+let bannerCrop = true;        // Tight crop for banner layout
 
 // ============================================
 // Update Functions
 // ============================================
 
 function updateStacked() {
-  const logoSize = document.getElementById('stacked-logo').value;
-  const textSize = document.getElementById('stacked-text').value;
-  const gap = document.getElementById('stacked-gap').value;
-  const pad = document.getElementById('stacked-pad').value;
+  const logoSizePct = parseFloat(document.getElementById('stacked-logo').value);
+  const textSizePct = parseFloat(document.getElementById('stacked-text').value);
+  const gapPct = parseFloat(document.getElementById('stacked-gap').value);
+  const crop = document.getElementById('stacked-crop')?.checked ?? true;
 
-  document.getElementById('stacked-logo-value').textContent = logoSize + '%';
-  document.getElementById('stacked-text-value').textContent = textSize + '%';
-  document.getElementById('stacked-gap-value').textContent = gap + '%';
-  document.getElementById('stacked-pad-value').textContent = pad + '%';
+  document.getElementById('stacked-logo-value').textContent = logoSizePct + '%';
+  document.getElementById('stacked-text-value').textContent = textSizePct + '%';
+  document.getElementById('stacked-gap-value').textContent = gapPct + '%';
 
-  const settings = {
-    logoSizePct: parseFloat(logoSize),
-    textSizePct: parseFloat(textSize),
-    gapPct: parseFloat(gap),
-    paddingPct: parseFloat(pad)
-  };
+  // Calculate estimated padding for centering
+  const vbSize = 1000;
+  const gap = vbSize * (gapPct / 100);
 
-  // Large previews (200px display)
+  // Logo size depends on crop mode
+  let logoVisualHeight, logoVisualWidth;
+  if (crop) {
+    // In crop mode, slider controls visual height directly
+    logoVisualHeight = vbSize * (logoSizePct / 100);
+    logoVisualWidth = logoVisualHeight * (LOGO_CROP.width / LOGO_CROP.height);
+  } else {
+    // In original mode, slider controls bounding box size
+    const logoSize = vbSize * (logoSizePct / 100);
+    logoVisualHeight = logoSize;
+    logoVisualWidth = logoSize;
+  }
+
+  const textHeight = logoVisualWidth * (textSizePct / 100);
+  const contentHeight = logoVisualHeight + gap + textHeight;
+  let paddingPct = Math.max(0, ((vbSize - contentHeight) / 2 / vbSize) * 100);
+
+  // First pass render with estimated padding
+  const settings = { logoSizePct, textSizePct, gapPct, paddingPct, crop };
+
   document.getElementById('stacked-light-wrapper').innerHTML =
     createStackedSVG({ ...settings, size: 200, theme: 'light' });
   document.getElementById('stacked-dark-wrapper').innerHTML =
     createStackedSVG({ ...settings, size: 200, theme: 'dark' });
 
+  // Measure actual margins and adjust if needed
+  const bounds = getContentBounds('stacked-light-wrapper');
+  if (bounds) {
+    const diff = bounds.marginTop - bounds.marginBottom;
+    if (Math.abs(diff) > 1) {
+      // Adjust padding based on actual measurement
+      const adjustmentPct = (diff / 2) / bounds.svgRect.height * 100;
+      paddingPct = Math.max(0, paddingPct - adjustmentPct);
+
+      // Re-render with adjusted padding
+      const adjustedSettings = { logoSizePct, textSizePct, gapPct, paddingPct, crop };
+      document.getElementById('stacked-light-wrapper').innerHTML =
+        createStackedSVG({ ...adjustedSettings, size: 200, theme: 'light' });
+      document.getElementById('stacked-dark-wrapper').innerHTML =
+        createStackedSVG({ ...adjustedSettings, size: 200, theme: 'dark' });
+    }
+  }
+
+  // Store current settings for export functions
+  stackedPaddingPct = paddingPct;
+  stackedCrop = crop;
+
   updateIndicators();
 }
 
 function updateBanner() {
-  const logoHeight = document.getElementById('banner-logo').value;
-  const textSize = document.getElementById('banner-text').value;
-  const gap = document.getElementById('banner-gap').value;
-  const padding = document.getElementById('banner-padding').value;
+  const logoHeightPct = parseFloat(document.getElementById('banner-logo').value);
+  const textSizePct = parseFloat(document.getElementById('banner-text').value);
+  const gapPct = parseFloat(document.getElementById('banner-gap').value);
+  const crop = document.getElementById('banner-crop')?.checked ?? true;
 
-  document.getElementById('banner-logo-value').textContent = logoHeight + '%';
-  document.getElementById('banner-text-value').textContent = textSize + '%';
-  document.getElementById('banner-gap-value').textContent = gap + '%';
-  document.getElementById('banner-padding-value').textContent = padding + '%';
+  document.getElementById('banner-logo-value').textContent = logoHeightPct + '%';
+  document.getElementById('banner-text-value').textContent = textSizePct + '%';
+  document.getElementById('banner-gap-value').textContent = gapPct + '%';
 
-  // Reset asymmetric padding when user adjusts controls
-  bannerPaddingLeft = null;
-  bannerPaddingRight = null;
+  // Use default padding (5%) for initial render
+  const paddingPct = 5;
 
+  // First pass render with symmetric padding
   const settings = {
-    logoHeightPct: parseFloat(logoHeight),
-    textSizePct: parseFloat(textSize),
-    gapPct: parseFloat(gap),
-    paddingPct: parseFloat(padding),
-    paddingLeft: bannerPaddingLeft,
-    paddingRight: bannerPaddingRight
+    logoHeightPct,
+    textSizePct,
+    gapPct,
+    paddingPct,
+    paddingLeft: undefined,
+    paddingRight: undefined,
+    crop
   };
 
-  const lightSVG = createBannerSVG({ ...settings, height: 100, theme: 'light' });
-  const darkSVG = createBannerSVG({ ...settings, height: 100, theme: 'dark' });
+  document.getElementById('banner-light-wrapper').innerHTML =
+    createBannerSVG({ ...settings, height: 100, theme: 'light' });
+  document.getElementById('banner-dark-wrapper').innerHTML =
+    createBannerSVG({ ...settings, height: 100, theme: 'dark' });
 
-  document.getElementById('banner-light-wrapper').innerHTML = lightSVG;
-  document.getElementById('banner-dark-wrapper').innerHTML = darkSVG;
+  // Measure actual margins and calculate asymmetric padding for centering
+  const bounds = getContentBounds('banner-light-wrapper');
+  if (bounds) {
+    const diff = bounds.marginLeft - bounds.marginRight;
+    if (Math.abs(diff) > 0.5) {
+      // Calculate asymmetric adjustment
+      const adjustmentPct = (diff / 2) / bounds.svgRect.width * 100 * (250 / 100);
+
+      bannerPaddingLeft = paddingPct - adjustmentPct;
+      bannerPaddingRight = paddingPct + adjustmentPct;
+
+      // Re-render with adjusted padding
+      const adjustedSettings = {
+        logoHeightPct,
+        textSizePct,
+        gapPct,
+        paddingPct,
+        paddingLeft: bannerPaddingLeft,
+        paddingRight: bannerPaddingRight,
+        crop
+      };
+
+      document.getElementById('banner-light-wrapper').innerHTML =
+        createBannerSVG({ ...adjustedSettings, height: 100, theme: 'light' });
+      document.getElementById('banner-dark-wrapper').innerHTML =
+        createBannerSVG({ ...adjustedSettings, height: 100, theme: 'dark' });
+    } else {
+      bannerPaddingLeft = null;
+      bannerPaddingRight = null;
+    }
+  }
+
+  // Store current settings for export functions
+  bannerPaddingPct = paddingPct;
+  bannerCrop = crop;
 
   // Update size badge with actual export dimensions
+  const finalSettings = {
+    logoHeightPct,
+    textSizePct,
+    gapPct,
+    paddingPct,
+    paddingLeft: bannerPaddingLeft,
+    paddingRight: bannerPaddingRight,
+    crop
+  };
   const parser = new DOMParser();
-  const svgDoc = parser.parseFromString(createBannerSVG({ ...settings, height: 200, theme: 'light' }), 'image/svg+xml');
+  const svgDoc = parser.parseFromString(createBannerSVG({ ...finalSettings, height: 200, theme: 'light' }), 'image/svg+xml');
   const svgEl = svgDoc.querySelector('svg');
   const exportWidth = Math.round(parseFloat(svgEl.getAttribute('width')));
   const exportHeight = Math.round(parseFloat(svgEl.getAttribute('height')));
@@ -1515,105 +1863,103 @@ function updateSolo() {
 // Presets & Auto Centre
 // ============================================
 
-// Recommended preset values for balanced design
-// Stacked: 70% logo compensates for ~26% internal SVG whitespace
-// Text at 20% of logo = 14% canvas height for good legibility
-const STACKED_PRESET = { logo: 70, text: 20, gap: 2 };
-// Banner: 75% logo for vertical breathing room
-// Text at 55% of logo for horizontal balance
-const BANNER_PRESET = { logo: 75, text: 55, gap: 3, pad: 8 };
+// Recommended preset values for balanced design (with tight crop enabled)
+//
+// Stacked (512×512 canvas):
+// - Logo 62%: fills canvas well with ~12% breathing margins
+// - Text 22% of logo width: strong but subordinate hierarchy
+// - Gap 1%: tight visual connection between logo and wordmark
+const STACKED_PRESET = { logo: 62, text: 22, gap: 1 };
+
+// Banner (dynamic width, fixed height):
+// - Logo 82%: fills vertical space with comfortable margins
+// - Text 52% of logo height: matches optical weight of "SUEWS" caps
+// - Gap 2%: clean separation without disconnecting elements
+const BANNER_PRESET = { logo: 82, text: 52, gap: 2 };
 
 function presetStacked() {
-  // Apply recommended values
+  // Apply recommended values (padding is auto-calculated)
   document.getElementById('stacked-logo').value = STACKED_PRESET.logo;
   document.getElementById('stacked-text').value = STACKED_PRESET.text;
   document.getElementById('stacked-gap').value = STACKED_PRESET.gap;
-  // Auto-calculate optimal padding
-  centreStacked();
-}
-
-function presetBanner() {
-  // Apply recommended values
-  document.getElementById('banner-logo').value = BANNER_PRESET.logo;
-  document.getElementById('banner-text').value = BANNER_PRESET.text;
-  document.getElementById('banner-gap').value = BANNER_PRESET.gap;
-  document.getElementById('banner-padding').value = BANNER_PRESET.pad;
-  // Auto-centre for visual symmetry
-  centreBanner();
-}
-
-function centreStacked() {
-  // Calculate optimal padding to centre content vertically
-  // Content height = logo + gap + text
-  // Padding = (vbSize - contentHeight) / 2
-
-  const logoSizePct = parseFloat(document.getElementById('stacked-logo').value);
-  const textSizePct = parseFloat(document.getElementById('stacked-text').value);
-  const gapPct = parseFloat(document.getElementById('stacked-gap').value);
-
-  const vbSize = 1000;
-  const logoSize = vbSize * (logoSizePct / 100);
-  const gap = vbSize * (gapPct / 100);
-  const textHeight = logoSize * (textSizePct / 100);
-
-  const contentHeight = logoSize + gap + textHeight;
-  const padding = (vbSize - contentHeight) / 2;
-  const padPct = Math.max(0, (padding / vbSize) * 100);
-
-  document.getElementById('stacked-pad').value = padPct.toFixed(0);
   updateStacked();
 }
 
-function centreBanner() {
-  // For banner: equalise left and right visual margins
-  // Left margin = paddingLeft + SVG side whitespace
-  // Right margin = paddingRight (after text)
+function presetBanner() {
+  // Apply recommended values (padding is auto-calculated)
+  document.getElementById('banner-logo').value = BANNER_PRESET.logo;
+  document.getElementById('banner-text').value = BANNER_PRESET.text;
+  document.getElementById('banner-gap').value = BANNER_PRESET.gap;
+  updateBanner();
+}
 
-  const logoHeightPct = parseFloat(document.getElementById('banner-logo').value);
-  const textSizePct = parseFloat(document.getElementById('banner-text').value);
-  const paddingPct = parseFloat(document.getElementById('banner-padding').value);
+// Get union bounding box of logo+text content
+// Returns bounds relative to wrapper element for positioning
+function getContentBounds(wrapper) {
+  if (typeof wrapper === 'string') {
+    wrapper = document.getElementById(wrapper);
+  }
+  if (!wrapper) return null;
 
-  const vbHeight = 250;
-  const logoHeight = vbHeight * (logoHeightPct / 100);
+  const svg = wrapper.querySelector('svg');
+  // In crop mode, logo is a nested <svg>, in original mode it's a <g>
+  const logoElement = svg?.querySelector('svg') || svg?.querySelector('g');
+  const textPath = svg?.querySelector('path.text-path');
 
-  // SVG side whitespace
-  const svgSideWs = logoHeight * SVG_WS.sides;
+  if (!svg || !logoElement) return null;
 
-  // To achieve L = R:
-  // paddingLeft + svgSideWs = paddingRight
-  // Keep total padding roughly the same:
-  // paddingLeft + paddingRight = 2 * paddingPct
-  // So: paddingRight = paddingPct + svgSideWs/2
-  //     paddingLeft = paddingPct - svgSideWs/2
+  const wrapperRect = wrapper.getBoundingClientRect();
+  const svgRect = svg.getBoundingClientRect();
+  const logoRect = logoElement.getBoundingClientRect();
+  const textRect = textPath?.getBoundingClientRect();
 
-  const basePadding = vbHeight * (paddingPct / 100);
-  bannerPaddingLeft = paddingPct - (svgSideWs / vbHeight * 100) / 2;
-  bannerPaddingRight = paddingPct + (svgSideWs / vbHeight * 100) / 2;
+  // Compute union bounding box
+  const contentTop = Math.min(logoRect.top, textRect?.top ?? logoRect.top);
+  const contentBottom = Math.max(logoRect.bottom, textRect?.bottom ?? logoRect.bottom);
+  const contentLeft = Math.min(logoRect.left, textRect?.left ?? logoRect.left);
+  const contentRight = Math.max(logoRect.right, textRect?.right ?? logoRect.right);
 
-  const settings = {
-    logoHeightPct: parseFloat(document.getElementById('banner-logo').value),
-    textSizePct: textSizePct,
-    gapPct: parseFloat(document.getElementById('banner-gap').value),
-    paddingPct: paddingPct,
-    paddingLeft: bannerPaddingLeft,
-    paddingRight: bannerPaddingRight
+  return {
+    wrapperRect,
+    svgRect,
+    logoRect,
+    textRect,
+    // Content bounds (union of logo and text)
+    contentTop,
+    contentBottom,
+    contentLeft,
+    contentRight,
+    contentWidth: contentRight - contentLeft,
+    contentHeight: contentBottom - contentTop,
+    // Margins from SVG edge to content
+    marginTop: contentTop - svgRect.top,
+    marginBottom: svgRect.bottom - contentBottom,
+    marginLeft: contentLeft - svgRect.left,
+    marginRight: svgRect.right - contentRight
   };
+}
 
-  const lightSVG = createBannerSVG({ ...settings, height: 100, theme: 'light' });
-  const darkSVG = createBannerSVG({ ...settings, height: 100, theme: 'dark' });
+// Measure margins using unified content bounds
+// axis: 'vertical' for top/bottom (stacked), 'horizontal' for left/right (banner)
+function measureMargins(wrapperId, axis = 'horizontal') {
+  const bounds = getContentBounds(wrapperId);
+  if (!bounds) return null;
 
-  document.getElementById('banner-light-wrapper').innerHTML = lightSVG;
-  document.getElementById('banner-dark-wrapper').innerHTML = darkSVG;
-
-  // Update size badge
-  const parser = new DOMParser();
-  const svgDoc = parser.parseFromString(createBannerSVG({ ...settings, height: 200, theme: 'light' }), 'image/svg+xml');
-  const svgEl = svgDoc.querySelector('svg');
-  const exportWidth = Math.round(parseFloat(svgEl.getAttribute('width')));
-  const exportHeight = Math.round(parseFloat(svgEl.getAttribute('height')));
-  document.getElementById('banner-size-badge').textContent = `${exportWidth}x${exportHeight}`;
-
-  updateIndicators();
+  if (axis === 'vertical') {
+    return {
+      startMargin: bounds.marginTop,
+      endMargin: bounds.marginBottom,
+      diff: bounds.marginTop - bounds.marginBottom,
+      size: bounds.svgRect.height
+    };
+  } else {
+    return {
+      startMargin: bounds.marginLeft,
+      endMargin: bounds.marginRight,
+      diff: bounds.marginLeft - bounds.marginRight,
+      size: bounds.svgRect.width
+    };
+  }
 }
 
 // ============================================
@@ -1628,29 +1974,80 @@ function toggleGuidelines() {
 }
 
 function updateIndicators() {
-  // Clear existing panels and bars
-  document.querySelectorAll('.guide-info-panel, .guide-bar').forEach(el => el.remove());
+  // Clear existing panels, bars, and bounding boxes
+  document.querySelectorAll('.guide-info-panel, .guide-bar, .guide-box-logo, .guide-box-text, .guide-box-content').forEach(el => el.remove());
 
   if (!showGuidelines) return;
 
-  // Stacked indicators
-  updateStackedIndicators('stacked-light-wrapper', 512, 200);
-  updateStackedIndicators('stacked-dark-wrapper', 512, 200);
-
-  // Banner indicators
-  updateBannerIndicators('banner-light-wrapper');
-  updateBannerIndicators('banner-dark-wrapper');
+  // Consolidated indicators (one panel per family, bars on each card)
+  updateStackedIndicators(512, 200);
+  updateBannerIndicators();
 }
 
-function updateStackedIndicators(wrapperId, exportSize, previewSize) {
-  const wrapper = document.getElementById(wrapperId);
-  if (!wrapper) return;
+// Helper: Add text bounding box to wrapper (handles both path and text elements)
+function addTextBoundingBox(wrapper) {
+  const svg = wrapper.querySelector('svg');
+  if (!svg) return;
 
-  const card = wrapper.closest('.preview-card');
+  const pathEl = svg.querySelector('path.text-path');
+  const textEl = svg.querySelector('text');
+  const targetEl = pathEl || textEl;
+  if (!targetEl) return;
+
+  const targetRect = targetEl.getBoundingClientRect();
+  const wrapperRect = wrapper.getBoundingClientRect();
+
+  const textBox = document.createElement('div');
+  textBox.className = 'guide-box-text';
+  textBox.style.top = (targetRect.top - wrapperRect.top) + 'px';
+  textBox.style.left = (targetRect.left - wrapperRect.left) + 'px';
+  textBox.style.width = targetRect.width + 'px';
+  textBox.style.height = targetRect.height + 'px';
+  wrapper.appendChild(textBox);
+}
+
+// Helper: Add logo bounding box using getBoundingClientRect
+function addLogoBoundingBox(wrapper) {
+  const svg = wrapper.querySelector('svg');
+  // In crop mode, logo is a nested <svg>, in original mode it's a <g>
+  const logoElement = svg?.querySelector('svg') || svg?.querySelector('g');
+  if (!logoElement) return;
+
+  const logoRect = logoElement.getBoundingClientRect();
+  const wrapperRect = wrapper.getBoundingClientRect();
+
+  const logoBox = document.createElement('div');
+  logoBox.className = 'guide-box-logo';
+  logoBox.style.top = (logoRect.top - wrapperRect.top) + 'px';
+  logoBox.style.left = (logoRect.left - wrapperRect.left) + 'px';
+  logoBox.style.width = logoRect.width + 'px';
+  logoBox.style.height = logoRect.height + 'px';
+  wrapper.appendChild(logoBox);
+}
+
+// Helper: Add combined content bounding box (logo+text union)
+function addContentBoundingBox(wrapper) {
+  if (typeof wrapper === 'string') {
+    wrapper = document.getElementById(wrapper);
+  }
+  const bounds = getContentBounds(wrapper);
+  if (!bounds) return;
+
+  const contentBox = document.createElement('div');
+  contentBox.className = 'guide-box-content';
+  contentBox.style.top = (bounds.contentTop - bounds.wrapperRect.top) + 'px';
+  contentBox.style.left = (bounds.contentLeft - bounds.wrapperRect.left) + 'px';
+  contentBox.style.width = bounds.contentWidth + 'px';
+  contentBox.style.height = bounds.contentHeight + 'px';
+  wrapper.appendChild(contentBox);
+}
+
+function updateStackedIndicators(exportSize, previewSize) {
+  const wrapperIds = ['stacked-light-wrapper', 'stacked-dark-wrapper'];
   const logoSizePct = parseFloat(document.getElementById('stacked-logo').value);
   const textSizePct = parseFloat(document.getElementById('stacked-text').value);
   const gapPct = parseFloat(document.getElementById('stacked-gap').value);
-  const padPct = parseFloat(document.getElementById('stacked-pad').value);
+  const padPct = stackedPaddingPct;  // Use auto-calculated padding from state
 
   // Calculate in export pixels
   const logoSize = exportSize * (logoSizePct / 100);
@@ -1658,23 +2055,75 @@ function updateStackedIndicators(wrapperId, exportSize, previewSize) {
   const textHeight = logoSize * (textSizePct / 100);
   const padding = exportSize * (padPct / 100);
 
-  // Add visual margin bars to preview
+  // Scale factor for preview
   const scale = previewSize / exportSize;
   const barHeight = padding * scale;
 
-  const topBar = document.createElement('div');
-  topBar.className = 'guide-bar top';
-  topBar.style.height = barHeight + 'px';
-  wrapper.appendChild(topBar);
+  // Logo content bounds (accounting for SVG whitespace)
+  const logoTopWs = logoSize * SVG_WS.top;
+  const logoBottomWs = logoSize * SVG_WS.bottom;
+  const logoSideWs = logoSize * SVG_WS.sides;
 
-  const bottomBar = document.createElement('div');
-  bottomBar.className = 'guide-bar bottom';
-  bottomBar.style.height = barHeight + 'px';
-  wrapper.appendChild(bottomBar);
+  // Logo position in viewBox (logo is centred horizontally, starts at padding vertically)
+  const logoX = (exportSize - logoSize) / 2;
+  const logoY = padding;
 
-  // Create info panel
+  // Logo visual content bounds
+  const logoContentTop = (logoY + logoTopWs) * scale;
+  const logoContentLeft = (logoX + logoSideWs) * scale;
+  const logoContentWidth = (logoSize - 2 * logoSideWs) * scale;
+  const logoContentHeight = (logoSize - logoTopWs - logoBottomWs) * scale;
+
+  // Add visual elements to each wrapper
+  wrapperIds.forEach(wrapperId => {
+    const wrapper = document.getElementById(wrapperId);
+    if (!wrapper) return;
+
+    // Get actual content bounds for accurate margin bars
+    const bounds = getContentBounds(wrapper);
+
+    // Padding bars (top and bottom) - use actual measured margins
+    const topBar = document.createElement('div');
+    topBar.className = 'guide-bar top';
+    topBar.style.height = (bounds ? bounds.marginTop : barHeight) + 'px';
+    wrapper.appendChild(topBar);
+
+    const bottomBar = document.createElement('div');
+    bottomBar.className = 'guide-bar bottom';
+    bottomBar.style.height = (bounds ? bounds.marginBottom : barHeight) + 'px';
+    wrapper.appendChild(bottomBar);
+
+    // Logo content bounding box (cyan)
+    addLogoBoundingBox(wrapper);
+
+    // Text bounding box (magenta)
+    addTextBoundingBox(wrapper);
+
+    // Combined content bounding box (lime green)
+    addContentBoundingBox(wrapper);
+  });
+
+  // Create ONE shared info panel attached to the preview grid
+  const firstWrapper = document.getElementById(wrapperIds[0]);
+  if (!firstWrapper) return;
+
+  const previewGrid = firstWrapper.closest('.preview-grid');
+  if (!previewGrid) return;
+
+  // Get actual measured values from rendered SVG
+  const bounds = getContentBounds(firstWrapper);
+  const actualGap = bounds && bounds.textRect
+    ? bounds.textRect.top - bounds.logoRect.bottom  // Stacked: text below logo
+    : gap * scale;
+  const actualPadTop = bounds ? bounds.marginTop : padding * scale;
+  const actualPadBottom = bounds ? bounds.marginBottom : padding * scale;
+
+  // Scale back to export dimensions for display
+  const scaleFactor = exportSize / previewSize;
+
   const panel = document.createElement('div');
   panel.className = 'guide-info-panel';
+  panel.style.width = '100%';
   panel.innerHTML = `
     <div class="section-title">Export: ${exportSize}px</div>
     <div class="info-row">
@@ -1687,25 +2136,22 @@ function updateStackedIndicators(wrapperId, exportSize, previewSize) {
     </div>
     <div class="info-row">
       <span class="info-label">Gap</span>
-      <span class="info-value">${gap.toFixed(0)}px</span>
+      <span class="info-value">${(actualGap * scaleFactor).toFixed(0)}px</span>
     </div>
     <div class="info-row">
       <span class="info-label">Pad</span>
-      <span class="info-value">${padding.toFixed(0)}px</span>
+      <span class="info-value">${(actualPadTop * scaleFactor).toFixed(0)}px / ${(actualPadBottom * scaleFactor).toFixed(0)}px</span>
     </div>
   `;
-  card.appendChild(panel);
+  previewGrid.appendChild(panel);
 }
 
-function updateBannerIndicators(wrapperId) {
-  const wrapper = document.getElementById(wrapperId);
-  if (!wrapper) return;
-
-  const card = wrapper.closest('.preview-card');
+function updateBannerIndicators() {
+  const wrapperIds = ['banner-light-wrapper', 'banner-dark-wrapper'];
   const logoHeightPct = parseFloat(document.getElementById('banner-logo').value);
   const textSizePct = parseFloat(document.getElementById('banner-text').value);
   const gapPct = parseFloat(document.getElementById('banner-gap').value);
-  const paddingPct = parseFloat(document.getElementById('banner-padding').value);
+  const paddingPct = bannerPaddingPct;  // Use auto-calculated padding from state
 
   // Export height is fixed at 200, width is dynamic
   const exportHeight = 200;
@@ -1714,7 +2160,7 @@ function updateBannerIndicators(wrapperId) {
   const logoHeight = exportHeight * (logoHeightPct / 100);
   const logoWidth = logoHeight; // Square logo
   const textHeight = logoHeight * (textSizePct / 100);
-  const textWidth = textHeight * 0.6 * 5; // Estimated text width
+  const textWidth = measureTextWidth('SUEWS', textHeight, 'Inter, system-ui, sans-serif', '600', '-1');
   const gap = exportHeight * (gapPct / 100);
   const svgSideWs = logoHeight * SVG_WS.sides;
 
@@ -1740,22 +2186,59 @@ function updateBannerIndicators(wrapperId) {
   const diff = Math.abs(leftMargin - rightMargin);
   const isSymmetric = diff < 2;
 
-  // Add visual margin bars
+  // Scale factor for margin bars
   const scaleY = previewHeight / exportHeight;
 
-  const leftBar = document.createElement('div');
-  leftBar.className = 'guide-bar left';
-  leftBar.style.width = (leftMargin * scaleY) + 'px'; // Use scaleY since margins are relative to height
-  wrapper.appendChild(leftBar);
+  // Add visual elements to each wrapper
+  wrapperIds.forEach(wrapperId => {
+    const wrapper = document.getElementById(wrapperId);
+    if (!wrapper) return;
 
-  const rightBar = document.createElement('div');
-  rightBar.className = 'guide-bar right';
-  rightBar.style.width = (rightMargin * scaleY) + 'px';
-  wrapper.appendChild(rightBar);
+    // Get actual content bounds for accurate margin bars
+    const bounds = getContentBounds(wrapper);
 
-  // Create info panel
+    // Margin bars (left and right) - use actual measured margins
+    const leftBar = document.createElement('div');
+    leftBar.className = 'guide-bar left';
+    leftBar.style.width = (bounds ? bounds.marginLeft : leftMargin * scaleY) + 'px';
+    wrapper.appendChild(leftBar);
+
+    const rightBar = document.createElement('div');
+    rightBar.className = 'guide-bar right';
+    rightBar.style.width = (bounds ? bounds.marginRight : rightMargin * scaleY) + 'px';
+    wrapper.appendChild(rightBar);
+
+    // Logo and text bounding boxes
+    addLogoBoundingBox(wrapper);
+    addTextBoundingBox(wrapper);
+
+    // Combined content bounding box (lime green)
+    addContentBoundingBox(wrapper);
+  });
+
+  // Create ONE shared info panel attached to the preview grid
+  const firstWrapper = document.getElementById(wrapperIds[0]);
+  if (!firstWrapper) return;
+
+  const previewGrid = firstWrapper.closest('.preview-grid');
+  if (!previewGrid) return;
+
+  // Get actual measured values from rendered SVG
+  const bounds = getContentBounds(firstWrapper);
+  const actualGap = bounds && bounds.textRect
+    ? bounds.textRect.left - bounds.logoRect.right  // Banner: text right of logo
+    : gap * scaleY;
+  const actualLeftMargin = bounds ? bounds.marginLeft : leftMargin * scaleY;
+  const actualRightMargin = bounds ? bounds.marginRight : rightMargin * scaleY;
+  const actualDiff = Math.abs(actualLeftMargin - actualRightMargin);
+  const actualSymmetric = actualDiff < 2;
+
+  // Scale back to export dimensions for display
+  const scaleFactor = exportHeight / previewHeight;
+
   const panel = document.createElement('div');
   panel.className = 'guide-info-panel';
+  panel.style.width = '100%';
   panel.innerHTML = `
     <div class="section-title">Export: ${Math.round(exportWidth)}x${exportHeight}</div>
     <div class="info-row">
@@ -1768,39 +2251,24 @@ function updateBannerIndicators(wrapperId) {
     </div>
     <div class="info-row">
       <span class="info-label">Gap</span>
-      <span class="info-value">${gap.toFixed(0)}px</span>
+      <span class="info-value">${(actualGap * scaleFactor).toFixed(0)}px</span>
     </div>
     <div class="divider"></div>
-    <div class="section-title">Left Margin</div>
     <div class="info-row">
-      <span class="info-label">Padding</span>
-      <span class="info-value">${leftPadding.toFixed(0)}px${isAsymmetric ? ' (adj)' : ''}</span>
+      <span class="info-label">L Margin</span>
+      <span class="info-value">${(actualLeftMargin * scaleFactor).toFixed(0)}px</span>
     </div>
     <div class="info-row">
-      <span class="info-label">+ SVG ws</span>
-      <span class="info-value">${svgSideWs.toFixed(0)}px</span>
-    </div>
-    <div class="info-row">
-      <span class="info-label">= Visual</span>
-      <span class="info-value">${leftMargin.toFixed(0)}px</span>
-    </div>
-    <div class="divider"></div>
-    <div class="section-title">Right Margin</div>
-    <div class="info-row">
-      <span class="info-label">Padding</span>
-      <span class="info-value">${rightPadding.toFixed(0)}px${isAsymmetric ? ' (adj)' : ''}</span>
-    </div>
-    <div class="info-row">
-      <span class="info-label">= Visual</span>
-      <span class="info-value">${rightMargin.toFixed(0)}px</span>
+      <span class="info-label">R Margin</span>
+      <span class="info-value">${(actualRightMargin * scaleFactor).toFixed(0)}px</span>
     </div>
     <div class="divider"></div>
     <div class="info-row">
       <span class="info-label">Symmetry</span>
-      <span class="info-value ${isSymmetric ? 'ok' : 'warn'}">${isSymmetric ? 'OK' : 'diff ' + diff.toFixed(0) + 'px'}</span>
+      <span class="info-value ${actualSymmetric ? 'ok' : 'warn'}">${actualSymmetric ? 'OK' : 'diff ' + (actualDiff * scaleFactor).toFixed(0) + 'px'}</span>
     </div>
   `;
-  card.appendChild(panel);
+  previewGrid.appendChild(panel);
 }
 
 function updateSoloIndicators(wrapperId, exportSize) {
@@ -1817,9 +2285,12 @@ function updateSoloIndicators(wrapperId, exportSize) {
   const svgBottomWs = logoSize * SVG_WS.bottom;
   const svgSideWs = logoSize * SVG_WS.sides;
 
-  // Visual margins
-  const visualTop = margin + svgTopWs;
-  const visualBottom = margin + svgBottomWs;
+  // Y offset for visual centering (same as in createSoloSVG)
+  const yOffset = (svgBottomWs - svgTopWs) / 2;
+
+  // Visual margins (accounting for centering offset)
+  const visualTop = margin + yOffset + svgTopWs;
+  const visualBottom = margin - yOffset + svgBottomWs;
   const visualSide = margin + svgSideWs;
 
   // Create info panel
@@ -1884,16 +2355,18 @@ function getSettings(type) {
       logoSizePct: parseFloat(document.getElementById('stacked-logo').value),
       textSizePct: parseFloat(document.getElementById('stacked-text').value),
       gapPct: parseFloat(document.getElementById('stacked-gap').value),
-      paddingPct: parseFloat(document.getElementById('stacked-pad').value)
+      paddingPct: stackedPaddingPct,  // Auto-calculated
+      crop: stackedCrop
     };
   } else if (type === 'banner') {
     return {
       logoHeightPct: parseFloat(document.getElementById('banner-logo').value),
       textSizePct: parseFloat(document.getElementById('banner-text').value),
       gapPct: parseFloat(document.getElementById('banner-gap').value),
-      paddingPct: parseFloat(document.getElementById('banner-padding').value),
+      paddingPct: bannerPaddingPct,  // Auto-calculated
       paddingLeft: bannerPaddingLeft,
-      paddingRight: bannerPaddingRight
+      paddingRight: bannerPaddingRight,
+      crop: bannerCrop
     };
   } else if (type === 'solo') {
     return {
@@ -1982,7 +2455,10 @@ function exportSVG(type, theme) {
 // Init
 // ============================================
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Load Inter font for text-to-path conversion
+  await loadInterFont();
+
   updateStacked();
   updateBanner();
 
@@ -2036,7 +2512,8 @@ function toggleAnimElement(element) {
 
 let iconState = {
   shape: 'square',
-  fill: 90
+  fill: 88,
+  crop: true
 };
 
 function setIconShape(shape) {
@@ -2052,28 +2529,50 @@ function initIconPreviews() {
 }
 
 function updateIconPreviews() {
-  const fill = document.getElementById('solo-fill')?.value || 90;
+  const fill = document.getElementById('solo-fill')?.value || 88;
+  const crop = document.getElementById('icon-crop')?.checked ?? true;
   iconState.fill = fill;
+  iconState.crop = crop;
   document.getElementById('solo-fill-value').textContent = fill + '%';
 
   // Generate SVG for each theme preview
   ['light', 'dark', 'transparent'].forEach(theme => {
     const wrapper = document.getElementById('icon-preview-' + theme);
     if (wrapper) {
-      wrapper.innerHTML = createIconSVG(theme, iconState.shape, fill);
+      wrapper.innerHTML = createIconSVG(theme, iconState.shape, fill, crop);
     }
   });
 }
 
-function createIconSVG(theme, shape, fill) {
+function createIconSVG(theme, shape, fill, crop = true) {
   const logo = document.getElementById('logo');
   const logoContent = logo.innerHTML;
 
-  // Calculate logo positioning based on fill percentage
   const canvasSize = 2048;
-  const logoSize = 2048; // Original logo viewBox
-  const scale = (fill / 100);
-  const offset = (canvasSize - logoSize * scale) / 2;
+  let logoElement;
+
+  if (crop) {
+    // Tight crop: fill percentage controls visual size directly
+    // Calculate the visual size we want
+    const visualSize = canvasSize * (fill / 100);
+    // Maintain aspect ratio of cropped region (slightly taller than wide)
+    const visualWidth = visualSize * (LOGO_CROP.width / LOGO_CROP.height);
+    const visualHeight = visualSize;
+
+    // Centre in canvas
+    const offsetX = (canvasSize - visualWidth) / 2;
+    const offsetY = (canvasSize - visualHeight) / 2;
+
+    // Use nested SVG with cropped viewBox
+    logoElement = `<svg x="${offsetX}" y="${offsetY}" width="${visualWidth}" height="${visualHeight}"
+        viewBox="${LOGO_CROP.x} ${LOGO_CROP.y} ${LOGO_CROP.width} ${LOGO_CROP.height}">${logoContent}</svg>`;
+  } else {
+    // Original mode: fill percentage controls bounding box (includes whitespace)
+    const logoSize = 2048;
+    const scale = (fill / 100);
+    const offset = (canvasSize - logoSize * scale) / 2;
+    logoElement = `<g transform="translate(${offset}, ${offset}) scale(${scale})">${logoContent}</g>`;
+  }
 
   let background = '';
   let viewBox = '0 0 2048 2048';
@@ -2088,6 +2587,8 @@ function createIconSVG(theme, shape, fill) {
     };
     const c = diskColors[theme];
     background = `<circle cx="1000" cy="1025" r="1068" fill="${c.fill}" stroke="${c.stroke}" stroke-width="20"/>`;
+    // For disk shape, use original content positioning (centred in disk)
+    logoElement = logoContent;
   } else {
     // Square shape - rectangular background
     const bgColors = {
@@ -2100,17 +2601,27 @@ function createIconSVG(theme, shape, fill) {
     }
   }
 
-  const scaledLogo = `<g transform="translate(${offset}, ${offset}) scale(${scale})">${logoContent}</g>`;
-
   return `<svg viewBox="${viewBox}" width="128" height="128" xmlns="http://www.w3.org/2000/svg">
     ${background}
-    ${shape === 'disk' ? logoContent : scaledLogo}
+    ${logoElement}
   </svg>`;
 }
 
 // ============================================
 // Unified Export Centre (ZIP Bundle)
 // ============================================
+
+function selectAllExports() {
+  const checkboxes = document.querySelectorAll('[id^="export-"]');
+  checkboxes.forEach(cb => { cb.checked = true; });
+  toggleIconExportOptions();
+}
+
+function deselectAllExports() {
+  const checkboxes = document.querySelectorAll('[id^="export-"]');
+  checkboxes.forEach(cb => { cb.checked = false; });
+  toggleIconExportOptions();
+}
 
 function toggleIconExportOptions() {
   const iconChecked = document.getElementById('export-type-icon')?.checked;
@@ -2256,13 +2767,14 @@ async function exportAll() {
     }
 
     const fill = iconState.fill;
+    const crop = iconState.crop;
 
     for (const shape of shapes) {
       const shapeLabel = shape === 'disk' ? '-disk' : '';
       const folderName = shape === 'disk' ? 'icon-disk' : 'icon';
 
       for (const theme of iconThemes) {
-        const svg = createIconSVG(theme, shape, fill);
+        const svg = createIconSVG(theme, shape, fill, crop);
 
         // SVG (one per theme/shape)
         if (wantSVG) {

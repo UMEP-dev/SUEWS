@@ -193,6 +193,87 @@ Continue dialogue until:
 - Potential issues are identified
 - User is ready for suggestions
 
+### 4.5 Breaking Down into Sub-Issues
+
+For issues that are too large for single implementation, suggest decomposition.
+
+**When to suggest breakdown:**
+- Issue spans multiple components or modules
+- Estimated effort exceeds 1-2 days
+- Multiple independent workstreams identified
+- Different expertise required for different parts
+- Risk of scope creep without clear boundaries
+
+**Breakdown Strategies:**
+
+| Strategy | When to Use | Example |
+|----------|-------------|---------|
+| By Component | Issue touches multiple modules | Physics, Data Model, Docs as separate sub-issues |
+| By Phase | Sequential dependencies | Design → Implement → Test → Document |
+| By Risk | Mix of safe and risky changes | Low-risk refactoring first, then risky physics changes |
+| By Expertise | Different skills needed | Fortran core vs Python wrapper vs User docs |
+| By Priority | Some parts more urgent | Critical bug fix now, enhancements later |
+
+**Draft Sub-Issue Breakdown:**
+
+```
+=== PROPOSED BREAKDOWN ===
+
+Parent: #[number] - [title]
+
+Sub-issues to create:
+
+1. **[Sub-issue title 1]**
+   - Scope: [what's included]
+   - Dependencies: [what must be done first]
+   - Effort: [relative size]
+
+2. **[Sub-issue title 2]**
+   - Scope: [what's included]
+   - Dependencies: [depends on #1 or independent]
+   - Effort: [relative size]
+
+3. **[Sub-issue title 3]**
+   - Scope: [what's included]
+   - Dependencies: [depends on #1, #2, or independent]
+   - Effort: [relative size]
+
+Suggested order: [1] → [2] → [3] (or parallel if independent)
+
+=== APPROVAL REQUIRED ===
+
+Reply with:
+- `create all` - Create all sub-issues and link to parent
+- `create N` - Create only sub-issue N
+- `modify` - Adjust the breakdown
+- `skip` - Don't create sub-issues, work on parent directly
+```
+
+**Creating Sub-Issues (after approval):**
+
+```bash
+# Create new sub-issue under parent
+gh sub-issue create <parent-number>
+
+# Or link existing issue as sub-issue
+gh sub-issue add <parent-number> <child-number>
+
+# List sub-issues for a parent
+gh sub-issue list <parent-number>
+```
+
+**Post-Creation Update:**
+
+After creating sub-issues, update the parent issue body with a tracking checklist:
+
+```markdown
+## Sub-Issues
+
+- [ ] #[child1] - [title]
+- [ ] #[child2] - [title]
+- [ ] #[child3] - [title]
+```
+
 ---
 
 ## Step 5: Direct Suggestions (Simple Issues)
@@ -298,6 +379,7 @@ Reply with:
 - Close or resolve issues
 - Assign or reassign issues
 - Link issues or PRs
+- Create sub-issues or link parent-child relationships
 
 **ALWAYS**:
 - Draft actions for review
@@ -332,15 +414,26 @@ Assess Complexity
                     Present Options
                          |
                          v
-                    Refine Approach
-                         |
-                         v
+                  [Too Large?]
+                    /      \
+                 Yes        No
+                  |          |
+                  v          v
+           Propose      Refine Approach
+           Breakdown         |
+              |              |
+              v              v
+       Draft Sub-Issues      |
+              |              |
+              +------+-------+
+                     |
+                     v
               Draft Actions (NEVER AUTO-POST)
-                         |
-                         v
+                     |
+                     v
               Wait for Approval
-                         |
-                         v
+                     |
+                     v
               Execute (only if approved)
 ```
 
@@ -350,3 +443,4 @@ Assess Complexity
 
 - Complexity assessment: `references/complexity-criteria.md`
 - Question templates: `references/clarifying-questions.md`
+- Breakdown strategies: `references/breakdown-strategies.md`

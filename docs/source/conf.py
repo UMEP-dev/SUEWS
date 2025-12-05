@@ -504,13 +504,14 @@ html_static_path = ["_static"]
 numfig = True
 # Logo configuration - stacked logo with text, theme-adaptive
 # Logo files stored in _static/ for reliable access on ReadTheDocs
-html_logo = "_static/suews-logo-text-light.svg"  # Fallback
+# Golden ratio layout (62% logo, 19% text, 1% gap)
+html_logo = "_static/suews-logo-stacked-light.svg"  # Fallback
 html_favicon = "_static/suews-logo.svg"
 
 # Theme-specific logos (sphinx_book_theme feature)
 html_theme_options["logo"] = {
-    "image_light": "_static/suews-logo-text-light.svg",  # Dark text for light theme
-    "image_dark": "_static/suews-logo-text-dark.svg",  # White text for dark theme
+    "image_light": "_static/suews-logo-stacked-light.svg",  # Dark text for light theme
+    "image_dark": "_static/suews-logo-stacked-dark.svg",  # White text for dark theme
 }
 # html_theme_options = {
 # "logo_only": True,

@@ -901,6 +901,7 @@
     <h1>Brand Workshop <span>/ SUEWS</span></h1>
   </div>
   <div class="header-actions">
+    <span id="font-status" style="font-size: 11px; color: var(--text-muted);">Loading font...</span>
     <div class="toggle-group">
       <span>Guidelines</span>
       <div class="toggle" id="guidelines-toggle" onclick="toggleGuidelines()"></div>
@@ -1349,14 +1350,29 @@ let interFont = null;  // Will hold the loaded Inter font
 async function loadInterFont() {
   if (interFont) return interFont;
   try {
-    // Use Google Fonts static URL for Inter SemiBold (600 weight)
-    const fontUrl = 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuGKYAZ9hjp-Ek-_EeA.woff';
+    // Load bundled Inter SemiBold font (OFL licensed)
+    const fontUrl = 'fonts/Inter-SemiBold.woff';
     interFont = await opentype.load(fontUrl);
     console.log('Inter font loaded successfully');
+    updateFontStatus(true);
     return interFont;
   } catch (err) {
     console.error('Failed to load Inter font:', err);
+    updateFontStatus(false);
     return null;
+  }
+}
+
+// Update font status indicator in UI
+function updateFontStatus(loaded) {
+  const indicator = document.getElementById('font-status');
+  if (!indicator) return;
+  if (loaded) {
+    indicator.textContent = 'Inter font loaded';
+    indicator.style.color = 'var(--success)';
+  } else {
+    indicator.textContent = 'Font failed - using fallback';
+    indicator.style.color = '#ef4444';
   }
 }
 
@@ -1866,10 +1882,11 @@ function updateSolo() {
 // Recommended preset values for balanced design (with tight crop enabled)
 //
 // Stacked (512×512 canvas):
-// - Logo 62%: fills canvas well with ~12% breathing margins
-// - Text 22% of logo width: strong but subordinate hierarchy
+// - Logo 62%: golden ratio proportion φ/(φ+1) ≈ 0.618
+// - Text 19% of logo width: balanced hierarchy
 // - Gap 1%: tight visual connection between logo and wordmark
-const STACKED_PRESET = { logo: 62, text: 22, gap: 1 };
+// - Results in ~19% margins each side (generous breathing room)
+const STACKED_PRESET = { logo: 62, text: 19, gap: 1 };
 
 // Banner (dynamic width, fixed height):
 // - Logo 82%: fills vertical space with comfortable margins
@@ -2632,6 +2649,16 @@ function toggleIconExportOptions() {
 }
 
 async function exportAll() {
+  // Warn if font not loaded (text will use fallback instead of paths)
+  if (!interFont) {
+    const proceed = confirm(
+      'Inter font not loaded - text will use system fallback fonts.\n\n' +
+      'This may cause inconsistent rendering across platforms.\n\n' +
+      'Continue anyway?'
+    );
+    if (!proceed) return;
+  }
+
   // Get selected logo types
   const exportStacked = document.getElementById('export-type-stacked')?.checked;
   const exportBanner = document.getElementById('export-type-banner')?.checked;

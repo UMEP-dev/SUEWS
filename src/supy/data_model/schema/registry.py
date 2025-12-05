@@ -87,9 +87,7 @@ class SchemaRegistry:
         """Get information about a specific version."""
         return self._registry["versions"].get(version)
 
-    def _replace_placeholder(
-        self, html: str, name: str, replacement: str
-    ) -> str:
+    def _replace_placeholder(self, html: str, name: str, replacement: str) -> str:
         """Replace a placeholder region in the HTML template.
 
         Placeholders are marked with <!-- BEGIN:NAME -->...<!-- END:NAME -->

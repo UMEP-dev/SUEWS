@@ -1,3 +1,4 @@
+:orphan:
 
 .. _df_output_var:
 

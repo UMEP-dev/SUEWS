@@ -14,6 +14,7 @@ The modern SUEWS interface uses Python and provides the most capable and user-fr
   :maxdepth: 1
 
   ../tutorials/python/quick-start
+  user-workflow-guide
   ../tutorials/python/setup-own-site
   ../tutorials/python/impact-studies
   suews-simulation-tutorial

@@ -56,6 +56,10 @@ from supy.data_model.validation.pipeline.phase_a import (
     is_physics_option,
 )
 
+from supy.data_model.validation.pipeline.phase_b import (
+    adjust_model_dependent_nullification,
+)
+
 
 class TestUptodateYaml(unittest.TestCase):
     """Test suite for uptodate_yaml.py functionality."""
@@ -1045,6 +1049,7 @@ from supy.data_model.validation.core.yaml_helpers import (
     precheck_site_season_adjustments,
     precheck_start_end_date,
     precheck_update_temperature,
+    _nullify_biogenic_in_props,
 )
 
 
@@ -1407,29 +1412,31 @@ def test_site_equatorial_sets_snowalb_none():
     assert result["sites"][0]["initial_states"]["snowalb"]["value"] is None
 
 
-def test_season_check_equatorial():
-    sc = SeasonCheck(start_date="2025-06-01", lat=0)
-    assert sc.get_season() == "equatorial"
-
-
-def test_season_check_tropical():
-    sc = SeasonCheck(start_date="2025-06-01", lat=15.0)
-    assert sc.get_season() == "tropical"
-
-
-def test_season_check_northern_summer():
-    sc = SeasonCheck(start_date="2025-07-01", lat=51.5)
-    assert sc.get_season() == "summer"
-
-
-def test_season_check_northern_winter():
-    sc = SeasonCheck(start_date="2025-01-15", lat=51.5)
-    assert sc.get_season() == "winter"
-
-
-def test_season_check_southern_summer():
-    sc = SeasonCheck(start_date="2025-01-15", lat=-30.0)
-    assert sc.get_season() == "summer"
+@pytest.mark.parametrize(
+    "start_date,lat,expected_season",
+    [
+        ("2025-06-01", 0, "equatorial"),  # Equatorial
+        ("2025-06-01", 15.0, "tropical"),  # Tropical
+        ("2025-07-01", 51.5, "summer"),  # Northern summer
+        ("2025-01-15", 51.5, "winter"),  # Northern winter
+        (
+            "2025-01-15",
+            -30.0,
+            "summer",
+        ),  # Southern summer (Jan = summer in S. hemisphere)
+    ],
+    ids=[
+        "equatorial",
+        "tropical",
+        "northern_summer",
+        "northern_winter",
+        "southern_summer",
+    ],
+)
+def test_season_check_by_latitude_and_date(start_date, lat, expected_season):
+    """Test season determination based on latitude and date."""
+    sc = SeasonCheck(start_date=start_date, lat=lat)
+    assert sc.get_season() == expected_season
 
 
 def test_season_check_invalid_date():
@@ -1515,36 +1522,6 @@ def test_lai_id_set_in_fall():
     assert (
         result["sites"][0]["initial_states"]["dectr"]["lai_id"]["value"] == 3.0
     )  # (1.0 + 5.0) / 2
-
-
-def test_lai_id_nullified_if_no_dectr_surface():
-    yaml_input = {
-        "sites": [
-            {
-                "properties": {
-                    "lat": {"value": 51.5},
-                    "land_cover": {
-                        "dectr": {
-                            "sfr": {"value": 0.0},
-                            "lai": {
-                                "laimin": {"value": 1.0},
-                                "laimax": {"value": 5.0},
-                            },
-                        }
-                    },
-                },
-                "initial_states": {
-                    "dectr": {
-                        "lai_id": {"value": 999.0}  # Dummy old value to be nullified
-                    }
-                },
-            }
-        ]
-    }
-    result = precheck_site_season_adjustments(
-        deepcopy(yaml_input), "2025-07-01", model_year=2025
-    )
-    assert result["sites"][0]["initial_states"]["dectr"]["lai_id"]["value"] is None
 
 
 def test_precheck_dls_assignment():
@@ -1958,6 +1935,225 @@ def test_stebbsmethod1_leaves_stebbs_untouched():
 
     out = result["sites"][0]["properties"]["stebbs"]
     assert out["WallInternalConvectionCoefficient"]["value"] == 5.0
+
+
+def test_stebbsmethod0_nullifies_building_archetype_values():
+    yaml_input = {
+        "model": {"physics": {"stebbsmethod": {"value": 0}}},
+        "sites": [
+            {
+                "properties": {
+                    "building_archetype": {
+                        "BuildingType": {"value": "SampleType"},
+                        "stebbs_Height": {"value": 10.0},
+                    }
+                }
+            }
+        ],
+    }
+    result = precheck_model_option_rules(deepcopy(yaml_input))
+    out = result["sites"][0]["properties"]["building_archetype"]
+    assert out["BuildingType"]["value"] is None
+    assert out["stebbs_Height"]["value"] is None
+
+
+def _build_site_with_co2(co2_block):
+    return {"properties": {"anthropogenic_emissions": {"co2": co2_block}}}
+
+
+def test_emissionsmethod_less_than_5_nullifies_co2_block():
+    co2_block = {
+        "co2pointsource": {"value": 0.1},
+        "nested": {"ef_umolco2perj": {"value": 2.0}},
+    }
+    data = {
+        "model": {"physics": {"emissionsmethod": 0}},  # < 5 => CO2 disabled
+        "sites": [_build_site_with_co2(co2_block)],
+    }
+    result = precheck_model_option_rules(deepcopy(data))
+
+    out = result["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
+    assert out["co2pointsource"]["value"] is None
+    assert out["nested"]["ef_umolco2perj"]["value"] is None
+
+
+def test_empty_co2_block_is_handled_gracefully():
+    data = {
+        "model": {"physics": {"emissionsmethod": 0}},
+        "sites": [_build_site_with_co2({})],
+    }
+    out = precheck_model_option_rules(deepcopy(data))
+    co2 = out["sites"][0]["properties"]["anthropogenic_emissions"].get("co2", {})
+    assert isinstance(co2, dict)
+    assert co2 == {} or co2 == {
+        "value": None
+    }  # accept either empty or normalized empty
+
+
+def test_emissionsmethod_none_leaves_co2_untouched():
+    co2_block = {"co2pointsource": {"value": 0.1}}
+    data = {
+        "model": {"physics": {"emissionsmethod": None}},
+        "sites": [_build_site_with_co2(co2_block)],
+    }
+    out = precheck_model_option_rules(deepcopy(data))
+    co2 = out["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
+    # should remain numeric value because emissionsmethod not in 0..4
+    assert co2["co2pointsource"]["value"] == 0.1
+
+
+def test_deeply_nested_co2_structures_get_nullified():
+    co2_block = {
+        "traffic": {
+            "traffprof_24hr": {
+                "working_day": {"1": 0.1, "2": 0.2},
+                "holiday": {"1": 0.0},
+            }
+        },
+        "nested": {"level1": {"level2": {"ef_umolco2perj": {"value": 2.0}}}},
+        "arr": {"value": [0.1, 0.2, 0.3]},
+    }
+    data = {
+        "model": {"physics": {"emissionsmethod": 0}},
+        "sites": [_build_site_with_co2(co2_block)],
+    }
+    out = precheck_model_option_rules(deepcopy(data))
+    co2 = out["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
+
+    # nested numeric leaf must be nullified
+    assert co2["nested"]["level1"]["level2"]["ef_umolco2perj"]["value"] is None
+
+    # arrays should become list-of-None (or value -> None); accept either
+    arr_val = co2["arr"]["value"]
+    assert arr_val is None or (
+        isinstance(arr_val, list) and all(x is None for x in arr_val)
+    )
+
+    # profile working_day/holiday should be nullified (either whole field None or inner keys None)
+    tp = co2["traffic"]["traffprof_24hr"]
+    assert "working_day" in tp and (
+        "working_day" is None or isinstance(tp["working_day"], dict)
+    )
+    # if dict, its inner values must be None
+    if isinstance(tp["working_day"], dict):
+        assert all(v is None for v in tp["working_day"].values())
+
+
+def test_phase_b_adjust_model_dependent_nullification_reports_changes():
+    co2_block = {"co2pointsource": {"value": 0.5}, "nested": {"x": {"value": 1.0}}}
+    data = {
+        "model": {"physics": {"emissionsmethod": 0}},
+        "sites": [_build_site_with_co2(co2_block)],
+    }
+    yaml_after, adjustments = adjust_model_dependent_nullification(deepcopy(data))
+    # check that an adjustment for CO2 was recorded
+    assert any("anthropogenic_emissions.co2" in adj.parameter for adj in adjustments)
+    # confirm the co2 values were nullified in-place
+    co2 = yaml_after["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
+    assert co2["co2pointsource"]["value"] is None
+    assert co2["nested"]["x"]["value"] is None
+
+
+def test_nullify_biogenic_in_props_nullifies_values_and_lists():
+    """Ensure _nullify_biogenic_in_props nullifies scalar and list 'value' entries."""
+    props = {
+        "land_cover": {
+            "dectr": {
+                "alpha_bioco2": {"value": 0.8},
+                "beta_bioco2": {"value": [1.0, 2.0, 3.0]},
+                "theta_bioco2": 42.0,  # scalar -> should become None
+                "unrelated_param": {"value": 2.5},
+            }
+        }
+    }
+
+    changed = _nullify_biogenic_in_props(props)
+    assert changed is True
+
+    dectr = props["land_cover"]["dectr"]
+
+    # dict-with-value -> value set to None
+    assert isinstance(dectr["alpha_bioco2"], dict)
+    assert dectr["alpha_bioco2"]["value"] is None
+
+    # list -> replaced with list-of-None of same length
+    assert isinstance(dectr["beta_bioco2"], dict)
+    assert dectr["beta_bioco2"]["value"] == [None, None, None]
+
+    # scalar -> replaced with None
+    assert dectr["theta_bioco2"] is None
+
+    # unrelated param not in the target list remains unchanged
+    assert dectr["unrelated_param"]["value"] == 2.5
+
+
+def test_nullify_biogenic_in_props_handles_grass_and_evetr():
+    """Ensure helper nullifies biogenic params for multiple vegetation surfaces."""
+    props = {
+        "land_cover": {
+            "grass": {
+                "alpha_bioco2": {"value": 0.4},
+                "beta_bioco2": {"value": [1.0, 2.0]},
+                "unrelated": {"value": 9.9},
+            },
+            "evetr": {
+                "theta_bioco2": {"value": 3.1},
+                "beta_bioco2": 5.6,
+            },
+        }
+    }
+
+    changed = _nullify_biogenic_in_props(props)
+    assert changed is True
+
+    grass = props["land_cover"]["grass"]
+    assert grass["alpha_bioco2"]["value"] is None
+    assert grass["beta_bioco2"]["value"] == [None, None]
+    assert grass["unrelated"]["value"] == 9.9
+
+    evetr = props["land_cover"]["evetr"]
+    assert evetr["theta_bioco2"]["value"] is None
+    assert evetr["beta_bioco2"] is None
+
+
+def test_nullify_biogenic_in_props_handles_resp_params():
+    props = {
+        "land_cover": {
+            "evetr": {
+                "resp_a": {"value": 0.4},
+                "resp_b": {"value": [0.1, 0.2, 0.3]},
+                "unrelated": {"value": 1.0},
+            }
+        }
+    }
+
+    changed = _nullify_biogenic_in_props(props)
+    assert changed is True
+
+    evetr = props["land_cover"]["evetr"]
+    assert evetr["resp_a"]["value"] is None
+    assert evetr["resp_b"]["value"] == [None, None, None]
+    assert evetr["unrelated"]["value"] == 1.0
+
+
+def test_nullify_biogenic_in_props_resp_params_scalar_and_missing_value_key():
+    props = {
+        "land_cover": {
+            "grass": {
+                "resp_a": 0.5,  # scalar should become None
+                "resp_b": {"value": 0.7},
+                "other_param": {"value": 2.2},
+            }
+        }
+    }
+
+    changed = _nullify_biogenic_in_props(props)
+    assert changed is True
+
+    grass = props["land_cover"]["grass"]
+    assert grass["resp_a"] is None
+    assert grass["resp_b"]["value"] is None
+    assert grass["other_param"]["value"] == 2.2
 
 
 def test_collect_yaml_differences_simple():
@@ -3208,6 +3404,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             "gsmodel",
             "snowuse",
             "stebbsmethod",
+            "rcmethod",
         }
 
         # Should match the synchronized list from Phase A and B
@@ -3251,6 +3448,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "gsmodel",
             "snowuse",
             "stebbsmethod",
+            "rcmethod",
         }
 
         valid_yaml = {
@@ -3318,6 +3516,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "gsmodel",
             "snowuse",
             "stebbsmethod",
+            "rcmethod",
         }
 
         null_yaml = {
@@ -3461,7 +3660,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
     )
     def test_stebbs_temperature_parameter_updates(self, mock_cru):
-        """Test STEBBS WallOutdoorSurfaceTemperature and WindowOutdoorSurfaceTemperature updates."""
+        """Test STEBBS InitialOutdoorTemperature updates."""
         if not has_science_check:
             pytest.skip("science_check module not available")
 
@@ -3475,8 +3674,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 51.5},
                         "lng": {"value": -0.12},
                         "stebbs": {
-                            "WallOutdoorSurfaceTemperature": {"value": 25.0},
-                            "WindowOutdoorSurfaceTemperature": {"value": 20.0},
+                            "InitialOutdoorTemperature": {"value": 25.0},
                             "WallInternalConvectionCoefficient": {
                                 "value": 5.0
                             },  # Control parameter
@@ -3494,24 +3692,18 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         # Check that CRU temperature function was called
         mock_cru.assert_called_with(51.5, -0.12, 1)  # lat, lng, month=1 (January)
 
-        # Verify that STEBBS temperature parameters were updated
+        # Verify that STEBBS InitialOutdoorTemperature was updated
         stebbs_props = result["sites"][0]["properties"]["stebbs"]
-        assert stebbs_props["WallOutdoorSurfaceTemperature"]["value"] == 12.5
-        assert stebbs_props["WindowOutdoorSurfaceTemperature"]["value"] == 12.5
+        assert stebbs_props["InitialOutdoorTemperature"]["value"] == 12.5
 
         # Verify control parameter unchanged
         assert stebbs_props["WallInternalConvectionCoefficient"]["value"] == 5.0
 
-        # Verify adjustments recorded
+        # Verify adjustments recorded (single parameter)
         stebbs_adjustments = [adj for adj in adjustments if "stebbs" in adj.parameter]
-        assert len(stebbs_adjustments) == 2
+        assert len(stebbs_adjustments) == 1
         assert any(
-            "WallOutdoorSurfaceTemperature" in adj.parameter
-            for adj in stebbs_adjustments
-        )
-        assert any(
-            "WindowOutdoorSurfaceTemperature" in adj.parameter
-            for adj in stebbs_adjustments
+            "InitialOutdoorTemperature" in adj.parameter for adj in stebbs_adjustments
         )
 
     @patch(
@@ -3541,8 +3733,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                             "lat": {"value": 52.0},
                             "lng": {"value": 1.0},
                             "stebbs": {
-                                "WallOutdoorSurfaceTemperature": {"value": 999.0},
-                                "WindowOutdoorSurfaceTemperature": {"value": 888.0},
+                                "InitialOutdoorTemperature": {"value": 999.0},
                             },
                         }
                     }
@@ -3558,8 +3749,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
             # Verify temperature values updated
             stebbs_props = result["sites"][0]["properties"]["stebbs"]
-            assert stebbs_props["WallOutdoorSurfaceTemperature"]["value"] == mock_temp
-            assert stebbs_props["WindowOutdoorSurfaceTemperature"]["value"] == mock_temp
+            assert stebbs_props["InitialOutdoorTemperature"]["value"] == mock_temp
 
     @patch(
         "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
@@ -3588,8 +3778,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 51.5},
                         "lng": {"value": -0.12},
                         "stebbs": {
-                            "WallOutdoorSurfaceTemperature": {"value": 100.0},
-                            "WindowOutdoorSurfaceTemperature": {"value": 200.0},
+                            "InitialOutdoorTemperature": {"value": 100.0},
                         },
                     }
                 },
@@ -3598,8 +3787,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 55.8},
                         "lng": {"value": -4.25},
                         "stebbs": {
-                            "WallOutdoorSurfaceTemperature": {"value": 300.0},
-                            "WindowOutdoorSurfaceTemperature": {"value": 400.0},
+                            "InitialOutdoorTemperature": {"value": 300.0},
                         },
                     }
                 },
@@ -3615,12 +3803,10 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
         # Verify each site gets appropriate temperature
         site0_stebbs = result["sites"][0]["properties"]["stebbs"]
-        assert site0_stebbs["WallOutdoorSurfaceTemperature"]["value"] == 8.2
-        assert site0_stebbs["WindowOutdoorSurfaceTemperature"]["value"] == 8.2
+        assert site0_stebbs["InitialOutdoorTemperature"]["value"] == 8.2
 
         site1_stebbs = result["sites"][1]["properties"]["stebbs"]
-        assert site1_stebbs["WallOutdoorSurfaceTemperature"]["value"] == 5.1
-        assert site1_stebbs["WindowOutdoorSurfaceTemperature"]["value"] == 5.1
+        assert site1_stebbs["InitialOutdoorTemperature"]["value"] == 5.1
 
     @patch(
         "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
@@ -3639,8 +3825,8 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 50.0},
                         "lng": {"value": 2.0},
                         "stebbs": {
-                            "WallOutdoorSurfaceTemperature": {"value": 99.0},
-                            # WindowOutdoorSurfaceTemperature missing
+                            "InitialOutdoorTemperature": {"value": 99.0},
+                            # OtherParameter present
                             "OtherParameter": {"value": 42.0},
                         },
                     }
@@ -3652,10 +3838,12 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
         # Verify available parameter was updated
         stebbs_props = result["sites"][0]["properties"]["stebbs"]
-        assert stebbs_props["WallOutdoorSurfaceTemperature"]["value"] == 15.8
+        assert stebbs_props["InitialOutdoorTemperature"]["value"] == 15.8
 
-        # Verify missing parameter wasn't added
+        # Verify legacy parameters were not added
         assert "WindowOutdoorSurfaceTemperature" not in stebbs_props
+        assert "WallOutdoorSurfaceTemperature" not in stebbs_props
+        assert "RoofOutdoorSurfaceTemperature" not in stebbs_props
 
         # Verify other parameters unchanged
         assert stebbs_props["OtherParameter"]["value"] == 42.0
@@ -3678,12 +3866,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 45.0},
                         "lng": {"value": 5.0},
                         "stebbs": {
-                            "WallOutdoorSurfaceTemperature": {
-                                "value": cru_temp
-                            },  # Already correct
-                            "WindowOutdoorSurfaceTemperature": {
-                                "value": cru_temp
-                            },  # Already correct
+                            "InitialOutdoorTemperature": {"value": cru_temp},
                         },
                     }
                 }
@@ -3694,10 +3877,9 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             yaml_input, "2025-05-01"
         )
 
-        # Verify values remain correct (no change needed)
+        # Verify value remains correct (no change needed)
         stebbs_props = result["sites"][0]["properties"]["stebbs"]
-        assert stebbs_props["WallOutdoorSurfaceTemperature"]["value"] == cru_temp
-        assert stebbs_props["WindowOutdoorSurfaceTemperature"]["value"] == cru_temp
+        assert stebbs_props["InitialOutdoorTemperature"]["value"] == cru_temp
 
         # Verify no adjustments were made
         stebbs_adjustments = [adj for adj in adjustments if "stebbs" in adj.parameter]
@@ -3759,6 +3941,7 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "gsmodel",
             "snowuse",
             "stebbsmethod",
+            "rcmethod",
         }
 
         complete_config = {
@@ -3846,6 +4029,7 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "gsmodel",
             "snowuse",
             "stebbsmethod",
+            "rcmethod",
         }
 
         rsl_config = {

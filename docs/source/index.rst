@@ -10,7 +10,7 @@ Surface Urban Energy and Water Balance Scheme (**SUEWS**) :cite:`J11,W16` is a n
 
 SUEWS simulates the urban radiation, energy and water balances using only commonly measured meteorological variables and information about the surface cover. The model utilises an evaporation-interception approach :cite:`GO91`, similar to that used in forests, to model evaporation from urban surfaces.
 
-**SuPy** (SUEWS in Python) provides the modern interface for SUEWS with powerful data analysis capabilities, interactive configuration tools, and seamless integration with pandas, matplotlib, and the broader scientific Python stack.
+**SuPy** (SUEWS in Python) :cite:`SG19` provides the modern interface for SUEWS with powerful data analysis capabilities, interactive configuration tools, and seamless integration with pandas, matplotlib, and the broader scientific Python stack.
 
 
 .. figure:: /assets/img/SUEWS_Overview_s.png
@@ -61,19 +61,19 @@ Get started immediately with the :ref:`Getting Started with SUEWS <Workflow>` gu
 
 **For existing users:**
 
-- **Migration guide**: :ref:`Transition from table-based inputs <inputs/transition_guide>` to modern YAML configuration
+- **Migration guide**: :ref:`Transition from table-based inputs <transition_guide>` to modern YAML configuration
 - **Version changes**: See :ref:`new_latest` for updates in this version
 - **Legacy support**: The :doc:`SUEWS Format Converter <inputs/converter>` helps convert existing input files
 
 **Scientific Background:**
 
-Before performing SUEWS simulations, users should understand the :ref:`physical principles <parameterisations-and-sub-models>` and review `input requirements <input_files>` for their specific application.
+Before performing SUEWS simulations, users should understand the :ref:`physical principles <physics_schemes>` and review `input requirements <input_files>` for their specific application.
 
 
 How to get help in using SUEWS?
 ---------------------------------------------
 
-Please let us know in the `UMEP Community`_.
+Please let us know in the `SUEWS Community`_.
 The developers and other users are willing to help you.
 
 
@@ -132,9 +132,8 @@ How to support SUEWS?
    workflow
    sub-tutorials/tutorials
    inputs/index
-   output_files/output_files
+   outputs/index
    api
-   data-structures/supy-io
    integration/index
    troubleshooting
    benchmark/benchmark_report
@@ -172,4 +171,4 @@ How to support SUEWS?
    :hidden:
 
    community_publications
-   GitHub discussion <https://github.com/UMEP-dev/UMEP/discussions>
+   Community <https://suews.discourse.group/>

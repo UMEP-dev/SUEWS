@@ -1,4 +1,5 @@
-MODULE lumps_module
+! Main module following naming standard: matches filename
+MODULE module_phys_lumps
    IMPLICIT NONE
 
 CONTAINS
@@ -195,7 +196,7 @@ CONTAINS
       ! SG Feb 2012     - added some comments
       ! --------------------------------------------------------------
       USE meteo, ONLY: psyc_const, slope_svp, slopeice_svp
-      USE SUEWS_DEF_DTS, ONLY: LUMPS_PRM, SUEWS_TIMER, SUEWS_SITE, SUEWS_CONFIG, SUEWS_FORCING, &
+      USE module_ctrl_type, ONLY: LUMPS_PRM, SUEWS_TIMER, SUEWS_SITE, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                PHENOLOGY_STATE, atm_state, HEAT_STATE, SUEWS_STATE
@@ -443,4 +444,10 @@ CONTAINS
       END ASSOCIATE
    END SUBROUTINE LUMPS_cal_QHQE_DTS
 
+END MODULE module_phys_lumps
+
+! Backward compatibility alias (deprecated - will be removed in future version)
+! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
+MODULE lumps_module
+   USE module_phys_lumps
 END MODULE lumps_module

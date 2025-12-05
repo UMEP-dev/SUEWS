@@ -1,6 +1,7 @@
-MODULE Snow_module
-   USE evap_module, ONLY: cal_evap
-   USE allocateArray, ONLY: nsurf, PavSurf, BldgSurf, ConifSurf, BSoilSurf, WaterSurf, ncolumnsDataOutSnow
+! Main module following naming standard: matches filename
+MODULE module_phys_snow
+   USE module_phys_evap, ONLY: cal_evap
+   USE module_ctrl_const_allocate, ONLY: nsurf, PavSurf, BldgSurf, ConifSurf, BSoilSurf, WaterSurf, ncolumnsDataOutSnow
 
    IMPLICIT NONE
 
@@ -502,7 +503,7 @@ CONTAINS
       !  HCW 26 Jan 2015 - Added weekday/weekend option for snow clearing profiles
       !  LJ in 24 May 2013
       !========================================================================
-      USE WaterDist_module, ONLY: updateFlood
+      USE module_phys_waterdist, ONLY: updateFlood
 
       IMPLICIT NONE
       ! INTEGER, PARAMETER::nsurf = 7! number of surface types
@@ -1313,7 +1314,7 @@ CONTAINS
       !       swe  Snow water content
       !       sweD Limit for
 
-      USE allocateArray
+      USE module_ctrl_const_allocate
 
       IMPLICIT NONE
 
@@ -1554,4 +1555,10 @@ CONTAINS
 
    END FUNCTION update_snow_dens
 
+END MODULE module_phys_snow
+
+! Backward compatibility alias (deprecated - will be removed in future version)
+! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
+MODULE Snow_module
+   USE module_phys_snow
 END MODULE Snow_module

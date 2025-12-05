@@ -16,7 +16,22 @@ This directory contains internal documentation for SUEWS core developers.
 - **[Coding Guidelines](CODING_GUIDELINES.md)** - Code style and conventions
   - Python and Fortran standards
   - Naming conventions and best practices
-  
+
+- **[Fortran Naming Conventions](FORTRAN_NAMING_CONVENTIONS.md)** - Comprehensive Fortran naming standards
+  - File, module, and function naming patterns
+  - Migration strategy from legacy code
+  - Validation tools and enforcement
+
+- **[Feature Development Workflow](FEATURE_DEVELOPMENT_WORKFLOW.md)** - Managing large features with incremental PRs
+  - Breaking down features into reviewable chunks
+  - Stacked and parallel PR strategies
+  - Git worktree for parallel development
+
+- **[Merge Queue](MERGE_QUEUE.md)** - GitHub merge queue best practices
+  - Adding PRs to queue and monitoring status
+  - Batching strategies and queue etiquette
+  - Troubleshooting queue failures
+
 - **[Review Process](REVIEW_PROCESS.md)** - Pull request review procedures
   - How we review code
   - What to look for in reviews

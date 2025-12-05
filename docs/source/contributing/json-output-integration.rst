@@ -1,3 +1,5 @@
+:orphan:
+
 JSON Output Format
 ==================
 

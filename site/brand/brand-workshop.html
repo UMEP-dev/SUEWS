@@ -1,0 +1,2892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SUEWS Brand Workshop</title>
+  <link rel="icon" type="image/svg+xml" href="suews-logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
+  <style>
+    :root {
+      /* ========== Brand Palette (aligned with site) ========== */
+      --sun-gold: #F7B538;
+      --sun-gold-dark: #D4940F;
+      --energy-orange: #E85D04;
+      --water-blue: #0077B6;
+      --water-blue-light: #48CAE4;
+      --urban-slate: #2D3142;
+      --urban-dark: #1A1D2E;
+      --urban-deeper: #0F1119;
+
+      /* Workshop dark palette (functional UI) */
+      --bg-base: #09090b;
+      --bg-elevated: #18181b;
+      --bg-surface: #27272a;
+      --bg-hover: #3f3f46;
+
+      /* Accent - using brand sun-gold */
+      --accent: var(--sun-gold);
+      --accent-hover: var(--sun-gold-dark);
+      --accent-subtle: rgba(247, 181, 56, 0.15);
+
+      /* Semantic colors */
+      --success: #10b981;
+      --success-subtle: rgba(16, 185, 129, 0.15);
+      --warning: var(--sun-gold);
+
+      /* Text hierarchy */
+      --text-primary: #fafafa;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+
+      /* Borders & dividers */
+      --border: #3f3f46;
+      --border-subtle: #27272a;
+
+      /* Preview backgrounds */
+      --preview-light: #fafafa;
+      --preview-dark: #18181b;
+
+      /* Shadows */
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+      --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+
+      /* Transitions */
+      --transition-fast: 150ms ease;
+      --transition-normal: 250ms ease;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Instrument Sans', 'Inter', system-ui, sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ═══════════════════════════════════════════
+       HEADER
+       ═══════════════════════════════════════════ */
+    .header {
+      background: var(--bg-elevated);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent) 0%, #ea580c 100%);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: white;
+    }
+
+    .header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .header h1 span {
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* Toggle switch */
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .toggle {
+      width: 40px;
+      height: 22px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      position: relative;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .toggle:hover { border-color: var(--text-muted); }
+    .toggle.active {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background: white;
+      border-radius: 50%;
+      transition: transform var(--transition-fast);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .toggle.active::after { transform: translateX(18px); }
+
+    /* ═══════════════════════════════════════════
+       MAIN LAYOUT - Unified Sections
+       ═══════════════════════════════════════════ */
+    .workshop {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .workshop::-webkit-scrollbar { width: 8px; }
+    .workshop::-webkit-scrollbar-track { background: transparent; }
+    .workshop::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    /* ═══════════════════════════════════════════
+       LOGO SECTIONS
+       ═══════════════════════════════════════════ */
+    .logo-section {
+      background: var(--bg-elevated);
+      border-radius: 16px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .logo-section:last-child { margin-bottom: 0; }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--accent-subtle);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .section-title h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .size-badge {
+      background: var(--bg-elevated);
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .section-content {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 24px;
+      padding: 20px;
+    }
+
+    /* ═══════════════════════════════════════════
+       CONTROLS PANEL (within section)
+       ═══════════════════════════════════════════ */
+    .controls-panel {
+      background: var(--bg-surface);
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid var(--border-subtle);
+      height: fit-content;
+    }
+
+    .control-group {
+      margin-bottom: 14px;
+    }
+
+    .control-group:last-of-type { margin-bottom: 0; }
+
+    .control-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .control-value {
+      color: var(--text-secondary);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 11px;
+      background: var(--bg-elevated);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* Toggle button group */
+    .toggle-group {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .toggle-btn {
+      padding: 6px 12px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      min-width: 44px;
+      text-align: center;
+    }
+    .toggle-btn:hover {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+    }
+    .toggle-btn.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    /* Checkbox group */
+    .checkbox-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .checkbox-group label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .checkbox-group input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--accent);
+    }
+
+    /* Single checkbox label */
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .checkbox-label input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+    }
+    .checkbox-label span {
+      user-select: none;
+    }
+
+    /* Range slider */
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--bg-elevated);
+      appearance: none;
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+
+    input[type="range"]:hover { background: var(--bg-hover); }
+
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 2px solid var(--bg-surface);
+      box-shadow: var(--shadow-sm);
+      transition: transform var(--transition-fast);
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    /* Buttons */
+    .button-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .action-btn {
+      flex: 1;
+      background: var(--success);
+      color: white;
+      border: none;
+      padding: 9px 14px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .action-btn:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
+    .action-btn:active { transform: translateY(0); }
+
+    .action-btn.secondary {
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .action-btn.secondary:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    /* Info text */
+    .info-text {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    /* ═══════════════════════════════════════════
+       PREVIEW GRID (within section)
+       ═══════════════════════════════════════════ */
+    .preview-grid {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      align-content: flex-start;
+    }
+
+    .preview-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .preview-group-label {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Preview cards */
+    .preview-card {
+      background: var(--bg-surface);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid var(--border-subtle);
+      transition: all var(--transition-normal);
+    }
+
+    .preview-card:hover {
+      border-color: var(--border);
+      box-shadow: var(--shadow-md);
+    }
+
+    .preview-card.light {
+      background: var(--preview-light);
+      border-color: #e4e4e7;
+    }
+
+    .preview-card.light:hover {
+      border-color: #d4d4d8;
+    }
+
+    .preview-card.dark {
+      background: var(--preview-dark);
+    }
+
+    .preview-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      /* Visible boundary around SVG */
+      border: 1px dashed var(--border);
+      border-radius: 4px;
+      padding: 2px;
+    }
+
+    .preview-card.light .preview-wrapper {
+      border-color: #d4d4d8;
+    }
+
+    .preview-label {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .preview-card.light .preview-label {
+      color: #71717a;
+    }
+
+    /* Export buttons */
+    .export-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    .export-btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .export-btn:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+
+    .export-btn:active { transform: translateY(0); }
+
+    .export-btn.secondary {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .export-btn.secondary:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .preview-card.light .export-btn.secondary {
+      background: white;
+      border-color: #d4d4d8;
+      color: #52525b;
+    }
+
+    .preview-card.light .export-btn.secondary:hover {
+      background: #f4f4f5;
+      color: #18181b;
+    }
+
+    /* Transparent card for favicon */
+    .preview-card.transparent {
+      background: repeating-conic-gradient(
+        var(--bg-surface) 0% 25%,
+        var(--bg-elevated) 0% 50%
+      ) 50% / 16px 16px;
+      border-style: dashed;
+    }
+
+    /* ═══════════════════════════════════════════
+       GUIDELINES OVERLAY
+       ═══════════════════════════════════════════ */
+    .show-guidelines .preview-wrapper svg {
+      outline: 1px dashed rgba(245, 158, 11, 0.6);
+    }
+
+    .guide-bar {
+      position: absolute;
+      background: rgba(245, 158, 11, 0.2);
+      pointer-events: none;
+    }
+
+    .guide-bar.top {
+      top: 0;
+      left: 0;
+      right: 0;
+      border-bottom: 1px dashed rgba(245, 158, 11, 0.8);
+    }
+
+    .guide-bar.bottom {
+      bottom: 0;
+      left: 0;
+      right: 0;
+      border-top: 1px dashed rgba(245, 158, 11, 0.8);
+    }
+
+    .guide-bar.left {
+      top: 0;
+      bottom: 0;
+      left: 0;
+      border-right: 1px dashed rgba(245, 158, 11, 0.8);
+    }
+
+    .guide-bar.right {
+      top: 0;
+      bottom: 0;
+      right: 0;
+      border-left: 1px dashed rgba(245, 158, 11, 0.8);
+    }
+
+    /* Logo content bounding box - cyan */
+    .guide-box-logo {
+      position: absolute;
+      border: 2px solid rgba(6, 182, 212, 0.8);
+      background: rgba(6, 182, 212, 0.1);
+      pointer-events: none;
+      box-sizing: border-box;
+    }
+
+    /* Text bounding box - magenta */
+    .guide-box-text {
+      position: absolute;
+      border: 2px solid rgba(236, 72, 153, 0.8);
+      background: rgba(236, 72, 153, 0.1);
+      pointer-events: none;
+      box-sizing: border-box;
+    }
+
+    /* Combined content bounding box (logo+text) - lime green */
+    .guide-box-content {
+      position: absolute;
+      border: 2px dashed rgba(132, 204, 22, 0.9);
+      background: rgba(132, 204, 22, 0.05);
+      pointer-events: none;
+      box-sizing: border-box;
+    }
+
+    /* Info panel */
+    .guide-info-panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 12px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 11px;
+      line-height: 1.7;
+      width: 100%;
+      min-width: 180px;
+    }
+
+    .preview-card.light .guide-info-panel {
+      background: #f4f4f5;
+      border-color: #e4e4e7;
+      color: #18181b;
+    }
+
+    .guide-info-panel .info-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .guide-info-panel .info-label {
+      color: var(--text-muted);
+    }
+
+    .preview-card.light .guide-info-panel .info-label {
+      color: #71717a;
+    }
+
+    .guide-info-panel .info-value {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .preview-card.light .guide-info-panel .info-value {
+      color: #18181b;
+    }
+
+    .guide-info-panel .info-value.ok {
+      color: var(--success);
+    }
+
+    .guide-info-panel .info-value.warn {
+      color: var(--warning);
+    }
+
+    .guide-info-panel .divider {
+      border-top: 1px solid var(--border-subtle);
+      margin: 8px 0;
+    }
+
+    .preview-card.light .guide-info-panel .divider {
+      border-color: #e4e4e7;
+    }
+
+    .guide-info-panel .section-title {
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 4px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ═══════════════════════════════════════════
+       BREATHING CITY ANIMATIONS
+       ═══════════════════════════════════════════ */
+    /* Aligned with site/index.html animations */
+    @keyframes sun-glow {
+      0%, 100% { transform: scale(0.96); }
+      50% { transform: scale(1.06); }
+    }
+    @keyframes wave-undulate {
+      0%, 100% { transform: translateY(0) scaleY(1); }
+      25% { transform: translateY(-8px) scaleY(1.05); }
+      50% { transform: translateY(4px) scaleY(0.95); }
+      75% { transform: translateY(-8px) scaleY(1.05); }
+    }
+
+    /* Animation controls via CSS variables */
+    :root {
+      --anim-duration: 6s;
+      --anim-state: running;
+    }
+
+    /* Target <use> elements by their href attribute */
+    .animated-logo use[href="#sun-outer"] {
+      animation: sun-glow var(--anim-duration) ease-in-out infinite;
+      animation-play-state: var(--anim-state);
+      transform-box: fill-box;
+      transform-origin: center center;
+    }
+    .animated-logo use[href="#wave"] {
+      animation: wave-undulate var(--anim-duration) ease-in-out infinite;
+      animation-play-state: var(--anim-state);
+      transform-box: fill-box;
+      transform-origin: center bottom;
+    }
+
+    /* Pause individual elements */
+    .animated-logo.pause-sun use[href="#sun-outer"] { animation-play-state: paused; }
+    .animated-logo.pause-wave use[href="#wave"] { animation-play-state: paused; }
+
+    /* Animation controls panel */
+    .anim-controls {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 12px 16px;
+      background: var(--bg-elevated);
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    .anim-controls label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .anim-controls input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+    }
+    .anim-controls input[type="range"] {
+      width: 100px;
+    }
+    .anim-controls button {
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .anim-controls button:hover {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    .anim-controls button.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    .anim-controls .speed-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      min-width: 32px;
+    }
+
+    /* Individual element preview cards */
+    .element-card {
+      background: repeating-conic-gradient(
+        var(--bg-surface) 0% 25%,
+        var(--bg-elevated) 0% 50%
+      ) 50% / 16px 16px;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .element-card h4 {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Size test items */
+    .size-test-grid {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .size-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .size-item p {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE
+       ═══════════════════════════════════════════ */
+    @media (max-width: 900px) {
+      .workshop {
+        padding: 16px;
+      }
+
+      .section-content {
+        grid-template-columns: 1fr;
+      }
+
+      .controls-panel {
+        order: 2;
+      }
+
+      .preview-grid {
+        order: 1;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================
+     MASTER SVG SOURCE (Single Source of Truth)
+     Edit this SVG - all previews update automatically
+     ============================================================ -->
+<svg id="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" style="display:none;">
+  <!-- ========== SUN ========== -->
+  <circle id="sun-outer" cx="620" cy="560" r="320" fill="#F7B538"/>
+  <circle id="sun-inner" cx="620" cy="560" r="200" fill="#E85D04"/>
+
+  <!-- ========== BUILDINGS (sky blue - urban skyline) ========== -->
+  <path id="buildings-main" fill="#5DADE2" d="m1237 647 8 7 3 2q6 9 5 21v21l1 18v206l1 186v129c0 17 0 17-3 22l-12 6-7 5-10 7q-17 12-31 25-3 4-5 3l-1 2-5 4V740l-9 6-3 1-25 17-53 33-72 45-5 3-5 2v150l1 39c0 19 0 19-6 27l-2 3q-8 10-21 11-11 1-19-4l-2-1-17-10-7-4-17-10-20-13-16-9-2-2-1-1-2-1-5-3-6-2-9 5-21 14-6 3-9 6-25 16-13 8-15 10-4 2-1 344-13-3q-26-7-53-10l-6-1v-178H545v187l-16 5q-26 8-50 21l-6 1v-251l-1-3q1-13 9-24h2v-2q12-9 26-8h31l46-1h105v-83c0-29 0-29 10-40l9-7 3-1 29-19 3-2 7-4 3-2 7-3v-2l6-4 43-27 20-13 15-9 2-1 5-3 2-1 15-2h3q13 2 23 10l3 1 33 21 5 3v-58l-1-79q0-19 13-32l16-11 19-12 2-1 4-2 7-3v-2l2-1 19-11 54-34 8-5 3-1 5-4 15-9 5-3 16-10 13-8 5-2 2-2 47-29 3-2 8-4 3-2q17-6 32 4"/>
+  <path id="buildings-detail" fill="#5DADE2" d="m1331 846 3 2 25 15 3 1 2 2 5 2v2l3 1 9 5 14 9q6 2 10 6l7 4 10 6 3 1 61 37 24 14v2h2l10 5 2 2q15 9 20 26l1 19v22l-1 48v108l-10 3-3 1h-3l-4 1-6 1-7 1q-20 3-40 2l-1-179-12-6-4-3-5-3-18-10-54-34-11-7-2-1-8-4v267l-19 6-12 5-23 9-7 3-10 4V884q-2-20 10-34 17-15 36-4"/>
+
+  <!-- ========== LEAF/GROUND ========== -->
+  <path id="leaf-ground" fill="#09a25c" d="m1754 1130 2 1v2l2 1 5 5 1 3q6 16 4 34v2l-2 40v2l-1 8v3l-3 14-1 7-3 23v3l-4 15-3 19-4 14-1 7-1 3v3h-2v2l-5 21-1 3-8 24-1 4-1 3-1 2-4 8-2 6-10 26-7 15-7 15h-2l-10 21-1 3-4 5-2 4-9 15-3 5h-2l-1 2-6 11-2 2-5 7-2 2-18 23-7 9-1 1h-2l-1 2-8 10-6 6-4 4-2 2-2 2-1 2-4 1v2l-4 3-7 7q-3 4-5 3v2l-4 4-11 8-27 20-3 2-2 1-2 2-4 1v2q-4 4-7 3v2l-2 1-17 10-12 6-5 2-5 3-2 1-7 3-2 1q-6 4-13 4v2l-10 3-2 1-19 6q-11 5-23 6v2h-2l-11 2-4 1-4 1-11 2-24 4h-3q-25 3-52 2h-22l-5-1h-7l-2-1h-6c-24-1-24-1-32-3l-14-3-4-1-6-1-21-3-3-1-18-5-7-2v-2h-4l-21-5-6-2-15-6q-10-5-22-7l-10-5-17-6v-2h-3q-13-4-24-11l-7-2v-2h-2l-12-5-21-10v-2h-2l-9-4-12-6-8-4-2-1-4-2-8-4-4-2v-2h-2l-10-5-9-6-8-4-8-5-6-3-14-8q-3-3-7-3v-2h-2l-8-4-3-1v-2h-2q-12-4-22-11l-26-11-14-5-33-11q-40-15-82-17l-5-1h-70v2h-2l-42 6a343 343 0 0 0-74 22 323 323 0 0 0-76 38l-9 4-19 12-22 16-5 4-17 13-4 3 7-14 3-5h2l1-5h2l1-2 4-8 2-3 1-2h2l1-2 5-8 9-11 5-7 2-2 2-2 1-2h2l1-3h2l1-2q1-4 6-7l2-3 3-2 3-3 6-6 12-11 2-2 4-2v-2l11-9 2-2 8-4v-2l4-3 2-1 3-2 3-2 5-3 7-4 30-16 23-11h2l8-2v-2l11-3 20-6 5-1 11-3h5l2-1 7-1q29-4 60-3h2a416 416 0 0 1 98 11l28 8 30 10 15 5v2h3l24 9 7 3 4 2 3 1v2l3 1 13 5v2l12 5 3 1 3 2 3 1 28 15v2h2l7 3 29 17v2l3 1 10 5 10 5v2l2 1 10 5 2 1 19 10v2l3 1 5 2 11 5v2h3l8 4 14 6 8 4 30 12v2h2l2 1h3l19 7 35 10 7 2 16 5 4 1 7 1 6 2 36 6h2a331 331 0 0 0 185-23l5-3 4-1q9-2 15-8l5-2 5-4 13-5v-2l2-1q20-11 39-27l2-2 2-2 4-1v-2l4-3 13-11 2-2 12-12 3-1 1-2 7-10 8-8 1-2h2l1-2 4-6 2-2 1-2h2l1-2 3-6h2l1-2 4-8 2-2 2-2h2v-2l5-9 13-23h2l1-3 5-10 2-4 1-2q9-16 15-34h2v-2l5-13 2-5 1-3 7-18 1-2c12-35 23-75 26-112l1-3 1-7-7 4-2 1-8 5-5 2-7 3-5 1v2l-2 1-8 2-2 1-16 7-10 3-11 3-14 4-7 2-12 2-19 4h-2l-10 4-17 2-19 1-21 2a533 533 0 0 0-119 21l-6 2-39 17-1 1-7 5-7 3-2 2-5 2-8 5-2 1-24 19-5 2v2l-3 3-3 2-2 2-16 16-3 3-18 23-3 5-19 32-7 18h-2l-1 2-5 18h-2l-1 4-4 17-4 14q55-5 107-20l5-2 28-9 2-1 2-1 8-3 8-4 33-14 7-3 22-11 13-7 10-6 6-3 35-22 20-13 6-3 26-18 24-18 4-1v-2l7-5 2-2 8-5 2-1 1-3h2v-2l4-3 2-1 2-2 5-3 3-3 1 2-3 5-2 3-2 3-2 3a452 452 0 0 1-46 61h-2l-1 2c-7 12-21 23-31 33l-9 9-16 14-13 10-4 2v2l-6 5-2 1-4 3-6 4-3 2-3 2-5 2-1 3-4 3q-8 3-15 8l-53 27v2l-2 1-4 1-3 1-8 4-6 2-8 3q-7 4-14 5l-8 3-30 10-13 3-16 4-3 1-10 1-8 2q-28 6-58 5h-20q-16 1-29-10-10-13-9-29 1-14 4-27l1-4 6-22v-2q4-16 11-33l1-6 4-6 3-8q2-7 6-13l2-4a225 225 0 0 1 33-58l1-1h2l1-4h2l1-4h2l1-2q4-7 10-13l2-2a257 257 0 0 1 41-40l19-14 2-1 6-3v-2l5-3 3-2 2-1 6-4 3-1 4-3 2-1 2-1 5-1v-2l3-2 5-2 2-1 24-11 3-1 32-11 7-3q16-6 32-8l9-2 39-6 23-2 39-4h2l6-1h10l15-3 16-3a274 274 0 0 0 71-22l7-3 16-7 2-2 15-8 4-1v-2l9-4 1-3 5-3 11-8 5-2v-2l4-3 9-7c12-10 27-15 42-6"/>
+
+  <!-- ========== WAVE ========== -->
+  <path id="wave" fill="#0558a5" d="M624 1557h26q20 0 39 5l10 1 33 9 11 3a200 200 0 0 1 40 15l15 7 3 1 56 27v2l3 1 9 4 3 2 3 2 4 1 38 22 18 10 13 7a1153 1153 0 0 0 134 57l33 10v2l-46 7h-35q-25 0-50-3h-3q-47-6-91-23l-5-2-20-8-3-1-6-3-5-2-53-26a470 470 0 0 0-132-46q-47-7-93 2l-4 1q-38 7-74 24l-5 1v2l-3 1q-19 8-35 18l-5 3-30 19-38 29q-6 7-15 10l-3 1q-14 4-29-2-16-9-22-26-3-19 8-35l17-15 2-1a553 553 0 0 1 155-89l2-1 33-10 3-1a288 288 0 0 1 56-10q19-3 38-2"/>
+</svg>
+
+<!-- ============================================================
+     DISK BACKGROUNDS (for circular icon variants)
+     ============================================================ -->
+<svg id="disk-transparent" style="display:none;">
+  <circle id="disk-bg-transparent" cx="1000" cy="1025" r="1068" fill="none" stroke="#666666" stroke-width="20"/>
+</svg>
+<svg id="disk-dark" style="display:none;">
+  <circle id="disk-bg-dark" cx="1000" cy="1025" r="1068" fill="#2D3142" stroke="#F7B538" stroke-width="20"/>
+</svg>
+<svg id="disk-light" style="display:none;">
+  <circle id="disk-bg-light" cx="1000" cy="1025" r="1068" fill="#F5F5F0" stroke="#0077B6" stroke-width="20"/>
+</svg>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-brand">
+    <div class="header-logo">S</div>
+    <h1>Brand Workshop <span>/ SUEWS</span></h1>
+  </div>
+  <div class="header-actions">
+    <span id="font-status" style="font-size: 11px; color: var(--text-muted);">Loading font...</span>
+    <div class="toggle-group">
+      <span>Guidelines</span>
+      <div class="toggle" id="guidelines-toggle" onclick="toggleGuidelines()"></div>
+    </div>
+  </div>
+</header>
+
+<!-- Main Workshop Area -->
+<main class="workshop" id="preview-area">
+
+  <!-- ═══════════════════════════════════════════
+       STACKED LOGO SECTION
+       ═══════════════════════════════════════════ -->
+  <section class="logo-section">
+    <div class="section-header">
+      <div class="section-title">
+        <div class="section-icon">S</div>
+        <h2>Stacked Logo</h2>
+      </div>
+      <span class="size-badge">512px</span>
+    </div>
+    <div class="section-content">
+      <!-- Controls -->
+      <div class="controls-panel">
+        <div class="control-group">
+          <div class="control-label">
+            <span>Logo Size</span>
+            <span class="control-value" id="stacked-logo-value">62%</span>
+          </div>
+          <input type="range" id="stacked-logo" min="40" max="80" value="62" oninput="updateStacked()">
+        </div>
+        <div class="control-group">
+          <div class="control-label">
+            <span>Text Size</span>
+            <span class="control-value" id="stacked-text-value">22%</span>
+          </div>
+          <input type="range" id="stacked-text" min="10" max="30" value="22" oninput="updateStacked()">
+          <p class="info-text">% of logo size</p>
+        </div>
+        <div class="control-group">
+          <div class="control-label">
+            <span>Gap</span>
+            <span class="control-value" id="stacked-gap-value">1%</span>
+          </div>
+          <input type="range" id="stacked-gap" min="0" max="10" value="1" oninput="updateStacked()">
+        </div>
+        <div class="control-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="stacked-crop" checked onchange="updateStacked()">
+            <span>Tight crop</span>
+          </label>
+          <p class="info-text">Remove logo whitespace for precise positioning</p>
+        </div>
+        <div class="button-row">
+          <button class="action-btn" onclick="presetStacked()">Preset</button>
+        </div>
+        <p class="info-text" style="margin-top: 12px;">Use Export Centre below for batch export.</p>
+      </div>
+      <!-- Previews -->
+      <div class="preview-grid">
+        <div class="preview-card light">
+          <span class="preview-label">Light</span>
+          <div class="preview-wrapper" id="stacked-light-wrapper" style="width: 200px; height: 200px;"></div>
+        </div>
+        <div class="preview-card dark">
+          <span class="preview-label">Dark</span>
+          <div class="preview-wrapper" id="stacked-dark-wrapper" style="width: 200px; height: 200px;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════
+       BANNER SECTION
+       ═══════════════════════════════════════════ -->
+  <section class="logo-section">
+    <div class="section-header">
+      <div class="section-title">
+        <div class="section-icon">B</div>
+        <h2>Banner</h2>
+      </div>
+      <span class="size-badge" id="banner-size-badge">dynamic</span>
+    </div>
+    <div class="section-content">
+      <!-- Controls -->
+      <div class="controls-panel">
+        <div class="control-group">
+          <div class="control-label">
+            <span>Logo Height</span>
+            <span class="control-value" id="banner-logo-value">82%</span>
+          </div>
+          <input type="range" id="banner-logo" min="50" max="95" value="82" oninput="updateBanner()">
+        </div>
+        <div class="control-group">
+          <div class="control-label">
+            <span>Text Size</span>
+            <span class="control-value" id="banner-text-value">52%</span>
+          </div>
+          <input type="range" id="banner-text" min="30" max="70" value="52" oninput="updateBanner()">
+          <p class="info-text">% of logo size</p>
+        </div>
+        <div class="control-group">
+          <div class="control-label">
+            <span>Gap</span>
+            <span class="control-value" id="banner-gap-value">2%</span>
+          </div>
+          <input type="range" id="banner-gap" min="0" max="15" value="2" oninput="updateBanner()">
+        </div>
+        <div class="control-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="banner-crop" checked onchange="updateBanner()">
+            <span>Tight crop</span>
+          </label>
+          <p class="info-text">Remove logo whitespace for precise positioning</p>
+        </div>
+        <div class="button-row">
+          <button class="action-btn" onclick="presetBanner()">Preset</button>
+        </div>
+        <p class="info-text" style="margin-top: 12px;">Use Export Centre below for batch export.</p>
+      </div>
+      <!-- Previews -->
+      <div class="preview-grid">
+        <div class="preview-card light">
+          <span class="preview-label">Light</span>
+          <div class="preview-wrapper" id="banner-light-wrapper" style="height: 100px;"></div>
+        </div>
+        <div class="preview-card dark">
+          <span class="preview-label">Dark</span>
+          <div class="preview-wrapper" id="banner-dark-wrapper" style="height: 100px;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════
+       ICON / FAVICON SECTION
+       ═══════════════════════════════════════════ -->
+  <section class="logo-section">
+    <div class="section-header">
+      <div class="section-title">
+        <div class="section-icon">I</div>
+        <h2>Icon / Favicon</h2>
+      </div>
+      <span class="size-badge">Square &amp; Disk</span>
+    </div>
+    <div class="section-content">
+      <!-- Design Controls -->
+      <div class="controls-panel">
+        <div class="control-group">
+          <div class="control-label"><span>Shape</span></div>
+          <div class="toggle-group">
+            <button class="toggle-btn active" id="shape-square" onclick="setIconShape('square')">Square</button>
+            <button class="toggle-btn" id="shape-disk" onclick="setIconShape('disk')">Disk</button>
+          </div>
+        </div>
+        <div class="control-group">
+          <div class="control-label">
+            <span>Fill</span>
+            <span class="control-value" id="solo-fill-value">88%</span>
+          </div>
+          <input type="range" id="solo-fill" min="60" max="100" value="88" oninput="updateIconPreviews()">
+        </div>
+        <div class="control-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="icon-crop" checked onchange="updateIconPreviews()">
+            <span>Tight crop</span>
+          </label>
+          <p class="info-text">Remove logo whitespace for precise sizing</p>
+        </div>
+        <p class="info-text" style="margin-top: 12px;">Use Export Centre below for batch export.</p>
+      </div>
+      <!-- Previews -->
+      <div class="preview-grid" id="icon-previews">
+        <div class="preview-card light">
+          <span class="preview-label">Light</span>
+          <div class="preview-wrapper" id="icon-preview-light" style="width: 128px; height: 128px;"></div>
+        </div>
+        <div class="preview-card dark">
+          <span class="preview-label">Dark</span>
+          <div class="preview-wrapper" id="icon-preview-dark" style="width: 128px; height: 128px;"></div>
+        </div>
+        <div class="preview-card transparent">
+          <span class="preview-label">Transparent</span>
+          <div class="preview-wrapper" id="icon-preview-transparent" style="width: 128px; height: 128px;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════
+       ANIMATED PREVIEW SECTION (Breathing City)
+       ═══════════════════════════════════════════ -->
+  <section class="logo-section">
+    <div class="section-header">
+      <div class="section-title">
+        <div class="section-icon">A</div>
+        <h2>Animated Preview</h2>
+      </div>
+      <span class="size-badge">Breathing City</span>
+    </div>
+    <div class="section-content" style="grid-template-columns: 1fr;">
+      <div class="anim-controls">
+        <button id="anim-play" class="active" onclick="toggleAnimPlay()">Pause</button>
+        <label>
+          Cycle
+          <input type="range" id="anim-speed" min="2" max="12" step="1" value="6" oninput="updateAnimSpeed()">
+          <span class="speed-value" id="speed-val">6s</span>
+        </label>
+        <label>
+          <input type="checkbox" id="anim-sun" checked onchange="toggleAnimElement('sun')">
+          Sun
+        </label>
+        <label>
+          <input type="checkbox" id="anim-wave" checked onchange="toggleAnimElement('wave')">
+          Wave
+        </label>
+      </div>
+      <p class="info-text" style="margin-bottom: 16px;">Subtle animations: sun pulses (energy input) and wave flows (water cycle)</p>
+      <div class="preview-grid">
+        <div class="preview-card light">
+          <span class="preview-label">Light</span>
+          <div class="preview-wrapper" style="width: 200px; height: 200px;">
+            <svg class="animated-logo" viewBox="0 0 2048 2048" width="200" height="200">
+              <use href="#sun-outer"/><use href="#sun-inner"/>
+              <use href="#buildings-main"/><use href="#buildings-detail"/>
+              <use href="#leaf-ground"/>
+              <use href="#wave"/>
+            </svg>
+          </div>
+        </div>
+        <div class="preview-card dark">
+          <span class="preview-label">Dark</span>
+          <div class="preview-wrapper" style="width: 200px; height: 200px;">
+            <svg class="animated-logo" viewBox="0 0 2048 2048" width="200" height="200">
+              <use href="#sun-outer"/><use href="#sun-inner"/>
+              <use href="#buildings-main"/><use href="#buildings-detail"/>
+              <use href="#leaf-ground"/>
+              <use href="#wave"/>
+            </svg>
+          </div>
+        </div>
+        <div class="preview-card transparent">
+          <span class="preview-label">Transparent</span>
+          <div class="preview-wrapper" style="width: 200px; height: 200px;">
+            <svg class="animated-logo" viewBox="0 0 2048 2048" width="200" height="200">
+              <use href="#sun-outer"/><use href="#sun-inner"/>
+              <use href="#buildings-main"/><use href="#buildings-detail"/>
+              <use href="#leaf-ground"/>
+              <use href="#wave"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════
+       INDIVIDUAL ELEMENTS SECTION
+       ═══════════════════════════════════════════ -->
+  <section class="logo-section">
+    <div class="section-header">
+      <div class="section-title">
+        <div class="section-icon">E</div>
+        <h2>Individual Elements</h2>
+      </div>
+      <span class="size-badge">Components</span>
+    </div>
+    <div class="section-content" style="grid-template-columns: 1fr;">
+      <p class="info-text" style="margin-bottom: 16px;">Isolated logo components with custom viewBox crops</p>
+      <div class="preview-grid">
+        <div class="element-card">
+          <svg viewBox="250 190 740 740" width="120" height="120">
+            <use href="#sun-outer"/><use href="#sun-inner"/>
+          </svg>
+          <h4>Sun</h4>
+        </div>
+        <div class="element-card">
+          <svg viewBox="400 550 1200 900" width="160" height="120">
+            <use href="#buildings-main"/><use href="#buildings-detail"/>
+          </svg>
+          <h4>Buildings</h4>
+        </div>
+        <div class="element-card">
+          <svg viewBox="100 1050 1750 850" width="200" height="100">
+            <use href="#leaf-ground"/>
+          </svg>
+          <h4>Leaf/Ground</h4>
+        </div>
+        <div class="element-card">
+          <svg viewBox="200 1500 1000 400" width="200" height="80">
+            <use href="#wave"/>
+          </svg>
+          <h4>Wave</h4>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════
+       SIZE TEST SECTION
+       ═══════════════════════════════════════════ -->
+  <section class="logo-section">
+    <div class="section-header">
+      <div class="section-title">
+        <div class="section-icon">T</div>
+        <h2>Size Test</h2>
+      </div>
+      <span class="size-badge">Scaling</span>
+    </div>
+    <div class="section-content" style="grid-template-columns: 1fr;">
+      <p class="info-text" style="margin-bottom: 16px;">Logo at various sizes to test readability and scaling</p>
+      <div class="preview-card light" style="width: 100%;">
+        <div class="size-test-grid">
+          <div class="size-item">
+            <svg viewBox="0 0 2048 2048" width="128" height="128" id="size-128"></svg>
+            <p>128px</p>
+          </div>
+          <div class="size-item">
+            <svg viewBox="0 0 2048 2048" width="64" height="64" id="size-64"></svg>
+            <p>64px</p>
+          </div>
+          <div class="size-item">
+            <svg viewBox="0 0 2048 2048" width="32" height="32" id="size-32"></svg>
+            <p>32px</p>
+          </div>
+          <div class="size-item">
+            <svg viewBox="0 0 2048 2048" width="16" height="16" id="size-16"></svg>
+            <p>16px</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════
+       EXPORT CENTRE (Unified Batch Export)
+       ═══════════════════════════════════════════ -->
+  <section class="logo-section">
+    <div class="section-header">
+      <div class="section-title">
+        <div class="section-icon">↓</div>
+        <h2>Export Centre</h2>
+      </div>
+      <span class="size-badge">Batch Export</span>
+    </div>
+    <div class="section-content" style="grid-template-columns: 1fr;">
+      <div class="controls-panel" style="max-width: 700px;">
+        <!-- Quick selection buttons -->
+        <div class="control-group">
+          <div class="button-row" style="justify-content: flex-start; gap: 8px;">
+            <button class="action-btn secondary" onclick="selectAllExports()">Select All</button>
+            <button class="action-btn secondary" onclick="deselectAllExports()">Deselect All</button>
+          </div>
+        </div>
+        <!-- Logo Types -->
+        <div class="control-group">
+          <div class="control-label"><span>Logo Types</span></div>
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="export-type-stacked" checked> Stacked (512px)</label>
+            <label><input type="checkbox" id="export-type-banner" checked> Banner (200px h)</label>
+            <label><input type="checkbox" id="export-type-icon" checked onchange="toggleIconExportOptions()"> Icon</label>
+          </div>
+        </div>
+        <!-- Icon-specific options -->
+        <div id="icon-export-options">
+          <div class="control-group">
+            <div class="control-label"><span>Icon Shape</span></div>
+            <div class="checkbox-group">
+              <label><input type="checkbox" id="export-shape-square" checked> Square</label>
+              <label><input type="checkbox" id="export-shape-disk"> Disk</label>
+            </div>
+          </div>
+          <div class="control-group">
+            <div class="control-label"><span>Icon Sizes</span></div>
+            <div class="checkbox-group">
+              <label><input type="checkbox" id="export-size-512" checked> 512px</label>
+              <label><input type="checkbox" id="export-size-256"> 256px</label>
+              <label><input type="checkbox" id="export-size-128"> 128px</label>
+              <label><input type="checkbox" id="export-size-64"> 64px</label>
+              <label><input type="checkbox" id="export-size-32"> 32px</label>
+            </div>
+          </div>
+        </div>
+        <!-- Themes -->
+        <div class="control-group">
+          <div class="control-label"><span>Themes</span></div>
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="export-theme-light" checked> Light</label>
+            <label><input type="checkbox" id="export-theme-dark" checked> Dark</label>
+            <label><input type="checkbox" id="export-theme-transparent"> Transparent (Icon only)</label>
+          </div>
+        </div>
+        <!-- Format -->
+        <div class="control-group">
+          <div class="control-label"><span>Format</span></div>
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="export-format-png" checked> PNG</label>
+            <label><input type="checkbox" id="export-format-svg" checked> SVG</label>
+          </div>
+        </div>
+        <p class="info-text">Exports use current design settings from each section above.</p>
+        <!-- Export button -->
+        <div class="button-row">
+          <button class="action-btn" onclick="exportAll()">Export All Selected</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+// ============================================
+// SVG Logo Components (in viewBox coordinates)
+// ============================================
+
+// Original logo viewBox: 0 0 2048 2048
+// Logo graphic bounds (approximate):
+//   Top whitespace: ~240 units (11.7%)
+//   Bottom whitespace: ~296 units (14.5%)
+//   Side whitespace: ~290 units each (14.2%)
+
+const SVG_WS = {
+  top: 240 / 2048,      // 11.7%
+  bottom: 296 / 2048,   // 14.5%
+  sides: 290 / 2048     // 14.2%
+};
+
+// Crop constants for tight viewBox (removes embedded whitespace)
+const LOGO_CROP = {
+  originalSize: 2048,
+  // Cropped region in original coordinates
+  x: 290,               // Left edge (14.2%)
+  y: 240,               // Top edge (11.7%)
+  width: 2048 - 290 * 2,  // 1468 (72% of original)
+  height: 2048 - 240 - 296  // 1512 (74% of original)
+};
+
+// ============================================
+// Font Loading and Text-to-Path Conversion
+// ============================================
+
+let interFont = null;  // Will hold the loaded Inter font
+
+// Load Inter font for text-to-path conversion
+async function loadInterFont() {
+  if (interFont) return interFont;
+  try {
+    // Load bundled Inter SemiBold font (OFL licensed)
+    const fontUrl = 'fonts/Inter-SemiBold.woff';
+    interFont = await opentype.load(fontUrl);
+    console.log('Inter font loaded successfully');
+    updateFontStatus(true);
+    return interFont;
+  } catch (err) {
+    console.error('Failed to load Inter font:', err);
+    updateFontStatus(false);
+    return null;
+  }
+}
+
+// Update font status indicator in UI
+function updateFontStatus(loaded) {
+  const indicator = document.getElementById('font-status');
+  if (!indicator) return;
+  if (loaded) {
+    indicator.textContent = 'Inter font loaded';
+    indicator.style.color = 'var(--success)';
+  } else {
+    indicator.textContent = 'Font failed - using fallback';
+    indicator.style.color = '#ef4444';
+  }
+}
+
+// Convert text to SVG path data
+// Returns { path: pathData, width, height, x, y } for precise bounds
+function textToPath(text, fontSize, x = 0, y = 0, options = {}) {
+  if (!interFont) {
+    console.warn('Font not loaded, cannot convert text to path');
+    return null;
+  }
+
+  const letterSpacing = options.letterSpacing || 0;
+
+  // Get the path from opentype
+  const path = interFont.getPath(text, x, y, fontSize, {
+    letterSpacing: letterSpacing / fontSize  // opentype uses ratio
+  });
+
+  // Get precise bounding box
+  const bbox = path.getBoundingBox();
+
+  return {
+    pathData: path.toPathData(2),  // 2 decimal precision
+    width: bbox.x2 - bbox.x1,
+    height: bbox.y2 - bbox.y1,
+    x: bbox.x1,
+    y: bbox.y1
+  };
+}
+
+// Logo graphic as SVG group - uses master SVG source (single source of truth)
+function logoGraphic(offsetX = 0, offsetY = 0, scale = 1) {
+  const logo = document.getElementById('logo');
+  return `<g transform="translate(${offsetX}, ${offsetY}) scale(${scale})">${logo.innerHTML}</g>`;
+}
+
+// ============================================
+// SVG Template Generators
+// ============================================
+
+function createStackedSVG(settings) {
+  const { size, theme, logoSizePct, textSizePct, gapPct, paddingPct, crop = true } = settings;
+
+  const textColor = theme === 'light' ? '#1a1a2e' : '#f8fafc';
+
+  // Calculate in viewBox units (using 1000 as base for simplicity)
+  const vbSize = 1000;
+  const gap = vbSize * (gapPct / 100);
+  const padding = vbSize * (paddingPct / 100);
+
+  // Logo element and positioning depends on crop mode
+  let logoElement;
+  let logoVisualBottom;
+  let logoVisualWidth;
+
+  if (crop) {
+    // Tight crop: logoSizePct controls the visual height (no whitespace)
+    const logoVisualHeight = vbSize * (logoSizePct / 100);
+    // Maintain aspect ratio of cropped region
+    logoVisualWidth = logoVisualHeight * (LOGO_CROP.width / LOGO_CROP.height);
+
+    // Centre horizontally
+    const logoX = (vbSize - logoVisualWidth) / 2;
+    const logoY = padding;
+    logoVisualBottom = logoY + logoVisualHeight;
+
+    // Use nested SVG with cropped viewBox
+    const logo = document.getElementById('logo');
+    logoElement = `<svg x="${logoX}" y="${logoY}" width="${logoVisualWidth}" height="${logoVisualHeight}"
+        viewBox="${LOGO_CROP.x} ${LOGO_CROP.y} ${LOGO_CROP.width} ${LOGO_CROP.height}">${logo.innerHTML}</svg>`;
+  } else {
+    // Original mode: logoSizePct controls bounding box size (includes whitespace)
+    const logoSize = vbSize * (logoSizePct / 100);
+    const logoX = (vbSize - logoSize) / 2;
+    const logoY = padding;
+    const logoScale = logoSize / 2048;
+
+    // Visual bottom excludes internal whitespace
+    logoVisualBottom = logoY + logoSize - (logoSize * SVG_WS.bottom);
+    logoVisualWidth = logoSize;
+
+    logoElement = logoGraphic(logoX, logoY, logoScale);
+  }
+
+  // Text size (textSizePct is % of logo visual width)
+  const textSizeRatio = (textSizePct || 18) / 100;
+  const textHeight = logoVisualWidth * textSizeRatio;
+
+  // Text as path (if font loaded) or fallback to text element
+  let textElement;
+  if (interFont) {
+    // Convert text to path for precise bounds
+    const textPath = textToPath('SUEWS', textHeight, 0, 0, { letterSpacing: -2 });
+    if (textPath) {
+      // Centre the path horizontally, position below logo visual edge + gap
+      const textX = (vbSize - textPath.width) / 2 - textPath.x;
+      const textY = logoVisualBottom + gap - textPath.y;
+      textElement = `<path d="${textPath.pathData}" fill="${textColor}" transform="translate(${textX}, ${textY})" class="text-path"/>`;
+    }
+  }
+
+  // Fallback to text element if path conversion failed
+  if (!textElement) {
+    const textY = logoVisualBottom + gap + textHeight * 0.8;
+    textElement = `<text x="${vbSize/2}" y="${textY}"
+          font-family="Inter, system-ui, -apple-system, sans-serif"
+          font-size="${textHeight}"
+          font-weight="600"
+          fill="${textColor}"
+          text-anchor="middle"
+          letter-spacing="-2">SUEWS</text>`;
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbSize} ${vbSize}" width="${size}" height="${size}">
+    ${logoElement}
+    ${textElement}
+  </svg>`;
+}
+
+// Measure text width using SVG's getComputedTextLength()
+function measureTextWidth(text, fontSize, fontFamily = 'Inter, system-ui, sans-serif', fontWeight = '600', letterSpacing = '-1') {
+  // Create temporary SVG for measurement
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('style', 'position: absolute; visibility: hidden; width: 0; height: 0;');
+  const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  textEl.setAttribute('font-family', fontFamily);
+  textEl.setAttribute('font-size', fontSize);
+  textEl.setAttribute('font-weight', fontWeight);
+  textEl.setAttribute('letter-spacing', letterSpacing);
+  textEl.textContent = text;
+  svg.appendChild(textEl);
+  document.body.appendChild(svg);
+  const width = textEl.getComputedTextLength();
+  document.body.removeChild(svg);
+  return width;
+}
+
+// Measure actual ink bounds using canvas pixel scanning
+// Returns { top, left, width, height } relative to the baseline position
+function measureTextInkBounds(text, fontSize, fontFamily = 'Inter, system-ui, sans-serif', fontWeight = '600', letterSpacing = '-1px') {
+  const canvas = document.createElement('canvas');
+  const padding = Math.ceil(fontSize * 0.5);  // Extra space around text
+  canvas.width = Math.ceil(fontSize * text.length * 0.8) + padding * 2;
+  canvas.height = Math.ceil(fontSize * 1.5) + padding * 2;
+
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'black';
+  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+  ctx.letterSpacing = letterSpacing;
+
+  // Draw text with baseline at a known position
+  const baselineY = padding + fontSize;
+  ctx.fillText(text, padding, baselineY);
+
+  // Scan pixels to find ink bounds
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  let minX = canvas.width, maxX = 0, minY = canvas.height, maxY = 0;
+  let foundPixel = false;
+
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      const alpha = data[(y * canvas.width + x) * 4 + 3];
+      if (alpha > 10) {  // Threshold for anti-aliased edges
+        foundPixel = true;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (!foundPixel) {
+    return { top: 0, left: 0, width: 0, height: 0, baseline: baselineY };
+  }
+
+  return {
+    left: minX - padding,           // Relative to text start
+    top: minY - padding,            // Relative to top padding
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+    baseline: baselineY - padding,  // Baseline position relative to top padding
+    // Useful derived values
+    ascent: baselineY - minY,       // How far ink extends above baseline
+    descent: maxY - baselineY       // How far ink extends below baseline (usually 0 for caps)
+  };
+}
+
+function createBannerSVG(settings) {
+  const { height, theme, logoHeightPct, textSizePct, gapPct, paddingPct, paddingLeft, paddingRight, crop = true } = settings;
+
+  const textColor = theme === 'light' ? '#1a1a2e' : '#f8fafc';
+
+  // Fixed height, dynamic width based on content
+  const vbHeight = 250;
+  const gap = vbHeight * (gapPct / 100);
+  const padding = vbHeight * (paddingPct / 100);
+
+  // Use asymmetric padding if provided
+  const pLeft = paddingLeft !== undefined ? vbHeight * (paddingLeft / 100) : padding;
+  const pRight = paddingRight !== undefined ? vbHeight * (paddingRight / 100) : padding;
+
+  // Logo element and positioning depends on crop mode
+  let logoElement;
+  let logoVisualRight;
+  let logoVisualHeight;
+
+  if (crop) {
+    // Tight crop: logoHeightPct controls the visual height (no whitespace)
+    logoVisualHeight = vbHeight * (logoHeightPct / 100);
+    // Maintain aspect ratio of cropped region
+    const logoVisualWidth = logoVisualHeight * (LOGO_CROP.width / LOGO_CROP.height);
+
+    // Centre vertically
+    const logoY = (vbHeight - logoVisualHeight) / 2;
+    const logoX = pLeft;
+    logoVisualRight = logoX + logoVisualWidth;
+
+    // Use nested SVG with cropped viewBox
+    const logo = document.getElementById('logo');
+    logoElement = `<svg x="${logoX}" y="${logoY}" width="${logoVisualWidth}" height="${logoVisualHeight}"
+        viewBox="${LOGO_CROP.x} ${LOGO_CROP.y} ${LOGO_CROP.width} ${LOGO_CROP.height}">${logo.innerHTML}</svg>`;
+  } else {
+    // Original mode: logoHeightPct controls bounding box size (includes whitespace)
+    const logoHeight = vbHeight * (logoHeightPct / 100);
+    const logoWidth = logoHeight; // Logo is square
+    logoVisualHeight = logoHeight;
+
+    // Centre vertically
+    const logoY = (vbHeight - logoHeight) / 2;
+    const logoX = pLeft;
+    const logoScale = logoHeight / 2048;
+
+    // Visual right excludes internal whitespace
+    logoVisualRight = logoX + logoWidth - (logoWidth * SVG_WS.sides);
+
+    logoElement = logoGraphic(logoX, logoY, logoScale);
+  }
+
+  // Text size (textSizePct is % of logo visual height)
+  const textSizeRatio = (textSizePct || 50) / 100;
+  const textHeight = logoVisualHeight * textSizeRatio;
+
+  // Text as path (if font loaded) or fallback to text element
+  let textElement;
+  let textWidth;
+
+  if (interFont) {
+    const textPath = textToPath('SUEWS', textHeight, 0, 0, { letterSpacing: -1 });
+    if (textPath) {
+      textWidth = textPath.width;
+      // Position text: after logo visual edge + gap, vertically centred
+      const textX = logoVisualRight + gap - textPath.x;
+      const textY = (vbHeight - textPath.height) / 2 - textPath.y;
+      textElement = `<path d="${textPath.pathData}" fill="${textColor}" transform="translate(${textX}, ${textY})" class="text-path"/>`;
+    }
+  }
+
+  // Fallback to text element if path conversion failed
+  if (!textElement) {
+    textWidth = measureTextWidth('SUEWS', textHeight, 'Inter, system-ui, sans-serif', '600', '-1');
+    const textX = logoVisualRight + gap;
+    const textY = vbHeight / 2 + textHeight * 0.35;
+    textElement = `<text x="${textX}" y="${textY}"
+          font-family="Inter, system-ui, -apple-system, sans-serif"
+          font-size="${textHeight}"
+          font-weight="600"
+          fill="${textColor}"
+          letter-spacing="-1">SUEWS</text>`;
+  }
+
+  // Calculate total width dynamically (using visual right, not box right)
+  const vbWidth = logoVisualRight + gap + textWidth + pRight;
+
+  // Calculate aspect ratio for output dimensions
+  const aspectRatio = vbWidth / vbHeight;
+  const outputHeight = height;
+  const outputWidth = outputHeight * aspectRatio;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbWidth} ${vbHeight}" width="${outputWidth}" height="${outputHeight}">
+    ${logoElement}
+    ${textElement}
+  </svg>`;
+}
+
+function createSoloSVG(settings) {
+  const { size, theme, fillPct } = settings;
+
+  const vbSize = 1000;
+  const logoSize = vbSize * (fillPct / 100);
+
+  // Compensate for asymmetric whitespace in the SVG
+  // Logo has more bottom whitespace (14.5%) than top (11.7%)
+  const wsTopPx = logoSize * SVG_WS.top;
+  const wsBottomPx = logoSize * SVG_WS.bottom;
+  const yOffset = (wsBottomPx - wsTopPx) / 2;  // Positive = shift down
+
+  const logoX = (vbSize - logoSize) / 2;
+  const logoY = (vbSize - logoSize) / 2 + yOffset;  // Visually centred
+  const logoScale = logoSize / 2048;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbSize} ${vbSize}" width="${size}" height="${size}">
+    ${logoGraphic(logoX, logoY, logoScale)}
+  </svg>`;
+}
+
+// ============================================
+// State
+// ============================================
+
+let showGuidelines = false;
+let stackedPaddingPct = 12;  // Auto-calculated padding for stacked layout
+let stackedCrop = true;       // Tight crop for stacked layout
+let bannerPaddingPct = 5;    // Base padding for banner layout
+let bannerPaddingLeft = null;
+let bannerPaddingRight = null;
+let bannerCrop = true;        // Tight crop for banner layout
+
+// ============================================
+// Update Functions
+// ============================================
+
+function updateStacked() {
+  const logoSizePct = parseFloat(document.getElementById('stacked-logo').value);
+  const textSizePct = parseFloat(document.getElementById('stacked-text').value);
+  const gapPct = parseFloat(document.getElementById('stacked-gap').value);
+  const crop = document.getElementById('stacked-crop')?.checked ?? true;
+
+  document.getElementById('stacked-logo-value').textContent = logoSizePct + '%';
+  document.getElementById('stacked-text-value').textContent = textSizePct + '%';
+  document.getElementById('stacked-gap-value').textContent = gapPct + '%';
+
+  // Calculate estimated padding for centering
+  const vbSize = 1000;
+  const gap = vbSize * (gapPct / 100);
+
+  // Logo size depends on crop mode
+  let logoVisualHeight, logoVisualWidth;
+  if (crop) {
+    // In crop mode, slider controls visual height directly
+    logoVisualHeight = vbSize * (logoSizePct / 100);
+    logoVisualWidth = logoVisualHeight * (LOGO_CROP.width / LOGO_CROP.height);
+  } else {
+    // In original mode, slider controls bounding box size
+    const logoSize = vbSize * (logoSizePct / 100);
+    logoVisualHeight = logoSize;
+    logoVisualWidth = logoSize;
+  }
+
+  const textHeight = logoVisualWidth * (textSizePct / 100);
+  const contentHeight = logoVisualHeight + gap + textHeight;
+  let paddingPct = Math.max(0, ((vbSize - contentHeight) / 2 / vbSize) * 100);
+
+  // First pass render with estimated padding
+  const settings = { logoSizePct, textSizePct, gapPct, paddingPct, crop };
+
+  document.getElementById('stacked-light-wrapper').innerHTML =
+    createStackedSVG({ ...settings, size: 200, theme: 'light' });
+  document.getElementById('stacked-dark-wrapper').innerHTML =
+    createStackedSVG({ ...settings, size: 200, theme: 'dark' });
+
+  // Measure actual margins and adjust if needed
+  const bounds = getContentBounds('stacked-light-wrapper');
+  if (bounds) {
+    const diff = bounds.marginTop - bounds.marginBottom;
+    if (Math.abs(diff) > 1) {
+      // Adjust padding based on actual measurement
+      const adjustmentPct = (diff / 2) / bounds.svgRect.height * 100;
+      paddingPct = Math.max(0, paddingPct - adjustmentPct);
+
+      // Re-render with adjusted padding
+      const adjustedSettings = { logoSizePct, textSizePct, gapPct, paddingPct, crop };
+      document.getElementById('stacked-light-wrapper').innerHTML =
+        createStackedSVG({ ...adjustedSettings, size: 200, theme: 'light' });
+      document.getElementById('stacked-dark-wrapper').innerHTML =
+        createStackedSVG({ ...adjustedSettings, size: 200, theme: 'dark' });
+    }
+  }
+
+  // Store current settings for export functions
+  stackedPaddingPct = paddingPct;
+  stackedCrop = crop;
+
+  updateIndicators();
+}
+
+function updateBanner() {
+  const logoHeightPct = parseFloat(document.getElementById('banner-logo').value);
+  const textSizePct = parseFloat(document.getElementById('banner-text').value);
+  const gapPct = parseFloat(document.getElementById('banner-gap').value);
+  const crop = document.getElementById('banner-crop')?.checked ?? true;
+
+  document.getElementById('banner-logo-value').textContent = logoHeightPct + '%';
+  document.getElementById('banner-text-value').textContent = textSizePct + '%';
+  document.getElementById('banner-gap-value').textContent = gapPct + '%';
+
+  // Use default padding (5%) for initial render
+  const paddingPct = 5;
+
+  // First pass render with symmetric padding
+  const settings = {
+    logoHeightPct,
+    textSizePct,
+    gapPct,
+    paddingPct,
+    paddingLeft: undefined,
+    paddingRight: undefined,
+    crop
+  };
+
+  document.getElementById('banner-light-wrapper').innerHTML =
+    createBannerSVG({ ...settings, height: 100, theme: 'light' });
+  document.getElementById('banner-dark-wrapper').innerHTML =
+    createBannerSVG({ ...settings, height: 100, theme: 'dark' });
+
+  // Measure actual margins and calculate asymmetric padding for centering
+  const bounds = getContentBounds('banner-light-wrapper');
+  if (bounds) {
+    const diff = bounds.marginLeft - bounds.marginRight;
+    if (Math.abs(diff) > 0.5) {
+      // Calculate asymmetric adjustment
+      const adjustmentPct = (diff / 2) / bounds.svgRect.width * 100 * (250 / 100);
+
+      bannerPaddingLeft = paddingPct - adjustmentPct;
+      bannerPaddingRight = paddingPct + adjustmentPct;
+
+      // Re-render with adjusted padding
+      const adjustedSettings = {
+        logoHeightPct,
+        textSizePct,
+        gapPct,
+        paddingPct,
+        paddingLeft: bannerPaddingLeft,
+        paddingRight: bannerPaddingRight,
+        crop
+      };
+
+      document.getElementById('banner-light-wrapper').innerHTML =
+        createBannerSVG({ ...adjustedSettings, height: 100, theme: 'light' });
+      document.getElementById('banner-dark-wrapper').innerHTML =
+        createBannerSVG({ ...adjustedSettings, height: 100, theme: 'dark' });
+    } else {
+      bannerPaddingLeft = null;
+      bannerPaddingRight = null;
+    }
+  }
+
+  // Store current settings for export functions
+  bannerPaddingPct = paddingPct;
+  bannerCrop = crop;
+
+  // Update size badge with actual export dimensions
+  const finalSettings = {
+    logoHeightPct,
+    textSizePct,
+    gapPct,
+    paddingPct,
+    paddingLeft: bannerPaddingLeft,
+    paddingRight: bannerPaddingRight,
+    crop
+  };
+  const parser = new DOMParser();
+  const svgDoc = parser.parseFromString(createBannerSVG({ ...finalSettings, height: 200, theme: 'light' }), 'image/svg+xml');
+  const svgEl = svgDoc.querySelector('svg');
+  const exportWidth = Math.round(parseFloat(svgEl.getAttribute('width')));
+  const exportHeight = Math.round(parseFloat(svgEl.getAttribute('height')));
+  document.getElementById('banner-size-badge').textContent = `${exportWidth}x${exportHeight}`;
+
+  updateIndicators();
+}
+
+function updateSolo() {
+  const fill = document.getElementById('solo-fill').value;
+  document.getElementById('solo-fill-value').textContent = fill + '%';
+
+  const settings = { fillPct: parseFloat(fill) };
+
+  // Large (512px export, 128px preview)
+  document.getElementById('solo-large-light-wrapper').innerHTML =
+    createSoloSVG({ ...settings, size: 128, theme: 'light' });
+  document.getElementById('solo-large-dark-wrapper').innerHTML =
+    createSoloSVG({ ...settings, size: 128, theme: 'dark' });
+
+  // Medium (256px export, 96px preview)
+  document.getElementById('solo-medium-light-wrapper').innerHTML =
+    createSoloSVG({ ...settings, size: 96, theme: 'light' });
+  document.getElementById('solo-medium-dark-wrapper').innerHTML =
+    createSoloSVG({ ...settings, size: 96, theme: 'dark' });
+
+  // Small (64/32px export, 64px preview)
+  document.getElementById('solo-small-light-wrapper').innerHTML =
+    createSoloSVG({ ...settings, size: 64, theme: 'light' });
+  document.getElementById('solo-small-dark-wrapper').innerHTML =
+    createSoloSVG({ ...settings, size: 64, theme: 'dark' });
+  document.getElementById('favicon-wrapper').innerHTML =
+    createSoloSVG({ ...settings, size: 64, theme: 'favicon' });
+
+  updateIndicators();
+}
+
+// ============================================
+// Presets & Auto Centre
+// ============================================
+
+// Recommended preset values for balanced design (with tight crop enabled)
+//
+// Stacked (512×512 canvas):
+// - Logo 62%: golden ratio proportion φ/(φ+1) ≈ 0.618
+// - Text 19% of logo width: balanced hierarchy
+// - Gap 1%: tight visual connection between logo and wordmark
+// - Results in ~19% margins each side (generous breathing room)
+const STACKED_PRESET = { logo: 62, text: 19, gap: 1 };
+
+// Banner (dynamic width, fixed height):
+// - Logo 82%: fills vertical space with comfortable margins
+// - Text 52% of logo height: matches optical weight of "SUEWS" caps
+// - Gap 2%: clean separation without disconnecting elements
+const BANNER_PRESET = { logo: 82, text: 52, gap: 2 };
+
+function presetStacked() {
+  // Apply recommended values (padding is auto-calculated)
+  document.getElementById('stacked-logo').value = STACKED_PRESET.logo;
+  document.getElementById('stacked-text').value = STACKED_PRESET.text;
+  document.getElementById('stacked-gap').value = STACKED_PRESET.gap;
+  updateStacked();
+}
+
+function presetBanner() {
+  // Apply recommended values (padding is auto-calculated)
+  document.getElementById('banner-logo').value = BANNER_PRESET.logo;
+  document.getElementById('banner-text').value = BANNER_PRESET.text;
+  document.getElementById('banner-gap').value = BANNER_PRESET.gap;
+  updateBanner();
+}
+
+// Get union bounding box of logo+text content
+// Returns bounds relative to wrapper element for positioning
+function getContentBounds(wrapper) {
+  if (typeof wrapper === 'string') {
+    wrapper = document.getElementById(wrapper);
+  }
+  if (!wrapper) return null;
+
+  const svg = wrapper.querySelector('svg');
+  // In crop mode, logo is a nested <svg>, in original mode it's a <g>
+  const logoElement = svg?.querySelector('svg') || svg?.querySelector('g');
+  const textPath = svg?.querySelector('path.text-path');
+
+  if (!svg || !logoElement) return null;
+
+  const wrapperRect = wrapper.getBoundingClientRect();
+  const svgRect = svg.getBoundingClientRect();
+  const logoRect = logoElement.getBoundingClientRect();
+  const textRect = textPath?.getBoundingClientRect();
+
+  // Compute union bounding box
+  const contentTop = Math.min(logoRect.top, textRect?.top ?? logoRect.top);
+  const contentBottom = Math.max(logoRect.bottom, textRect?.bottom ?? logoRect.bottom);
+  const contentLeft = Math.min(logoRect.left, textRect?.left ?? logoRect.left);
+  const contentRight = Math.max(logoRect.right, textRect?.right ?? logoRect.right);
+
+  return {
+    wrapperRect,
+    svgRect,
+    logoRect,
+    textRect,
+    // Content bounds (union of logo and text)
+    contentTop,
+    contentBottom,
+    contentLeft,
+    contentRight,
+    contentWidth: contentRight - contentLeft,
+    contentHeight: contentBottom - contentTop,
+    // Margins from SVG edge to content
+    marginTop: contentTop - svgRect.top,
+    marginBottom: svgRect.bottom - contentBottom,
+    marginLeft: contentLeft - svgRect.left,
+    marginRight: svgRect.right - contentRight
+  };
+}
+
+// Measure margins using unified content bounds
+// axis: 'vertical' for top/bottom (stacked), 'horizontal' for left/right (banner)
+function measureMargins(wrapperId, axis = 'horizontal') {
+  const bounds = getContentBounds(wrapperId);
+  if (!bounds) return null;
+
+  if (axis === 'vertical') {
+    return {
+      startMargin: bounds.marginTop,
+      endMargin: bounds.marginBottom,
+      diff: bounds.marginTop - bounds.marginBottom,
+      size: bounds.svgRect.height
+    };
+  } else {
+    return {
+      startMargin: bounds.marginLeft,
+      endMargin: bounds.marginRight,
+      diff: bounds.marginLeft - bounds.marginRight,
+      size: bounds.svgRect.width
+    };
+  }
+}
+
+// ============================================
+// Guidelines & Indicators
+// ============================================
+
+function toggleGuidelines() {
+  showGuidelines = !showGuidelines;
+  document.getElementById('guidelines-toggle').classList.toggle('active', showGuidelines);
+  document.getElementById('preview-area').classList.toggle('show-guidelines', showGuidelines);
+  updateIndicators();
+}
+
+function updateIndicators() {
+  // Clear existing panels, bars, and bounding boxes
+  document.querySelectorAll('.guide-info-panel, .guide-bar, .guide-box-logo, .guide-box-text, .guide-box-content').forEach(el => el.remove());
+
+  if (!showGuidelines) return;
+
+  // Consolidated indicators (one panel per family, bars on each card)
+  updateStackedIndicators(512, 200);
+  updateBannerIndicators();
+}
+
+// Helper: Add text bounding box to wrapper (handles both path and text elements)
+function addTextBoundingBox(wrapper) {
+  const svg = wrapper.querySelector('svg');
+  if (!svg) return;
+
+  const pathEl = svg.querySelector('path.text-path');
+  const textEl = svg.querySelector('text');
+  const targetEl = pathEl || textEl;
+  if (!targetEl) return;
+
+  const targetRect = targetEl.getBoundingClientRect();
+  const wrapperRect = wrapper.getBoundingClientRect();
+
+  const textBox = document.createElement('div');
+  textBox.className = 'guide-box-text';
+  textBox.style.top = (targetRect.top - wrapperRect.top) + 'px';
+  textBox.style.left = (targetRect.left - wrapperRect.left) + 'px';
+  textBox.style.width = targetRect.width + 'px';
+  textBox.style.height = targetRect.height + 'px';
+  wrapper.appendChild(textBox);
+}
+
+// Helper: Add logo bounding box using getBoundingClientRect
+function addLogoBoundingBox(wrapper) {
+  const svg = wrapper.querySelector('svg');
+  // In crop mode, logo is a nested <svg>, in original mode it's a <g>
+  const logoElement = svg?.querySelector('svg') || svg?.querySelector('g');
+  if (!logoElement) return;
+
+  const logoRect = logoElement.getBoundingClientRect();
+  const wrapperRect = wrapper.getBoundingClientRect();
+
+  const logoBox = document.createElement('div');
+  logoBox.className = 'guide-box-logo';
+  logoBox.style.top = (logoRect.top - wrapperRect.top) + 'px';
+  logoBox.style.left = (logoRect.left - wrapperRect.left) + 'px';
+  logoBox.style.width = logoRect.width + 'px';
+  logoBox.style.height = logoRect.height + 'px';
+  wrapper.appendChild(logoBox);
+}
+
+// Helper: Add combined content bounding box (logo+text union)
+function addContentBoundingBox(wrapper) {
+  if (typeof wrapper === 'string') {
+    wrapper = document.getElementById(wrapper);
+  }
+  const bounds = getContentBounds(wrapper);
+  if (!bounds) return;
+
+  const contentBox = document.createElement('div');
+  contentBox.className = 'guide-box-content';
+  contentBox.style.top = (bounds.contentTop - bounds.wrapperRect.top) + 'px';
+  contentBox.style.left = (bounds.contentLeft - bounds.wrapperRect.left) + 'px';
+  contentBox.style.width = bounds.contentWidth + 'px';
+  contentBox.style.height = bounds.contentHeight + 'px';
+  wrapper.appendChild(contentBox);
+}
+
+function updateStackedIndicators(exportSize, previewSize) {
+  const wrapperIds = ['stacked-light-wrapper', 'stacked-dark-wrapper'];
+  const logoSizePct = parseFloat(document.getElementById('stacked-logo').value);
+  const textSizePct = parseFloat(document.getElementById('stacked-text').value);
+  const gapPct = parseFloat(document.getElementById('stacked-gap').value);
+  const padPct = stackedPaddingPct;  // Use auto-calculated padding from state
+
+  // Calculate in export pixels
+  const logoSize = exportSize * (logoSizePct / 100);
+  const gap = exportSize * (gapPct / 100);
+  const textHeight = logoSize * (textSizePct / 100);
+  const padding = exportSize * (padPct / 100);
+
+  // Scale factor for preview
+  const scale = previewSize / exportSize;
+  const barHeight = padding * scale;
+
+  // Logo content bounds (accounting for SVG whitespace)
+  const logoTopWs = logoSize * SVG_WS.top;
+  const logoBottomWs = logoSize * SVG_WS.bottom;
+  const logoSideWs = logoSize * SVG_WS.sides;
+
+  // Logo position in viewBox (logo is centred horizontally, starts at padding vertically)
+  const logoX = (exportSize - logoSize) / 2;
+  const logoY = padding;
+
+  // Logo visual content bounds
+  const logoContentTop = (logoY + logoTopWs) * scale;
+  const logoContentLeft = (logoX + logoSideWs) * scale;
+  const logoContentWidth = (logoSize - 2 * logoSideWs) * scale;
+  const logoContentHeight = (logoSize - logoTopWs - logoBottomWs) * scale;
+
+  // Add visual elements to each wrapper
+  wrapperIds.forEach(wrapperId => {
+    const wrapper = document.getElementById(wrapperId);
+    if (!wrapper) return;
+
+    // Get actual content bounds for accurate margin bars
+    const bounds = getContentBounds(wrapper);
+
+    // Padding bars (top and bottom) - use actual measured margins
+    const topBar = document.createElement('div');
+    topBar.className = 'guide-bar top';
+    topBar.style.height = (bounds ? bounds.marginTop : barHeight) + 'px';
+    wrapper.appendChild(topBar);
+
+    const bottomBar = document.createElement('div');
+    bottomBar.className = 'guide-bar bottom';
+    bottomBar.style.height = (bounds ? bounds.marginBottom : barHeight) + 'px';
+    wrapper.appendChild(bottomBar);
+
+    // Logo content bounding box (cyan)
+    addLogoBoundingBox(wrapper);
+
+    // Text bounding box (magenta)
+    addTextBoundingBox(wrapper);
+
+    // Combined content bounding box (lime green)
+    addContentBoundingBox(wrapper);
+  });
+
+  // Create ONE shared info panel attached to the preview grid
+  const firstWrapper = document.getElementById(wrapperIds[0]);
+  if (!firstWrapper) return;
+
+  const previewGrid = firstWrapper.closest('.preview-grid');
+  if (!previewGrid) return;
+
+  // Get actual measured values from rendered SVG
+  const bounds = getContentBounds(firstWrapper);
+  const actualGap = bounds && bounds.textRect
+    ? bounds.textRect.top - bounds.logoRect.bottom  // Stacked: text below logo
+    : gap * scale;
+  const actualPadTop = bounds ? bounds.marginTop : padding * scale;
+  const actualPadBottom = bounds ? bounds.marginBottom : padding * scale;
+
+  // Scale back to export dimensions for display
+  const scaleFactor = exportSize / previewSize;
+
+  const panel = document.createElement('div');
+  panel.className = 'guide-info-panel';
+  panel.style.width = '100%';
+  panel.innerHTML = `
+    <div class="section-title">Export: ${exportSize}px</div>
+    <div class="info-row">
+      <span class="info-label">Logo</span>
+      <span class="info-value">${logoSize.toFixed(0)}px (${logoSizePct}%)</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Text</span>
+      <span class="info-value">${textHeight.toFixed(0)}px (${textSizePct}%)</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Gap</span>
+      <span class="info-value">${(actualGap * scaleFactor).toFixed(0)}px</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Pad</span>
+      <span class="info-value">${(actualPadTop * scaleFactor).toFixed(0)}px / ${(actualPadBottom * scaleFactor).toFixed(0)}px</span>
+    </div>
+  `;
+  previewGrid.appendChild(panel);
+}
+
+function updateBannerIndicators() {
+  const wrapperIds = ['banner-light-wrapper', 'banner-dark-wrapper'];
+  const logoHeightPct = parseFloat(document.getElementById('banner-logo').value);
+  const textSizePct = parseFloat(document.getElementById('banner-text').value);
+  const gapPct = parseFloat(document.getElementById('banner-gap').value);
+  const paddingPct = bannerPaddingPct;  // Use auto-calculated padding from state
+
+  // Export height is fixed at 200, width is dynamic
+  const exportHeight = 200;
+  const previewHeight = 100;
+
+  const logoHeight = exportHeight * (logoHeightPct / 100);
+  const logoWidth = logoHeight; // Square logo
+  const textHeight = logoHeight * (textSizePct / 100);
+  const textWidth = measureTextWidth('SUEWS', textHeight, 'Inter, system-ui, sans-serif', '600', '-1');
+  const gap = exportHeight * (gapPct / 100);
+  const svgSideWs = logoHeight * SVG_WS.sides;
+
+  let leftPadding, rightPadding, leftMargin, rightMargin;
+  const isAsymmetric = bannerPaddingLeft !== null;
+
+  if (isAsymmetric) {
+    leftPadding = exportHeight * (bannerPaddingLeft / 100);
+    rightPadding = exportHeight * (bannerPaddingRight / 100);
+    leftMargin = leftPadding + svgSideWs;
+    rightMargin = rightPadding;
+  } else {
+    const padding = exportHeight * (paddingPct / 100);
+    leftPadding = padding;
+    rightPadding = padding;
+    leftMargin = padding + svgSideWs;
+    rightMargin = padding;
+  }
+
+  // Calculate dynamic export width
+  const exportWidth = leftPadding + logoWidth + gap + textWidth + rightPadding;
+
+  const diff = Math.abs(leftMargin - rightMargin);
+  const isSymmetric = diff < 2;
+
+  // Scale factor for margin bars
+  const scaleY = previewHeight / exportHeight;
+
+  // Add visual elements to each wrapper
+  wrapperIds.forEach(wrapperId => {
+    const wrapper = document.getElementById(wrapperId);
+    if (!wrapper) return;
+
+    // Get actual content bounds for accurate margin bars
+    const bounds = getContentBounds(wrapper);
+
+    // Margin bars (left and right) - use actual measured margins
+    const leftBar = document.createElement('div');
+    leftBar.className = 'guide-bar left';
+    leftBar.style.width = (bounds ? bounds.marginLeft : leftMargin * scaleY) + 'px';
+    wrapper.appendChild(leftBar);
+
+    const rightBar = document.createElement('div');
+    rightBar.className = 'guide-bar right';
+    rightBar.style.width = (bounds ? bounds.marginRight : rightMargin * scaleY) + 'px';
+    wrapper.appendChild(rightBar);
+
+    // Logo and text bounding boxes
+    addLogoBoundingBox(wrapper);
+    addTextBoundingBox(wrapper);
+
+    // Combined content bounding box (lime green)
+    addContentBoundingBox(wrapper);
+  });
+
+  // Create ONE shared info panel attached to the preview grid
+  const firstWrapper = document.getElementById(wrapperIds[0]);
+  if (!firstWrapper) return;
+
+  const previewGrid = firstWrapper.closest('.preview-grid');
+  if (!previewGrid) return;
+
+  // Get actual measured values from rendered SVG
+  const bounds = getContentBounds(firstWrapper);
+  const actualGap = bounds && bounds.textRect
+    ? bounds.textRect.left - bounds.logoRect.right  // Banner: text right of logo
+    : gap * scaleY;
+  const actualLeftMargin = bounds ? bounds.marginLeft : leftMargin * scaleY;
+  const actualRightMargin = bounds ? bounds.marginRight : rightMargin * scaleY;
+  const actualDiff = Math.abs(actualLeftMargin - actualRightMargin);
+  const actualSymmetric = actualDiff < 2;
+
+  // Scale back to export dimensions for display
+  const scaleFactor = exportHeight / previewHeight;
+
+  const panel = document.createElement('div');
+  panel.className = 'guide-info-panel';
+  panel.style.width = '100%';
+  panel.innerHTML = `
+    <div class="section-title">Export: ${Math.round(exportWidth)}x${exportHeight}</div>
+    <div class="info-row">
+      <span class="info-label">Logo</span>
+      <span class="info-value">${logoHeight.toFixed(0)}px (${logoHeightPct}%)</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Text</span>
+      <span class="info-value">${textHeight.toFixed(0)}px (${textSizePct}%)</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Gap</span>
+      <span class="info-value">${(actualGap * scaleFactor).toFixed(0)}px</span>
+    </div>
+    <div class="divider"></div>
+    <div class="info-row">
+      <span class="info-label">L Margin</span>
+      <span class="info-value">${(actualLeftMargin * scaleFactor).toFixed(0)}px</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">R Margin</span>
+      <span class="info-value">${(actualRightMargin * scaleFactor).toFixed(0)}px</span>
+    </div>
+    <div class="divider"></div>
+    <div class="info-row">
+      <span class="info-label">Symmetry</span>
+      <span class="info-value ${actualSymmetric ? 'ok' : 'warn'}">${actualSymmetric ? 'OK' : 'diff ' + (actualDiff * scaleFactor).toFixed(0) + 'px'}</span>
+    </div>
+  `;
+  previewGrid.appendChild(panel);
+}
+
+function updateSoloIndicators(wrapperId, exportSize) {
+  const wrapper = document.getElementById(wrapperId);
+  if (!wrapper) return;
+
+  const card = wrapper.closest('.preview-card');
+  const fillPct = parseFloat(document.getElementById('solo-fill').value);
+
+  // Calculate for specified export size
+  const logoSize = exportSize * (fillPct / 100);
+  const margin = (exportSize - logoSize) / 2;
+  const svgTopWs = logoSize * SVG_WS.top;
+  const svgBottomWs = logoSize * SVG_WS.bottom;
+  const svgSideWs = logoSize * SVG_WS.sides;
+
+  // Y offset for visual centering (same as in createSoloSVG)
+  const yOffset = (svgBottomWs - svgTopWs) / 2;
+
+  // Visual margins (accounting for centering offset)
+  const visualTop = margin + yOffset + svgTopWs;
+  const visualBottom = margin - yOffset + svgBottomWs;
+  const visualSide = margin + svgSideWs;
+
+  // Create info panel
+  const panel = document.createElement('div');
+  panel.className = 'guide-info-panel';
+  panel.innerHTML = `
+    <div class="section-title">Export: ${exportSize}px</div>
+    <div class="info-row">
+      <span class="info-label">Fill</span>
+      <span class="info-value">${fillPct}%</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Logo size</span>
+      <span class="info-value">${logoSize.toFixed(0)}px</span>
+    </div>
+    <div class="divider"></div>
+    <div class="section-title">Margins (sym)</div>
+    <div class="info-row">
+      <span class="info-label">Outer</span>
+      <span class="info-value">${margin.toFixed(0)}px</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Visual T</span>
+      <span class="info-value">${visualTop.toFixed(0)}px</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Visual B</span>
+      <span class="info-value">${visualBottom.toFixed(0)}px</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Visual L/R</span>
+      <span class="info-value">${visualSide.toFixed(0)}px</span>
+    </div>
+    <div class="divider"></div>
+    <div class="info-row">
+      <span class="info-label">Status</span>
+      <span class="info-value ok">Centred</span>
+    </div>
+  `;
+  card.appendChild(panel);
+}
+
+// ============================================
+// Export Functions
+// ============================================
+
+function getSVGString(type, theme) {
+  const settings = getSettings(type);
+
+  if (type === 'stacked') {
+    return createStackedSVG({ ...settings, size: 512, theme });
+  } else if (type === 'banner') {
+    return createBannerSVG({ ...settings, height: 200, theme });
+  } else if (type === 'solo') {
+    return createSoloSVG({ ...settings, size: 256, theme });
+  }
+}
+
+function getSettings(type) {
+  if (type === 'stacked') {
+    return {
+      logoSizePct: parseFloat(document.getElementById('stacked-logo').value),
+      textSizePct: parseFloat(document.getElementById('stacked-text').value),
+      gapPct: parseFloat(document.getElementById('stacked-gap').value),
+      paddingPct: stackedPaddingPct,  // Auto-calculated
+      crop: stackedCrop
+    };
+  } else if (type === 'banner') {
+    return {
+      logoHeightPct: parseFloat(document.getElementById('banner-logo').value),
+      textSizePct: parseFloat(document.getElementById('banner-text').value),
+      gapPct: parseFloat(document.getElementById('banner-gap').value),
+      paddingPct: bannerPaddingPct,  // Auto-calculated
+      paddingLeft: bannerPaddingLeft,
+      paddingRight: bannerPaddingRight,
+      crop: bannerCrop
+    };
+  } else if (type === 'solo') {
+    return {
+      fillPct: parseFloat(document.getElementById('solo-fill').value)
+    };
+  }
+}
+
+function exportPNG(type, theme, size) {
+  return new Promise((resolve) => {
+    const settings = getSettings(type);
+    let svgString, width, height;
+
+    if (type === 'stacked') {
+      svgString = createStackedSVG({ ...settings, size, theme });
+      width = height = size;
+    } else if (type === 'banner') {
+      // Banner has dynamic width - create SVG and extract dimensions from it
+      svgString = createBannerSVG({ ...settings, height: size, theme });
+      // Parse the SVG to get actual dimensions
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
+      const svgEl = svgDoc.querySelector('svg');
+      width = parseFloat(svgEl.getAttribute('width'));
+      height = parseFloat(svgEl.getAttribute('height'));
+    } else if (type === 'solo') {
+      svgString = createSoloSVG({ ...settings, size, theme });
+      width = height = size;
+    }
+
+    // Create image from SVG
+    const img = new Image();
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+
+    img.onload = () => {
+      // Draw to canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+
+      // Fill background for non-transparent exports
+      if (theme === 'light') {
+        ctx.fillStyle = '#f8fafc';
+      } else if (theme === 'dark') {
+        ctx.fillStyle = '#1a1d2e';
+      }
+      // For favicon, keep transparent
+      if (theme !== 'favicon') {
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Download
+      canvas.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        // Use WxH for banner, just size for others
+        const filename = type === 'banner'
+          ? `suews-${type}-${theme}-${Math.round(width)}x${Math.round(height)}.png`
+          : `suews-${type}-${theme}-${size}px.png`;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        resolve();
+      }, 'image/png');
+    };
+
+    img.src = url;
+  });
+}
+
+function exportSVG(type, theme) {
+  const svgString = getSVGString(type, theme);
+
+  const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `suews-${type}-${theme}.svg`;
+  a.click();
+}
+
+// ============================================
+// Init
+// ============================================
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // Load Inter font for text-to-path conversion
+  await loadInterFont();
+
+  updateStacked();
+  updateBanner();
+
+  // Initialize icon previews (merged from disk variants)
+  initIconPreviews();
+
+  // Initialize size test SVGs
+  initSizeTest();
+});
+
+// ============================================
+// Animation Controls
+// ============================================
+
+function toggleAnimPlay() {
+  const btn = document.getElementById('anim-play');
+  const isPlaying = btn.classList.contains('active');
+
+  if (isPlaying) {
+    document.documentElement.style.setProperty('--anim-state', 'paused');
+    btn.textContent = 'Play';
+    btn.classList.remove('active');
+  } else {
+    document.documentElement.style.setProperty('--anim-state', 'running');
+    btn.textContent = 'Pause';
+    btn.classList.add('active');
+  }
+}
+
+function updateAnimSpeed() {
+  const duration = document.getElementById('anim-speed').value;
+  document.documentElement.style.setProperty('--anim-duration', duration + 's');
+  document.getElementById('speed-val').textContent = duration + 's';
+}
+
+function toggleAnimElement(element) {
+  const checked = document.getElementById('anim-' + element).checked;
+  const logos = document.querySelectorAll('.animated-logo');
+  logos.forEach(logo => {
+    if (checked) {
+      logo.classList.remove('pause-' + element);
+    } else {
+      logo.classList.add('pause-' + element);
+    }
+  });
+}
+
+// ============================================
+// Icon System (merged Square + Disk variants)
+// ============================================
+
+let iconState = {
+  shape: 'square',
+  fill: 88,
+  crop: true
+};
+
+function setIconShape(shape) {
+  iconState.shape = shape;
+  document.querySelectorAll('.toggle-group button[id^="shape-"]').forEach(btn => {
+    btn.classList.toggle('active', btn.id === 'shape-' + shape);
+  });
+  updateIconPreviews();
+}
+
+function initIconPreviews() {
+  updateIconPreviews();
+}
+
+function updateIconPreviews() {
+  const fill = document.getElementById('solo-fill')?.value || 88;
+  const crop = document.getElementById('icon-crop')?.checked ?? true;
+  iconState.fill = fill;
+  iconState.crop = crop;
+  document.getElementById('solo-fill-value').textContent = fill + '%';
+
+  // Generate SVG for each theme preview
+  ['light', 'dark', 'transparent'].forEach(theme => {
+    const wrapper = document.getElementById('icon-preview-' + theme);
+    if (wrapper) {
+      wrapper.innerHTML = createIconSVG(theme, iconState.shape, fill, crop);
+    }
+  });
+}
+
+function createIconSVG(theme, shape, fill, crop = true) {
+  const logo = document.getElementById('logo');
+  const logoContent = logo.innerHTML;
+
+  const canvasSize = 2048;
+  let logoElement;
+
+  if (crop) {
+    // Tight crop: fill percentage controls visual size directly
+    // Calculate the visual size we want
+    const visualSize = canvasSize * (fill / 100);
+    // Maintain aspect ratio of cropped region (slightly taller than wide)
+    const visualWidth = visualSize * (LOGO_CROP.width / LOGO_CROP.height);
+    const visualHeight = visualSize;
+
+    // Centre in canvas
+    const offsetX = (canvasSize - visualWidth) / 2;
+    const offsetY = (canvasSize - visualHeight) / 2;
+
+    // Use nested SVG with cropped viewBox
+    logoElement = `<svg x="${offsetX}" y="${offsetY}" width="${visualWidth}" height="${visualHeight}"
+        viewBox="${LOGO_CROP.x} ${LOGO_CROP.y} ${LOGO_CROP.width} ${LOGO_CROP.height}">${logoContent}</svg>`;
+  } else {
+    // Original mode: fill percentage controls bounding box (includes whitespace)
+    const logoSize = 2048;
+    const scale = (fill / 100);
+    const offset = (canvasSize - logoSize * scale) / 2;
+    logoElement = `<g transform="translate(${offset}, ${offset}) scale(${scale})">${logoContent}</g>`;
+  }
+
+  let background = '';
+  let viewBox = '0 0 2048 2048';
+
+  if (shape === 'disk') {
+    // Disk shape - circular background
+    viewBox = '-180 -155 2360 2360';
+    const diskColors = {
+      light: { fill: '#F5F5F0', stroke: '#0077B6' },
+      dark: { fill: '#2D3142', stroke: '#F7B538' },
+      transparent: { fill: 'none', stroke: '#666666' }
+    };
+    const c = diskColors[theme];
+    background = `<circle cx="1000" cy="1025" r="1068" fill="${c.fill}" stroke="${c.stroke}" stroke-width="20"/>`;
+    // For disk shape, use original content positioning (centred in disk)
+    logoElement = logoContent;
+  } else {
+    // Square shape - rectangular background
+    const bgColors = {
+      light: '#F5F5F0',
+      dark: '#2D3142',
+      transparent: 'none'
+    };
+    if (bgColors[theme] !== 'none') {
+      background = `<rect width="2048" height="2048" fill="${bgColors[theme]}"/>`;
+    }
+  }
+
+  return `<svg viewBox="${viewBox}" width="128" height="128" xmlns="http://www.w3.org/2000/svg">
+    ${background}
+    ${logoElement}
+  </svg>`;
+}
+
+// ============================================
+// Unified Export Centre (ZIP Bundle)
+// ============================================
+
+function selectAllExports() {
+  const checkboxes = document.querySelectorAll('[id^="export-"]');
+  checkboxes.forEach(cb => { cb.checked = true; });
+  toggleIconExportOptions();
+}
+
+function deselectAllExports() {
+  const checkboxes = document.querySelectorAll('[id^="export-"]');
+  checkboxes.forEach(cb => { cb.checked = false; });
+  toggleIconExportOptions();
+}
+
+function toggleIconExportOptions() {
+  const iconChecked = document.getElementById('export-type-icon')?.checked;
+  const iconOptions = document.getElementById('icon-export-options');
+  if (iconOptions) {
+    iconOptions.style.display = iconChecked ? 'block' : 'none';
+  }
+}
+
+async function exportAll() {
+  // Warn if font not loaded (text will use fallback instead of paths)
+  if (!interFont) {
+    const proceed = confirm(
+      'Inter font not loaded - text will use system fallback fonts.\n\n' +
+      'This may cause inconsistent rendering across platforms.\n\n' +
+      'Continue anyway?'
+    );
+    if (!proceed) return;
+  }
+
+  // Get selected logo types
+  const exportStacked = document.getElementById('export-type-stacked')?.checked;
+  const exportBanner = document.getElementById('export-type-banner')?.checked;
+  const exportIcon = document.getElementById('export-type-icon')?.checked;
+
+  // Get themes (light/dark apply to all, transparent only for icon)
+  const themes = ['light', 'dark'].filter(t =>
+    document.getElementById('export-theme-' + t)?.checked
+  );
+  const transparentChecked = document.getElementById('export-theme-transparent')?.checked;
+
+  // Get formats
+  const wantPNG = document.getElementById('export-format-png')?.checked;
+  const wantSVG = document.getElementById('export-format-svg')?.checked;
+
+  if (!exportStacked && !exportBanner && !exportIcon) {
+    alert('Please select at least one logo type.');
+    return;
+  }
+  if (themes.length === 0 && !transparentChecked) {
+    alert('Please select at least one theme.');
+    return;
+  }
+  if (!wantPNG && !wantSVG) {
+    alert('Please select at least one format.');
+    return;
+  }
+
+  // Create ZIP file
+  const zip = new JSZip();
+  let fileCount = 0;
+
+  // Helper: Add SVG to zip
+  function addSVGToZip(folder, filename, svgString) {
+    zip.folder(folder).file(filename, svgString);
+    fileCount++;
+  }
+
+  // Helper: Generate PNG blob from SVG and add to zip
+  async function addPNGToZip(folder, filename, svgString, width, height, bgColor) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+
+        if (bgColor) {
+          ctx.fillStyle = bgColor;
+          ctx.fillRect(0, 0, width, height);
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        URL.revokeObjectURL(url);
+
+        canvas.toBlob(blob => {
+          zip.folder(folder).file(filename, blob);
+          fileCount++;
+          resolve();
+        }, 'image/png');
+      };
+      img.src = url;
+    });
+  }
+
+  // Background colors for themes
+  const bgColors = {
+    light: '#f8fafc',
+    dark: '#1a1d2e',
+    transparent: null
+  };
+
+  // Export Stacked logos (512px fixed)
+  if (exportStacked) {
+    const settings = getSettings('stacked');
+    for (const theme of themes) {
+      const svgString = createStackedSVG({ ...settings, size: 512, theme });
+      if (wantSVG) {
+        addSVGToZip('stacked', `suews-stacked-${theme}.svg`, svgString);
+      }
+      if (wantPNG) {
+        await addPNGToZip('stacked', `suews-stacked-${theme}-512px.png`, svgString, 512, 512, bgColors[theme]);
+      }
+    }
+  }
+
+  // Export Banner logos (200px height fixed)
+  if (exportBanner) {
+    const settings = getSettings('banner');
+    for (const theme of themes) {
+      const svgString = createBannerSVG({ ...settings, height: 200, theme });
+      // Parse SVG to get actual dimensions
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
+      const svgEl = svgDoc.querySelector('svg');
+      const width = parseFloat(svgEl.getAttribute('width'));
+      const height = parseFloat(svgEl.getAttribute('height'));
+
+      if (wantSVG) {
+        addSVGToZip('banner', `suews-banner-${theme}.svg`, svgString);
+      }
+      if (wantPNG) {
+        await addPNGToZip('banner', `suews-banner-${theme}-${Math.round(width)}x${Math.round(height)}.png`, svgString, width, height, bgColors[theme]);
+      }
+    }
+  }
+
+  // Export Icons (multiple shapes, sizes, and themes including transparent)
+  if (exportIcon) {
+    const shapes = [];
+    if (document.getElementById('export-shape-square')?.checked) shapes.push('square');
+    if (document.getElementById('export-shape-disk')?.checked) shapes.push('disk');
+
+    const sizes = [512, 256, 128, 64, 32].filter(s =>
+      document.getElementById('export-size-' + s)?.checked
+    );
+
+    // Icon themes include transparent
+    const iconThemes = [...themes];
+    if (transparentChecked) iconThemes.push('transparent');
+
+    if (shapes.length === 0) {
+      alert('Please select at least one icon shape.');
+      return;
+    }
+    if (sizes.length === 0) {
+      alert('Please select at least one icon size.');
+      return;
+    }
+
+    const fill = iconState.fill;
+    const crop = iconState.crop;
+
+    for (const shape of shapes) {
+      const shapeLabel = shape === 'disk' ? '-disk' : '';
+      const folderName = shape === 'disk' ? 'icon-disk' : 'icon';
+
+      for (const theme of iconThemes) {
+        const svg = createIconSVG(theme, shape, fill, crop);
+
+        // SVG (one per theme/shape)
+        if (wantSVG) {
+          addSVGToZip(folderName, `suews-icon-${theme}${shapeLabel}.svg`, svg);
+        }
+
+        // PNGs (one per size)
+        if (wantPNG) {
+          for (const size of sizes) {
+            // For icons, the background is baked into the SVG
+            await addPNGToZip(folderName, `suews-icon-${size}-${theme}${shapeLabel}.png`, svg, size, size, null);
+          }
+        }
+      }
+    }
+  }
+
+  // Generate and download the ZIP
+  if (fileCount === 0) {
+    alert('No files to export.');
+    return;
+  }
+
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(zipBlob);
+  link.download = 'suews-brand-assets.zip';
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function exportIconPNGAsync(svg, size, theme, shapeLabel) {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    const img = new Image();
+    const svgBlob = new Blob([svg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(svgBlob);
+
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+
+      const link = document.createElement('a');
+      link.download = `suews-icon-${size}-${theme}${shapeLabel}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      resolve();
+    };
+    img.src = url;
+  });
+}
+
+// ============================================
+// Size Test Initialization
+// ============================================
+
+function initSizeTest() {
+  const logo = document.getElementById('logo');
+  const logoContent = logo.innerHTML;
+
+  // Populate size test SVGs
+  ['128', '64', '32', '16'].forEach(size => {
+    const svg = document.getElementById('size-' + size);
+    if (svg) {
+      svg.innerHTML = logoContent;
+    }
+  });
+}
+</script>
+
+<footer style="margin-top: 2rem; padding: 2rem; border-top: 1px solid var(--border-subtle); text-align: center; color: var(--text-muted); font-size: 0.875rem;">
+  <p style="margin-bottom: 0.5rem;">
+    <a href="../" style="color: var(--water-blue); text-decoration: none;">Home</a> ·
+    <a href="showcase.html" style="color: var(--water-blue); text-decoration: none;">Brand Showcase</a>
+  </p>
+  <p>&copy; 2025 SUEWS Development Team. Licensed under <a href="https://www.mozilla.org/en-US/MPL/2.0/" style="color: var(--water-blue);">MPL-2.0</a>.</p>
+</footer>
+
+</body>
+</html>

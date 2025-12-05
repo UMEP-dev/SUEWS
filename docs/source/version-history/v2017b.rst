@@ -3,7 +3,7 @@
 Version 2017b (released on 2 August 2017)
 ---------------------------------------------------
 
-:download:`PDF Manual for v2017b </assets/doc/SUEWS_V2017b_Manual.pdf>`
+`PDF Manual for v2017b <https://zenodo.org/records/17739547/files/SUEWS_V2017b_Manual.pdf?download=1>`_ (archived on `Zenodo <https://doi.org/10.5281/zenodo.17739547>`_)
 
 #. Surface-level diagnostics: T2 (air temperature at 2 m agl), Q2 (air
    specific humidity at 2 m agl) and U10 (wind speed at 10 m agl) added

@@ -2,7 +2,7 @@
 Version 2016a (released on 21 June 2016)
 --------------------------------------------------
 
-:download:`PDF Manual for v2016a </assets/doc/SUEWS_V2016a_Manual.pdf>`
+`PDF Manual for v2016a <https://zenodo.org/records/17739547/files/SUEWS_V2016a_Manual.pdf?download=1>`_ (archived on `Zenodo <https://doi.org/10.5281/zenodo.17739547>`_)
 
 #. Major changes to the input file formats to facilitate the running of
    multiple grids and multiple years. Surface characteristics are

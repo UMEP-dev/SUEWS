@@ -1,34 +1,26 @@
 import numpy as np
 import pandas as pd
 import copy
-from .supy_driver import suews_driver as sd
-from .supy_driver import suews_def_dts as sd_dts
+from .supy_driver import module_ctrl_type as sd_dts
 from ._env import logger_supy
+from .data_model.output import OUTPUT_REGISTRY
 
 
 ##############################################################################
 # post-processing part
-# get variable information from Fortran
+# get variable information from Python registry (see #931)
 def get_output_info_df():
-    from packaging.version import parse as LooseVersion
+    """Get output variable information as a DataFrame.
 
-    size_var_list = sd.output_size()
-    list_var_x = [np.array(sd.output_name_n(i)) for i in np.arange(size_var_list) + 1]
+    Returns a DataFrame with MultiIndex (group, var) and columns:
+    aggm, outlevel, func
 
-    df_var_list = pd.DataFrame(list_var_x, columns=["var", "group", "aggm", "outlevel"])
-
-    # strip leading and trailing spaces
-    fun_strip = lambda x: x.decode().strip()
-    if LooseVersion(pd.__version__) >= LooseVersion("2.1.0"):
-        # if pandas version is 2.1.0 or above, we can use `df.map`
-        df_var_list = df_var_list.map(fun_strip)
-    else:
-        # otherwise, we need to use `df.applymap`
-        df_var_list = df_var_list.applymap(fun_strip)
-
-    df_var_list_x = df_var_list.replace(r"^\s*$", np.nan, regex=True).dropna()
-    df_var_dfm = df_var_list_x.set_index(["group", "var"])
-    return df_var_dfm
+    Returns
+    -------
+    pd.DataFrame
+        Variable metadata indexed by (group, var)
+    """
+    return OUTPUT_REGISTRY.to_dataframe()
 
 
 # get variable info as a DataFrame
@@ -38,21 +30,9 @@ df_var = get_output_info_df()
 # dict as df_var but keys in lowercase
 dict_var_lower = {group.lower(): group for group in df_var.index.levels[0].str.strip()}
 
-#  generate dict of functions to apply for each variable
-# Use lambda for 'last' to avoid pandas compatibility issues
-dict_func_aggm = {
-    "T": lambda x: x.iloc[-1] if len(x) > 0 else np.nan,  # last value
-    "A": "mean",
-    "S": "sum",
-    "L": lambda x: x.iloc[-1] if len(x) > 0 else np.nan,  # last value
-}
-df_var["func"] = df_var.aggm.apply(lambda x: dict_func_aggm[x])
-
-# dict of resampling ruls:
+# dict of resampling rules from registry:
 #  {group: {var: agg_method}}
-dict_var_aggm = {
-    group: df_var.loc[group, "func"].to_dict() for group in df_var.index.levels[0]
-}
+dict_var_aggm = OUTPUT_REGISTRY.get_aggregation_rules()
 
 
 # generate index for variables in different model groups
@@ -185,7 +165,7 @@ def pack_df_output_block(dict_output_block, df_forcing_block):
 
 
 # resample supy output
-def resample_output(df_output, freq="60T", dict_aggm=dict_var_aggm):
+def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
     # Helper function to resample a group with specified parameters
     def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None):
         """Resample a dataframe group with specified aggregation rules.

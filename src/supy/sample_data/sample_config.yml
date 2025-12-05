@@ -10,6 +10,7 @@ model:
     output_file:
       format: txt
       freq: 3600
+      path: "./Output"
       groups:
         - "SUEWS"
     diagnose: 0
@@ -43,6 +44,8 @@ model:
     snowuse:
       value: 0
     stebbsmethod:
+      value: 0
+    rcmethod:
       value: 0
 sites:
 - name: KCL
@@ -125,16 +128,6 @@ sites:
         value: 1.0
       ExternalGroundConductivity:
         value: 3.0
-      IndoorAirDensity:
-        value: 1.0
-      IndoorAirCp:
-        value: 1000.0
-      WallBuildingViewFactor:
-        value: 0.5
-      WallGroundViewFactor:
-        value: 0.2
-      WallSkyViewFactor:
-        value: 0.3
       MetabolicRate:
         value: 50.0
       LatentSensibleRatio:
@@ -153,28 +146,12 @@ sites:
         value: 5.0
       VentilationRate:
         value: 0.4
-      IndoorAirStartTemperature:
-        value: 18.0
-      IndoorMassStartTemperature:
+      InitialOutdoorTemperature:
         value: 22.0
-      WallIndoorSurfaceTemperature:
+      InitialIndoorTemperature:
         value: 22.0
-      WallOutdoorSurfaceTemperature:
-        value: 22.0
-      WindowIndoorSurfaceTemperature:
-        value: 22.0
-      WindowOutdoorSurfaceTemperature:
-        value: 22.0
-      GroundFloorIndoorSurfaceTemperature:
-        value: 22.0
-      GroundFloorOutdoorSurfaceTemperature:
-        value: 22.0
-      WaterTankTemperature:
-        value: 25.0
-      InternalWallWaterTankTemperature:
-        value: 25.0
-      ExternalWallWaterTankTemperature:
-        value: 25.0
+      DeepSoilTemperature:
+        value: 10.0
       WaterTankWallThickness:
         value: 0.03
       MainsWaterTemperature:
@@ -185,20 +162,12 @@ sites:
         value: 50.0
       HotWaterTankWallEmissivity:
         value: 0.8
-      DomesticHotWaterTemperatureInUseInBuilding:
-        value: 35.0
-      InternalWallDHWVesselTemperature:
-        value: 25.0
-      ExternalWallDHWVesselTemperature:
-        value: 18.0
       DHWVesselWallThickness:
         value: 0.01
       DHWWaterVolume:
         value: 15.0
       DHWSurfaceArea:
         value: 1.5
-      DHWVesselEmissivity:
-        value: 0.8
       HotWaterFlowRate:
         value: 0.001
       DHWDrainFlowRate:
@@ -262,7 +231,7 @@ sites:
         value: 1500.0
       WallCp:
         value: 1000.0
-      Wallx1:
+      WallOuterCapFrac:
         value: 0.2
       WallExternalEmissivity:
         value: 0.85

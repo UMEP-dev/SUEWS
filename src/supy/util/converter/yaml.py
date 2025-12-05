@@ -1,5 +1,6 @@
 """YAML conversion functionality for SUEWS configuration."""
 
+import os
 from pathlib import Path
 import tempfile
 from typing import Optional
@@ -49,6 +50,7 @@ def _configure_forcing_and_output(
     config: SUEWSConfig,
     path_runcontrol: Path,
     input_dir: str,
+    output_dir: Path,
 ) -> None:
     """Configure forcing file and output settings based on RunControl."""
     runcontrol_data = f90nml.read(str(path_runcontrol))
@@ -59,18 +61,48 @@ def _configure_forcing_and_output(
     filecode = runcontrol.get("filecode", "forcing")
 
     # Look for forcing files matching the pattern
+    fileinputpath = runcontrol.get("fileinputpath", "./Input/")
+
+    def _resolve_search_dir(base: Path) -> Path:
+        if os.path.isabs(fileinputpath):
+            return Path(fileinputpath)
+        return (base / fileinputpath).resolve()
+
     input_path = Path(input_dir)
-    input_subdir = (
-        input_path / "Input" if (input_path / "Input").exists() else input_path
-    )
+    search_dirs = []
+    for base in {input_path.resolve(), path_runcontrol.parent.resolve()}:
+        search_dirs.append(base)
+        search_dirs.append(_resolve_search_dir(base))
+        default_input = base / "Input"
+        if default_input.exists():
+            search_dirs.append(default_input.resolve())
+
+    # Deduplicate while preserving order
+    seen = set()
+    unique_search_dirs = []
+    for directory in search_dirs:
+        if directory and directory not in seen and directory.exists():
+            unique_search_dirs.append(directory)
+            seen.add(directory)
 
     # Pattern: {filecode}_{year}_data_{resolution}.txt
-    forcing_files = list(input_subdir.glob(f"{filecode}_*_data_*.txt"))
+    forcing_files = []
+    for directory in unique_search_dirs:
+        forcing_files.extend(sorted(directory.glob(f"{filecode}_*_data_*.txt")))
+        if forcing_files:
+            break
 
     if forcing_files:
-        # Use the first matching file
-        forcing_file = forcing_files[0].name
-        config.model.control.forcing_file = forcing_file
+        # Prefer non-ESTM forcing files if available
+        forcing_file = next(
+            (f for f in forcing_files if "ESTM" not in f.name.upper()),
+            forcing_files[0],
+        )
+        try:
+            rel_path = os.path.relpath(forcing_file, output_dir)
+        except ValueError:
+            rel_path = str(forcing_file)
+        config.model.control.forcing_file = rel_path
         click.echo(
             f"  - Set forcing file to: {forcing_file} (from FileCode='{filecode}')"
         )
@@ -84,10 +116,24 @@ def _configure_forcing_and_output(
     resolutionfilesout = runcontrol.get("resolutionfilesout", 3600)
 
     # Create OutputConfig based on RunControl settings
+    output_path_setting = runcontrol.get("fileoutputpath", "./Output/")
+
+    def _resolve_output_dir(value: str) -> Path:
+        if os.path.isabs(value):
+            return Path(value).resolve()
+        return (path_runcontrol.parent / value).resolve()
+
+    resolved_output_dir = _resolve_output_dir(output_path_setting)
+    try:
+        output_path_relative = os.path.relpath(resolved_output_dir, output_dir)
+    except ValueError:
+        output_path_relative = str(resolved_output_dir)
+
     output_config = OutputConfig(
         format="txt",  # Default to txt format for compatibility
         freq=resolutionfilesout if resolutionfilesout > 0 else 3600,
         groups=["SUEWS", "DailyState"],  # Default groups
+        path=output_path_relative,
     )
 
     config.model.control.output_file = output_config
@@ -196,7 +242,9 @@ def convert_to_yaml(
                 config = SUEWSConfig.from_df_state(df_state)
 
                 # Configure forcing file and output settings
-                _configure_forcing_and_output(config, path_runcontrol, str(table_dir))
+                _configure_forcing_and_output(
+                    config, path_runcontrol, str(table_dir), output_path.parent
+                )
 
             except Exception as e:
                 raise click.ClickException(

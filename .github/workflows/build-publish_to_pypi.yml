@@ -7,15 +7,17 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 #
 # TRIGGERS:
 # - Nightly: 2 AM UTC daily for development releases
-# - Push: To master branch or any tag
-# - PR: On pull requests for validation
+# - Tags: Any tag push (for releases to PyPI/TestPyPI)
+# - PR: On pull requests for validation (strict mode ensures up-to-date)
+# - Merge queue: On merge_group events for queue validation
 # - Manual: Via workflow_dispatch
+# - Master push: SKIPPED (PR already validated, no deployment needed)
 #
 # DEPLOYMENT STRATEGY:
 # 1. VALIDATION ONLY (no deployment):
-#    - Pull requests: Build and test all Python versions (standard: all; UMEP: cp312 manylinux)
-#    - Push to master: Build and test all Python versions (standard: all; UMEP: cp312 manylinux)
-#    - Manual workflow_dispatch: Build and test all Python versions (standard: all; UMEP: cp312 manylinux)
+#    - Pull requests (draft): Minimal matrix (manylinux only, bookend Python 3.9 + 3.14)
+#    - Pull requests (ready): Reduced matrix (ARM Mac + Linux + Windows, Python 3.9 + 3.14)
+#    - Manual workflow_dispatch: Full matrix (all platforms + Python 3.9-3.14)
 #
 # 2. DEVELOPMENT RELEASES (TestPyPI only):
 #    - Nightly cron (2 AM UTC, master branch only): Creates YYYY.M.D.dev tag → TestPyPI
@@ -51,7 +53,11 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # - TestPyPI deployment proceeds with available wheels
 # - Prevents gaps in nightly build sequence
 #
-# Build matrix: Always builds all Python versions (3.9-3.13) on all platforms
+# BUILD MATRIX STRATEGY:
+# - Draft PR: Minimal (manylinux only, Python 3.9 + 3.14) for fastest feedback
+# - Ready PR: Reduced (ARM Mac + Linux + Windows, Python 3.9 + 3.14) for speed with coverage
+# - Tags/Nightly/Manual: Full (all platforms including x86_64 Mac, Python 3.9-3.14) for releases
+# - UMEP builds: Python 3.12 only on all platforms (aligned with QGIS 3.40 LTR)
 #
 # ============================================================================
 # UMEP/QGIS COMPATIBILITY BUILDS (rc1 pre-release versions)
@@ -81,9 +87,9 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # - Both wheel sets deployed to PyPI together (production tags only)
 # - UMEP builds use Python 3.12 only (aligned with QGIS 3.40 LTR bundled Python)
 # - UMEP build triggers (runs on ALL events for continuous NumPy 1.x testing):
-#   * PRs: manylinux cp312 (NumPy 1.x validation before merge)
-#   * Master/manual: manylinux cp312 (continuous UMEP compatibility testing)
-#   * Nightly/dev tags: manylinux cp312 (daily testing, uses .dev1 to avoid version collision)
+#   * PRs: win cp312 (NumPy 1.x validation before merge, Windows = QGIS primary platform)
+#   * Master/manual: win cp312 (continuous UMEP compatibility testing)
+#   * Nightly/dev tags: win cp312 (daily testing, uses .dev1 to avoid version collision)
 #   * Production tags: all platforms cp312 (complete distribution → PyPI, uses rc1 suffix)
 #
 # UMEP INTEGRATION:
@@ -104,21 +110,19 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 
 on:
   push:
-    branches: [master]
+    # Skip builds for regular master pushes - PR already validated code
+    # Only build when deploying: tags trigger builds for PyPI/TestPyPI
     tags:
       - '*'  # Trigger on any tag push (no path filter - tags = releases, build everything)
 
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths: # PR events containing matching files
-      - "src/suews/**"
-      - "src/supy/**"
-      - "src/supy_driver/**"
-      - ".github/workflows/build-publish_to_pypi.yml"
-      - "test/**"
-      - "pyproject.toml"
-      - "meson.build"
-      - "Makefile"
+    # No path filters - workflow ALWAYS runs for branch protection
+    # Path detection happens in detect-changes job (secure, inside workflow)
+
+  merge_group:
+    # Handle merge queue validation - required for merge queue to work
+    types: [checks_requested]
 
   schedule:
     # Run nightly builds at 2 AM UTC
@@ -172,58 +176,186 @@ jobs:
             echo "Successfully created and pushed tag ${DEV_TAG}"
           fi
 
+  # Detect if code changes require builds (PR branch protection security)
+  detect-changes:
+    name: Detect code changes
+    runs-on: ubuntu-latest
+    # Only run for pull requests and merge queue (push/tag/schedule always build)
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    outputs:
+      needs-build: ${{ steps.filter.outputs.core == 'true' || steps.filter.outputs.util == 'true' || steps.filter.outputs.cfg == 'true' || steps.filter.outputs.tests == 'true' }}
+      core-changed: ${{ steps.filter.outputs.core }}
+      util-changed: ${{ steps.filter.outputs.util }}
+      cfg-changed: ${{ steps.filter.outputs.cfg }}
+      tests-changed: ${{ steps.filter.outputs.tests }}
+      docs-changed: ${{ steps.filter.outputs.docs }}
+      site-changed: ${{ steps.filter.outputs.site }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            core:
+              # Fortran physics
+              - 'src/suews/src/**'
+              # Fortran driver interface
+              - 'src/supy_driver/**'
+              - 'src/supy/supy_driver/**'
+              # Core Python files that affect scientific rigour
+              - 'src/supy/_run.py'
+              - 'src/supy/_supy_module.py'
+              - 'src/supy/_load.py'
+              - 'src/supy/_post.py'
+              - 'src/supy/_check.py'
+              - 'src/supy/_save.py'
+              - 'src/supy/suews_sim.py'
+              # Catch-all for core package changes
+              - 'src/suews/**'
+            util:
+              # Utility modules (nice-to-have)
+              - 'src/supy/util/**'
+              # Default category for remaining supy changes
+              - 'src/supy/**'
+            cfg:
+              # Config validation
+              - 'src/supy/data_model/**'
+              # CLI commands
+              - 'src/supy/cmd/**'
+              # JSON configs
+              - 'src/supy/*.json'
+              # Build workflows and scripts (explicit, not .github/**)
+              - '.github/workflows/build-publish_to_pypi.yml'
+              - '.github/workflows/cibuildwheel-debug.yml'
+              - '.github/scripts/**'
+              # Build system files
+              - 'pyproject.toml'
+              - 'meson.build'
+              - 'meson_options.txt'
+              - 'Makefile'
+              - 'get_ver_git.py'
+              - 'scripts/**'
+            site:
+              # Static site content (GitHub Pages) - separate from wheel builds
+              - 'site/**'
+            tests:
+              - 'test/**'
+            docs:
+              # Documentation source files
+              - 'docs/**'
+              # Data models that generate RST
+              - 'src/supy/data_model/**'
+              # RTD configuration
+              - '.readthedocs.yml'
+              # Version detection used by docs
+              - 'get_ver_git.py'
+              # Dependencies that affect doc builds
+              - 'pyproject.toml'
+
   # Determine if we should run limited or full matrix
   determine_matrix:
     name: Determine build matrix
     runs-on: ubuntu-latest
+    needs: [detect-changes]
+    # Always run - detect-changes is skipped for non-PR events, but we still need matrix
+    if: always() && (needs.detect-changes.result == 'success' || needs.detect-changes.result == 'skipped')
     outputs:
       buildplat: ${{ steps.set-matrix.outputs.buildplat }}
       python: ${{ steps.set-matrix.outputs.python }}
       umep_buildplat: ${{ steps.set-matrix.outputs.umep_buildplat }}
       umep_python: ${{ steps.set-matrix.outputs.umep_python }}
+      test_tier: ${{ steps.set-matrix.outputs.test_tier }}
     steps:
       - name: Set matrix based on trigger type
         id: set-matrix
         run: |
           # Platform matrix
           FULL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-13", "macosx", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
+          PR_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
           MINIMAL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"]]'
+
+          CORE_CHANGED="${{ needs.detect-changes.outputs.core-changed || 'false' }}"
+          UTIL_CHANGED="${{ needs.detect-changes.outputs.util-changed || 'false' }}"
+          CFG_CHANGED="${{ needs.detect-changes.outputs.cfg-changed || 'false' }}"
+          TESTS_CHANGED="${{ needs.detect-changes.outputs.tests-changed || 'false' }}"
 
           # Python version strategies:
           # - Draft PR: minimal (1 platform, bookend versions) for fastest feedback
-          # - PR/Master: reduced (all platforms, bookend versions) for speed with good coverage
-          # - Tags/Schedule/Manual: full (all platforms, all versions) for comprehensive testing
+          # - PR/Master: reduced (ARM Mac + Linux + Windows, bookend versions) for speed with good coverage
+          # - Tags/Schedule/Manual: full (all platforms including x86_64 Mac, all Python versions) for comprehensive testing
 
           if [[ "${{ github.event_name }}" == "pull_request" ]] && [[ "${{ github.event.pull_request.draft }}" == "true" ]]; then
-            echo "Running minimal matrix for draft PR (1 platform, bookend Python versions)"
-            echo "buildplat=$MINIMAL_PLATFORMS" >> $GITHUB_OUTPUT
-            echo 'python=["cp39", "cp313"]' >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "pull_request" ]] || [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/master" ]]; then
-            echo "Running reduced matrix for PR/master (all platforms, bookend Python versions)"
+            if [[ "$CORE_CHANGED" == "true" ]]; then
+              echo "Draft PR with core changes - reduced platforms, core tests"
+              echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
+              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+              echo "test_tier=core" >> $GITHUB_OUTPUT
+            elif [[ "$CFG_CHANGED" == "true" ]]; then
+              echo "Draft PR with cfg changes - reduced platforms, cfg tests"
+              echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
+              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+              echo "test_tier=cfg" >> $GITHUB_OUTPUT
+            else
+              echo "Draft PR with util/tests changes - minimal platform, smoke tests"
+              echo "buildplat=$MINIMAL_PLATFORMS" >> $GITHUB_OUTPUT
+              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+              echo "test_tier=smoke" >> $GITHUB_OUTPUT
+            fi
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            if [[ "$CORE_CHANGED" == "true" ]]; then
+              echo "Ready PR with core changes - reduced platforms, standard tests"
+              echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
+              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+              echo "test_tier=standard" >> $GITHUB_OUTPUT
+            elif [[ "$CFG_CHANGED" == "true" ]]; then
+              echo "Ready PR with cfg changes - reduced platforms, standard tests"
+              echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
+              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+              echo "test_tier=standard" >> $GITHUB_OUTPUT
+            else
+              echo "Ready PR with util/tests changes - reduced platforms, smoke tests"
+              echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
+              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+              echo "test_tier=smoke" >> $GITHUB_OUTPUT
+            fi
+          elif [[ "${{ github.event_name }}" == "merge_group" ]]; then
+            echo "Running reduced matrix for merge queue validation"
+            echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
+            echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+            echo "test_tier=standard" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "Running full matrix for nightly (all platforms, all Python versions, all tests)"
             echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
-            echo 'python=["cp39", "cp313"]' >> $GITHUB_OUTPUT
+            echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]' >> $GITHUB_OUTPUT
+            echo "test_tier=all" >> $GITHUB_OUTPUT
           else
-            echo "Running full matrix for tags/schedule/manual (all platforms, all Python versions)"
+            echo "Running full matrix for tags/manual (all platforms, all Python versions, all tests)"
             echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
-            echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313"]' >> $GITHUB_OUTPUT
+            echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]' >> $GITHUB_OUTPUT
+            echo "test_tier=all" >> $GITHUB_OUTPUT
           fi
 
           # UMEP builds: Python 3.12 only (aligned with QGIS 3.40 LTR bundled Python)
-          # PR: manylinux only for quick validation
+          # PR/nightly: Windows only (QGIS primary platform) for quick validation
           # Production: all platforms for complete UMEP distribution
           echo "UMEP matrix: cp312 only (QGIS 3.40 LTR uses Python 3.12)"
-          echo 'umep_buildplat=[["ubuntu-latest", "manylinux", "x86_64"]]' >> $GITHUB_OUTPUT
+          echo 'umep_buildplat=[["windows-2025", "win", "AMD64"]]' >> $GITHUB_OUTPUT
           echo 'umep_python=["cp312"]' >> $GITHUB_OUTPUT
 
   build_wheels:
     name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
     runs-on: ${{ matrix.buildplat[0] }}
-    needs: [determine_matrix, create_nightly_tag]
-    # Run if: not a scheduled build, OR if it's scheduled and tag was created/skipped
+    needs: [determine_matrix, create_nightly_tag, detect-changes]
+    # Run if:
+    # 1. Not a PR (push/tag/schedule always build), OR
+    # 2. PR with code changes (detect-changes.outputs.needs-build == 'true')
+    # 3. AND other dependencies succeeded/skipped
     if: |
       always() &&
       needs.determine_matrix.result == 'success' &&
-      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped')
+      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
+      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true')
     strategy:
       matrix:
         buildplat: ${{ fromJson(needs.determine_matrix.outputs.buildplat) }}
@@ -235,6 +367,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: recursive
 
       - name: Build SUEWS wheels (standard variant)
         uses: ./.github/actions/build-suews
@@ -245,19 +378,25 @@ jobs:
           python: ${{ matrix.python }}
           is_umep_variant: 'false'
           wheel_name_suffix: ''
+          test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
+          is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
 
   build_umep:
     name: Build UMEP wheel (rc1/dev1) for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
     runs-on: ${{ matrix.buildplat[0] }}
-    needs: [determine_matrix, create_nightly_tag]
-    # Run for all triggers: PRs, master, nightly (schedule), manual, and all tags
+    needs: [determine_matrix, create_nightly_tag, detect-changes]
+    # Run if:
+    # 1. Not a PR (push/tag/schedule always build), OR
+    # 2. PR with code changes (detect-changes.outputs.needs-build == 'true')
+    # 3. AND other dependencies succeeded/skipped
     # UMEP versioning:
     #   - Production tags: X.Y.Zrc1 (pre-release for QGIS)
     #   - Dev/nightly: X.Y.Z.dev1 (incremented to avoid collision with standard .dev0)
     if: |
       always() &&
       needs.determine_matrix.result == 'success' &&
-      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped')
+      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
+      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true')
     strategy:
       matrix:
         # Limited matrix (manylinux cp312) for PRs/master/nightly/manual
@@ -272,6 +411,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: recursive
 
       - name: Build SUEWS wheels (UMEP variant)
         uses: ./.github/actions/build-suews
@@ -282,6 +422,90 @@ jobs:
           python: ${{ matrix.python }}
           is_umep_variant: 'true'
           wheel_name_suffix: '-umep'
+          test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
+          is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
+
+  # NOTE: Documentation preview deployment moved to pages-deploy.yml
+  # This consolidates all GitHub Pages content (site, schemas, docs) in one workflow
+
+  # PR gate: single consolidated check for branch protection
+  # This job ALWAYS runs for PRs and merge queue and reports pass/fail based on build results
+  pr-gate:
+    name: PR build validation
+    runs-on: ubuntu-latest
+    # Only run for pull requests and merge queue, but ALWAYS run (even if builds skip)
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+    needs: [build_wheels, build_umep, detect-changes]
+    steps:
+      - name: Check build results
+        run: |
+          echo "=== Job Results ==="
+          echo "detect-changes: ${{ needs.detect-changes.result }}"
+          echo "build_wheels: ${{ needs.build_wheels.result }}"
+          echo "build_umep: ${{ needs.build_umep.result }}"
+          echo "needs-build: ${{ needs.detect-changes.outputs.needs-build }}"
+          echo ""
+
+          # STEP 1: Verify detect-changes succeeded
+          if [[ "${{ needs.detect-changes.result }}" != "success" ]]; then
+            echo "✗ Path detection failed - cannot verify PR safety"
+            echo "  detect-changes result: ${{ needs.detect-changes.result }}"
+            exit 1
+          fi
+
+          # Track validation status
+          VALIDATION_PASSED=true
+
+          # Check if code changes require builds
+          NEEDS_BUILD="${{ needs.detect-changes.outputs.needs-build }}"
+
+          if [[ "$NEEDS_BUILD" == "true" ]]; then
+            # Code changes detected - builds must run and pass
+            echo "Code changes detected - validating builds..."
+
+            if [[ "${{ needs.build_wheels.result }}" == "success" ]] && \
+               [[ "${{ needs.build_umep.result }}" == "success" ]]; then
+              echo "✓ Code builds passed"
+            else
+              echo "✗ Code builds failed or incomplete"
+              echo "  build_wheels: ${{ needs.build_wheels.result }}"
+              echo "  build_umep: ${{ needs.build_umep.result }}"
+              VALIDATION_PASSED=false
+            fi
+
+          else
+            # No code changes - builds should skip
+            echo "No code changes - builds not required"
+
+            if [[ "${{ needs.build_wheels.result }}" == "skipped" ]] && \
+               [[ "${{ needs.build_umep.result }}" == "skipped" ]]; then
+              echo "✓ Code builds correctly skipped"
+            else
+              echo "⚠ Unexpected: builds ran for non-code PR"
+              echo "  build_wheels: ${{ needs.build_wheels.result }}"
+              echo "  build_umep: ${{ needs.build_umep.result }}"
+              # Still pass if builds succeeded (conservative)
+              if [[ "${{ needs.build_wheels.result }}" != "success" ]] || \
+                 [[ "${{ needs.build_umep.result }}" != "success" ]]; then
+                if [[ "${{ needs.build_wheels.result }}" != "skipped" ]] || \
+                   [[ "${{ needs.build_umep.result }}" != "skipped" ]]; then
+                  VALIDATION_PASSED=false
+                fi
+              fi
+            fi
+          fi
+
+          # NOTE: Docs build validation moved to pages-deploy.yml
+
+          # Final result
+          echo ""
+          if [[ "$VALIDATION_PASSED" == "true" ]]; then
+            echo "✓ All validations passed"
+            exit 0
+          else
+            echo "✗ Validation failed"
+            exit 1
+          fi
 
   deploy_testpypi:
     name: Publish to TestPyPI
@@ -362,7 +586,7 @@ jobs:
     needs:
       - deploy_pypi
     # Run whenever PyPI deployment succeeds (already ensures it's a production tag)
-    if: needs.deploy_pypi.result == 'success'
+    if: always() && needs.deploy_pypi.result == 'success'
 
     permissions:
       contents: write  # Required to create releases
@@ -448,4 +672,3 @@ jobs:
             --title "SUEWS v$VERSION: $TITLE" \
             --notes-file release_notes.md \
             --verify-tag
-

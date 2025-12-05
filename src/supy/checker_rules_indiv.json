@@ -394,7 +394,7 @@
         },
         "unit": "1"
     },
-    "diagmethod": {
+    "rslmethod": {
         "cat": "grid",
         "logic": "method",
         "param": {
@@ -406,7 +406,7 @@
         },
         "unit": "1"
     },
-    "localclimatemethod": {
+    "rsllevel": {
         "cat": "grid",
         "logic": "method",
         "param": {

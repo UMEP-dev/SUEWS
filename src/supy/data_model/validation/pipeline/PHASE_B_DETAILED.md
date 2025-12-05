@@ -27,8 +27,9 @@ Phase B implements a multi-layered scientific validation system that:
 2. **Checks Model Dependencies**: Validates internal consistency between physics options
 3. **Validates Land Cover**: Checks surface fraction totals and parameter consistency
 4. **Validates Geographic Parameters**: Ensures coordinates and location-dependent parameters are realistic
-5. **Applies CRU Integration**: Uses CRU TS4.06 climatological data for temperature initialisation
-6. **Makes Scientific Corrections**: Automatic adjustments that improve model realism
+5. **Validates Irrigation Parameters**: Checks irrigation timing for consistency and climatological appropriateness
+6. **Applies CRU Integration**: Uses CRU TS4.06 climatological data for temperature initialisation
+7. **Makes Scientific Corrections**: Automatic adjustments that improve model realism
 
 ## Technical Implementation
 
@@ -40,6 +41,9 @@ Phase B implements a multi-layered scientific validation system that:
 - `validate_model_option_dependencies()`: Physics option consistency checking
 - `validate_land_cover_consistency()`: Surface fraction and parameter validation
 - `validate_geographic_parameters()`: Coordinate and location validation
+- `validate_irrigation_doy()`: Irrigation timing validation with hemisphere and leap year awareness
+- `validate_irrigation_parameters()`: Site-level irrigation parameter validation
+- `validate_dls_doy()`: Daylight saving time parameter validation with leap year and hemisphere awareness
 - `get_mean_monthly_air_temperature()`: CRU TS4.06 monthly climatological temperature lookup
 - `get_mean_annual_air_temperature()`: CRU TS4.06 annual climatological temperature lookup (average of 12 months)
 - `run_scientific_adjustment_pipeline()`: Intelligent automatic parameter adjustments
@@ -133,7 +137,7 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
 Comprehensive validation and adjustment of surface types and parameters:
 
 - **Surface Fraction Totals**: Must sum to 1.0 for each site - automatically adjusted if needed
-- **Seasonal LAI Adjustments**: Automatic LAI calculation for deciduous trees based on season
+- **Seasonal LAI Adjustments**: Automatic LAI calculation for deciduous trees based on season (only when surface fraction > 0)
 
 ### Geographic Parameter Validation
 
@@ -141,7 +145,25 @@ Location-dependent parameter validation (actual implemented checks):
 
 - **Coordinate Validity**: Latitude (-90 to 90°), longitude (-180 to 180°) with numeric type validation
 - **Timezone Parameter**: Warns if missing, can be calculated automatically from coordinates
-- **Daylight Saving Parameters**: Warns if DLS parameters missing, calculated from geographic location
+- **Daylight Saving Parameters**: Automatically calculated using accurate timezone data (`DLSCheck` class with `pytz` and `timezonefinder`)
+  - If `startdls` and `enddls` are None/incorrect, Phase B calculates them automatically based on geographic coordinates
+  - **Note**: Phase C (Pydantic) validates DOY range [1, 366] for cases when users do not run phase B or complete pipeline.
+
+### Irrigation Parameter Validation
+
+Validates irrigation timing parameters (`ie_start` and `ie_end`) for consistency and climatological appropriateness:
+
+- **Day-of-Year Range**: Must be 1-365 (non-leap) or 1-366 (leap year), or both 0/None to disable
+- **Consistency Check**: Both parameters must be set together or both disabled
+- **Hemisphere-Aware Seasonal Check**:
+  - Northern Hemisphere (lat ≥ 23.5°): Warm season May-September (DOY 121-273)
+  - Southern Hemisphere (lat ≤ -23.5°): Warm season November-March (DOY 305-90)
+  - Tropical regions (|lat| < 23.5°): No seasonal restrictions
+- **Year-Wrapping Pattern Detection**:
+  - Northern Hemisphere: Warns if `ie_start > ie_end` (unusual cold-season irrigation)
+  - Southern Hemisphere: Warns if `ie_start < ie_end` (should wrap for warm season, e.g., DOY 305→60)
+  - Helps identify potentially swapped start/end values
+- **Error Handling**: Invalid DOY generates ERROR, out-of-season generates WARNING, unusual year-wrapping patterns generate WARNING
 
 ## CRU TS4.06 Climatological Integration
 
@@ -236,14 +258,14 @@ Phase B makes scientific adjustments that improve model realism without changing
 ### Land Cover Adjustments
 
 - **Fraction Normalisation**: Adjusts surface fractions to sum to 1.0 by rounding the surface with maximum fraction value
-- **Seasonal LAI Adjustments**: Calculates LAI for deciduous trees based on seasonal parameters (laimin, laimax)
+- **Seasonal LAI Adjustments**: Calculates LAI for deciduous trees based on seasonal parameters (laimin, laimax) when surface fraction > 0. When surface fraction is 0, existing lai_id values are preserved and validation is skipped with a warning
 
 ### STEBBS Method Integration
 
 - **Conditional Logic**: When `stebbsmethod == 0`, nullifies STEBBS parameters
 - **Parameter Cleanup**: Removes unused STEBBS parameters for clarity
 - **Consistency**: Ensures STEBBS configuration matches selected method
-- **Temperature Initialisation**: When `stebbsmethod == 1`, automatically updates `WallOutdoorSurfaceTemperature` and `WindowOutdoorSurfaceTemperature` using CRU climatological data
+- **Temperature Initialisation**: When `stebbsmethod == 1`, automatically updates `InitialOutdoorTemperature` using CRU climatological data
 - **CRU-Based Updates**: Uses location-specific mean monthly air temperature from CRU TS4.06 dataset
 
 ### Parameter Validation Improvements
@@ -339,8 +361,7 @@ Phase B generates comprehensive reports with two main sections:
 - Updated (11) parameter(s):
 -- initial_states.paved at site [0]: temperature, tsfc, tin → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
 -- initial_states.bldgs at site [0]: temperature, tsfc, tin → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
--- stebbs.WallOutdoorSurfaceTemperature at site [0]: 20.0 → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
--- stebbs.WindowOutdoorSurfaceTemperature at site [0]: 20.0 → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
+-- stebbs.InitialOutdoorTemperature at site [0]: 20.0 → 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
 -- anthropogenic_emissions.startdls at site [0]: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.13))
 -- anthropogenic_emissions.enddls at site [0]: 12.0 → 303 (Calculated DLS end for coordinates (51.51, -0.13))
 -- paved.sfr at site [0]: rounded to achieve sum of land cover fractions equal to 1.0

@@ -118,33 +118,36 @@ For detailed information on each scheme, selection guidance, and comparison tabl
 Storage Heat Flux (:math:`\Delta Q_S`)
 ---------------------------------------
 
+Storage heat flux represents heat stored in and released from urban fabric (buildings, roads, soil). SUEWS provides five sub-models of varying complexity, plus the option to use observed values.
+
 **Modules:** ``suews_phys_ohm.f95``, ``suews_phys_anohm.f95``, ``suews_phys_estm.f95``, ``suews_phys_ehc.f95``, ``suews_phys_stebbs.f95``
 
-#. Five sub-models are available to estimate the storage heat flux:
+**Available Schemes:**
 
-   -  **OHM** (Objective Hysteresis Model) :cite:`G91,GO99,GO02`. Storage heat flux is calculated using empirically-fitted relations with net all-wave radiation and the rate of change in net all-wave radiation.
-   -  **AnOHM** (Analytical Objective Hysteresis Model) :cite:`S17`. OHM approach using analytically-derived coefficients. |NotRecmd|
-   -  **ESTM** (Element Surface Temperature Method) :cite:`O05`. Heat transfer through urban facets (roof, wall, road, interior) is calculated from surface temperature measurements and knowledge of material properties. |NotRecmd|
-   -  **EHC** (Explicit Heat Conduction): Separate roof/wall/ground temperatures
-   -  **STEBBS** (Surface Temperature Energy Balance Based Scheme): Facet temperatures (building, paved, vegetation, soil, water)
-
-#. Alternatively, 'observed' storage heat flux can be supplied with the meteorological forcing data.
+- **OHM** (Objective Hysteresis Model) :cite:`G91,GO99,GO02` - Storage heat flux is calculated using empirically-fitted relations with net all-wave radiation and the rate of change in net all-wave radiation.
+- **AnOHM** (Analytical Objective Hysteresis Model) :cite:`S17` - OHM approach using analytically-derived coefficients. |NotRecmd|
+- **ESTM** (Element Surface Temperature Method) :cite:`O05` - Heat transfer through urban facets (roof, wall, road, interior) is calculated from surface temperature measurements and knowledge of material properties. |NotRecmd|
+- **EHC** (Explicit Heat Conduction) - Separate roof/wall/ground temperatures
+- **STEBBS** (Surface Temperature Energy Balance Based Scheme) - Facet temperatures (building, paved, vegetation, soil, water)
+- **Observed** - Storage heat flux can be supplied with the meteorological forcing data
 
 Turbulent Heat Fluxes (:math:`Q_H` and :math:`Q_E`)
 ----------------------------------------------------
 
+Turbulent sensible (:math:`Q_H`) and latent (:math:`Q_E`) heat fluxes transport energy between the surface and atmosphere through convective processes. SUEWS provides two approaches for calculating these fluxes.
+
 **Modules:** ``suews_phys_lumps.f95``, ``suews_phys_resist.f95``, ``suews_phys_evap.f95``
 
-#. **LUMPS** (Local-scale Urban Meteorological Parameterization Scheme) :cite:`GO02` provides a simple means of estimating sensible and latent heat fluxes based on the proportion of vegetation in the study area.
+**Available Approaches:**
 
-#. **SUEWS** adopts a more biophysical approach to calculate the latent heat flux; the sensible heat flux is then calculated as the residual of the energy balance.
-   The initial estimate of stability is based on the LUMPS calculations of sensible and latent heat flux.
-   Future versions will have alternative sensible heat and storage heat flux options.
+- **LUMPS** (Local-scale Urban Meteorological Parameterization Scheme) :cite:`GO02` - Provides a simple means of estimating sensible and latent heat fluxes based on the proportion of vegetation in the study area.
 
-Sensible and latent heat fluxes from both LUMPS and SUEWS are provided in the `output_files`.
+- **SUEWS** - Adopts a more biophysical approach to calculate the latent heat flux; the sensible heat flux is then calculated as the residual of the energy balance. The initial estimate of stability is based on the LUMPS calculations of sensible and latent heat flux.
+
+Sensible and latent heat fluxes from both LUMPS and SUEWS are provided in the output files.
 Whether the turbulent heat fluxes are calculated using LUMPS or SUEWS can have a major impact on the results.
 For SUEWS, an appropriate surface conductance parameterisation is also critical :cite:`J11` :cite:`W16`.
-For more details see ``Differences_between_SUEWS_LUMPS_and_FRAISE``.
+For more details see :ref:`Differences between SUEWS and LUMPS <Differences_between_SUEWS_LUMPS>`.
 
 .. _LQF: http://umep-docs.readthedocs.io/en/latest/OtherManuals/LQF_Manual.html
 .. _GQF: http://umep-docs.readthedocs.io/en/latest/OtherManuals/GQF_Manual.html

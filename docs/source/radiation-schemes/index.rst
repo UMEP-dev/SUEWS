@@ -185,5 +185,5 @@ Key radiation scheme publications:
 
 - :cite:t:`O03` - NARP original formulation
 - :cite:t:`L11` - NARP implementation in SUEWS
-- BEERS publications (to be added)
-- SPARTACUS-Surface publications (to be added)
+- :cite:t:`F08` - SOLWEIG (predecessor to BEERS) radiant flux modelling
+- :cite:t:`Hogan2019Oct` - SPARTACUS-Surface radiative transfer in urban canopies

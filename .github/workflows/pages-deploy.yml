@@ -129,6 +129,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for git describe to access tags for version detection
 
       - uses: actions/setup-python@v5
         with:

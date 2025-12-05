@@ -286,6 +286,115 @@ For model-level data or spatial grids, use the gridded dataset:
 
 See :func:`~supy.util.gen_forcing_era5` API documentation for all options.
 
+Using EPW Weather Files
+-----------------------
+
+EPW (EnergyPlus Weather) files are a common format for building energy simulation, often derived from Typical Meteorological Year (TMY) data. SUEWS can read EPW data via the :func:`~supy.util.read_epw` utility function.
+
+**Important: Measurement Height Assumptions**
+
+EPW files follow standard meteorological station conventions with fixed measurement heights:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 30 40
+
+   * - Variable
+     - EPW Height
+     - SUEWS Forcing Variable
+   * - Wind speed
+     - 10 m agl
+     - U
+   * - Air temperature
+     - 2 m agl
+     - Tair
+   * - Relative humidity
+     - 2 m agl
+     - RH
+
+**Correct Configuration for EPW Data**
+
+When using EPW data, set the forcing height to match the wind speed measurement:
+
+.. code-block:: yaml
+
+   sites:
+     - name: "MySite"
+       properties:
+         z: 10.0  # Must be 10 m to match EPW wind speed height
+
+.. warning::
+
+   Using EPW data with a different forcing height (e.g., ``z: 50``) will cause incorrect wind profile calculations, as SUEWS assumes all forcing data originate from the specified height.
+
+**Basic Workflow**
+
+.. code-block:: python
+
+   import supy as sp
+   import pandas as pd
+   from pathlib import Path
+
+   # 1. Read EPW file (wind speed at 10 m by default)
+   df_epw = sp.util.read_epw(Path("weather.epw"))
+
+   # 2. Extract and rename columns for SUEWS forcing
+   df_forcing = pd.DataFrame({
+       'U': df_epw['Wind Speed'],
+       'Tair': df_epw['Dry Bulb Temperature'],
+       'RH': df_epw['Relative Humidity'],
+       'pres': df_epw['Atmospheric Station Pressure'] / 1000,  # Pa to kPa
+       'kdown': df_epw['Global Horizontal Radiation'],
+       'ldown': df_epw['Horizontal Infrared Radiation Intensity'],
+       'rain': df_epw['Liquid Precipitation Depth'],
+   }, index=df_epw.index)
+
+   # 3. Fill required time columns
+   df_forcing['iy'] = df_forcing.index.year
+   df_forcing['id'] = df_forcing.index.dayofyear
+   df_forcing['it'] = df_forcing.index.hour
+   df_forcing['imin'] = df_forcing.index.minute
+
+**Wind Speed Height Correction**
+
+If you need EPW wind speed at a different height (e.g., to match flux tower measurements at 50 m), use the ``target_height`` parameter:
+
+.. code-block:: python
+
+   # Read EPW and extrapolate wind speed from 10 m to 50 m
+   df_epw = sp.util.read_epw(
+       Path("weather.epw"),
+       target_height=50.0,  # Target height [m]
+       z0m=0.5              # Urban roughness length [m]
+   )
+
+This applies a logarithmic wind profile correction assuming neutral atmospheric conditions.
+
+.. note::
+
+   The log-law correction assumes neutral atmospheric stability. Under strongly stable or unstable conditions, actual wind profiles may differ significantly. For most applications using EPW data, setting ``z=10`` in your site configuration is the simpler and recommended approach.
+
+**Comparison with ERA5**
+
+Unlike EPW files with fixed heights, ERA5 forcing data from :func:`~supy.util.gen_forcing_era5` are extrapolated to a user-specified height (default 100 m) using Monin-Obukhov Similarity Theory.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 35 40
+
+   * - Data Source
+     - Wind Speed Height
+     - Recommended ``z`` Setting
+   * - EPW files
+     - Fixed at 10 m
+     - ``z: 10``
+   * - ERA5 (timeseries)
+     - Extrapolated to ``hgt_agl_diag`` (default 100 m)
+     - Match ``hgt_agl_diag`` value
+   * - Flux tower
+     - Tower-specific
+     - Actual measurement height
+
 Data Preparation Tips
 ---------------------
 

@@ -106,7 +106,8 @@ jobs:
 
             **Preview:** https://suews.io/preview/pr-${prNumber}/
 
-            > **Note:** This preview is ephemeral. It will be lost when:
+            > [!NOTE]
+            > This preview is ephemeral. It will be lost when:
             > - Another PR with \`site/\` changes is pushed
             > - Changes are merged to master
             > - A manual workflow dispatch runs

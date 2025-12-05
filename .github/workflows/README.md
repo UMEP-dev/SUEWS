@@ -35,22 +35,13 @@ AI-powered workflow automation using Claude. Mention `@claude` to:
 - Code review capabilities integrated
 - Post-processing with reactions and PR linking
 
-### 2. Format PR (`format-pr.yml`)
-Simplified PR-based formatting workflow that:
-- Runs on pull requests when code changes are detected
-- Can be manually triggered via Actions tab for any PR
+### 2. Format Master (`format-master.yml`)
+Post-merge formatting workflow that:
+- Runs when Python/Fortran code is pushed to master
 - Formats Python code using ruff v0.8.6
 - Formats Fortran code using fprettify v0.3.7
-- Commits directly to the PR branch
-- Posts a comment notifying about formatting changes
-- Skips forked repositories automatically
-- No permission issues or workflow chains
-
-**Manual Trigger:**
-1. Go to Actions tab → Format PR workflow
-2. Click "Run workflow"
-3. Enter the PR number to format
-4. Click "Run workflow" button
+- Commits formatting changes directly to master
+- Simpler than PR-based formatting (no double-build overhead)
 
 ### 3. Build and Publish (`build-publish_to_pypi.yml`)
 Automated build and publish workflow that:
@@ -159,5 +150,4 @@ Without this configuration, all Claude requests will be denied.
 
 - If Claude doesn't respond, check if you're in the authorised users list
 - For build failures, check the tmate debugging session (15 min timeout)
-- For auto-formatting issues, check the workflow logs and PR creation status
-- If formatting PRs aren't created, ensure the workflow has pull-request write permissions
+- For auto-formatting issues, check the format-master workflow logs

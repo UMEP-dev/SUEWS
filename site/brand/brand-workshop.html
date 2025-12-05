@@ -1363,22 +1363,25 @@ function createStackedSVG(settings) {
   // Logo scale from 2048 units to our size
   const logoScale = logoSize / 2048;
 
+  // Visual bottom of logo content (excluding internal bottom whitespace)
+  const logoVisualBottom = logoY + logoSize - (logoSize * SVG_WS.bottom);
+
   // Text as path (if font loaded) or fallback to text element
   let textElement;
   if (interFont) {
     // Convert text to path for precise bounds
     const textPath = textToPath('SUEWS', textHeight, 0, 0, { letterSpacing: -2 });
     if (textPath) {
-      // Centre the path horizontally, position below logo + gap
+      // Centre the path horizontally, position below logo visual edge + gap
       const textX = (vbSize - textPath.width) / 2 - textPath.x;
-      const textY = logoY + logoSize + gap - textPath.y;
+      const textY = logoVisualBottom + gap - textPath.y;
       textElement = `<path d="${textPath.pathData}" fill="${textColor}" transform="translate(${textX}, ${textY})" class="text-path"/>`;
     }
   }
 
   // Fallback to text element if path conversion failed
   if (!textElement) {
-    const textY = logoY + logoSize + gap + textHeight * 0.8;
+    const textY = logoVisualBottom + gap + textHeight * 0.8;
     textElement = `<text x="${vbSize/2}" y="${textY}"
           font-family="Inter, system-ui, -apple-system, sans-serif"
           font-size="${textHeight}"
@@ -1491,6 +1494,9 @@ function createBannerSVG(settings) {
   const logoX = pLeft;
   const logoScale = logoHeight / 2048;
 
+  // Visual right edge of logo (excluding internal side whitespace)
+  const logoVisualRight = logoX + logoWidth - (logoWidth * SVG_WS.sides);
+
   // Text as path (if font loaded) or fallback to text element
   let textElement;
   let textWidth;
@@ -1499,8 +1505,8 @@ function createBannerSVG(settings) {
     const textPath = textToPath('SUEWS', textHeight, 0, 0, { letterSpacing: -1 });
     if (textPath) {
       textWidth = textPath.width;
-      // Position text: after logo + gap, vertically centred
-      const textX = logoX + logoWidth + gap - textPath.x;
+      // Position text: after logo visual edge + gap, vertically centred
+      const textX = logoVisualRight + gap - textPath.x;
       const textY = (vbHeight - textPath.height) / 2 - textPath.y;
       textElement = `<path d="${textPath.pathData}" fill="${textColor}" transform="translate(${textX}, ${textY})" class="text-path"/>`;
     }
@@ -1509,7 +1515,7 @@ function createBannerSVG(settings) {
   // Fallback to text element if path conversion failed
   if (!textElement) {
     textWidth = measureTextWidth('SUEWS', textHeight, 'Inter, system-ui, sans-serif', '600', '-1');
-    const textX = logoX + logoWidth + gap;
+    const textX = logoVisualRight + gap;
     const textY = vbHeight / 2 + textHeight * 0.35;
     textElement = `<text x="${textX}" y="${textY}"
           font-family="Inter, system-ui, -apple-system, sans-serif"
@@ -1519,8 +1525,8 @@ function createBannerSVG(settings) {
           letter-spacing="-1">SUEWS</text>`;
   }
 
-  // Calculate total width dynamically
-  const vbWidth = pLeft + logoWidth + gap + textWidth + pRight;
+  // Calculate total width dynamically (using visual right, not box right)
+  const vbWidth = logoVisualRight + gap + textWidth + pRight;
 
   // Calculate aspect ratio for output dimensions
   const aspectRatio = vbWidth / vbHeight;
@@ -1938,25 +1944,22 @@ function updateStackedIndicators(exportSize, previewSize) {
     const wrapper = document.getElementById(wrapperId);
     if (!wrapper) return;
 
-    // Padding bars (top and bottom)
+    // Get actual content bounds for accurate margin bars
+    const bounds = getContentBounds(wrapper);
+
+    // Padding bars (top and bottom) - use actual measured margins
     const topBar = document.createElement('div');
     topBar.className = 'guide-bar top';
-    topBar.style.height = barHeight + 'px';
+    topBar.style.height = (bounds ? bounds.marginTop : barHeight) + 'px';
     wrapper.appendChild(topBar);
 
     const bottomBar = document.createElement('div');
     bottomBar.className = 'guide-bar bottom';
-    bottomBar.style.height = barHeight + 'px';
+    bottomBar.style.height = (bounds ? bounds.marginBottom : barHeight) + 'px';
     wrapper.appendChild(bottomBar);
 
-    // Logo content bounding box (cyan) - use pre-calculated values
-    const logoBox = document.createElement('div');
-    logoBox.className = 'guide-box-logo';
-    logoBox.style.top = logoContentTop + 'px';
-    logoBox.style.left = logoContentLeft + 'px';
-    logoBox.style.width = logoContentWidth + 'px';
-    logoBox.style.height = logoContentHeight + 'px';
-    wrapper.appendChild(logoBox);
+    // Logo content bounding box (cyan)
+    addLogoBoundingBox(wrapper);
 
     // Text bounding box (magenta)
     addTextBoundingBox(wrapper);
@@ -1971,6 +1974,17 @@ function updateStackedIndicators(exportSize, previewSize) {
 
   const previewGrid = firstWrapper.closest('.preview-grid');
   if (!previewGrid) return;
+
+  // Get actual measured values from rendered SVG
+  const bounds = getContentBounds(firstWrapper);
+  const actualGap = bounds && bounds.textRect
+    ? bounds.textRect.top - bounds.logoRect.bottom  // Stacked: text below logo
+    : gap * scale;
+  const actualPadTop = bounds ? bounds.marginTop : padding * scale;
+  const actualPadBottom = bounds ? bounds.marginBottom : padding * scale;
+
+  // Scale back to export dimensions for display
+  const scaleFactor = exportSize / previewSize;
 
   const panel = document.createElement('div');
   panel.className = 'guide-info-panel';
@@ -1987,11 +2001,11 @@ function updateStackedIndicators(exportSize, previewSize) {
     </div>
     <div class="info-row">
       <span class="info-label">Gap</span>
-      <span class="info-value">${gap.toFixed(0)}px</span>
+      <span class="info-value">${(actualGap * scaleFactor).toFixed(0)}px</span>
     </div>
     <div class="info-row">
       <span class="info-label">Pad</span>
-      <span class="info-value">${padding.toFixed(0)}px</span>
+      <span class="info-value">${(actualPadTop * scaleFactor).toFixed(0)}px / ${(actualPadBottom * scaleFactor).toFixed(0)}px</span>
     </div>
   `;
   previewGrid.appendChild(panel);
@@ -2045,15 +2059,18 @@ function updateBannerIndicators() {
     const wrapper = document.getElementById(wrapperId);
     if (!wrapper) return;
 
-    // Margin bars (left and right)
+    // Get actual content bounds for accurate margin bars
+    const bounds = getContentBounds(wrapper);
+
+    // Margin bars (left and right) - use actual measured margins
     const leftBar = document.createElement('div');
     leftBar.className = 'guide-bar left';
-    leftBar.style.width = (leftMargin * scaleY) + 'px';
+    leftBar.style.width = (bounds ? bounds.marginLeft : leftMargin * scaleY) + 'px';
     wrapper.appendChild(leftBar);
 
     const rightBar = document.createElement('div');
     rightBar.className = 'guide-bar right';
-    rightBar.style.width = (rightMargin * scaleY) + 'px';
+    rightBar.style.width = (bounds ? bounds.marginRight : rightMargin * scaleY) + 'px';
     wrapper.appendChild(rightBar);
 
     // Logo and text bounding boxes
@@ -2071,6 +2088,19 @@ function updateBannerIndicators() {
   const previewGrid = firstWrapper.closest('.preview-grid');
   if (!previewGrid) return;
 
+  // Get actual measured values from rendered SVG
+  const bounds = getContentBounds(firstWrapper);
+  const actualGap = bounds && bounds.textRect
+    ? bounds.textRect.left - bounds.logoRect.right  // Banner: text right of logo
+    : gap * scaleY;
+  const actualLeftMargin = bounds ? bounds.marginLeft : leftMargin * scaleY;
+  const actualRightMargin = bounds ? bounds.marginRight : rightMargin * scaleY;
+  const actualDiff = Math.abs(actualLeftMargin - actualRightMargin);
+  const actualSymmetric = actualDiff < 2;
+
+  // Scale back to export dimensions for display
+  const scaleFactor = exportHeight / previewHeight;
+
   const panel = document.createElement('div');
   panel.className = 'guide-info-panel';
   panel.style.width = '100%';
@@ -2086,36 +2116,21 @@ function updateBannerIndicators() {
     </div>
     <div class="info-row">
       <span class="info-label">Gap</span>
-      <span class="info-value">${gap.toFixed(0)}px</span>
+      <span class="info-value">${(actualGap * scaleFactor).toFixed(0)}px</span>
     </div>
     <div class="divider"></div>
-    <div class="section-title">Left Margin</div>
     <div class="info-row">
-      <span class="info-label">Padding</span>
-      <span class="info-value">${leftPadding.toFixed(0)}px${isAsymmetric ? ' (adj)' : ''}</span>
+      <span class="info-label">L Margin</span>
+      <span class="info-value">${(actualLeftMargin * scaleFactor).toFixed(0)}px</span>
     </div>
     <div class="info-row">
-      <span class="info-label">+ SVG ws</span>
-      <span class="info-value">${svgSideWs.toFixed(0)}px</span>
-    </div>
-    <div class="info-row">
-      <span class="info-label">= Visual</span>
-      <span class="info-value">${leftMargin.toFixed(0)}px</span>
-    </div>
-    <div class="divider"></div>
-    <div class="section-title">Right Margin</div>
-    <div class="info-row">
-      <span class="info-label">Padding</span>
-      <span class="info-value">${rightPadding.toFixed(0)}px${isAsymmetric ? ' (adj)' : ''}</span>
-    </div>
-    <div class="info-row">
-      <span class="info-label">= Visual</span>
-      <span class="info-value">${rightMargin.toFixed(0)}px</span>
+      <span class="info-label">R Margin</span>
+      <span class="info-value">${(actualRightMargin * scaleFactor).toFixed(0)}px</span>
     </div>
     <div class="divider"></div>
     <div class="info-row">
       <span class="info-label">Symmetry</span>
-      <span class="info-value ${isSymmetric ? 'ok' : 'warn'}">${isSymmetric ? 'OK' : 'diff ' + diff.toFixed(0) + 'px'}</span>
+      <span class="info-value ${actualSymmetric ? 'ok' : 'warn'}">${actualSymmetric ? 'OK' : 'diff ' + (actualDiff * scaleFactor).toFixed(0) + 'px'}</span>
     </div>
   `;
   previewGrid.appendChild(panel);

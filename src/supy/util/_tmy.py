@@ -396,6 +396,12 @@ def read_epw(
     ...     z0m=0.5  # urban roughness length
     ... )
     """
+    # Input validation
+    if z0m <= 0:
+        raise ValueError(f"z0m must be positive, got {z0m}")
+    if target_height <= 0:
+        raise ValueError(f"target_height must be positive, got {target_height}")
+
     df_tmy = pd.read_csv(path_epw, skiprows=8, sep=",", header=None)
     df_tmy.columns = [x.strip() for x in header_EPW.split("\n")[1:-1]]
     df_tmy["DateTime"] = pd.to_datetime(
@@ -409,7 +415,7 @@ def read_epw(
 
     # Apply wind speed height correction if target height differs from EPW standard (10 m)
     epw_height = 10.0
-    if target_height != epw_height:
+    if not np.isclose(target_height, epw_height):
         logger.warning(
             f"Applying wind speed height correction from {epw_height}m to {target_height}m "
             f"using log-law profile (assumes neutral atmospheric conditions). "

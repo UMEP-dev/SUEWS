@@ -33,6 +33,13 @@
 
 ## 2025
 
+### 5 Dec 2025
+
+- [change] Removed `BaseTMethod` parameter from HDD/CDD calculations (#144)
+  - Model now always uses weekday/weekend-specific base temperatures (`BaseT_Heating`, `BaseT_Cooling`)
+  - Simplifies anthropogenic heat flux calculation logic
+  - `BaseTMethod` in legacy input files is now ignored
+
 ### 3 Dec 2025
 - [feature] Improved albedos ranges (ge=0.0 and le=1.0) in Field of Pydantic classes for alb_id, air_ssa_lw, air_ssa_sw, veg_ssa_lw, veg_ssa_sw (PR #978)
 - [feature] Improved ranges (ge=0.0) in Field of Pydantic classes for preciplimitalb, roof_albedo_dir_mult_fact, and ground_albedo_dir_mult_fact. (PR #978)

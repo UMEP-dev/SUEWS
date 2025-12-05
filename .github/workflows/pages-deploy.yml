@@ -39,8 +39,9 @@ jobs:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
 
+    # Use 'preview' environment for PRs (no branch restrictions)
     environment:
-      name: github-pages
+      name: ${{ github.event_name == 'pull_request' && 'preview' || 'github-pages' }}
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
@@ -56,9 +57,31 @@ jobs:
           # Add PR preview if applicable
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             PR_NUM="${{ github.event.pull_request.number }}"
-            mkdir -p "_site/preview/pr-${PR_NUM}"
-            cp -r site/* "_site/preview/pr-${PR_NUM}/"
-            echo "Preview created at /preview/pr-${PR_NUM}/"
+            PR_DIR="preview/pr-${PR_NUM}"
+            mkdir -p "_site/${PR_DIR}"
+            cp -r site/* "_site/${PR_DIR}/"
+            echo "Preview created at /${PR_DIR}/"
+
+            # Rewrite absolute paths for preview context
+            # /brand/ → /preview/pr-N/brand/ so links work within preview
+            echo "Rewriting absolute paths for preview..."
+            find "_site/${PR_DIR}" -name "*.html" -type f | while read -r f; do
+              sed -i "s|href=\"/brand/|href=\"/${PR_DIR}/brand/|g" "$f"
+              sed -i "s|href=\"/\"|href=\"/${PR_DIR}/\"|g" "$f"
+            done
+
+            # Inject preview banner into site pages
+            PREVIEW_BANNER='<div id="preview-banner" style="background:linear-gradient(90deg,#ffeb3b,#ffc107);color:#333;padding:10px 20px;text-align:center;font-family:system-ui,-apple-system,sans-serif;font-size:13px;position:fixed;top:0;left:0;right:0;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);"><strong>Preview - PR #'"${PR_NUM}"'</strong> \&nbsp;\| <a href="https://suews.io/" style="color:#1565c0;text-decoration:underline;">Production</a> \&nbsp;\| <a href="https://github.com/UMEP-dev/SUEWS/pull/'"${PR_NUM}"'" style="color:#1565c0;text-decoration:underline;">View PR</a></div><style>body{padding-top:40px !important;}</style>'
+
+            for page in index.html brand/index.html brand/brand-workshop.html brand/suews-logo-source.html schemas/suews-config/index.html; do
+              target="_site/${PR_DIR}/${page}"
+              if [ -f "$target" ]; then
+                sed -i "s|<body>|<body>${PREVIEW_BANNER}|g" "$target"
+                sed -i "s|<body |<body>${PREVIEW_BANNER}<body-placeholder |g" "$target"
+                sed -i "s|<body-placeholder |<div |g" "$target"
+                echo "Injected preview banner into ${page}"
+              fi
+            done
           fi
 
           touch _site/.nojekyll

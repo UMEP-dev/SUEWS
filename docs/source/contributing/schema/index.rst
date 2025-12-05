@@ -9,4 +9,3 @@ This section documents the SUEWS schema system for developers.
    schema-developer
    schema_versioning
    schema_cli
-   schema_publishing

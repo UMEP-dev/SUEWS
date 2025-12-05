@@ -15,7 +15,7 @@ name: GitHub Pages Deploy
 # - site/** → Landing page, brand assets
 # - docs/** → Sphinx documentation (PR previews only)
 #
-# NOTE: Schema generation temporarily disabled - to be redesigned in separate PR
+# NOTE: Schema hosting removed - validation handled by Pydantic at runtime
 
 on:
   push:
@@ -226,10 +226,10 @@ jobs:
           <head>
               <title>SUEWS</title>
               <meta charset="utf-8">
-              <meta http-equiv="refresh" content="0; url=schemas/suews-config/">
+              <meta http-equiv="refresh" content="0; url=https://docs.suews.io/">
           </head>
           <body>
-              <p>Redirecting to <a href="schemas/suews-config/">schemas</a>...</p>
+              <p>Redirecting to <a href="https://docs.suews.io/">documentation</a>...</p>
           </body>
           </html>
           FALLBACK

@@ -103,6 +103,7 @@ src_f95_all = [
   'suews_ctrl_input.f95',
   'suews_util_time.f95',
   'suews_util_meteo.f95',
+  'suews_util_datetime.f95',
   'suews_phys_waterdist.f95',
   'suews_phys_narp.f95',
   'suews_phys_beers.f95',

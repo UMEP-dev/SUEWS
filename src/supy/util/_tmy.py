@@ -1,8 +1,10 @@
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
+
+from .._post import resample_output
 
 
 #################################################################
@@ -340,25 +342,39 @@ def read_epw(path_epw: Path) -> pd.DataFrame:
 # generate EPW file from `df_TMY`
 def gen_epw(
     df_output: pd.DataFrame,
-    lat,
-    lon,
-    tz=0,
-    path_epw=Path("./uTMY.epw"),
+    lat: float,
+    lon: float,
+    tz: float = 0,
+    path_epw: Union[str, Path] = Path("./uTMY.epw"),
+    freq: Optional[str] = None,
+    grid: Optional[int] = None,
 ) -> Tuple[pd.DataFrame, str, Path]:
-    """Generate an ``epw`` file of uTMY (urbanised Typical Meteorological Year) using SUEWS simulation results
+    """Generate an ``epw`` file of uTMY (urbanised Typical Meteorological Year) using SUEWS simulation results.
 
     Parameters
     ----------
     df_output : pandas.DataFrame
-        SUEWS simulation results.
+        SUEWS simulation results. Can be either:
+
+        - Full MultiIndex output from `run_supy` (grid, datetime) x (group, var)
+        - Pre-extracted single-grid SUEWS output (datetime) x (var)
     lat : float
         Latitude of the site, used for calculating solar angle.
     lon : float
         Longitude of the site, used for calculating solar angle.
     tz : float, optional
-        time zone represented by time difference from UTC+0 (e.g., 8 for UTC+8), by default 0 (i.e., UTC+0)
-    path_epw : pathlib.Path, optional
+        Time zone represented by time difference from UTC+0 (e.g., 8 for UTC+8),
+        by default 0 (i.e., UTC+0).
+    path_epw : pathlib.Path or str, optional
         Path to store generated epw file, by default Path('./uTMY.epw').
+    freq : str, optional
+        Target frequency for resampling (e.g., 'h', '60min', '1h').
+        If provided, the output is resampled before EPW generation using
+        variable-appropriate aggregation methods.
+        Recommended for sub-hourly simulation output. Default is None (no resampling).
+    grid : int, optional
+        Grid number to extract if df_output has MultiIndex (grid, datetime).
+        If not provided and MultiIndex detected, uses the first grid.
 
     Returns
     -------
@@ -378,6 +394,26 @@ def gen_epw(
     pvlib is not included as a required dependency due to its h5py requirement
     which can cause build issues on some platforms.
 
+    Examples
+    --------
+    Basic usage with pre-extracted data:
+
+    >>> df_epw, meta, path = sp.util.gen_epw(
+    ...     df_output.loc[grid, 'SUEWS'],
+    ...     lat=51.5, lon=-0.1
+    ... )
+
+    With automatic resampling and grid extraction:
+
+    >>> df_epw, meta, path = sp.util.gen_epw(
+    ...     df_output,  # Full MultiIndex output from run_supy
+    ...     lat=51.5, lon=-0.1,
+    ...     freq='h'   # Resample to hourly
+    ... )
+
+    See Also
+    --------
+    supy.resample_output : Resample output with variable-appropriate aggregation
     """
     import atmosp
     from pathlib import Path
@@ -389,6 +425,30 @@ def gen_epw(
             "TMY/EPW generation requires pvlib. Install it with: pip install pvlib\n"
             "Note: pvlib requires h5py which may need compilation on some systems."
         )
+
+    # Handle MultiIndex input from run_supy
+    if isinstance(df_output.index, pd.MultiIndex):
+        # Extract grid if needed
+        if grid is None:
+            grid = df_output.index.get_level_values("grid").unique()[0]
+
+        # Resample if frequency specified (before extracting to single grid)
+        if freq is not None:
+            df_output = resample_output(df_output, freq=freq)
+
+        # Extract SUEWS group for the specified grid
+        if isinstance(df_output.columns, pd.MultiIndex):
+            groups = df_output.columns.get_level_values("group").unique()
+            if "SUEWS" in groups:
+                df_output = df_output.loc[grid, "SUEWS"]
+            else:
+                df_output = df_output.loc[grid]
+        else:
+            df_output = df_output.loc[grid]
+    elif freq is not None:
+        # Single-grid input with freq specified - use simple resampling
+        # For single-grid SUEWS output, variables are typically averaged
+        df_output = df_output.resample(freq, closed="right", label="right").mean()
 
     # select months from representative years
     df_tmy = gen_TMY(df_output.copy())

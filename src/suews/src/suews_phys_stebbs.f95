@@ -448,8 +448,8 @@ CONTAINS
 
       ! Compute required coefficients, similar to new OHM a1 parameterisation.
       S_x1 = 100*SQRT(TD_ext)
-      omega_x1 = -8.8*LOG(SQRT(TD_ext)) - 106.0
-      theta_x1 = -2.3*LOG(SQRT(TD_ext)) - 24.4
+      omega_x1 = -8.8*LOG(TD_ext) - 106.0
+      theta_x1 = -2.3*LOG(TD_ext) - 24.4
       d1 = S_x1*(1 - EXP(-theta_x1*d_ext)*COS(omega_x1*d_ext))
       ! compute the final x1
       x1 = (d1*cp_ext*rho_ext)/(d*cp*rho)

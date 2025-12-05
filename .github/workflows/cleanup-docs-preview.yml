@@ -2,6 +2,10 @@ name: Cleanup docs preview
 
 # Clean up GitHub Pages preview directories when PRs are closed
 # This prevents accumulation of stale preview content
+#
+# IMPORTANT: This workflow uses step outputs to control deployment.
+# The `exit 0` in a shell script only exits that step - it does NOT
+# prevent subsequent steps from running. We use outputs and `if` conditions.
 
 on:
   pull_request:
@@ -25,27 +29,54 @@ jobs:
       name: github-pages-preview
 
     steps:
-      - name: Fetch current Pages content
+      - name: Fetch and clean preview content
+        id: cleanup
         run: |
           mkdir -p _site
 
           PR_NUM="${{ github.event.pull_request.number }}"
           echo "Cleaning up preview for PR #${PR_NUM}"
 
-          # Fetch existing site content
-          if timeout 60 wget -q -r -np -nH --cut-dirs=1 -P _site \
+          # Fetch existing site content from the custom domain
+          # Note: Use suews.io (not umep-dev.github.io which redirects)
+          if timeout 120 wget -q -r -np -nH -P _site \
                --reject "index.html*" \
-               https://umep-dev.github.io/SUEWS/ 2>&1; then
+               https://suews.io/ 2>&1; then
             echo "✓ Fetched existing site content"
           else
-            echo "⚠ Could not fetch existing content - nothing to clean up"
+            echo "⚠ Could not fetch existing content - skipping cleanup"
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
             exit 0
           fi
+
+          # Validate fetch completeness - ensure we got a real site
+          if ! [ -f "_site/index.html" ]; then
+            echo "⚠ Fetch incomplete: index.html missing - skipping cleanup"
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Log fetch summary for audit trail
+          FETCHED_SIZE=$(du -sh _site | cut -f1)
+          FETCHED_FILES=$(find _site -type f | wc -l)
+          echo "=== Fetch Summary ==="
+          echo "Total size: ${FETCHED_SIZE}"
+          echo "File count: ${FETCHED_FILES}"
+          echo "Top-level contents:"
+          ls -la _site/ | head -20
+          echo "====================="
 
           # Check if preview directory exists
           if [ -d "_site/preview/pr-${PR_NUM}" ]; then
             echo "Removing _site/preview/pr-${PR_NUM}/"
             rm -rf "_site/preview/pr-${PR_NUM}"
+
+            # Verify removal succeeded
+            if [ -d "_site/preview/pr-${PR_NUM}" ]; then
+              echo "⚠ Failed to remove preview directory - skipping deployment"
+              echo "should_deploy=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
             echo "✓ Preview directory removed"
 
             # Check if preview parent directory is empty and clean up
@@ -53,20 +84,46 @@ jobs:
               echo "Removing empty preview directory"
               rm -rf "_site/preview"
             fi
+
+            touch _site/.nojekyll
+
+            # Safety checks: ensure we have meaningful content before deploying
+            # These thresholds prevent deploying a corrupted or partial site
+            SITE_SIZE=$(du -sb _site | cut -f1)
+            FILE_COUNT=$(find _site -type f | wc -l)
+            echo "Pre-deploy validation: ${SITE_SIZE} bytes, ${FILE_COUNT} files"
+
+            # Minimum 1MB - production site is typically several MB
+            if [ "$SITE_SIZE" -lt 1000000 ]; then
+              echo "⚠ Site size too small (${SITE_SIZE} bytes, expected >1MB) - refusing to deploy"
+              echo "should_deploy=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+
+            # Minimum 100 files - production site has hundreds of files
+            if [ "$FILE_COUNT" -lt 100 ]; then
+              echo "⚠ Too few files (${FILE_COUNT}, expected >100) - refusing to deploy"
+              echo "should_deploy=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+
+            echo "✓ Validation passed"
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
           else
             echo "No preview found for PR #${PR_NUM} - nothing to clean up"
-            exit 0
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
           fi
 
-          touch _site/.nojekyll
-
       - name: Configure Pages
+        if: steps.cleanup.outputs.should_deploy == 'true'
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
+        if: steps.cleanup.outputs.should_deploy == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site
 
       - name: Deploy to GitHub Pages
+        if: steps.cleanup.outputs.should_deploy == 'true'
         uses: actions/deploy-pages@v4

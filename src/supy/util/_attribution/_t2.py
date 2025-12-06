@@ -5,13 +5,12 @@ Provides functions to decompose T2 differences between scenarios
 into physically attributable components.
 """
 
-from typing import Literal, Optional
+from typing import Literal
 import warnings
 
 import numpy as np
 import pandas as pd
 
-from .._atm import cal_qa
 from ._core import shapley_triple_product
 from ._helpers import extract_suews_group
 from ._physics import cal_gamma_heat, cal_r_eff_heat, decompose_flux_budget
@@ -21,8 +20,8 @@ from ._result import AttributionResult
 def attribute_t2(
     df_output_A: pd.DataFrame,
     df_output_B: pd.DataFrame,
-    df_forcing_A: Optional[pd.DataFrame] = None,
-    df_forcing_B: Optional[pd.DataFrame] = None,
+    df_forcing_A: pd.DataFrame,
+    df_forcing_B: pd.DataFrame,
     hierarchical: bool = True,
     min_flux: float = 0.1,
 ) -> AttributionResult:
@@ -40,10 +39,10 @@ def attribute_t2(
         SUEWS output DataFrame for scenario A (reference/baseline)
     df_output_B : pd.DataFrame
         SUEWS output DataFrame for scenario B (modified/test)
-    df_forcing_A : pd.DataFrame, optional
-        Forcing DataFrame for scenario A. If None, extracts from df_output_A.
-    df_forcing_B : pd.DataFrame, optional
-        Forcing DataFrame for scenario B. If None, extracts from df_output_B.
+    df_forcing_A : pd.DataFrame
+        Forcing DataFrame for scenario A. Must contain 'Tair', 'RH', 'pres' columns.
+    df_forcing_B : pd.DataFrame
+        Forcing DataFrame for scenario B. Must contain 'Tair', 'RH', 'pres' columns.
     hierarchical : bool, optional
         If True, decompose flux contribution into budget components
         (Q*, Q_E, dQ_S, Q_F). Default True.
@@ -60,7 +59,8 @@ def attribute_t2(
     --------
     Compare baseline vs. green infrastructure scenario:
 
-    >>> result = attribute_t2(df_output_baseline, df_output_green)
+    >>> result = attribute_t2(df_output_baseline, df_output_green,
+    ...                       df_forcing_A=df_forcing, df_forcing_B=df_forcing)
     >>> print(result)
     T2 Attribution Results
     ========================================
@@ -109,36 +109,18 @@ def attribute_t2(
     QH_A = df_A["QH"].values
     QH_B = df_B["QH"].values
 
-    # Get forcing data for reference temperature and air properties
-    if df_forcing_A is not None and df_forcing_B is not None:
-        T_ref_A = df_forcing_A.loc[common_idx, "Tair"].values
-        T_ref_B = df_forcing_B.loc[common_idx, "Tair"].values
-        RH_A = df_forcing_A.loc[common_idx, "RH"].values
-        RH_B = df_forcing_B.loc[common_idx, "RH"].values
-        P_A = df_forcing_A.loc[common_idx, "pres"].values
-        P_B = df_forcing_B.loc[common_idx, "pres"].values
-    else:
-        # Warn user about approximation
-        warnings.warn(
-            "Forcing data not provided. Using T2 as proxy for reference temperature "
-            "and default values for RH (60%) and pressure (1013.25 hPa). "
-            "Air property contributions (air_props) may be unreliable. "
-            "For accurate attribution, provide df_forcing_A and df_forcing_B.",
-            UserWarning,
-            stacklevel=2,
-        )
-        # Use T2 as proxy for reference temperature (simplified)
-        T_ref_A = df_A["T2"].values
-        T_ref_B = df_B["T2"].values
-        # Use typical values for RH and pressure
-        RH_A = np.full_like(T2_A, 60.0)  # 60% RH default
-        RH_B = np.full_like(T2_B, 60.0)
-        P_A = np.full_like(T2_A, 1013.25)  # Standard pressure
-        P_B = np.full_like(T2_B, 1013.25)
+    # Extract forcing data for reference temperature and air properties
+    T_ref_A = df_forcing_A.loc[common_idx, "Tair"].values
+    T_ref_B = df_forcing_B.loc[common_idx, "Tair"].values
+    RH_A = df_forcing_A.loc[common_idx, "RH"].values
+    RH_B = df_forcing_B.loc[common_idx, "RH"].values
+    P_A = df_forcing_A.loc[common_idx, "pres"].values
+    P_B = df_forcing_B.loc[common_idx, "pres"].values
 
     # Calculate gamma = 1/(rho*cp)
-    gamma_A = cal_gamma_heat(T_ref_A, RH_A, P_A)
-    gamma_B = cal_gamma_heat(T_ref_B, RH_B, P_B)
+    # Ensure numpy arrays (cal_gamma_heat may return pandas Series)
+    gamma_A = np.asarray(cal_gamma_heat(T_ref_A, RH_A, P_A))
+    gamma_B = np.asarray(cal_gamma_heat(T_ref_B, RH_B, P_B))
 
     # Back-calculate effective resistance
     r_A = cal_r_eff_heat(T2_A, T_ref_A, QH_A, gamma_A, min_flux)
@@ -210,23 +192,25 @@ def attribute_t2(
 
 def diagnose_t2(
     df_output: pd.DataFrame,
-    df_forcing: Optional[pd.DataFrame] = None,
+    df_forcing: pd.DataFrame,
     method: Literal["anomaly", "extreme", "diurnal"] = "anomaly",
     threshold: float = 2.0,
     hierarchical: bool = True,
+    min_flux: float = 0.1,
 ) -> AttributionResult:
     """
     Automatically identify anomalous T2 values and attribute the causes.
 
     This convenience function identifies unusual T2 behaviour within a single
-    simulation run and diagnoses the driving factors.
+    simulation run and diagnoses the driving factors by comparing aggregate
+    statistics between reference (normal) and target (anomaly) periods.
 
     Parameters
     ----------
     df_output : pd.DataFrame
         SUEWS output DataFrame
-    df_forcing : pd.DataFrame, optional
-        Forcing DataFrame. If None, uses approximations.
+    df_forcing : pd.DataFrame
+        Forcing DataFrame. Must contain 'Tair', 'RH', 'pres' columns.
     method : str, optional
         Detection method:
         - 'anomaly': Compare timesteps > threshold sigma from daily mean
@@ -237,6 +221,9 @@ def diagnose_t2(
         Standard deviation threshold for anomaly detection. Default 2.0.
     hierarchical : bool, optional
         Include flux budget breakdown. Default True.
+    min_flux : float, optional
+        Minimum flux threshold (W/m2) for resistance calculation.
+        Timesteps with |Q_H| < min_flux are excluded. Default 0.1.
 
     Returns
     -------
@@ -247,7 +234,7 @@ def diagnose_t2(
     --------
     Quick anomaly diagnosis:
 
-    >>> result = diagnose_t2(df_output, method="anomaly")
+    >>> result = diagnose_t2(df_output, df_forcing, method="anomaly")
     >>> print(result)
     T2 Attribution Results
     ========================================
@@ -255,9 +242,10 @@ def diagnose_t2(
 
     Component Breakdown:
     ----------------------------------------
-      flux_total     : +1.74 degC (62.1%)
-      resistance     : +0.78 degC (27.9%)
-      air_props      : +0.28 degC (10.0%)
+      T_ref          : +2.10 degC (75.0%)
+      flux_total     : +0.50 degC (17.9%)
+      resistance     : +0.18 degC ( 6.4%)
+      air_props      : +0.02 degC ( 0.7%)
 
     Closure residual: 1.23e-15 degC
 
@@ -313,33 +301,106 @@ def diagnose_t2(
             f"Only {n_normal} reference timesteps found. Cannot establish baseline."
         )
 
-    # Create reference and anomaly DataFrames
-    df_normal = df_output.loc[normal_mask]
-    df_anomaly = df_output.loc[anomaly_mask]
+    # Extract data for each group
+    df_normal = df.loc[normal_mask]
+    df_anomaly = df.loc[anomaly_mask]
 
-    if df_forcing is not None:
-        df_forcing_normal = df_forcing.loc[normal_mask]
-        df_forcing_anomaly = df_forcing.loc[anomaly_mask]
-    else:
-        df_forcing_normal = None
-        df_forcing_anomaly = None
+    # Get mean values for each group
+    T2_A = np.array([df_normal["T2"].mean()])
+    T2_B = np.array([df_anomaly["T2"].mean()])
+    QH_A = np.array([df_normal["QH"].mean()])
+    QH_B = np.array([df_anomaly["QH"].mean()])
 
-    # Run attribution
-    result = attribute_t2(
-        df_output_A=df_normal,
-        df_output_B=df_anomaly,
-        df_forcing_A=df_forcing_normal,
-        df_forcing_B=df_forcing_anomaly,
-        hierarchical=hierarchical,
+    # Extract forcing data for each group
+    df_forcing_normal = df_forcing.loc[normal_mask]
+    df_forcing_anomaly = df_forcing.loc[anomaly_mask]
+    T_ref_A = np.array([df_forcing_normal["Tair"].mean()])
+    T_ref_B = np.array([df_forcing_anomaly["Tair"].mean()])
+    RH_A = np.array([df_forcing_normal["RH"].mean()])
+    RH_B = np.array([df_forcing_anomaly["RH"].mean()])
+    P_A = np.array([df_forcing_normal["pres"].mean()])
+    P_B = np.array([df_forcing_anomaly["pres"].mean()])
+
+    # Calculate gamma = 1/(rho*cp)
+    # Ensure numpy arrays (cal_gamma_heat may return pandas Series)
+    gamma_A = np.asarray(cal_gamma_heat(T_ref_A, RH_A, P_A))
+    gamma_B = np.asarray(cal_gamma_heat(T_ref_B, RH_B, P_B))
+
+    # Back-calculate effective resistance from mean values
+    r_A = cal_r_eff_heat(T2_A, T_ref_A, QH_A, gamma_A, min_flux)
+    r_B = cal_r_eff_heat(T2_B, T_ref_B, QH_B, gamma_B, min_flux)
+
+    # Shapley decomposition: delta(T2 - T_ref) = delta(r * QH * gamma)
+    Phi_r, Phi_QH, Phi_gamma = shapley_triple_product(
+        r_A, r_B, QH_A, QH_B, gamma_A, gamma_B
     )
 
-    # Update metadata with diagnostic info
-    result.metadata.update({
+    # The total T2 change includes reference temperature change:
+    # delta_T2 = delta_T_ref + delta(r * QH * gamma)
+    Phi_T_ref = T_ref_B - T_ref_A
+
+    # Build single-row contributions DataFrame
+    contributions = pd.DataFrame(
+        {
+            "delta_total": T2_B - T2_A,
+            "T_ref": Phi_T_ref,  # Reference temperature contribution
+            "flux_total": Phi_QH,
+            "resistance": Phi_r,
+            "air_props": Phi_gamma,
+        },
+        index=pd.Index(["aggregate"], name="type"),
+    )
+
+    # Hierarchical flux decomposition
+    if hierarchical:
+        # Get mean flux components
+        QN_A = df_normal["QN"].mean() if "QN" in df_normal.columns else 0.0
+        QN_B = df_anomaly["QN"].mean() if "QN" in df_anomaly.columns else 0.0
+        QE_A = df_normal["QE"].mean() if "QE" in df_normal.columns else 0.0
+        QE_B = df_anomaly["QE"].mean() if "QE" in df_anomaly.columns else 0.0
+        QS_A = df_normal["QS"].mean() if "QS" in df_normal.columns else 0.0
+        QS_B = df_anomaly["QS"].mean() if "QS" in df_anomaly.columns else 0.0
+        QF_A = df_normal["QF"].mean() if "QF" in df_normal.columns else 0.0
+        QF_B = df_anomaly["QF"].mean() if "QF" in df_anomaly.columns else 0.0
+
+        flux_comps_A = {
+            "Qstar": np.array([QN_A]),
+            "QE": np.array([-QE_A]),
+            "dQS": np.array([-QS_A]),
+            "QF": np.array([QF_A]),
+        }
+        flux_comps_B = {
+            "Qstar": np.array([QN_B]),
+            "QE": np.array([-QE_B]),
+            "dQS": np.array([-QS_B]),
+            "QF": np.array([QF_B]),
+        }
+
+        flux_breakdown = decompose_flux_budget(
+            QH_A, QH_B, flux_comps_A, flux_comps_B, Phi_QH
+        )
+
+        for name, values in flux_breakdown.items():
+            contributions[f"flux_{name}"] = values
+
+    # Calculate summary (same as contributions for single-row)
+    summary = contributions.describe().T[["mean", "std", "min", "max"]]
+
+    # Metadata
+    metadata = {
+        "n_timesteps": 1,  # Aggregate comparison
         "method": method,
         "threshold": threshold if method == "anomaly" else None,
         "n_anomaly": int(n_anomaly),
         "n_reference": int(n_normal),
         "pct_anomaly": 100 * n_anomaly / len(t2),
-    })
+        "hierarchical": hierarchical,
+        "aggregate_comparison": True,
+    }
 
-    return result
+    return AttributionResult(
+        variable="T2",
+        contributions=contributions,
+        summary=summary,
+        metadata=metadata,
+    )

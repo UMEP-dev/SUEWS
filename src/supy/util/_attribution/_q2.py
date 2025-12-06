@@ -5,7 +5,7 @@ Provides functions to decompose q2 differences between scenarios
 into physically attributable components.
 """
 
-from typing import Literal, Optional
+from typing import Literal
 import warnings
 
 import numpy as np
@@ -21,8 +21,8 @@ from ._result import AttributionResult
 def attribute_q2(
     df_output_A: pd.DataFrame,
     df_output_B: pd.DataFrame,
-    df_forcing_A: Optional[pd.DataFrame] = None,
-    df_forcing_B: Optional[pd.DataFrame] = None,
+    df_forcing_A: pd.DataFrame,
+    df_forcing_B: pd.DataFrame,
     min_flux: float = 0.1,
 ) -> AttributionResult:
     """
@@ -39,10 +39,10 @@ def attribute_q2(
         SUEWS output DataFrame for scenario A (reference/baseline)
     df_output_B : pd.DataFrame
         SUEWS output DataFrame for scenario B (modified/test)
-    df_forcing_A : pd.DataFrame, optional
-        Forcing DataFrame for scenario A. If None, extracts from df_output_A.
-    df_forcing_B : pd.DataFrame, optional
-        Forcing DataFrame for scenario B. If None, extracts from df_output_B.
+    df_forcing_A : pd.DataFrame
+        Forcing DataFrame for scenario A. Must contain 'Tair', 'RH', 'pres' columns.
+    df_forcing_B : pd.DataFrame
+        Forcing DataFrame for scenario B. Must contain 'Tair', 'RH', 'pres' columns.
     min_flux : float, optional
         Minimum flux threshold (W/m2) for resistance calculation.
         Timesteps with |Q_E| < min_flux are flagged. Default 0.1.
@@ -56,7 +56,8 @@ def attribute_q2(
     --------
     Compare baseline vs. irrigated scenario:
 
-    >>> result = attribute_q2(df_output_baseline, df_output_irrigated)
+    >>> result = attribute_q2(df_output_baseline, df_output_irrigated,
+    ...                       df_forcing_A=df_forcing, df_forcing_B=df_forcing)
     >>> print(result)
     q2 Attribution Results
     ========================================
@@ -105,46 +106,24 @@ def attribute_q2(
     QE_A = df_A["QE"].values
     QE_B = df_B["QE"].values
 
-    # Get forcing data for reference humidity and air properties
-    if df_forcing_A is not None and df_forcing_B is not None:
-        # Calculate reference specific humidity from forcing
-        T_ref_A = df_forcing_A.loc[common_idx, "Tair"].values
-        T_ref_B = df_forcing_B.loc[common_idx, "Tair"].values
-        RH_A = df_forcing_A.loc[common_idx, "RH"].values
-        RH_B = df_forcing_B.loc[common_idx, "RH"].values
-        P_A = df_forcing_A.loc[common_idx, "pres"].values
-        P_B = df_forcing_B.loc[common_idx, "pres"].values
+    # Extract forcing data for reference humidity and air properties
+    T_ref_A = df_forcing_A.loc[common_idx, "Tair"].values
+    T_ref_B = df_forcing_B.loc[common_idx, "Tair"].values
+    RH_A = df_forcing_A.loc[common_idx, "RH"].values
+    RH_B = df_forcing_B.loc[common_idx, "RH"].values
+    P_A = df_forcing_A.loc[common_idx, "pres"].values
+    P_B = df_forcing_B.loc[common_idx, "pres"].values
 
-        # Calculate reference specific humidity
-        theta_A = T_ref_A + 273.15  # Celsius to Kelvin
-        theta_B = T_ref_B + 273.15
-        q_ref_A = cal_qa(RH_A, theta_A, P_A)
-        q_ref_B = cal_qa(RH_B, theta_B, P_B)
-    else:
-        # Warn user about approximation
-        warnings.warn(
-            "Forcing data not provided. Using q2 as proxy for reference humidity "
-            "and default values for RH (60%) and pressure (1013.25 hPa). "
-            "Air property contributions (air_props) may be unreliable. "
-            "For accurate attribution, provide df_forcing_A and df_forcing_B.",
-            UserWarning,
-            stacklevel=2,
-        )
-        # Use approximations
-        T_ref_A = df_A["T2"].values
-        T_ref_B = df_B["T2"].values
-        RH_A = np.full_like(q2_A, 60.0)  # 60% RH default
-        RH_B = np.full_like(q2_B, 60.0)
-        P_A = np.full_like(q2_A, 1013.25)  # Standard pressure
-        P_B = np.full_like(q2_B, 1013.25)
-
-        # Approximate reference humidity as q2 (simplified)
-        q_ref_A = q2_A
-        q_ref_B = q2_B
+    # Calculate reference specific humidity
+    theta_A = T_ref_A + 273.15  # Celsius to Kelvin
+    theta_B = T_ref_B + 273.15
+    q_ref_A = cal_qa(RH_A, theta_A, P_A)
+    q_ref_B = cal_qa(RH_B, theta_B, P_B)
 
     # Calculate gamma = 1/(rho*Lv)
-    gamma_A = cal_gamma_humidity(T_ref_A, RH_A, P_A)
-    gamma_B = cal_gamma_humidity(T_ref_B, RH_B, P_B)
+    # Ensure numpy arrays (cal_gamma_humidity may return pandas Series)
+    gamma_A = np.asarray(cal_gamma_humidity(T_ref_A, RH_A, P_A))
+    gamma_B = np.asarray(cal_gamma_humidity(T_ref_B, RH_B, P_B))
 
     # Back-calculate effective resistance
     r_A = cal_r_eff_humidity(q2_A, q_ref_A, QE_A, gamma_A, min_flux)
@@ -195,22 +174,25 @@ def attribute_q2(
 
 def diagnose_q2(
     df_output: pd.DataFrame,
-    df_forcing: Optional[pd.DataFrame] = None,
+    df_forcing: pd.DataFrame,
     method: Literal["anomaly", "extreme", "diurnal"] = "anomaly",
     threshold: float = 2.0,
+    min_flux: float = 0.1,
 ) -> AttributionResult:
     """
     Automatically identify anomalous q2 values and attribute the causes.
 
     This convenience function identifies unusual q2 (2m specific humidity)
-    behaviour within a single simulation run and diagnoses the driving factors.
+    behaviour within a single simulation run and diagnoses the driving factors
+    by comparing aggregate statistics between reference (normal) and target
+    (anomaly) periods.
 
     Parameters
     ----------
     df_output : pd.DataFrame
         SUEWS output DataFrame
-    df_forcing : pd.DataFrame, optional
-        Forcing DataFrame. If None, uses approximations.
+    df_forcing : pd.DataFrame
+        Forcing DataFrame. Must contain 'Tair', 'RH', 'pres' columns.
     method : str, optional
         Detection method:
         - 'anomaly': Compare timesteps > threshold sigma from daily mean
@@ -219,6 +201,9 @@ def diagnose_q2(
         Default 'anomaly'.
     threshold : float, optional
         Standard deviation threshold for anomaly detection. Default 2.0.
+    min_flux : float, optional
+        Minimum flux threshold (W/m2) for resistance calculation.
+        Timesteps with |Q_E| < min_flux are excluded. Default 0.1.
 
     Returns
     -------
@@ -229,7 +214,7 @@ def diagnose_q2(
     --------
     Quick anomaly diagnosis:
 
-    >>> result = diagnose_q2(df_output, method="anomaly")
+    >>> result = diagnose_q2(df_output, df_forcing, method="anomaly")
     >>> print(result)
     q2 Attribution Results
     ========================================
@@ -237,9 +222,10 @@ def diagnose_q2(
 
     Component Breakdown:
     ----------------------------------------
-      flux_total     : +0.53 g/kg (66.7%)
-      resistance     : +0.20 g/kg (25.0%)
-      air_props      : +0.07 g/kg ( 8.3%)
+      q_ref          : +0.55 g/kg (68.8%)
+      flux_total     : +0.18 g/kg (22.5%)
+      resistance     : +0.06 g/kg ( 7.5%)
+      air_props      : +0.01 g/kg ( 1.2%)
 
     Closure residual: 1.23e-15 g/kg
 
@@ -302,32 +288,82 @@ def diagnose_q2(
             f"Only {n_normal} reference timesteps found. Cannot establish baseline."
         )
 
-    # Create reference and anomaly DataFrames
-    df_normal = df_output.loc[normal_mask]
-    df_anomaly = df_output.loc[anomaly_mask]
+    # Extract data for each group
+    df_normal = df.loc[normal_mask]
+    df_anomaly = df.loc[anomaly_mask]
 
-    if df_forcing is not None:
-        df_forcing_normal = df_forcing.loc[normal_mask]
-        df_forcing_anomaly = df_forcing.loc[anomaly_mask]
-    else:
-        df_forcing_normal = None
-        df_forcing_anomaly = None
+    # Get mean values for each group
+    q2_A = np.array([df_normal["q2"].mean()])
+    q2_B = np.array([df_anomaly["q2"].mean()])
+    QE_A = np.array([df_normal["QE"].mean()])
+    QE_B = np.array([df_anomaly["QE"].mean()])
 
-    # Run attribution
-    result = attribute_q2(
-        df_output_A=df_normal,
-        df_output_B=df_anomaly,
-        df_forcing_A=df_forcing_normal,
-        df_forcing_B=df_forcing_anomaly,
+    # Extract forcing data for each group
+    df_forcing_normal = df_forcing.loc[normal_mask]
+    df_forcing_anomaly = df_forcing.loc[anomaly_mask]
+    T_ref_A = np.array([df_forcing_normal["Tair"].mean()])
+    T_ref_B = np.array([df_forcing_anomaly["Tair"].mean()])
+    RH_A = np.array([df_forcing_normal["RH"].mean()])
+    RH_B = np.array([df_forcing_anomaly["RH"].mean()])
+    P_A = np.array([df_forcing_normal["pres"].mean()])
+    P_B = np.array([df_forcing_anomaly["pres"].mean()])
+
+    # Calculate reference specific humidity
+    theta_A = T_ref_A + 273.15
+    theta_B = T_ref_B + 273.15
+    q_ref_A = cal_qa(RH_A, theta_A, P_A)
+    q_ref_B = cal_qa(RH_B, theta_B, P_B)
+
+    # Calculate gamma = 1/(rho*Lv)
+    # Ensure numpy arrays (cal_gamma_humidity may return pandas Series)
+    gamma_A = np.asarray(cal_gamma_humidity(T_ref_A, RH_A, P_A))
+    gamma_B = np.asarray(cal_gamma_humidity(T_ref_B, RH_B, P_B))
+
+    # Back-calculate effective resistance from mean values
+    r_A = cal_r_eff_humidity(q2_A, q_ref_A, QE_A, gamma_A, min_flux)
+    r_B = cal_r_eff_humidity(q2_B, q_ref_B, QE_B, gamma_B, min_flux)
+
+    # Shapley decomposition: delta(q2 - q_ref) = delta(r * QE * gamma)
+    Phi_r, Phi_QE, Phi_gamma = shapley_triple_product(
+        r_A, r_B, QE_A, QE_B, gamma_A, gamma_B
     )
 
-    # Update metadata with diagnostic info
-    result.metadata.update({
+    # The total q2 change includes reference humidity change:
+    # delta_q2 = delta_q_ref + delta(r * QE * gamma)
+    Phi_q_ref = q_ref_B - q_ref_A
+
+    # Build single-row contributions DataFrame
+    # Convert to g/kg for better readability
+    scale = 1000.0  # kg/kg to g/kg
+    contributions = pd.DataFrame(
+        {
+            "delta_total": (q2_B - q2_A) * scale,
+            "q_ref": Phi_q_ref * scale,  # Reference humidity contribution
+            "flux_total": Phi_QE * scale,
+            "resistance": Phi_r * scale,
+            "air_props": Phi_gamma * scale,
+        },
+        index=pd.Index(["aggregate"], name="type"),
+    )
+
+    # Calculate summary (same as contributions for single-row)
+    summary = contributions.describe().T[["mean", "std", "min", "max"]]
+
+    # Metadata
+    metadata = {
+        "n_timesteps": 1,  # Aggregate comparison
         "method": method,
         "threshold": threshold if method == "anomaly" else None,
         "n_anomaly": int(n_anomaly),
         "n_reference": int(n_normal),
         "pct_anomaly": 100 * n_anomaly / len(q2),
-    })
+        "unit": "g/kg",
+        "aggregate_comparison": True,
+    }
 
-    return result
+    return AttributionResult(
+        variable="q2",
+        contributions=contributions,
+        summary=summary,
+        metadata=metadata,
+    )

@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
@@ -5,6 +6,9 @@ import numpy as np
 import pandas as pd
 
 from .._post import resample_output
+
+# Logger for this module
+logger = logging.getLogger(__name__)
 
 
 #################################################################
@@ -313,19 +317,91 @@ def conv_0to24(df_TMY):
 
 
 # function to read in EPW file
-def read_epw(path_epw: Path) -> pd.DataFrame:
-    """Read in `epw` file as a DataFrame
+def read_epw(
+    path_epw: Path,
+    target_height: float = 10.0,
+    z0m: float = 0.1,
+) -> pd.DataFrame:
+    """Read in EPW (EnergyPlus Weather) file as a DataFrame.
 
     Parameters
     ----------
     path_epw : Path
-        path to `epw` file
+        Path to EPW file.
+    target_height : float, optional
+        Target height for wind speed extrapolation [m]. EPW files contain
+        wind speed at 10 m agl. If target_height differs from 10 m, the
+        wind speed will be adjusted using a logarithmic wind profile.
+        Default is 10.0 (no correction applied).
+    z0m : float, optional
+        Roughness length for momentum [m], used in wind profile correction.
+        Typical values: 0.01 (open water), 0.1 (grassland), 0.5-2.0 (urban).
+        Default is 0.1.
 
     Returns
     -------
-    df_tmy: pd.DataFrame
-        TMY results of `epw` file
+    df_tmy : pd.DataFrame
+        DataFrame containing weather data with columns named according
+        to EPW standard variable names.
+
+    Notes
+    -----
+    **Measurement Height Assumptions**
+
+    EPW files follow standard meteorological station conventions:
+
+    - **Wind Speed**: 10 m above ground level (agl)
+    - **Temperature and Humidity**: 2 m agl (screen height)
+
+    When using EPW data with SUEWS, ensure the forcing height parameter
+    ``z`` in your site configuration matches these heights. For EPW data,
+    set ``z = 10`` to match the wind speed measurement height.
+
+    **Wind Speed Height Correction**
+
+    If ``target_height != 10.0``, the wind speed is adjusted using the
+    logarithmic wind profile (assuming neutral atmospheric conditions):
+
+    .. math::
+
+        U(z_2) = U(z_1) \\frac{\\ln((z_2 + z_0) / z_0)}{\\ln((z_1 + z_0) / z_0)}
+
+    where :math:`z_1 = 10` m (EPW height), :math:`z_2` is the target height,
+    and :math:`z_0` is the roughness length.
+
+    .. warning::
+
+        The log-law profile assumes neutral atmospheric stability. Under
+        strongly stable or unstable conditions, actual wind profiles may
+        differ significantly from this approximation.
+
+    See Also
+    --------
+    gen_epw : Generate EPW file from SUEWS simulation output.
+    supy.util.gen_forcing_era5 : Generate forcing from ERA5 (extrapolated
+        to user-specified height).
+
+    Examples
+    --------
+    >>> import supy as sp
+    >>> from pathlib import Path
+    >>>
+    >>> # Read EPW file without height correction (default)
+    >>> df_epw = sp.util.read_epw(Path("weather.epw"))
+    >>>
+    >>> # Read EPW file and extrapolate wind speed to 50 m
+    >>> df_epw = sp.util.read_epw(
+    ...     Path("weather.epw"),
+    ...     target_height=50.0,
+    ...     z0m=0.5  # urban roughness length
+    ... )
     """
+    # Input validation
+    if z0m <= 0:
+        raise ValueError(f"z0m must be positive, got {z0m}")
+    if target_height <= 0:
+        raise ValueError(f"target_height must be positive, got {target_height}")
+
     df_tmy = pd.read_csv(path_epw, skiprows=8, sep=",", header=None)
     df_tmy.columns = [x.strip() for x in header_EPW.split("\n")[1:-1]]
     df_tmy["DateTime"] = pd.to_datetime(
@@ -336,6 +412,21 @@ def read_epw(path_epw: Path) -> pd.DataFrame:
         + pd.to_timedelta(df_tmy["Hour"], unit="h")
     )
     df_tmy = df_tmy.set_index("DateTime")
+
+    # Apply wind speed height correction if target height differs from EPW standard (10 m)
+    epw_height = 10.0
+    if not np.isclose(target_height, epw_height):
+        logger.warning(
+            f"Applying wind speed height correction from {epw_height}m to {target_height}m "
+            f"using log-law profile (assumes neutral atmospheric conditions). "
+            f"This approximation may be less accurate under strongly stable or unstable conditions."
+        )
+        # Log-law wind profile correction (neutral conditions)
+        correction_factor = np.log((target_height + z0m) / z0m) / np.log(
+            (epw_height + z0m) / z0m
+        )
+        df_tmy["Wind Speed"] = df_tmy["Wind Speed"] * correction_factor
+
     return df_tmy
 
 

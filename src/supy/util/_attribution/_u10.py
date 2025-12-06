@@ -191,12 +191,15 @@ def diagnose_u10(
     method: Literal["anomaly", "extreme", "diurnal"] = "anomaly",
     threshold: float = 2.0,
     z_ref: float = 10.0,
+    min_ustar: float = 0.01,
 ) -> AttributionResult:
     """
     Automatically identify anomalous U10 values and attribute the causes.
 
     This convenience function identifies unusual U10 (10m wind speed)
-    behaviour within a single simulation run and diagnoses the driving factors.
+    behaviour within a single simulation run and diagnoses the driving factors
+    by comparing aggregate statistics between reference (normal) and target
+    (anomaly) periods.
 
     Parameters
     ----------
@@ -212,6 +215,8 @@ def diagnose_u10(
         Standard deviation threshold for anomaly detection. Default 2.0.
     z_ref : float, optional
         Reference height for wind speed (m). Default 10.0 m.
+    min_ustar : float, optional
+        Minimum friction velocity threshold (m/s). Default 0.01.
 
     Returns
     -------
@@ -295,24 +300,63 @@ def diagnose_u10(
             f"Only {n_normal} reference timesteps found. Cannot establish baseline."
         )
 
-    # Create reference and anomaly DataFrames
-    df_normal = df_output.loc[normal_mask]
-    df_anomaly = df_output.loc[anomaly_mask]
+    # Extract data for each group
+    df_normal = df.loc[normal_mask]
+    df_anomaly = df.loc[anomaly_mask]
 
-    # Run attribution
-    result = attribute_u10(
-        df_output_A=df_normal,
-        df_output_B=df_anomaly,
-        z_ref=z_ref,
+    # Get mean values for each group
+    U10_A = np.array([df_normal["U10"].mean()])
+    U10_B = np.array([df_anomaly["U10"].mean()])
+    ustar_A = np.array([df_normal["UStar"].mean()])
+    ustar_B = np.array([df_anomaly["UStar"].mean()])
+    z0m_A = np.array([df_normal["z0m"].mean()])
+    z0m_B = np.array([df_anomaly["z0m"].mean()])
+    zd_A = np.array([df_normal["zd"].mean()])
+    zd_B = np.array([df_anomaly["zd"].mean()])
+    Lob_A = np.array([df_normal["Lob"].mean()])
+    Lob_B = np.array([df_anomaly["Lob"].mean()])
+
+    # Calculate profile components for each scenario
+    F_A, R_A, S_A = cal_u10_profile_components(ustar_A, z0m_A, zd_A, Lob_A, z_ref=z_ref)
+    F_B, R_B, S_B = cal_u10_profile_components(ustar_B, z0m_B, zd_B, Lob_B, z_ref=z_ref)
+
+    # Shapley decomposition for f = F * (R + S)
+    Phi_F, Phi_R, Phi_S = shapley_forcing_profile(F_A, F_B, R_A, R_B, S_A, S_B)
+
+    # Build single-row contributions DataFrame
+    contributions = pd.DataFrame(
+        {
+            "delta_total": U10_B - U10_A,
+            "forcing": Phi_F,
+            "roughness": Phi_R,
+            "stability": Phi_S,
+        },
+        index=pd.Index(["aggregate"], name="type"),
     )
 
-    # Update metadata with diagnostic info
-    result.metadata.update({
+    # Add flag for low ustar
+    contributions["flag_low_ustar"] = np.abs(ustar_A) < min_ustar
+
+    # Calculate summary (same as contributions for single-row)
+    main_cols = ["delta_total", "forcing", "roughness", "stability", "flag_low_ustar"]
+    summary = contributions[main_cols].describe().T[["mean", "std", "min", "max"]]
+
+    # Metadata
+    metadata = {
+        "n_timesteps": 1,  # Aggregate comparison
         "method": method,
         "threshold": threshold if method == "anomaly" else None,
         "n_anomaly": int(n_anomaly),
         "n_reference": int(n_normal),
         "pct_anomaly": 100 * n_anomaly / len(u10),
-    })
+        "z_ref": z_ref,
+        "unit": "m/s",
+        "aggregate_comparison": True,
+    }
 
-    return result
+    return AttributionResult(
+        variable="U10",
+        contributions=contributions,
+        summary=summary,
+        metadata=metadata,
+    )

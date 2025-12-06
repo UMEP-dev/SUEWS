@@ -57,8 +57,12 @@ class AttributionResult:
         # Main components depend on variable type
         if self.variable == "U10":
             main_components = ["forcing", "roughness", "stability"]
+        elif self.variable == "q2":
+            # Include q_ref if present (from diagnose_q2 function)
+            main_components = ["q_ref", "flux_total", "resistance", "air_props"]
         else:
-            main_components = ["flux_total", "resistance", "air_props"]
+            # Include T_ref if present (from diagnose_t2 function)
+            main_components = ["T_ref", "flux_total", "resistance", "air_props"]
 
         # Filter to existing components
         main_components = [c for c in main_components if c in self.summary.index]

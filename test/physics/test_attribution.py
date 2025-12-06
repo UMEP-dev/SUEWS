@@ -214,11 +214,7 @@ class TestFluxBudgetDecomposition(TestCase):
         n = 50
         np.random.seed(42)
 
-        # Create flux values
-        QH_A = np.random.uniform(50, 200, n)
-        QH_B = np.random.uniform(50, 200, n)
-
-        # Create component values that sum to flux
+        # Create component values first
         Qstar_A = np.random.uniform(100, 400, n)
         QE_A = np.random.uniform(50, 150, n)
         QS_A = np.random.uniform(20, 80, n)
@@ -230,6 +226,12 @@ class TestFluxBudgetDecomposition(TestCase):
         QS_B = QS_A + np.random.uniform(-20, 20, n)
         QF_B = QF_A + np.random.uniform(-10, 10, n)
 
+        # Compute QH from energy budget: QH = Q* - QE - QS + QF
+        # This ensures physical consistency
+        QH_A = Qstar_A - QE_A - QS_A + QF_A
+        QH_B = Qstar_B - QE_B - QS_B + QF_B
+
+        # Component dictionary with signs matching energy budget
         components_A = {"Qstar": Qstar_A, "QE": -QE_A, "dQS": -QS_A, "QF": QF_A}
         components_B = {"Qstar": Qstar_B, "QE": -QE_B, "dQS": -QS_B, "QF": QF_B}
 
@@ -296,12 +298,22 @@ class TestAttributeT2Integration(TestCase):
     """Integration tests for T2 attribution with mock data."""
 
     def setUp(self):
-        """Create mock SUEWS output data."""
+        """Create mock SUEWS output and forcing data."""
         np.random.seed(42)
         n = 100
 
         # Create time index
         dates = pd.date_range("2020-01-01", periods=n, freq="h")
+
+        # Create forcing data (required for attribution)
+        self.df_forcing = pd.DataFrame(
+            {
+                "Tair": 15 + 5 * np.sin(np.linspace(0, 4 * np.pi, n)),
+                "RH": 60 + 10 * np.sin(np.linspace(0, 4 * np.pi, n)),
+                "pres": 1013.25 + np.random.normal(0, 2, n),
+            },
+            index=dates,
+        )
 
         # Scenario A: baseline
         self.df_A = pd.DataFrame(
@@ -341,9 +353,9 @@ class TestAttributeT2Integration(TestCase):
 
     def test_attribute_t2_produces_result(self):
         """Attribution should produce a valid result object."""
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")  # Ignore forcing data warning
-            result = attribute_t2(self.df_A, self.df_B)
+        result = attribute_t2(
+            self.df_A, self.df_B, self.df_forcing, self.df_forcing
+        )
 
         self.assertIsInstance(result, AttributionResult)
         self.assertEqual(result.variable, "T2")
@@ -354,9 +366,9 @@ class TestAttributeT2Integration(TestCase):
 
     def test_attribute_t2_closure(self):
         """Attribution components should sum to total change."""
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            result = attribute_t2(self.df_A, self.df_B)
+        result = attribute_t2(
+            self.df_A, self.df_B, self.df_forcing, self.df_forcing
+        )
 
         delta_total = result.contributions["delta_total"]
         sum_components = (
@@ -375,9 +387,9 @@ class TestAttributeT2Integration(TestCase):
 
     def test_attribute_t2_correct_sign(self):
         """Negative T2 change should produce negative mean contribution."""
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            result = attribute_t2(self.df_A, self.df_B)
+        result = attribute_t2(
+            self.df_A, self.df_B, self.df_forcing, self.df_forcing
+        )
 
         mean_delta = result.contributions["delta_total"].mean()
 
@@ -388,9 +400,9 @@ class TestAttributeT2Integration(TestCase):
 
     def test_attribute_t2_hierarchical_decomposition(self):
         """Hierarchical mode should include flux budget components."""
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            result = attribute_t2(self.df_A, self.df_B, hierarchical=True)
+        result = attribute_t2(
+            self.df_A, self.df_B, self.df_forcing, self.df_forcing, hierarchical=True
+        )
 
         # Should have flux sub-components
         flux_cols = [c for c in result.contributions.columns if c.startswith("flux_")]
@@ -405,25 +417,19 @@ class TestAttributeT2Integration(TestCase):
 
         df_A = pd.DataFrame({"T2": [20] * 100, "QH": [100] * 100}, index=dates_A)
         df_B = pd.DataFrame({"T2": [21] * 100, "QH": [110] * 100}, index=dates_B)
+        df_forcing_A = pd.DataFrame(
+            {"Tair": [15] * 100, "RH": [60] * 100, "pres": [1013.25] * 100},
+            index=dates_A,
+        )
+        df_forcing_B = pd.DataFrame(
+            {"Tair": [15] * 100, "RH": [60] * 100, "pres": [1013.25] * 100},
+            index=dates_B,
+        )
 
         with self.assertRaises(ValueError) as context:
-            attribute_t2(df_A, df_B)
+            attribute_t2(df_A, df_B, df_forcing_A, df_forcing_B)
 
         self.assertIn("overlapping", str(context.exception).lower())
-
-    def test_attribute_t2_warns_on_missing_forcing(self):
-        """Should warn when forcing data not provided."""
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            attribute_t2(self.df_A, self.df_B)
-
-            # Check a warning was raised about forcing data
-            forcing_warnings = [
-                warning for warning in w if "forcing" in str(warning.message).lower()
-            ]
-            self.assertGreater(
-                len(forcing_warnings), 0, "Should warn about missing forcing data"
-            )
 
 
 class TestAttributionResult(TestCase):
@@ -477,7 +483,7 @@ class TestDiagnoseT2(TestCase):
     """Test diagnose_t2 function."""
 
     def setUp(self):
-        """Create mock SUEWS output with clear diurnal pattern."""
+        """Create mock SUEWS output and forcing with clear diurnal pattern."""
         np.random.seed(42)
         # 7 days of hourly data
         dates = pd.date_range("2020-07-01", periods=168, freq="h")
@@ -500,20 +506,28 @@ class TestDiagnoseT2(TestCase):
             index=dates,
         )
 
+        # Create forcing data with similar diurnal pattern
+        self.df_forcing = pd.DataFrame(
+            {
+                "Tair": 15 + 0.8 * diurnal + np.random.normal(0, 0.2, 168),
+                "RH": 60 - 10 * diurnal / 5 + np.random.normal(0, 2, 168),
+                "pres": 1013.25 + np.random.normal(0, 2, 168),
+            },
+            index=dates,
+        )
+
     def test_diagnose_t2_diurnal_method(self):
         """Diurnal method should compare afternoon vs morning."""
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            result = diagnose_t2(self.df_output, method="diurnal")
+        result = diagnose_t2(self.df_output, self.df_forcing, method="diurnal")
 
         self.assertIsInstance(result, AttributionResult)
         self.assertEqual(result.metadata["method"], "diurnal")
 
     def test_diagnose_t2_anomaly_method(self):
         """Anomaly method should find extreme values."""
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            result = diagnose_t2(self.df_output, method="anomaly", threshold=1.5)
+        result = diagnose_t2(
+            self.df_output, self.df_forcing, method="anomaly", threshold=1.5
+        )
 
         self.assertIsInstance(result, AttributionResult)
         self.assertEqual(result.metadata["method"], "anomaly")
@@ -533,9 +547,17 @@ class TestDiagnoseT2(TestCase):
             },
             index=dates,
         )
+        df_forcing_uniform = pd.DataFrame(
+            {
+                "Tair": [15] * 100,
+                "RH": [60] * 100,
+                "pres": [1013.25] * 100,
+            },
+            index=dates,
+        )
 
         with self.assertRaises(ValueError) as context:
-            diagnose_t2(df_uniform, method="anomaly", threshold=5.0)
+            diagnose_t2(df_uniform, df_forcing_uniform, method="anomaly", threshold=5.0)
 
         self.assertIn("anomalous timesteps", str(context.exception).lower())
 

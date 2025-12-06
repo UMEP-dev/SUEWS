@@ -170,6 +170,12 @@
   - Same functionality, lighter dependencies
   - Consolidates all parallel processing to one library
 
+### 16 Nov 2025
+- [feature] Re-enabled AnOHM without requiring future forcing data
+  - Added rolling 24-hour forcing buffers to `OHM_STATE` and `SUEWS_cal_Qs` so StorageHeatMethod 3 now diagnoses coefficients from the most recently completed day
+  - Refactored `module_phys_anohm` to consume buffered shortwave, meteorology, and anthropogenic heat series directly (removed the legacy `MetForcingData_grid` dependency)
+  - Updated StorageHeatMethod documentation to clarify the trailing-day workflow and avoid confusion about forcing requirements
+
 ### 14 Nov 2025
 - [feature] Added `SUEWSSimulation.from_sample_data()` factory method and comprehensive OOP enhancements (#779)
   - New factory method for cleaner OOP workflow: `sim = SUEWSSimulation.from_sample_data()`

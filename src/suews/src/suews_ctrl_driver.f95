@@ -24,14 +24,15 @@ MODULE SUEWS_Driver
                             ROUGHNESS_STATE, solar_State, atm_state, flag_STATE, &
                             SUEWS_STATE, SUEWS_DEBUG, STEBBS_STATE, BUILDING_ARCHETYPE_PRM, STEBBS_PRM, STEBBS_BLDG, &
                             SUEWS_STATE_BLOCK, &
-                            output_line, output_block
+                            output_line, output_block, &
+                            ANOHM_MAX_SAMPLES, ANOHM_MIN_VALID_SAMPLES
    USE meteo, ONLY: qsatf, RH2qa, qa2RH
    USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, SUEWS_update_atmState
    USE module_phys_narp, ONLY: NARP_cal_SunPosition, NARP_cal_SunPosition_DTS
    USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom
    USE module_phys_narp, ONLY: NARP_cal_SunPosition
    USE module_phys_spartacus, ONLY: SPARTACUS
-   ! USE AnOHM_module, ONLY: AnOHM
+   USE module_phys_anohm, ONLY: AnOHM
    USE module_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
                             SUEWS_cal_RoughnessParameters
    USE module_phys_ohm, ONLY: OHM
@@ -1496,6 +1497,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf) :: cpAnOHM ! heat capacity [J m-3 K-1]
       REAL(KIND(1D0)), DIMENSION(nsurf) :: kkAnOHM ! thermal conductivity [W m-1 K-1]
       REAL(KIND(1D0)), DIMENSION(nsurf) :: chAnOHM ! bulk transfer coef [J m-3 K-1]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: moist_surf ! normalised soil moisture state [-]
 
       REAL(KIND(1D0)), DIMENSION(27), INTENT(out) :: dataOutLineESTM !data output from ESTM
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSTEBBS - 5), INTENT(out) :: dataOutLineSTEBBS !data output from STEBBS
@@ -1503,6 +1505,7 @@ CONTAINS
       ! internal use arrays
       REAL(KIND(1D0)) :: Tair_mav_5d ! Tair_mav_5d=HDD(id-1,4) HDD at the begining of today (id-1)
       REAL(KIND(1D0)) :: qn_use ! qn used in OHM calculations [W m-2]
+      INTEGER :: is
 
       ASSOCIATE ( &
          atmState => modState%atmState, &
@@ -1819,7 +1822,8 @@ CONTAINS
                IF (StorageHeatMethod == 0) THEN !Use observed QS
                   qs = qs_obs
 
-               ELSEIF (StorageHeatMethod == 1 .OR. StorageHeatMethod == 6 .OR. StorageHeatMethod == 7) THEN !Use OHM to calculate QS
+               ELSEIF (StorageHeatMethod == 1 .OR. StorageHeatMethod == 6 .OR. StorageHeatMethod == 7 .OR. &
+                      (StorageHeatMethod == 3 .AND. .NOT. ohmState%anohm_coeff_ready)) THEN !Use OHM to calculate QS or fallback for ANOHM spin-up
                   Tair_mav_5d = HDD_id(10)
                   IF (Diagnose == 1) WRITE (*, *) 'Calling OHM...'
                   CALL OHM(qn_use, ohmState%qn_av, ohmState%dqndt, &
@@ -1853,27 +1857,34 @@ CONTAINS
                   QS_roof = qs
                   QS_wall = qs
 
-                  ! use AnOHM to calculate QS, TS 14 Mar 2016
-                  ! disable AnOHM, TS 20 Jul 2023
-                  ! ELSEIF (StorageHeatMethod == 3) THEN !
-                  !    IF (Diagnose == 1) WRITE (*, *) 'Calling AnOHM...'
-                  !    ! CALL AnOHM(qn1_use,qn1_store_grid,qn1_av_store_grid,qf,&
-                  !    !      MetForcingData_grid,state_id/StoreDrainPrm(6,:),&
-                  !    !      alb, emis, cpAnOHM, kkAnOHM, chAnOHM,&
-                  !    !      sfr_surf,nsurf,nsh,EmissionsMethod,id,Gridiv,&
-                  !    !      a1,a2,a3,qs,deltaQi)
-                  !    moist_surf = state_id/StoreDrainPrm(6, :)
-                  !    ! CALL AnOHM( &
-                  !    !    tstep, dt_since_start, &
-                  !    !    qn_use, qn_av_prev, dqndt_prev, qf, &
-                  !    !    MetForcingData_grid, moist_surf, &
-                  !    !    alb, emis, cpAnOHM, kkAnOHM, chAnOHM, & ! input
-                  !    !    sfr_surf, nsurf, EmissionsMethod, id, Gridiv, &
-                  !    !    qn_av_next, dqndt_next, &
-                  !    !    a1, a2, a3, qs, deltaQi) ! output
-                  !    QS_surf = qs
-                  !    QS_roof = qs
-                  !    QS_wall = qs
+               ELSEIF (StorageHeatMethod == 3) THEN
+                  DO is = 1, nsurf
+                     IF (StoreDrainPrm(6, is) > 0.0D0) THEN
+                        moist_surf(is) = MAX(0.0D0, MIN(1.0D0, state_id(is)/StoreDrainPrm(6, is)))
+                     ELSE
+                        moist_surf(is) = 0.0D0
+                     END IF
+                  END DO
+
+                  IF (Diagnose == 1) WRITE (*, *) 'Calling AnOHM...'
+                  CALL AnOHM( &
+                     tstep, dt_since_start, &
+                     qn_use, ohmState%qn_av, ohmState%dqndt, &
+                     ohmState%anohm_coeff_sd(1:ohmState%anohm_coeff_count), &
+                     ohmState%anohm_coeff_ta(1:ohmState%anohm_coeff_count), &
+                     ohmState%anohm_coeff_rh(1:ohmState%anohm_coeff_count), &
+                     ohmState%anohm_coeff_pres(1:ohmState%anohm_coeff_count), &
+                     ohmState%anohm_coeff_ws(1:ohmState%anohm_coeff_count), &
+                     ohmState%anohm_coeff_ah(1:ohmState%anohm_coeff_count), &
+                     ohmState%anohm_coeff_tHr(1:ohmState%anohm_coeff_count), &
+                     moist_surf, &
+                     alb, emis, cpAnOHM, kkAnOHM, chAnOHM, &
+                     sfr_surf, nsurf, ohmState%anohm_coeff_day, Gridiv, &
+                     ohmState%qn_av, ohmState%dqndt, &
+                     a1, a2, a3, qs, deltaQi)
+                  QS_surf = qs
+                  QS_roof = qs
+                  QS_wall = qs
 
                   ! !Calculate QS using ESTM
                ELSEIF (StorageHeatMethod == 4 .OR. StorageHeatMethod == 14) THEN
@@ -1942,6 +1953,85 @@ CONTAINS
    END SUBROUTINE SUEWS_cal_Qs
 !=======================================================================
 
+   SUBROUTINE anohm_rollover_if_needed(timer, ohmState)
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(OHM_STATE), INTENT(INOUT) :: ohmState
+
+      IF (ohmState%anohm_working_day == -999) THEN
+         ohmState%anohm_working_day = timer%id
+      END IF
+
+      IF (timer%id /= ohmState%anohm_working_day) THEN
+         IF (ohmState%anohm_working_count > 0) THEN
+            ohmState%anohm_coeff_tHr = ohmState%anohm_working_tHr
+            ohmState%anohm_coeff_sd = ohmState%anohm_working_sd
+            ohmState%anohm_coeff_ta = ohmState%anohm_working_ta
+            ohmState%anohm_coeff_rh = ohmState%anohm_working_rh
+            ohmState%anohm_coeff_pres = ohmState%anohm_working_pres
+            ohmState%anohm_coeff_ws = ohmState%anohm_working_ws
+            ohmState%anohm_coeff_ah = ohmState%anohm_working_ah
+            ohmState%anohm_coeff_day = ohmState%anohm_working_day
+            ohmState%anohm_coeff_count = MIN(ohmState%anohm_working_count, ANOHM_MAX_SAMPLES)
+            ohmState%anohm_coeff_ready = (ohmState%anohm_coeff_count >= ANOHM_MIN_VALID_SAMPLES)
+         ELSE
+            ohmState%anohm_coeff_ready = .FALSE.
+            ohmState%anohm_coeff_count = 0
+            ohmState%anohm_coeff_day = ohmState%anohm_working_day
+            ohmState%anohm_coeff_tHr = -999.0D0
+            ohmState%anohm_coeff_sd = -999.0D0
+            ohmState%anohm_coeff_ta = -999.0D0
+            ohmState%anohm_coeff_rh = -999.0D0
+            ohmState%anohm_coeff_pres = -999.0D0
+            ohmState%anohm_coeff_ws = -999.0D0
+            ohmState%anohm_coeff_ah = -999.0D0
+         END IF
+
+         ohmState%anohm_working_day = timer%id
+         ohmState%anohm_working_count = 0
+         ohmState%anohm_working_tHr = -999.0D0
+         ohmState%anohm_working_sd = -999.0D0
+         ohmState%anohm_working_ta = -999.0D0
+         ohmState%anohm_working_rh = -999.0D0
+         ohmState%anohm_working_pres = -999.0D0
+         ohmState%anohm_working_ws = -999.0D0
+         ohmState%anohm_working_ah = -999.0D0
+      END IF
+
+   END SUBROUTINE anohm_rollover_if_needed
+
+   SUBROUTINE anohm_append_sample(timer, forcing, qf, ohmState)
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
+      REAL(KIND(1D0)), INTENT(IN) :: qf
+      TYPE(OHM_STATE), INTENT(INOUT) :: ohmState
+
+      INTEGER :: idx
+
+      IF (ohmState%anohm_working_day == -999) THEN
+         ohmState%anohm_working_day = timer%id
+      END IF
+
+      IF (timer%id /= ohmState%anohm_working_day) THEN
+         CALL anohm_rollover_if_needed(timer, ohmState)
+      END IF
+
+      IF (timer%imin /= 0 .OR. timer%isec /= 0) RETURN
+
+      idx = MIN(timer%it + 1, ANOHM_MAX_SAMPLES)
+      ohmState%anohm_working_tHr(idx) = REAL(timer%it, KIND(1D0))
+      ohmState%anohm_working_sd(idx) = forcing%kdown
+      ohmState%anohm_working_ta(idx) = forcing%temp_c
+      ohmState%anohm_working_rh(idx) = forcing%RH
+      ohmState%anohm_working_pres(idx) = forcing%pres
+      ohmState%anohm_working_ws(idx) = forcing%U
+      ohmState%anohm_working_ah(idx) = qf
+
+      IF (idx > ohmState%anohm_working_count) THEN
+         ohmState%anohm_working_count = idx
+      END IF
+
+   END SUBROUTINE anohm_append_sample
+
 !==========================drainage and runoff================================
    SUBROUTINE SUEWS_cal_Water( &
       timer, config, forcing, siteInfo, & ! input
@@ -2005,6 +2095,10 @@ CONTAINS
 
             state_id = hydroState%state_surf
             StoreDrainPrm = phenState%StoreDrainPrm
+            IF (config%StorageHeatMethod == 3) THEN
+               CALL anohm_rollover_if_needed(timer, modState%ohmState)
+               CALL anohm_append_sample(timer, forcing, modState%heatState%qf, modState%ohmState)
+            END IF
 
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
             WaterDist(1, 1) = pavedPrm%waterdist%to_paved

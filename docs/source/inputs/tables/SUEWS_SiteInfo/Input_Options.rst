@@ -2673,49 +2673,6 @@ Input Options
 			:widths: 44 18 38
 
 
-.. option:: OBS_SMCap
-
-	:Description:
-
-		The maximum observed soil moisture. [|m^3| |m^-3| or kg |kg^-1|]
-
-	:Configuration:
-		.. csv-table::
-			:class: longtable
-			:file: csv-table/OBS_SMCap.csv
-			:header-rows: 1
-			:widths: 44 18 38
-
-
-.. option:: OBS_SMDepth
-
-	:Description:
-
-		The depth of soil moisture measurements. [mm]
-
-
-	:Configuration:
-		.. csv-table::
-			:class: longtable
-			:file: csv-table/OBS_SMDepth.csv
-			:header-rows: 1
-			:widths: 44 18 38
-
-
-.. option:: OBS_SoilNotRocks
-
-	:Description:
-
-		Fraction of soil without rocks. [-]
-
-	:Configuration:
-		.. csv-table::
-			:class: longtable
-			:file: csv-table/OBS_SoilNotRocks.csv
-			:header-rows: 1
-			:widths: 44 18 38
-
-
 .. option:: OHMCode_SummerDry
 
 	:Description:

@@ -12,12 +12,8 @@ Each of the non-water surface types need to link to soil characteristics specifi
 If the soil characteristics are assumed to be the same for all surface types, use a single code value to link the characteristics here with the SoilTypeCode columns in `SUEWS_NonVeg.txt` and `SUEWS_Veg.txt`.
 
 Soil moisture can either be provided using observational data in the met
-forcing file (the `xsmd` column when `SMDMethod` = 1 or 2 in `RunControl.nml`) and providing some soil properties here, or modelled by SUEWS (`SMDMethod` = 0 in `RunControl.nml`).
-
-
-.. .. caution::
-..   The option to use observational data is not operational in the current release!
-
+forcing file (the `xsmd` column when `SMDMethod` = 1 or 2 in `RunControl.nml`), or modelled by SUEWS (`SMDMethod` = 0 in `RunControl.nml`).
+When using observed soil moisture, see the YAML configuration documentation for required site-level metadata.
 
 .. DON'T manually modify the csv file below
 .. as it is always automatically regenrated by each build:

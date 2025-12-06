@@ -24,12 +24,13 @@ CRITICAL_SECTIONS = [
     "## Quick Reference",
 ]
 
-# Required reference files that contain detailed content
-REQUIRED_REFERENCE_FILES = [
-    ".claude/reference/quick-start.md",
-    ".claude/reference/testing-guide.md",
-    ".claude/reference/config-patterns.md",
-    ".claude/reference/maintenance-principles.md",
+# Required skill files that contain detailed content (updated after directory refactor)
+# Skills are now the single source of truth for detailed documentation
+REQUIRED_SKILL_FILES = [
+    ".claude/skills/setup-dev/SKILL.md",  # Environment setup (was quick-start.md)
+    ".claude/skills/design-tests/SKILL.md",  # Testing patterns (was testing-guide.md)
+    ".claude/skills/apply-patterns/SKILL.md",  # Config patterns + maintenance (was config-patterns.md, maintenance-principles.md)
+    ".claude/skills/lint-code/SKILL.md",  # Code style conventions
 ]
 
 # Suspicious placeholder patterns that indicate content loss
@@ -85,15 +86,15 @@ def check_file_integrity(filepath: Path) -> dict:
     if missing_sections:
         warnings.append(f"Missing critical sections: {', '.join(missing_sections)}")
 
-    # Check that required reference files exist
-    missing_refs = []
-    for ref_file in REQUIRED_REFERENCE_FILES:
-        ref_path = filepath.parent / ref_file
-        if not ref_path.exists():
-            missing_refs.append(ref_file)
+    # Check that required skill files exist
+    missing_skills = []
+    for skill_file in REQUIRED_SKILL_FILES:
+        skill_path = filepath.parent / skill_file
+        if not skill_path.exists():
+            missing_skills.append(skill_file)
 
-    if missing_refs:
-        warnings.append(f"Missing reference files: {', '.join(missing_refs)}")
+    if missing_skills:
+        warnings.append(f"Missing skill files: {', '.join(missing_skills)}")
 
     # Calculate content hash for tracking changes
     content_hash = hashlib.sha256(content.encode()).hexdigest()

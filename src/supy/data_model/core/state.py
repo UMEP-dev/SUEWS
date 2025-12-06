@@ -369,6 +369,8 @@ class InitialStateVeg(SurfaceInitialState):
         description="Albedo at the start of the model run.",
         json_schema_extra={"unit": "dimensionless", "display_name": "Alb Id"},
         default=0.25,
+        ge=0.0,
+        le=1.0,
     )
     lai_id: FlexibleRefValue(float) = Field(
         description="Leaf area index at the start of the model run.",

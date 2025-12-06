@@ -188,6 +188,41 @@ Please check the following:
 A general rule of thumb is to use the ``load_SampleData`` to generate the initial model states from the sample data shipped by SuPy.
 
 
+Wind speed seems incorrect when using EPW data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Symptom**: Wind-related outputs (turbulent fluxes, roughness parameters, u*) appear unrealistic when using EPW weather files.
+
+**Likely cause**: Mismatch between EPW wind speed measurement height (10 m) and configured forcing height (``z``).
+
+EPW files contain wind speed measured at 10 m above ground level. If your site configuration uses a different forcing height (e.g., ``z: 50``), SUEWS will incorrectly assume the EPW wind data originated from 50 m, leading to erroneous friction velocity and flux calculations.
+
+**Solution**: Ensure your site configuration sets ``z: 10`` when using EPW data:
+
+.. code-block:: yaml
+
+   sites:
+     - name: "MySite"
+       properties:
+         z: 10.0  # Match EPW standard wind measurement height
+
+Alternatively, use the ``target_height`` parameter in :func:`~supy.util.read_epw` to extrapolate wind speed to your desired forcing height:
+
+.. code-block:: python
+
+   import supy as sp
+   from pathlib import Path
+
+   # Extrapolate EPW wind speed from 10 m to 50 m
+   df_epw = sp.util.read_epw(
+       Path("weather.epw"),
+       target_height=50.0,
+       z0m=0.5  # roughness length for urban areas
+   )
+
+See :ref:`met_forcing` for detailed guidance on EPW data usage.
+
+
 YAML Configuration Validation Errors
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

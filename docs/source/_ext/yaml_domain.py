@@ -122,16 +122,17 @@ class YAMLDomain(Domain):
         return None
 
     def resolve_any_xref(self, env, fromdocname, builder, target, node, contnode):
-        """Resolve any cross-references."""
-        results = []
-        if target in self.data["options"]:
-            docname = self.data["options"][target]
-            targetid = f"yaml-option-{target}"
-            results.append((
-                "yaml:option",
-                make_refnode(builder, fromdocname, docname, targetid, contnode, target),
-            ))
-        return results
+        """Resolve any cross-references.
+
+        Returns empty list to prevent conflicts with std:option directives.
+        YAML options should be referenced explicitly using :yaml:option:`name`
+        rather than bare backticks.
+        """
+        # Deliberately return empty to avoid "more than one target found"
+        # warnings when both std:option and yaml:option define the same name
+        # (e.g., beta, theta, a1, a2, a3, resp_a, resp_b, Year, lat).
+        # See GitHub issue #984 Category A for details.
+        return []
 
     def clear_doc(self, docname):
         """Clear all options from a document."""

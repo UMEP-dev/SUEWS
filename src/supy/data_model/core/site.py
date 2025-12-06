@@ -475,7 +475,7 @@ class VegetatedSurfaceProperties(SurfaceProperties):
         description="Biogenic CO2 exchange coefficient",
         json_schema_extra={"unit": "dimensionless", "display_name": "Beta Bioco2"},
     )
-    beta_enh_bioco2: FlexibleRefValue(float) = Field(
+    beta_enh_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=0.7,
         description="Enhanced biogenic CO2 exchange coefficient",
         json_schema_extra={"unit": "dimensionless", "display_name": "Beta Enh Bioco2"},
@@ -485,7 +485,7 @@ class VegetatedSurfaceProperties(SurfaceProperties):
         description="Biogenic CO2 exchange coefficient",
         json_schema_extra={"unit": "dimensionless", "display_name": "Alpha Bioco2"},
     )
-    alpha_enh_bioco2: FlexibleRefValue(float) = Field(
+    alpha_enh_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Enhanced biogenic CO2 exchange coefficient",
         json_schema_extra={"unit": "dimensionless", "display_name": "Alpha Enh Bioco2"},
@@ -510,7 +510,7 @@ class VegetatedSurfaceProperties(SurfaceProperties):
         description="Maximum surface conductance",
         json_schema_extra={"unit": "mm s^-1", "display_name": "Maxconductance"},
     )
-    min_res_bioco2: FlexibleRefValue(float) = Field(
+    min_res_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=0.1,
         description="Minimum respiratory biogenic CO2",
         json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Min Res Bioco2"},
@@ -652,45 +652,42 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert evergreen tree properties to DataFrame state format."""
-        # Get base properties from parent
         df_state = super().to_df_state(grid_id)
-        surf_idx = self.get_surface_index()
 
-        # Helper function to set values in DataFrame
-        def set_df_value(col_name: str, value: float):
-            idx_str = f"({surf_idx},)"
-            if (col_name, idx_str) not in df_state.columns:
-                # df_state[(col_name, idx_str)] = np.nan
-                df_state[(col_name, idx_str)] = None
-            df_state.loc[grid_id, (col_name, idx_str)] = value
+        # Collect all values to assign
+        defaults = {"faievetree": 0.1, "evetreeh": 15.0}
+        values_to_assign = {}
 
-        # Add all non-inherited properties
-        list_properties = ["faievetree", "evetreeh"]
-        for attr in list_properties:
+        for attr in ["faievetree", "evetreeh"]:
             field_val = getattr(self, attr)
             if field_val is not None:
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
-                # Default values for None parameters
-                defaults = {
-                    "faievetree": 0.1,
-                    "evetreeh": 15.0,
-                }
                 val = defaults.get(attr, 0.0)
-            df_state.loc[grid_id, (attr, "0")] = val
+            values_to_assign[(attr, "0")] = val
 
-        # specific properties
-        df_state.loc[grid_id, ("alb", "(2,)")] = (
+        values_to_assign[("alb", "(2,)")] = (
             self.alb.value if isinstance(self.alb, RefValue) else self.alb
         )
-        df_state.loc[grid_id, ("albmin_evetr", "0")] = (
+        values_to_assign[("albmin_evetr", "0")] = (
             self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
         )
-        df_state.loc[grid_id, ("albmax_evetr", "0")] = (
+        values_to_assign[("albmax_evetr", "0")] = (
             self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
         )
 
-        return df_state
+        # Create new columns DataFrame and merge (avoids PerformanceWarning)
+        new_cols = {col: [val] for col, val in values_to_assign.items()}
+        new_df = pd.DataFrame(new_cols, index=[grid_id])
+        new_df.columns = pd.MultiIndex.from_tuples(new_df.columns)
+
+        # Drop existing columns from df_state that we're updating, then concat
+        cols_to_drop = [c for c in new_df.columns if c in df_state.columns]
+        if cols_to_drop:
+            df_state = df_state.drop(columns=cols_to_drop)
+        df_state = pd.concat([df_state, new_df], axis=1)
+
+        return df_state.sort_index(axis=1)
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "EvetrProperties":
@@ -769,43 +766,49 @@ class DectrProperties(VegetatedSurfaceProperties):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert deciduous tree properties to DataFrame state format."""
-        # Get base properties from parent
         df_state = super().to_df_state(grid_id)
 
-        list_properties = [
+        # Collect all values to assign
+        defaults = {"faidectree": 0.1, "dectreeh": 15.0}
+        values_to_assign = {}
+
+        for attr in [
             "faidectree",
             "dectreeh",
             "pormin_dec",
             "pormax_dec",
             "capmax_dec",
             "capmin_dec",
-        ]
-        # Add all non-inherited properties
-        for attr in list_properties:
+        ]:
             field_val = getattr(self, attr)
             if field_val is not None:
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
-                # Default values for None parameters
-                defaults = {
-                    "faidectree": 0.1,
-                    "dectreeh": 15.0,
-                }
-                val = defaults.get(attr, field_val)  # Keep existing defaults for others
-            df_state.loc[grid_id, (attr, "0")] = val
+                val = defaults.get(attr, field_val)
+            values_to_assign[(attr, "0")] = val
 
-        # specific properties
-        df_state.loc[grid_id, ("alb", "(3,)")] = (
+        values_to_assign[("alb", "(3,)")] = (
             self.alb.value if isinstance(self.alb, RefValue) else self.alb
         )
-        df_state.loc[grid_id, ("albmin_dectr", "0")] = (
+        values_to_assign[("albmin_dectr", "0")] = (
             self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
         )
-        df_state.loc[grid_id, ("albmax_dectr", "0")] = (
+        values_to_assign[("albmax_dectr", "0")] = (
             self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
         )
 
-        return df_state
+        # Create new columns DataFrame and merge (avoids PerformanceWarning)
+        new_cols = {col: [val] for col, val in values_to_assign.items()}
+        new_df = pd.DataFrame(new_cols, index=[grid_id])
+        new_df.columns = pd.MultiIndex.from_tuples(new_df.columns)
+
+        # Drop existing columns from df_state that we're updating, then concat
+        cols_to_drop = [c for c in new_df.columns if c in df_state.columns]
+        if cols_to_drop:
+            df_state = df_state.drop(columns=cols_to_drop)
+        df_state = pd.concat([df_state, new_df], axis=1)
+
+        return df_state.sort_index(axis=1)
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "DectrProperties":
@@ -852,24 +855,37 @@ class GrassProperties(VegetatedSurfaceProperties):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert grass properties to DataFrame state format."""
-        # Get base properties from parent
         df_state = super().to_df_state(grid_id)
 
-        # add specific properties
-        df_state.loc[grid_id, ("alb", "(4,)")] = (
-            self.alb.value if isinstance(self.alb, RefValue) else self.alb
-        )
-        df_state[("albmin_grass", "0")] = (
-            self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
-        )
-        df_state[("albmax_grass", "0")] = (
-            self.alb_max.value if isinstance(self.alb_max, RefValue) else self.alb_max
-        )
+        # Collect all values to assign
+        values_to_assign = {
+            ("alb", "(4,)"): (
+                self.alb.value if isinstance(self.alb, RefValue) else self.alb
+            ),
+            ("albmin_grass", "0"): (
+                self.alb_min.value
+                if isinstance(self.alb_min, RefValue)
+                else self.alb_min
+            ),
+            ("albmax_grass", "0"): (
+                self.alb_max.value
+                if isinstance(self.alb_max, RefValue)
+                else self.alb_max
+            ),
+        }
 
-        # Sort the MultiIndex columns to avoid performance warnings
-        df_state = df_state.sort_index(axis=1)
+        # Create new columns DataFrame and merge (avoids PerformanceWarning)
+        new_cols = {col: [val] for col, val in values_to_assign.items()}
+        new_df = pd.DataFrame(new_cols, index=[grid_id])
+        new_df.columns = pd.MultiIndex.from_tuples(new_df.columns)
 
-        return df_state
+        # Drop existing columns from df_state that we're updating, then concat
+        cols_to_drop = [c for c in new_df.columns if c in df_state.columns]
+        if cols_to_drop:
+            df_state = df_state.drop(columns=cols_to_drop)
+        df_state = pd.concat([df_state, new_df], axis=1)
+
+        return df_state.sort_index(axis=1)
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "GrassProperties":
@@ -900,6 +916,8 @@ class SnowParams(BaseModel):
     narp_emis_snow: FlexibleRefValue(float) = Field(
         default=0.99,
         description="Snow surface emissivity",
+        ge=0.0,
+        le=1.0,
         json_schema_extra={"unit": "dimensionless", "display_name": "Narp Emis Snow"},
     )
     preciplimit: Optional[FlexibleRefValue(float)] = Field(
@@ -911,6 +929,7 @@ class SnowParams(BaseModel):
         default=0.1,
         description="Precipitation threshold for snow albedo aging",
         json_schema_extra={"unit": "mm", "display_name": "Preciplimitalb"},
+        ge=0.0,
     )
     snowalbmax: FlexibleRefValue(float) = Field(
         default=0.85,
@@ -1171,22 +1190,22 @@ class ArchetypeProperties(BaseModel):
     # BuildingCode='1'
     # BuildingClass='SampleClass'
 
-    BuildingType: str = Field(
+    BuildingType: Optional[str] = Field(
         default="SampleType",
         description="Building archetype type [-]",
         json_schema_extra={"display_name": "Buildingtype"},
     )
-    BuildingName: str = Field(
+    BuildingName: Optional[str] = Field(
         default="SampleBuilding",
         description="Building archetype name [-]",
         json_schema_extra={"display_name": "Buildingname"},
     )
-    BuildingCount: FlexibleRefValue(int) = Field(
+    BuildingCount: Optional[FlexibleRefValue(int)] = Field(
         default=1,
         description="Number of buildings of this archetype [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Buildingcount"},
     )
-    Occupants: FlexibleRefValue(int) = Field(
+    Occupants: Optional[FlexibleRefValue(int)] = Field(
         default=1,
         description="Number of occupants present in building [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Occupants"},
@@ -1208,25 +1227,25 @@ class ArchetypeProperties(BaseModel):
     # age_19_64: int = Field(default=0, description="")
     # age_65plus: int = Field(default=0, description="")
 
-    stebbs_Height: FlexibleRefValue(float) = Field(
+    stebbs_Height: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,
         description="Building height [m]",
         json_schema_extra={"unit": "m", "display_name": "Stebbs Height"},
         gt=0.0,
     )
-    FootprintArea: FlexibleRefValue(float) = Field(
+    FootprintArea: Optional[FlexibleRefValue(float)] = Field(
         default=64.0,
         description="Building footprint area [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Footprintarea"},
         gt=0.0,
     )
-    WallExternalArea: FlexibleRefValue(float) = Field(
+    WallExternalArea: Optional[FlexibleRefValue(float)] = Field(
         default=80.0,
         description="External wall area (including window area) [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Wallexternalarea"},
         gt=0.0,
     )
-    RatioInternalVolume: FlexibleRefValue(float) = Field(
+    RatioInternalVolume: Optional[FlexibleRefValue(float)] = Field(
         default=0.01,
         description="Ratio of internal mass volume to total building volume [-]",
         json_schema_extra={
@@ -1236,20 +1255,20 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    WWR: FlexibleRefValue(float) = Field(
+    WWR: Optional[FlexibleRefValue(float)] = Field(
         default=0.20,
         description="window to wall ratio [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Wwr"},
         ge=0.0,
         le=1.0,
     )
-    WallThickness: FlexibleRefValue(float) = Field(
+    WallThickness: Optional[FlexibleRefValue(float)] = Field(
         default=0.2,
         description="Thickness of external wall [m]",
         json_schema_extra={"unit": "m", "display_name": "Wallthickness"},
         gt=0.0,
     )
-    WallEffectiveConductivity: FlexibleRefValue(float) = Field(
+    WallEffectiveConductivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.6,
         description="Effective thermal conductivity of walls [W m-1 K-1]",
         json_schema_extra={
@@ -1258,24 +1277,24 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    WallDensity: FlexibleRefValue(float) = Field(
+    WallDensity: Optional[FlexibleRefValue(float)] = Field(
         default=1600.0,
         description="Effective density of the walls [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Walldensity"},
         gt=0.0,
     )
-    WallCp: FlexibleRefValue(float) = Field(
+    WallCp: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
         description="Effective specific heat capacity of walls [J kg-1 K-1]",
         gt=0.0,
     )
-    WallextThickness: FlexibleRefValue(float) = Field(
+    WallextThickness: Optional[FlexibleRefValue(float)] = Field(
         default=20.0,
         description="Thickness of layers external to insulation in external wall [m]",
         json_schema_extra={"unit": "m", "display_name": "Wallextthickness"},
         gt=0.0,
     )
-    WallextEffectiveConductivity: FlexibleRefValue(float) = Field(
+    WallextEffectiveConductivity: Optional[FlexibleRefValue(float)] = Field(
         default=60.0,
         description="Effective thermal conductivity of layers external to insulation in walls [W m-1 K-1]",
         json_schema_extra={
@@ -1284,26 +1303,26 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    WallextDensity: FlexibleRefValue(float) = Field(
+    WallextDensity: Optional[FlexibleRefValue(float)] = Field(
         default=1600.0,
         description="Effective density of layers external to insulation in the walls [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Wallextdensity"},
         gt=0.0,
     )
-    WallextCp: FlexibleRefValue(float) = Field(
+    WallextCp: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
         description="Effective specific heat capacity of layers external to insulation in walls [J kg-1 K-1]",
         json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Wallextcp"},
         gt=0.0,
     )
-    WallOuterCapFrac: FlexibleRefValue(float) = Field(
+    WallOuterCapFrac: Optional[FlexibleRefValue(float)] = Field(
         default=1.0,
         description="Weighting factor for heat capacity of walls [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Walloutercapfrac"},
         ge=0.0,
         le=1.0,
     )
-    WallExternalEmissivity: FlexibleRefValue(float) = Field(
+    WallExternalEmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Emissivity of the external surface of walls [-]",
         json_schema_extra={
@@ -1313,7 +1332,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    WallInternalEmissivity: FlexibleRefValue(float) = Field(
+    WallInternalEmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Emissivity of the internal surface of walls [-]",
         json_schema_extra={
@@ -1323,7 +1342,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    WallTransmissivity: FlexibleRefValue(float) = Field(
+    WallTransmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Transmissivity of walls [-]",
         json_schema_extra={
@@ -1333,27 +1352,27 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    WallAbsorbtivity: FlexibleRefValue(float) = Field(
+    WallAbsorbtivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.8,
         description="Absorbtivity of walls [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Wallabsorbtivity"},
         ge=0.0,
         le=1.0,
     )
-    WallReflectivity: FlexibleRefValue(float) = Field(
+    WallReflectivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.2,
         description="Reflectivity of the external surface of walls [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Wallreflectivity"},
         ge=0.0,
         le=1.0,
     )
-    RoofThickness: FlexibleRefValue(float) = Field(
+    RoofThickness: Optional[FlexibleRefValue(float)] = Field(
         default=20.0,
         description="Thickness of roof [m]",
         json_schema_extra={"unit": "m", "display_name": "Roofthickness"},
         gt=0.0,
     )
-    RoofEffectiveConductivity: FlexibleRefValue(float) = Field(
+    RoofEffectiveConductivity: Optional[FlexibleRefValue(float)] = Field(
         default=60.0,
         description="Effective thermal conductivity of roof [W m-1 K-1]",
         json_schema_extra={
@@ -1362,24 +1381,24 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    RoofDensity: FlexibleRefValue(float) = Field(
+    RoofDensity: Optional[FlexibleRefValue(float)] = Field(
         default=1600.0,
         description="Effective density of the roof [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Roofdensity"},
         gt=0.0,
     )
-    RoofCp: FlexibleRefValue(float) = Field(
+    RoofCp: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
         description="Effective specific heat capacity of roof [J kg-1 K-1]",
         gt=0.0,
     )
-    RoofextThickness: FlexibleRefValue(float) = Field(
+    RoofextThickness: Optional[FlexibleRefValue(float)] = Field(
         default=20.0,
         description="Thickness of layers external to insulation in roof [m]",
         json_schema_extra={"unit": "m", "display_name": "Roofextthickness"},
         gt=0.0,
     )
-    RoofextEffectiveConductivity: FlexibleRefValue(float) = Field(
+    RoofextEffectiveConductivity: Optional[FlexibleRefValue(float)] = Field(
         default=60.0,
         description="Effective thermal conductivity of layers external to insulation in roof [W m-1 K-1]",
         json_schema_extra={
@@ -1388,26 +1407,26 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    RoofextDensity: FlexibleRefValue(float) = Field(
+    RoofextDensity: Optional[FlexibleRefValue(float)] = Field(
         default=1600.0,
         description="Effective density of layers external to insulation in the roof [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Roofextdensity"},
         gt=0.0,
     )
-    RoofextCp: FlexibleRefValue(float) = Field(
+    RoofextCp: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
         description="Effective specific heat capacity of layers external to insulation in roof [J kg-1 K-1]",
         json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Roofextcp"},
         gt=0.0,
     )
-    RoofOuterCapFrac: FlexibleRefValue(float) = Field(
+    RoofOuterCapFrac: Optional[FlexibleRefValue(float)] = Field(
         default=1.0,
         description="Weighting factor for heat capacity of roof [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Roofoutercapfrac"},
         ge=0.0,
         le=1.0,
     )
-    RoofExternalEmissivity: FlexibleRefValue(float) = Field(
+    RoofExternalEmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Emissivity of the external surface of roof [-]",
         json_schema_extra={
@@ -1417,7 +1436,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    RoofInternalEmissivity: FlexibleRefValue(float) = Field(
+    RoofInternalEmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Emissivity of the internal surface of roof [-]",
         json_schema_extra={
@@ -1427,7 +1446,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    RoofTransmissivity: FlexibleRefValue(float) = Field(
+    RoofTransmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Transmissivity of roof [-]",
         json_schema_extra={
@@ -1437,27 +1456,27 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    RoofAbsorbtivity: FlexibleRefValue(float) = Field(
+    RoofAbsorbtivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.8,
         description="Absorbtivity of roof [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Roofabsorbtivity"},
         ge=0.0,
         le=1.0,
     )
-    RoofReflectivity: FlexibleRefValue(float) = Field(
+    RoofReflectivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.2,
         description="Reflectivity of the external surface of roof [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "RoofReflectivity"},
         ge=0.0,
         le=1.0,
     )
-    FloorThickness: FlexibleRefValue(float) = Field(
+    FloorThickness: Optional[FlexibleRefValue(float)] = Field(
         default=0.2,
         description="Thickness of ground floor [m]",
         json_schema_extra={"unit": "m", "display_name": "Floorthickness"},
         gt=0.0,
     )
-    GroundFloorEffectiveConductivity: FlexibleRefValue(float) = Field(
+    GroundFloorEffectiveConductivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.15,
         description="Effective thermal conductivity of ground floor [W m-1 K-1]",
         json_schema_extra={
@@ -1466,25 +1485,25 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    GroundFloorDensity: FlexibleRefValue(float) = Field(
+    GroundFloorDensity: Optional[FlexibleRefValue(float)] = Field(
         default=500.0,
         description="Effective density of the ground floor [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Groundfloordensity"},
         gt=0.0,
     )
-    GroundFloorCp: FlexibleRefValue(float) = Field(
+    GroundFloorCp: Optional[FlexibleRefValue(float)] = Field(
         default=1500.0,
         description="Effective specific heat capacity of the ground floor [J kg-1 K-1]",
         json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Groundfloorcp"},
         gt=0.0,
     )
-    WindowThickness: FlexibleRefValue(float) = Field(
+    WindowThickness: Optional[FlexibleRefValue(float)] = Field(
         default=0.015,
         description="Window thickness [m]",
         json_schema_extra={"unit": "m", "display_name": "Windowthickness"},
         gt=0.0,
     )
-    WindowEffectiveConductivity: FlexibleRefValue(float) = Field(
+    WindowEffectiveConductivity: Optional[FlexibleRefValue(float)] = Field(
         default=1.0,
         description="Effective thermal conductivity of windows [W m-1 K-1]",
         json_schema_extra={
@@ -1493,19 +1512,19 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    WindowDensity: FlexibleRefValue(float) = Field(
+    WindowDensity: Optional[FlexibleRefValue(float)] = Field(
         default=2500.0,
         description="Effective density of the windows [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Windowdensity"},
         gt=0.0,
     )
-    WindowCp: FlexibleRefValue(float) = Field(
+    WindowCp: Optional[FlexibleRefValue(float)] = Field(
         default=840.0,
         description="Effective specific heat capacity of windows [J kg-1 K-1]",
         json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Windowcp"},
         gt=0.0,
     )
-    WindowExternalEmissivity: FlexibleRefValue(float) = Field(
+    WindowExternalEmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.90,
         description="Emissivity of the external surface of windows [-]",
         json_schema_extra={
@@ -1515,7 +1534,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    WindowInternalEmissivity: FlexibleRefValue(float) = Field(
+    WindowInternalEmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.90,
         description="Emissivity of the internal surface of windows [-]",
         json_schema_extra={
@@ -1525,7 +1544,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    WindowTransmissivity: FlexibleRefValue(float) = Field(
+    WindowTransmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.90,
         description="Transmissivity of windows [-]",
         json_schema_extra={
@@ -1535,7 +1554,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    WindowAbsorbtivity: FlexibleRefValue(float) = Field(
+    WindowAbsorbtivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.01,
         description="Absorbtivity of windows [-]",
         json_schema_extra={
@@ -1545,7 +1564,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    WindowReflectivity: FlexibleRefValue(float) = Field(
+    WindowReflectivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.09,
         description="Reflectivity of the external surface of windows [-]",
         json_schema_extra={
@@ -1556,43 +1575,45 @@ class ArchetypeProperties(BaseModel):
         le=1.0,
     )
     # TODO: Add defaults below here
-    InternalMassDensity: FlexibleRefValue(float) = Field(
+    InternalMassDensity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Effective density of the internal mass [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Internalmassdensity"},
     )
-    InternalMassCp: FlexibleRefValue(float) = Field(
+    InternalMassCp: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Effective specific heat capacity of internal mass [J kg-1 K-1]",
         json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Internalmasscp"},
     )
-    InternalMassEmissivity: FlexibleRefValue(float) = Field(
+    InternalMassEmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Emissivity of internal mass [-]",
+        ge=0.0,
+        le=1.0,
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Internalmassemissivity",
         },
     )
-    MaxHeatingPower: FlexibleRefValue(float) = Field(
+    MaxHeatingPower: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Maximum power demand of heating system [W]",
         json_schema_extra={"unit": "W", "display_name": "Maxheatingpower"},
         ge=0.0,
     )
-    WaterTankWaterVolume: FlexibleRefValue(float) = Field(
+    WaterTankWaterVolume: Optional[FlexibleRefValue(float)] = Field(
         default=0.15,
         description="Volume of water in hot water tank [m3]",
         json_schema_extra={"unit": "m^3", "display_name": "Watertankwatervolume"},
         gt=0.0,
     )
-    MaximumHotWaterHeatingPower: FlexibleRefValue(float) = Field(
+    MaximumHotWaterHeatingPower: Optional[FlexibleRefValue(float)] = Field(
         default=3000.0,
         description="Maximum power demand of water heating system [W]",
         json_schema_extra={"unit": "W", "display_name": "Maximumhotwaterheatingpower"},
         gt=0.0,
     )
-    HeatingSetpointTemperature: FlexibleRefValue(float) = Field(
+    HeatingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Heating setpoint temperature [degC]",
         json_schema_extra={
@@ -1600,7 +1621,7 @@ class ArchetypeProperties(BaseModel):
             "display_name": "Heatingsetpointtemperature",
         },
     )
-    CoolingSetpointTemperature: FlexibleRefValue(float) = Field(
+    CoolingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Cooling setpoint temperature [degC]",
         json_schema_extra={
@@ -2061,7 +2082,7 @@ class StebbsProperties(BaseModel):
             "unit": "dimensionless",
             "display_name": "Dhwvesselwallemissivity",
         },
-        gt=0.0,
+        ge=0.0,
         le=1.0,
     )
     HotWaterHeatingEfficiency: Optional[FlexibleRefValue(float)] = Field(
@@ -2157,15 +2178,20 @@ class SPARTACUSParams(BaseModel):
         default=0.5,
         description="Air single scattering albedo for longwave radiation",
         json_schema_extra={"unit": "dimensionless", "display_name": "Air Ssa Lw"},
+        ge=0.0,
+        le=1.0,
     )
     air_ssa_sw: FlexibleRefValue(float) = Field(
         default=0.5,
         description="Air single scattering albedo for shortwave radiation",
         json_schema_extra={"unit": "dimensionless", "display_name": "Air Ssa Sw"},
+        ge=0.0,
+        le=1.0,
     )
     ground_albedo_dir_mult_fact: FlexibleRefValue(float) = Field(
         default=1.0,
         description="Multiplication factor for direct ground albedo",
+        ge=0.0,
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Ground Albedo Dir Mult Fact",
@@ -2228,11 +2254,15 @@ class SPARTACUSParams(BaseModel):
         default=0.5,
         description="Vegetation single scattering albedo for longwave radiation",
         json_schema_extra={"unit": "dimensionless", "display_name": "Veg Ssa Lw"},
+        ge=0.0,
+        le=1.0,
     )
     veg_ssa_sw: FlexibleRefValue(float) = Field(
         default=0.5,
         description="Vegetation single scattering albedo for shortwave radiation",
         json_schema_extra={"unit": "dimensionless", "display_name": "Veg Ssa Sw"},
+        ge=0.0,
+        le=1.0,
     )
 
     ref: Optional[Reference] = None
@@ -2434,7 +2464,7 @@ class SiteProperties(BaseModel):
     )
     z: FlexibleRefValue(float) = Field(
         gt=0,
-        description="Forcing height",
+        description="Height at which forcing data are specified, should be within the inertial sublayer above the blending height where values are spatially representative of the urban neighbourhood",
         json_schema_extra={
             "unit": "m",
             "display_name": "Forcing height",

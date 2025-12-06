@@ -33,10 +33,10 @@ This directory contains the complete documentation build system for SUEWS (Surfa
   - Input converter documentation (`input_converter.rst`)
   - File converter utilities (`SUEWS_TableConverter.py`)
 
-- **`output_files/`**: Output file format specifications
-  - Time series outputs (`SSss_YYYY_*.csv`)
-  - State files (`SSss_DailyState.csv`) 
-  - Physics module outputs (BL, RSL, SPARTACUS, SOLWEIG, etc.)
+- **`outputs/`**: Output file format specifications
+  - Format documentation (`text_format.rst`, `parquet_format.rst`)
+  - Auto-generated variable reference (`variables/`) with 1,100+ output variables
+  - Legacy diagnostics (`legacy_diagnostics.rst`) for error/warning files
 
 #### Technical References
 - **`parameterisations-and-sub-models.rst`**: Physics implementation details

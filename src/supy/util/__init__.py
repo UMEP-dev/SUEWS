@@ -75,4 +75,6 @@ from ._attribution import (
     U10Attribution,
 )
 
+from .._post import resample_output
+
 # from ._config import SUEWSConfig, init_config_from_yaml

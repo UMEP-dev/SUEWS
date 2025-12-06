@@ -46,15 +46,17 @@ Scheme options
 
 .. option:: BaseTMethod
 
+	.. deprecated:: v2025a
+
+		This option has been removed. The model now always uses weekday/weekend-specific
+		base temperatures (``BaseT_Heating`` and ``BaseT_Cooling``) for HDD/CDD calculations.
+		If present in legacy input files, this parameter is ignored.
+
 	:Requirement:
-		Required
+		Optional (ignored)
 	:Description:
-		Determines method for base temperature used in HDD/CDD calculations.
-	:Configuration:
-		.. csv-table::
-			:file: csv-table/BaseTMethod.csv
-			:header-rows: 1
-			:widths: 10 80
+		Previously determined method for base temperature used in HDD/CDD calculations.
+		Now deprecated in favour of always using weekday/weekend-specific base temperatures.
 
 .. option:: EmissionsMethod
 

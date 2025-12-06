@@ -212,6 +212,187 @@ class DLSCheck(BaseModel):
         return start, end, utc_offset_hours
 
 
+def nullify_co2_block_recursive(block: Any) -> None:
+    """
+    In-place canonical nullifier for CO2 / RefValue / DayProfile-like YAML blocks.
+
+    Behaviour:
+    - If a dict looks like a RefValue leaf (contains "value"), set "value" to None.
+      If the value is a list, replace it with a list of the same length of None.
+    - If a dict contains day-profile keys ("working_day" and/or "holiday"), preserve
+      the inner structure but nullify its contents:
+        - dict -> keep keys, set each value to None
+        - list -> list of same length of None
+        - otherwise -> set to None
+    - Recurse into nested dicts and lists; scalar leaves are replaced with None.
+    - Robust to empty/missing keys and arbitrary shapes.
+    """
+    if isinstance(block, dict):
+        # Handle RefValue leaf ({"value": ...})
+        if "value" in block:
+            val = block["value"]
+            if isinstance(val, list):
+                block["value"] = [None] * len(val)
+            else:
+                block["value"] = None
+            return
+
+        # Handle DayProfile / HourlyProfile style dicts by preserving shape but nulling contents
+        def _nullify_profile_field(field):
+            if field in block:
+                v = block[field]
+                if isinstance(v, dict):
+                    # Keep keys, set each inner value to None (preserve shape)
+                    for k in list(v.keys()):
+                        v[k] = None
+                    block[field] = v
+                elif isinstance(v, list):
+                    block[field] = [None] * len(v)
+                else:
+                    block[field] = None
+
+        if "working_day" in block or "holiday" in block:
+            _nullify_profile_field("working_day")
+            _nullify_profile_field("holiday")
+            return
+
+        # Recurse into dict entries; scalar leaves -> None
+        for k, v in list(block.items()):
+            if isinstance(v, (dict, list)):
+                nullify_co2_block_recursive(v)
+            else:
+                block[k] = None
+
+    elif isinstance(block, list):
+        for i, item in enumerate(block):
+            if isinstance(item, (dict, list)):
+                nullify_co2_block_recursive(item)
+            else:
+                block[i] = None
+
+
+def collect_nullified_paths(before: Any, after: Any, path: str = "") -> List[str]:
+    """
+    Return list of dot/list-index paths that were non-null in `before` and
+    became null/empty in `after`.
+
+    Recognises RefValue leaves ({"value": ...}) and DayProfile keys
+    ("working_day", "holiday") and handles dicts, lists and scalars.
+    """
+    paths: List[str] = []
+
+    def _p(base: str, key: str) -> str:
+        return f"{base}.{key}" if base else key
+
+    # Dict vs Dict
+    if isinstance(before, dict) and isinstance(after, dict):
+        # RefValue leaf detection
+        if "value" in before and "value" in after:
+            if before.get("value") not in (None, "") and after.get("value") in (
+                None,
+                "",
+            ):
+                paths.append(path or "value")
+            return paths
+
+        # Day/profile keys
+        if ("working_day" in before or "holiday" in before) and (
+            ("working_day" in after) or ("holiday" in after)
+        ):
+            if before.get("working_day") not in (None, "") and after.get(
+                "working_day"
+            ) in (None, ""):
+                paths.append(_p(path, "working_day"))
+            if before.get("holiday") not in (None, "") and after.get("holiday") in (
+                None,
+                "",
+            ):
+                paths.append(_p(path, "holiday"))
+            return paths
+
+        # Recurse into keys
+        for k in set(list(before.keys()) + list(after.keys())):
+            b = before.get(k)
+            a = after.get(k)
+            if b in (None, "") and a in (None, ""):
+                continue
+            new_path = _p(path, k)
+            if a in (None, "") and b not in (None, ""):
+                paths.append(new_path)
+                continue
+            paths.extend(collect_nullified_paths(b, a, new_path))
+        return paths
+
+    # List vs List
+    if isinstance(before, list) and isinstance(after, list):
+        for i, (b_item, a_item) in enumerate(zip(before, after)):
+            item_path = f"{path}[{i}]" if path else f"[{i}]"
+            if a_item in (None, "") and b_item not in (None, ""):
+                paths.append(item_path)
+            else:
+                paths.extend(collect_nullified_paths(b_item, a_item, item_path))
+        if len(before) > len(after):
+            for i in range(len(after), len(before)):
+                if before[i] not in (None, ""):
+                    paths.append(f"{path}[{i}]")
+        return paths
+
+    # Scalar comparison
+    if before not in (None, "") and after in (None, ""):
+        paths.append(path or "")
+    return paths
+
+
+def _nullify_biogenic_in_props(props: dict) -> bool:
+    """Nullify biogenic CO2 params under properties.land_cover for selected surfaces."""
+    if not isinstance(props, dict):
+        return False
+    land_cover = props.get("land_cover") or {}
+    if not isinstance(land_cover, dict):
+        return False
+
+    params = (
+        "alpha_bioco2",
+        "alpha_enh_bioco2",
+        "beta_bioco2",
+        "beta_enh_bioco2",
+        "min_res_bioco2",
+        "theta_bioco2",
+        "resp_a",
+        "resp_b",
+    )
+    surfaces = ("dectr", "evetr", "grass")
+
+    changed = False
+    for surface in surfaces:
+        surface_props = land_cover.get(surface)
+        if not isinstance(surface_props, dict):
+            continue
+
+        surface_changed = False
+        for param in params:
+            if param not in surface_props:
+                continue
+            val = surface_props[param]
+            if isinstance(val, dict) and "value" in val:
+                if isinstance(val["value"], list):
+                    val["value"] = [None] * len(val["value"])
+                else:
+                    val["value"] = None
+                surface_props[param] = val
+            else:
+                surface_props[param] = None
+            surface_changed = True
+
+        if surface_changed:
+            land_cover[surface] = surface_props
+            changed = True
+
+    if changed:
+        props["land_cover"] = land_cover
+    return changed
+
+
 def collect_yaml_differences(original: Any, updated: Any, path: str = "") -> List[dict]:
     """
     Recursively compare two YAML data structures and collect all differences.
@@ -1222,9 +1403,18 @@ def precheck_model_option_rules(data: dict) -> dict:
         data (dict): YAML configuration data loaded as a dict.
 
     Returns:
-        dict: The updated YAML dict after applying the STEBBS nullification rule.
+        dict: The updated YAML dict after applying the nullification rules.
     """
     physics = data.get("model", {}).get("physics", {})
+
+    # Helper: recursively nullify any "value" leaves in the passed block
+    def _recursive_nullify(block: dict):
+        for key, val in block.items():
+            if isinstance(val, dict):
+                if "value" in val:
+                    val["value"] = None
+                else:
+                    _recursive_nullify(val)
 
     # --- STEBBSMETHOD RULE: when stebbsmethod == 0, wipe out all stebbs params ---
     stebbsmethod = get_value_safe(physics, "stebbsmethod")
@@ -1233,21 +1423,57 @@ def precheck_model_option_rules(data: dict) -> dict:
             "[precheck] stebbsmethod==0 detected → nullifying all 'stebbs' values."
         )
         for site_idx, site in enumerate(data.get("sites", [])):
-            props = site.get("properties", {})
-            stebbs_block = props.get("stebbs", {})
+            props = site.get("properties", {}) or {}
+            stebbs_block = props.get("stebbs", {}) or {}
+            if isinstance(stebbs_block, dict):
+                _recursive_nullify(stebbs_block)
+                props["stebbs"] = stebbs_block
+        for site_idx, site in enumerate(data.get("sites", [])):
+            props = site.get("properties", {}) or {}
+            archetype_block = props.get("building_archetype", {}) or {}
+            if isinstance(archetype_block, dict):
+                _recursive_nullify(archetype_block)
+                props["building_archetype"] = archetype_block
+            # ALWAYS write back props after making changes above
+            if isinstance(site, dict):
+                site["properties"] = props
+                data["sites"][site_idx] = site
 
-            def _recursive_nullify(block: dict):
-                for key, val in block.items():
-                    if isinstance(val, dict):
-                        if "value" in val:
-                            val["value"] = None
-                        else:
-                            _recursive_nullify(val)
+    # --- EMISSIONS / CO2 RULE: when emissionsmethod 0..4, CO2 is not computed, nullify co2 params ---
+    emissionsmethod = get_value_safe(physics, "emissionsmethod")
+    if emissionsmethod is not None and emissionsmethod in (0, 1, 2, 3, 4):
+        logger_supy.info(
+            "[precheck] emissionsmethod 0..4 detected → nullifying 'anthropogenic_emissions.co2' values."
+        )
 
-            _recursive_nullify(stebbs_block)
-            props["stebbs"] = stebbs_block
+        for site_idx, site in enumerate(data.get("sites", [])):
+            props = site.get("properties", {}) or {}
+            anth_emis = props.get("anthropogenic_emissions", {}) or {}
 
-    logger_supy.info("[precheck] STEBBS nullification complete.")
+            co2_block = anth_emis.get("co2", {}) or {}
+            if isinstance(co2_block, dict):
+                nullify_co2_block_recursive(co2_block)
+                anth_emis["co2"] = co2_block
+                props["anthropogenic_emissions"] = anth_emis
+
+            # Ensure biogenic dectr fields are nullified during the same precheck pass
+            try:
+                if _nullify_biogenic_in_props(props):
+                    # write back modified props into site
+                    if isinstance(site, dict):
+                        site["properties"] = props
+                        data["sites"][site_idx] = site
+            except Exception:
+                logger_supy.exception(
+                    "[precheck] failed to nullify biogenic dectr params for site %d",
+                    site_idx,
+                )
+
+            # ALWAYS write back props after making changes above
+            if isinstance(site, dict):
+                site["properties"] = props
+                data["sites"][site_idx] = site
+
     return data
 
 

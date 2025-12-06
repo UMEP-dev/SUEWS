@@ -1,5 +1,5 @@
 # SUEWS Simplified Makefile - Essential recipes only
-.PHONY: help setup dev reinstall test test-smoke test-all docs clean format
+.PHONY: help setup submodules dev reinstall test test-smoke test-all docs clean format
 
 # Default Python
 PYTHON := python
@@ -43,6 +43,10 @@ setup:
 		exit 1; \
 	fi
 
+# Initialise git submodules (idempotent - safe to run multiple times)
+submodules:
+	@git submodule update --init --recursive
+
 # Install in editable mode (self-healing - works after clean)
 dev:
 	@# Check for activated virtual environment
@@ -58,14 +62,37 @@ dev:
 		echo ""; \
 		exit 1; \
 	fi
+	@$(MAKE) submodules
 	@echo "Installing SUEWS in editable mode..."
-	@# Uninstall first if build directory is missing (post-clean state)
-	@if [ ! -d "build" ]; then \
-		echo "Build directory missing - performing clean reinstall..."; \
+	@# Get current Python version tag
+	@PYVER=$$($(PYTHON) -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')") || { \
+		echo "ERROR: Failed to get Python version"; \
+		exit 1; \
+	}; \
+	echo "Python version: $$PYVER"; \
+	# Stale build detection: check for builds from different Python versions \
+	if [ -d "build" ]; then \
+		STALE_BUILDS=$$(ls -d build/cp* 2>/dev/null | grep -v "build/$$PYVER" || true); \
+		if [ -n "$$STALE_BUILDS" ]; then \
+			echo ""; \
+			echo "WARNING: Found build directories for different Python versions:"; \
+			echo "$$STALE_BUILDS"; \
+			echo ""; \
+			echo "Cleaning stale builds to avoid import errors..."; \
+			for dir in $$STALE_BUILDS; do \
+				rm -rf "$$dir"; \
+				echo "  Removed: $$dir"; \
+			done; \
+			echo ""; \
+		fi \
+	fi; \
+	# Uninstall first if build directory is missing (post-clean state) \
+	if [ ! -d "build/$$PYVER" ]; then \
+		echo "Build directory missing for $$PYVER - performing clean reinstall..."; \
 		if command -v uv >/dev/null 2>&1; then \
-			uv pip uninstall supy || true; \
+			uv pip uninstall supy 2>/dev/null || true; \
 		else \
-			$(PYTHON) -m pip uninstall supy -y || true; \
+			$(PYTHON) -m pip uninstall supy -y 2>/dev/null || true; \
 		fi \
 	fi
 	@# Install build dependencies first (required for --no-build-isolation)

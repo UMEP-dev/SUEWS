@@ -120,7 +120,7 @@ def save_df_grid_group(df_year, grid, group, dir_save, site):
         freq_cal = ind[1] - ind[0]
         df_year = df_year.asfreq(freq_cal)
     else:
-        df_year = df_year.asfreq("5T")
+        df_year = df_year.asfreq("5min")
     # output frequency in min
     freq_min = int(pd.Timedelta(df_year.index.freq).total_seconds() / 60)
     # starting year

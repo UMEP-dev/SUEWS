@@ -3,3 +3,5 @@ source/testsource/
 source/_autosummary/
 source/inputs/yaml/config-reference/.generated.stamp
 source/inputs/yaml/config-reference/
+source/outputs/variables/.generated.stamp
+source/outputs/variables/*.rst

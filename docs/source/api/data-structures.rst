@@ -58,5 +58,6 @@ Benefits of DataFrame Structure
 Related Documentation
 ---------------------
 
+- :doc:`io-data-structures` - Overview of key IO data structures
 - `pandas documentation <https://pandas.pydata.org/docs/>`_ - Official pandas guide
 - :doc:`/tutorials/python/tutorial` - Python tutorials with DataFrame examples

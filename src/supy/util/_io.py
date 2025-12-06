@@ -56,7 +56,7 @@ def read_forcing(path_suews_file: str, tstep_mod=300) -> pd.DataFrame:
     str_pattern = path_suews_file.name
 
     df_forcing_raw = load_SUEWS_Forcing_met_df_pattern(path_input, str_pattern)
-    tstep_met_in = df_forcing_raw.index.to_series().diff()[-1] / pd.Timedelta("1s")
+    tstep_met_in = df_forcing_raw.index.to_series().diff().iloc[-1] / pd.Timedelta("1s")
     df_forcing_raw = df_forcing_raw.asfreq(f"{tstep_met_in:.0f}s")
 
     df_forcing = df_forcing_raw

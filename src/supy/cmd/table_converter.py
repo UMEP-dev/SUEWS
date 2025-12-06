@@ -149,3 +149,7 @@ def convert_table_cmd(
     except Exception as e:
         click.secho(f"\n[ERROR] Conversion failed: {e}", fg="red", err=True)
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    convert_table_cmd()

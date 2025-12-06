@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SUEWS Brand Showcase</title>
+  <link rel="icon" type="image/svg+xml" href="suews-logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ========== Theme Variables (aligned with index.html) ========== */
+    :root {
+      /* Logo palette (constant) */
+      --sun-gold: #F7B538;
+      --sun-gold-dark: #D4940F;
+      --energy-orange: #E85D04;
+      --water-blue: #0077B6;
+      --water-blue-light: #48CAE4;
+      --sky-blue: #5DADE2;
+      --veg-green: #09a25c;
+      --wave-blue: #0558a5;
+      --urban-slate: #2D3142;
+      --urban-dark: #1A1D2E;
+      --urban-deeper: #0F1119;
+
+      /* Default: Light theme (showcase is primarily light) */
+      --bg-primary: #FAFBFC;
+      --bg-secondary: #F1F5F9;
+      --bg-card: #FFFFFF;
+      --bg-card-hover: #FFFFFF;
+      --border-light: #E2E8F0;
+      --border-medium: #CBD5E1;
+      --text-primary: #1E293B;
+      --text-secondary: #475569;
+      --text-muted: #94A3B8;
+      --shadow-card: 0 4px 20px rgba(0,0,0,0.06);
+      --accent-highlight: var(--water-blue);
+      --accent-label: var(--sun-gold-dark);
+    }
+
+    /* Dark theme */
+    [data-theme="dark"] {
+      --bg-primary: #0F1119;
+      --bg-secondary: #1A1D2E;
+      --bg-card: rgba(255,255,255,0.02);
+      --bg-card-hover: rgba(255,255,255,0.04);
+      --border-light: rgba(255,255,255,0.06);
+      --border-medium: rgba(255,255,255,0.12);
+      --text-primary: rgba(255,255,255,0.92);
+      --text-secondary: rgba(255,255,255,0.6);
+      --text-muted: rgba(255,255,255,0.35);
+      --shadow-card: 0 4px 20px rgba(0,0,0,0.3);
+      --accent-highlight: var(--sun-gold);
+      --accent-label: var(--sun-gold);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Instrument Sans', system-ui, sans-serif;
+      line-height: 1.6;
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      min-height: 100vh;
+      padding: 4rem 2rem;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* ========== Theme Toggle Button ========== */
+    .theme-toggle {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 1000;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: 1px solid var(--border-light);
+      background: var(--bg-card);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(8px);
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--border-medium);
+      transform: scale(1.05);
+    }
+
+    .theme-toggle svg {
+      width: 20px;
+      height: 20px;
+      stroke: var(--text-secondary);
+      stroke-width: 2;
+      fill: none;
+      transition: stroke 0.3s ease;
+    }
+
+    .theme-toggle:hover svg {
+      stroke: var(--text-primary);
+    }
+
+    .theme-toggle .icon-sun,
+    .theme-toggle .icon-moon {
+      position: absolute;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    /* Light mode (default): show moon icon (to switch to dark) */
+    :root:not([data-theme="dark"]) .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg); }
+    :root:not([data-theme="dark"]) .theme-toggle .icon-moon { opacity: 1; transform: rotate(0deg); }
+
+    /* Dark mode: show sun icon (to switch to light) */
+    [data-theme="dark"] .theme-toggle .icon-sun { opacity: 1; transform: rotate(0deg); }
+    [data-theme="dark"] .theme-toggle .icon-moon { opacity: 0; transform: rotate(-90deg); }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: clamp(2rem, 4vw, 2.75rem);
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      margin-bottom: 3rem;
+    }
+
+    .logo-showcase {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    @media (max-width: 768px) {
+      .logo-showcase {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .logo-card {
+      /* Fixed white background for logo showcase - demonstrates logo on light backgrounds */
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 16px;
+      padding: 3rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+      transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+
+    .logo-card:hover {
+      transform: translateY(-4px);
+      border-color: #CBD5E1;
+    }
+
+    .logo-card.dark {
+      /* Fixed dark background for logo showcase - demonstrates logo on dark backgrounds */
+      background: var(--urban-dark);
+      border-color: transparent;
+    }
+
+    .logo-card h3 {
+      margin-top: 1.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      /* Fixed colour for light background cards */
+      color: #94A3B8;
+    }
+
+    .logo-card.dark h3 {
+      color: rgba(255,255,255,0.5);
+    }
+
+    /* Size variations */
+    .variations {
+      margin-top: 2rem;
+    }
+
+    .variations h2 {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 1.5rem;
+      font-weight: 400;
+      color: var(--text-primary);
+      margin-bottom: 1.5rem;
+    }
+
+    .variation-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      align-items: center;
+    }
+
+    .variation-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: var(--shadow-card);
+    }
+
+    /* Colour palette */
+    .palette {
+      margin-top: 3rem;
+    }
+
+    .palette h2 {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 1.5rem;
+      font-weight: 400;
+      color: var(--text-primary);
+      margin-bottom: 1.5rem;
+    }
+
+    .colour-swatches {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .colour-swatches {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .swatch {
+      width: 100%;
+      height: 100px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      font-weight: 500;
+      box-shadow: var(--shadow-card);
+    }
+
+    .swatch.sun { background: var(--sun-gold); color: var(--urban-dark); }
+    .swatch.energy { background: var(--energy-orange); color: white; }
+    .swatch.water { background: var(--wave-blue); color: white; }
+    .swatch.slate { background: var(--urban-slate); color: white; }
+    .swatch.dark { background: var(--urban-dark); color: white; }
+    .swatch.veg { background: var(--veg-green); color: white; }
+
+    /* ★★★ SINGLE SOURCE: Icon disk styles ★★★ */
+    .icon-disk {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+    .icon-disk-light {
+      background: #F5F5F0;
+      border: 4px solid var(--water-blue);
+    }
+    .icon-disk-dark {
+      background: var(--urban-slate);
+      border: 4px solid var(--sun-gold);
+    }
+    .icon-disk-transparent {
+      background: transparent;
+      border: 4px solid #666666;
+    }
+
+    /* Links */
+    a {
+      color: var(--water-blue);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 4rem;
+      padding: 2rem 0;
+      border-top: 1px solid var(--border-light);
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    footer a {
+      color: var(--water-blue);
+    }
+  </style>
+</head>
+<body>
+  <!-- Theme Toggle Button -->
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+    <svg class="icon-sun" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="1" x2="12" y2="3"/>
+      <line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/>
+      <line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+    <svg class="icon-moon" viewBox="0 0 24 24">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </button>
+
+  <!-- ====== SINGLE SOURCE: Edit defs below to update ALL logos ====== -->
+  <svg style="display: none;" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <!-- ★★★ SUN - Edit position here (cx, cy) to update ALL logos ★★★ -->
+      <g id="sun">
+        <circle cx="83" cy="51" r="13" fill="#F7B538">
+          <animate attributeName="r" dur="9s" repeatCount="indefinite" values="13;11;13"/>
+        </circle>
+        <circle cx="83" cy="51" r="8" fill="#E85D04"/>
+      </g>
+      <!-- Tree -->
+      <g id="tree">
+        <path d="M47 52 L39 79 Q37 82 40 82 L58 82 Q61 82 59 79 L51 52 Q49 50 47 52 Z" fill="#4A7C59"/>
+        <rect x="45" y="82" width="8" height="4" rx="1" fill="#3D6B4A"/>
+      </g>
+      <g id="tree-stroke">
+        <path d="M47 52 L39 79 Q37 82 40 82 L58 82 Q61 82 59 79 L51 52 Q49 50 47 52 Z" fill="none" stroke="#4A7C59" stroke-width="2"/>
+        <line x1="49" y1="82" x2="49" y2="86" stroke="#4A7C59" stroke-width="3" stroke-linecap="round"/>
+      </g>
+      <g id="tree-stroke-light">
+        <path d="M47 52 L39 79 Q37 82 40 82 L58 82 Q61 82 59 79 L51 52 Q49 50 47 52 Z" fill="none" stroke="#6B9B7A" stroke-width="2"/>
+        <line x1="49" y1="82" x2="49" y2="86" stroke="#6B9B7A" stroke-width="3" stroke-linecap="round"/>
+      </g>
+      <!-- Buildings - dark theme (stone colour) -->
+      <g id="buildings-dark">
+        <rect x="20" y="54" width="14" height="32" rx="2" fill="#5D5852"/>
+        <rect x="62" y="46" width="14" height="40" rx="2" fill="#5D5852"/>
+        <rect x="80" y="58" width="14" height="28" rx="2" fill="#5D5852"/>
+      </g>
+      <!-- Buildings - light theme (dark colour) -->
+      <g id="buildings-light">
+        <rect x="20" y="54" width="14" height="32" rx="2" fill="#2D3142"/>
+        <rect x="62" y="46" width="14" height="40" rx="2" fill="#2D3142"/>
+        <rect x="80" y="58" width="14" height="28" rx="2" fill="#2D3142"/>
+      </g>
+      <!-- Buildings - stroke dark -->
+      <g id="buildings-stroke-dark">
+        <rect x="20" y="54" width="14" height="32" rx="2" fill="none" stroke="#2D3142" stroke-width="2"/>
+        <rect x="62" y="46" width="14" height="40" rx="2" fill="none" stroke="#2D3142" stroke-width="2"/>
+        <rect x="80" y="58" width="14" height="28" rx="2" fill="none" stroke="#2D3142" stroke-width="2"/>
+      </g>
+      <!-- Buildings - stroke light -->
+      <g id="buildings-stroke-light">
+        <rect x="20" y="54" width="14" height="32" rx="2" fill="none" stroke="#E2E8F0" stroke-width="2"/>
+        <rect x="62" y="46" width="14" height="40" rx="2" fill="none" stroke="#E2E8F0" stroke-width="2"/>
+        <rect x="80" y="58" width="14" height="28" rx="2" fill="none" stroke="#E2E8F0" stroke-width="2"/>
+      </g>
+      <!-- Water wave -->
+      <g id="wave">
+        <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none"/>
+      </g>
+      <g id="wave-thin">
+        <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="2" stroke-linecap="round" fill="none"/>
+      </g>
+    </defs>
+
+    <symbol id="suews-logo-dark" viewBox="0 0 120 120">
+      <circle cx="60" cy="60" r="56" fill="#2D3142"/>
+      <use href="#sun"/>
+      <use href="#buildings-dark"/>
+      <use href="#tree"/>
+      <use href="#wave"/>
+    </symbol>
+
+    <symbol id="suews-logo-light" viewBox="0 0 120 120">
+      <circle cx="60" cy="60" r="56" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="2"/>
+      <use href="#sun"/>
+      <use href="#buildings-light"/>
+      <use href="#tree"/>
+      <use href="#wave"/>
+    </symbol>
+
+    <!-- Animated version with moving wave -->
+    <symbol id="suews-logo-animated" viewBox="0 0 120 120">
+      <circle cx="60" cy="60" r="56" fill="#2D3142"/>
+      <use href="#sun"/>
+      <use href="#buildings-dark"/>
+      <use href="#tree"/>
+      <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none">
+        <animate attributeName="d" dur="9s" repeatCount="indefinite"
+          values="M18 94 Q40 86 60 94 Q80 102 102 94;
+                  M18 94 Q40 102 60 94 Q80 86 102 94;
+                  M18 94 Q40 86 60 94 Q80 102 102 94"/>
+      </path>
+    </symbol>
+
+    <!-- Animated version for light backgrounds -->
+    <symbol id="suews-logo-animated-light" viewBox="0 0 120 120">
+      <circle cx="60" cy="60" r="56" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="2"/>
+      <use href="#sun"/>
+      <use href="#buildings-light"/>
+      <use href="#tree"/>
+      <path d="M18 94 Q40 86 60 94 Q80 102 102 94" stroke="#0077B6" stroke-width="4" stroke-linecap="round" fill="none">
+        <animate attributeName="d" dur="9s" repeatCount="indefinite"
+          values="M18 94 Q40 86 60 94 Q80 102 102 94;
+                  M18 94 Q40 102 60 94 Q80 86 102 94;
+                  M18 94 Q40 86 60 94 Q80 102 102 94"/>
+      </path>
+    </symbol>
+
+    <!-- Line art version - dark strokes (for light backgrounds) -->
+    <symbol id="suews-logo-lineart" viewBox="0 0 120 120">
+      <circle cx="60" cy="60" r="56" fill="none" stroke="#2D3142" stroke-width="2"/>
+      <use href="#sun"/>
+      <use href="#buildings-stroke-dark"/>
+      <use href="#tree-stroke"/>
+      <use href="#wave-thin"/>
+    </symbol>
+
+    <!-- Line art version - light strokes (for dark backgrounds) -->
+    <symbol id="suews-logo-lineart-light" viewBox="0 0 120 120">
+      <circle cx="60" cy="60" r="56" fill="none" stroke="#E2E8F0" stroke-width="2"/>
+      <use href="#sun"/>
+      <use href="#buildings-stroke-light"/>
+      <use href="#tree-stroke-light"/>
+      <use href="#wave-thin"/>
+    </symbol>
+
+    <!-- Simplified version for favicon/small sizes (has own sun position) -->
+    <symbol id="suews-logo-favicon" viewBox="0 0 120 120">
+      <circle cx="60" cy="60" r="56" fill="#2D3142"/>
+      <circle cx="83" cy="51" r="13" fill="#F7B538"/>
+      <rect x="18" y="56" width="12" height="30" rx="2" fill="#5D5852"/>
+      <path d="M42 51 L35 79 Q33 82 36 82 L52 82 Q55 82 53 79 L46 51 Q44 49 42 51 Z" fill="#4A7C59"/>
+      <rect x="58" y="52" width="38" height="38" rx="2" fill="#5D5852"/>
+      <path d="M18 98 Q60 85 102 98" stroke="#0077B6" stroke-width="6" stroke-linecap="round" fill="none"/>
+    </symbol>
+
+    <!-- Logo with text variants -->
+    <symbol id="suews-logo-text-dark" viewBox="0 0 340 120">
+      <circle cx="60" cy="60" r="56" fill="#2D3142"/>
+      <use href="#sun"/>
+      <use href="#buildings-dark"/>
+      <use href="#tree"/>
+      <use href="#wave"/>
+      <text x="136" y="72" font-family="Inter, SF Pro Display, Segoe UI, system-ui, sans-serif" font-weight="600" font-size="48" fill="#2D3142" letter-spacing="-0.02em">SUEWS</text>
+    </symbol>
+
+    <symbol id="suews-logo-text-light" viewBox="0 0 340 120">
+      <circle cx="60" cy="60" r="56" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="2"/>
+      <use href="#sun"/>
+      <use href="#buildings-light"/>
+      <use href="#tree"/>
+      <use href="#wave"/>
+      <text x="136" y="72" font-family="Inter, SF Pro Display, Segoe UI, system-ui, sans-serif" font-weight="600" font-size="48" fill="#2D3142" letter-spacing="-0.02em">SUEWS</text>
+    </symbol>
+
+    <symbol id="suews-logo-text-white" viewBox="0 0 340 120">
+      <circle cx="60" cy="60" r="56" fill="#2D3142"/>
+      <use href="#sun"/>
+      <use href="#buildings-dark"/>
+      <use href="#tree"/>
+      <use href="#wave"/>
+      <text x="136" y="72" font-family="Inter, SF Pro Display, Segoe UI, system-ui, sans-serif" font-weight="600" font-size="48" fill="#FFFFFF" letter-spacing="-0.02em">SUEWS</text>
+    </symbol>
+  </svg>
+  <!-- ====== END SINGLE SOURCE ====== -->
+
+  <div class="container">
+    <h1>SUEWS Brand Showcase</h1>
+
+    <!-- Organic Logo -->
+    <div class="variations" style="margin-bottom: 3rem;">
+      <h2>Organic Logo</h2>
+      <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.9rem;">
+        Organic style with flowing, natural shapes
+      </p>
+      <div class="logo-showcase" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 0;">
+        <div class="logo-card">
+          <img src="suews-logo.svg" width="200" height="200" alt="Organic logo">
+          <h3>Light Background</h3>
+        </div>
+        <div class="logo-card dark">
+          <img src="suews-logo.svg" width="200" height="200" alt="Organic logo">
+          <h3>Dark Background</h3>
+        </div>
+        <div class="logo-card" style="background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 20px 20px;">
+          <img src="suews-logo.svg" width="200" height="200" alt="Organic logo">
+          <h3>Transparent</h3>
+        </div>
+      </div>
+    </div>
+
+    <!-- Icon Versions (Round/Disk) -->
+    <!-- ★★★ SINGLE SOURCE: Uses suews-logo.svg with CSS disk backgrounds ★★★ -->
+    <div class="variations" style="margin-bottom: 3rem;">
+      <h2>Icon Versions</h2>
+      <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.9rem;">
+        Circular contained versions for app icons, favicons, and social media
+      </p>
+      <div class="logo-showcase" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 0;">
+        <div class="logo-card">
+          <div class="icon-disk icon-disk-light">
+            <img src="suews-logo.svg" width="140" height="140" alt="SUEWS icon">
+          </div>
+          <h3>Light Background</h3>
+        </div>
+        <div class="logo-card dark">
+          <div class="icon-disk icon-disk-dark">
+            <img src="suews-logo.svg" width="140" height="140" alt="SUEWS icon">
+          </div>
+          <h3>Dark Background</h3>
+        </div>
+        <div class="logo-card" style="background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 20px 20px;">
+          <div class="icon-disk icon-disk-transparent">
+            <img src="suews-logo.svg" width="140" height="140" alt="SUEWS icon">
+          </div>
+          <h3>Transparent</h3>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logo with Text -->
+    <div class="variations" style="margin-top: 3rem;">
+      <h2>Logo with Text</h2>
+      <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.9rem;">
+        Using <strong>Inter</strong> (open source, <a href="https://rsms.me/inter/" style="color: var(--wave-blue);">rsms.me/inter</a>)
+      </p>
+      <!-- Banner style (horizontal) -->
+      <p style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem;">Banner</p>
+      <div class="logo-showcase" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 2rem;">
+        <div class="logo-card" style="flex-direction: row; gap: 1.5rem; padding: 1.5rem 3rem; align-items: center;">
+          <img src="suews-logo.svg" width="120" height="120" alt="SUEWS logo">
+          <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 600; font-size: 3.5rem; color: var(--urban-dark); letter-spacing: -0.03em;">SUEWS</span>
+        </div>
+        <div class="logo-card dark" style="flex-direction: row; gap: 1.5rem; padding: 1.5rem 3rem; align-items: center;">
+          <img src="suews-logo.svg" width="120" height="120" alt="SUEWS logo">
+          <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 600; font-size: 3.5rem; color: white; letter-spacing: -0.03em;">SUEWS</span>
+        </div>
+      </div>
+      <!-- Stacked style (vertical) -->
+      <p style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem;">Stacked</p>
+      <div class="logo-showcase" style="grid-template-columns: repeat(2, 1fr);">
+        <div class="logo-card" style="flex-direction: column; gap: 0; padding: 2rem; align-items: center; text-align: center;">
+          <img src="suews-logo.svg" width="160" height="160" alt="SUEWS logo">
+          <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 600; font-size: 2.5rem; color: var(--urban-dark); letter-spacing: -0.03em; margin-top: -0.5rem;">SUEWS</span>
+        </div>
+        <div class="logo-card dark" style="flex-direction: column; gap: 0; padding: 2rem; align-items: center; text-align: center;">
+          <img src="suews-logo.svg" width="160" height="160" alt="SUEWS logo">
+          <span style="font-family: 'Inter', system-ui, sans-serif; font-weight: 600; font-size: 2.5rem; color: white; letter-spacing: -0.03em; margin-top: -0.5rem;">SUEWS</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Colour palette -->
+    <div class="palette">
+      <h2>Colour Palette</h2>
+      <div class="colour-swatches">
+        <div class="swatch sun">
+          <span>Sun Gold</span>
+          <span>#F7B538</span>
+        </div>
+        <div class="swatch energy">
+          <span>Energy</span>
+          <span>#E85D04</span>
+        </div>
+        <div class="swatch" style="background: #5DADE2; color: white;">
+          <span>Sky Blue</span>
+          <span>#5DADE2</span>
+        </div>
+        <div class="swatch" style="background: #09a25c; color: white;">
+          <span>Vegetation</span>
+          <span>#09a25c</span>
+        </div>
+        <div class="swatch" style="background: #0558a5; color: white;">
+          <span>Wave</span>
+          <span>#0558a5</span>
+        </div>
+        <div class="swatch slate">
+          <span>Urban Slate</span>
+          <span>#2D3142</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Design Philosophy -->
+    <div class="palette" style="margin-top: 3rem;">
+      <h2>Design Philosophy</h2>
+      <div style="display: grid; grid-template-columns: 200px 1fr; gap: 3rem; margin-top: 1.5rem; align-items: start;">
+        <div style="background: var(--bg-card); border: 1px solid var(--border-light); padding: 2rem; border-radius: 16px; box-shadow: var(--shadow-card); display: flex; align-items: center; justify-content: center;">
+          <img src="suews-logo.svg" width="200" height="200" alt="SUEWS logo">
+        </div>
+        <div style="color: var(--text-secondary); line-height: 1.7;">
+          <p style="margin-bottom: 1rem;">
+            The logo embraces <strong style="color: var(--text-primary);">natural, flowing forms</strong> that mirror the continuous exchange of energy and water in urban environments. These traced contours reflect how real-world processes blend and interact.
+          </p>
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: var(--sun-gold); flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong style="color: var(--text-primary);">Sun Gold</strong> — Outer disk representing incoming solar radiation; the primary energy input that drives all urban climate processes</span>
+            </li>
+            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: var(--energy-orange); flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong style="color: var(--text-primary);">Energy Orange</strong> — Inner core symbolising thermal energy; sensible and latent heat fluxes that SUEWS models at the urban surface</span>
+            </li>
+            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 4px; background: var(--sky-blue); flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong style="color: var(--text-primary);">Sky Blue</strong> — Urban skyline silhouette; buildings against the atmosphere where surface-air energy exchanges occur</span>
+            </li>
+            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 16px solid var(--veg-green); flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong style="color: var(--text-primary);">Vegetation Green</strong> — Organic leaf sweeping across the composition; evapotranspiration, urban greenery, and living systems</span>
+            </li>
+            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 16px; height: 4px; border-radius: 2px; background: var(--wave-blue); flex-shrink: 0; margin-top: 10px;"></span>
+              <span><strong style="color: var(--text-primary);">Wave Blue</strong> — Deep blue flowing curve at the base; the water balance foundation — precipitation, runoff, storage, evaporation</span>
+            </li>
+            <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+              <span style="display: inline-block; width: 16px; height: 16px; border-radius: 4px; background: var(--urban-slate); flex-shrink: 0; margin-top: 4px;"></span>
+              <span><strong style="color: var(--text-primary);">Urban Slate</strong> — Used for icon disk backgrounds and text; a sophisticated neutral that grounds the vibrant palette</span>
+            </li>
+          </ul>
+          <p style="margin-top: 1.25rem; font-size: 0.9rem; color: var(--text-muted);">
+            The style preserves natural irregularities that echo how energy and water actually flow through cities — never in perfect lines, always in dynamic equilibrium.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Design Approach -->
+    <div class="palette" style="margin-top: 3rem;">
+      <h2>Design Approach</h2>
+      <div style="color: var(--text-secondary); line-height: 1.7; margin-top: 1.5rem;">
+        <p style="margin-bottom: 1rem;">
+          We used AI tools to create this branding and are sharing our process openly — both for transparency and to help other research teams who may benefit from a similar approach.
+        </p>
+        <ol style="padding-left: 1.5rem;">
+          <li style="margin-bottom: 0.75rem;">
+            <strong style="color: var(--text-primary);">Initial concepts with <a href="https://deepmind.google/models/gemini-image/pro/">Gemini 3 Pro Image (Nano Banana Pro)</a></strong> — We generated early designs by describing SUEWS's core scientific elements: energy balance, hydrological cycle, urban form, and natural landscape.
+          </li>
+          <li style="margin-bottom: 0.75rem;">
+            <strong style="color: var(--text-primary);">Iterative refinement</strong> — Through multiple rounds of feedback, we simplified designs for clarity and legibility at different scales.
+          </li>
+          <li style="margin-bottom: 0.75rem;">
+            <strong style="color: var(--text-primary);">Vector conversion with <a href="https://www.anthropic.com/claude/opus">Claude Opus 4.5</a></strong> — We worked with the AI to trace raster images into clean, scalable SVG format.
+          </li>
+        </ol>
+        <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-muted);">
+          We hope sharing this workflow encourages other open-source projects to explore AI-assisted design — it's increasingly accessible and can produce meaningful results for teams without dedicated design resources.
+        </p>
+        <p style="margin-top: 1.25rem;">
+          <a href="brand-workshop.html" style="display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 500; text-decoration: none; padding: 0.5rem 1rem; border: 2px solid var(--water-blue); border-radius: 8px; transition: all 0.2s ease;"
+             onmouseover="this.style.background='var(--water-blue)'; this.style.color='white';"
+             onmouseout="this.style.background='transparent'; this.style.color='';">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            Brand Workshop — Customise and export assets
+          </a>
+        </p>
+      </div>
+    </div>
+
+    <footer>
+      <p style="margin-bottom: 0.5rem;">
+        <a href="../">Home</a> ·
+        <a href="brand-workshop.html">Brand Workshop</a>
+      </p>
+      <p>&copy; 2025 SUEWS Development Team. Licensed under <a href="https://www.mozilla.org/en-US/MPL/2.0/">MPL-2.0</a>.</p>
+    </footer>
+  </div>
+
+  <script>
+    // Theme Toggle Logic (aligned with index.html)
+    const toggle = document.getElementById('themeToggle');
+    const root = document.documentElement;
+
+    // Check for saved preference or default to light for showcase
+    function getPreferredTheme() {
+      const saved = localStorage.getItem('theme');
+      if (saved) return saved;
+      return 'light'; // Showcase defaults to light
+    }
+
+    // Apply theme
+    function setTheme(theme) {
+      if (theme === 'dark') {
+        root.setAttribute('data-theme', 'dark');
+      } else {
+        root.removeAttribute('data-theme');
+      }
+      localStorage.setItem('theme', theme);
+    }
+
+    // Initialize
+    setTheme(getPreferredTheme());
+
+    // Toggle handler
+    toggle.addEventListener('click', () => {
+      const current = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      setTheme(current === 'light' ? 'dark' : 'light');
+    });
+  </script>
+</body>
+</html>

@@ -126,29 +126,27 @@ def convert_df_state_format(df_old: pd.DataFrame) -> pd.DataFrame:
     # Import version here to match runtime behaviour
     from ..._version import __version__ as sp_version
 
-    # Create new DataFrame with correct structure
-    df_new = pd.DataFrame(index=df_old.index, columns=df_template.columns)
-    if hasattr(df_template.index, "name"):
-        df_new.index.name = df_template.index.name
-
     # Identify column differences
     common_cols = set(df_old.columns) & set(df_template.columns)
     missing_cols = set(df_template.columns) - set(df_old.columns)
     extra_cols = set(df_old.columns) - set(df_template.columns)
+
+    # Build all column data in a dictionary first to avoid DataFrame fragmentation
+    # (pandas PerformanceWarning from repeated column insertions)
+    data_dict: dict = {}
+    n_rows = len(df_old)
 
     # Copy all common columns - preserve existing data
     logger.info(f"Preserving {len(common_cols)} common columns...")
     for col in common_cols:
         try:
             # Direct assignment preserves data exactly
-            df_new[col] = df_old[col].values
+            data_dict[col] = df_old[col].values
         except Exception as e:
             logger.warning(f"Failed to copy column {col}: {e}, using template default")
             # Fall back to template value if copy fails
-            if len(df_old) == 1:
-                df_new[col] = df_template[col].iloc[0]
-            else:
-                df_new[col] = [df_template[col].iloc[0]] * len(df_old)
+            template_val = df_template[col].iloc[0]
+            data_dict[col] = [template_val] * n_rows if n_rows > 1 else template_val
 
     # Add missing columns with appropriate defaults
     logger.info(f"Adding {len(missing_cols)} missing columns with defaults...")
@@ -169,15 +167,31 @@ def convert_df_state_format(df_old: pd.DataFrame) -> pd.DataFrame:
             # Use template default
             default_val = template_value
 
-        # Apply to all rows
-        if len(df_old) == 1:
-            df_new[col] = default_val
-        else:
-            df_new[col] = [default_val] * len(df_old)
+        data_dict[col] = [default_val] * n_rows if n_rows > 1 else [default_val]
+
+    # Add version column to match runtime behaviour (added in _run.py)
+    data_dict[("version", "0")] = [sp_version] * n_rows if n_rows > 1 else [sp_version]
+    logger.info(f"Added version column: {sp_version}")
+
+    # Create DataFrame all at once from dictionary (avoids fragmentation)
+    df_new = pd.DataFrame(data_dict, index=df_old.index)
+
+    # Reorder columns to match template order, plus version column
+    template_cols_list = list(df_template.columns)
+    version_col = ("version", "0")
+    ordered_cols = [c for c in template_cols_list if c in df_new.columns]
+    if version_col in df_new.columns and version_col not in ordered_cols:
+        ordered_cols.append(version_col)
+    df_new = df_new[ordered_cols]
+
+    if hasattr(df_template.index, "name"):
+        df_new.index.name = df_template.index.name
 
     # Ensure data types match template where possible
     logger.info("Aligning data types...")
     for col in df_new.columns:
+        if col == ("version", "0"):
+            continue  # Skip version column
         try:
             target_dtype = df_template[col].dtype
             if df_new[col].dtype != target_dtype:
@@ -200,10 +214,6 @@ def convert_df_state_format(df_old: pd.DataFrame) -> pd.DataFrame:
         )
         if len(extra_cols) > 10:
             logger.info(f"  ... and {len(extra_cols) - 10} more")
-
-    # Add version column to match runtime behaviour (added in _run.py)
-    df_new[("version", "0")] = sp_version
-    logger.info(f"Added version column: {sp_version}")
 
     logger.info("Conversion complete")
     return df_new

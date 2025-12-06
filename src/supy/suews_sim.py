@@ -429,6 +429,23 @@ class SUEWSSimulation:
         if self._df_forcing is None:
             raise RuntimeError("No forcing data loaded. Use update_forcing() first.")
 
+        # Fall back to config values if start_date/end_date not provided
+        if start_date is None and self._config is not None:
+            if (
+                hasattr(self._config, "model")
+                and hasattr(self._config.model, "control")
+                and hasattr(self._config.model.control, "start_time")
+            ):
+                start_date = self._config.model.control.start_time
+
+        if end_date is None and self._config is not None:
+            if (
+                hasattr(self._config, "model")
+                and hasattr(self._config.model, "control")
+                and hasattr(self._config.model.control, "end_time")
+            ):
+                end_date = self._config.model.control.end_time
+
         # Run simulation
         result = run_supy_ser(
             self._df_forcing.loc[start_date:end_date],

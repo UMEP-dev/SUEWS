@@ -528,11 +528,11 @@ def resample_kdn(data_raw_kdn, tstep_mod, timezone, lat, lon, alt):
     # resample into `tstep_mod` steps
     ratio_SWdown = ratio_SWdown.resample(f"{tstep_mod}{str_second}").mean()
     # fill nan as the above resample will place valid values at the daily start
-    ratio_SWdown = ratio_SWdown.fillna(method="pad")
+    ratio_SWdown = ratio_SWdown.ffill()
     # conform to `data_tstep_kdn_adj` index for actual period used
     ratio_SWdown = ratio_SWdown.reindex(index=data_tstep_kdn_adj.index)
     # fill nan as the above resample will place valid values at the daily start
-    ratio_SWdown = ratio_SWdown.fillna(method="pad")
+    ratio_SWdown = ratio_SWdown.ffill()
     # rescale daily amounts
     data_tstep_kdn_adj = ratio_SWdown * data_tstep_kdn_adj
     # data_tstep_kdn_adj = data_tstep_kdn_adj.fillna(method='pad')

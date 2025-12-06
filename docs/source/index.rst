@@ -67,7 +67,7 @@ Get started immediately with the :ref:`Getting Started with SUEWS <Workflow>` gu
 
 **Scientific Background:**
 
-Before performing SUEWS simulations, users should understand the :ref:`physical principles <physics_schemes>` and review `input requirements <input_files>` for their specific application.
+Before performing SUEWS simulations, users should understand the :ref:`scientific background <scientific_background>` and review `input requirements <input_files>` for their specific application.
 
 
 How to get help in using SUEWS?
@@ -82,7 +82,7 @@ How has SUEWS been used?
 
 The scientific details and application examples of SUEWS can be found in:
 
-- :ref:`Recent_publications` - Core SUEWS publications from the development team describing model physics and validation
+- :ref:`suews_publications` - Core SUEWS publications from the development team describing model physics and validation
 - :ref:`community_publications` - Publications from the SUEWS user community showcasing diverse applications
 
 .. _cite_suews:
@@ -100,7 +100,7 @@ When using SUEWS in your research, please cite it appropriately:
 
 **For scientific background:**
 
-- See :ref:`Recent_publications` for core SUEWS papers describing the model's development and validation
+- See :ref:`suews_publications` for core SUEWS papers describing the model's development and validation
 - Check :ref:`community_publications` to see how others have cited and used SUEWS in their work
 
 
@@ -158,8 +158,11 @@ How to support SUEWS?
    :numbered:
    :hidden:
 
-   parameterisations-and-sub-models
-   related_publications
+   scientific-background
+   energy-balance
+   water-balance
+   supporting-processes
+   suews-publications
    references
 
 

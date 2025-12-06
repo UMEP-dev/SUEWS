@@ -7,9 +7,9 @@
 
 
 
-.. _Recent_publications:
+.. _suews_publications:
 
-SUEWS-related Publications
+SUEWS Publications
 ==========================
 
 This page lists core SUEWS publications from the development team. For publications from the broader SUEWS user community, see :ref:`community_publications`.

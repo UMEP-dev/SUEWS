@@ -67,7 +67,8 @@ jobs:
         run: |
           uv venv
           source .venv/bin/activate
-          uv pip install -e ".[dev]"
+          # Use non-editable install for CI to avoid meson-python cache path issues
+          uv pip install ".[dev]"
           make docs
 
       - name: Build site

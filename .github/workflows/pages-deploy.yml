@@ -2,9 +2,9 @@ name: GitHub Pages Deploy
 
 # RELIABLE GITHUB PAGES DEPLOYMENT
 # =================================
-# Deploys static content from site/ to GitHub Pages.
+# Deploys static content from site/ and Sphinx docs to GitHub Pages.
 # - Push to master: Deploy production site
-# - Pull request: Add preview to /preview/pr-{NUMBER}/
+# - Pull request: Add preview to /preview/pr-{NUMBER}/ (site + docs)
 # - Manual dispatch: Force redeploy
 #
 # Previews are ephemeral - each deployment includes full site from repo.
@@ -17,11 +17,15 @@ on:
     branches: [master]
     paths:
       - 'site/**'
+      - 'docs/**'
+      - 'src/supy/data_model/**'
       - '.github/workflows/pages-deploy.yml'
 
   pull_request:
     paths:
       - 'site/**'
+      - 'docs/**'
+      - 'src/supy/data_model/**'
       - '.github/workflows/pages-deploy.yml'
 
   workflow_dispatch:
@@ -48,6 +52,27 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for sphinx-last-updated-by-git
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install pandoc
+        run: sudo apt-get update && sudo apt-get install -y pandoc
+
+      - name: Build documentation
+        run: |
+          uv venv
+          source .venv/bin/activate
+          # Use non-editable install for CI to avoid meson-python cache path issues
+          uv pip install ".[dev]"
+          make docs
 
       - name: Build site
         run: |
@@ -64,12 +89,19 @@ jobs:
             cp -r site/* "_site/${PR_DIR}/"
             echo "Preview created at /${PR_DIR}/"
 
+            # Copy Sphinx docs to preview
+            mkdir -p "_site/${PR_DIR}/docs"
+            cp -r docs/build/html/* "_site/${PR_DIR}/docs/"
+            echo "Docs preview created at /${PR_DIR}/docs/"
+
             # Rewrite absolute paths for preview context
             # /brand/ → /preview/pr-N/brand/ so links work within preview
+            # https://docs.suews.io → /preview/pr-N/docs/ so docs links use preview
             echo "Rewriting absolute paths for preview..."
-            find "_site/${PR_DIR}" -name "*.html" -type f | while read -r f; do
+            find "_site/${PR_DIR}" -name "*.html" -type f -not -path "*/${PR_DIR}/docs/*" | while read -r f; do
               sed -i "s|href=\"/brand/|href=\"/${PR_DIR}/brand/|g" "$f"
               sed -i "s|href=\"/\"|href=\"/${PR_DIR}/\"|g" "$f"
+              sed -i "s|href=\"https://docs.suews.io[/]*\"|href=\"/${PR_DIR}/docs/\"|g" "$f"
             done
 
             # Inject preview banner into site pages
@@ -84,6 +116,16 @@ jobs:
                 echo "Injected preview banner into ${page}"
               fi
             done
+
+            # Inject preview banner into docs pages (Sphinx theme structure)
+            DOCS_BANNER='<div id="preview-banner" style="background:linear-gradient(90deg,#ffeb3b,#ffc107);color:#333;padding:8px 16px;text-align:center;font-family:system-ui,-apple-system,sans-serif;font-size:12px;position:fixed;top:0;left:0;right:0;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);"><strong>Docs Preview - PR #'"${PR_NUM}"'</strong> \&nbsp;\| <a href="https://suews.readthedocs.io/" style="color:#1565c0;text-decoration:underline;">Production Docs</a> \&nbsp;\| <a href="https://github.com/UMEP-dev/SUEWS/pull/'"${PR_NUM}"'" style="color:#1565c0;text-decoration:underline;">View PR</a></div><style>.bd-header{top:36px !important;}.bd-sidebar-primary{top:calc(var(--pst-header-height) + 36px) !important;}</style>'
+
+            find "_site/${PR_DIR}/docs" -name "*.html" -type f | while read -r f; do
+              # Inject banner after <body> tag
+              sed -i "s|<body |<body>${DOCS_BANNER}<body-placeholder |g" "$f"
+              sed -i "s|<body-placeholder |<div |g" "$f"
+            done
+            echo "Injected preview banner into docs pages"
           fi
 
           touch _site/.nojekyll
@@ -104,11 +146,14 @@ jobs:
             const prNumber = context.issue.number;
             const body = `## Preview Deployed
 
-            **Preview:** https://suews.io/preview/pr-${prNumber}/
+            | Content | Preview URL |
+            |---------|-------------|
+            | Site | https://suews.io/preview/pr-${prNumber}/ |
+            | Docs | https://suews.io/preview/pr-${prNumber}/docs/ |
 
             > [!NOTE]
             > This preview is ephemeral. It will be lost when:
-            > - Another PR with \`site/\` changes is pushed
+            > - Another PR with \`site/\` or \`docs/\` changes is pushed
             > - Changes are merged to master
             > - A manual workflow dispatch runs
             >

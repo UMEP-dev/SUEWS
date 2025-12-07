@@ -96,10 +96,12 @@ jobs:
 
             # Rewrite absolute paths for preview context
             # /brand/ → /preview/pr-N/brand/ so links work within preview
+            # https://docs.suews.io → /preview/pr-N/docs/ so docs links use preview
             echo "Rewriting absolute paths for preview..."
             find "_site/${PR_DIR}" -name "*.html" -type f -not -path "*/${PR_DIR}/docs/*" | while read -r f; do
               sed -i "s|href=\"/brand/|href=\"/${PR_DIR}/brand/|g" "$f"
               sed -i "s|href=\"/\"|href=\"/${PR_DIR}/\"|g" "$f"
+              sed -i "s|href=\"https://docs.suews.io[/]*\"|href=\"/${PR_DIR}/docs/\"|g" "$f"
             done
 
             # Inject preview banner into site pages

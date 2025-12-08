@@ -1,0 +1,131 @@
+/**
+ * SUEWS Design Tokens
+ *
+ * Unified CSS custom properties for the SUEWS site and brand pages.
+ *
+ * Usage:
+ * - Default: Dark theme (suitable for index.html)
+ * - [data-theme="light"]: Explicit light mode
+ * - [data-theme="dark"]: Explicit dark mode
+ * - @media (prefers-color-scheme: light): System preference fallback
+ *
+ * For pages with light default (e.g. brand showcase), add
+ * data-theme="light" to <html> or include the light-default variant.
+ */
+
+:root {
+  /* ========== Brand Palette (constant) ========== */
+  --sun-gold: #F7B538;
+  --sun-gold-dark: #D4940F;
+  --energy-orange: #E85D04;
+  --water-blue: #0077B6;
+  --water-blue-light: #48CAE4;
+  --sky-blue: #5DADE2;
+  --veg-green: #09a25c;
+  --wave-blue: #0558a5;
+  --urban-slate: #2D3142;
+  --urban-dark: #1A1D2E;
+  --urban-deeper: #0F1119;
+
+  /* ========== Semantic Tokens - Dark Theme (default) ========== */
+  --bg-primary: #0F1119;
+  --bg-secondary: #1A1D2E;
+  --bg-card: rgba(255,255,255,0.02);
+  --bg-card-hover: rgba(255,255,255,0.04);
+  --border-light: rgba(255,255,255,0.06);
+  --border-medium: rgba(255,255,255,0.12);
+  --text-primary: rgba(255,255,255,0.92);
+  --text-secondary: rgba(255,255,255,0.6);
+  --text-muted: rgba(255,255,255,0.35);
+  --shadow-card: 0 4px 20px rgba(0,0,0,0.3);
+  --accent-highlight: var(--sun-gold);
+  --accent-label: var(--sun-gold);
+
+  /* Grid and decorative elements */
+  --grid-line: rgba(45,49,66,0.4);
+  --contour-opacity: 0.15;
+  --glow-opacity: 0.12;
+
+  /* Logo theming */
+  --logo-bg: #2D3142;
+  --logo-buildings: #5D5852;
+  --logo-stroke: none;
+  --logo-stroke-width: 0;
+
+  /* ========== Transitions ========== */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-standard: 0.3s ease;
+  --transition-card: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========== Light Theme ========== */
+[data-theme="light"] {
+  --bg-primary: #FAFBFC;
+  --bg-secondary: #F1F5F9;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #FFFFFF;
+  --border-light: #E2E8F0;
+  --border-medium: #CBD5E1;
+  --text-primary: #1E293B;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --shadow-card: 0 4px 20px rgba(0,0,0,0.06);
+  --accent-highlight: var(--water-blue);
+  --accent-label: var(--sun-gold-dark);
+  --grid-line: #E2E8F0;
+  --contour-opacity: 0.08;
+  --glow-opacity: 0.08;
+  --logo-bg: #F8FAFC;
+  --logo-buildings: #2D3142;
+  --logo-stroke: #E2E8F0;
+  --logo-stroke-width: 2;
+}
+
+/* ========== Dark Theme (explicit) ========== */
+[data-theme="dark"] {
+  --bg-primary: #0F1119;
+  --bg-secondary: #1A1D2E;
+  --bg-card: rgba(255,255,255,0.02);
+  --bg-card-hover: rgba(255,255,255,0.04);
+  --border-light: rgba(255,255,255,0.06);
+  --border-medium: rgba(255,255,255,0.12);
+  --text-primary: rgba(255,255,255,0.92);
+  --text-secondary: rgba(255,255,255,0.6);
+  --text-muted: rgba(255,255,255,0.35);
+  --shadow-card: 0 4px 20px rgba(0,0,0,0.3);
+  --accent-highlight: var(--sun-gold);
+  --accent-label: var(--sun-gold);
+  --grid-line: rgba(45,49,66,0.4);
+  --contour-opacity: 0.15;
+  --glow-opacity: 0.12;
+  --logo-bg: #2D3142;
+  --logo-buildings: #5D5852;
+  --logo-stroke: none;
+  --logo-stroke-width: 0;
+}
+
+/* ========== System Preference Detection ========== */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg-primary: #FAFBFC;
+    --bg-secondary: #F1F5F9;
+    --bg-card: #FFFFFF;
+    --bg-card-hover: #FFFFFF;
+    --border-light: #E2E8F0;
+    --border-medium: #CBD5E1;
+    --text-primary: #1E293B;
+    --text-secondary: #475569;
+    --text-muted: #94A3B8;
+    --shadow-card: 0 4px 20px rgba(0,0,0,0.06);
+    --accent-highlight: var(--water-blue);
+    --accent-label: var(--sun-gold-dark);
+    --grid-line: #E2E8F0;
+    --contour-opacity: 0.08;
+    --glow-opacity: 0.08;
+    --logo-bg: #F8FAFC;
+    --logo-buildings: #2D3142;
+    --logo-stroke: #E2E8F0;
+    --logo-stroke-width: 2;
+  }
+}

@@ -15,164 +15,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
+    <!-- Shared CSS -->
+    <link rel="stylesheet" href="/css/tokens.css">
+    <link rel="stylesheet" href="/css/base.css">
+
     <style>
-        /* ========== Theme Variables ========== */
-        :root {
-            /* Logo palette (constant) */
-            --sun-gold: #F7B538;
-            --sun-gold-dark: #D4940F;
-            --energy-orange: #E85D04;
-            --water-blue: #0077B6;
-            --water-blue-light: #48CAE4;
-            --urban-slate: #2D3142;
-            --urban-dark: #1A1D2E;
-            --urban-deeper: #0F1119;
-
-            /* Default: Dark theme */
-            --bg-primary: #0F1119;
-            --bg-secondary: #1A1D2E;
-            --bg-card: rgba(255,255,255,0.02);
-            --bg-card-hover: rgba(255,255,255,0.04);
-            --border-light: rgba(255,255,255,0.06);
-            --border-medium: rgba(255,255,255,0.12);
-            --text-primary: rgba(255,255,255,0.92);
-            --text-secondary: rgba(255,255,255,0.6);
-            --text-muted: rgba(255,255,255,0.35);
-            --shadow-card: 0 4px 20px rgba(0,0,0,0.3);
-            --accent-highlight: var(--sun-gold);
-            --accent-label: var(--sun-gold);
-            --grid-line: rgba(45,49,66,0.4);
-            --contour-opacity: 0.15;
-            --glow-opacity: 0.12;
-            --logo-bg: #2D3142;
-            --logo-buildings: #5D5852;
-            --logo-stroke: none;
-            --logo-stroke-width: 0;
-        }
-
-        /* Light theme */
-        [data-theme="light"] {
-            --bg-primary: #FAFBFC;
-            --bg-secondary: #F1F5F9;
-            --bg-card: #FFFFFF;
-            --bg-card-hover: #FFFFFF;
-            --border-light: #E2E8F0;
-            --border-medium: #CBD5E1;
-            --text-primary: #1E293B;
-            --text-secondary: #475569;
-            --text-muted: #94A3B8;
-            --shadow-card: 0 4px 20px rgba(0,0,0,0.06);
-            --accent-highlight: var(--water-blue);
-            --accent-label: var(--sun-gold-dark);
-            --grid-line: #E2E8F0;
-            --contour-opacity: 0.08;
-            --glow-opacity: 0.08;
-            --logo-bg: #F8FAFC;
-            --logo-buildings: #2D3142;
-            --logo-stroke: #E2E8F0;
-            --logo-stroke-width: 2;
-        }
-
-        /* System preference detection */
-        @media (prefers-color-scheme: light) {
-            :root:not([data-theme="dark"]) {
-                --bg-primary: #FAFBFC;
-                --bg-secondary: #F1F5F9;
-                --bg-card: #FFFFFF;
-                --bg-card-hover: #FFFFFF;
-                --border-light: #E2E8F0;
-                --border-medium: #CBD5E1;
-                --text-primary: #1E293B;
-                --text-secondary: #475569;
-                --text-muted: #94A3B8;
-                --shadow-card: 0 4px 20px rgba(0,0,0,0.06);
-                --accent-highlight: var(--water-blue);
-                --accent-label: var(--sun-gold-dark);
-                --grid-line: #E2E8F0;
-                --contour-opacity: 0.08;
-                --glow-opacity: 0.08;
-                --logo-bg: #F8FAFC;
-                --logo-buildings: #2D3142;
-                --logo-stroke: #E2E8F0;
-                --logo-stroke-width: 2;
-            }
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html {
-            scroll-behavior: smooth;
-        }
-
+        /* ========== Page-specific styles ========== */
         body {
-            font-family: 'Instrument Sans', system-ui, sans-serif;
-            line-height: 1.6;
-            color: var(--text-primary);
-            background: var(--bg-primary);
-            min-height: 100vh;
             overflow-x: hidden;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-
-        /* ========== Theme Toggle Button ========== */
-        .theme-toggle {
-            position: fixed;
-            top: 24px;
-            right: 24px;
-            z-index: 1000;
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            border: 1px solid var(--border-light);
-            background: var(--bg-card);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(8px);
-        }
-
-        .theme-toggle:hover {
-            border-color: var(--border-medium);
-            transform: scale(1.05);
-        }
-
-        .theme-toggle svg {
-            width: 20px;
-            height: 20px;
-            stroke: var(--text-secondary);
-            stroke-width: 2;
-            fill: none;
-            transition: stroke 0.3s ease;
-        }
-
-        .theme-toggle:hover svg {
-            stroke: var(--text-primary);
-        }
-
-        .theme-toggle .icon-sun,
-        .theme-toggle .icon-moon {
-            position: absolute;
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-
-        /* Dark mode: show sun icon (to switch to light) */
-        :root:not([data-theme="light"]) .theme-toggle .icon-sun { opacity: 1; transform: rotate(0deg); }
-        :root:not([data-theme="light"]) .theme-toggle .icon-moon { opacity: 0; transform: rotate(-90deg); }
-
-        /* Light mode: show moon icon (to switch to dark) */
-        [data-theme="light"] .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg); }
-        [data-theme="light"] .theme-toggle .icon-moon { opacity: 1; transform: rotate(0deg); }
-
-        /* System light preference without explicit theme */
-        @media (prefers-color-scheme: light) {
-            :root:not([data-theme]) .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg); }
-            :root:not([data-theme]) .theme-toggle .icon-moon { opacity: 1; transform: rotate(0deg); }
         }
 
         /* ========== Background Elements ========== */
@@ -224,12 +74,10 @@
             50% { transform: scale(1.05); opacity: 0.15; }
         }
 
-        /* ========== Layout ========== */
+        /* ========== Layout (extends base.css) ========== */
         .container {
             position: relative;
             z-index: 10;
-            max-width: 1200px;
-            margin: 0 auto;
             padding: 0 40px;
         }
 
@@ -307,12 +155,7 @@
             filter: drop-shadow(0 16px 50px rgba(0,0,0,0.2));
         }
 
-        /* Logo animations */
-        @keyframes sun-glow {
-            0%, 100% { transform: scale(0.96); }
-            50% { transform: scale(1.06); }
-        }
-
+        /* Logo animations (wave-undulate extends base.css with more keyframes) */
         @keyframes wave-undulate {
             0%, 100% { transform: translateY(0) scaleY(1); }
             25% { transform: translateY(-8px) scaleY(1.05); }
@@ -334,11 +177,6 @@
         /* ========== Hero Content ========== */
         .hero-content {
             animation: slideUp 0.8s ease-out;
-        }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
         }
 
         .hero-label {
@@ -452,11 +290,6 @@
         .stat:nth-child(2) { animation-delay: 0.4s; }
         .stat:nth-child(3) { animation-delay: 0.5s; }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
         .stat-value {
             font-family: 'JetBrains Mono', monospace;
             font-size: 2rem;
@@ -480,31 +313,12 @@
             transition: background-color 0.3s ease;
         }
 
-        .section-header {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-            margin-bottom: 60px;
-        }
-
-        .section-number {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.75rem;
-            color: var(--water-blue);
-            letter-spacing: 0.1em;
-        }
-
+        /* Section header (extends base.css) */
         .section-title {
             font-family: 'Crimson Pro', Georgia, serif;
             font-size: 2rem;
             font-weight: 400;
             letter-spacing: -0.01em;
-        }
-
-        .section-line {
-            flex: 1;
-            height: 1px;
-            background: linear-gradient(90deg, var(--border-medium), transparent);
         }
 
         /* ========== Resource Cards ========== */
@@ -687,27 +501,6 @@
             background: linear-gradient(135deg, var(--water-blue), var(--water-blue-light));
             border-radius: 50%;
             flex-shrink: 0;
-        }
-
-        /* ========== Footer ========== */
-        .footer {
-            border-top: 1px solid var(--border-light);
-            padding: 60px 0;
-            text-align: center;
-            background: var(--bg-secondary);
-            transition: background-color 0.3s ease, border-color 0.3s ease;
-        }
-
-        .footer-institutions {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-bottom: 24px;
-            line-height: 1.8;
-        }
-
-        .footer-legal {
-            font-size: 0.8rem;
-            color: var(--text-muted);
         }
 
         /* ========== Scroll Indicator ========== */
@@ -994,6 +787,53 @@
                 setTheme(e.matches ? 'light' : 'dark');
             }
         });
+
+        // Local Development Mode Detection
+        (function() {
+            const isLocalDev = window.location.hostname === 'localhost' ||
+                               window.location.hostname === '127.0.0.1';
+
+            if (isLocalDev) {
+                // Update docs card link to local server (use 127.0.0.1 for IPv4 compatibility)
+                const docsCard = document.querySelector('a.resource-card[href="https://docs.suews.io"]');
+                if (docsCard) {
+                    docsCard.href = 'http://127.0.0.1:8000';
+                    docsCard.querySelector('.card-description').innerHTML =
+                        '<span style="color: var(--sun-gold);">LOCAL:</span> http://127.0.0.1:8000';
+                }
+
+                // Create and inject dev banner
+                const banner = document.createElement('div');
+                banner.id = 'dev-banner';
+                banner.innerHTML = `
+                    <span>LOCAL DEVELOPMENT</span>
+                    <span style="opacity: 0.7; margin-left: 16px;">
+                        Site: ${window.location.host} |
+                        Docs: <a href="http://127.0.0.1:8000" style="color: inherit;">127.0.0.1:8000</a>
+                    </span>
+                `;
+                banner.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    background: linear-gradient(90deg, var(--energy-orange), var(--sun-gold));
+                    color: #000;
+                    padding: 8px 20px;
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.1em;
+                    z-index: 9999;
+                    text-align: center;
+                    font-family: 'JetBrains Mono', monospace;
+                `;
+                document.body.prepend(banner);
+
+                // Adjust body padding for banner
+                document.body.style.paddingTop = '36px';
+            }
+        })();
     </script>
 </body>
 </html>

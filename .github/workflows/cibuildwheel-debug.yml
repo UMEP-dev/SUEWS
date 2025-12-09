@@ -36,7 +36,7 @@ on:
         type: choice
         options:
           - ubuntu-latest-x86_64    # Linux 64-bit
-          - macos-13-x86_64         # macOS Intel
+          - macos-15-intel-x86_64   # macOS Intel
           - macos-latest-arm64      # macOS Apple Silicon
           - windows-2025           # Windows 64-bit
       python_version:
@@ -66,7 +66,7 @@ jobs:
     name: Debug ${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'macos-latest-arm64' }}
     runs-on: ${{
       (inputs.platform_arch || 'macos-latest-arm64') == 'ubuntu-latest-x86_64' && 'ubuntu-latest' ||
-      (inputs.platform_arch || 'macos-latest-arm64') == 'macos-13-x86_64' && 'macos-13' ||
+      (inputs.platform_arch || 'macos-latest-arm64') == 'macos-15-intel-x86_64' && 'macos-15-intel' ||
       (inputs.platform_arch || 'macos-latest-arm64') == 'macos-latest-arm64' && 'macos-latest' ||
       (inputs.platform_arch || 'macos-latest-arm64') == 'windows-2025' && 'windows-2025' }}
 
@@ -75,13 +75,13 @@ jobs:
       # Extract platform and architecture from combined input
       PLATFORM: ${{
         (inputs.platform_arch || 'macos-latest-arm64') == 'ubuntu-latest-x86_64' && 'ubuntu-latest' ||
-        (inputs.platform_arch || 'macos-latest-arm64') == 'macos-13-x86_64' && 'macos-13' ||
+        (inputs.platform_arch || 'macos-latest-arm64') == 'macos-15-intel-x86_64' && 'macos-15-intel' ||
         (inputs.platform_arch || 'macos-latest-arm64') == 'macos-latest-arm64' && 'macos-latest' ||
         (inputs.platform_arch || 'macos-latest-arm64') == 'windows-2025' && 'windows-2025' }}
 
       ARCHITECTURE: ${{
         (inputs.platform_arch || 'macos-latest-arm64') == 'ubuntu-latest-x86_64' && 'x86_64' ||
-        (inputs.platform_arch || 'macos-latest-arm64') == 'macos-13-x86_64' && 'x86_64' ||
+        (inputs.platform_arch || 'macos-latest-arm64') == 'macos-15-intel-x86_64' && 'x86_64' ||
         (inputs.platform_arch || 'macos-latest-arm64') == 'macos-latest-arm64' && 'arm64' ||
         (inputs.platform_arch || 'macos-latest-arm64') == 'windows-2025' && 'AMD64' }}
 
@@ -95,7 +95,7 @@ jobs:
       CIBW_BUILD: ${{ inputs.python_version || 'cp311' }}-*
       CIBW_ARCHS: ${{
         (inputs.platform_arch || 'macos-latest-arm64') == 'ubuntu-latest-x86_64' && 'x86_64' ||
-        (inputs.platform_arch || 'macos-latest-arm64') == 'macos-13-x86_64' && 'x86_64' ||
+        (inputs.platform_arch || 'macos-latest-arm64') == 'macos-15-intel-x86_64' && 'x86_64' ||
         (inputs.platform_arch || 'macos-latest-arm64') == 'macos-latest-arm64' && 'arm64' ||
         (inputs.platform_arch || 'macos-latest-arm64') == 'windows-2025' && 'AMD64' }}
       CIBW_BUILD_VERBOSITY: 3  # Maximum verbosity for debugging
@@ -168,7 +168,7 @@ jobs:
       CIBW_TEST_COMMAND_WINDOWS: "python -m pytest {project}\\test"
 
       # macOS deployment target
-      MACOSX_DEPLOYMENT_TARGET: ${{ contains(inputs.platform_arch || 'macos-latest-arm64', 'macos-13') && '13.0' || '15.0' }}
+      MACOSX_DEPLOYMENT_TARGET: '15.0'
 
       # Debug mode for SSH sessions
       DEBUG_MODE: ${{ inputs.debug_mode || 'after-failure' }}

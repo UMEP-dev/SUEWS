@@ -3,7 +3,7 @@ description: 'Build SUEWS wheels with cibuildwheel (standard or UMEP variant)'
 
 inputs:
   buildplat:
-    description: 'Build platform (e.g., ubuntu-latest, macos-13, windows-2025)'
+    description: 'Build platform (e.g., ubuntu-latest, macos-15-intel, windows-2025)'
     required: true
   buildplat_name:
     description: 'Platform name for wheel (e.g., manylinux, macosx, win)'
@@ -167,7 +167,7 @@ runs:
               inputs.test_tier == 'cfg' && '-m "smoke or cfg"' ||
               inputs.test_tier == 'standard' && '-m "not slow"' ||
               '--durations=10' }}
-        MACOSX_DEPLOYMENT_TARGET: ${{ inputs.buildplat == 'macos-13' && '13.0' || '15.0' }}
+        MACOSX_DEPLOYMENT_TARGET: '15.0'
 
     - name: Upload wheels
       uses: actions/upload-artifact@v4

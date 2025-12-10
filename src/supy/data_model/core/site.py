@@ -1614,12 +1614,12 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
     )
     HeatingSetpointTemperature: Optional[Union[HourlyProfile, FlexibleRefValue(float)]] = Field(
-        default=0.0,
+        default==0.0,
         description="Heating setpoint temperature [degC]. Either a scalar (value) or an hourly profile.",
         json_schema_extra={"unit": "degC", "display_name": "Heatingsetpointtemperature"},
     )
     CoolingSetpointTemperature: Optional[Union[HourlyProfile, FlexibleRefValue(float)]] = Field(
-        default=0.0,
+        default==0.0,
         description="Cooling setpoint temperature [degC]. Either a scalar (value) or an hourly profile. ",
         json_schema_extra={"unit": "degC", "display_name": "Coolingsetpointtemperature"},
     )

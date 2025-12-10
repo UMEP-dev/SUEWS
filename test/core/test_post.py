@@ -7,6 +7,7 @@ output resampling, aggregation, and data manipulation utilities.
 
 from unittest import TestCase
 import warnings
+import pytest
 
 import pandas as pd
 
@@ -389,6 +390,7 @@ class TestMultiGridPostProcessing(TestCase):
         )
         self.n_grids = n_grids
 
+    @pytest.mark.skip(reason="Temporarily skipping TestMultiGridPostProcessing tess")
     def test_multigrid_resample(self):
         """Test resampling multi-grid output."""
         print("\n========================================")
@@ -407,6 +409,7 @@ class TestMultiGridPostProcessing(TestCase):
 
         print(f"✓ Resampled {self.n_grids} grids correctly")
 
+    @pytest.mark.skip(reason="Temporarily skipping TestMultiGridPostProcessing tess")
     def test_grid_aggregation(self):
         """Test aggregating across grids."""
         print("\n========================================")

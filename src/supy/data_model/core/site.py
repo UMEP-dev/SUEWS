@@ -1,7 +1,7 @@
 from typing import Optional
 from pydantic import ConfigDict, BaseModel, Field, model_validator
 from .type import RefValue, Reference, FlexibleRefValue
-from .profile import HourlyProfile
+from .profile import HourlyProfile, DayProfile, WeeklyProfile
 from .type import init_df_state
 from .timezone_enum import TimezoneOffset
 from ..validation.core.utils import (
@@ -1633,61 +1633,79 @@ class ArchetypeProperties(BaseModel):
     ref: Optional[Reference] = None
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """Convert ArchetypeProperties to DataFrame state format."""
+        """Convert archetype properties to DataFrame state format.
 
+        This mirrors the CO2Params approach:
+         - scalar / RefValue -> single column (name, "0")
+         - DayProfile / HourlyProfile -> use their to_df_state and combine_first
+        """
         df_state = init_df_state(grid_id)
 
-        # Create an empty DataFrame with MultiIndex columns
-        columns = [
-            (field.lower(), "0")
-            for field in self.__class__.model_fields.keys()
-            if field != "ref"
-        ]
-        df_state = pd.DataFrame(
-            index=[grid_id], columns=pd.MultiIndex.from_tuples(columns)
-        )
-
-        # Set the values in the DataFrame
         for field_name, field_info in self.__class__.model_fields.items():
             if field_name == "ref":
                 continue
-            attribute = getattr(self, field_name)
-            if isinstance(attribute, RefValue):
-                value = attribute.value
+
+            attr = getattr(self, field_name)
+
+            # Profile types -> delegate to their to_df_state
+            if isinstance(attr, HourlyProfile):
+                df_profile = attr.to_df_state(grid_id, field_name.lower())
+                df_state = df_state.combine_first(df_profile)
+                continue
+
+            if isinstance(attr, DayProfile):
+                df_profile = attr.to_df_state(grid_id, field_name.lower())
+                df_state = df_state.combine_first(df_profile)
+                continue
+
+            if isinstance(attr, WeeklyProfile):
+                df_profile = attr.to_df_state(grid_id, field_name.lower())
+                df_state = df_state.combine_first(df_profile)
+                continue
+
+            # Scalar / RefValue -> single column (name, "0")
+            if isinstance(attr, RefValue):
+                value = attr.value
             else:
-                value = attribute
+                value = attr if attr is not None else 0.0
+
             df_state.loc[grid_id, (field_name.lower(), "0")] = value
 
         return df_state
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ArchetypeProperties":
-        """Reconstruct ArchetypeProperties from DataFrame state format."""
-        # Extract the values from the DataFrame, using defaults for missing columns
         params = {}
-        for field_name in cls.model_fields.keys():
+        for field_name, field_info in cls.model_fields.items():
             if field_name == "ref":
                 continue
 
             col = (field_name.lower(), "0")
+            # If explicit scalar column exists use it
             if col in df.columns:
                 params[field_name] = df.loc[grid_id, col]
+                continue
+
+            # If the field type is a known profile, call its from_df_state
+            ann = field_info.annotation
+            if ann is DayProfile or ann is HourlyProfile or ann is WeeklyProfile:
+                params[field_name] = ann.from_df_state(df, grid_id, field_name.lower())
+                continue
+
+            # Missing scalar: use default or default_factory
+            if field_info.default is not None:
+                params[field_name] = field_info.default
+            elif field_info.default_factory is not None:
+                params[field_name] = field_info.default_factory()
             else:
-                # Use default value from field definition for missing columns
-                field_info = cls.model_fields[field_name]
-                if field_info.default is not None:
-                    params[field_name] = field_info.default
-                elif field_info.default_factory is not None:
-                    params[field_name] = field_info.default_factory()
+                params[field_name] = None
 
-        # Convert params to RefValue
-        non_value_with_doi = ["BuildingType", "BuildingName"]
-        params = {
-            key: (RefValue(value) if key not in non_value_with_doi else value)
-            for key, value in params.items()
-        }
+        # Wrap scalar values in RefValue except those that must remain raw
+        non_ref = {"BuildingType", "BuildingName"}
+        for k, v in list(params.items()):
+            if k not in non_ref and not isinstance(v, (DayProfile, HourlyProfile, WeeklyProfile)):
+                params[k] = RefValue(v)
 
-        # Create an instance using the extracted parameters
         return cls(**params)
 
 

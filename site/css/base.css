@@ -1,0 +1,264 @@
+/**
+ * SUEWS Base Styles
+ *
+ * Shared CSS for typography, resets, theme toggle, footer, and common components.
+ * Requires tokens.css to be loaded first.
+ */
+
+/* ========== Reset ========== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ========== Typography ========== */
+body {
+  font-family: 'Instrument Sans', system-ui, sans-serif;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  min-height: 100vh;
+  transition: background-color var(--transition-standard), color var(--transition-standard);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+h1 {
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  margin-bottom: 0.5rem;
+}
+
+h2 {
+  font-size: 1.5rem;
+  font-weight: 400;
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  margin-bottom: 3rem;
+}
+
+code, pre, .mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ========== Links ========== */
+a {
+  color: var(--accent-highlight);
+  text-decoration: none;
+  transition: color var(--transition-standard);
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ========== Container ========== */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ========== Theme Toggle Button ========== */
+.theme-toggle {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 1000;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-card);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-standard);
+  backdrop-filter: blur(8px);
+}
+
+.theme-toggle:hover {
+  border-color: var(--border-medium);
+  transform: scale(1.05);
+}
+
+.theme-toggle svg {
+  width: 20px;
+  height: 20px;
+  stroke: var(--text-secondary);
+  stroke-width: 2;
+  fill: none;
+  transition: stroke var(--transition-standard);
+}
+
+.theme-toggle:hover svg {
+  stroke: var(--text-primary);
+}
+
+.theme-toggle .icon-sun,
+.theme-toggle .icon-moon {
+  position: absolute;
+  transition: opacity var(--transition-standard), transform var(--transition-standard);
+}
+
+/* Dark mode (default): show sun icon (to switch to light) */
+:root:not([data-theme="light"]) .theme-toggle .icon-sun { opacity: 1; transform: rotate(0deg); }
+:root:not([data-theme="light"]) .theme-toggle .icon-moon { opacity: 0; transform: rotate(-90deg); }
+
+/* Light mode: show moon icon (to switch to dark) */
+[data-theme="light"] .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg); }
+[data-theme="light"] .theme-toggle .icon-moon { opacity: 1; transform: rotate(0deg); }
+
+/* System light preference without explicit theme */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg); }
+  :root:not([data-theme]) .theme-toggle .icon-moon { opacity: 1; transform: rotate(0deg); }
+}
+
+/* Light-default pages: reverse the icon logic */
+.light-default:not([data-theme="dark"]) .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg); }
+.light-default:not([data-theme="dark"]) .theme-toggle .icon-moon { opacity: 1; transform: rotate(0deg); }
+.light-default[data-theme="dark"] .theme-toggle .icon-sun { opacity: 1; transform: rotate(0deg); }
+.light-default[data-theme="dark"] .theme-toggle .icon-moon { opacity: 0; transform: rotate(-90deg); }
+
+/* ========== Footer ========== */
+.footer {
+  border-top: 1px solid var(--border-light);
+  padding: 60px 0;
+  text-align: center;
+  background: var(--bg-secondary);
+  transition: background-color var(--transition-standard), border-color var(--transition-standard);
+}
+
+.footer-institutions {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  line-height: 1.8;
+}
+
+.footer-legal {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.footer a {
+  color: var(--text-muted);
+}
+
+.footer a:hover {
+  color: var(--text-secondary);
+}
+
+/* ========== Section Headers ========== */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 60px;
+}
+
+.section-number {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--water-blue);
+  letter-spacing: 0.1em;
+}
+
+.section-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-medium), transparent);
+}
+
+/* ========== Card Base ========== */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow-card);
+  transition: all var(--transition-card);
+}
+
+.card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-medium);
+  transform: translateY(-4px);
+}
+
+/* ========== Animations ========== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* ========== Logo Animations ========== */
+@keyframes sun-glow {
+  0%, 100% { transform: scale(0.96); }
+  50% { transform: scale(1.06); }
+}
+
+@keyframes wave-undulate {
+  0%, 100% {
+    transform: translateY(0) scaleY(1);
+  }
+  50% {
+    transform: translateY(2px) scaleY(0.95);
+  }
+}
+
+/* ========== Responsive Breakpoints ========== */
+@media (max-width: 900px) {
+  .container {
+    padding: 0 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .theme-toggle {
+    top: 16px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+  }
+}

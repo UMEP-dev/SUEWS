@@ -673,8 +673,8 @@ def source_read_handler(app, docname, source):
 def setup(app):
     app.connect("source-read", source_read_handler)
     app.add_css_file("theme_overrides.css")
-    # Fix equation formatting in the RTD-theme
-    app.add_css_file("fix-eq.css")
+    # SUEWS brand styling (aligned with site/css/tokens.css)
+    app.add_css_file("brand.css")
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
@@ -981,11 +981,4 @@ register_plugin("pybtex.style.sorting", "year_author_title", MySort_year_author_
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 
-# These paths are either relative to html_static_path or fully qualified paths (eg. https://...)
-html_css_files = [
-    "suews-config-ui/main.css",
-]
-
-html_js_files = [
-    "suews-config-ui/main.js",
-]
+# Custom CSS and JS files are loaded via setup() function above

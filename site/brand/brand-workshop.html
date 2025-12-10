@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,21 +8,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Shared CSS (brand palette only) -->
+  <link rel="stylesheet" href="/css/tokens.css">
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
   <style>
     :root {
-      /* ========== Brand Palette (aligned with site) ========== */
-      --sun-gold: #F7B538;
-      --sun-gold-dark: #D4940F;
-      --energy-orange: #E85D04;
-      --water-blue: #0077B6;
-      --water-blue-light: #48CAE4;
-      --urban-slate: #2D3142;
-      --urban-dark: #1A1D2E;
-      --urban-deeper: #0F1119;
-
-      /* Workshop dark palette (functional UI) */
+      /* Workshop dark palette (functional UI - extends tokens.css) */
       --bg-base: #09090b;
       --bg-elevated: #18181b;
       --bg-surface: #27272a;

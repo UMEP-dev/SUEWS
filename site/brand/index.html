@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light" class="light-default">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,142 +8,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+
   <style>
-    /* ========== Theme Variables (aligned with index.html) ========== */
-    :root {
-      /* Logo palette (constant) */
-      --sun-gold: #F7B538;
-      --sun-gold-dark: #D4940F;
-      --energy-orange: #E85D04;
-      --water-blue: #0077B6;
-      --water-blue-light: #48CAE4;
-      --sky-blue: #5DADE2;
-      --veg-green: #09a25c;
-      --wave-blue: #0558a5;
-      --urban-slate: #2D3142;
-      --urban-dark: #1A1D2E;
-      --urban-deeper: #0F1119;
-
-      /* Default: Light theme (showcase is primarily light) */
-      --bg-primary: #FAFBFC;
-      --bg-secondary: #F1F5F9;
-      --bg-card: #FFFFFF;
-      --bg-card-hover: #FFFFFF;
-      --border-light: #E2E8F0;
-      --border-medium: #CBD5E1;
-      --text-primary: #1E293B;
-      --text-secondary: #475569;
-      --text-muted: #94A3B8;
-      --shadow-card: 0 4px 20px rgba(0,0,0,0.06);
-      --accent-highlight: var(--water-blue);
-      --accent-label: var(--sun-gold-dark);
-    }
-
-    /* Dark theme */
-    [data-theme="dark"] {
-      --bg-primary: #0F1119;
-      --bg-secondary: #1A1D2E;
-      --bg-card: rgba(255,255,255,0.02);
-      --bg-card-hover: rgba(255,255,255,0.04);
-      --border-light: rgba(255,255,255,0.06);
-      --border-medium: rgba(255,255,255,0.12);
-      --text-primary: rgba(255,255,255,0.92);
-      --text-secondary: rgba(255,255,255,0.6);
-      --text-muted: rgba(255,255,255,0.35);
-      --shadow-card: 0 4px 20px rgba(0,0,0,0.3);
-      --accent-highlight: var(--sun-gold);
-      --accent-label: var(--sun-gold);
-    }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    html {
-      scroll-behavior: smooth;
-    }
-
+    /* ========== Page-specific styles ========== */
     body {
-      font-family: 'Instrument Sans', system-ui, sans-serif;
-      line-height: 1.6;
-      color: var(--text-primary);
-      background: var(--bg-primary);
-      min-height: 100vh;
       padding: 4rem 2rem;
-      transition: background-color 0.3s ease, color 0.3s ease;
-    }
-
-    /* ========== Theme Toggle Button ========== */
-    .theme-toggle {
-      position: fixed;
-      top: 24px;
-      right: 24px;
-      z-index: 1000;
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      border: 1px solid var(--border-light);
-      background: var(--bg-card);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.3s ease;
-      backdrop-filter: blur(8px);
-    }
-
-    .theme-toggle:hover {
-      border-color: var(--border-medium);
-      transform: scale(1.05);
-    }
-
-    .theme-toggle svg {
-      width: 20px;
-      height: 20px;
-      stroke: var(--text-secondary);
-      stroke-width: 2;
-      fill: none;
-      transition: stroke 0.3s ease;
-    }
-
-    .theme-toggle:hover svg {
-      stroke: var(--text-primary);
-    }
-
-    .theme-toggle .icon-sun,
-    .theme-toggle .icon-moon {
-      position: absolute;
-      transition: opacity 0.3s ease, transform 0.3s ease;
-    }
-
-    /* Light mode (default): show moon icon (to switch to dark) */
-    :root:not([data-theme="dark"]) .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg); }
-    :root:not([data-theme="dark"]) .theme-toggle .icon-moon { opacity: 1; transform: rotate(0deg); }
-
-    /* Dark mode: show sun icon (to switch to light) */
-    [data-theme="dark"] .theme-toggle .icon-sun { opacity: 1; transform: rotate(0deg); }
-    [data-theme="dark"] .theme-toggle .icon-moon { opacity: 0; transform: rotate(-90deg); }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    h1 {
-      font-family: 'Crimson Pro', Georgia, serif;
-      font-size: clamp(2rem, 4vw, 2.75rem);
-      font-weight: 500;
-      color: var(--text-primary);
-      margin-bottom: 0.5rem;
-      letter-spacing: -0.02em;
-    }
-
-    .subtitle {
-      color: var(--text-secondary);
-      font-size: 1.1rem;
-      margin-bottom: 3rem;
     }
 
     .logo-showcase {
@@ -701,7 +574,7 @@
   </div>
 
   <script>
-    // Theme Toggle Logic (aligned with index.html)
+    // Theme Toggle Logic (light-default page)
     const toggle = document.getElementById('themeToggle');
     const root = document.documentElement;
 
@@ -714,11 +587,7 @@
 
     // Apply theme
     function setTheme(theme) {
-      if (theme === 'dark') {
-        root.setAttribute('data-theme', 'dark');
-      } else {
-        root.removeAttribute('data-theme');
-      }
+      root.setAttribute('data-theme', theme);
       localStorage.setItem('theme', theme);
     }
 
@@ -727,7 +596,7 @@
 
     // Toggle handler
     toggle.addEventListener('click', () => {
-      const current = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      const current = root.getAttribute('data-theme');
       setTheme(current === 'light' ? 'dark' : 'light');
     });
   </script>

@@ -1613,21 +1613,15 @@ class ArchetypeProperties(BaseModel):
         json_schema_extra={"unit": "W", "display_name": "Maximumhotwaterheatingpower"},
         gt=0.0,
     )
-    HeatingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Heating setpoint temperature [degC]",
-        json_schema_extra={
-            "unit": "degC",
-            "display_name": "Heatingsetpointtemperature",
-        },
+    HeatingSetpointTemperature: Optional[Union[HourlyProfile, FlexibleRefValue(float)]] = Field(
+        default==0.0,
+        description="Heating setpoint temperature [degC]. Either a scalar (value) or an hourly profile.",
+        json_schema_extra={"unit": "degC", "display_name": "Heatingsetpointtemperature"},
     )
-    CoolingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Cooling setpoint temperature [degC]",
-        json_schema_extra={
-            "unit": "degC",
-            "display_name": "Coolingsetpointtemperature",
-        },
+    CoolingSetpointTemperature: Optional[Union[HourlyProfile, FlexibleRefValue(float)]] = Field(
+        default==0.0,
+        description="Cooling setpoint temperature [degC]. Either a scalar (value) or an hourly profile. ",
+        json_schema_extra={"unit": "degC", "display_name": "Coolingsetpointtemperature"},
     )
 
     ref: Optional[Reference] = None

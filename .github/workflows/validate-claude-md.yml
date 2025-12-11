@@ -5,11 +5,13 @@ on:
     paths:
       - 'CLAUDE.md'
       - '.claude/scripts/validate-claude-md.py'
+      - '.claude/rules/**'
   push:
     branches:
       - master
     paths:
       - 'CLAUDE.md'
+      - '.claude/rules/**'
 
 jobs:
   validate:
@@ -42,12 +44,14 @@ jobs:
         echo "Previous version: $PREVIOUS_LINES lines"
         echo "Current version: $CURRENT_LINES lines"
 
-        # Check if this is an intentional restructuring (reference files present)
+        # Check if this is an intentional restructuring (rule files present)
         REQUIRED_REFS=(
-          ".claude/reference/quick-start.md"
-          ".claude/reference/testing-guide.md"
-          ".claude/reference/config-patterns.md"
-          ".claude/reference/maintenance-principles.md"
+          ".claude/rules/00-project-essentials.md"
+          ".claude/rules/fortran/conventions.md"
+          ".claude/rules/python/conventions.md"
+          ".claude/rules/docs/conventions.md"
+          ".claude/rules/tests/patterns.md"
+          ".claude/rules/changelog/format.md"
         )
 
         ALL_REFS_EXIST=true
@@ -65,9 +69,9 @@ jobs:
 
           if [ "$PERCENT" -gt 20 ]; then
             if [ "$ALL_REFS_EXIST" = true ]; then
-              echo "ℹ️ Large reduction detected ($PERCENT%), but required reference files exist"
-              echo "   This appears to be an intentional restructuring (DRY principles)"
-              echo "   Content moved to:"
+              echo "ℹ️ Large reduction detected ($PERCENT%), but required rule files exist"
+              echo "   This appears to be an intentional restructuring (rules-based organisation)"
+              echo "   Content moved to .claude/rules/:"
               for ref in "${REQUIRED_REFS[@]}"; do
                 echo "   - $ref"
               done

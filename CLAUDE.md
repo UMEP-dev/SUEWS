@@ -19,7 +19,7 @@ This file is protected against accidental truncation or content loss via pre-com
 uv venv                      # Create environment
 source .venv/bin/activate    # Activate
 make dev                     # Install SUEWS in editable mode
-make test                    # Run tests if needed
+make test-smoke              # Quick validation (~20s)
 ```
 
 For detailed setup options, see `.claude/reference/quick-start.md`
@@ -63,7 +63,9 @@ cd docs && make livehtml     # Live-reload development server
 
 ## Testing Requirements
 
-**IMPORTANT**: Before committing, ALWAYS run `make test`
+**During development**: Use `make test-smoke` for quick validation (~20s, 9 critical tests)
+
+**Before committing**: Run `make test` for full standard test suite
 
 For benchmark test details and debugging guidance, see `.claude/reference/testing-guide.md`
 

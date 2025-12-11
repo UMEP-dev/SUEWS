@@ -1056,17 +1056,17 @@ class VerticalLayers(BaseModel):
         json_schema_extra={"unit": "dimensionless", "display_name": "Vegetation Scale"},
     )
     building_frac: FlexibleRefValue(List[float]) = Field(
-        default=[0.4, 0.3, 0.3],
-        description="Fraction of buildings in each layer, must sum to 1.0, length must be nlayer",
+        default=[0.4, 0.3, 0.2],
+        description="Cumulative grid building fraction at each vertical layer (decreasing with height), length must be nlayer",
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "-",
             "display_name": "Building Fraction",
         },
     )
     building_scale: FlexibleRefValue(List[float]) = Field(
-        default=[1.0, 1.0, 1.0],
-        description="Scaling factor for buildings in each layer, length must be nlayer",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Building Scale"},
+        default=[10.0, 10.0, 10.0],
+        description="Diameter of buildings at each vertical layer, length must be nlayer",
+        json_schema_extra={"unit": "m", "display_name": "Building Scale"},
     )
     roofs: List[RoofLayer] = Field(
         default_factory=lambda: [RoofLayer(), RoofLayer(), RoofLayer()],

@@ -24,12 +24,10 @@ CRITICAL_SECTIONS = [
     "## Quick Reference",
 ]
 
-# Required skill files that contain detailed content (updated after directory refactor)
-# Skills are now the single source of truth for detailed documentation
+# Required skill files that contain detailed content
+# These are the core skills that must exist for CLAUDE.md to function properly
 REQUIRED_SKILL_FILES = [
-    ".claude/skills/setup-dev/SKILL.md",  # Environment setup (was quick-start.md)
-    ".claude/skills/design-tests/SKILL.md",  # Testing patterns (was testing-guide.md)
-    ".claude/skills/apply-patterns/SKILL.md",  # Config patterns + maintenance (was config-patterns.md, maintenance-principles.md)
+    ".claude/skills/setup-dev/SKILL.md",  # Environment setup
     ".claude/skills/lint-code/SKILL.md",  # Code style conventions
 ]
 

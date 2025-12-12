@@ -95,11 +95,13 @@ Anthropogenic heat flux, Q\ :sub:`F`
 Storage heat flux, ΔQ\ :sub:`S`
 -------------------------------
 
-#. Three sub-models are available to estimate the storage heat flux:
+#. Several sub-models are available to estimate the storage heat flux:
 
    -  **OHM** (Objective Hysteresis Model) :cite:`G91,GO99,GO02`. Storage heat heat flux is calculated using empirically-fitted relations with net all-wave radiation and the rate of change in net all-wave radiation.
    -  **AnOHM** (Analytical Objective Hysteresis Model) :cite:`S17`. OHM approach using analytically-derived coefficients. |NotRecmd|
    -  **ESTM** (Element Surface Temperature Method) :cite:`O05`. Heat transfer through urban facets (roof, wall, road, interior) is calculated from surface temperature measurements and knowledge of material properties. |NotRecmd|
+   -  **EHC** (Explicit Heat Conduction). [TODO: citation TBC] Calculates storage heat flux using explicit heat conduction through urban facets with separate roof/wall/ground temperature calculations. Provides detailed surface temperature outputs for each urban element.
+   -  **DyOHM** (Dynamic Objective Hysteresis Model). [TODO: Liu et al., 2025 - citation TBC] Extends OHM by calculating coefficients dynamically based on material thermal properties (thermal conductivity) and meteorological conditions. Requires vertical wall layer configuration.
 
 #. Alternatively, 'observed' storage heat flux can be supplied with the meteorological forcing data.
 

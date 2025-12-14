@@ -1040,7 +1040,7 @@ class VerticalLayers(BaseModel):
     height: FlexibleRefValue(List[float]) = Field(
         default=[0.0, 10.0, 20.0, 30.0],
         description="Heights of layer boundaries, length must be nlayer+1",
-        json_schema_extra={"unit": "m", "display_name": "Height"},
+        json_schema_extra={"unit": "m", "display_name": "Layer Heights"},
     )
     veg_frac: FlexibleRefValue(List[float]) = Field(
         default=[0.0, 0.0, 0.0],

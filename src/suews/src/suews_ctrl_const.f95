@@ -1156,7 +1156,7 @@ MODULE module_ctrl_const_datain
               WriteOutOption, & !Choose variables to include in main output file
               NetRadiationMethod, & !Options for net all-wave radiation calculation
               OHMIncQF, & !OHM calculation uses Q* only (0) or Q*+QF (1)
-              StorageHeatMethod, & !OHM (1); QS in met file (2); AnOHM(3); ESTM(4)
+              StorageHeatMethod, & !Observed(0); OHM(1); AnOHM(3); ESTM(4); EHC(5); DyOHM(6); STEBBS(7)
               SnowUse, & !Snow part used (1) or not used (0)
               !  SOLWEIGuse, &           !SOLWEIG part used (calculates Tmrt and other fluxes on a grid, FL)
               SMDMethod, & !Use modelled (0) or observed(1,2) soil moisture

@@ -843,9 +843,9 @@ class SUEWSOutput:
     def __repr__(self) -> str:
         """Concise representation of output data."""
         start, end = self.time_range
-        n_grids = self.n_grids
+        n_grids = len(self.grids)
         n_groups = len(self.groups)
-        n_timesteps = self.n_timesteps
+        n_timesteps = len(self.times)
 
         return (
             f"SUEWSOutput({start.date()} to {end.date()}, "
@@ -855,9 +855,9 @@ class SUEWSOutput:
     def _repr_html_(self) -> str:
         """HTML representation for Jupyter notebooks."""
         start, end = self.time_range
-        n_grids = self.n_grids
+        n_grids = len(self.grids)
         n_groups = len(self.groups)
-        n_timesteps = self.n_timesteps
+        n_timesteps = len(self.times)
 
         # Count variables
         total_vars = sum(len(v) for v in self.available_variables.values())
@@ -878,4 +878,4 @@ class SUEWSOutput:
 
     def __len__(self) -> int:
         """Number of timesteps."""
-        return self.n_timesteps
+        return len(self.times)

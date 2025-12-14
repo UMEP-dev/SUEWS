@@ -797,7 +797,7 @@ class SUEWSForcing:
     def __repr__(self) -> str:
         """Concise representation of forcing data."""
         start, end = self.time_range
-        n_steps = self.n_timesteps
+        n_steps = len(self._data)
         tstep = self.timestep_seconds
 
         # Count available variables (excluding time columns)
@@ -812,7 +812,7 @@ class SUEWSForcing:
     def _repr_html_(self) -> str:
         """HTML representation for Jupyter notebooks."""
         start, end = self.time_range
-        n_steps = self.n_timesteps
+        n_steps = len(self._data)
         tstep = self.timestep_seconds
 
         # Get completeness info

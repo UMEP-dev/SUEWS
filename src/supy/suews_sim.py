@@ -836,7 +836,7 @@ class SUEWSSimulation:
         df_state_init = output.to_initial_state()
         sim = cls()
         sim._df_state_init = df_state_init
-        sim._config = output._config  # Preserve config if available
+        sim._config = output.config  # Preserve config if available
 
         return sim
 

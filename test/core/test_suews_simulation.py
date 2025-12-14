@@ -570,7 +570,7 @@ class TestEnhancements:
     def test_repr_complete(self):
         """Test repr after running."""
         sim = SUEWSSimulation.from_sample_data()
-        sim.run(end_date=sim.forcing.times[23])  # Run only 24 timesteps
+        sim.run(end_date=sim.forcing.index[23])  # Run only 24 timesteps
         repr_str = repr(sim)
         assert "Complete" in repr_str
         assert "results" in repr_str
@@ -581,7 +581,7 @@ class TestEnhancements:
         assert sim.state_init is not None
         assert sim.state_final is None
 
-        sim.run(end_date=sim.forcing.times[23])
+        sim.run(end_date=sim.forcing.index[23])
         assert sim.state_final is not None
 
     def test_validation_methods(self):
@@ -594,7 +594,7 @@ class TestEnhancements:
         assert sim.is_ready()
         assert not sim.is_complete()
 
-        sim.run(end_date=sim.forcing.times[23])
+        sim.run(end_date=sim.forcing.index[23])
         assert sim.is_complete()
 
 
@@ -618,7 +618,7 @@ class TestMethodChaining:
     def test_reset_returns_self(self):
         """Test reset enables chaining."""
         sim = SUEWSSimulation.from_sample_data()
-        sim.run(end_date=sim.forcing.times[23])
+        sim.run(end_date=sim.forcing.index[23])
         result = sim.reset()
         assert result is sim
         assert not sim.is_complete()
@@ -647,7 +647,7 @@ class TestGetVariable:
     def test_get_variable_with_group(self):
         """Test variable extraction with group specification."""
         sim = SUEWSSimulation.from_sample_data()
-        sim.run(end_date=sim.forcing.times[23])
+        sim.run(end_date=sim.forcing.index[23])
 
         # QH appears in multiple groups, must specify which one
         qh = sim.get_variable("QH", group="SUEWS")
@@ -657,7 +657,7 @@ class TestGetVariable:
     def test_get_variable_ambiguous_raises(self):
         """Test get_variable raises error for ambiguous variable without group."""
         sim = SUEWSSimulation.from_sample_data()
-        sim.run(end_date=sim.forcing.times[23])
+        sim.run(end_date=sim.forcing.index[23])
 
         # QH appears in multiple groups - should raise error
         with pytest.raises(ValueError, match="appears in multiple groups"):
@@ -672,7 +672,7 @@ class TestGetVariable:
     def test_get_variable_invalid_name(self):
         """Test get_variable with invalid variable name."""
         sim = SUEWSSimulation.from_sample_data()
-        sim.run(end_date=sim.forcing.times[23])
+        sim.run(end_date=sim.forcing.index[23])
 
         with pytest.raises(ValueError, match="not found"):
             sim.get_variable("INVALID_VAR")
@@ -680,7 +680,7 @@ class TestGetVariable:
     def test_get_variable_wrong_group(self):
         """Test get_variable with wrong group specification."""
         sim = SUEWSSimulation.from_sample_data()
-        sim.run(end_date=sim.forcing.times[23])
+        sim.run(end_date=sim.forcing.index[23])
 
         # QH exists but not in a non-existent group
         with pytest.raises(ValueError, match="not found in group"):

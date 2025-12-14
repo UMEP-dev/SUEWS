@@ -217,7 +217,7 @@ class LAIPowerCoefficients(BaseModel):
     growth_gdd: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Power coefficient for GDD in growth equation (LAIPower[2])",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Growing Degree Days Growth Power Coefficient"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "GDD Growth Power Coefficient"},
     )
     senescence_lai: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -227,7 +227,7 @@ class LAIPowerCoefficients(BaseModel):
     senescence_sdd: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Power coefficient for SDD in senescence equation (LAIPower[4])",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Senescence Degree Days Senescence Power Coefficient"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "SDD Senescence Power Coefficient"},
     )
 
     ref: Optional[Reference] = None
@@ -1299,7 +1299,7 @@ class ArchetypeProperties(BaseModel):
         description="Effective thermal conductivity of layers external to insulation in walls [W m-1 K-1]",
         json_schema_extra={
             "unit": "W m^-1 K^-1",
-            "display_name": "Wall Effective Conductivity",
+            "display_name": "Wall Ext Effective Conductivity",
         },
         gt=0.0,
     )
@@ -1403,7 +1403,7 @@ class ArchetypeProperties(BaseModel):
         description="Effective thermal conductivity of layers external to insulation in roof [W m-1 K-1]",
         json_schema_extra={
             "unit": "W m^-1 K^-1",
-            "display_name": "Roof Effective Conductivity",
+            "display_name": "Roof Ext Effective Conductivity",
         },
         gt=0.0,
     )

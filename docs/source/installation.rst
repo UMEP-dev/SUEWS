@@ -111,7 +111,7 @@ Development versions are published to `test.pypi.org <https://test.pypi.org/proj
 
 5. **Verify installation**::
 
-    python -c "import supy; print(f'SuPy version: {supy.__version__}')"
+    python -c "import supy; print(f'SUEWS version: {supy.__version__}')"
     # Should show: 2025.9.16.dev0
 
 **For future use:**
@@ -132,27 +132,64 @@ To deactivate when finished::
 - Single tool for both environment and package management
 - Can automatically download and manage Python versions
 
+
+Alternative: pip-only Approach
+******************************
+
+If you cannot use ``uv`` (e.g., in managed Python environments like OSGeo4W/QGIS, or corporate environments), use this two-step pip approach:
+
+1. **Check latest version** at https://test.pypi.org/project/supy/
+
+2. **Download and install** (two steps)::
+
+    # Download supy only (no dependencies) from test.pypi.org
+    # Replace VERSION with the latest from step 1 (e.g., 2025.11.25.dev0)
+    pip download --no-deps -i https://test.pypi.org/simple/ supy==VERSION
+
+    # Install from the downloaded wheel - pip will resolve dependencies from regular PyPI
+    pip install --find-links=. supy==VERSION
+
+3. **Verify installation**::
+
+    python -c "import supy; print(f'SUEWS version: {supy.__version__}')"
+
+.. note::
+
+   **Why the two-step approach?**
+
+   Using ``pip install --extra-index-url https://test.pypi.org/simple/`` can cause dependency resolution issues where pip pulls source tarballs from test.pypi.org instead of pre-built wheels from PyPI. The two-step approach ensures only ``supy`` comes from test.pypi.org while all dependencies are fetched from regular PyPI.
+
+
+OSGeo4W / UMEP Users
+********************
+
+If you are using SUEWS via `UMEP <https://umep-docs.readthedocs.io/>`_ in QGIS, use the **pip-only approach** above from the **OSGeo4W Shell** (not PowerShell or CMD).
+
+.. warning::
+
+   ``uv`` does not work with OSGeo4W because OSGeo4W's Python requires environment variables (``PYTHONHOME``, ``PYTHONPATH``, etc.) that are only set in the OSGeo4W Shell.
+
+
 Development build
 -----------------
 
 .. warning::
 
-The development build can be highly unstable and is not recommended for production use.
-However, it is automatically constructed every week for testing purposes and we are happy to receive feedback on the development build.
+   The development build can be highly unstable and is not recommended for production use.
+   However, it is automatically constructed every week for testing purposes and we are happy to receive feedback on the development build.
 
 
 To install the development build of SUEWS, you need to install ``supy`` in the development mode:
 
-1. git clone the repository::
+1. Clone the repository::
 
     git clone https://github.com/UMEP-dev/SUEWS.git
-
-2. navigate to the directory of the cloned repository::
-
     cd SUEWS
 
-3. install the package in the development mode::
+2. Run ``make`` to see quick start instructions and available commands::
 
-    make dev
+    make
+
+3. Follow the quick start workflow shown (activate a virtual environment, then ``make dev``)
 
 

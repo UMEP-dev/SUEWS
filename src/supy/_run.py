@@ -2,7 +2,7 @@ from ast import literal_eval
 from shutil import rmtree
 import tempfile
 import copy
-import multiprocess
+import multiprocessing
 import os
 import sys
 import time
@@ -20,7 +20,7 @@ from .supy_driver import suews_driver as sd
 import copy
 
 # these are used in debug mode to save extra outputs
-from .supy_driver import suews_def_dts as sd_dts
+from .supy_driver import module_ctrl_type as sd_dts
 
 from ._load import (
     df_var_info,
@@ -38,7 +38,7 @@ from ._post import (
     pack_dts,
     pack_dict_dts_datetime_grid,
 )
-
+from ._version import __version__ as sp_version
 
 from ._env import logger_supy
 
@@ -141,7 +141,7 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
             order="F",
         ),
         "ts5mindata_ir": np.array(df_forcing_block["ts5mindata_ir"], order="F"),
-        "len_sim": np.array(df_forcing_block.shape[0], dtype=int),
+        "len_sim": int(df_forcing_block.shape[0]),
     })
 
     if debug_mode:
@@ -314,6 +314,7 @@ def run_supy_ser(
     # save df_init without changing its original data
     # df.copy() in pandas works as a standard python deepcopy
     df_init = df_state_init.copy()
+    df_init[("version", "0")] = sp_version
 
     # retrieve the last temporal record as `df_init`
     # if a `datetime` level existing in the index
@@ -645,7 +646,16 @@ def run_supy_par(
         list_dir_temp = [path_dir_temp for _ in range(n_grid)]
 
         # parallel run
-        with multiprocess.Pool() as pool:
+        # Always use spawn context for consistent, portable behaviour:
+        # - Avoids fork warnings in multi-threaded contexts (macOS, GH-916)
+        # - Avoids fork_exec signature issues (Python 3.14+)
+        # - Aligns with Python's direction (3.14 changed default to forkserver)
+        # - Performance overhead (~40ms/worker startup) is negligible for SUEWS
+        #   since each grid runs heavy Fortran code taking seconds
+        # Allow override via SUPY_MP_CONTEXT for edge cases
+        mp_context = os.environ.get("SUPY_MP_CONTEXT", "spawn")
+        ctx = multiprocessing.get_context(mp_context)
+        with ctx.Pool() as pool:
             pool.starmap(
                 run_save_supy,
                 zip(
@@ -798,6 +808,16 @@ def pack_grid_dict(ser_grid):
         var: dict_var[var].astype(int) for var in list_var if var in list_var_int
     }
     dict_var.update(dict_var_int)
+
+    # Extract scalars from single-element arrays for rank-0 variables
+    # This fixes NumPy 2.0 deprecation warning about array-to-scalar conversion
+    list_var_scalar = df_var_info[df_var_info["rank"] == 0].index
+    for var in list_var_scalar:
+        if var in dict_var:
+            val = dict_var[var]
+            if isinstance(val, np.ndarray) and val.size == 1:
+                dict_var[var] = val.item()
+
     return dict_var
 
 
@@ -809,22 +829,27 @@ def pack_df_state_final(df_state_end, df_state_start):
 
     dict_packed = {}
     for var in df_state_end.to_dict():
-        # Skip string metadata variables that don't need reshaping
-        if var in ["config", "description"]:
-            # For metadata, just keep the single value for each grid
-            col_names = ser_col_multi[var].values
-            val = df_state_end[var].values.reshape(-1, 1).T
-            dict_var = dict(zip(col_names, val))
-            dict_packed.update(dict_var)
-        else:
-            # print(var)
-            # print(df_state_end[var].values.shape)
-            # reshape values to (number of columns, number of grids)
-            val_flatten = np.concatenate(df_state_end[var].values).ravel()
+        values = df_state_end[var].values
+
+        first_val = values[0] if len(values) else None
+        if isinstance(first_val, np.ndarray) and first_val.ndim > 0:
+            # Normal state variables: concatenate and reshape as before
+            val_flatten = np.concatenate(values).ravel()
             val = val_flatten.reshape((size_idx, -1)).T
-            col_names = ser_col_multi[var].values
-            dict_var = dict(zip(col_names, val))
-            dict_packed.update(dict_var)
+        else:
+            # Metadata columns (strings/scalars) must bypass concatenate; ensure we
+            # extract scalar values from any 0-D numpy arrays before reshaping.
+            scalars = [
+                v.item()
+                if isinstance(v, np.ndarray) and getattr(v, "ndim", 0) == 0
+                else v
+                for v in values
+            ]
+            val = np.array(scalars, dtype=object).reshape((size_idx, -1)).T
+
+        col_names = ser_col_multi[var].values
+        dict_var = dict(zip(col_names, val))
+        dict_packed.update(dict_var)
 
     df_state_end_packed = pd.DataFrame(dict_packed, index=idx)
     df_state_end_packed.columns.set_names(["var", "ind_dim"], inplace=True)

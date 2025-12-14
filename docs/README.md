@@ -14,7 +14,6 @@ This directory contains the complete documentation build system for SUEWS (Surfa
 ### Source Content (`source/`)
 - **`conf.py`**: Sphinx configuration with custom styles, themes, and plugins
 - **`index.rst`**: Main documentation entry point
-- **`Doxyfile`**: Doxygen configuration for API documentation
 
 ### Content Organization
 
@@ -34,14 +33,14 @@ This directory contains the complete documentation build system for SUEWS (Surfa
   - Input converter documentation (`input_converter.rst`)
   - File converter utilities (`SUEWS_TableConverter.py`)
 
-- **`output_files/`**: Output file format specifications
-  - Time series outputs (`SSss_YYYY_*.csv`)
-  - State files (`SSss_DailyState.csv`) 
-  - Physics module outputs (BL, RSL, SPARTACUS, SOLWEIG, etc.)
+- **`outputs/`**: Output file format specifications
+  - Format documentation (`text_format.rst`, `parquet_format.rst`)
+  - Auto-generated variable reference (`variables/`) with 1,100+ output variables
+  - Legacy diagnostics (`legacy_diagnostics.rst`) for error/warning files
 
 #### Technical References
 - **`parameterisations-and-sub-models.rst`**: Physics implementation details
-- **`api.rst`** & **`api-doxygen.md`**: API documentation entry points
+- **`api.rst`**: Python API documentation entry point
 - **`references.rst`**: Scientific references and bibliography
 - **`related_publications.rst`**: SUEWS-related publications
 
@@ -91,7 +90,6 @@ This directory contains the complete documentation build system for SUEWS (Surfa
 ### Multi-format Output
 - **HTML**: Web documentation with search, cross-references
 - **PDF**: LaTeX-generated manual via `lualatex`/`pdflatex`
-- **API docs**: Doxygen-generated Fortran/C API reference
 
 ### Interactive Elements
 - **Jupyter integration**: Via `nbsphinx` for notebook documentation
@@ -134,7 +132,6 @@ make help
 
 ### Advanced Building
 The build system automatically:
-- Generates API documentation via Doxygen
 - Processes CSV tables from RST descriptions
 - Updates bibliography formatting
 - Handles multi-language content
@@ -145,7 +142,6 @@ The build system automatically:
 All dependencies specified in `env.yml`:
 - **Sphinx** with book theme
 - **pandoc** for format conversion
-- **doxygen** for API docs
 - **bibtex** tools for bibliography
 - **Node.js** for web UI components
 - Various Sphinx extensions

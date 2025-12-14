@@ -6,80 +6,129 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 
 ```
 .claude/
-├── howto/               # Step-by-step guides
-│   └── setup-environment.md
-├── reference/           # Technical documentation
-│   ├── quick-start.md
-│   ├── testing-guide.md
-│   ├── config-patterns.md
-│   ├── maintenance-principles.md
-│   └── README.md
-├── templates/           # Reusable templates
-│   ├── feature-plan.md
-│   ├── commit-message.md
-│   └── README.md
-├── commands/            # Custom slash commands
-│   └── log-changes.md
-├── scripts/             # Automation scripts
-└── agents/              # Custom agent definitions
+├── rules/                 # AUTO-LOADED conventions (path-conditional)
+│   ├── 00-project-essentials.md    # Always loaded
+│   ├── fortran/
+│   │   └── conventions.md          # When editing src/suews/**/*.f9*
+│   ├── python/
+│   │   ├── conventions.md          # When editing src/supy/**/*.py
+│   │   └── config-patterns.md      # When editing src/supy/**/*.py
+│   ├── docs/
+│   │   └── conventions.md          # When editing docs/**/*
+│   ├── tests/
+│   │   └── patterns.md             # When editing test*/**/*.py
+│   └── changelog/
+│       └── format.md               # When editing CHANGELOG.md
+│
+├── commands/              # Thin wrappers that invoke skills
+│   ├── audit-pr.md        # Review a pull request
+│   ├── examine-issue.md   # Analyse GitHub issues
+│   ├── lint-code.md       # Check code style
+│   ├── log-changes.md     # Update CHANGELOG
+│   ├── prep-release.md    # Prepare release
+│   ├── setup-dev.md       # Set up dev environment
+│   ├── sync-docs.md       # Check doc-code consistency
+│   └── verify-build.md    # Verify build configuration
+│
+├── skills/                # Action-oriented workflows
+│   ├── audit-pr/          # PR review orchestrator
+│   ├── examine-issue/     # Issue analysis
+│   ├── lint-code/         # Code style (references rules/)
+│   ├── log-changes/       # CHANGELOG management
+│   ├── prep-release/      # Release preparation
+│   ├── setup-dev/         # Environment setup guide
+│   ├── sync-docs/         # Doc-code consistency
+│   └── verify-build/      # Build config checks
+│
+├── reference/             # Templates and static reference
+│   └── templates/         # Reusable templates
+│
+├── scripts/               # Infrastructure
+│   ├── validate-claude-md.py
+│   ├── pre-commit-hook.sh
+│   └── setup-claude-protection.sh
+│
+└── README.md              # This file
 ```
 
-## Directory Purposes
+## Concepts
 
-### howto/
-**Purpose**: Step-by-step guides for common tasks
-- `setup-environment.md` - Python environment setup options and troubleshooting
-- **Quick start**: See `reference/quick-start.md`
+### Rules (Auto-Loaded)
 
-### reference/
-**Purpose**: Technical documentation and analysis
-- `quick-start.md` - Canonical setup commands (single source of truth)
-- `testing-guide.md` - Testing requirements and benchmark details
-- `config-patterns.md` - Configuration design patterns
-- `maintenance-principles.md` - Documentation and code principles
+Rules in `.claude/rules/` are **automatically loaded** when Claude Code starts a session.
 
-### templates/
-**Purpose**: Reusable templates for consistency
-- Feature plan template
-- Commit message format
-- Other common documents
+**Path-conditional loading**: Rules with `paths:` frontmatter only load when working with matching files:
+```yaml
+---
+paths:
+  - src/suews/**/*.f9*
+---
+```
 
-### commands/
-**Purpose**: Custom slash commands for automation
-- `/log-changes` - Analyse recent changes and update docs/CHANGELOG
-- Add new commands as .md files in this directory
+**Always loaded**: Rules without `paths:` frontmatter (like `00-project-essentials.md`) load for every session.
+
+### Skills (On-Demand)
+
+Skills perform specific workflows when invoked via commands. Each skill has:
+- `SKILL.md` - Main content with frontmatter (name, description)
+- Optional subdirectories for references
+
+**Key difference from rules**: Skills are invoked explicitly; rules are always available.
+
+### Commands (Entry Points)
+
+Commands are thin wrappers that invoke skills. They provide:
+- Short description for the command menu
+- Dynamic context (git status, dates, etc.)
+- Reference to the skill to invoke
+
+## Available Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/audit-pr <PR>` | Review a pull request comprehensively |
+| `/examine-issue <issue>` | Analyse a GitHub issue |
+| `/lint-code` | Check code style |
+| `/log-changes` | Update CHANGELOG |
+| `/prep-release` | Prepare release |
+| `/setup-dev` | Set up development environment |
+| `/sync-docs` | Check doc-code consistency |
+| `/verify-build` | Verify build configuration |
+
+## Rules vs Skills
+
+| Aspect | Rules | Skills |
+|--------|-------|--------|
+| Loading | Automatic | On-demand |
+| Purpose | Conventions, guidelines | Workflows, actions |
+| Location | `.claude/rules/` | `.claude/skills/` |
+| Invocation | None needed | Via `/command` |
+| Path-conditional | Yes (`paths:` frontmatter) | No |
+
+## Skill Relationships
+
+```
+prep-release ──┬── verify-build (pre-flight)
+               ├── sync-docs (pre-flight)
+               ├── lint-code (pre-flight)
+               └── log-changes (CHANGELOG)
+
+audit-pr ──────┬── lint-code (style review)
+               ├── sync-docs (doc review)
+               └── verify-build (build review)
+```
 
 ## Quick Navigation
 
-**"How do I...?"** → Check `howto/`
-**"Why does X work this way?"** → Check `reference/`
-**"What's the status of feature Y?"** → Check GitHub issues and PRs
-**"I need to create a new Z"** → Check `templates/`
-
-## For Claude Code Sessions
-
-1. Check current branch: `git branch --show-current`
-2. Check related GitHub issue or PR for context
-3. Environment setup: See `.claude/reference/quick-start.md`
-
-
-## Slash Commands
-
-Custom commands for streamlined workflows:
-
-### /log-changes
-Analyses recent code changes and updates documentation:
-
-- Checks commits since last CHANGELOG.md update
-- Categorises changes by type ([feature], [bugfix], etc.)
-- Updates CHANGELOG.md with new entries
-- Identifies and updates affected documentation
-- Runs documentation generation scripts as needed
-
-**Usage**: `/log-changes`
-
-This command helps maintain up-to-date documentation by automatically detecting what has changed and where updates are needed.
+- **"How do I set up my environment?"** -> `/setup-dev`
+- **"Check my code style"** -> `/lint-code`
+- **"Update the CHANGELOG"** -> `/log-changes`
+- **"Prepare for release"** -> `/prep-release`
+- **"Fortran conventions"** -> `.claude/rules/fortran/`
+- **"Python conventions"** -> `.claude/rules/python/`
+- **"Test patterns"** -> `.claude/rules/tests/`
 
 ## Git Policy
-- ✅ Commit: All directories and files (except settings.local.json)
-- ❌ Ignore: settings.local.json, any temp-* files
+
+- **Commit**: All directories and files
+- **Ignore**: settings.local.json, any temp-* files

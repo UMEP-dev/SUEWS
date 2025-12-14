@@ -2,7 +2,7 @@
 
 > **Purpose**: This manual provides comprehensive guidelines for SUEWS releases, from development through publication.
 > **Audience**: Core developers, release managers, and contributors.
-> **Last Updated**: 14 October 2025
+> **Last Updated**: 20 November 2025
 
 ## Executive Summary
 
@@ -37,7 +37,7 @@ SUEWS adopts a **rolling release model** that reflects the continuous nature of 
 
    Both deployed to PyPI → GitHub Release → Zenodo DOI
 5. **Verify**: Check [Actions](https://github.com/UMEP-dev/SUEWS/actions), [PyPI](https://pypi.org/project/supy/), [Zenodo dashboard](https://zenodo.org/me/uploads)
-6. **Announce**: [UMEP Discussions](https://github.com/UMEP-dev/UMEP/discussions) (optional)
+6. **Announce**: [SUEWS Discussions](https://github.com/UMEP-dev/SUEWS/discussions) (optional)
 
 **Everything else is automatic.** See below for detailed guidance.
 
@@ -452,6 +452,27 @@ git pull origin master
 git status  # Should be clean
 ```
 
+**IMPORTANT: Merging Pull Requests**
+
+When merging PRs before a release, **always use "Merge" strategy, NOT "Squash and merge"**.
+
+**Why?**
+- **Merge commits** preserve full commit history and individual commit messages
+- **Essential for CHANGELOG generation**: Each commit message is used to generate changelog entries
+- **Squash destroys history**: Combines all commits into one, losing detailed change information
+- **Release tracking**: Individual commits allow better tracking of when features/fixes were added
+
+**How to enforce**:
+```bash
+# Via GitHub UI: Select "Create a merge commit" (green button)
+# Via command line:
+git checkout master
+git merge --no-ff feature-branch  # --no-ff ensures merge commit is created
+git push origin master
+```
+
+**Note**: GitHub repository settings can be configured to disable squash merging entirely (Settings → General → Pull Requests → uncheck "Allow squash merging").
+
 #### 3. Run Quality Checks
 ```bash
 # Run full test suite
@@ -519,6 +540,72 @@ This automatically triggers:
 - PyPI package upload
 - GitHub Release creation
 - Zenodo DOI assignment (automatic within ~10 min)
+
+#### 7a. Create GitHub Release (Automatic or Manual)
+
+**Automatic**: The GitHub Actions workflow now automatically creates releases after successful PyPI deployment (fixed in commit 331b8214).
+
+**Manual** (if workflow fails or for manual control):
+```bash
+gh release create "$VERSION" \
+  --title "SUEWS v$VERSION: [Brief Title]" \
+  --notes-file release_notes.md \
+  --verify-tag
+```
+
+**Release Notes Template** (`release_notes.md`):
+```markdown
+This release focuses on [main theme: e.g., enhanced validation capabilities, modern OOP interface improvements].
+
+## Major Features
+
+- **Feature Category 1**: Brief description
+- **Feature Category 2**: Brief description
+- **Feature Category 3**: Brief description
+- **Feature Category 4**: Brief description
+- **Feature Category 5**: Brief description
+
+## Changelog
+
+### DD MMM YYYY
+- [feature] Description (#XXX)
+  - Detail point 1
+  - Detail point 2
+- [bugfix] Description (#YYY)
+- [change] **BREAKING**: Description if applicable (#ZZZ)
+
+### Previous Date (if release covers multiple dates)
+- [feature] Description
+- [bugfix] Description
+
+## Installation
+
+**Standard (NumPy 2.x):**
+```bash
+pip install --upgrade supy
+```
+
+**UMEP/QGIS Compatible (NumPy 1.x):**
+```bash
+pip install supy==YYYY.M.Drc1
+```
+
+## Citation
+
+This release is automatically archived on Zenodo and assigned a DOI for academic citation. The DOI will appear here once Zenodo processing is complete (usually within a few minutes).
+
+## Documentation
+
+- [User Guide](https://suews.readthedocs.io)
+- [Complete CHANGELOG](https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md)
+- [GitHub Repository](https://github.com/UMEP-dev/SUEWS)
+```
+
+**Tips for Release Notes**:
+- **Major Features**: Extract 5-6 key highlights for quick scanning
+- **Changelog**: Include ALL changes since last release (not just latest date)
+- **Breaking Changes**: Clearly mark with **BREAKING** prefix
+- **Issue Links**: Reference GitHub issues where relevant (#XXX)
 
 ### Post-Release Tasks
 
@@ -1049,6 +1136,6 @@ If critical issue discovered:
 ---
 
 *This manual guides SUEWS releases using a sustainable rolling release model.*
-*Last updated: 14 October 2025*
+*Last updated: 20 November 2025*
 *Owner: SUEWS Development Team*
 *Location: `/dev-ref/RELEASE_MANUAL.md`*

@@ -14,13 +14,14 @@ Start here for your SUEWS learning journey:
   :maxdepth: 1
 
   quick-start
-  setup-own-site
   impact-studies
+
+.. Comment: setup-own-site not ready yet - forcing height issue to fix
 
 **Recommended Learning Path:**
 
 1. **[Quick Start](quick-start.ipynb)** - Your first SUEWS simulation using built-in sample data
-2. **[Setup Your Own Site](setup-own-site.ipynb)** - Configure SUEWS for your research location  
+2. **[Setup Your Own Site](setup-own-site.ipynb)** - Configure SUEWS for your research location
 3. **[Impact Studies](impact-studies.ipynb)** - Climate change and scenario analysis
 
 **Advanced Topics:**
@@ -60,7 +61,7 @@ SUEWS uses YAML configuration files for type-safe, hierarchical parameter manage
        tstep: 300
        start_date: "2015-01-01"
        end_date: "2015-12-31"
-   
+
    sites:
      - name: MyUrbanSite
        properties:
@@ -76,7 +77,7 @@ SUEWS uses YAML configuration files for type-safe, hierarchical parameter manage
 - **Command-line wizard**: A configuration wizard tool is in development
 
 **Data Integration:**
-- **Built-in sample data**: ``sp.load_sample_data()`` for immediate use
+- **Built-in sample data**: ``SUEWSSimulation.from_sample_data()`` for immediate use
 - **pandas DataFrames**: Native integration for analysis and visualization
 - **Multiple formats**: Support for CSV, netCDF, and scientific data formats
 
@@ -103,7 +104,7 @@ Getting Help
 ------------
 
 **Community Resources:**
-- **GitHub Repository**: `Issues and discussions <https://github.com/UMEP-dev/SUEWS>`__
+- **Community**: `SUEWS community discussions <https://suews.discourse.group/>`__
 - **Mailing List**: `SUEWS community forum <https://www.lists.reading.ac.uk/mailman/listinfo/met-suews>`__
 - **Documentation**: :doc:`Complete API reference <../../inputs/yaml/index>`
 
@@ -147,10 +148,10 @@ New to Python? These resources help you get started with scientific computing fo
 
    # Install Jupyter for interactive development
    pip install jupyter
-   
+
    # Launch Jupyter notebook server
    jupyter notebook
-   
+
    # Or use JupyterLab (recommended)
    pip install jupyterlab
    jupyter lab
@@ -160,7 +161,7 @@ New to Python? These resources help you get started with scientific computing fo
 If you're familiar with MATLAB, R, or other scientific computing environments, focus on these pandas concepts that are heavily used in SUEWS:
 
 1. **DataFrame indexing**: ``.loc[]`` and ``.iloc[]`` for data selection
-2. **Time series resampling**: ``.resample()`` for temporal aggregation  
+2. **Time series resampling**: ``.resample()`` for temporal aggregation
 3. **GroupBy operations**: ``.groupby()`` for statistical analysis
 4. **MultiIndex handling**: Working with hierarchical data structures
 5. **Plotting integration**: ``.plot()`` method for quick visualizations

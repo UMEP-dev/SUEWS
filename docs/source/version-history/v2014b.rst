@@ -2,7 +2,7 @@
 Version 2014b (released on 8 October 2014)
 ----------------------------------------------------
 
-:download:`PDF Manual for v2014b </assets/doc/SUEWS_V2014b_Manual.pdf>`
+`PDF Manual for v2014b <https://zenodo.org/records/17739547/files/SUEWS_V2014b_Manual.pdf?download=1>`_ (archived on `Zenodo <https://doi.org/10.5281/zenodo.17739547>`_)
 
 These affect the run configuration if previously run with older versions
 of the model:

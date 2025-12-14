@@ -109,6 +109,11 @@ class RSTGenerator:
         """Format a single model as RST."""
         lines = []
 
+        # Add orphan directive for utility models not in toctree (see GH#984)
+        if model_name in {"RefValue", "Reference"}:
+            lines.append(":orphan:")
+            lines.append("")
+
         # Add meta tags
         lines.extend(self._format_meta_tags(model_name, model_doc))
 
@@ -124,12 +129,6 @@ class RSTGenerator:
         # Add description
         description = model_doc.get("description", "")
         if description:
-            # Special handling for ModelPhysics
-            if (
-                model_name == "ModelPhysics"
-                and "Key method interactions:" in description
-            ):
-                description = self._process_model_physics_description(description)
             lines.append(description)
             lines.append("")
 
@@ -187,11 +186,12 @@ class RSTGenerator:
             "",
         ]
 
-        # Add reference label for special method fields
+        # Add reference label for physics method fields with relationships
+        # Note: diagmethod→rslmethod, localclimatemethod→rsllevel (legacy rename)
         if field_name in {
-            "diagmethod",
             "stabilitymethod",
-            "localclimatemethod",
+            "rslmethod",  # was diagmethod
+            "rsllevel",  # was localclimatemethod
             "gsmodel",
         }:
             lines.append(f".. _{field_name}:")
@@ -263,13 +263,14 @@ class RSTGenerator:
         return lines
 
     def _format_field_metadata(
-        self, field_doc: dict[str, Any], type_info: dict[str, Any]
+        self, field_doc: dict[str, Any], type_info: dict[str, Any], model_name: str = ""
     ) -> list[str]:
         """Format metadata sections (options, unit, default, constraints).
 
         Args:
             field_doc: Field documentation dictionary
             type_info: Type information dictionary
+            model_name: Name of the containing model (for context)
 
         Returns
         -------
@@ -292,7 +293,7 @@ class RSTGenerator:
             lines.append(f"   :Unit: {formatted_unit}")
 
         # Add default/sample value
-        default_label, default_value = self._format_default(field_doc)
+        default_label, default_value = self._format_default(field_doc, model_name)
         if default_label is not None and default_value is not None:
             lines.append(f"   :{default_label}: {default_value}")
 
@@ -319,6 +320,32 @@ class RSTGenerator:
             if constraint_str:
                 lines.append(f"   :Constraints: {constraint_str}")
 
+        # Add method relationships
+        relationships = field_doc.get("relationships")
+        if relationships:
+            lines.append("")
+            lines.append("   .. admonition:: Method Interactions")
+            lines.append("      :class: note")
+            lines.append("")
+
+            # Add note if present
+            note = relationships.get("note")
+            if note:
+                lines.append(f"      {note}")
+                lines.append("")
+
+            # Add depends_on
+            depends = relationships.get("depends_on", [])
+            if depends:
+                refs = ", ".join(f":ref:`{d} <{d}>`" for d in depends)
+                lines.append(f"      **Depends on:** {refs}")
+
+            # Add provides_to
+            provides = relationships.get("provides_to", [])
+            if provides:
+                refs = ", ".join(f":ref:`{p} <{p}>`" for p in provides)
+                lines.append(f"      **Provides to:** {refs}")
+
         return lines
 
     def _format_field(self, field_doc: dict[str, Any], model_name: str) -> list[str]:
@@ -341,7 +368,7 @@ class RSTGenerator:
         lines.extend(self._format_ref_value_hint(field_name, field_doc, type_info))
 
         # Add metadata (options, unit, default, constraints)
-        lines.extend(self._format_field_metadata(field_doc, type_info))
+        lines.extend(self._format_field_metadata(field_doc, type_info, model_name))
 
         # Add link to nested model documentation
         nested_model = field_doc.get("nested_model")
@@ -449,7 +476,9 @@ class RSTGenerator:
         return " ".join(formatted)
 
     @staticmethod
-    def _format_default(field_doc: dict[str, Any]) -> tuple[str, str]:  # noqa: PLR0912
+    def _format_default(
+        field_doc: dict[str, Any], model_name: str = ""
+    ) -> tuple[str, str]:  # noqa: PLR0912
         """Format default value for display with consistent labeling.
 
         Returns appropriate label-value pair based on field characteristics:
@@ -457,6 +486,10 @@ class RSTGenerator:
         - Optional with defaults: ("Default", "value") or ("Example", "value")
         - Optional without defaults: ("Default", "None (optional)")
         - Nested models: (None, None) to skip display
+
+        Args:
+            field_doc: Field documentation dictionary
+            model_name: Name of the containing model (for context)
         """
         nested_model = field_doc.get("nested_model")
 
@@ -488,29 +521,20 @@ class RSTGenerator:
                 return "Default", "None (optional)"
 
         # We have a non-None default value - format it
-        # Determine if this is a site-specific field
-        field_name = field_doc.get("name", "")
-        site_specific_fields = {
-            "sfr",
-            "lat",
-            "lon",
-            "alt",
-            "gridiv",
-            "name",
-            "coord_x",
-            "coord_y",
-            "coord_z",
-            "emis",
-            "alb",
-            "soildepth",
-            "soilstorecap",
-            "sathydraulicconduct",
-            "faievetree",
-            "faidectree",
-            "evetreeh",
-            "dectreeh",
+        # Determine if this is a site/surface-specific model
+        # These models contain fields that vary by site or surface type
+        site_surface_models = {
+            "Site",
+            "SiteProperties",
+            "PavedProperties",
+            "BldgsProperties",
+            "EvetrProperties",
+            "DectrProperties",
+            "GrassProperties",
+            "BsoilProperties",
+            "WaterProperties",
         }
-        is_site_specific = field_name in site_specific_fields
+        is_site_specific = model_name in site_surface_models
 
         # Format the value for display
         if isinstance(default, (str, int, float, bool)):
@@ -645,60 +669,6 @@ class RSTGenerator:
             )
 
         return message
-
-    @staticmethod
-    def _process_model_physics_description(description: str) -> str:
-        """Add cross-references to ModelPhysics description."""
-        lines = description.split("\n")
-        processed = []
-
-        for line in lines:
-            # Add cross-references to method names
-            modified_line = line
-            if "- diagmethod:" in modified_line:
-                modified_line = modified_line.replace(
-                    "- diagmethod:", "- :ref:`diagmethod <diagmethod>`:"
-                )
-                modified_line = modified_line.replace(
-                    "diagmethod calculations", "``diagmethod`` calculations"
-                )
-            elif "- stabilitymethod:" in modified_line:
-                modified_line = modified_line.replace(
-                    "- stabilitymethod:", "- :ref:`stabilitymethod <stabilitymethod>`:"
-                )
-                modified_line = modified_line.replace(
-                    "BY diagmethod", "**BY** ``diagmethod``"
-                )
-            elif "- localclimatemethod:" in modified_line:
-                modified_line = modified_line.replace(
-                    "- localclimatemethod:",
-                    "- :ref:`localclimatemethod <localclimatemethod>`:",
-                )
-                modified_line = modified_line.replace(
-                    "FROM diagmethod", "**FROM** ``diagmethod``"
-                )
-            elif "- gsmodel:" in modified_line:
-                modified_line = modified_line.replace(
-                    "- gsmodel:", "- :ref:`gsmodel <gsmodel>`:"
-                )
-                modified_line = modified_line.replace(
-                    "localclimatemethod adjustments",
-                    "``localclimatemethod`` adjustments",
-                )
-
-            # Add bold for emphasis
-            modified_line = modified_line.replace(" HOW ", " **HOW** ")
-
-            processed.append(modified_line)
-
-        description = "\n".join(processed)
-
-        # Ensure proper formatting
-        description = description.replace(
-            "Key method interactions:", "**Key method interactions:**\n"
-        )
-
-        return description
 
     def _generate_index_dropdown(self) -> str:
         """Generate index.rst with collapsible dropdown sections (mixed approach)."""

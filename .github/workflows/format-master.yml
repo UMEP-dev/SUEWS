@@ -1,0 +1,91 @@
+name: Format Master
+
+# Format code after merge to master - simpler than formatting during PRs
+# Avoids double-build overhead and re-trigger complexity
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '**.py'
+      - '**.f90'
+      - '**.f95'
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 1
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install formatting tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install ruff==0.8.6 fprettify==0.3.7
+
+    - name: Format Python code
+      run: |
+        echo "::group::Formatting Python code"
+        PYTHON_FILES=$(find . -name "*.py" -type f | grep -v -E '(\.git|__pycache__|\.tox|\.venv|build|dist|worktrees)' || true)
+        if [ -n "$PYTHON_FILES" ]; then
+          ruff format $PYTHON_FILES || true
+        fi
+        echo "::endgroup::"
+
+    - name: Format Fortran code
+      run: |
+        echo "::group::Formatting Fortran code"
+        if [ -f .fprettify.rc ]; then
+          # Create exclude file
+          echo "suews_util_datetime.f95" > .fprettify-exclude
+
+          # Find and format Fortran files
+          FORTRAN_FILES=$(find . \( -name "*.f90" -o -name "*.f95" \) -type f | \
+                         grep -v -E '(\.git|build|dist|worktrees)' | \
+                         grep -v -f .fprettify-exclude || true)
+
+          if [ -n "$FORTRAN_FILES" ]; then
+            for file in $FORTRAN_FILES; do
+              fprettify --config .fprettify.rc "$file" 2>/dev/null || true
+            done
+          fi
+
+          rm -f .fprettify-exclude
+        fi
+        echo "::endgroup::"
+
+    - name: Check for changes
+      id: verify
+      run: |
+        if git diff --quiet; then
+          echo "No formatting changes needed"
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+        else
+          echo "Formatting changes detected"
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+          echo "::group::Files with formatting changes"
+          git diff --name-only
+          echo "::endgroup::"
+        fi
+
+    - name: Commit changes
+      if: steps.verify.outputs.has_changes == 'true'
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+
+        git add -A
+        git commit -m "style: auto-format code with ruff and fprettify"
+        git push

@@ -1,5 +1,6 @@
-MODULE DailyState_module
-   USE allocateArray, ONLY: &
+! Main module following naming standard: matches filename
+MODULE module_phys_dailystate
+   USE module_ctrl_const_allocate, ONLY: &
       ndays, nsurf, nvegsurf, ivConif, ivDecid, ivGrass, DecidSurf, ncolumnsDataOutDailyState
 
    IMPLICIT NONE
@@ -63,9 +64,9 @@ CONTAINS
       ! anthroEmisState, & !inout
       ! hydroState) !inout
 
-      ! USE Snow_module, ONLY: SnowUpdate
-      USE datetime_module, ONLY: datetime, timedelta
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_FORCING, anthroEMIS_PRM, &
+      ! USE module_phys_snow, ONLY: SnowUpdate
+      USE module_util_datetime, ONLY: datetime, timedelta
+      USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_FORCING, anthroEMIS_PRM, &
                                PHENOLOGY_STATE, anthroEmis_STATE, SUEWS_CONFIG, &
                                IRRIGATION_PRM, LC_PAVED_PRM, LC_BLDG_PRM, &
                                LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
@@ -82,8 +83,6 @@ CONTAINS
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
 
       ! INTEGER :: WaterUseMethod
-      INTEGER, PARAMETER :: BaseTMethod = 2 ! base t method [-]
-      REAL(KIND(1D0)), PARAMETER :: BaseT_HC = 18.2 !base temperature for heating degree dayb [degC] ! to be fully removed TODO
 
       ! TYPE(IRRIGATION_PRM), INTENT(IN) :: irrPrm
       ! INTEGER :: Ie_start !Starting time of water use (DOY)
@@ -492,9 +491,9 @@ CONTAINS
 
                ! --------------------------------------------------------------------------------
                !> assign Tair with either the forcing air temperature or the local diagnostic air temperature
-               IF (config%localClimateMethod == 1) THEN
+               IF (config%RSLLevel == 1) THEN
                   Tair = atmState%t2_C
-               ELSE IF (config%localClimateMethod == 2) THEN
+               ELSE IF (config%RSLLevel == 2) THEN
                   Tair = atmState%T_hbh_C
                ELSE
                   Tair = Temp_C
@@ -503,12 +502,10 @@ CONTAINS
                ! regular update at all timesteps of a day
                IF (execute_subroutines) THEN
                   CALL update_DailyState_Day( &
-                     BaseTMethod, &
                      DayofWeek_id, &
                      avkdn, & !input
                      Tair, &
                      Precip, &
-                     BaseT_HC, &
                      BaseT_Heating, BaseT_Cooling, &
                      nsh_real, &
                      Tmin_id, Tmax_id, lenDay_id, & !inout
@@ -746,12 +743,10 @@ CONTAINS
    ! END SUBROUTINE update_DailyState_End
 
    SUBROUTINE update_DailyState_Day( &
-      BaseTMethod, &
       DayofWeek_id, &
       avkdn, & !input
       Tair, &
       Precip, &
-      BaseT_HC, &
       BaseT_Heating, BaseT_Cooling, &
       nsh_real, &
       Tmin_id, Tmax_id, lenDay_id, & !inout
@@ -759,13 +754,11 @@ CONTAINS
       ! use time, only: id, id_prev_t
       IMPLICIT NONE
 
-      INTEGER, INTENT(IN) :: BaseTMethod
       INTEGER, DIMENSION(3), INTENT(in) :: DayofWeek_id
 
       REAL(KIND(1D0)), INTENT(IN) :: avkdn
       REAL(KIND(1D0)), INTENT(IN) :: Tair ! Ambient air temperature [degC], this can be from either forcing or diagnostic
       REAL(KIND(1D0)), INTENT(IN) :: Precip
-      REAL(KIND(1D0)), INTENT(IN) :: BaseT_HC
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: BaseT_Heating
       REAL(KIND(1D0)), DIMENSION(2), INTENT(IN) :: BaseT_Cooling
       REAL(KIND(1D0)), INTENT(IN) :: nsh_real
@@ -793,18 +786,9 @@ CONTAINS
       iu = 1 !Set to 1=weekday
       IF (DayofWeek_id(1) == 1 .OR. DayofWeek_id(1) == 7) iu = 2 !Set to 2=weekend
 
-      SELECT CASE (BaseTMethod)
-      CASE (1)
-         BaseT_Heating_use = BaseT_HC
-         BaseT_Cooling_use = BaseT_HC
-      CASE (2)
-         BaseT_Heating_use = BaseT_Heating(iu)
-         BaseT_Cooling_use = BaseT_Cooling(iu)
-
-      CASE default
-         CALL ErrorHint(75, "RunControl.nml", -999, -999, -999)
-
-      END SELECT
+      ! Use weekday/weekend-specific base temperatures for heating/cooling degree day calculations
+      BaseT_Heating_use = BaseT_Heating(iu)
+      BaseT_Cooling_use = BaseT_Cooling(iu)
 
       ! Daily min and max temp (these get updated through the day) ---------------------
       Tmin_id = MIN(Tair, Tmin_id) !Daily min T in column 3
@@ -1302,7 +1286,7 @@ CONTAINS
       modState, & ! input/output:
       DailyStateLine) !out
 
-      USE SUEWS_DEF_DTS, ONLY: &
+      USE module_ctrl_type, ONLY: &
          SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
          PHENOLOGY_STATE, anthroEmis_STATE, &
          SNOW_STATE, SUEWS_TIMER, HYDRO_STATE, &
@@ -1380,4 +1364,10 @@ CONTAINS
 
    END SUBROUTINE update_DailyStateLine_DTS
 
+END MODULE module_phys_dailystate
+
+! Backward compatibility alias (deprecated - will be removed in future version)
+! TODO: Remove in version 2026.1.0 (deprecated since 2025.10.0)
+MODULE DailyState_module
+   USE module_phys_dailystate
 END MODULE DailyState_module

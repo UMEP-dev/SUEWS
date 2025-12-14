@@ -15,7 +15,6 @@ Functions for downloading and processing ERA-5 reanalysis data:
 .. autosummary::
     :toctree: _autosummary
 
-    download_era5
     gen_forcing_era5
 
 Meteorological Data

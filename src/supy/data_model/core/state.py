@@ -25,7 +25,7 @@ class SurfaceInitialState(BaseModel):
         ge=0,
     )  # Default set to 0.0 means dry surface.
     soilstore: FlexibleRefValue(float) = Field(
-        description="Initial soil store (essential for QE)",
+        description="Initial soil store. Related to Soil Moisture Deficit (SMD) as SMD = soilstorecap - soilstore.",
         json_schema_extra={"unit": "mm", "display_name": "Soilstore"},
         default=150.0,
         ge=10,
@@ -369,6 +369,8 @@ class InitialStateVeg(SurfaceInitialState):
         description="Albedo at the start of the model run.",
         json_schema_extra={"unit": "dimensionless", "display_name": "Alb Id"},
         default=0.25,
+        ge=0.0,
+        le=1.0,
     )
     lai_id: FlexibleRefValue(float) = Field(
         description="Leaf area index at the start of the model run.",

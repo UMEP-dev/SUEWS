@@ -120,7 +120,7 @@ def save_df_grid_group(df_year, grid, group, dir_save, site):
         freq_cal = ind[1] - ind[0]
         df_year = df_year.asfreq(freq_cal)
     else:
-        df_year = df_year.asfreq("5T")
+        df_year = df_year.asfreq("5min")
     # output frequency in min
     freq_min = int(pd.Timedelta(df_year.index.freq).total_seconds() / 60)
     # starting year
@@ -615,21 +615,16 @@ def save_df_output_parquet(
     list
         List containing paths to saved Parquet files
     """
-    # Check if pyarrow or fastparquet is available
+    # Check if pyarrow is available
     try:
         import pyarrow
 
         engine = "pyarrow"
-    except ImportError:
-        try:
-            import fastparquet
-
-            engine = "fastparquet"
-        except ImportError:
-            raise ImportError(
-                "Parquet output requires either 'pyarrow' or 'fastparquet'. "
-                "Install with: pip install pyarrow (recommended) or pip install fastparquet"
-            )
+    except ImportError as e:
+        raise ImportError(
+            "Parquet output requires 'pyarrow'. "
+            "Install with: pip install 'supy[parquet]' or pip install pyarrow"
+        ) from e
 
     from ._version import __version__
 
@@ -665,7 +660,7 @@ def save_df_output_parquet(
         "output_frequency_s": freq_s,
         "save_tstep": save_tstep,
         "creation_time": pd.Timestamp.now().isoformat(),
-        "supy_version": __version__,
+        "version": __version__,
     }
 
     # Write output data

@@ -35,6 +35,7 @@ if fortran_compiler.get_id() == 'gcc'
       '-ffree-line-length-none',  # Allow unlimited line length
       '-g',
       '-O1',  # Faster than -O0
+      '-Wno-missing-include-dirs',  # Suppress f2py-generated spurious include path warnings
       # Remove -fcheck=all for faster compilation
     ]
   else
@@ -45,6 +46,7 @@ if fortran_compiler.get_id() == 'gcc'
       '-g',
       '-O0',
       '-fcheck=all',
+      '-Wno-missing-include-dirs',  # Suppress f2py-generated spurious include path warnings
     ]
   endif
   fortran_program = find_program('gfortran')
@@ -99,9 +101,9 @@ src_f95_all = [
   'suews_ctrl_type.f95',
   'suews_util_stringmod.f95',
   'suews_ctrl_input.f95',
-  'suews_ctrl_output.f95',
   'suews_util_time.f95',
   'suews_util_meteo.f95',
+  'suews_util_datetime.f95',
   'suews_phys_waterdist.f95',
   'suews_phys_narp.f95',
   'suews_phys_beers.f95',
@@ -157,8 +159,14 @@ endforeach
 # invoke make in the suews directory to build the objects
 build_suews = custom_target(
   'suews_objects',
-  command: ['make', '-C', meson.current_source_dir() / '../suews/'],
+  command: [
+    py,
+    '@CURRENT_SOURCE_DIR@/run_make.py',
+    meson.current_source_dir() / '../suews/',
+    '@OUTPUT@',
+  ],
   build_by_default: true,
+  build_always_stale: true,
   output: 'suews_objects',
 )
 
@@ -348,4 +356,39 @@ gen_supy_driver_py = custom_target(
   install_dir: [py.get_install_dir() / 'supy'], # this is the directory where the python module will be installed
 )
 ##################################################################
-# 5. add the test for the python module
+# 5. build the vendored f90wrap runtime extensions
+# These are needed at runtime to support derived types in the generated wrapper
+
+# Path to f90wrap sources from submodule
+dir_vendor_f90wrap = meson.current_source_dir() / '../supy/_vendor/f90wrap_src/f90wrap'
+
+# Build sizeof_fortran_t extension from Fortran source
+sizeof_source = custom_target(
+  'sizeof_fortran_t_source',
+  input: dir_vendor_f90wrap / 'sizeoffortran.f90',
+  output: 'sizeof_fortran_tmodule.c',
+  command: [py, '-m', 'numpy.f2py', '@INPUT@', '--build-dir', '@OUTDIR@', '--lower', '-m', 'sizeof_fortran_t'],
+)
+
+ext_sizeof_fortran_t = py.extension_module(
+  'sizeof_fortran_t',
+  sources: [
+    dir_vendor_f90wrap / 'sizeoffortran.f90',
+    sizeof_source,
+  ],
+  dependencies: [dep_py, dep_fortranobject, inc_np_dep],
+  install: true,
+  subdir: 'supy/_vendor/f90wrap',
+)
+
+# Build arraydata extension from C source
+ext_arraydata = py.extension_module(
+  'arraydata',
+  sources: [dir_vendor_f90wrap / 'arraydatamodule.c'],
+  dependencies: [dep_py, dep_fortranobject, inc_np_dep],
+  install: true,
+  subdir: 'supy/_vendor/f90wrap',
+)
+
+##################################################################
+# 6. add the test for the python module

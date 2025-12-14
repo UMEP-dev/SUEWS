@@ -91,7 +91,6 @@ LIBSRC_SOURCES = suews_ctrl_const \
 	suews_ctrl_type \
 	suews_util_stringmod \
 	suews_ctrl_input \
-	suews_ctrl_output \
 	suews_util_time \
 	suews_util_meteo \
 	suews_phys_waterdist \

@@ -310,7 +310,7 @@ pythonenv*
 .ropeproject
 
 # mkdocs documentation
-/site
+# /site  # Removed: we use site/ for GitHub Pages content
 
 # mypy
 .mypy_cache/
@@ -420,6 +420,9 @@ data_met_raw.pkl
 test-quick.py
 df_water*.pkl
 quick-test.ipynb
+
+# SUEWS output files at root
+/*.parquet
 
 # Build output
 docs/build/
@@ -639,3 +642,9 @@ local-schema/
 # Temporary schema export directory
 public/
 docs/source/api/_autosummary/
+# Exclude large test data but track structure
+test/fixtures/gh846/*.zip
+
+
+# Conductor worktree workspaces
+.conductor/

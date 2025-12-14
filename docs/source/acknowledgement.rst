@@ -54,6 +54,11 @@ Contributors
     - RSL improvements
     - v2024a – onwards
     -
+  * - Dr Keisuke Nakao
+    - Central Research Institute of Electric Power Industry, Japan
+    - Wind speed profile parameterisation, RSL
+    - v2024a – onwards
+    -
   * - Dr Yuanyuan Liu
     - University of Reading, UK
     - OHM improvements
@@ -69,7 +74,7 @@ Contributors
     - WRF-SUEWS coupling; Documentation system
     - v2018c – v2019a
     - Major contributor to WRF(v4.0)-SUEWS(v2018c) coupling
-  * - Minttu P. Havu
+  * - Dr Minttu P. Havu
     - University of Helsinki, Finland
     - CO2
     - v2018c – v2019a
@@ -127,6 +132,10 @@ Dependency Libraries
     - netCDF output for QGIS-compliant grid layout
   * - `Fortran Strings Module by Dr George Benthien <http://gbenthien.net/strings/str-index.html>`_
     - string processing
+  * - `f90wrap <https://github.com/jameskermode/f90wrap>`_ by Dr James Kermode
+    - Fortran to Python interface generator with derived type support; used to generate SuPy bindings (LGPL-3.0)
+  * - `SPARTACUS-Surface <https://github.com/ecmwf/spartacus-surface>`_
+    - 3D radiative transfer for urban canopy; used for radiation calculations in complex urban geometry
 
 
 Funding

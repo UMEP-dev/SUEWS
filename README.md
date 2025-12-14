@@ -34,12 +34,11 @@ For developers, see the [Developer Note](#developer-note) section below.
 
 #### Claude Code Integration
 
-For enhanced development productivity, SUEWS includes integration with Claude Code in a containerised environment:
+SUEWS includes Claude Code configuration in the `.claude/` directory:
 
-* **Setup Guide**: See [`claude-dev/README.md`](claude-dev/README.md) for complete setup instructions
-* **Quick Start**:
-  - **Workspace Manager** (recommended): `./claude-dev/claude.sh start myproject`
-  - **Direct Setup**: `./claude-dev/setup-claude-dev.sh` from repository root
+* **Setup Guide**: See [`.claude/README.md`](.claude/README.md) for workspace structure
+* **Quick Start**: See [`.claude/reference/quick-start.md`](.claude/reference/quick-start.md) for environment setup
+* **Custom Commands**: `/log-changes` for automatic CHANGELOG updates
 
 #### CLAUDE.md Protection System
 
@@ -59,12 +58,10 @@ This repository includes automatic protection for the CLAUDE.md configuration fi
   - Git pre-commit validation
   - Local backup system
   - Manual validation: `python3 .claude/scripts/validate-claude-md.py`
-* **Features**: Intelligent code assistance, automated testing, British academic standards, multi-workspace support
-* **Benefits**: Isolated environment, reproducible development, AI-powered debugging, parallel project development
 
-#### Traditional Development
+#### Local Development
 
-For local development without containerisation, follow these steps:
+Follow these steps to set up local development:
 
 ##### Prerequisites
 
@@ -116,12 +113,10 @@ For local development without containerisation, follow these steps:
 
 5. **Build SUEWS**:
    ```bash
-   # Quick development build (recommended)
-   make dev
-
-   # Or full build with tests
-   make
+   make dev       # Install in editable mode
+   make test      # Run tests (optional)
    ```
+   *Run `make` to see all available commands and quick start workflows.*
 
 6. **Verify installation**:
    ```bash
@@ -133,13 +128,19 @@ For local development without containerisation, follow these steps:
 
 * **Build commands**:
   ```bash
-  make dev          # Fast development build
-  make              # Full build with tests
+  make dev          # Install in editable mode (self-healing, works after clean)
   make test         # Run test suite only
-  make clean        # Clean build artifacts
-  make wheel        # Build distribution wheels
+  make clean        # Clean build artifacts (smart - keeps .venv if active)
   make docs         # Build documentation
   make livehtml     # Live documentation preview
+  make              # Show help summary (default target)
+  ```
+
+* **Common workflows**:
+  ```bash
+  make clean && make dev    # Fresh start (most common for troubleshooting)
+  git pull && make dev      # Update code and rebuild
+  make dev && make test     # Build and test changes
   ```
 
 * **Environment management**:
@@ -149,7 +150,7 @@ For local development without containerisation, follow these steps:
   ```
 
 * **Common issues**:
-  - **Build conflicts**: Run `make clean` before rebuilding
+  - **Build conflicts**: Run `make clean && make dev` (most reliable)
   - **Import errors**: Ensure you're in the `suews-dev` environment
   - **Permission errors on Windows**: Right-click project folder → Properties → Security → Edit → Everyone → Allow
 
@@ -218,7 +219,7 @@ uv pip install --extra-index-url https://test.pypi.org/simple/ \
 
 **5. Verify installation:**
 ```bash
-python -c "import supy; print(f'SuPy version: {supy.__version__}')"
+python -c "import supy; print(f'SUEWS version: {supy.__version__}')"
 # Should show: 2025.9.16.dev0 (or your installed version)
 ```
 

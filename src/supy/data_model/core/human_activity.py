@@ -32,16 +32,18 @@ class IrrigationParams(
             "unit": "dimensionless",
             "display_name": "Automatic Fraction",
         },
+        ge=0.0,
+        le=1.0,
     )
     ie_start: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Start time of irrigation",
-        json_schema_extra={"unit": "hour", "display_name": "Irrigation Start Hour"},
+        description="Day of year when irrigation starts",
+        json_schema_extra={"unit": "DOY", "display_name": "Irrigation Start Day"},
     )
     ie_end: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="End time of irrigation",
-        json_schema_extra={"unit": "hour", "display_name": "Irrigation End Hour"},
+        description="Day of year when irrigation ends",
+        json_schema_extra={"unit": "DOY", "display_name": "Irrigation End Day"},
     )
     internalwateruse_h: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -245,6 +247,7 @@ class AnthropogenicHeat(
             "unit": "people ha^-1",
             "display_name": "Nighttime Population Density",
         },
+        ge=0.0,
     )
     popprof_24hr: HourlyProfile = Field(
         description="24-hour profile of population density",
@@ -370,11 +373,15 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
             "display_name": "Energy Emission Factor Vehicles",
         },
     )
-    fcef_v_kgkm: DayProfile = Field(
+    fcef_v_kgkm: Optional[DayProfile] = Field(
         description="Fuel consumption efficiency for vehicles",
         default_factory=DayProfile,
         json_schema_extra={"display_name": "Fuel Carbon Emission Factor Vehicles"},
     )
+    # Field is Optional[DayProfile] but has default_factory=DayProfile,
+    # so it will never actually be None unless explicitly set during
+    # validation preprocessing.
+
     frfossilfuel_heat: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Fraction of heating energy from fossil fuels",
@@ -382,6 +389,8 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
             "unit": "dimensionless",
             "display_name": "Fossil Fuel Fraction Heating",
         },
+        ge=0.0,
+        le=1.0,
     )
     frfossilfuel_nonheat: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -390,6 +399,8 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
             "unit": "dimensionless",
             "display_name": "Fossil Fuel Fraction Non-Heating",
         },
+        ge=0.0,
+        le=1.0,
     )
     maxfcmetab: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -423,26 +434,37 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
             "display_name": "Minimum Metabolic Heat Flux",
         },
     )
-    trafficrate: DayProfile = Field(
+    trafficrate: Optional[DayProfile] = Field(
         description="Traffic rate",
         default_factory=DayProfile,
         json_schema_extra={"display_name": "Traffic Rate"},
     )
+    # Field is Optional[DayProfile] but has default_factory=DayProfile,
+    # so it will never actually be None unless explicitly set during
+    # validation preprocessing.
+
     trafficunits: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Units for traffic density normalisation",
         json_schema_extra={"unit": "vehicle km ha^-1", "display_name": "Traffic Units"},
     )
-    traffprof_24hr: HourlyProfile = Field(
+    traffprof_24hr: Optional[HourlyProfile] = Field(
         description="24-hour profile of traffic rate",
         default_factory=HourlyProfile,
         json_schema_extra={"display_name": "Traffic Profile (24hr)"},
     )
-    humactivity_24hr: HourlyProfile = Field(
+    # Field is Optional[HourlyProfile] but has default_factory=HourlyProfile,
+    # so it will never actually be None unless explicitly set during
+    # validation preprocessing.
+
+    humactivity_24hr: Optional[HourlyProfile] = Field(
         description="24-hour profile of human activity",
         default_factory=HourlyProfile,
         json_schema_extra={"display_name": "Human Activity Profile (24hr)"},
     )
+    # Field is Optional[HourlyProfile] but has default_factory=HourlyProfile,
+    # so it will never actually be None unless explicitly set during
+    # validation preprocessing.
 
     ref: Optional[Reference] = None
 
@@ -592,11 +614,15 @@ class AnthropogenicEmissions(BaseModel):
 
     startdls: Optional[FlexibleRefValue(float)] = Field(
         default=None,
+        ge=1,
+        le=366,
         description="Start of daylight savings time in decimal day of year",
         json_schema_extra={"unit": "day", "display_name": "Daylight Saving Start"},
     )
     enddls: Optional[FlexibleRefValue(float)] = Field(
         default=None,
+        ge=1,
+        le=366,
         description="End of daylight savings time in decimal day of year",
         json_schema_extra={"unit": "day", "display_name": "Daylight Saving End"},
     )
@@ -666,8 +692,12 @@ class AnthropogenicEmissions(BaseModel):
         Returns:
             AnthropogenicEmissions: Instance of AnthropogenicEmissions.
         """
-        startdls = RefValue(df.loc[grid_id, ("startdls", "0")])
-        enddls = RefValue(df.loc[grid_id, ("enddls", "0")])
+        # Treat 0.0 as None (since to_df_state writes None as 0.0)
+        startdls_val = df.loc[grid_id, ("startdls", "0")]
+        enddls_val = df.loc[grid_id, ("enddls", "0")]
+
+        startdls = None if startdls_val == 0.0 else RefValue(startdls_val)
+        enddls = None if enddls_val == 0.0 else RefValue(enddls_val)
 
         # Reconstruct heat parameters
         heat = AnthropogenicHeat.from_df_state(df, grid_id)

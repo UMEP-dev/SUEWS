@@ -1,3 +1,4 @@
+:orphan:
 
 .. _df_output_var:
 
@@ -6,7 +7,7 @@
 
 
 
-.. note:: Data structure of ``df_output`` is explained :ref:`here </data-structure/supy-io.ipynb#df_output:-model-output-results>`.
+.. note:: Data structure of ``df_output`` is explained `here <../api/io-data-structures.html#df-output>`_.
 
 .. option:: AddWater
 

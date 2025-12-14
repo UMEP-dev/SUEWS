@@ -1,7 +1,7 @@
 .. _api_simulation:
 
-SUEWSSimulation Class
-=====================
+`SUEWSSimulation` Class
+=======================
 
 .. currentmodule:: supy
 
@@ -23,10 +23,87 @@ Class Reference
 
 .. currentmodule:: supy
 
+
+.. _sim_core_properties:
+
+Core Properties
+^^^^^^^^^^^^^^^
+
+Access simulation configuration, forcing data, results, and status checks.
+
+.. autosummary::
+    :nosignatures:
+
+    ~SUEWSSimulation.config
+    ~SUEWSSimulation.forcing
+    ~SUEWSSimulation.results
+    ~SUEWSSimulation.is_ready
+    ~SUEWSSimulation.is_complete
+
+.. _sim_advanced_properties:
+
+Advanced Properties
+^^^^^^^^^^^^^^^^^^^
+
+For spin-up runs, state continuation, and deep model inspection.
+
+.. autosummary::
+    :nosignatures:
+
+    ~SUEWSSimulation.state_init
+    ~SUEWSSimulation.state_final
+
+.. _sim_setup_methods:
+
+Setup Methods
+^^^^^^^^^^^^^
+
+Configure simulations, load forcing data, and initialise from various sources.
+
+.. autosummary::
+    :nosignatures:
+
+    ~SUEWSSimulation.update_config
+    ~SUEWSSimulation.update_forcing
+    ~SUEWSSimulation.from_sample_data
+    ~SUEWSSimulation.from_state
+
+.. _sim_execution_methods:
+
+Execution Methods
+^^^^^^^^^^^^^^^^^
+
+Run simulations and reset state for re-execution with different parameters.
+
+.. autosummary::
+    :nosignatures:
+
+    ~SUEWSSimulation.run
+    ~SUEWSSimulation.reset
+
+.. _sim_output_methods:
+
+Output Methods
+^^^^^^^^^^^^^^
+
+Save results to files and extract specific variables from output groups.
+
+.. autosummary::
+    :nosignatures:
+
+    ~SUEWSSimulation.save
+    ~SUEWSSimulation.get_variable
+
+
+Full Class Reference
+^^^^^^^^^^^^^^^^^^^^
+
 .. autoclass:: SUEWSSimulation
     :members:
-    :undoc-members:
+    :member-order: groupwise
     :show-inheritance:
+    :exclude-members: __weakref__, __dict__
+
 
 Quick Example
 -------------
@@ -34,20 +111,31 @@ Quick Example
 .. code-block:: python
 
     from supy import SUEWSSimulation
-    
+
     # Create and run simulation
     sim = SUEWSSimulation('config.yml')
     sim.update_forcing('forcing_data.txt')
     sim.run()
-    
-    # Access and save results
-    results = sim.results
+
+    # Access results - use get_variable() for safe extraction
+    qh = sim.get_variable('QH')              # Sensible heat flux
+    qe = sim.get_variable('QE')              # Latent heat flux
+
+    # For variables in multiple groups, specify which one
+    albedo = sim.get_variable('AlbSnow', group='SUEWS')
+
+    # Save results
     sim.save('output_dir/')
-    
+
     # Update configuration and re-run
     sim.update_config({'model': {'control': {'tstep': 600}}})
     sim.reset()
     sim.run()
+
+.. note::
+
+   Some variables appear in multiple output groups (e.g., ``AlbSnow`` in both ``SUEWS`` and ``DailyState``).
+   Use the ``get_variable()`` method with the ``group`` parameter to disambiguate. See the tutorial for details.
 
 Related Documentation
 ---------------------

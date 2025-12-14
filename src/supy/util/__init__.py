@@ -4,7 +4,7 @@
 from ._tmy import gen_epw, read_epw
 
 
-from ._era5 import download_era5, gen_forcing_era5
+from ._era5 import gen_forcing_era5
 
 from ._gap_filler import fill_gap_all
 
@@ -56,5 +56,7 @@ from ._roughness import cal_z0zd, cal_neutral
 from ._debug import diag_rsl, diag_rsl_prm, save_zip_debug
 
 from ._spinup import get_spinup_state
+
+from .._post import resample_output
 
 # from ._config import SUEWSConfig, init_config_from_yaml

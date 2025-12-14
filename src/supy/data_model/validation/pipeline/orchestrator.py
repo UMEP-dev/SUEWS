@@ -100,6 +100,7 @@ def detect_pydantic_defaults(
         "gsmodel",
         "snowuse",
         "stebbsmethod",
+        "rcmethod",
     ]
 
     # Internal parameters that are not used by SUEWS and should not be reported to users
@@ -755,6 +756,12 @@ def run_phase_c(
                 # Extract NO ACTION NEEDED content from previous phases to consolidate properly
                 consolidated_no_action = []
 
+                # Add any validation summary messages from Phase C (e.g., hemisphere warnings)
+                if hasattr(config, "_validation_summary"):
+                    info_messages = config._validation_summary.get("info_messages", [])
+                    for msg in info_messages:
+                        consolidated_no_action.append(f"- {msg}")
+
                 # Add any default values detected
                 if no_action_info:
                     # Remove the leading newlines and header, parse the content
@@ -805,6 +812,10 @@ def run_phase_c(
 {chr(10).join(consolidated_no_action)}
 
 # =================================================="""
+
+                    # Write the report to file
+                    with open(pydantic_report_file, "w") as f:
+                        f.write(success_report)
                 else:
                     # Map phase strings to descriptive messages
                     def get_phase_message(phase_str):
@@ -866,7 +877,19 @@ def run_phase_c(
                             Path(science_report_file).unlink()
                     else:
                         # Single phase: use regular report
-                        success_report = f"""# {title}
+                        # Check if there are validation_summary messages to include
+                        if consolidated_no_action:
+                            success_report = f"""# {title}
+# ============================================
+# Mode: {"Public" if mode.lower() == "public" else mode.title()}
+# ============================================
+
+## NO ACTION NEEDED
+{chr(10).join(consolidated_no_action)}
+
+# =================================================="""
+                        else:
+                            success_report = f"""# {title}
 # ============================================
 # Mode: {"Public" if mode.lower() == "public" else mode.title()}
 # ============================================

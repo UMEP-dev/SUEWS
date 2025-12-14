@@ -55,18 +55,25 @@ class IrrigationParams(
     )
     daywatper: WeeklyProfile = Field(
         default_factory=WeeklyProfile,
-        json_schema_extra={"display_name": "Day Water Per"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "Weekly Water Use Fraction"},
     )
     daywat: WeeklyProfile = Field(
-        default_factory=WeeklyProfile, json_schema_extra={"display_name": "Day Water"}
+        default_factory=WeeklyProfile,
+        json_schema_extra={"unit": "dimensionless", "display_name": "Weekly Water Use"},
     )
     wuprofa_24hr: HourlyProfile = Field(
         default_factory=HourlyProfile,
-        json_schema_extra={"display_name": "Water Use Profile Automatic (24hr)"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Water Use Profile Automatic (24hr)",
+        },
     )
     wuprofm_24hr: HourlyProfile = Field(
         default_factory=HourlyProfile,
-        json_schema_extra={"display_name": "Water Use Profile Manual (24hr)"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Water Use Profile Manual (24hr)",
+        },
     )
 
     ref: Optional[Reference] = None
@@ -188,57 +195,69 @@ class AnthropogenicHeat(
     qf0_beu: DayProfile = Field(
         description="Base anthropogenic heat flux for buildings, equipment and urban metabolism",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "Base Energy Use QF"},
+        json_schema_extra={"unit": "W m^-2", "display_name": "Base Energy Use QF"},
     )
     qf_a: DayProfile = Field(
         description="Coefficient a for anthropogenic heat flux calculation",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "QF Coefficient A"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "QF Coefficient A"},
     )
     qf_b: DayProfile = Field(
         description="Coefficient b for anthropogenic heat flux calculation",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "QF Coefficient B"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "QF Coefficient B"},
     )
     qf_c: DayProfile = Field(
         description="Coefficient c for anthropogenic heat flux calculation",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "QF Coefficient C"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "QF Coefficient C"},
     )
     baset_cooling: DayProfile = Field(
         description="Base temperature for cooling degree days",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "Base Temperature Cooling"},
+        json_schema_extra={"unit": "degC", "display_name": "Base Temperature Cooling"},
     )
     baset_heating: DayProfile = Field(
         description="Base temperature for heating degree days",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "Base Temperature Heating"},
+        json_schema_extra={"unit": "degC", "display_name": "Base Temperature Heating"},
     )
     ah_min: DayProfile = Field(
         description="Minimum anthropogenic heat flux",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "Minimum Anthropogenic Heat"},
+        json_schema_extra={"unit": "W m^-2", "display_name": "Minimum Anthropogenic Heat"},
     )
     ah_slope_cooling: DayProfile = Field(
         description="Slope of anthropogenic heat vs cooling degree days",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "AH Slope Cooling"},
+        json_schema_extra={
+            "unit": "W m^-2 K^-1",
+            "display_name": "Anthropogenic Heat Slope (Cooling)",
+        },
     )
     ah_slope_heating: DayProfile = Field(
         description="Slope of anthropogenic heat vs heating degree days",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "AH Slope Heating"},
+        json_schema_extra={
+            "unit": "W m^-2 K^-1",
+            "display_name": "Anthropogenic Heat Slope (Heating)",
+        },
     )
     ahprof_24hr: HourlyProfile = Field(
         description="24-hour profile of anthropogenic heat flux",
         default_factory=HourlyProfile,
-        json_schema_extra={"display_name": "Anthropogenic Heat Profile (24hr)"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Anthropogenic Heat Profile (24hr)",
+        },
     )
     popdensdaytime: DayProfile = Field(
         description="Daytime population density",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "Daytime Population Density"},
+        json_schema_extra={
+            "unit": "people ha^-1",
+            "display_name": "Daytime Population Density",
+        },
     )
     popdensnighttime: float = Field(
         default=10.0,
@@ -252,7 +271,10 @@ class AnthropogenicHeat(
     popprof_24hr: HourlyProfile = Field(
         description="24-hour profile of population density",
         default_factory=HourlyProfile,
-        json_schema_extra={"display_name": "Population Profile (24hr)"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Population Profile (24hr)",
+        },
     )
 
     ref: Optional[Reference] = None
@@ -376,7 +398,10 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
     fcef_v_kgkm: Optional[DayProfile] = Field(
         description="Fuel consumption efficiency for vehicles",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "Fuel Carbon Emission Factor Vehicles"},
+        json_schema_extra={
+            "unit": "kg km^-1",
+            "display_name": "Fuel Carbon Emission Factor Vehicles",
+        },
     )
     # Field is Optional[DayProfile] but has default_factory=DayProfile,
     # so it will never actually be None unless explicitly set during
@@ -437,7 +462,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
     trafficrate: Optional[DayProfile] = Field(
         description="Traffic rate",
         default_factory=DayProfile,
-        json_schema_extra={"display_name": "Traffic Rate"},
+        json_schema_extra={"unit": "vehicle km ha^-1", "display_name": "Traffic Rate"},
     )
     # Field is Optional[DayProfile] but has default_factory=DayProfile,
     # so it will never actually be None unless explicitly set during
@@ -451,7 +476,10 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
     traffprof_24hr: Optional[HourlyProfile] = Field(
         description="24-hour profile of traffic rate",
         default_factory=HourlyProfile,
-        json_schema_extra={"display_name": "Traffic Profile (24hr)"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Traffic Profile (24hr)",
+        },
     )
     # Field is Optional[HourlyProfile] but has default_factory=HourlyProfile,
     # so it will never actually be None unless explicitly set during
@@ -460,7 +488,10 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
     humactivity_24hr: Optional[HourlyProfile] = Field(
         description="24-hour profile of human activity",
         default_factory=HourlyProfile,
-        json_schema_extra={"display_name": "Human Activity Profile (24hr)"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Human Activity Profile (24hr)",
+        },
     )
     # Field is Optional[HourlyProfile] but has default_factory=HourlyProfile,
     # so it will never actually be None unless explicitly set during
@@ -617,14 +648,14 @@ class AnthropogenicEmissions(BaseModel):
         ge=1,
         le=366,
         description="Start of daylight savings time in decimal day of year",
-        json_schema_extra={"unit": "day", "display_name": "Daylight Saving Start"},
+        json_schema_extra={"unit": "DOY", "display_name": "Daylight Saving Start"},
     )
     enddls: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         ge=1,
         le=366,
         description="End of daylight savings time in decimal day of year",
-        json_schema_extra={"unit": "day", "display_name": "Daylight Saving End"},
+        json_schema_extra={"unit": "DOY", "display_name": "Daylight Saving End"},
     )
     heat: AnthropogenicHeat = Field(
         description="Anthropogenic heat emission parameters",

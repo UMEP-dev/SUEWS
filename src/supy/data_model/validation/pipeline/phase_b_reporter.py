@@ -16,7 +16,7 @@ from pathlib import Path
 try:
     from .validation_reporter import ValidationReporter
     from .text_report_generator import TextReportGenerator
-    from .phase_b_science_check import (
+    from .phase_b import (
         ValidationResult,
         ScientificAdjustment,
         DLSCheck,
@@ -42,7 +42,7 @@ except ImportError:
     # For direct execution
     from validation_reporter import ValidationReporter
     from text_report_generator import TextReportGenerator
-    from phase_b_science_check import (
+    from phase_b import (
         ValidationResult,
         ScientificAdjustment,
         DLSCheck,

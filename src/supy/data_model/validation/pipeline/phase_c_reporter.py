@@ -13,12 +13,12 @@ from pathlib import Path
 try:
     from .validation_reporter import ValidationReporter
     from .text_report_generator import TextReportGenerator
-    from .phase_c_pydantic_report import PHASE_TITLES
+    from .phase_c import PHASE_TITLES
 except ImportError:
     # For direct execution
     from validation_reporter import ValidationReporter
     from text_report_generator import TextReportGenerator
-    from phase_c_pydantic_report import PHASE_TITLES
+    from phase_c import PHASE_TITLES
 
 
 def parse_pydantic_error(error: dict) -> Tuple[str, str, str, Optional[str]]:

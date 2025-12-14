@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from supy.data_model.validation.pipeline.phase_a_parameter_update import (
+from supy.data_model.validation.pipeline.phase_a import (
     annotate_missing_parameters,
 )
 from supy.data_model.validation.pipeline.phase_a_reporter import (

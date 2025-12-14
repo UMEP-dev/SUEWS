@@ -16,11 +16,11 @@ from ....data_model.validation.pipeline.orchestrator import (
     run_phase_b,
     run_phase_c,
 )
-from ....data_model.validation.pipeline.phase_a_parameter_update import (
+from ....data_model.validation.pipeline.phase_a import (
     annotate_missing_parameters,
 )
-from ....data_model.validation.pipeline.phase_b_science_check import run_science_check
-from ....data_model.validation.pipeline.phase_c_pydantic_report import (
+from ....data_model.validation.pipeline.phase_b import run_science_check
+from ....data_model.validation.pipeline.phase_c import (
     generate_phase_c_report,
 )
 from ....data_model.core.config import SUEWSConfig

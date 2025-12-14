@@ -13,7 +13,7 @@ from pathlib import Path
 try:
     from .validation_reporter import ValidationReporter
     from .text_report_generator import TextReportGenerator
-    from .phase_a_parameter_update import (
+    from .phase_a import (
         RENAMED_PARAMS,
         PHYSICS_OPTIONS,
         handle_renamed_parameters,
@@ -29,7 +29,7 @@ except ImportError:
     # For direct execution
     from validation_reporter import ValidationReporter
     from text_report_generator import TextReportGenerator
-    from phase_a_parameter_update import (
+    from phase_a import (
         RENAMED_PARAMS,
         PHYSICS_OPTIONS,
         handle_renamed_parameters,

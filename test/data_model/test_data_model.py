@@ -137,7 +137,7 @@ class TestSUEWSConfig(unittest.TestCase):
         self.assertIsInstance(config2, SUEWSConfig)
 
         # Note: These physics compatibility checks now happen in Phase B validation
-        # See phase_b_science_check.py validate_model_option_dependencies()
+        # See phase_b.py validate_model_option_dependencies()
 
     def test_site_properties(self):
         """Test site properties data model."""

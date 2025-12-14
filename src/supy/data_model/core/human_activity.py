@@ -231,7 +231,7 @@ class AnthropogenicHeat(
         description="Slope of anthropogenic heat vs cooling degree days",
         default_factory=DayProfile,
         json_schema_extra={
-            "unit": "W m^-2 degC^-1",
+            "unit": "W m^-2 K^-1",
             "display_name": "Anthropogenic Heat Slope (Cooling)",
         },
     )
@@ -239,7 +239,7 @@ class AnthropogenicHeat(
         description="Slope of anthropogenic heat vs heating degree days",
         default_factory=DayProfile,
         json_schema_extra={
-            "unit": "W m^-2 degC^-1",
+            "unit": "W m^-2 K^-1",
             "display_name": "Anthropogenic Heat Slope (Heating)",
         },
     )

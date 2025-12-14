@@ -21,7 +21,7 @@ Start here for your SUEWS learning journey:
 **Recommended Learning Path:**
 
 1. **[Quick Start](quick-start.ipynb)** - Your first SUEWS simulation using built-in sample data
-2. **[User Workflow Guide](../../sub-tutorials/user-workflow-guide.html)** - Essential workflows: initial conditions, scenarios, examining results
+2. :doc:`User Workflow Guide <../../sub-tutorials/user-workflow-guide>` - Essential workflows: initial conditions, scenarios, examining results
 3. **[Setup Your Own Site](setup-own-site.ipynb)** - Configure SUEWS for your research location
 4. **[Impact Studies](impact-studies.ipynb)** - Climate change and scenario analysis
 

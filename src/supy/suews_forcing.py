@@ -16,7 +16,7 @@ import pandas as pd
 # Variable aliases for more intuitive access
 FORCING_ALIASES = {
     # Technical name -> Human-readable aliases
-    "Tair": ["temperature", "air_temperature", "temp", "t_air"],
+    "Tair": ["temperature", "air_temperature", "temp", "t_air", "ta"],
     "RH": ["relative_humidity", "humidity", "rh"],
     "pres": ["pressure", "air_pressure", "p"],
     "U": ["wind_speed", "wind", "u"],
@@ -28,14 +28,14 @@ FORCING_ALIASES = {
     "qn": ["net_radiation", "qstar", "q_star"],
     "qh": ["sensible_heat", "h"],
     "qe": ["latent_heat", "le"],
-    "qf": ["anthropogenic_heat", "qf_obs"],
+    "qf": ["anthropogenic_heat"],
     "qs": ["storage_heat"],
     "snow": ["snowfall"],
     "Wuh": ["water_use", "external_water"],
     "lai": ["leaf_area_index"],
-    "kdiff": ["diffuse_radiation", "diffuse"],
-    "kdir": ["direct_radiation", "direct"],
-    "wdir": ["wind_direction"],
+    "kdiff": ["diffuse_radiation"],
+    "kdir": ["direct_radiation"],
+    "wdir": ["wind_direction", "wd"],
 }
 
 # Build reverse mapping: alias -> canonical name

@@ -554,6 +554,8 @@ class ModelDocExtractor:
             "bldg_height",
             "wall_area",
             "roof_area",
+            "fai",
+            "sathydraulicconduct",
         ]
 
         model_contexts = [

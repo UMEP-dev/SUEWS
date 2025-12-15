@@ -1,24 +1,21 @@
 """
 SUEWSOutput - OOP wrapper for SUEWS simulation results.
 
-Provides a structured interface for accessing, analysing, and exporting
-SUEWS model output data.
+Provides a structured interface for accessing and exporting SUEWS model output data.
 """
 
-import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-import numpy as np
 import pandas as pd
 
 
 class SUEWSOutput:
     """
-    Wrapper for SUEWS simulation results with analysis convenience functions.
+    Wrapper for SUEWS simulation results.
 
-    Provides intuitive access to output variables, analysis methods,
-    and export capabilities for SUEWS simulation results.
+    Provides intuitive access to output variables and export capabilities
+    for SUEWS simulation results.
 
     Parameters
     ----------
@@ -38,12 +35,12 @@ class SUEWSOutput:
     >>> sim = SUEWSSimulation.from_sample_data()
     >>> output = sim.run()  # Returns SUEWSOutput
     >>> output
-    SUEWSOutput(2012-01-01 to 2012-12-31, 1 grid(s), 6 groups)
+    SUEWSOutput(2012-01-01 to 2012-12-31, 1 grid(s), 6 groups, 8760 timesteps)
 
-    Access variables directly:
+    Access variables directly (case-insensitive):
 
     >>> output.QH  # Sensible heat flux
-    >>> output.QE  # Latent heat flux
+    >>> output.qh  # Same as above
     >>> output.get_variable("Tair", group="SUEWS")
 
     Access by group:
@@ -51,19 +48,12 @@ class SUEWSOutput:
     >>> output.groups  # ['SUEWS', 'DailyState', 'snow', ...]
     >>> output.get_group("SUEWS")
 
-    Analysis methods:
-
-    >>> output.energy_balance_closure()
-    >>> output.diurnal_average("QH")
-    >>> output.monthly_summary()
-
     Export:
 
     >>> output.save("output/", format="parquet")
 
     Restart runs:
 
-    >>> initial_state = output.to_initial_state()
     >>> sim2 = SUEWSSimulation.from_state(output.state_final)
     """
 
@@ -117,7 +107,7 @@ class SUEWSOutput:
         """
         Final model state for restart runs.
 
-        Use with SUEWSSimulation.from_state() to continue simulations.
+        Use with SUEWSSimulation.from_state() or from_output() to continue simulations.
 
         Returns
         -------
@@ -141,34 +131,6 @@ class SUEWSOutput:
     def grids(self) -> List:
         """List of grid identifiers."""
         return self._df_output.index.get_level_values("grid").unique().tolist()
-
-    @property
-    def n_grids(self) -> int:
-        """Number of grids.
-
-        .. deprecated::
-            Use ``len(output.grids)`` instead.
-        """
-        warnings.warn(
-            "SUEWSOutput.n_grids is deprecated, use len(output.grids) instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return len(self.grids)
-
-    @property
-    def n_timesteps(self) -> int:
-        """Number of output timesteps.
-
-        .. deprecated::
-            Use ``len(output.times)`` instead.
-        """
-        warnings.warn(
-            "SUEWSOutput.n_timesteps is deprecated, use len(output.times) instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return len(self.times)
 
     @property
     def groups(self) -> List[str]:
@@ -205,19 +167,25 @@ class SUEWSOutput:
 
         Allows access like `output.QH` instead of `output.get_variable('QH')`,
         and `output.SUEWS` instead of `output.get_group('SUEWS')`.
+        Supports case-insensitive access.
         """
-        # Check if it's a group name first
+        # Check if it's a group name first (exact match)
         all_groups = self._df_output.columns.get_level_values("group").unique()
         if name in all_groups:
             return self.get_group(name)
 
-        # Check if it's a variable name in any group
+        # Check if it's a variable name in any group (exact match)
         all_vars = self._df_output.columns.get_level_values("var").unique()
         if name in all_vars:
             return self.get_variable(name)
 
-        # Check case-insensitively for variables
+        # Case-insensitive lookup for groups
         name_lower = name.lower()
+        for grp in all_groups:
+            if grp.lower() == name_lower:
+                return self.get_group(grp)
+
+        # Case-insensitive lookup for variables
         for var in all_vars:
             if var.lower() == name_lower:
                 return self.get_variable(var)
@@ -225,15 +193,32 @@ class SUEWSOutput:
         raise AttributeError(
             f"'{type(self).__name__}' has no attribute '{name}'. "
             f"Available groups: {list(all_groups)}, "
-            f"Available variables (first 10): {list(all_vars[:10])}..."
+            f"Available variables (first 10): {list(all_vars)[:10]}..."
         )
 
     def __getitem__(self, key: str) -> pd.DataFrame:
-        """Access variables or groups by name."""
-        # Check if it's a group name
+        """Access variables or groups by name (case-insensitive)."""
+        # Check if it's a group name (exact match)
         if key in self.groups:
             return self.get_group(key)
-        # Otherwise treat as variable
+
+        # Case-insensitive group lookup
+        key_lower = key.lower()
+        for grp in self.groups:
+            if grp.lower() == key_lower:
+                return self.get_group(grp)
+
+        # Try as variable (exact match)
+        all_vars = self._df_output.columns.get_level_values("var").unique()
+        if key in all_vars:
+            return self.get_variable(key)
+
+        # Case-insensitive variable lookup
+        for var in all_vars:
+            if var.lower() == key_lower:
+                return self.get_variable(var)
+
+        # Let get_variable raise appropriate error
         return self.get_variable(key)
 
     # =========================================================================
@@ -254,10 +239,19 @@ class SUEWSOutput:
         pd.DataFrame
             All variables in the group
         """
+        # Case-insensitive group lookup
         if group not in self.groups:
-            raise ValueError(
-                f"Group '{group}' not found. Available groups: {self.groups}"
-            )
+            group_lower = group.lower()
+            matched_group = None
+            for g in self.groups:
+                if g.lower() == group_lower:
+                    matched_group = g
+                    break
+            if matched_group is None:
+                raise ValueError(
+                    f"Group '{group}' not found. Available groups: {self.groups}"
+                )
+            group = matched_group
         return self._df_output[group].copy()
 
     def get_variable(
@@ -283,13 +277,22 @@ class SUEWSOutput:
         pd.DataFrame
             Time series of requested variable
         """
-        # Check if variable exists
+        # Check if variable exists (case-insensitive)
         all_vars = self._df_output.columns.get_level_values("var").unique()
         if var_name not in all_vars:
-            raise ValueError(
-                f"Variable '{var_name}' not found. "
-                f"Available variables (first 10): {list(all_vars[:10])}..."
-            )
+            # Try case-insensitive match
+            var_name_lower = var_name.lower()
+            matched_var = None
+            for v in all_vars:
+                if v.lower() == var_name_lower:
+                    matched_var = v
+                    break
+            if matched_var is None:
+                raise ValueError(
+                    f"Variable '{var_name}' not found. "
+                    f"Available variables (first 10): {list(all_vars)[:10]}..."
+                )
+            var_name = matched_var
 
         # Find which groups contain this variable
         matching_groups = []
@@ -309,12 +312,26 @@ class SUEWSOutput:
                 f"{matching_groups}. Specify group parameter."
             )
 
-        target_group = group or matching_groups[0]
-        if group is not None and group not in matching_groups:
-            raise ValueError(
-                f"Variable '{var_name}' not found in group '{group}'. "
-                f"Available groups for this variable: {matching_groups}"
-            )
+        # Handle case-insensitive group matching
+        target_group = matching_groups[0]
+        if group is not None:
+            # Try exact match first
+            if group in matching_groups:
+                target_group = group
+            else:
+                # Try case-insensitive match
+                group_lower = group.lower()
+                matched = False
+                for mg in matching_groups:
+                    if mg.lower() == group_lower:
+                        target_group = mg
+                        matched = True
+                        break
+                if not matched:
+                    raise ValueError(
+                        f"Variable '{var_name}' not found in group '{group}'. "
+                        f"Available groups for this variable: {matching_groups}"
+                    )
 
         result = self._df_output.xs(
             (target_group, var_name), level=("group", "var"), axis=1
@@ -347,226 +364,17 @@ class SUEWSOutput:
         return result
 
     # =========================================================================
-    # State for restart
-    # =========================================================================
-
-    def to_initial_state(self) -> pd.DataFrame:
-        """
-        Extract the final timestep as initial state for next simulation.
-
-        This method handles the conversion from multi-timestep state
-        to single-timestep initial state format.
-
-        Returns
-        -------
-        pd.DataFrame
-            Initial state ready for next simulation
-        """
-        df = self._df_state_final
-        idx_names = list(df.index.names)
-
-        if "datetime" in idx_names:
-            datetime_level = idx_names.index("datetime")
-            last_datetime = df.index.get_level_values(datetime_level).max()
-            if isinstance(df.index, pd.MultiIndex):
-                return df.xs(last_datetime, level="datetime").copy()
-            else:
-                return df.loc[[last_datetime]].copy()
-        return df.copy()
-
-    # =========================================================================
-    # Analysis (convenience functions)
-    # =========================================================================
-
-    def energy_balance_closure(self, method: str = "residual") -> pd.DataFrame:
-        """
-        Calculate energy balance closure statistics.
-
-        Energy balance: QN = QH + QE + QS (+ QF + dQs)
-
-        Parameters
-        ----------
-        method : str
-            Calculation method:
-            - "residual": Calculate QN - (QH + QE + QS)
-            - "ratio": Calculate (QH + QE + QS) / QN
-
-        Returns
-        -------
-        pd.DataFrame
-            Energy balance closure statistics
-        """
-        try:
-            qn = self.get_variable("QN", group="SUEWS")
-            qh = self.get_variable("QH", group="SUEWS")
-            qe = self.get_variable("QE", group="SUEWS")
-            qs = self.get_variable("QS", group="SUEWS")
-        except ValueError as e:
-            raise ValueError(
-                f"Cannot calculate energy balance: {e}. "
-                "Requires QN, QH, QE, QS variables in SUEWS group."
-            )
-
-        if method == "residual":
-            # Residual: QN - (QH + QE + QS)
-            residual = qn - (qh + qe + qs)
-            result = pd.DataFrame({
-                "QN": qn.mean(),
-                "QH": qh.mean(),
-                "QE": qe.mean(),
-                "QS": qs.mean(),
-                "Residual": residual.mean(),
-                "Residual_std": residual.std(),
-            })
-        elif method == "ratio":
-            # Closure ratio: (QH + QE + QS) / QN
-            with np.errstate(divide="ignore", invalid="ignore"):
-                ratio = (qh + qe + qs) / qn
-                ratio = ratio.replace([np.inf, -np.inf], np.nan)
-            result = pd.DataFrame({
-                "Closure_ratio_mean": ratio.mean(),
-                "Closure_ratio_std": ratio.std(),
-            })
-        else:
-            raise ValueError(f"Unknown method: {method}. Use 'residual' or 'ratio'.")
-
-        return result
-
-    def diurnal_average(self, var: Optional[str] = None) -> pd.DataFrame:
-        """
-        Calculate mean diurnal cycle.
-
-        Parameters
-        ----------
-        var : str, optional
-            Specific variable. If None, calculates for common energy variables.
-
-        Returns
-        -------
-        pd.DataFrame
-            Hourly mean values grouped by hour of day
-        """
-        if var is not None:
-            data = self.get_variable(var)
-        else:
-            # Default to key energy balance variables
-            vars_to_use = ["QN", "QH", "QE", "QS"]
-            available = self.available_variables.get("SUEWS", [])
-            vars_to_use = [v for v in vars_to_use if v in available]
-            data = pd.concat(
-                [self.get_variable(v, group="SUEWS") for v in vars_to_use],
-                axis=1,
-                keys=vars_to_use,
-            )
-
-        # Extract hour and group
-        df = data.copy()
-
-        # Handle MultiIndex
-        if isinstance(df.index, pd.MultiIndex):
-            df = df.reset_index(level="grid", drop=True)
-
-        df["hour"] = df.index.hour
-        return df.groupby("hour").mean()
-
-    def monthly_summary(self, var: Optional[str] = None) -> pd.DataFrame:
-        """
-        Monthly statistics summary.
-
-        Parameters
-        ----------
-        var : str, optional
-            Specific variable. If None, summarises key energy variables.
-
-        Returns
-        -------
-        pd.DataFrame
-            Monthly statistics
-        """
-        if var is not None:
-            data = self.get_variable(var)
-        else:
-            # Default to key variables
-            vars_to_use = ["QN", "QH", "QE", "QS"]
-            available = self.available_variables.get("SUEWS", [])
-            vars_to_use = [v for v in vars_to_use if v in available]
-            data = pd.concat(
-                [self.get_variable(v, group="SUEWS") for v in vars_to_use],
-                axis=1,
-                keys=vars_to_use,
-            )
-
-        df = data.copy()
-
-        # Handle MultiIndex
-        if isinstance(df.index, pd.MultiIndex):
-            df = df.reset_index(level="grid", drop=True)
-
-        return df.resample("M").agg(["mean", "std", "min", "max"])
-
-    def compare_with(self, other: "SUEWSOutput") -> pd.DataFrame:
-        """
-        Compare two output objects.
-
-        Useful for comparing different scenarios or model runs.
-
-        Parameters
-        ----------
-        other : SUEWSOutput
-            Another output object to compare with
-
-        Returns
-        -------
-        pd.DataFrame
-            Comparison statistics (mean difference, correlation, etc.)
-        """
-        # Get common variables
-        self_vars = set()
-        other_vars = set()
-        for vars in self.available_variables.values():
-            self_vars.update(vars)
-        for vars in other.available_variables.values():
-            other_vars.update(vars)
-        common_vars = self_vars.intersection(other_vars)
-
-        # Focus on key energy variables
-        key_vars = ["QN", "QH", "QE", "QS", "Tair"]
-        compare_vars = [v for v in key_vars if v in common_vars]
-
-        results = []
-        for var in compare_vars:
-            try:
-                self_data = self.get_variable(var)
-                other_data = other.get_variable(var)
-
-                # Align data
-                common_idx = self_data.index.intersection(other_data.index)
-                if len(common_idx) == 0:
-                    continue
-
-                s = self_data.loc[common_idx].values.flatten()
-                o = other_data.loc[common_idx].values.flatten()
-
-                diff = s - o
-                results.append({
-                    "variable": var,
-                    "mean_diff": np.nanmean(diff),
-                    "rmse": np.sqrt(np.nanmean(diff**2)),
-                    "correlation": np.corrcoef(s, o)[0, 1],
-                    "n_common": len(common_idx),
-                })
-            except (ValueError, KeyError):
-                continue
-
-        return pd.DataFrame(results)
-
-    # =========================================================================
-    # Manipulation
+    # Manipulation (domain-specific)
     # =========================================================================
 
     def resample(self, freq: str) -> "SUEWSOutput":
         """
         Resample output to different frequency.
+
+        Uses appropriate aggregation methods for each variable type:
+        - Instantaneous variables: mean
+        - Accumulated variables: sum
+        - State variables: last
 
         Parameters
         ----------
@@ -589,131 +397,8 @@ class SUEWSOutput:
         )
 
     # =========================================================================
-    # Plotting
-    # =========================================================================
-
-    def plot_timeseries(self, var: Optional[str] = None, ax=None, **kwargs):
-        """
-        Quick timeseries plot.
-
-        Parameters
-        ----------
-        var : str, optional
-            Variable to plot. If None, plots QH.
-        ax : matplotlib.axes.Axes, optional
-            Axes to plot on
-        **kwargs
-            Additional arguments passed to plot
-
-        Returns
-        -------
-        tuple
-            (fig, ax) matplotlib objects
-        """
-        import matplotlib.pyplot as plt
-
-        if ax is None:
-            fig, ax = plt.subplots(figsize=(12, 4))
-        else:
-            fig = ax.get_figure()
-
-        var = var or "QH"
-        data = self.get_variable(var)
-
-        # Handle MultiIndex
-        if isinstance(data.index, pd.MultiIndex):
-            data = data.reset_index(level="grid", drop=True)
-
-        data.plot(ax=ax, **kwargs)
-        ax.set_ylabel(var)
-        ax.set_xlabel("Time")
-        ax.set_title(f"SUEWS Output: {var}")
-
-        return fig, ax
-
-    def plot_diurnal(self, var: Optional[str] = None, ax=None, **kwargs):
-        """
-        Plot diurnal climatology.
-
-        Parameters
-        ----------
-        var : str, optional
-            Variable to plot. If None, plots energy balance components.
-        ax : matplotlib.axes.Axes, optional
-            Axes to plot on
-        **kwargs
-            Additional arguments passed to plot
-
-        Returns
-        -------
-        tuple
-            (fig, ax) matplotlib objects
-        """
-        import matplotlib.pyplot as plt
-
-        if ax is None:
-            fig, ax = plt.subplots(figsize=(10, 6))
-        else:
-            fig = ax.get_figure()
-
-        diurnal = self.diurnal_average(var)
-        diurnal.plot(ax=ax, **kwargs)
-        ax.set_xlabel("Hour of Day")
-        ax.set_ylabel("Flux (W/m²)" if var is None else var)
-        ax.set_title("Diurnal Cycle")
-        ax.legend()
-
-        return fig, ax
-
-    def plot_energy_balance(self, ax=None, **kwargs):
-        """
-        Standard energy balance plot (QN, QH, QE, QS).
-
-        Parameters
-        ----------
-        ax : matplotlib.axes.Axes, optional
-            Axes to plot on
-        **kwargs
-            Additional arguments passed to plot
-
-        Returns
-        -------
-        tuple
-            (fig, ax) matplotlib objects
-        """
-        import matplotlib.pyplot as plt
-
-        if ax is None:
-            fig, ax = plt.subplots(figsize=(10, 6))
-        else:
-            fig = ax.get_figure()
-
-        diurnal = self.diurnal_average()
-        diurnal.plot(ax=ax, **kwargs)
-        ax.set_xlabel("Hour of Day")
-        ax.set_ylabel("Flux (W/m²)")
-        ax.set_title("Energy Balance - Diurnal Cycle")
-        ax.axhline(y=0, color="k", linestyle="--", alpha=0.3)
-        ax.legend()
-
-        return fig, ax
-
-    # =========================================================================
     # Export
     # =========================================================================
-
-    def to_dataframe(self) -> pd.DataFrame:
-        """Return copy of full output DataFrame.
-
-        .. deprecated::
-            Use :attr:`df` property instead.
-        """
-        warnings.warn(
-            "SUEWSOutput.to_dataframe() is deprecated, use .df instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self._df_output.copy()
 
     def save(
         self,

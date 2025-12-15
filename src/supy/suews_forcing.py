@@ -1,11 +1,10 @@
 """
 SUEWSForcing - OOP wrapper for SUEWS meteorological forcing data.
 
-Provides a structured interface for loading, validating, and analysing
+Provides a structured interface for loading, validating, and manipulating
 meteorological forcing data for SUEWS simulations.
 """
 
-import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -129,8 +128,8 @@ class SUEWSForcing:
     """
     Wrapper for meteorological forcing data with convenience functions.
 
-    Provides intuitive access to forcing variables, validation, analysis,
-    and manipulation methods for SUEWS meteorological input data.
+    Provides intuitive access to forcing variables, validation, and
+    manipulation methods for SUEWS meteorological input data.
 
     Parameters
     ----------
@@ -147,26 +146,24 @@ class SUEWSForcing:
     >>> forcing
     SUEWSForcing(2023-01-01 00:00 to 2023-12-31 23:00, 8760 timesteps @ 3600s)
 
+    Load multiple files:
+
+    >>> forcing = SUEWSForcing.from_file(["forcing_2023.txt", "forcing_2024.txt"])
+
     Access variables with intuitive names:
 
     >>> forcing.temperature  # Same as forcing.Tair
     >>> forcing.wind_speed  # Same as forcing.U
+
+    Case-insensitive access:
+
+    >>> forcing.tair  # Same as forcing.Tair
 
     Validate forcing data:
 
     >>> result = forcing.validate()
     >>> if not result.is_valid:
     ...     print(result.errors)
-
-    Analyse data:
-
-    >>> forcing.summary()  # Statistical summary
-    >>> forcing.diurnal_pattern()  # Mean diurnal cycle
-
-    Manipulate data:
-
-    >>> forcing_2023 = forcing.slice("2023-01-01", "2023-12-31")
-    >>> forcing_hourly = forcing.resample("1H")
     """
 
     def __init__(self, data: pd.DataFrame, source: Optional[str] = None):
@@ -189,14 +186,16 @@ class SUEWSForcing:
     # =========================================================================
 
     @classmethod
-    def from_file(cls, path: Union[str, Path], tstep_mod: int = 300) -> "SUEWSForcing":
+    def from_file(
+        cls, path: Union[str, Path, List[Union[str, Path]]], tstep_mod: int = 300
+    ) -> "SUEWSForcing":
         """
-        Load forcing from a single file.
+        Load forcing from file(s).
 
         Parameters
         ----------
-        path : str or Path
-            Path to forcing file
+        path : str, Path, or list of str/Path
+            Path to forcing file, or list of paths to concatenate
         tstep_mod : int, optional
             Model timestep in seconds (default 300s = 5 min)
 
@@ -204,69 +203,44 @@ class SUEWSForcing:
         -------
         SUEWSForcing
             Loaded forcing data
+
+        Examples
+        --------
+        Single file:
+
+        >>> forcing = SUEWSForcing.from_file("forcing_2023.txt")
+
+        Multiple files:
+
+        >>> forcing = SUEWSForcing.from_file(["2023.txt", "2024.txt"])
         """
         from .util._io import _read_forcing_impl
 
-        path = Path(path).expanduser().resolve()
-        if not path.exists():
-            raise FileNotFoundError(f"Forcing file not found: {path}")
+        # Handle list of paths
+        if isinstance(path, list):
+            if not path:
+                raise ValueError("Empty forcing file list provided")
 
-        df = _read_forcing_impl(str(path), tstep_mod=tstep_mod)
-        return cls(df, source=str(path))
+            dfs = []
+            for p in path:
+                file_path = Path(p).expanduser().resolve()
+                if not file_path.exists():
+                    raise FileNotFoundError(f"Forcing file not found: {file_path}")
+                df = _read_forcing_impl(str(file_path), tstep_mod=tstep_mod)
+                dfs.append(df)
 
-    @classmethod
-    def from_files(
-        cls, paths: List[Union[str, Path]], tstep_mod: int = 300
-    ) -> "SUEWSForcing":
-        """
-        Load and concatenate forcing from multiple files.
+            combined = pd.concat(dfs, axis=0).sort_index()
+            # Remove any duplicates
+            combined = combined[~combined.index.duplicated(keep="first")]
+            return cls(combined, source=f"[{len(path)} files]")
 
-        Parameters
-        ----------
-        paths : list of str or Path
-            Paths to forcing files (concatenated in order)
-        tstep_mod : int, optional
-            Model timestep in seconds (default 300s = 5 min)
+        # Handle single path
+        file_path = Path(path).expanduser().resolve()
+        if not file_path.exists():
+            raise FileNotFoundError(f"Forcing file not found: {file_path}")
 
-        Returns
-        -------
-        SUEWSForcing
-            Concatenated forcing data
-        """
-        from .util._io import _read_forcing_impl
-
-        if not paths:
-            raise ValueError("Empty forcing file list provided")
-
-        dfs = []
-        for p in paths:
-            path = Path(p).expanduser().resolve()
-            if not path.exists():
-                raise FileNotFoundError(f"Forcing file not found: {path}")
-            df = _read_forcing_impl(str(path), tstep_mod=tstep_mod)
-            dfs.append(df)
-
-        combined = pd.concat(dfs, axis=0).sort_index()
-        # Remove any duplicates
-        combined = combined[~combined.index.duplicated(keep="first")]
-        return cls(combined, source=f"[{len(paths)} files]")
-
-    @classmethod
-    def from_dataframe(cls, df: pd.DataFrame) -> "SUEWSForcing":
-        """
-        Create from existing DataFrame.
-
-        Parameters
-        ----------
-        df : pd.DataFrame
-            DataFrame with forcing data and DatetimeIndex
-
-        Returns
-        -------
-        SUEWSForcing
-            Wrapped forcing data
-        """
-        return cls(df, source="DataFrame")
+        df = _read_forcing_impl(str(file_path), tstep_mod=tstep_mod)
+        return cls(df, source=str(file_path))
 
     # =========================================================================
     # Core data access
@@ -293,20 +267,6 @@ class SUEWSForcing:
         return self._data.iloc
 
     @property
-    def times(self) -> pd.DatetimeIndex:
-        """Datetime index of forcing data.
-
-        .. deprecated::
-            Use :attr:`index` instead for pandas-compatible access.
-        """
-        warnings.warn(
-            "SUEWSForcing.times is deprecated, use .index instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self._data.index
-
-    @property
     def time_range(self) -> Tuple[pd.Timestamp, pd.Timestamp]:
         """Return (start, end) timestamps."""
         return (self._data.index[0], self._data.index[-1])
@@ -317,30 +277,16 @@ class SUEWSForcing:
         freq = self._data.index.freq
         if freq is not None:
             return pd.Timedelta(freq)
-        # Calculate from data
+        # Calculate from data using median for robustness with irregular timesteps
         if len(self._data) > 1:
-            diff = self._data.index.to_series().diff().iloc[-1]
-            return diff
+            diffs = self._data.index.to_series().diff().dropna()
+            return diffs.median()
         return pd.Timedelta("5min")  # Default
 
     @property
     def timestep_seconds(self) -> int:
         """Timestep in seconds."""
         return int(self.timestep.total_seconds())
-
-    @property
-    def n_timesteps(self) -> int:
-        """Number of timesteps.
-
-        .. deprecated::
-            Use ``len(forcing)`` instead.
-        """
-        warnings.warn(
-            "SUEWSForcing.n_timesteps is deprecated, use len(forcing) instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return len(self._data)
 
     @property
     def columns(self) -> pd.Index:
@@ -354,18 +300,25 @@ class SUEWSForcing:
 
     def __getattr__(self, name: str) -> pd.Series:
         """
-        Dynamic attribute access for variables with alias support.
+        Dynamic attribute access for variables with alias and case-insensitive support.
 
         Allows access like `forcing.temperature` instead of `forcing['Tair']`.
+        Also supports case-insensitive access: `forcing.tair` works.
         """
-        # Check if it's a known alias
+        # Check if it's a known alias (case-insensitive)
         canonical = _ALIAS_TO_CANONICAL.get(name.lower())
         if canonical is not None and canonical in self._data.columns:
             return self._data[canonical]
 
-        # Check if it's a direct column name
+        # Check if it's a direct column name (exact match)
         if name in self._data.columns:
             return self._data[name]
+
+        # Case-insensitive column lookup
+        name_lower = name.lower()
+        for col in self._data.columns:
+            if col.lower() == name_lower:
+                return self._data[col]
 
         raise AttributeError(
             f"'{type(self).__name__}' has no attribute '{name}'. "
@@ -373,12 +326,23 @@ class SUEWSForcing:
         )
 
     def __getitem__(self, key: str) -> pd.Series:
-        """Access variables by column name."""
+        """Access variables by column name (case-insensitive, alias-aware)."""
         # Support alias lookup
         canonical = _ALIAS_TO_CANONICAL.get(key.lower())
         if canonical is not None and canonical in self._data.columns:
             return self._data[canonical]
-        return self._data[key]
+
+        # Exact match
+        if key in self._data.columns:
+            return self._data[key]
+
+        # Case-insensitive fallback
+        key_lower = key.lower()
+        for col in self._data.columns:
+            if col.lower() == key_lower:
+                return self._data[col]
+
+        return self._data[key]  # Let pandas raise KeyError
 
     # =========================================================================
     # Validation
@@ -413,7 +377,7 @@ class SUEWSForcing:
         from ._check import check_forcing
 
         errors = []
-        warnings = []
+        warnings_list = []
 
         # Use existing check_forcing logic
         physics_dict = None
@@ -431,7 +395,7 @@ class SUEWSForcing:
         self._validation_result = ValidationResult(
             is_valid=len(errors) == 0,
             errors=errors,
-            warnings=warnings,
+            warnings=warnings_list,
         )
 
         if raise_on_error:
@@ -440,80 +404,8 @@ class SUEWSForcing:
         return self._validation_result
 
     # =========================================================================
-    # Analysis (convenience functions)
+    # Analysis (domain-specific methods)
     # =========================================================================
-
-    def summary(self) -> pd.DataFrame:
-        """
-        Statistical summary of all forcing variables.
-
-        Returns
-        -------
-        pd.DataFrame
-            Summary statistics (count, mean, std, min, max, etc.)
-        """
-        # Exclude time columns
-        time_cols = ["iy", "id", "it", "imin", "isec"]
-        data_cols = [c for c in self._data.columns if c not in time_cols]
-        return self._data[data_cols].describe()
-
-    def diurnal_pattern(self, var: Optional[str] = None) -> pd.DataFrame:
-        """
-        Calculate mean diurnal patterns.
-
-        Parameters
-        ----------
-        var : str, optional
-            Specific variable to analyse. If None, analyses all.
-
-        Returns
-        -------
-        pd.DataFrame
-            Hourly mean values grouped by hour of day
-        """
-        df = self._data.copy()
-        df["hour"] = df.index.hour
-
-        # Select columns
-        time_cols = ["iy", "id", "it", "imin", "isec", "hour"]
-        if var is not None:
-            canonical = _ALIAS_TO_CANONICAL.get(var.lower(), var)
-            cols = [canonical] if canonical in df.columns else [var]
-        else:
-            cols = [c for c in df.columns if c not in time_cols]
-
-        return df.groupby("hour")[cols].mean()
-
-    def check_gaps(self) -> pd.DataFrame:
-        """
-        Report gaps in forcing data.
-
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame with gap information (start, end, duration)
-        """
-        idx = self._data.index
-        expected_freq = self.timestep
-
-        # Find gaps
-        gaps = []
-        for i in range(1, len(idx)):
-            actual_diff = idx[i] - idx[i - 1]
-            if actual_diff > expected_freq:
-                gaps.append({
-                    "gap_start": idx[i - 1],
-                    "gap_end": idx[i],
-                    "duration": actual_diff,
-                    "missing_steps": int(actual_diff / expected_freq) - 1,
-                })
-
-        if gaps:
-            return pd.DataFrame(gaps)
-        else:
-            return pd.DataFrame(
-                columns=["gap_start", "gap_end", "duration", "missing_steps"]
-            )
 
     def completeness(self) -> Dict[str, float]:
         """
@@ -537,31 +429,8 @@ class SUEWSForcing:
         return result
 
     # =========================================================================
-    # Manipulation
+    # Manipulation (domain-specific methods)
     # =========================================================================
-
-    def slice(
-        self,
-        start: Optional[str] = None,
-        end: Optional[str] = None,
-    ) -> "SUEWSForcing":
-        """
-        Return a new SUEWSForcing for a time slice.
-
-        Parameters
-        ----------
-        start : str, optional
-            Start date/time (inclusive)
-        end : str, optional
-            End date/time (inclusive)
-
-        Returns
-        -------
-        SUEWSForcing
-            New forcing object with sliced data
-        """
-        sliced_data = self._data.loc[start:end]
-        return SUEWSForcing(sliced_data, source=f"{self._source}[{start}:{end}]")
 
     def resample(self, freq: str) -> "SUEWSForcing":
         """
@@ -607,6 +476,10 @@ class SUEWSForcing:
         """
         Fill missing values in forcing data.
 
+        Uses appropriate handling for different variable types:
+        - Sum variables (rain): filled with 0
+        - Other variables: filled using specified method
+
         Parameters
         ----------
         method : str
@@ -624,6 +497,13 @@ class SUEWSForcing:
         # Replace -999 with NaN for filling
         filled = filled.replace(-999, np.nan)
 
+        # Handle sum variables (rain, Wuh) specially - fill with 0
+        sum_vars = [col for col in filled.columns if FORCING_VAR_TYPES.get(col) == "sum"]
+        for var in sum_vars:
+            if var in filled.columns:
+                filled[var] = filled[var].fillna(0)
+
+        # Fill other variables with specified method
         if method == "interpolate":
             filled = filled.interpolate(**kwargs)
         elif method == "ffill":
@@ -636,124 +516,19 @@ class SUEWSForcing:
         return SUEWSForcing(filled, source=f"{self._source}[filled]")
 
     # =========================================================================
-    # Plotting
-    # =========================================================================
-
-    def plot(
-        self,
-        var: Optional[str] = None,
-        ax=None,
-        **kwargs,
-    ):
-        """
-        Quick timeseries plot.
-
-        Parameters
-        ----------
-        var : str, optional
-            Variable to plot. If None, plots temperature.
-        ax : matplotlib.axes.Axes, optional
-            Axes to plot on
-        **kwargs
-            Additional arguments passed to plot
-
-        Returns
-        -------
-        tuple
-            (fig, ax) matplotlib objects
-        """
-        import matplotlib.pyplot as plt
-
-        if ax is None:
-            fig, ax = plt.subplots(figsize=(12, 4))
-        else:
-            fig = ax.get_figure()
-
-        # Default to temperature
-        if var is None:
-            var = "Tair"
-
-        # Resolve alias
-        canonical = _ALIAS_TO_CANONICAL.get(var.lower(), var)
-        if canonical not in self._data.columns:
-            raise ValueError(f"Variable '{var}' not found in forcing data")
-
-        self._data[canonical].plot(ax=ax, **kwargs)
-        ax.set_ylabel(canonical)
-        ax.set_xlabel("Time")
-        ax.set_title(f"Forcing: {canonical}")
-
-        return fig, ax
-
-    def plot_availability(self, ax=None, **kwargs):
-        """
-        Plot data availability heatmap.
-
-        Shows which variables have data at which times.
-
-        Parameters
-        ----------
-        ax : matplotlib.axes.Axes, optional
-            Axes to plot on
-        **kwargs
-            Additional arguments passed to imshow
-
-        Returns
-        -------
-        tuple
-            (fig, ax) matplotlib objects
-        """
-        import matplotlib.pyplot as plt
-
-        if ax is None:
-            fig, ax = plt.subplots(figsize=(14, 6))
-        else:
-            fig = ax.get_figure()
-
-        # Exclude time columns
-        time_cols = ["iy", "id", "it", "imin", "isec"]
-        data_cols = [c for c in self._data.columns if c not in time_cols]
-
-        # Create availability matrix (1 = valid, 0 = missing)
-        avail = self._data[data_cols].replace(-999, np.nan).notna().astype(int)
-
-        # Downsample for visualisation if too many timesteps
-        if len(avail) > 1000:
-            avail = avail.resample("1D").mean()
-
-        ax.imshow(avail.T, aspect="auto", cmap="RdYlGn", **kwargs)
-        ax.set_yticks(range(len(data_cols)))
-        ax.set_yticklabels(data_cols)
-        ax.set_xlabel("Time")
-        ax.set_title("Data Availability (green=available, red=missing)")
-
-        return fig, ax
-
-    # =========================================================================
     # Export
     # =========================================================================
 
-    def to_dataframe(self) -> pd.DataFrame:
-        """Return copy of underlying DataFrame.
-
-        .. deprecated::
-            Use :attr:`df` property instead.
+    def save(self, path: Union[str, Path], format: str = "suews") -> Path:
         """
-        warnings.warn(
-            "SUEWSForcing.to_dataframe() is deprecated, use .df instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self._data.copy()
-
-    def to_suews_format(self, path: Union[str, Path]) -> Path:
-        """
-        Export in SUEWS native text format.
+        Save forcing data to file.
 
         Parameters
         ----------
         path : str or Path
             Output file path
+        format : str, optional
+            Output format: "suews" (default) or "csv"
 
         Returns
         -------
@@ -762,32 +537,14 @@ class SUEWSForcing:
         """
         path = Path(path)
 
-        # Generate datetime columns
-        df_save = self._data.copy()
+        if format == "suews":
+            # SUEWS native text format
+            self._data.to_csv(path, sep="\t", index=True)
+        elif format == "csv":
+            self._data.to_csv(path, index=True)
+        else:
+            raise ValueError(f"Unknown format: {format}. Use 'suews' or 'csv'.")
 
-        # Format and save
-        df_save.to_csv(path, sep="\t", index=True)
-
-        return path
-
-    def to_csv(self, path: Union[str, Path], **kwargs) -> Path:
-        """
-        Export to CSV format.
-
-        Parameters
-        ----------
-        path : str or Path
-            Output file path
-        **kwargs
-            Additional arguments passed to to_csv
-
-        Returns
-        -------
-        Path
-            Path to saved file
-        """
-        path = Path(path)
-        self._data.to_csv(path, **kwargs)
         return path
 
     # =========================================================================

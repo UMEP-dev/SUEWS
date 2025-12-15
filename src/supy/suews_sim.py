@@ -5,6 +5,7 @@ Modern, object-oriented interface for SUEWS urban climate model simulations.
 Provides a user-friendly wrapper around the existing SuPy infrastructure.
 """
 
+import copy
 from pathlib import Path, PurePosixPath
 from typing import Any, Optional, Union
 import warnings
@@ -831,12 +832,14 @@ class SUEWSSimulation:
         See Also
         --------
         from_state : Create from saved state file or DataFrame
-        SUEWSOutput.to_initial_state : Extract state for restart
+        SUEWSOutput.state_final : Final state property for restart
         """
-        df_state_init = output.to_initial_state()
+        df_state_init = output.state_final
         sim = cls()
         sim._df_state_init = df_state_init
-        sim._config = output.config  # Preserve config if available
+        # Deep copy config to avoid shared state issues
+        if output.config is not None:
+            sim._config = copy.deepcopy(output.config)
 
         return sim
 

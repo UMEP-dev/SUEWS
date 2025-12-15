@@ -458,24 +458,24 @@ class TestRun:
 
         # Run WITHOUT passing start_date/end_date arguments
         # Should use config values as fallback
-        results = sim.run()
+        output = sim.run()
 
         # Verify results are filtered to the config date range
-        assert results is not None
-        assert len(results) > 0
+        assert output is not None
+        assert len(output.df) > 0
 
         # Results should be approximately one day of timesteps, with small tolerance
         # for edge effects (first/last timestep handling)
         tolerance = 5
-        assert len(results) <= expected_timesteps_per_day + tolerance, (
+        assert len(output.times) <= expected_timesteps_per_day + tolerance, (
             f"Expected ~{expected_timesteps_per_day} timesteps for 1 day "
-            f"(at {timestep_minutes}-min resolution), got {len(results)}. "
+            f"(at {timestep_minutes}-min resolution), got {len(output.times)}. "
             f"Config date range not being respected (full forcing has {full_forcing_len})."
         )
 
         # Verify the results are within the configured date
-        results_start_date = results.index.get_level_values("datetime").min().date()
-        results_end_date = results.index.get_level_values("datetime").max().date()
+        results_start_date = output.times.min().date()
+        results_end_date = output.times.max().date()
         assert results_start_date == full_forcing_start.date()
         assert results_end_date == full_forcing_start.date()
 

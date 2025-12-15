@@ -520,9 +520,8 @@ class SUEWSSimulation:
         This method is experimental and may not support all features of the
         standard run() method. Use run() for production simulations.
 
-        The DTS interface currently provides access to state variables but
-        full simulation requires additional site parameter setup. This method
-        demonstrates the accessor function infrastructure.
+        The DTS interface provides direct access to the Fortran kernel via
+        f90wrap-generated DTS objects and accessor functions.
 
         Examples
         --------
@@ -536,17 +535,30 @@ class SUEWSSimulation:
         if self._df_forcing is None:
             raise RuntimeError("No forcing data loaded. Use update_forcing() first.")
 
-        # Import DTS interface components directly
-        from .supy_driver import module_ctrl_type as dts_types
-        from .supy_driver import module_ctrl_accessor as acc
+        # Import DTS interface components
+        from ._run_dts import (
+            create_suews_config,
+            create_suews_state,
+            create_suews_site,
+            create_suews_forcing,
+            create_suews_timer,
+            populate_config_from_dict,
+            populate_site_from_dict,
+            populate_forcing_from_row,
+            populate_timer_from_datetime,
+            run_supy_dts_tstep,
+        )
+        from .supy_driver import suews_state_accessors as acc
 
         # Create and allocate DTS objects
-        config_dts = dts_types.SUEWS_CONFIG()
-        state_dts = dts_types.SUEWS_STATE()
-        state_dts.allocate(nlayer=nlayer, ndepth=ndepth)
-        forcing_dts = dts_types.SUEWS_FORCING()
+        config_dts = create_suews_config()
+        state_dts = create_suews_state(nlayer=nlayer, ndepth=ndepth)
+        site_dts = create_suews_site(nlayer=nlayer)
+        forcing_dts = create_suews_forcing()
+        timer_dts = create_suews_timer()
 
         # Populate config from SUEWSConfig
+        config_params = {}
         method_attrs = [
             ('rslmethod', 'rsl_method'),
             ('storageheatmethod', 'storage_heat_method'),
@@ -558,48 +570,99 @@ class SUEWSSimulation:
         for dts_attr, config_attr in method_attrs:
             val = getattr(self._config.model.physics, config_attr, None)
             if val is not None:
-                # Handle RefValue wrapper
                 if hasattr(val, 'value'):
                     val = val.value
-                setattr(config_dts, dts_attr, int(val))
+                config_params[dts_attr] = int(val)
+        populate_config_from_dict(config_dts, config_params)
 
-        # Get forcing data slice
+        # Populate site from SUEWSConfig
+        site_params = {}
+        if self._config.sites and len(self._config.sites) > 0:
+            site_cfg = self._config.sites[0]
+            # Extract site parameters
+            if hasattr(site_cfg, 'latitude'):
+                site_params['lat'] = getattr(site_cfg.latitude, 'value', site_cfg.latitude)
+            if hasattr(site_cfg, 'longitude'):
+                site_params['lon'] = getattr(site_cfg.longitude, 'value', site_cfg.longitude)
+            if hasattr(site_cfg, 'altitude'):
+                site_params['alt'] = getattr(site_cfg.altitude, 'value', site_cfg.altitude)
+            if hasattr(site_cfg, 'timezone'):
+                site_params['timezone'] = getattr(site_cfg.timezone, 'value', site_cfg.timezone)
+            if hasattr(site_cfg, 'measurement_height'):
+                site_params['z'] = getattr(site_cfg.measurement_height, 'value', site_cfg.measurement_height)
+            if hasattr(site_cfg, 'surface_area'):
+                site_params['surfacearea'] = getattr(site_cfg.surface_area, 'value', site_cfg.surface_area)
+
+            # Extract surface fractions if available
+            if hasattr(site_cfg, 'land_cover') and site_cfg.land_cover is not None:
+                lc = site_cfg.land_cover
+                sfr_surf = []
+                lc_types = ['paved', 'building', 'evergreen_tree', 'deciduous_tree', 'grass', 'bare_soil', 'water']
+                for lc_type in lc_types:
+                    frac = getattr(lc, lc_type, None)
+                    if frac is not None:
+                        if hasattr(frac, 'fraction'):
+                            frac = getattr(frac.fraction, 'value', frac.fraction)
+                        elif hasattr(frac, 'value'):
+                            frac = frac.value
+                        sfr_surf.append(float(frac) if frac is not None else 0.0)
+                    else:
+                        sfr_surf.append(0.0)
+                if len(sfr_surf) == 7:
+                    site_params['sfr_surf'] = sfr_surf
+
+        populate_site_from_dict(site_dts, site_params)
+
+        # Get forcing data slice and determine timestep
         forcing_df = self._df_forcing.loc[start_date:end_date]
+        if len(forcing_df) < 2:
+            raise RuntimeError("Insufficient forcing data for simulation")
 
-        # Forcing column mapping
-        forcing_map = {
-            'kdown': 'kdown',
-            'ldown_obs': 'ldown',
-            'precip': 'rain',
-            'press_hpa': 'pres',
-            'avrh': 'rh',
-            'temp_c': 'temp_c',
-            'fcld_obs': 'fcld',
-        }
+        # Infer timestep from forcing data
+        time_diff = (forcing_df.index[1] - forcing_df.index[0]).total_seconds()
+        tstep_s = int(time_diff)
+
+        # Flatten multi-index columns if present
+        if isinstance(forcing_df.columns, pd.MultiIndex):
+            forcing_df = forcing_df.copy()
+            forcing_df.columns = ['_'.join(str(c) for c in col).strip('_') for col in forcing_df.columns]
 
         # Run simulation for each timestep
         results = []
-        for idx, row in forcing_df.iterrows():
+        start_time = forcing_df.index[0]
+
+        for i, (idx, row) in enumerate(forcing_df.iterrows()):
+            # Calculate time since start
+            dt_since_start = int((idx - start_time).total_seconds())
+
+            # Populate timer for this timestep
+            populate_timer_from_datetime(
+                timer_dts,
+                idx,
+                tstep_s=tstep_s,
+                dt_since_start=dt_since_start
+            )
+
             # Populate forcing for this timestep
-            for col, attr in forcing_map.items():
-                if col in row.index:
-                    setattr(forcing_dts, attr, float(row[col]))
+            populate_forcing_from_row(forcing_dts, row)
 
-            # Extract current state values using accessor functions
-            qh, qe, qs, qn, qf, tsurf = acc.get_heat_state_scalars(state_dts)
+            # Run single timestep calculation
+            state_dts, output_dict = run_supy_dts_tstep(
+                timer_dts,
+                config_dts,
+                site_dts,
+                state_dts,
+                forcing_dts,
+                debug=False
+            )
 
-            # Store results (note: without full site setup, these are initial values)
-            output_dict = {
-                'datetime': idx,
-                'qh': qh,
-                'qe': qe,
-                'qs': qs,
-                'qn': qn,
-                'qf': qf,
-                'tsurf': tsurf,
-                'kdown': forcing_dts.kdown,
-                'temp_c': forcing_dts.temp_c,
-            }
+            # Add datetime to output
+            output_dict['datetime'] = idx
+
+            # Add forcing values for reference
+            output_dict['kdown'] = forcing_dts.kdown
+            output_dict['temp_c'] = forcing_dts.temp_c
+
             results.append(output_dict)
 
         # Convert to DataFrame

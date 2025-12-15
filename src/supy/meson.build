@@ -10,6 +10,7 @@ py.install_sources(
         '_misc.py',
         '_post.py',
         '_run.py',
+        '_run_dts.py',
         '_save.py',
         '_supy_driver_wrapper.py',
         '_supy_module.py',

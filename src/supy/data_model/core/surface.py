@@ -225,12 +225,12 @@ class SurfaceProperties(BaseModel):
     )
     soildepth: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Depth of soil layer below surface for hydrological calculations. Controls sub-surface water storage and drainage processes. Site-specific value typically determined from soil surveys or borehole data",
+        description="Depth of soil layer below surface for hydrological calculations, controlling sub-surface water storage and drainage processes. Site-specific value typically determined from soil surveys or borehole data",
         json_schema_extra={"unit": "mm", "display_name": "Soil Depth"},
     )
     soilstorecap: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Maximum water storage capacity of soil layer. Represents total soil water holding capacity between field capacity and wilting point. Site-specific value dependent on soil texture, structure, and depth",
+        description="Maximum water storage capacity of soil layer, representing total water holding capacity between field capacity and wilting point. Site-specific value dependent on soil texture, structure, and depth",
         json_schema_extra={"unit": "mm", "display_name": "Soil Store Capacity"},
     )
     statelimit: FlexibleRefValue(float) = Field(
@@ -248,7 +248,7 @@ class SurfaceProperties(BaseModel):
     )
     sathydraulicconduct: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Saturated hydraulic conductivity of soil layer. Controls the rate of water drainage through fully saturated soil. Site-specific value determined from soil texture (higher for sandy soils, lower for clay soils). Typically measured in laboratory or field infiltration tests",
+        description="Saturated hydraulic conductivity of soil layer, controlling water drainage rate through fully saturated soil. Site-specific value determined from soil texture (higher for sandy, lower for clay); typically measured via laboratory or field infiltration tests",
         json_schema_extra={
             "unit": "mm s^-1",
             "display_name": "Saturated Hydraulic Conductivity",

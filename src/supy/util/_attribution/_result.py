@@ -178,6 +178,14 @@ class AttributionResult:
 
         elif kind == "diurnal":
             # Ensemble diurnal cycle with IQR shading
+            # Requires DatetimeIndex for hour extraction
+            if not isinstance(self.contributions.index, pd.DatetimeIndex):
+                raise ValueError(
+                    "Diurnal plot requires a DatetimeIndex. "
+                    "This result appears to be an aggregate comparison "
+                    "(e.g., from diagnose_* with method='diurnal'). "
+                    "Use kind='bar' instead for aggregate results."
+                )
             df = self.contributions[components].copy()
             df["hour"] = df.index.hour + df.index.minute / 60
 
@@ -220,6 +228,13 @@ class AttributionResult:
 
         elif kind == "heatmap":
             # Month x hour heatmap of total change
+            # Requires DatetimeIndex for month/hour extraction
+            if not isinstance(self.contributions.index, pd.DatetimeIndex):
+                raise ValueError(
+                    "Heatmap plot requires a DatetimeIndex. "
+                    "This result appears to be an aggregate comparison. "
+                    "Use kind='bar' instead for aggregate results."
+                )
             import matplotlib.colors as mcolors
 
             df = self.contributions.copy()

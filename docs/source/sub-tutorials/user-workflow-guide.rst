@@ -3,7 +3,8 @@
 User Workflow Guide
 ===================
 
-This guide provides comprehensive coverage of three essential SUEWS user workflows:
+This guide provides comprehensive coverage of three essential SUEWS (Surface Urban
+Energy and Water Balance Scheme) user workflows:
 preparing initial conditions, designing simulation scenarios, and examining results.
 It consolidates and expands upon legacy documentation to align with the modern
 YAML-based workflow.
@@ -15,14 +16,14 @@ YAML-based workflow.
 .. _preparing_initial_conditions:
 
 Part 1: Preparing Initial Conditions
-------------------------------------
+====================================
 
 Initial conditions define the starting state of your simulation, including soil moisture,
 vegetation phenology, surface temperatures, and snow conditions. Proper initialisation
 is critical for realistic simulation results.
 
 Understanding Initial States
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------
 
 SUEWS tracks state variables for each land cover type. The ``initial_states`` section
 in your YAML configuration defines these values:
@@ -78,7 +79,7 @@ in your YAML configuration defines these values:
   temperatures for your climate and season.
 
 Spin-Up Strategies
-^^^^^^^^^^^^^^^^^^
+------------------
 
 Initial conditions are often uncertain. The **spin-up** approach runs the model for a
 period before your analysis period to allow state variables to equilibrate:
@@ -138,7 +139,7 @@ For limited forcing data, repeat the same year until states converge:
    results = sim.results
 
 Setting Initial Conditions for Different Seasons
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------------------------------
 
 **Winter Start (December-February, Northern Hemisphere)**
 
@@ -198,7 +199,7 @@ The validator uses CRU climate data to set appropriate temperatures based on you
 site's coordinates and the simulation start month.
 
 Common Initial Condition Pitfalls
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------------
 
 **1. Unrealistic Soil Moisture**
 
@@ -255,13 +256,13 @@ Common Initial Condition Pitfalls
 .. _designing_simulation_scenarios:
 
 Part 2: Designing Simulation Scenarios
---------------------------------------
+======================================
 
 Scenario analysis is fundamental to urban climate research, enabling studies of
 climate change impacts, urban development, and intervention strategies.
 
 Multi-Grid Configurations
-^^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------
 
 Run multiple sites (grids) simultaneously for comparative studies:
 
@@ -338,7 +339,7 @@ Run multiple sites (grids) simultaneously for comparative studies:
    print("Maximum UHI:", uhi_diurnal.max(), "degrees C")
 
 Parameter Sensitivity Studies
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------------
 
 Systematically vary parameters to understand model sensitivity:
 
@@ -410,7 +411,7 @@ Systematically vary parameters to understand model sensitivity:
        print(f"  {frac:.1%}: {temp:.1f} degC")
 
 Climate Change Scenarios
-^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------
 
 Modify forcing data to simulate future climate conditions.
 
@@ -511,13 +512,13 @@ Modify forcing data to simulate future climate conditions.
 .. _examining_results:
 
 Part 3: Examining Simulation Results
-------------------------------------
+====================================
 
 Understanding and analysing SUEWS output is essential for scientific interpretation
 and model validation.
 
 Output File Structure
-^^^^^^^^^^^^^^^^^^^^^
+---------------------
 
 SUEWS produces results organised by output groups:
 
@@ -557,7 +558,7 @@ SUEWS produces results organised by output groups:
          results['SUEWS'].columns.tolist()[:20], "...")
 
 Statistical Analysis
-^^^^^^^^^^^^^^^^^^^^
+--------------------
 
 **Basic Statistics:**
 
@@ -644,7 +645,7 @@ Statistical Analysis
    print(f"  Residual:        {residual:.1f}")  # Should be near zero
 
 Common Diagnostic Plots
-^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------
 
 **Energy Balance Time Series:**
 
@@ -756,7 +757,7 @@ Common Diagnostic Plots
    plt.show()
 
 Validation Against Observations
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------------
 
 Compare model outputs with observed data:
 
@@ -875,7 +876,7 @@ Compare model outputs with observed data:
        return fig, ax
 
 Saving and Exporting Results
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------
 
 **Save to Parquet (Recommended for Large Outputs):**
 
@@ -929,7 +930,7 @@ Saving and Exporting Results
 
 
 Related Resources
------------------
+=================
 
 - :doc:`../tutorials/python/quick-start` - Interactive tutorial with sample data
 - :doc:`../tutorials/python/impact-studies` - Advanced sensitivity and scenario analysis

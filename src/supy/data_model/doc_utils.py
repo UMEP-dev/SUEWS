@@ -555,8 +555,6 @@ class ModelDocExtractor:
             "wall_area",
             "roof_area",
             "fai",
-            "soildepth",
-            "soilstorecap",
             "sathydraulicconduct",
         ]
 

@@ -293,7 +293,7 @@ class RSTGenerator:
             lines.append(f"   :Unit: {formatted_unit}")
 
         # Add default/sample value
-        default_label, default_value = self._format_default(field_doc, model_name)
+        default_label, default_value = self._format_default(field_doc)
         if default_label is not None and default_value is not None:
             lines.append(f"   :{default_label}: {default_value}")
 
@@ -476,9 +476,7 @@ class RSTGenerator:
         return " ".join(formatted)
 
     @staticmethod
-    def _format_default(
-        field_doc: dict[str, Any], model_name: str = ""
-    ) -> tuple[str, str]:  # noqa: PLR0912
+    def _format_default(field_doc: dict[str, Any]) -> tuple[str, str]:  # noqa: PLR0912
         """Format default value for display with consistent labeling.
 
         Returns appropriate label-value pair based on field characteristics:
@@ -487,9 +485,11 @@ class RSTGenerator:
         - Optional without defaults: ("Default", "None (optional)")
         - Nested models: (None, None) to skip display
 
+        Site-specific fields (detected by doc_utils.py pattern matching) show
+        "Example" instead of "Default" to indicate values are illustrative.
+
         Args:
-            field_doc: Field documentation dictionary
-            model_name: Name of the containing model (for context)
+            field_doc: Field documentation dictionary with is_site_specific flag
         """
         nested_model = field_doc.get("nested_model")
 
@@ -521,20 +521,9 @@ class RSTGenerator:
                 return "Default", "None (optional)"
 
         # We have a non-None default value - format it
-        # Determine if this is a site/surface-specific model
-        # These models contain fields that vary by site or surface type
-        site_surface_models = {
-            "Site",
-            "SiteProperties",
-            "PavedProperties",
-            "BldgsProperties",
-            "EvetrProperties",
-            "DectrProperties",
-            "GrassProperties",
-            "BsoilProperties",
-            "WaterProperties",
-        }
-        is_site_specific = model_name in site_surface_models
+        # Use the is_site_specific flag from doc_utils.py extraction
+        # This provides field-level granularity based on pattern matching
+        is_site_specific = field_doc.get("is_site_specific", False)
 
         # Format the value for display
         if isinstance(default, (str, int, float, bool)):

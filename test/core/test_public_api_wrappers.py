@@ -146,8 +146,9 @@ class TestPublicAPIEquivalence:
 
         # Run using OOP API
         sim = SUEWSSimulation.from_sample_data()
-        df_output_oop = sim.run(end_date=sim.forcing.index[23])
-        df_state_final_oop = sim.state_final
+        output_oop = sim.run(end_date=sim.forcing.index[23])
+        df_output_oop = output_oop.df  # Extract DataFrame from SUEWSOutput
+        df_state_final_oop = output_oop.state_final
 
         # Compare results - should be nearly identical
         # Use pd.testing for robust comparison allowing small numerical differences

@@ -103,6 +103,7 @@ dev = [
     "sphinx-autobuild",
     "sphinx-book-theme",        # Active theme in conf.py
     "nbsphinx",                 # Jupyter notebook support
+    "jupytext",                 # Convert percent-format .py to .ipynb
     "recommonmark",             # Markdown support
     "pybtex",                   # Bibliography processing
     "sphinxcontrib.bibtex~=2.4", # Bibliography support (heavily customised)

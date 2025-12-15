@@ -28,7 +28,7 @@ SUEWS requires continuous meteorological data representative of the neighbourhoo
           properties:
             z: 50.0  # Forcing height in metres
 
-   See :yaml:option:`z` for full documentation, and :ref:`rsl_mod` in :doc:`/parameterisations-and-sub-models` for details on profile calculations.
+   See :input:option:`z` for full documentation, and :ref:`rsl_mod` in :doc:`/parameterisations-and-sub-models` for details on profile calculations.
 
 Data Requirements
 -----------------

@@ -277,7 +277,8 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.extlinks",
     "sphinx_comments",
-    "yaml_domain",  # Custom domain for YAML configuration options
+    "input_domain",  # Custom domain for input configuration options (see GH#1031)
+    "output_domain",  # Custom domain for output variables (see GH#1031)
     "recommonmark",
     "nbsphinx",
     "sphinx_design",  # For collapsible sections, tabs, and dropdowns in YAML config reference

@@ -1,8 +1,10 @@
 """
-Sphinx extension for YAML configuration options.
+Sphinx extension for SUEWS input configuration options.
 
-This creates a separate namespace for YAML configuration options,
-preventing collisions with other option directives in the documentation.
+This creates a separate namespace for input configuration options,
+preventing collisions with output variable directives in the documentation.
+
+See GitHub issue #1031 for context.
 """
 
 from sphinx import addnodes
@@ -10,14 +12,11 @@ from sphinx.directives import ObjectDescription
 from sphinx.domains import Domain, Index, ObjType
 from sphinx.roles import XRefRole
 from sphinx.util.nodes import make_refnode
-from sphinx.util.docutils import SphinxDirective
-from docutils import nodes
-from docutils.parsers.rst import directives
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 
-class YAMLOption(ObjectDescription):
-    """Directive for YAML configuration options."""
+class InputOption(ObjectDescription):
+    """Directive for input configuration options."""
 
     has_content = True
     required_arguments = 1
@@ -31,17 +30,17 @@ class YAMLOption(ObjectDescription):
 
     def add_target_and_index(self, name, sig, signode):
         """Add target and index entries."""
-        targetname = f"yaml-option-{sig}"
+        targetname = f"input-option-{sig}"
         if targetname not in self.state.document.ids:
             signode["ids"].append(targetname)
             self.state.document.note_explicit_target(signode)
 
             # Add to domain data
-            domain = self.env.get_domain("yaml")
+            domain = self.env.get_domain("input")
             domain.add_option(sig, self.env.docname)
 
             # Add index entry
-            indextext = f"{sig} (YAML configuration)"
+            indextext = f"{sig} (input configuration)"
             inode = addnodes.index(
                 entries=[("single", indextext, targetname, "", None)]
             )
@@ -49,12 +48,12 @@ class YAMLOption(ObjectDescription):
         return []
 
 
-class YAMLOptionIndex(Index):
-    """Index for YAML options."""
+class InputOptionIndex(Index):
+    """Index for input options."""
 
     name = "option"
-    localname = "YAML Option Index"
-    shortname = "YAML options"
+    localname = "Input Option Index"
+    shortname = "Input options"
 
     def generate(self, docnames=None):
         """Generate the index."""
@@ -68,7 +67,7 @@ class YAMLOptionIndex(Index):
                 name,  # name
                 0,  # subtype
                 docname,  # docname
-                f"yaml-option-{name}",  # target
+                f"input-option-{name}",  # target
                 "",  # extra
                 "",  # qualifier
                 "",  # description
@@ -82,27 +81,27 @@ class YAMLOptionIndex(Index):
         return sorted(content.items()), True
 
 
-class YAMLDomain(Domain):
-    """Domain for YAML configuration."""
+class InputDomain(Domain):
+    """Domain for input configuration."""
 
-    name = "yaml"
-    label = "YAML Configuration"
+    name = "input"
+    label = "Input Configuration"
 
     object_types = {
         "option": ObjType("option", "option"),
     }
 
     directives = {
-        "option": YAMLOption,
+        "option": InputOption,
     }
 
     roles = {
         "option": XRefRole(),
     }
 
-    indices = [YAMLOptionIndex]
+    indices = [InputOptionIndex]
 
-    initial_data = {
+    initial_data: dict[str, Any] = {
         "options": {},  # name -> docname
     }
 
@@ -115,7 +114,7 @@ class YAMLDomain(Domain):
         if typ == "option":
             docname = self.data["options"].get(target)
             if docname:
-                targetid = f"yaml-option-{target}"
+                targetid = f"input-option-{target}"
                 return make_refnode(
                     builder, fromdocname, docname, targetid, contnode, target
                 )
@@ -124,14 +123,10 @@ class YAMLDomain(Domain):
     def resolve_any_xref(self, env, fromdocname, builder, target, node, contnode):
         """Resolve any cross-references.
 
-        Returns empty list to prevent conflicts with std:option directives.
-        YAML options should be referenced explicitly using :yaml:option:`name`
+        Returns empty list to prevent conflicts with other directives.
+        Input options should be referenced explicitly using :input:option:`name`
         rather than bare backticks.
         """
-        # Deliberately return empty to avoid "more than one target found"
-        # warnings when both std:option and yaml:option define the same name
-        # (e.g., beta, theta, a1, a2, a3, resp_a, resp_b, Year, lat).
-        # See GitHub issue #984 Category A for details.
         return []
 
     def clear_doc(self, docname):
@@ -149,7 +144,7 @@ class YAMLDomain(Domain):
 
 def setup(app):
     """Setup the extension."""
-    app.add_domain(YAMLDomain)
+    app.add_domain(InputDomain)
 
     return {
         "version": "1.0",

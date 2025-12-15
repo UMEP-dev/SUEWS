@@ -16,7 +16,7 @@ import pandas as pd
 
 from .supy_driver import suews_driver as sd
 from .supy_driver import module_ctrl_type as dts
-from .supy_driver import suews_state_accessors as acc
+from .supy_driver import module_ctrl_accessor as acc
 
 
 @dataclass
@@ -391,7 +391,7 @@ def run_supy_dts_tstep(
             if not attr.startswith('_') and not callable(getattr(output_line, attr)):
                 try:
                     output_dict[attr] = getattr(output_line, attr)
-                except:
+                except (AttributeError, TypeError):
                     pass
 
     # Also extract key state values

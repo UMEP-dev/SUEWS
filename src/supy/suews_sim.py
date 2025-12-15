@@ -538,7 +538,7 @@ class SUEWSSimulation:
 
         # Import DTS interface components directly
         from .supy_driver import module_ctrl_type as dts_types
-        from .supy_driver import suews_state_accessors as acc
+        from .supy_driver import module_ctrl_accessor as acc
 
         # Create and allocate DTS objects
         config_dts = dts_types.SUEWS_CONFIG()

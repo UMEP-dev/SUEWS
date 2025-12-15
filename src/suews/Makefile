@@ -201,7 +201,7 @@ PHYS =	suews_ctrl_error.o  \
 
 # SUEWS driver module (wrapper of all main calculations)
 DRIVER = suews_ctrl_driver.o \
-	suews_state_accessors.o
+	suews_ctrl_accessor.o
 
 # Rest of the files including modules and functions which are independent
 # OTHERS =  suews_ctrl_translate.o \

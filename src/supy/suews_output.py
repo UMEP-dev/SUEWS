@@ -60,7 +60,6 @@ class SUEWSOutput:
     Export:
 
     >>> output.save("output/", format="parquet")
-    >>> output.to_netcdf("results.nc")
 
     Restart runs:
 
@@ -776,65 +775,6 @@ class SUEWSOutput:
             output_config=output_config,
             output_format=format,
         )
-
-    def to_netcdf(self, path: Union[str, Path]) -> Path:
-        """
-        Export to NetCDF format.
-
-        Parameters
-        ----------
-        path : str or Path
-            Output file path
-
-        Returns
-        -------
-        Path
-            Path to saved file
-        """
-        try:
-            import xarray as xr
-        except ImportError as e:
-            raise ImportError(
-                "NetCDF export requires 'xarray' and 'netcdf4'. "
-                "Install with: pip install xarray netcdf4"
-            ) from e
-
-        path = Path(path)
-
-        # Convert to xarray Dataset
-        df = self._df_output.copy()
-
-        # Reset index for cleaner xarray conversion
-        df_reset = df.reset_index()
-
-        # Create Dataset
-        ds = xr.Dataset()
-
-        # Add coordinates
-        ds["datetime"] = (["time"], df_reset["datetime"].values)
-        ds["grid"] = (["grid"], df_reset["grid"].unique())
-
-        # Add variables by group
-        for group in self.groups:
-            group_data = self._df_output[group]
-            for var in group_data.columns.get_level_values("var").unique():
-                var_data = group_data[var]
-                if isinstance(var_data, pd.DataFrame):
-                    var_data = var_data.iloc[:, 0]  # Take first column if multiple
-                ds[f"{group}_{var}"] = (["time"], var_data.values)
-
-        # Add metadata
-        ds.attrs["source"] = "SUEWS model output"
-        ds.attrs["created"] = pd.Timestamp.now().isoformat()
-        if self._metadata:
-            for key, val in self._metadata.items():
-                if isinstance(val, (str, int, float)):
-                    ds.attrs[key] = val
-
-        # Save
-        ds.to_netcdf(path)
-
-        return path
 
     # =========================================================================
     # Rich display

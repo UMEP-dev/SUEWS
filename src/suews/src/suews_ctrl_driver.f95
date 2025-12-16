@@ -4324,6 +4324,7 @@ CONTAINS
       ! local variables
       ! length of met forcing block
       INTEGER :: ir
+      INTEGER :: i_arch ! loop index for building archetypes (GH#360)
       ! met forcing variables
       INTEGER, PARAMETER :: gridiv_x = 1 ! a dummy gridiv as this routine is only one grid
 
@@ -5184,8 +5185,19 @@ CONTAINS
       building_archtype%CoolingSetpointTemperature = CoolingSetpointTemperature
       siteInfo%building_archtype = building_archtype
 
+      ! Copy single archetype to all slots in building_archetypes array (GH#360)
+      ! When Python provides multiple archetypes, this will be replaced with direct population
+      DO i_arch = 1, siteInfo%nbtypes
+         siteInfo%building_archetypes(i_arch) = building_archtype
+      END DO
+
       IF (mod_state%flagState%stebbs_bldg_init == 0) THEN
-         CALL gen_building(mod_state%stebbsState, siteInfo%stebbs, siteInfo%building_archtype, config, mod_state%stebbsState%buildings(1), nlayer)
+         ! Initialise all building archetypes (GH#360)
+         DO i_arch = 1, siteInfo%nbtypes
+            CALL gen_building(mod_state%stebbsState, siteInfo%stebbs, &
+                              siteInfo%building_archetypes(i_arch), config, &
+                              mod_state%stebbsState%buildings(i_arch), nlayer)
+         END DO
          mod_state%flagState%stebbs_bldg_init = 1
       END IF
 

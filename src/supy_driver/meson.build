@@ -131,7 +131,7 @@ endforeach
 src_f95_files = files(src_f95_files)
 
 src_f95_sub = [
-  # 'suews_ctrl_const.f95',
+  'suews_ctrl_const.f95',  # Needed for error state module (module_ctrl_error_state)
   'suews_ctrl_type.f95',
   'suews_ctrl_driver.f95',
   'suews_phys_anthro.f95',

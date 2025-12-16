@@ -24,6 +24,7 @@ MODULE module_phys_stebbs_core
 END MODULE module_phys_stebbs_core
 MODULE module_phys_stebbs_func
    USE module_phys_stebbs_precision
+   USE module_ctrl_error_state, ONLY: set_supy_error
    IMPLICIT NONE
 CONTAINS
    !-------------------------------------------------------------------
@@ -438,7 +439,9 @@ CONTAINS
       ! Validate inputs
       IF (d <= 0 .OR. cp <= 0 .OR. rho <= 0) THEN
          PRINT *, "Thickness (d), specific heat (cp), and density (rho) must be positive."
-         STOP
+         CALL set_supy_error(102, 'STEBBS calculate_x1: d, cp, rho must be positive')
+         x1 = -999.0D0
+         RETURN
       END IF
 
       ! Compute thermal diffusivity
@@ -455,7 +458,9 @@ CONTAINS
       ! limit the output x1 between 0 and 1
       IF (x1 <= 0 .OR. x1 >= 1) THEN
          PRINT *, "OuterCapFrac should be between 0 and 1."
-         STOP
+         CALL set_supy_error(102, 'STEBBS calculate_x1: OuterCapFrac should be between 0 and 1')
+         x1 = -999.0D0
+         RETURN
       END IF
    END FUNCTION calculate_x1
 

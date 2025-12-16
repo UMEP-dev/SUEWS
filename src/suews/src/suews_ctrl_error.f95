@@ -16,6 +16,7 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
 
    USE module_ctrl_const_datain
    USE module_ctrl_const_default
+   USE module_ctrl_error_state, ONLY: set_supy_error
    ! USE module_ctrl_const_wherewhen
 
    IMPLICIT NONE
@@ -420,11 +421,16 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
       WRITE (*, *) 'problem: ', TRIM(ProblemFile)
       WRITE (*, *) 'See problems.txt for more info.'
       WRITE (StopMessage, *) 'fatal error in SUEWS:'//NEW_LINE('A')//TRIM(text1)
-      STOP 'Fatal error in SUEWS!'
+
+      ! Set error state for Python/SuPy interface instead of STOP
+      ! This allows Python to detect the error and raise an exception
+      CALL set_supy_error(errh, TRIM(text1)//': '//TRIM(ProblemFile))
+      RETURN
 
 #endif
    END IF
 
 END SUBROUTINE ErrorHint
+
 
 !=============================================================

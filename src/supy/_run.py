@@ -46,6 +46,63 @@ from .util._debug import save_zip_debug
 
 
 ##############################################################################
+# Error handling for Fortran kernel errors
+# These replace STOP statements that would otherwise terminate Python
+
+
+class SUEWSKernelError(RuntimeError):
+    """Exception raised when SUEWS Fortran kernel encounters a fatal error.
+
+    This exception is raised when the Fortran code sets an error flag instead
+    of calling STOP, allowing Python to handle the error gracefully.
+
+    Attributes
+    ----------
+    code : int
+        Error code from the Fortran kernel (corresponds to ErrorHint codes).
+    message : str
+        Error message describing the problem.
+    """
+
+    def __init__(self, code: int, message: str):
+        self.code = code
+        self.message = message
+        super().__init__(f"SUEWS Error {code}: {message}")
+
+
+def _check_supy_error():
+    """Check if SUEWS kernel set an error flag and raise exception if so.
+
+    This function should be called after each Fortran kernel call to detect
+    errors that would have previously terminated the process via STOP.
+
+    Raises
+    ------
+    SUEWSKernelError
+        If the Fortran kernel has set the error flag.
+    """
+    # Access error state via the C extension module directly
+    # (f90wrap doesn't generate a Python class for module_ctrl_error_state)
+    from . import _supy_driver as _sd
+
+    if _sd.f90wrap_module_ctrl_error_state__get__supy_error_flag():
+        code = int(_sd.f90wrap_module_ctrl_error_state__get__supy_error_code())
+        message = str(_sd.f90wrap_module_ctrl_error_state__get__supy_error_message()).strip()
+        # Reset error state for next call
+        _sd.f90wrap_module_ctrl_error_state__reset_supy_error()
+        raise SUEWSKernelError(code, message)
+
+
+def _reset_supy_error():
+    """Reset error state before calling Fortran kernel."""
+    from . import _supy_driver as _sd
+
+    _sd.f90wrap_module_ctrl_error_state__set__supy_error_flag(False)
+    _sd.f90wrap_module_ctrl_error_state__set__supy_error_code(0)
+    _sd.f90wrap_module_ctrl_error_state__set__supy_error_message('')
+
+
+##############################################################################
 # main calculation
 # 1. calculation code for one time step
 # 2. compact wrapper for running a whole simulation
@@ -80,6 +137,14 @@ def suews_cal_tstep(dict_state_start, dict_met_forcing_tstep):
         # pickle.dump(dict_input, open("dict_input.pkl", "wb"))
         # print("dict_input.pkl saved")
         res_suews_tstep = sd.suews_cal_main(**dict_input)
+
+        # Check for Fortran error flag (replaces STOP statement handling)
+        _check_supy_error()
+
+    except SUEWSKernelError as e:
+        # Fortran kernel set error flag instead of STOP
+        logger_supy.critical(f"SUEWS kernel error: {e}")
+        raise
     except Exception as ex:
         # show trace info
         logger_supy.exception(traceback.format_exc())
@@ -207,6 +272,13 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
             block_mod_state=block_mod_state,
         )
 
+        # Check for Fortran error flag (replaces STOP statement handling)
+        _check_supy_error()
+
+    except SUEWSKernelError as e:
+        # Fortran kernel set error flag instead of STOP
+        logger_supy.critical(f"SUEWS kernel error: {e}")
+        raise
     except Exception as ex:
         # show trace info
         # print(traceback.format_exc())

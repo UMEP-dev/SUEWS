@@ -15,6 +15,40 @@
 ! MH 21 Jun 2017 - Added anthropogenic CO2 and edited Site_Select
 
 !==================================================================================================
+! Error state module for Python/SuPy interface
+! This module has NO dependencies and is at the base of the module hierarchy
+! Allows Python to detect Fortran errors without STOP terminating the process
+!==================================================================================================
+MODULE module_ctrl_error_state
+   IMPLICIT NONE
+
+   ! Error state variables exposed to Python via f90wrap
+   LOGICAL, SAVE :: supy_error_flag = .FALSE.
+   INTEGER, SAVE :: supy_error_code = 0
+   CHARACTER(LEN=512), SAVE :: supy_error_message = ''
+
+CONTAINS
+
+   SUBROUTINE reset_supy_error()
+      supy_error_flag = .FALSE.
+      supy_error_code = 0
+      supy_error_message = ''
+   END SUBROUTINE reset_supy_error
+
+   SUBROUTINE set_supy_error(code, message)
+      INTEGER, INTENT(IN) :: code
+      CHARACTER(LEN=*), INTENT(IN) :: message
+      INTEGER :: msg_len
+
+      supy_error_flag = .TRUE.
+      supy_error_code = code
+      msg_len = MIN(LEN_TRIM(message), 512)
+      supy_error_message = message(1:msg_len)
+   END SUBROUTINE set_supy_error
+
+END MODULE module_ctrl_error_state
+
+!==================================================================================================
 MODULE module_ctrl_const_allocate
 
    IMPLICIT NONE

@@ -67,11 +67,18 @@ MODULE SUEWS_Driver
    USE module_ctrl_version, ONLY: git_commit, compiler_ver ! these are automatically generated during compilation time
    USE module_util_time, ONLY: SUEWS_cal_dectime_DTS, SUEWS_cal_tstep_DTS, SUEWS_cal_weekday_DTS, &
                           SUEWS_cal_DLS
+   ! Re-export error state from module_ctrl_error_state for Python/f90wrap access
+   USE module_ctrl_error_state, ONLY: supy_error_flag, supy_error_code, supy_error_message, &
+                                       reset_supy_error, set_supy_error
 
    IMPLICIT NONE
 
    ! Module-level variable to track if snow warning has been shown
    LOGICAL, SAVE :: snow_warning_shown = .FALSE.
+
+   ! Make error state variables public for Python/f90wrap access
+   PUBLIC :: supy_error_flag, supy_error_code, supy_error_message
+   PUBLIC :: reset_supy_error, set_supy_error
 
 CONTAINS
 

@@ -229,7 +229,8 @@ SUBROUTINE run_control(eval, LowerLimit, Upperlimit)
    IF (eval < Lowerlimit .OR. eval > upperlimit) THEN
       WRITE (*, *) "Value out of range"
       WRITE (*, *) eval, text(1)
-      STOP
+      CALL ErrorHint(10, 'Value out of range in run_control', REAL(eval, KIND(1D0)), 0.0D0, 0)
+      RETURN
    END IF
 
    WRITE (*, 120) eval, text(1)
@@ -818,6 +819,7 @@ SUBROUTINE CodeMatchOHM(Gridiv, is, SWWD)
    USE module_ctrl_const_initial
    USE module_ctrl_const_colnames_input
    USE module_ctrl_const_default
+   USE module_ctrl_error_state, ONLY: set_supy_error
 
    IMPLICIT NONE
 
@@ -878,7 +880,8 @@ SUBROUTINE CodeMatchOHM(Gridiv, is, SWWD)
    ELSE
       WRITE (*, *) 'Problem with CodeMatchOHM (in SUEWS_CodeMatch.f95). ', SWWD, ' not recognised. Needs to be one of: ', &
          'SWet = Summer Wet, SDry = Summer Dry, WWet = WinterWet, WDry = Winter Dry. N.B. Case sensitive. '
-      STOP
+      CALL set_supy_error(57, 'CodeMatchOHM: SWWD not recognised')
+      RETURN
    END IF
 
    RETURN
@@ -927,6 +930,7 @@ SUBROUTINE CodeMatchESTM_Class(Gridiv, is, ii)
    USE module_ctrl_const_initial
    USE module_ctrl_const_colnames_input
    USE module_ctrl_const_default
+   USE module_ctrl_error_state, ONLY: set_supy_error
 
    IMPLICIT NONE
 
@@ -958,7 +962,8 @@ SUBROUTINE CodeMatchESTM_Class(Gridiv, is, ii)
    ELSE
       WRITE (*, *) 'Problem with CodeMatchESTM_Class (in SUEWS_ctrl_input.f95). ', is, ' not correct. Needs to be either ', &
          '1 = Paved surfaced, 2 = Bldgs surfaces.'
-      STOP
+      CALL set_supy_error(57, 'CodeMatchESTM_Class: surface type not correct')
+      RETURN
    END IF
    RETURN
 END SUBROUTINE CodeMatchESTM_Class

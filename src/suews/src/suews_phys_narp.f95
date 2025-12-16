@@ -38,6 +38,7 @@ MODULE module_phys_narp
    !==============================================================================================
    ! USE module_ctrl_const_allocate
    USE module_util_time, ONLY: day2month, dectime_to_timevec
+   USE module_ctrl_error_state, ONLY: set_supy_error
 
    IMPLICIT NONE
 
@@ -104,7 +105,8 @@ CONTAINS
             IF (MOD(NetRadiationMethod, 10) > 3 .OR. AlbedoChoice == -9) THEN
                WRITE (*, *) 'NetRadiationMethod=', NetRadiationMethod_use
                WRITE (*, *) 'Value not usable'
-               STOP
+               CALL set_supy_error(100, 'NARP: NetRadiationMethod value not usable')
+               RETURN
             END IF
 
          END IF
@@ -113,7 +115,8 @@ CONTAINS
          IF (MOD(NetRadiationMethod, 10) > 3 .OR. AlbedoChoice == -9) THEN
             WRITE (*, *) 'NetRadiationMethod=', NetRadiationMethod_use
             WRITE (*, *) 'Value not usable'
-            STOP
+            CALL set_supy_error(100, 'NARP: NetRadiationMethod value not usable')
+            RETURN
          END IF
       END IF
 

@@ -4,17 +4,7 @@ MODULE module_phys_waterdist
                             PavSurf, BldgSurf, &
                             ConifSurf, DecidSurf, GrassSurf, &
                             BSoilSurf, WaterSurf, ExcessSurf
-   ! USE get_prof_module, ONLY: get_prof_spectime_sum
    IMPLICIT NONE
-   ! INTEGER, PARAMETER :: nsurf = 7
-   ! INTEGER, PARAMETER :: PavSurf = 1
-   ! INTEGER, PARAMETER :: BldgSurf = 2
-   ! INTEGER, PARAMETER :: ConifSurf = 3
-   ! INTEGER, PARAMETER :: DecidSurf = 4
-   ! INTEGER, PARAMETER :: GrassSurf = 5
-   ! INTEGER, PARAMETER :: BSoilSurf = 6
-   ! INTEGER, PARAMETER :: WaterSurf = 7
-   ! INTEGER, PARAMETER :: ExcessSurf = 8
 CONTAINS
 
    !------------------------------------------------------------------------------
@@ -559,7 +549,6 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(out) :: runoff_roof
 
       ! output for generic wall facets
-!       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(out) :: ev_wall_out
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(out) :: state_wall_out
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(out) :: soilstore_wall_out
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(out) :: runoff_wall
@@ -581,9 +570,6 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nlayer) :: infil_wall !infiltration to replenish soil water [mm]
       REAL(KIND(1D0)), DIMENSION(nlayer) :: evap_roof !evapotranpiration from each surface type [mm]
       REAL(KIND(1D0)), DIMENSION(nlayer) :: evap_wall !evapotranpiration from each surface type [mm]
-      ! REAL(KIND(1D0)), DIMENSION(nsurf) :: soilstore !Soil moisture of each surface type [mm]
-      ! REAL(KIND(1D0)), DIMENSION(nsurf) :: chang !Change in state_id [mm]
-      ! REAL(KIND(1D0)), DIMENSION(2) :: SurplusEvap !Surplus for evaporation in 5 min timestep
 
       !Threshold for intense precipitation [mm hr-1]
       REAL(KIND(1D0)), PARAMETER :: IPThreshold_mmhr = 10 ! NB:this should be an input and can be specified. SG 25 Apr 2018
@@ -710,12 +696,6 @@ CONTAINS
 
       END DO
 
-      ! diagnostics info:
-      ! call r8vec_print(SIZE(soilstore_roof_out), soilstore_roof_in, 'soilstore_roof_in in layer')
-      ! call r8vec_print(SIZE(soilstore_roof_out), SoilStoreCap_roof, 'SoilStoreCap_roof in layer')
-      ! call r8vec_print(SIZE(soilstore_roof_out), infil_roof, 'infil_roof in layer')
-      ! call r8vec_print(SIZE(soilstore_wall_out), soilstore_roof_out, 'soilstore_roof_out in layer')
-
       ! aggregated values
       state_building = DOT_PRODUCT(state_roof_out, sfr_roof) + DOT_PRODUCT(state_wall_out, sfr_wall)
       soilstore_building = DOT_PRODUCT(soilstore_roof_out, sfr_roof) + DOT_PRODUCT(soilstore_wall_out, sfr_wall)
@@ -831,59 +811,7 @@ CONTAINS
    END SUBROUTINE ReDistributeWater
    !------------------------------------------------------------------------------
 
-   !------------------------------------------------------------------------------
-   SUBROUTINE SUEWS_update_SoilMoist( &
-      NonWaterFraction, & !input
-      SoilStoreCap, sfr_surf, soilstore_id, &
-      SoilMoistCap, SoilState, & !output
-      vsmd, smd)
-      IMPLICIT NONE
 
-      ! INTEGER,INTENT(in)::nsurf,ConifSurf,DecidSurf,GrassSurf
-      REAL(KIND(1D0)), INTENT(in) :: NonWaterFraction
-      REAL(KIND(1D0)), INTENT(in), DIMENSION(nsurf) :: SoilStoreCap, sfr_surf, soilstore_id
-
-      REAL(KIND(1D0)), INTENT(out) :: SoilMoistCap, SoilState
-      REAL(KIND(1D0)), INTENT(out) :: vsmd, smd
-
-      INTEGER :: is
-      REAL(KIND(1D0)) :: fveg
-
-      SoilMoistCap = 0 !Maximum capacity of soil store [mm] for whole surface
-      SoilState = 0 !Area-averaged soil moisture [mm] for whole surface
-
-      IF (NonWaterFraction /= 0) THEN !Soil states only calculated if soil exists. LJ June 2017
-         DO is = 1, nsurf - 1 !No water body included
-            SoilMoistCap = SoilMoistCap + (SoilStoreCap(is)*sfr_surf(is)/NonWaterFraction)
-            SoilState = SoilState + (soilstore_id(is)*sfr_surf(is)/NonWaterFraction)
-         END DO
-      END IF
-
-      !If loop removed HCW 26 Feb 2015
-      !if (ir==1) then  !Calculate initial smd
-      smd = SoilMoistCap - SoilState
-      !endif
-
-      ! Calculate soil moisture for vegetated surfaces only (for use in surface conductance)
-      ! vsmd = 0
-      ! IF ((sfr_surf(ConifSurf) + sfr_surf(DecidSurf) + sfr_surf(GrassSurf)) > 0) THEN
-
-      !    fveg = sfr_surf(is)/(sfr_surf(ConifSurf) + sfr_surf(DecidSurf) + sfr_surf(GrassSurf))
-      ! ELSE
-      !    fveg = 0
-      ! END IF
-      ! DO is = ConifSurf, GrassSurf !Vegetated surfaces only
-      !    IF (fveg == 0) THEN
-      !       vsmd = 0
-      !    ELSE
-      !       vsmd = vsmd + (SoilStoreCap(is) - soilstore_id(is))*sfr_surf(is)/fveg
-      !    END IF
-      !    !write(*,*) is, vsmd, smd
-      ! END DO
-
-      vsmd = cal_smd_veg(SoilStoreCap, soilstore_id, sfr_surf)
-
-   END SUBROUTINE SUEWS_update_SoilMoist
    SUBROUTINE SUEWS_update_SoilMoist_DTS( &
       timer, config, forcing, siteInfo, & ! input
       modState) ! input/output:

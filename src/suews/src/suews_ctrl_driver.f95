@@ -43,7 +43,7 @@ MODULE SUEWS_Driver
       drainage, cal_water_storage_surf, &
       cal_water_storage_building, &
       SUEWS_cal_SoilState, &
-      SUEWS_update_SoilMoist, SUEWS_update_SoilMoist_DTS, &
+      SUEWS_update_SoilMoist_DTS, &
       ReDistributeWater, SUEWS_cal_HorizontalSoilWater, &
       SUEWS_cal_HorizontalSoilWater_DTS, &
       SUEWS_cal_WaterUse

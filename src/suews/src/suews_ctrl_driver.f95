@@ -1293,7 +1293,7 @@ CONTAINS
             qn_roof => heatState%qn_roof, &
             qn_wall => heatState%qn_wall, &
             Tsurf_ind => heatState%Tsurf_ind, &
-            buildings => stebbsState%buildings, &          
+            buildings => stebbsState%buildings, &
             spartacusPrm => siteInfo%spartacus, &
             spartacusLayerPrm => siteInfo%spartacus_layer, &
             NARP_TRANS_SITE => siteInfo%NARP_TRANS_SITE, &
@@ -1346,7 +1346,7 @@ CONTAINS
                wall_in_lw_spc => heatState%wall_in_lw_spc, &
                tsfc_surf => MERGE(heatState%tsfc_surf_dyohm, heatState%tsfc_surf, (storageheatmethod == 6 .OR. storageheatmethod == 7)), &
                tsfc_roof => MERGE(buildings(1)%Textroof_C, heatState%tsfc_roof, storageheatmethod == 7), &
-               tsfc_wall => MERGE(buildings(1)%Textwall_C, heatState%tsfc_wall, storageheatmethod == 7) &               
+               tsfc_wall => MERGE(buildings(1)%Textwall_C, heatState%tsfc_wall, storageheatmethod == 7) &
                )
 
                emis = [pavedPrm%emis, bldgPrm%emis, evetrPrm%emis, dectrPrm%emis, &
@@ -1577,16 +1577,16 @@ CONTAINS
             a3_paved => ohmState%a3_paved, &
             a1_evetr => ohmState%a1_evetr, &
             a2_evetr => ohmState%a2_evetr, &
-            a3_evetr => ohmState%a3_evetr, &             
+            a3_evetr => ohmState%a3_evetr, &
             a1_dectr => ohmState%a1_dectr, &
             a2_dectr => ohmState%a2_dectr, &
-            a3_dectr => ohmState%a3_dectr, &        
+            a3_dectr => ohmState%a3_dectr, &
             a1_grass => ohmState%a1_grass, &
             a2_grass => ohmState%a2_grass, &
-            a3_grass => ohmState%a3_grass, &   
+            a3_grass => ohmState%a3_grass, &
             a1_bsoil => ohmState%a1_bsoil, &
             a2_bsoil => ohmState%a2_bsoil, &
-            a3_bsoil => ohmState%a3_bsoil, &   
+            a3_bsoil => ohmState%a3_bsoil, &
             a1_water => ohmState%a1_water, &
             a2_water => ohmState%a2_water, &
             a3_water => ohmState%a3_water, &
@@ -1847,7 +1847,7 @@ CONTAINS
                            a1_dectr, a2_dectr, a3_dectr, &
                            a1_grass, a2_grass, a3_grass, &
                            a1_bsoil, a2_bsoil, a3_bsoil, &
-                           a1_water, a2_water, a3_water, & 
+                           a1_water, a2_water, a3_water, &
                            a1, a2, a3, qs, deltaQi)
                   QS_surf = qs
                   QS_roof = qs
@@ -1931,10 +1931,10 @@ CONTAINS
                      datetimeLine, nlayer, & ! input
                      dataOutLineSTEBBS) ! output
                   IF (StorageHeatMethod == 7) THEN
-                     qs = qs + QS_stebbs * sfr_surf(2) 
-                  END IF 
+                     qs = qs + QS_stebbs * sfr_surf(2)
+                  END IF
                END IF
-            
+
             END ASSOCIATE
          END ASSOCIATE
       END ASSOCIATE
@@ -3678,31 +3678,6 @@ CONTAINS
    END FUNCTION set_nan
 !========================================================================
 
-!===============the functions below are only for test in f2py conversion===
-   FUNCTION square(x) RESULT(xx)
-      IMPLICIT NONE
-      REAL(KIND(1D0)), PARAMETER :: pNAN = 9999
-      REAL(KIND(1D0)), PARAMETER :: NAN = -999
-      REAL(KIND(1D0)), INTENT(in) :: x
-      REAL(KIND(1D0)) :: xx
-
-      xx = x**2 + nan/pNAN
-      xx = x**2
-
-   END FUNCTION square
-
-   FUNCTION square_real(x) RESULT(xx)
-      IMPLICIT NONE
-      REAL, PARAMETER :: pNAN = 9999
-      REAL, PARAMETER :: NAN = -999
-      REAL, INTENT(in) :: x
-      REAL :: xx
-
-      xx = x**2 + nan/pNAN
-      xx = x**2
-
-   END FUNCTION square_real
-
    SUBROUTINE output_ncolumns(group_name, ncols)
       ! Returns the number of data columns (excluding datetime) for a given output group.
       ! Used by Python tests to verify OUTPUT_REGISTRY matches Fortran array sizes.
@@ -4175,7 +4150,7 @@ CONTAINS
       REAL(KIND(1D0)) :: a3_bsoil ! Dynamic OHM coefficients of bare soil
       REAL(KIND(1D0)) :: a1_water ! Dynamic OHM coefficients of water
       REAL(KIND(1D0)) :: a2_water ! Dynamic OHM coefficients of water
-      REAL(KIND(1D0)) :: a3_water ! Dynamic OHM coefficients of water    
+      REAL(KIND(1D0)) :: a3_water ! Dynamic OHM coefficients of water
       ! ---snow related states
       TYPE(SNOW_STATE) :: snowState
       REAL(KIND(1D0)), INTENT(INOUT) :: SnowfallCum !cumulated snow falling [mm]
@@ -5047,24 +5022,24 @@ CONTAINS
       ohmState%a1_bldg = 0.0 ! Dynamic OHM coefficients of buildings
       ohmState%a2_bldg = 0.0 ! Dynamic OHM coefficients of buildings
       ohmState%a3_bldg = 0.0 ! Dynamic OHM coefficients of buildings
-      ohmState%a1_paved = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a2_paved = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a3_paved = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a1_evetr = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a2_evetr = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a3_evetr = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a1_dectr = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a2_dectr = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a3_dectr = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a1_grass = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a2_grass = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a3_grass = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a1_bsoil = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a2_bsoil = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a3_bsoil = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a1_water = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a2_water = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a3_water = 0.0 ! Dynamic OHM coefficients       
+      ohmState%a1_paved = 0.0 ! Dynamic OHM coefficients
+      ohmState%a2_paved = 0.0 ! Dynamic OHM coefficients
+      ohmState%a3_paved = 0.0 ! Dynamic OHM coefficients
+      ohmState%a1_evetr = 0.0 ! Dynamic OHM coefficients
+      ohmState%a2_evetr = 0.0 ! Dynamic OHM coefficients
+      ohmState%a3_evetr = 0.0 ! Dynamic OHM coefficients
+      ohmState%a1_dectr = 0.0 ! Dynamic OHM coefficients
+      ohmState%a2_dectr = 0.0 ! Dynamic OHM coefficients
+      ohmState%a3_dectr = 0.0 ! Dynamic OHM coefficients
+      ohmState%a1_grass = 0.0 ! Dynamic OHM coefficients
+      ohmState%a2_grass = 0.0 ! Dynamic OHM coefficients
+      ohmState%a3_grass = 0.0 ! Dynamic OHM coefficients
+      ohmState%a1_bsoil = 0.0 ! Dynamic OHM coefficients
+      ohmState%a2_bsoil = 0.0 ! Dynamic OHM coefficients
+      ohmState%a3_bsoil = 0.0 ! Dynamic OHM coefficients
+      ohmState%a1_water = 0.0 ! Dynamic OHM coefficients
+      ohmState%a2_water = 0.0 ! Dynamic OHM coefficients
+      ohmState%a3_water = 0.0 ! Dynamic OHM coefficients
 
       ! snow related:
       snowState%snowfallCum = SnowfallCum
@@ -5254,7 +5229,7 @@ CONTAINS
       IF (mod_state%flagState%stebbs_bldg_init == 0) THEN
          CALL gen_building(mod_state%stebbsState, siteInfo%stebbs, siteInfo%building_archtype, config, mod_state%stebbsState%buildings(1), nlayer)
          mod_state%flagState%stebbs_bldg_init = 1
-      END IF 
+      END IF
 
       !   allocate output arrays
 
@@ -5520,7 +5495,7 @@ FUNCTION cal_tsfc_dyohm(Temp_in, Qs, K, C, z, nz, T_bottom, dt) RESULT(Temp_out)
     !   Qs          - storage heat flux/conductive heat flux at top [W/m2], positive downward
     !   T_bottom    - fixed temperature of deep ground[°C]
     !   dt          - timestep [s]
-    ! 
+    !
     ! Input:
     !   Temp_in(nz)    - soil temperature profile from previous timestep [°C]
     !

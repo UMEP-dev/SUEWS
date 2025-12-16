@@ -121,7 +121,19 @@ src_f95_all = [
   'suews_phys_spartacus.f95',
   'suews_phys_stebbs.f95',
   'suews_ctrl_driver.f95',
-  'suews_ctrl_accessor.f95',  # Accessor functions for nested state arrays
+  # Accessor functions for nested state arrays (split by state type)
+  'suews_accessor_heat.f95',
+  'suews_accessor_hydro.f95',
+  'suews_accessor_snow.f95',
+  'suews_accessor_flag.f95',
+  'suews_accessor_solar.f95',
+  'suews_accessor_roughness.f95',
+  'suews_accessor_nhood.f95',
+  'suews_accessor_ohm.f95',
+  'suews_accessor_atm.f95',
+  'suews_accessor_anthro.f95',
+  'suews_accessor_phen.f95',
+  'suews_accessor_stebbs.f95',
 ]
 
 src_f95_files = []
@@ -147,7 +159,19 @@ src_f95_sub = [
   #'suews_phys_stebbs.f95',
   'suews_phys_waterdist.f95',
   'suews_util_meteo.f95',
-  'suews_ctrl_accessor.f95',  # Accessor functions for nested state arrays
+  # Accessor functions for nested state arrays (split by state type)
+  'suews_accessor_heat.f95',
+  'suews_accessor_hydro.f95',
+  'suews_accessor_snow.f95',
+  'suews_accessor_flag.f95',
+  'suews_accessor_solar.f95',
+  'suews_accessor_roughness.f95',
+  'suews_accessor_nhood.f95',
+  'suews_accessor_ohm.f95',
+  'suews_accessor_atm.f95',
+  'suews_accessor_anthro.f95',
+  'suews_accessor_phen.f95',
+  'suews_accessor_stebbs.f95',
 ]
 src_to_wrap = src_f95_sub
 

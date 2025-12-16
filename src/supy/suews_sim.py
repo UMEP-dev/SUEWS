@@ -548,7 +548,7 @@ class SUEWSSimulation:
             populate_timer_from_datetime,
             run_supy_dts_tstep,
         )
-        from .supy_driver import suews_state_accessors as acc
+        from . import _state_accessors as acc
 
         # Create and allocate DTS objects
         config_dts = create_suews_config()

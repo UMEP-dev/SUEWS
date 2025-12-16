@@ -11,6 +11,7 @@ py.install_sources(
         '_post.py',
         '_run.py',
         '_run_dts.py',
+        '_state_accessors.py',
         '_save.py',
         '_supy_driver_wrapper.py',
         '_supy_module.py',
@@ -66,6 +67,15 @@ py.install_sources(
         [
             'ext_data/CRU_TS4.06_1991_2020.parquet',
             'ext_data/README.md'
+        ],
+        [
+            'dts/__init__.py',
+            'dts/_core.py',
+            'dts/_populate.py',
+            'dts/_extract.py',
+            'dts/_site.py',
+            'dts/_state.py',
+            'dts/_runner.py',
         ],
         [
             'data_model/__init__.py',

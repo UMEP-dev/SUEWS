@@ -201,7 +201,18 @@ PHYS =	suews_ctrl_error.o  \
 
 # SUEWS driver module (wrapper of all main calculations)
 DRIVER = suews_ctrl_driver.o \
-	suews_ctrl_accessor.o
+	suews_accessor_heat.o \
+	suews_accessor_hydro.o \
+	suews_accessor_snow.o \
+	suews_accessor_flag.o \
+	suews_accessor_solar.o \
+	suews_accessor_roughness.o \
+	suews_accessor_nhood.o \
+	suews_accessor_ohm.o \
+	suews_accessor_atm.o \
+	suews_accessor_anthro.o \
+	suews_accessor_phen.o \
+	suews_accessor_stebbs.o
 
 # Rest of the files including modules and functions which are independent
 # OTHERS =  suews_ctrl_translate.o \

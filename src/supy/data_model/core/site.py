@@ -2101,6 +2101,12 @@ class StebbsProperties(BaseModel):
         json_schema_extra={"unit": "m^3", "display_name": "Minimum Volume of DHW in Use"},
         ge=0.0,
     )
+    MaximumVolumeOfDHWinUse: Optional[FlexibleRefValue(float)] = Field(
+        default=100.0,
+        description="Maximum volume of hot water in use [m3]",
+        json_schema_extra={"unit": "m^3", "display_name": "Maximum Volume of DHW in Use"},
+        ge=0.0,
+    )
 
     ref: Optional[Reference] = None
 

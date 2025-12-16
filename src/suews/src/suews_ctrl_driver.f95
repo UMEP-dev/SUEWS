@@ -344,13 +344,6 @@ CONTAINS
                END IF
 
                ! ========================================================================
-               ! A4. SUEWS_cal_BiogenCO2: calculate biogenic CO2 fluxes
-               ! ========================================================================
-               CALL SUEWS_cal_BiogenCO2( &
-                  timer, config, forcing, siteInfo, & ! input
-                  modState) ! input/output:
-
-               ! ========================================================================
                ! N.B.: the following parts involves snow-related calculations.
                ! ===================NET ALLWAVE RADIATION================================
                IF (diagnose == 1) THEN
@@ -404,6 +397,14 @@ CONTAINS
                   debugState%state_09_resist = modState
                END IF
                !===================Resistance Calculations End=======================
+
+               ! ========================================================================
+               ! SUEWS_cal_BiogenCO2: calculate biogenic CO2 fluxes
+               ! N.B.: Must be called after SUEWS_cal_Resistance which sets phenState%gfunc
+               ! ========================================================================
+               CALL SUEWS_cal_BiogenCO2( &
+                  timer, config, forcing, siteInfo, & ! input
+                  modState) ! input/output:
 
                !===================Calculate surface hydrology and related soil water=======================
                ! MP: Until Snow has been fixed this should not be used (TODO)
@@ -3044,7 +3045,6 @@ CONTAINS
 
       INTEGER, PARAMETER :: AerodynamicResistanceMethod = 2 !method to calculate RA [-]
 
-      REAL(KIND(1D0)) :: gfunc !gdq*gtemp*gs*gq for photosynthesis calculations
       REAL(KIND(1D0)) :: Tair ! air temperature [degC]
 
       ASSOCIATE ( &
@@ -3099,6 +3099,7 @@ CONTAINS
             g_smd => phenState%g_smd, &
             g_lai => phenState%g_lai, &
             gsc => phenState%gsc, &
+            gfunc => phenState%gfunc, &
             LAI_id => phenState%LAI_id, &
             RASnow => snowState%RASnow, &
             z0vSnow => snowState%z0vSnow, &

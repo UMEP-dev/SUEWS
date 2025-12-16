@@ -205,13 +205,18 @@ CONTAINS
 
    !> Get STEBBS building runtime temperatures (roof and wall external temps)
    !> Note: These are the only runtime-modified arrays in buildings(:)
+   !> Output arrays are initialised to 0.0 if buildings are not allocated
    SUBROUTINE get_stebbs_building_temps(state, bldg_idx, nlayer, Textroof_C, Textwall_C)
       TYPE(SUEWS_STATE), INTENT(IN) :: state
       INTEGER, INTENT(IN) :: bldg_idx, nlayer
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(OUT) :: Textroof_C, Textwall_C
 
+      ! Initialise outputs to safe defaults
+      Textroof_C = 0.0D0
+      Textwall_C = 0.0D0
+
       IF (ALLOCATED(state%stebbsState%buildings)) THEN
-         IF (bldg_idx <= SIZE(state%stebbsState%buildings)) THEN
+         IF (bldg_idx >= 1 .AND. bldg_idx <= SIZE(state%stebbsState%buildings)) THEN
             IF (ALLOCATED(state%stebbsState%buildings(bldg_idx)%Textroof_C)) THEN
                Textroof_C = state%stebbsState%buildings(bldg_idx)%Textroof_C
             END IF
@@ -224,13 +229,14 @@ CONTAINS
 
    !> Set STEBBS building runtime temperatures (roof and wall external temps)
    !> Note: These are the only runtime-modified arrays in buildings(:)
+   !> Silently ignores if buildings are not allocated or index is out of bounds
    SUBROUTINE set_stebbs_building_temps(state, bldg_idx, nlayer, Textroof_C, Textwall_C)
       TYPE(SUEWS_STATE), INTENT(INOUT) :: state
       INTEGER, INTENT(IN) :: bldg_idx, nlayer
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: Textroof_C, Textwall_C
 
       IF (ALLOCATED(state%stebbsState%buildings)) THEN
-         IF (bldg_idx <= SIZE(state%stebbsState%buildings)) THEN
+         IF (bldg_idx >= 1 .AND. bldg_idx <= SIZE(state%stebbsState%buildings)) THEN
             IF (ALLOCATED(state%stebbsState%buildings(bldg_idx)%Textroof_C)) THEN
                state%stebbsState%buildings(bldg_idx)%Textroof_C = Textroof_C
             END IF

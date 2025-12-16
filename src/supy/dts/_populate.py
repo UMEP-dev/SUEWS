@@ -34,9 +34,26 @@ def populate_timer_from_datetime(
         Seconds since simulation start
     is_dls : bool
         Whether daylight saving is active
+
+    Notes
+    -----
+    **Temporal Conventions (matching Fortran SUEWS expectations):**
+
+    - ``id`` (day of year): 1-indexed, where Jan 1 = 1, Dec 31 = 365/366.
+      Uses pandas ``dayofyear`` which follows the same convention.
+
+    - ``dectime``: Decimal day of year, e.g., noon on Jan 1 = 1.5.
+      Formula: dayofyear + (hour + min/60 + sec/3600) / 24.
+
+    - ``dayofweek_id``: 1=Monday, 7=Sunday. Converted from pandas
+      convention (0=Monday, 6=Sunday) by adding 1. This matches the
+      ISO 8601 weekday numbering and SUEWS Fortran expectations.
+
+    - ``new_day``: True when hour=0 and minute=0, indicating the first
+      timestep of a new day.
     """
     timer.iy = dt.year
-    timer.id = dt.dayofyear
+    timer.id = dt.dayofyear  # 1-indexed: Jan 1 = 1
     timer.it = dt.hour
     timer.imin = dt.minute
     timer.isec = dt.second
@@ -48,11 +65,13 @@ def populate_timer_from_datetime(
     timer.dls = 1 if is_dls else 0
 
     # Calculate decimal time (day of year + fraction of day)
+    # e.g., noon on Jan 1 = 1.5, midnight on Jan 2 = 2.0
     frac_day = (dt.hour + dt.minute / 60.0 + dt.second / 3600.0) / 24.0
     timer.dectime = float(dt.dayofyear) + frac_day
 
-    # Day of week (1=Monday, 7=Sunday)
-    timer.dayofweek_id = dt.dayofweek + 1  # pandas uses 0=Monday
+    # Day of week: 1=Monday, 7=Sunday (ISO 8601 convention)
+    # pandas uses 0=Monday, 6=Sunday, so add 1 to convert
+    timer.dayofweek_id = dt.dayofweek + 1
 
     # New day flag (true if this is first timestep of the day)
     timer.new_day = dt.hour == 0 and dt.minute == 0

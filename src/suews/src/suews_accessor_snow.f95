@@ -14,6 +14,16 @@ MODULE module_accessor_snow
 
 CONTAINS
 
+   !> Get dimensions of SNOW_STATE arrays
+   !> Returns nsurf (number of surfaces) for consistency with heat/hydro accessors
+   SUBROUTINE get_snow_state_dims(state, nsurf_out)
+      TYPE(SUEWS_STATE), INTENT(IN) :: state
+      INTEGER, INTENT(OUT) :: nsurf_out
+
+      ! Snow arrays use the module constant nsurf
+      nsurf_out = nsurf
+   END SUBROUTINE get_snow_state_dims
+
    !> Get snow state arrays
    SUBROUTINE get_snow_state_arrays(state, snowpack, snowfrac, snowdens, icefrac)
       TYPE(SUEWS_STATE), INTENT(IN) :: state

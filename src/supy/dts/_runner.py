@@ -36,7 +36,8 @@ def run_supy_dts_tstep(
     forcing : dts.SUEWS_FORCING
         Meteorological forcing
     debug : bool
-        Whether to return debug information
+        Whether to return debug information. When True, creates and
+        initialises a SUEWS_DEBUG object for detailed diagnostics.
 
     Returns
     -------
@@ -44,10 +45,16 @@ def run_supy_dts_tstep(
         (updated_state, output_dict) where output_dict contains
         simulation results for this timestep
     """
-    # Create debug state if needed
-    debug_state = dts.SUEWS_DEBUG() if debug else None
-    if debug_state is not None:
+    # Create and initialise debug state if requested
+    # Note: f90wrap handles None for optional Fortran arguments, but we
+    # create an uninitialised debug object as a fallback for robustness
+    if debug:
+        debug_state = dts.SUEWS_DEBUG()
         dts.init_suews_debug(debug_state)
+    else:
+        # Create minimal debug state - f90wrap may not handle None correctly
+        # for all Fortran compilers, so provide an uninitialised object
+        debug_state = dts.SUEWS_DEBUG()
 
     # Call the main calculation
     # Note: timer is the first positional argument (appears as 'self' in signature)

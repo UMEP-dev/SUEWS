@@ -16,21 +16,40 @@ This module consolidates the 12 state-specific accessor modules:
 - module_accessor_anthro
 - module_accessor_phen
 - module_accessor_stebbs
+
+Raises
+------
+ImportError
+    If the Fortran extension module is not compiled or accessor modules
+    are missing. This typically means the package needs to be rebuilt.
 """
 
 # Import all accessor functions from the modular modules
-from .supy_driver import module_accessor_heat as _heat
-from .supy_driver import module_accessor_hydro as _hydro
-from .supy_driver import module_accessor_snow as _snow
-from .supy_driver import module_accessor_flag as _flag
-from .supy_driver import module_accessor_solar as _solar
-from .supy_driver import module_accessor_roughness as _roughness
-from .supy_driver import module_accessor_nhood as _nhood
-from .supy_driver import module_accessor_ohm as _ohm
-from .supy_driver import module_accessor_atm as _atm
-from .supy_driver import module_accessor_anthro as _anthro
-from .supy_driver import module_accessor_phen as _phen
-from .supy_driver import module_accessor_stebbs as _stebbs
+# Each import is wrapped to provide meaningful error messages
+_ACCESSOR_MODULES = [
+    "heat", "hydro", "snow", "flag", "solar", "roughness",
+    "nhood", "ohm", "atm", "anthro", "phen", "stebbs"
+]
+
+try:
+    from .supy_driver import module_accessor_heat as _heat
+    from .supy_driver import module_accessor_hydro as _hydro
+    from .supy_driver import module_accessor_snow as _snow
+    from .supy_driver import module_accessor_flag as _flag
+    from .supy_driver import module_accessor_solar as _solar
+    from .supy_driver import module_accessor_roughness as _roughness
+    from .supy_driver import module_accessor_nhood as _nhood
+    from .supy_driver import module_accessor_ohm as _ohm
+    from .supy_driver import module_accessor_atm as _atm
+    from .supy_driver import module_accessor_anthro as _anthro
+    from .supy_driver import module_accessor_phen as _phen
+    from .supy_driver import module_accessor_stebbs as _stebbs
+except ImportError as e:
+    raise ImportError(
+        f"Failed to import DTS accessor modules: {e}. "
+        "The Fortran extension may not be compiled. "
+        "Try rebuilding with: pip install -e . or make dev"
+    ) from e
 
 # Heat state accessors
 get_heat_state_dims = _heat.get_heat_state_dims
@@ -55,6 +74,7 @@ get_hydro_state_evap = _hydro.get_hydro_state_evap
 get_hydro_state_scalars = _hydro.get_hydro_state_scalars
 
 # Snow state accessors
+get_snow_state_dims = _snow.get_snow_state_dims
 get_snow_state_arrays = _snow.get_snow_state_arrays
 set_snow_state_arrays = _snow.set_snow_state_arrays
 get_snow_state_scalars = _snow.get_snow_state_scalars

@@ -1226,7 +1226,7 @@ MODULE module_ctrl_const_datain
                       E_mod, & !Modelled latent heat flux with LUMPS  [W m-2]
                       EF_umolCO2perJ, & !CO2 emission factor for fuels used for building heating [umol CO2 J-1]
                       emis_snow, & !Emissivity of snow
-                      EnEF_v_Jkm, & !Heat release per vehicle per meter of travel [J km-1 veh-1]
+                      EnEF_v_Jkm, & !Heat release per vehicle per metre of travel [J km-1 veh-1]
                       EnProfWD, & !Diurnal energy use profile (weekday)
                       EnProfWE, & !Diurnal energy use profile (weekend)
                       Fc, & !CO2 flux [umol m-2 s-1]

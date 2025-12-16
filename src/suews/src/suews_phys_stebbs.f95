@@ -1765,15 +1765,15 @@ SUBROUTINE tstep( &
                outdoorRadiativeHeatTransfer &
                (MVF_tank, Awater_vessel, emissivity_extwall_vessel, Textwall_vessel, Tindoormass)
 
-            ! //Heat transfer due to use and replacement of water
-            ! //qhwt_v = waterUseHeatTransfer(density_water, cp_water, flowrate_water_supply, Tincomingwater_tank, Twater_tank)
+            ! Heat transfer due to use and replacement of water
+            ! qhwt_v = waterUseHeatTransfer(density_water, cp_water, flowrate_water_supply, Tincomingwater_tank, Twater_tank)
          ELSEIF (Vwater_vessel == minVwater_vessel .AND. &
                  flowrate_water_supply < flowrate_water_drain) THEN
-            ! //Set Drain Flow rate to be same as usage flow rate to avoid hot water storage going below the set minimum threshold (minVwater_vessel)
+            ! Set drain flow rate to match supply to prevent volume going below minimum (minVwater_vessel)
             flowrate_water_drain = flowrate_water_supply
          ELSEIF (maxVwater_vessel > 0.0D0 .AND. Vwater_vessel >= maxVwater_vessel .AND. &
                  flowrate_water_supply > flowrate_water_drain) THEN
-            ! //Set Supply Flow rate to be same as drain flow rate to avoid hot water storage going above the set maximum threshold (maxVwater_vessel)
+            ! Set supply flow rate to match drain to prevent volume exceeding maximum (maxVwater_vessel) - GH-340
             flowrate_water_supply = flowrate_water_drain
          END IF ifVwater_vessel
 
@@ -1959,9 +1959,9 @@ SUBROUTINE tstep( &
          Twater_vessel = &
             (((flowrate_water_supply*resolution)*Twater_tank) + &
              ((Vwater_vessel - (flowrate_water_supply*resolution))*Twater_vessel))/Vwater_vessel
-         IF (Vwater_vessel > 0.0) THEN ! //Checks that Volume isn't zero
+         IF (Vwater_vessel > 0.0) THEN ! Check volume is positive
             Awater_vessel = Vwater_vessel/VARatio_water_vessel
-         ELSE ! // if Volume is zero it makes the area also zero
+         ELSE ! If volume is zero, set area to zero
             Awater_vessel = 0.0
          END IF
          Vwall_vessel = Awater_vessel*thickness_wall_vessel

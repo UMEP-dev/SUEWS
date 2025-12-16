@@ -1019,7 +1019,7 @@ CONTAINS
       timer, config, forcing, siteInfo, & ! input
       modState) ! input/output:
 
-      USE SUEWS_DEF_DTS, ONLY: SUEWS_SITE, LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
+      USE module_ctrl_type, ONLY: SUEWS_SITE, LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
                                SUEWS_CONFIG, CONDUCTANCE_PRM, SUEWS_FORCING, &
                                SUEWS_TIMER, PHENOLOGY_STATE, SNOW_STATE, atm_state, &
                                anthroEmis_STATE, HYDRO_STATE, SUEWS_STATE

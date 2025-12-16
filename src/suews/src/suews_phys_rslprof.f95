@@ -236,7 +236,8 @@ CONTAINS
       END DO
 
    END SUBROUTINE setup_RSL_heights
-   SUBROUTINE RSLProfile_DTS( &
+
+   SUBROUTINE RSLProfile( &
       timer, config, forcing, siteInfo, & ! input
       modState, & ! input/output:
       dataoutLineRSL) ! output
@@ -612,7 +613,7 @@ CONTAINS
          END ASSOCIATE
       END ASSOCIATE
 
-   END SUBROUTINE RSLProfile_DTS
+   END SUBROUTINE RSLProfile
 
    FUNCTION interp_z(z_x, z, v) RESULT(v_x)
 

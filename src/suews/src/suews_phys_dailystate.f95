@@ -4,9 +4,6 @@ MODULE module_phys_dailystate
       ndays, nsurf, nvegsurf, ivConif, ivDecid, ivGrass, DecidSurf, ncolumnsDataOutDailyState
 
    IMPLICIT NONE
-   ! INTEGER,PARAMETER::ndays=366
-   ! INTEGER,PARAMETER::nvegsurf=3
-   ! INTEGER,PARAMETER::ncolumnsDataOutDailyState=46
 
 CONTAINS
 

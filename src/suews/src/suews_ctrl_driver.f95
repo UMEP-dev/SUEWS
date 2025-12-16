@@ -31,7 +31,6 @@ MODULE SUEWS_Driver
    USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom
    USE module_phys_narp, ONLY: NARP_cal_SunPosition
    USE module_phys_spartacus, ONLY: SPARTACUS
-   ! USE AnOHM_module, ONLY: AnOHM
    USE module_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
                             SUEWS_cal_RoughnessParameters
    USE module_phys_ohm, ONLY: OHM
@@ -2350,9 +2349,6 @@ CONTAINS
                state_id_surf = state_id_in
                soilstore_id = soilstore_id_in
 
-               ! tstep_real = tstep*1.D0
-               ! nsh_real = 3600/tstep*1.D0
-
                capStore_surf = 0 !initialise capStore
 
                tlv = lv_J_kg/tstep*1.D0 !Latent heat of vapourisation per timestep
@@ -2711,22 +2707,7 @@ CONTAINS
                                   dectrPrm%wetthresh, grassPrm%wetthresh, bsoilPrm%wetthresh, waterPrm%wetthresh] &
                )
 
-               ! StoreDrainPrm = phenState_next%StoreDrainPrm
-
-               ! state_surf_in = hydroState_prev%state_surf
-               ! soilstore_surf_in = hydroState_prev%soilstore_surf
-               ! state_roof_in = hydroState_prev%state_roof
-               ! soilstore_roof_in = hydroState_prev%soilstore_roof
-               ! state_wall_in = hydroState_prev%state_wall
-               ! soilstore_wall_in = hydroState_prev%soilstore_wall
-
-               ! runoff_per_interval = runoff_per_interval_in
                state_surf = state_surf_in
-               ! soilstore_surf = soilstore_surf_in
-               ! soilstore_id = soilstore_surf_in
-
-               ! nsh_real = 3600/tstep*1.D0
-
                tlv = lv_J_kg/tstep*1.D0 !Latent heat of vapourisation per timestep
 
                pin = MAX(0., Precip) !Initiate rain data [mm]
@@ -4414,30 +4395,7 @@ CONTAINS
       siteInfo%n_buildings = n_buildings
       siteInfo%h_std = h_std
       siteInfo%lambda_c = lambda_c
-      ! siteInfo%nlayer = nlayer
 
-      ! forcing%kdown = kdown
-      ! forcing%ldown = ldown_obs
-      !forcing%RH = avRh
-      ! forcing%pres = Press_hPa
-      !forcing%U = avU1
-      ! forcing%rain = Precip
-      ! forcing%Wuh = wu_m3
-      ! forcing%fcld = fcld_obs
-      ! forcing%LAI_obs = LAI_obs
-      ! forcing%snowfrac = snowFrac_obs
-      ! forcing%xsmd = xsmd
-      !forcing%qn1_obs = qn1_obs
-      !forcing%qs_obs = qs_obs
-      !forcing%qf_obs = qf_obs
-      ! forcing%Tair_av_5d = Tair_av
-      ! forcing%temp_c = Temp_C
-
-      ! timer%id = id
-      ! timer%imin = imin
-      ! timer%isec = isec
-      ! timer%it = it
-      ! timer%iy = iy
       timer%tstep = tstep
       timer%tstep_prev = tstep_prev
       timer%dt_since_start = dt_since_start
@@ -5523,7 +5481,7 @@ FUNCTION cal_tsfc_dyohm(Temp_in, Qs, K, C, z, nz, T_bottom, dt) RESULT(Temp_out)
     !----------------------------------------------------------
     dz_min = MINVAL(z(2:nz) - z(1:nz-1))
     IF (alpha * dt / (dz_min**2) > 0.5D0) THEN
-        PRINT *, '⚠️ Warning: time step may be too large for stability.'
+        PRINT *, 'Warning: time step may be too large for stability.'
         PRINT '(A,ES12.4,2X,A,I8,2X,A,F8.4)', 'alpha=', alpha, 'dt=', dt, 'dz_min=', dz_min
     END IF
 

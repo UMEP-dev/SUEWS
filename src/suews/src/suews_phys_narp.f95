@@ -1504,26 +1504,6 @@ CONTAINS
       IF (FWC > 1.) FWC = 1.
       IF (FWC < 0.) FWC = 0.
    END FUNCTION WC_fraction
-   !===============================================================================
-   !FUNCTION solar_zenith(lat,lng,timezone,dectime) RESULT(zenith)
-   !  !Stull, 1989
-   !  !returns zenith in radians
-   !  !lat, lng in RADS
-   !  REAL(KIND(1d0)) ::lat,lng,timezone,dectime,zenith, eqtime
-   !  REAL(KIND(1d0)) ::ha, decl,tst, time_offset,gamma
-   !
-   !  gamma=2.*3.141592654/365.25463*dectime
-   !  eqtime=229.18*(7.5e-5+1.868e-3*COS(gamma)-0.032077*SIN(gamma)&
-   !       -0.014615*COS(2.*gamma)-0.040849*SIN(2.*gamma))
-   !  decl=6.918e-3-0.399912*COS(gamma)+0.070257*SIN(gamma)&
-   !       -0.006758*COS(2.*gamma)+9.07e-4*SIN(2.*gamma)-2.697e-3*COS(3.*gamma)&
-   !       +1.48e-3*SIN(3.*gamma)
-   !  time_offset=eqtime-4.*lng*RAD2DEG-60.*timezone
-   !  tst=(dectime-FLOOR(dectime))*1440.+time_offset
-   !  ha=(tst/4.)-180.
-   !  ha=ha*DEG2RAD
-   !  zenith=ACOS(SIN(lat)*SIN(decl)+COS(lat)*COS(decl)*COS(ha))
-   !END FUNCTION solar_zenith
 
    !===============================================================================
    FUNCTION ISURFACE(doy, zenith) RESULT(Isurf)

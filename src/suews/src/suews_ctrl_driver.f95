@@ -31,7 +31,6 @@ MODULE SUEWS_Driver
    USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom
    USE module_phys_narp, ONLY: NARP_cal_SunPosition
    USE module_phys_spartacus, ONLY: SPARTACUS
-   ! USE AnOHM_module, ONLY: AnOHM
    USE module_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
                             SUEWS_cal_RoughnessParameters
    USE module_phys_ohm, ONLY: OHM
@@ -43,13 +42,13 @@ MODULE SUEWS_Driver
       drainage, cal_water_storage_surf, &
       cal_water_storage_building, &
       SUEWS_cal_SoilState, &
-      SUEWS_update_SoilMoist, SUEWS_update_SoilMoist_DTS, &
+      SUEWS_update_SoilMoist, &
       ReDistributeWater, SUEWS_cal_HorizontalSoilWater, &
       SUEWS_cal_HorizontalSoilWater_DTS, &
       SUEWS_cal_WaterUse
-   USE module_phys_lumps, ONLY: LUMPS_cal_QHQE_DTS
+   USE module_phys_lumps, ONLY: LUMPS_cal_QHQE
    USE module_phys_evap, ONLY: cal_evap_multi
-   USE module_phys_rslprof, ONLY: RSLProfile, RSLProfile_DTS
+   USE module_phys_rslprof, ONLY: RSLProfile
    USE module_phys_anthro, ONLY: AnthropogenicEmissions
    USE module_phys_biogenco2, ONLY: CO2_biogen
    USE module_ctrl_const_allocate, ONLY: &
@@ -67,7 +66,7 @@ MODULE SUEWS_Driver
    USE module_phys_stebbs, ONLY: stebbsonlinecouple
    USE module_ctrl_version, ONLY: git_commit, compiler_ver ! these are automatically generated during compilation time
    USE module_util_time, ONLY: SUEWS_cal_dectime_DTS, SUEWS_cal_tstep_DTS, SUEWS_cal_weekday_DTS, &
-                          SUEWS_cal_DLS_DTS
+                          SUEWS_cal_DLS
 
    IMPLICIT NONE
 
@@ -316,7 +315,7 @@ CONTAINS
                END IF
                !======== Calculate soil moisture =========
                IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_update_SoilMoist...'
-               CALL SUEWS_update_SoilMoist_DTS( &
+               CALL SUEWS_update_SoilMoist( &
                   timer, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
@@ -372,7 +371,7 @@ CONTAINS
 
                !==========================Turbulent Fluxes================================
                IF (Diagnose == 1) WRITE (*, *) 'Calling LUMPS_cal_QHQE...'
-               CALL LUMPS_cal_QHQE_DTS( &
+               CALL LUMPS_cal_QHQE( &
                   timer, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
                IF (config%flag_test .AND. PRESENT(debugState)) THEN
@@ -474,7 +473,7 @@ CONTAINS
 
             !============ roughness sub-layer diagonostics ===============
             IF (Diagnose == 1) WRITE (*, *) 'Calling RSLProfile...'
-            CALL RSLProfile_DTS( &
+            CALL RSLProfile( &
                timer, config, forcing, siteInfo, & ! input
                modState, & ! input/output:
                dataoutLineRSL) ! output
@@ -1293,7 +1292,7 @@ CONTAINS
             qn_roof => heatState%qn_roof, &
             qn_wall => heatState%qn_wall, &
             Tsurf_ind => heatState%Tsurf_ind, &
-            buildings => stebbsState%buildings, &          
+            buildings => stebbsState%buildings, &
             spartacusPrm => siteInfo%spartacus, &
             spartacusLayerPrm => siteInfo%spartacus_layer, &
             NARP_TRANS_SITE => siteInfo%NARP_TRANS_SITE, &
@@ -1346,7 +1345,7 @@ CONTAINS
                wall_in_lw_spc => heatState%wall_in_lw_spc, &
                tsfc_surf => MERGE(heatState%tsfc_surf_dyohm, heatState%tsfc_surf, (storageheatmethod == 6 .OR. storageheatmethod == 7)), &
                tsfc_roof => MERGE(buildings(1)%Textroof_C, heatState%tsfc_roof, storageheatmethod == 7), &
-               tsfc_wall => MERGE(buildings(1)%Textwall_C, heatState%tsfc_wall, storageheatmethod == 7) &               
+               tsfc_wall => MERGE(buildings(1)%Textwall_C, heatState%tsfc_wall, storageheatmethod == 7) &
                )
 
                emis = [pavedPrm%emis, bldgPrm%emis, evetrPrm%emis, dectrPrm%emis, &
@@ -1577,16 +1576,16 @@ CONTAINS
             a3_paved => ohmState%a3_paved, &
             a1_evetr => ohmState%a1_evetr, &
             a2_evetr => ohmState%a2_evetr, &
-            a3_evetr => ohmState%a3_evetr, &             
+            a3_evetr => ohmState%a3_evetr, &
             a1_dectr => ohmState%a1_dectr, &
             a2_dectr => ohmState%a2_dectr, &
-            a3_dectr => ohmState%a3_dectr, &        
+            a3_dectr => ohmState%a3_dectr, &
             a1_grass => ohmState%a1_grass, &
             a2_grass => ohmState%a2_grass, &
-            a3_grass => ohmState%a3_grass, &   
+            a3_grass => ohmState%a3_grass, &
             a1_bsoil => ohmState%a1_bsoil, &
             a2_bsoil => ohmState%a2_bsoil, &
-            a3_bsoil => ohmState%a3_bsoil, &   
+            a3_bsoil => ohmState%a3_bsoil, &
             a1_water => ohmState%a1_water, &
             a2_water => ohmState%a2_water, &
             a3_water => ohmState%a3_water, &
@@ -1847,7 +1846,7 @@ CONTAINS
                            a1_dectr, a2_dectr, a3_dectr, &
                            a1_grass, a2_grass, a3_grass, &
                            a1_bsoil, a2_bsoil, a3_bsoil, &
-                           a1_water, a2_water, a3_water, & 
+                           a1_water, a2_water, a3_water, &
                            a1, a2, a3, qs, deltaQi)
                   QS_surf = qs
                   QS_roof = qs
@@ -1931,10 +1930,10 @@ CONTAINS
                      datetimeLine, nlayer, & ! input
                      dataOutLineSTEBBS) ! output
                   IF (StorageHeatMethod == 7) THEN
-                     qs = qs + QS_stebbs * sfr_surf(2) 
-                  END IF 
+                     qs = qs + QS_stebbs * sfr_surf(2)
+                  END IF
                END IF
-            
+
             END ASSOCIATE
          END ASSOCIATE
       END ASSOCIATE
@@ -2350,9 +2349,6 @@ CONTAINS
                state_id_surf = state_id_in
                soilstore_id = soilstore_id_in
 
-               ! tstep_real = tstep*1.D0
-               ! nsh_real = 3600/tstep*1.D0
-
                capStore_surf = 0 !initialise capStore
 
                tlv = lv_J_kg/tstep*1.D0 !Latent heat of vapourisation per timestep
@@ -2711,22 +2707,7 @@ CONTAINS
                                   dectrPrm%wetthresh, grassPrm%wetthresh, bsoilPrm%wetthresh, waterPrm%wetthresh] &
                )
 
-               ! StoreDrainPrm = phenState_next%StoreDrainPrm
-
-               ! state_surf_in = hydroState_prev%state_surf
-               ! soilstore_surf_in = hydroState_prev%soilstore_surf
-               ! state_roof_in = hydroState_prev%state_roof
-               ! soilstore_roof_in = hydroState_prev%soilstore_roof
-               ! state_wall_in = hydroState_prev%state_wall
-               ! soilstore_wall_in = hydroState_prev%soilstore_wall
-
-               ! runoff_per_interval = runoff_per_interval_in
                state_surf = state_surf_in
-               ! soilstore_surf = soilstore_surf_in
-               ! soilstore_id = soilstore_surf_in
-
-               ! nsh_real = 3600/tstep*1.D0
-
                tlv = lv_J_kg/tstep*1.D0 !Latent heat of vapourisation per timestep
 
                pin = MAX(0., Precip) !Initiate rain data [mm]
@@ -3678,31 +3659,6 @@ CONTAINS
    END FUNCTION set_nan
 !========================================================================
 
-!===============the functions below are only for test in f2py conversion===
-   FUNCTION square(x) RESULT(xx)
-      IMPLICIT NONE
-      REAL(KIND(1D0)), PARAMETER :: pNAN = 9999
-      REAL(KIND(1D0)), PARAMETER :: NAN = -999
-      REAL(KIND(1D0)), INTENT(in) :: x
-      REAL(KIND(1D0)) :: xx
-
-      xx = x**2 + nan/pNAN
-      xx = x**2
-
-   END FUNCTION square
-
-   FUNCTION square_real(x) RESULT(xx)
-      IMPLICIT NONE
-      REAL, PARAMETER :: pNAN = 9999
-      REAL, PARAMETER :: NAN = -999
-      REAL, INTENT(in) :: x
-      REAL :: xx
-
-      xx = x**2 + nan/pNAN
-      xx = x**2
-
-   END FUNCTION square_real
-
    SUBROUTINE output_ncolumns(group_name, ncols)
       ! Returns the number of data columns (excluding datetime) for a given output group.
       ! Used by Python tests to verify OUTPUT_REGISTRY matches Fortran array sizes.
@@ -4175,7 +4131,7 @@ CONTAINS
       REAL(KIND(1D0)) :: a3_bsoil ! Dynamic OHM coefficients of bare soil
       REAL(KIND(1D0)) :: a1_water ! Dynamic OHM coefficients of water
       REAL(KIND(1D0)) :: a2_water ! Dynamic OHM coefficients of water
-      REAL(KIND(1D0)) :: a3_water ! Dynamic OHM coefficients of water    
+      REAL(KIND(1D0)) :: a3_water ! Dynamic OHM coefficients of water
       ! ---snow related states
       TYPE(SNOW_STATE) :: snowState
       REAL(KIND(1D0)), INTENT(INOUT) :: SnowfallCum !cumulated snow falling [mm]
@@ -4439,30 +4395,7 @@ CONTAINS
       siteInfo%n_buildings = n_buildings
       siteInfo%h_std = h_std
       siteInfo%lambda_c = lambda_c
-      ! siteInfo%nlayer = nlayer
 
-      ! forcing%kdown = kdown
-      ! forcing%ldown = ldown_obs
-      !forcing%RH = avRh
-      ! forcing%pres = Press_hPa
-      !forcing%U = avU1
-      ! forcing%rain = Precip
-      ! forcing%Wuh = wu_m3
-      ! forcing%fcld = fcld_obs
-      ! forcing%LAI_obs = LAI_obs
-      ! forcing%snowfrac = snowFrac_obs
-      ! forcing%xsmd = xsmd
-      !forcing%qn1_obs = qn1_obs
-      !forcing%qs_obs = qs_obs
-      !forcing%qf_obs = qf_obs
-      ! forcing%Tair_av_5d = Tair_av
-      ! forcing%temp_c = Temp_C
-
-      ! timer%id = id
-      ! timer%imin = imin
-      ! timer%isec = isec
-      ! timer%it = it
-      ! timer%iy = iy
       timer%tstep = tstep
       timer%tstep_prev = tstep_prev
       timer%dt_since_start = dt_since_start
@@ -5047,24 +4980,24 @@ CONTAINS
       ohmState%a1_bldg = 0.0 ! Dynamic OHM coefficients of buildings
       ohmState%a2_bldg = 0.0 ! Dynamic OHM coefficients of buildings
       ohmState%a3_bldg = 0.0 ! Dynamic OHM coefficients of buildings
-      ohmState%a1_paved = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a2_paved = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a3_paved = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a1_evetr = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a2_evetr = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a3_evetr = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a1_dectr = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a2_dectr = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a3_dectr = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a1_grass = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a2_grass = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a3_grass = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a1_bsoil = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a2_bsoil = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a3_bsoil = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a1_water = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a2_water = 0.0 ! Dynamic OHM coefficients 
-      ohmState%a3_water = 0.0 ! Dynamic OHM coefficients       
+      ohmState%a1_paved = 0.0 ! Dynamic OHM coefficients
+      ohmState%a2_paved = 0.0 ! Dynamic OHM coefficients
+      ohmState%a3_paved = 0.0 ! Dynamic OHM coefficients
+      ohmState%a1_evetr = 0.0 ! Dynamic OHM coefficients
+      ohmState%a2_evetr = 0.0 ! Dynamic OHM coefficients
+      ohmState%a3_evetr = 0.0 ! Dynamic OHM coefficients
+      ohmState%a1_dectr = 0.0 ! Dynamic OHM coefficients
+      ohmState%a2_dectr = 0.0 ! Dynamic OHM coefficients
+      ohmState%a3_dectr = 0.0 ! Dynamic OHM coefficients
+      ohmState%a1_grass = 0.0 ! Dynamic OHM coefficients
+      ohmState%a2_grass = 0.0 ! Dynamic OHM coefficients
+      ohmState%a3_grass = 0.0 ! Dynamic OHM coefficients
+      ohmState%a1_bsoil = 0.0 ! Dynamic OHM coefficients
+      ohmState%a2_bsoil = 0.0 ! Dynamic OHM coefficients
+      ohmState%a3_bsoil = 0.0 ! Dynamic OHM coefficients
+      ohmState%a1_water = 0.0 ! Dynamic OHM coefficients
+      ohmState%a2_water = 0.0 ! Dynamic OHM coefficients
+      ohmState%a3_water = 0.0 ! Dynamic OHM coefficients
 
       ! snow related:
       snowState%snowfallCum = SnowfallCum
@@ -5254,7 +5187,7 @@ CONTAINS
       IF (mod_state%flagState%stebbs_bldg_init == 0) THEN
          CALL gen_building(mod_state%stebbsState, siteInfo%stebbs, siteInfo%building_archtype, config, mod_state%stebbsState%buildings(1), nlayer)
          mod_state%flagState%stebbs_bldg_init = 1
-      END IF 
+      END IF
 
       !   allocate output arrays
 
@@ -5283,7 +5216,7 @@ CONTAINS
             timer%dayofWeek_id) !output
 
          ! calculate dayofweek information
-         CALL SUEWS_cal_DLS_DTS( &
+         CALL SUEWS_cal_DLS( &
             timer, ahemisPrm, & !input
             timer%DLS) !output
 
@@ -5520,7 +5453,7 @@ FUNCTION cal_tsfc_dyohm(Temp_in, Qs, K, C, z, nz, T_bottom, dt) RESULT(Temp_out)
     !   Qs          - storage heat flux/conductive heat flux at top [W/m2], positive downward
     !   T_bottom    - fixed temperature of deep ground[°C]
     !   dt          - timestep [s]
-    ! 
+    !
     ! Input:
     !   Temp_in(nz)    - soil temperature profile from previous timestep [°C]
     !
@@ -5548,7 +5481,7 @@ FUNCTION cal_tsfc_dyohm(Temp_in, Qs, K, C, z, nz, T_bottom, dt) RESULT(Temp_out)
     !----------------------------------------------------------
     dz_min = MINVAL(z(2:nz) - z(1:nz-1))
     IF (alpha * dt / (dz_min**2) > 0.5D0) THEN
-        PRINT *, '⚠️ Warning: time step may be too large for stability.'
+        PRINT *, 'Warning: time step may be too large for stability.'
         PRINT '(A,ES12.4,2X,A,I8,2X,A,F8.4)', 'alpha=', alpha, 'dt=', dt, 'dz_min=', dz_min
     END IF
 

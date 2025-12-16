@@ -48,7 +48,7 @@ MODULE SUEWS_Driver
       SUEWS_cal_WaterUse
    USE module_phys_lumps, ONLY: LUMPS_cal_QHQE_DTS
    USE module_phys_evap, ONLY: cal_evap_multi
-   USE module_phys_rslprof, ONLY: RSLProfile, RSLProfile_DTS
+   USE module_phys_rslprof, ONLY: RSLProfile_DTS
    USE module_phys_anthro, ONLY: AnthropogenicEmissions
    USE module_phys_biogenco2, ONLY: CO2_biogen
    USE module_ctrl_const_allocate, ONLY: &

@@ -46,7 +46,7 @@ MODULE SUEWS_Driver
       ReDistributeWater, SUEWS_cal_HorizontalSoilWater, &
       SUEWS_cal_HorizontalSoilWater_DTS, &
       SUEWS_cal_WaterUse
-   USE module_phys_lumps, ONLY: LUMPS_cal_QHQE_DTS
+   USE module_phys_lumps, ONLY: LUMPS_cal_QHQE
    USE module_phys_evap, ONLY: cal_evap_multi
    USE module_phys_rslprof, ONLY: RSLProfile
    USE module_phys_anthro, ONLY: AnthropogenicEmissions
@@ -371,7 +371,7 @@ CONTAINS
 
                !==========================Turbulent Fluxes================================
                IF (Diagnose == 1) WRITE (*, *) 'Calling LUMPS_cal_QHQE...'
-               CALL LUMPS_cal_QHQE_DTS( &
+               CALL LUMPS_cal_QHQE( &
                   timer, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
                IF (config%flag_test .AND. PRESENT(debugState)) THEN

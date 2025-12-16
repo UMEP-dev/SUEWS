@@ -707,38 +707,6 @@ END SUBROUTINE InputHeaderCheck
 !-------------------------------------------------------------------------
 !
 ! TS 05 Jul 2018: No longer needed as interpolation is done through specific subroutines at each required instant
-!Interpolates hourly profiles provided in SUEWS_Profiles.txt
-! to resolution of the model timestep
-! HCW 06 Feb 2015
-!===================================================================================
-! SUBROUTINE SUEWS_InterpHourlyProfiles(Gridiv,TstepP_ID,SurfChar_HrProf)
-!
-!   USE module_ctrl_const_allocate
-!   USE module_ctrl_const_colnames_input
-!   USE module_ctrl_const_sues
-!
-!   IMPLICIT NONE
-!
-!   INTEGER:: i,j, ii   !Used to count over hours and sub-hourly timesteps
-!   INTEGER:: Gridiv, TstepP_ID
-!   INTEGER,DIMENSION(24):: SurfChar_HrProf
-!   REAL(KIND(1d0)):: deltaProf   !Change in hourly profiles per model timestep
-!
-!   ! Copy value for first hour
-!   TstepProfiles(Gridiv,TstepP_ID,1) = SurfaceChar(Gridiv,SurfChar_HrProf(1))
-!   DO i=1,24
-!      j = (i+1)
-!      IF(i == 24) j = 1   !If last hour of day, loop round to first hour of day for interpolation
-!      deltaProf = ((SurfaceChar(Gridiv,SurfChar_HrProf(j)) - SurfaceChar(Gridiv,SurfChar_HrProf(i))))/nsh_real
-!      DO ii=1,nsh
-!         IF((nsh*(i-1)+ii+1) < (23*nsh+nsh+1))  THEN
-!            TstepProfiles(Gridiv,TstepP_ID,(nsh*(i-1)+ii+1)) = SurfaceChar(Gridiv,SurfChar_HrProf(i)) + deltaProf*ii
-!         ENDIF
-!      ENDDO
-!   ENDDO
-!
-! endsubroutine SUEWS_InterpHourlyProfiles
-!===================================================================================
 MODULE module_ctrl_input_profile
    IMPLICIT NONE
 

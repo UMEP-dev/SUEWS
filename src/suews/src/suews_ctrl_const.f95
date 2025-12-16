@@ -1156,7 +1156,7 @@ MODULE module_ctrl_const_datain
               WriteOutOption, & !Choose variables to include in main output file
               NetRadiationMethod, & !Options for net all-wave radiation calculation
               OHMIncQF, & !OHM calculation uses Q* only (0) or Q*+QF (1)
-              StorageHeatMethod, & !OHM (1); QS in met file (2); AnOHM(3); ESTM(4)
+              StorageHeatMethod, & !Observed(0); OHM(1); AnOHM(3); ESTM(4); EHC(5); DyOHM(6); STEBBS(7)
               SnowUse, & !Snow part used (1) or not used (0)
               !  SOLWEIGuse, &           !SOLWEIG part used (calculates Tmrt and other fluxes on a grid, FL)
               SMDMethod, & !Use modelled (0) or observed(1,2) soil moisture
@@ -1226,7 +1226,7 @@ MODULE module_ctrl_const_datain
                       E_mod, & !Modelled latent heat flux with LUMPS  [W m-2]
                       EF_umolCO2perJ, & !CO2 emission factor for fuels used for building heating [umol CO2 J-1]
                       emis_snow, & !Emissivity of snow
-                      EnEF_v_Jkm, & !Heat release per vehicle per meter of travel [J km-1 veh-1]
+                      EnEF_v_Jkm, & !Heat release per vehicle per metre of travel [J km-1 veh-1]
                       EnProfWD, & !Diurnal energy use profile (weekday)
                       EnProfWE, & !Diurnal energy use profile (weekend)
                       Fc, & !CO2 flux [umol m-2 s-1]
@@ -1483,12 +1483,12 @@ END MODULE Thresh
 MODULE module_ctrl_const_gas
    IMPLICIT NONE
    REAL(KIND(1D0)) :: comp = 0.9995
-   REAL(KIND(1D0)) :: epsil = 0.62197 !ratio molecular weight of water vapor/dry air (kg/mol/kg/mol)
-   REAL(KIND(1D0)) :: epsil_gkg = 621.97 !ratio molecular weight of water vapor/dry air in g/kg
+   REAL(KIND(1D0)) :: epsil = 0.62197 !ratio molecular weight of water vapour/dry air (kg/mol/kg/mol)
+   REAL(KIND(1D0)) :: epsil_gkg = 621.97 !ratio molecular weight of water vapour/dry air in g/kg
    REAL(KIND(1D0)) :: dry_gas = 8.31451 !Dry gas constant (J/k/mol)
    REAL(KIND(1D0)) :: gas_ct_wat = 461.05 !Gas constant for water (J/kg/K)
    REAL(KIND(1D0)) :: molar = 0.028965 !Dry air molar fraction in kg/mol
-   REAL(KIND(1D0)) :: molar_wat_vap = 0.0180153 !Molar fraction of water vapor in kg/mol
+   REAL(KIND(1D0)) :: molar_wat_vap = 0.0180153 !Molar fraction of water vapour in kg/mol
    REAL(KIND(1D0)) :: gas_ct_dry = 8.31451/0.028965 !j/kg/k=dry_gas/molar
    REAL(KIND(1D0)) :: gas_ct_wv = 8.31451/0.0180153 !j/kg/kdry_gas/molar_wat_vap
 END MODULE module_ctrl_const_gas
@@ -1506,7 +1506,7 @@ MODULE module_ctrl_const_z
                       z0m_in, & !Aerodynamic roughness length set in SiteSelect
                       zdm_in, & !Displacement height set in SiteSelect
                       z !Windspeed height
-   REAL(KIND(1E10)) :: z0V !Roughness length for vapour
+   REAL(KIND(1D0)) :: z0V !Roughness length for vapour
 END MODULE module_ctrl_const_z
 
 ! Backward compatibility alias

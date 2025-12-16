@@ -2,106 +2,74 @@
 
 This file provides guidance to Claude Code when working with code in this repository.
 
-## ⚠️ CLAUDE.md Protection Active
+## Quick Start
 
-This file is protected against accidental truncation or content loss via pre-commit hook, GitHub Actions, and backup system.
+```bash
+uv venv && source .venv/bin/activate && make dev && make test-smoke
+```
+
+For full setup options, use `/setup-dev` command.
 
 ## Style Guidelines
 
-- **Language**: Use British English for all documentation, code comments, file names, and communication
-  - **Exception**: Technical terms follow scientific computing conventions (e.g., "analyze" not "analyse", following numpy/scipy/matplotlib standard)
-- **No emoji-like characters** in print/logging functions - use only plain ASCII characters
+- **Language**: Use British English for documentation, code comments, file names
+  - Exception: Scientific computing terms follow numpy/scipy conventions (e.g., "analyze")
+- **No emoji-like characters** in print/logging functions - use plain ASCII only
 
-## Common Workflow
+## Testing
 
-**When no .venv detected** (auto-setup pattern):
-```bash
-uv venv                      # Create environment
-source .venv/bin/activate    # Activate
-make dev                     # Install SUEWS in editable mode
-make test                    # Run tests if needed
-```
+- **Default**: Run `make test-smoke` before committing (fast, critical tests ~20s)
+- **Full test**: Run `make test` only when changes affect test files, physics, or data models
 
-For detailed setup options, see `.claude/reference/quick-start.md`
+## Project Structure
 
-## Documentation Structure
-
-- **Developer reference**: `dev-ref/` - Coding guidelines, testing patterns, interfaces
-- **Testing patterns**: `dev-ref/testing/` - Test design, error handling, CI tiers
-- **User documentation**: `docs/` - Sphinx-generated user-facing documentation
-- **Claude Code workspace**: `.claude/` - See `.claude/README.md` for structure
+| Directory | Purpose | Conventions |
+|-----------|---------|-------------|
+| `src/suews/src/` | Fortran source | `.claude/rules/fortran/` |
+| `src/supy/` | Python wrapper | `.claude/rules/python/` |
+| `docs/` | Sphinx documentation | `.claude/rules/docs/` |
+| `test/` | pytest tests | `.claude/rules/tests/` |
 
 ## Documentation Building
 
-**Building documentation**:
 ```bash
-make docs                    # Build HTML documentation (runs Sphinx)
+make docs                    # Build HTML documentation
 cd docs && make livehtml     # Live-reload development server
 ```
 
-**Key documentation points**:
-- Documentation uses Sphinx with reStructuredText and Markdown
-- **Auto-generated files** (DO NOT edit directly):
-  - `docs/source/inputs/yaml/config-reference/` - RST files generated from Pydantic data models
-  - These are rebuilt automatically when running `make docs`
-- **Manually edited files** (safe to modify):
-  - All other files in `docs/source/` including main documentation, guides, tutorials
-  - To change auto-generation logic, modify `docs/generate_datamodel_rst.py`
-- Documentation dependencies included in main environment (`dev` extras)
+**Auto-generated files** (DO NOT edit directly):
+- `docs/source/inputs/yaml/config-reference/` - RST from Pydantic models
+- To change: modify `docs/generate_datamodel_rst.py`
 
-**When modifying documentation**:
-- Edit source files in `docs/source/`
-- Images go in `docs/source/images/` with descriptive names
-- Use cross-references and proper RST/Markdown syntax
-- Run `make docs` locally to check changes before committing
+## Git
 
-## Git and GitHub
-
-- **IMPORTANT**: Always use `origin` as the only git remote for this repository
-- Check remotes: `git remote -v`
-- If multiple remotes exist, remove all except `origin` (git@github.com:UMEP-dev/SUEWS.git)
-
-## Testing Requirements
-
-**IMPORTANT**: Before committing, ALWAYS run `make test`
-
-For benchmark test details and debugging guidance, see `.claude/reference/testing-guide.md`
+- **IMPORTANT**: Always use `origin` as the only remote (`git@github.com:UMEP-dev/SUEWS.git`)
 
 ## Development Reminders
 
-- **Check for existing .venv** with editable supy - if so, use it rather than rebuilding
-- **Include new files in meson.build** when creating source files:
+- Check for existing `.venv` with editable supy before rebuilding
+- Include new source files in `meson.build`:
   - Python files (.py) in `src/supy/`
   - Fortran files (.f90, .f95) in `src/suews/src/`
-- **After conversation compaction**, remember to `source .venv/bin/activate` if venv exists
-- **Documentation generation**: Only modify `generate_datamodel_rst.py` script, not the generated YAML RST files directly
+- After conversation compaction, re-activate: `source .venv/bin/activate`
 
-## Configuration Pattern
+## Claude Code Workspace
 
-When implementing features with configuration objects, follow strict separation of concerns between configuration parsing (high-level) and implementation (low-level).
+See `.claude/README.md` for available skills and commands:
 
-See `.claude/reference/config-patterns.md` for detailed pattern and examples.
+- `/setup-dev` - Environment setup
+- `/lint-code` - Check code style
+- `/audit-pr` - Review pull requests
+- `/log-changes` - Update CHANGELOG
+- `/prep-release` - Prepare releases
 
-## Variable Definition Patterns
+## Rules (Auto-Loaded)
 
-- **Output variables**: Python-only (OUTPUT_REGISTRY in `src/supy/data_model/output/`)
-- **Input configuration**: Dual-source (Fortran + Python Pydantic models)
+Language-specific conventions auto-load based on files being edited:
 
-Use the `apply-patterns` skill for detailed patterns and examples.
-
-## Documentation Principles
-
-Follow DRY (Don't Repeat Yourself) and "Brief Overview Pattern":
-- Main files provide concise overviews
-- Details go in `.claude/reference/`
-- Guides go in `.claude/howto/`
-
-See `.claude/reference/maintenance-principles.md` for complete principles and CHANGELOG rules.
-
-## Quick Reference
-
-**Environment setup**: `.claude/reference/quick-start.md`
-**Testing guide**: `.claude/reference/testing-guide.md`
-**Config patterns**: `.claude/reference/config-patterns.md`
-**Maintenance principles**: `.claude/reference/maintenance-principles.md`
-**Claude workspace**: `.claude/README.md`
+- `.claude/rules/00-project-essentials.md` - Always loaded
+- `.claude/rules/fortran/` - When editing Fortran files
+- `.claude/rules/python/` - When editing Python files
+- `.claude/rules/docs/` - When editing documentation
+- `.claude/rules/tests/` - When editing tests
+- `.claude/rules/changelog/` - When editing CHANGELOG.md

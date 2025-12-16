@@ -287,6 +287,12 @@
   - Improved validation for complex nested arrays in vertical layers configuration
 
 ### 16 Oct 2025
+- [feature] Added wind speed height correction for EPW data handling (#149)
+  - Introduced `correct_wind_height()` utility function in `supy.util._atm` for logarithmic wind profile corrections
+  - Enhanced `read_epw()` with optional `wind_height` and `z0m` parameters for automatic height adjustment
+  - Extended `convert_UMEPf2epw()` with height correction parameters to properly handle non-standard measurement heights
+  - Addresses issue where EPW standard height (10 m) differs from SUEWS forcing height configuration
+  - Comprehensive test coverage for height correction functionality
 - [bugfix] Fixed Sphinx configuration errors preventing ReadTheDocs builds (648a83b)
   - Defined path_source variable before use in RTD build section
   - Converted rst_prolog to raw f-string to fix escape sequence warnings

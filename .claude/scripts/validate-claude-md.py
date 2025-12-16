@@ -10,27 +10,34 @@ import hashlib
 import json
 from datetime import datetime
 
-# Critical sections that must be preserved (updated for tightened structure)
+# Critical sections that must be preserved (updated for rules-based structure)
 CRITICAL_SECTIONS = [
-    "## ⚠️ CLAUDE.md Protection Active",
+    "## Quick Start",
     "## Style Guidelines",
-    "## Common Workflow",
-    "## Documentation Structure",
-    "## Git and GitHub",
-    "## Testing Requirements",
+    "## Testing",
+    "## Project Structure",
+    "## Documentation Building",
+    "## Git",
     "## Development Reminders",
-    "## Configuration Pattern",
-    "## Documentation Principles",
-    "## Quick Reference",
+    "## Claude Code Workspace",
+    "## Rules (Auto-Loaded)",
 ]
 
-# Required skill files that contain detailed content (updated after directory refactor)
-# Skills are now the single source of truth for detailed documentation
+# Required skill files that contain detailed content
+# These are the core skills that must exist for CLAUDE.md to function properly
 REQUIRED_SKILL_FILES = [
-    ".claude/skills/setup-dev/SKILL.md",  # Environment setup (was quick-start.md)
-    ".claude/skills/design-tests/SKILL.md",  # Testing patterns (was testing-guide.md)
-    ".claude/skills/apply-patterns/SKILL.md",  # Config patterns + maintenance (was config-patterns.md, maintenance-principles.md)
+    ".claude/skills/setup-dev/SKILL.md",  # Environment setup
     ".claude/skills/lint-code/SKILL.md",  # Code style conventions
+]
+
+# Required rule files (auto-loaded conventions)
+REQUIRED_RULE_FILES = [
+    ".claude/rules/00-project-essentials.md",
+    ".claude/rules/fortran/conventions.md",
+    ".claude/rules/python/conventions.md",
+    ".claude/rules/docs/conventions.md",
+    ".claude/rules/tests/patterns.md",
+    ".claude/rules/changelog/format.md",
 ]
 
 # Suspicious placeholder patterns that indicate content loss
@@ -96,6 +103,16 @@ def check_file_integrity(filepath: Path) -> dict:
     if missing_skills:
         warnings.append(f"Missing skill files: {', '.join(missing_skills)}")
 
+    # Check that required rule files exist
+    missing_rules = []
+    for rule_file in REQUIRED_RULE_FILES:
+        rule_path = filepath.parent / rule_file
+        if not rule_path.exists():
+            missing_rules.append(rule_file)
+
+    if missing_rules:
+        warnings.append(f"Missing rule files: {', '.join(missing_rules)}")
+
     # Calculate content hash for tracking changes
     content_hash = hashlib.sha256(content.encode()).hexdigest()
 
@@ -109,10 +126,10 @@ def check_file_integrity(filepath: Path) -> dict:
         "timestamp": datetime.now().isoformat(),
     }
 
-    # Check minimum content thresholds (updated for intentionally tightened structure)
-    # CLAUDE.md is now a brief overview (~75 lines) with references to detailed docs
+    # Check minimum content thresholds (updated for rules-based structure)
+    # CLAUDE.md is now a brief overview (~75 lines) with references to rules/
     MIN_LINES = 60  # CLAUDE.md should have at least this many lines
-    MIN_CHARS = 2500  # And this many characters
+    MIN_CHARS = 2400  # And this many characters (reduced for slimmer file)
 
     if stats["lines"] < MIN_LINES:
         warnings.append(
@@ -200,6 +217,7 @@ def main():
         print("\n✅ CLAUDE.md appears intact!")
         print("  No placeholder text detected")
         print("  All critical sections present")
+        print("  All required rule files present")
         return 0
 
 

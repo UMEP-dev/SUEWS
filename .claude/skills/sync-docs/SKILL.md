@@ -177,10 +177,183 @@ ISSUE: New output variable not documented
   Docs: Output reference missing QF_traff description
 ```
 
+---
+
+## Comprehensive Data Model Alignment Checks
+
+### 7. Pydantic Field Registry (Exhaustive)
+
+**Systematically check ALL Pydantic fields** in `src/supy/data_model/core/`:
+
+#### Core Model Files to Check
+
+| File | Models | Fields to Verify |
+|------|--------|------------------|
+| `config.py` | `SUEWSConfig` | All top-level config fields |
+| `site.py` | `Site`, `SiteProperties`, `*Properties` | All site/vegetation fields |
+| `surface.py` | `PavedProperties`, `BldgsProperties`, `EvetrProperties`, `DectrProperties`, `GrassProperties`, `BsoilProperties`, `WaterProperties`, `ThermalLayers`, `VerticalLayers` | All surface parameters |
+| `model.py` | `Model`, `ModelPhysics`, `ModelControl` | All physics method fields |
+| `state.py` | `InitialStates` | All state variables |
+| `human_activity.py` | `AnthropogenicEmissions`, `AnthropogenicHeat`, `CO2Params`, `IrrigationParams` | All activity fields |
+| `hydro.py` | `WaterDistribution`, `StorageDrainParams` | All hydrology fields |
+| `ohm.py` | `OHM_Coefficient_season_wetness` | All OHM coefficient fields |
+| `profile.py` | `DayProfile`, `WeeklyProfile`, `HourlyProfile` | All profile fields |
+
+#### For Each Pydantic Field, Verify
+
+1. **Field Name**: Matches Fortran variable name convention
+2. **Type**: Correct Python type annotation
+3. **Default Value**: Matches Fortran PARAMETER or initialisation
+4. **Unit** (`json_schema_extra["unit"]`): Matches Fortran comment `! [unit]`
+5. **Description** (`description=`): Accurate and complete
+6. **Validators**: Range constraints match code logic
+7. **Required vs Optional**: Correctly marked
+
+```
+ISSUE: Missing unit in Pydantic field
+  File: surface.py
+  Field: BldgsProperties.building_height
+  Expected: unit="m" in json_schema_extra
+  Found: No unit specified
+
+ISSUE: Default mismatch
+  File: model.py
+  Field: ModelPhysics.ohmincqf
+  Pydantic default: 1
+  Fortran default: OHMIncQF = 0  ! in suews_ctrl_const.f95
+```
+
+### 8. Output Variable Registry (Exhaustive)
+
+**Check ALL variables** in `src/supy/data_model/output/`:
+
+#### Output Variable Files
+
+| File | Variable Group | Fortran Source |
+|------|---------------|----------------|
+| `datetime_vars.py` | DATETIME | N/A (Python-only) |
+| `suews_vars.py` | SUEWS | `suews_phys_*.f95` outputs |
+| `snow_vars.py` | SNOW | `suews_phys_snow.f95` |
+| `estm_vars.py` | ESTM | `suews_phys_estm.f95` |
+| `rsl_vars.py` | RSL | `suews_phys_rslprof.f95` |
+| `dailystate_vars.py` | DAILYSTATE | `suews_phys_dailystate.f95` |
+| `bl_vars.py` | BL | `suews_phys_bluews.f95` |
+| `beers_vars.py` | BEERS | `suews_phys_beers.f95` |
+| `debug_vars.py` | DEBUG | Various modules |
+| `ehc_vars.py` | EHC | `suews_phys_ehc.f95` |
+| `spartacus_vars.py` | SPARTACUS | `suews_phys_spartacus.f95` |
+| `stebbs_vars.py` | STEBBS | `suews_phys_stebbs.f95` |
+| `nhood_vars.py` | NHOOD | Neighbourhood calculations |
+
+#### For Each Output Variable, Verify
+
+1. **name**: Matches Fortran output array column
+2. **unit**: Matches Fortran `! [unit]` comment
+3. **description**: Accurate physics description
+4. **aggregation**: Correct method (AVERAGE/SUM/LAST/TIME)
+5. **group**: Correct OutputGroup assignment
+6. **level**: Appropriate OutputLevel (DEFAULT/EXTENDED/SNOW_DETAILED)
+
+```
+ISSUE: Unit mismatch in output variable
+  File: suews_vars.py
+  Variable: QH
+  Python unit: "W m-2"
+  Fortran comment: ! [W/m2]  (equivalent, OK)
+
+ISSUE: Missing output variable
+  Fortran: REAL :: QF_traff  ! Traffic anthropogenic heat [W m-2]
+  Python: Not in SUEWS_VARIABLES list
+  Docs: Not documented
+
+ISSUE: Description mismatch
+  Variable: QS
+  Python: "Net storage heat flux"
+  Docs: "Storage heat flux into the substrate"
+  Fortran: ! Storage heat flux [W m-2]
+```
+
+### 9. Fortran-Python Parameter Cross-Reference
+
+**For each physics module**, verify alignment:
+
+#### Parameter Declaration Alignment
+
+| Python Location | Fortran Location | Check |
+|----------------|------------------|-------|
+| `ModelPhysics.storageheatmethod` | `suews_ctrl_const.f95::StorageHeatMethod` | Values match |
+| `SurfaceProperties.alb` | `suews_data.f95::alb` | Default matches |
+| `OHM_Coefficient_season_wetness.a1` | `suews_phys_ohm.f95::a1` | Type matches |
+
+#### Method/Scheme Option Alignment
+
+For each physics scheme option:
+1. Python Enum values match Fortran INTEGER constants
+2. Documentation describes all valid options
+3. Default option consistent across all three
+
+```
+ISSUE: Scheme option mismatch
+  Physics: StorageHeatMethod
+  Python enum: [1, 2, 3, 4]
+  Fortran constants: [1, 2, 3, 4, 5]  ! New option 5 added
+  Docs: Only mentions options 1-3
+```
+
+### 10. Enum Alignment (All Enums)
+
+**Check ALL enums** in data model against code:
+
+| Python Enum | Fortran Location | Doc Location |
+|-------------|------------------|--------------|
+| `OutputGroup` | N/A (Python-only) | Output files docs |
+| `OutputLevel` | N/A (Python-only) | Output files docs |
+| `AggregationMethod` | N/A (Python-only) | Output files docs |
+| `SurfaceType` | `suews_ctrl_const.f95` | Input parameter docs |
+| `TimezoneOffset` | N/A (Python-only) | Configuration docs |
+| Various `*Method` enums | `suews_ctrl_const.f95` | Parameterisation docs |
+
+```
+ISSUE: Enum value missing in documentation
+  Enum: StorageHeatMethod
+  Value: 4 (EHC)
+  Docs: Only describes methods 1-3
+```
+
+### 11. Unit Consistency Across Sources
+
+**Unit notation conventions**:
+
+| Style | Example | Use In |
+|-------|---------|--------|
+| ASCII superscript | `W m^-2` | Pydantic json_schema_extra |
+| Minus sign | `W m-2` | Output variables |
+| Slash | `W/m2` | Fortran comments |
+
+**All three are equivalent but should be normalised for comparison.**
+
+Cross-check units between:
+1. Fortran `! [unit]` comments
+2. Pydantic `json_schema_extra["unit"]`
+3. OutputVariable `unit` field
+4. Documentation descriptions
+
+```
+ISSUE: Unit notation inconsistency
+  Variable: QN
+  Fortran: ! [W/m2]
+  Python output: "W m-2"
+  Pydantic field: "W m^-2"
+  Docs: "W/m²"
+  Status: Equivalent (OK) but consider normalising
+```
+
+---
+
 ## Output Format
 
 ```
-[check-docs] Documentation-Code Consistency
+[sync-docs] Documentation-Code Consistency Report
 
 === Scientific Documentation ===
   parameterisations-and-sub-models.rst:
@@ -197,40 +370,145 @@ ISSUE: New output variable not documented
     Missing field: spartacus_enabled
     Default mismatch: scheme (docs: K75, code: W16)
 
+=== Pydantic Data Model ===
+  core/surface.py:
+    BldgsProperties.building_height: Missing unit in json_schema_extra
+    ThermalLayers.k: Unit should be "W m^-1 K^-1"
+  core/model.py:
+    ModelPhysics.ohmincqf: Default mismatch (Python: 1, Fortran: 0)
+
+=== Output Variable Registry ===
+  output/suews_vars.py:
+    QF_traff: Missing from registry (exists in Fortran)
+    T2: Description differs from Fortran comment
+  output/spartacus_vars.py:
+    SWup_sky: Unit "W m-2" should match docs "W/m²"
+
+=== Fortran-Python Alignment ===
+  StorageHeatMethod: Python missing option 5
+  DiagMethod: Fortran default 0, Pydantic default 1
+
 === Build Documentation ===
   README.md:
     L34: 'make install-dev' should be 'make dev'
 
-Summary: 6 issues (2 critical, 4 minor)
+Summary: 14 issues (4 critical, 6 high, 4 medium)
 ```
+
+---
 
 ## Verification Commands
 
+### List All Pydantic Fields
+
 ```bash
-# Check for undocumented Pydantic fields
-grep -r "Field(" src/supy/data_model/ | # count fields
-grep -r "^\.\. " docs/source/inputs/yaml/ | # count documented
+# Count fields in each core model file
+for f in src/supy/data_model/core/*.py; do
+  echo "=== $f ==="
+  grep -c "Field(" "$f" 2>/dev/null || echo "0"
+done
 
-# Check output variable documentation
-grep -r "df_output\[" src/supy/ | # find output columns
-grep -r "^-" docs/source/output_files/ | # find documented outputs
-
-# Check Makefile targets
-grep "^[a-z]*:" Makefile | # list targets
-grep "make " README.md docs/ | # find documented commands
+# Find fields missing units
+grep -n "Field(" src/supy/data_model/core/*.py | grep -v "json_schema_extra"
 ```
+
+### List All Output Variables
+
+```bash
+# Count variables in each output file
+for f in src/supy/data_model/output/*_vars.py; do
+  echo "=== $f ==="
+  grep -c "OutputVariable(" "$f" 2>/dev/null || echo "0"
+done
+
+# List all variable names
+grep "name=" src/supy/data_model/output/*_vars.py | sed 's/.*name="\([^"]*\)".*/\1/'
+```
+
+### Compare Fortran and Python Defaults
+
+```bash
+# Find Fortran PARAMETER declarations
+grep -r "PARAMETER" src/suews/src/*.f95 | grep -v "^!" | head -20
+
+# Find Fortran default assignments
+grep -r "= [0-9]" src/suews/src/suews_ctrl_const.f95 | grep -v "^!"
+
+# Find Pydantic defaults
+grep -n "default=" src/supy/data_model/core/*.py
+```
+
+### Check Unit Consistency
+
+```bash
+# Fortran unit comments
+grep -r "! \[" src/suews/src/*.f95 | head -30
+
+# Python json_schema_extra units
+grep -n '"unit":' src/supy/data_model/core/*.py
+
+# Output variable units
+grep 'unit="' src/supy/data_model/output/*_vars.py
+```
+
+### Check Enum Alignment
+
+```bash
+# Python enums
+grep -r "class.*Enum" src/supy/data_model/
+
+# Fortran integer constants (potential enum values)
+grep -r "INTEGER.*PARAMETER" src/suews/src/suews_ctrl_const.f95
+```
+
+---
 
 ## Priority
 
 1. **Critical**: Scientific equation/parameter mismatches
 2. **Critical**: API signature changes not reflected in docs
-3. **High**: Configuration default mismatches
-4. **Medium**: Missing documentation for new features
-5. **Low**: Formatting/style inconsistencies
+3. **Critical**: Output variable missing from registry
+4. **High**: Configuration default mismatches
+5. **High**: Missing physics method in enum
+6. **Medium**: Missing documentation for new features
+7. **Medium**: Unit notation inconsistency
+8. **Low**: Description wording differences
+9. **Low**: Formatting/style inconsistencies
+
+---
+
+## Programmatic Validation (Python)
+
+For comprehensive validation, run this check in the activated environment:
+
+```python
+# Quick validation script
+from supy.data_model.output import OUTPUT_REGISTRY
+from supy.data_model.core import SUEWSConfig
+
+# Check output registry
+print(f"Total output variables: {len(OUTPUT_REGISTRY.variables)}")
+for group in ["SUEWS", "SNOW", "ESTM", "RSL", "BEERS", "SPARTACUS", "STEBBS"]:
+    vars_in_group = [v for v in OUTPUT_REGISTRY.variables if v.group == group]
+    print(f"  {group}: {len(vars_in_group)} variables")
+
+# Check for missing units in output variables
+missing_units = [v.name for v in OUTPUT_REGISTRY.variables if not v.unit]
+if missing_units:
+    print(f"Variables missing units: {missing_units}")
+
+# Validate SUEWSConfig schema
+schema = SUEWSConfig.model_json_schema()
+print(f"Config schema has {len(schema.get('properties', {}))} top-level fields")
+```
+
+---
 
 ## Notes
 
 - Run after any physics module changes
 - Run before releases
-- Auto-generated docs (`docs/source/inputs/yaml/config-reference/`) sync automatically
+- Auto-generated docs (`docs/source/inputs/yaml/config-reference/`) sync automatically via `generate_datamodel_rst.py`
 - Focus on manually-written documentation
+- When adding new Pydantic fields, always include `json_schema_extra={"unit": "..."}` for physical quantities
+- Output variables are Python-only (not extracted from Fortran at runtime)

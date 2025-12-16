@@ -276,3 +276,84 @@ Common validation errors:
 - Missing vegetation parameters when vegetation surfaces are present
 
 
+FcPhoto (Photosynthesis Flux) Near Zero in Summer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Problem**: FcPhoto values become close to 0 during the growing season (summer months) when they should be at their highest.
+
+**Cause**: This typically occurs when using SMD (Soil Moisture Deficit) method 0 with improper soil moisture initialization or parameters, leading to severe water stress that shuts down photosynthesis.
+
+**Background**: The photosynthesis flux (FcPhoto) is regulated by several environmental stress factors:
+
+- **g_dq**: Vapour pressure deficit stress
+- **g_ta**: Temperature stress  
+- **g_smd**: Soil moisture stress
+- **g_kdown**: Light stress
+
+These are combined into a total stress factor: ``gfunc = g_dq × g_ta × g_smd × g_kdown``
+
+When using SMD method 0 (modelled soil moisture), the soil water balance is calculated internally. If the soil moisture becomes too low, ``g_smd`` approaches 0, causing ``FcPhoto`` to approach 0.
+
+**Solutions**:
+
+1. **Switch to SMD method 1 or 2** (recommended if you have observed soil moisture data):
+   
+   In your YAML configuration::
+   
+       smd_method: {value: 1}  # Use observed volumetric soil moisture
+       # or
+       smd_method: {value: 2}  # Use observed gravimetric soil moisture
+   
+   This requires providing soil moisture data in your forcing file.
+
+2. **If using SMD method 0**, check and adjust:
+   
+   a. **Initial soil moisture states** - ensure reasonable starting values::
+   
+       initial_conditions:
+         soilstore_bldgs: {value: 50.0}  # Not too low
+         soilstore_paved: {value: 50.0}
+         soilstore_evetr: {value: 100.0}
+         soilstore_dectr: {value: 100.0}
+         soilstore_grass: {value: 80.0}
+         soilstore_bsoil: {value: 60.0}
+   
+   b. **Soil capacity parameters** - verify they match your site::
+   
+       soil:
+         bldgs:
+           soilstorecap: {value: 150.0}  # mm
+         paved:
+           soilstorecap: {value: 150.0}
+         # ... similar for other surfaces
+   
+   c. **Soil moisture stress parameters**::
+   
+       vegetation:
+         s1: {value: 5.56}   # Wilting point threshold (mm)
+         s2: {value: 100.0}  # Capacity threshold (mm)
+         g_sm: {value: 3.5}  # Soil moisture sensitivity
+   
+   d. **Enable irrigation** if appropriate for your site::
+   
+       water_use:
+         method: {value: 1}  # Enable irrigation
+         # Configure irrigation parameters
+
+**Diagnostic Steps**:
+
+1. Check the daily state output for soil moisture values
+2. Plot SMD alongside precipitation and FcPhoto
+3. Look for correlation between rain events and FcPhoto spikes
+4. Verify that LAI values are reasonable for the vegetation present
+
+**Example**: If FcPhoto only appears briefly after rain events, this confirms severe water stress is limiting photosynthesis between precipitation.
+
+**Prevention**: When setting up a new simulation:
+
+- Use realistic initial soil moisture (not 0 or very low values)
+- Consider seasonal variation in soil parameters
+- If modelling urban areas, account for irrigation
+- Validate soil parameters against local measurements if available
+
+

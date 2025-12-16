@@ -1,14 +1,30 @@
 "Value","Comments"
 0,"
-SMD modelled using parameters specified in `SUEWS_Soil.txt`.
-|Recmd|"
+SMD modelled using water balance and parameters specified in `SUEWS_Soil.txt`.
+The model calculates soil moisture deficit based on precipitation, evapotranspiration, and runoff.
+|Recmd| for sites without soil moisture observations.
+
+**Important considerations:**
+- Requires proper initialization of soil moisture states (soilstore_id values)
+- Initial values that are too low can lead to severe water stress
+- May cause FcPhoto to approach zero in summer if not properly configured
+- Consider enabling irrigation (WaterUseMethod) for urban areas
+- See troubleshooting guide if FcPhoto values are unexpectedly low
+"
 1,"
 Observed SM provided in the meteorological forcing file is used.
-Data are provided as volumetric soil moisture content.
+Data are provided as volumetric soil moisture content [|m^3| |m^-3|].
 Metadata must be provided in `SUEWS_Soil.txt`.
+
+**Advantages:**
+- Bypasses internal soil water balance calculations
+- More reliable for sites with good soil moisture measurements
+- Recommended solution if FcPhoto issues occur with method 0
 "
 2,"
 Observed SM provided in the meteorological forcing file is used.
-Data are provided as gravimetric soil moisture content.
+Data are provided as gravimetric soil moisture content [kg |kg^-1|].
 Metadata must be provided in `SUEWS_Soil.txt`.
+
+**Note:** The model will convert gravimetric to volumetric content using soil bulk density.
 "

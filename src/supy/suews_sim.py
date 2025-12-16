@@ -5,6 +5,7 @@ Modern, object-oriented interface for SUEWS urban climate model simulations.
 Provides a user-friendly wrapper around the existing SuPy infrastructure.
 """
 
+import copy
 from pathlib import Path, PurePosixPath
 from typing import Any, Optional, Union
 import warnings
@@ -18,6 +19,10 @@ from ._supy_module import _save_supy
 from .data_model import RefValue
 from .data_model.core import SUEWSConfig
 from .util._io import read_forcing
+
+# Import new OOP classes
+from .suews_forcing import SUEWSForcing
+from .suews_output import SUEWSOutput
 
 # Constants
 DEFAULT_OUTPUT_FREQ_SECONDS = 3600  # Default hourly output frequency
@@ -203,19 +208,20 @@ class SUEWSSimulation:
         recursive_update(self._config, updates)
 
     def update_forcing(
-        self, forcing_data: Union[str, Path, list, pd.DataFrame]
+        self, forcing_data: Union[str, Path, list, pd.DataFrame, SUEWSForcing]
     ) -> "SUEWSSimulation":
         """
         Update meteorological forcing data.
 
         Parameters
         ----------
-        forcing_data : str, Path, list of paths, or pandas.DataFrame
+        forcing_data : str, Path, list of paths, pandas.DataFrame, or SUEWSForcing
             Forcing data source:
             - Path to a single forcing file
             - List of paths to forcing files (concatenated in order)
             - Path to directory containing forcing files (deprecated)
             - DataFrame with forcing data
+            - SUEWSForcing object
 
         Returns
         -------
@@ -227,11 +233,14 @@ class SUEWSSimulation:
         >>> sim.update_forcing("forcing_2023.txt")
         >>> sim.update_forcing(["forcing_2023.txt", "forcing_2024.txt"])
         >>> sim.update_forcing(df_forcing)
+        >>> sim.update_forcing(SUEWSForcing.from_file("forcing.txt"))
         >>> sim.update_config(cfg).update_forcing(forcing).run()
         """
         if isinstance(forcing_data, RefValue):
             forcing_data = forcing_data.value
-        if isinstance(forcing_data, pd.DataFrame):
+        if isinstance(forcing_data, SUEWSForcing):
+            self._df_forcing = forcing_data.df.copy()
+        elif isinstance(forcing_data, pd.DataFrame):
             self._df_forcing = forcing_data.copy()
         elif isinstance(forcing_data, list):
             # Handle list of files
@@ -384,7 +393,7 @@ class SUEWSSimulation:
         else:
             return read_forcing(str(forcing_path))
 
-    def run(self, start_date=None, end_date=None, **run_kwargs) -> pd.DataFrame:
+    def run(self, start_date=None, end_date=None, **run_kwargs) -> SUEWSOutput:
         """
         Run SUEWS simulation.
 
@@ -409,8 +418,10 @@ class SUEWSSimulation:
 
         Returns
         -------
-        pandas.DataFrame
-            Simulation results with MultiIndex columns (group, variable).
+        SUEWSOutput
+            Simulation results wrapped in an OOP interface with analysis
+            and plotting convenience methods. Access raw DataFrame via
+            ``.to_dataframe()`` or ``.df``.
 
         Raises
         ------
@@ -422,6 +433,14 @@ class SUEWSSimulation:
         The simulation runs with fixed internal settings. For advanced control
         over simulation parameters, consider using the lower-level functional
         API (though it is deprecated).
+
+        Examples
+        --------
+        >>> sim = SUEWSSimulation.from_sample_data()
+        >>> output = sim.run()
+        >>> output.QH  # Access sensible heat flux
+        >>> output.diurnal_average("QH")  # Get diurnal pattern
+        >>> output.to_dataframe()  # Get raw DataFrame
         """
         # Validate inputs
         if self._df_state_init is None:
@@ -456,7 +475,13 @@ class SUEWSSimulation:
         self._df_state_final = result[1]
 
         self._run_completed = True
-        return self._df_output
+
+        # Wrap results in SUEWSOutput
+        return SUEWSOutput(
+            df_output=self._df_output,
+            df_state_final=self._df_state_final,
+            config=self._config,
+        )
 
     def save(
         self, output_path: Optional[Union[str, Path]] = None, **save_kwargs
@@ -772,6 +797,52 @@ class SUEWSSimulation:
 
         return sim
 
+    @classmethod
+    def from_output(cls, output: SUEWSOutput) -> "SUEWSSimulation":
+        """Create SUEWSSimulation from previous output for continuation runs.
+
+        Convenience method that extracts the final state from a SUEWSOutput
+        object and creates a new simulation ready for continuation.
+
+        Parameters
+        ----------
+        output : SUEWSOutput
+            Output object from a previous simulation run.
+
+        Returns
+        -------
+        SUEWSSimulation
+            Simulation instance initialised with final state from output,
+            ready for new forcing data and run.
+
+        Examples
+        --------
+        Seamless continuation from previous run:
+
+        >>> # Run first period
+        >>> sim1 = SUEWSSimulation("config.yaml")
+        >>> sim1.update_forcing("forcing_2023.txt")
+        >>> output1 = sim1.run()
+
+        >>> # Continue from output state
+        >>> sim2 = SUEWSSimulation.from_output(output1)
+        >>> sim2.update_forcing("forcing_2024.txt")
+        >>> output2 = sim2.run()
+
+        See Also
+        --------
+        from_state : Create from saved state file or DataFrame
+        SUEWSOutput.state_final : Final state property for restart
+        """
+        df_state_init = output.state_final
+        sim = cls()
+        sim._df_state_init = df_state_init
+        # Deep copy config to avoid shared state issues
+        if output.config is not None:
+            sim._config = copy.deepcopy(output.config)
+
+        return sim
+
     def __repr__(self) -> str:
         """Concise representation showing simulation status.
 
@@ -984,25 +1055,34 @@ class SUEWSSimulation:
         return self._config
 
     @property
-    def forcing(self) -> Optional[pd.DataFrame]:
-        """Access to forcing data DataFrame.
+    def forcing(self) -> Optional[SUEWSForcing]:
+        """Access to forcing data as SUEWSForcing object.
 
         Returns
         -------
-        pandas.DataFrame or None
-            Meteorological forcing data with required variables.
-            None if no forcing loaded.
+        SUEWSForcing or None
+            Meteorological forcing data wrapped in OOP interface with
+            validation and analysis methods. None if no forcing loaded.
 
         See Also
         --------
         :ref:`df_forcing_var` : Complete forcing data structure and variable descriptions
         update_forcing : Load forcing data from files or DataFrames
+
+        Examples
+        --------
+        >>> sim = SUEWSSimulation.from_sample_data()
+        >>> sim.forcing.summary()  # Get forcing statistics
+        >>> sim.forcing.Tair  # Access air temperature
+        >>> sim.forcing.df  # Access raw DataFrame
         """
-        return self._df_forcing
+        if self._df_forcing is None:
+            return None
+        return SUEWSForcing(self._df_forcing)
 
     @property
     def results(self) -> Optional[pd.DataFrame]:
-        """Access to simulation results DataFrame.
+        """Access to simulation results DataFrame (raw).
 
         Returns
         -------
@@ -1012,11 +1092,45 @@ class SUEWSSimulation:
 
         See Also
         --------
+        output : Access results as SUEWSOutput object with analysis methods
         :ref:`df_output_var` : Complete output data structure and variable descriptions
         get_variable : Extract specific variables from output groups
         save : Save results to files
         """
         return self._df_output
+
+    @property
+    def output(self) -> Optional[SUEWSOutput]:
+        """Access to simulation results as SUEWSOutput object.
+
+        Returns
+        -------
+        SUEWSOutput or None
+            Simulation results wrapped in OOP interface with analysis
+            and plotting convenience methods. None if simulation hasn't
+            been run yet.
+
+        See Also
+        --------
+        results : Access raw DataFrame directly
+        run : Run simulation and return SUEWSOutput
+        :ref:`df_output_var` : Complete output data structure
+
+        Examples
+        --------
+        >>> sim = SUEWSSimulation.from_sample_data()
+        >>> sim.run()
+        >>> sim.output.QH  # Access sensible heat flux
+        >>> sim.output.diurnal_average("QH")  # Get diurnal pattern
+        >>> sim.output.energy_balance_closure()  # Analyse energy balance
+        """
+        if self._df_output is None:
+            return None
+        return SUEWSOutput(
+            df_output=self._df_output,
+            df_state_final=self._df_state_final,
+            config=self._config,
+        )
 
     @property
     def state_init(self) -> Optional[pd.DataFrame]:

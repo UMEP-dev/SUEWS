@@ -59,7 +59,8 @@ MODULE module_ctrl_const_allocate
    REAL(KIND(1D0)), DIMENSION(nsurf) :: sfr_surf !Surface fractions [-]
 
    ! STEBBS Related
-   INTEGER, PARAMETER :: nbtypes = 1 ! Number of building archetypes. TODO: Make dynamic
+   INTEGER, PARAMETER :: nbtypes_max = 10 ! Maximum number of building archetypes [-] (GH#360)
+   INTEGER :: nbtypes = 1 ! Number of building archetypes, set dynamically from config [-] (GH#360)
 
    ! ---- Set number of columns in input files ----------------------------------------------------
    INTEGER, PARAMETER :: ncolumnsSiteSelect = 105 !SUEWS_SiteSelect.txt

@@ -1023,6 +1023,9 @@ CONTAINS
                                SUEWS_CONFIG, CONDUCTANCE_PRM, SUEWS_FORCING, &
                                SUEWS_TIMER, PHENOLOGY_STATE, SNOW_STATE, atm_state, &
                                anthroEmis_STATE, HYDRO_STATE, SUEWS_STATE
+      USE module_ctrl_const_allocate, ONLY: nsurf, NVegSurf, &
+                               ivConif, ivDecid, ivGrass, &
+                               ConifSurf, DecidSurf, GrassSurf, BSoilSurf
       USE CO2_module, ONLY: CO2_biogen
       USE resist_module, ONLY: SurfaceResistance
       USE AtmMoistStab_module, ONLY: cal_AtmMoist
@@ -1048,19 +1051,14 @@ CONTAINS
       REAL(KIND(1D0)) :: dummy7 !Vap density or absolute humidity [kg m-3]
       REAL(KIND(1D0)) :: dummy8 !specific heat capacity [J kg-1 K-1]
       REAL(KIND(1D0)) :: dummy9 !Air density [kg m-3]
-      REAL(KIND(1D0)) :: dummy10 !Surface Layer Conductance [mm s-1]
-      REAL(KIND(1D0)) :: dummy11 !Surface resistance [s m-1]
-
-      ! Constants for surface IDs
-      INTEGER, PARAMETER :: ivConif = 1
-      INTEGER, PARAMETER :: ivDecid = 2
-      INTEGER, PARAMETER :: ivGrass = 3
-      INTEGER, PARAMETER :: NVegSurf = 3
-      INTEGER, PARAMETER :: nsurf = 7
-      INTEGER, PARAMETER :: ConifSurf = 3
-      INTEGER, PARAMETER :: DecidSurf = 4
-      INTEGER, PARAMETER :: GrassSurf = 5
-      INTEGER, PARAMETER :: BSoilSurf = 6
+      ! Unused outputs from SurfaceResistance (distinct variables to avoid compiler warnings)
+      REAL(KIND(1D0)) :: unused_gs      ! Surface conductance [mm s-1]
+      REAL(KIND(1D0)) :: unused_gc1     ! Conductance component 1 [mm s-1]
+      REAL(KIND(1D0)) :: unused_gc2     ! Conductance component 2 [mm s-1]
+      REAL(KIND(1D0)) :: unused_gc3     ! Conductance component 3 [mm s-1]
+      REAL(KIND(1D0)) :: unused_gc4     ! Conductance component 4 [mm s-1]
+      REAL(KIND(1D0)) :: unused_gc5     ! Conductance component 5 [mm s-1]
+      REAL(KIND(1D0)) :: unused_rs      ! Surface resistance [s m-1]
 
       ASSOCIATE ( &
          atmState => modState%atmState, &
@@ -1165,8 +1163,8 @@ CONTAINS
                         SMDMethod, SnowFrac, sfr_surf, avkdn, t2, dq, xsmd, vsmd, MaxConductance, &
                         LAIMax, LAI_id, gsModel, Kmax, &
                         G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, &
-                        dummy10, dummy10, dummy10, dummy10, dummy10, & ! output: (unused conductances)
-                        gfunc2, dummy10, dummy11) ! output:
+                        unused_gc1, unused_gc2, unused_gc3, unused_gc4, unused_gc5, & ! output: (unused conductances)
+                        gfunc2, unused_gs, unused_rs) ! output:
                   ELSE
                      ! Use measured temperature
                      t2 = Temp_C

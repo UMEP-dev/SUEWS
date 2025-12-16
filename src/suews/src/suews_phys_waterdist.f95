@@ -427,10 +427,6 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: addWaterBody !Water from water surface of other grids [mm] for whole surface area
       REAL(KIND(1D0)), INTENT(in) :: FlowChange !Difference between the input and output flow in the water body
 
-      ! REAL(KIND(1D0)), INTENT(out) :: runoff_grid !Wetness status of each surface type [mm]
-      ! REAL(KIND(1D0)), INTENT(out) :: state_grid !Wetness status of each surface type [mm]
-      ! REAL(KIND(1D0)), INTENT(out) :: ev_grid !Wetness status of each surface type [mm]
-      ! REAL(KIND(1D0)), INTENT(out) :: surf_chang_grid !Wetness status of each surface type [mm]
       REAL(KIND(1D0)), INTENT(out) :: runoffAGimpervious_grid !Above ground runoff from impervious surface [mm] for whole surface area
       REAL(KIND(1D0)), INTENT(out) :: runoffAGveg_grid !Above ground runoff from vegetated surfaces [mm] for whole surface area
       REAL(KIND(1D0)), INTENT(out) :: runoffPipes_grid !Runoff in pipes [mm] for whole surface area
@@ -443,7 +439,6 @@ CONTAINS
 
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: runoff_surf !Runoff from each surface type [mm]
       REAL(KIND(1D0)), DIMENSION(nsurf) :: soilstore !Soil moisture of each surface type [mm]
-      ! REAL(KIND(1D0)), DIMENSION(nsurf) :: chang !Change in state_id [mm]
       REAL(KIND(1D0)), DIMENSION(2) :: SurplusEvap !Surplus for evaporation in 5 min timestep
 
       ! =============================
@@ -467,21 +462,12 @@ CONTAINS
       soilstore = soilstore_surf_in
 
       SurplusEvap = 0
-!      runoffAGveg_grid = 0
-!      runoffPipes_grid = 0
-!     runoffAGimpervious_grid = 0
-!      runoffWaterBody_grid = 0
       surplusWaterBody = 0
 
-      ! surf_chang_grid = 0
       runoff_surf = 0
       state_surf_out = 0
-      ! state_grid = 0
-      ! NWstate_grid = 0
-      ! print *, 'cal_water_storage_surf: entering'
 
       DO is = 1, nsurf !For each surface in turn
-         ! print *, 'cal_water_storage_surf: is = ', is
          IF (SnowFrac_in(is) == 0 .AND. sfr_surf(is) > 0) THEN
 
             !Surface water balance and soil store updates (can modify ev, updates state_id)
@@ -812,10 +798,9 @@ CONTAINS
    !------------------------------------------------------------------------------
 
 
-   SUBROUTINE SUEWS_update_SoilMoist_DTS( &
+   SUBROUTINE SUEWS_update_SoilMoist( &
       timer, config, forcing, siteInfo, & ! input
       modState) ! input/output:
-      ! hydroState)
 
       USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
@@ -829,27 +814,12 @@ CONTAINS
       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
 
-      ! INTEGER,INTENT(in)::nsurf,ConifSurf,DecidSurf,GrassSurf
-      ! REAL(KIND(1D0)), INTENT(in) :: NonWaterFraction
       TYPE(SUEWS_STATE), INTENT(inout) :: modState
       REAL(KIND(1D0)), DIMENSION(nsurf) :: soilstore_surf
 
-      ! TYPE(LC_PAVED_PRM), INTENT(IN) :: pavedPrm
-      ! TYPE(LC_BLDG_PRM), INTENT(IN) :: bldgPrm
-      ! TYPE(LC_EVETR_PRM), INTENT(IN) :: evetrPrm
-      ! TYPE(LC_DECTR_PRM), INTENT(IN) :: dectrPrm
-      ! TYPE(LC_GRASS_PRM), INTENT(IN) :: grassPrm
-      ! TYPE(LC_BSOIL_PRM), INTENT(IN) :: bsoilPrm
-      ! TYPE(LC_WATER_PRM), INTENT(IN) :: waterPrm
-      ! REAL(KIND(1D0)), DIMENSION(nsurf) :: sfr_surf
-
       REAL(KIND(1D0)), DIMENSION(nsurf) :: SoilStoreCap
 
-      ! REAL(KIND(1D0)), INTENT(out) :: SoilMoistCap, SoilState
-      ! REAL(KIND(1D0)), INTENT(out) :: vsmd, smd
-
       INTEGER :: is
-      ! REAL(KIND(1D0)) :: fveg
 
       ASSOCIATE (hydroState => modState%hydroState)
 
@@ -890,32 +860,12 @@ CONTAINS
             END IF
 
             !If loop removed HCW 26 Feb 2015
-            !if (ir==1) then  !Calculate initial smd
             smd = SoilMoistCap - SoilState
-            !endif
-
-            ! Calculate soil moisture for vegetated surfaces only (for use in surface conductance)
-            ! vsmd = 0
-            ! IF ((sfr_surf(ConifSurf) + sfr_surf(DecidSurf) + sfr_surf(GrassSurf)) > 0) THEN
-
-            !    fveg = sfr_surf(is)/(sfr_surf(ConifSurf) + sfr_surf(DecidSurf) + sfr_surf(GrassSurf))
-            ! ELSE
-            !    fveg = 0
-            ! END IF
-            ! DO is = ConifSurf, GrassSurf !Vegetated surfaces only
-            !    IF (fveg == 0) THEN
-            !       vsmd = 0
-            !    ELSE
-            !       vsmd = vsmd + (SoilStoreCap(is) - soilstore_id(is))*sfr_surf(is)/fveg
-            !    END IF
-            !    !write(*,*) is, vsmd, smd
-            ! END DO
-
             vsmd = cal_smd_veg(SoilStoreCap, soilstore_surf, sfr_surf)
          END ASSOCIATE
       END ASSOCIATE
 
-   END SUBROUTINE SUEWS_update_SoilMoist_DTS
+   END SUBROUTINE SUEWS_update_SoilMoist
    !------------------------------------------------------------------------------
 
    ! calculate soil moisture deficit for vegetated surfaces only (for use in surface conductance)
@@ -1038,12 +988,7 @@ CONTAINS
       !                                - if MatPot is set to max. value (100000 mm), Km set to 0 mm s-1
       !                                - Provide parameters for residual volumetric soil moisture [m3 m-3]
       !                                   (currently hard coded as 0.1 m3 m-3 for testing)
-      !
       !------------------------------------------------------
-      ! use SUES_data
-      ! use gis_data
-      ! use time
-      ! USE module_ctrl_const_allocate
 
       IMPLICIT NONE
 
@@ -1167,12 +1112,6 @@ CONTAINS
                      IF (DimenWaterCon2 < 0.00000005) THEN
                         DimenWaterCon2 = DimenWaterCon2 + 0.0000001 !Added HCW 22 Feb 2017
                      END IF
-                     ! print*, 'soilstore_id = ', soilstore_id
-                     ! print*, 'SoilStoreCap = ', SoilStoreCap
-                     ! print*, 'SoilDepth = ', SoilDepth
-                     ! print*, 'SoilMoist_vol2 = ', SoilMoist_vol2
-                     ! print*, 'SoilMoistCap_Vol2 = ', SoilMoistCap_Vol2
-                     ! print*, 'is = ', is, ' jj = ', jj, ' DimenWaterCon2 = ', DimenWaterCon2
                      !van Genuchten (1980), with n=2 and m = 1-1/n = 1/2
                      !Water potential of second store [mm] (van Genuchten 1980, Eq 3 rearranged)
                      MatPot2 = SQRT(1/DimenWaterCon2**2 - 1)/alphavG
@@ -1269,12 +1208,7 @@ CONTAINS
       !                                - if MatPot is set to max. value (100000 mm), Km set to 0 mm s-1
       !                                - Provide parameters for residual volumetric soil moisture [m3 m-3]
       !                                   (currently hard coded as 0.1 m3 m-3 for testing)
-      !
       !------------------------------------------------------
-      ! use SUES_data
-      ! use gis_data
-      ! use time
-      ! USE module_ctrl_const_allocate
 
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, &
@@ -1293,14 +1227,6 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf) :: SoilStoreCap_surf !Capacity of soil store for each surface [mm]
       REAL(KIND(1D0)), DIMENSION(nsurf) :: SoilDepth_surf !Depth of sub-surface soil store for each surface [mm]
       REAL(KIND(1D0)), DIMENSION(nsurf) :: SatHydraulicConduct_surf !Saturated hydraulic conductivity for each soil subsurface [mm s-1]
-
-      ! REAL(KIND(1D0)) :: SurfaceArea !Surface area of the study area [m2]
-      ! REAL(KIND(1D0)), INTENT(in) :: tstep_real !tstep cast as a real for use in calculations
-
-      ! REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(inout) :: soilstore_id !Soil moisture of each surface type [mm]
-      ! REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: runoffSoil_surf !Soil runoff from each soil sub-surface [mm]
-
-      ! REAL(KIND(1D0)), INTENT(out) :: runoffSoil_per_tstep !Runoff to deep soil per timestep [mm] (for whole surface, excluding water body)
 
       INTEGER :: jj, is
       REAL(KIND(1D0)) :: &
@@ -1397,168 +1323,6 @@ CONTAINS
             runoffSoil_per_tstep & !  output:!Runoff to deep soil per timestep [mm] (for whole surface, excluding water body)
             )
 
-         ! DO is = 1, nsurf - 1 !nsurf-1,1,-1  !Loop through each surface, excluding water surface (runs backwards as of 13/08/2014, HCW)
-
-         !    IF (sfr_surf(is) /= 0 .AND. SoilStoreCap_surf(is) > 0) THEN !If particular surface area exists
-         !       ! and is capable of storing water (SoilStoreCap [mm])
-         !       DO jj = is + 1, nsurf - 1 !is-1,1,-1  !Sub-loop through remaining surfaces (runs backwards as of 13/08/2014, HCW)
-
-         !          IF (sfr_surf(jj) /= 0 .AND. SoilStoreCap_surf(jj) > 0) THEN !If other surface area exists
-         !             ! and is capable of storing water
-
-         !             ! ---- For surface 1 -----------------------------------------------------
-         !             ! Calculate non-saturated VWC
-         !             SoilMoistCap_Vol1 = SoilStoreCap_surf(is)/SoilDepth_surf(is) !Volumetric soil moisture capacity [m3 m-3] (i.e. saturated VWC)
-         !             SoilMoist_vol1 = hydroState%soilstore_surf(is)/SoilDepth_surf(is) !Volumetric soil moisture [m3 m-3]
-
-         !             !B_r1=SoilMoistCap_Vol1-SoilMoist_vol1  !Residual soil moisture content [m3 m-3]
-         !             B_r1 = 0.1 !HCW 12/08/2014 Temporary fix
-         !             ! Need to add residual soil moisture values to FunctionalTypes
-         !             !B_r1=VolSoilMoistRes(is) !Residual soil moisture content [m3 m-3]
-
-         !             !Order of if statements reversed HCW 22 Feb 2017
-         !             !If soil moisture less than or equal to residual value, set MatPot to max and Km to 0 to suppress water movement
-         !             IF (B_r1 >= SoilMoist_vol1) THEN
-         !                MatPot1 = 100000
-         !                Km1 = 0 !Added by LJ in Nov 2013
-         !                ! Otherwise, there should be enough water in the soil to allow horizontal transfer
-         !             ELSE
-         !                DimenWaterCon1 = (SoilMoist_vol1 - B_r1)/(SoilMoistCap_Vol1 - B_r1) !Dimensionless water content [-]
-
-         !                ! If very large or very small, adjust for calculation of MatPot and Km
-         !                IF (DimenWaterCon1 > 0.99999) THEN
-         !                   DimenWaterCon1 = DimenWaterCon1 - 0.0001 !This cannot equal 1
-         !                END IF
-
-         !                IF (DimenWaterCon1 < 0.00000005) THEN
-         !                   DimenWaterCon1 = DimenWaterCon1 + 0.0000001 !Added HCW 22 Feb 2017
-         !                END IF
-
-         !                !van Genuchten (1980), with n=2 and m = 1-1/n = 1/2
-         !                !Water potential of first store [mm] (van Genuchten 1980, Eq 3 rearranged)
-         !                MatPot1 = SQRT(1/DimenWaterCon1**2 - 1)/alphavG
-
-         !                !Hydraulic conductivity of first store [mm s-1] (van Genuchten 1980, Eq 8)
-         !                Km1 = SatHydraulicConduct_surf(is)*SQRT(DimenWaterCon1)*(1 - (1 - DimenWaterCon1**2)**0.5)**2
-
-         !                !Check this value (HCW 12/08/2014)
-         !                IF (MatPot1 > 100000) THEN
-         !                   MatPot1 = 100000 !Max. potential is 100000 mm (van Genuchten 1980)
-         !                   Km1 = 0 !Added by HCW 12/08/2014
-         !                END IF
-
-         !             END IF
-
-         !             ! ---- For surface 2 -----------------------------------------------------
-         !             ! Calculate non-saturated VWC
-         !             SoilMoistCap_Vol2 = SoilStoreCap_surf(jj)/SoilDepth_surf(jj) !Volumetric soil moisture capacity [m3 m-3] (i.e. saturated VWC)
-         !             SoilMoist_vol2 = hydroState%soilstore_surf(jj)/SoilDepth_surf(jj) !Volumetric soil moisture [m3 m-3]
-
-         !             !B_r2=SoilMoistCap_Vol2-SoilMoist_vol2  !Residual soil moisture content [m3 m-3]
-         !             B_r2 = 0.1 !HCW 12/08/2014 Temporary fix
-         !             ! Need to add residual soil moisture values to FunctionalTypes
-         !             !B_r2=VolSoilMoistRes(jj) !Residual soil moisture content [m3 m-3]
-
-         !             !If soil moisture below residual value, set MatPot to maximum
-         !             IF (B_r2 >= SoilMoist_vol2) THEN
-         !                MatPot2 = 100000
-         !                Km2 = 0 !Added by LJ in Nov 2013
-         !             ELSE
-         !                DimenWaterCon2 = (SoilMoist_vol2 - B_r2)/(SoilMoistCap_Vol2 - B_r2) !Dimensionless water content [-]
-
-         !                IF (DimenWaterCon2 > 0.99999) THEN
-         !                   DimenWaterCon2 = DimenWaterCon2 - 0.0001 !This cannot equal 1
-         !                END IF
-
-         !                IF (DimenWaterCon2 < 0.00000005) THEN
-         !                   DimenWaterCon2 = DimenWaterCon2 + 0.0000001 !Added HCW 22 Feb 2017
-         !                END IF
-         !                ! print*, 'soilstore_id = ', soilstore_id
-         !                ! print*, 'SoilStoreCap = ', SoilStoreCap
-         !                ! print*, 'SoilDepth = ', SoilDepth
-         !                ! print*, 'SoilMoist_vol2 = ', SoilMoist_vol2
-         !                ! print*, 'SoilMoistCap_Vol2 = ', SoilMoistCap_Vol2
-         !                ! print*, 'is = ', is, ' jj = ', jj, ' DimenWaterCon2 = ', DimenWaterCon2
-         !                !van Genuchten (1980), with n=2 and m = 1-1/n = 1/2
-         !                !Water potential of second store [mm] (van Genuchten 1980, Eq 3 rearranged)
-         !                MatPot2 = SQRT(1/DimenWaterCon2**2 - 1)/alphavG
-
-         !                !Hydraulic conductivity of second store [mm s-1] (van Genuchten 1980, Eq 8)
-         !                Km2 = SatHydraulicConduct_surf(jj)*SQRT(DimenWaterCon2)*(1 - (1 - DimenWaterCon2**2)**0.5)**2
-
-         !                IF ((MatPot2) > 100000) THEN
-         !                   MatPot2 = 100000 !Max. potential is 100000 mm (van Genuchten 1980)
-         !                   Km2 = 0 !Added by HCW 12/08/2014
-         !                END IF
-
-         !             END IF
-
-         !             ! ------------------------------------------------------------------------
-
-         !             !Find distance between the two stores (see Jarvi et al. 2011)
-         !             !SurfaceArea in m2 (changed from ha to m2 n SUEWS_Initial), so Distance in m
-         !             Distance = (SQRT(sfr_surf(is)*SurfaceArea/NUnits) + SQRT(sfr_surf(jj)*SurfaceArea/NUnits))/2
-
-         !             !Calculate areally-weighted hydraulic conductivity [mm s-1]
-         !             KmWeight = (sfr_surf(is)*Km1 + sfr_surf(jj)*Km2)/(sfr_surf(is) + sfr_surf(jj))
-
-         !             !Find water flow between the two stores [mm s-1] (Green-Ampt equation, Hillel 1971)
-         !             !Multiply Distance by 1000 to convert m to mm (HCW 12/08/2014)
-         !             dI_dt = -(KmWeight)*(-MatPot1 + MatPot2)/(Distance*1000)
-
-         !             !Multiply dI_dt by number of seconds in timestep to convert mm s-1 to mm
-         !             !Added by HCW 12/08/2014
-         !             dI = dI_dt*tstep_real !Use dI instead of dI_dt in the following calculations
-
-         !             !Move water (in mm) ------------------------------------------------------
-         !             !Water moves only if (i) there is sufficient water to move and (ii) there is space to move it
-
-         !             ! If there is sufficient water in both surfaces, allow movement of dI to occur
-         !             IF ((hydroState%soilstore_surf(jj) >= dI*sfr_surf(is)/sfr_surf(jj)) .AND. &
-         !                 ((hydroState%soilstore_surf(is) + dI) >= 0)) THEN
-         !                hydroState%soilstore_surf(is) = hydroState%soilstore_surf(is) + dI
-         !                hydroState%soilstore_surf(jj) = hydroState%soilstore_surf(jj) - dI*sfr_surf(is)/sfr_surf(jj) !Check (HCW 13/08/2014) - QUESTION: why adjust for jj and not is?
-
-         !                ! If insufficient water in first surface to move dI, instead move as much as possible
-         !             ELSEIF ((hydroState%soilstore_surf(is) + dI) < 0) THEN
-         !                hydroState%soilstore_surf(jj) = hydroState%soilstore_surf(jj) + &
-         !                                                hydroState%soilstore_surf(is)*sfr_surf(is)/sfr_surf(jj) !HCW 12/08/2014 switched order of these two lines
-         !                hydroState%soilstore_surf(is) = 0 !Check (HCW 13/08/2014) - QUESTION: can SM actually go to zero, or is this inconsistent with SMres?
-
-         !                ! If insufficient water in second surface to move dI, instead move as much as possible
-         !             ELSE
-         !                hydroState%soilstore_surf(is) = hydroState%soilstore_surf(is) + &
-         !                                                hydroState%soilstore_surf(jj)*sfr_surf(jj)/sfr_surf(is)
-         !                hydroState%soilstore_surf(jj) = 0
-         !             END IF
-
-         !             !If soil moisture exceeds capacity, excess goes to soil runoff (first surface)
-         !             IF (hydroState%soilstore_surf(is) > SoilStoreCap_surf(is)) THEN
-         !                runoffSoil_surf(is) = runoffSoil_surf(is) + (hydroState%soilstore_surf(is) - SoilStoreCap_surf(is))
-         !                hydroState%soilstore_surf(is) = SoilStoreCap_surf(is)
-         !                !elseif (soilstore_id(is)<0) then  !HCW 13/08/2014 commented out as should never be true here anyway...
-         !                !   soilstore_id(is)=0             ! ... and if so, need to do more here (i.e. account for other water too)
-         !             END IF
-
-         !             !If soil moisture exceeds capacity, excess goes to soil runoff (second surface)
-         !             IF (hydroState%soilstore_surf(jj) > SoilStoreCap_surf(jj)) THEN
-         !                runoffSoil_surf(jj) = runoffSoil_surf(jj) + (hydroState%soilstore_surf(jj) - SoilStoreCap_surf(jj))
-         !                hydroState%soilstore_surf(jj) = SoilStoreCap_surf(jj)
-         !                !elseif (soilstore_id(jj)<0) then  !HCW 13/08/2014 commented out (as above)
-         !                !         soilstore_id(jj)=0
-         !             END IF
-
-         !          END IF !end if second surface exists and is capable of storing water
-
-         !       END DO !end jj loop over second surface
-
-         !       runoffSoil_per_tstep = runoffSoil_per_tstep + (runoffSoil_surf(is)*sfr_surf(is)/NonWaterFraction) !Excludes water body. Moved here as otherwise code crashed when NonWaterFraction=0
-
-         !    END IF !end if first surface exists and is capable of storing water
-
-         !    !runoffSoil_per_tstep=runoffSoil_per_tstep+(runoffSoil(is)*sfr_surf(is)/NonWaterFraction)  !Excludes water body
-
-         ! END DO !is loop over first surface
       END ASSOCIATE
 
    END SUBROUTINE SUEWS_cal_HorizontalSoilWater_DTS
@@ -1583,6 +1347,7 @@ CONTAINS
       !
       ! To Do:
       !        - Add functionality for water on paved surfaces (street cleaning, fountains)
+      !------------------------------------------------------------------------------
 
       USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING, &
                                LC_PAVED_PRM, LC_BLDG_PRM, LC_EVETR_PRM, LC_DECTR_PRM, &
@@ -1599,38 +1364,10 @@ CONTAINS
       ! INTEGER, PARAMETER :: nsurf = 7
       TYPE(SUEWS_STATE), INTENT(INout) :: modState
 
-      ! TYPE(IRRIGATION_PRM), INTENT(IN) :: irrPrm
-      ! REAL(KIND(1D0)), INTENT(in) :: nsh_real
-      ! REAL(KIND(1D0)) :: wu_m3 ! external water input (e.g., irrigation)  [m3]
       REAL(KIND(1D0)) :: SurfaceArea !Surface area of the study area [m2]
-      ! REAL(KIND(1D0)) :: InternalWaterUse_h !Internal water use [mm h-1]
 
       REAL(KIND(1D0)), DIMENSION(0:23, 2) :: WUProfA_24hr !Automatic water use profiles at hourly scales
       REAL(KIND(1D0)), DIMENSION(0:23, 2) :: WUProfM_24hr !Manual water use profiles at hourly scales
-
-      ! TYPE(LC_PAVED_PRM), INTENT(IN) :: pavedPrm
-      ! TYPE(LC_BLDG_PRM), INTENT(IN) :: bldgPrm
-      ! TYPE(LC_EVETR_PRM), INTENT(IN) :: evetrPrm
-      ! TYPE(LC_DECTR_PRM), INTENT(IN) :: dectrPrm
-      ! TYPE(LC_GRASS_PRM), INTENT(IN) :: grassPrm
-      ! TYPE(LC_BSOIL_PRM), INTENT(IN) :: bsoilPrm
-      ! TYPE(LC_WATER_PRM), INTENT(IN) :: waterPrm
-      ! REAL(KIND(1D0)), DIMENSION(nsurf) :: sfr_surf !Surface fractions [-]
-
-      ! TYPE(anthroEmis_STATE), INTENT(IN) :: anthroEmisState
-      ! TYPE(HYDRO_STATE), INTENT(INout) :: hydroState
-      ! REAL(KIND(1D0)), DIMENSION(12) :: HDD_id !HDD(id-1), Heating Degree Days (see SUEWS_DailyState.f95)
-      ! REAL(KIND(1D0)), DIMENSION(9) :: WUDay_id !WUDay(id-1), Daily water use for EveTr, DecTr, Grass [mm] (see SUEWS_DailyState.f95)
-
-      ! INTEGER, INTENT(in) :: DayofWeek_id(3) !DayofWeek(id) 1 - day of week; 2 - month; 3 - season
-      ! INTEGER :: WaterUseMethod !Use modelled (0) or observed (1) water use
-
-      ! INTEGER :: it !Hour
-      ! INTEGER :: imin !Minutes
-
-      ! REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: wu_surf !external Water use for each surface [mm]
-      ! REAL(KIND(1D0)), INTENT(out) :: wu_int !Internal water use for the model timestep [mm] (over whole study area)
-      ! REAL(KIND(1D0)), INTENT(out) :: wu_ext !External water use for the model timestep [mm] (over whole study area)
 
       REAL(KIND(1D0)) :: wu_EveTr !Water use for evergreen trees/shrubs [mm]
       REAL(KIND(1D0)) :: wu_DecTr !Water use for deciduous trees/shrubs [mm]
@@ -1760,7 +1497,6 @@ CONTAINS
                      iu = 2 !Set to 2=weekend
                   END IF
 
-                  !write(*,*) (NSH*(ih+1-1)+imin*NSH/60+1)
                   WUDay_A_id = 0
                   WUDay_A_id(ConifSurf) = WUDay_id(2)
                   WUDay_A_id(DecidSurf) = WUDay_id(5)

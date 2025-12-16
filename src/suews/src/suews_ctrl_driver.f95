@@ -43,7 +43,7 @@ MODULE SUEWS_Driver
       drainage, cal_water_storage_surf, &
       cal_water_storage_building, &
       SUEWS_cal_SoilState, &
-      SUEWS_update_SoilMoist_DTS, &
+      SUEWS_update_SoilMoist, &
       ReDistributeWater, SUEWS_cal_HorizontalSoilWater, &
       SUEWS_cal_HorizontalSoilWater_DTS, &
       SUEWS_cal_WaterUse
@@ -316,7 +316,7 @@ CONTAINS
                END IF
                !======== Calculate soil moisture =========
                IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_update_SoilMoist...'
-               CALL SUEWS_update_SoilMoist_DTS( &
+               CALL SUEWS_update_SoilMoist( &
                   timer, config, forcing, siteInfo, & ! input
                   modState) ! input/output:
                IF (config%flag_test .AND. PRESENT(debugState)) THEN

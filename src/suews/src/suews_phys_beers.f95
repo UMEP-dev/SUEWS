@@ -27,7 +27,7 @@ MODULE module_phys_beers
    ! USE module_ctrl_const_default, only: notUsed, notUsedI
    USE module_phys_narp, ONLY: NARP_cal_SunPosition
    USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutBEERS
-   USE module_util_time, ONLY: DAYLEN, SUEWS_cal_weekday, SUEWS_cal_dectime, &
+   USE module_util_time, ONLY: DAYLEN, SUEWS_cal_weekday, &
                           Day_Of_Week, SUEWS_cal_DLS, Days_of_Year, LeapYearCalc, day2month, &
                           SUEWS_cal_tstep, month2day, dectime_to_timevec
 

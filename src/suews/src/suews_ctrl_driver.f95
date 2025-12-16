@@ -66,7 +66,7 @@ MODULE SUEWS_Driver
    USE module_phys_stebbs, ONLY: stebbsonlinecouple
    USE module_ctrl_version, ONLY: git_commit, compiler_ver ! these are automatically generated during compilation time
    USE module_util_time, ONLY: SUEWS_cal_dectime_DTS, SUEWS_cal_tstep_DTS, SUEWS_cal_weekday_DTS, &
-                          SUEWS_cal_DLS_DTS
+                          SUEWS_cal_DLS
 
    IMPLICIT NONE
 
@@ -5216,7 +5216,7 @@ CONTAINS
             timer%dayofWeek_id) !output
 
          ! calculate dayofweek information
-         CALL SUEWS_cal_DLS_DTS( &
+         CALL SUEWS_cal_DLS( &
             timer, ahemisPrm, & !input
             timer%DLS) !output
 

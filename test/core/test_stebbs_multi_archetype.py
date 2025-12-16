@@ -9,17 +9,15 @@ This module tests the multi-archetype functionality including:
 """
 
 import pytest
-import numpy as np
-import pandas as pd
 
 from supy.data_model.core.site import (
-    SiteProperties,
     ArchetypeProperties,
+    SiteProperties,
 )
 from supy.data_model.core.type import RefValue
 from supy.data_model.output.stebbs_vars import (
-    generate_archetype_variables,
     STEBBS_ARCHETYPE_KEY_VARS,
+    generate_archetype_variables,
 )
 from supy.data_model.output.variables import OutputGroup
 
@@ -97,7 +95,7 @@ class TestSfrValidation:
 
     def test_sfr_sum_exceeds_one_invalid(self):
         """sfr values summing to > 1.0 should raise ValueError."""
-        with pytest.raises(ValueError, match="must sum to 1.0"):
+        with pytest.raises(ValueError, match=r"must sum to 1\.0"):
             SiteProperties(
                 building_archetypes={
                     "residential": ArchetypeProperties(sfr=0.6),
@@ -107,7 +105,7 @@ class TestSfrValidation:
 
     def test_sfr_sum_less_than_one_invalid(self):
         """sfr values summing to < 1.0 should raise ValueError."""
-        with pytest.raises(ValueError, match="must sum to 1.0"):
+        with pytest.raises(ValueError, match=r"must sum to 1\.0"):
             SiteProperties(
                 building_archetypes={
                     "residential": ArchetypeProperties(sfr=0.5),
@@ -123,6 +121,48 @@ class TestSfrValidation:
                 for i in range(11)
             }
             SiteProperties(building_archetypes=archetypes)
+
+    def test_sfr_auto_distribution_default_values(self):
+        """Archetypes with default sfr should be auto-distributed equally."""
+        # Create archetypes without explicit sfr (all use default 1.0)
+        site = SiteProperties(
+            building_archetypes={
+                "residential": ArchetypeProperties(),  # sfr defaults to 1.0
+                "commercial": ArchetypeProperties(),   # sfr defaults to 1.0
+            }
+        )
+
+        # Should auto-distribute to 0.5 each
+        archetypes = site.effective_archetypes
+        assert get_value(archetypes["residential"].sfr) == pytest.approx(0.5)
+        assert get_value(archetypes["commercial"].sfr) == pytest.approx(0.5)
+
+    def test_sfr_auto_distribution_three_archetypes(self):
+        """Three archetypes with default sfr should get 1/3 each."""
+        site = SiteProperties(
+            building_archetypes={
+                "a": ArchetypeProperties(),
+                "b": ArchetypeProperties(),
+                "c": ArchetypeProperties(),
+            }
+        )
+
+        expected = 1.0 / 3.0
+        for archetype in site.effective_archetypes.values():
+            assert get_value(archetype.sfr) == pytest.approx(expected)
+
+    def test_sfr_no_auto_distribution_with_explicit_values(self):
+        """Explicit sfr values should not be changed by auto-distribution."""
+        site = SiteProperties(
+            building_archetypes={
+                "residential": ArchetypeProperties(sfr=0.7),
+                "commercial": ArchetypeProperties(sfr=0.3),
+            }
+        )
+
+        archetypes = site.effective_archetypes
+        assert get_value(archetypes["residential"].sfr) == pytest.approx(0.7)
+        assert get_value(archetypes["commercial"].sfr) == pytest.approx(0.3)
 
 
 class TestDataFrameSerialization:
@@ -239,6 +279,74 @@ class TestPerArchetypeOutputVariables:
         # Spaces and dashes should become underscores
         assert "Tair_ind_high_rise" in var_names
         assert "Tair_ind_mixed_use" in var_names
+
+
+class TestSitePropertiesRoundTrip:
+    """Test archetype serialization within SiteProperties."""
+
+    @pytest.mark.core
+    def test_multi_archetype_to_df_state(self):
+        """Multi-archetype serialization to DataFrame works correctly."""
+        # Create site with multiple archetypes
+        original = SiteProperties(
+            building_archetypes={
+                "residential": ArchetypeProperties(
+                    sfr=0.6,
+                    stebbs_Height=8.5,
+                    BuildingName="residential_block",
+                ),
+                "commercial": ArchetypeProperties(
+                    sfr=0.4,
+                    stebbs_Height=25.0,
+                    BuildingName="office_tower",
+                ),
+            }
+        )
+
+        # Serialize to DataFrame
+        df = original.to_df_state(grid_id=1)
+
+        # Verify nbtypes is stored
+        nbtypes_val = df.loc[1, ("nbtypes", "0")]
+        if hasattr(nbtypes_val, "iloc"):
+            nbtypes_val = nbtypes_val.iloc[0]
+        assert int(nbtypes_val) == 2
+
+        # Verify archetype names stored
+        names_val = df.loc[1, ("archetype_names", "0")]
+        if hasattr(names_val, "iloc"):
+            names_val = names_val.iloc[0]
+        assert "residential" in str(names_val)
+        assert "commercial" in str(names_val)
+
+        # Verify indexed columns exist
+        assert ("stebbs_height", "arch_0") in df.columns
+        assert ("stebbs_height", "arch_1") in df.columns
+
+    @pytest.mark.core
+    def test_auto_distributed_sfr_values(self):
+        """Auto-distributed sfr values are correctly assigned."""
+        # Create site with auto-distributed sfr
+        original = SiteProperties(
+            building_archetypes={
+                "a": ArchetypeProperties(),
+                "b": ArchetypeProperties(),
+            }
+        )
+
+        # Verify sfr was auto-distributed
+        assert get_value(original.effective_archetypes["a"].sfr) == pytest.approx(0.5)
+        assert get_value(original.effective_archetypes["b"].sfr) == pytest.approx(0.5)
+
+        # Serialize to DataFrame and verify sfr values stored
+        df = original.to_df_state(grid_id=1)
+        sfr_0 = df.loc[1, ("sfr", "arch_0")]
+        sfr_1 = df.loc[1, ("sfr", "arch_1")]
+        if hasattr(sfr_0, "iloc"):
+            sfr_0 = sfr_0.iloc[0]
+            sfr_1 = sfr_1.iloc[0]
+        assert float(sfr_0) == pytest.approx(0.5)
+        assert float(sfr_1) == pytest.approx(0.5)
 
 
 class TestBackwardsCompatibility:

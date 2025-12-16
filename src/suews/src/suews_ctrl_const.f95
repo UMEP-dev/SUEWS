@@ -60,7 +60,12 @@ MODULE module_ctrl_const_allocate
 
    ! STEBBS Related
    INTEGER, PARAMETER :: nbtypes_max = 10 ! Maximum number of building archetypes [-] (GH#360)
-   INTEGER :: nbtypes = 1 ! Number of building archetypes, set dynamically from config [-] (GH#360)
+   ! NOTE: nbtypes is now stored per-site in SUEWS_SITE%nbtypes (suews_ctrl_type.f95).
+   ! This module-level variable is kept temporarily for backwards compatibility with
+   ! stebbsState%ALLOCATE which runs before siteInfo is available. When Python fully
+   ! supports multi-archetype config, this should be removed and stebbsState allocation
+   ! refactored to use siteInfo%nbtypes. (GH#360)
+   INTEGER :: nbtypes = 1 ! Number of building archetypes (DEPRECATED - use siteInfo%nbtypes)
 
    ! ---- Set number of columns in input files ----------------------------------------------------
    INTEGER, PARAMETER :: ncolumnsSiteSelect = 105 !SUEWS_SiteSelect.txt

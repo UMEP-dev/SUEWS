@@ -2609,7 +2609,7 @@ class SiteProperties(BaseModel):
         default_factory=ArchetypeProperties,
         description="Parameters for a single building archetype (backwards compatible)",
     )
-    building_archetypes: Optional[Dict[str, ArchetypeProperties]] = Field(
+    building_archetypes: Optional[dict[str, ArchetypeProperties]] = Field(
         default=None,
         description="Named building archetypes for multi-archetype simulations (GH#360). "
         "Keys are archetype names (e.g., 'residential', 'commercial'), values are ArchetypeProperties. "
@@ -2696,34 +2696,54 @@ class SiteProperties(BaseModel):
         """Validate building archetypes configuration (GH#360).
 
         - If building_archetypes is set, sfr values must sum to 1.0
-        - Cannot specify both building_archetype and building_archetypes with conflicting data
+        - If all archetypes have default sfr=1.0, auto-distribute equal fractions
+        - Cannot exceed 10 archetypes (nbtypes_max in Fortran)
         """
         if self.building_archetypes is not None and len(self.building_archetypes) > 0:
-            # Calculate sfr sum
+            narch = len(self.building_archetypes)
+
+            # Validate maximum archetypes first (nbtypes_max = 10 in Fortran)
+            if narch > 10:
+                raise ValueError(
+                    f"Maximum 10 building archetypes supported, got {narch}"
+                )
+
+            # Check if all archetypes have the default sfr value (1.0)
+            # If so, auto-distribute equal fractions for better UX
+            all_default = True
             sfr_sum = 0.0
-            for name, archetype in self.building_archetypes.items():
+            for archetype in self.building_archetypes.values():
                 sfr_val = archetype.sfr
                 if isinstance(sfr_val, RefValue):
                     sfr_val = sfr_val.value
-                sfr_sum += sfr_val if sfr_val is not None else 1.0
+                # sfr defaults to 1.0, treat None as default too
+                if sfr_val is None:
+                    sfr_val = 1.0
+                # Check if non-default value was provided
+                if abs(sfr_val - 1.0) > 1e-6:
+                    all_default = False
+                sfr_sum += sfr_val
 
-            # Check sfr sum equals 1.0 (with tolerance)
-            if abs(sfr_sum - 1.0) > 1e-6:
+            if all_default and narch > 1:
+                # Auto-distribute equal fractions when all use default
+                equal_sfr = 1.0 / narch
+                for archetype in self.building_archetypes.values():
+                    # Update the sfr value to equal fraction
+                    if isinstance(archetype.sfr, RefValue):
+                        archetype.sfr.value = equal_sfr
+                    else:
+                        archetype.sfr = equal_sfr
+            elif abs(sfr_sum - 1.0) > 1e-6:
+                # Validate that explicit sfr values sum to 1.0
                 raise ValueError(
                     f"Building archetype sfr values must sum to 1.0, got {sfr_sum:.6f}. "
                     f"Archetypes: {list(self.building_archetypes.keys())}"
                 )
 
-            # Validate maximum archetypes (nbtypes_max = 10 in Fortran)
-            if len(self.building_archetypes) > 10:
-                raise ValueError(
-                    f"Maximum 10 building archetypes supported, got {len(self.building_archetypes)}"
-                )
-
         return self
 
     @property
-    def effective_archetypes(self) -> Dict[str, ArchetypeProperties]:
+    def effective_archetypes(self) -> dict[str, ArchetypeProperties]:
         """Get effective building archetypes dict (GH#360).
 
         Returns building_archetypes if set, otherwise wraps building_archetype
@@ -2790,14 +2810,16 @@ class SiteProperties(BaseModel):
         df_state.loc[grid_id, ("nbtypes", "0")] = nbtypes
 
         # Store archetype names for round-trip (comma-separated)
+        # Note: relies on Python 3.7+ dict insertion order preservation
         archetype_names = list(archetypes.keys())
         df_state.loc[grid_id, ("archetype_names", "0")] = ",".join(archetype_names)
 
-        # Serialize each archetype with indexed columns
-        list_df_archetypes = []
-        for i, (name, archetype) in enumerate(archetypes.items()):
-            df_arch = archetype.to_df_state_indexed(grid_id, i)
-            list_df_archetypes.append(df_arch)
+        # Serialize each archetype with indexed columns (arch_0, arch_1, ...)
+        # Order matches archetype_names for round-trip consistency
+        list_df_archetypes = [
+            archetype.to_df_state_indexed(grid_id, i)
+            for i, archetype in enumerate(archetypes.values())
+        ]
 
         df_state = pd.concat(
             [
@@ -2811,8 +2833,8 @@ class SiteProperties(BaseModel):
                 df_land_cover,
                 df_vertical_layers,
                 df_stebbs,
-            ]
-            + list_df_archetypes,
+                *list_df_archetypes,
+            ],
             axis=1,
         )
         return df_state
@@ -2905,7 +2927,8 @@ class SiteProperties(BaseModel):
                 )
             params["building_archetypes"] = archetypes
             # Also set building_archetype to first for backwards compatibility
-            params["building_archetype"] = list(archetypes.values())[0]
+            # Note: relies on Python 3.7+ dict insertion order preservation
+            params["building_archetype"] = next(iter(archetypes.values()))
 
         return cls(**params)
 

@@ -13,7 +13,6 @@ import os
 from pathlib import Path
 import importlib.resources
 from typing import Optional, List
-import supy
 import jsonschema
 from rich.console import Console
 from rich.table import Table

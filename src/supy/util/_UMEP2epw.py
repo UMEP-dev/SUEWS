@@ -8,7 +8,7 @@ Author: Csilla V Gal
 
 import pandas as pd
 import numpy as np
-import supy
+from ._tmy import gen_epw
 from metpy.units import units
 from metpy.calc import (
     mixing_ratio_from_relative_humidity,
@@ -226,8 +226,8 @@ def convert_UMEPf2epw(
             z0m=z0m,
         )
 
-    # (6) Save data with supy.util.gen_epw
-    data_epw, header_epw, path_2epw = supy.util.gen_epw(df_data, lat, lon, tz, path_epw)
+    # (6) Save data with gen_epw
+    data_epw, header_epw, path_2epw = gen_epw(df_data, lat, lon, tz, path_epw)
 
     # (7) Patch up the generated .epw.
     # NOTE: This can be turned off/removed.

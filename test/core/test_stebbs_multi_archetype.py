@@ -174,7 +174,7 @@ class TestDataFrameSerialization:
             building_archetype=ArchetypeProperties(stebbs_Height=10.0)
         )
 
-        df = site.to_df_state(grid_id=1)
+        df = site.to_df_state(grid_id=1).sort_index(axis=1)
 
         # Should have nbtypes column
         assert ("nbtypes", "0") in df.columns
@@ -193,7 +193,7 @@ class TestDataFrameSerialization:
             }
         )
 
-        df = site.to_df_state(grid_id=1)
+        df = site.to_df_state(grid_id=1).sort_index(axis=1)
 
         # Should have nbtypes = 2
         nbtypes_val = df.loc[1, ("nbtypes", "0")]
@@ -221,7 +221,7 @@ class TestDataFrameSerialization:
         )
 
         # Serialise to indexed DataFrame
-        df = original.to_df_state_indexed(grid_id=1, arch_idx=0)
+        df = original.to_df_state_indexed(grid_id=1, arch_idx=0).sort_index(axis=1)
 
         # Round-trip
         rebuilt = ArchetypeProperties.from_df_state_indexed(df, grid_id=1, arch_idx=0)
@@ -304,7 +304,7 @@ class TestSitePropertiesRoundTrip:
         )
 
         # Serialize to DataFrame
-        df = original.to_df_state(grid_id=1)
+        df = original.to_df_state(grid_id=1).sort_index(axis=1)
 
         # Verify nbtypes is stored
         nbtypes_val = df.loc[1, ("nbtypes", "0")]
@@ -339,7 +339,7 @@ class TestSitePropertiesRoundTrip:
         assert get_value(original.effective_archetypes["b"].sfr) == pytest.approx(0.5)
 
         # Serialize to DataFrame and verify sfr values stored
-        df = original.to_df_state(grid_id=1)
+        df = original.to_df_state(grid_id=1).sort_index(axis=1)
         sfr_0 = df.loc[1, ("sfr", "arch_0")]
         sfr_1 = df.loc[1, ("sfr", "arch_1")]
         if hasattr(sfr_0, "iloc"):

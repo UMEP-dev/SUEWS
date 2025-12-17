@@ -38,7 +38,7 @@
   :header-rows: 1
   :widths: auto
 "
-"SuppressWarnings","O","Controls whether the warnings.txt file is written or not.","
+"SuppressWarnings","O","Controls whether warning messages are emitted (e.g., to console / Python logger).","
 .. csv-table::
   :file: SuppressWarnings.csv 
   :header-rows: 1

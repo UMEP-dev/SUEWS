@@ -1,5 +1,7 @@
 # command line tools
 import click
+import multiprocessing
+import os
 import sys
 from pathlib import Path
 
@@ -19,9 +21,7 @@ def _load_heavy_imports():
 
     # These imports trigger slow package discovery via importlib.resources.files()
     global _init_supy, _run_supy, _save_supy, _load_forcing_grid, pd
-    global load_SUEWS_nml_simple, SUEWSSimulation, YAML_SUPPORT, ThreadPool
-
-    from multiprocessing.pool import ThreadPool
+    global load_SUEWS_nml_simple, SUEWSSimulation, YAML_SUPPORT
     from .._supy_module import (
         _init_supy,
         _run_supy,
@@ -186,8 +186,10 @@ def _run_with_namelist(path_runcontrol):
                 idx_dt = df_forcing.index
                 start, end = idx_dt.min(), idx_dt.max()
                 click.echo(f"grid {grid}: {start} - {end}")
-            # use thread-based parallelization for multi-grid simulations
-            with ThreadPool() as pool:
+            # Fortran SAVE variables are shared across threads: use process-based pools
+            mp_context = os.environ.get("SUPY_MP_CONTEXT", "spawn")
+            ctx = multiprocessing.get_context(mp_context)
+            with ctx.Pool() as pool:
                 list_res = pool.starmap(_run_supy, list_input)
             try:
                 list_df_output, list_df_state_final = zip(*list_res)

@@ -6,6 +6,7 @@ import multiprocessing
 import os
 import sys
 import time
+import threading
 
 # import logging
 import traceback
@@ -105,6 +106,10 @@ def _reset_supy_error():
 
 
 ##############################################################################
+
+_kernel_lock = threading.Lock()
+
+
 # main calculation
 # 1. calculation code for one time step
 # 2. compact wrapper for running a whole simulation
@@ -132,31 +137,24 @@ def suews_cal_tstep(dict_state_start, dict_met_forcing_tstep):
 
     # main calculation:
     try:
-        # Reset error state before Fortran call to ensure clean slate
-        _reset_supy_error()
+        with _kernel_lock:
+            # Reset error state before Fortran call to ensure clean slate
+            _reset_supy_error()
 
-        # import pickle
-        # pickle.dump(dict_input, open("dict_input.pkl", "wb"))
-        # print("dict_input.pkl saved")
-        res_suews_tstep = sd.suews_cal_main(**dict_input)
+            # import pickle
+            # pickle.dump(dict_input, open("dict_input.pkl", "wb"))
+            # print("dict_input.pkl saved")
+            res_suews_tstep = sd.suews_cal_main(**dict_input)
 
-        # Check for Fortran error flag (replaces STOP statement handling)
-        _check_supy_error()
+            # Check for Fortran error flag (replaces STOP statement handling)
+            _check_supy_error()
 
     except SUEWSKernelError as e:
         # Fortran kernel set error flag instead of STOP
         logger_supy.critical(f"SUEWS kernel error: {e}")
         raise
     except Exception as ex:
-        # show trace info
-        logger_supy.exception(traceback.format_exc())
-        # show SUEWS fatal error details produced by SUEWS kernel
-        try:
-            with open("problems.txt", "r") as f:
-                logger_supy.critical(f.read())
-        except FileNotFoundError:
-            logger_supy.warning("problems.txt not found - no additional error details")
-        # Re-raise to prevent silent failure (returning None)
+        logger_supy.exception("Kernel call failed")
         raise RuntimeError(f"SUEWS kernel error: {ex}") from ex
     else:
         # update state variables
@@ -256,9 +254,6 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
         # ```
     # main calculation:
     try:
-        # Reset error state before Fortran call to ensure clean slate
-        _reset_supy_error()
-
         if debug_mode:
             # initialise the debug objects
             # they can only be used as input arguments
@@ -271,30 +266,25 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
             state_debug = None
             block_mod_state = None
 
-        # note the extra arguments are passed to the SUEWS kernel as keyword arguments in the debug mode
-        res_suews_tstep_multi = sd.suews_cal_multitsteps(
-            **dict_input,
-            state_debug=state_debug,
-            block_mod_state=block_mod_state,
-        )
+        with _kernel_lock:
+            # Reset error state before Fortran call to ensure clean slate
+            _reset_supy_error()
 
-        # Check for Fortran error flag (replaces STOP statement handling)
-        _check_supy_error()
+            # note the extra arguments are passed to the SUEWS kernel as keyword arguments in the debug mode
+            res_suews_tstep_multi = sd.suews_cal_multitsteps(
+                **dict_input,
+                state_debug=state_debug,
+                block_mod_state=block_mod_state,
+            )
+            # Check for Fortran error flag (replaces STOP statement handling)
+            _check_supy_error()
 
     except SUEWSKernelError as e:
         # Fortran kernel set error flag instead of STOP
         logger_supy.critical(f"SUEWS kernel error: {e}")
         raise
     except Exception as ex:
-        # show trace info
-        logger_supy.exception(traceback.format_exc())
-        # show SUEWS fatal error details produced by SUEWS kernel
-        try:
-            with open("problems.txt", "r") as f:
-                logger_supy.critical(f.read())
-        except FileNotFoundError:
-            logger_supy.warning("problems.txt not found - no additional error details")
-        # Re-raise to prevent silent failure (returning None)
+        logger_supy.exception("Kernel call failed")
         raise RuntimeError(f"SUEWS kernel error: {ex}") from ex
     else:
         # update state variables
@@ -490,10 +480,6 @@ def run_supy_ser(
         for grid, ser_state_init in df_init.iterrows()
     }
 
-    # remove 'problems.txt'
-    if Path("problems.txt").exists():
-        os.remove("problems.txt")
-
     # for multi-year run, reduce the whole df_forcing into {chunk_day}-day chunks for less memory consumption
     idx_start = df_forcing.index.min()
     idx_all = df_forcing.index
@@ -570,9 +556,10 @@ def run_supy_ser(
             raise RuntimeError(
                 f"\n====================\n"
                 f"SUEWS kernel error!\n"
-                f"A zip file for debugging has been saved as `{path_zip_debug.as_posix()}`:"
-                f"Please report this issue with the above zip file to the developer at"
-                f" https://github.com/UMEP-dev/SuPy/issues/new?assignees=&labels=&template=issue-report.md."
+                f"A zip file for debugging has been saved as:\n"
+                f"  {path_zip_debug.as_posix()}\n"
+                f"Please report this issue with the above zip file to the developer at:\n"
+                f"  https://github.com/UMEP-dev/SuPy/issues/new?assignees=&labels=&template=issue-report.md\n"
                 f"\n====================\n"
             )
 

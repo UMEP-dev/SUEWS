@@ -1167,7 +1167,7 @@ MODULE module_ctrl_const_datain
               RainDisaggMethod, & ! Sets disaggregation method for original met forcing data for rainfall
               RainAmongN, & ! Number of subintervals over which to disaggregate rainfall
               KdownZen, & ! Controls whether Kdown disaggregation uses zenith angle (1) or not (0)
-              SuppressWarnings = 1, & ! Set to 1 to prevent warnings.txt file from being written
+              SuppressWarnings = 1, & ! Set to 1 to suppress warning output
               RSLMethod, & !Specify the approach for near surface diagnostic: 0, MOST; 1, RSL; 2, Auto (MOST+RSL)
               Diagnose, & !Set to 1 to get print-out of model progress
               DiagnoseDisagg, & !Set to 1 to get print-out of met forcing disaggregation progress
@@ -1423,7 +1423,6 @@ MODULE module_ctrl_const_default
    IMPLICIT NONE
    REAL(KIND(1D0)) :: notUsed = -55.55, reall, NAN = -999, pNAN = 999
    INTEGER :: notUsedI = -55, ios_out
-   INTEGER :: errorChoice, warningChoice !errorChoice/warningChoice defines if problems.txt/warnings.txt is opened for the first time
 END MODULE module_ctrl_const_default
 
 ! Backward compatibility alias

@@ -293,8 +293,10 @@ dep_lib_src = declare_dependency(
 dep_lib_suews = declare_dependency(
   link_args: [
     '-L' + dir_suews / 'lib', # the path is relative to the build directory when running meson
-    '-lspartacus',
     '-lsuewsdriver',
+    '-lsuewsphys',
+    '-lsuewsutil',
+    '-lspartacus',
   ],
 )
 dep_suews = [dep_lib_src, dep_lib_suews]

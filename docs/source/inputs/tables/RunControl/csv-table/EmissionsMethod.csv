@@ -13,7 +13,17 @@ Modelled values will be used even if QF is provided in the meteorological forcin
 3,"Updated :cite:t:`L11` method using daily (not instantaneous) air temperature (HDD(id-1,3)) using coefficients specified in `SUEWS_AnthropogenicEmission.txt`. CO2 emission is not calculated."
 4,":cite:t:`J19` method, in addition to anthropogenic heat due to building energy use calculated by :cite:t:`J11`, that due to metabolism and traffic is also calculated using coefficients specified in `SUEWS_AnthropogenicEmission.txt` and diurnal patterns specified in `SUEWS_Profiles.txt`.
 Modelled values will be used even if QF is provided in the meteorological forcing file. CO2 emission is not calculated."
-45,"QF calculated using EmissionsMethod = 4. Fc (both biogenic and anthropogenic) components calculated following :cite:t:`J19`. 
+11-16,"|EXP| Rectangular hyperbola photosynthesis model with biogenic CO2.
+QF calculated using EmissionsMethod = 1. Biogenic CO2 fluxes (FcPhoto, FcRespi) calculated using rectangular hyperbola light response.
+Parameters from `SUEWS_BiogenCO2.txt`. Total Fc = Fc_anthro + Fc_biogen."
+21-26,"|EXP| Non-rectangular hyperbola photosynthesis model following :cite:t:`B17`.
+QF calculated using EmissionsMethod = 2. Biogenic CO2 using Helsinki model for urban ecosystems.
+Parameters from `SUEWS_BiogenCO2.txt`. Total Fc = Fc_anthro + Fc_biogen."
+41-44,"|EXP| Conductance-based photosynthesis model following :cite:t:`J19`.
+QF calculated using EmissionsMethod = 4. Biogenic CO2 scaled by stomatal conductance (gfunc).
+Parameters from `SUEWS_BiogenCO2.txt`. Total Fc = Fc_anthro + Fc_biogen."
+45,"|EXP| Full biogenic CO2 model following :cite:t:`J19`.
+QF calculated using EmissionsMethod = 4. Fc (both biogenic and anthropogenic) components calculated following :cite:t:`J19`.
 Emissions from traffic and human metabolism calculated as a bottom up approach using coefficients specified in `SUEWS_AnthropogenicEmission.txt`
-and diurnal patterns specified in `SUEWS_Profiles.txt`. Building emissions are calculated with the aid of heating and cooling degree days. 
+and diurnal patterns specified in `SUEWS_Profiles.txt`. Building emissions are calculated with the aid of heating and cooling degree days.
 Biogenic emissions and sinks are calculated using coefficients specified in `SUEWS_BiogenCO2.txt`."

@@ -151,11 +151,13 @@ def suews_cal_tstep(dict_state_start, dict_met_forcing_tstep):
 
     except SUEWSKernelError as e:
         # Fortran kernel set error flag instead of STOP
-        logger_supy.critical(f"SUEWS kernel error: {e}")
+        logger_supy.critical("SUEWS kernel error: %s", e)
         raise
     except Exception as ex:
-        logger_supy.exception("Kernel call failed")
-        raise RuntimeError(f"SUEWS kernel error: {ex}") from ex
+        # Include timestep context for debugging
+        tstep_info = dict_met_forcing_tstep.get("iy", "unknown")
+        logger_supy.exception("Kernel call failed at timestep %s", tstep_info)
+        raise RuntimeError(f"SUEWS kernel error at timestep {tstep_info}: {ex}") from ex
     else:
         # update state variables
         # if save_state:  # deep copy states results
@@ -282,11 +284,13 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
 
     except SUEWSKernelError as e:
         # Fortran kernel set error flag instead of STOP
-        logger_supy.critical(f"SUEWS kernel error: {e}")
+        logger_supy.critical("SUEWS kernel error: %s", e)
         raise
     except Exception as ex:
-        logger_supy.exception("Kernel call failed")
-        raise RuntimeError(f"SUEWS kernel error: {ex}") from ex
+        # Include simulation block context for debugging
+        len_sim = dict_input.get("len_sim", "unknown")
+        logger_supy.exception("Kernel call failed for simulation block of length %s", len_sim)
+        raise RuntimeError(f"SUEWS kernel error (block length {len_sim}): {ex}") from ex
     else:
         # update state variables
         # use deep copy to avoid reference issue; also copy the initial dict_state_start
@@ -860,8 +864,11 @@ def pack_grid_dict(ser_grid):
                     try:
                         dict_var[var] = pack_var(ser_grid[var])
                     except Exception as e2:
-                        # Only log actual errors, not expected metadata
-                        logger_supy.debug(f"Could not pack variable '{var}': {e}")
+                        # Log at WARNING level - dropped variables could cause kernel errors
+                        logger_supy.warning(
+                            "Could not pack variable '%s' (tried both methods): %s / %s",
+                            var, e, e2
+                        )
         else:
             pass
     # dict_var = {

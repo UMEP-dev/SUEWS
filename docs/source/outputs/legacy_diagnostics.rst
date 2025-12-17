@@ -67,7 +67,8 @@ In older versions, minor issues that don't stop the simulation were written to
 **Suppressing Warnings:**
 
 To suppress warning messages emitted by the kernel, set :option:`SuppressWarnings` = 1
-in ``RunControl.nml`` (or the equivalent YAML option).
+in ``RunControl.nml``. For YAML configuration, refer to the configuration reference
+in :doc:`/inputs/yaml/index`.
 
 **Warning Format:**
 

@@ -81,7 +81,7 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
 #ifdef wrf
    CHARACTER(len=1024) :: message ! Used to pass through function wrf_debug() by Zhenkun Li, 10/08/2018
 #endif
-   CHARACTER(len=1024) :: Errmessage
+   CHARACTER(len=1024) :: Errmessage = ''  ! Initialize to avoid garbage in unused cases
    CHARACTER(len=1024) :: StopMessage ! used to pass error message to stop statement; useful to supy_driver, TS 19 Feb 2019
 
    ! TS 16 Jul 2018:

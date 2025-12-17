@@ -1,9 +1,13 @@
 # command line tools
 import click
+import logging
 import multiprocessing
 import os
 import sys
 from pathlib import Path
+
+# Get logger for CLI warnings (configured in _env.py when heavy imports load)
+logger_cli = logging.getLogger("SuPy.CLI")
 
 # Lazy import flag - heavy modules imported only when needed
 _HEAVY_IMPORTS_LOADED = False
@@ -131,8 +135,14 @@ def _run_with_yaml(config_path):
     except FileNotFoundError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
+    except KeyboardInterrupt:
+        click.echo("\nSimulation interrupted by user.", err=True)
+        sys.exit(130)
     except Exception as e:
+        import traceback
         click.echo(f"Error running simulation: {e}", err=True)
+        click.echo("\nFull traceback:", err=True)
+        click.echo(traceback.format_exc(), err=True)
         sys.exit(1)
 
 
@@ -192,10 +202,9 @@ def _run_with_namelist(path_runcontrol):
             try:
                 ctx = multiprocessing.get_context(mp_context)
             except ValueError as e:
-                click.echo(
-                    f"Invalid SUPY_MP_CONTEXT={mp_context!r} ({e}); falling back to 'spawn'.",
-                    err=True,
-                )
+                msg = f"Invalid SUPY_MP_CONTEXT={mp_context!r} ({e}); falling back to 'spawn'."
+                click.echo(msg, err=True)
+                logger_cli.warning(msg)
                 ctx = multiprocessing.get_context("spawn")
 
             processes = min(len(list_grid), os.cpu_count() or 1)
@@ -236,8 +245,14 @@ def _run_with_namelist(path_runcontrol):
         # return
         click.echo("\nSUEWS run successfully done!")
 
+    except KeyboardInterrupt:
+        click.echo("\nSimulation interrupted by user.", err=True)
+        sys.exit(130)
     except Exception as e:
+        import traceback
         click.echo(f"Error: {e}", err=True)
+        click.echo("\nFull traceback:", err=True)
+        click.echo(traceback.format_exc(), err=True)
         sys.exit(1)
 
 

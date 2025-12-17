@@ -33,7 +33,7 @@ Runtime diagnostic information
 Error messages: problems.txt
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In older versions, if there are problems running the program serious error messages will be written to problems.txt.
+In older versions, if there were problems running the program, serious error messages were written to problems.txt.
 
 -  Serious problems will usually cause the program to stop after writing the error message. If this is the case, the last line of `problems.txt` will contain a non-zero number (the error code).
 -  If the program runs successfully, problems.txt file ends with::
@@ -63,8 +63,10 @@ Warning messages: warnings.txt
    :code:`tail`/:code:`head` to view the ending/starting part without opening
    the whole file on Unix-like systems (Linux/mac OS), which may slow
    down your system.
--  To prevent warnings.txt from being written, set :option:`SuppressWarnings`
-   to 1 in `RunControl.nml`.
+-  In legacy versions, to prevent warnings.txt from being written,
+   :option:`SuppressWarnings` could be set to 1 in ``RunControl.nml``.
+   In current versions, this option suppresses warning messages from being
+   emitted to stdout/stderr.
 -  Warning messages are usually written with a grid number, timestamp
    and error count. If the problem occurs in the initial stages (i.e.
    before grid numbers and timestamps are assigned, these are printed as

@@ -4380,9 +4380,13 @@ CONTAINS
       dataOutBlockSTEBBS_X = 0.0D0
       dataOutBlockNHood_X = 0.0D0
 
-      IF (flag_test .AND. PRESENT(block_mod_state)) THEN
-
-         CALL block_mod_state%init(nlayer, ndepth, len_sim)
+      ! Initialize block_mod_state if present but not yet allocated
+      ! Note: Python initializes block_mod_state before calling to ensure
+      ! f90wrap can properly access the allocated arrays after the call
+      IF (PRESENT(block_mod_state)) THEN
+         IF (.NOT. ALLOCATED(block_mod_state%BLOCK)) THEN
+            CALL block_mod_state%init(nlayer, ndepth, len_sim)
+         END IF
       END IF
 
       ! ############# evaluation for DTS variables (start) #############
@@ -5272,7 +5276,9 @@ CONTAINS
          dataOutBlockDailyState(ir, :) = [output_line_suews%dataOutLineDailyState]
 
          !============ update state_block ===============
-         IF (config%flag_test .AND. PRESENT(state_debug)) THEN
+         ! Always copy state when block_mod_state is present (not just debug mode)
+         ! This enables state-based error handling for thread safety
+         IF (PRESENT(block_mod_state)) THEN
             block_mod_state%BLOCK(ir) = mod_State
          END IF
 

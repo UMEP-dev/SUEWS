@@ -1,24 +1,19 @@
-from ast import literal_eval
-from shutil import rmtree
-import tempfile
 import copy
 import multiprocessing
 import os
 import sys
+import tempfile
 import time
-import threading
-
-# import logging
 import traceback
 from ast import literal_eval
 from pathlib import Path
+from shutil import rmtree
 from typing import Tuple
-import pandas
 
 import numpy as np
+import pandas
 import pandas as pd
 from .supy_driver import suews_driver as sd
-import copy
 
 # these are used in debug mode to save extra outputs
 from .supy_driver import module_ctrl_type as sd_dts
@@ -94,7 +89,15 @@ def _check_supy_error_from_state(state_block, timestep_idx: int = -1):
         return
 
     try:
-        # Access the last (or specified) state in the block
+        # Convert negative index to positive (f90wrap doesn't support negative indexing)
+        block_len = len(state_block.block)
+        if block_len == 0:
+            return  # No states to check
+
+        if timestep_idx < 0:
+            timestep_idx = block_len + timestep_idx
+
+        # Access the specified state in the block
         state = state_block.block[timestep_idx]
         error_state = state.errorstate
 
@@ -102,22 +105,25 @@ def _check_supy_error_from_state(state_block, timestep_idx: int = -1):
             code = int(error_state.code)
             message = str(error_state.message).strip()
             raise SUEWSKernelError(code, message)
-    except (AttributeError, IndexError):
-        # State object structure not as expected - fall back to module check
+    except SUEWSKernelError:
+        # Re-raise our own error type
+        raise
+    except (AttributeError, IndexError, RuntimeError):
+        # State object structure not as expected - fall back silently
+        # RuntimeError can occur from f90wrap for unallocated arrays
         pass
 
 
 def _check_supy_error():
     """Check if SUEWS kernel set an error flag and raise exception if so.
 
-    This function reads from module-level Fortran SAVE variables. It should
-    be called after each Fortran kernel call to detect errors that would
-    have previously terminated the process via STOP.
+    This function reads from module-level Fortran SAVE variables. It is
+    used by suews_cal_tstep (single-timestep path) which doesn't have access
+    to state objects.
 
-    Note: This method uses shared module-level variables and requires
-    the _kernel_lock to be held for thread safety. For thread-safe error
-    checking without the lock, use _check_supy_error_from_state() with
-    state objects (available in debug mode).
+    Warning: This method is NOT thread-safe as it uses shared module-level
+    variables. For thread-safe error checking, use suews_cal_tstep_multi
+    which uses _check_supy_error_from_state() with per-call state objects.
 
     Raises
     ------
@@ -149,15 +155,10 @@ def _reset_supy_error():
 
 ##############################################################################
 
-# Lock for serialising kernel calls to protect shared module-level SAVE variables.
-# This is required because the Fortran error state (supy_error_flag, supy_error_code,
-# supy_error_message) uses module-level SAVE variables that are not thread-safe.
-#
-# Future: When state-based error handling is used exclusively (all error info
-# read from SUEWS_STATE.errorState instead of module-level variables), this
-# lock can be removed. This requires always passing state objects to kernel
-# calls, even in non-debug mode.
-_kernel_lock = threading.Lock()
+# Note: No kernel lock needed for suews_cal_tstep_multi - it uses state-based
+# error handling which is thread-safe. Each call has its own block_mod_state.
+# The single-timestep suews_cal_tstep still uses module-level error check
+# and is not fully thread-safe - use suews_cal_tstep_multi for parallel work.
 
 
 # main calculation
@@ -186,18 +187,12 @@ def suews_cal_tstep(dict_state_start, dict_met_forcing_tstep):
     dict_input = {k: dict_input[k] for k in list_var_input}
 
     # main calculation:
+    # Note: This single-timestep path still uses module-level error check.
+    # For fully thread-safe operation, use suews_cal_tstep_multi instead.
     try:
-        # import pickle
-        # pickle.dump(dict_input, open("dict_input.pkl", "wb"))
-        # print("dict_input.pkl saved")
-        with _kernel_lock:
-            # Reset error state before Fortran call to ensure clean slate.
-            # This touches Fortran SAVE variables, so keep it inside the kernel lock.
-            _reset_supy_error()
-            res_suews_tstep = sd.suews_cal_main(**dict_input)
-
-            # Check for Fortran error flag (replaces STOP statement handling)
-            _check_supy_error()
+        res_suews_tstep = sd.suews_cal_main(**dict_input)
+        # Check for Fortran error flag (module-level, not fully thread-safe)
+        _check_supy_error()
 
     except SUEWSKernelError as e:
         # Fortran kernel set error flag instead of STOP
@@ -305,36 +300,28 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
         #     dict_input_loaded = pickle.load(f)
         # ```
     # main calculation:
+    # No kernel lock needed - state-based error handling is thread-safe
+    # Each call has its own block_mod_state for error capture
     try:
-        with _kernel_lock:
-            # Reset error state before Fortran call to ensure clean slate.
-            # This touches Fortran SAVE variables, so keep it inside the kernel lock.
-            _reset_supy_error()
+        # Create and initialize block_mod_state for state-based error handling
+        # NOTE: Must initialize from Python before kernel call, as f90wrap cannot
+        # reflect Fortran ALLOCATABLE component changes back to Python
+        block_mod_state = sd_dts.SUEWS_STATE_BLOCK()
+        nlayer = int(dict_input["nlayer"])
+        ndepth = 5  # Constant from suews_ctrl_const.f95
+        len_sim = int(dict_input["len_sim"])
+        block_mod_state.init(nlayer, ndepth, len_sim)
 
-            if debug_mode:
-                # initialise the debug objects
-                # they can only be used as input arguments
-                # but not explicitly returned as output arguments
-                # so we need to pass them as keyword arguments to the SUEWS kernel
-                # and then they will be updated by the SUEWS kernel and used later
-                state_debug = sd_dts.SUEWS_DEBUG()
-                block_mod_state = sd_dts.SUEWS_STATE_BLOCK()
-            else:
-                state_debug = None
-                block_mod_state = None
+        # state_debug is only created in debug mode (for detailed diagnostics)
+        state_debug = sd_dts.SUEWS_DEBUG() if debug_mode else None
 
-            # note the extra arguments are passed to the SUEWS kernel as keyword arguments in the debug mode
-            res_suews_tstep_multi = sd.suews_cal_multitsteps(
-                **dict_input,
-                state_debug=state_debug,
-                block_mod_state=block_mod_state,
-            )
-            # Check for Fortran error flag (replaces STOP statement handling)
-            # In debug mode, prefer state-based error checking (reads from per-call state,
-            # not shared module variables). Fall back to module-level check regardless.
-            if debug_mode and block_mod_state is not None:
-                _check_supy_error_from_state(block_mod_state)
-            _check_supy_error()
+        res_suews_tstep_multi = sd.suews_cal_multitsteps(
+            **dict_input,
+            state_debug=state_debug,
+            block_mod_state=block_mod_state,
+        )
+        # Check for errors using state-based approach (thread-safe)
+        _check_supy_error_from_state(block_mod_state)
 
     except SUEWSKernelError as e:
         # Fortran kernel set error flag instead of STOP

@@ -2485,7 +2485,7 @@ SUBROUTINE create_building(CASE, self, icase)
    self%maxheatingpower_water = 3000 ! # Watts
    self%heating_efficiency_water = 0.95
    self%minVwater_vessel = 0.1 ! # m3
-   self%maxVwater_vessel = 100.0 ! # m3 - sensible upper bound (GH-340)
+   self%maxVwater_vessel = 100.0 ! # m3 - arbitrary placeholder (GH-340), to be refined with validation
 
    self%minHeatingPower_DHW = 3000
    self%HeatingPower_DHW = 3000

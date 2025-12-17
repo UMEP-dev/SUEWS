@@ -22,12 +22,18 @@ Legacy Text Column Reference
 Runtime diagnostic information
 ------------------------------
 
+.. note::
+
+   ``problems.txt`` and ``warnings.txt`` are legacy outputs retained for reference.
+   Current versions emit diagnostic messages to stdout/stderr (and SuPy captures these
+   via the Python logger when running through Python).
+
 .. _problems.txt:
 
 Error messages: problems.txt
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If there are problems running the program serious error messages will be written to problems.txt.
+In older versions, if there are problems running the program serious error messages will be written to problems.txt.
 
 -  Serious problems will usually cause the program to stop after writing the error message. If this is the case, the last line of `problems.txt` will contain a non-zero number (the error code).
 -  If the program runs successfully, problems.txt file ends with::

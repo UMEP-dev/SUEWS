@@ -6,12 +6,19 @@ Legacy Diagnostics
 This section documents the runtime diagnostic files produced by SUEWS for
 error handling, warnings, and configuration summaries.
 
+.. note::
+
+   ``problems.txt`` and ``warnings.txt`` are **legacy** outputs retained for
+   older SUEWS versions. In current versions, diagnostic messages are emitted to
+   stdout/stderr (and captured by the SuPy logger when running via Python).
+
 .. _problems.txt:
 
 Error Messages: problems.txt
 ----------------------------
 
-If problems occur during simulation, error messages are written to ``problems.txt``.
+In older versions, if problems occur during simulation, error messages were written
+to ``problems.txt``.
 
 **Serious Errors:**
 
@@ -37,7 +44,8 @@ See :ref:`troubleshooting` for help solving problems.
 Warning Messages: warnings.txt
 ------------------------------
 
-Minor issues that don't stop the simulation are written to ``warnings.txt``.
+In older versions, minor issues that don't stop the simulation were written to
+``warnings.txt``.
 
 **Important Notes:**
 
@@ -45,23 +53,21 @@ Minor issues that don't stop the simulation are written to ``warnings.txt``.
 - The file can grow large (several GB) during extended simulations
 - Use ``tail``/``head`` to view portions without loading the entire file
 
-**Viewing Large Files (Unix/macOS):**
+**Viewing Diagnostics (Current Versions):**
 
 .. code-block:: bash
 
-   # View last 100 lines
-   tail -100 warnings.txt
+   # Capture stdout/stderr to a log file and inspect it
+   suews-run config.yml 2>&1 | tee suews-run.log
+   tail -100 suews-run.log
 
-   # View first 100 lines
-   head -100 warnings.txt
-
-   # Search for specific warnings
-   grep "moisture" warnings.txt
+   # Search for specific warnings/errors
+   grep -E "Warning|ERROR" suews-run.log
 
 **Suppressing Warnings:**
 
-To prevent ``warnings.txt`` from being written, set :option:`SuppressWarnings` = 1
-in ``RunControl.nml``.
+To suppress warning messages emitted by the kernel, set :option:`SuppressWarnings` = 1
+in ``RunControl.nml`` (or the equivalent YAML option).
 
 **Warning Format:**
 
@@ -120,4 +126,4 @@ Check:
 
 1. File paths in ``RunControl.nml``
 2. Write permissions in output directory
-3. ``problems.txt`` for error messages
+3. Console output / Python runtime logs for error messages

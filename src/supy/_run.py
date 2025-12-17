@@ -137,13 +137,13 @@ def suews_cal_tstep(dict_state_start, dict_met_forcing_tstep):
 
     # main calculation:
     try:
+        # import pickle
+        # pickle.dump(dict_input, open("dict_input.pkl", "wb"))
+        # print("dict_input.pkl saved")
         with _kernel_lock:
-            # Reset error state before Fortran call to ensure clean slate
+            # Reset error state before Fortran call to ensure clean slate.
+            # This touches Fortran SAVE variables, so keep it inside the kernel lock.
             _reset_supy_error()
-
-            # import pickle
-            # pickle.dump(dict_input, open("dict_input.pkl", "wb"))
-            # print("dict_input.pkl saved")
             res_suews_tstep = sd.suews_cal_main(**dict_input)
 
             # Check for Fortran error flag (replaces STOP statement handling)
@@ -254,21 +254,22 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
         # ```
     # main calculation:
     try:
-        if debug_mode:
-            # initialise the debug objects
-            # they can only be used as input arguments
-            # but not explicitly returned as output arguments
-            # so we need to pass them as keyword arguments to the SUEWS kernel
-            # and then they will be updated by the SUEWS kernel and used later
-            state_debug = sd_dts.SUEWS_DEBUG()
-            block_mod_state = sd_dts.SUEWS_STATE_BLOCK()
-        else:
-            state_debug = None
-            block_mod_state = None
-
         with _kernel_lock:
-            # Reset error state before Fortran call to ensure clean slate
+            # Reset error state before Fortran call to ensure clean slate.
+            # This touches Fortran SAVE variables, so keep it inside the kernel lock.
             _reset_supy_error()
+
+            if debug_mode:
+                # initialise the debug objects
+                # they can only be used as input arguments
+                # but not explicitly returned as output arguments
+                # so we need to pass them as keyword arguments to the SUEWS kernel
+                # and then they will be updated by the SUEWS kernel and used later
+                state_debug = sd_dts.SUEWS_DEBUG()
+                block_mod_state = sd_dts.SUEWS_STATE_BLOCK()
+            else:
+                state_debug = None
+                block_mod_state = None
 
             # note the extra arguments are passed to the SUEWS kernel as keyword arguments in the debug mode
             res_suews_tstep_multi = sd.suews_cal_multitsteps(

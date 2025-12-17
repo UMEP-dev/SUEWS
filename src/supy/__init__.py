@@ -57,6 +57,8 @@ __all__ = [
     "SUEWSSimulation",
     "SUEWSForcing",
     "SUEWSOutput",
+    # Exceptions
+    "SUEWSKernelError",
     # Version
     "show_version",
     "__version__",
@@ -185,6 +187,13 @@ def __getattr__(name):
         from .cmd import SUEWS
 
         _lazy_cache[name] = SUEWS
+        return _lazy_cache[name]
+
+    # Exception for Fortran kernel errors
+    if name == "SUEWSKernelError":
+        from ._run import SUEWSKernelError
+
+        _lazy_cache[name] = SUEWSKernelError
         return _lazy_cache[name]
 
     raise AttributeError(f"module 'supy' has no attribute {name!r}")

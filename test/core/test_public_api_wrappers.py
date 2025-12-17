@@ -25,7 +25,7 @@ from supy.suews_sim import SUEWSSimulation
 class TestPublicAPIFunctionality:
     """Test that deprecated public API functions still work correctly."""
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_load_sample_data_works(self):
         """Test load_sample_data returns correct data structures."""
         # Use the saved deprecated version from conftest.py

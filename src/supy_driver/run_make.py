@@ -8,6 +8,18 @@ import sys
 from pathlib import Path
 
 
+def _run_make(args: list[str], suews_dir: Path) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(
+        ["make", "-C", str(suews_dir), *args],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+    sys.stdout.write(result.stdout)
+    return result
+
+
 def main() -> None:
     if len(sys.argv) != 3:
         raise SystemExit("Usage: run_make.py <suews_dir> <stamp_file>")
@@ -15,8 +27,29 @@ def main() -> None:
     suews_dir = Path(sys.argv[1]).resolve()
     stamp_file = Path(sys.argv[2])
 
-    # Propagate the exit code from make so Meson can fail fast.
-    subprocess.run(["make", "-C", str(suews_dir)], check=True)
+    # Run make and propagate failures so Meson can fail fast.
+    # On macOS it is common for Homebrew to upgrade gfortran, which leaves stale
+    # Fortran module files (*.mod) that cannot be read by the new compiler.
+    result = _run_make([], suews_dir)
+    if result.returncode != 0:
+        output = result.stdout
+        stale_mod_patterns = (
+            "created by a different version of GNU Fortran",
+            "Cannot read module file",
+        )
+        if any(pat in output for pat in stale_mod_patterns):
+            sys.stdout.write(
+                "\nDetected stale Fortran build artifacts; cleaning *.o and *.mod and retrying.\n"
+            )
+            clean = _run_make(["clean-obj", "clean-mods"], suews_dir)
+            if clean.returncode != 0:
+                raise subprocess.CalledProcessError(clean.returncode, clean.args, output=clean.stdout)
+
+            retry = _run_make([], suews_dir)
+            if retry.returncode != 0:
+                raise subprocess.CalledProcessError(retry.returncode, retry.args, output=retry.stdout)
+        else:
+            raise subprocess.CalledProcessError(result.returncode, result.args, output=result.stdout)
 
     # Ensure an output file exists so Meson can track this custom target.
     stamp_file.parent.mkdir(parents=True, exist_ok=True)

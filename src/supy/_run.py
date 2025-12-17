@@ -46,6 +46,65 @@ from .util._debug import save_zip_debug
 
 
 ##############################################################################
+# Error handling for Fortran kernel errors
+# These replace STOP statements that would otherwise terminate Python
+
+
+class SUEWSKernelError(RuntimeError):
+    """Exception raised when SUEWS Fortran kernel encounters a fatal error.
+
+    This exception is raised when the Fortran code sets an error flag instead
+    of calling STOP, allowing Python to handle the error gracefully.
+
+    Attributes
+    ----------
+    code : int
+        Error code from the Fortran kernel (corresponds to ErrorHint codes).
+    message : str
+        Error message describing the problem.
+    """
+
+    def __init__(self, code: int, message: str):
+        self.code = code
+        self.message = message
+        super().__init__(f"SUEWS Error {code}: {message}")
+
+
+def _check_supy_error():
+    """Check if SUEWS kernel set an error flag and raise exception if so.
+
+    This function should be called after each Fortran kernel call to detect
+    errors that would have previously terminated the process via STOP.
+
+    Raises
+    ------
+    SUEWSKernelError
+        If the Fortran kernel has set the error flag.
+    """
+    # Access error state via the C extension module directly
+    # (f90wrap doesn't generate a Python class for module_ctrl_error_state)
+    from . import _supy_driver as _sd
+
+    if _sd.f90wrap_module_ctrl_error_state__get__supy_error_flag():
+        code = int(_sd.f90wrap_module_ctrl_error_state__get__supy_error_code())
+        message = str(_sd.f90wrap_module_ctrl_error_state__get__supy_error_message()).strip()
+        # Reset error state for next call
+        _sd.f90wrap_module_ctrl_error_state__reset_supy_error()
+        raise SUEWSKernelError(code, message)
+
+
+def _reset_supy_error():
+    """Reset error state before calling Fortran kernel.
+
+    Uses the Fortran reset_supy_error() subroutine for consistency
+    with how _check_supy_error() resets after detecting an error.
+    """
+    from . import _supy_driver as _sd
+
+    _sd.f90wrap_module_ctrl_error_state__reset_supy_error()
+
+
+##############################################################################
 # main calculation
 # 1. calculation code for one time step
 # 2. compact wrapper for running a whole simulation
@@ -66,30 +125,39 @@ def suews_cal_tstep(dict_state_start, dict_met_forcing_tstep):
     dict_input.update(dict_met_forcing_tstep)
 
     for var in list_var_input:
-        if var in dict_input:
-            pass
-        else:
-            print(f"{var} is not in dict_input")
-            print("\n")
+        if var not in dict_input:
+            logger_supy.warning("Variable %s is not in dict_input", var)
 
     dict_input = {k: dict_input[k] for k in list_var_input}
 
     # main calculation:
     try:
+        # Reset error state before Fortran call to ensure clean slate
+        _reset_supy_error()
+
         # import pickle
         # pickle.dump(dict_input, open("dict_input.pkl", "wb"))
         # print("dict_input.pkl saved")
         res_suews_tstep = sd.suews_cal_main(**dict_input)
+
+        # Check for Fortran error flag (replaces STOP statement handling)
+        _check_supy_error()
+
+    except SUEWSKernelError as e:
+        # Fortran kernel set error flag instead of STOP
+        logger_supy.critical(f"SUEWS kernel error: {e}")
+        raise
     except Exception as ex:
         # show trace info
         logger_supy.exception(traceback.format_exc())
         # show SUEWS fatal error details produced by SUEWS kernel
-        with open("problems.txt", "r") as f:
-            logger_supy.critical(f.read())
-        # clean slate
-        # os.remove('problems.txt')
-        # sys.exit()
-        logger_supy.critical("SUEWS kernel error")
+        try:
+            with open("problems.txt", "r") as f:
+                logger_supy.critical(f.read())
+        except FileNotFoundError:
+            logger_supy.warning("problems.txt not found - no additional error details")
+        # Re-raise to prevent silent failure (returning None)
+        raise RuntimeError(f"SUEWS kernel error: {ex}") from ex
     else:
         # update state variables
         # if save_state:  # deep copy states results
@@ -188,6 +256,9 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
         # ```
     # main calculation:
     try:
+        # Reset error state before Fortran call to ensure clean slate
+        _reset_supy_error()
+
         if debug_mode:
             # initialise the debug objects
             # they can only be used as input arguments
@@ -207,17 +278,24 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
             block_mod_state=block_mod_state,
         )
 
+        # Check for Fortran error flag (replaces STOP statement handling)
+        _check_supy_error()
+
+    except SUEWSKernelError as e:
+        # Fortran kernel set error flag instead of STOP
+        logger_supy.critical(f"SUEWS kernel error: {e}")
+        raise
     except Exception as ex:
         # show trace info
-        # print(traceback.format_exc())
+        logger_supy.exception(traceback.format_exc())
         # show SUEWS fatal error details produced by SUEWS kernel
-        with open("problems.txt", "r") as f:
-            logger_supy.critical(f.read())
-        # clean slate
-        # os.remove('problems.txt')
-        # sys.exit()
-        # raise RuntimeError("Something bad happened") from exs
-        logger_supy.critical("SUEWS kernel error")
+        try:
+            with open("problems.txt", "r") as f:
+                logger_supy.critical(f.read())
+        except FileNotFoundError:
+            logger_supy.warning("problems.txt not found - no additional error details")
+        # Re-raise to prevent silent failure (returning None)
+        raise RuntimeError(f"SUEWS kernel error: {ex}") from ex
     else:
         # update state variables
         # use deep copy to avoid reference issue; also copy the initial dict_state_start
@@ -708,7 +786,7 @@ def pack_var_old(ser_var):
     val = np.array(ser_var.values.reshape(dim), order="F")
     try:
         return val.astype(float)
-    except:
+    except (ValueError, TypeError):
         return val
 
 
@@ -752,12 +830,12 @@ def pack_var(ser_var: pd.Series) -> np.ndarray:
 
         try:
             return res.astype(float)
-        except:
+        except (ValueError, TypeError):
             return res.astype(str)
 
     except (ValueError, AttributeError) as e:
         # Log error and fall back to scalar handling
-        print(f"Error reshaping Series: {e}")
+        logger_supy.warning("Error reshaping Series: %s", e)
         return np.array([ser_var.iloc[0]])
 
 

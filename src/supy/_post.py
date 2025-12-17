@@ -110,10 +110,12 @@ def comb_gen_Series(dict_x):
 
 # pack up output of `run_suews`
 def pack_df_output_line(dict_output):
+    import logging
     import pickle
 
-    pickle.dump(dict_output, open("dict_output.pkl", "wb"))
-    print("dict_output saved to dict_output.pkl")
+    if logger_supy.isEnabledFor(logging.DEBUG):
+        pickle.dump(dict_output, open("dict_output.pkl", "wb"))
+        logger_supy.debug("dict_output saved to dict_output.pkl")
     # TODO: add output levels as in the Fortran version
     df_output = pd.DataFrame(dict_output).T
     # df_output = pd.concat(dict_output).to_frame().unstack()
@@ -372,14 +374,14 @@ def proc_df_rsl(df_output, debug=False):
     try:
         # If we work on the whole output with multi-index columns
         df_rsl_raw = df_output["RSL"].copy()
-    except:
+    except KeyError:
         # If we directly work on the RSL output
         df_rsl_raw = df_output.copy()
 
     try:
         # Drop unnecessary timestamp columns if existing
         df_rsl_data = df_rsl_raw.drop(["Year", "DOY", "Hour", "Min", "Dectime"], axis=1)
-    except:
+    except KeyError:
         df_rsl_data = df_rsl_raw
 
     # Extract the first 120 columns (30 levels × 4 variables)

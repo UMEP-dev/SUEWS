@@ -126,8 +126,8 @@ def save_df_grid_group(df_year, grid, group, dir_save, site):
     # starting year
     try:
         year = df_year.index[0].year
-    except:
-        print(df_year)
+    except (AttributeError, IndexError):
+        logger_supy.debug("Could not extract year from df_year index:\n%s", df_year)
 
     # sample file name: 'Kc98_2012_SUEWS_60.txt'
     file_out = f"{site}{grid}_{year}_{group}_{freq_min}.txt"

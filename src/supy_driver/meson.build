@@ -100,7 +100,7 @@ src_f95_all = [
   'suews_ctrl_const.f95',
   'suews_ctrl_type.f95',
   'suews_util_stringmod.f95',
-  'suews_ctrl_input.f95',
+  'suews_util_profile.f95',
   'suews_util_time.f95',
   'suews_util_meteo.f95',
   'suews_util_datetime.f95',
@@ -131,7 +131,8 @@ endforeach
 src_f95_files = files(src_f95_files)
 
 src_f95_sub = [
-  # 'suews_ctrl_const.f95',
+  'suews_ctrl_const.f95',
+  'suews_ctrl_error.f95',  # Needed for error state module (module_ctrl_error_state)
   'suews_ctrl_type.f95',
   'suews_ctrl_driver.f95',
   'suews_phys_anthro.f95',
@@ -293,8 +294,10 @@ dep_lib_src = declare_dependency(
 dep_lib_suews = declare_dependency(
   link_args: [
     '-L' + dir_suews / 'lib', # the path is relative to the build directory when running meson
-    '-lspartacus',
     '-lsuewsdriver',
+    '-lsuewsphys',
+    '-lsuewsutil',
+    '-lspartacus',
   ],
 )
 dep_suews = [dep_lib_src, dep_lib_suews]

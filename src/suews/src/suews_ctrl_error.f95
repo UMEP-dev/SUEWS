@@ -1,3 +1,48 @@
+!==================================================================================================
+! Error state module for Python/SuPy interface
+! This module has NO dependencies and is at the base of the module hierarchy
+! Allows Python to detect Fortran errors without STOP terminating the process
+!
+! Error Codes (GH#1035):
+!   Standard ErrorHint codes (1-99): See ErrorHint subroutine below
+!   100: NARP - NetRadiationMethod value not usable
+!   101: OHM  - Invalid input parameters (d, C, k, lambda_c, WS must be positive)
+!   102: STEBBS - Invalid thermal parameters (d, cp, rho must be positive; x1 in [0,1])
+!
+! Note: Error state uses SAVE variables, so is NOT thread-safe.
+!       Do not call SUEWS from multiple threads simultaneously.
+!==================================================================================================
+MODULE module_ctrl_error_state
+   IMPLICIT NONE
+
+   ! Error state variables exposed to Python via f90wrap
+   LOGICAL, SAVE :: supy_error_flag = .FALSE.
+   INTEGER, SAVE :: supy_error_code = 0
+   CHARACTER(LEN=512), SAVE :: supy_error_message = ''
+
+CONTAINS
+
+   SUBROUTINE reset_supy_error()
+      supy_error_flag = .FALSE.
+      supy_error_code = 0
+      supy_error_message = ''
+   END SUBROUTINE reset_supy_error
+
+   SUBROUTINE set_supy_error(code, message)
+      INTEGER, INTENT(IN) :: code
+      CHARACTER(LEN=*), INTENT(IN) :: message
+      INTEGER :: msg_len
+
+      supy_error_flag = .TRUE.
+      supy_error_code = code
+      msg_len = MIN(LEN_TRIM(message), 512)
+      supy_error_message = message(1:msg_len)
+   END SUBROUTINE set_supy_error
+
+END MODULE module_ctrl_error_state
+
+!==================================================================================================
+
 SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
    !errh        -- Create a numbered code for the situation so get a unique message to help solve the problem
    !ProblemFile -- Filename where the problem occurs/error message
@@ -16,6 +61,7 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
 
    USE module_ctrl_const_datain
    USE module_ctrl_const_default
+   USE module_ctrl_error_state, ONLY: set_supy_error
    ! USE module_ctrl_const_wherewhen
 
    IMPLICIT NONE
@@ -414,17 +460,19 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
       WRITE (500, *) TRIM(Errmessage)
 
       WRITE (500, '(i3)') errh !Add error code to problems.txt
-      WRITE (*, *) 'ERROR! SUEWS run stopped.' !Print message to screen if program stopped
       CLOSE (500)
 
-      WRITE (*, *) 'problem: ', TRIM(ProblemFile)
-      WRITE (*, *) 'See problems.txt for more info.'
       WRITE (StopMessage, *) 'fatal error in SUEWS:'//NEW_LINE('A')//TRIM(text1)
-      STOP 'Fatal error in SUEWS!'
+
+      ! Set error state for Python/SuPy interface instead of STOP
+      ! This allows Python to detect the error and raise an exception
+      CALL set_supy_error(errh, TRIM(text1)//': '//TRIM(ProblemFile))
+      RETURN
 
 #endif
    END IF
 
 END SUBROUTINE ErrorHint
+
 
 !=============================================================

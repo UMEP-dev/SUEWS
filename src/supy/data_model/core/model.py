@@ -598,7 +598,11 @@ class ModelPhysics(BaseModel):
         default_factory=lambda: NetRadiationMethodConfig(
             physics=RadiationPhysics.NARP, longwave=LongwaveSource.AIR
         ),
-        description=_enum_description(NetRadiationMethod),
+        description=(
+            "Method for calculating net all-wave radiation (Q*). "
+            "Uses orthogonal dimensions: physics (obs/narp/spartacus) and "
+            "longwave source (obs/cloud/air). See nested structure for details."
+        ),
         json_schema_extra={"unit": "dimensionless"},
     )
 

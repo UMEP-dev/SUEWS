@@ -30,6 +30,13 @@ except ImportError:
 class RSTGenerator:
     """Generate RST documentation from extracted model documentation."""
 
+    # Dimensional config models that should be displayed with tabbed format inline
+    # These models have orthogonal dimensions and need special documentation
+    DIMENSIONAL_CONFIG_MODELS = {"NetRadiationMethodConfig"}
+
+    # Models whose content is inlined in parent field (skip separate file generation)
+    INLINE_NESTED_MODELS = {"NetRadiationMethodConfig"}
+
     def __init__(self, doc_data: dict[str, Any]):
         """
         Initialize the RST generator with extracted documentation data.
@@ -59,6 +66,11 @@ class RSTGenerator:
         for model_name, model_doc in self.models.items():
             if model_doc.get("circular_ref"):
                 continue  # Skip circular references
+
+            # Skip models that are inlined in parent fields
+            if model_name in self.INLINE_NESTED_MODELS:
+                print(f"Skipped (inlined): {model_name}")
+                continue
 
             rst_content = self._format_model(model_name, model_doc)
             rst_file = output_dir / f"{model_name.lower()}.rst"
@@ -365,8 +377,121 @@ class RSTGenerator:
 
         return lines
 
+    def _is_dimensional_config(self, field_doc: dict[str, Any]) -> bool:
+        """Check if field has a dimensional config model (for tabbed display).
+
+        Args:
+            field_doc: Field documentation dictionary
+
+        Returns:
+            True if this field should use tabbed dimensional display
+        """
+        nested_model = field_doc.get("nested_model")
+        return nested_model in self.DIMENSIONAL_CONFIG_MODELS
+
+    def _format_dimensional_field(
+        self, field_doc: dict[str, Any], model_name: str
+    ) -> list[str]:
+        """Generate tabbed RST for dimensional config fields.
+
+        Args:
+            field_doc: Field documentation dictionary
+            model_name: Name of the containing model
+
+        Returns:
+            List of RST lines with tab-set for recommended/legacy formats
+        """
+        lines = []
+        field_name = field_doc["name"]
+        nested_model = field_doc.get("nested_model", "")
+
+        # Add index entries
+        lines.extend(self._add_field_index_entries(field_name, model_name))
+
+        # Use input:option directive
+        lines.append(f".. input:option:: {field_name}")
+        lines.append("")
+
+        # Add main description
+        description = field_doc.get("description", "")
+        if description:
+            lines.append(f"   {description}")
+            lines.append("")
+
+        # Generate tabbed content based on model type
+        if nested_model == "NetRadiationMethodConfig":
+            lines.extend(self._format_netradiationmethod_tabs())
+
+        return lines
+
+    def _format_netradiationmethod_tabs(self) -> list[str]:
+        """Generate tabbed RST for netradiationmethod field.
+
+        Returns:
+            List of RST lines with tab-set for recommended/legacy formats
+        """
+        lines = []
+
+        lines.append("   .. tab-set::")
+        lines.append("")
+        lines.append("      .. tab-item:: Recommended")
+        lines.append("         :selected:")
+        lines.append("")
+        lines.append("         Configure using orthogonal dimensions for clearer semantics:")
+        lines.append("")
+        lines.append("         .. code-block:: yaml")
+        lines.append("")
+        lines.append("            netradiationmethod:")
+        lines.append("              physics: narp      # obs | narp | spartacus")
+        lines.append("              longwave: air      # obs | cloud | air (required when physics != obs)")
+        lines.append("")
+        lines.append("         **physics** options:")
+        lines.append("")
+        lines.append("         * ``obs`` - Use observed Q* directly from forcing file")
+        lines.append("         * ``narp`` - NARP parameterisation (Offerle et al. 2003, Loridan et al. 2011)")
+        lines.append("         * ``spartacus`` - SPARTACUS-Surface integration **(experimental)**")
+        lines.append("")
+        lines.append("         **longwave** options (required when physics ≠ obs):")
+        lines.append("")
+        lines.append("         * ``obs`` - Use observed L\\ :sub:`down` from forcing file")
+        lines.append("         * ``cloud`` - Model L\\ :sub:`down` from cloud cover fraction")
+        lines.append("         * ``air`` - Model L\\ :sub:`down` from air temperature and relative humidity")
+        lines.append("")
+        lines.append("      .. tab-item:: Legacy (Deprecated)")
+        lines.append("")
+        lines.append("         .. deprecated::")
+        lines.append("")
+        lines.append("            The following numeric codes are supported for backward compatibility")
+        lines.append("            but will be removed in a future version. Migrate to the nested format.")
+        lines.append("")
+        lines.append("         **Primary codes:**")
+        lines.append("")
+        lines.append("         * ``0`` (OBSERVED) - Uses observed Q* [→ physics: obs]")
+        lines.append("         * ``1`` (LDOWN_OBSERVED) - NARP with observed L\\ :sub:`down` [→ physics: narp, longwave: obs]")
+        lines.append("         * ``2`` (LDOWN_CLOUD) - NARP with L\\ :sub:`down` from cloud cover [→ physics: narp, longwave: cloud]")
+        lines.append("         * ``3`` (LDOWN_AIR) - NARP with L\\ :sub:`down` from air temp/RH [→ physics: narp, longwave: air]")
+        lines.append("         * ``1001`` (LDOWN_SS_OBSERVED) - SPARTACUS with observed L\\ :sub:`down` [→ physics: spartacus, longwave: obs]")
+        lines.append("         * ``1002`` (LDOWN_SS_CLOUD) - SPARTACUS with L\\ :sub:`down` from cloud [→ physics: spartacus, longwave: cloud]")
+        lines.append("         * ``1003`` (LDOWN_SS_AIR) - SPARTACUS with L\\ :sub:`down` from air [→ physics: spartacus, longwave: air]")
+        lines.append("")
+        lines.append("         **Deprecated variants (map to primary codes):**")
+        lines.append("")
+        lines.append("         * ``11`` (LDOWN_SURFACE) - Surface temp variant [→ code 1]")
+        lines.append("         * ``12`` (LDOWN_CLOUD_SURFACE) - Surface temp variant [→ code 2]")
+        lines.append("         * ``13`` (LDOWN_AIR_SURFACE) - Surface temp variant [→ code 3]")
+        lines.append("         * ``100`` (LDOWN_ZENITH) - Zenith correction variant [→ code 1]")
+        lines.append("         * ``200`` (LDOWN_CLOUD_ZENITH) - Zenith correction variant [→ code 2]")
+        lines.append("         * ``300`` (LDOWN_AIR_ZENITH) - Zenith correction variant [→ code 3]")
+        lines.append("")
+
+        return lines
+
     def _format_field(self, field_doc: dict[str, Any], model_name: str) -> list[str]:
         """Format a single field as RST."""
+        # Check for dimensional config fields that need tabbed display
+        if self._is_dimensional_config(field_doc):
+            return self._format_dimensional_field(field_doc, model_name)
+
         lines = []
         field_name = field_doc["name"]
         type_info = field_doc.get("type_info", {})
@@ -714,9 +839,10 @@ class RSTGenerator:
             "",
         ])
 
-        # Add all model files to toctree (excluding RefValue and Reference)
+        # Add all model files to toctree (excluding utility and inline models)
+        excluded = {"RefValue", "Reference"} | self.INLINE_NESTED_MODELS
         for model_name in sorted(self.models.keys()):
-            if model_name not in {"RefValue", "Reference"}:
+            if model_name not in excluded:
                 lines.append(f"   {model_name.lower()}")
 
         return "\n".join(lines)
@@ -748,9 +874,10 @@ class RSTGenerator:
             "",
         ])
 
-        # Add all model files to toctree (excluding RefValue and Reference)
+        # Add all model files to toctree (excluding utility and inline models)
+        excluded = {"RefValue", "Reference"} | self.INLINE_NESTED_MODELS
         for model_name in sorted(self.models.keys()):
-            if model_name not in {"RefValue", "Reference"}:
+            if model_name not in excluded:
                 lines.append(f"   {model_name.lower()}")
 
         return "\n".join(lines)
@@ -782,9 +909,10 @@ class RSTGenerator:
             "",
         ])
 
-        # Add all model files to toctree (excluding RefValue and Reference)
+        # Add all model files to toctree (excluding utility and inline models)
+        excluded = {"RefValue", "Reference"} | self.INLINE_NESTED_MODELS
         for model_name in sorted(self.models.keys()):
-            if model_name not in {"RefValue", "Reference"}:
+            if model_name not in excluded:
                 lines.append(f"   {model_name.lower()}")
 
         return "\n".join(lines)
@@ -854,9 +982,10 @@ class RSTGenerator:
             "",
         ]
 
-        # Add all model files to hidden toctree
+        # Add all model files to hidden toctree (excluding utility and inline models)
+        excluded = {"RefValue", "Reference"} | self.INLINE_NESTED_MODELS
         for model_name in sorted(self.models.keys()):
-            if model_name not in {"RefValue", "Reference"}:
+            if model_name not in excluded:
                 lines.append(f"   {model_name.lower()}")
 
         return "\n".join(lines)
@@ -891,9 +1020,10 @@ class RSTGenerator:
             "",
         ])
 
-        # Add all model files to toctree (excluding RefValue and Reference)
+        # Add all model files to toctree (excluding utility and inline models)
+        excluded = {"RefValue", "Reference"} | self.INLINE_NESTED_MODELS
         for model_name in sorted(self.models.keys()):
-            if model_name not in {"RefValue", "Reference"}:
+            if model_name not in excluded:
                 lines.append(f"   {model_name.lower()}")
 
         return "\n".join(lines)
@@ -931,9 +1061,10 @@ class RSTGenerator:
             "",
         ])
 
-        # Add all model files to toctree (excluding RefValue and Reference)
+        # Add all model files to toctree (excluding utility and inline models)
+        excluded = {"RefValue", "Reference"} | self.INLINE_NESTED_MODELS
         for model_name in sorted(self.models.keys()):
-            if model_name not in {"RefValue", "Reference"}:
+            if model_name not in excluded:
                 lines.append(f"   {model_name.lower()}")
 
         return "\n".join(lines)
@@ -965,9 +1096,11 @@ class RSTGenerator:
         # Stop expanding at certain depth or for profile/utility types
         profile_types = {"DayProfile", "HourlyProfile", "WeeklyProfile"}
         utility_types = {"Reference", "RefValue"}
+        # Inline models are documented in parent field, skip separate expansion
+        skip_types = utility_types | self.INLINE_NESTED_MODELS
 
         # Don't expand profile types or utility types or if we're too deep
-        if model_name in profile_types or model_name in utility_types or depth > 4:
+        if model_name in profile_types or model_name in skip_types or depth > 4:
             return result
 
         # Collect all fields - both nested models and simple fields
@@ -975,11 +1108,11 @@ class RSTGenerator:
             field_name = field["name"]
             nested_model = field.get("nested_model")
 
-            # Skip Reference and RefValue as they're utility types
+            # Skip utility types and inline models (documented in parent field)
             if (
                 nested_model
                 and nested_model in self.models
-                and nested_model not in utility_types
+                and nested_model not in skip_types
             ):
                 # For profile types, just note the field name without expanding
                 if nested_model in profile_types:

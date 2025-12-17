@@ -1641,7 +1641,7 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
     )
     HeatingSetpointTemperature: Union[FlexibleRefValue(float), DayProfile, HourlyProfile] = Field(
-        default=FlexibleRefValue(float)(0.0),  # keep a scalar default to preserve backwards compatibility
+        default=0.0,  # keep a scalar default to preserve backwards compatibility
         description="Heating setpoint temperature [degC] or a time profile (DayProfile/HourlyProfile)",
         json_schema_extra={
             "unit": "degC",
@@ -1708,19 +1708,42 @@ class ArchetypeProperties(BaseModel):
             if field_name == "ref":
                 continue
 
+            # column for scalar value
             col = (field_name.lower(), "0")
-            # If explicit scalar column exists use it
             if col in df.columns:
                 params[field_name] = df.loc[grid_id, col]
                 continue
 
-            # If the field type is a known profile, call its from_df_state
-            ann = field_info.annotation
-            if ann is DayProfile or ann is HourlyProfile or ann is WeeklyProfile:
-                params[field_name] = ann.from_df_state(df, grid_id, field_name.lower())
-                continue
+            # detect any non-scalar/profile columns for this field name
+            profile_cols = [c for c in df.columns if c[0] == field_name.lower() and c[1] != "0"]
+            if profile_cols:
+                # try Hourly, then Day, then Weekly
+                tried = False
+                try:
+                    params[field_name] = HourlyProfile.from_df_state(df, grid_id, field_name.lower())
+                    tried = True
+                except Exception:
+                    pass
 
-            # Missing scalar: use default or default_factory
+                if not tried:
+                    try:
+                        params[field_name] = DayProfile.from_df_state(df, grid_id, field_name.lower())
+                        tried = True
+                    except Exception:
+                        pass
+
+                if not tried:
+                    try:
+                        params[field_name] = WeeklyProfile.from_df_state(df, grid_id, field_name.lower())
+                        tried = True
+                    except Exception:
+                        pass
+
+                # if none succeeded, fall back to None (Pydantic will validate later)
+                if tried:
+                    continue
+
+            # Missing scalar/profile: use default or default_factory if available
             if field_info.default is not None:
                 params[field_name] = field_info.default
             elif field_info.default_factory is not None:
@@ -1728,7 +1751,7 @@ class ArchetypeProperties(BaseModel):
             else:
                 params[field_name] = None
 
-        # Wrap scalar values in RefValue except those that must remain raw
+        # Wrap scalar values in RefValue except fields that should remain raw strings
         non_ref = {"BuildingType", "BuildingName"}
         for k, v in list(params.items()):
             if k not in non_ref and not isinstance(v, (DayProfile, HourlyProfile, WeeklyProfile)):

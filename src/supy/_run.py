@@ -71,11 +71,53 @@ class SUEWSKernelError(RuntimeError):
         super().__init__(f"SUEWS Error {code}: {message}")
 
 
+def _check_supy_error_from_state(state_block, timestep_idx: int = -1):
+    """Check error state from SUEWS_STATE_BLOCK object.
+
+    This is the preferred method for checking errors when state objects
+    are available (debug mode). It reads from per-call state rather than
+    shared module-level variables.
+
+    Parameters
+    ----------
+    state_block : SUEWS_STATE_BLOCK
+        The state block object containing error state from the kernel call.
+    timestep_idx : int, optional
+        Index of the timestep to check. Defaults to -1 (last timestep).
+
+    Raises
+    ------
+    SUEWSKernelError
+        If the state indicates an error occurred.
+    """
+    if state_block is None:
+        return
+
+    try:
+        # Access the last (or specified) state in the block
+        state = state_block.block[timestep_idx]
+        error_state = state.errorstate
+
+        if error_state.flag:
+            code = int(error_state.code)
+            message = str(error_state.message).strip()
+            raise SUEWSKernelError(code, message)
+    except (AttributeError, IndexError):
+        # State object structure not as expected - fall back to module check
+        pass
+
+
 def _check_supy_error():
     """Check if SUEWS kernel set an error flag and raise exception if so.
 
-    This function should be called after each Fortran kernel call to detect
-    errors that would have previously terminated the process via STOP.
+    This function reads from module-level Fortran SAVE variables. It should
+    be called after each Fortran kernel call to detect errors that would
+    have previously terminated the process via STOP.
+
+    Note: This method uses shared module-level variables and requires
+    the _kernel_lock to be held for thread safety. For thread-safe error
+    checking without the lock, use _check_supy_error_from_state() with
+    state objects (available in debug mode).
 
     Raises
     ------
@@ -107,6 +149,14 @@ def _reset_supy_error():
 
 ##############################################################################
 
+# Lock for serialising kernel calls to protect shared module-level SAVE variables.
+# This is required because the Fortran error state (supy_error_flag, supy_error_code,
+# supy_error_message) uses module-level SAVE variables that are not thread-safe.
+#
+# Future: When state-based error handling is used exclusively (all error info
+# read from SUEWS_STATE.errorState instead of module-level variables), this
+# lock can be removed. This requires always passing state objects to kernel
+# calls, even in non-debug mode.
 _kernel_lock = threading.Lock()
 
 
@@ -280,6 +330,10 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
                 block_mod_state=block_mod_state,
             )
             # Check for Fortran error flag (replaces STOP statement handling)
+            # In debug mode, prefer state-based error checking (reads from per-call state,
+            # not shared module variables). Fall back to module-level check regardless.
+            if debug_mode and block_mod_state is not None:
+                _check_supy_error_from_state(block_mod_state)
             _check_supy_error()
 
     except SUEWSKernelError as e:

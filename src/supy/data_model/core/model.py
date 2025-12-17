@@ -1,5 +1,5 @@
 import yaml
-from typing import Optional, Union, List
+from typing import Optional, Union, List, Any
 import numpy as np
 from pydantic import ConfigDict, BaseModel, Field, field_validator, model_validator
 import pandas as pd
@@ -8,6 +8,12 @@ import inspect
 
 from .type import RefValue, Reference, FlexibleRefValue
 from .type import init_df_state
+from .physics_options import (
+    NetRadiationMethodConfig,
+    RadiationPhysics,
+    LongwaveSource,
+    code_to_dimensions,
+)
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -173,6 +179,37 @@ class NetRadiationMethod(Enum):
 
     def __repr__(self):
         return str(self.value)
+
+    @property
+    def physics(self) -> str:
+        """Return physics dimension: obs, narp, or spartacus.
+
+        Returns
+        -------
+        str
+            'obs' for observed, 'narp' for NARP, 'spartacus' for SPARTACUS
+        """
+        if self.value == 0:
+            return "obs"
+        elif self.value >= 1000:
+            return "spartacus"
+        else:
+            return "narp"
+
+    @property
+    def longwave(self) -> "str | None":
+        """Return longwave dimension: obs, cloud, air, or None.
+
+        Returns
+        -------
+        str or None
+            Longwave source, or None for observed physics
+        """
+        if self.value == 0:
+            return None
+        # Extract last digit for longwave code
+        lw_code = self.value % 10
+        return {1: "obs", 2: "cloud", 3: "air"}.get(lw_code)
 
 
 class StorageHeatMethod(Enum):
@@ -557,11 +594,51 @@ class ModelPhysics(BaseModel):
 
     model_config = ConfigDict(title="Physics Methods")
 
-    netradiationmethod: FlexibleRefValue(NetRadiationMethod) = Field(
-        default=NetRadiationMethod.LDOWN_AIR,
+    netradiationmethod: NetRadiationMethodConfig = Field(
+        default_factory=lambda: NetRadiationMethodConfig(
+            physics=RadiationPhysics.NARP, longwave=LongwaveSource.AIR
+        ),
         description=_enum_description(NetRadiationMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
+
+    @field_validator("netradiationmethod", mode="before")
+    @classmethod
+    def coerce_netradiationmethod(cls, v: Any) -> Any:
+        """Accept legacy and dimension-based forms for netradiationmethod.
+
+        Accepted forms:
+        - Dimension-based: {"physics": "narp", "longwave": "air"}
+        - Legacy RefValue: {"value": 3}
+        - Plain integer: 3
+        - Enum member: NetRadiationMethod.LDOWN_AIR
+        - Already a NetRadiationMethodConfig instance
+        """
+        if v is None or isinstance(v, NetRadiationMethodConfig):
+            return v
+
+        # Dimension-based form: {physics: narp, longwave: air}
+        if isinstance(v, dict):
+            if "physics" in v:
+                return v  # Pass to Pydantic for validation
+
+            # Legacy form: {value: N}
+            if "value" in v:
+                code = int(v["value"])
+                physics, longwave = code_to_dimensions(code)
+                result: dict[str, Any] = {"physics": physics}
+                if longwave:
+                    result["longwave"] = longwave
+                return result
+
+        # Plain int or enum
+        code = v.value if isinstance(v, Enum) else int(v)
+        physics, longwave = code_to_dimensions(code)
+        result = {"physics": physics}
+        if longwave:
+            result["longwave"] = longwave
+        return result
+
     emissionsmethod: FlexibleRefValue(EmissionsMethod) = Field(
         default=EmissionsMethod.J11,
         description=_enum_description(EmissionsMethod),
@@ -665,12 +742,17 @@ class ModelPhysics(BaseModel):
         df_state = init_df_state(grid_id)
 
         # Helper function to set values in DataFrame
-        def set_df_value(col_name: str, value: float):
+        def set_df_value(col_name: str, value: Any):
             idx_str = "0"
             if (col_name, idx_str) not in df_state.columns:
-                # df_state[(col_name, idx_str)] = np.nan
                 df_state[(col_name, idx_str)] = None
-            val = value.value if isinstance(value, RefValue) else value
+            # Handle different value types
+            if isinstance(value, NetRadiationMethodConfig):
+                val = value.int_value
+            elif isinstance(value, RefValue):
+                val = value.value
+            else:
+                val = value
             df_state.at[grid_id, (col_name, idx_str)] = int(val)
 
         list_attr = [
@@ -731,7 +813,12 @@ class ModelPhysics(BaseModel):
 
         for attr in list_attr:
             try:
-                properties[attr] = RefValue(int(df.loc[grid_id, (attr, "0")]))
+                int_val = int(df.loc[grid_id, (attr, "0")])
+                # Handle netradiationmethod specially - use NetRadiationMethodConfig
+                if attr == "netradiationmethod":
+                    properties[attr] = NetRadiationMethodConfig.from_code(int_val)
+                else:
+                    properties[attr] = RefValue(int_val)
             except KeyError:
                 raise ValueError(f"Missing attribute '{attr}' in the DataFrame")
 

@@ -53,8 +53,8 @@ class TestSUEWSConfig(unittest.TestCase):
             self.config.model.control.tstep, config_reconst.model.control.tstep
         )
         self.assertEqual(
-            self.config.model.physics.netradiationmethod.value,
-            config_reconst.model.physics.netradiationmethod.value,
+            self.config.model.physics.netradiationmethod.int_value,
+            config_reconst.model.physics.netradiationmethod.int_value,
         )
         self.assertEqual(
             self.config.sites[0].properties.lat.value,

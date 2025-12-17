@@ -16,7 +16,7 @@ from supy.suews_sim import SUEWSSimulation
 class TestInit:
     """Test initialization."""
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_empty_init(self):
         """Test empty initialization."""
         sim = SUEWSSimulation()
@@ -24,7 +24,7 @@ class TestInit:
         assert sim.forcing is None
         assert sim.results is None
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_yaml_init(self):
         """Test initialization from YAML."""
         yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
@@ -32,7 +32,7 @@ class TestInit:
         assert sim.config is not None
         assert sim._df_state_init is not None
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_from_sample_data(self):
         """Test initialization from sample data factory method."""
         sim = SUEWSSimulation.from_sample_data()

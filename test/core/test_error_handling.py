@@ -10,7 +10,7 @@ from supy import SUEWSKernelError
 from supy._run import _check_supy_error, _reset_supy_error
 
 
-@pytest.mark.smoke
+@pytest.mark.core
 class TestSUEWSKernelError:
     """Test the SUEWSKernelError mechanism that replaces Fortran STOP."""
 
@@ -104,7 +104,7 @@ class TestSUEWSKernelError:
         assert not flag, "Error flag should be False after reset"
 
 
-@pytest.mark.smoke
+@pytest.mark.core
 class TestSUEWSKernelErrorIntegration:
     """Integration tests for error handling through the simulation API."""
 

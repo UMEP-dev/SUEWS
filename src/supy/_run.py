@@ -125,11 +125,8 @@ def suews_cal_tstep(dict_state_start, dict_met_forcing_tstep):
     dict_input.update(dict_met_forcing_tstep)
 
     for var in list_var_input:
-        if var in dict_input:
-            pass
-        else:
-            print(f"{var} is not in dict_input")
-            print("\n")
+        if var not in dict_input:
+            logger_supy.warning("Variable %s is not in dict_input", var)
 
     dict_input = {k: dict_input[k] for k in list_var_input}
 
@@ -789,7 +786,7 @@ def pack_var_old(ser_var):
     val = np.array(ser_var.values.reshape(dim), order="F")
     try:
         return val.astype(float)
-    except:
+    except (ValueError, TypeError):
         return val
 
 
@@ -833,12 +830,12 @@ def pack_var(ser_var: pd.Series) -> np.ndarray:
 
         try:
             return res.astype(float)
-        except:
+        except (ValueError, TypeError):
             return res.astype(str)
 
     except (ValueError, AttributeError) as e:
         # Log error and fall back to scalar handling
-        print(f"Error reshaping Series: {e}")
+        logger_supy.warning("Error reshaping Series: %s", e)
         return np.array([ser_var.iloc[0]])
 
 

@@ -478,9 +478,8 @@ def upgrade_df_state(df_state: pd.DataFrame) -> pd.DataFrame:
         # remove columns
         for c in set_col_deprecated_use:
             if c in list_col_remove:
-                print(c)
-                print(df_state_upgrade[c])
-                logger_supy.info(f"Column `{c}` is removed")
+                logger_supy.debug("Removing deprecated column: %s\n%s", c, df_state_upgrade[c])
+                logger_supy.info("Column `%s` is removed", c)
                 df_state_upgrade = df_state_upgrade.drop(columns=c, level=0)
 
         # expand df_state_init to match df_state_init_test

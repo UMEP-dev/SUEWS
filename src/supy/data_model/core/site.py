@@ -1190,6 +1190,33 @@ class ArchetypeProperties(BaseModel):
     # BuildingCode='1'
     # BuildingClass='SampleClass'
 
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_heating_setpoint(cls, values):
+        # called before model initialization; convert heating setpoint inputs to proper types
+        if isinstance(values, dict) and "heatingsetpointtemperature" in values:
+            val = values["heatingsetpointtemperature"]
+            # If a dict that looks like a profile, try constructing profiles
+            if isinstance(val, dict):
+                # Heuristic: presence of 'hourly' / 'values' / 'days' keys indicates a profile
+                if "hourly" in val or "values" in val or "24" in val or "profile" in val:
+                    try:
+                        values["heatingsetpointtemperature"] = HourlyProfile(**val)
+                    except Exception:
+                        try:
+                            values["heatingsetpointtemperature"] = DayProfile(**val)
+                        except Exception:
+                            # leave as-is: Pydantic will raise
+                            pass
+                elif "value" in val:
+                    # RefValue style dict
+                    # keep as-is; later conversion will wrap into RefValue
+                    pass
+            elif isinstance(val, (int, float)):
+                # Keep scalar numeric as-is; Pydantic will coerce via FlexibleRefValue
+                pass
+        return values
+
     BuildingType: Optional[str] = Field(
         default="SampleType",
         description="Building archetype type [-]",
@@ -1613,12 +1640,13 @@ class ArchetypeProperties(BaseModel):
         json_schema_extra={"unit": "W", "display_name": "Maximum Hot Water Heating Power"},
         gt=0.0,
     )
-    HeatingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Heating setpoint temperature [degC]",
+    HeatingSetpointTemperature: Union[FlexibleRefValue(float), DayProfile, HourlyProfile] = Field(
+        default=FlexibleRefValue(float)(0.0),  # keep a scalar default to preserve backwards compatibility
+        description="Heating setpoint temperature [degC] or a time profile (DayProfile/HourlyProfile)",
         json_schema_extra={
             "unit": "degC",
             "display_name": "Heating Setpoint Temperature",
+            "note": "Can be a scalar or a profile (DayProfile/HourlyProfile)."
         },
     )
     CoolingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(

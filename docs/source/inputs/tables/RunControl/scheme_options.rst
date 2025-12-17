@@ -64,6 +64,14 @@ Scheme options
 		Required
 	:Description:
 		Determines method for QF calculation.
+
+	.. note::
+
+		Methods 11-45 include **biogenic CO2** calculations and are **experimental**.
+		While scientifically validated against established photosynthesis models,
+		users should verify results for their specific applications.
+		See :ref:`SUEWS_BiogenCO2` for required parameters.
+
 	:Configuration:
 		.. csv-table::
 			:file: csv-table/EmissionsMethod.csv

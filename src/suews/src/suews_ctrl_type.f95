@@ -402,6 +402,9 @@ CONTAINS
       CALL self%DEALLOCATE()
       CALL self%hydroState%ALLOCATE(nlayer)
       CALL self%heatState%ALLOCATE(nsurf, nlayer, ndepth)
+      ! Allocate STEBBS buildings with default 1 building type
+      ! Additional buildings can be allocated via allocate_stebbs_buildings accessor
+      CALL self%stebbsState%ALLOCATE(1, nlayer)
 
    END SUBROUTINE allocSUEWSState_c
 
@@ -411,6 +414,7 @@ CONTAINS
 
       CALL self%hydroState%DEALLOCATE()
       CALL self%heatState%DEALLOCATE()
+      CALL self%stebbsState%DEALLOCATE()
 
    END SUBROUTINE deallocSUEWSState_c
 
@@ -439,9 +443,13 @@ CONTAINS
    SUBROUTINE allocate_site_prm_c(self, nlayer)
       CLASS(SUEWS_SITE), INTENT(inout) :: self
       INTEGER, INTENT(in) :: nlayer
+      INTEGER, PARAMETER :: nsurf = 7
+      INTEGER, PARAMETER :: ndepth = 5
       CALL self%DEALLOCATE()
       ALLOCATE (self%sfr_roof(nlayer))
       ALLOCATE (self%sfr_wall(nlayer))
+      ! Also allocate nested EHC parameters (required for dyOHM calculations)
+      CALL self%ehc%ALLOCATE(nsurf, ndepth)
 
    END SUBROUTINE allocate_site_prm_c
 
@@ -452,6 +460,8 @@ CONTAINS
 
       IF (ALLOCATED(self%sfr_roof)) DEALLOCATE (self%sfr_roof)
       IF (ALLOCATED(self%sfr_wall)) DEALLOCATE (self%sfr_wall)
+      ! Also deallocate nested EHC parameters
+      CALL self%ehc%DEALLOCATE()
 
    END SUBROUTINE deallocate_site_prm_c
 

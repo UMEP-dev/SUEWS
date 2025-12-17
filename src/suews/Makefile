@@ -212,7 +212,8 @@ DRIVER = suews_ctrl_driver.o \
 	suews_accessor_atm.o \
 	suews_accessor_anthro.o \
 	suews_accessor_phen.o \
-	suews_accessor_stebbs.o
+	suews_accessor_stebbs.o \
+	suews_accessor_site.o
 
 # Rest of the files including modules and functions which are independent
 # OTHERS =  suews_ctrl_translate.o \

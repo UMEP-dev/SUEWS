@@ -10,6 +10,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Optional, Union
 import warnings
 
+import numpy as np
 import pandas as pd
 
 from ._run import run_supy_ser
@@ -536,7 +537,7 @@ class SUEWSSimulation:
             raise RuntimeError("No forcing data loaded. Use update_forcing() first.")
 
         # Import DTS interface components
-        from ._run_dts import (
+        from .dts import (
             create_suews_config,
             create_suews_state,
             create_suews_site,
@@ -547,6 +548,7 @@ class SUEWSSimulation:
             populate_forcing_from_row,
             populate_timer_from_datetime,
             run_supy_dts_tstep,
+            bootstrap_state_from_config,
         )
         from . import _state_accessors as acc
 
@@ -559,13 +561,15 @@ class SUEWSSimulation:
 
         # Populate config from SUEWSConfig
         config_params = {}
+        # Map: (DTS attribute name, physics config attribute name)
+        # Note: physics config uses names without underscores
         method_attrs = [
-            ('rslmethod', 'rsl_method'),
-            ('storageheatmethod', 'storage_heat_method'),
-            ('netradiationmethod', 'net_radiation_method'),
-            ('stabilitymethod', 'stability_method'),
-            ('emissionsmethod', 'emissions_method'),
-            ('ohmincqf', 'ohm_inc_qf'),
+            ('rslmethod', 'rslmethod'),
+            ('storageheatmethod', 'storageheatmethod'),
+            ('netradiationmethod', 'netradiationmethod'),
+            ('stabilitymethod', 'stabilitymethod'),
+            ('emissionsmethod', 'emissionsmethod'),
+            ('ohmincqf', 'ohmincqf'),
         ]
         for dts_attr, config_attr in method_attrs:
             val = getattr(self._config.model.physics, config_attr, None)
@@ -575,43 +579,325 @@ class SUEWSSimulation:
                 config_params[dts_attr] = int(val)
         populate_config_from_dict(config_dts, config_params)
 
+        # Override methods that require complex initialization not yet implemented
+        # RSL z-profile needs explicit initialization - use simpler methods for now
+        config_dts.rslmethod = 1         # Simple RSL (no z-profile)
+        config_dts.diagmethod = 0        # No diagnostics (avoids profile interp)
+        config_dts.roughlenmommethod = 1 # Simple roughness
+        config_dts.stebbsmethod = 0      # No STEBBS (avoids z-profile interp)
+
         # Populate site from SUEWSConfig
         site_params = {}
         if self._config.sites and len(self._config.sites) > 0:
             site_cfg = self._config.sites[0]
-            # Extract site parameters
-            if hasattr(site_cfg, 'latitude'):
-                site_params['lat'] = getattr(site_cfg.latitude, 'value', site_cfg.latitude)
-            if hasattr(site_cfg, 'longitude'):
-                site_params['lon'] = getattr(site_cfg.longitude, 'value', site_cfg.longitude)
-            if hasattr(site_cfg, 'altitude'):
-                site_params['alt'] = getattr(site_cfg.altitude, 'value', site_cfg.altitude)
-            if hasattr(site_cfg, 'timezone'):
-                site_params['timezone'] = getattr(site_cfg.timezone, 'value', site_cfg.timezone)
-            if hasattr(site_cfg, 'measurement_height'):
-                site_params['z'] = getattr(site_cfg.measurement_height, 'value', site_cfg.measurement_height)
-            if hasattr(site_cfg, 'surface_area'):
-                site_params['surfacearea'] = getattr(site_cfg.surface_area, 'value', site_cfg.surface_area)
+            props = getattr(site_cfg, 'properties', None)
+            if props:
+                # Extract site parameters from properties
+                param_map = [
+                    ('lat', 'lat'),
+                    ('lng', 'lon'),   # Note: lng in config -> lon in DTS
+                    ('alt', 'alt'),
+                    ('z', 'z'),       # Measurement height
+                    ('surfacearea', 'surfacearea'),
+                    ('z0m_in', 'z0m_in'),
+                    ('zdm_in', 'zdm_in'),
+                ]
+                for cfg_attr, dts_attr in param_map:
+                    val = getattr(props, cfg_attr, None)
+                    if val is not None:
+                        if hasattr(val, 'value'):
+                            val = val.value
+                        site_params[dts_attr] = float(val)
 
-            # Extract surface fractions if available
-            if hasattr(site_cfg, 'land_cover') and site_cfg.land_cover is not None:
-                lc = site_cfg.land_cover
+                # Handle timezone (may be string like 'UTC+0:00')
+                tz = getattr(props, 'timezone', None)
+                if tz:
+                    if hasattr(tz, 'value'):
+                        tz = tz.value
+                    if isinstance(tz, str):
+                        # Parse 'UTC+X:00' format
+                        if 'UTC' in str(tz):
+                            tz_str = str(tz).replace('UTC', '')
+                            try:
+                                site_params['timezone'] = float(tz_str.split(':')[0])
+                            except ValueError:
+                                site_params['timezone'] = 0.0
+                    else:
+                        site_params['timezone'] = float(tz)
+
+            # Extract surface fractions from land_cover under properties
+            lc = getattr(props, 'land_cover', None)
+            if lc is not None:
                 sfr_surf = []
-                lc_types = ['paved', 'building', 'evergreen_tree', 'deciduous_tree', 'grass', 'bare_soil', 'water']
-                for lc_type in lc_types:
-                    frac = getattr(lc, lc_type, None)
-                    if frac is not None:
-                        if hasattr(frac, 'fraction'):
-                            frac = getattr(frac.fraction, 'value', frac.fraction)
-                        elif hasattr(frac, 'value'):
-                            frac = frac.value
-                        sfr_surf.append(float(frac) if frac is not None else 0.0)
+                # Map config land cover types to sfr_surf order (SUEWS 7 surfaces)
+                lc_types = [
+                    ('paved', 'sfr'),      # 0: Paved
+                    ('bldgs', 'sfr'),      # 1: Buildings
+                    ('evetr', 'sfr'),      # 2: Evergreen trees
+                    ('dectr', 'sfr'),      # 3: Deciduous trees
+                    ('grass', 'sfr'),      # 4: Grass
+                    ('bsoil', 'sfr'),      # 5: Bare soil
+                    ('water', 'sfr'),      # 6: Water
+                ]
+                for lc_name, attr_name in lc_types:
+                    lc_obj = getattr(lc, lc_name, None)
+                    if lc_obj is not None:
+                        frac = getattr(lc_obj, attr_name, None)
+                        if frac is not None:
+                            if hasattr(frac, 'value'):
+                                frac = frac.value
+                            sfr_surf.append(float(frac) if frac is not None else 0.0)
+                        else:
+                            sfr_surf.append(0.0)
                     else:
                         sfr_surf.append(0.0)
                 if len(sfr_surf) == 7:
                     site_params['sfr_surf'] = sfr_surf
 
         populate_site_from_dict(site_dts, site_params)
+
+        # Extract gsmodel from physics config
+        gsmodel = 2  # Default to Ward et al. 2016
+        if hasattr(self._config.model.physics, 'gsmodel'):
+            gsm_val = self._config.model.physics.gsmodel
+            if hasattr(gsm_val, 'value'):
+                gsmodel = int(gsm_val.value)
+            elif gsm_val is not None:
+                gsmodel = int(gsm_val)
+
+        # Extract conductance parameters from site properties
+        cond_params = {
+            'gsmodel': gsmodel,
+            'g_max': 3.5,      # Default values
+            'g_k': 200.0,
+            'g_q_base': 0.1,
+            'g_q_shape': 1.0,
+            'g_t': 0.1,
+            'g_sm': 0.05,
+            'kmax': 1200.0,
+            's1': 0.1,
+            's2': 200.0,
+            'th': 55.0,
+            'tl': -10.0,
+        }
+
+        # Override with config values if available
+        if self._config.sites and len(self._config.sites) > 0:
+            site_cfg = self._config.sites[0]
+            if hasattr(site_cfg, 'properties') and site_cfg.properties:
+                props = site_cfg.properties
+                if hasattr(props, 'conductance') and props.conductance:
+                    cond = props.conductance
+                    for param in ['g_max', 'g_k', 'g_q_base', 'g_q_shape',
+                                  'g_t', 'g_sm', 'kmax', 's1', 's2', 'th', 'tl']:
+                        val = getattr(cond, param, None)
+                        if val is not None:
+                            if hasattr(val, 'value'):
+                                val = val.value
+                            cond_params[param] = float(val)
+
+        # Set conductance parameters using accessor
+        acc.set_site_conductance(
+            site_dts,
+            gsmodel=cond_params['gsmodel'],
+            g_max=cond_params['g_max'],
+            g_k=cond_params['g_k'],
+            g_q_base=cond_params['g_q_base'],
+            g_q_shape=cond_params['g_q_shape'],
+            g_t=cond_params['g_t'],
+            g_sm=cond_params['g_sm'],
+            kmax=cond_params['kmax'],
+            s1=cond_params['s1'],
+            s2=cond_params['s2'],
+            th=cond_params['th'],
+            tl=cond_params['tl'],
+        )
+
+        # Initialize roughness state with default urban values
+        # These are needed for RSL calculations
+        z_meas = site_params.get('z', 25.0)
+        z0m_in = site_params.get('z0m_in', 1.0)
+        zdm_in = site_params.get('zdm_in', 7.0)
+        acc.set_roughness_state(
+            state_dts,
+            faibldg_use=0.3,     # Building frontal area index
+            faievetree_use=0.1,  # Evergreen tree frontal area
+            faidectree_use=0.1,  # Deciduous tree frontal area
+            fai=0.5,             # Total frontal area index
+            pai=0.3,             # Plan area index
+            zh=10.0,             # Mean building height [m]
+            z0m=z0m_in,          # Roughness length momentum [m]
+            z0v=z0m_in * 0.1,    # Roughness length heat [m]
+            zdm=zdm_in,          # Zero-plane displacement [m]
+            zzd=z_meas - zdm_in, # zMeas - zdm [m]
+        )
+
+        # Set site surface properties (soil params and water limits)
+        # Required for hydro state validation during bootstrap
+        if self._config.sites and len(self._config.sites) > 0:
+            site_cfg = self._config.sites[0]
+            if hasattr(site_cfg, 'properties') and site_cfg.properties:
+                land_cover = getattr(site_cfg.properties, 'land_cover', None)
+                if land_cover:
+                    # Build arrays for 7 surfaces
+                    # Order: paved=0, bldgs=1, evetr=2, dectr=3, grass=4, bsoil=5, water=6
+                    soildepth = np.zeros(7, dtype=np.float64)
+                    soilstorecap = np.zeros(7, dtype=np.float64)
+                    sathydraulicconduct = np.zeros(7, dtype=np.float64)
+                    statelimit = np.zeros(7, dtype=np.float64)
+                    wetthresh = np.zeros(7, dtype=np.float64)
+
+                    # Default values for soil properties
+                    default_soildepth = 350.0  # mm
+                    default_soilstorecap = 150.0  # mm
+                    default_statelimit = 10.0  # mm
+                    default_wetthresh = 2.0  # mm
+
+                    surface_order = ['paved', 'bldgs', 'evetr', 'dectr', 'grass', 'bsoil', 'water']
+                    for i, surf_name in enumerate(surface_order):
+                        surf = getattr(land_cover, surf_name, None)
+                        if surf:
+                            # Extract soil properties
+                            if hasattr(surf, 'soildepth') and surf.soildepth is not None:
+                                val = surf.soildepth
+                                soildepth[i] = val.value if hasattr(val, 'value') else val
+                            else:
+                                soildepth[i] = default_soildepth
+
+                            if hasattr(surf, 'soilstorecap') and surf.soilstorecap is not None:
+                                val = surf.soilstorecap
+                                soilstorecap[i] = val.value if hasattr(val, 'value') else val
+                            else:
+                                soilstorecap[i] = default_soilstorecap
+
+                            if hasattr(surf, 'sathydraulicconduct') and surf.sathydraulicconduct is not None:
+                                val = surf.sathydraulicconduct
+                                sathydraulicconduct[i] = val.value if hasattr(val, 'value') else val
+
+                            # Extract water limit properties
+                            if hasattr(surf, 'statelimit') and surf.statelimit is not None:
+                                val = surf.statelimit
+                                statelimit[i] = val.value if hasattr(val, 'value') else val
+                            else:
+                                statelimit[i] = default_statelimit
+
+                            if hasattr(surf, 'wetthresh') and surf.wetthresh is not None:
+                                val = surf.wetthresh
+                                wetthresh[i] = val.value if hasattr(val, 'value') else val
+                            else:
+                                wetthresh[i] = default_wetthresh
+                        else:
+                            # Use defaults for missing surfaces
+                            soildepth[i] = default_soildepth
+                            soilstorecap[i] = default_soilstorecap
+                            statelimit[i] = default_statelimit
+                            wetthresh[i] = default_wetthresh
+
+                    # Set site surface properties
+                    acc.set_site_soil_params(site_dts, soildepth, soilstorecap, sathydraulicconduct)
+                    acc.set_site_water_limits(site_dts, statelimit, wetthresh)
+
+                    # Set surface fractions and emissivity
+                    sfr_array = np.zeros(7, dtype=np.float64)
+                    emis_array = np.zeros(7, dtype=np.float64)
+                    default_emis = 0.95  # Default emissivity
+
+                    for i, surf_name in enumerate(surface_order):
+                        surf = getattr(land_cover, surf_name, None)
+                        if surf:
+                            # Surface fraction
+                            if hasattr(surf, 'sfr') and surf.sfr is not None:
+                                val = surf.sfr
+                                sfr_array[i] = val.value if hasattr(val, 'value') else val
+                            # Emissivity
+                            if hasattr(surf, 'emis') and surf.emis is not None:
+                                val = surf.emis
+                                emis_array[i] = val.value if hasattr(val, 'value') else val
+                            else:
+                                emis_array[i] = default_emis
+                        else:
+                            emis_array[i] = default_emis
+
+                    acc.set_site_sfr(site_dts, sfr_array)
+                    acc.set_site_emis(site_dts, emis_array)
+
+        # Bootstrap state from config initial_states
+        if self._config.sites and len(self._config.sites) > 0:
+            site_cfg = self._config.sites[0]
+            if hasattr(site_cfg, 'initial_states') and site_cfg.initial_states:
+                bootstrap_state_from_config(
+                    state_dts,
+                    site_cfg.initial_states,
+                    nlayer=nlayer,
+                    ndepth=ndepth,
+                )
+
+        # Set non-vegetated surface albedos from land_cover properties
+        # Bootstrap only sets vegetation albedos (indices 2,3,4)
+        # Non-vegetated albedos (paved=0, bldgs=1, bsoil=5, water=6) come from land_cover
+        if self._config.sites and len(self._config.sites) > 0:
+            site_cfg = self._config.sites[0]
+            if hasattr(site_cfg, 'properties') and site_cfg.properties:
+                land_cover = getattr(site_cfg.properties, 'land_cover', None)
+                if land_cover:
+                    # Get current albedo array (has vegetation values from bootstrap)
+                    # f90wrap subroutine requires output array argument
+                    alb_array = np.zeros(7, dtype=np.float64)
+                    acc.get_phen_state_alb(state_dts, alb_array)
+
+                    # Non-vegetated surface indices and names
+                    nonveg_surfaces = [(0, 'paved'), (1, 'bldgs'), (5, 'bsoil'), (6, 'water')]
+                    default_albedo = 0.1  # Default for non-vegetated surfaces
+
+                    for idx, surf_name in nonveg_surfaces:
+                        surf = getattr(land_cover, surf_name, None)
+                        if surf and hasattr(surf, 'alb') and surf.alb is not None:
+                            val = surf.alb
+                            alb_array[idx] = val.value if hasattr(val, 'value') else val
+                        else:
+                            alb_array[idx] = default_albedo
+
+                    # Set the complete albedo array
+                    acc.set_phen_state_alb(state_dts, alb_array)
+
+                    # Extract OHM coefficients for storage heat flux calculation
+                    # Using summer_dry as default; use DyOHM for dynamic selection
+                    def get_ohm_coef(surf, coef_name, default=0.0):
+                        """Extract OHM coefficient from surface config."""
+                        if not surf or not hasattr(surf, 'ohm_coef') or surf.ohm_coef is None:
+                            return default
+                        ohm_coef = surf.ohm_coef
+                        # Use summer_dry as default season
+                        season = getattr(ohm_coef, 'summer_dry', None)
+                        if season is None:
+                            return default
+                        val = getattr(season, coef_name, None)
+                        if val is None:
+                            return default
+                        return val.value if hasattr(val, 'value') else val
+
+                    # Extract coefficients for each surface
+                    # Surface order: paved, bldgs, evetr, dectr, grass, bsoil, water
+                    ohm_params = {}
+                    for surf_name in surface_order:
+                        surf = getattr(land_cover, surf_name, None)
+                        ohm_params[surf_name] = {
+                            'a1': get_ohm_coef(surf, 'a1', 0.5),
+                            'a2': get_ohm_coef(surf, 'a2', 0.2),
+                            'a3': get_ohm_coef(surf, 'a3', -10.0),
+                        }
+
+                    # Set OHM coefficients on state
+                    acc.set_ohm_state_coef_surf(
+                        state_dts,
+                        ohm_params['bldgs']['a1'], ohm_params['bldgs']['a2'], ohm_params['bldgs']['a3'],
+                        ohm_params['paved']['a1'], ohm_params['paved']['a2'], ohm_params['paved']['a3'],
+                        ohm_params['evetr']['a1'], ohm_params['evetr']['a2'], ohm_params['evetr']['a3'],
+                        ohm_params['dectr']['a1'], ohm_params['dectr']['a2'], ohm_params['dectr']['a3'],
+                        ohm_params['grass']['a1'], ohm_params['grass']['a2'], ohm_params['grass']['a3'],
+                        ohm_params['bsoil']['a1'], ohm_params['bsoil']['a2'], ohm_params['bsoil']['a3'],
+                        ohm_params['water']['a1'], ohm_params['water']['a2'], ohm_params['water']['a3'],
+                    )
 
         # Get forcing data slice and determine timestep
         forcing_df = self._df_forcing.loc[start_date:end_date]

@@ -20,6 +20,8 @@ def run_supy_dts_tstep(
     state: dts.SUEWS_STATE,
     forcing: dts.SUEWS_FORCING,
     debug: bool = False,
+    nlayer: int = 5,
+    ndepth: int = 5,
 ) -> Tuple[dts.SUEWS_STATE, Dict[str, Any]]:
     """Run a single SUEWS timestep using DTS objects.
 
@@ -38,6 +40,10 @@ def run_supy_dts_tstep(
     debug : bool
         Whether to return debug information. When True, creates and
         initialises a SUEWS_DEBUG object for detailed diagnostics.
+    nlayer : int
+        Number of urban canopy layers (default 5). Used for debug state allocation.
+    ndepth : int
+        Number of soil/surface depth layers (default 5). Used for debug state allocation.
 
     Returns
     -------
@@ -50,7 +56,7 @@ def run_supy_dts_tstep(
     # create an uninitialised debug object as a fallback for robustness
     if debug:
         debug_state = dts.SUEWS_DEBUG()
-        dts.init_suews_debug(debug_state)
+        dts.init_suews_debug(debug_state, nlayer=nlayer, ndepth=ndepth)
     else:
         # Create minimal debug state - f90wrap may not handle None correctly
         # for all Fortran compilers, so provide an uninitialised object

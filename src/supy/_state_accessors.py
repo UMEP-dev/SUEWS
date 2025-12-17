@@ -28,7 +28,7 @@ ImportError
 # Each import is wrapped to provide meaningful error messages
 _ACCESSOR_MODULES = [
     "heat", "hydro", "snow", "flag", "solar", "roughness",
-    "nhood", "ohm", "atm", "anthro", "phen", "stebbs"
+    "nhood", "ohm", "atm", "anthro", "phen", "stebbs", "site"
 ]
 
 try:
@@ -44,6 +44,7 @@ try:
     from .supy_driver import module_accessor_anthro as _anthro
     from .supy_driver import module_accessor_phen as _phen
     from .supy_driver import module_accessor_stebbs as _stebbs
+    from .supy_driver import module_accessor_site as _site
 except ImportError as e:
     raise ImportError(
         f"Failed to import DTS accessor modules: {e}. "
@@ -151,3 +152,19 @@ get_stebbs_state_qs = _stebbs.get_stebbs_state_qs
 set_stebbs_state_qs = _stebbs.set_stebbs_state_qs
 get_stebbs_building_temps = _stebbs.get_stebbs_building_temps
 set_stebbs_building_temps = _stebbs.set_stebbs_building_temps
+allocate_stebbs_buildings = _stebbs.allocate_stebbs_buildings
+get_stebbs_buildings_info = _stebbs.get_stebbs_buildings_info
+
+# Site accessor functions (for nested site parameters)
+get_site_conductance = _site.get_site_conductance
+set_site_conductance = _site.set_site_conductance
+
+# Site surface property accessors
+get_site_soil_params = _site.get_site_soil_params
+set_site_soil_params = _site.set_site_soil_params
+get_site_water_limits = _site.get_site_water_limits
+set_site_water_limits = _site.set_site_water_limits
+get_site_sfr = _site.get_site_sfr
+set_site_sfr = _site.set_site_sfr
+get_site_emis = _site.get_site_emis
+set_site_emis = _site.set_site_emis

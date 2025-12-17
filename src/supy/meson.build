@@ -10,7 +10,6 @@ py.install_sources(
         '_misc.py',
         '_post.py',
         '_run.py',
-        '_run_dts.py',
         '_state_accessors.py',
         '_save.py',
         '_supy_driver_wrapper.py',
@@ -76,6 +75,7 @@ py.install_sources(
             'dts/_site.py',
             'dts/_state.py',
             'dts/_runner.py',
+            'dts/_bootstrap.py',
         ],
         [
             'data_model/__init__.py',

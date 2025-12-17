@@ -431,9 +431,15 @@ module module_type_stebbs
 
       CLASS(STEBBS_STATE), INTENT(INOUT) :: self
       INTEGER, INTENT(IN) :: ntypes, num_layer
+      INTEGER :: i
 
       CALL self%DEALLOCATE()
       ALLOCATE (self%buildings(ntypes))
+
+      ! Allocate internal arrays for each building
+      DO i = 1, ntypes
+         CALL self%buildings(i)%ALLOCATE(num_layer)
+      END DO
 
    END SUBROUTINE allocSTEBBS_bldg
 

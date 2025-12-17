@@ -247,4 +247,62 @@ CONTAINS
       END IF
    END SUBROUTINE set_stebbs_building_temps
 
+   !> Allocate STEBBS buildings array in state
+   !> This must be called before accessing buildings(:) elements
+   SUBROUTINE allocate_stebbs_buildings(state, ntypes, nlayer)
+      TYPE(SUEWS_STATE), INTENT(INOUT) :: state
+      INTEGER, INTENT(IN) :: ntypes, nlayer
+
+      INTEGER :: i
+
+      ! Allocate buildings array if not already allocated or wrong size
+      IF (ALLOCATED(state%stebbsState%buildings)) THEN
+         IF (SIZE(state%stebbsState%buildings) /= ntypes) THEN
+            DEALLOCATE(state%stebbsState%buildings)
+            ALLOCATE(state%stebbsState%buildings(ntypes))
+         END IF
+      ELSE
+         ALLOCATE(state%stebbsState%buildings(ntypes))
+      END IF
+
+      ! Allocate internal arrays for each building
+      DO i = 1, ntypes
+         IF (ALLOCATED(state%stebbsState%buildings(i)%Textroof_C)) THEN
+            IF (SIZE(state%stebbsState%buildings(i)%Textroof_C) /= nlayer) THEN
+               DEALLOCATE(state%stebbsState%buildings(i)%Textroof_C)
+               ALLOCATE(state%stebbsState%buildings(i)%Textroof_C(nlayer))
+               state%stebbsState%buildings(i)%Textroof_C = 0.0D0
+            END IF
+         ELSE
+            ALLOCATE(state%stebbsState%buildings(i)%Textroof_C(nlayer))
+            state%stebbsState%buildings(i)%Textroof_C = 0.0D0
+         END IF
+
+         IF (ALLOCATED(state%stebbsState%buildings(i)%Textwall_C)) THEN
+            IF (SIZE(state%stebbsState%buildings(i)%Textwall_C) /= nlayer) THEN
+               DEALLOCATE(state%stebbsState%buildings(i)%Textwall_C)
+               ALLOCATE(state%stebbsState%buildings(i)%Textwall_C(nlayer))
+               state%stebbsState%buildings(i)%Textwall_C = 0.0D0
+            END IF
+         ELSE
+            ALLOCATE(state%stebbsState%buildings(i)%Textwall_C(nlayer))
+            state%stebbsState%buildings(i)%Textwall_C = 0.0D0
+         END IF
+      END DO
+   END SUBROUTINE allocate_stebbs_buildings
+
+   !> Check if STEBBS buildings array is allocated and return size
+   SUBROUTINE get_stebbs_buildings_info(state, is_allocated, ntypes)
+      TYPE(SUEWS_STATE), INTENT(IN) :: state
+      LOGICAL, INTENT(OUT) :: is_allocated
+      INTEGER, INTENT(OUT) :: ntypes
+
+      is_allocated = ALLOCATED(state%stebbsState%buildings)
+      IF (is_allocated) THEN
+         ntypes = SIZE(state%stebbsState%buildings)
+      ELSE
+         ntypes = 0
+      END IF
+   END SUBROUTINE get_stebbs_buildings_info
+
 END MODULE module_accessor_stebbs

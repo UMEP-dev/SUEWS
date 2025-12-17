@@ -125,15 +125,38 @@ def populate_forcing_from_row(forcing: dts.SUEWS_FORCING, row: pd.Series) -> Non
         Forcing object to populate
     row : pd.Series
         Single row of forcing data
+
+    Notes
+    -----
+    Supports both raw SUEWS forcing file column names (Tair, RH, U, etc.)
+    and normalised column names (temp_c, avrh, wind_speed, etc.).
+    Missing value indicator (-999) is converted to 0.0.
     """
     # Map forcing data columns to DTS attributes
+    # Supports both raw SUEWS column names and normalised names
+    # Format: {input_column_name: dts_attribute_name}
     forcing_map = {
+        # Raw SUEWS forcing file column names
+        "Tair": "temp_c",
+        "RH": "rh",
+        "pres": "pres",
+        "rain": "rain",
         "kdown": "kdown",
-        "ldown_obs": "ldown",
-        "precip": "rain",
-        "press_hpa": "pres",
-        "avrh": "rh",
+        "ldown": "ldown",
+        "fcld": "fcld",
+        "U": "u",
+        "xsmd": "xsmd",
+        "lai": "lai_obs",
+        "qn": "qn1_obs",
+        "qf": "qf_obs",
+        "qs": "qs_obs",
+        "snow": "snowfrac",
+        # Normalised/alternative column names
         "temp_c": "temp_c",
+        "avrh": "rh",
+        "press_hpa": "pres",
+        "precip": "rain",
+        "ldown_obs": "ldown",
         "fcld_obs": "fcld",
         "qn1_obs": "qn1_obs",
         "qs_obs": "qs_obs",
@@ -144,7 +167,11 @@ def populate_forcing_from_row(forcing: dts.SUEWS_FORCING, row: pd.Series) -> Non
 
     for col, attr in forcing_map.items():
         if col in row.index:
-            setattr(forcing, attr, float(row[col]))
+            val = float(row[col])
+            # Convert missing value indicator to 0.0
+            if val == -999.0:
+                val = 0.0
+            setattr(forcing, attr, val)
 
 
 def populate_state_from_config(

@@ -134,6 +134,7 @@ src_f95_all = [
   'suews_accessor_anthro.f95',
   'suews_accessor_phen.f95',
   'suews_accessor_stebbs.f95',
+  'suews_accessor_site.f95',
 ]
 
 src_f95_files = []
@@ -172,6 +173,7 @@ src_f95_sub = [
   'suews_accessor_anthro.f95',
   'suews_accessor_phen.f95',
   'suews_accessor_stebbs.f95',
+  'suews_accessor_site.f95',
 ]
 src_to_wrap = src_f95_sub
 

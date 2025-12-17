@@ -15,6 +15,7 @@ _extract : Functions to extract state from DTS to dicts
 _site : SUEWS_SITE creation and population
 _state_accessor : StateAccessor class for full state management
 _runner : Simulation execution functions
+_bootstrap : Bootstrap DTS state from config InitialStates
 
 Examples
 --------
@@ -64,6 +65,9 @@ from ._runner import (
     test_dts_interface,
 )
 
+# Bootstrap functions
+from ._bootstrap import bootstrap_state_from_config
+
 __all__ = [
     # Core
     "DTSConfig",
@@ -89,4 +93,6 @@ __all__ = [
     # Runner
     "run_supy_dts_tstep",
     "test_dts_interface",
+    # Bootstrap
+    "bootstrap_state_from_config",
 ]

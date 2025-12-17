@@ -140,6 +140,7 @@ MODULE module_ctrl_type
       LOGICAL :: flag_converge = .FALSE. ! flag for convergence of surface temperature
       INTEGER :: i_iter = 0 ! number of iterations for convergence
       INTEGER :: stebbs_bldg_init = 0 ! stebbs flag for building initialization
+      LOGICAL :: snow_warning_shown = .FALSE. ! track if snow warning shown (per grid cell)
 
       ! flag for iteration safety - YES - as we this should be updated every iteration
       LOGICAL :: iter_safe = .TRUE.

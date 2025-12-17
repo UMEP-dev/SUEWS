@@ -73,9 +73,6 @@ MODULE SUEWS_Driver
 
    IMPLICIT NONE
 
-   ! Module-level variable to track if snow warning has been shown
-   LOGICAL, SAVE :: snow_warning_shown = .FALSE.
-
    ! Make error state variables public for Python/f90wrap access
    PUBLIC :: supy_error_flag, supy_error_code, supy_error_message
    PUBLIC :: reset_supy_error, set_supy_error
@@ -416,10 +413,10 @@ CONTAINS
                !===================Calculate surface hydrology and related soil water=======================
                ! MP: Until Snow has been fixed this should not be used (TODO)
                IF (config%SnowUse == 1) THEN
-                  ! Only show warning once per simulation run
-                  IF (.NOT. snow_warning_shown) THEN
+                  ! Only show warning once per grid cell (state-based, thread-safe)
+                  IF (.NOT. flagState%snow_warning_shown) THEN
                      WRITE (*, *) "WARNING SNOW ON! Not recommended at the moment"
-                     snow_warning_shown = .TRUE.
+                     flagState%snow_warning_shown = .TRUE.
                   END IF
                   ! ===================Calculate snow related hydrology=======================
                   ! #234 the snow parts needs more work to be done

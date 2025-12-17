@@ -484,16 +484,14 @@ class SUEWSSimulation:
             config=self._config,
         )
 
-    def run_dts(
-        self, start_date=None, end_date=None, nlayer: int = 5, ndepth: int = 5
-    ) -> pd.DataFrame:
+    def run_dts(self, start_date=None, end_date=None, **run_kwargs) -> SUEWSOutput:
         """
-        Run SUEWS simulation using DTS (Derived Type Structures) interface.
+        Run SUEWS simulation with DTS state capture.
 
-        This is an experimental method that uses the f90wrap DTS interface
-        directly, bypassing the df_state DataFrame intermediate layer.
-        This approach provides cleaner integration with the Fortran kernel
-        and may offer performance benefits for large simulations.
+        This method is interface-compatible with :meth:`run` and aims to
+        produce identical model outputs. The difference is that it can also
+        attach the final Fortran DTS state object(s) to the returned
+        :class:`~supy.suews_output.SUEWSOutput` as ``output.dts_state``.
 
         Parameters
         ----------
@@ -501,15 +499,17 @@ class SUEWSSimulation:
             Start date for simulation (inclusive).
         end_date : str, optional
             End date for simulation (inclusive).
-        nlayer : int, optional
-            Number of urban canopy layers (default: 5).
-        ndepth : int, optional
-            Number of substrate depth levels (default: 5).
+        run_kwargs : dict
+            Reserved for future use (kept for parity with :meth:`run`).
+
+            Currently supported key:
+            - return_dts_state: bool (default True)
+              When True, attaches the final DTS state object(s) to the output.
 
         Returns
         -------
-        pandas.DataFrame
-            Simulation results with MultiIndex columns (group, variable).
+        SUEWSOutput
+            Same output structure as :meth:`run`, with optional DTS state capture.
 
         Raises
         ------
@@ -518,18 +518,66 @@ class SUEWSSimulation:
 
         Notes
         -----
-        This method is experimental and may not support all features of the
-        standard run() method. Use run() for production simulations.
-
-        The DTS interface provides direct access to the Fortran kernel via
-        f90wrap-generated DTS objects and accessor functions.
+        To preserve identical outputs, this method executes the same kernel
+        pathway as :meth:`run` and only requests the final DTS state from the
+        Fortran driver as an additional return value.
 
         Examples
         --------
         >>> sim = SUEWSSimulation("config.yaml")
         >>> sim.update_forcing("forcing.txt")
-        >>> df_output = sim.run_dts()
+        >>> output = sim.run_dts()
+        >>> output.SUEWS  # same as sim.run().SUEWS
+        >>> output.dts_state  # final DTS state object(s)
         """
+        # ---------------------------------------------------------------------
+        # Parity-first implementation: same kernel pathway as run()
+        # ---------------------------------------------------------------------
+        if self._df_state_init is None:
+            raise RuntimeError("No configuration loaded. Use update_config() first.")
+        if self._df_forcing is None:
+            raise RuntimeError("No forcing data loaded. Use update_forcing() first.")
+
+        # Fall back to config values if start_date/end_date not provided (match run())
+        if start_date is None and self._config is not None:
+            if (
+                hasattr(self._config, "model")
+                and hasattr(self._config.model, "control")
+                and hasattr(self._config.model.control, "start_time")
+            ):
+                start_date = self._config.model.control.start_time
+
+        if end_date is None and self._config is not None:
+            if (
+                hasattr(self._config, "model")
+                and hasattr(self._config.model, "control")
+                and hasattr(self._config.model.control, "end_time")
+            ):
+                end_date = self._config.model.control.end_time
+
+        return_dts_state = bool(run_kwargs.pop("return_dts_state", True))
+
+        df_output, df_state_final, _, dts_state = run_supy_ser(
+            self._df_forcing.loc[start_date:end_date],
+            self._df_state_init,
+            return_state_obj=return_dts_state,
+        )
+
+        self._df_output = df_output
+        self._df_state_final = df_state_final
+        self._run_completed = True
+
+        return SUEWSOutput(
+            df_output=self._df_output,
+            df_state_final=self._df_state_final,
+            config=self._config,
+            dts_state=dts_state,
+        )
+
+        # ---------------------------------------------------------------------
+        # Legacy experimental DTS pathway (superseded; kept for reference only).
+        # ---------------------------------------------------------------------
+        '''
         # Validate inputs
         if self._config is None:
             raise RuntimeError("No configuration loaded. Use update_config() first.")
@@ -960,6 +1008,7 @@ class SUEWSSimulation:
             return df_output
         else:
             raise RuntimeError("No results produced from simulation")
+        '''
 
     def save(
         self, output_path: Optional[Union[str, Path]] = None, **save_kwargs

@@ -63,6 +63,7 @@ class SUEWSOutput:
         df_state_final: pd.DataFrame,
         config: Optional[Any] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        dts_state: Optional[Any] = None,
     ):
         """
         Initialise SUEWSOutput.
@@ -82,6 +83,7 @@ class SUEWSOutput:
         self._df_state_final = df_state_final.copy()
         self._config = config
         self._metadata = metadata or {}
+        self._dts_state = dts_state
 
     # =========================================================================
     # Core data access
@@ -146,6 +148,46 @@ class SUEWSOutput:
     def metadata(self) -> Dict[str, Any]:
         """Metadata about the simulation."""
         return self._metadata.copy()
+
+    @property
+    def dts_state(self) -> Optional[Any]:
+        """Final DTS state object(s) for this run.
+
+        For multi-grid runs, this is typically a dict mapping grid -> SUEWS_STATE
+        (or other DTS objects, depending on engine settings).
+        """
+        return self._dts_state
+
+    def get_dts_state(self, grid: Optional[Any] = None) -> Any:
+        """Return the final DTS state for a specific grid (or the only grid).
+
+        Returns
+        -------
+        object
+            A f90wrap-derived DTS object (typically ``SUEWS_STATE``).
+        """
+        if self._dts_state is None:
+            raise RuntimeError("No DTS state attached to this output.")
+
+        if isinstance(self._dts_state, dict):
+            if grid is None:
+                if len(self._dts_state) != 1:
+                    raise ValueError(
+                        "Multiple grids present; pass `grid=` to select a DTS state."
+                    )
+                return next(iter(self._dts_state.values()))
+            return self._dts_state[grid]
+
+        return self._dts_state
+
+    def dts_accessor(self, grid: Optional[Any] = None) -> Any:
+        """Return a ``supy.dts.StateAccessor`` for the final DTS state."""
+        state = self.get_dts_state(grid=grid)
+        from . import _state_accessors as acc
+        from .dts import StateAccessor
+
+        nlayer, ndepth, nsurf = acc.get_heat_state_dims(state)
+        return StateAccessor(state, nlayer=nlayer, ndepth=ndepth, nsurf=nsurf)
 
     @property
     def loc(self):

@@ -4,7 +4,7 @@ import os
 
 
 def main():
-    f90wrap_executable = sys.argv[1]  # path to f2py or f2py part of numpy
+    python_executable = sys.argv[1]  # python executable used to run f90wrap
     module_name = sys.argv[2]
     current_source_dir = sys.argv[3]
     output_dir = sys.argv[4]
@@ -27,7 +27,9 @@ def main():
     try:
         subprocess.check_call(
             [
-                f90wrap_executable,
+                python_executable,
+                "-m",
+                "f90wrap",
                 "-m",
                 module_name,
                 *input_files,
@@ -41,7 +43,7 @@ def main():
         )
         print("f90wrap call successful")
     except subprocess.CalledProcessError as e:
-        print(f"Error calling f2py: {e}")
+        print(f"Error calling f90wrap: {e}")
         return 1
 
     # Move generated files to the output directory

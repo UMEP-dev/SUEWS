@@ -11,7 +11,7 @@ import time
 import traceback
 from ast import literal_eval
 from pathlib import Path
-from typing import Tuple
+from typing import Any, Dict, Optional, Tuple
 import pandas
 
 import numpy as np
@@ -192,7 +192,12 @@ def suews_cal_tstep(dict_state_start, dict_met_forcing_tstep):
 
 # high-level wrapper: suews_cal_tstep
 # def suews_cal_tstep_multi(df_state_start_grid, df_met_forcing_block):
-def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
+def suews_cal_tstep_multi(
+    dict_state_start,
+    df_forcing_block,
+    debug_mode: bool = False,
+    return_state_obj: bool = False,
+):
     from ._post import pack_df_output_block
 
     # use single dict as input for suews_cal_main
@@ -212,10 +217,7 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
         "len_sim": int(df_forcing_block.shape[0]),
     })
 
-    if debug_mode:
-        dict_input["flag_test"] = True
-    else:
-        dict_input["flag_test"] = False
+    dict_input["flag_test"] = bool(debug_mode)
 
     dict_input = {k: dict_input[k] for k in list_var_input_multitsteps}
     # Pickle the input dictionary for debugging purposes
@@ -260,15 +262,18 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
         _reset_supy_error()
 
         if debug_mode:
-            # initialise the debug objects
-            # they can only be used as input arguments
-            # but not explicitly returned as output arguments
-            # so we need to pass them as keyword arguments to the SUEWS kernel
-            # and then they will be updated by the SUEWS kernel and used later
+            # Debug mode: request full debug outputs and (optionally) the per-timestep state block
             state_debug = sd_dts.SUEWS_DEBUG()
-            block_mod_state = sd_dts.SUEWS_STATE_BLOCK()
         else:
             state_debug = None
+
+        # Optionally request the final DTS state object (or full state evolution in debug mode).
+        # Fortran will populate `block_mod_state` when present:
+        # - in debug_mode: full state block (len_sim)
+        # - otherwise: final state only (len=1)
+        if debug_mode or return_state_obj:
+            block_mod_state = sd_dts.SUEWS_STATE_BLOCK()
+        else:
             block_mod_state = None
 
         # note the extra arguments are passed to the SUEWS kernel as keyword arguments in the debug mode
@@ -324,15 +329,29 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
         dict_output_array = dict(zip(list_var, list_arr))
         df_output_block = pack_df_output_block(dict_output_array, df_forcing_block)
 
-        # convert res_mod_state to a dict
-        # Assuming dts_debug is your object instance
-        # deepcopy is used to avoid reference issue when passing the object
+        # Debug info and/or final DTS state
         if debug_mode:
             dict_debug = copy.deepcopy(pack_dts(state_debug))
-            dts_state = block_mod_state  # save the raw object
         else:
             dict_debug = None
-            dts_state = None
+
+        dts_state = None
+        if debug_mode and block_mod_state is not None:
+            # preserve raw block in debug mode
+            dts_state = block_mod_state
+        elif return_state_obj and block_mod_state is not None:
+            # final state is stored in block[0] (Fortran allocates len=1 when not in debug)
+            try:
+                state_obj = block_mod_state.block[0]
+                # Retain a reference to the owning block to reduce the risk of the
+                # Fortran allocation being freed while the element wrapper is still used.
+                try:
+                    setattr(state_obj, "_owner", block_mod_state)
+                except Exception:
+                    state_obj = block_mod_state
+                dts_state = state_obj
+            except Exception:
+                dts_state = block_mod_state
 
         # convert res_state to a dict
         # dict_state = copy.deepcopy(
@@ -341,10 +360,7 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
         #         for ir, dts_state in enumerate(res_state.block)
         #     }
         # )
-        if debug_mode:
-            return dict_state_end, df_output_block, dict_debug, dts_state
-        else:
-            return dict_state_end, df_output_block
+        return dict_state_end, df_output_block, dict_debug, dts_state
 
 
 # dataframe based wrapper
@@ -355,7 +371,8 @@ def run_supy_ser(
     save_state=False,
     chunk_day=3660,
     debug_mode=False,
-) -> Tuple[pandas.DataFrame, pandas.DataFrame]:
+    return_state_obj: bool = False,
+) -> Tuple[pandas.DataFrame, pandas.DataFrame, Optional[pandas.DataFrame], Optional[Dict[Any, Any]]]:
     """Perform supy simulation.
 
     Parameters
@@ -377,9 +394,11 @@ def run_supy_ser(
 
     Returns
     -------
-    df_output, df_state_final : Tuple[pandas.DataFrame, pandas.DataFrame]
-        - df_output: `output results <df_output_var>`
-        - df_state_final: `final model states <df_state_var>`
+    df_output, df_state_final, df_debug, dts_state : tuple
+        - df_output: output results
+        - df_state_final: final model states
+        - df_debug: debug information (only when debug_mode=True)
+        - dts_state: final DTS state objects (only when return_state_obj=True or debug_mode=True)
 
     Examples
     --------
@@ -525,6 +544,7 @@ def run_supy_ser(
                     df_state_init_chunk,
                     chunk_day=chunk_day,
                     debug_mode=debug_mode,
+                    return_state_obj=return_state_obj,
                 )
             )
             df_state_init_chunk = df_state_final_chunk.copy()
@@ -545,6 +565,11 @@ def run_supy_ser(
             df_debug = pd.concat(list_df_debug).sort_index()
         else:
             df_debug = None
+
+        if return_state_obj and list_dts_state:
+            # keep the last chunk state objects as the final DTS state
+            dict_dts_state = list_dts_state[-1]
+        else:
             dict_dts_state = None
 
     else:
@@ -555,15 +580,18 @@ def run_supy_ser(
 
         try:
             list_res_grid = [
-                suews_cal_tstep_multi(dict_state_input, df_forcing, debug_mode)
+                suews_cal_tstep_multi(
+                    dict_state_input,
+                    df_forcing,
+                    debug_mode=debug_mode,
+                    return_state_obj=return_state_obj,
+                )
                 for dict_state_input in list_dict_state_input
             ]
-            if debug_mode:
-                list_dict_state_end, list_df_output, list_dict_debug, list_dts_state = (
-                    zip(*list_res_grid)
-                )
-            else:
-                list_dict_state_end, list_df_output = zip(*list_res_grid)
+
+            list_dict_state_end, list_df_output, list_dict_debug, list_dts_state = zip(
+                *list_res_grid
+            )
 
         except Exception as e:
             path_zip_debug = save_zip_debug(df_forcing, df_state_init, error_info=e)
@@ -608,13 +636,14 @@ def run_supy_ser(
                 for grid, debug in zip(list_grid, list_dict_debug)
             }
             df_debug = pack_dict_dts_datetime_grid(dict_debug)
+        else:
+            df_debug = None
 
-            # collect state info
+        if debug_mode or return_state_obj:
             dict_dts_state = {
                 grid: dts_state for grid, dts_state in zip(list_grid, list_dts_state)
             }
         else:
-            df_debug = None
             dict_dts_state = None
 
     return df_output, df_state_final, df_debug, dict_dts_state

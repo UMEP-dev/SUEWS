@@ -4379,9 +4379,15 @@ CONTAINS
       dataOutBlockSTEBBS_X = 0.0D0
       dataOutBlockNHood_X = 0.0D0
 
-      IF (flag_test .AND. PRESENT(block_mod_state)) THEN
-
-         CALL block_mod_state%init(nlayer, ndepth, len_sim)
+      ! If the caller requests `block_mod_state`, populate it:
+      ! - in test/debug mode (`flag_test==1`): capture full state evolution (len_sim states)
+      ! - otherwise: capture only the final state (1 state) to reduce memory usage
+      IF (PRESENT(block_mod_state)) THEN
+         IF (flag_test) THEN
+            CALL block_mod_state%init(nlayer, ndepth, len_sim)
+         ELSE
+            CALL block_mod_state%init(nlayer, ndepth, 1)
+         END IF
       END IF
 
       ! ############# evaluation for DTS variables (start) #############
@@ -5271,8 +5277,11 @@ CONTAINS
          dataOutBlockDailyState(ir, :) = [output_line_suews%dataOutLineDailyState]
 
          !============ update state_block ===============
-         IF (config%flag_test .AND. PRESENT(state_debug)) THEN
-            block_mod_state%BLOCK(ir) = mod_State
+         IF (PRESENT(block_mod_state)) THEN
+            IF (config%flag_test .AND. PRESENT(state_debug)) THEN
+               ! In test/debug mode: store per-timestep states
+               block_mod_state%BLOCK(ir) = mod_State
+            END IF
          END IF
 
          !============ write out results ===============
@@ -5298,6 +5307,14 @@ CONTAINS
             ) !inout
 
       END DO
+
+      ! If the caller requested `block_mod_state` but we are not in test/debug mode,
+      ! store only the final state.
+      IF (PRESENT(block_mod_state)) THEN
+         IF (.NOT. config%flag_test) THEN
+            block_mod_state%BLOCK(1) = mod_State
+         END IF
+      END IF
 
       ! update INOUT variables
       ! Tair_av = forcing%Tair_av_5d

@@ -20,6 +20,7 @@ endif
 ##################################################################
 # set the compiler flags
 fortran_compiler = meson.get_compiler('fortran')
+fc_exe = fortran_compiler.cmd_array()[0]
 
 # Check for fast build environment variable
 fast_build = get_option('fast_build')
@@ -49,14 +50,15 @@ if fortran_compiler.get_id() == 'gcc'
       '-Wno-missing-include-dirs',  # Suppress f2py-generated spurious include path warnings
     ]
   endif
-  fortran_program = find_program('gfortran')
+  fortran_program = find_program(fc_exe)
 elif fortran_compiler.get_id() == 'intel'
   f90flags = ['-fpscomp logicals', '-fPIC']
-  fortran_program = find_program('ifort')
+  fortran_program = find_program(fc_exe)
 endif
 add_global_arguments(f90flags, language: 'fortran')
 
 c_compiler = meson.get_compiler('c')
+cc_exe = c_compiler.cmd_array()[0]
 if fast_build
   cflags = [
     '-fPIC',
@@ -193,6 +195,8 @@ build_suews = custom_target(
     '@CURRENT_SOURCE_DIR@/run_make.py',
     meson.current_source_dir() / '../suews/',
     '@OUTPUT@',
+    fc_exe,
+    cc_exe,
   ],
   build_by_default: true,
   build_always_stale: true,
@@ -230,7 +234,9 @@ foreach f : src_to_wrap
 endforeach
 # out_wrap_f90 += 'f90wrap_toplevel.f90'
 
-prog_f90wrap = find_program('f90wrap')
+# Use the same Python interpreter as the build (venv) to run f90wrap,
+# avoiding accidental pickup of a system-installed f90wrap from PATH.
+prog_f90wrap = py
 # file_kind_map = files('kind_map')
 
 gen_f90wrap_f90 = custom_target(
@@ -253,7 +259,8 @@ gen_f90wrap_f90 = custom_target(
 ##################################################################
 # 3. use f2py-f90wrap to generate the C file for the python interface
 # build the driver module c file
-prog_f2py_f90wrap = find_program('f2py-f90wrap')
+# Same rationale as above: run f2py-f90wrap via the build Python interpreter.
+prog_f2py_f90wrap = py
 gen_module_c = custom_target(
   command: [
     py,

@@ -32,10 +32,10 @@ class RSTGenerator:
 
     # Dimensional config models that should be displayed with tabbed format inline
     # These models have orthogonal dimensions and need special documentation
-    DIMENSIONAL_CONFIG_MODELS = {"NetRadiationMethodConfig"}
+    DIMENSIONAL_CONFIG_MODELS = {"NetRadiationMethodConfig", "EmissionsMethodConfig"}
 
     # Models whose content is inlined in parent field (skip separate file generation)
-    INLINE_NESTED_MODELS = {"NetRadiationMethodConfig"}
+    INLINE_NESTED_MODELS = {"NetRadiationMethodConfig", "EmissionsMethodConfig"}
 
     def __init__(self, doc_data: dict[str, Any]):
         """
@@ -421,6 +421,8 @@ class RSTGenerator:
         # Generate tabbed content based on model type
         if nested_model == "NetRadiationMethodConfig":
             lines.extend(self._format_netradiationmethod_tabs())
+        elif nested_model == "EmissionsMethodConfig":
+            lines.extend(self._format_emissionsmethod_tabs())
 
         return lines
 
@@ -442,37 +444,37 @@ class RSTGenerator:
         lines.append("         .. code-block:: yaml")
         lines.append("")
         lines.append("            netradiationmethod:")
-        lines.append("              physics: narp      # obs | narp | spartacus")
-        lines.append("              longwave: air      # obs | cloud | air (required when physics != obs)")
+        lines.append("              scheme: narp     # obs | narp | spartacus")
+        lines.append("              ldown: air       # obs | cloud | air (required when scheme != obs)")
         lines.append("")
-        lines.append("         **physics** options:")
+        lines.append("         **scheme** options:")
         lines.append("")
         lines.append("         * ``obs`` - Use observed Q* directly from forcing file")
         lines.append("         * ``narp`` - NARP parameterisation (Offerle et al. 2003, Loridan et al. 2011)")
         lines.append("         * ``spartacus`` - SPARTACUS-Surface integration **(experimental)**")
         lines.append("")
-        lines.append("         **longwave** options (required when physics ≠ obs):")
+        lines.append("         **ldown** options (required when scheme ≠ obs):")
         lines.append("")
         lines.append("         * ``obs`` - Use observed L\\ :sub:`down` from forcing file")
         lines.append("         * ``cloud`` - Model L\\ :sub:`down` from cloud cover fraction")
         lines.append("         * ``air`` - Model L\\ :sub:`down` from air temperature and relative humidity")
         lines.append("")
-        lines.append("      .. tab-item:: Legacy (Deprecated)")
+        lines.append("      .. tab-item:: Legacy")
         lines.append("")
-        lines.append("         .. deprecated::")
+        lines.append("         .. note::")
         lines.append("")
-        lines.append("            The following numeric codes are supported for backward compatibility")
-        lines.append("            but will be removed in a future version. Migrate to the nested format.")
+        lines.append("            The following numeric codes are valid input and fully supported.")
+        lines.append("            They are planned for deprecation in a future version; the nested format is recommended.")
         lines.append("")
         lines.append("         **Primary codes:**")
         lines.append("")
-        lines.append("         * ``0`` (OBSERVED) - Uses observed Q* [→ physics: obs]")
-        lines.append("         * ``1`` (LDOWN_OBSERVED) - NARP with observed L\\ :sub:`down` [→ physics: narp, longwave: obs]")
-        lines.append("         * ``2`` (LDOWN_CLOUD) - NARP with L\\ :sub:`down` from cloud cover [→ physics: narp, longwave: cloud]")
-        lines.append("         * ``3`` (LDOWN_AIR) - NARP with L\\ :sub:`down` from air temp/RH [→ physics: narp, longwave: air]")
-        lines.append("         * ``1001`` (LDOWN_SS_OBSERVED) - SPARTACUS with observed L\\ :sub:`down` [→ physics: spartacus, longwave: obs]")
-        lines.append("         * ``1002`` (LDOWN_SS_CLOUD) - SPARTACUS with L\\ :sub:`down` from cloud [→ physics: spartacus, longwave: cloud]")
-        lines.append("         * ``1003`` (LDOWN_SS_AIR) - SPARTACUS with L\\ :sub:`down` from air [→ physics: spartacus, longwave: air]")
+        lines.append("         * ``0`` (OBSERVED) - Uses observed Q* [→ scheme: obs]")
+        lines.append("         * ``1`` (LDOWN_OBSERVED) - NARP with observed L\\ :sub:`down` [→ scheme: narp, ldown: obs]")
+        lines.append("         * ``2`` (LDOWN_CLOUD) - NARP with L\\ :sub:`down` from cloud cover [→ scheme: narp, ldown: cloud]")
+        lines.append("         * ``3`` (LDOWN_AIR) - NARP with L\\ :sub:`down` from air temp/RH [→ scheme: narp, ldown: air]")
+        lines.append("         * ``1001`` (LDOWN_SS_OBSERVED) - SPARTACUS with observed L\\ :sub:`down` [→ scheme: spartacus, ldown: obs]")
+        lines.append("         * ``1002`` (LDOWN_SS_CLOUD) - SPARTACUS with L\\ :sub:`down` from cloud [→ scheme: spartacus, ldown: cloud]")
+        lines.append("         * ``1003`` (LDOWN_SS_AIR) - SPARTACUS with L\\ :sub:`down` from air [→ scheme: spartacus, ldown: air]")
         lines.append("")
         lines.append("         **Deprecated variants (map to primary codes):**")
         lines.append("")
@@ -482,6 +484,91 @@ class RSTGenerator:
         lines.append("         * ``100`` (LDOWN_ZENITH) - Zenith correction variant [→ code 1]")
         lines.append("         * ``200`` (LDOWN_CLOUD_ZENITH) - Zenith correction variant [→ code 2]")
         lines.append("         * ``300`` (LDOWN_AIR_ZENITH) - Zenith correction variant [→ code 3]")
+        lines.append("")
+
+        return lines
+
+    def _format_emissionsmethod_tabs(self) -> list[str]:
+        """Generate tabbed RST for emissionsmethod field.
+
+        Returns:
+            List of RST lines with tab-set for recommended/legacy formats
+        """
+        lines = []
+
+        lines.append("   .. tab-set::")
+        lines.append("")
+        lines.append("      .. tab-item:: Recommended")
+        lines.append("         :selected:")
+        lines.append("")
+        lines.append("         Configure using orthogonal dimensions for clearer semantics:")
+        lines.append("")
+        lines.append("         .. code-block:: yaml")
+        lines.append("")
+        lines.append("            emissionsmethod:")
+        lines.append("              heat: L11        # obs | L11 | J11 | L11_updated | J19 | J19_updated")
+        lines.append("              co2: none        # none | rectangular | non_rectangular | conductance")
+        lines.append("")
+        lines.append("         **heat** options (anthropogenic heat Q\\ :sub:`F` method):")
+        lines.append("")
+        lines.append("         * ``obs`` - Use observed Q\\ :sub:`F` from forcing file (only valid when co2=none)")
+        lines.append("         * ``L11`` - Loridan et al. (2011) SAHP method with air temperature and population density")
+        lines.append("         * ``J11`` - Järvi et al. (2011) SAHP_2 method with heating/cooling degree days")
+        lines.append("         * ``L11_updated`` - Modified Loridan method using daily mean air temperature")
+        lines.append("         * ``J19`` - Järvi et al. (2019) method with building energy, metabolism, and traffic")
+        lines.append("         * ``J19_updated`` - As J19 but also calculates CO\\ :sub:`2` emissions")
+        lines.append("")
+        lines.append("         **co2** options (biogenic CO\\ :sub:`2` flux model):")
+        lines.append("")
+        lines.append("         * ``none`` - No biogenic CO\\ :sub:`2` modelling (heat calculation only)")
+        lines.append("         * ``rectangular`` - Rectangular hyperbola photosynthesis model **(experimental)**")
+        lines.append("         * ``non_rectangular`` - Non-rectangular hyperbola (Bellucco 2017) **(experimental)**")
+        lines.append("         * ``conductance`` - Conductance-based photosynthesis (Järvi 2019) **(experimental)**")
+        lines.append("")
+        lines.append("         .. note::")
+        lines.append("")
+        lines.append("            CO\\ :sub:`2` models (rectangular, non_rectangular, conductance) require a heat")
+        lines.append("            calculation method (not obs). Use ``heat: obs`` only when ``co2: none``.")
+        lines.append("")
+        lines.append("      .. tab-item:: Legacy")
+        lines.append("")
+        lines.append("         .. note::")
+        lines.append("")
+        lines.append("            The following numeric codes are valid input and fully supported.")
+        lines.append("            They are planned for deprecation in a future version; the nested format is recommended.")
+        lines.append("")
+        lines.append("         **Base codes (no biogenic CO\\ :sub:`2`):**")
+        lines.append("")
+        lines.append("         * ``0`` - Observed Q\\ :sub:`F` [→ heat: obs, co2: none]")
+        lines.append("         * ``1`` - Loridan 2011 SAHP [→ heat: L11, co2: none]")
+        lines.append("         * ``2`` - Järvi 2011 SAHP_2 [→ heat: J11, co2: none]")
+        lines.append("         * ``3`` - Loridan updated [→ heat: L11_updated, co2: none]")
+        lines.append("         * ``4`` - Järvi 2019 [→ heat: J19, co2: none]")
+        lines.append("         * ``5`` - Järvi 2019 updated [→ heat: J19_updated, co2: none]")
+        lines.append("")
+        lines.append("         **Rectangular hyperbola (1x):**")
+        lines.append("")
+        lines.append("         * ``11`` - Rectangular + L11 [→ heat: L11, co2: rectangular]")
+        lines.append("         * ``12`` - Rectangular + J11 [→ heat: J11, co2: rectangular]")
+        lines.append("         * ``13`` - Rectangular + L11_updated [→ heat: L11_updated, co2: rectangular]")
+        lines.append("         * ``14`` - Rectangular + J19 [→ heat: J19, co2: rectangular]")
+        lines.append("         * ``15`` - Rectangular + J19_updated [→ heat: J19_updated, co2: rectangular]")
+        lines.append("")
+        lines.append("         **Non-rectangular hyperbola (2x):**")
+        lines.append("")
+        lines.append("         * ``21`` - Non-rectangular + L11 [→ heat: L11, co2: non_rectangular]")
+        lines.append("         * ``22`` - Non-rectangular + J11 [→ heat: J11, co2: non_rectangular]")
+        lines.append("         * ``23`` - Non-rectangular + L11_updated [→ heat: L11_updated, co2: non_rectangular]")
+        lines.append("         * ``24`` - Non-rectangular + J19 [→ heat: J19, co2: non_rectangular]")
+        lines.append("         * ``25`` - Non-rectangular + J19_updated [→ heat: J19_updated, co2: non_rectangular]")
+        lines.append("")
+        lines.append("         **Conductance-based (4x):**")
+        lines.append("")
+        lines.append("         * ``41`` - Conductance + L11 [→ heat: L11, co2: conductance]")
+        lines.append("         * ``42`` - Conductance + J11 [→ heat: J11, co2: conductance]")
+        lines.append("         * ``43`` - Conductance + L11_updated [→ heat: L11_updated, co2: conductance]")
+        lines.append("         * ``44`` - Conductance + J19 [→ heat: J19, co2: conductance]")
+        lines.append("         * ``45`` - Conductance + J19_updated [→ heat: J19_updated, co2: conductance]")
         lines.append("")
 
         return lines

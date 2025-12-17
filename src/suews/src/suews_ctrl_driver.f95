@@ -579,6 +579,10 @@ CONTAINS
             outputLine%dataOutLineESTM = [datetimeLine, dataOutLineESTM]
             outputLine%dataOutLineSTEBBS = [datetimeLine, dataOutLineSTEBBS]
 
+            ! Sync module-level error state to modState for thread-safe access
+            ! This enables Python to read errors from modState%errorState
+            CALL sync_error_to_state(modState)
+
          END ASSOCIATE
       END ASSOCIATE
 
@@ -5577,5 +5581,26 @@ END FUNCTION cal_tsfc_dyohm
       DEALLOCATE (tsfc_surf_tmp)
 
    END SUBROUTINE restore_state
+
+   !==============================================================================
+   ! Synchronise module-level error state to modState%errorState
+   ! This enables thread-safe error handling by copying the global error state
+   ! (set by ErrorHint and set_supy_error) to the per-grid-cell state.
+   ! Future: direct use of modState%errorState will eliminate need for sync.
+   !==============================================================================
+   SUBROUTINE sync_error_to_state(modState)
+      USE module_ctrl_type, ONLY: SUEWS_STATE
+
+      IMPLICIT NONE
+      TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
+
+      ! Copy module-level error state to modState%errorState
+      IF (supy_error_flag) THEN
+         CALL modState%errorState%set(supy_error_code, TRIM(supy_error_message))
+      ELSE
+         CALL modState%errorState%reset()
+      END IF
+
+   END SUBROUTINE sync_error_to_state
 
 END MODULE SUEWS_Driver

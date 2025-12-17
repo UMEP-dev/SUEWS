@@ -218,6 +218,8 @@ sites:
         value: 0.8
       MinimumVolumeOfDHWinUse:
         value: 1.0
+      MaximumVolumeOfDHWinUse:
+        value: 100.0
     building_archetype:
       BuildingType: test
       BuildingName: test

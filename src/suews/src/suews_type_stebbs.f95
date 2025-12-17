@@ -131,6 +131,7 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: DHWVesselWallEmissivity = 0.0D0 ! Effective external wall emissivity of hot water being used within building [-]
       REAL(KIND(1D0)) :: HotWaterHeatingEfficiency = 0.0D0 ! Efficiency of hot water system [-]
       REAL(KIND(1D0)) :: MinimumVolumeOfDHWinUse = 0.0D0 ! Minimum volume of hot water in use [m3]
+      REAL(KIND(1D0)) :: MaximumVolumeOfDHWinUse = 0.0D0 ! Maximum volume of hot water in use [m3]
       ! flag for iteration safety - YES - as we this should be updated every iteration
       LOGICAL :: iter_safe = .TRUE.
    END TYPE STEBBS_PRM
@@ -287,6 +288,7 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: maxheatingpower_water = 0.0D0
       REAL(KIND(1D0)) :: heating_efficiency_water = 0.0D0
       REAL(KIND(1D0)) :: minVwater_vessel = 0.0D0
+      REAL(KIND(1D0)) :: maxVwater_vessel = 0.0D0  ! Maximum volume of DHW in use [m3]
       REAL(KIND(1D0)) :: minHeatingPower_DHW = 0.0D0
       REAL(KIND(1D0)) :: HeatingPower_DHW = 0.0D0
 

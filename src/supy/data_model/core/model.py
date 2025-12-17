@@ -12,7 +12,11 @@ from .physics_options import (
     NetRadiationMethodConfig,
     RadiationPhysics,
     LongwaveSource,
-    code_to_dimensions,
+    NETRAD_MAPPER,
+    EmissionsMethodConfig,
+    BiogenicModel,
+    QFMethod,
+    EMISSIONS_MAPPER,
 )
 
 
@@ -181,8 +185,8 @@ class NetRadiationMethod(Enum):
         return str(self.value)
 
     @property
-    def physics(self) -> str:
-        """Return physics dimension: obs, narp, or spartacus.
+    def model(self) -> str:
+        """Return model dimension: obs, narp, or spartacus.
 
         Returns
         -------
@@ -197,17 +201,17 @@ class NetRadiationMethod(Enum):
             return "narp"
 
     @property
-    def longwave(self) -> "str | None":
-        """Return longwave dimension: obs, cloud, air, or None.
+    def ldown(self) -> "str | None":
+        """Return ldown dimension: obs, cloud, air, or None.
 
         Returns
         -------
         str or None
-            Longwave source, or None for observed physics
+            L↓ source, or None for observed model
         """
         if self.value == 0:
             return None
-        # Extract last digit for longwave code
+        # Extract last digit for ldown code
         lw_code = self.value % 10
         return {1: "obs", 2: "cloud", 3: "air"}.get(lw_code)
 
@@ -596,12 +600,12 @@ class ModelPhysics(BaseModel):
 
     netradiationmethod: NetRadiationMethodConfig = Field(
         default_factory=lambda: NetRadiationMethodConfig(
-            physics=RadiationPhysics.NARP, longwave=LongwaveSource.AIR
+            scheme=RadiationPhysics.NARP, ldown=LongwaveSource.AIR
         ),
         description=(
             "Method for calculating net all-wave radiation (Q*). "
-            "Uses orthogonal dimensions: physics (obs/narp/spartacus) and "
-            "longwave source (obs/cloud/air). See nested structure for details."
+            "Uses orthogonal dimensions: scheme (obs/narp/spartacus) and "
+            "ldown source (obs/cloud/air). See nested structure for details."
         ),
         json_schema_extra={"unit": "dimensionless"},
     )
@@ -612,7 +616,7 @@ class ModelPhysics(BaseModel):
         """Accept legacy and dimension-based forms for netradiationmethod.
 
         Accepted forms:
-        - Dimension-based: {"physics": "narp", "longwave": "air"}
+        - Dimension-based: {"scheme": "narp", "ldown": "air"}
         - Legacy RefValue: {"value": 3}
         - Plain integer: 3
         - Enum member: NetRadiationMethod.LDOWN_AIR
@@ -621,33 +625,70 @@ class ModelPhysics(BaseModel):
         if v is None or isinstance(v, NetRadiationMethodConfig):
             return v
 
-        # Dimension-based form: {physics: narp, longwave: air}
+        # Dimension-based form: {scheme: narp, ldown: air}
         if isinstance(v, dict):
-            if "physics" in v:
+            if "scheme" in v:
                 return v  # Pass to Pydantic for validation
 
             # Legacy form: {value: N}
             if "value" in v:
                 code = int(v["value"])
-                physics, longwave = code_to_dimensions(code)
-                result: dict[str, Any] = {"physics": physics}
-                if longwave:
-                    result["longwave"] = longwave
+                scheme_val, ldown_val = NETRAD_MAPPER.from_code(code)
+                result: dict[str, Any] = {"scheme": scheme_val}
+                if ldown_val:
+                    result["ldown"] = ldown_val
                 return result
 
         # Plain int or enum
         code = v.value if isinstance(v, Enum) else int(v)
-        physics, longwave = code_to_dimensions(code)
-        result = {"physics": physics}
-        if longwave:
-            result["longwave"] = longwave
+        scheme_val, ldown_val = NETRAD_MAPPER.from_code(code)
+        result = {"scheme": scheme_val}
+        if ldown_val:
+            result["ldown"] = ldown_val
         return result
 
-    emissionsmethod: FlexibleRefValue(EmissionsMethod) = Field(
-        default=EmissionsMethod.J11,
-        description=_enum_description(EmissionsMethod),
+    emissionsmethod: EmissionsMethodConfig = Field(
+        default_factory=lambda: EmissionsMethodConfig(
+            heat=QFMethod.J11, co2=BiogenicModel.NONE
+        ),
+        description=(
+            "Method for calculating anthropogenic heat flux and CO2 emissions. "
+            "Uses orthogonal dimensions: heat (obs/L11/J11/L11_updated/J19/J19_updated) "
+            "and co2 (none/rectangular/non_rectangular/conductance). See nested structure for details."
+        ),
         json_schema_extra={"unit": "dimensionless"},
     )
+
+    @field_validator("emissionsmethod", mode="before")
+    @classmethod
+    def coerce_emissionsmethod(cls, v: Any) -> Any:
+        """Accept legacy and dimension-based forms for emissionsmethod.
+
+        Accepted forms:
+        - Dimension-based: {"heat": "L11", "co2": "none"}
+        - Legacy RefValue: {"value": 1}
+        - Plain integer: 1
+        - Already an EmissionsMethodConfig instance
+        """
+        if v is None or isinstance(v, EmissionsMethodConfig):
+            return v
+
+        # Dimension-based form: {heat: L11, co2: none}
+        if isinstance(v, dict):
+            if "heat" in v or "co2" in v:
+                return v  # Pass to Pydantic for validation
+
+            # Legacy form: {value: N}
+            if "value" in v:
+                code = int(v["value"])
+                co2_val, heat_val = EMISSIONS_MAPPER.from_code(code)
+                return {"heat": heat_val, "co2": co2_val}
+
+        # Plain int
+        code = int(v)
+        co2_val, heat_val = EMISSIONS_MAPPER.from_code(code)
+        return {"heat": heat_val, "co2": co2_val}
+
     storageheatmethod: FlexibleRefValue(StorageHeatMethod) = Field(
         default=StorageHeatMethod.OHM_WITHOUT_QF,
         description=_enum_description(StorageHeatMethod),
@@ -818,9 +859,11 @@ class ModelPhysics(BaseModel):
         for attr in list_attr:
             try:
                 int_val = int(df.loc[grid_id, (attr, "0")])
-                # Handle netradiationmethod specially - use NetRadiationMethodConfig
+                # Handle dimensional config methods specially
                 if attr == "netradiationmethod":
                     properties[attr] = NetRadiationMethodConfig.from_code(int_val)
+                elif attr == "emissionsmethod":
+                    properties[attr] = EmissionsMethodConfig.from_code(int_val)
                 else:
                     properties[attr] = RefValue(int_val)
             except KeyError:

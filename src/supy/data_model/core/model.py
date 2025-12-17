@@ -81,6 +81,45 @@ def _enum_description(enum_class: type[Enum]) -> str:
     return summary
 
 
+def _coerce_enum_value(v: Any, enum_class: type[Enum]) -> Any:
+    """Coerce string or dict input to enum value (case-insensitive).
+
+    Supports:
+    - Enum member: returns as-is
+    - Integer: returns as-is (Pydantic handles)
+    - String: case-insensitive lookup by member name
+    - Dict with 'value' key: extracts and processes the value
+
+    Parameters
+    ----------
+    v : Any
+        Input value to coerce
+    enum_class : type[Enum]
+        Target enum class for lookup
+
+    Returns
+    -------
+    Any
+        Coerced value suitable for Pydantic validation
+    """
+    if v is None or isinstance(v, enum_class):
+        return v
+
+    # Handle dict with 'value' key
+    if isinstance(v, dict) and "value" in v:
+        v = v["value"]
+
+    # Handle string (case-insensitive lookup by member name)
+    if isinstance(v, str):
+        v_upper = v.upper()
+        for member in enum_class:
+            if member.name.upper() == v_upper:
+                return member
+        # If no match by name, let Pydantic handle (will raise appropriate error)
+
+    return v
+
+
 class EmissionsMethod(Enum):
     """
     Method for calculating anthropogenic heat flux (QF) and CO2 emissions.
@@ -778,6 +817,91 @@ class ModelPhysics(BaseModel):
         json_schema_extra={"unit": "dimensionless"},
     )
     ref: Optional[Reference] = None
+
+    # Validators for case-insensitive string name support
+    @field_validator("storageheatmethod", mode="before")
+    @classmethod
+    def coerce_storageheatmethod(cls, v: Any) -> Any:
+        """Accept string names (case-insensitive) for storageheatmethod."""
+        return _coerce_enum_value(v, StorageHeatMethod)
+
+    @field_validator("ohmincqf", mode="before")
+    @classmethod
+    def coerce_ohmincqf(cls, v: Any) -> Any:
+        """Accept string names (case-insensitive) for ohmincqf."""
+        return _coerce_enum_value(v, OhmIncQf)
+
+    @field_validator("roughlenmommethod", mode="before")
+    @classmethod
+    def coerce_roughlenmommethod(cls, v: Any) -> Any:
+        """Accept string names (case-insensitive) for roughlenmommethod."""
+        return _coerce_enum_value(v, MomentumRoughnessMethod)
+
+    @field_validator("roughlenheatmethod", mode="before")
+    @classmethod
+    def coerce_roughlenheatmethod(cls, v: Any) -> Any:
+        """Accept string names (case-insensitive) for roughlenheatmethod."""
+        return _coerce_enum_value(v, HeatRoughnessMethod)
+
+    @field_validator("stabilitymethod", mode="before")
+    @classmethod
+    def coerce_stabilitymethod(cls, v: Any) -> Any:
+        """Accept string names (case-insensitive) for stabilitymethod."""
+        return _coerce_enum_value(v, StabilityMethod)
+
+    @field_validator("smdmethod", mode="before")
+    @classmethod
+    def coerce_smdmethod(cls, v: Any) -> Any:
+        """Accept string names (case-insensitive) for smdmethod."""
+        return _coerce_enum_value(v, SMDMethod)
+
+    @field_validator("waterusemethod", mode="before")
+    @classmethod
+    def coerce_waterusemethod(cls, v: Any) -> Any:
+        """Accept string names (case-insensitive) for waterusemethod."""
+        return _coerce_enum_value(v, WaterUseMethod)
+
+    @field_validator("rslmethod", mode="before")
+    @classmethod
+    def coerce_rslmethod(cls, v: Any) -> Any:
+        """Accept string names (case-insensitive) for rslmethod."""
+        return _coerce_enum_value(v, RSLMethod)
+
+    @field_validator("faimethod", mode="before")
+    @classmethod
+    def coerce_faimethod(cls, v: Any) -> Any:
+        """Accept string names (case-insensitive) for faimethod."""
+        return _coerce_enum_value(v, FAIMethod)
+
+    @field_validator("rsllevel", mode="before")
+    @classmethod
+    def coerce_rsllevel(cls, v: Any) -> Any:
+        """Accept string names (case-insensitive) for rsllevel."""
+        return _coerce_enum_value(v, RSLLevel)
+
+    @field_validator("gsmodel", mode="before")
+    @classmethod
+    def coerce_gsmodel(cls, v: Any) -> Any:
+        """Accept string names (case-insensitive) for gsmodel."""
+        return _coerce_enum_value(v, GSModel)
+
+    @field_validator("snowuse", mode="before")
+    @classmethod
+    def coerce_snowuse(cls, v: Any) -> Any:
+        """Accept string names (case-insensitive) for snowuse."""
+        return _coerce_enum_value(v, SnowUse)
+
+    @field_validator("stebbsmethod", mode="before")
+    @classmethod
+    def coerce_stebbsmethod(cls, v: Any) -> Any:
+        """Accept string names (case-insensitive) for stebbsmethod."""
+        return _coerce_enum_value(v, StebbsMethod)
+
+    @field_validator("rcmethod", mode="before")
+    @classmethod
+    def coerce_rcmethod(cls, v: Any) -> Any:
+        """Accept string names (case-insensitive) for rcmethod."""
+        return _coerce_enum_value(v, RCMethod)
 
     # We then need to set to 0 (or None) all the CO2-related parameters or rules
     # in the code and return them accordingly in the yml file.

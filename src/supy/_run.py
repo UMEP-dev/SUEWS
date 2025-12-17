@@ -94,12 +94,14 @@ def _check_supy_error():
 
 
 def _reset_supy_error():
-    """Reset error state before calling Fortran kernel."""
+    """Reset error state before calling Fortran kernel.
+
+    Uses the Fortran reset_supy_error() subroutine for consistency
+    with how _check_supy_error() resets after detecting an error.
+    """
     from . import _supy_driver as _sd
 
-    _sd.f90wrap_module_ctrl_error_state__set__supy_error_flag(False)
-    _sd.f90wrap_module_ctrl_error_state__set__supy_error_code(0)
-    _sd.f90wrap_module_ctrl_error_state__set__supy_error_message('')
+    _sd.f90wrap_module_ctrl_error_state__reset_supy_error()
 
 
 ##############################################################################

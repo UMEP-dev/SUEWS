@@ -18,6 +18,15 @@
 ! Error state module for Python/SuPy interface
 ! This module has NO dependencies and is at the base of the module hierarchy
 ! Allows Python to detect Fortran errors without STOP terminating the process
+!
+! Error Codes (GH#1035):
+!   Standard ErrorHint codes (1-99): See ErrorHint subroutine in suews_ctrl_error.f95
+!   100: NARP - NetRadiationMethod value not usable
+!   101: OHM  - Invalid input parameters (d, C, k, lambda_c, WS must be positive)
+!   102: STEBBS - Invalid thermal parameters (d, cp, rho must be positive; x1 in [0,1])
+!
+! Note: Error state uses SAVE variables, so is NOT thread-safe.
+!       Do not call SUEWS from multiple threads simultaneously.
 !==================================================================================================
 MODULE module_ctrl_error_state
    IMPLICIT NONE

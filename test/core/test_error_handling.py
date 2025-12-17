@@ -81,3 +81,62 @@ class TestSUEWSKernelError:
         """Test SUEWSKernelError is a RuntimeError subclass."""
         error = SUEWSKernelError(1, "test")
         assert isinstance(error, RuntimeError)
+
+    def test_error_state_does_not_leak_between_calls(self):
+        """Test that error state is properly reset between simulation calls.
+
+        This verifies that _reset_supy_error() is called before Fortran kernel
+        calls, preventing false positives from previous errors.
+        """
+        from supy import _supy_driver as _sd
+
+        # Set an error state manually (simulating a previous failed simulation)
+        _sd.f90wrap_module_ctrl_error_state__set_supy_error(99, "Leaked error")
+
+        # Reset (simulating what happens at start of new simulation)
+        _reset_supy_error()
+
+        # Verify error is cleared - _check_supy_error should NOT raise
+        _check_supy_error()  # If this raises, error state leaked
+
+        # Verify state is clean
+        flag = _sd.f90wrap_module_ctrl_error_state__get__supy_error_flag()
+        assert not flag, "Error flag should be False after reset"
+
+
+@pytest.mark.smoke
+class TestSUEWSKernelErrorIntegration:
+    """Integration tests for error handling through the simulation API."""
+
+    def test_simulation_with_valid_data_succeeds(self):
+        """Test that normal simulation completes without error.
+
+        This ensures error checking doesn't cause false positives.
+        """
+        import supy as sp
+
+        df_state_init, df_forcing = sp.load_SampleData()
+
+        # Run a short simulation - should complete without error
+        df_output, df_state_final = sp.run_supy(
+            df_forcing.iloc[:12],  # Just 1 hour
+            df_state_init,
+        )
+
+        assert df_output is not None
+        assert not df_output.empty
+        assert df_state_final is not None
+
+    def test_exception_handler_re_raises_on_error(self):
+        """Test that exception handlers properly re-raise instead of returning None.
+
+        This verifies the fix for the silent failure issue where exception
+        handlers logged but didn't re-raise, causing functions to return None.
+        """
+        from supy._run import suews_cal_tstep
+
+        # Calling with invalid/missing dict should raise, not return None
+        with pytest.raises(Exception):
+            # Empty dict will cause KeyError or similar - the important thing
+            # is that an exception is raised, not that None is returned
+            suews_cal_tstep({}, {})

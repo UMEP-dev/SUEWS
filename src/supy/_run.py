@@ -133,6 +133,9 @@ def suews_cal_tstep(dict_state_start, dict_met_forcing_tstep):
 
     # main calculation:
     try:
+        # Reset error state before Fortran call to ensure clean slate
+        _reset_supy_error()
+
         # import pickle
         # pickle.dump(dict_input, open("dict_input.pkl", "wb"))
         # print("dict_input.pkl saved")
@@ -149,12 +152,13 @@ def suews_cal_tstep(dict_state_start, dict_met_forcing_tstep):
         # show trace info
         logger_supy.exception(traceback.format_exc())
         # show SUEWS fatal error details produced by SUEWS kernel
-        with open("problems.txt", "r") as f:
-            logger_supy.critical(f.read())
-        # clean slate
-        # os.remove('problems.txt')
-        # sys.exit()
-        logger_supy.critical("SUEWS kernel error")
+        try:
+            with open("problems.txt", "r") as f:
+                logger_supy.critical(f.read())
+        except FileNotFoundError:
+            logger_supy.warning("problems.txt not found - no additional error details")
+        # Re-raise to prevent silent failure (returning None)
+        raise RuntimeError(f"SUEWS kernel error: {ex}") from ex
     else:
         # update state variables
         # if save_state:  # deep copy states results
@@ -253,6 +257,9 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
         # ```
     # main calculation:
     try:
+        # Reset error state before Fortran call to ensure clean slate
+        _reset_supy_error()
+
         if debug_mode:
             # initialise the debug objects
             # they can only be used as input arguments
@@ -281,15 +288,15 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
         raise
     except Exception as ex:
         # show trace info
-        # print(traceback.format_exc())
+        logger_supy.exception(traceback.format_exc())
         # show SUEWS fatal error details produced by SUEWS kernel
-        with open("problems.txt", "r") as f:
-            logger_supy.critical(f.read())
-        # clean slate
-        # os.remove('problems.txt')
-        # sys.exit()
-        # raise RuntimeError("Something bad happened") from exs
-        logger_supy.critical("SUEWS kernel error")
+        try:
+            with open("problems.txt", "r") as f:
+                logger_supy.critical(f.read())
+        except FileNotFoundError:
+            logger_supy.warning("problems.txt not found - no additional error details")
+        # Re-raise to prevent silent failure (returning None)
+        raise RuntimeError(f"SUEWS kernel error: {ex}") from ex
     else:
         # update state variables
         # use deep copy to avoid reference issue; also copy the initial dict_state_start

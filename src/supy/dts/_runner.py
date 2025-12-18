@@ -152,31 +152,3 @@ def run_dts(
     }
 
     return df_output, final_state
-
-
-def run_dts_simple(
-    df_forcing: pd.DataFrame,
-    config: "SUEWSConfig",  # noqa: F821
-    site_index: int = 0,
-) -> pd.DataFrame:
-    """Simplified run_dts that returns only the output DataFrame.
-
-    This is a convenience wrapper around run_dts() for cases where
-    only the output is needed.
-
-    Parameters
-    ----------
-    df_forcing : pd.DataFrame
-        Forcing data with datetime index.
-    config : SUEWSConfig
-        Pydantic configuration object.
-    site_index : int, optional
-        Site index, by default 0.
-
-    Returns
-    -------
-    pd.DataFrame
-        Output DataFrame.
-    """
-    df_output, _ = run_dts(df_forcing, config, site_index)
-    return df_output

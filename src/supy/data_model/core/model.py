@@ -82,7 +82,7 @@ def _enum_description(enum_class: type[Enum]) -> str:
 
 
 def _coerce_enum_value(
-    v: Any, enum_class: type[Enum], aliases: dict[str, str] | None = None
+    v: Any, enum_class: type[Enum], aliases: Optional[dict[str, str]] = None
 ) -> Any:
     """Coerce string or dict input to enum value (case-insensitive).
 
@@ -341,7 +341,7 @@ class NetRadiationMethod(Enum):
             return "narp"
 
     @property
-    def ldown(self) -> "str | None":
+    def ldown(self) -> Optional[str]:
         """Return ldown dimension: obs, cloud, air, or None.
 
         Returns

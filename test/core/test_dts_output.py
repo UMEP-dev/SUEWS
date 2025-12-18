@@ -89,7 +89,7 @@ class TestDTSOutput(TestCase):
         """Set up test environment."""
         warnings.simplefilter("ignore", category=ImportWarning)
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_dts_infrastructure_imports(self):
         """Test that DTS infrastructure imports correctly."""
         from supy.dts import (
@@ -117,7 +117,7 @@ class TestDTSOutput(TestCase):
         timer = create_suews_timer()
         self.assertIsNotNone(timer)
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_dts_config_population(self):
         """Test that Pydantic config can be populated into DTS objects."""
         from supy.dts import (

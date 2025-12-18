@@ -139,6 +139,14 @@ markers = [
 line-length = 120
 target-version = "py39"
 
+[tool.ruff.lint]
+# FA102: Catch PEP 604 union syntax (X | None) which requires Python 3.10+
+# This prevents CI failures on Python 3.9 due to runtime TypeError
+extend-select = ["FA102"]
+
+# Note: FA102 auto-fix adds `from __future__ import annotations` which can break Pydantic
+# Instead, manually use Optional[X] from typing module (see .claude/rules/python/conventions.md)
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"

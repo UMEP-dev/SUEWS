@@ -132,8 +132,54 @@ def _coerce_enum_value(
     return v
 
 
-# Short aliases for physics options
-# Use explicit model names where they exist; otherwise use Xyy (author initial + year)
+# =============================================================================
+# Physics Option Aliases
+# =============================================================================
+#
+# Naming Convention for Physics Options
+# -------------------------------------
+# Physics options support multiple input formats for flexibility:
+#
+# 1. NUMERIC CODES (legacy, still supported)
+#    - Integer values matching Fortran interface
+#    - Example: storageheatmethod: 1
+#
+# 2. EXPLICIT MODEL NAMES (preferred for named models)
+#    - Use the established model acronym in lowercase
+#    - Examples:
+#      - ohm: Objective Hysteresis Model
+#      - anohm: Analytical OHM
+#      - estm: Element Surface Temperature Method
+#      - ehc: Explicit Heat Conduction
+#      - dyohm: Dynamic OHM
+#      - narp: Net All-wave Radiation Parameterization
+#      - most: Monin-Obukhov Similarity Theory
+#      - rst: Roughness Sublayer Theory
+#
+# 3. AUTHOR-YEAR FORMAT (Xyy) for methods without model names
+#    - Format: First letter of first author surname + two-digit year
+#    - Case-insensitive (K09, k09, K09 all work)
+#    - Examples:
+#      - K09: Kawai et al. 2009 (thermal roughness)
+#      - CN98: Campbell & Norman 1998 (stability functions)
+#      - W16: Ward et al. 2016 (stomatal conductance)
+#      - J11: Järvi et al. 2011 (stomatal conductance, QF)
+#      - B82: Brutsaert 1982 (thermal roughness)
+#      - M98: MacDonald et al. 1998 (momentum roughness)
+#      - GO99: Grimmond & Oke 1999 (roughness length)
+#
+# 4. GENERIC DESCRIPTIVE TERMS (for simple choices)
+#    - fixed, variable, auto: method selection
+#    - model, obs: modelled vs observed
+#    - provided, calc: use input vs calculate
+#
+# 5. BINARY OPTIONS (yes/no)
+#    - ohmincqf: yes/no (include QF in OHM)
+#    - snowuse: yes/no (enable snow module)
+#
+# All string inputs are case-insensitive.
+# =============================================================================
+
 # Maps short alias → enum member name
 STORAGE_HEAT_ALIASES = {
     "obs": "OBSERVED",

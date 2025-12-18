@@ -6,7 +6,6 @@ through f90wrap, eliminating the intermediate DataFrame conversion layer.
 Main Functions
 --------------
 run_dts : Run SUEWS simulation using DTS interface
-run_dts_simple : Simplified runner returning only output DataFrame
 
 Factory Functions
 -----------------
@@ -58,15 +57,11 @@ from ._extract import (
     build_full_output_dataframe,
 )
 
-from ._runner import (
-    run_dts,
-    run_dts_simple,
-)
+from ._runner import run_dts
 
 __all__ = [
-    # Main runners
+    # Main runner
     "run_dts",
-    "run_dts_simple",
     # Factory functions
     "create_suews_config",
     "create_suews_state",

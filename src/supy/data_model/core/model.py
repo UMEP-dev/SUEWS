@@ -81,13 +81,15 @@ def _enum_description(enum_class: type[Enum]) -> str:
     return summary
 
 
-def _coerce_enum_value(v: Any, enum_class: type[Enum]) -> Any:
+def _coerce_enum_value(
+    v: Any, enum_class: type[Enum], aliases: dict[str, str] | None = None
+) -> Any:
     """Coerce string or dict input to enum value (case-insensitive).
 
     Supports:
     - Enum member: returns as-is
     - Integer: returns as-is (Pydantic handles)
-    - String: case-insensitive lookup by member name
+    - String: case-insensitive lookup by member name or alias
     - Dict with 'value' key: extracts and processes the value
 
     Parameters
@@ -96,6 +98,8 @@ def _coerce_enum_value(v: Any, enum_class: type[Enum]) -> Any:
         Input value to coerce
     enum_class : type[Enum]
         Target enum class for lookup
+    aliases : dict[str, str], optional
+        Short alias → member name mapping (case-insensitive)
 
     Returns
     -------
@@ -109,15 +113,112 @@ def _coerce_enum_value(v: Any, enum_class: type[Enum]) -> Any:
     if isinstance(v, dict) and "value" in v:
         v = v["value"]
 
-    # Handle string (case-insensitive lookup by member name)
+    # Handle string (case-insensitive lookup by alias, then member name)
     if isinstance(v, str):
         v_upper = v.upper()
+
+        # Check aliases first
+        if aliases:
+            for alias, member_name in aliases.items():
+                if alias.upper() == v_upper:
+                    return enum_class[member_name]
+
+        # Then check member names
         for member in enum_class:
             if member.name.upper() == v_upper:
                 return member
-        # If no match by name, let Pydantic handle (will raise appropriate error)
+        # If no match, let Pydantic handle (will raise appropriate error)
 
     return v
+
+
+# Short aliases for physics options (Xyy = author initial + year, yes/no for binary)
+# Maps short alias → enum member name
+STORAGE_HEAT_ALIASES = {
+    "obs": "OBSERVED",
+    "ohm": "OHM_WITHOUT_QF",
+    "S17": "ANOHM",  # Sun et al. 2017
+    "O05": "ESTM",  # Offerle et al. 2005
+    "ehc": "EHC",
+    "L25": "DyOHM",  # Liu et al. 2025
+    "stebbs": "STEBBS",
+}
+
+OHM_INC_QF_ALIASES = {
+    "no": "EXCLUDE",
+    "yes": "INCLUDE",
+}
+
+ROUGHLEN_MOM_ALIASES = {
+    "fixed": "FIXED",
+    "variable": "VARIABLE",
+    "M98": "MACDONALD",  # MacDonald et al. 1998
+    "GO99": "LAMBDAP_DEPENDENT",  # Grimmond & Oke 1999
+}
+
+ROUGHLEN_HEAT_ALIASES = {
+    "B82": "BRUTSAERT",  # Brutsaert 1982
+    "K09": "KAWAI",  # Kawai et al. 2009
+    "VG00": "VOOGT_GRIMMOND",  # Voogt & Grimmond 2000
+    "K07": "KANDA",  # Kanda et al. 2007
+    "auto": "ADAPTIVE",
+}
+
+STABILITY_ALIASES = {
+    "H88": "HOEGSTROM",  # Högström 1988
+    "CN98": "CAMPBELL_NORMAN",  # Campbell & Norman 1998
+    "BH71": "BUSINGER_HOEGSTROM",  # Businger et al. 1971
+}
+
+SMD_ALIASES = {
+    "model": "MODELLED",
+    "obs_vol": "OBSERVED_VOLUMETRIC",
+    "obs_grav": "OBSERVED_GRAVIMETRIC",
+}
+
+WATER_USE_ALIASES = {
+    "model": "MODELLED",
+    "obs": "OBSERVED",
+}
+
+RSL_ALIASES = {
+    "most": "MOST",
+    "rst": "RST",
+    "auto": "VARIABLE",
+}
+
+FAI_ALIASES = {
+    "provided": "USE_PROVIDED",
+    "calc": "SIMPLE_SCHEME",
+}
+
+RSL_LEVEL_ALIASES = {
+    "off": "NONE",
+    "basic": "BASIC",
+    "full": "DETAILED",
+}
+
+GS_MODEL_ALIASES = {
+    "J11": "JARVI",  # Järvi et al. 2011
+    "W16": "WARD",  # Ward et al. 2016
+}
+
+SNOW_USE_ALIASES = {
+    "no": "DISABLED",
+    "yes": "ENABLED",
+}
+
+STEBBS_ALIASES = {
+    "off": "NONE",
+    "default": "DEFAULT",
+    "custom": "PROVIDED",
+}
+
+RC_ALIASES = {
+    "off": "NONE",
+    "basic": "BASIC",
+    "full": "DETAILED",
+}
 
 
 class EmissionsMethod(Enum):
@@ -818,90 +919,90 @@ class ModelPhysics(BaseModel):
     )
     ref: Optional[Reference] = None
 
-    # Validators for case-insensitive string name support
+    # Validators for case-insensitive string name support (with short aliases)
     @field_validator("storageheatmethod", mode="before")
     @classmethod
     def coerce_storageheatmethod(cls, v: Any) -> Any:
-        """Accept string names (case-insensitive) for storageheatmethod."""
-        return _coerce_enum_value(v, StorageHeatMethod)
+        """Accept string names and short aliases for storageheatmethod."""
+        return _coerce_enum_value(v, StorageHeatMethod, STORAGE_HEAT_ALIASES)
 
     @field_validator("ohmincqf", mode="before")
     @classmethod
     def coerce_ohmincqf(cls, v: Any) -> Any:
-        """Accept string names (case-insensitive) for ohmincqf."""
-        return _coerce_enum_value(v, OhmIncQf)
+        """Accept string names and short aliases (yes/no) for ohmincqf."""
+        return _coerce_enum_value(v, OhmIncQf, OHM_INC_QF_ALIASES)
 
     @field_validator("roughlenmommethod", mode="before")
     @classmethod
     def coerce_roughlenmommethod(cls, v: Any) -> Any:
-        """Accept string names (case-insensitive) for roughlenmommethod."""
-        return _coerce_enum_value(v, MomentumRoughnessMethod)
+        """Accept string names and short aliases for roughlenmommethod."""
+        return _coerce_enum_value(v, MomentumRoughnessMethod, ROUGHLEN_MOM_ALIASES)
 
     @field_validator("roughlenheatmethod", mode="before")
     @classmethod
     def coerce_roughlenheatmethod(cls, v: Any) -> Any:
-        """Accept string names (case-insensitive) for roughlenheatmethod."""
-        return _coerce_enum_value(v, HeatRoughnessMethod)
+        """Accept string names and short aliases for roughlenheatmethod."""
+        return _coerce_enum_value(v, HeatRoughnessMethod, ROUGHLEN_HEAT_ALIASES)
 
     @field_validator("stabilitymethod", mode="before")
     @classmethod
     def coerce_stabilitymethod(cls, v: Any) -> Any:
-        """Accept string names (case-insensitive) for stabilitymethod."""
-        return _coerce_enum_value(v, StabilityMethod)
+        """Accept string names and short aliases for stabilitymethod."""
+        return _coerce_enum_value(v, StabilityMethod, STABILITY_ALIASES)
 
     @field_validator("smdmethod", mode="before")
     @classmethod
     def coerce_smdmethod(cls, v: Any) -> Any:
-        """Accept string names (case-insensitive) for smdmethod."""
-        return _coerce_enum_value(v, SMDMethod)
+        """Accept string names and short aliases for smdmethod."""
+        return _coerce_enum_value(v, SMDMethod, SMD_ALIASES)
 
     @field_validator("waterusemethod", mode="before")
     @classmethod
     def coerce_waterusemethod(cls, v: Any) -> Any:
-        """Accept string names (case-insensitive) for waterusemethod."""
-        return _coerce_enum_value(v, WaterUseMethod)
+        """Accept string names and short aliases for waterusemethod."""
+        return _coerce_enum_value(v, WaterUseMethod, WATER_USE_ALIASES)
 
     @field_validator("rslmethod", mode="before")
     @classmethod
     def coerce_rslmethod(cls, v: Any) -> Any:
-        """Accept string names (case-insensitive) for rslmethod."""
-        return _coerce_enum_value(v, RSLMethod)
+        """Accept string names and short aliases for rslmethod."""
+        return _coerce_enum_value(v, RSLMethod, RSL_ALIASES)
 
     @field_validator("faimethod", mode="before")
     @classmethod
     def coerce_faimethod(cls, v: Any) -> Any:
-        """Accept string names (case-insensitive) for faimethod."""
-        return _coerce_enum_value(v, FAIMethod)
+        """Accept string names and short aliases for faimethod."""
+        return _coerce_enum_value(v, FAIMethod, FAI_ALIASES)
 
     @field_validator("rsllevel", mode="before")
     @classmethod
     def coerce_rsllevel(cls, v: Any) -> Any:
-        """Accept string names (case-insensitive) for rsllevel."""
-        return _coerce_enum_value(v, RSLLevel)
+        """Accept string names and short aliases for rsllevel."""
+        return _coerce_enum_value(v, RSLLevel, RSL_LEVEL_ALIASES)
 
     @field_validator("gsmodel", mode="before")
     @classmethod
     def coerce_gsmodel(cls, v: Any) -> Any:
-        """Accept string names (case-insensitive) for gsmodel."""
-        return _coerce_enum_value(v, GSModel)
+        """Accept string names and short aliases for gsmodel."""
+        return _coerce_enum_value(v, GSModel, GS_MODEL_ALIASES)
 
     @field_validator("snowuse", mode="before")
     @classmethod
     def coerce_snowuse(cls, v: Any) -> Any:
-        """Accept string names (case-insensitive) for snowuse."""
-        return _coerce_enum_value(v, SnowUse)
+        """Accept string names and short aliases (yes/no) for snowuse."""
+        return _coerce_enum_value(v, SnowUse, SNOW_USE_ALIASES)
 
     @field_validator("stebbsmethod", mode="before")
     @classmethod
     def coerce_stebbsmethod(cls, v: Any) -> Any:
-        """Accept string names (case-insensitive) for stebbsmethod."""
-        return _coerce_enum_value(v, StebbsMethod)
+        """Accept string names and short aliases for stebbsmethod."""
+        return _coerce_enum_value(v, StebbsMethod, STEBBS_ALIASES)
 
     @field_validator("rcmethod", mode="before")
     @classmethod
     def coerce_rcmethod(cls, v: Any) -> Any:
-        """Accept string names (case-insensitive) for rcmethod."""
-        return _coerce_enum_value(v, RCMethod)
+        """Accept string names and short aliases for rcmethod."""
+        return _coerce_enum_value(v, RCMethod, RC_ALIASES)
 
     # We then need to set to 0 (or None) all the CO2-related parameters or rules
     # in the code and return them accordingly in the yml file.

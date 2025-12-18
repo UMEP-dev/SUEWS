@@ -113,14 +113,16 @@ def __getattr__(name):
 
     # Submodules
     if name == "util":
-        from . import util
+        import importlib
 
+        util = importlib.import_module(".util", __name__)
         _lazy_cache[name] = util
         return _lazy_cache[name]
 
     if name == "data_model":
-        from . import data_model
+        import importlib
 
+        data_model = importlib.import_module(".data_model", __name__)
         _lazy_cache[name] = data_model
         return _lazy_cache[name]
 

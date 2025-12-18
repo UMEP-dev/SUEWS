@@ -359,7 +359,7 @@ class TestDTSStatePopulation:
         populate_state_from_pydantic(state, initial_states)
         return state
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_hydrostate_soilstore_surf(self, initial_values, our_populated_state):
         """Verify soilstore_surf values match df_state_init."""
         expected = initial_values['soilstore_surf']
@@ -371,7 +371,7 @@ class TestDTSStatePopulation:
 
         np.testing.assert_allclose(actual, expected, rtol=1e-6)
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_hydrostate_state_surf(self, initial_values, our_populated_state):
         """Verify state_surf (surface wetness) values match."""
         expected = initial_values['state_surf']
@@ -383,7 +383,7 @@ class TestDTSStatePopulation:
 
         np.testing.assert_allclose(actual, expected, rtol=1e-6)
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_heatstate_temp_surf(self, initial_values, our_populated_state):
         """Verify temp_surf values match."""
         expected = initial_values['temp_surf']
@@ -520,7 +520,7 @@ class TestDTSSitePopulation:
     # Basic Site Properties
     # -------------------------------------------------------------------------
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_site_location(self, populated_site, pydantic_site):
         """Verify lat/lon/alt are correctly populated."""
         props = pydantic_site.properties
@@ -539,7 +539,7 @@ class TestDTSSitePopulation:
         assert populated_site.lon == pytest.approx(expected_lon, rel=1e-6)
         assert populated_site.alt == pytest.approx(expected_alt, rel=1e-6)
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_site_measurement_height(self, populated_site, pydantic_site):
         """Verify measurement height z is correctly populated."""
         props = pydantic_site.properties
@@ -554,7 +554,7 @@ class TestDTSSitePopulation:
     # Surface Fractions
     # -------------------------------------------------------------------------
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_surface_fractions(self, populated_site, pydantic_site):
         """Verify sfr_surf array matches land_cover fractions."""
         lc = pydantic_site.properties.land_cover
@@ -604,7 +604,7 @@ class TestDTSSitePopulation:
     # Conductance Parameters
     # -------------------------------------------------------------------------
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_conductance_parameters(self, populated_site, pydantic_site):
         """Verify conductance parameters are correctly populated."""
         cond_pydantic = pydantic_site.properties.conductance
@@ -800,7 +800,7 @@ class TestDTSConfigPopulation:
     # Physics Methods
     # -------------------------------------------------------------------------
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_radiation_methods(self, populated_config, pydantic_model):
         """Verify radiation method flags are correctly populated."""
         physics = pydantic_model.physics
@@ -819,7 +819,7 @@ class TestDTSConfigPopulation:
         print(f"netradiationmethod: expected={expected_netrad}, actual={populated_config.netradiationmethod}")
         assert populated_config.netradiationmethod == expected_netrad
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_storage_heat_method(self, populated_config, pydantic_model):
         """Verify storage heat method is correctly populated."""
         physics = pydantic_model.physics

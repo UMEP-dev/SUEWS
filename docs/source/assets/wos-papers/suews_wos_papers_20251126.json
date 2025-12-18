@@ -1,0 +1,1855 @@
+{
+  "metadata": {
+    "query": "TS=SUEWS OR TS=\"Surface Urban Energy and Water Balance Scheme\" OR TI=SUEWS",
+    "fetched": "2025-11-26T22:44:25.253521",
+    "total": 68
+  },
+  "analysis": {
+    "total_papers": 68,
+    "papers_with_abstracts": 68,
+    "year_range": [
+      2011,
+      2026
+    ],
+    "year_distribution": {
+      "2011": 1,
+      "2014": 1,
+      "2015": 3,
+      "2016": 7,
+      "2017": 6,
+      "2018": 5,
+      "2019": 5,
+      "2020": 3,
+      "2021": 5,
+      "2022": 4,
+      "2023": 6,
+      "2024": 11,
+      "2025": 10,
+      "2026": 1
+    },
+    "locations_by_region": {
+      "Asia": {
+        "Beijing": 6,
+        "Xiong'an": 1,
+        "Baoding": 1,
+        "Singapore": 2,
+        "Tokyo": 1,
+        "Mumbai": 1,
+        "Shanghai": 3
+      },
+      "Europe": {
+        "London": 9,
+        "Zurich": 1,
+        "Helsinki": 8,
+        "Hamburg": 2,
+        "Dublin": 5,
+        "Freiburg": 1,
+        "Swindon": 2,
+        "Heraklion": 2,
+        "Porto": 3,
+        "Marseille": 1
+      },
+      "Other": {
+        "Lagos": 1
+      },
+      "North America": {
+        "Phoenix": 2,
+        "Vancouver": 3,
+        "Baltimore": 1,
+        "Montreal": 1,
+        "Los Angeles": 1
+      },
+      "Oceania": {
+        "Melbourne": 1
+      }
+    },
+    "applications": {
+      "Model Development": 45,
+      "Surface Energy Balance": 35,
+      "Water Balance": 35,
+      "Urban Vegetation": 34,
+      "Model Evaluation": 32,
+      "Climate Scenarios": 16,
+      "CO2/Carbon Flux": 14,
+      "Building Energy": 9,
+      "Urban Heat Island": 7
+    },
+    "unique_locations": 24
+  },
+  "papers": [
+    {
+      "uid": "WOS:001609443800001",
+      "title": "Simulation of CO2 flux and evaluation of carbon neutrality potential at the neighborhood scale in Beijing with multi-source data",
+      "authors": [
+        "Luo, Wen-Rong",
+        "Che, Hui-Zheng",
+        "Miao, Shi-Guang",
+        "Dou, Jun-Xia",
+        "Zheng, Ying-Qi",
+        "Zhou, Yu-Yu",
+        "Su, Zhi-Min",
+        "Wu, Ye",
+        "Wang, De",
+        "Yi, Xin"
+      ],
+      "author_count": 14,
+      "journal": "ADVANCES IN CLIMATE CHANGE RESEARCH",
+      "year": 2025,
+      "volume": "16",
+      "issue": "5",
+      "pages": "1070-1086",
+      "doi": "",
+      "abstract": "The urban neighborhood serves as the fundamental unit for fine-scale management of urban carbon emissions, playing a critical role in achieving urban carbon neutrality and sustainable development. Carbon source-sink data at the urban neighborhood scale exhibit significant spatial heterogeneity, and accurate estimation of CO2 fluxes helps to better understand the relationship between urban carbon processes and both anthropogenic and natural factors. This study employed multi-source data and the SUEWS urban land surface model to simulate CO2 fluxes at the neighborhood scale. High temporal (hourly) and spatial (20 m) resolution CO2 fluxes were obtained in the typical mixed-use areas surrounding the IAP and RCEES stations in Beijing. Carbon fluxes from traffic, buildings, human metabolism, soil, and vegetation were quantified for the years 2016, 2019, and 2020. The results show that the SUEWS model effectively captures the temporal and spatial dynamics of CO2 flux. The multi-year average CO2 flux at IAP and RCEES stations was 28.17 and 12.87 kg CO2/m2 per year, respectively. Traffic accounted for the largest share of CO2 emissions, contributing more than 50%, followed by emissions from buildings and human metabolism. The study also evaluated the potential for carbon reduction in urban neighborhoods under future low-carbon policies. Under the moderate emission scenario SSP2-4.5, along with the implementation of strong policy measures, including 80% rooftop greening and electric vehicle adoption, carbon emissions in urban neighborhoods could be reduced by approximately 60%. This study provides essential data and technical support for urban CO2 reduction through fine-scale CO2 flux calculations.",
+      "keywords": [
+        "Urban land surface model",
+        "Neighborhood scale",
+        "Carbon management",
+        "Anthropogenic emissions",
+        "Biogenic flux"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001608596000003",
+      "title": "Flux-tower evaluation and LCZ-based application of SUEWS in a temperate monsoon city: A case study of Xiong'an new area",
+      "authors": [
+        "Hua, Jiajia",
+        "Hang, Jian",
+        "Shi, Yurong",
+        "Gong, Yuqi",
+        "Chen, Guanwen",
+        "Yuan, Hua",
+        "Dong, Hanying"
+      ],
+      "author_count": 7,
+      "journal": "BUILDING AND ENVIRONMENT",
+      "year": 2026,
+      "volume": "287",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "Surface energy balance (SEB) plays a crucial role in understanding urban climate processes and mitigating urban heat island effects, yet observations in temperate monsoon regions remain scarce. Based on flux-tower measurements in 2023, this study analyzes the SEB characteristics of the Xiong'an New Area and evaluated the performance of the Surface Urban Energy and Water Balance Scheme (SUEWS) under different seasons and weather conditions. Results show clear seasonal variations: net radiation (Q(& lowast;)) and sensible heat flux (Q(H)) peak in summer and weakened in winter, latent heat flux (Q(E)) exceeds 100 W/m(2) in warm seasons but drops below 20 W/m(2) in winter, and storage heat flux (Delta Q(S)) exhibits a \"daytime storage-nighttime release\" pattern with strong summer accumulation. Energy partitioning varies by weather type, with Q(H) dominating on clear days (beta>1) and Q(E) on rainy days. The SUEWS model simulates radiation fluxes with high accuracy (R-2>0.89), particularly reflected shortwave radiation (RMSE<11 W/m(2)). Delta Q(S) and Q(H) were well reproduced, while Q(E) is underestimated, especially under cloudy and rainy conditions. Applying the validated model to Local Climate Zones (LCZs) in Baoding, we find Delta(QS) highest in impervious LCZ E, Q(E) enhanced in vegetated (LCZ D) and water (LCZ G) areas, and Q(H) highest in compact high-rise LCZ 1. These findings highlight the applicability of SUEWS in temperate monsoon cities and provide scientific support for urban climate assessment and sustainable planning.",
+      "keywords": [
+        "Feature representation",
+        "Dimensionality reduction",
+        "Reinforcement learning",
+        "SeqFReD",
+        "End-to-end framework"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001605481400001",
+      "title": "Direct CO2 emissions and uptake at neighbourhood-scale across the urban area of Beijing",
+      "authors": [
+        "Zheng, Yingqi",
+        "Havu, Minttu",
+        "Liu, Huizhi",
+        "Du, Qun",
+        "Zhang, Shaojun",
+        "Zhou, Yuyu",
+        "Luan, Qingzu",
+        "Jarvi, Leena"
+      ],
+      "author_count": 8,
+      "journal": "CITY AND ENVIRONMENT INTERACTIONS",
+      "year": 2025,
+      "volume": "28",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "Urban areas are significant contributors to global carbon dioxide (CO2) emissions, highlighting the need to comprehend CO2 flux dynamics within cities for effective climate change mitigation. Neighbourhood-scale assessments of land-atmosphere CO2 exchange are needed due to the intricate interactions between human activities, infrastructure, and vegetation. In this study, surface CO2 flux (Scope 1 direct emissions) was modelled over the urban area of the megacity Beijing, China, in 2016 at 500-m resolution to examine the relative contributions of the different local sources and their dependencies on different Local Climate Zones (LCZs). The model considered direct CO2 emissions from on-road traffic, local fuel combustion within buildings, human metabolism, soil and vegetation respiration, and CO2 uptake by vegetation photosynthesis. The results showed that the spatial average of anthropogenic CO2 emission was 4.5 kg C m-2 yr-1. Traffic and local building emissions contribute 38% and 37%, respectively, of total CO2 emissions, followed by human metabolism with 13%. Vegetation uptake offset only 4% of emissions, playing a minor role in climate mitigation due to limited areal coverage. CO2 fluxes showed high heterogeneity, with hot spots resulting primarily from traffic emissions. Net CO2 flux increased and then decreased with distance from the city centre, following the pattern in the impervious surface fraction and population density. LCZs helped explain patterns in biogenic and building-related CO2 fluxes, but they were less effective at capturing the complexity of traffic-related emissions. Simulating both anthropogenic and biogenic fluxes provides insight into their relative magnitudes on the neighbourhood scale and helps to identify the areas where emission reductions would be most critical to be made and nature-based solutions are most urgently needed.",
+      "keywords": [
+        "Local Climate Zone",
+        "SUEWS",
+        "Urban ecosystem",
+        "Urban vegetation",
+        "CO2 emissions"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001573009600001",
+      "title": "Compound urban heat risk revealed by co-location of social vulnerability and elevated temperatures in London, UK: A spatial analysis",
+      "authors": [
+        "Roberts, Emma",
+        "Sun, Ting",
+        "Pelling, Mark"
+      ],
+      "author_count": 3,
+      "journal": "SUSTAINABLE CITIES AND SOCIETY",
+      "year": 2025,
+      "volume": "132",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "Heatwaves are worsening globally under climate change, with significant impacts on human health. Cities are at increased risk due to the urban heat island effect, and vulnerable populations are more likely to experience morbidity and mortality from extreme heat. Improved modelling of social vulnerability is needed in urban areas to better plan for worsening heatwaves and their public health impacts. This study performs Principal Component Analysis (PCA) on fifteen heat-health vulnerability indicators for the borough of Hackney in London, UK and develops a Heat Vulnerability Index (HVI) to rank relative social vulnerability within the borough. Air temperature during the peak of the 2022 UK heatwave is then modelled for the study area to represent the hazard of extreme heat. Social vulnerability to extreme heat is found to vary spatially within Hackney and there are clusters of statistically significant high and low vulnerability scores present. Areas scoring highly on the HVI were significantly associated with higher temperatures during the 2022 UK heatwave, highlighting a positive association between social vulnerability and the hazard intensity of extreme heat. This heat vulnerability map can be used by urban planners and emergency managers to target heat-health interventions to those most at-risk during a heatwave.",
+      "keywords": [
+        "Heatwaves",
+        "Public health",
+        "Vulnerability",
+        "Spatial analysis"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001558953800001",
+      "title": "Reanalysis-data-based approach to generate urban local weather data to support building energy design in a tropical climate",
+      "authors": [
+        "Zheng, Xing",
+        "Meili, Naika",
+        "Li, Shuyang",
+        "Wang, Huanhuan",
+        "Xu, Lei",
+        "Han, Zhen",
+        "Mosteiro-Romero, Martin",
+        "Wu, Yi",
+        "Yan, Da",
+        "Chi, Dengkai"
+      ],
+      "author_count": 12,
+      "journal": "SUSTAINABLE CITIES AND SOCIETY",
+      "year": 2025,
+      "volume": "131",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "Accurate weather data is essential for building energy modeling (BEM), yet the actual urban local weather condition is often overlooked. This study developed an approach to generate local weather data using ERA5, a global atmospheric reanalysis dataset as input for two urban land surface models, Urban Tethys-Chloris (UT&C) and Urban Weather Generator (UWG). The generated datasets (UT&C-ERA5 and UWG-ERA5) are compared to locally measured weather data for a university campus in Singapore. Results show that the original ERA5 underestimates the diurnal temperature range. UT&C-ERA5 significantly improves hourly dry bulb temperature, reducing Mean Absolute Error (MAE) from 1.73 to 1.32 and Root Mean Square Error (RMSE) from 2.31 to 1.67, while UWG-ERA5 shows modest improvements (MAE from 1.73 to 1.70, RMSE from 2.31 to 2.22). UT&C-ERA5 also improves wind speed, lowering MAE from 2.85 to 1.54 and RMSE from 3.23 to 1.79. Subsequently, these weather datasets are employed as inputs for a calibrated BEM. Compared to the original ERA5, UT&C-ERA5 reduces CV (RMSE) of building cooling load from 17.13 % to 15.45 %. By leveraging the global availability of atmospheric reanalysis datasets, this approach can support building energy design and improve energy efficiency in tropical cities.",
+      "keywords": [
+        "Urban microclimate",
+        "Weather data",
+        "Urban canopy model",
+        "Building energy simulation",
+        "Atmospheric reanalysis data"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001540988300001",
+      "title": "Barriers to urban hydrometeorological simulation: a review",
+      "authors": [
+        "Chen, Xuan",
+        "van der Werf, Job Augustijn",
+        "Droste, Arjan",
+        "Coenders-Gerrits, Miriam",
+        "Uijlenhoet, Remko"
+      ],
+      "author_count": 5,
+      "journal": "HYDROLOGY AND EARTH SYSTEM SCIENCES",
+      "year": 2025,
+      "volume": "29",
+      "issue": "15",
+      "pages": "3447-3480",
+      "doi": "",
+      "abstract": "Urban areas, characterized by dense populations and many socioeconomic activities, increasingly suffer from floods, droughts and heat stress due to land use and climate change. Traditionally, the urban thermal environment and water resource management have been studied separately, using urban land-surface models (ULSMs) and urban hydrological models (UHMs). However, as our understanding deepens and the urgency to address future climate disasters grows, it becomes clear that hydroclimatological extremes - such as floods, droughts, severe urban thermal environments and more frequent heat waves - are actually not always isolated events but can be compound events. This underscores the close interaction between the water cycle and the energy balance. Consequently, the existing separation between ULSMs and UHMs creates significant obstacles in better understanding urban hydrological and meteorological processes, which is crucial for addressing the high risks posed by climate change. Defining the future direction of process-based models for hydrometeorological predictions and assessments is essential for better managing extreme events and evaluating response measures in densely populated urban areas. Our review focuses on three critical aspects of urban hydrometeorological simulation: similarities, differences and gaps among different models; existing gaps in physical process implementations; and efforts, challenges and potential for model coupling and integration. We find that ULSMs inadequately represent water surfaces and hydraulic systems, while UHMs lack explicit surface energy balance solutions and detailed building representations. Coupled models show the potential for simulating urban hydrometeorological environments but face challenges at regional and neighbourhood scales. Our review highlights the need for interdisciplinary communication between the urban climatology and the urban water management communities to enhance urban hydrometeorological simulation models.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001480847100001",
+      "title": "Intercomparison of biogenic CO2 flux models in four urban parks in the city of Zurich",
+      "authors": [
+        "Stagakis, Stavros",
+        "Brunner, Dominik",
+        "Li, Junwei",
+        "Backman, Leif",
+        "Karvonen, Anni",
+        "Constantin, Lionel",
+        "Jaervi, Leena",
+        "Havu, Minttu",
+        "Chen, Jia",
+        "Emberger, Sophie"
+      ],
+      "author_count": 11,
+      "journal": "BIOGEOSCIENCES",
+      "year": 2025,
+      "volume": "22",
+      "issue": "9",
+      "pages": "2133-2161",
+      "doi": "",
+      "abstract": "Quantifying the capacity and dynamics of urban carbon dioxide (CO2) emissions and carbon sequestration is becoming increasingly relevant in the development of integrated monitoring systems for urban greenhouse gas (GHG) emissions. There are multiple challenges in achieving these goals, such as the partitioning of atmospheric measurements of CO2 fluxes to anthropogenic and biospheric processes, the insufficient understanding of urban biospheric processes, and the applicability of existing biosphere models to urban systems. In this study, we applied four biosphere models of varying complexity - diFUME, JSBACH, SUEWS, VPRM - in four urban parks in the city of Zurich and evaluated their performance against in situ measurements collected over almost 2 years on park trees and lawns. In addition, we performed an uncertainty analysis of gross primary productivity (GPP), ecosystem respiration (Reco), and net ecosystem exchange (NEE) of CO2 based on the differences between the estimates of the four models and compared the estimated uncertainties and biospheric fluxes with the monthly anthropogenic CO2 emissions of a wide urban area surrounding the four parks. The results showed that, despite the large differences in model architecture, there was considerable agreement in the seasonal and diurnal GPP, Reco, and NEE estimates. Larger discrepancies between the four models were found for lawn GPP compared to tree GPP, while, for Reco, the differences between lawns and tree areas were similar. On an annual scale, all models agreed, on average, that lawns acted as CO2 sources and tree-covered areas as CO2 sinks during the simulation period, with the exception of diFUME, which simulated both tree and lawn areas as CO2 sources. diFUME and VPRM were more accurate in capturing the onset of the tree leaf growth in spring compared to JSBACH and SUEWS. On the other hand, JSBACH and SUEWS simulated soil water availability more accurately than the satellite-derived water index used by VPRM. The in situ observations revealed a very high spatial variability in lawn Reco across the park areas. All models underestimated the lawn Reco during spring in mowed, sunny locations, whereas the model simulations were closer to the observed Reco in un-mowed, partially shaded locations. The mean monthly uncertainties in biogenic NEE reached 0.8 mu molm-2s-1, which is 10.2 % of the magnitude of the total CO2 balance over the studied area during the month of June. This balance was composed of a mean anthropogenic flux of 8.7 mu molm-2s-1 and a mean biospheric flux of -0.5 mu molm-2s-1. Overall, this study highlights the importance of properly accounting for the biogenic CO2 fluxes and their uncertainties in urban CO2 balance studies, especially during the vegetation growing season, and shows that even simple models, such as VPRM, can adequately simulate the urban biospheric fluxes when appropriately parameterized.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001442889300001",
+      "title": "Parameterizing urban canopy radiation transfer using three-dimensional urban morphological parameters",
+      "authors": [
+        "Mei, Shuo-Jun",
+        "Chen, Guanwen",
+        "Wang, Kai",
+        "Hang, Jian"
+      ],
+      "author_count": 4,
+      "journal": "URBAN CLIMATE",
+      "year": 2025,
+      "volume": "60",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "The radiative schemes in urban canopy models are typically based on the two-dimensional street canyon model, which cannot fully capture the three-dimensional geometries in East Asia cities. This study addresses this limitation by parameterizing radiative flux by three-dimensional urban morphology parameters: frontal area density (lambda(f)) and plan area density (lambda(p)). The parameterization is supported by simulation results from the newly developed building-resolving radiative model (PyUray), which utilizes the Monte Carlo ray tracing method to achieve high accuracy and leverages GPU processing to accelerate simulation. The PyUray model is fully validated by comparing the urban canyon albedo with field measurements from the SOMUCH project. To support the parameterization, the solar gain and longwave radiative heat loss at ground surfaces and urban canyon surfaces are evaluated at various lambda(f) (0.16 <= lambda(f) <= 2.49) and lambda(f) (0.16 <= lambda(p) <= 0.83) using PyUray. With regression models, this study formulates functions to estimate the radiative flux of urban surfaces using three-dimensional morphological parameters lambda(f) and lambda(p), along with the three-dimensional solar direction. The simulation indicates that lambda(f) and lambda(p) have different impacts on the net radiative absorption of the urban canopy layer, with ground and street canyon surfaces exhibiting different responses to these morphological parameters.",
+      "keywords": [
+        "Monte Carlo method",
+        "Ray tracing",
+        "GPU acceleration",
+        "Urban radiative transfer",
+        "Urban morphology"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001442169300001",
+      "title": "A global urban tree leaf area index dataset for urban climate modeling",
+      "authors": [
+        "Dong, Wenzong",
+        "Yuan, Hua",
+        "Lin, Wanyi",
+        "Liu, Zhuo",
+        "Xiang, Jiayi",
+        "Wei, Zhongwang",
+        "Li, Lu",
+        "Li, Qingliang",
+        "Dai, Yongjiu"
+      ],
+      "author_count": 9,
+      "journal": "SCIENTIFIC DATA",
+      "year": 2025,
+      "volume": "12",
+      "issue": "1",
+      "pages": "",
+      "doi": "",
+      "abstract": "Urban trees are recognized for mitigating urban thermal stress, therefore incorporating their effects is crucial for urban climate research. However, due to the limitation of remote sensing, the LAI in urban areas is generally masked (e.g., MODIS), which in turn limits its application in Urban Canopy Models (UCMs). To address this gap, we developed a high-resolution (500 m) and long-time-series (2000-2022) urban tree LAI dataset derived through the Random Forest model trained with MODIS LAI data, with the help of meteorological variables and tree height datasets. The results show that our dataset has high accuracy when validated against site reference maps, with R of 0.85 and RMSE of 1.03 m2/m2. Compared to reprocessed MODIS LAI, our modeled LAI exhibits an RMSE ranging from 0.36 to 0.64 m2/m2 and an R ranging from 0.89 to 0.97 globally. This dataset provides a reasonable representation of urban tree LAI in terms of magnitude and seasonal changes, thereby potentially enhancing its applications in UCMs and urban climate studies.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001424797800001",
+      "title": "SLUCM+BEM (v1.0): a simple parameterisation for dynamic anthropogenic heat and electricity consumption in WRF-Urban (v4.3.2)",
+      "authors": [
+        "Takane, Yuya",
+        "Kikegawa, Yukihiro",
+        "Nakajima, Ko",
+        "Kusaka, Hiroyuki"
+      ],
+      "author_count": 4,
+      "journal": "GEOSCIENTIFIC MODEL DEVELOPMENT",
+      "year": 2024,
+      "volume": "17",
+      "issue": "23",
+      "pages": "8639-8664",
+      "doi": "",
+      "abstract": "We propose a simple dynamic anthropogenic heat (QF) parameterisation for the Weather Research and Forecasting (WRF) single-layer urban canopy model (SLUCM). The SLUCM is a remarkable physically based urban canopy model that is widely used. However, a limitation of SLUCM is that it considers a statistically based diurnal pattern of QF. Consequently, QF is not affected by outdoor temperature changes, and the diurnal pattern of QF is constant throughout the simulation period. To address these limitations, based on the concept of a building-energy model (BEM), which has been officially introduced in WRF, we propose a parameterisation to dynamically and simply simulate QF from buildings (QFB) through a physically based calculation of the indoor heat load and input parameters for BEM and SLUCM. This method allows users to simulate the dynamic QF and the electricity consumption (EC) as the outdoor temperature, building insulation, and heating and air conditioning (HAC) performance change. This is achieved via the simple selection of certain QF options among the urban parameters of WRF. The new parameterisation, SLUCM+BEM, was shown to simulate temporal variations in QFB and EC for HAC (ECHAC) and broadly reproduce the ECHAC estimates of more sophisticated BEM and ECHAC observations in the world's largest metropolis, Tokyo.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001416478200001",
+      "title": "Carbon sequestration in different urban vegetation types in Southern Finland",
+      "authors": [
+        "Tholix, Laura",
+        "Backman, Leif",
+        "Havu, Minttu",
+        "Karvinen, Esko",
+        "Soininen, Jesse",
+        "Tremeau, Justine",
+        "Nevalainen, Olli",
+        "Ahongshangbam, Joyson",
+        "Jarvi, Leena",
+        "Kulmala, Liisa"
+      ],
+      "author_count": 10,
+      "journal": "BIOGEOSCIENCES",
+      "year": 2025,
+      "volume": "22",
+      "issue": "3",
+      "pages": "725-749",
+      "doi": "",
+      "abstract": "Many cities seek carbon neutrality and are therefore interested in the sequestration potential of urban vegetation. However, the heterogeneous nature of urban vegetation and environmental conditions limits comprehensive measurement efforts, setting expectations for carbon cycle modelling. In this study, we examined the performance of three models - the Jena Scheme for Biosphere-Atmosphere Coupling in Hamburg (JSBACH), the Lund-Potsdam-Jena General Ecosystem Simulator (LPJ-GUESS), and the Surface Urban Energy and Water Balance Scheme (SUEWS) - in estimating carbon sequestration rates in both irrigated and non-irrigated lawns, park trees (Tilia cordata), and urban forests (Betula pendula) in Helsinki, Finland. The test data included observations of various environmental parameters and component fluxes such as soil moisture and temperature, sap flow, leaf area index, photosynthesis, soil respiration, and net ecosystem exchange. Our analysis revealed that these models effectively simulated seasonal and annual variations, as well as the impacts of weather events on carbon fluxes and related factors. However, the validation of the absolute level of modelled fluxes proved difficult due to differences in the scale of the observations and models, particularly for mature trees, and due to the fact that net ecosystem exchange measurements in urban areas include some anthropogenic emissions. Irrigation emerged as a key factor often improving carbon sequestration, while tree-covered areas demonstrated greater carbon sequestration rates compared to lawns on an annual scale. Notably, all models demonstrated similar mean net ecosystem exchange over the urban vegetation sector studied on an annual scale over the study period. However, compared to JSBACH, LPJ-GUESS exhibited higher carbon sequestration rates in tree-covered areas but lower rates in grassland-type areas. All models indicated notable year-to-year differences in annual sequestration rates, but since the same factors, such as temperature and soil moisture, affect processes both assimilating and releasing carbon, connecting the years of high or low carbon sequestration to single meteorological means failed. Overall, this research emphasizes the importance of integrating diverse vegetation types and the impacts of irrigation into urban carbon modelling efforts to inform sustainable urban planning and climate change mitigation strategies.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001393178500001",
+      "title": "Evaluating the influence of urban trees and microclimate on residential energy consumption in Dublin neighbourhoods",
+      "authors": [
+        "Ren, Zhihui",
+        "Nikolopoulou, Marialena",
+        "Mills, Gerald",
+        "Pilla, Francesco"
+      ],
+      "author_count": 4,
+      "journal": "BUILDING AND ENVIRONMENT",
+      "year": 2025,
+      "volume": "269",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "Building energy consumption, a major contributor to global energy demand accounts for 34% of final energy use and 37% of energy-related CO2 emissions. Addressing this issue, the study explores green planning techniques to enhance urban energy efficiency without altering existing built environments. Focusing on Dublin, it examine the influence of neighbourhood characteristics, notably tree fractions, on building energy performance. Utilizing the Surface Urban Energy and Water Balance Scheme (SUEWS) for localized climate data generation and the Integrated Environmental Solutions Virtual Environment (IES VE) for energy simulations, the study provides an in-depth analysis of microclimatic impacts on heating energy requirements. The findings reveal that buildings significantly reduce wind speeds, with high-rise structures providing substantial sheltering effects. Increased tree coverage further reduces wind speeds, aligning with deciduous tree growth cycles. Both temperature and wind speed significantly affect heating needs. The presence of trees notably decreases heating demand, with houses experiencing up to a 3.1% reduction and apartments up to a 4.6% reduction in energy use. These results underscore the crucial role of urban greenery in boosting residential energy efficiency. The findings offer valuable insights for urban planners and policymakers, advocating fora synergistic blend of natural and built environments to achieve sustainable urban energy solutions.",
+      "keywords": [
+        "Neighbourhood characteristics",
+        "Trees",
+        "Building energy demand",
+        "SUEWS",
+        "IES VE",
+        "Heating demand"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001324959200001",
+      "title": "Could residential air-source heat pumps exacerbate outdoor summer overheating and winter overcooling in UK 2050s climate scenarios?",
+      "authors": [
+        "Xie, Xiaoxiong",
+        "Luo, Zhiwen",
+        "Grimmond, Sue",
+        "Liu, Yiqing",
+        "Ugalde-Loo, Carlos E.",
+        "Bailey, Matthew T.",
+        "Wang, Xinfang"
+      ],
+      "author_count": 7,
+      "journal": "SUSTAINABLE CITIES AND SOCIETY",
+      "year": 2024,
+      "volume": "115",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "The UK government promotes heat pumps to replace gas boilers in the residential sector as a vital part of its strategy to achieve Net Zero by 2050. As climate change intensifies, heat pumps, traditionally used for heating, will also play a role in cooling to address indoor heat risks that threaten public health and increase energy demands. However, air-source heat pumps (ASHPs) might unintentionally exacerbate summer overheating and winter overcooling in residential neighbourhoods. This study uses a multi-scale modelling approach, combining SUEWS and EnergyPlus, to assess the impact of ASHPs on outdoor temperature in two idealised UK low-rise residential neighbourhoods under 2050s climate scenarios. Results show that in summer, ASHPs increase median anthropogenic heat emission by up to 19.3 W m(-2) and raise local median 2 m air temperature by up to 0.12 degrees C in an idealised London neighbourhood. In winter, replacing gas boilers with ASHPs for heating reduces anthropogenic heat emissions by up to 11.1 W m(-2) and lowers local air temperatures by up to 0.16 degrees C in London. The research shows that conventional waste heat calculations from air-conditioning can overestimate anthropogenic heat emissions by up to 86 %, and cooling entire building rather than just occupied rooms can increase energy consumption by 68 %. Although temperature changes will vary across UK cities, the response of air temperature to anthropogenic heat change is generally consistent. The study enhances understanding of role of ASHPs in the UK's net zero target for 2050, highlighting the importance of balancing outdoor and indoor thermal comfort when considering the wide use of ASHPs.",
+      "keywords": [
+        "Urban heat island",
+        "Net zero emissions",
+        "Climate resilience",
+        "EnergyPlus",
+        "SUEWS"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001282208100001",
+      "title": "An urban module coupled with the Variable Infiltration Capacity model to improve hydrothermal simulations in urban systems",
+      "authors": [
+        "Wang, Yibing",
+        "Xie, Xianhong",
+        "Zhu, Bowen",
+        "Tursun, Arken",
+        "Jiang, Fuxiao",
+        "Liu, Yao",
+        "Peng, Dawei",
+        "Zheng, Buyun"
+      ],
+      "author_count": 8,
+      "journal": "GEOSCIENTIFIC MODEL DEVELOPMENT",
+      "year": 2024,
+      "volume": "17",
+      "issue": "15",
+      "pages": "5803-5819",
+      "doi": "",
+      "abstract": "Global urban expansion has altered surface aerodynamics and hydrothermal dynamics, aggravating environmental challenges such as urban heat and urban dry islands. To identify such environmental responses, various physical models, including urban canyon models (UCMs) and land surface models (LSMs), have been developed to represent surface hydrothermal processes. However, UCMs often treat a city as a unified entity and overlook subcity heterogeneity. LSMs are generally designed for natural land cover types and lack the capability to capture urban characteristics. To address these limitations, the aim of this study is to couple an urban module with a sophisticated LSM, i.e. the Variable Infiltration Capacity (VIC) model. This coupled model, i.e. the VIC-urban model, is characterized by its ability to coordinate certain critical urban features, including urban geometry, radiative interactions, and human impacts. Adopting Beijing as an evaluation site, the VIC-urban model shows higher performance than the original version, with excellent accuracy in simulating sensible heat, latent heat, runoff, and land surface temperature (LST). The absolute error is smaller than 25 % for the sensible heat and latent heat and smaller than 12 % and 30 % for the LST and runoff, respectively, which indicates that VIC-urban can effectively simulate hydrological and thermal fluxes in urban systems. Sensitivity analysis reveals that the roof emissivity and interception capacity exert the greatest impact on the roof temperature and evaporation and the height-to-width ratio has the greatest influence on the canyon. Our work introduces a reliable option for large-scale land surface simulations that accounts for urban environments and is among the first attempts to establish a systematic urban modelling framework of the VIC model. The VIC-urban model enables the analysis of urbanization-induced environmental changes and quantification of environmental variations among different urban configurations. The proposed model can thus offer invaluable insights for urban planners and landscape designers.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001266143600001",
+      "title": "Simulating urban surface energy balance of an academic campus and surroundings in Mumbai, India",
+      "authors": [
+        "Gupta, Mayank",
+        "Murtugudde, Raghu",
+        "Ghosh, Subimal"
+      ],
+      "author_count": 3,
+      "journal": "URBAN CLIMATE",
+      "year": 2024,
+      "volume": "56",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "In evaluating the impacts of climate and urbanization on urban climates, a comprehensive understanding of surface energy balance at the local scale is imperative. However, such assessments for rapidly growing Indian cities have been hindered by limited studies on energy and water balance, primarily due to the absence of flux observations in urban regions and challenges in incorporating city-specific information into existing models. In this study, we employed the Surface Urban Energy and Water Balance Scheme (SUEWS) model for an academic campus and surroundings within Mumbai, India, incorporating region-specific data such as high-resolution land use land cover, vegetation, and urban irrigation. Calibration and validation of various model sub-schemes were conducted, revealing parameter values distinct from default settings. The calibrated model exhibited a notable correlation between observed and simulated urban fluxes during January to April 2020, with R2 values of 0.99, 0.69, 0.68, and 0.73 for net radiation, land surface heat storage, latent, and sensible heat fluxes, respectively. This successful application, despite a relatively short time series of data, underscores the necessity for upscaling such modeling applications to the city scale, incorporating local parameterization to elicit the sensitivity of urban water and energy cycles in a dynamic environment.",
+      "keywords": [
+        "SUEWS",
+        "India",
+        "Urban energy balance",
+        "Urban water balance",
+        "Evaporation",
+        "Surface conductance"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001227585200001",
+      "title": "Contrasting the features and functionalities of urban microclimate simulation tools",
+      "authors": [
+        "Vurro, Giandomenico",
+        "Carlucci, Salvatore"
+      ],
+      "author_count": 2,
+      "journal": "ENERGY AND BUILDINGS",
+      "year": 2024,
+      "volume": "311",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "The impact of human activities on climate change has become increasingly evident, with cities being particularly vulnerable to its effects. Anthropogenic emissions, such as heat and greenhouse gases, are projected to intensify climate-induced phenomena, which can lead to negative health outcomes. To understand how human health would be affected by such climate-exacerbated phenomena, computational models that consider the local microclimate are essential to better regulate cities to respond to these phenomena. Many simulation tools have been created and enhanced over the years. Therefore, this study systematically reviews the currently available urban microclimate simulation tools and compares their features and capabilities. The review suggests that these models can effectively assist in investigating urban health and testing adaptation strategies, but it is important to acknowledge their limitations due to assumptions made. Nonetheless, with proper interpretation and utilization, these models can provide valuable insights and contribute to informed decision-making processes.",
+      "keywords": [
+        "Microclimate simulation tools",
+        "Urban heat island",
+        "Numerical models",
+        "Urban climate",
+        "Outdoor Thermal comfort"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001218309700001",
+      "title": "Evaluation of surface urban energy and water balance scheme (SUEWS) using scaled 2D model experiments under various seasons and sky conditions",
+      "authors": [
+        "Hang, Jian",
+        "Zeng, Liyue",
+        "Shi, Yurong",
+        "Ren, Longhao",
+        "Wang, Dongyang",
+        "Dai, Yongjiu",
+        "Wang, Xuemei"
+      ],
+      "author_count": 7,
+      "journal": "URBAN CLIMATE",
+      "year": 2024,
+      "volume": "54",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "Urban energy balance models are essential for better understanding of urban climate processes and mitigating urban heat island intensity. In this study, the Surface Urban Energy and Water Balance Scheme (SUEWS) is evaluated using scaled outdoor experiments of idealized city models consisting of street canyons (aspect ratio H/W = 2, H = 0.5) and hollow concrete building models, under various seasonal and sky conditions in a humid subtropical climate in 2020, using three evaluation approaches. The results indicate that the model effectively simulates net all -wave radiation ( Q * ), with the coefficient of determination (R 2 ) exceeding 0.970. Storage heat flux ( Delta Q S ) derived from the Objective Hysteresis Model (OHM) is compared to those obtained from the residual term method (RTM) and element surface temperature method (ESTM), revealing the RTM tend to overestimate Delta Q S compared to the observation -based ESTM. Compared to using default OHM coefficients, applying fitted OHM coefficients obtained under seasons and sky conditions improves the simulations of Delta Q S and sensible heat flux ( Q H ), reducing statistical errors by approximately 50% for Delta Q S and increasing R 2 in rainy summer from 0.353 to 0.793 for Q H , respectively. Additionally, the improved available energy simulation suggests the importance of accurately partitioning between Q H and latent heat flux ( Q E ) for the future development of SUEWS.",
+      "keywords": [
+        "Surface energy balance",
+        "Scaled outdoor measurement",
+        "Two-dimensional (2D) urban canyon",
+        "Urban energy balance model",
+        "Storage heat flux",
+        "Urban thermal environment"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001205887300001",
+      "title": "CO2 uptake of urban vegetation in a warming Nordic city",
+      "authors": [
+        "Havu, Minttu",
+        "Kulmala, Liisa",
+        "Lee, Hei Shing",
+        "Saranko, Olli",
+        "Soininen, Jesse",
+        "Ahongshangbam, Joyson",
+        "Jarvi, Leena"
+      ],
+      "author_count": 7,
+      "journal": "URBAN FORESTRY & URBAN GREENING",
+      "year": 2024,
+      "volume": "94",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "Many cities are committed to reducing greenhouse gas emissions, improving air quality, and reducing air temperatures through climate actions. Maintaining or increasing carbon sinks in urban green areas is relevant, as the sinks compensate a part of the emissions in addition to reducing emissions themselves. This research assesses the magnitude of carbon dioxide (CO2) net uptake (i.e. respiration and CO2 uptake by photosynthesis) and local 2-m air temperature in Helsinki, Finland, using an urban ecosystem model SUEWS (The Surface Urban Energy and Water Balance Scheme), and examines their potential future changes due to climate change. The model was run at an hourly resolution within the entire city at a spatial resolution of 250 x 250 m2. Two separate simulations were considered: the present climate by simulating years 2014-2019 and the future climate in the 2050s following the climate scenario RCP8.5. Each modelled grid was further divided into natural and built surfaces using Local Climate Zones (LCZs) to determine how vegetation in forests and various urban vegetation types contributes to cooling and carbon sequestration. According to our simulations, the urban green space in Helsinki annually sequestered 36.3 +/- 7.7 kt C in 2015-2019, offsetting circa 7% of the city's anthropogenic emissions. The mean annual temperatures varied by 2.1 circle C between natural and built areas within the city. Although urban forests were the strongest sinks (0.3 kg C m \ufffd 2 year-1), urban neighbourhoods contributed 47% of Helsinki's net carbon sinks. Local temperatures were expected to increase with the RCP8.5 climate scenario on average by 1.3 circle C within the simulated area and CO2 net uptake by 11%, without altering existing green spaces. Overall, this research highlights the significance of urban green as carbon sinks and how climate change may influence their role in mitigating greenhouse gas emissions and local climate conditions in urban environments.",
+      "keywords": [
+        "Carbon exchange",
+        "Climate",
+        "Local Climate Zone",
+        "SUEWS",
+        "Urban ecosystem",
+        "Vegetation"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001196639300001",
+      "title": "Spatial and temporal variation of anthropogenic heat emissions in Colombo, Sri Lanka",
+      "authors": [
+        "Blunn, Lewis",
+        "Xie, Xiaoxiong",
+        "Grimmond, Sue",
+        "Luo, Zhiwen",
+        "Sun, Ting",
+        "Perera, Narein",
+        "Ratnayake, Rangajeewa",
+        "Emmanuel, Rohinton"
+      ],
+      "author_count": 8,
+      "journal": "URBAN CLIMATE",
+      "year": 2024,
+      "volume": "54",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "Anthropogenic heat emissions (AHEs) should be accounted for when making city, neighbourhood, and building scale decisions about building design, health preparedness (e.g. heat stress), and achieving net zero carbon. Therefore, datasets with spatial and temporal variations are required for the range of global cities, including lower-middle income, low-latitude cities. Here we estimate the 2020 AHEs at 100 m resolution for Colombo, Sri Lanka. The city-wide annual mean is 5.9 W m(-2). Seasonal variations are very small linked to small temperature differences, unlike mid- and high-latitude cities. However, the diurnal range of 17.6 to 1.8 W m(-2) has three distinct peaks (cf. two often found in mid-latitude cities). Transport, metabolic and building related emissions account for 35, 33, and 32% of the total emissions, respectively. Building emissions are proportionally small (cf. mid-latitudes), as there is neither need for space heating nor frequent use of air conditioning, and little heavy industry. The AHE spatial heterogeneity is large, with annualaverage maxima of 124 W m(-2) at hectometre scale, but dropping rapidly to 10 W m(-2) at kilometre scale. City-wide projections of AHEs from 2020 to 2035 range between 24 and 61% increase.",
+      "keywords": [
+        "Anthropogenic heat emissions",
+        "Sri Lanka",
+        "Low latitude",
+        "Lower-middle income",
+        "Heterogeneity",
+        "Land cover"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001190481100001",
+      "title": "High-resolution multi-scaling of outdoor human thermal comfort and its intra-urban variability based on machine learning",
+      "authors": [
+        "Briegel, Ferdinand",
+        "Wehrle, Jonas",
+        "Schindler, Dirk",
+        "Christen, Andreas"
+      ],
+      "author_count": 4,
+      "journal": "GEOSCIENTIFIC MODEL DEVELOPMENT",
+      "year": 2024,
+      "volume": "17",
+      "issue": "4",
+      "pages": "1667-1688",
+      "doi": "",
+      "abstract": "As the frequency and intensity of heatwaves will continue to increase in the future, accurate and high-resolution mapping and forecasting of human outdoor thermal comfort in urban environments are of great importance. This study presents a machine-learning-based outdoor thermal comfort model with a good trade-off between computational cost, complexity, and accuracy compared to common numerical urban climate models. The machine learning approach is basically an emulation of different numerical urban climate models. The final model consists of four submodels that predict air temperature, relative humidity, wind speed, and mean radiant temperature based on meteorological forcing and geospatial data on building forms, land cover, and vegetation. These variables are then combined into a thermal index (universal thermal climate index - UTCI). All four submodel predictions and the final model output are evaluated using street-level measurements from a dense urban sensor network in Freiburg, Germany. The final model has a mean absolute error of 2.3 K. Based on a city-wide simulation for Freiburg, we demonstrate that the model is fast and versatile enough to simulate multiple years at hourly time steps to predict street-level UTCI at 1 m spatial resolution for an entire city. Simulations indicate that neighbourhood-averaged thermal comfort conditions vary widely between neighbourhoods, even if they are attributed to the same local climate zones, for example, due to differences in age and degree of urban vegetation. Simulations also show contrasting differences in the location of hotspots during the day and at night.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001164581300001",
+      "title": "Evaluation of vertically resolved longwave radiation in SPARTACUS-Urban 0.7.3 and the sensitivity to urban surface temperatures",
+      "authors": [
+        "Stretton, Megan A.",
+        "Morrison, William",
+        "Hogan, Robin J.",
+        "Grimmond, Sue"
+      ],
+      "author_count": 4,
+      "journal": "GEOSCIENTIFIC MODEL DEVELOPMENT",
+      "year": 2023,
+      "volume": "16",
+      "issue": "20",
+      "pages": "5931-5947",
+      "doi": "",
+      "abstract": "Cities' materials and urban form impact radiative exchanges and surface and air temperatures. Here, the SPARTACUS (Speedy Algorithm for Radiative Transfer through Cloud Sides) multi-layer approach to modelling longwave radiation in urban areas (SPARTACUS-Urban) is evaluated using the explicit DART (Discrete Anisotropic Radiative Transfer) model. SPARTACUS-Urban describes realistic 3D urban geometry statistically rather than assuming an infinite street canyon. Longwave flux profiles are compared across an August day for a 2kmx2km domain in central London. Simulations are conducted with multiple temperature configurations, including realistic temperature profiles derived from thermal camera observations. The SPARTACUS-Urban model performs well (cf. DART, 2022) when all facets are prescribed a single temperature, with normalised bias errors (nBEs) < 2.5% for downwelling fluxes, and < 0.5% for top-of-canopy upwelling fluxes. Errors are larger (nBE < 8%) for net longwave fluxes from walls and roofs. Using more realistic surface temperatures, varying depending on surface shading, the nBE in upwelling longwave increases to similar to 2%. Errors in roof and wall net longwave fluxes increase through the day, but nBEs are still 8%-11%. This increase in nBE occurs because SPARTACUS-Urban represents vertical but not horizontal surface temperature variation within a domain. Additionally, SPARTACUS-Urban outperforms the Harman single-layer canyon approach, particularly in the longwave interception by roofs. We conclude that SPARTACUS-Urban accurately predicts longwave fluxes, requiring less computational time (cf. DART, 2022) but with larger errors when surface temperatures vary due to shading. SPARTACUS-Urban could enhance multi-layer urban energy balance scheme prediction of within-canopy temperatures and fluxes.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001166576100001",
+      "title": "WRF (v4.0)-SUEWS (v2018c) coupled system: development, evaluation and application",
+      "authors": [
+        "Sun, Ting",
+        "Omidvar, Hamidreza",
+        "Li, Zhenkun",
+        "Zhang, Ning",
+        "Huang, Wenjuan",
+        "Kotthaus, Simone",
+        "Ward, Helen C.",
+        "Luo, Zhiwen",
+        "Grimmond, Sue"
+      ],
+      "author_count": 9,
+      "journal": "GEOSCIENTIFIC MODEL DEVELOPMENT",
+      "year": 2024,
+      "volume": "17",
+      "issue": "1",
+      "pages": "91-116",
+      "doi": "",
+      "abstract": "The process of coupling the Surface Urban Energy and Water Scheme (SUEWS) into the Weather Research and Forecasting (WRF) model is presented, including pre-processing of model parameters to represent spatial variability in surface characteristics. Fluxes and mixed-layer height observations in the southern UK are used to evaluate a 2-week period in each season. Mean absolute errors, based on all periods, are smaller in residential Swindon than central London for turbulent sensible and latent heat fluxes ( Q H , Q E ) with greater skill on clear-sky days on both sites (for incoming and outgoing short- and long-wave radiation, Q H and Q E ). Clear-sky seasonality is seen in the model performance: there is better absolute skill for Q H and Q E in autumn and winter, when there is a higher frequency of clear-sky days, than in spring and summer. As the WRF-modelled incoming short-wave radiation has large errors, we apply a bulk transmissivity derived from local observations to reduce the incoming short-wave radiation input to the land surface scheme - this could correspond to increased presence of aerosols in cities. We use the coupled WRF-SUEWS system to investigate impacts of the anthropogenic heat flux emissions on boundary layer dynamics by comparing areas with contrasting human activities (central-commercial and residential areas) in Greater London - larger anthropogenic heat emissions not only elevate the mixed-layer heights but also lead to a warmer and drier near-surface atmosphere.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001156938200001",
+      "title": "Surface energy balance fluxes in a suburban area of Beijing: energy partitioning variability",
+      "authors": [
+        "Dou, Junxia",
+        "Grimmond, Sue",
+        "Miao, Shiguang",
+        "Huang, Bei",
+        "Lei, Huimin",
+        "Liao, Mingshui"
+      ],
+      "author_count": 6,
+      "journal": "ATMOSPHERIC CHEMISTRY AND PHYSICS",
+      "year": 2023,
+      "volume": "23",
+      "issue": "20",
+      "pages": "13143-13166",
+      "doi": "",
+      "abstract": "Measurements of radiative and turbulent heat fluxes for 16 months in suburban Miyun with a mix of buildings and agriculture allows the changing role of these fluxes to be assessed. Daytime turbulent latent heat fluxes (Q(E)) are largest in summer and smaller in winter, consistent with the net all-wave radiation (Q*), whereas the daytime sensible heat flux (Q(H)) is greatest in spring but smallest in summer rather than in winter, as commonly observed in suburban areas. The results have larger seasonal variability in energy partitioning compared to previous suburban studies. Daytime energy partitioning is between 0.15-0.57 for Q(H)/Q* (mean summer = 0.16; winter D= 0.46), 0.06-0.56 for Q(E)/Q* (mean summer = 0.52; winter = 0.10), and 0.26-7.40 for Q(H)/Q(E) (mean summer = 0.32; winter = 4.60). Compared to the literature for suburban areas, these are amongst the lowest and highest values. Results indicate that precipitation, irrigation, vegetation growth activity, and land use and land cover all play critical roles in the energy partitioning. These results will help to enhance our understanding of surface-atmosphere energy exchanges over cities and are critical to improving and evaluating urban canopy models needed to support integrated urban services that include urban planning to mitigate the adverse effects of urban climate change.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001144138300001",
+      "title": "A study of the impact of landscape heterogeneity on surface energy fluxes in a tropical climate using SUEWS",
+      "authors": [
+        "Obe, Oluwafemi Benjamin",
+        "Morakinyo, Tobi Eniolu",
+        "Mills, Gerald"
+      ],
+      "author_count": 3,
+      "journal": "URBAN CLIMATE",
+      "year": 2024,
+      "volume": "53",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "This study employs an evaluated Surface Urban Energy and Water Balance Scheme (SUEWS) model driven by Local Climate Zone (LCZ)-derived urban canopy parameters to explore landscape heterogeneity's impacts on the partitioning of surface energy fluxes and heat stress variations in Lagos, Nigeria. The results reveal that LCZ-based SUEWS effectively replicates the diurnal patterns of air temperature (Tair), relative humidity (RH), and land surface temperature (LST). The root mean square error (RMSE) for simulated Tair and RH ranges from 0.4 degrees C to 1.2 degrees C and 1.8% to 8.0%, respectively. While a nighttime warm bias in LST is observed, it reduces during the day-time. Significant spatial variability in turbulent heat fluxes and LST among LCZs is noted, with core urban LCZs experiencing notable increases in sensible heat flux and LST, while suburban LCZs exhibit higher latent heat flux values. Anthropogenic heat flux peaks in high compact lowrise LCZ 3, reaching a maximum of 95 W/m2. Remarkably, no significant difference is found in the diurnal heat stress cycle among LCZs, despite consistently elevated heat stress levels in high compact LCZs. These findings offer valuable insights into quantifying surface energy flux variabilities and spatio-temporal heat stress patterns in a densely populated tropical city-Lagos Nigeria.",
+      "keywords": [
+        "Urban climate",
+        "Surface energy fluxes",
+        "SUEWS",
+        "Local climate zone",
+        "Heat stress"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001084679600001",
+      "title": "Human heat health index (H3I) for holistic assessment of heat hazard and mitigation strategies beyond urban heat islands",
+      "authors": [
+        "Kamath, Harsh G.",
+        "Martilli, Alberto",
+        "Singh, Manmeet",
+        "Brooks, Trevor",
+        "Lanza, Kevin",
+        "Bixler, R. Patrick",
+        "Coudert, Marc",
+        "Yang, Zong-Liang",
+        "Niyogi, Dev"
+      ],
+      "author_count": 9,
+      "journal": "URBAN CLIMATE",
+      "year": 2023,
+      "volume": "52",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "Certain urban neighborhoods are more susceptible to heat than others, primarily because of the unequal distribution of imperviousness, building and vegetation morphology, social vulnerability, and anthropogenic heat release. Here, we demonstrate that using the surface urban heat island intensity obtained through remote sensing approaches to evaluate urban heat vulnerability (UHV) can be misleading due to the interannual and seasonal variability of rural land surface temper-ature (LST). We present the disparity in the heat vulnerability index (HVI) when LST and air temperature are used as hazards and show that the LST-based approach overestimates the HVI during daytime. Thus, we contend that while HVI may be appropriate for comparing the relative UHV of different neighborhoods, it should not be used to assess absolute daytime heat vulnera-bility. To address this limitation, we propose a new metric: human heat health index (H3I) that can be utilized to (i) assess and compare heat hazard in different neighborhoods and (ii) evaluate the effectiveness of environmental interventions for heat mitigation. H3I was applied to demonstrate the reduction in heat hazard due to 3-D urban structures using street-level modeling in Austin, Texas. Our findings emphasize the need for combining 3-D urban data, modeling, and community feedbacks efforts to assess daytime UHV for prioritizing the implementation of heat mitigation strategies.",
+      "keywords": [
+        "Heat hazard",
+        "SOLWEIG",
+        "SoVI",
+        "SUEWS",
+        "Urban heat island",
+        "UTCI"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001071802500001",
+      "title": "Impact of building density on natural ventilation potential and cooling energy saving across Chinese climate zones",
+      "authors": [
+        "Xie, Xiaoxiong",
+        "Luo, Zhiwen",
+        "Grimmond, Sue",
+        "Sun, Ting"
+      ],
+      "author_count": 4,
+      "journal": "BUILDING AND ENVIRONMENT",
+      "year": 2023,
+      "volume": "244",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "Natural ventilation is an energy-efficient approach to reduce the need for mechanical ventilation and air conditioning in buildings. However, traditionally weather data for building energy simulation are obtained from rural areas, which do not reflect the urban micrometeorological conditions. This study combines the Surface Urban Energy and Water Balance Scheme (SUEWS) and EnergyPlus to predict natural ventilation potential (NVP) and cooling energy saving in three idealised urban neighbourhoods with different urban densities in five Chinese cities of different climate zones. SUEWS downscales the meteorological inputs required by EnergyPlus, including air temperature, relative humidity, and wind speed profiles. The findings indicate that NVP and cooling energy saving differences between urban and rural areas are climate-and season-dependent. During summer, the urban rural differences in natural ventilation hours are-43% to 10% (cf. rural) across all climates, while in spring/ autumn, they range from-7% to 36%. The study also suggests that single-sided ventilation can be as effective as cross ventilation for buildings in dense urban areas. Our findings highlight the importance of considering local or neighbourhood-scale climate when evaluating NVP. We demonstrate a method to enhance NVP prediction accuracy in urban regions using EnergyPlus, which can contribute to achieving low-carbon building design.",
+      "keywords": [
+        "Natural ventilation",
+        "Urban climate",
+        "Land surface model",
+        "EnergyPlus",
+        "Climate zone"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:001045788100001",
+      "title": "Simulating heat and CO2 fluxes in Beijing using SUEWS V2020b: sensitivity to vegetation phenology and maximum conductance",
+      "authors": [
+        "Zheng, Yingqi",
+        "Havu, Minttu",
+        "Liu, Huizhi",
+        "Cheng, Xueling",
+        "Wen, Yifan",
+        "Lee, Hei Shing",
+        "Ahongshangbam, Joyson",
+        "Jaervi, Leena"
+      ],
+      "author_count": 8,
+      "journal": "GEOSCIENTIFIC MODEL DEVELOPMENT",
+      "year": 2023,
+      "volume": "16",
+      "issue": "15",
+      "pages": "4551-4579",
+      "doi": "",
+      "abstract": "The Surface Urban Energy and Water Balance Scheme (SUEWS) has recently been introduced to include a bottom-up approach to modeling carbon dioxide (CO2) emissions and uptake in urban areas. In this study, SUEWS is evaluated against the measured eddy covariance (EC) turbulent fluxes of sensible heat (Q(H)), latent heat (Q(E)), and CO2 (FC) in a densely built neighborhood in Beijing. The model sensitivity to maximum conductance (g(max)) and leaf area index (LAI) is examined. Site-specific g(max) is obtained from observations over local vegetation species, and LAI parameters are extracted by optimization with remotely sensed LAI obtained from a Landsat 7 data product. For the simulation of anthropogenic CO2 components, local traffic and population data are collected. In the model evaluation, the mismatch between the measurement source area and simulation domain is also considered.Using the optimized g(max) and LAI, the modeling of heat fluxes is noticeably improved, showing higher correlation with observations, lower bias, and more realistic seasonal dynamics of Q(E) and Q(H). The effect of the g(max) adjustment is more significant than the LAI adjustment. Compared to heat fluxes, the F-C module shows lower sensitivity to the choices of g(max) and LAI. This can be explained by the low relative contribution of vegetation to the net F-C in the modeled area. SUEWS successfully reproduces the average diurnal cycle of F-C and annual cumulative sums. Depending on the size of the simulation domain, the modeled annual accumulated F-C ranges from 7.4 to 8.7 kgCm(-2)yr(-1), compared to 7.5 kgCm(-2)yr(-1) observed by EC. Traffic is the dominant CO2 source, contributing 59 %-70 % to the annual total CO2 emissions, followed by human metabolism (14 %-18 %), buildings (11 %-14 %), and CO2 release by vegetation and soil respiration (6 %-10 %). Vegetation photosynthesis offsets only 5 %-10 % of the total CO2 emissions. We highlight the importance of choosing the optimal LAI parameters and gmax when SUEWS is used to model surface fluxes. The F-C module of SUEWS is a promising tool in quantifying urban CO2 emissions at the local scale and therefore assisting in mitigating urban CO2 emissions.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000942421100001",
+      "title": "An Urban Scheme for the ECMWF Integrated Forecasting System: Global Forecasts and Residential CO2 Emissions",
+      "authors": [
+        "McNorton, J.",
+        "Agusti-Panareda, A.",
+        "Arduini, G.",
+        "Balsamo, G.",
+        "Bousserez, N.",
+        "Boussetta, S.",
+        "Chericoni, M.",
+        "Choulga, M.",
+        "Engelen, R.",
+        "Guevara, M."
+      ],
+      "author_count": 10,
+      "journal": "JOURNAL OF ADVANCES IN MODELING EARTH SYSTEMS",
+      "year": 2023,
+      "volume": "15",
+      "issue": "3",
+      "pages": "",
+      "doi": "",
+      "abstract": "The impact of urbanization on local weather patterns affects over half the global population. Global numerical weather prediction systems have reached a resolution at which urban conurbations can be spatially resolved, justifying their representation within land surface parameterizations with the aim of improving local predictions. Additionally, real-time atmospheric monitoring of trace gas emissions can utilize weather variables relevant for urban areas. We investigated whether a simple single-layer urban canopy scheme can be used within a global forecast model to jointly improve predictions of near-surface weather variables and residential CO2 emissions. The scheme has been implemented in the Integrated Forecast System used operationally at the European Centre for Medium-Range Weather Forecasts running at similar to 9 km horizontal resolution. First, we selected a suitable urban land cover map (ECOCLIMAP-SG) based on comparisons with regional data and land surface temperature MODIS retrievals. The urban scheme is verified by providing improved 2 m temperature (similar to 10%) and 10 m wind (similar to 17%) RMSE values for both summer and winter months around urban environments. The influence of the scheme was most noticeable at night. Additionally, we have implemented a simple temperature-dependent residential emissions model to calculate real-time CO2 heating emissions. These were validated against existing offline products, national reporting and by comparing atmospheric simulations with total column CO2 observations. The results show an improved temporal variability of emissions, which arise from synoptic scale temperature changes. Given the improved predictability from the urban scheme for both weather and emissions, it will be operationally implemented in an upcoming model cycle.",
+      "keywords": [
+        "urban modeling",
+        "numerical weather prediction",
+        "urban mapping",
+        "greenhouse gas modeling",
+        "residential emission modeling"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000792546800001",
+      "title": "Parameter Sensitivity Analysis and Optimization of the Single-Layer Urban Canopy Model in the Megacity of Shanghai",
+      "authors": [
+        "Ao, Xiangyu",
+        "Zhang, Ning"
+      ],
+      "author_count": 2,
+      "journal": "ADVANCES IN METEOROLOGY",
+      "year": 2022,
+      "volume": "2022",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "In order to meet the demand of more refined urban weather forecast, it is of great practical significance to improve and optimize the single-layer urban canopy model (SLUCM) suitable for the megacity of Shanghai. In this paper, based on the offline SLUCM model driven by a whole-year surface flux observation data in the Shanghai central business district, a series of parameter sensitivity tests are carried out by using the one at a time (OAT) method, the relative importance and a set of optimized parameters of the SLUCM suitable for high-density urban area are established, and the improvement of simulation is evaluated. The results show that SLUCM well reproduces the seasonal mean diurnal patterns of the net all-wave radiation flux (Q*) and sensible heat flux (Q(H)) but underestimates their magnitudes. Both Q* and Q(H) are linearly sensitive to the albedo, and most sensitive to the roof albedo, the second to the wall albedo, but relatively insensitive to the road albedo. The sensitivity of Q* and Q(H) to emissivity is not as strong as that of albedo, and the variation trend is also linear. Similar to albedo, Q* and Q(H) are most sensitive to roof emissivity. The effect of thermal parameters (heat capacity and conductivity) on fluxes is logarithmic. The sensitivity of surface fluxes to geometric parameters has no specific variation pattern. After parameter optimization, RMSE of Q* decreases by about 3.4-18.7 Wm(-2) in four seasons. RMSE of the longwave radiation (L-& UARR;) decreases by about 1.2-7.87 Wm(-2). RMSE of Q(H) decreases by about 2-5 Wm(-2). This study provides guidance for future development of the urban canopy model parameterizations and urban climate risk response.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000784559100001",
+      "title": "Carbon sequestration potential of street tree plantings in Helsinki",
+      "authors": [
+        "Havu, Minttu",
+        "Kulmala, Liisa",
+        "Kolari, Pasi",
+        "Vesala, Timo",
+        "Riikonen, Anu",
+        "Jarvi, Leena"
+      ],
+      "author_count": 6,
+      "journal": "BIOGEOSCIENCES",
+      "year": 2022,
+      "volume": "19",
+      "issue": "8",
+      "pages": "2121-2143",
+      "doi": "",
+      "abstract": "Cities have become increasingly interested in reducing their greenhouse gas emissions and increasing carbon sequestration and storage in urban vegetation and soil as part of their climate mitigation actions. However, most of our knowledge of the biogenic carbon cycle is based on data and models from forested ecosystems, despite urban nature and microclimates differing greatly from those in natural or forested ecosystems. There is a need for modelling tools that can correctly consider temporal variations in the urban carbon cycle and take specific urban conditions into account. The main aims of our study were to (1) examine the carbon sequestration potential of two commonly used street tree species (Tilia x vulgaris and Alnus glutinosa) growing in three different growing media by taking into account the complexity of urban conditions and (2) evaluate the urban land surface model SUEWS (Surface Urban Energy and Water Balance Scheme) and the soil carbon model Yassol5 in simulating the carbon sequestration of these street tree plantings at temporal scales (diurnal, monthly, and annual). SUEWS provides data on the urban microclimate and on street tree photosynthesis and respiration, whereas soil carbon storage is estimated with Yasso. These models were used to study the urban carbon cycle throughout the expected lifespan of street trees (2002-2031). Within this period, model performances were evaluated against transpiration estimated from sap flow, soil carbon content, and soil moisture measurements from two street tree sites located in Helsinki, Finland. The models were able to capture the variability in the urban carbon cycle and transpiration due to changes in environmental conditions, soil type, and tree species. Carbon sequestration potential was estimated for an average street tree and for the average of the diverse soils present in the study area. Over the study period, soil respiration dominated carbon exchange over carbon sequestration due to the high initial carbon loss from the soil after street construction. However, the street tree plantings turned into a modest sink of carbon from the atmosphere on an annual scale, as tree and soil respiration approximately balanced the photosynthesis. The compensation point when street tree plantings turned from an annual source into a sink was reached more rapidly - after 12 years - by Alnus trees, while this point was reached by Tilia trees after 14 years. However, these moments naturally vary from site to site depending on the growing media, planting density, tree species, and climate. Overall, the results indicate the importance of soil in urban carbon sequestration estimations.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000779397600001",
+      "title": "Surface Urban Energy and Water Balance Scheme (v2020a) in vegetated areas: parameter derivation and performance evaluation using FLUXNET2015 dataset",
+      "authors": [
+        "Omidvar, Hamidreza",
+        "Sun, Ting",
+        "Grimmond, Sue",
+        "Bilesbach, Dave",
+        "Black, Andrew",
+        "Chen, Jiquan",
+        "Duan, Zexia",
+        "Gao, Zhiqiu",
+        "Iwata, Hiroki",
+        "McFadden, Joseph P."
+      ],
+      "author_count": 10,
+      "journal": "GEOSCIENTIFIC MODEL DEVELOPMENT",
+      "year": 2022,
+      "volume": "15",
+      "issue": "7",
+      "pages": "3041-3078",
+      "doi": "",
+      "abstract": "To compare the impact of surface-atmosphere exchanges from rural and urban areas, fully vegetated areas (e.g. deciduous trees, evergreen trees and grass) commonly found adjacent to cities need to be modelled. Here we provide a general workflow to derive parameters for SUEWS (Surface Urban Energy and Water Balance Scheme), including those associated with vegetation phenology (via leaf area index, LAI), heat storage and surface conductance. As expected, attribution analysis of bias in SUEWS-modelled Q(E) finds that surface conductance (g(s)) plays the dominant role; hence there is a need for more estimates of surface conductance parameters. The workflow is applied at 38 FLUXNET sites. The derived parameters vary between sites with the same plant functional type (PFT), demonstrating the challenge of using a single set of parameters for a PFT. SUEWS skill at simulating monthly and hourly latent heat flux (Q(E)) is examined using the site-specific derived parameters, with the default NOAH surface conductance parameters (Chen et al., 1996). Overall evaluation for 2 years has similar metrics for both configurations: median hit rate between 0.6 and 0.7, median mean absolute error less than 25 Wm(-2), and median mean bias error similar to 5 Wm(-2). Performance differences are more evident at monthly and hourly scales, with larger mean bias error (monthly: similar to 40 Wm(-2); hourly similar to 30 Wm(-2)) results using the NOAH-surface conductance parameters, suggesting that they should be used with caution. Assessment of sites with contrasting Q(E) performance demonstrates how critical capturing the LAI dynamics is to the SUEWS prediction skills of g(s) and Q(E). Generally g(s) is poorest in cooler periods (more pronounced at night, when underestimated by similar to 3 mms(-1)). Given the global LAI data availability and the workflow provided in this study, any site to be simulated should benefit.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000774413400001",
+      "title": "Earth Observation Data Exploitation in Urban Surface Modelling: The Urban Energy Balance Response to a Suburban Park Development",
+      "authors": [
+        "Tsirantonakis, Dimitris",
+        "Chrysoulakis, Nektarios"
+      ],
+      "author_count": 2,
+      "journal": "REMOTE SENSING",
+      "year": 2022,
+      "volume": "14",
+      "issue": "6",
+      "pages": "",
+      "doi": "",
+      "abstract": "Cities are developing rapidly as an increasing percentage of the global population resides in urban areas. In the face of climate change, the sustainable development of cities is crucial for the well-being and safety of urban populations. The potential of planning interventions towards improving of urban resilience can be evaluated based on methodological approaches used in the domain of urban climate. In this study, we present how Earth Observation (EO) can be systematically used to evaluate urban planning interventions, based on Urban Surface Models (USM) simulations. More specifically, the impact of a suburban park development in Heraklion, Crete, was assessed based on simulations of the USM SUEWS (Surface Urban Energy and Water Balance Scheme), which was forced by EO data. Multi-source satellite data were analyzed to provide information on urban form, highlighting the importance of EO data in evaluating the environmental sustainability potential of urban planning interventions. The modifications caused by this planning intervention to surface energy fluxes were simulated. The scale (10(2) m) and the type (no-use vegetated area changed to recreational vegetated) of the intervention triggered minor responses in the Urban Energy Balance (UEB) at neighborhood scale, since the change of the relevant surface fluxes was not greater than 10 W m(-2), on average, assuming no irrigation and no important changes in soil moisture. However, the planned substitution of grass and bare soil with paved surfaces and trees was found to increase the overall net change in heat storage, therefore contributing to the urban heat island development.",
+      "keywords": [
+        "urban climate",
+        "Urban Energy Balance",
+        "Earth Observation",
+        "SUEWS model"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000717144600001",
+      "title": "Review of User-Friendly Models to Improve the Urban Micro-Climate",
+      "authors": [
+        "Jaenicke, Britta",
+        "Milosevic, Dragan",
+        "Manavvi, Suneja"
+      ],
+      "author_count": 3,
+      "journal": "ATMOSPHERE",
+      "year": 2021,
+      "volume": "12",
+      "issue": "10",
+      "pages": "",
+      "doi": "",
+      "abstract": "Various micro-scale models for comparing alternative design concepts have been developed in recent decades. The objective of this study is to provide an overview of current user-friendly micro-climate models. In the results, a vast majority of models identified were excluded from the review because the models were not micro-scale, lacking a user-interface, or were not available. In total, eight models met the seven-point inclusion criteria. These models were ADMS Temperature and Humidity model, advanced SkyHelios model, ANSYS FLUENT, ENVI-met, RayMan, SOLWEIG, TownScope, and UMEP. These models differ in their complexity and their widespread use in the scientific community, ranging from very few to thousands of citations. Most of these models simulate air temperature, global radiation, and mean radiant temperature, which helps to evaluate outdoor thermal comfort in cities. All of these models offer a linkage to CAD or GIS software and user support systems at various levels, which facilitates a smooth integration to planning and design. We detected that all models have been evaluated against observations. A wider model comparison, however, has only been performed for fewer models. With this review, we aim to support the finding of a reliable tool, which is fit for the specific purpose.</p>",
+      "keywords": [
+        "urban climate",
+        "micro-climate model",
+        "outdoor thermal comfort",
+        "review"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000703566800001",
+      "title": "High resolution modeling of the impact of urbanization and green infrastructure on the water and energy balance",
+      "authors": [
+        "Wiegels, Rebecca",
+        "Chapa, Fernando",
+        "Hack, Jochen"
+      ],
+      "author_count": 3,
+      "journal": "URBAN CLIMATE",
+      "year": 2021,
+      "volume": "39",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "Sealed surfaces in urban areas change the water and energy balance resulting in decreased evapotranspiration and infiltration, magnified stormwater runoff, and sensible heat fluxes. Urban Green Infrastructures (UGI) are implemented to reverse such effects. This study examines the potential of a high-resolution grid-based model to show the impact of different degrees of urban land cover. The study area was divided into 52 cells and cells were categorized into four urban degrees of urbanization. Two scenarios were considered to represent the existing conditions of a study area in the Great Metropolitan Area of Costa Rica and the effects derived from the implementation of UGI. The software Surface Urban Energy and Water Balance Scheme (SUEWS) was employed to simulate both scenarios and compare them by using the Bowen ratio (beta) as an indicator of changes in the energy balance. The results show a reduction of beta associated with the spatial distribution of the cells with different degrees of urbanization, even in the cells where no changes were considered. Applying the SUEWS approach based on high-resolved land cover classes distribution enables a more detailed understanding of micro-climatic benefits of UGI in high-density urban areas and may result in additional insights for decision-making.",
+      "keywords": [
+        "Green infrastructure",
+        "Water balance",
+        "SUEWS",
+        "Energy balance",
+        "Bowen ratio",
+        "Urbanization"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000691794800002",
+      "title": "Urban meteorological forcing data for building energy simulations",
+      "authors": [
+        "Tang, Yihao",
+        "Sun, Ting",
+        "Luo, Zhiwen",
+        "Omidvar, Hamidreza",
+        "Theeuwes, Natalie",
+        "Xie, Xiaoxiong",
+        "Xiong, Jie",
+        "Yao, Runming",
+        "Grimmond, Sue"
+      ],
+      "author_count": 9,
+      "journal": "BUILDING AND ENVIRONMENT",
+      "year": 2021,
+      "volume": "204",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "Despite building energy use being one of the largest global energy consumers, building energy simulations rarely take the actual local neighbourhood scale climate into account. A new globally applicable approach is proposed to support buildings energy design. ERA5 (European Centre Reanalysis version 5) data are used with SUEWS (Surface Urban Energy and Water balance Scheme) to obtain (in this example case) an urban typical meteorological year (uTMY) that is usable in building energy modelling. The predicted annual energy demand (heating and cooling) for a representative four-storey London residential apartment using uTMY is 6.9% less (cf. conventional TMY). New vertical profile coefficients for wind speed and air temperature in EnergyPlus are derived using SUEWS. EneryPlus simulations with these neighbourhood scale coefficients and uTMY data, predict the top two floors have similar to 10% larger energy demand (cf. the open terrain coefficients with uTMY data). Vertical variations in wind speed have a greater impact on the simulated building energy than equivalent variations in temperature. This globally appliable approach can provide local meteorological data for building energy modelling, improving design for the local context through characterising the surrounding neighbourhood.",
+      "keywords": [
+        "EnergyPlus",
+        "Urban climate modelling",
+        "TMY",
+        "Meteorological profiles",
+        "Wind profile coefficients",
+        "ERAS"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000683572400009",
+      "title": "Impact of BIPV windows on building energy consumption in street canyons: Model development and validation",
+      "authors": [
+        "Chen, Liutao",
+        "Zheng, Xing",
+        "Yang, Jiachuan",
+        "Yoon, Jong Ho"
+      ],
+      "author_count": 4,
+      "journal": "ENERGY AND BUILDINGS",
+      "year": 2021,
+      "volume": "249",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "Photovoltaic components have been increasingly integrated into the facades of buildings as a means to enhance their energy efficiency in recent years, yet the impact of using building-integrated photovoltaic (BIPV) windows in street canyons has been rarely studied due to the lack of modelling tools. In this study, we developed a new parametrization scheme for BIPV windows, and incorporated it into building energy simulations coupled with a single-layer urban canopy model. Evaluation against in-situ measurements and EnergyPlus simulation suggests that the coupled model is able to reasonably capture the diurnal profiles of BIPV window temperature, building cooling load, and outdoor microclimate. A set of simulations were conducted to examine the impact of BIPV windows on summertime building energy consumption and outdoor air temperature in different street canyons. Compared to clear glass windows, BIPV windows can reduce canyon air temperature and building cooling load. Temperature reduction is found to increase with window coverage but does not change significantly with canyon geometry. Savings on cooling energy consumption vary between 9.16% and 63.71% for the studied neighbourhood in Phoenix, US, but tend to be higher for open street canyons with north-south orientation and large window-to-wall ratios. The coupled model takes into account the dynamic interactions between building energy consumption and the outdoor microclimate, thus providing insight into the benefit of using BIPV windows at the neighbourhood scale. (c) 2021 Elsevier B.V. All rights reserved.",
+      "keywords": [
+        "Building energy consumption",
+        "BIPV window",
+        "Urban canopy model",
+        "Urban heat island"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000663366600001",
+      "title": "Analysis of the Urban Energy Balance in Bahia Blanca (Argentina)",
+      "authors": [
+        "Fernandez, Maria Eugenia",
+        "Picone, Natasha",
+        "Gentili, Jorge Osvaldo",
+        "Campo, Alicia Maria"
+      ],
+      "author_count": 4,
+      "journal": "URBAN CLIMATE",
+      "year": 2021,
+      "volume": "37",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "The objective of this study is to define the effect of Bahia Blanca (Argentina) urban form and function on heat fluxes integrated in its energy balance at a local scale. The most frequent Local Climate Zones (LCZs) were identified in Bahia Blanca. Most of the LCZs are built types, corresponding to LCZ 1 and 2 in the microcenter, LCZ 3 in the macrocenter, and LCZ 6 and 9 in the city peri-urban area. The spatial distribution of Urban Energy Balance (UEB) was analyzed by calculating indices: the sensible heat index (chi), the evaporation index (gamma), the storage index (?) and Bowen ratio (beta). In the city central sectors there is a preponderance of sensible heat fluxes warming the atmosphere closest to the surface. Bahia Blanca estuary has the highest latent heat flux magnitudes, followed by coastal areas and islands associated. Peri-urban land surfaces and suburbs have greater magnitudes of latent heat flux since they are composed of a high percentage of permeable surfaces. A marked variability is observed in the daytime and nighttime QF anthropogenic heat fluxes, with maximums during the day. During the night, QF values decrease in magnitude throughout the urban area.",
+      "keywords": [
+        "Urban energy flux",
+        "Local Climate Zones (LCZ)",
+        "Latin American intermediate cities",
+        "SUEWS"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000561894100004",
+      "title": "Application of SUEWS model forced with WRF: Energy fluxes validation in urban and suburban Portuguese areas",
+      "authors": [
+        "Rafael, S.",
+        "Martins, H.",
+        "Matos, M. J.",
+        "Cerqueira, M.",
+        "Pio, C.",
+        "Lopes, M.",
+        "Borrego, C."
+      ],
+      "author_count": 7,
+      "journal": "URBAN CLIMATE",
+      "year": 2020,
+      "volume": "33",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "Urban areas, home to over half of the worlds population, are at the forefront of climate change impacts and adaptation issues. Planning sustainable cities for the future requires not only a clear understanding of how climate change will influence urban areas but also how urban areas influence the local climate. This paper validates the Surface Urban Energy and Water Balance Scheme (SUEWS) model at an urban and a suburban site in Portugal, through five months of simulations, with forcing data from the Weather Research and Forecasting Model (WRF). SUEWS is tested against direct flux measurements carried out at the two study areas. The surface energy fluxes are also analysed in terms of the land cover characteristics of each study area, to understand the influence of the surface on the energy balance. M both sites SUEWS is able to simulate the turbulent sensible and latent heat fluxes and reproduces the diurnal cycle of the turbulent fluxes, but shows a consistent overestimation of the sensible heat flux. In terms of the latent heat flux, underestimation at the urban site and overestimation at the suburban site are evident. These results enable the use of WRF-SUEWS for emerging applications, such as, assessment of urban planning measures or assessment of urban climate under climate change scenarios.",
+      "keywords": [
+        "Energy balance",
+        "Flux measurements",
+        "Flux modelling",
+        "Urban areas"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000533520100004",
+      "title": "Short and medium- to long-term impacts of nature-based solutions on urban heat",
+      "authors": [
+        "Augusto, Bruno",
+        "Roebeling, Peter",
+        "Rafael, Sandra",
+        "Ferreira, Joana",
+        "Ascenso, Ana",
+        "Bodilis, Carole"
+      ],
+      "author_count": 6,
+      "journal": "SUSTAINABLE CITIES AND SOCIETY",
+      "year": 2020,
+      "volume": "57",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "Many cities are growing and becoming more densely populated, resulting in land use changes, which promotes an increase in urban heating. Nature-based solutions (NBS) are considered sustainable, cost-effective and multi-purpose solutions for these problems. While various studies assess the effects of NBS on urban heat or urban sprawl/compaction, no studies assess their cumulative effect. The main objective of this study is to assess the short-term and medium- to long-term impacts of NBS on urban heat fluxes, taking as a case study the city of Eindhoven in The Netherlands. An integrated modelling approach, composed of a coupled meteorological and urban energy balance model (WRF-SUEWS) and an hedonic pricing simulation model (SULD), is used to assess urban heat fluxes and urban compaction effects, respectively. Results show that, in the short-term, NBS have a local cooling effect due to an increase in green/blue spaces and, in the medium to long-term, an urban compaction effect due to attraction of residents from peripheral areas to areas surrounding attractive NBS. This study provides evidence that NBS can be used to reduce the effects of urban heating and urban sprawl and that an integrated modelling approach allows to better understand its overalleffects.",
+      "keywords": [
+        "Heat fluxes",
+        "Integrated modelling",
+        "Nature-based solutions",
+        "Urban areas",
+        "Urban sprawl"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000527514400001",
+      "title": "Urban storage heat flux variability explored using satellite, meteorological and geodata",
+      "authors": [
+        "Lindberg, F.",
+        "Olofson, K. F. G.",
+        "Sun, T.",
+        "Grimmond, C. S. B.",
+        "Feigenwinter, C."
+      ],
+      "author_count": 5,
+      "journal": "THEORETICAL AND APPLIED CLIMATOLOGY",
+      "year": 2020,
+      "volume": "141",
+      "issue": "1-2",
+      "pages": "271-284",
+      "doi": "",
+      "abstract": "The storage heat flux (Delta Q(S)) is the net flow of heat stored within a volume that may include the air, trees, buildings and ground. Given the difficulty of measurement of this important and large flux in urban areas, we explore the use of Earth Observation (EO) data. EO surface temperatures are used with ground-based meteorological forcing, urban morphology, land cover and land use information to estimate spatial variations of Delta Q(S) in urban areas using the Element Surface Temperature Method (ESTM). First, we evaluate ESTM for four \"simpler\" surfaces. These have good agreement with observed values. ESTM coupled to SUEWS (an urban land surface model) is applied to three European cities (Basel, Heraklion, London), allowing EO data to enhance the exploration of the spatial variability in Delta Q(S). The impervious surfaces (paved and buildings) contribute most to Delta Q(S). Building wall area seems to explain variation of Delta Q(S) most consistently. As the paved fraction increases up to 0.4, there is a clear increase in Delta Q(S). With a larger paved fraction, the fraction of buildings and wall area is lower which reduces the high values of Delta Q(S).",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000482475000001",
+      "title": "Spatial Modeling of Local-Scale Biogenic and Anthropogenic Carbon Dioxide Emissions in Helsinki",
+      "authors": [
+        "Jarvi, Leena",
+        "Havu, Minttu",
+        "Ward, Helen C.",
+        "Bellucco, Veronica",
+        "McFadden, Joseph P.",
+        "Toivonen, Tuuli",
+        "Heikinheimo, Vuokko",
+        "Kolari, Pasi",
+        "Riikonen, Anu",
+        "Grimmond, C. Sue B."
+      ],
+      "author_count": 10,
+      "journal": "JOURNAL OF GEOPHYSICAL RESEARCH-ATMOSPHERES",
+      "year": 2019,
+      "volume": "124",
+      "issue": "15",
+      "pages": "8363-8384",
+      "doi": "",
+      "abstract": "There is a growing need to simulate the effect of urban planning on both local climate and greenhouse gas emissions. Here, a new urban surface carbon dioxide (CO2) flux module for the Surface Urban Energy and Water Balance Scheme is described and evaluated using eddy covariance observations at two sites in Helsinki in 2012. The spatial variability and magnitude of local-scale anthropogenic and biogenic CO2 flux components at high spatial (250 m x 250 m) and temporal (hourly) resolution are examined by combining high-resolution (down to 2 m) airborne lidar-derived land use data and mobility data to account for people's movement. Urban effects are included in the biogenic components parameterized using urban eddy covariance and chamber observations. Surface Urban Energy and Water Balance Scheme reproduces the seasonal and diurnal variability of the CO2 flux well. Annual totals deviate 3% from observations in the city center and 2% in a suburban location. In the latter, traffic is the dominant CO2 source but summertime vegetation partly offsets traffic-related emissions. In the city center, emissions from traffic and human metabolism dominate and the vegetation effect is minor due to the low proportion of vegetation surface cover (22%). Within central Helsinki, human metabolism accounts for 39% of the net local-scale emissions and together with road traffic is to a large extent responsible for the spatial variability of the emissions. Annually, the biogenic emissions and sinks are in near balance and thus the effect of vegetation on the carbon balance is small in this high-latitude city.",
+      "keywords": [
+        "urban",
+        "carbon dioxide",
+        "SUEWS",
+        "modeling",
+        "eddy covariance",
+        "urban planning"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000477730100006",
+      "title": "Evaluation of urban surface parameterizations in WRF model using energy fluxes measurements in Portugal",
+      "authors": [
+        "Rafael, S.",
+        "Rodrigues, V",
+        "Fernandes, A. P.",
+        "Augusto, B.",
+        "Borrego, C.",
+        "Lopes, M."
+      ],
+      "author_count": 6,
+      "journal": "URBAN CLIMATE",
+      "year": 2019,
+      "volume": "28",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "The performance of WRF model was investigated for the simulation of urban microclimate, with particular focus on energy fluxes, using different urban surface parameterizations. The model performance was evaluated using measurements carried out between August and December 2014 in Portugal. Several simulations were performed over two different areas, Porto urban area and Aveiro suburban area, for the entire measurement period. Distinct simulations were performed using different urban parametrizations: (i) the Noah Land Surface Model (LSM); (ii) a single-layer urban canopy model (UCM); and (iii) a modelling system composed by WRF and SUEWS models (WRF-SUEWS). The results showed that both UCM and SUEWS are able to simulate the energy partitioning over the low and high intensity residential. At the low intensity residential area, the majority of energy is partitioned to latent heat flux, accounting on average for 47% and 49% of the daytime available energy, for UCM and SUEWS, respectively. At the high intensity residential area, the greatest share of energy goes to sensible heat flux (42% [UCM] and 50% [SUEWS]), followed by the storage heat flux (33% [UCM] and 43% [SUEWS]). For both areas, a completely different energy partitioning was obtained when the LSM was used. The analysis performed showed that the UCM are able to provide a more accurate turbulent energy partitioning (sensible and latent heat), which contribute to enhance the urban microclimate simulation results; the systematic model biases in the LSM simulation was reduced by 1-2 degrees C in air temperature and by 0.5-1 ms(-1) in wind speeds at near surface layer, on average, depending on the urban density. The overall results suggest that an appropriate representation of urban physical processes are crucial to improve numerical tools suited for the modelling of the urban atmospheric boundary layer.",
+      "keywords": [
+        "Energy fluxes",
+        "Meteorological variables",
+        "Numerical modelling",
+        "Urban areas"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000474653000002",
+      "title": "A Python-enhanced urban land surface model SuPy (SUEWS in Python, v2019.2): development, deployment and demonstration",
+      "authors": [
+        "Sun, Ting",
+        "Grimmond, Sue"
+      ],
+      "author_count": 2,
+      "journal": "GEOSCIENTIFIC MODEL DEVELOPMENT",
+      "year": 2019,
+      "volume": "12",
+      "issue": "7",
+      "pages": "2781-2795",
+      "doi": "",
+      "abstract": "Accurate and agile modelling of cities weather, climate, hydrology and air quality is essential for integrated urban services. The Surface Urban Energy and Water balance Scheme (SUEWS) is a state-of-the-art widely used urban land surface model (ULSM) which simulates urban-atmospheric interactions by quantifying the energy, water and mass fluxes. Using SUEWS as the computation kernel, SuPy (SUEWS in Python) uses a Python-based data stack to streamline the pre-processing, computation and post-processing that are involved in the common modelling-centred urban climate studies. This paper documents the development of SuPy, including the SUEWS interface modification, F2PY (Fortran to Python) configuration and Python front-end implementation. In addition, the deployment of SuPy via PyPI (Python Package Index) is introduced along with the automated workflow for cross-platform compilation. This makes SuPy available for all mainstream operating systems (Windows, Linux and macOS). Three online tutorials in Jupyter Notebook are provided to users of different levels to become familiar with SuPy urban climate modelling. The SuPy package represents a significant enhancement that supports existing and new model applications, reproducibility and enhanced functionality.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000468917200003",
+      "title": "Simulation of the radiative effect of haze on the urban hydrological cycle using reanalysis data in Beijing",
+      "authors": [
+        "Kokkonen, Tom V.",
+        "Grimmond, Sue",
+        "Murto, Sonja",
+        "Liu, Huizhi",
+        "Sundstrom, Anu-Maija",
+        "Jarvi, Leena"
+      ],
+      "author_count": 6,
+      "journal": "ATMOSPHERIC CHEMISTRY AND PHYSICS",
+      "year": 2019,
+      "volume": "19",
+      "issue": "10",
+      "pages": "7001-7017",
+      "doi": "",
+      "abstract": "Although increased aerosol concentration modifies local air temperatures and boundary layer structure in urban areas, little is known about its effects on the urban hydrological cycle. Changes in the hydrological cycle modify surface runoff and flooding. Furthermore, as runoff commonly transports pollutants to soil and water, any changes impact urban soil and aquatic environments. To explore the radiative effect of haze on changes in the urban surface water balance in Beijing, different haze levels are modelled using the Surface Urban Energy and Water Balance Scheme (SUEWS), forced by reanalysis data. The pollution levels are classified using aerosol optical depth observations. The secondary aims are to examine the usability of a global reanalysis dataset in a highly polluted environment and the SUEWS model performance. We show that the reanalysis data do not include the attenuating effect of haze on incoming solar radiation and develop a correction method. Using these corrected data, SUEWS simulates measured eddy covariance heat fluxes well. Both surface runoff and drainage increase with severe haze levels, particularly with low precipitation rates: runoff from 0.06 to 0.18 mm d(-1) and drainage from 0.43 to 0.62 mm d(-1) during fairly clean to extremely polluted conditions, respectively. Considering all precipitation events, runoff rates are higher during extremely polluted conditions than cleaner conditions, but as the cleanest conditions have high precipitation rates, they induce the largest runoff. Thus, the haze radiative effect is unlikely to modify flash flooding likelihood. However, flushing pollutants from surfaces may increase pollutant loads in urban water bodies.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000459214700003",
+      "title": "The Air-temperature Response to Green/blue-infrastructure Evaluation Tool (TARGET v1.0): an efficient and user-friendly model of city cooling",
+      "authors": [
+        "Broadbent, Ashley M.",
+        "Coutts, Andrew M.",
+        "Nice, Kerry A.",
+        "Demuzere, Matthias",
+        "Krayenhoff, E. Scott",
+        "Tapper, Nigel J.",
+        "Wouters, Hendrik"
+      ],
+      "author_count": 7,
+      "journal": "GEOSCIENTIFIC MODEL DEVELOPMENT",
+      "year": 2019,
+      "volume": "12",
+      "issue": "2",
+      "pages": "785-803",
+      "doi": "",
+      "abstract": "The adverse impacts of urban heat and global climate change are leading policymakers to consider green and blue infrastructure (GBI) for heat mitigation benefits. Though many models exist to evaluate the cooling impacts of GBI, their complexity and computational demand leaves most of them largely inaccessible to those without specialist expertise and computing facilities. Here a new model called The Air-temperature Response to Green/blue-infrastructure Evaluation Tool (TARGET) is presented. TARGET is designed to be efficient and easy to use, with fewer user-defined parameters and less model input data required than other urban climate models. TARGET can be used to model average street-level air temperature at canyon-to-block scales (e.g. 100 m resolution), meaning it can be used to assess temperature impacts of suburb-to-city-scale GBI proposals. The model aims to balance realistic representation of physical processes and computation efficiency. An evaluation against two different datasets shows that TARGET can reproduce the magnitude and patterns of both air temperature and surface temperature within suburban environments. To demonstrate the utility of the model for planners and policymakers, the results from two precinct-scale heat mitigation scenarios are presented. TARGET is available to the public, and ongoing development, including a graphical user interface, is planned for future work.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000453683900001",
+      "title": "Evaluation of the Surface Urban Energy and Water Balance Scheme (SUEWS) at a Dense Urban Site in Shanghai: Sensitivity to Anthropogenic Heat and Irrigation",
+      "authors": [
+        "Ao, Xiangyu",
+        "Grimmond, C. S. B.",
+        "Ward, H. C.",
+        "Gabey, A. M.",
+        "Tan, Jianguo",
+        "Yang, Xiu-Qun",
+        "Liu, Dongwei",
+        "Zhi, Xing",
+        "Liu, Hongya",
+        "Zhang, Ning"
+      ],
+      "author_count": 10,
+      "journal": "JOURNAL OF HYDROMETEOROLOGY",
+      "year": 2018,
+      "volume": "19",
+      "issue": "12",
+      "pages": "1983-2005",
+      "doi": "",
+      "abstract": "The Surface Urban Energy and Water Balance Scheme (SUEWS) is used to investigate the impact of anthropogenic heat flux Q(F) and irrigation on surface energy balance partitioning in a central business district of Shanghai. Diurnal profiles of Q(F) are carefully derived based on city-specific hourly electricity consumption data, hourly traffic data, and dynamic population density. The Q(F) is estimated to be largest in summer (mean daily peak 236 W m(-2)). When Q(F) is omitted, the SUEWS sensible heat flux Q(H) reproduces the observed diurnal pattern generally well, but the magnitude is underestimated compared to observations for all seasons. When Q(F) is included, the Q(H) estimates are improved in spring, summer, and autumn but are poorer in winter, indicating winter Q(F) is overestimated. Inclusion of Q(F) has little influence on the simulated latent heat flux Q(E) but improves the storage heat flux estimates except in winter. Irrigation, both amount and frequency, has a large impact on Q(E). When irrigation is not considered, the simulated Q(E) is underestimated for all seasons. The mean summer daytime Q(E) is largely overestimated compared to observations under continuous irrigation conditions. Model results are improved when irrigation occurs with a 3-day frequency, especially in summer. Results are consistent with observed monthly outdoor water use. This study highlights the importance of appropriately including Q(F) and irrigation in urban land surface modelsterms not generally considered in many previous studies.",
+      "keywords": [
+        "Land surface model",
+        "Urban meteorology"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000448088100044",
+      "title": "Changes to the Water Balance Over a Century of Urban Development in Two Neighborhoods: Vancouver, Canada",
+      "authors": [
+        "Kokkonen, T. V.",
+        "Grimmond, C. S. B.",
+        "Christen, A.",
+        "Oke, T. R.",
+        "Jarvi, L."
+      ],
+      "author_count": 5,
+      "journal": "WATER RESOURCES RESEARCH",
+      "year": 2018,
+      "volume": "54",
+      "issue": "9",
+      "pages": "6625-6642",
+      "doi": "",
+      "abstract": "Hydrological cycles of two suburban neighborhoods in Vancouver, BC, during initial urban development and subsequent urban densification (1920-2010) are examined using the Surface Urban Energy and Water Balance Scheme. The two neighborhoods have different surface characteristics (as determined from aerial photographs) which impact the hydrological processes. Unlike previous studies of the effect of urbanization on the local hydrology, densification of already built lots is explored with a focus on the neighborhood scale. Human behavioral changes to irrigation are accounted for in the simulations. Irrigation is the dominant factor, accounting for up to 56% of the water input on an annual basis in the study areas. This may surpass garden needs and go to runoff. Irrigating once a week would provide sufficient water for the garden. Without irrigation, evaporation would have decreased over the 91years at a rate of up to 1.4mm/year and runoff increased at 4.0mm/year with the increase in impervious cover. Similarly without irrigation, the ratio of sensible heat flux to the available energy would have increased over the 91years at a rate of up to 0.003 per year. Urbanization and densification cause an increase in runoff and increase risk of surface flooding. Small daily runoff events with short return periods have increased over the century, whereas the occurrence of heavy daily runoff events (return period>52 days) are not affected. The results can help us to understand the dominant factors in the suburban hydrological cycle and can inform urban planning.",
+      "keywords": [
+        "SUEWS",
+        "urban hydrology",
+        "urbanization",
+        "densification",
+        "WATCH",
+        "urban hydrometeorology"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000416030000007",
+      "title": "Urban Multi-scale Environmental Predictor (UMEP): An integrated tool for city-based climate services",
+      "authors": [
+        "Lindberg, Fredrik",
+        "Grimmond, C. S. B.",
+        "Gabey, Andrew",
+        "Huang, Bei",
+        "Kent, Christoph W.",
+        "Sun, Ting",
+        "Theeuwes, Natalie E.",
+        "Jarvi, Leena",
+        "Ward, Helen C.",
+        "Capel-Timms, I."
+      ],
+      "author_count": 20,
+      "journal": "ENVIRONMENTAL MODELLING & SOFTWARE",
+      "year": 2018,
+      "volume": "99",
+      "issue": "",
+      "pages": "70-87",
+      "doi": "",
+      "abstract": "UMEP (Urban Multi-scale Environmental Predictor), a city-based climate service tool, combines models and tools essential for climate simulations. Applications are presented to illustrate UMEP's potential in the identification of heat waves and cold waves; the impact of green infrastructure on runoff; the effects of buildings on human thermal stress; solar energy production; and the impact of human activities on heat emissions. UMEP has broad utility for applications related to outdoor thermal comfort, wind, urban energy consumption and climate change mitigation. It includes tools to enable users to input atmospheric and surface data from multiple sources, to characterise the urban environment, to prepare meteorological data for use in cities, to undertake simulations and consider scenarios, and to compare and visualise different combinations of climate indicators. An open-source tool, UMEP is designed to be easily updated as new data and tools are developed, and to be accessible to researchers, decision-makers and practitioners. (C) 2017 The Authors. Published by Elsevier Ltd.",
+      "keywords": [
+        "QGIS",
+        "Urban climate services",
+        "Heat risk",
+        "Solar energy",
+        "Green infrastructure"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000426591900003",
+      "title": "Sensitivity of Surface Urban Energy and Water Balance Scheme (SUEWS) to downscaling of reanalysis forcing data",
+      "authors": [
+        "Kokkonen, T. V.",
+        "Grimmond, C. S. B.",
+        "Raty, O.",
+        "Ward, H. C.",
+        "Christen, A.",
+        "Oke, T. R.",
+        "Kotthaus, S.",
+        "Jarvi, L."
+      ],
+      "author_count": 8,
+      "journal": "URBAN CLIMATE",
+      "year": 2018,
+      "volume": "23",
+      "issue": "",
+      "pages": "36-52",
+      "doi": "",
+      "abstract": "Often the meteorological forcing data required for urban hydrological models are unavailable at the required temporal resolution or for the desired period. Although reanalysis data can provide this information, the spatial resolution is often coarse relative to cities, so downscaling is required prior to use as realistic forcing. In this study, WATCH WFDEI reanalysis data are used to force the Surface Urban Energy and Water Balance Scheme (SUEWS). From sensitivity tests in two cities, Vancouver and London with different orography, we conclude precipitation is the most important meteorological variable to be properly downscaled to obtain reliable surface hydrology results, with relative humidity being the second most important. Overestimation of precipitation in reanalysis data at the three sites gives 6-21% higher annual modelled evaporation, 26-39% higher runoff at one site and 4% lower value at one site when compared to modelled values using observed forcing data. Application of a bias correction method to the reanalysis precipitation reduces the model bias compared to using observed forcing data, when evaluated using eddy covariance evaporation measurements. (c) 2017 Elsevier B.V. All rights reserved.",
+      "keywords": [
+        "Urban hydrology",
+        "Precipitation",
+        "Land surface model",
+        "SUEWS",
+        "WFDEI",
+        "Downscaling"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000423816900010",
+      "title": "Impact of temporal resolution of precipitation forcing data on modelled urban-atmosphere exchanges and surface conditions",
+      "authors": [
+        "Ward, H. C.",
+        "Tan, Y. S.",
+        "Gabey, A. M.",
+        "Kotthaus, S.",
+        "Grimmond, C. S. B."
+      ],
+      "author_count": 5,
+      "journal": "INTERNATIONAL JOURNAL OF CLIMATOLOGY",
+      "year": 2018,
+      "volume": "38",
+      "issue": "2",
+      "pages": "649-662",
+      "doi": "",
+      "abstract": "Representative precipitation data sets are very difficult to obtain due to the inherent spatial and temporal variability of rainfall. Gridded rainfall products exist at various scales, but temporal resolution is coarse (daily or, at best, a few hours). This study demonstrates the impact of low temporal resolution precipitation forcing data (PFD) on modelled energy fluxes, runoff and surface conditions, which could have implications for a range of applications including flood forecasting, irrigation scheduling and epidemiology. An evaporation-interception model originally developed for forests is applied here within the framework of the Surface Urban Energy and Water balance Scheme (SUEWS). The model is forced with rainfall data representative of a range of temporal resolutions (from 5min to 3h). Taking the highest resolution case as a reference, differences in model output are found as the temporal resolution of PFD decreases, depending on the timing of rainfall occurrence, intensity and duration. Modelled evaporation, runoff and surface wetness deviate from the reference case, which affect other variables such as the turbulent sensible heat flux. The largest impacts are seen on days with greatest daily total rainfall and, even on days with no rain, differences in antecedent conditions (soil moisture or surface wetness) can cause deviations from the reference case. Errors can be reduced by applying a disaggregation scheme that provides a more realistic distribution of rainfall, importantly, one that allows for intermittent rainfall.",
+      "keywords": [
+        "cities",
+        "energy balance",
+        "evaporation",
+        "rainfall",
+        "runoff",
+        "water balance"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000409187100001",
+      "title": "Surface Urban Energy and Water Balance Scheme (SUEWS): Development and evaluation at two UK sites",
+      "authors": [
+        "Ward, H. C.",
+        "Kotthaus, S.",
+        "Jarvi, L.",
+        "Grimmond, C. S. B."
+      ],
+      "author_count": 4,
+      "journal": "URBAN CLIMATE",
+      "year": 2016,
+      "volume": "18",
+      "issue": "",
+      "pages": "1-32",
+      "doi": "",
+      "abstract": "The Surface Urban Energy and Water Balance Scheme (SUEWS) is evaluated at two locations in the UK: a dense urban site in the centre of London and a residential suburban site in Swindon. Eddy covariance observations of the turbulent fluxes are used to assess model performance over a two-year period (2011-2013). The distinct characteristics of the sites mean their surface energy exchanges differ considerably. The model suggests the largest differences can be attributed to surface cover (notably the proportion of vegetated versus impervious area) and the additional energy supplied by human activities. SUEWS performs better in summer than winter, and better at the suburban site than the dense urban site. One reason for this is the bias towards suburban summer field campaigns in observational data used to parameterise this (and other) model(s). The suitability of model parameters (such as albedo, energy use and water use) for the UK sites is considered and, where appropriate, alternative values are suggested. An alternative parameterisation for the surface conductance is implemented, which permits greater soil moisture deficits before evaporation is restricted at non-irrigated sites. Accounting for seasonal variation in the estimation of storage heat flux is necessary to obtain realistic wintertime fluxes. (C) 2016 The Authors. Published by Elsevier B.V.",
+      "keywords": [
+        "Evaporation",
+        "SUEWS",
+        "UK cities",
+        "Urban energy balance",
+        "Urban water balance"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000406727500014",
+      "title": "Assessing the impact of changes in surface cover, human behaviour and climate on energy partitioning across Greater London",
+      "authors": [
+        "Ward, H. C.",
+        "Grimmond, C. S. B."
+      ],
+      "author_count": 2,
+      "journal": "LANDSCAPE AND URBAN PLANNING",
+      "year": 2017,
+      "volume": "165",
+      "issue": "",
+      "pages": "142-161",
+      "doi": "",
+      "abstract": "Climate-sensitive urban design is an increasingly important consideration for city planners and policy makers. This study demonstrates the use of a biophysical model to assess the response of urban climate to various changes, including population growth, reduced energy use, urban development and urban greening initiatives. Model inputs are intentionally derived using only publicly available information and assumptions involved in collating the data are discussed. Results are summarised in terms of the energy partitioning which captures changes in meteorology, surface characteristics and human behaviour. The model has been recently evaluated for the region, and those findings are drawn upon here to discuss the model's capabilities and limitations. Model simulations demonstrate how both intentional and inadvertent changes to the urban landscape can alter the urban climate. For example, the impact of population growth depends on where, and how, people are housed, and recent changes in garden composition have reduced evaporation. This study has been designed so that model output could be combined with socio-economic data in future, enabling both risk and vulnerability to be considered together.",
+      "keywords": [
+        "City planning",
+        "Energy partitioning",
+        "Population growth",
+        "SUEWS model",
+        "Surface energy balance"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000405894200051",
+      "title": "Warming effects on the urban hydrology in cold climate regions",
+      "authors": [
+        "Jarvi, L.",
+        "Grimmond, C. S. B.",
+        "McFadden, J. P.",
+        "Christen, A.",
+        "Strachan, I. B.",
+        "Taka, M.",
+        "Warsta, L.",
+        "Heimann, M."
+      ],
+      "author_count": 8,
+      "journal": "SCIENTIFIC REPORTS",
+      "year": 2017,
+      "volume": "7",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "While approximately 338 million people in the Northern hemisphere live in regions that are regularly snow covered in winter, there is little hydro-climatologic knowledge in the cities impacted by snow. Using observations and modelling we have evaluated the energy and water exchanges of four cities that are exposed to wintertime snow. We show that the presence of snow critically changes the impact that city design has on the local-scale hydrology and climate. After snow melt, the cities return to being strongly controlled by the proportion of built and vegetated surfaces. However in winter, the presence of snow masks the influence of the built and vegetated fractions. We show how inter-year variability of wintertime temperature can modify this effect of snow. With increasing temperatures, these cities could be pushed towards very different partitioning between runoff and evapotranspiration. We derive the dependency of wintertime runoff on this warming effect in combination with the effect of urban densification.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000406413200001",
+      "title": "The Analytical Objective Hysteresis Model (AnOHM v1.0): methodology to determine bulk storage heat flux coefficients",
+      "authors": [
+        "Sun, Ting",
+        "Wang, Zhi-Hua",
+        "Oechel, Walter C.",
+        "Grimmond, Sue"
+      ],
+      "author_count": 4,
+      "journal": "GEOSCIENTIFIC MODEL DEVELOPMENT",
+      "year": 2017,
+      "volume": "10",
+      "issue": "7",
+      "pages": "2875-2890",
+      "doi": "",
+      "abstract": "The net storage heat flux (Delta QS) is important in the urban surface energy balance (SEB) but its determination remains a significant challenge. The hysteresis pattern of the diurnal relation between the Delta QS and net all-wave radiation (Q*) has been captured in the Objective Hysteresis Model (OHM) parameterization of Delta QS. Although successfully used in urban areas, the limited availability of coefficients for OHM hampers its application. To facilitate use, and enhance physical interpretations of the OHM coefficients, an analytical solution of the one-dimensional advectiondiffusion equation of coupled heat and liquid water transport in conjunction with the SEB is conducted, allowing development of AnOHM (Analytical Objective Hysteresis Model). A sensitivity test of AnOHM to surface properties and hydrometeorological forcing is presented using a stochastic approach (subset simulation). The sensitivity test suggests that the albedo, Bowen ratio and bulk transfer coefficient, solar radiation and wind speed are most critical. AnOHM, driven by local meteorological conditions at five sites with different land use, is shown to simulate the Delta QS flux well (RMSE values of similar to 30Wm-(2)). The intra-annual dynamics of OHM coefficients are explored. AnOHM offers significant potential to enhance modelling of the surface energy balance over a wider range of conditions and land covers.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000402539500029",
+      "title": "Impact of urban canopy models and external parameters on the modelled urban energy balance in a tropical city",
+      "authors": [
+        "Demuzere, M.",
+        "Harshan, S.",
+        "Jarvi, L.",
+        "Roth, M.",
+        "Grimmond, C. S. B.",
+        "Masson, V.",
+        "Oleson, K. W.",
+        "Velasco, E.",
+        "Wouters, H."
+      ],
+      "author_count": 9,
+      "journal": "QUARTERLY JOURNAL OF THE ROYAL METEOROLOGICAL SOCIETY",
+      "year": 2017,
+      "volume": "143",
+      "issue": "704",
+      "pages": "1581-1596",
+      "doi": "",
+      "abstract": "To date, existing urban land surface models (ULSMs) have been mostly evaluated and optimized for mid-and high-latitude cities. For the first time, we provide a comparative evaluation of four ULSMs for a tropical residential neighbourhood in Singapore using directly measured energy balance components. The simulations are performed offline, for an 11 month period, using the bulk scheme TERRA URB and three models of intermediate complexity (CLM, SURFEX and SUEWS). In addition, information from three different parameter lists are used to quantify the impact (interaction) of (between) external parameter settings and model formulations on the modelled urban energy balance components. Encouragingly, overall results indicate good model performance for most energy balance components and align well with previous findings for midlatitude regions, suggesting the transferability of these models to (sub) tropical regions. Similar to results from midlatitude regions, the outgoing long-wave radiation and latent heat flux remain the most problematic fluxes. In addition, the various combinations of models and different parameter values suggest that error statistics tend to be dominated more by the choice of the latter than the choice of model. Finally, our intercomparison framework enabled the attribution of common deficiencies in the different model approaches found previously in midlatitude regions: the simple representation of water intercepted by impervious surfaces leading to a positive bias in the latent heat flux directly after a precipitation event; and the positive bias in modelled outgoing long-wave radiation that is partly due to neglecting the radiative interactions of water vapour between the surface and the tower sensor. These findings suggest that future developments in urban climate research should continue the integration of more physically based processes in urban canopy models, ensure the consistency between the observed and modelled atmospheric properties and focus on the correct representation of urban morphology, water storage and thermal and radiative characteristics.",
+      "keywords": [
+        "urban canopy models",
+        "surface energy balance",
+        "tropical residential neighbourhood",
+        "water vapor opacity",
+        "surface interception distribution",
+        "local climate zones"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000398651000039",
+      "title": "Quantification and mapping of urban fluxes under climate change: Application of WRF-SUEWS model to Greater Porto area (Portugal)",
+      "authors": [
+        "Rafael, S.",
+        "Martins, H.",
+        "Marta-Almeida, M.",
+        "Sa, E.",
+        "Coelho, S.",
+        "Rocha, A.",
+        "Borrego, C.",
+        "Lopes, M."
+      ],
+      "author_count": 8,
+      "journal": "ENVIRONMENTAL RESEARCH",
+      "year": 2017,
+      "volume": "155",
+      "issue": "",
+      "pages": "321-334",
+      "doi": "",
+      "abstract": "Climate change and the growth of urban populations are two of the main challenges facing Europe today. These issues are linked as climate change results in serious challenges for cities. Recent attention has focused on how urban surface-atmosphere exchanges of heat and water will be affected by climate change and the implications for urban planning and sustainability. In this study energy fluxes for Greater Porto area, Portugal, were estimated and the influence of the projected climate change evaluated. To accomplish this, the Weather Research and Forecasting Model (WRF) and the Surface Urban Energy and Water Balance Scheme (SUEWS) were applied for two climatological scenarios: a present (or reference, 1986-2005) scenario and a future scenario (2046-2065), in this case the Representative Concentration Pathway RCP8.5, which reflects the worst set of expectations (with the most onerous impacts). The results show that for the future climate conditions, the incoming shortwave radiation will increase by around 10%, the sensible heat flux around 40% and the net storage heat flux around 35%. In contrast, the latent heat flux will decrease about 20%. The changes in the magnitude of the different fluxes result in an increase of the net all-wave radiation by 15%. The implications of the changes of the energy balance on the meteorological variables are discussed, particularly in terms of temperature and precipitation.",
+      "keywords": [
+        "Cities",
+        "Climate change",
+        "Energy balance",
+        "Flux modelling"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000396956700009",
+      "title": "Modelling the biogenic CO2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters",
+      "authors": [
+        "Bellucco, Veronica",
+        "Marras, Serena",
+        "Grimmond, C. Susan B.",
+        "Jarvi, Leena",
+        "Sirca, Costantino",
+        "Spano, Donatella"
+      ],
+      "author_count": 6,
+      "journal": "AGRICULTURAL AND FOREST METEOROLOGY",
+      "year": 2017,
+      "volume": "236",
+      "issue": "",
+      "pages": "113-122",
+      "doi": "",
+      "abstract": "The biogenic CO2 surface atmosphere exchange is investigated and linked to vegetation cover fraction for seven sites (three urban and four non-urban) in the northern hemisphere. The non-rectangular hyperbola (NRH) is used to analyse the light-response curves during period of maximum ecophysiological processes, and to develop two models to simulate biogenic vertical CO2 fluxes. First, a generalised set of NRH coefficients is calculated after linear regression analysis across urban and non-urban ecosystems. Second, site-specific NRH coefficients are calculated for a suburban area in Helsinki, Finland. The model includes a temperature driven equation to estimate ecosystem respiration, and variation of leaf area index to modulate emissions across the year. Eddy covariance measured CO2 fluxes are used to evaluate the two models at the suburban Helsinki site and the generalised model also in Mediterranean ecosystem. Both models can simulate the mean daily trend at monthly and seasonal scales. Modelled data typically fall within the range of variability of the observations (differences of the order of 10%). Additional information improves the models performance, notably the selection of the most vegetated wind direction in Helsinki. The general model performs reasonably well during daytime but it tends to underestimate CO2 emissions at night. This reflects the model capability to catch photosynthesis processes occurring during the day, and the importance of the gross primary production (GPP) in modifying the net ecosystem exchange (NEE) of urban sites with different vegetation cover fraction. Therefore, the general model does not capture the differences in ecosystem respiration that skew nocturnal fluxes. The relation between the generalised NRH plateau parameter and vegetation cover improves (R-2 from 0.7 to 0.9) when only summer weekends with wind coming from the most vegetated sector in Helsinki and well-watered conditions for Mediterranean sites are included in the analysis. In the local model, the inclusion of a temperature driven equation for estimating the ecosystem respiration instead of a constant value, does not improve the long-term simulations. In conclusion, both the general and local models have significant potential and offer valid modelling options of biogenic components of carbon exchange in urban and non-urban ecosystems.(C) 2016 Elsevier B.V. All rights reserved.",
+      "keywords": [
+        "Net ecosystem exchange (NEE)",
+        "Urban vegetation",
+        "Photosynthesis",
+        "CO2 emissions",
+        "Eddy covariance",
+        "Vegetation uptake"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000389866800008",
+      "title": "Radiation fluxes in a Business District of Shanghai, China",
+      "authors": [
+        "Ao, Xiangyu",
+        "Grimmond, C. S. B.",
+        "Liu, Dongwei",
+        "Han, Zhihui",
+        "Hu, Ping",
+        "Wang, Yadong",
+        "Zhen, Xinrong",
+        "Tan, Jianguo"
+      ],
+      "author_count": 8,
+      "journal": "JOURNAL OF APPLIED METEOROLOGY AND CLIMATOLOGY",
+      "year": 2016,
+      "volume": "55",
+      "issue": "11",
+      "pages": "2451-2468",
+      "doi": "",
+      "abstract": "Radiative fluxes are key drivers of surface-atmosphere heat exchanges in cities. Here the first yearlong (December 2012-November 2013) measurements of the full radiation balance for a dense urban site in Shanghai, China, are presented, collected with a CNR4 net radiometer mounted 80 m above ground. Clear sky incoming shortwave radiation K-down arrow (median daytime maxima) ranges from 575 W m(-2) in winter to 875 W m(-2) in spring, with cloud cover reducing the daily maxima by about 160 W m(-2). The median incoming longwave radiation daytime maxima are 305 and 468 W m(-2) in winter and summer, respectively, with increases of 30 and 15 W m(-2) for cloudy conditions. The effect of air quality is evident: haze conditions decrease hourly median K-down arrow by 11.3%. The midday (1100-1300 LST) clear-sky surface albedo a is 0.128, 0.141, 0.143, and 0.129 for winter, spring, summer, and autumn, respectively. The value of a varies with solar elevation and azimuth angle because of the heterogeneity of the urban surface. In winter, shadows play an important role in decreasing alpha in the late afternoon. For the site, the bulk alpha is 0.14. The Net All-Wave Radiation Parameterization Scheme/Surface Urban Energy and Water Balance Scheme (NARP/SUEWS) land surface model reproduces the radiation components at this site well, which is a promising result for applications elsewhere. These observations help to fill the gap of long-term radiation measurements in East Asian and low-latitude cities, quantifying the effects of season, cloud cover, and air quality.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000381060900144",
+      "title": "Influence of urban resilience measures in the magnitude and behaviour of energy fluxes in the city of Porto (Portugal) under a climate change scenario",
+      "authors": [
+        "Rafael, S.",
+        "Martins, H.",
+        "Sa, E.",
+        "Carvalho, D.",
+        "Borrego, C.",
+        "Lopes, M."
+      ],
+      "author_count": 6,
+      "journal": "SCIENCE OF THE TOTAL ENVIRONMENT",
+      "year": 2016,
+      "volume": "566",
+      "issue": "",
+      "pages": "1500-1510",
+      "doi": "",
+      "abstract": "Different urban resilience measures, such as the increase of urban green areas and the application of white roofs, were evaluated with the WRF-SUEWS modelling system. The case study consists of five heat waves occurring in Porto (Portugal) urban area in a future climate scenario. Meteorological forcing and boundary data were downscaled for Porto urban area from the CMIP5 earth system model MPI-ESM, for the Representative Concentration Pathway RCP8.5 scenario. The influence of different resilience measures on the energy balance components was quantified and compared between each other. Results show that the inclusion of green urban areas increases the evaporation and the availability of surface moisture, redirecting the energy to the form of latent heat flux (maximum increase of +200 W m(-2)) rather than to sensible heat. The application of white roofs increases the solar radiation reflection, due to the higher albedo of such surfaces, reducing both sensible and storage heat flux (maximumreductions of -62.8 and -35 W m(-2), respectively). The conjugations of the individual benefits related to each resilience measure shows that this measure is the most effective one in terms of improving the thermal comfort of the urban population, particularly due to the reduction of both sensible and storage heat flux. The obtained results contribute to the knowledge of the surface-atmosphere exchanges and can be of great importance for stakeholders and decision-makers. (C) 2016 Elsevier B.V. All rights reserved.",
+      "keywords": [
+        "Energy fluxes",
+        "Heat waves",
+        "Resilience measures",
+        "Urban areas",
+        "Future climate"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000380429700052",
+      "title": "Spatial validation of an urban energy balance model using multi-temporal remotely sensed surface temperature",
+      "authors": [
+        "Alexander, Paul J.",
+        "Fealy, Rowan",
+        "Mills, Gerald"
+      ],
+      "author_count": 3,
+      "journal": "2015 JOINT URBAN REMOTE SENSING EVENT (JURSE)",
+      "year": 2015,
+      "volume": "",
+      "issue": "",
+      "pages": "",
+      "doi": "",
+      "abstract": "Despite a growing number of urban energy balance (UEB) model applications being undertaken within urban climate literature, the number of independent validation exercises remains very limited. This in turn has raised questions as to the value of model applications without due consideration to the models performance in space and time. The PILPS-URBAN project went some ways towards understanding the general performance of 33 UEB models and highlighted the need for careful treatment of urban and non-urban land surfaces within model parameterization and also the derivation of input parameters. Nevertheless, the need for independent external validation of specific models is now evident. Here we undertake an external evaluation of the SUEWS model in Dublin (Ireland). We present a method for spatially validating the model across the entire Dublin area by employing remotely sensed surface temperatures obtained through the MODIS satellite platform.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000380072800022",
+      "title": "Exploring historical and future urban climate in the Earth System Modeling framework: 1. Model development and evaluation",
+      "authors": [
+        "Li, Dan",
+        "Malyshev, Sergey",
+        "Shevliakova, Elena"
+      ],
+      "author_count": 3,
+      "journal": "JOURNAL OF ADVANCES IN MODELING EARTH SYSTEMS",
+      "year": 2016,
+      "volume": "8",
+      "issue": "2",
+      "pages": "917-935",
+      "doi": "",
+      "abstract": "A number of recent studies investigated impacts of Land-Use and Land-Cover Changes (LULCC) on climate with global Earth System Models (ESMs). Yet many ESMs are still missing a representation of the most extreme form of natural landscape modification - urban settlements. Moreover, long-term (i.e., decades to century) transitions between build-up and other land cover types due to urbanization and de-urbanization have not been examined in the literature. In this study we evaluate a new urban canopy model (UCM) that characterizes urban physical and biogeochemical processes within the subgrid tiling framework of the Geophysical Fluid Dynamics Laboratory (GFDL) land model, LM3. The new model LM3-UCM is based on the urban canyon concept and simulates exchange of energy, water (liquid and solid), and carbon between urban land and the atmosphere. LM3-UCM has several unique features, including explicit treatment of vegetation inside the urban canyon and dynamic transition between urban, agricultural and unmanaged tiles. The model is evaluated using observational data sets collected at three urban sites: Marseille in France, Basel in Switzerland and Baltimore in the United States. It is found that LM3-UCM satisfactorily reproduces canyon air temperature, surface temperatures, radiative fluxes, and turbulent heat fluxes at the three urban sites. LM3-UCM can capture urban features in a computationally efficient manner and is incorporated into the land component of GFDL ESMs. This new capability will enable improved understanding of climate change effects on cities and the impacts of urbanization on climate.",
+      "keywords": [
+        "Earth System Models",
+        "GFDL",
+        "land-use and land-cover changes",
+        "urban canopy models",
+        "urbanization"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000409185100013",
+      "title": "Linking urban climate classification with an urban energy and water budget model: Multi-site and multi-seasonal evaluation",
+      "authors": [
+        "Alexander, P. J.",
+        "Bechtel, B.",
+        "Chow, W. T. L.",
+        "Fealy, R.",
+        "Mills, G."
+      ],
+      "author_count": 5,
+      "journal": "URBAN CLIMATE",
+      "year": 2016,
+      "volume": "17",
+      "issue": "",
+      "pages": "196-215",
+      "doi": "",
+      "abstract": "There are a number of models available for examining the interaction between cities and the atmosphere over a range of scales, from small scales - such as individual facades, buildings, neighbourhoods - to the effect of the entire conurbation itself. Many of these models require detailed morphological characteristics and material properties along with relevant meteorological data to be initialised. However, these data are difficult to obtain given the heterogeneity of built forms, particularly in newly emerging cities. Yet, the need for models which can be applied to urban areas (for instance to address planning problems) is increasingly urgent as the global population becomes more urban. In this paper, a modeling approach which derives the required land cover parameters for a mid-complex urban energy budget and water budget model (SUEWS) in a consistent manner is evaluated in four cities (Dublin, Hamburg, Melbourne and Phoenix). The required parameters for the SUEWS model are derived using local climate zones (LCZs) for land cover, and meteorological observations from off-site synoptic stations. More detailed land cover and meteorological data are then added to the model in stages to examine the impact on model performance with respect to observations of turbulent fluxes of sensible (QH) and latent (QE) heat. Replacing LCZ land cover with detailed fractional coverages was shown to marginally improve model performance, however the performance of model coupled with 'coarse' LCZ data was within the same range of error (20-40 W m(-2) for QE and 40-60 W m(-2) for QH) as high resolution data. (C) 2016 Elsevier B.V. All rights reserved.",
+      "keywords": [
+        "UEB",
+        "SUEWS",
+        "LCZ",
+        "Urban model evaluation",
+        "Flux measurements"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000377318100007",
+      "title": "Simulating the impact of urban development pathways on the local climate: A scenario-based analysis in the greater Dublin region, Ireland",
+      "authors": [
+        "Alexander, P. J.",
+        "Fealy, R.",
+        "Mills, G. M."
+      ],
+      "author_count": 3,
+      "journal": "LANDSCAPE AND URBAN PLANNING",
+      "year": 2016,
+      "volume": "152",
+      "issue": "",
+      "pages": "72-89",
+      "doi": "",
+      "abstract": "In this study, the impact of different urban development scenarios on neighbourhood climate are examined. The investigation considers the relative impact differing policy/planning choices will have on the local-scale climate across a city during a typical climatological year (TCY). The aim is to demonstrate a modelling approach which couples a climate-based land classification and simple urban climate model and how this can be used to examine the impact differing urban forms and design strategies have on neighbourhood scale partitioning of energy and resulting consequences. Utilising the Surface Urban Energy and Water Balance (SUEWS) model (Jarvi et al., 2011) hourly fluxes of sensible, latent and stored heat are simulated for an entire year under four different urban development scenarios. The land cover scenarios are based on those obtained by the MOLAND model for 2026 (Brennan et al., 2009) in our case study city Dublin (Ireland). MOLAND LULC are translated into local climate zones (Stewart and Oke, 2012) for examination. Subsequently, the types of building forms, vegetation type and coverage are modified based on realistic examples currently found across Dublin city. Our results focused on 2 principle aspects: the seasonality of energy partitioning with respect to vegetation and average diurnal partitioning of energy. Our analysis illustrates that compact scenarios are suitable form of future urban development in terms of reducing the spatial impact on the existing surface energy budget in Dublin. Design interventions which maintain the level of vegetation at a ratio >= 9:16 to artificial surfaces reduces the impact. (C) 2016 Elsevier B.V. All rights reserved.",
+      "keywords": [
+        "Neighbourhood climate",
+        "Urban planning",
+        "SUEWS modelling",
+        "Surface energy balance",
+        "Low impact development",
+        "Local climate zones"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000369978300032",
+      "title": "Seasonal surface urban energy balance and wintertime stability simulated using three land-surface models in the high-latitude city Helsinki",
+      "authors": [
+        "Karsisto, P.",
+        "Fortelius, C.",
+        "Demuzere, M.",
+        "Grimmond, C. S. B.",
+        "Oleson, K. W.",
+        "Kouznetsov, R.",
+        "Masson, V.",
+        "Jarvi, L."
+      ],
+      "author_count": 8,
+      "journal": "QUARTERLY JOURNAL OF THE ROYAL METEOROLOGICAL SOCIETY",
+      "year": 2016,
+      "volume": "142",
+      "issue": "694",
+      "pages": "401-417",
+      "doi": "",
+      "abstract": "The performance of three urban land-surface models, run in off-line mode, with their default external parameters, is evaluated for two distinctly different sites in Helsinki: Torni and Kumpula. The former is a dense city-centre site with 22% vegetation, while the latter is a suburban site with over 50% vegetation. At both locations the models are compared against sensible and latent heat fluxes measured using the eddy covariance technique, along with snow depth observations. The cold climate experienced by the city causes strong seasonal variations that include snow cover and stable atmospheric conditions. Most of the time the three models are able to account for the differences between the study areas as well as the seasonal and diurnal variability of the energy balance components. However, the performances are not systematic across the modelled components, seasons and surface types. The net all-wave radiation is well simulated, with the greatest uncertainties related to snow-melt timing, when the fraction of snow cover has a key role, particularly in determining the surface albedo. For the turbulent fluxes, more variation between the models is seen which can partly be explained by the different methods in their calculation and partly by surface parameter values. For the sensible heat flux, simulation of wintertime values was the main problem, which also leads to issues in predicting near-surface stabilities particularly at the dense city-centre site. All models have the most difficulties in simulating latent heat flux. This study particularly emphasizes that improvements are needed in the parametrization of anthropogenic heat flux and thermal parameters in winter, snow cover in spring, and evapotranspiration, in order to improve the surface energy balance modelling in cold-climate cities.",
+      "keywords": [
+        "CLM",
+        "eddy covariance",
+        "high-latitude",
+        "stability",
+        "SUEWS",
+        "surface energy balance",
+        "SURFEX",
+        "urban"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000438437400002",
+      "title": "Using LCZ data to run an urban energy balance model",
+      "authors": [
+        "Alexander, Paul John",
+        "Mills, Gerald",
+        "Fealy, Rowan"
+      ],
+      "author_count": 3,
+      "journal": "URBAN CLIMATE",
+      "year": 2015,
+      "volume": "13",
+      "issue": "",
+      "pages": "14-37",
+      "doi": "",
+      "abstract": "In recent years a number of models have been developed that describe the urban surface and simulate its climatic effects. Their great advantage is that they can be applied in environments outside the cities in which they have been developed and evaluated. Thus, they may be applied to cities in the economically developing world, which are growing rapidly, and where the results of such models may have greatest impact with respect to informing planning decisions. However, data requirements, particularly for the more complex urban models, represent a major obstacle to their employment. Here, we examine the potential for running the Surface Urban Energy and Water Balance model (SUEWS) using readily obtained data. SUEWS was designed to simulate energy and water balance terms at a neighbourhood scale (>= 1 km(2)) and requires site-specific meteorological data and a detailed description of the surface. Here, its simulations are evaluated by comparison with measurements made over a seven month (approximately 3 seasons) period (April-October) at two flux tower sites (representing urban and suburban landscapes) in Dublin, Ireland. However, the main purpose of this work is to test the performance of the model under 'ideal' and 'imperfect' circumstances in relation to the input data required to run SUEWS. The ideal case uses detailed urban land cover data and meteorological data from the tower sites. The imperfect cases use parameters derived from the Local Climate Zone (LCZ) classification scheme and meteorological data from a standard weather station located beyond the urban area. For the period of record examined, the simulations show good agreement with the observations in both ideal and imperfect cases, suggesting that the model can be used with data that is more easily derived. The comparison also shows the importance of including vegetative cover and of the initial moisture state in simulating the urban energy budget. (C) 2015 Elsevier B.V. All rights reserved.",
+      "keywords": [
+        "LCZ",
+        "SUEWS",
+        "UEB",
+        "Urban",
+        "Landcover"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000438437400004",
+      "title": "Urban surface cover determined with airborne lidar at 2 m resolution - Implications for surface energy balance modelling",
+      "authors": [
+        "Nordbo, Annika",
+        "Karsisto, Petteri",
+        "Matikainen, Leena",
+        "Wood, Curtis R.",
+        "Jarvi, Leena"
+      ],
+      "author_count": 5,
+      "journal": "URBAN CLIMATE",
+      "year": 2015,
+      "volume": "13",
+      "issue": "",
+      "pages": "52-72",
+      "doi": "",
+      "abstract": "Urban surface cover largely determines surface-atmosphere interaction via turbulent fluxes, and its description is vital for several applications. Land-cover classification using lidar has been done for small urban areas (< 10 km(2)) whereas surface-cover maps in atmospheric modelling often have resolutions > 10 m. We classified land cover of the urban/suburban area (54 km(2)) of Helsinki into six classes based on airborne lidar data, and an algorithm for machine-learning classification trees. Individual lidar returns were classified (accuracy 91%) and further converted to 2-m-resolution grid (95% accuracy). Useful lidar data included: return height and intensity, returns-per-pulse and height difference between first and last returns. The sensitivity of urban surface-energy-balance model, SUEWS, to simulate turbulent sensible and latent heat fluxes was examined. Model results were compared with eddy-covariance flux measurements in central Helsinki. An aggregation of the surface-cover map from 2 to 100 m reduced the fraction of vegetation by two thirds resulting in 16% increase in simulated sensible heat and 56% reduction in latent heat flux. Street trees became indistinguishable already at 10 m resolution causing 19% reduction in modelled latent heat flux. We thus recommend having surface-cover data with 2 m resolution over cities with street trees, or other patchy vegetation. (C) 2015 Elsevier B.V. All rights reserved.",
+      "keywords": [
+        "Urban surface-cover classification",
+        "Street trees",
+        "Lidar scanning",
+        "Energy balance model",
+        "Eddy-covariance",
+        "Surface energy balance model (SUEWS)"
+      ],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000341603900027",
+      "title": "Development of the Surface Urban Energy and Water Balance Scheme (SUEWS) for cold climate cities",
+      "authors": [
+        "Jarvi, L.",
+        "Grimmond, C. S. B.",
+        "Taka, M.",
+        "Nordbo, A.",
+        "Setala, H.",
+        "Strachan, I. B."
+      ],
+      "author_count": 6,
+      "journal": "GEOSCIENTIFIC MODEL DEVELOPMENT",
+      "year": 2014,
+      "volume": "7",
+      "issue": "4",
+      "pages": "1691-1711",
+      "doi": "",
+      "abstract": "The Surface Urban Energy and Water Balance Scheme (SUEWS) is developed to include snow. The processes addressed include accumulation of snow on the different urban surface types: snow albedo and density aging, snow melting and re-freezing of meltwater. Individual model parameters are assessed and independently evaluated using long-term observations in the two cold climate cities of Helsinki and Montreal. Eddy covariance sensible and latent heat fluxes and snow depth observations are available for two sites in Montreal and one in Helsinki. Surface runoff from two catchments (24 and 45 ha) in Helsinki and snow properties (albedo and density) from two sites in Montreal are also analysed. As multiple observation sites with different land-cover characteristics are available in both cities, model development is conducted independent of evaluation. The developed model simulates snowmelt related runoff well (within 19% and 3% for the two catchments in Helsinki when there is snow on the ground), with the springtime peak estimated correctly. However, the observed runoff peaks tend to be smoother than the simulated ones, likely due to the water holding capacity of the catchments and the missing time lag between the catchment and the observation point in the model. For all three sites the model simulates the timing of the snow accumulation and melt events well, but underestimates the total snow depth by 18-20% in Helsinki and 29-33% in Montreal. The model is able to reproduce the diurnal pattern of net radiation and turbulent fluxes of sensible and latent heat during cold snow, melting snow and snow-free periods. The largest model uncertainties are related to the timing of the melting period and the parameterization of the snowmelt. The results show that the enhanced model can simulate correctly the exchange of energy and water in cold climate cities at sites with varying surface cover.",
+      "keywords": [],
+      "affiliations": []
+    },
+    {
+      "uid": "WOS:000298200200006",
+      "title": "The Surface Urban Energy and Water Balance Scheme (SUEWS): Evaluation in Los Angeles and Vancouver",
+      "authors": [
+        "Jarvi, L.",
+        "Grimmond, C. S. B.",
+        "Christen, A."
+      ],
+      "author_count": 3,
+      "journal": "JOURNAL OF HYDROLOGY",
+      "year": 2011,
+      "volume": "411",
+      "issue": "3-4",
+      "pages": "219-237",
+      "doi": "",
+      "abstract": "An urban energy and water balance model is presented which uses a small number of commonly measured meteorological variables and information about the surface cover. Rates of evaporation-interception for a single layer with multiple surface types (paved, buildings, coniferous trees and/or shrubs, deciduous trees and/or shrubs, irrigated grass, non-irrigated grass and water) are calculated. Below each surface type, except water, there is a single soil layer. At each time step the moisture state of each surface is calculated. Horizontal water movements at the surface and in the soil are incorporated. Particular attention is given to the surface conductance used to model evaporation and its parameters. The model is tested against direct flux measurements carried out over a number of years in Vancouver. Canada and Los Angeles, USA. At all measurement sites the model is able to simulate the net all-wave radiation and turbulent sensible and latent heat well (RMSE = 25-47 W m(-2), 30-64 and 20-56 W m(-2), respectively). The model reproduces the diurnal cycle of the turbulent fluxes but typically underestimates latent heat flux and overestimates sensible heat flux in the day time. The model tracks measured surface wetness and simulates the variations in soil moisture content. It is able to respond correctly to short-term events as well as annual changes. The largest uncertainty relates to the determination of surface conductance. The model has the potential be used for multiple applications; for example, to predict effects of regulation on urban water use, landscaping and planning scenarios, or to assess climate mitigation strategies. (C) 2011 Elsevier B.V. All rights reserved.",
+      "keywords": [
+        "Urban water balance",
+        "Surface conductance",
+        "Evaporation",
+        "Urban energy balance",
+        "Vancouver",
+        "Los Angeles"
+      ],
+      "affiliations": []
+    }
+  ]
+}

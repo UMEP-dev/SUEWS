@@ -4,6 +4,7 @@ from .type import RefValue, Reference, FlexibleRefValue
 from .profile import HourlyProfile
 from .type import init_df_state
 from .timezone_enum import TimezoneOffset
+from ..._env import logger_supy
 from ..validation.core.utils import (
     warn_missing_params,
     check_missing_params,
@@ -2391,13 +2392,17 @@ class SoilObservationConfig(BaseModel):
         """Convert soil observation config to DataFrame state format."""
         df_state = init_df_state(grid_id)
 
-        for attr in ["depth", "smcap", "soil_not_rocks", "bulk_density"]:
+        # Map field names to df_state column names (all use obs_sm_ prefix)
+        col_mapping = {
+            "depth": "obs_sm_depth",
+            "smcap": "obs_sm_smcap",
+            "soil_not_rocks": "obs_sm_soil_not_rocks",
+            "bulk_density": "obs_sm_bulk_density",
+        }
+
+        for attr, col_name in col_mapping.items():
             field_val = getattr(self, attr)
             val = field_val.value if isinstance(field_val, RefValue) else field_val
-            # Use obs_sm_ prefix for clarity in df_state
-            col_name = (
-                f"obs_sm_{attr}" if attr != "bulk_density" else "obs_sm_bulk_density"
-            )
             df_state[(col_name, "0")] = val
 
         return df_state
@@ -2419,8 +2424,16 @@ class SoilObservationConfig(BaseModel):
                 if val is not None and not pd.isna(val) and val > -998:
                     params[field_name] = RefValue(val)
 
-        # Return None if no valid parameters found
-        if not params or len(params) < 4:
+        # Return None if no valid parameters found (all 4 required)
+        if len(params) < 4:
+            if params:
+                # Log partial metadata for debugging
+                logger_supy.debug(
+                    "Grid %d: partial soil observation metadata found (%d/4 fields), "
+                    "skipping soil observation config",
+                    grid_id,
+                    len(params),
+                )
             return None
 
         return cls(**params)

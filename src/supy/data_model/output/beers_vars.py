@@ -196,7 +196,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="SH_Ground",
         unit="-",
-        description="Shadow ground",
+        description="Shadow fraction on ground (0=fully sunlit, 1=fully shaded)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
@@ -205,7 +205,7 @@ BEERS_VARIABLES = [
     OutputVariable(
         name="SH_Walls",
         unit="-",
-        description="Shadow walls",
+        description="Shadow fraction on walls (0=fully sunlit, 1=fully shaded)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,

@@ -97,7 +97,7 @@ QMFR_VARS = make_surface_vars(
 
 # Fraction of snow by surface (excluding Water)
 FR_VARS = make_surface_vars(
-    "fr", "1", "Fraction of snow for {}", AggregationMethod.AVERAGE, "f106"
+    "fr", "-", "Fraction of surface covered by snow for {}", AggregationMethod.AVERAGE, "f106"
 )[:-1]  # No fr_Water
 
 # Rain on snow by surface

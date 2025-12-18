@@ -81,7 +81,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="QS",
         unit="W m-2",
-        description="Net storage heat flux",
+        description="Net storage heat flux (positive into storage)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
@@ -90,7 +90,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="QH",
         unit="W m-2",
-        description="Sensible heat flux",
+        description="Sensible heat flux (positive upward)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
@@ -99,7 +99,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="QE",
         unit="W m-2",
-        description="Latent heat flux",
+        description="Latent heat flux (positive upward)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
@@ -126,7 +126,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="QHinit",
         unit="W m-2",
-        description="Init Sensible heat flux for TStar",
+        description="Initial sensible heat flux estimate used in TStar iteration",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
@@ -145,7 +145,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="Rain",
         unit="mm",
-        description="Rain",
+        description="Precipitation input to the surface water balance",
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
@@ -154,7 +154,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="Irr",
         unit="mm",
-        description="Irrigation",
+        description="Irrigation water applied to vegetated surfaces",
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
@@ -163,7 +163,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="Evap",
         unit="mm",
-        description="Evaporation",
+        description="Total evaporation from all surfaces",
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
@@ -172,7 +172,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="RO",
         unit="mm",
-        description="Runoff",
+        description="Total surface runoff leaving the grid",
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
@@ -217,7 +217,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="Drainage",
         unit="mm",
-        description="Drainage",
+        description="Sub-surface drainage from soil store",
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
@@ -473,7 +473,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="AlbBulk",
-        unit="dimensionless",
+        unit="-",
         description="Bulk albedo",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
@@ -482,7 +482,7 @@ SUEWS_VARIABLES = [
     ),
     OutputVariable(
         name="Fcld",
-        unit="dimensionless",
+        unit="-",
         description="Cloud fraction",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
@@ -520,7 +520,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="zL",
         unit="-",
-        description="Stability scale",
+        description="Stability parameter z/L (height over Obukhov length)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
@@ -575,7 +575,7 @@ SUEWS_VARIABLES = [
     OutputVariable(
         name="Fc",
         unit="umol m-2 s-1",
-        description="CO2 flux",
+        description="Net CO2 flux (positive upward, emission to atmosphere)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,

@@ -28,7 +28,9 @@ def make_profile_vars(base_name, unit, description_template, format_spec="f104")
             name=f"{base_name}_{i}",
             unit=unit,
             description=description_template.format(
-                "within canopy" if i <= 20 else "above canopy to zMeas"
+                f"level {i} (within canopy, 1=ground to 20=canopy top)"
+                if i <= 20
+                else f"level {i} (above canopy, 21=canopy top to 30=measurement height)"
             ),
             aggregation=AggregationMethod.AVERAGE,
             group=OutputGroup.RSL,
@@ -40,16 +42,16 @@ def make_profile_vars(base_name, unit, description_template, format_spec="f104")
 
 
 # Height profiles (30 levels)
-Z_VARS = make_profile_vars("z", "m", "{}", "f104")
+Z_VARS = make_profile_vars("z", "m", "Height at {}", "f104")
 
 # Wind speed profiles (30 levels)
-U_VARS = make_profile_vars("U", "m s-1", "U at {}", "f104")
+U_VARS = make_profile_vars("U", "m s-1", "Wind speed at {}", "f104")
 
 # Temperature profiles (30 levels)
-T_VARS = make_profile_vars("T", "degC", "T at {}", "f104")
+T_VARS = make_profile_vars("T", "degC", "Air temperature at {}", "f104")
 
 # Specific humidity profiles (30 levels)
-Q_VARS = make_profile_vars("q", "g kg-1", "q at {}", "f104")
+Q_VARS = make_profile_vars("q", "g kg-1", "Specific humidity at {}", "f104")
 
 # RSL diagnostic variables
 RSL_DIAG_VARS = [
@@ -127,8 +129,8 @@ RSL_DIAG_VARS = [
     ),
     OutputVariable(
         name="f",
-        unit="g kg-1",
-        description="H&F07 and H&F08 constants",
+        unit="-",
+        description="RSL correction functions from Harman & Finnigan (2007, 2008)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
@@ -182,7 +184,7 @@ RSL_DIAG_VARS = [
     OutputVariable(
         name="flag_RSL",
         unit="-",
-        description="Flag for RSL",
+        description="RSL calculation status flag (0=success, >0=iteration warning)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,

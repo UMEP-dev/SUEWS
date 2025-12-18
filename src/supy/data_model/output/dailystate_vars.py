@@ -185,8 +185,8 @@ DAILYSTATE_VARIABLES = [
     # Vegetation properties
     OutputVariable(
         name="DecidCap",
-        unit="dimensionless",
-        description="Deciduous canopy capacity",
+        unit="-",
+        description="Deciduous canopy water storage capacity fraction (0-1)",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -194,8 +194,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="Porosity",
-        unit="dimensionless",
-        description="Surface porosity",
+        unit="-",
+        description="Deciduous tree canopy porosity for radiation transmission (0-1)",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -204,7 +204,7 @@ DAILYSTATE_VARIABLES = [
     # Albedo by vegetation type
     OutputVariable(
         name="AlbEveTr",
-        unit="dimensionless",
+        unit="-",
         description="Albedo for evergreen trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -213,7 +213,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="AlbDecTr",
-        unit="dimensionless",
+        unit="-",
         description="Albedo for deciduous trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -222,7 +222,7 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="AlbGrass",
-        unit="dimensionless",
+        unit="-",
         description="Albedo for grass",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -230,10 +230,11 @@ DAILYSTATE_VARIABLES = [
         format="f104",
     ),
     # Water use coefficients by vegetation type (3 levels each)
+    # Coefficients 1-3 represent irrigation model parameters for automatic/manual watering
     OutputVariable(
         name="WU_EveTr1",
-        unit="dimensionless",
-        description="Water use coefficient 1 for evergreen trees",
+        unit="-",
+        description="Water use coefficient Ie_a (automatic irrigation) for evergreen trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -241,8 +242,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_EveTr2",
-        unit="dimensionless",
-        description="Water use coefficient 2 for evergreen trees",
+        unit="-",
+        description="Water use coefficient Ie_m (manual irrigation) for evergreen trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -250,8 +251,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_EveTr3",
-        unit="dimensionless",
-        description="Water use coefficient 3 for evergreen trees",
+        unit="-",
+        description="Water use coefficient (days since rain factor) for evergreen trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -259,8 +260,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_DecTr1",
-        unit="dimensionless",
-        description="Water use coefficient 1 for deciduous trees",
+        unit="-",
+        description="Water use coefficient Ie_a (automatic irrigation) for deciduous trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -268,8 +269,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_DecTr2",
-        unit="dimensionless",
-        description="Water use coefficient 2 for deciduous trees",
+        unit="-",
+        description="Water use coefficient Ie_m (manual irrigation) for deciduous trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -277,8 +278,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_DecTr3",
-        unit="dimensionless",
-        description="Water use coefficient 3 for deciduous trees",
+        unit="-",
+        description="Water use coefficient (days since rain factor) for deciduous trees",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -286,8 +287,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_Grass1",
-        unit="dimensionless",
-        description="Water use coefficient 1 for grass",
+        unit="-",
+        description="Water use coefficient Ie_a (automatic irrigation) for grass",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -295,8 +296,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_Grass2",
-        unit="dimensionless",
-        description="Water use coefficient 2 for grass",
+        unit="-",
+        description="Water use coefficient Ie_m (manual irrigation) for grass",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -304,8 +305,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="WU_Grass3",
-        unit="dimensionless",
-        description="Water use coefficient 3 for grass",
+        unit="-",
+        description="Water use coefficient (days since rain factor) for grass",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -324,7 +325,7 @@ DAILYSTATE_VARIABLES = [
     # Snow albedo
     OutputVariable(
         name="AlbSnow",
-        unit="dimensionless",
+        unit="-",
         description="Snow albedo",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
@@ -395,11 +396,11 @@ DAILYSTATE_VARIABLES = [
         level=OutputLevel.DEFAULT,
         format="f146",
     ),
-    # OHM coefficients
+    # OHM coefficients for storage heat flux: dQS/dt = a1*dQ*/dt + a2*d^2Q*/dt^2 + a3
     OutputVariable(
         name="a1",
-        unit="dimensionless",
-        description="OHM coefficient a1",
+        unit="-",
+        description="OHM coefficient a1: fraction of net radiation rate change",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -407,8 +408,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="a2",
-        unit="W m-2",
-        description="OHM coefficient a2",
+        unit="h",
+        description="OHM coefficient a2: time lag for storage heat flux",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -416,8 +417,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="a3",
-        unit="W m-2 K-1",
-        description="OHM coefficient a3",
+        unit="W m-2",
+        description="OHM coefficient a3: constant offset for storage heat flux",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -425,8 +426,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="a1_bldg",
-        unit="dimensionless",
-        description="OHM coefficient a1 for buildings",
+        unit="-",
+        description="OHM coefficient a1 for buildings: fraction of net radiation rate change",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -434,8 +435,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="a2_bldg",
-        unit="W m-2",
-        description="OHM coefficient a2 for buildings",
+        unit="h",
+        description="OHM coefficient a2 for buildings: time lag for storage heat flux",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
@@ -443,8 +444,8 @@ DAILYSTATE_VARIABLES = [
     ),
     OutputVariable(
         name="a3_bldg",
-        unit="W m-2 K-1",
-        description="OHM coefficient a3 for buildings",
+        unit="W m-2",
+        description="OHM coefficient a3 for buildings: constant offset for storage heat flux",
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,

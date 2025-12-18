@@ -42,7 +42,7 @@ BL_VARIABLES = [
     OutputVariable(
         name="theta+",
         unit="K",
-        description="Temperature excess",
+        description="Temperature excess above mixed layer value at entrainment zone",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
@@ -51,7 +51,7 @@ BL_VARIABLES = [
     OutputVariable(
         name="q+",
         unit="g kg-1",
-        description="Humidity excess",
+        description="Humidity excess above mixed layer value at entrainment zone",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
@@ -150,7 +150,7 @@ BL_VARIABLES = [
     OutputVariable(
         name="gamt",
         unit="K m-1",
-        description="Temperature lapse rate",
+        description="Temperature lapse rate above boundary layer top",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
@@ -159,7 +159,7 @@ BL_VARIABLES = [
     OutputVariable(
         name="gamq",
         unit="kg kg-1 m-1",
-        description="Humidity lapse rate",
+        description="Humidity lapse rate above boundary layer top",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,

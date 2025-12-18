@@ -131,6 +131,21 @@ endforeach
 src_f95_files = files(src_f95_files)
 
 src_f95_sub = [
+  # Type definition files - must be first for f90wrap to expose nested types
+  'suews_type_anthro.f95',
+  'suews_type_atmosphere.f95',
+  'suews_type_ehc.f95',
+  'suews_type_heat.f95',
+  'suews_type_hydro.f95',
+  'suews_type_landcover.f95',
+  'suews_type_snow.f95',
+  'suews_type_soil.f95',
+  'suews_type_spartacus.f95',
+  'suews_type_stebbs.f95',
+  'suews_type_surface.f95',
+  'suews_type_vegetation.f95',
+  'suews_type_waterdist.f95',
+  # Core files
   'suews_ctrl_const.f95',
   'suews_ctrl_error.f95',  # Needed for error state module (module_ctrl_error_state)
   'suews_ctrl_type.f95',
@@ -167,7 +182,6 @@ build_suews = custom_target(
     '@OUTPUT@',
   ],
   build_by_default: true,
-  build_always_stale: true,
   output: 'suews_objects',
 )
 

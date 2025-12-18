@@ -21,7 +21,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="Kup",
@@ -30,7 +29,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="Ldown",
@@ -39,7 +37,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="Lup",
@@ -48,7 +45,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="Tsurf",
@@ -57,7 +53,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     # Energy balance components
     OutputVariable(
@@ -67,7 +62,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="QF",
@@ -76,7 +70,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="QS",
@@ -85,7 +78,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="QH",
@@ -94,7 +86,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="QE",
@@ -103,7 +94,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="QHlumps",
@@ -112,7 +102,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f104",
     ),
     OutputVariable(
         name="QElumps",
@@ -121,7 +110,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f104",
     ),
     OutputVariable(
         name="QHinit",
@@ -130,7 +118,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f104",
     ),
     OutputVariable(
         name="QHresis",
@@ -139,7 +126,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f104",
     ),
     # Water balance components
     OutputVariable(
@@ -149,7 +135,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="Irr",
@@ -158,7 +143,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="Evap",
@@ -167,7 +151,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="RO",
@@ -176,7 +159,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="TotCh",
@@ -185,7 +167,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f146",
     ),
     OutputVariable(
         name="SurfCh",
@@ -194,7 +175,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f146",
     ),
     OutputVariable(
         name="State",
@@ -203,7 +183,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="NWtrState",
@@ -212,7 +191,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="Drainage",
@@ -221,7 +199,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="SMD",
@@ -230,7 +207,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f94",
     ),
     # Additional water balance (extended)
     OutputVariable(
@@ -240,7 +216,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f104",
     ),
     OutputVariable(
         name="AddWater",
@@ -249,7 +224,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f104",
     ),
     OutputVariable(
         name="ROSoil",
@@ -258,7 +232,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f104",
     ),
     OutputVariable(
         name="ROPipe",
@@ -267,7 +240,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f104",
     ),
     OutputVariable(
         name="ROImp",
@@ -276,7 +248,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f104",
     ),
     OutputVariable(
         name="ROVeg",
@@ -285,7 +256,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f104",
     ),
     OutputVariable(
         name="ROWater",
@@ -294,7 +264,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f104",
     ),
     # Water use by vegetation type
     OutputVariable(
@@ -304,7 +273,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="WUEveTr",
@@ -313,7 +281,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="WUDecTr",
@@ -322,7 +289,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="WUGrass",
@@ -331,7 +297,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     # Soil moisture deficit by surface type
     OutputVariable(
@@ -341,7 +306,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="SMDBldgs",
@@ -350,7 +314,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="SMDEveTr",
@@ -359,7 +322,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="SMDDecTr",
@@ -368,7 +330,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="SMDGrass",
@@ -377,7 +338,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="SMDBSoil",
@@ -386,7 +346,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     # Surface wetness state by surface type
     OutputVariable(
@@ -396,7 +355,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="StBldgs",
@@ -405,7 +363,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="StEveTr",
@@ -414,7 +371,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="StDecTr",
@@ -423,7 +379,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="StGrass",
@@ -432,7 +387,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="StBSoil",
@@ -441,7 +395,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="StWater",
@@ -450,7 +403,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f104",
     ),
     # Solar geometry and surface properties
     OutputVariable(
@@ -460,7 +412,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="Azimuth",
@@ -469,7 +420,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f94",
     ),
     OutputVariable(
         name="AlbBulk",
@@ -478,7 +428,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f94",
     ),
     OutputVariable(
         name="Fcld",
@@ -487,7 +436,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f94",
     ),
     OutputVariable(
         name="LAI",
@@ -496,7 +444,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f94",
     ),
     # Turbulence and surface characteristics
     OutputVariable(
@@ -506,7 +453,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="zdm",
@@ -515,7 +461,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="zL",
@@ -524,7 +469,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="UStar",
@@ -533,7 +477,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f94",
     ),
     OutputVariable(
         name="TStar",
@@ -542,7 +485,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f94",
     ),
     OutputVariable(
         name="Lob",
@@ -551,7 +493,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f146",
     ),
     OutputVariable(
         name="RA",
@@ -560,7 +501,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f104",
     ),
     OutputVariable(
         name="RS",
@@ -569,7 +509,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f104",
     ),
     # Carbon fluxes
     OutputVariable(
@@ -579,7 +518,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f94",
     ),
     OutputVariable(
         name="FcPhoto",
@@ -588,7 +526,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="FcRespi",
@@ -597,7 +534,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="FcMetab",
@@ -606,7 +542,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="FcTraff",
@@ -615,7 +550,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="FcBuild",
@@ -624,7 +558,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="FcPoint",
@@ -633,7 +566,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     # Snow-related (basic level in SUEWS group)
     OutputVariable(
@@ -643,7 +575,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
-        format="f94",
     ),
     OutputVariable(
         name="QNSnow",
@@ -652,7 +583,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
-        format="f94",
     ),
     OutputVariable(
         name="AlbSnow",
@@ -661,7 +591,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
-        format="f94",
     ),
     OutputVariable(
         name="QM",
@@ -670,7 +599,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
-        format="f106",
     ),
     OutputVariable(
         name="QMFreeze",
@@ -679,7 +607,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
-        format="f146",
     ),
     OutputVariable(
         name="QMRain",
@@ -688,7 +615,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
-        format="f106",
     ),
     OutputVariable(
         name="SWE",
@@ -697,7 +623,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
-        format="f104",
     ),
     OutputVariable(
         name="MeltWater",
@@ -706,7 +631,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
-        format="f104",
     ),
     OutputVariable(
         name="MeltWStore",
@@ -715,7 +639,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
-        format="f104",
     ),
     OutputVariable(
         name="SnowCh",
@@ -724,7 +647,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
-        format="f104",
     ),
     OutputVariable(
         name="SnowRPaved",
@@ -733,7 +655,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
-        format="f94",
     ),
     OutputVariable(
         name="SnowRBldgs",
@@ -742,7 +663,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.SUM,
         group=OutputGroup.SUEWS,
         level=OutputLevel.SNOW_DETAILED,
-        format="f94",
     ),
     # Meteorological outputs at standard heights
     OutputVariable(
@@ -752,7 +672,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f94",
     ),
     OutputVariable(
         name="T2",
@@ -761,7 +680,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f94",
     ),
     OutputVariable(
         name="Q2",
@@ -770,7 +688,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f94",
     ),
     OutputVariable(
         name="U10",
@@ -779,7 +696,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f94",
     ),
     OutputVariable(
         name="RH2",
@@ -788,7 +704,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.DEFAULT,
-        format="f94",
     ),
     # Surface temperature by surface type (names match Fortran output)
     OutputVariable(
@@ -798,7 +713,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="Ts_Bldgs",
@@ -807,7 +721,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="Ts_EveTr",
@@ -816,7 +729,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="Ts_DecTr",
@@ -825,7 +737,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="Ts_Grass",
@@ -834,7 +745,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="Ts_BSoil",
@@ -843,7 +753,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="Ts_Water",
@@ -852,7 +761,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     # Surface temperature with dynamic OHM by surface type (names match Fortran output)
     OutputVariable(
@@ -862,7 +770,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="Ts_Bldgs_dyohm",
@@ -871,7 +778,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="Ts_EveTr_dyohm",
@@ -880,7 +786,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="Ts_DecTr_dyohm",
@@ -889,7 +794,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="Ts_Grass_dyohm",
@@ -898,7 +802,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="Ts_BSoil_dyohm",
@@ -907,7 +810,6 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
     OutputVariable(
         name="Ts_Water_dyohm",
@@ -916,6 +818,5 @@ SUEWS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
-        format="f94",
     ),
 ]

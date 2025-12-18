@@ -21,7 +21,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="HDD2_c",
@@ -30,7 +29,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="HDD3_Tmean",
@@ -39,7 +37,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="HDD4_T5d",
@@ -48,7 +45,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     # Precipitation and days since rain
     OutputVariable(
@@ -58,7 +54,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="DaysSR",
@@ -67,7 +62,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     # Growing Degree Days by vegetation type
     OutputVariable(
@@ -77,7 +71,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="GDD_DecTr",
@@ -86,7 +79,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="GDD_Grass",
@@ -95,7 +87,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     # Senescence Degree Days by vegetation type
     OutputVariable(
@@ -105,7 +96,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="SDD_DecTr",
@@ -114,7 +104,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="SDD_Grass",
@@ -123,7 +112,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     # Temperature extremes
     OutputVariable(
@@ -133,7 +121,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="Tmax",
@@ -142,7 +129,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     # Daylight hours
     OutputVariable(
@@ -152,7 +138,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     # LAI by vegetation type
     OutputVariable(
@@ -162,7 +147,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="LAI_DecTr",
@@ -171,7 +155,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="LAI_Grass",
@@ -180,7 +163,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     # Vegetation properties
     OutputVariable(
@@ -190,7 +172,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="Porosity",
@@ -199,7 +180,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     # Albedo by vegetation type
     OutputVariable(
@@ -209,7 +189,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="AlbDecTr",
@@ -218,7 +197,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="AlbGrass",
@@ -227,7 +205,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     # Water use coefficients by vegetation type (3 levels each)
     # Coefficients 1-3 represent irrigation model parameters for automatic/manual watering
@@ -238,7 +215,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="WU_EveTr2",
@@ -247,7 +223,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="WU_EveTr3",
@@ -256,7 +231,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="WU_DecTr1",
@@ -265,7 +239,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="WU_DecTr2",
@@ -274,7 +247,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="WU_DecTr3",
@@ -283,7 +255,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="WU_Grass1",
@@ -292,7 +263,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="WU_Grass2",
@@ -301,7 +271,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="WU_Grass3",
@@ -310,7 +279,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     # LUMPS LAI
     OutputVariable(
@@ -320,7 +288,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     # Snow albedo
     OutputVariable(
@@ -330,7 +297,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     # Snow density by surface type
     OutputVariable(
@@ -340,7 +306,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f146",
     ),
     OutputVariable(
         name="DensSnow_Bldgs",
@@ -349,7 +314,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f146",
     ),
     OutputVariable(
         name="DensSnow_EveTr",
@@ -358,7 +322,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f146",
     ),
     OutputVariable(
         name="DensSnow_DecTr",
@@ -367,7 +330,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f146",
     ),
     OutputVariable(
         name="DensSnow_Grass",
@@ -376,7 +338,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f146",
     ),
     OutputVariable(
         name="DensSnow_BSoil",
@@ -385,7 +346,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f146",
     ),
     OutputVariable(
         name="DensSnow_Water",
@@ -394,7 +354,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f146",
     ),
     # OHM coefficients for storage heat flux: dQS/dt = a1*dQ*/dt + a2*d^2Q*/dt^2 + a3
     OutputVariable(
@@ -404,7 +363,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="a2",
@@ -413,7 +371,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="a3",
@@ -422,7 +379,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="a1_bldg",
@@ -431,7 +387,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="a2_bldg",
@@ -440,7 +395,6 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="a3_bldg",
@@ -449,6 +403,5 @@ DAILYSTATE_VARIABLES = [
         aggregation=AggregationMethod.LAST,
         group=OutputGroup.DAILYSTATE,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
 ]

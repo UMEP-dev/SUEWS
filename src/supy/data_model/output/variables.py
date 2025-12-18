@@ -98,7 +98,7 @@ class OutputVariable(BaseModel):
 
     model_config = ConfigDict(
         use_enum_values=True,
-        extra="ignore",  # Ignore extra fields like 'format' for backward compatibility
+        extra="forbid",  # Reject extra fields - all fields must be explicitly defined
     )
 
 

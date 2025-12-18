@@ -19,7 +19,6 @@ BL_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="theta",
@@ -28,7 +27,6 @@ BL_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="q",
@@ -37,7 +35,6 @@ BL_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="theta+",
@@ -46,7 +43,6 @@ BL_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="q+",
@@ -55,7 +51,6 @@ BL_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="Temp_C",
@@ -64,7 +59,6 @@ BL_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="rh",
@@ -73,7 +67,6 @@ BL_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="QH_use",
@@ -82,7 +75,6 @@ BL_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="QE_use",
@@ -91,7 +83,6 @@ BL_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="Press_hPa",
@@ -100,7 +91,6 @@ BL_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="avu1",
@@ -109,7 +99,6 @@ BL_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="UStar",
@@ -118,7 +107,6 @@ BL_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="avdens",
@@ -127,7 +115,6 @@ BL_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="lv_J_kg",
@@ -136,7 +123,6 @@ BL_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
-        format="f146",
     ),
     OutputVariable(
         name="avcp",
@@ -145,7 +131,6 @@ BL_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="gamt",
@@ -154,7 +139,6 @@ BL_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="gamq",
@@ -163,6 +147,5 @@ BL_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
 ]

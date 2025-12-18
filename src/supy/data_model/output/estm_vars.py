@@ -42,7 +42,6 @@ def make_layer_vars(base_name, description_template):
             aggregation=AggregationMethod.AVERAGE,
             group=OutputGroup.ESTM,
             level=OutputLevel.DEFAULT,
-            format="f104",
         )
         for i in range(1, 6)
     ]
@@ -57,7 +56,6 @@ STORAGE_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.ESTM,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="QSAir",
@@ -66,7 +64,6 @@ STORAGE_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.ESTM,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="QSWall",
@@ -75,7 +72,6 @@ STORAGE_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.ESTM,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="QSRoof",
@@ -84,7 +80,6 @@ STORAGE_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.ESTM,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="QSGround",
@@ -93,7 +88,6 @@ STORAGE_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.ESTM,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="QSIBld",
@@ -102,7 +96,6 @@ STORAGE_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.ESTM,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
 ]
 
@@ -127,7 +120,6 @@ INDOOR_TEMP_VAR = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.ESTM,
         level=OutputLevel.DEFAULT,
-        format="f104",
     )
 ]
 

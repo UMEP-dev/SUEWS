@@ -12,17 +12,13 @@ from .variables import (
 )
 
 
-def make_profile_vars(base_name, unit, description_template, format_spec="f104"):
+def make_profile_vars(base_name, unit, description_template):
     """Helper to create profile variables for 30 vertical levels.
 
     Heights follow the Fortran `setup_RSL_heights` logic:
     - Levels 1–20 are within the canopy (dense near surface up to canyon top)
     - Levels 21–30 span above-canopy to the measurement height (zMeas)
     """
-
-    # Special format for levels 14 and 21 (matching legacy Fortran widths)
-    format_map = {14: "f146", 21: "f146"}
-
     return [
         OutputVariable(
             name=f"{base_name}_{i}",
@@ -35,23 +31,22 @@ def make_profile_vars(base_name, unit, description_template, format_spec="f104")
             aggregation=AggregationMethod.AVERAGE,
             group=OutputGroup.RSL,
             level=OutputLevel.DEFAULT,
-            format=format_map.get(i, format_spec),
         )
         for i in range(1, 31)
     ]
 
 
 # Height profiles (30 levels)
-Z_VARS = make_profile_vars("z", "m", "Height at {}", "f104")
+Z_VARS = make_profile_vars("z", "m", "Height at {}")
 
 # Wind speed profiles (30 levels)
-U_VARS = make_profile_vars("U", "m s-1", "Wind speed at {}", "f104")
+U_VARS = make_profile_vars("U", "m s-1", "Wind speed at {}")
 
 # Temperature profiles (30 levels)
-T_VARS = make_profile_vars("T", "degC", "Air temperature at {}", "f104")
+T_VARS = make_profile_vars("T", "degC", "Air temperature at {}")
 
 # Specific humidity profiles (30 levels)
-Q_VARS = make_profile_vars("q", "g kg-1", "Specific humidity at {}", "f104")
+Q_VARS = make_profile_vars("q", "g kg-1", "Specific humidity at {}")
 
 # RSL diagnostic variables
 RSL_DIAG_VARS = [
@@ -62,7 +57,6 @@ RSL_DIAG_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="zH_RSL",
@@ -71,7 +65,6 @@ RSL_DIAG_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="Lc",
@@ -80,7 +73,6 @@ RSL_DIAG_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="beta",
@@ -89,7 +81,6 @@ RSL_DIAG_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="zd_RSL",
@@ -98,7 +89,6 @@ RSL_DIAG_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="z0_RSL",
@@ -107,7 +97,6 @@ RSL_DIAG_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="elm",
@@ -116,7 +105,6 @@ RSL_DIAG_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="Scc",
@@ -125,7 +113,6 @@ RSL_DIAG_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="f",
@@ -134,7 +121,6 @@ RSL_DIAG_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="UStar_RSL",
@@ -143,7 +129,6 @@ RSL_DIAG_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="UStar_heat",
@@ -152,7 +137,6 @@ RSL_DIAG_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="TStar_RSL",
@@ -161,7 +145,6 @@ RSL_DIAG_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="FAI",
@@ -170,7 +153,6 @@ RSL_DIAG_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="PAI",
@@ -179,7 +161,6 @@ RSL_DIAG_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="flag_RSL",
@@ -188,7 +169,6 @@ RSL_DIAG_VARS = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.RSL,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
 ]
 

@@ -3,14 +3,44 @@
 
 from __future__ import annotations
 
+import os
+import platform
 import subprocess
 import sys
 from pathlib import Path
 
 
-def _run_make(args: list[str], suews_dir: Path) -> subprocess.CompletedProcess[str]:
+def _pick_suews_fc() -> str | None:
+    """Pick a Fortran compiler for building the legacy SUEWS Makefile targets.
+
+    On Apple Silicon it's common to have an Intel Homebrew in /usr/local alongside
+    an arm64 Homebrew in /opt/homebrew. If the Makefile uses the wrong gfortran,
+    it can generate incompatible .mod files and break incremental builds.
+    """
+    fc = os.environ.get("SUEWS_FC") or os.environ.get("FC")
+    if fc:
+        return fc
+
+    if sys.platform == "darwin" and platform.machine() == "arm64":
+        fc_opt = Path("/opt/homebrew/bin/gfortran")
+        if fc_opt.exists():
+            return str(fc_opt)
+
+    return None
+
+
+def _run_make(
+    args: list[str],
+    suews_dir: Path,
+    fc: str | None,
+) -> subprocess.CompletedProcess[str]:
+    make_cmd = ["make", "-C", str(suews_dir)]
+    if fc:
+        make_cmd.append(f"FC={fc}")
+    make_cmd.extend(args)
+
     result = subprocess.run(
-        ["make", "-C", str(suews_dir), *args],
+        make_cmd,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -27,10 +57,12 @@ def main() -> None:
     suews_dir = Path(sys.argv[1]).resolve()
     stamp_file = Path(sys.argv[2])
 
+    fc = _pick_suews_fc()
+
     # Run make and propagate failures so Meson can fail fast.
     # On macOS it is common for Homebrew to upgrade gfortran, which leaves stale
     # Fortran module files (*.mod) that cannot be read by the new compiler.
-    result = _run_make([], suews_dir)
+    result = _run_make([], suews_dir, fc)
     if result.returncode != 0:
         output = result.stdout
         stale_mod_patterns = (
@@ -41,11 +73,11 @@ def main() -> None:
             sys.stdout.write(
                 "\nDetected stale Fortran build artifacts; cleaning *.o and *.mod and retrying.\n"
             )
-            clean = _run_make(["clean-obj", "clean-mods"], suews_dir)
+            clean = _run_make(["clean-obj", "clean-mods"], suews_dir, fc)
             if clean.returncode != 0:
                 raise subprocess.CalledProcessError(clean.returncode, clean.args, output=clean.stdout)
 
-            retry = _run_make([], suews_dir)
+            retry = _run_make([], suews_dir, fc)
             if retry.returncode != 0:
                 raise subprocess.CalledProcessError(retry.returncode, retry.args, output=retry.stdout)
         else:

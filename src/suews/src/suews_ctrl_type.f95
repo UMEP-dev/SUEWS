@@ -140,14 +140,27 @@ MODULE module_ctrl_type
       LOGICAL :: flag_converge = .FALSE. ! flag for convergence of surface temperature
       INTEGER :: i_iter = 0 ! number of iterations for convergence
       INTEGER :: stebbs_bldg_init = 0 ! stebbs flag for building initialization
+      LOGICAL :: snow_warning_shown = .FALSE. ! track if snow warning shown (per grid cell)
 
       ! flag for iteration safety - YES - as we this should be updated every iteration
       LOGICAL :: iter_safe = .TRUE.
 
    END TYPE flag_STATE
 
+   ! Error state for thread-safe error handling (replaces module-level SAVE variables)
+   ! Each grid cell gets its own error state, enabling WRF coupling and parallel execution
+   TYPE, PUBLIC :: error_state
+      LOGICAL :: flag = .FALSE.           ! Error flag: .TRUE. if error occurred
+      INTEGER :: code = 0                  ! Error code (see suews_ctrl_error.f95 for codes)
+      CHARACTER(LEN=512) :: message = ''   ! Error message describing the problem
+   CONTAINS
+      PROCEDURE :: set => set_error_state
+      PROCEDURE :: reset => reset_error_state
+      PROCEDURE :: has_error => has_error_state
+   END TYPE error_state
 
    TYPE, PUBLIC :: SUEWS_STATE
+      TYPE(error_state) :: errorState
       TYPE(flag_STATE) :: flagState
       TYPE(anthroEmis_STATE) :: anthroemisState
       TYPE(OHM_STATE) :: ohmState
@@ -287,6 +300,42 @@ MODULE module_ctrl_type
    END TYPE SUEWS_STATE_BLOCK
 
 CONTAINS
+
+   !===========================================================================
+   ! Error state methods
+   !===========================================================================
+
+   SUBROUTINE set_error_state(self, code, message)
+      !> Set error state with code and message
+      CLASS(error_state), INTENT(INOUT) :: self
+      INTEGER, INTENT(IN) :: code
+      CHARACTER(LEN=*), INTENT(IN) :: message
+      INTEGER :: msg_len
+
+      self%flag = .TRUE.
+      self%code = code
+      msg_len = MIN(LEN_TRIM(message), 512)
+      self%message = message(1:msg_len)
+   END SUBROUTINE set_error_state
+
+   SUBROUTINE reset_error_state(self)
+      !> Reset error state to default (no error)
+      CLASS(error_state), INTENT(INOUT) :: self
+
+      self%flag = .FALSE.
+      self%code = 0
+      self%message = ''
+   END SUBROUTINE reset_error_state
+
+   FUNCTION has_error_state(self) RESULT(has_err)
+      !> Check if error state indicates an error
+      CLASS(error_state), INTENT(IN) :: self
+      LOGICAL :: has_err
+
+      has_err = self%flag
+   END FUNCTION has_error_state
+
+   !===========================================================================
 
    SUBROUTINE init_suews_state_block(self, nlayer, ndepth, len_sim)
       CLASS(SUEWS_STATE_BLOCK), INTENT(inout) :: self

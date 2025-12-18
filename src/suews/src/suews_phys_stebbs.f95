@@ -14,7 +14,6 @@ MODULE module_phys_stebbs_core
 
    REAL(rprc), PARAMETER :: sigma = 5.670E-8
 
-   INTEGER, SAVE :: flgtimecheck = 1
    INTEGER :: resolution
    INTEGER :: time_st, time_ed, count_p_sec, count_max ! Time check
 

@@ -50,6 +50,7 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
    !value2      -- Second error value (real number with correct type)
    !valueI      -- Error value (integer)
    ! Last modified -----------------------------------------------------
+   ! TS  17 Dec 2025: Remove legacy problems.txt/warnings.txt output (Python handles logging)
    ! MH  12 Apr 2017: Error code for stability added
    ! HCW 17 Feb 2017: Write (serious) errors to problems.txt; write warnings to warnings.txt (program continues)
    ! HCW 13 Dec 2016: Tidied up and improved error hints
@@ -58,9 +59,14 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
    ! sg  29 Jul 2014: close (500)
    ! LJ  08 Feb 2013
    !--------------------------------------------------------------------
+   !
+   ! Thread Safety (GH#1042):
+   !   Avoid initialized local variables which can become SAVE variables and be
+   !   shared across threads.
+   !   Do not call the SUEWS kernel concurrently from multiple threads.
+   !   Use process-based parallelism or serialize calls with a lock in the caller.
 
    USE module_ctrl_const_datain
-   USE module_ctrl_const_default
    USE module_ctrl_error_state, ONLY: set_supy_error
    ! USE module_ctrl_const_wherewhen
 
@@ -72,13 +78,11 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
    CHARACTER(len=150) :: text1 ! Initialization of text
    ! CHARACTER(len=20)::filename                  !file name for writting out error info
    INTEGER :: errh, ValueI, ValueI2, ValueI3 ! v7,v8 initialised as false, HCW 28/10/2014
-   INTEGER, DIMENSION(80) :: ErrhCount = 0 ! Counts each time a error hint is called. Initialise to zero
-   ! INTEGER:: WhichFile                            ! Used to switch between 500 for error file, 501 for warnings file
 #ifdef wrf
    CHARACTER(len=1024) :: message ! Used to pass through function wrf_debug() by Zhenkun Li, 10/08/2018
 #endif
-   CHARACTER(len=1024) :: Errmessage
-   CHARACTER(len=1024) :: StopMessage ! used to pass error message to  statement; useful to supy_driver, TS 19 Feb 2019
+   CHARACTER(len=1024) :: Errmessage = ''  ! Initialize to avoid garbage in unused cases
+   CHARACTER(len=1024) :: StopMessage ! used to pass error message to stop statement; useful to supy_driver, TS 19 Feb 2019
 
    ! TS 16 Jul 2018:
    ! these LOGICAL values should NOT be initialised as  is implied
@@ -369,7 +373,6 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
       v7 = .TRUE.
    END IF
 
-   ErrhCount(errh) = ErrhCount(errh) + 1 ! Increase error count by 1
    ! PRINT*, 'returnTrue',returnTrue
 
    !---------------------------------------------------------------------
@@ -394,7 +397,7 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
       ! no error values
    END IF
 
-   ! Write errors (that stop the program) to problems.txt; warnings to warnings.txt
+   ! Diagnostics are written to stdout/stderr (legacy problems.txt/warnings.txt removed).
    IF (flag_continue_on_error) THEN
       IF (SuppressWarnings == 0) THEN
 #ifdef wrf
@@ -403,28 +406,11 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
          WRITE (message, *) TRIM(text1)
          CALL wrf_debug(100, message)
          CALL wrf_debug(100, Errmessage)
-         WRITE (message, '(a,i14)') ' Count: ', ErrhCount(errh)
-         CALL wrf_debug(100, message)
 #else
-         IF (warningChoice == 0) THEN
-            OPEN (501, file='warnings.txt')
-            WRITE (*, *) '>>> See warnings.txt for possible issues in the run <<<'
-            warningChoice = 1
-         ELSE
-            OPEN (501, file='warnings.txt', position="append")
-         END IF
-
-         !Writing of the warnings file
-         WRITE (501, *) 'Warning: ', TRIM(ProblemFile)
-
-         ! write warning info
-         WRITE (501, *) TRIM(text1)
-
-         ! write warning codes
-         WRITE (501, *) TRIM(Errmessage)
-
-         WRITE (501, '(a,i14)') ' Count: ', ErrhCount(errh)
-         CLOSE (501)
+         WRITE (*, *) 'Warning: ', TRIM(ProblemFile)
+         WRITE (*, *) TRIM(text1)
+         IF (LEN_TRIM(Errmessage) > 0) WRITE (*, *) TRIM(Errmessage)
+         WRITE (*, '(a,i3)') ' Warning code: ', errh
 #endif
       END IF
 
@@ -443,26 +429,12 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
       WRITE (message, *) 'fatal error in SUEWS:', TRIM(text1)
       CALL wrf_error_fatal(message)
 #else
-      IF (errorChoice == 0) THEN
-         OPEN (500, file='problems.txt')
-         WRITE (*, *) '>>> See problems.txt for serious issues in the run <<<'
-         errorChoice = 1
-      ELSE
-         OPEN (500, file='problems.txt', position="append")
-      END IF
-
-      !Writing of the problem file
-      WRITE (500, *) 'Problem: ', TRIM(ProblemFile)
-
-      WRITE (500, *) 'ERROR! Program stopped: ', TRIM(text1)
-
-      ! write error codes
-      WRITE (500, *) TRIM(Errmessage)
-
-      WRITE (500, '(i3)') errh !Add error code to problems.txt
-      CLOSE (500)
-
       WRITE (StopMessage, *) 'fatal error in SUEWS:'//NEW_LINE('A')//TRIM(text1)
+
+      WRITE (*, *) 'Problem: ', TRIM(ProblemFile)
+      WRITE (*, *) 'ERROR! Program stopped: ', TRIM(text1)
+      IF (LEN_TRIM(Errmessage) > 0) WRITE (*, *) TRIM(Errmessage)
+      WRITE (*, '(a,i3)') ' Error code: ', errh
 
       ! Set error state for Python/SuPy interface instead of STOP
       ! This allows Python to detect the error and raise an exception

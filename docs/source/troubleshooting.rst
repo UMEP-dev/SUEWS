@@ -55,7 +55,7 @@ First time steps of storage output could give NaN values during the initial conv
 
 First things to Check if the program seems to have problems
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--  Check the problems.txt file.
+-  Check the Python runtime logs (SuPy logger output). Legacy ``problems.txt``/``warnings.txt`` files are no longer written.
 -  Check file options – in RunControl.nml.
 -  Look in the output directory for the SS_FileChoices.txt. This allows you to check all options that were used in the run. You may want to compare it with the original version supplied with the model.
 -  Note there can not be missing time steps in the data. If you need help with this you may want to checkout `UMEP`_
@@ -89,7 +89,7 @@ This is something you do not need to worry as it does not mean wrong input data.
 “Reference to undefined variable, array element or function result”
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Parameter(s) missing from input files.
-See also the error messages provided in problems.txt and warnings.txt
+See also the error messages and warnings emitted to the console / Python logger.
 
 SuPy related
 ------------
@@ -355,5 +355,4 @@ When using SMD method 0 (modelled soil moisture), the soil water balance is calc
 - Consider seasonal variation in soil parameters
 - If modelling urban areas, account for irrigation
 - Validate soil parameters against local measurements if available
-
 

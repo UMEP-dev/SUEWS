@@ -73,9 +73,6 @@ MODULE SUEWS_Driver
 
    IMPLICIT NONE
 
-   ! Module-level variable to track if snow warning has been shown
-   LOGICAL, SAVE :: snow_warning_shown = .FALSE.
-
    ! Make error state variables public for Python/f90wrap access
    PUBLIC :: supy_error_flag, supy_error_code, supy_error_message
    PUBLIC :: reset_supy_error, set_supy_error
@@ -416,10 +413,10 @@ CONTAINS
                !===================Calculate surface hydrology and related soil water=======================
                ! MP: Until Snow has been fixed this should not be used (TODO)
                IF (config%SnowUse == 1) THEN
-                  ! Only show warning once per simulation run
-                  IF (.NOT. snow_warning_shown) THEN
+                  ! Only show warning once per grid cell (state-based, thread-safe)
+                  IF (.NOT. flagState%snow_warning_shown) THEN
                      WRITE (*, *) "WARNING SNOW ON! Not recommended at the moment"
-                     snow_warning_shown = .TRUE.
+                     flagState%snow_warning_shown = .TRUE.
                   END IF
                   ! ===================Calculate snow related hydrology=======================
                   ! #234 the snow parts needs more work to be done
@@ -578,6 +575,10 @@ CONTAINS
             outputLine%dataoutLineRSL = [datetimeLine, dataOutLineRSL]
             outputLine%dataOutLineESTM = [datetimeLine, dataOutLineESTM]
             outputLine%dataOutLineSTEBBS = [datetimeLine, dataOutLineSTEBBS]
+
+            ! Sync module-level error state to modState for thread-safe access
+            ! This enables Python to read errors from modState%errorState
+            CALL sync_error_to_state(modState)
 
          END ASSOCIATE
       END ASSOCIATE
@@ -4379,9 +4380,13 @@ CONTAINS
       dataOutBlockSTEBBS_X = 0.0D0
       dataOutBlockNHood_X = 0.0D0
 
-      IF (flag_test .AND. PRESENT(block_mod_state)) THEN
-
-         CALL block_mod_state%init(nlayer, ndepth, len_sim)
+      ! Initialize block_mod_state if present but not yet allocated
+      ! Note: Python initializes block_mod_state before calling to ensure
+      ! f90wrap can properly access the allocated arrays after the call
+      IF (PRESENT(block_mod_state)) THEN
+         IF (.NOT. ALLOCATED(block_mod_state%BLOCK)) THEN
+            CALL block_mod_state%init(nlayer, ndepth, len_sim)
+         END IF
       END IF
 
       ! ############# evaluation for DTS variables (start) #############
@@ -5271,7 +5276,9 @@ CONTAINS
          dataOutBlockDailyState(ir, :) = [output_line_suews%dataOutLineDailyState]
 
          !============ update state_block ===============
-         IF (config%flag_test .AND. PRESENT(state_debug)) THEN
+         ! Always copy state when block_mod_state is present (not just debug mode)
+         ! This enables state-based error handling for thread safety
+         IF (PRESENT(block_mod_state)) THEN
             block_mod_state%BLOCK(ir) = mod_State
          END IF
 
@@ -5577,5 +5584,26 @@ END FUNCTION cal_tsfc_dyohm
       DEALLOCATE (tsfc_surf_tmp)
 
    END SUBROUTINE restore_state
+
+   !==============================================================================
+   ! Synchronise module-level error state to modState%errorState
+   ! This enables thread-safe error handling by copying the global error state
+   ! (set by ErrorHint and set_supy_error) to the per-grid-cell state.
+   ! Future: direct use of modState%errorState will eliminate need for sync.
+   !==============================================================================
+   SUBROUTINE sync_error_to_state(modState)
+      USE module_ctrl_type, ONLY: SUEWS_STATE
+
+      IMPLICIT NONE
+      TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
+
+      ! Copy module-level error state to modState%errorState
+      IF (supy_error_flag) THEN
+         CALL modState%errorState%set(supy_error_code, TRIM(supy_error_message))
+      ELSE
+         CALL modState%errorState%reset()
+      END IF
+
+   END SUBROUTINE sync_error_to_state
 
 END MODULE SUEWS_Driver

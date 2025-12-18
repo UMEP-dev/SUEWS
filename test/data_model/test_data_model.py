@@ -22,7 +22,8 @@ from supy.data_model import (
     SiteProperties,
     SUEWSConfig,
 )
-from supy.data_model.core.model import ModelControl
+from supy.data_model.core.model import ModelControl, ModelPhysics
+from supy.data_model.core.physics_options import NetRadiationMethodConfig, RadiationPhysics
 
 
 class TestSUEWSConfig(unittest.TestCase):
@@ -53,8 +54,8 @@ class TestSUEWSConfig(unittest.TestCase):
             self.config.model.control.tstep, config_reconst.model.control.tstep
         )
         self.assertEqual(
-            self.config.model.physics.netradiationmethod.value,
-            config_reconst.model.physics.netradiationmethod.value,
+            self.config.model.physics.netradiationmethod.int_value,
+            config_reconst.model.physics.netradiationmethod.int_value,
         )
         self.assertEqual(
             self.config.sites[0].properties.lat.value,
@@ -788,3 +789,30 @@ class TestSUEWSSimulationRefValue:
         # Verify that forcing data was loaded
         assert simulation._df_forcing is not None
         assert len(simulation._df_forcing) > 0
+
+
+class TestNetRadiationMethodConfig:
+    """Essential tests for nested netradiationmethod configuration (GH#972)."""
+
+    @pytest.mark.smoke
+    def test_roundtrip_preserves_value(self):
+        """Test DataFrame roundtrip preserves netradiationmethod value."""
+        original = ModelPhysics(
+            netradiationmethod={"scheme": "spartacus", "ldown": "obs"}
+        )
+        df = original.to_df_state(grid_id=1)
+        reconst = ModelPhysics.from_df_state(df, grid_id=1)
+        assert reconst.netradiationmethod.int_value == original.netradiationmethod.int_value
+
+    def test_backward_compat_dimension_form(self):
+        """Test dimension-based form is accepted."""
+        physics = ModelPhysics(
+            netradiationmethod={"scheme": "narp", "ldown": "air"}
+        )
+        assert physics.netradiationmethod.int_value == 3
+        assert physics.netradiationmethod.scheme == RadiationPhysics.NARP
+
+    def test_backward_compat_legacy_int(self):
+        """Test legacy integer form is accepted."""
+        physics = ModelPhysics(netradiationmethod=3)
+        assert physics.netradiationmethod.int_value == 3

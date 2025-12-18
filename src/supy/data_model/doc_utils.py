@@ -80,6 +80,7 @@ class ModelDocExtractor:
             "supy.data_model.core.profile",
             "supy.data_model.core.config",
             "supy.data_model.core.model",
+            "supy.data_model.core.physics_options",
             "supy.data_model.core.ohm",
             "supy.data_model.core.hydro",
             "supy.data_model.core.human_activity",
@@ -199,9 +200,11 @@ class ModelDocExtractor:
 
         # Extract enum options
         enum_class = self._get_enum_class(field_info, field_type)
-        if enum_class:
+        description = field_info.description or ""
+        # Try to extract options if enum class found OR description contains Options:
+        if enum_class or "Options:" in description:
             options = self._extract_enum_options(
-                field_info.description or "", enum_class, include_internal
+                description, enum_class, include_internal
             )
             if options:
                 field_doc["options"] = options
@@ -319,25 +322,33 @@ class ModelDocExtractor:
         return constraints if constraints else None
 
     def _extract_enum_options(
-        self, description: str, enum_class: Type[Enum], include_internal: bool
+        self, description: str, enum_class: Optional[Type[Enum]], include_internal: bool
     ) -> List[Dict[str, Any]]:
-        """Extract options from enum class and description."""
-        if "Options:" not in description:
-            return []
-
+        """Extract options from description string or directly from enum class."""
         import re
 
         options = []
-        options_text = description.split("Options:", 1)[1].strip()
 
-        for opt_text in options_text.split(";"):
-            opt_text = opt_text.strip()
-            if not opt_text:
-                continue
+        # Strategy 1: Parse from description if "Options:" present
+        if "Options:" in description:
+            options_text = description.split("Options:", 1)[1].strip()
 
-            match = re.match(r"^(\d+(?:-\d+)?)\s*\(([^)]+)\)\s*=\s*(.+)$", opt_text)
-            if match:
-                num, name, desc = match.groups()
+            # Use regex to find option boundaries (NUMBER (NAME) = pattern)
+            # This handles semicolons inside descriptions correctly
+            option_pattern = r"(\d+(?:-\d+)?)\s*\(([^)]+)\)\s*=\s*"
+            matches = list(re.finditer(option_pattern, options_text))
+
+            for i, match in enumerate(matches):
+                num = match.group(1)
+                name = match.group(2)
+
+                # Description starts after the match and ends at next option or string end
+                desc_start = match.end()
+                if i + 1 < len(matches):
+                    desc_end = matches[i + 1].start()
+                    desc = options_text[desc_start:desc_end].rstrip("; ")
+                else:
+                    desc = options_text[desc_start:].strip()
 
                 # Check if internal
                 if not include_internal and self._is_internal_option(num, enum_class):
@@ -349,7 +360,57 @@ class ModelDocExtractor:
                     "description": desc.strip(),
                 })
 
+        # Strategy 2: Extract directly from enum class if no Options in description
+        elif enum_class:
+            # Try to extract descriptions from enum docstring Attributes section
+            enum_descriptions = self._parse_enum_docstring(enum_class)
+
+            for member in enum_class:
+                # Skip internal options
+                if not include_internal and getattr(member, "_internal", False):
+                    continue
+
+                options.append({
+                    "value": member.value,
+                    "name": member.name,
+                    "description": enum_descriptions.get(member.name, ""),
+                })
+
         return options
+
+    def _parse_enum_docstring(self, enum_class: Type[Enum]) -> Dict[str, str]:
+        """Parse enum docstring to extract member descriptions from Attributes section."""
+        descriptions: Dict[str, str] = {}
+
+        if not enum_class.__doc__:
+            return descriptions
+
+        doc = inspect.cleandoc(enum_class.__doc__)
+        lines = doc.split("\n")
+
+        in_attributes = False
+        current_name = None
+
+        for line in lines:
+            stripped = line.strip()
+
+            # Check for Attributes section
+            if stripped == "Attributes:":
+                in_attributes = True
+                continue
+
+            if in_attributes:
+                # Check for new member definition (NAME: description)
+                if ":" in stripped and not stripped.startswith(" "):
+                    parts = stripped.split(":", 1)
+                    if len(parts) == 2:
+                        current_name = parts[0].strip()
+                        descriptions[current_name] = parts[1].strip()
+                # Continuation of previous description
+                elif current_name and stripped:
+                    descriptions[current_name] += " " + stripped
+
+        return descriptions
 
     def _is_internal_option(self, num: str, enum_class: Optional[Type[Enum]]) -> bool:
         """Check if an option is marked as internal."""

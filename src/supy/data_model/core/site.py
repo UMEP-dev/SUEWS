@@ -838,7 +838,7 @@ class GrassProperties(VegetatedSurfaceProperties):
     and maintenance significantly affect their water use and energy balance.
     """
 
-    model_config = ConfigDict(title="Grass")
+    model_config = ConfigDict(title="Grass Surface")
     alb: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,

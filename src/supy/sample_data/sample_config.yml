@@ -22,18 +22,18 @@ model:
     emissionsmethod:
       heat: J11
       co2: none
-    # Single-dimensional: use model/method names where available
+    # Single-dimensional: model names or Xyy (author initial + year)
     storageheatmethod: ohm
     ohmincqf: no
     roughlenmommethod: fixed
-    roughlenheatmethod: kawai
-    stabilitymethod: campbell
+    roughlenheatmethod: K09
+    stabilitymethod: CN98
     smdmethod: model
     waterusemethod: model
     rslmethod: auto
     faimethod: provided
     rsllevel: basic
-    gsmodel: ward
+    gsmodel: W16
     snowuse: no
     stebbsmethod: off
     rcmethod: off

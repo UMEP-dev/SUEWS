@@ -133,15 +133,15 @@ def _coerce_enum_value(
 
 
 # Short aliases for physics options
-# Prefer model names when they exist; use Xyy (author + year) only when no model name
+# Use explicit model names where they exist; otherwise use Xyy (author initial + year)
 # Maps short alias → enum member name
 STORAGE_HEAT_ALIASES = {
     "obs": "OBSERVED",
     "ohm": "OHM_WITHOUT_QF",
-    "anohm": "ANOHM",  # Analytical OHM (Sun et al. 2017)
-    "estm": "ESTM",  # Element Surface Temperature Method (Offerle et al. 2005)
+    "anohm": "ANOHM",  # Analytical OHM
+    "estm": "ESTM",  # Element Surface Temperature Method
     "ehc": "EHC",  # Explicit Heat Conduction
-    "dyohm": "DyOHM",  # Dynamic OHM (Liu et al. 2025)
+    "dyohm": "DyOHM",  # Dynamic OHM
     "stebbs": "STEBBS",
 }
 
@@ -153,21 +153,21 @@ OHM_INC_QF_ALIASES = {
 ROUGHLEN_MOM_ALIASES = {
     "fixed": "FIXED",
     "variable": "VARIABLE",
-    "macdonald": "MACDONALD",  # MacDonald et al. 1998
-    "lambdap": "LAMBDAP_DEPENDENT",  # lambda_p dependent (Grimmond & Oke 1999)
+    "M98": "MACDONALD",  # MacDonald et al. 1998
+    "GO99": "LAMBDAP_DEPENDENT",  # Grimmond & Oke 1999
 }
 
 ROUGHLEN_HEAT_ALIASES = {
-    "brutsaert": "BRUTSAERT",  # Brutsaert 1982
-    "kawai": "KAWAI",  # Kawai et al. 2009
-    "kanda": "KANDA",  # Kanda et al. 2007
+    "B82": "BRUTSAERT",  # Brutsaert 1982
+    "K09": "KAWAI",  # Kawai et al. 2009
+    "K07": "KANDA",  # Kanda et al. 2007
     "auto": "ADAPTIVE",
 }
 
 STABILITY_ALIASES = {
-    "hoegstrom": "HOEGSTROM",  # Högström 1988
-    "campbell": "CAMPBELL_NORMAN",  # Campbell & Norman 1998
-    "businger": "BUSINGER_HOEGSTROM",  # Businger et al. 1971
+    "H88": "HOEGSTROM",  # Högström 1988
+    "CN98": "CAMPBELL_NORMAN",  # Campbell & Norman 1998
+    "B71": "BUSINGER_HOEGSTROM",  # Businger et al. 1971
 }
 
 SMD_ALIASES = {
@@ -199,8 +199,8 @@ RSL_LEVEL_ALIASES = {
 }
 
 GS_MODEL_ALIASES = {
-    "jarvi": "JARVI",  # Järvi et al. 2011
-    "ward": "WARD",  # Ward et al. 2016
+    "J11": "JARVI",  # Järvi et al. 2011
+    "W16": "WARD",  # Ward et al. 2016
 }
 
 SNOW_USE_ALIASES = {

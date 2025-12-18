@@ -26,6 +26,7 @@ try:  # pragma: no cover - fallback used only during isolated tests
 except ImportError:  # pragma: no cover
     logger_supy = logging.getLogger("SuPy")
 
+# Matches the Fortran SUEWS convention for missing/undefined values
 MISSING_VALUE = -999.0
 
 
@@ -63,7 +64,9 @@ def convert_observed_soil_moisture(
         return df_forcing
 
     # NaN values in smdmethod are treated as 0 (no observation), which is the default
-    smd_methods = df_state_init[("smdmethod", "0")].fillna(0).astype(int)
+    # Convert to numeric first to avoid FutureWarning about silent downcasting in fillna
+    smd_series = pd.to_numeric(df_state_init[("smdmethod", "0")], errors="coerce")
+    smd_methods = smd_series.fillna(0).astype(int)
     active_methods = set(m for m in smd_methods if m > 0)
     if not active_methods:
         return df_forcing
@@ -161,15 +164,14 @@ def _convert_xsmd_series(
     if not np.any(mask_valid):
         return xsmd
 
-    clipped = values[mask_valid].copy()
     if smd_method == 1:
         # Volumetric: deficit [mm] = (theta_max - theta_obs) [fraction] * depth [mm] * soil_fraction
-        clipped = np.clip(clipped, 0.0, meta.smcap)
+        clipped = np.clip(values[mask_valid], 0.0, meta.smcap)
         deficit = (meta.smcap - clipped) * meta.depth_mm * meta.soil_not_rocks
     elif smd_method == 2:
         # Gravimetric: deficit = (w_max - w_obs) * (rho_soil / rho_water) * depth * soil_fraction
         # Since rho_water = 1 g/cm3, formula simplifies to: (w_max - w_obs) * rho_soil * depth * soil_fraction
-        clipped = np.clip(clipped, 0.0, meta.smcap)
+        clipped = np.clip(values[mask_valid], 0.0, meta.smcap)
         deficit = (
             (meta.smcap - clipped)
             * meta.soil_density

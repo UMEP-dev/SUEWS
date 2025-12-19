@@ -280,6 +280,23 @@ class RSTGenerator:
 
         # Add options if present
         if field_doc.get("options"):
+            # Check if any options are experimental
+            has_experimental = any(
+                "(experimental)" in opt.get("description", "").lower()
+                for opt in field_doc["options"]
+            )
+
+            # Add admonition before options if experimental options exist
+            if has_experimental:
+                lines.append("   .. note::")
+                lines.append("")
+                lines.append(
+                    "      Some options below are marked as **experimental**. "
+                    "While scientifically validated, users should verify results "
+                    "for their specific applications."
+                )
+                lines.append("")
+
             lines.append("   :Options:")
             for opt in field_doc["options"]:
                 opt_str = self._format_option(opt)

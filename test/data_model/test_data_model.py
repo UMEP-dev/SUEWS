@@ -33,7 +33,7 @@ class TestSUEWSConfig(unittest.TestCase):
         )
         self.config = SUEWSConfig.from_yaml(self.path_sample_config)
 
-    @pytest.mark.smoke
+    @pytest.mark.cfg
     def test_config_conversion_cycle(self):
         """Test if SUEWS configuration can be correctly converted between YAML and DataFrame formats."""
         print("\n========================================")

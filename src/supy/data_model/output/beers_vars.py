@@ -20,7 +20,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="altitude",
@@ -29,7 +28,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="GlobalRad",
@@ -38,7 +36,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="DiffuseRad",
@@ -47,7 +44,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="DirectRad",
@@ -56,7 +52,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="Kdown2d",
@@ -65,7 +60,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="Kup2d",
@@ -74,7 +68,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="Ksouth",
@@ -83,7 +76,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="Kwest",
@@ -92,7 +84,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="Knorth",
@@ -101,7 +92,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="Keast",
@@ -110,7 +100,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="Ldown2d",
@@ -119,7 +108,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="Lup2d",
@@ -128,7 +116,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="Lsouth",
@@ -137,7 +124,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="Lwest",
@@ -146,7 +132,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="Lnorth",
@@ -155,7 +140,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="Least",
@@ -164,7 +148,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="Tmrt",
@@ -173,7 +156,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="I0",
@@ -182,7 +164,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="CI",
@@ -191,25 +172,22 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="SH_Ground",
         unit="-",
-        description="Shadow ground",
+        description="Shadow fraction on ground (0=fully sunlit, 1=fully shaded)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="SH_Walls",
         unit="-",
-        description="Shadow walls",
+        description="Shadow fraction on walls (0=fully sunlit, 1=fully shaded)",
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="SVF_Ground",
@@ -218,7 +196,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="SVF_Roof",
@@ -227,7 +204,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="SVF_BdVeg",
@@ -236,7 +212,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="Emis_Sky",
@@ -245,7 +220,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f106",
     ),
     OutputVariable(
         name="Ta",
@@ -254,7 +228,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="Tg",
@@ -263,7 +236,6 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
     OutputVariable(
         name="Tw",
@@ -272,6 +244,5 @@ BEERS_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.BEERS,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
 ]

@@ -14,7 +14,6 @@ MODULE module_phys_stebbs_core
 
    REAL(rprc), PARAMETER :: sigma = 5.670E-8
 
-   INTEGER, SAVE :: flgtimecheck = 1
    INTEGER :: resolution
    INTEGER :: time_st, time_ed, count_p_sec, count_max ! Time check
 
@@ -24,6 +23,7 @@ MODULE module_phys_stebbs_core
 END MODULE module_phys_stebbs_core
 MODULE module_phys_stebbs_func
    USE module_phys_stebbs_precision
+   USE module_ctrl_error_state, ONLY: set_supy_error
    IMPLICIT NONE
 CONTAINS
    !-------------------------------------------------------------------
@@ -438,7 +438,9 @@ CONTAINS
       ! Validate inputs
       IF (d <= 0 .OR. cp <= 0 .OR. rho <= 0) THEN
          PRINT *, "Thickness (d), specific heat (cp), and density (rho) must be positive."
-         STOP
+         CALL set_supy_error(102, 'STEBBS calculate_x1: d, cp, rho must be positive')
+         x1 = -999.0D0
+         RETURN
       END IF
 
       ! Compute thermal diffusivity
@@ -455,7 +457,9 @@ CONTAINS
       ! limit the output x1 between 0 and 1
       IF (x1 <= 0 .OR. x1 >= 1) THEN
          PRINT *, "OuterCapFrac should be between 0 and 1."
-         STOP
+         CALL set_supy_error(102, 'STEBBS calculate_x1: OuterCapFrac should be between 0 and 1')
+         x1 = -999.0D0
+         RETURN
       END IF
    END FUNCTION calculate_x1
 
@@ -1260,7 +1264,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%emissivity_extwall_tank, self%conductivity_wall_vessel, &
       self%conv_coeff_intwall_vessel, self%conv_coeff_extwall_vessel, &
       self%emissivity_extwall_vessel, self%HeatingPower_DHW, &
-      self%heating_efficiency_water, self%minVwater_vessel, &
+      self%heating_efficiency_water, self%minVwater_vessel, self%maxVwater_vessel, &
       self%weighting_factor_heatcapacity_wall, self%weighting_factor_heatcapacity_roof, &
       !
       ! Output only variables
@@ -1358,7 +1362,7 @@ SUBROUTINE tstep( &
    emissivity_extwall_tank, conductivity_wall_vessel, &
    conv_coeff_intwall_vessel, conv_coeff_extwall_vessel, &
    emissivity_extwall_vessel, maxheatingpower_water, &
-   heating_efficiency_water, minVwater_vessel, &
+   heating_efficiency_water, minVwater_vessel, maxVwater_vessel, &
    weighting_factor_heatcapacity_wall, weighting_factor_heatcapacity_roof, &
    !
    ! Output only variables
@@ -1508,6 +1512,7 @@ SUBROUTINE tstep( &
    REAL(KIND(1D0)) :: qhwt_timestep = 0.0
    REAL(KIND(1D0)) :: VARatio_water_vessel = 0.0
    REAL(KIND(1D0)) :: minVwater_vessel
+   REAL(KIND(1D0)) :: maxVwater_vessel
    REAL(KIND(1D0)) :: weighting_factor_heatcapacity_wall, weighting_factor_heatcapacity_roof
    REAL(KIND(1D0)), DIMENSION(2) :: Ts ! Heating and Cooling setpoint temperature (K)s, respectively
    REAL(KIND(1D0)), DIMENSION(2) :: Qm ! Metabolic heat, sensible(1) and latent(2)
@@ -1764,12 +1769,16 @@ SUBROUTINE tstep( &
                outdoorRadiativeHeatTransfer &
                (MVF_tank, Awater_vessel, emissivity_extwall_vessel, Textwall_vessel, Tindoormass)
 
-            ! //Heat transfer due to use and replacement of water
-            ! //qhwt_v = waterUseHeatTransfer(density_water, cp_water, flowrate_water_supply, Tincomingwater_tank, Twater_tank)
+            ! Heat transfer due to use and replacement of water
+            ! qhwt_v = waterUseHeatTransfer(density_water, cp_water, flowrate_water_supply, Tincomingwater_tank, Twater_tank)
          ELSEIF (Vwater_vessel == minVwater_vessel .AND. &
                  flowrate_water_supply < flowrate_water_drain) THEN
-            ! //Set Drain Flow rate to be same as usage flow rate to avoid hot water storage going below the set minimum threshold (minVwater_vessel)
+            ! Set drain flow rate to match supply to prevent volume going below minimum (minVwater_vessel)
             flowrate_water_drain = flowrate_water_supply
+         ELSEIF (maxVwater_vessel > 0.0D0 .AND. Vwater_vessel >= maxVwater_vessel .AND. &
+                 flowrate_water_supply > flowrate_water_drain) THEN
+            ! Set supply flow rate to match drain to prevent volume exceeding maximum (maxVwater_vessel) - GH-340
+            flowrate_water_supply = flowrate_water_drain
          END IF ifVwater_vessel
 
          Qtotal_net_water_tank = qhwt_timestep - Qconv_water_to_inttankwall
@@ -1947,12 +1956,16 @@ SUBROUTINE tstep( &
          IF (Vwater_vessel < minVwater_vessel) THEN
             Vwater_vessel = minVwater_vessel
          END IF
+         ! Maximum volume cap as safety net (GH-340)
+         IF (maxVwater_vessel > 0.0D0 .AND. Vwater_vessel > maxVwater_vessel) THEN
+            Vwater_vessel = maxVwater_vessel
+         END IF
          Twater_vessel = &
             (((flowrate_water_supply*resolution)*Twater_tank) + &
              ((Vwater_vessel - (flowrate_water_supply*resolution))*Twater_vessel))/Vwater_vessel
-         IF (Vwater_vessel > 0.0) THEN ! //Checks that Volume isn't zero
+         IF (Vwater_vessel > 0.0) THEN ! Check volume is positive
             Awater_vessel = Vwater_vessel/VARatio_water_vessel
-         ELSE ! // if Volume is zero it makes the area also zero
+         ELSE ! If volume is zero, set area to zero
             Awater_vessel = 0.0
          END IF
          Vwall_vessel = Awater_vessel*thickness_wall_vessel
@@ -2267,6 +2280,7 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%maxheatingpower_water = building_archtype%MaximumHotWaterHeatingPower ! # Watts
    self%heating_efficiency_water = stebbsPrm%HotWaterHeatingEfficiency
    self%minVwater_vessel = stebbsPrm%MinimumVolumeOfDHWinUse ! # m3
+   self%maxVwater_vessel = stebbsPrm%MaximumVolumeOfDHWinUse ! # m3
 
    self%minHeatingPower_DHW = building_archtype%MaximumHotWaterHeatingPower
    self%HeatingPower_DHW = building_archtype%MaximumHotWaterHeatingPower
@@ -2475,6 +2489,7 @@ SUBROUTINE create_building(CASE, self, icase)
    self%maxheatingpower_water = 3000 ! # Watts
    self%heating_efficiency_water = 0.95
    self%minVwater_vessel = 0.1 ! # m3
+   self%maxVwater_vessel = 100.0 ! # m3 - arbitrary placeholder (GH-340), to be refined with validation
 
    self%minHeatingPower_DHW = 3000
    self%HeatingPower_DHW = 3000

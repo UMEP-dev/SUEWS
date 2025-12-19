@@ -472,37 +472,37 @@ class VegetatedSurfaceProperties(SurfaceProperties):
     )
     beta_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Biogenic CO2 exchange coefficient",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Biogenic CO2 Beta Coefficient"},
+        description="Light-saturated gross photosynthesis rate of the canopy",
+        json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Biogenic CO2 Beta Coefficient"},
     )
     beta_enh_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=0.7,
-        description="Enhanced biogenic CO2 exchange coefficient",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Biogenic CO2 Enhanced Beta"},
+        description="Enhanced photosynthesis coefficient related to vegetation fraction",
+        json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Biogenic CO2 Enhanced Beta"},
     )
     alpha_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Biogenic CO2 exchange coefficient",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Biogenic CO2 Alpha Coefficient"},
+        description="Mean apparent ecosystem quantum yield (initial slope of light-response curve)",
+        json_schema_extra={"unit": "umol CO2 / umol photons", "display_name": "Biogenic CO2 Alpha Coefficient"},
     )
     alpha_enh_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
-        description="Enhanced biogenic CO2 exchange coefficient",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Biogenic CO2 Enhanced Alpha"},
+        description="Enhanced quantum yield coefficient related to vegetation fraction",
+        json_schema_extra={"unit": "umol CO2 / umol photons", "display_name": "Biogenic CO2 Enhanced Alpha"},
     )
     resp_a: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Respiration coefficient",
+        description="Base respiration rate coefficient",
         json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Respiration Coefficient A"},
     )
     resp_b: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Respiration coefficient",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Respiration Coefficient B"},
+        description="Respiration temperature sensitivity coefficient",
+        json_schema_extra={"unit": "K^-1", "display_name": "Respiration Coefficient B"},
     )
     theta_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Biogenic CO2 exchange coefficient",
+        description="Curvature parameter for non-rectangular hyperbola at light saturation",
         json_schema_extra={"unit": "dimensionless", "display_name": "Biogenic CO2 Theta Parameter"},
     )
     maxconductance: FlexibleRefValue(float) = Field(
@@ -512,8 +512,8 @@ class VegetatedSurfaceProperties(SurfaceProperties):
     )
     min_res_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=0.1,
-        description="Minimum respiratory biogenic CO2",
-        json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Biogenic CO2 Minimum Resistance"},
+        description="Minimum soil respiration rate for cold-temperature limit",
+        json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Biogenic CO2 Minimum Respiration"},
     )
     lai: LAIParams = Field(
         default_factory=LAIParams, description="Leaf area index parameters"
@@ -2168,6 +2168,12 @@ class StebbsProperties(BaseModel):
         default=0.0,
         description="Minimum volume of hot water in use [m3]",
         json_schema_extra={"unit": "m^3", "display_name": "Minimum Volume of DHW in Use"},
+        ge=0.0,
+    )
+    MaximumVolumeOfDHWinUse: Optional[FlexibleRefValue(float)] = Field(
+        default=100.0,
+        description="Maximum volume of hot water in use [m3]. Default is arbitrary placeholder to be refined with validation.",
+        json_schema_extra={"unit": "m^3", "display_name": "Maximum Volume of DHW in Use"},
         ge=0.0,
     )
 

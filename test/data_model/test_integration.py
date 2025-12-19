@@ -25,7 +25,7 @@ from supy.data_model.validation.core.yaml_helpers import (
 class TestCRUDataLoading:
     """Test that CRU data loads properly for temperature initialization."""
 
-    @pytest.mark.smoke
+    @pytest.mark.util
     def test_cru_data_file_exists(self):
         """Test that the CRU Parquet file exists and is properly formatted."""
         # Use the same method as get_mean_monthly_air_temperature to access the data

@@ -33,18 +33,93 @@
 
 ## 2025
 
+### 17 Dec 2025
+
+- [bugfix] Fixed STEBBS vessel water volume overflow by adding upper limit constraint (#1034, GH-340)
+  - Implements maximum volume constraint using preventive flow adjustment + corrective cap
+  - Prevents unbounded accumulation when HotWaterFlowRate > DHWDrainFlowRate
+  - Default maximum 100.0 m³ (configurable, 0.0 disables)
+- [bugfix] Fixed QGIS crash by replacing Fortran STOP with error state pattern (#1037, GH-1035)
+  - Errors now captured as SUEWSKernelError exceptions instead of terminating Python process
+  - Added error state module with flag/code/message mechanism
+  - Added error state reset before each kernel call to prevent leakage
+- [bugfix] Enabled biogenic CO2 calculations to resolve constant FcRespi output (#599, GH-245)
+  - SUEWS_cal_BiogenCO2 subroutine was previously commented out
+  - FcRespi now varies with temperature when resp_b parameter is non-zero
+- [maintenance] Refactored smoke tests from 17 to 2 tests for faster CI feedback (#1037)
+- [maintenance] Deleted legacy suews_ctrl_input.f95 and extracted profile code to suews_util_profile.f95 (#1037)
+- [doc] Updated biogenic CO2 documentation to experimental status with troubleshooting links (#599)
+
+### 16 Dec 2025
+
+- [maintenance] Removed ~2,500 lines of dead code and legacy modules (#1033)
+  - Deleted unused suews_util_qsort.f95 module
+  - Removed commented-out legacy code blocks (ESTM_ehc, RSLProfile_DTS, etc.)
+  - Fixed bare REAL declarations to use KIND(1D0) for precision consistency
+- [doc] Added comprehensive documentation for SMD method and FcPhoto troubleshooting (#560, GH-290)
+  - Detailed guidance for near-zero FcPhoto in summer scenarios
+  - Enhanced soil moisture stress and photosynthesis relationship documentation
+
+### 15 Dec 2025
+
+- [feature] Added OOP interface for SUEWS output and forcing data (#925)
+  - SUEWSForcing and SUEWSOutput classes with pandas-compatible API
+  - SUEWSSimulation.run() now returns SUEWSOutput instead of DataFrame
+  - Case-insensitive column access and common variable aliases
+  - from_output() classmethod for continuation runs
+- [feature] Added wind speed height correction for EPW data handling (#748)
+  - Optional target_height and z0m parameters in read_epw()
+  - Logarithmic wind profile correction when extrapolating from 10m standard height
+- [bugfix] Separated input and output documentation namespaces to fix cross-reference collisions (#1032, GH-1031)
+  - New input:option and output:variable domains replace unified yaml:option
+- [doc] Enhanced parameter descriptions and site-specific labelling (#750)
+  - Improved CO2 parameter descriptions and requirement level clarity
+
+### 14 Dec 2025
+
+- [maintenance] Migrated suews-logo-source.html to shared CSS (#1028)
+- [bugfix] Improved display names and updated storage heat documentation (#1026)
+
+### 11 Dec 2025
+
+- [maintenance] Reorganised Claude config with path-conditional rules (#1025)
+- [maintenance] Enhanced sync-docs skill with comprehensive data model checks (#1024)
+
+### 10 Dec 2025
+
+- [maintenance] Unified CSS for site and documentation (#1021)
+
+### 9 Dec 2025
+
+- [maintenance] Updated deprecated macos-13 runner to macos-15-intel (#1022)
+
+### 7 Dec 2025
+
+- [bugfix] Fixed stats bar overlap with badges on mobile (#1020)
+- [maintenance] Added docs build validation and preview for PRs (#1019)
+
+### 6 Dec 2025
+
+- [feature] Added wind speed height correction to read_epw utility (#1016, GH-149)
+  - Optional logarithmic wind profile correction for height extrapolation
+  - Comprehensive documentation for EPW height assumptions
+- [feature] Added utility to resample SUEWS output before gen_epw (#1015, GH-150)
+  - resample_output exposed in supy.util
+  - Variable-appropriate aggregation (mean for instantaneous, sum for accumulated)
+
 ### 5 Dec 2025
 
-- [change] Removed `BaseTMethod` parameter from HDD/CDD calculations (#144)
+- [change] Removed `BaseTMethod` parameter from HDD/CDD calculations (#749)
   - Model now always uses weekday/weekend-specific base temperatures (`BaseT_Heating`, `BaseT_Cooling`)
   - Simplifies anthropogenic heat flux calculation logic
   - `BaseTMethod` in legacy input files is now ignored
 
 ### 3 Dec 2025
-- [feature] Improved albedos ranges (ge=0.0 and le=1.0) in Field of Pydantic classes for alb_id, air_ssa_lw, air_ssa_sw, veg_ssa_lw, veg_ssa_sw (PR #978)
-- [feature] Improved ranges (ge=0.0) in Field of Pydantic classes for preciplimitalb, roof_albedo_dir_mult_fact, and ground_albedo_dir_mult_fact. (PR #978)
-- [feature] Improved emissivities ranges (ge=0.0 and le=1.0) in Field of Pydantic classes for InternalMassEmissivity and narp_emis_snow (PR #979)
-- [bugfix] Fix range (gt=0.0 -> ge=0.0) in Field of Pydantic class for DHWVesselWallEmissivity (PR #979)
+
+- [feature] Improved albedos ranges (ge=0.0 and le=1.0) in Field of Pydantic classes for alb_id, air_ssa_lw, air_ssa_sw, veg_ssa_lw, veg_ssa_sw (#978)
+- [feature] Improved ranges (ge=0.0) in Field of Pydantic classes for preciplimitalb, roof_albedo_dir_mult_fact, and ground_albedo_dir_mult_fact (#978)
+- [feature] Improved emissivities ranges (ge=0.0 and le=1.0) in Field of Pydantic classes for InternalMassEmissivity and narp_emis_snow (#979)
+- [bugfix] Fix range (gt=0.0 -> ge=0.0) in Field of Pydantic class for DHWVesselWallEmissivity (#979)
 
 ### 2 Dec 2025
 
@@ -58,7 +133,6 @@
 
 ### 30 Nov 2025
 
-- [bugfix] Add missing `rcmethod` to CRITICAL_PHYSICS_PARAMS in _check_critical_null_physics_params (config.py).
 - [bugfix] Add check on ARCHETYPE_REQUIRED_PARAMS in _validate_stebbs (config.py).
 - [bugfix] Included missing Python modules (`run`, `_version`) in wheel installation (#960)
   - Fixed packaging to include all required modules in distributed wheel
@@ -77,9 +151,10 @@
   - Enhanced documentation for build process and developer workflows
 - [doc] Reorganised output documentation for clarity (#944)
   - Improved structure and navigation of output variable documentation
-- [bugfix] Fix nullification logic in phase_b.py for stebbs parameters to include building_archetype block when stebbsmethod == 0. (PR #958)
+- [bugfix] Fix nullification logic in phase_b.py for stebbs parameters to include building_archetype block when stebbsmethod == 0 (#958)
 
 ### 29 Nov 2025
+
 - [feature] Integrated Python output registry with SuPy post-processing (#937)
   - Output variable metadata now sourced from Python registry
   - Part of epic #929: Migrate Output Variable Metadata to Python-First Architecture
@@ -99,6 +174,7 @@
   - Updated `validate-claude-md.py` for new directory structure
 
 ### 28 Nov 2025
+
 - [feature] Added Python output variable registry with 1,139 variables (#935)
   - Established Python as single source of truth for output variable metadata
   - Part of epic #929: Migrate Output Variable Metadata to Python-First Architecture
@@ -106,6 +182,7 @@
   - New skills for code review, documentation sync, and development automation
 
 ### 27 Nov 2025
+
 - [bugfix] Added venv guard and clean build output (#926)
   - Prevents build issues when virtual environment is not activated
 - [maintenance] Enabled determine_matrix job for scheduled builds (#923)
@@ -116,6 +193,7 @@
   - Historical PDF manuals now preserved with DOI for long-term accessibility
 
 ### 26 Nov 2025
+
 - [feature] Slimmed CI with tiered test strategy (#900)
   - Fast tests run on all PRs, comprehensive tests on merge to master
   - Reduces CI time while maintaining test coverage
@@ -125,30 +203,35 @@
 - [change] Added full Field metadata (description + json_schema_extra) to BuildingType and BuildingName parameters for improved documentation and auto-generated schema clarity
 
 ### 22 Nov 2025
+
 - [maintenance] Removed unused WRF coupling file `suews_ctrl_sumin.f95` and related Makefile rules
   - New WRF-SUEWS coupling framework uses precompiled `libsuews.a` for linking
   - Cleaner and easier integration without legacy SuMin interface
   - Removed `WRF` variable and build rules from Makefile
 
 ### 21 Nov 2025
+
 - [change] Consolidate STEBBS initial temperatures and related params
   - Replaced many per-surface STEBBS start parameters with four consolidated parameters: InitialOutdoorTemperature, InitialIndoorTemperature, HotWaterHeatingSetpointTemperature, DeepSoilTemperature
   - Phase B CRU-based initialisation now reads/writes the consolidated keys.
   - Tests updated: YAML processing tests now expect consolidated keys
-- [doc] Documentation: PHASE_B_DETAILED.md updated to reflect CRU integration and STEBBS consolidation.
+- [doc] Updated PHASE_B_DETAILED.md to reflect CRU integration and STEBBS consolidation
 
 ### 20 Nov 2025
+
 - [doc] Updated tutorials and API documentation to use modern OOP interface (#881)
   - Updated impact-studies.ipynb, quick-start.ipynb, setup-own-site.ipynb to use `SUEWSSimulation.from_sample_data()`
   - Updated data-structures.rst code examples
   - Completed modernisation started in #779
 
 ### 19 Nov 2025
+
 - [bugfix] Fixed last layer of validation for DLS startdls and endls parameters (#877)
   - Instead of hemisphere pattern check (NH/SH typical ranges), now phase C provide NO ACTION NEEDED info to user with calculated DLS startdls and endls (to compare against user values).
   - Useful when Phase C runs standalone or via `SUEWSConfig.from_yaml()` (Phase B auto-corrects values in full pipeline)
 
 ### 18 Nov 2025
+
 - [change] **BREAKING**: Simplified ERA5 download implementation and renamed `data_source` parameter values (#874)
   - Removed earthkit.data dependency - both download methods now use cdsapi directly
   - `data_source` parameter values renamed for clarity:
@@ -171,6 +254,7 @@
   - Consolidates all parallel processing to one library
 
 ### 14 Nov 2025
+
 - [feature] Added `SUEWSSimulation.from_sample_data()` factory method and comprehensive OOP enhancements (#779)
   - New factory method for cleaner OOP workflow: `sim = SUEWSSimulation.from_sample_data()`
   - Added visual feedback with `__repr__()` showing simulation status (Not configured, Ready, Complete)
@@ -186,11 +270,13 @@
   - Useful when Phase C runs standalone or via `SUEWSConfig.from_yaml()` (Phase B auto-corrects values in full pipeline)
 
 ### 12 Nov 2025
+
 - [feature] Added irrigation year-wrapping pattern detection (#843)
   - Warns for unusual patterns (NH: ie_start > ie_end; SH: ie_start < ie_end)
   - Integrated into Phase B scientific validation pipeline
 
 ### 11 Nov 2025
+
 - [feature] Added irrigation parameter validation (#843)
   - Validates `ie_start` and `ie_end` for DOY range, consistency, and hemisphere-aware seasonal appropriateness
   - NH (lat ≥ 23.5°): warm season DOY 121-273; SH (lat ≤ -23.5°): DOY 305-90; Tropics (|lat| < 23.5°): year-round
@@ -204,20 +290,22 @@
   - Preserved `BaseT_HC` during 2021a→2023a table conversion (SUEWS still reads this column)
   - Added comprehensive tests with real URBANFLUXES 2017 data
 
-### 05 Nov 2025
+### 5 Nov 2025
+
 - [feature] Added physics-specific forcing data validation (#824)
   - `check_forcing()` validates required forcing columns (qn, qf, qs, ldown, fcld, xsmd) based on physics configuration
   - Integrated with Phase A validation pipeline; backwards compatible
   - Added helpful error messages with documentation links
 
 ### 4 Nov 2025
+
 - [bugfix] Fixed land cover fraction validation to use floating-point tolerance (#820)
   - Changed from exact equality check (`total_fraction != 1.0`) to tolerance-based check (`abs(total_fraction - 1.0) > 1e-6`)
   - Uses same tolerance (1e-6) as Phase B fraction normalisation
   - Improved error messages to show tolerance level and actual difference from 1.0
 
-
 ### 31 Oct 2025
+
 - [bugfix] Fixed Phase B validator to not nullify `lai_id` when surface fraction is zero (#815)
   - Removed logic that set `lai_id: null` for vegetation surfaces (dectr, evetr, grass) when `sfr=0`
   - Preserves user-provided initial state values even when surface is not active
@@ -480,7 +568,7 @@
   - Updated all imports and meson.build to reflect new structure
 
 ### 19 Aug 2025
-- [feature] Added unified `suews-schema` CLI for comprehensive schema management (#612, (#613)
+- [feature] Added unified `suews-schema` CLI for comprehensive schema management (#612, #613)
   - Consolidated schema version checking, validation, and migration into single command
   - Subcommands: `info`, `version`, `validate`, `migrate`, `export`
   - Supports batch operations on multiple YAML files
@@ -548,7 +636,7 @@
   - Enhanced technical documentation in `phase_a_detailed.rst` with implementation details
 
 ### 11 Aug 2025
-- [doc] Added comprehensive parameter documentation for YAML configuration (#577, (#598)
+- [doc] Added comprehensive parameter documentation for YAML configuration (#577, #598)
   - Created user-friendly Parameter Configuration Guide organized by use cases
   - Added practical guidance for essential parameters, physics methods, and urban morphology
   - Included common configuration examples for urban, suburban, and park sites
@@ -742,7 +830,7 @@
   - Added conditional check to skip interpolation when model timestep matches input data resolution
   - Prevents incorrect interpolation of averaged variables like kdown
   - Ensures forcing data passes through unchanged when no resampling is needed
-- [doc] Improved clarity of tstep_prev purpose for WRF-SUEWS coupling (#551, (#553)
+- [doc] Improved clarity of tstep_prev purpose for WRF-SUEWS coupling (#551, #553)
   - Added explanatory comments at all tstep_prev usage sites
   - Enhanced type definition documentation in SUEWS_TIMER
   - Added module-level documentation explaining WRF coupling support
@@ -847,7 +935,7 @@
   - Fixed conflicting .fprettify.yml file
 
 ### 18 Jul 2025
-- [feature] Added comprehensive testing improvements (PRs (#525), (#526))
+- [feature] Added comprehensive testing improvements (#525, #526)
   - Added extensive utility tests for core functionality
   - Added comprehensive coding guidelines and testing documentation
   - Implemented automatic code formatting on master branch
@@ -884,7 +972,7 @@
   - Enhanced review structure with categorised feedback
 
 ### 11 Jul 2025
-- [maintenance] Added Claude Code GitHub Actions workflows (PRs (#466), (#467))
+- [maintenance] Added Claude Code GitHub Actions workflows (#466, #467)
   - Added Claude PR Assistant workflow for automated reviews
   - Preserved security checks for authorised users
   - Added worktree command for Claude Code integration
@@ -892,20 +980,20 @@
 ### 10 Jul 2025
 - [bugfix] Fixed version tag preservation (#465)
 
-### 08 Jul 2025
+### 8 Jul 2025
 - [feature] Added conditional validation for model options (#460)
   - Implemented validation for storage, RSL, and STEBBS options
   - Added comprehensive test coverage for conditional validation
   - Improved validation error messages with detailed issues
 
-### 05 Jul 2025
+### 5 Jul 2025
 - [feature] Simplified SUEWSSimulation API (#463)
   - Refactored class for cleaner, more intuitive interface
-  - Fixed forcing file path handling issues (#458, (#459)
+  - Fixed forcing file path handling issues (#458, #459)
   - Added comprehensive tests for various forcing scenarios
   - Updated documentation for new API
 
-### 04 Jul 2025
+### 4 Jul 2025
 - [feature] Enhanced SUEWS configuration builder (#455)
   - Added unsaved changes warning
   - Implemented field-specific UI controls
@@ -914,12 +1002,12 @@
   - Improved validation error messages
   - Modularised config-builder.js for better maintainability
 
-### 03 Jul 2025
+### 3 Jul 2025
 - [change] Added DailyState resampling option (#456)
   - Improved resampling implementation for DailyState outputs
   - Enhanced output flexibility for different temporal resolutions
 
-### 02 Jul 2025
+### 2 Jul 2025
 - [feature] Added automatic annotated YAML generation for parameter validation errors
   - Generates helpful annotated YAML files when configuration validation fails
   - Marks missing parameters with [ERROR] MISSING: and provides [TIP] ADD HERE: suggestions
@@ -1014,7 +1102,7 @@
 - [maintenance] Improved Windows build compatibility with UCRT support, enhanced CI/CD workflows, and Windows-specific compiler optimisations
 - [doc] Enhanced documentation system with modernised structure and comprehensive migration guides from table-based to YAML-based configuration
 
-### 06 Jun 2025
+### 6 Jun 2025
 - [doc] Added comprehensive unit documentation to all RefValue parameters in data model, improving dimensional consistency and user understanding of expected parameter scales and ranges (#398)
 
 ### 30 Jan 2025
@@ -1034,7 +1122,7 @@
   - Added automated fprettify source code formatting
 
 ### 28 Jan 2025
-- [feature] Python 3.13 support (PRs (#341), (#342))
+- [feature] Python 3.13 support (#341, #342)
   - Added full test coverage for Python 3.13 on linux_x86_64
   - Updated cibuildwheel to v2.20 for Python 3.13 compatibility
   - Fixed macOS wheel building for multiple Python versions
@@ -1070,7 +1158,7 @@
   - Improved STEBBS configuration variable organization
 
 ### 8 Jan 2025
-- [bugfix] Fixed STEBBS parameter type handling (PRs (#321), (#323), fixes (#319))
+- [bugfix] Fixed STEBBS parameter type handling (#321, #323, #319)
   - Fixed string/numeric type handling in pack_var function
   - Ensured consistent output types for error handling
   - Removed DAVE-specific parameters from STEBBS
@@ -1127,7 +1215,7 @@
   - Corrected parameter indexing in surface properties
 
 ### 20 Nov 2024
-- [feature] YAML to DataFrame converter implementation (PRs (#305), (#306), fixes (#304))
+- [feature] YAML to DataFrame converter implementation (#305, #306, #304)
   - Created converter for YAML configurations to df_state format
   - Updated config schema for SUEWS
   - Enhanced DataFrame structure with default values
@@ -1165,14 +1253,14 @@
   - Fixed metadata variable error suppression during packing
   - Applied dropna only to DailyState group in resample_output
 
-### 06 Aug 2024
+### 6 Aug 2024
 - [bugfix] Fixed issue with unassociated `avcp` parameter causing model instability (#282)
 - [maintenance] Simplified SuPy module's serial mode implementation for better performance
 
-### 02 Aug 2024
+### 2 Aug 2024
 - [bugfix] Fixed a bug in the calculation of the surface temperature (#281)
 
-### 05 Jul 2024
+### 5 Jul 2024
 - [feature] Added an option to consider the local feedback of near-surface temperature on the surface energy balance (#132)
 - [feature] Implemented debug mode to help with model troubleshooting (#275)
 - [bugfix] Restored full test for the DTS-based version (#264)
@@ -1180,7 +1268,7 @@
 - [maintenance] Enhanced the ability to auto-fix missing parameters in df_state (#276)
 - [maintenance] Updated SSss_YYYY_SUEWS_TT.csv output tables
 
-### 04 Jul 2024
+### 4 Jul 2024
 - [bugfix] Fixed a bug causing an abrupt change in results due to a less smooth transition in `z0` from surfaces without roughness elements to those with them. (#271)
 - [bugfix] Improved the discretisation of the vertical levels in the RSL scheme for better interpolation of surface diagnostics (e.g. `T2`) (#271)
 - [maintenance] Added support for NumPy 2.0 (#271)
@@ -1188,7 +1276,7 @@
 ### 13 Jun 2024
 - [bugfix] Fixed SUEWS-SS issue with more than 7 layers (#268)
 
-### 09 Jun 2024
+### 9 Jun 2024
 - [bugfix] Fixed SUEWS-SS issue when same building fractions were used (#266)
 
 ### 31 May 2024
@@ -1202,17 +1290,17 @@
 ### 17 May 2024
 - [maintenance] Changed the python build backend to `meson` and `ninja` for faster builds (#257)
 
-### 09 May 2024
+### 9 May 2024
 - [feature] Added CITATION file for academic referencing (#258)
 - [bugfix] Fixed Windows build issues
 - [maintenance] Updated GitHub Actions for upload/download and EndBug/add-and-commit
 - [maintenance] Removed unnecessary files and updated build configuration
 
-### 01 Mar 2024
+### 1 Mar 2024
 - [bugfix] Fixed table converter error due to issue in `rule.csv` (#249)
 - [change] Updated update_DailyStateLine_DTS function to include additional input parameters
 
-### 01 Feb 2024
+### 1 Feb 2024
 - [maintenance] Added Apple M1 GitHub runner to CI for enhanced cross-platform testing
 
 ### 31 Jan 2024
@@ -1242,7 +1330,7 @@
 - [bugfix] Fixed potential initialisation issue in water use calculation that might lead to NaN values
 - [maintenance] Multiple contributions merged from @ljarvi (patches 10-23)
 
-### 07 Oct 2023
+### 7 Oct 2023
 - [maintenance] Updated build script and full testing requirements to Python 3.11
 - [doc] Updated CO2 related documentation pages (#226)
 
@@ -1252,7 +1340,7 @@
 - [maintenance] Fixed LooseVersion deprecation issues
 - [maintenance] Updated to 2nd DTS-based interface
 
-### 01 Jul 2023
+### 1 Jul 2023
 - [feature] Added a function `supy.util.get_spinup_state` to retrieve the spin-up state for the model, which can be used for debugging and initialising the model for simulation.
 - [feature] Implemented fast spin-up for large-scale simulations (#200)
 - [feature] Added Crank-Nicholson-based heat conduction solver
@@ -1261,12 +1349,12 @@
 ### 28 Jun 2023
 - [bugfix] Fixed RSS problem due to incorrect porosity (#197)
 
-### 05 Jun 2023
+### 5 Jun 2023
 - [feature] added `FAIMethod` to help determine the FAI (#192)
 - [bugfix] Fixed NaN in ESTM_ext surface temperature (#182)
 - [maintenance] Updated default porosity range to avoid issues in roughness calculations
 
-### 03 Jun 2023
+### 3 Jun 2023
 - [bugfix] fixed a bug in writing out `DailyState` - all rows were written as zero (#190)
 
 ### 15 May 2023
@@ -1284,32 +1372,32 @@
 - [maintenance] re-organised file structure
 
 ### 16 Feb 2023
-- [bugfix] Fixed issues with model stability and water balance calculations (#142, (#143)
+- [bugfix] Fixed issues with model stability and water balance calculations (#142, #143)
 
 ### 10 Feb 2023
 - [bugfix] Fixed build system and dependency issues (#82)
 
 ### 27 Jan 2023
 - [feature] Added EPW (EnergyPlus Weather) file header support (#69)
-- [bugfix] Fixed various test and CI pipeline issues (#75, (#76)
+- [bugfix] Fixed various test and CI pipeline issues (#75, #76)
 
 
 ## 2022
 
-### 09 Sep 2022
+### 9 Sep 2022
 - [bugfix] Fixed QGIS compatibility issue with scipy/pandas dependencies
 - [maintenance] Improved build system and wheel generation for releases (#134)
 
-### 06 Sep 2022
+### 6 Sep 2022
 - [feature] Enhanced snow module with improved debugging output
 - [bugfix] Fixed snow-related calculations when snow module is disabled
 
-### 02 Sep 2022
+### 2 Sep 2022
 - [feature] Added surface-specific diagnostic output for energy balance components
 - [feature] Enhanced water balance debugging with additional output variables
 
 ### 29 Aug 2022
-- [bugfix] Fixed abnormal snow fraction handling when snow module is off (#67, (#131)
+- [bugfix] Fixed abnormal snow fraction handling when snow module is off (#67, #131)
 - [bugfix] Fixed fraction calculations for surface types
 
 ### 25 Aug 2022
@@ -1317,7 +1405,7 @@
 - [maintenance] Reorganised snow module code structure
 
 ### 24 Aug 2022
-- [bugfix] Fixed critical issues when snow module is enabled (#127, (#129)
+- [bugfix] Fixed critical issues when snow module is enabled (#127, #129)
 - [bugfix] Fixed snow-related initial condition loading
 
 ### 30 Jun 2022
@@ -1345,14 +1433,14 @@
 ### 20 Apr 2022
 - [bugfix] Fixed multi-grid and multi-year run issues due to OHM averages in Qn
 
-### 07 Apr 2022
+### 7 Apr 2022
 - [feature] Added water-related results output for ESTM_ext module (#93)
 - [bugfix] Fixed storage heat method switch issues
 
-### 03 Apr 2022
+### 3 Apr 2022
 - [feature] Added multi-grid water module implementation
 
-### 01 Apr 2022
+### 1 Apr 2022
 - [feature] Added ESTM_ext water-related variables for roofs and walls
 
 ### 30 Mar 2022
@@ -1379,7 +1467,7 @@
 ### 10 Feb 2022
 - [bugfix] Fixed multi-grid settings loading bug
 
-### 07 Feb 2022
+### 7 Feb 2022
 - [feature] Performance improvements in data loading
 - [bugfix] Improved file loading procedure to handle encoding issues (#42)
 
@@ -1405,7 +1493,7 @@
 - [maintenance] Updated gfortran to v11 for testing
 - [maintenance] Fixed Linux and manylinux build recipes
 
-### 01 Nov 2021
+### 1 Nov 2021
 - [feature] Added option to use existing surface temperature for outgoing longwave radiation
 
 ### 27 Oct 2021
@@ -1445,11 +1533,11 @@
 
 ## 2020
 
-### 08 Dec 2020
+### 8 Dec 2020
 - [feature] Added debug output group for runtime diagnostics
 - [doc] Fixed multiple documentation issues and references
 
-### 06 Aug 2020
+### 6 Aug 2020
 - [feature] Version 2020b release
   - Major improvements to RSL module stability
   - Fixed overlarge T2 issue by restricting Lc parameter
@@ -1460,7 +1548,7 @@
 - [bugfix] Fixed argument list issue in GFORTRAN v10
 - [maintenance] Improved computational stability in RSL diagnostics (#130)
 
-### 01 Jul 2020
+### 1 Jul 2020
 - [feature] Added option to use existing ERA5 files for forcing generation (#165)
 - [doc] Updated tutorials for UMEP workshop (#169)
 
@@ -1482,7 +1570,7 @@
 ### 28 Feb 2020
 - [bugfix] Fixed ERA5 data download permission issues (#127)
 
-### 02 Feb 2020
+### 2 Feb 2020
 - [feature] Added Python 3.8 support
 - [bugfix] Fixed issues with pandas 1.0 compatibility
 
@@ -1522,7 +1610,7 @@
   - Enhanced with Python ecosystem capabilities
 - [maintenance] Improved benchmark report system with more testing sites
 
-### 01 Jan 2019
+### 1 Jan 2019
 - [feature] Added multi-timestep mode support in driver
 - [maintenance] Added version tracking to supy_driver
 - [maintenance] Trimmed unnecessary output groups
@@ -1545,7 +1633,7 @@
   - Better memory usage and supports variable time-step simulations
   - Essential for WRF-SUEWS coupling
 
-### 02 Aug 2018
+### 2 Aug 2018
 - [feature] Version 2018a release
 - [feature] New readthedocs.org-based documentation system
 - [feature] Added input_converter for version migration
@@ -1568,7 +1656,7 @@
 
 ## 2017
 
-### 02 Aug 2017
+### 2 Aug 2017
 - [feature] Version 2017b release
 - [feature] Added surface-level diagnostics as default output
   - T2 (air temperature at 2 m agl)
@@ -1578,7 +1666,7 @@
 - [maintenance] Development of new storage heat flux options (AnOHM, ESTM) - not for production use
 - [maintenance] Development of carbon dioxide flux modelling - not for production use
 
-### 01 Feb 2017
+### 1 Feb 2017
 - [feature] Version 2017a release
 - [feature] Automatic forcing disaggregation and output aggregation
   - Removes need for Python wrapper

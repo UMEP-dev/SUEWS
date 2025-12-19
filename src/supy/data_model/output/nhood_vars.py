@@ -19,6 +19,5 @@ NHOOD_VARIABLES = [
         aggregation=AggregationMethod.AVERAGE,
         group=OutputGroup.NHOOD,
         level=OutputLevel.DEFAULT,
-        format="f104",
     ),
 ]

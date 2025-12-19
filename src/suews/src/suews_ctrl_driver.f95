@@ -67,11 +67,15 @@ MODULE SUEWS_Driver
    USE module_ctrl_version, ONLY: git_commit, compiler_ver ! these are automatically generated during compilation time
    USE module_util_time, ONLY: SUEWS_cal_dectime_DTS, SUEWS_cal_tstep_DTS, SUEWS_cal_weekday_DTS, &
                           SUEWS_cal_DLS
+   ! Re-export error state from module_ctrl_error_state for Python/f90wrap access
+   USE module_ctrl_error_state, ONLY: supy_error_flag, supy_error_code, supy_error_message, &
+                                       reset_supy_error, set_supy_error
 
    IMPLICIT NONE
 
-   ! Module-level variable to track if snow warning has been shown
-   LOGICAL, SAVE :: snow_warning_shown = .FALSE.
+   ! Make error state variables public for Python/f90wrap access
+   PUBLIC :: supy_error_flag, supy_error_code, supy_error_message
+   PUBLIC :: reset_supy_error, set_supy_error
 
 CONTAINS
 
@@ -398,13 +402,21 @@ CONTAINS
                END IF
                !===================Resistance Calculations End=======================
 
+               ! ========================================================================
+               ! SUEWS_cal_BiogenCO2: calculate biogenic CO2 fluxes
+               ! N.B.: Must be called after SUEWS_cal_Resistance which sets phenState%gfunc
+               ! ========================================================================
+               CALL SUEWS_cal_BiogenCO2( &
+                  timer, config, forcing, siteInfo, & ! input
+                  modState) ! input/output:
+
                !===================Calculate surface hydrology and related soil water=======================
                ! MP: Until Snow has been fixed this should not be used (TODO)
                IF (config%SnowUse == 1) THEN
-                  ! Only show warning once per simulation run
-                  IF (.NOT. snow_warning_shown) THEN
+                  ! Only show warning once per grid cell (state-based, thread-safe)
+                  IF (.NOT. flagState%snow_warning_shown) THEN
                      WRITE (*, *) "WARNING SNOW ON! Not recommended at the moment"
-                     snow_warning_shown = .TRUE.
+                     flagState%snow_warning_shown = .TRUE.
                   END IF
                   ! ===================Calculate snow related hydrology=======================
                   ! #234 the snow parts needs more work to be done
@@ -563,6 +575,10 @@ CONTAINS
             outputLine%dataoutLineRSL = [datetimeLine, dataOutLineRSL]
             outputLine%dataOutLineESTM = [datetimeLine, dataOutLineESTM]
             outputLine%dataOutLineSTEBBS = [datetimeLine, dataOutLineSTEBBS]
+
+            ! Sync module-level error state to modState for thread-safe access
+            ! This enables Python to read errors from modState%errorState
+            CALL sync_error_to_state(modState)
 
          END ASSOCIATE
       END ASSOCIATE
@@ -1007,193 +1023,186 @@ CONTAINS
    END SUBROUTINE SUEWS_cal_AnthropogenicEmission
 ! ================================================================================
 
-! ! SG 05/25: Need finishing/fixing - dummy variables causing compiler warnings
-! !==============BIOGENIC CO2 flux==================================================
-!    SUBROUTINE SUEWS_cal_BiogenCO2( &
-!       timer, config, forcing, siteInfo, & ! input
-!       modState) ! input/output:
-!
-!       USE module_ctrl_type, ONLY: LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
-!                                SUEWS_CONFIG, CONDUCTANCE_PRM, SUEWS_FORCING, &
-!                                SUEWS_TIMER, PHENOLOGY_STATE, SNOW_STATE, atm_state, &
-!                                SUEWS_STATE
-!
-!       IMPLICIT NONE
-!
-!       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-!       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
-!       TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
-!       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
-!
-!       TYPE(SUEWS_STATE), INTENT(INout) :: modState
-!
-!       REAL(KIND(1D0)) :: gfunc2 !gdq*gtemp*gs*gq for photosynthesis calculations (With modelled 2 meter temperature)
-!       REAL(KIND(1D0)) :: dq !Specific humidity deficit [g/kg]
-!       REAL(KIND(1D0)) :: t2 !air temperature at 2m [degC]
-!       REAL(KIND(1D0)) :: dummy1 !Latent heat of vaporization in [J kg-1]
-!       REAL(KIND(1D0)) :: dummy2 !Latent heat of sublimation in J/kg
-!       REAL(KIND(1D0)) :: dummy3 !Saturation vapour pressure over water[hPa]
-!       REAL(KIND(1D0)) :: dummy4 !Vapour pressure of water[hpa]
-!       REAL(KIND(1D0)) :: dummy5 !vapour pressure deficit[hpa]
-!       REAL(KIND(1D0)) :: dummy6 !vapour pressure deficit[pa]
-!       REAL(KIND(1D0)) :: dummy7 !Vap density or absolute humidity [kg m-3]
-!       REAL(KIND(1D0)) :: dummy8 !specific heat capacity [J kg-1 K-1]
-!       REAL(KIND(1D0)) :: dummy9 !Air density [kg m-3]
-!       REAL(KIND(1D0)) :: dummy10 !Surface Layer Conductance [mm s-1]
-!       REAL(KIND(1D0)) :: dummy11 !Surface resistance [s m-1]
-!
-!       ASSOCIATE ( &
-!          atmState => modState%atmState, &
-!          phenState => modState%phenState, &
-!          snowState => modState%snowState, &
-!          hydroState => modState%hydroState, &
-!          anthroEmisState => modState%anthroEmisState &
-!          )
-!
-!          ASSOCIATE ( &
-!             pavedPrm => siteInfo%lc_paved, &
-!             bldgPrm => siteInfo%lc_bldg, &
-!             evetrPrm => siteInfo%lc_evetr, &
-!             dectrPrm => siteInfo%lc_dectr, &
-!             grassPrm => siteInfo%lc_grass, &
-!             bsoilPrm => siteInfo%lc_bsoil, &
-!             waterPrm => siteInfo%lc_water, &
-!             ehcPrm => siteInfo%ehc, &
-!             nlayer => siteInfo%nlayer, &
-!             sfr_surf => siteInfo%sfr_surf, &
-!             sfr_roof => siteInfo%sfr_roof, &
-!             sfr_wall => siteInfo%sfr_wall, &
-!             SurfaceArea => siteInfo%SurfaceArea, &
-!             snowPrm => siteInfo%snow, &
-!             PipeCapacity => siteInfo%PipeCapacity, &
-!             RunoffToWater => siteInfo%RunoffToWater, &
-!             FlowChange => siteInfo%FlowChange, &
-!             PervFraction => siteInfo%PervFraction, &
-!             vegfraction => siteInfo%vegfraction, &
-!             NonWaterFraction => siteInfo%NonWaterFraction, &
-!             zMeas => siteInfo%z, &
-!             conductancePrm => siteInfo%conductance, &
-!             tstep_real => timer%tstep_real, &
-!             avkdn => forcing%kdown, &
-!             xsmd => forcing%xsmd, &
-!             Temp_C => forcing%Temp_C, &
-!             avU1 => forcing%U, &
-!             avRH => forcing%RH, &
-!             Press_hPa => forcing%pres, &
-!             RA_h => atmState%RA_h, &
-!             avdens => atmState%avdens, &
-!             avcp => atmState%avcp, &
-!             lv_J_kg => atmState%lv_J_kg, &
-!             L_MOD => atmState%L_MOD, &
-!             t2_C => atmState%t2_C, &
-!             LAI_id => phenState%LAI_id, &
-!             gfunc => phenState%gfunc, &
-!             vsmd => hydroState%vsmd, &
-!             id => timer%id, &
-!             it => timer%it, &
-!             dectime => timer%dectime, &
-!             Fc_anthro => anthroEmisState%Fc_anthro, &
-!             Fc => anthroEmisState%Fc, &
-!             Fc_biogen => anthroEmisState%Fc_biogen, &
-!             Fc_photo => anthroEmisState%Fc_photo, &
-!             Fc_respi => anthroEmisState%Fc_respi, &
-!             SnowFrac => snowState%SnowFrac, &
-!             SMDMethod => config%SMDMethod, &
-!             storageheatmethod => config%StorageHeatMethod, &
-!             RSLMethod => config%RSLMethod, &
-!             StabilityMethod => config%StabilityMethod, &
-!             EmissionsMethod => config%EmissionsMethod, &
-!             Diagnose => config%Diagnose &
-!             )
-!
-!             ASSOCIATE ( &
-!                alpha_bioCO2 => [evetrPrm%bioco2%alpha_bioco2, &
-!                                 dectrPrm%bioco2%alpha_bioco2, &
-!                                 grassPrm%bioco2%alpha_bioco2], &
-!                alpha_enh_bioCO2 => [evetrPrm%bioco2%alpha_enh_bioco2, &
-!                                     dectrPrm%bioco2%alpha_enh_bioco2, &
-!                                     grassPrm%bioco2%alpha_enh_bioco2], &
-!                beta_bioCO2 => [evetrPrm%bioco2%beta_bioCO2, &
-!                                dectrPrm%bioco2%beta_bioCO2, &
-!                                grassPrm%bioco2%beta_bioCO2], &
-!                beta_enh_bioCO2 => [evetrPrm%bioco2%beta_enh_bioco2, &
-!                                    dectrPrm%bioco2%beta_enh_bioco2, &
-!                                    grassPrm%bioco2%beta_enh_bioco2], &
-!                LAIMin => [evetrPrm%lai%laimin, dectrPrm%lai%laimin, grassPrm%lai%laimin], &
-!                LAIMax => [evetrPrm%lai%laimax, dectrPrm%lai%laimax, grassPrm%lai%laimax], &
-!                min_res_bioCO2 => [evetrPrm%bioco2%min_res_bioCO2, &
-!                                   dectrPrm%bioco2%min_res_bioCO2, &
-!                                   grassPrm%bioco2%min_res_bioCO2], &
-!                resp_a => [evetrPrm%bioco2%resp_a, dectrPrm%bioco2%resp_a, grassPrm%bioco2%resp_a], &
-!                resp_b => [evetrPrm%bioco2%resp_b, dectrPrm%bioco2%resp_b, grassPrm%bioco2%resp_b], &
-!                theta_bioCO2 => [evetrPrm%bioco2%theta_bioCO2, &
-!                                 dectrPrm%bioco2%theta_bioCO2, &
-!                                 grassPrm%bioco2%theta_bioco2], &
-!                MaxConductance => [evetrPrm%MaxConductance, dectrPrm%MaxConductance, grassPrm%MaxConductance], &
-!                G_max => conductancePrm%g_max, &
-!                G_k => conductancePrm%g_k, &
-!                G_q_base => conductancePrm%g_q_base, &
-!                G_q_shape => conductancePrm%g_q_shape, &
-!                G_t => conductancePrm%g_t, &
-!                G_sm => conductancePrm%g_sm, &
-!                gsmodel => conductancePrm%gsmodel, &
-!                Kmax => conductancePrm%Kmax, &
-!                S1 => conductancePrm%S1, &
-!                S2 => conductancePrm%S2, &
-!                TH => conductancePrm%TH, &
-!                TL => conductancePrm%TL &
-!                )
-!
-!                IF (EmissionsMethod >= 11) THEN
-!
-!                   IF (gsmodel == 3 .OR. gsmodel == 4) THEN ! With modelled 2 meter temperature
-!                      ! Call LUMPS_cal_AtmMoist for dq and SurfaceResistance for gfunc with 2 meter temperature
-!                      ! If modelled 2 meter temperature is too different from measured air temperature then
-!                      ! use temp_c
-!                      IF (ABS(Temp_C - t2_C) > 5) THEN
-!                         t2 = Temp_C
-!                      ELSE
-!                         t2 = t2_C
-!                      END IF
-!
-!                      CALL cal_AtmMoist( &
-!                         t2, Press_hPa, avRh, dectime, & ! input:
-!                         dummy1, dummy2, & ! output:
-!                         dummy3, dummy4, dummy5, dummy6, dq, dummy7, dummy8, dummy9)
-!                      !MP: TODO FIX CO2!!! Equations for dummy10 all different assigned to one variable
-!                      CALL SurfaceResistance( &
-!                         id, it, & ! input:
-!                         SMDMethod, SnowFrac, sfr_surf, avkdn, t2, dq, xsmd, vsmd, MaxConductance, &
-!                         LAIMax, LAI_id, gsModel, Kmax, &
-!                         G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, &
-!                         dummy10, dummy10, dummy10, dummy10, dummy10, & ! output:
-!                         gfunc2, dummy10, dummy11) ! output:
-!                   END IF
-!
-! !                   ! Calculate CO2 fluxes from biogenic components
-!                   IF (Diagnose == 1) WRITE (*, *) 'Calling CO2_biogen...'
-!                   CALL CO2_biogen( &
-!                      alpha_bioCO2, alpha_enh_bioCO2, avkdn, beta_bioCO2, beta_enh_bioCO2, BSoilSurf, & ! input:
-!                      ConifSurf, DecidSurf, dectime, EmissionsMethod, gfunc, gfunc2, GrassSurf, gsmodel, &
-!                      id, it, ivConif, ivDecid, ivGrass, LAI_id, LAIMin, LAIMax, min_res_bioCO2, nsurf, &
-!                      NVegSurf, resp_a, resp_b, sfr_surf, SnowFrac, t2, Temp_C, theta_bioCO2, &
-!                      Fc_biogen, Fc_photo, Fc_respi) ! output:
-!                END IF
-!
-!                IF (EmissionsMethod >= 0 .AND. EmissionsMethod <= 6) THEN
-!                   Fc_biogen = 0
-!                   Fc_photo = 0
-!                   Fc_respi = 0
-!                END IF
-!
-!                Fc = Fc_anthro + Fc_biogen
-!
-!             END ASSOCIATE
-!          END ASSOCIATE
-!       END ASSOCIATE
-!
-!    END SUBROUTINE SUEWS_cal_BiogenCO2
-! !========================================================================
+!==============BIOGENIC CO2 flux==================================================
+   SUBROUTINE SUEWS_cal_BiogenCO2( &
+      timer, config, forcing, siteInfo, & ! input
+      modState) ! input/output:
+
+      USE module_ctrl_type, ONLY: SUEWS_SITE, LC_EVETR_PRM, LC_DECTR_PRM, LC_GRASS_PRM, &
+                               SUEWS_CONFIG, CONDUCTANCE_PRM, SUEWS_FORCING, &
+                               SUEWS_TIMER, PHENOLOGY_STATE, SNOW_STATE, atm_state, &
+                               anthroEmis_STATE, HYDRO_STATE, SUEWS_STATE
+      USE module_ctrl_const_allocate, ONLY: nsurf, NVegSurf, &
+                               ivConif, ivDecid, ivGrass, &
+                               ConifSurf, DecidSurf, GrassSurf, BSoilSurf
+      USE CO2_module, ONLY: CO2_biogen
+      USE resist_module, ONLY: SurfaceResistance
+      USE AtmMoistStab_module, ONLY: cal_AtmMoist
+
+      IMPLICIT NONE
+
+      TYPE(SUEWS_CONFIG), INTENT(IN) :: config
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
+      TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
+
+      TYPE(SUEWS_STATE), INTENT(INout) :: modState
+
+      REAL(KIND(1D0)) :: gfunc2 !gdq*gtemp*gs*gq for photosynthesis calculations (With modelled 2 meter temperature)
+      REAL(KIND(1D0)) :: dq !Specific humidity deficit [g/kg]
+      REAL(KIND(1D0)) :: t2 !air temperature at 2m [degC]
+      REAL(KIND(1D0)) :: dummy1 !Latent heat of vaporization in [J kg-1]
+      REAL(KIND(1D0)) :: dummy2 !Latent heat of sublimation in J/kg
+      REAL(KIND(1D0)) :: dummy3 !Saturation vapour pressure over water[hPa]
+      REAL(KIND(1D0)) :: dummy4 !Vapour pressure of water[hpa]
+      REAL(KIND(1D0)) :: dummy5 !vapour pressure deficit[hpa]
+      REAL(KIND(1D0)) :: dummy6 !vapour pressure deficit[pa]
+      REAL(KIND(1D0)) :: dummy7 !Vap density or absolute humidity [kg m-3]
+      REAL(KIND(1D0)) :: dummy8 !specific heat capacity [J kg-1 K-1]
+      REAL(KIND(1D0)) :: dummy9 !Air density [kg m-3]
+      ! Unused outputs from SurfaceResistance (distinct variables to avoid compiler warnings)
+      REAL(KIND(1D0)) :: unused_gs      ! Surface conductance [mm s-1]
+      REAL(KIND(1D0)) :: unused_gc1     ! Conductance component 1 [mm s-1]
+      REAL(KIND(1D0)) :: unused_gc2     ! Conductance component 2 [mm s-1]
+      REAL(KIND(1D0)) :: unused_gc3     ! Conductance component 3 [mm s-1]
+      REAL(KIND(1D0)) :: unused_gc4     ! Conductance component 4 [mm s-1]
+      REAL(KIND(1D0)) :: unused_gc5     ! Conductance component 5 [mm s-1]
+      REAL(KIND(1D0)) :: unused_rs      ! Surface resistance [s m-1]
+
+      ASSOCIATE ( &
+         atmState => modState%atmState, &
+         phenState => modState%phenState, &
+         snowState => modState%snowState, &
+         hydroState => modState%hydroState, &
+         anthroEmisState => modState%anthroEmisState &
+         )
+
+         ASSOCIATE ( &
+            pavedPrm => siteInfo%lc_paved, &
+            bldgPrm => siteInfo%lc_bldg, &
+            evetrPrm => siteInfo%lc_evetr, &
+            dectrPrm => siteInfo%lc_dectr, &
+            grassPrm => siteInfo%lc_grass, &
+            bsoilPrm => siteInfo%lc_bsoil, &
+            waterPrm => siteInfo%lc_water, &
+            sfr_surf => siteInfo%sfr_surf, &
+            conductancePrm => siteInfo%conductance, &
+            avkdn => forcing%kdown, &
+            xsmd => forcing%xsmd, &
+            Temp_C => forcing%Temp_C, &
+            avRH => forcing%RH, &
+            Press_hPa => forcing%pres, &
+            t2_C => atmState%t2_C, &
+            LAI_id => phenState%LAI_id, &
+            gfunc => phenState%gfunc, &
+            vsmd => hydroState%vsmd, &
+            id => timer%id, &
+            it => timer%it, &
+            dectime => timer%dectime, &
+            Fc_anthro => anthroEmisState%Fc_anthro, &
+            Fc => anthroEmisState%Fc, &
+            Fc_biogen => anthroEmisState%Fc_biogen, &
+            Fc_photo => anthroEmisState%Fc_photo, &
+            Fc_respi => anthroEmisState%Fc_respi, &
+            SnowFrac => snowState%SnowFrac, &
+            SMDMethod => config%SMDMethod, &
+            EmissionsMethod => config%EmissionsMethod, &
+            Diagnose => config%Diagnose &
+            )
+
+            ASSOCIATE ( &
+               alpha_bioCO2 => [evetrPrm%bioco2%alpha_bioco2, &
+                                dectrPrm%bioco2%alpha_bioco2, &
+                                grassPrm%bioco2%alpha_bioco2], &
+               alpha_enh_bioCO2 => [evetrPrm%bioco2%alpha_enh_bioco2, &
+                                    dectrPrm%bioco2%alpha_enh_bioco2, &
+                                    grassPrm%bioco2%alpha_enh_bioco2], &
+               beta_bioCO2 => [evetrPrm%bioco2%beta_bioCO2, &
+                               dectrPrm%bioco2%beta_bioCO2, &
+                               grassPrm%bioco2%beta_bioCO2], &
+               beta_enh_bioCO2 => [evetrPrm%bioco2%beta_enh_bioco2, &
+                                   dectrPrm%bioco2%beta_enh_bioco2, &
+                                   grassPrm%bioco2%beta_enh_bioco2], &
+               LAIMin => [evetrPrm%lai%laimin, dectrPrm%lai%laimin, grassPrm%lai%laimin], &
+               LAIMax => [evetrPrm%lai%laimax, dectrPrm%lai%laimax, grassPrm%lai%laimax], &
+               min_res_bioCO2 => [evetrPrm%bioco2%min_res_bioCO2, &
+                                  dectrPrm%bioco2%min_res_bioCO2, &
+                                  grassPrm%bioco2%min_res_bioCO2], &
+               resp_a => [evetrPrm%bioco2%resp_a, dectrPrm%bioco2%resp_a, grassPrm%bioco2%resp_a], &
+               resp_b => [evetrPrm%bioco2%resp_b, dectrPrm%bioco2%resp_b, grassPrm%bioco2%resp_b], &
+               theta_bioCO2 => [evetrPrm%bioco2%theta_bioCO2, &
+                                dectrPrm%bioco2%theta_bioCO2, &
+                                grassPrm%bioco2%theta_bioco2], &
+               MaxConductance => [evetrPrm%MaxConductance, dectrPrm%MaxConductance, grassPrm%MaxConductance], &
+               G_max => conductancePrm%g_max, &
+               G_k => conductancePrm%g_k, &
+               G_q_base => conductancePrm%g_q_base, &
+               G_q_shape => conductancePrm%g_q_shape, &
+               G_t => conductancePrm%g_t, &
+               G_sm => conductancePrm%g_sm, &
+               gsmodel => conductancePrm%gsmodel, &
+               Kmax => conductancePrm%Kmax, &
+               S1 => conductancePrm%S1, &
+               S2 => conductancePrm%S2, &
+               TH => conductancePrm%TH, &
+               TL => conductancePrm%TL &
+               )
+
+               IF (EmissionsMethod >= 11) THEN
+                  ! Initialize gfunc2 to same as gfunc
+                  gfunc2 = gfunc
+
+                  IF (gsmodel == 3 .OR. gsmodel == 4) THEN ! With modelled 2 meter temperature
+                     ! Call LUMPS_cal_AtmMoist for dq and SurfaceResistance for gfunc with 2 meter temperature
+                     ! If modelled 2 meter temperature is too different from measured air temperature then
+                     ! use temp_c
+                     IF (ABS(Temp_C - t2_C) > 5) THEN
+                        t2 = Temp_C
+                     ELSE
+                        t2 = t2_C
+                     END IF
+
+                     CALL cal_AtmMoist( &
+                        t2, Press_hPa, avRh, dectime, & ! input:
+                        dummy1, dummy2, & ! output:
+                        dummy3, dummy4, dummy5, dummy6, dq, dummy7, dummy8, dummy9)
+                     ! Surface resistance calculation for gfunc2
+                     CALL SurfaceResistance( &
+                        id, it, & ! input:
+                        SMDMethod, SnowFrac, sfr_surf, avkdn, t2, dq, xsmd, vsmd, MaxConductance, &
+                        LAIMax, LAI_id, gsModel, Kmax, &
+                        G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, &
+                        unused_gc1, unused_gc2, unused_gc3, unused_gc4, unused_gc5, & ! output: (unused conductances)
+                        gfunc2, unused_gs, unused_rs) ! output:
+                  ELSE
+                     ! Use measured temperature
+                     t2 = Temp_C
+                  END IF
+
+                  ! Calculate CO2 fluxes from biogenic components
+                  IF (Diagnose == 1) WRITE (*, *) 'Calling CO2_biogen...'
+                  CALL CO2_biogen( &
+                     alpha_bioCO2, alpha_enh_bioCO2, avkdn, beta_bioCO2, beta_enh_bioCO2, BSoilSurf, & ! input:
+                     ConifSurf, DecidSurf, dectime, EmissionsMethod, gfunc, gfunc2, GrassSurf, gsmodel, &
+                     id, it, ivConif, ivDecid, ivGrass, LAI_id, LAIMin, LAIMax, min_res_bioCO2, nsurf, &
+                     NVegSurf, resp_a, resp_b, sfr_surf, SnowFrac, t2, Temp_C, theta_bioCO2, &
+                     Fc_biogen, Fc_photo, Fc_respi) ! output:
+               ELSE
+                  ! EmissionsMethod 0-10: No biogenic CO2 calculations
+                  Fc_biogen = 0
+                  Fc_photo = 0
+                  Fc_respi = 0
+               END IF
+
+               ! Calculate total CO2 flux
+               Fc = Fc_anthro + Fc_biogen
+
+            END ASSOCIATE
+         END ASSOCIATE
+      END ASSOCIATE
+
+   END SUBROUTINE SUEWS_cal_BiogenCO2
+!========================================================================
 
 !=============net all-wave radiation=====================================
 
@@ -3044,7 +3053,6 @@ CONTAINS
 
       INTEGER, PARAMETER :: AerodynamicResistanceMethod = 2 !method to calculate RA [-]
 
-      REAL(KIND(1D0)) :: gfunc !gdq*gtemp*gs*gq for photosynthesis calculations
       REAL(KIND(1D0)) :: Tair ! air temperature [degC]
 
       ASSOCIATE ( &
@@ -3099,6 +3107,7 @@ CONTAINS
             g_smd => phenState%g_smd, &
             g_lai => phenState%g_lai, &
             gsc => phenState%gsc, &
+            gfunc => phenState%gfunc, &
             LAI_id => phenState%LAI_id, &
             RASnow => snowState%RASnow, &
             z0vSnow => snowState%z0vSnow, &
@@ -3772,7 +3781,7 @@ CONTAINS
       HotWaterTankInternalMassViewFactor, HotWaterTankWallConductivity, HotWaterTankInternalWallConvectionCoefficient, &
       HotWaterTankExternalWallConvectionCoefficient, DHWVesselWallConductivity, DHWVesselInternalWallConvectionCoefficient, &
       DHWVesselExternalWallConvectionCoefficient, DHWVesselWallEmissivity, HotWaterHeatingEfficiency, &
-      MinimumVolumeOfDHWinUse, &
+      MinimumVolumeOfDHWinUse, MaximumVolumeOfDHWinUse, &
       height, building_frac, veg_frac, building_scale, veg_scale, & !input: SPARTACUS
       alb_roof, emis_roof, alb_wall, emis_wall, &
       roof_albedo_dir_mult_fact, wall_specular_frac, &
@@ -4209,6 +4218,7 @@ CONTAINS
       REAL(KIND(1D0)) :: DHWVesselWallEmissivity
       REAL(KIND(1D0)) :: HotWaterHeatingEfficiency
       REAL(KIND(1D0)) :: MinimumVolumeOfDHWinUse
+      REAL(KIND(1D0)) :: MaximumVolumeOfDHWinUse
       !REAL(KIND(1D0)), DIMENSION(nlayer) :: Textroof_C !roof surface temperature from STEBBS[degC]
       !REAL(KIND(1D0)), DIMENSION(nlayer) :: Textwall_C !wall surface temperature from STEBBS[degC]
 
@@ -4370,9 +4380,13 @@ CONTAINS
       dataOutBlockSTEBBS_X = 0.0D0
       dataOutBlockNHood_X = 0.0D0
 
-      IF (flag_test .AND. PRESENT(block_mod_state)) THEN
-
-         CALL block_mod_state%init(nlayer, ndepth, len_sim)
+      ! Initialize block_mod_state if present but not yet allocated
+      ! Note: Python initializes block_mod_state before calling to ensure
+      ! f90wrap can properly access the allocated arrays after the call
+      IF (PRESENT(block_mod_state)) THEN
+         IF (.NOT. ALLOCATED(block_mod_state%BLOCK)) THEN
+            CALL block_mod_state%init(nlayer, ndepth, len_sim)
+         END IF
       END IF
 
       ! ############# evaluation for DTS variables (start) #############
@@ -5070,6 +5084,7 @@ CONTAINS
       stebbsPrm%DHWVesselWallEmissivity = DHWVesselWallEmissivity
       stebbsPrm%HotWaterHeatingEfficiency = HotWaterHeatingEfficiency
       stebbsPrm%MinimumVolumeOfDHWinUse = MinimumVolumeOfDHWinUse
+      stebbsPrm%MaximumVolumeOfDHWinUse = MaximumVolumeOfDHWinUse
 
       ! states - updated during the simulation
       ! TODO: STEBBS States act as parameters for building generation (move all but allocation?)
@@ -5261,7 +5276,9 @@ CONTAINS
          dataOutBlockDailyState(ir, :) = [output_line_suews%dataOutLineDailyState]
 
          !============ update state_block ===============
-         IF (config%flag_test .AND. PRESENT(state_debug)) THEN
+         ! Always copy state when block_mod_state is present (not just debug mode)
+         ! This enables state-based error handling for thread safety
+         IF (PRESENT(block_mod_state)) THEN
             block_mod_state%BLOCK(ir) = mod_State
          END IF
 
@@ -5567,5 +5584,26 @@ END FUNCTION cal_tsfc_dyohm
       DEALLOCATE (tsfc_surf_tmp)
 
    END SUBROUTINE restore_state
+
+   !==============================================================================
+   ! Synchronise module-level error state to modState%errorState
+   ! This enables thread-safe error handling by copying the global error state
+   ! (set by ErrorHint and set_supy_error) to the per-grid-cell state.
+   ! Future: direct use of modState%errorState will eliminate need for sync.
+   !==============================================================================
+   SUBROUTINE sync_error_to_state(modState)
+      USE module_ctrl_type, ONLY: SUEWS_STATE
+
+      IMPLICIT NONE
+      TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
+
+      ! Copy module-level error state to modState%errorState
+      IF (supy_error_flag) THEN
+         CALL modState%errorState%set(supy_error_code, TRIM(supy_error_message))
+      ELSE
+         CALL modState%errorState%reset()
+      END IF
+
+   END SUBROUTINE sync_error_to_state
 
 END MODULE SUEWS_Driver

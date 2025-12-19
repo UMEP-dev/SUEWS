@@ -21,7 +21,8 @@ text format (default), SUEWS produces two types of output files:
    - **State persistence**: Legacy ``InitialConditionsSSss_YYYY.nml`` files replaced
      by modern ``df_state_SSss.csv``
    - **Error/warning messages**: Legacy ``problems.txt`` and ``warnings.txt`` files
-     superseded by Python runtime logger
+     are no longer written; diagnostics are emitted to stdout/stderr and handled by
+     the Python runtime logger (SuPy).
 
    See :ref:`Legacy Features <legacy-output-control>` for migration details.
 

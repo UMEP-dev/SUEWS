@@ -5,7 +5,7 @@ directly from Pydantic configuration models, eliminating the intermediate
 DataFrame conversion layer.
 """
 
-from typing import Any, Union
+from typing import Any, Union, Optional
 from enum import Enum
 
 import numpy as np
@@ -43,6 +43,7 @@ def populate_timer_from_datetime(
     dt_since_start: int = 0,
     startdls: int = 0,
     enddls: int = 0,
+    lat: Optional[float] = None,
 ) -> None:
     """Populate SUEWS_TIMER from a pandas Timestamp.
 
@@ -66,7 +67,7 @@ def populate_timer_from_datetime(
     Temporal conventions match Fortran SUEWS expectations:
     - ``id`` (day of year): 1-indexed, Jan 1 = 1
     - ``dectime``: Decimal day of year, e.g., noon on Jan 1 = 1.5
-    - ``dayofweek_id``: 1=Monday, 7=Sunday (ISO 8601)
+    - ``dayofweek_id``: 1=Sunday, 7=Saturday (SUEWS/Fortran convention)
     """
     timer.iy = dt.year
     timer.id = dt.dayofyear  # 1-indexed: Jan 1 = 1
@@ -94,17 +95,14 @@ def populate_timer_from_datetime(
     if fortran_weekday == 0:
         fortran_weekday = 7  # Fortran uses 1-7, not 0
 
-    # Determine season based on hemisphere (assume Northern for now if lat > 0)
-    # Season: 1=winter, 2=spring, 3=summer, 4=autumn (Northern hemisphere)
+    # Determine season based on hemisphere (match Fortran day2month)
+    # Season: 1=summer, 2=winter (hemisphere-aware)
     month = dt.month
-    if month in [12, 1, 2]:
-        season = 1  # winter
-    elif month in [3, 4, 5]:
-        season = 2  # spring
-    elif month in [6, 7, 8]:
-        season = 3  # summer
-    else:  # 9, 10, 11
-        season = 4  # autumn
+    lat_val = lat if lat is not None else 1.0
+    if lat_val > 0:
+        season = 1 if month in [4, 5, 6, 7, 8, 9] else 2
+    else:
+        season = 1 if month in [10, 11, 12, 1, 2, 3] else 2
 
     timer.dayofweek_id = np.array([fortran_weekday, month, season], dtype=np.int32)
 
@@ -581,7 +579,12 @@ def populate_site_from_pydantic(
     _populate_landcover_water(site_dts.lc_water, lc.water)
 
     # Populate critical nested parameter objects
-    _populate_conductance(site_dts.conductance, props.conductance)
+    gsmodel = (
+        _unwrap(model.physics.gsmodel)
+        if hasattr(model, "physics") and hasattr(model.physics, "gsmodel")
+        else None
+    )
+    _populate_conductance(site_dts.conductance, props.conductance, gsmodel=gsmodel)
     _populate_lumps(site_dts.lumps, props.lumps)
     _populate_snow(site_dts.snow, props.snow, lc)
 
@@ -810,7 +813,7 @@ def _populate_landcover_water(lc_dts, lc_pydantic) -> None:
     _populate_landcover_common(lc_dts, lc_pydantic, is_water=True)
 
 
-def _populate_conductance(cond_dts, cond_pydantic) -> None:
+def _populate_conductance(cond_dts, cond_pydantic, gsmodel: Optional[int] = None) -> None:
     """Populate CONDUCTANCE_PRM from Pydantic."""
     cond_dts.g_max = _unwrap(cond_pydantic.g_max)
     cond_dts.g_k = _unwrap(cond_pydantic.g_k)
@@ -823,8 +826,13 @@ def _populate_conductance(cond_dts, cond_pydantic) -> None:
     cond_dts.s2 = _unwrap(cond_pydantic.s2)
     cond_dts.th = _unwrap(cond_pydantic.th)
     cond_dts.tl = _unwrap(cond_pydantic.tl)
-    # gsmodel comes from config, not site - set default
-    cond_dts.gsmodel = 2  # Jarvis 1976 model
+    # gsmodel comes from config; fall back to site or default
+    if gsmodel is not None:
+        cond_dts.gsmodel = int(gsmodel)
+    elif hasattr(cond_pydantic, "gsmodel"):
+        cond_dts.gsmodel = _unwrap(cond_pydantic.gsmodel)
+    else:
+        cond_dts.gsmodel = 2  # Default to Ward et al. 2016
 
 
 def _populate_lumps(lumps_dts, lumps_pydantic) -> None:

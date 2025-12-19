@@ -151,3 +151,27 @@ The warning location should point to the `user_code()` function in the demo scri
 - Extracts `_warn_functional_deprecation` directly from `src/supy/_supy_module.py` using AST parsing
 - Avoids importing compiled extensions that may be unavailable on some machines
 - Enables `DeprecationWarning` visibility (normally hidden by default)
+
+## DTS vs Traditional Benchmark
+
+**Script**: `benchmark_dts_vs_traditional.py`
+
+Compares performance between:
+- **user-feels**: end-to-end wall time (config setup + run + output DataFrame)
+- **kernel-only**: Fortran kernel time only (no DataFrame packing/unpacking)
+
+### Usage
+
+```bash
+# Default: both modes, 48/288/1000 timesteps, 5 repeats
+python3 scripts/benchmark_dts_vs_traditional.py
+
+# Custom timesteps and repeats
+python3 scripts/benchmark_dts_vs_traditional.py --timesteps 48 288 1000 5000 --repeats 3
+
+# Only kernel-only benchmarks
+python3 scripts/benchmark_dts_vs_traditional.py --mode kernel-only
+
+# Skip parity check
+python3 scripts/benchmark_dts_vs_traditional.py --skip-parity
+```

@@ -5,13 +5,14 @@ using direct DTS (Derived Type Structure) objects, bypassing the
 intermediate df_state conversion layer.
 """
 
-from typing import Tuple, Optional
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
 
 from ..supy_driver import module_ctrl_type as dts
 from ..supy_driver import suews_driver as drv
+from ..supy_driver import module_ctrl_const_allocate as alloc
 
 from ._core import (
     create_suews_config,
@@ -19,7 +20,6 @@ from ._core import (
     create_suews_site,
     create_suews_forcing,
     create_suews_timer,
-    create_output_line,
 )
 from ._populate import (
     populate_config_from_pydantic,
@@ -28,11 +28,71 @@ from ._populate import (
     populate_storedrainprm,
     populate_forcing_from_row,
     populate_timer_from_datetime,
+    populate_roughnessstate,
+    populate_atmstate,
+    populate_ohmstate_defaults,
 )
 from ._extract import (
-    extract_output_line_to_dict,
-    build_output_dataframe,
+    build_output_dataframe_from_block,
 )
+
+
+def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
+    """Prepare forcing block array for batch DTS execution.
+
+    The forcing block has 21 columns matching the Fortran MetForcingBlock format:
+    [iy, id, it, imin, qn1_obs, qh_obs, qe, qs_obs, qf_obs, avu1, avrh,
+     temp_c, press_hpa, precip, kdown, snowfrac_obs, ldown_obs, fcld_obs,
+     wu_m3, xsmd, lai_obs]
+
+    Parameters
+    ----------
+    df_forcing : pd.DataFrame
+        Forcing DataFrame with datetime index.
+
+    Returns
+    -------
+    np.ndarray
+        Fortran-ordered array of shape (len_sim, 21).
+    """
+    len_sim = len(df_forcing)
+    block = np.zeros((len_sim, 21), dtype=np.float64, order="F")
+
+    # Time columns from index
+    block[:, 0] = df_forcing.index.year  # iy
+    block[:, 1] = df_forcing.index.dayofyear  # id
+    block[:, 2] = df_forcing.index.hour  # it
+    block[:, 3] = df_forcing.index.minute  # imin
+
+    # Map forcing columns to block positions
+    # Column mapping: (block_index, df_column, default)
+    col_map = [
+        (4, "qn", 0.0),  # qn1_obs
+        (5, "qh", 0.0),  # qh_obs (reserved)
+        (6, "qe", 0.0),  # qe (reserved)
+        (7, "qs", 0.0),  # qs_obs
+        (8, "qf", 0.0),  # qf_obs
+        (9, "U", 0.0),  # avu1
+        (10, "RH", 0.0),  # avrh
+        (11, "Tair", 0.0),  # temp_c
+        (12, "pres", 0.0),  # press_hpa
+        (13, "rain", 0.0),  # precip
+        (14, "kdown", 0.0),  # kdown
+        (15, "snow", 0.0),  # snowfrac_obs
+        (16, "ldown", 0.0),  # ldown_obs
+        (17, "fcld", 0.0),  # fcld_obs
+        (18, "Wuh", 0.0),  # wu_m3
+        (19, "xsmd", 0.0),  # xsmd
+        (20, "lai", 0.0),  # lai_obs
+    ]
+
+    for idx, col, default in col_map:
+        if col in df_forcing.columns:
+            block[:, idx] = df_forcing[col].values
+        else:
+            block[:, idx] = default
+
+    return block
 
 
 def run_dts(
@@ -46,6 +106,7 @@ def run_dts(
 
     This function provides a direct path from Pydantic configuration to
     Fortran kernel execution, eliminating the intermediate df_state layer.
+    Uses batch execution via suews_cal_multitsteps_dts for efficiency.
 
     Parameters
     ----------
@@ -73,8 +134,9 @@ def run_dts(
     1. Create DTS objects (config, site, state, forcing, timer)
     2. Populate from Pydantic configuration
     3. Calculate derived site parameters
-    4. Loop over forcing timesteps calling suews_cal_main
-    5. Extract and build output DataFrame
+    4. Prepare forcing block and output array
+    5. Call batch suews_cal_multitsteps_dts
+    6. Build output DataFrame from result block
     """
     # Get components from config
     model = config.model
@@ -89,7 +151,7 @@ def run_dts(
 
     # Create DTS objects
     config_dts = create_suews_config()
-    site_dts = create_suews_site(nlayer=nlayer)
+    site_dts = create_suews_site(nlayer=nlayer, ndepth=ndepth)
     state_dts = create_suews_state(nlayer=nlayer, ndepth=ndepth)
     forcing_dts = create_suews_forcing()
     timer_dts = create_suews_timer()
@@ -101,45 +163,55 @@ def run_dts(
     populate_state_from_pydantic(state_dts, initial_states, nlayer, ndepth, land_cover=land_cover)
 
     # Populate storedrainprm (needs land cover from site)
-    land_cover = site.properties.land_cover
     populate_storedrainprm(state_dts, land_cover)
 
     # Calculate derived site parameters
     site_dts.cal_surf(config_dts)
 
-    # Prepare output collection
-    list_output_dicts = []
+    # Initialize state components dependent on site/forcing defaults
+    populate_roughnessstate(state_dts, site_dts)
+    populate_ohmstate_defaults(state_dts)
+
+    # Initialize atmospheric state from first forcing timestep
+    first_row = df_forcing.iloc[0]
+    populate_forcing_from_row(forcing_dts, first_row)
+    populate_atmstate(state_dts, forcing_dts)
+
+    # Prepare forcing block for batch execution
+    len_sim = len(df_forcing)
+    metforcingblock = _prepare_forcing_block(df_forcing)
+
+    # Prepare output array
+    ncols_out = int(alloc.ncolumnsdataoutsuews)
+    dataoutblock = np.zeros((len_sim, ncols_out), dtype=np.float64, order="F")
+
+    # Initialize timer with first timestep info
     dt_start = df_forcing.index[0]
+    populate_timer_from_datetime(
+        timer_dts,
+        dt_start,
+        tstep_s,
+        dt_since_start=0,
+        startdls=int(site_dts.anthroemis.startdls),
+        enddls=int(site_dts.anthroemis.enddls),
+        lat=site_dts.lat,
+    )
 
-    # Run simulation loop
-    for i, (dt, row) in enumerate(df_forcing.iterrows()):
-        # Calculate time since start
-        dt_since_start = int((dt - dt_start).total_seconds())
+    # Execute batch simulation
+    drv.suews_cal_multitsteps_dts(
+        timer_dts,
+        metforcingblock,
+        len_sim,
+        config_dts,
+        site_dts,
+        state_dts,
+        dataoutblock,
+    )
 
-        # Populate forcing and timer for this timestep
-        populate_forcing_from_row(forcing_dts, row)
-        populate_timer_from_datetime(timer_dts, dt, tstep_s, dt_since_start)
-
-        # Create fresh output line
-        output_line = create_output_line()
-
-        # Call the SUEWS kernel
-        output_line = drv.suews_cal_main(
-            timer_dts,
-            forcing_dts,
-            config_dts,
-            site_dts,
-            state_dts,
-        )
-
-        # Extract output to dictionary
-        output_dict = extract_output_line_to_dict(output_line)
-        list_output_dicts.append(output_dict)
-
-    # Build output DataFrame
+    # Build output DataFrame from result block
     grid_id = site.properties.id if hasattr(site.properties, "id") else 1
-    df_output = build_output_dataframe(
-        list_output_dicts,
+    df_output = build_output_dataframe_from_block(
+        dataoutblock,
         datetime_index=df_forcing.index,
         grid_id=grid_id,
     )

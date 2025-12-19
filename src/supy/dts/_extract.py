@@ -87,6 +87,47 @@ def build_output_dataframe(
     return df_output
 
 
+def build_output_dataframe_from_block(
+    dataoutblock: np.ndarray,
+    datetime_index: pd.DatetimeIndex,
+    grid_id: int = 1,
+) -> pd.DataFrame:
+    """Build output DataFrame from batch output block array.
+
+    This function is used with suews_cal_multitsteps_dts batch execution.
+
+    Parameters
+    ----------
+    dataoutblock : np.ndarray
+        Output array of shape (len_sim, ncolumnsdataoutsuews) from batch execution.
+        First 5 columns are datetime (skipped), remaining are output variables.
+    datetime_index : pd.DatetimeIndex
+        Datetime index for the output.
+    grid_id : int
+        Grid identifier.
+
+    Returns
+    -------
+    pd.DataFrame
+        Output DataFrame with MultiIndex columns (group, var).
+    """
+    # Skip first 5 datetime columns
+    arr_suews = dataoutblock[:, 5:]
+
+    # Get column index for SUEWS group
+    idx_suews = gen_index("dataoutlinesuews")
+
+    # Create DataFrame
+    df_output = pd.DataFrame(arr_suews, columns=idx_suews, index=datetime_index)
+
+    # Add grid to index
+    df_output.index = pd.MultiIndex.from_product(
+        [[grid_id], datetime_index], names=["grid", "datetime"]
+    )
+
+    return df_output
+
+
 def build_full_output_dataframe(
     list_output_dicts: List[Dict[str, np.ndarray]],
     datetime_index: pd.DatetimeIndex,

@@ -648,43 +648,55 @@ def has_dict(dict_d):
     bool
         True if any value in the dictionary is itself a dictionary.
     """
+    if not isinstance(dict_d, dict):
+        return False
     return any(isinstance(v, dict) for v in dict_d.values())
 
 
 def pack_dict_dts(dict_dts):
     """
-    Convert a nested dictionary of debug information into a pandas DataFrame.
+    Convert a nested dictionary of debug information into a pandas Series.
 
-    This is an intermediate step in the process of converting debug data
-    to a user-friendly DataFrame format.
-
-    Parameters
-    ----------
-    dict_dts : dict
-        Nested dictionary from pack_dict_dts() containing debug information.
-
-    Returns
-    -------
-    pandas.DataFrame
-        DataFrame with a MultiIndex structure preserving the nested hierarchy.
-
-    Notes
-    -----
-    This function handles the recursive flattening of potentially deeply nested
-    dictionaries into a single DataFrame with a MultiIndex.
+    This flattens the nested structure into a single Series with a MultiIndex
+    that preserves the hierarchy and any array indices.
     """
-    dict_df_dts = {}
-    for k, v in dict_dts.items():
-        if has_dict(v):
-            # Recursively process nested dictionaries
-            dict_df_dts[k] = pack_dict_dts(v)
-        else:
-            # Convert leaf nodes to Series
-            dict_df_dts[k] = pd.Series(v)
+    rows = []
 
-    # Concatenate all series/dataframes into a single dataframe
-    df_dts = pd.concat(dict_df_dts, axis=0)
-    return df_dts
+    def _flatten(obj, prefix):
+        if isinstance(obj, dict):
+            if not obj:
+                return
+            for key, value in obj.items():
+                _flatten(value, prefix + (key,))
+            return
+
+        if isinstance(obj, np.ndarray) and obj.ndim > 1:
+            for idx in np.ndindex(obj.shape):
+                rows.append((prefix + idx, obj[idx]))
+            return
+
+        series = pd.Series(obj)
+        if series.empty:
+            return
+        for idx, val in series.items():
+            if isinstance(idx, tuple):
+                rows.append((prefix + idx, val))
+            else:
+                rows.append((prefix + (idx,), val))
+
+    if not isinstance(dict_dts, dict):
+        return pd.Series(dict_dts)
+
+    _flatten(dict_dts, ())
+
+    if not rows:
+        return pd.Series(dtype=float)
+
+    max_len = max(len(item[0]) for item in rows)
+    tuples = [item[0] + (None,) * (max_len - len(item[0])) for item in rows]
+    values = [item[1] for item in rows]
+    index = pd.MultiIndex.from_tuples(tuples)
+    return pd.Series(values, index=index)
 
 
 sample_dts = sd_dts.SUEWS_STATE_BLOCK()
@@ -725,20 +737,23 @@ def pack_dict_dts_datetime_grid(dict_dts_datetime_grid):
     df_dts_raw = pack_dict_dts(dict_dts_datetime_grid)
 
     # Rename index levels for clarity
-    df_dts_raw.index = df_dts_raw.index.rename([
-        "datetime",
-        "grid",
-        "step",
-        "group",
-        "var",
-    ])
+    base_names = ["datetime", "grid", "step", "group", "var"]
+    if df_dts_raw.index.nlevels <= len(base_names):
+        names = base_names[: df_dts_raw.index.nlevels]
+    else:
+        extra = [f"dim_{i}" for i in range(df_dts_raw.index.nlevels - len(base_names))]
+        names = base_names + extra
+    df_dts_raw.index = df_dts_raw.index.rename(names)
 
     # Restructure to have a more user-friendly format
-    df_dts = (
-        df_dts_raw.unstack(level=["group", "var"])
-        .sort_index(level=0, axis=1)
-        .dropna(axis=1, how="all")
-    )
+    if "group" in df_dts_raw.index.names and "var" in df_dts_raw.index.names:
+        df_dts = (
+            df_dts_raw.unstack(level=["group", "var"])
+            .sort_index(level=0, axis=1)
+            .dropna(axis=1, how="all")
+        )
+    else:
+        df_dts = df_dts_raw.to_frame(name="value")
 
     return df_dts
 

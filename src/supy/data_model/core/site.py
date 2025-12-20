@@ -1190,33 +1190,6 @@ class ArchetypeProperties(BaseModel):
     # BuildingCode='1'
     # BuildingClass='SampleClass'
 
-    @model_validator(mode="before")
-    @classmethod
-    def coerce_heating_setpoint(cls, values):
-        # called before model initialization; convert heating setpoint inputs to proper types
-        if isinstance(values, dict) and "heatingsetpointtemperature" in values:
-            val = values["heatingsetpointtemperature"]
-            # If a dict that looks like a profile, try constructing profiles
-            if isinstance(val, dict):
-                # Heuristic: presence of 'hourly' / 'values' / 'days' keys indicates a profile
-                if "hourly" in val or "values" in val or "24" in val or "profile" in val:
-                    try:
-                        values["heatingsetpointtemperature"] = HourlyProfile(**val)
-                    except Exception:
-                        try:
-                            values["heatingsetpointtemperature"] = DayProfile(**val)
-                        except Exception:
-                            # leave as-is: Pydantic will raise
-                            pass
-                elif "value" in val:
-                    # RefValue style dict
-                    # keep as-is; later conversion will wrap into RefValue
-                    pass
-            elif isinstance(val, (int, float)):
-                # Keep scalar numeric as-is; Pydantic will coerce via FlexibleRefValue
-                pass
-        return values
-
     BuildingType: Optional[str] = Field(
         default="SampleType",
         description="Building archetype type [-]",
@@ -1640,124 +1613,104 @@ class ArchetypeProperties(BaseModel):
         json_schema_extra={"unit": "W", "display_name": "Maximum Hot Water Heating Power"},
         gt=0.0,
     )
-    HeatingSetpointTemperature: Union[FlexibleRefValue(float), DayProfile, HourlyProfile] = Field(
-        default=0.0,  # keep a scalar default to preserve backwards compatibility
-        description="Heating setpoint temperature [degC] or a time profile (DayProfile/HourlyProfile)",
+    HeatingSetpointTemperature: Optional[HourlyProfile] = Field(
+        default_factory=HourlyProfile,  
+        description="Heating setpoint temperature [degC] or a profile.",
         json_schema_extra={
             "unit": "degC",
             "display_name": "Heating Setpoint Temperature",
-            "note": "Can be a scalar or a profile (DayProfile/HourlyProfile)."
+            "note": "Can be a scalar or a profile."
         },
     )
-    CoolingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Cooling setpoint temperature [degC]",
+    CoolingSetpointTemperature: Optional[HourlyProfile] = Field(
+        default_factory=HourlyProfile, 
+        description="Cooling setpoint temperature [degC] or a profile.",
         json_schema_extra={
             "unit": "degC",
             "display_name": "Cooling Setpoint Temperature",
+            "note": "Can be a scalar or a profile."
         },
     )
 
     ref: Optional[Reference] = None
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """Convert archetype properties to DataFrame state format.
-
-        This mirrors the CO2Params approach:
-         - scalar / RefValue -> single column (name, "0")
-         - DayProfile / HourlyProfile -> use their to_df_state and combine_first
-        """
         df_state = init_df_state(grid_id)
 
-        for field_name, field_info in self.__class__.model_fields.items():
-            if field_name == "ref":
+        string_fields = {"BuildingType", "BuildingName"}
+        hourly_profile_fields = {"HeatingSetpointTemperature", "CoolingSetpointTemperature"}
+        excluded_fields = string_fields | hourly_profile_fields | {"ref"}
+
+        for field_name in self.model_fields:
+            if field_name in excluded_fields:
                 continue
-
-            attr = getattr(self, field_name)
-
-            # Profile types -> delegate to their to_df_state
-            if isinstance(attr, HourlyProfile):
-                df_profile = attr.to_df_state(grid_id, field_name.lower())
-                df_state = df_state.combine_first(df_profile)
-                continue
-
-            if isinstance(attr, DayProfile):
-                df_profile = attr.to_df_state(grid_id, field_name.lower())
-                df_state = df_state.combine_first(df_profile)
-                continue
-
-            if isinstance(attr, WeeklyProfile):
-                df_profile = attr.to_df_state(grid_id, field_name.lower())
-                df_state = df_state.combine_first(df_profile)
-                continue
-
-            # Scalar / RefValue -> single column (name, "0")
-            if isinstance(attr, RefValue):
-                value = attr.value
-            else:
-                value = attr if attr is not None else 0.0
-
+            field_val = getattr(self, field_name)
+            value = field_val.value if isinstance(field_val, RefValue) else field_val
             df_state.loc[grid_id, (field_name.lower(), "0")] = value
+
+        for field_name in string_fields:
+            value = getattr(self, field_name)
+            df_state.loc[grid_id, (field_name.lower(), "0")] = value
+
+        for field_name in hourly_profile_fields:
+            profile = getattr(self, field_name)
+            if profile is None:
+                continue
+            df_profile = profile.to_df_state(grid_id, field_name.lower())
+            df_state = df_state.combine_first(df_profile)
 
         return df_state
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ArchetypeProperties":
-        params = {}
+        string_fields = {"BuildingType", "BuildingName"}
+        hourly_profile_fields = {"HeatingSetpointTemperature", "CoolingSetpointTemperature"}
+
+        default_instance = cls()
+        params: Dict[str, object] = {}
+
         for field_name, field_info in cls.model_fields.items():
             if field_name == "ref":
                 continue
 
-            # column for scalar value
-            col = (field_name.lower(), "0")
-            if col in df.columns:
-                params[field_name] = df.loc[grid_id, col]
+            if field_name in string_fields:
+                col = (field_name.lower(), "0")
+                if col in df.columns:
+                    value = df.loc[grid_id, col]
+                    params[field_name] = (
+                        getattr(default_instance, field_name)
+                        if pd.isna(value)
+                        else value
+                    )
+                else:
+                    params[field_name] = getattr(default_instance, field_name)
                 continue
 
-            # detect any non-scalar/profile columns for this field name
-            profile_cols = [c for c in df.columns if c[0] == field_name.lower() and c[1] != "0"]
-            if profile_cols:
-                # try Hourly, then Day, then Weekly
-                tried = False
-                try:
-                    params[field_name] = HourlyProfile.from_df_state(df, grid_id, field_name.lower())
-                    tried = True
-                except Exception:
-                    pass
-
-                if not tried:
+            if field_name in hourly_profile_fields:
+                has_profile_columns = any(col[0] == field_name.lower() for col in df.columns)
+                if has_profile_columns:
                     try:
-                        params[field_name] = DayProfile.from_df_state(df, grid_id, field_name.lower())
-                        tried = True
-                    except Exception:
-                        pass
+                        params[field_name] = HourlyProfile.from_df_state(
+                            df, grid_id, field_name.lower()
+                        )
+                    except KeyError:
+                        params[field_name] = getattr(default_instance, field_name)
+                else:
+                    params[field_name] = getattr(default_instance, field_name)
+                continue
 
-                if not tried:
-                    try:
-                        params[field_name] = WeeklyProfile.from_df_state(df, grid_id, field_name.lower())
-                        tried = True
-                    except Exception:
-                        pass
-
-                # if none succeeded, fall back to None (Pydantic will validate later)
-                if tried:
-                    continue
-
-            # Missing scalar/profile: use default or default_factory if available
-            if field_info.default is not None:
-                params[field_name] = field_info.default
-            elif field_info.default_factory is not None:
-                params[field_name] = field_info.default_factory()
+            col = (field_name.lower(), "0")
+            if col in df.columns:
+                value = df.loc[grid_id, col]
+                if pd.isna(value):
+                    params[field_name] = getattr(default_instance, field_name)
+                else:
+                    params[field_name] = RefValue(value)
             else:
-                params[field_name] = None
-
-        # Wrap scalar values in RefValue except fields that should remain raw strings
-        non_ref = {"BuildingType", "BuildingName"}
-        for k, v in list(params.items()):
-            if k not in non_ref and not isinstance(v, (DayProfile, HourlyProfile, WeeklyProfile)):
-                params[k] = RefValue(v)
+                params[field_name] = getattr(default_instance, field_name)
 
         return cls(**params)
+
 
 
 class StebbsProperties(BaseModel):

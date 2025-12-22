@@ -578,7 +578,6 @@ class TestSampleOutput(TestCase):
         2. DTS: Uses direct Pydantic->DTS->Fortran kernel path
 
         The test uses a short 48-timestep (4-hour) simulation for fast feedback.
-        Full year parity is validated in test_dts_multistep.py.
         """
         print("\n" + "=" * 70)
         print("DTS vs Traditional Run Parity Test")
@@ -593,17 +592,7 @@ class TestSampleOutput(TestCase):
         # Import DTS infrastructure
         from supy import load_SampleData
         from supy.data_model import SUEWSConfig
-        from supy.supy_driver import suews_driver as drv
-        from supy.dts._core import (
-            create_suews_config, create_suews_site, create_suews_state,
-            create_suews_forcing, create_suews_timer
-        )
-        from supy.dts._populate import (
-            populate_config_from_pydantic, populate_site_from_pydantic,
-            populate_state_from_pydantic, populate_storedrainprm,
-            populate_forcing_from_row, populate_timer_from_datetime,
-            populate_roughnessstate, populate_atmstate, populate_ohmstate_defaults
-        )
+        from supy.dts import run_dts
 
         # Load sample data
         print("\nLoading sample data...")
@@ -621,73 +610,15 @@ class TestSampleOutput(TestCase):
         df_output_trad, _ = sp.run_supy(df_forcing_subset, df_state_init)
 
         # =====================================================================
-        # MODE 2: DTS interface
+        # MODE 2: DTS interface (batch runner)
         # =====================================================================
         print(f"[MODE 2] Running DTS interface ({n_timesteps} timesteps)...")
 
         # Create Pydantic config
         config = SUEWSConfig.from_df_state(df_state_init.loc[[grid_id]])
-        site = config.sites[0]
-        model = config.model
 
-        nlayer_val = site.properties.vertical_layers.nlayer
-        nlayer = int(nlayer_val.value if hasattr(nlayer_val, 'value') else nlayer_val)
-        ndepth = 5
-        tstep = 300  # 5-minute timesteps
-
-        # Create and populate DTS objects
-        config_dts = create_suews_config()
-        populate_config_from_pydantic(config_dts, model)
-
-        site_dts = create_suews_site(nlayer=nlayer, ndepth=ndepth)
-        populate_site_from_pydantic(site_dts, site, model)
-        site_dts.cal_surf(config_dts)
-
-        state_dts = create_suews_state(nlayer=nlayer, ndepth=ndepth)
-        populate_state_from_pydantic(
-            state_dts, site.initial_states, nlayer=nlayer, ndepth=ndepth,
-            land_cover=site.properties.land_cover
-        )
-        populate_storedrainprm(state_dts, site.properties.land_cover)
-        populate_roughnessstate(state_dts, site_dts)
-        populate_ohmstate_defaults(state_dts)
-
-        forcing_dts = create_suews_forcing()
-        timer_dts = create_suews_timer()
-
-        # Output storage
-        output_indices = {'QN': 10, 'QF': 11, 'QS': 12, 'QH': 13, 'QE': 14}
-        dts_outputs = {var: [] for var in output_indices.keys()}
-
-        # Get DLS parameters
-        startdls = int(site_dts.anthroemis.startdls)
-        enddls = int(site_dts.anthroemis.enddls)
-
-        # Run DTS timestep by timestep
-        for i in range(n_timesteps):
-            dt = df_forcing_subset.index[i]
-            row = df_forcing_subset.iloc[i]
-
-            # Update forcing
-            populate_forcing_from_row(forcing_dts, row)
-
-            # Populate atmospheric state on first timestep
-            if i == 0:
-                populate_atmstate(state_dts, forcing_dts)
-
-            # Update timer
-            dt_since_start = i * tstep
-            populate_timer_from_datetime(timer_dts, dt, tstep, dt_since_start, startdls, enddls)
-
-            # Run DTS simulation
-            output_line = drv.suews_cal_main(
-                timer_dts, forcing_dts, config_dts, site_dts, state_dts
-            )
-
-            # Store outputs
-            out_arr = output_line.dataoutlinesuews
-            for var, idx in output_indices.items():
-                dts_outputs[var].append(out_arr[idx])
+        # Run DTS batch simulation
+        df_output_dts, _ = run_dts(df_forcing_subset, config, site_index=0)
 
         # =====================================================================
         # COMPARISON
@@ -698,9 +629,10 @@ class TestSampleOutput(TestCase):
 
         all_passed = True
         failed_variables = []
+        variables_to_compare = ("QN", "QF", "QS", "QH", "QE")
 
-        for var in output_indices.keys():
-            dts_arr = np.array(dts_outputs[var])
+        for var in variables_to_compare:
+            dts_arr = df_output_dts[('SUEWS', var)].values
             trad_arr = df_output_trad[('SUEWS', var)].values
 
             # Check for exact match (DTS should be bit-identical)

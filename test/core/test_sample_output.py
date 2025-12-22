@@ -562,6 +562,104 @@ class TestSampleOutput(TestCase):
             f"Sample output validation failed for: {', '.join(failed_variables)}",
         )
 
+    @pytest.mark.core
+    @pytest.mark.smoke
+    def test_dts_vs_traditional_parity(self):
+        """
+        Test DTS interface produces identical output to traditional run_supy.
+
+        This smoke test validates that the new DTS (Derived Type Structure)
+        interface produces bit-identical output to the traditional run_supy
+        method. This is critical for ensuring the DTS interface can be used
+        as a drop-in replacement.
+
+        Two modes are tested:
+        1. Traditional: Uses run_supy() which goes through df_state packing
+        2. DTS: Uses direct Pydantic->DTS->Fortran kernel path
+
+        The test uses a short 48-timestep (4-hour) simulation for fast feedback.
+        """
+        print("\n" + "=" * 70)
+        print("DTS vs Traditional Run Parity Test")
+        print("=" * 70)
+
+        # Print platform info
+        platform_info = self.get_platform_info()
+        print(f"Platform: {platform_info['platform']} {platform_info['machine']}")
+        print(f"Python: {platform_info['python_version_tuple']}")
+        print("=" * 70)
+
+        # Import DTS infrastructure
+        from supy import load_SampleData
+        from supy.data_model import SUEWSConfig
+        from supy.dts import run_dts
+
+        # Load sample data
+        print("\nLoading sample data...")
+        df_state_init, df_forcing = load_SampleData()
+        grid_id = df_state_init.index[0]
+
+        # Use 48 timesteps (4 hours) for smoke test - enough to verify correctness
+        n_timesteps = 48
+        df_forcing_subset = df_forcing.head(n_timesteps)
+
+        # =====================================================================
+        # MODE 1: Traditional run_supy
+        # =====================================================================
+        print(f"\n[MODE 1] Running traditional run_supy ({n_timesteps} timesteps)...")
+        df_output_trad, _ = sp.run_supy(df_forcing_subset, df_state_init)
+
+        # =====================================================================
+        # MODE 2: DTS interface (batch runner)
+        # =====================================================================
+        print(f"[MODE 2] Running DTS interface ({n_timesteps} timesteps)...")
+
+        # Create Pydantic config
+        config = SUEWSConfig.from_df_state(df_state_init.loc[[grid_id]])
+
+        # Run DTS batch simulation
+        df_output_dts, _ = run_dts(df_forcing_subset, config, site_index=0)
+
+        # =====================================================================
+        # COMPARISON
+        # =====================================================================
+        print("\n" + "=" * 70)
+        print("COMPARING OUTPUTS")
+        print("=" * 70)
+
+        all_passed = True
+        failed_variables = []
+        variables_to_compare = ("QN", "QF", "QS", "QH", "QE")
+
+        for var in variables_to_compare:
+            dts_arr = df_output_dts[('SUEWS', var)].values
+            trad_arr = df_output_trad[('SUEWS', var)].values
+
+            # Check for exact match (DTS should be bit-identical)
+            max_diff = np.max(np.abs(dts_arr - trad_arr))
+
+            if max_diff == 0:
+                print(f"[PASS] {var}: Identical (max diff = 0)")
+            else:
+                print(f"[FAIL] {var}: max diff = {max_diff:.6e}")
+                failed_variables.append(var)
+                all_passed = False
+
+        # Summary
+        print("\n" + "=" * 70)
+        print("SUMMARY")
+        print("=" * 70)
+
+        if all_passed:
+            print("[PASS] DTS interface produces identical output to traditional run!")
+        else:
+            print(f"[FAIL] Parity failed for: {', '.join(failed_variables)}")
+
+        self.assertTrue(
+            all_passed,
+            f"DTS vs traditional parity failed for: {', '.join(failed_variables)}"
+        )
+
 
 if __name__ == "__main__":
     import unittest

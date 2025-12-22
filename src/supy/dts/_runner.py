@@ -5,7 +5,7 @@ using direct DTS (Derived Type Structure) objects, bypassing the
 intermediate df_state conversion layer.
 """
 
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -99,8 +99,8 @@ def run_dts(
     df_forcing: pd.DataFrame,
     config: "SUEWSConfig",  # noqa: F821
     site_index: int = 0,
-    nlayer: int = 5,
-    ndepth: int = 5,
+    nlayer: Optional[int] = None,
+    ndepth: Optional[int] = None,
 ) -> Tuple[pd.DataFrame, dict]:
     """Run SUEWS simulation using DTS interface.
 
@@ -117,9 +117,10 @@ def run_dts(
     site_index : int, optional
         Index of site to simulate (for multi-site configs), by default 0.
     nlayer : int, optional
-        Number of vertical layers, by default 5.
+        Number of vertical layers. If None, inferred from
+        config.sites[site_index].properties.vertical_layers.nlayer.
     ndepth : int, optional
-        Number of substrate depth levels, by default 5.
+        Number of substrate depth levels. If None, uses the Fortran constant (5).
 
     Returns
     -------
@@ -148,6 +149,20 @@ def run_dts(
         tstep_s = int((df_forcing.index[1] - df_forcing.index[0]).total_seconds())
     else:
         tstep_s = 3600  # Default 1 hour
+
+    # Infer nlayer/ndepth if not provided
+    if nlayer is None:
+        nlayer_val = None
+        if hasattr(site, "properties") and getattr(site.properties, "vertical_layers", None):
+            nlayer_val = getattr(site.properties.vertical_layers, "nlayer", None)
+        if nlayer_val is None:
+            nlayer = 5
+        else:
+            nlayer = int(nlayer_val.value if hasattr(nlayer_val, "value") else nlayer_val)
+
+    if ndepth is None:
+        # Fortran constant from suews_ctrl_const.f95
+        ndepth = 5
 
     # Create DTS objects
     config_dts = create_suews_config()

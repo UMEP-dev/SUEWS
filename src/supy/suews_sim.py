@@ -13,6 +13,7 @@ import warnings
 import pandas as pd
 
 from ._run import run_supy_ser
+from .dts import run_dts
 
 # Import SuPy components directly
 from ._supy_module import _save_supy
@@ -393,7 +394,9 @@ class SUEWSSimulation:
         else:
             return read_forcing(str(forcing_path))
 
-    def run(self, start_date=None, end_date=None, **run_kwargs) -> SUEWSOutput:
+    def run(
+        self, start_date=None, end_date=None, backend: str = "traditional", **run_kwargs
+    ) -> SUEWSOutput:
         """
         Run SUEWS simulation.
 
@@ -403,6 +406,15 @@ class SUEWSSimulation:
             Start date for simulation (inclusive).
         end_date : str, optional
             End date for simulation (inclusive).
+        backend : str, optional
+            Execution backend to use. Options:
+
+            - ``'traditional'`` (default): Uses DataFrame-based run_supy_ser.
+              Established interface with comprehensive state tracking.
+            - ``'dts'``: Uses DTS (Derived Type Structure) interface.
+              Direct Pydantic-to-Fortran execution path, bypassing intermediate
+              DataFrame conversion. May be faster for short simulations.
+
         run_kwargs : dict
             **Note**: Additional keyword arguments are currently not supported
             due to underlying function signature constraints. This parameter
@@ -427,12 +439,18 @@ class SUEWSSimulation:
         ------
         RuntimeError
             If configuration or forcing data is missing.
+        ValueError
+            If an invalid backend is specified.
 
         Notes
         -----
         The simulation runs with fixed internal settings. For advanced control
         over simulation parameters, consider using the lower-level functional
         API (though it is deprecated).
+
+        The DTS backend requires a valid SUEWSConfig object loaded via
+        ``update_config()``. It provides a more direct execution path
+        but may have different state tracking characteristics.
 
         Examples
         --------
@@ -441,12 +459,30 @@ class SUEWSSimulation:
         >>> output.QH  # Access sensible heat flux
         >>> output.diurnal_average("QH")  # Get diurnal pattern
         >>> output.to_dataframe()  # Get raw DataFrame
+
+        Using the DTS backend:
+
+        >>> output = sim.run(backend='dts')
         """
+        # Validate backend
+        valid_backends = ("traditional", "dts")
+        if backend not in valid_backends:
+            raise ValueError(
+                f"Invalid backend '{backend}'. Must be one of: {valid_backends}"
+            )
+
         # Validate inputs
         if self._df_state_init is None:
             raise RuntimeError("No configuration loaded. Use update_config() first.")
         if self._df_forcing is None:
             raise RuntimeError("No forcing data loaded. Use update_forcing() first.")
+
+        # DTS backend requires config object
+        if backend == "dts" and self._config is None:
+            raise RuntimeError(
+                "DTS backend requires a SUEWSConfig object. "
+                "Use update_config() with a YAML config file."
+            )
 
         # Fall back to config values if start_date/end_date not provided
         if start_date is None and self._config is not None:
@@ -465,14 +501,28 @@ class SUEWSSimulation:
             ):
                 end_date = self._config.model.control.end_time
 
-        # Run simulation
-        result = run_supy_ser(
-            self._df_forcing.loc[start_date:end_date],
-            self._df_state_init,
-            # **run_kwargs # Causes problems - requires explicit arguments
-        )
-        self._df_output = result[0]
-        self._df_state_final = result[1]
+        # Slice forcing data
+        df_forcing_slice = self._df_forcing.loc[start_date:end_date]
+
+        # Run simulation with selected backend
+        if backend == "dts":
+            # DTS backend: direct Pydantic-to-Fortran execution
+            df_output, final_state = run_dts(
+                df_forcing=df_forcing_slice,
+                config=self._config,
+            )
+            self._df_output = df_output
+            # DTS returns Fortran DTS objects, not DataFrame state
+            self._df_state_final = None
+        else:
+            # Traditional backend: DataFrame-based execution
+            result = run_supy_ser(
+                df_forcing_slice,
+                self._df_state_init,
+                # **run_kwargs # Causes problems - requires explicit arguments
+            )
+            self._df_output = result[0]
+            self._df_state_final = result[1]
 
         self._run_completed = True
 

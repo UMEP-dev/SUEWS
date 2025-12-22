@@ -5,35 +5,35 @@ using direct DTS (Derived Type Structure) objects, bypassing the
 intermediate df_state conversion layer.
 """
 
-from typing import Optional, Tuple
+from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 
-from ..supy_driver import module_ctrl_type as dts
-from ..supy_driver import suews_driver as drv
-from ..supy_driver import module_ctrl_const_allocate as alloc
-
+from ..supy_driver import (
+    module_ctrl_const_allocate as alloc,
+    suews_driver as drv,
+)
 from ._core import (
     create_suews_config,
-    create_suews_state,
-    create_suews_site,
     create_suews_forcing,
+    create_suews_site,
+    create_suews_state,
     create_suews_timer,
-)
-from ._populate import (
-    populate_config_from_pydantic,
-    populate_site_from_pydantic,
-    populate_state_from_pydantic,
-    populate_storedrainprm,
-    populate_forcing_from_row,
-    populate_timer_from_datetime,
-    populate_roughnessstate,
-    populate_atmstate,
-    populate_ohmstate_defaults,
 )
 from ._extract import (
     build_output_dataframe_from_block,
+)
+from ._populate import (
+    populate_atmstate,
+    populate_config_from_pydantic,
+    populate_forcing_from_row,
+    populate_ohmstate_defaults,
+    populate_roughnessstate,
+    populate_site_from_pydantic,
+    populate_state_from_pydantic,
+    populate_storedrainprm,
+    populate_timer_from_datetime,
 )
 
 
@@ -97,11 +97,11 @@ def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
 
 def run_dts(
     df_forcing: pd.DataFrame,
-    config: "SUEWSConfig",  # noqa: F821
+    config: SUEWSConfig,  # noqa: F821
     site_index: int = 0,
-    nlayer: Optional[int] = None,
-    ndepth: Optional[int] = None,
-) -> Tuple[pd.DataFrame, dict]:
+    nlayer: int | None = None,
+    ndepth: int | None = None,
+) -> tuple[pd.DataFrame, dict]:
     """Run SUEWS simulation using DTS interface.
 
     This function provides a direct path from Pydantic configuration to
@@ -150,18 +150,15 @@ def run_dts(
     else:
         tstep_s = 3600  # Default 1 hour
 
-    # Infer nlayer/ndepth if not provided
+    # Infer nlayer/ndepth if not provided (default: 5 per Fortran constants)
     if nlayer is None:
-        nlayer_val = None
-        if hasattr(site, "properties") and getattr(site.properties, "vertical_layers", None):
-            nlayer_val = getattr(site.properties.vertical_layers, "nlayer", None)
-        if nlayer_val is None:
+        try:
+            val = site.properties.vertical_layers.nlayer
+            nlayer = int(val.value if hasattr(val, "value") else val)
+        except (AttributeError, TypeError):
             nlayer = 5
-        else:
-            nlayer = int(nlayer_val.value if hasattr(nlayer_val, "value") else nlayer_val)
 
     if ndepth is None:
-        # Fortran constant from suews_ctrl_const.f95
         ndepth = 5
 
     # Create DTS objects
@@ -224,7 +221,7 @@ def run_dts(
     )
 
     # Build output DataFrame from result block
-    grid_id = site.properties.id if hasattr(site.properties, "id") else 1
+    grid_id = site.gridiv
     df_output = build_output_dataframe_from_block(
         dataoutblock,
         datetime_index=df_forcing.index,

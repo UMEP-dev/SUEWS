@@ -12,6 +12,7 @@ import warnings
 
 import pandas as pd
 
+from ._check import check_forcing
 from ._run import run_supy_ser
 from .dts import run_dts
 
@@ -504,6 +505,11 @@ class SUEWSSimulation:
         # Slice forcing data
         df_forcing_slice = self._df_forcing.loc[start_date:end_date]
 
+        # Validate forcing data (shared by both backends)
+        list_issues = check_forcing(df_forcing_slice)
+        if isinstance(list_issues, list) and len(list_issues) > 0:
+            raise ValueError(f"Invalid forcing data: {list_issues}")
+
         # Run simulation with selected backend
         if backend == "dts":
             # DTS backend: direct Pydantic-to-Fortran execution
@@ -587,6 +593,13 @@ class SUEWSSimulation:
         """
         if not self._run_completed:
             raise RuntimeError("No simulation results available. Run simulation first.")
+
+        # DTS backend does not yet support save() - state is in Fortran DTS objects
+        if self._df_state_final is None:
+            raise NotImplementedError(
+                "DTS backend does not yet support save(). "
+                "Access results directly via sim.output.df_output"
+            )
 
         # Set default path with priority: parameter > config > current directory
         if output_path is None:

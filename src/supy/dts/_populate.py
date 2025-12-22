@@ -5,13 +5,18 @@ directly from Pydantic configuration models, eliminating the intermediate
 DataFrame conversion layer.
 """
 
-from typing import Any, Union, Optional
+from __future__ import annotations
+
 from enum import Enum
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from ..supy_driver import module_ctrl_type as dts
+
+SURFACE_ORDER = ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water")
+VEG_SURFACE_ORDER = ("evetr", "dectr", "grass")
 
 
 def _unwrap(value: Any) -> Any:
@@ -36,6 +41,71 @@ def _unwrap(value: Any) -> Any:
     return value
 
 
+def _populate_thermal_layer_arrays(
+    thermal_layers: Any,
+    row_idx: int,
+    ndepth: int,
+    dz_array: np.ndarray,
+    k_array: np.ndarray,
+    cp_array: np.ndarray,
+) -> None:
+    """Populate EHC thermal layer arrays from Pydantic thermal_layers.
+
+    Parameters
+    ----------
+    thermal_layers : ThermalLayers
+        Pydantic thermal layers with dz, k, rho_cp attributes.
+    row_idx : int
+        Row index in the target arrays (layer index).
+    ndepth : int
+        Maximum depth levels to copy.
+    dz_array : np.ndarray
+        Target array for layer thickness [m].
+    k_array : np.ndarray
+        Target array for thermal conductivity [W m-1 K-1].
+    cp_array : np.ndarray
+        Target array for volumetric heat capacity [J m-3 K-1].
+    """
+    dz = _unwrap(thermal_layers.dz) if hasattr(thermal_layers, "dz") else None
+    k = _unwrap(thermal_layers.k) if hasattr(thermal_layers, "k") else None
+    rho_cp = _unwrap(thermal_layers.rho_cp) if hasattr(thermal_layers, "rho_cp") else None
+
+    if dz is not None:
+        for j, val in enumerate(dz[:ndepth]):
+            dz_array[row_idx, j] = val
+    if k is not None:
+        for j, val in enumerate(k[:ndepth]):
+            k_array[row_idx, j] = val
+    if rho_cp is not None:
+        for j, val in enumerate(rho_cp[:ndepth]):
+            cp_array[row_idx, j] = val
+
+
+def _collect_surfaces(container, names: tuple = SURFACE_ORDER):
+    """Return surface objects from a container in SUEWS surface order."""
+    return [getattr(container, name) for name in names]
+
+
+def _row_value(row: pd.Series, *keys: str, default: Any = None) -> Any:
+    """Fetch first matching key from a Series, otherwise return default."""
+    for key in keys:
+        if key in row:
+            return row[key]
+    return default
+
+
+def _set_attrs(dst, src, attrs: tuple) -> None:
+    """Set multiple attributes on dst from src with _unwrap."""
+    for name in attrs:
+        setattr(dst, name, _unwrap(getattr(src, name)))
+
+
+def _set_day_profile(dst, prefix: str, profile) -> None:
+    """Set working/holiday attributes from a DayProfile."""
+    setattr(dst, f"{prefix}_working", _unwrap(profile.working_day))
+    setattr(dst, f"{prefix}_holiday", _unwrap(profile.holiday))
+
+
 def populate_timer_from_datetime(
     timer: dts.SUEWS_TIMER,
     dt: pd.Timestamp,
@@ -43,7 +113,7 @@ def populate_timer_from_datetime(
     dt_since_start: int = 0,
     startdls: int = 0,
     enddls: int = 0,
-    lat: Optional[float] = None,
+    lat: float | None = None,
 ) -> None:
     """Populate SUEWS_TIMER from a pandas Timestamp.
 
@@ -124,7 +194,7 @@ def populate_timer_from_datetime(
 
 def populate_config_from_pydantic(
     config_dts: dts.SUEWS_CONFIG,
-    model: "Model",  # noqa: F821
+    model: Model,  # noqa: F821
 ) -> None:
     """Populate SUEWS_CONFIG from Pydantic Model configuration.
 
@@ -137,24 +207,28 @@ def populate_config_from_pydantic(
     """
     physics = model.physics
 
-    # Map physics methods
-    config_dts.netradiationmethod = _unwrap(physics.netradiationmethod)
-    config_dts.storageheatmethod = _unwrap(physics.storageheatmethod)
-    config_dts.stabilitymethod = _unwrap(physics.stabilitymethod)
-    config_dts.emissionsmethod = _unwrap(physics.emissionsmethod)
-    config_dts.roughlenmommethod = _unwrap(physics.roughlenmommethod)
-    config_dts.roughlenheatmethod = _unwrap(physics.roughlenheatmethod)
-    config_dts.smdmethod = _unwrap(physics.smdmethod)
-    config_dts.waterusemethod = _unwrap(physics.waterusemethod)
-    config_dts.rslmethod = _unwrap(physics.rslmethod)
-    config_dts.faimethod = _unwrap(physics.faimethod)
-    config_dts.rsllevel = _unwrap(physics.rsllevel)
-    config_dts.ohmincqf = _unwrap(physics.ohmincqf)
-
-    # Snow and STEBBS
-    config_dts.snowuse = _unwrap(physics.snowuse)
-    config_dts.stebbsmethod = _unwrap(physics.stebbsmethod)
-    config_dts.rcmethod = _unwrap(physics.rcmethod)
+    # Map physics methods and flags
+    _set_attrs(
+        config_dts,
+        physics,
+        (
+            "netradiationmethod",
+            "storageheatmethod",
+            "stabilitymethod",
+            "emissionsmethod",
+            "roughlenmommethod",
+            "roughlenheatmethod",
+            "smdmethod",
+            "waterusemethod",
+            "rslmethod",
+            "faimethod",
+            "rsllevel",
+            "ohmincqf",
+            "snowuse",
+            "stebbsmethod",
+            "rcmethod",
+        ),
+    )
 
     # Other flags - use defaults if not available on Pydantic model
     # These are Fortran config options not yet exposed in Pydantic
@@ -184,35 +258,35 @@ def populate_forcing_from_row(
         Single row from forcing DataFrame.
     """
     # Required forcing variables
-    forcing_dts.kdown = row.get("kdown", 0.0)
-    forcing_dts.temp_c = row.get("Tair", row.get("temp_c", 20.0))
-    forcing_dts.rh = row.get("RH", row.get("rh", 50.0))
-    forcing_dts.pres = row.get("pres", 1013.25)
-    forcing_dts.u = row.get("U", row.get("u", 1.0))
-    forcing_dts.rain = row.get("rain", 0.0)
+    forcing_dts.kdown = _row_value(row, "kdown", default=0.0)
+    forcing_dts.temp_c = _row_value(row, "Tair", "temp_c", default=20.0)
+    forcing_dts.rh = _row_value(row, "RH", "rh", default=50.0)
+    forcing_dts.pres = _row_value(row, "pres", default=1013.25)
+    forcing_dts.u = _row_value(row, "U", "u", default=1.0)
+    forcing_dts.rain = _row_value(row, "rain", default=0.0)
 
     # Optional forcing variables
-    forcing_dts.ldown = row.get("ldown", -999.0)
-    forcing_dts.fcld = row.get("fcld", -999.0)
-    forcing_dts.wu_m3 = row.get("xwu", row.get("wu_m3", 0.0))
-    forcing_dts.qn1_obs = row.get("qn", row.get("qn1_obs", -999.0))
-    forcing_dts.qf_obs = row.get("qf", row.get("qf_obs", 0.0))
-    forcing_dts.qs_obs = row.get("qs", row.get("qs_obs", -999.0))
-    forcing_dts.xsmd = row.get("xsmd", -999.0)
-    forcing_dts.lai_obs = row.get("lai_obs", -999.0)
-    forcing_dts.snowfrac = row.get("snowfrac", -999.0)
+    forcing_dts.ldown = _row_value(row, "ldown", default=-999.0)
+    forcing_dts.fcld = _row_value(row, "fcld", default=-999.0)
+    forcing_dts.wu_m3 = _row_value(row, "xwu", "wu_m3", default=0.0)
+    forcing_dts.qn1_obs = _row_value(row, "qn", "qn1_obs", default=-999.0)
+    forcing_dts.qf_obs = _row_value(row, "qf", "qf_obs", default=0.0)
+    forcing_dts.qs_obs = _row_value(row, "qs", "qs_obs", default=-999.0)
+    forcing_dts.xsmd = _row_value(row, "xsmd", default=-999.0)
+    forcing_dts.lai_obs = _row_value(row, "lai_obs", default=-999.0)
+    forcing_dts.snowfrac = _row_value(row, "snowfrac", default=-999.0)
 
     # 5-day average temperature - use current if not available
-    forcing_dts.tair_av_5d = row.get("Tair_av_5d", forcing_dts.temp_c)
+    forcing_dts.tair_av_5d = _row_value(row, "Tair_av_5d", default=forcing_dts.temp_c)
 
 
 def populate_state_from_pydantic(
     state_dts: dts.SUEWS_STATE,
-    initial_states: "InitialStates",  # noqa: F821
+    initial_states: InitialStates,  # noqa: F821
     nlayer: int = 5,
     ndepth: int = 5,
     nsurf: int = 7,
-    land_cover: "LandCover" = None,  # noqa: F821
+    land_cover: LandCover = None,  # noqa: F821
 ) -> None:
     """Populate SUEWS_STATE from Pydantic InitialStates.
 
@@ -232,15 +306,7 @@ def populate_state_from_pydantic(
         Land cover object for getting albedo values for non-vegetation surfaces.
     """
     # Get surface initial states in order
-    surfaces = [
-        initial_states.paved,
-        initial_states.bldgs,
-        initial_states.evetr,
-        initial_states.dectr,
-        initial_states.grass,
-        initial_states.bsoil,
-        initial_states.water,
-    ]
+    surfaces = _collect_surfaces(initial_states)
 
     # Heat state: temperature arrays
     temp_surf = np.zeros((nsurf, ndepth), dtype=np.float64, order="F")
@@ -333,11 +399,7 @@ def populate_state_from_pydantic(
 
     # Phenology state for vegetation
     # Get vegetation initial states in order: evetr, dectr, grass (indices 2, 3, 4)
-    veg_surfaces = [
-        initial_states.evetr,
-        initial_states.dectr,
-        initial_states.grass,
-    ]
+    veg_surfaces = _collect_surfaces(initial_states, VEG_SURFACE_ORDER)
 
     lai_id = np.zeros(3, dtype=np.float64)
     gdd_id = np.zeros(3, dtype=np.float64)
@@ -383,28 +445,12 @@ def populate_state_from_pydantic(
     alb_surf = np.zeros(nsurf, dtype=np.float64)
 
     # Try to get albedo from initial_states first (vegetation surfaces)
-    surfaces_for_alb = [
-        initial_states.paved,
-        initial_states.bldgs,
-        initial_states.evetr,
-        initial_states.dectr,
-        initial_states.grass,
-        initial_states.bsoil,
-        initial_states.water,
-    ]
+    surfaces_for_alb = surfaces
 
     # Also get land cover surfaces if provided
     lc_surfaces = None
     if land_cover is not None:
-        lc_surfaces = [
-            land_cover.paved,
-            land_cover.bldgs,
-            land_cover.evetr,
-            land_cover.dectr,
-            land_cover.grass,
-            land_cover.bsoil,
-            land_cover.water,
-        ]
+        lc_surfaces = _collect_surfaces(land_cover)
 
     for i, surf in enumerate(surfaces_for_alb):
         if hasattr(surf, "alb_id"):
@@ -423,13 +469,18 @@ def populate_state_from_pydantic(
         hdd = initial_states.hdd_id
         # HDD_id is a 12-element array with both current day accumulators (0-5)
         # and previous day values (6-11) used in QF calculations
-        hdd_id_array = np.array(hdd.to_list(), dtype=np.float64)
-        state_dts.anthroemisstate.hdd_id = hdd_id_array
+        if hasattr(hdd, "to_list"):
+            hdd_list = hdd.to_list()
+        elif isinstance(hdd, (list, tuple, np.ndarray)):
+            hdd_list = list(hdd)
+        else:
+            hdd_list = [0.0] * 12  # Default fallback
+        state_dts.anthroemisstate.hdd_id = np.array(hdd_list, dtype=np.float64)
 
 
 def populate_storedrainprm(
     state_dts: dts.SUEWS_STATE,
-    land_cover: "LandCover",  # noqa: F821
+    land_cover: LandCover,  # noqa: F821
     nsurf: int = 7,
 ) -> None:
     """Populate storedrainprm array in phenstate from land cover config.
@@ -451,15 +502,7 @@ def populate_storedrainprm(
     nsurf : int
         Number of surfaces (always 7).
     """
-    surfaces = [
-        land_cover.paved,
-        land_cover.bldgs,
-        land_cover.evetr,
-        land_cover.dectr,
-        land_cover.grass,
-        land_cover.bsoil,
-        land_cover.water,
-    ]
+    surfaces = _collect_surfaces(land_cover)
 
     storedrainprm = np.full((6, nsurf), -999.0, dtype=np.float64)
 
@@ -497,8 +540,8 @@ def populate_storedrainprm(
 
 def populate_site_from_pydantic(
     site_dts: dts.SUEWS_SITE,
-    site: "Site",  # noqa: F821
-    model: "Model",  # noqa: F821
+    site: Site,  # noqa: F821
+    model: Model,  # noqa: F821
 ) -> None:
     """Populate SUEWS_SITE from Pydantic Site configuration.
 
@@ -521,7 +564,7 @@ def populate_site_from_pydantic(
     tz_val = _unwrap(props.timezone)
     if hasattr(tz_val, "value"):
         tz_val = tz_val.value
-    site_dts.timezone = int(tz_val) if isinstance(tz_val, (int, float)) else 0
+    site_dts.timezone = float(tz_val) if isinstance(tz_val, (int, float)) else 0.0
     site_dts.surfacearea = _unwrap(props.surfacearea)
     site_dts.z = _unwrap(props.z)
     site_dts.z0m_in = _unwrap(props.z0m_in)
@@ -541,15 +584,7 @@ def populate_site_from_pydantic(
     # Pydantic uses 'sfr' (surface fraction), not 'fraction'
     lc = props.land_cover
     sfr_surf = np.array(
-        [
-            _unwrap(lc.paved.sfr),
-            _unwrap(lc.bldgs.sfr),
-            _unwrap(lc.evetr.sfr),
-            _unwrap(lc.dectr.sfr),
-            _unwrap(lc.grass.sfr),
-            _unwrap(lc.bsoil.sfr),
-            _unwrap(lc.water.sfr),
-        ],
+        [_unwrap(surf.sfr) for surf in _collect_surfaces(lc)],
         dtype=np.float64,
     )
     site_dts.sfr_surf = sfr_surf
@@ -600,7 +635,7 @@ def populate_site_from_pydantic(
         _populate_anthroemis(site_dts.anthroemis, props.anthropogenic_emissions)
 
 
-def _populate_landcover_common(lc_dts, lc_pydantic, is_water: bool = False) -> None:
+def _populate_landcover_common(lc_dts: Any, lc_pydantic: Any, is_water: bool = False) -> None:
     """Populate common parameters for all land cover types.
 
     This includes surface state limits, soil parameters, OHM parameters,
@@ -813,19 +848,13 @@ def _populate_landcover_water(lc_dts, lc_pydantic) -> None:
     _populate_landcover_common(lc_dts, lc_pydantic, is_water=True)
 
 
-def _populate_conductance(cond_dts, cond_pydantic, gsmodel: Optional[int] = None) -> None:
+def _populate_conductance(cond_dts, cond_pydantic, gsmodel: int | None = None) -> None:
     """Populate CONDUCTANCE_PRM from Pydantic."""
-    cond_dts.g_max = _unwrap(cond_pydantic.g_max)
-    cond_dts.g_k = _unwrap(cond_pydantic.g_k)
-    cond_dts.g_q_base = _unwrap(cond_pydantic.g_q_base)
-    cond_dts.g_q_shape = _unwrap(cond_pydantic.g_q_shape)
-    cond_dts.g_t = _unwrap(cond_pydantic.g_t)
-    cond_dts.g_sm = _unwrap(cond_pydantic.g_sm)
-    cond_dts.kmax = _unwrap(cond_pydantic.kmax)
-    cond_dts.s1 = _unwrap(cond_pydantic.s1)
-    cond_dts.s2 = _unwrap(cond_pydantic.s2)
-    cond_dts.th = _unwrap(cond_pydantic.th)
-    cond_dts.tl = _unwrap(cond_pydantic.tl)
+    _set_attrs(
+        cond_dts,
+        cond_pydantic,
+        ("g_max", "g_k", "g_q_base", "g_q_shape", "g_t", "g_sm", "kmax", "s1", "s2", "th", "tl"),
+    )
     # gsmodel comes from config; fall back to site or default
     if gsmodel is not None:
         cond_dts.gsmodel = int(gsmodel)
@@ -837,10 +866,11 @@ def _populate_conductance(cond_dts, cond_pydantic, gsmodel: Optional[int] = None
 
 def _populate_lumps(lumps_dts, lumps_pydantic) -> None:
     """Populate LUMPS_PRM from Pydantic."""
-    lumps_dts.drainrt = _unwrap(lumps_pydantic.drainrt)
-    lumps_dts.raincover = _unwrap(lumps_pydantic.raincover)
-    lumps_dts.rainmaxres = _unwrap(lumps_pydantic.rainmaxres)
-    lumps_dts.veg_type = _unwrap(lumps_pydantic.veg_type)
+    _set_attrs(
+        lumps_dts,
+        lumps_pydantic,
+        ("drainrt", "raincover", "rainmaxres", "veg_type"),
+    )
 
 
 def _populate_snow(snow_dts, snow_pydantic, land_cover=None) -> None:
@@ -899,10 +929,7 @@ def _populate_snow(snow_dts, snow_pydantic, land_cover=None) -> None:
 
     # Snowpacklimit per surface (7 surfaces)
     if land_cover is not None:
-        surfaces = [
-            land_cover.paved, land_cover.bldgs, land_cover.evetr,
-            land_cover.dectr, land_cover.grass, land_cover.bsoil, land_cover.water
-        ]
+        surfaces = _collect_surfaces(land_cover)
         snowpacklimit = np.full(7, -999.0, dtype=np.float64)
         for i, surf in enumerate(surfaces):
             if hasattr(surf, "snowpacklimit"):
@@ -929,26 +956,10 @@ def _populate_ehc(ehc_dts, land_cover, initial_states, nsurf: int = 7, ndepth: i
         Number of depth levels.
     """
     # Get surface configs in order (matching SUEWS surface indexing)
-    surfaces = [
-        land_cover.paved,
-        land_cover.bldgs,
-        land_cover.evetr,
-        land_cover.dectr,
-        land_cover.grass,
-        land_cover.bsoil,
-        land_cover.water,
-    ]
+    surfaces = _collect_surfaces(land_cover)
 
     # Get initial states for temperature
-    state_surfaces = [
-        initial_states.paved,
-        initial_states.bldgs,
-        initial_states.evetr,
-        initial_states.dectr,
-        initial_states.grass,
-        initial_states.bsoil,
-        initial_states.water,
-    ]
+    state_surfaces = _collect_surfaces(initial_states)
 
     # Populate arrays for each surface type
     for i, (lc, state) in enumerate(zip(surfaces, state_surfaces)):
@@ -1045,20 +1056,10 @@ def _populate_vertical_layers(
     ehc = site_dts.ehc
     for i, roof in enumerate(roofs[:nlayer]):
         if hasattr(roof, "thermal_layers") and roof.thermal_layers is not None:
-            tl = roof.thermal_layers
-            dz = _unwrap(tl.dz) if hasattr(tl, "dz") else None
-            k = _unwrap(tl.k) if hasattr(tl, "k") else None
-            rho_cp = _unwrap(tl.rho_cp) if hasattr(tl, "rho_cp") else None
-
-            if dz is not None:
-                for j, val in enumerate(dz[:ndepth]):
-                    ehc.dz_roof[i, j] = val
-            if k is not None:
-                for j, val in enumerate(k[:ndepth]):
-                    ehc.k_roof[i, j] = val
-            if rho_cp is not None:
-                for j, val in enumerate(rho_cp[:ndepth]):
-                    ehc.cp_roof[i, j] = val
+            _populate_thermal_layer_arrays(
+                roof.thermal_layers, i, ndepth,
+                ehc.dz_roof, ehc.k_roof, ehc.cp_roof
+            )
 
         # Soil store capacity for roofs
         if hasattr(roof, "soilstorecap") and roof.soilstorecap is not None:
@@ -1070,20 +1071,10 @@ def _populate_vertical_layers(
 
     for i, wall in enumerate(walls[:nlayer]):
         if hasattr(wall, "thermal_layers") and wall.thermal_layers is not None:
-            tl = wall.thermal_layers
-            dz = _unwrap(tl.dz) if hasattr(tl, "dz") else None
-            k = _unwrap(tl.k) if hasattr(tl, "k") else None
-            rho_cp = _unwrap(tl.rho_cp) if hasattr(tl, "rho_cp") else None
-
-            if dz is not None:
-                for j, val in enumerate(dz[:ndepth]):
-                    ehc.dz_wall[i, j] = val
-            if k is not None:
-                for j, val in enumerate(k[:ndepth]):
-                    ehc.k_wall[i, j] = val
-            if rho_cp is not None:
-                for j, val in enumerate(rho_cp[:ndepth]):
-                    ehc.cp_wall[i, j] = val
+            _populate_thermal_layer_arrays(
+                wall.thermal_layers, i, ndepth,
+                ehc.dz_wall, ehc.k_wall, ehc.cp_wall
+            )
 
         # Soil store capacity for walls
         if hasattr(wall, "soilstorecap") and wall.soilstorecap is not None:
@@ -1297,37 +1288,24 @@ def _populate_anthroemis(anthroemis_dts, anthro_pydantic) -> None:
     ah = anthroemis_dts.anthroheat
 
     # QF parameters - working_day and holiday variants from DayProfile
-    ah.qf0_beu_working = _unwrap(heat.qf0_beu.working_day)
-    ah.qf0_beu_holiday = _unwrap(heat.qf0_beu.holiday)
-    ah.qf_a_working = _unwrap(heat.qf_a.working_day)
-    ah.qf_a_holiday = _unwrap(heat.qf_a.holiday)
-    ah.qf_b_working = _unwrap(heat.qf_b.working_day)
-    ah.qf_b_holiday = _unwrap(heat.qf_b.holiday)
-    ah.qf_c_working = _unwrap(heat.qf_c.working_day)
-    ah.qf_c_holiday = _unwrap(heat.qf_c.holiday)
+    for name in ("qf0_beu", "qf_a", "qf_b", "qf_c"):
+        _set_day_profile(ah, name, getattr(heat, name))
 
-    # Base temperatures
-    ah.baset_cooling_working = _unwrap(heat.baset_cooling.working_day)
-    ah.baset_cooling_holiday = _unwrap(heat.baset_cooling.holiday)
-    ah.baset_heating_working = _unwrap(heat.baset_heating.working_day)
-    ah.baset_heating_holiday = _unwrap(heat.baset_heating.holiday)
-
-    # AH min and slopes
-    ah.ah_min_working = _unwrap(heat.ah_min.working_day)
-    ah.ah_min_holiday = _unwrap(heat.ah_min.holiday)
-    ah.ah_slope_cooling_working = _unwrap(heat.ah_slope_cooling.working_day)
-    ah.ah_slope_cooling_holiday = _unwrap(heat.ah_slope_cooling.holiday)
-    ah.ah_slope_heating_working = _unwrap(heat.ah_slope_heating.working_day)
-    ah.ah_slope_heating_holiday = _unwrap(heat.ah_slope_heating.holiday)
-
-    # Population density
-    ah.popdensdaytime_working = _unwrap(heat.popdensdaytime.working_day)
-    ah.popdensdaytime_holiday = _unwrap(heat.popdensdaytime.holiday)
+    # Base temperatures, AH min/slopes, and population density (DayProfile fields)
+    for name in (
+        "baset_cooling",
+        "baset_heating",
+        "ah_min",
+        "ah_slope_cooling",
+        "ah_slope_heating",
+        "popdensdaytime",
+    ):
+        _set_day_profile(ah, name, getattr(heat, name))
     ah.popdensnighttime = _unwrap(heat.popdensnighttime)
 
     # 24-hour profiles - convert dict to numpy arrays
     # HourlyProfile stores values as Dict[str, float] with keys "1" to "24"
-    def hourly_dict_to_array(hourly_dict):
+    def hourly_dict_to_array(hourly_dict: dict[str, float] | None) -> np.ndarray:
         """Convert hourly profile dict to 24-element numpy array."""
         if not hourly_dict:
             return np.ones(24, dtype=np.float64) / 24.0  # Uniform default
@@ -1349,22 +1327,33 @@ def _populate_anthroemis(anthroemis_dts, anthro_pydantic) -> None:
 
     # CO2 parameters
     co2 = anthro_pydantic.co2
-    anthroemis_dts.ef_umolco2perj = _unwrap(co2.ef_umolco2perj) if hasattr(co2, "ef_umolco2perj") else 0.0
-    anthroemis_dts.enef_v_jkm = _unwrap(co2.enef_v_jkm) if hasattr(co2, "enef_v_jkm") else 0.0
-    anthroemis_dts.frfossilfuel_heat = _unwrap(co2.frfossilfuel_heat) if hasattr(co2, "frfossilfuel_heat") else 0.0
-    anthroemis_dts.frfossilfuel_nonheat = _unwrap(co2.frfossilfuel_nonheat) if hasattr(co2, "frfossilfuel_nonheat") else 0.0
+    for name in (
+        "ef_umolco2perj",
+        "enef_v_jkm",
+        "frfossilfuel_heat",
+        "frfossilfuel_nonheat",
+    ):
+        setattr(
+            anthroemis_dts,
+            name,
+            _unwrap(getattr(co2, name)) if hasattr(co2, name) else 0.0,
+        )
 
     # Metabolism limits
-    anthroemis_dts.maxfcmetab = _unwrap(co2.maxfcmetab) if hasattr(co2, "maxfcmetab") else 0.0
-    anthroemis_dts.maxqfmetab = _unwrap(co2.maxqfmetab) if hasattr(co2, "maxqfmetab") else 0.0
-    anthroemis_dts.minfcmetab = _unwrap(co2.minfcmetab) if hasattr(co2, "minfcmetab") else 0.0
-    anthroemis_dts.minqfmetab = _unwrap(co2.minqfmetab) if hasattr(co2, "minqfmetab") else 0.0
+    for name in ("maxfcmetab", "maxqfmetab", "minfcmetab", "minqfmetab"):
+        setattr(
+            anthroemis_dts,
+            name,
+            _unwrap(getattr(co2, name)) if hasattr(co2, name) else 0.0,
+        )
 
     # Traffic parameters - trafficrate is a DayProfile
     if hasattr(co2, "trafficrate") and co2.trafficrate:
         anthroemis_dts.trafficrate_working = _unwrap(co2.trafficrate.working_day) or 0.0
         anthroemis_dts.trafficrate_holiday = _unwrap(co2.trafficrate.holiday) or 0.0
-    anthroemis_dts.trafficunits = _unwrap(co2.trafficunits) if hasattr(co2, "trafficunits") and co2.trafficunits else 0.0
+    anthroemis_dts.trafficunits = (
+        _unwrap(co2.trafficunits) if hasattr(co2, "trafficunits") and co2.trafficunits else 0.0
+    )
 
     # Traffic profiles - HourlyProfile
     if hasattr(co2, "traffprof_24hr") and co2.traffprof_24hr:

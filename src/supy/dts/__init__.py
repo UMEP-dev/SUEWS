@@ -27,60 +27,54 @@ populate_timer_from_datetime : Populate SUEWS_TIMER from datetime
 Extraction Functions
 --------------------
 extract_output_line_to_dict : Extract output arrays to dictionary
-build_output_dataframe : Build DataFrame from output dictionaries
+build_output_dataframe_from_block : Build DataFrame from batch output array
+build_full_output_dataframe : Build DataFrame with all output groups
 """
 
 from ._core import (
-    create_suews_config,
-    create_suews_state,
-    create_suews_site,
-    create_suews_forcing,
-    create_suews_timer,
     create_output_line,
+    create_suews_config,
+    create_suews_forcing,
+    create_suews_site,
+    create_suews_state,
+    create_suews_timer,
 )
-
+from ._extract import (
+    build_full_output_dataframe,
+    build_output_dataframe_from_block,
+    extract_output_line_to_dict,
+)
 from ._populate import (
+    populate_atmstate,
     populate_config_from_pydantic,
+    populate_forcing_from_row,
+    populate_ohmstate_defaults,
+    populate_roughnessstate,
     populate_site_from_pydantic,
     populate_state_from_pydantic,
-    populate_forcing_from_row,
-    populate_timer_from_datetime,
-    populate_roughnessstate,
-    populate_atmstate,
-    populate_ohmstate_defaults,
     populate_storedrainprm,
+    populate_timer_from_datetime,
 )
-
-from ._extract import (
-    extract_output_line_to_dict,
-    build_output_dataframe,
-    build_full_output_dataframe,
-)
-
 from ._runner import run_dts
 
 __all__ = [
-    # Main runner
-    "run_dts",
-    # Factory functions
-    "create_suews_config",
-    "create_suews_state",
-    "create_suews_site",
-    "create_suews_forcing",
-    "create_suews_timer",
+    "build_full_output_dataframe",
+    "build_output_dataframe_from_block",
     "create_output_line",
-    # Population functions
+    "create_suews_config",
+    "create_suews_forcing",
+    "create_suews_site",
+    "create_suews_state",
+    "create_suews_timer",
+    "extract_output_line_to_dict",
+    "populate_atmstate",
     "populate_config_from_pydantic",
+    "populate_forcing_from_row",
+    "populate_ohmstate_defaults",
+    "populate_roughnessstate",
     "populate_site_from_pydantic",
     "populate_state_from_pydantic",
-    "populate_forcing_from_row",
-    "populate_timer_from_datetime",
-    "populate_roughnessstate",
-    "populate_atmstate",
-    "populate_ohmstate_defaults",
     "populate_storedrainprm",
-    # Extraction functions
-    "extract_output_line_to_dict",
-    "build_output_dataframe",
-    "build_full_output_dataframe",
+    "populate_timer_from_datetime",
+    "run_dts",
 ]

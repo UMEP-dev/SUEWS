@@ -496,16 +496,6 @@ CONTAINS
                debugState%state_13_rsl = modState
             END IF
 
-!             ! SG 05/25: Subroutine commented out until checked
-!             ! ============ BIOGENIC CO2 FLUX =======================
-!             IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_BiogenCO2_DTS...'
-!             CALL SUEWS_cal_BiogenCO2( &
-!                timer, config, forcing, siteInfo, & ! input
-!                modState) ! input/output:
-!             IF (config%flag_test .AND. PRESENT(debugState)) THEN
-!                debugState%state_14_biogenco2 = modState
-!             END IF
-
             ! calculations of diagnostics end
             !==============================================================
             IF (Diagnose == 1) WRITE (*, *) 'update inout variables with new values...'

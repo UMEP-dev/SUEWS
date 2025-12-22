@@ -173,6 +173,9 @@ endforeach
 ##################################################################
 # 1. build the SUEWS library using fortran compiler
 # invoke make in the suews directory to build the objects
+# Track Makefile for build config changes
+makefile_deps = files(dir_suews / 'Makefile')
+
 build_suews = custom_target(
   'suews_objects',
   command: [
@@ -182,6 +185,7 @@ build_suews = custom_target(
     '@OUTPUT@',
   ],
   build_by_default: true,
+  depend_files: [src_f95_files, makefile_deps],
   output: 'suews_objects',
 )
 

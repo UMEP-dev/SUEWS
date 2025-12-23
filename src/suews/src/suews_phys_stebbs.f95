@@ -697,9 +697,12 @@ CONTAINS
       REAL(KIND(1D0)) :: Vwater_tank
       REAL(KIND(1D0)) :: n_layer_wall ! layers from spartacus to extract short and longwave radiation
       REAL(KIND(1D0)) :: n_layer_roof  ! layers from spartacus to extract short and longwave radiation    
+      INTEGER :: iu !type of day: weekday/weekend
       ASSOCIATE ( &
          timestep => timer%tstep, &
          dt_start => timer%dt_since_start, &
+         it => timer%it, &!hour of day
+         dayofWeek_id => timer%dayofWeek_id, & !1 - day of week; 2 - month; 3 - season
          flagstate => modState%flagstate, &
          heatState => modState%heatState, &
          atmState => modState%atmState, &
@@ -823,6 +826,13 @@ CONTAINS
             sout%ws_exch_bh = ws_bh
             sout%ws_exch_hbh = ws_hbh
 
+              
+            iu = 1 !Set to 1=weekday
+            IF (DayofWeek_id(1) == 1 .OR. DayofWeek_id(1) == 7) iu = 2 !Set to 2=weekend
+            !select heating/cooling setpoint from prescribed schedules
+            buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature(it ,iu) + 273.15
+            buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature(it ,iu) + 273.15
+            print*, "for hour of", it, "cooling setpoint = ",building_archtype%CoolingSetpointTemperature(it ,iu)
             CALL setdatetime(datetimeLine)
 
             CALL suewsstebbscouple( &
@@ -2220,11 +2230,11 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%Textwindow = stebbsState%WindowOutdoorSurfaceTemperature + 273.15 ! # Window outdoor surface temperature (K)
    self%Tintgroundfloor = stebbsState%GroundFloorIndoorSurfaceTemperature + 273.15 ! # Ground floor indoor surface temperature (K)
    self%Textgroundfloor = stebbsState%GroundFloorOutdoorSurfaceTemperature + 273.15 ! # Ground floor outdoor surface temperature (K)
-
-   self%Ts = (/building_archtype%HeatingSetpointTemperature + 273.15, &
-               building_archtype%CoolingSetpointTemperature + 273.15/) ! # Heating and Cooling setpoint temperatures (K), respectively
-   self%initTs = (/building_archtype%HeatingSetpointTemperature + 273.15, &
-                   building_archtype%CoolingSetpointTemperature + 273.15/)
+   !Heating/cooling setpoint is determined from prescribed profiles of hoursofday
+   !self%Ts = (/building_archtype%HeatingSetpointTemperature + 273.15, &
+   !            building_archtype%CoolingSetpointTemperature + 273.15/) ! # Heating and Cooling setpoint temperatures (K), respectively
+   !self%initTs = (/building_archtype%HeatingSetpointTemperature + 273.15, &
+   !                building_archtype%CoolingSetpointTemperature + 273.15/)
    self%HTsAverage = (/18 + 273.15, 18 + 273.15, 18 + 273.15/) ! #
    self%HWTsAverage = (/10 + 273.15, 10 + 273.15, 10 + 273.15/)
 
@@ -2379,12 +2389,6 @@ SUBROUTINE create_building(CASE, self, icase)
    self%roofTransmisivity = 0.0
    self%roofAbsorbtivity = 0.5
    self%roofReflectivity = 0.5
-   !self%BVF_extwall = 0.4
-   !self%GVF_extwall = 0.2
-   !self%SVF_extwall = 0.4
-   !self%BVF_extroof = 0.3
-   !self%GVF_extroof = 0.0
-   !self%SVF_extroof = 0.7
    self%occupants = 15
    self%metabolic_rate = 250
    self%ratio_metabolic_latent_sensible = 0.8
@@ -2426,7 +2430,6 @@ SUBROUTINE create_building(CASE, self, icase)
    self%wiTAR = (/self%windowTransmissivity, self%windowAbsorbtivity, self%windowReflectivity/)
    self%waTAR = (/self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity/)
    self%roofTAR = (/self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity/)
-   !self%viewFactors = (/self%BVF_extwall, self%GVF_extwall, self%SVF_extwall, self%BVF_extroof, self%GVF_extroof, self%SVF_extroof/) !  # Building, ground, and sky view factors
    self%occupantData = (/self%occupants, self%metabolic_rate, &
                          self%ratio_metabolic_latent_sensible/)
 

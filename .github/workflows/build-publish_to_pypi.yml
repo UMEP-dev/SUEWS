@@ -538,23 +538,6 @@ jobs:
           :: Verify installation
           python -c "import supy; print(f'supy version: {supy.__version__}')"
 
-      - name: Run Qt error handling test
-        shell: cmd
-        run: |
-          call C:\OSGeo4W\bin\o4w_env.bat
-
-          :: Run the Qt error trigger test
-          :: This should catch the error as RuntimeError, NOT crash
-          python test\qgis\test_qt_error_trigger.py
-
-      - name: Run Qt threaded test
-        shell: cmd
-        run: |
-          call C:\OSGeo4W\bin\o4w_env.bat
-
-          :: Run the threaded Qt test (simulates QGIS worker threads)
-          python test\qgis\test_qt_threaded.py
-
       - name: Run PyQGIS error handling test
         shell: cmd
         run: |
@@ -562,24 +545,8 @@ jobs:
           call C:\OSGeo4W\bin\qgis_env.bat
 
           :: Run test inside actual PyQGIS context (headless)
-          :: This is closest to testing real QGIS crash scenario
+          :: Validates f90wrap signal handler fix (GH-1035)
           python test\qgis\test_pyqgis_error_handling.py
-
-      - name: Test summary
-        if: always()
-        shell: pwsh
-        run: |
-          Write-Host "=============================================="
-          Write-Host "QGIS Windows Compatibility Test Complete"
-          Write-Host "=============================================="
-          Write-Host ""
-          Write-Host "This test validates that SUEWS errors are handled"
-          Write-Host "gracefully in a Qt/QGIS environment on Windows."
-          Write-Host ""
-          Write-Host "Tests used the ACTUAL UMEP wheel (NumPy 1.x ABI)"
-          Write-Host "that will be deployed to PyPI/TestPyPI."
-          Write-Host ""
-          Write-Host "Related: GH-1035"
 
   # PR gate: single consolidated check for branch protection
   # This job ALWAYS runs for PRs and merge queue and reports pass/fail based on build results

@@ -11,7 +11,7 @@ module module_type_stebbs
       ! CHARACTER(LEN=50) :: BuildingType !
       ! CHARACTER(LEN=50) :: BuildingName !
       REAL(KIND(1D0)) :: BuildingCount = 0.0D0 ! Number of buildings of this archetype [-]
-      REAL(KIND(1D0)) :: Occupants = 0.0D0 ! Number of occupants present in building [-]
+      REAL(KIND(1D0)) :: Occupants = 0.0D0 ! Maixmum number of occupants in building [-]
       REAL(KIND(1D0)) :: hhs0 = 0.0D0 !
       REAL(KIND(1D0)) :: age_0_4 = 0.0D0 !
       REAL(KIND(1D0)) :: age_5_11 = 0.0D0 !
@@ -70,8 +70,10 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: MaxHeatingPower = 0.0D0 ! Maximum power demand of heating system [W]
       REAL(KIND(1D0)) :: WaterTankWaterVolume = 0.0D0 ! Volume of water in hot water tank [m3]
       REAL(KIND(1D0)) :: MaximumHotWaterHeatingPower = 0.0D0 ! Maximum power demand of water heating system [W]
-      REAL(KIND(1D0)) :: HeatingSetpointTemperature = 0.0D0 ! Heating setpoint temperature [degC]
-      REAL(KIND(1D0)) :: CoolingSetpointTemperature = 0.0D0 ! Cooling setpoint temperature [degC]
+      REAL(KIND(1D0)), DIMENSION(0:23, 2) :: HeatingSetpointTemperature = 0.0D0 ! Heating setpoint temperature [degC]
+      REAL(KIND(1D0)), DIMENSION(0:23, 2) :: CoolingSetpointTemperature = 0.0D0 ! Cooling setpoint temperature [degC]
+      REAL(KIND(1D0)), DIMENSION(0:23, 2) :: OccupantsProfile = 0.0D0 ! diurnal profiles of occupants presence
+      REAL(KIND(1D0)), DIMENSION(0:23, 2) :: ApplianceProfile = 0.0D0 ! diurnal profiles of appliance energy power
       ! flag for iteration safety - YES - as we this should be updated every iteration
       LOGICAL :: iter_safe = .TRUE.
    END TYPE BUILDING_ARCHETYPE_PRM
@@ -99,8 +101,6 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: MetabolicRate = 0.0D0 ! Metabolic rate of building occupants [W]
       REAL(KIND(1D0)) :: LatentSensibleRatio = 0.0D0 ! Latent-to-sensible ratio of metabolic energy release of occupants [-]
       REAL(KIND(1D0)) :: ApplianceRating = 0.0D0 ! Power demand of single appliance [W]
-      REAL(KIND(1D0)) :: TotalNumberofAppliances = 0.0D0 ! Number of appliances present in building [-]
-      REAL(KIND(1D0)) :: ApplianceUsageFactor = 0.0D0 ! Number of appliances in use [-]
       REAL(KIND(1D0)) :: HeatingSystemEfficiency = 0.0D0 ! Efficiency of space heating system [-]
       REAL(KIND(1D0)) :: MaxCoolingPower = 0.0D0 ! Maximum power demand of cooling system [W]
       REAL(KIND(1D0)) :: CoolingSystemCOP = 0.0D0 ! Coefficient of performance of cooling system [-]
@@ -212,17 +212,12 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: roofTransmisivity = 0.0D0
       REAL(KIND(1D0)) :: roofAbsorbtivity = 0.0D0
       REAL(KIND(1D0)) :: roofReflectivity = 0.0D0
-      !REAL(KIND(1D0)) :: BVF_extwall = 0.0D0
-      !REAL(KIND(1D0)) :: GVF_extwall = 0.0D0
-      !REAL(KIND(1D0)) :: SVF_extwall = 0.0D0
-      !REAL(KIND(1D0)) :: BVF_extroof = 0.0D0
-      !REAL(KIND(1D0)) :: GVF_extroof = 0.0D0
-      !REAL(KIND(1D0)) :: SVF_extroof = 0.0D0
       REAL(KIND(1D0)) :: occupants = 0.0D0
+      REAL(KIND(1D0)) :: frac_occupants = 0.0D0
       REAL(KIND(1D0)) :: metabolic_rate = 0.0D0
       REAL(KIND(1D0)) :: ratio_metabolic_latent_sensible = 0.0D0
       REAL(KIND(1D0)) :: appliance_power_rating = 0.0D0
-      REAL(KIND(1D0)) :: appliance_usage_factor = 0.0D0
+      REAL(KIND(1D0)) :: frac_appliance = 0.0D0
       REAL(KIND(1D0)) :: maxheatingpower_air = 0.0D0
       REAL(KIND(1D0)) :: heating_efficiency_air = 0.0D0
       REAL(KIND(1D0)) :: maxcoolingpower_air = 0.0D0

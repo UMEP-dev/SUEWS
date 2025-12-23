@@ -363,13 +363,12 @@ CONTAINS
    ! Returns:
    !   qapp - total energy of appliances - assume all goes to heat (sensible) [W]
    !-------------------------------------------------------------------
-   FUNCTION internalApplianceGains(P, f, n) RESULT(qapp)
+   FUNCTION internalApplianceGains(P, f) RESULT(qapp)
       USE module_phys_stebbs_precision
       IMPLICIT NONE
-      INTEGER, INTENT(in) :: n
       REAL(KIND(1D0)), INTENT(in) :: P, f
       REAL(KIND(1D0)) :: qapp
-      qapp = P*f*n
+      qapp = P*f
    END FUNCTION internalApplianceGains
    !-------------------------------------------------------------------
    ! Function: ext_conv_coeff
@@ -697,9 +696,12 @@ CONTAINS
       REAL(KIND(1D0)) :: Vwater_tank
       REAL(KIND(1D0)) :: n_layer_wall ! layers from spartacus to extract short and longwave radiation
       REAL(KIND(1D0)) :: n_layer_roof  ! layers from spartacus to extract short and longwave radiation    
+      INTEGER :: iu !type of day: weekday/weekend
       ASSOCIATE ( &
          timestep => timer%tstep, &
          dt_start => timer%dt_since_start, &
+         it => timer%it, &!hour of day
+         dayofWeek_id => timer%dayofWeek_id, & !1 - day of week; 2 - month; 3 - season
          flagstate => modState%flagstate, &
          heatState => modState%heatState, &
          atmState => modState%atmState, &
@@ -823,6 +825,14 @@ CONTAINS
             sout%ws_exch_bh = ws_bh
             sout%ws_exch_hbh = ws_hbh
 
+              
+            iu = 1 !Set to 1=weekday
+            IF (DayofWeek_id(1) == 1 .OR. DayofWeek_id(1) == 7) iu = 2 !Set to 2=weekend
+            !select heating/cooling setpoint from prescribed schedules
+            buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature(it ,iu) + 273.15
+            buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature(it ,iu) + 273.15
+            buildings(1)%frac_occupants = building_archtype%OccupantsProfile(it ,iu)
+            buildings(1)%frac_appliance = building_archtype%ApplianceProfile(it ,iu)
             CALL setdatetime(datetimeLine)
 
             CALL suewsstebbscouple( &
@@ -1239,8 +1249,8 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%windowTransmissivity, self%windowAbsorbtivity, self%windowReflectivity, &
       self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity, &
       self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity, &
-      self%occupants, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
-      self%appliance_power_rating, self%appliance_usage_factor, &
+      self%occupants, self%frac_occupants, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
+      self%appliance_power_rating, self%frac_appliance, &
       self%maxheatingpower_air, self%heating_efficiency_air, &
       self%maxcoolingpower_air, self%coeff_performance_cooling, &
       self%Vair_ind, self%ventilation_rate, self%Awall, self%Aroof, &
@@ -1250,7 +1260,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%Tintwindow, self%Textwindow, self%Tintgroundfloor, self%Textgroundfloor, &
       self%Ts, &
       !  self%Ts(1), self%Ts(2),                                                               &
-      self%appliance_totalnumber, timestep, resolution, &
+      timestep, resolution, &
       self%Qtotal_water_tank, self%Twater_tank, self%Tintwall_tank, &
       self%Textwall_tank, self%thickness_tankwall, self%Tincomingwater_tank, &
       self%Vwater_tank, self%Asurf_tank, self%Vwall_tank, self%setTwater_tank, &
@@ -1337,8 +1347,8 @@ SUBROUTINE tstep( &
    windowTransmissivity, windowAbsorbtivity, windowReflectivity, &
    wallTransmisivity, wallAbsorbtivity, wallReflectivity, &
    roofTransmisivity, roofAbsorbtivity, roofReflectivity, &
-   occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
-   appliance_power_rating, appliance_usage_factor, &
+   occupants, frac_occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
+   appliance_power_rating, frac_appliance, &
    maxheatingpower_air, heating_efficiency_air, &
    maxcoolingpower_air, coeff_performance_cooling, &
    Vair_ind, ventilation_rate, Awall, Aroof, &
@@ -1348,7 +1358,7 @@ SUBROUTINE tstep( &
    Tintwindow, Textwindow, Tintgroundfloor, Textgroundfloor, & !IO
    Ts, & !IO
    !  Ts(1), Ts(2),                                                          &
-   appliance_totalnumber, timestep, resolution, &
+   timestep, resolution, &
    Qtotal_water_tank, Twater_tank, Tintwall_tank, & !IO
    Textwall_tank, thickness_tankwall, Tincomingwater_tank, & !IO
    Vwater_tank, Asurf_tank, Vwall_tank, setTwater_tank, & !IO
@@ -1473,12 +1483,10 @@ SUBROUTINE tstep( &
                       windowTransmissivity, windowAbsorbtivity, windowReflectivity, & ! [-], [-], [-]
                       wallTransmisivity, wallAbsorbtivity, wallReflectivity, & ! [-], [-], [-]
                  roofTransmisivity, roofAbsorbtivity, roofReflectivity ! [-], [-], [-]
-   REAL(KIND(1D0)) :: occupants ! Number of occupants [-]
+   REAL(KIND(1D0)) :: occupants, frac_occupants ! Number of occupants [-]
    REAL(KIND(1D0)) :: metabolic_rate, ratio_metabolic_latent_sensible, & ! [W], [-]
-                      appliance_power_rating ! [W]
-   INTEGER :: appliance_totalnumber ! Number of appliances [-]
-   REAL(KIND(1D0)) :: appliance_usage_factor, & ! Number of appliances in use [-]
-                      maxheatingpower_air, heating_efficiency_air, & ! [W], [-]
+                      appliance_power_rating, frac_appliance ! [W]
+   REAL(KIND(1D0)) :: maxheatingpower_air, heating_efficiency_air, & ! [W], [-]
                       maxcoolingpower_air, coeff_performance_cooling, & ! [W], [-]
                       Vair_ind, ventilation_rate, & ! Fixed at begining to have no natural ventilation.
                       Awall, Vwall, & ! [m2], [m3]
@@ -1662,7 +1670,7 @@ SUBROUTINE tstep( &
          Qlw_net_intwindow_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for window internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
          Qlw_net_intgroundfloor_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for ground floor internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
          QH_appliance = &
-            internalApplianceGains(appliance_power_rating, appliance_usage_factor, appliance_totalnumber)
+            internalApplianceGains(appliance_power_rating, frac_appliance)
          QH_ventilation = &
             ventilationHeatTransfer(density_air_ind, cp_air_ind, ventilation_rate, Tair_out_hbh, Tair_ind)
          QHconv_indair_to_intwall = &
@@ -1680,7 +1688,7 @@ SUBROUTINE tstep( &
          QHload_cooling_timestep = cooling(Ts(2), Tair_ind, coeff_performance_cooling, maxcoolingpower_air)
 
          !internalOccupancyGains(occupants, metabolic_rate, ratio_metabolic_latent_sensible, Qmetabolic_sensible, Qmetabolic_latent)
-         Qm = internalOccupancyGains(occupants, metabolic_rate, ratio_metabolic_latent_sensible)
+         Qm = internalOccupancyGains(occupants*frac_occupants, metabolic_rate, ratio_metabolic_latent_sensible)
          QH_metabolism = Qm(1)
          QE_metabolism = Qm(2)
          QHrejection_heating = &
@@ -2170,8 +2178,6 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%metabolic_rate = stebbsPrm%MetabolicRate
    self%ratio_metabolic_latent_sensible = stebbsPrm%LatentSensibleRatio
    self%appliance_power_rating = stebbsPrm%ApplianceRating
-   self%appliance_totalnumber = INT(stebbsPrm%TotalNumberofAppliances)
-   self%appliance_usage_factor = stebbsPrm%ApplianceUsageFactor
    self%maxheatingpower_air = building_archtype%MaxHeatingPower
    self%heating_efficiency_air = stebbsPrm%HeatingSystemEfficiency
    self%maxcoolingpower_air = stebbsPrm%MaxCoolingPower
@@ -2220,11 +2226,11 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%Textwindow = stebbsState%WindowOutdoorSurfaceTemperature + 273.15 ! # Window outdoor surface temperature (K)
    self%Tintgroundfloor = stebbsState%GroundFloorIndoorSurfaceTemperature + 273.15 ! # Ground floor indoor surface temperature (K)
    self%Textgroundfloor = stebbsState%GroundFloorOutdoorSurfaceTemperature + 273.15 ! # Ground floor outdoor surface temperature (K)
-
-   self%Ts = (/building_archtype%HeatingSetpointTemperature + 273.15, &
-               building_archtype%CoolingSetpointTemperature + 273.15/) ! # Heating and Cooling setpoint temperatures (K), respectively
-   self%initTs = (/building_archtype%HeatingSetpointTemperature + 273.15, &
-                   building_archtype%CoolingSetpointTemperature + 273.15/)
+   !Heating/cooling setpoint is determined from prescribed profiles of hoursofday
+   !self%Ts = (/building_archtype%HeatingSetpointTemperature + 273.15, &
+   !            building_archtype%CoolingSetpointTemperature + 273.15/) ! # Heating and Cooling setpoint temperatures (K), respectively
+   !self%initTs = (/building_archtype%HeatingSetpointTemperature + 273.15, &
+   !                building_archtype%CoolingSetpointTemperature + 273.15/)
    self%HTsAverage = (/18 + 273.15, 18 + 273.15, 18 + 273.15/) ! #
    self%HWTsAverage = (/10 + 273.15, 10 + 273.15, 10 + 273.15/)
 
@@ -2379,18 +2385,10 @@ SUBROUTINE create_building(CASE, self, icase)
    self%roofTransmisivity = 0.0
    self%roofAbsorbtivity = 0.5
    self%roofReflectivity = 0.5
-   !self%BVF_extwall = 0.4
-   !self%GVF_extwall = 0.2
-   !self%SVF_extwall = 0.4
-   !self%BVF_extroof = 0.3
-   !self%GVF_extroof = 0.0
-   !self%SVF_extroof = 0.7
    self%occupants = 15
    self%metabolic_rate = 250
    self%ratio_metabolic_latent_sensible = 0.8
    self%appliance_power_rating = 100
-   self%appliance_totalnumber = 45
-   self%appliance_usage_factor = 0.8
    self%maxheatingpower_air = 45000
    self%heating_efficiency_air = 0.9
    self%maxcoolingpower_air = 3000
@@ -2426,7 +2424,6 @@ SUBROUTINE create_building(CASE, self, icase)
    self%wiTAR = (/self%windowTransmissivity, self%windowAbsorbtivity, self%windowReflectivity/)
    self%waTAR = (/self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity/)
    self%roofTAR = (/self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity/)
-   !self%viewFactors = (/self%BVF_extwall, self%GVF_extwall, self%SVF_extwall, self%BVF_extroof, self%GVF_extroof, self%SVF_extroof/) !  # Building, ground, and sky view factors
    self%occupantData = (/self%occupants, self%metabolic_rate, &
                          self%ratio_metabolic_latent_sensible/)
 

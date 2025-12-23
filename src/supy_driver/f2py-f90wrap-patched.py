@@ -48,6 +48,12 @@ else:
 # -*- coding: utf-8 -*-
 import re
 import sys
+import os
+
+# Use vendored f2py_f90wrap with Qt-safe signal handling (GH-1035)
+# This version removes SIGINT handler modification that conflicts with Qt/QGIS
+vendor_path = os.path.join(os.path.dirname(__file__), '..', 'supy', '_vendor', 'f90wrap_src')
+sys.path.insert(0, vendor_path)
 from f90wrap.scripts.f2py_f90wrap import main
 
 if __name__ == "__main__":

@@ -833,7 +833,6 @@ CONTAINS
             buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature(it ,iu) + 273.15
             buildings(1)%frac_occupants = building_archtype%OccupantsProfile(it ,iu)
             buildings(1)%frac_appliance = building_archtype%ApplianceProfile(it ,iu)
-            print*, "for hour of", it, "cooling setpoint = ",building_archtype%CoolingSetpointTemperature(it ,iu)
             CALL setdatetime(datetimeLine)
 
             CALL suewsstebbscouple( &

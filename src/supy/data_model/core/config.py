@@ -168,8 +168,6 @@ class SUEWSConfig(BaseModel):
         "MetabolicRate",
         "LatentSensibleRatio",
         "ApplianceRating",
-        "TotalNumberofAppliances",
-        "ApplianceUsageFactor",
         "HeatingSystemEfficiency",
         "MaxCoolingPower",
         "CoolingSystemCOP",

@@ -363,13 +363,12 @@ CONTAINS
    ! Returns:
    !   qapp - total energy of appliances - assume all goes to heat (sensible) [W]
    !-------------------------------------------------------------------
-   FUNCTION internalApplianceGains(P, f, n) RESULT(qapp)
+   FUNCTION internalApplianceGains(P, f) RESULT(qapp)
       USE module_phys_stebbs_precision
       IMPLICIT NONE
-      INTEGER, INTENT(in) :: n
       REAL(KIND(1D0)), INTENT(in) :: P, f
       REAL(KIND(1D0)) :: qapp
-      qapp = P*f*n
+      qapp = P*f
    END FUNCTION internalApplianceGains
    !-------------------------------------------------------------------
    ! Function: ext_conv_coeff
@@ -832,8 +831,8 @@ CONTAINS
             !select heating/cooling setpoint from prescribed schedules
             buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature(it ,iu) + 273.15
             buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature(it ,iu) + 273.15
-            buildings(1)%frac_occupants = building_archtype%OccupantsProfile(it ,iu) + 273.15
-
+            buildings(1)%frac_occupants = building_archtype%OccupantsProfile(it ,iu)
+            buildings(1)%frac_appliance = building_archtype%ApplianceProfile(it ,iu)
             print*, "for hour of", it, "cooling setpoint = ",building_archtype%CoolingSetpointTemperature(it ,iu)
             CALL setdatetime(datetimeLine)
 
@@ -1252,7 +1251,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity, &
       self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity, &
       self%occupants, self%frac_occupants, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
-      self%appliance_power_rating, self%appliance_usage_factor, &
+      self%appliance_power_rating, self%frac_appliance, &
       self%maxheatingpower_air, self%heating_efficiency_air, &
       self%maxcoolingpower_air, self%coeff_performance_cooling, &
       self%Vair_ind, self%ventilation_rate, self%Awall, self%Aroof, &
@@ -1262,7 +1261,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%Tintwindow, self%Textwindow, self%Tintgroundfloor, self%Textgroundfloor, &
       self%Ts, &
       !  self%Ts(1), self%Ts(2),                                                               &
-      self%appliance_totalnumber, timestep, resolution, &
+      timestep, resolution, &
       self%Qtotal_water_tank, self%Twater_tank, self%Tintwall_tank, &
       self%Textwall_tank, self%thickness_tankwall, self%Tincomingwater_tank, &
       self%Vwater_tank, self%Asurf_tank, self%Vwall_tank, self%setTwater_tank, &
@@ -1350,7 +1349,7 @@ SUBROUTINE tstep( &
    wallTransmisivity, wallAbsorbtivity, wallReflectivity, &
    roofTransmisivity, roofAbsorbtivity, roofReflectivity, &
    occupants, frac_occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
-   appliance_power_rating, appliance_usage_factor, &
+   appliance_power_rating, frac_appliance, &
    maxheatingpower_air, heating_efficiency_air, &
    maxcoolingpower_air, coeff_performance_cooling, &
    Vair_ind, ventilation_rate, Awall, Aroof, &
@@ -1360,7 +1359,7 @@ SUBROUTINE tstep( &
    Tintwindow, Textwindow, Tintgroundfloor, Textgroundfloor, & !IO
    Ts, & !IO
    !  Ts(1), Ts(2),                                                          &
-   appliance_totalnumber, timestep, resolution, &
+   timestep, resolution, &
    Qtotal_water_tank, Twater_tank, Tintwall_tank, & !IO
    Textwall_tank, thickness_tankwall, Tincomingwater_tank, & !IO
    Vwater_tank, Asurf_tank, Vwall_tank, setTwater_tank, & !IO
@@ -1487,10 +1486,8 @@ SUBROUTINE tstep( &
                  roofTransmisivity, roofAbsorbtivity, roofReflectivity ! [-], [-], [-]
    REAL(KIND(1D0)) :: occupants, frac_occupants ! Number of occupants [-]
    REAL(KIND(1D0)) :: metabolic_rate, ratio_metabolic_latent_sensible, & ! [W], [-]
-                      appliance_power_rating ! [W]
-   INTEGER :: appliance_totalnumber ! Number of appliances [-]
-   REAL(KIND(1D0)) :: appliance_usage_factor, & ! Number of appliances in use [-]
-                      maxheatingpower_air, heating_efficiency_air, & ! [W], [-]
+                      appliance_power_rating, frac_appliance ! [W]
+   REAL(KIND(1D0)) :: maxheatingpower_air, heating_efficiency_air, & ! [W], [-]
                       maxcoolingpower_air, coeff_performance_cooling, & ! [W], [-]
                       Vair_ind, ventilation_rate, & ! Fixed at begining to have no natural ventilation.
                       Awall, Vwall, & ! [m2], [m3]
@@ -1674,7 +1671,7 @@ SUBROUTINE tstep( &
          Qlw_net_intwindow_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for window internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
          Qlw_net_intgroundfloor_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for ground floor internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
          QH_appliance = &
-            internalApplianceGains(appliance_power_rating, appliance_usage_factor, appliance_totalnumber)
+            internalApplianceGains(appliance_power_rating, frac_appliance)
          QH_ventilation = &
             ventilationHeatTransfer(density_air_ind, cp_air_ind, ventilation_rate, Tair_out_hbh, Tair_ind)
          QHconv_indair_to_intwall = &
@@ -2182,8 +2179,6 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%metabolic_rate = stebbsPrm%MetabolicRate
    self%ratio_metabolic_latent_sensible = stebbsPrm%LatentSensibleRatio
    self%appliance_power_rating = stebbsPrm%ApplianceRating
-   self%appliance_totalnumber = INT(stebbsPrm%TotalNumberofAppliances)
-   self%appliance_usage_factor = stebbsPrm%ApplianceUsageFactor
    self%maxheatingpower_air = building_archtype%MaxHeatingPower
    self%heating_efficiency_air = stebbsPrm%HeatingSystemEfficiency
    self%maxcoolingpower_air = stebbsPrm%MaxCoolingPower
@@ -2395,8 +2390,6 @@ SUBROUTINE create_building(CASE, self, icase)
    self%metabolic_rate = 250
    self%ratio_metabolic_latent_sensible = 0.8
    self%appliance_power_rating = 100
-   self%appliance_totalnumber = 45
-   self%appliance_usage_factor = 0.8
    self%maxheatingpower_air = 45000
    self%heating_efficiency_air = 0.9
    self%maxcoolingpower_air = 3000

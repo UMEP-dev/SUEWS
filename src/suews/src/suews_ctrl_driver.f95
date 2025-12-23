@@ -3769,8 +3769,9 @@ CONTAINS
       FloorInternalConvectionCoefficient, WindowInternalConvectionCoefficient, &
       WallExternalConvectionCoefficient, RoofExternalConvectionCoefficient, WindowExternalConvectionCoefficient, &
       GroundDepth, ExternalGroundConductivity, &
-      MetabolicRate, LatentSensibleRatio, ApplianceRating, &
-      TotalNumberofAppliances, ApplianceUsageFactor, HeatingSystemEfficiency, &
+      MetabolicRate, LatentSensibleRatio, &
+      ApplianceRating, ApplianceProfile, &
+      HeatingSystemEfficiency, &
       MaxCoolingPower, CoolingSystemCOP, VentilationRate, DeepSoilTemperature, InitialOutdoorTemperature, InitialIndoorTemperature, &
       WaterTankWallThickness, MainsWaterTemperature, WaterTankSurfaceArea, &
       HotWaterHeatingSetpointTemperature, HotWaterTankWallEmissivity, &
@@ -4182,8 +4183,6 @@ CONTAINS
       REAL(KIND(1D0)) :: MetabolicRate
       REAL(KIND(1D0)) :: LatentSensibleRatio
       REAL(KIND(1D0)) :: ApplianceRating
-      REAL(KIND(1D0)) :: TotalNumberofAppliances
-      REAL(KIND(1D0)) :: ApplianceUsageFactor
       REAL(KIND(1D0)) :: HeatingSystemEfficiency
       REAL(KIND(1D0)) :: MaxCoolingPower
       REAL(KIND(1D0)) :: CoolingSystemCOP
@@ -4290,6 +4289,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(0:23, 2) :: HeatingSetpointTemperature ! Heating setpoint diurnal profiles for weekday and weekend
       REAL(KIND(1D0)), DIMENSION(0:23, 2) :: CoolingSetpointTemperature ! Cooling setpoint diurnal profiles for weekday and weekend
       REAL(KIND(1D0)), DIMENSION(0:23, 2) :: OccupantsProfile
+      REAL(KIND(1D0)), DIMENSION(0:23, 2) ::ApplianceProfile
       TYPE(STEBBS_PRM) :: stebbsPrm
 
       ! lumped states
@@ -5052,8 +5052,6 @@ CONTAINS
       stebbsPrm%MetabolicRate = MetabolicRate
       stebbsPrm%LatentSensibleRatio = LatentSensibleRatio
       stebbsPrm%ApplianceRating = ApplianceRating
-      stebbsPrm%TotalNumberofAppliances = TotalNumberofAppliances
-      stebbsPrm%ApplianceUsageFactor = ApplianceUsageFactor
       stebbsPrm%HeatingSystemEfficiency = HeatingSystemEfficiency
       stebbsPrm%MaxCoolingPower = MaxCoolingPower
       stebbsPrm%CoolingSystemCOP = CoolingSystemCOP
@@ -5198,6 +5196,7 @@ CONTAINS
       building_archtype%HeatingSetpointTemperature = HeatingSetpointTemperature
       building_archtype%CoolingSetpointTemperature = CoolingSetpointTemperature
       building_archtype%OccupantsProfile = OccupantsProfile
+      building_archtype%ApplianceProfile = ApplianceProfile
       siteInfo%building_archtype = building_archtype
 
       IF (mod_state%flagState%stebbs_bldg_init == 0) THEN

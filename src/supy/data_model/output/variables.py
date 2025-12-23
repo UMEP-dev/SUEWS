@@ -56,7 +56,8 @@ class OutputGroup(str, Enum):
         BEERS: BEERS radiation model outputs
         DAILYSTATE: Daily accumulated state variables
         SPARTACUS: SPARTACUS radiation model outputs (experimental)
-        STEBBS: STEBBS outputs (experimental)
+        STEBBS: STEBBS outputs (experimental, aggregated across archetypes)
+        STEBBS_ARCHETYPE: Per-archetype STEBBS outputs (GH#360)
         NHOOD: Neighbourhood outputs (experimental)
     """
 
@@ -72,6 +73,7 @@ class OutputGroup(str, Enum):
     DAILYSTATE = "DailyState"
     SPARTACUS = "SPARTACUS"
     STEBBS = "STEBBS"
+    STEBBS_ARCHETYPE = "STEBBS_ARCHETYPE"  # Per-archetype outputs (GH#360)
     NHOOD = "NHood"
 
 

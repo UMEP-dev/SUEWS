@@ -107,6 +107,9 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: sfr_wall !fraction of wall facets [-]
 
       INTEGER :: nlayer ! number of vertical layers in urban canyon [-]
+      INTEGER :: nbtypes = 1 ! number of building archetypes [-] (GH#360)
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: sfr_bldg_arch ! surface fraction of each building archetype [-]
+
       TYPE(SPARTACUS_PRM) :: spartacus
       TYPE(LUMPS_PRM) :: lumps
       TYPE(EHC_PRM) :: ehc
@@ -125,7 +128,8 @@ MODULE module_ctrl_type
       TYPE(LC_BSOIL_PRM) :: lc_bsoil
       TYPE(LC_WATER_PRM) :: lc_water
 
-      TYPE(BUILDING_ARCHETYPE_PRM) :: building_archtype
+      TYPE(BUILDING_ARCHETYPE_PRM) :: building_archtype ! Single archetype (backwards compatible)
+      TYPE(BUILDING_ARCHETYPE_PRM), DIMENSION(:), ALLOCATABLE :: building_archetypes ! Multi-archetype array (GH#360)
       TYPE(STEBBS_PRM) :: stebbs
 
    CONTAINS
@@ -491,6 +495,10 @@ CONTAINS
       CALL self%DEALLOCATE()
       ALLOCATE (self%sfr_roof(nlayer))
       ALLOCATE (self%sfr_wall(nlayer))
+      ! Allocate building archetype arrays based on nbtypes (GH#360)
+      ALLOCATE (self%building_archetypes(self%nbtypes))
+      ALLOCATE (self%sfr_bldg_arch(self%nbtypes))
+      self%sfr_bldg_arch = 1.0D0 / REAL(self%nbtypes, KIND(1D0)) ! Equal fractions by default
 
    END SUBROUTINE allocate_site_prm_c
 
@@ -501,6 +509,8 @@ CONTAINS
 
       IF (ALLOCATED(self%sfr_roof)) DEALLOCATE (self%sfr_roof)
       IF (ALLOCATED(self%sfr_wall)) DEALLOCATE (self%sfr_wall)
+      IF (ALLOCATED(self%building_archetypes)) DEALLOCATE (self%building_archetypes)
+      IF (ALLOCATED(self%sfr_bldg_arch)) DEALLOCATE (self%sfr_bldg_arch)
 
    END SUBROUTINE deallocate_site_prm_c
 

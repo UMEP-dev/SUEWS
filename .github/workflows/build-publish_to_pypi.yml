@@ -80,6 +80,13 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 #    - Undocumented publicly, for UMEP requirements files only
 #    - Pre-release tag (rc1) ensures pip skips it by default
 #
+# 3. QGIS COMPATIBILITY TESTING (test_qgis job - GH-1035):
+#    - Runs AFTER build_umep completes
+#    - Downloads the ACTUAL UMEP wheel (not source build)
+#    - Installs in OSGeo4W/QGIS environment (Windows)
+#    - Tests Qt signal handler compatibility (f90wrap fix)
+#    - Validates errors don't crash Qt applications
+#
 # AUTOMATIC DUAL BUILD PROCESS:
 # - Jobs run in parallel for efficiency
 # - BUILD_UMEP_VARIANT env var triggers rc1 suffix in get_ver_git.py
@@ -428,6 +435,152 @@ jobs:
   # NOTE: Documentation preview deployment moved to pages-deploy.yml
   # This consolidates all GitHub Pages content (site, schemas, docs) in one workflow
 
+  # ============================================================================
+  # QGIS/Qt COMPATIBILITY TESTING (GH-1035)
+  # ============================================================================
+  # Tests that UMEP wheels work correctly in QGIS/OSGeo4W environment.
+  # This validates the f90wrap signal handler fix prevents Qt crashes.
+  #
+  # Runs after build_umep to test the ACTUAL wheels that get deployed,
+  # not a source build (which might have different NumPy/Qt behaviour).
+  # ============================================================================
+  test_qgis:
+    name: Test UMEP wheel in QGIS/OSGeo4W
+    runs-on: windows-latest
+    timeout-minutes: 30
+    needs: [build_umep, detect-changes]
+    # Run when UMEP build succeeds (for PRs, nightly, releases)
+    # Skip if build was skipped (no code changes in PR)
+    if: |
+      always() &&
+      needs.build_umep.result == 'success'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download UMEP wheel artifact
+        uses: actions/download-artifact@v4
+        with:
+          # Download Windows cp312 UMEP wheel
+          name: cp312-win-AMD64-umep
+          path: ./wheels/
+
+      - name: List downloaded wheels
+        shell: pwsh
+        run: |
+          Write-Host "Downloaded UMEP wheels:"
+          Get-ChildItem -Path ./wheels/ -Recurse
+
+      - name: Install OSGeo4W (QGIS)
+        shell: pwsh
+        run: |
+          # Download OSGeo4W installer
+          # Reference: https://trac.osgeo.org/osgeo4w/wiki/CommandLine
+          $installerUrl = "https://download.osgeo.org/osgeo4w/v2/osgeo4w-setup.exe"
+          $installerPath = "$env:TEMP\osgeo4w-setup.exe"
+          Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
+
+          # Install QGIS LTR with Python packages
+          # --quiet-mode: Unattended install
+          # --autoaccept: Accept all licenses
+          # --no-desktop: Skip desktop shortcuts
+          # --arch x86_64: 64-bit installation
+          # Packages: qgis-ltr (QGIS Long Term Release with Python/Qt)
+          $args = @(
+            "--root", "C:\OSGeo4W",
+            "--site", "https://download.osgeo.org/osgeo4w/v2",
+            "--quiet-mode",
+            "--autoaccept",
+            "--no-desktop",
+            "--arch", "x86_64",
+            "--packages", "qgis-ltr"
+          )
+          Write-Host "Installing OSGeo4W with args: $args"
+          Start-Process -FilePath $installerPath -ArgumentList $args -Wait -NoNewWindow
+
+          # Verify installation
+          Write-Host "OSGeo4W installation complete"
+          if (Test-Path "C:\OSGeo4W\bin\o4w_env.bat") {
+            Write-Host "OSGeo4W environment script found"
+          } else {
+            Write-Error "OSGeo4W installation failed - o4w_env.bat not found"
+            exit 1
+          }
+
+      - name: Configure OSGeo4W environment
+        shell: cmd
+        run: |
+          :: Initialize OSGeo4W environment
+          call C:\OSGeo4W\bin\o4w_env.bat
+
+          :: Verify Python version
+          python --version
+          python -c "import sys; print(sys.executable)"
+
+          :: Check Qt availability
+          python -c "from PyQt5.QtCore import QCoreApplication; print('PyQt5 available')"
+
+          :: Check NumPy version (should be 1.x in QGIS)
+          python -c "import numpy; print(f'NumPy version: {numpy.__version__}')"
+
+      - name: Install UMEP wheel in OSGeo4W
+        shell: cmd
+        run: |
+          call C:\OSGeo4W\bin\o4w_env.bat
+
+          :: Find and install the wheel
+          for %%f in (wheels\*.whl) do (
+            echo Installing wheel: %%f
+            pip install "%%f"
+          )
+
+          :: Verify installation
+          python -c "import supy; print(f'supy version: {supy.__version__}')"
+
+      - name: Run Qt error handling test
+        shell: cmd
+        run: |
+          call C:\OSGeo4W\bin\o4w_env.bat
+
+          :: Run the Qt error trigger test
+          :: This should catch the error as RuntimeError, NOT crash
+          python test\qgis\test_qt_error_trigger.py
+
+      - name: Run Qt threaded test
+        shell: cmd
+        run: |
+          call C:\OSGeo4W\bin\o4w_env.bat
+
+          :: Run the threaded Qt test (simulates QGIS worker threads)
+          python test\qgis\test_qt_threaded.py
+
+      - name: Run PyQGIS error handling test
+        shell: cmd
+        run: |
+          :: Use qgis_env.bat for full QGIS environment (includes qgis.core)
+          call C:\OSGeo4W\bin\qgis_env.bat
+
+          :: Run test inside actual PyQGIS context (headless)
+          :: This is closest to testing real QGIS crash scenario
+          python test\qgis\test_pyqgis_error_handling.py
+
+      - name: Test summary
+        if: always()
+        shell: pwsh
+        run: |
+          Write-Host "=============================================="
+          Write-Host "QGIS Windows Compatibility Test Complete"
+          Write-Host "=============================================="
+          Write-Host ""
+          Write-Host "This test validates that SUEWS errors are handled"
+          Write-Host "gracefully in a Qt/QGIS environment on Windows."
+          Write-Host ""
+          Write-Host "Tests used the ACTUAL UMEP wheel (NumPy 1.x ABI)"
+          Write-Host "that will be deployed to PyPI/TestPyPI."
+          Write-Host ""
+          Write-Host "Related: GH-1035"
+
   # PR gate: single consolidated check for branch protection
   # This job ALWAYS runs for PRs and merge queue and reports pass/fail based on build results
   pr-gate:
@@ -435,7 +588,7 @@ jobs:
     runs-on: ubuntu-latest
     # Only run for pull requests and merge queue, but ALWAYS run (even if builds skip)
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
-    needs: [build_wheels, build_umep, detect-changes]
+    needs: [build_wheels, build_umep, test_qgis, detect-changes]
     steps:
       - name: Check build results
         run: |
@@ -443,6 +596,7 @@ jobs:
           echo "detect-changes: ${{ needs.detect-changes.result }}"
           echo "build_wheels: ${{ needs.build_wheels.result }}"
           echo "build_umep: ${{ needs.build_umep.result }}"
+          echo "test_qgis: ${{ needs.test_qgis.result }}"
           echo "needs-build: ${{ needs.detect-changes.outputs.needs-build }}"
           echo ""
 
@@ -473,6 +627,17 @@ jobs:
               VALIDATION_PASSED=false
             fi
 
+            # Validate QGIS/Qt compatibility tests
+            if [[ "${{ needs.test_qgis.result }}" == "success" ]]; then
+              echo "✓ QGIS/Qt compatibility tests passed"
+            elif [[ "${{ needs.test_qgis.result }}" == "skipped" ]]; then
+              echo "⚠ QGIS tests skipped (UMEP build may have failed)"
+            else
+              echo "✗ QGIS/Qt compatibility tests failed"
+              echo "  test_qgis: ${{ needs.test_qgis.result }}"
+              VALIDATION_PASSED=false
+            fi
+
           else
             # No code changes - builds should skip
             echo "No code changes - builds not required"
@@ -492,6 +657,16 @@ jobs:
                   VALIDATION_PASSED=false
                 fi
               fi
+            fi
+
+            # QGIS tests should also be skipped when no code changes
+            if [[ "${{ needs.test_qgis.result }}" == "skipped" ]]; then
+              echo "✓ QGIS tests correctly skipped"
+            elif [[ "${{ needs.test_qgis.result }}" == "success" ]]; then
+              echo "✓ QGIS tests passed (ran unexpectedly but OK)"
+            else
+              echo "✗ QGIS tests failed"
+              VALIDATION_PASSED=false
             fi
           fi
 

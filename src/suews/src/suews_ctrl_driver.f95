@@ -3764,7 +3764,7 @@ CONTAINS
       WindowDensity, WindowCp, WindowExternalEmissivity, WindowInternalEmissivity, WindowTransmissivity, &
       WindowAbsorbtivity, WindowReflectivity, InternalMassDensity, InternalMassCp, InternalMassEmissivity, &
       MaxHeatingPower, WaterTankWaterVolume, MaximumHotWaterHeatingPower, HeatingSetpointTemperature, &
-      CoolingSetpointTemperature, &
+      CoolingSetpointTemperature, OccupantsProfile, &
       WallInternalConvectionCoefficient, RoofInternalConvectionCoefficient, InternalMassConvectionCoefficient, & ! stebbs general input
       FloorInternalConvectionCoefficient, WindowInternalConvectionCoefficient, &
       WallExternalConvectionCoefficient, RoofExternalConvectionCoefficient, WindowExternalConvectionCoefficient, &
@@ -4289,7 +4289,7 @@ CONTAINS
       REAL(KIND(1D0)) :: MaximumHotWaterHeatingPower
       REAL(KIND(1D0)), DIMENSION(0:23, 2) :: HeatingSetpointTemperature ! Heating setpoint diurnal profiles for weekday and weekend
       REAL(KIND(1D0)), DIMENSION(0:23, 2) :: CoolingSetpointTemperature ! Cooling setpoint diurnal profiles for weekday and weekend
-
+      REAL(KIND(1D0)), DIMENSION(0:23, 2) :: OccupantsProfile
       TYPE(STEBBS_PRM) :: stebbsPrm
 
       ! lumped states
@@ -5197,6 +5197,7 @@ CONTAINS
       building_archtype%MaximumHotWaterHeatingPower = MaximumHotWaterHeatingPower
       building_archtype%HeatingSetpointTemperature = HeatingSetpointTemperature
       building_archtype%CoolingSetpointTemperature = CoolingSetpointTemperature
+      building_archtype%OccupantsProfile = OccupantsProfile
       siteInfo%building_archtype = building_archtype
 
       IF (mod_state%flagState%stebbs_bldg_init == 0) THEN

@@ -832,6 +832,8 @@ CONTAINS
             !select heating/cooling setpoint from prescribed schedules
             buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature(it ,iu) + 273.15
             buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature(it ,iu) + 273.15
+            buildings(1)%frac_occupants = building_archtype%OccupantsProfile(it ,iu) + 273.15
+
             print*, "for hour of", it, "cooling setpoint = ",building_archtype%CoolingSetpointTemperature(it ,iu)
             CALL setdatetime(datetimeLine)
 
@@ -1249,7 +1251,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%windowTransmissivity, self%windowAbsorbtivity, self%windowReflectivity, &
       self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity, &
       self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity, &
-      self%occupants, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
+      self%occupants, self%frac_occupants, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
       self%appliance_power_rating, self%appliance_usage_factor, &
       self%maxheatingpower_air, self%heating_efficiency_air, &
       self%maxcoolingpower_air, self%coeff_performance_cooling, &
@@ -1347,7 +1349,7 @@ SUBROUTINE tstep( &
    windowTransmissivity, windowAbsorbtivity, windowReflectivity, &
    wallTransmisivity, wallAbsorbtivity, wallReflectivity, &
    roofTransmisivity, roofAbsorbtivity, roofReflectivity, &
-   occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
+   occupants, frac_occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
    appliance_power_rating, appliance_usage_factor, &
    maxheatingpower_air, heating_efficiency_air, &
    maxcoolingpower_air, coeff_performance_cooling, &
@@ -1483,7 +1485,7 @@ SUBROUTINE tstep( &
                       windowTransmissivity, windowAbsorbtivity, windowReflectivity, & ! [-], [-], [-]
                       wallTransmisivity, wallAbsorbtivity, wallReflectivity, & ! [-], [-], [-]
                  roofTransmisivity, roofAbsorbtivity, roofReflectivity ! [-], [-], [-]
-   REAL(KIND(1D0)) :: occupants ! Number of occupants [-]
+   REAL(KIND(1D0)) :: occupants, frac_occupants ! Number of occupants [-]
    REAL(KIND(1D0)) :: metabolic_rate, ratio_metabolic_latent_sensible, & ! [W], [-]
                       appliance_power_rating ! [W]
    INTEGER :: appliance_totalnumber ! Number of appliances [-]
@@ -1690,7 +1692,7 @@ SUBROUTINE tstep( &
          QHload_cooling_timestep = cooling(Ts(2), Tair_ind, coeff_performance_cooling, maxcoolingpower_air)
 
          !internalOccupancyGains(occupants, metabolic_rate, ratio_metabolic_latent_sensible, Qmetabolic_sensible, Qmetabolic_latent)
-         Qm = internalOccupancyGains(occupants, metabolic_rate, ratio_metabolic_latent_sensible)
+         Qm = internalOccupancyGains(occupants*frac_occupants, metabolic_rate, ratio_metabolic_latent_sensible)
          QH_metabolism = Qm(1)
          QE_metabolism = Qm(2)
          QHrejection_heating = &

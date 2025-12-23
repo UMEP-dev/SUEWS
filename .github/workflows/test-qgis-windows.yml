@@ -88,17 +88,34 @@ jobs:
           :: Check Qt availability
           python -c "from PyQt5.QtCore import QCoreApplication; print('PyQt5 available')"
 
-      - name: Download latest dev wheel from TestPyPI
+      - name: Build and install supy from source
         shell: cmd
+        # Build locally for PR testing to validate fixes before TestPyPI release
+        if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+        run: |
+          call C:\OSGeo4W\bin\o4w_env.bat
+
+          :: Install build dependencies
+          pip install meson-python meson ninja numpy f90wrap
+
+          :: Build and install from source
+          pip install --no-build-isolation -e .
+
+          :: Verify installation
+          python -c "import supy; print(f'supy version (source): {supy.__version__}')"
+
+      - name: Install supy from TestPyPI
+        shell: cmd
+        # Use TestPyPI for workflow_run (after nightly builds)
+        if: github.event_name == 'workflow_run'
         run: |
           call C:\OSGeo4W\bin\o4w_env.bat
 
           :: Install supy from TestPyPI (latest dev version)
-          :: Using --pre to get development releases
           pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre supy
 
           :: Verify installation
-          python -c "import supy; print(f'supy version: {supy.__version__}')"
+          python -c "import supy; print(f'supy version (TestPyPI): {supy.__version__}')"
 
       - name: Run Qt error handling test
         shell: cmd

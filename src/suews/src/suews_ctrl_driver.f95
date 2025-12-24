@@ -5269,6 +5269,18 @@ CONTAINS
                mod_State, &
                output_line_suews) !output
          END IF
+
+         !============ check for fatal error and exit early ===============
+         ! Short-circuit on fatal errors to avoid repeating the same error message
+         ! for every remaining timestep (GH-1035)
+         IF (supy_error_flag) THEN
+            ! Copy error state to block_mod_state so Python can read it
+            IF (PRESENT(block_mod_state)) THEN
+               block_mod_state%BLOCK(ir) = mod_State
+            END IF
+            EXIT
+         END IF
+
          ! update dt_since_start_x for next iteration, dt_since_start_x is used for Qn averaging. TS 28 Nov 2018
          timer%dt_since_start = timer%dt_since_start + timer%tstep
 

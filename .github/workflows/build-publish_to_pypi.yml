@@ -565,7 +565,7 @@ jobs:
 
           :: Install latest UMEP variant (.dev1) from TestPyPI
           :: Uses --pre to get pre-release versions
-          python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre supy
+          python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre supy "numpy<2.0"
 
           :: Verify installation
           python -c "import supy; print(f'supy version: {supy.__version__}')"

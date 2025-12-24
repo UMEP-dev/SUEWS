@@ -1,0 +1,106 @@
+name: Test QGIS Windows Compatibility
+
+# Fast standalone workflow for testing QGIS/OSGeo4W compatibility
+# Uses TestPyPI wheels - no building required
+# Trigger manually for quick iteration during development
+
+on:
+  workflow_dispatch:
+    inputs:
+      supy_version:
+        description: 'SuPy version to test (leave empty for latest dev)'
+        type: string
+        default: ''
+
+jobs:
+  test_qgis:
+    name: Test SuPy in QGIS/OSGeo4W
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install OSGeo4W (QGIS LTR)
+        shell: pwsh
+        run: |
+          # Download OSGeo4W installer
+          $installerUrl = "https://download.osgeo.org/osgeo4w/v2/osgeo4w-setup.exe"
+          $installerPath = "$env:TEMP\osgeo4w-setup.exe"
+          Write-Host "Downloading OSGeo4W installer..."
+          Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
+
+          # Install QGIS LTR
+          $args = @(
+            "--root", "C:\OSGeo4W",
+            "--site", "https://download.osgeo.org/osgeo4w/v2",
+            "--quiet-mode",
+            "--autoaccept",
+            "--no-desktop",
+            "--arch", "x86_64",
+            "--packages", "qgis-ltr"
+          )
+          Write-Host "Installing OSGeo4W with QGIS LTR..."
+          Start-Process -FilePath $installerPath -ArgumentList $args -Wait -NoNewWindow
+
+          # Verify installation
+          if (Test-Path "C:\OSGeo4W\bin\o4w_env.bat") {
+            Write-Host "OSGeo4W installation complete"
+          } else {
+            Write-Error "OSGeo4W installation failed"
+            exit 1
+          }
+
+      - name: Verify OSGeo4W environment
+        shell: cmd
+        run: |
+          call C:\OSGeo4W\bin\o4w_env.bat
+
+          echo === Python ===
+          python --version
+          python -c "import sys; print(sys.executable)"
+
+          echo === Qt ===
+          python -c "from PyQt5.QtCore import QCoreApplication; print('PyQt5 available')"
+
+          echo === NumPy ===
+          python -c "import numpy; print(f'NumPy version: {numpy.__version__}')"
+
+      - name: Install SuPy from TestPyPI
+        shell: cmd
+        run: |
+          call C:\OSGeo4W\bin\o4w_env.bat
+
+          :: Bootstrap pip
+          python -m ensurepip --upgrade
+
+          :: Install SuPy (specific version or latest dev)
+          set VERSION=${{ inputs.supy_version }}
+          if "%VERSION%"=="" (
+            echo Installing latest dev version from TestPyPI...
+            python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre supy
+          ) else (
+            echo Installing supy==%VERSION% from TestPyPI...
+            python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ supy==%VERSION%
+          )
+
+          :: Verify installation
+          python -c "import supy; print(f'supy version: {supy.__version__}')"
+
+      - name: Run PyQGIS error handling test
+        shell: cmd
+        run: |
+          :: Set up OSGeo4W environment
+          call C:\OSGeo4W\bin\o4w_env.bat
+
+          :: Configure QGIS Python environment
+          set QGIS_PREFIX_PATH=C:\OSGeo4W\apps\qgis-ltr
+          set PYTHONPATH=%QGIS_PREFIX_PATH%\python;%PYTHONPATH%
+          set PATH=%QGIS_PREFIX_PATH%\bin;%PATH%
+
+          :: Verify QGIS module
+          python -c "from qgis.core import QgsApplication; print('QGIS Python bindings available')"
+
+          :: Run the test
+          python test\qgis\test_pyqgis_error_handling.py

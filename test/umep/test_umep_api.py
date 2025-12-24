@@ -1,14 +1,7 @@
 """UMEP API compatibility tests (GH-901, GH-902).
 
 Consolidated tests for SUEWS compatibility with UMEP plugins in QGIS.
-These tests are skipped unless running on Windows + Python 3.12 (QGIS 3.40 LTR).
-
-Test classes:
-- TestQGISEnvironment: None stdout/stderr handling
-- TestDatabaseManagerAPI: SUEWS Database Manager
-- TestDatabasePrepareAPI: SUEWS Database Prepare
-- TestERA5DownloadAPI: ERA5 Download
-- TestSUEWSProcessorAPI: SUEWS Processor (init, run, save)
+Skipped unless running on Windows + Python 3.12 (QGIS 3.40 LTR).
 
 See: https://github.com/UMEP-dev/SUEWS/issues/901
 """
@@ -24,7 +17,24 @@ import pytest
 
 import supy as sp
 
-from .conftest import _HAS_SAFE_STDOUT_STDERR
+# Target environment: Windows + Python 3.12 (QGIS 3.40 LTR)
+_IS_QGIS_TARGET = sys.platform == "win32" and sys.version_info[:2] == (3, 12)
+
+# Check if safe_stdout_stderr is available
+try:
+    from supy.util._era5 import safe_stdout_stderr  # noqa: F401
+    _HAS_SAFE_STDOUT_STDERR = True
+except ImportError:
+    _HAS_SAFE_STDOUT_STDERR = False
+
+# Skip all tests in this module unless on QGIS target environment
+pytestmark = [
+    pytest.mark.qgis,
+    pytest.mark.skipif(
+        not _IS_QGIS_TARGET,
+        reason="UMEP API tests only run on Windows + Python 3.12 (QGIS 3.40 LTR)",
+    ),
+]
 
 
 # =============================================================================

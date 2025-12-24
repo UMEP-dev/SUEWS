@@ -2,14 +2,23 @@
 """Test SUEWS error handling inside PyQGIS context.
 
 This test initialises the full QGIS application (headless) and runs
-supy error handling tests within that context. This is the closest
-we can get to testing the actual QGIS crash scenario without a GUI.
+supy error handling tests within that context. Run as standalone script
+in CI: python test/umep/test_pyqgis_error_handling.py
 
-For CI testing on Windows with OSGeo4W installation.
+For CI testing on Windows with OSGeo4W installation (GH-1035).
 """
 
-import sys
 import os
+import sys
+
+import pytest
+
+# Skip when run via pytest on non-QGIS platforms
+_IS_QGIS_TARGET = sys.platform == "win32" and sys.version_info[:2] == (3, 12)
+pytestmark = pytest.mark.skipif(
+    not _IS_QGIS_TARGET,
+    reason="PyQGIS test only runs on Windows + Python 3.12 (QGIS 3.40 LTR)",
+)
 
 # Must set QT_QPA_PLATFORM before importing Qt
 os.environ["QT_QPA_PLATFORM"] = "offscreen"

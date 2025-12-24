@@ -18,7 +18,7 @@ os.environ["QT_QPA_PLATFORM"] = "offscreen"
 def setup_qgis():
     """Initialise QGIS application in headless mode."""
     # Import QGIS modules
-    from qgis.core import QgsApplication
+    from qgis.core import QgsApplication, Qgis
 
     # Supply path to QGIS install location
     # On OSGeo4W, this is typically handled by o4w_env.bat
@@ -27,7 +27,7 @@ def setup_qgis():
     # Load providers
     qgs.initQgis()
 
-    print(f"QGIS version: {qgs.version()}")
+    print(f"QGIS version: {Qgis.version()}")
     print(f"QGIS prefix path: {qgs.prefixPath()}")
 
     return qgs

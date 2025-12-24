@@ -136,6 +136,11 @@ on:
     - cron: '0 2 * * *'
 
   workflow_dispatch:
+    inputs:
+      qgis_test_only:
+        description: 'Skip builds, test QGIS with TestPyPI wheel (fast iteration)'
+        type: boolean
+        default: false
 
 # Cancel in-progress runs when new commits are pushed to the same PR/branch
 concurrency:
@@ -358,8 +363,10 @@ jobs:
     # 1. Not a PR (push/tag/schedule always build), OR
     # 2. PR with code changes (detect-changes.outputs.needs-build == 'true')
     # 3. AND other dependencies succeeded/skipped
+    # 4. AND not in qgis_test_only mode (fast iteration skips builds)
     if: |
       always() &&
+      inputs.qgis_test_only != true &&
       needs.determine_matrix.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true')
@@ -396,11 +403,13 @@ jobs:
     # 1. Not a PR (push/tag/schedule always build), OR
     # 2. PR with code changes (detect-changes.outputs.needs-build == 'true')
     # 3. AND other dependencies succeeded/skipped
+    # 4. AND not in qgis_test_only mode (fast iteration skips builds)
     # UMEP versioning:
     #   - Production tags: X.Y.Zrc1 (pre-release for QGIS)
     #   - Dev/nightly: X.Y.Z.dev1 (incremented to avoid collision with standard .dev0)
     if: |
       always() &&
+      inputs.qgis_test_only != true &&
       needs.determine_matrix.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true')
@@ -449,17 +458,19 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     needs: [build_umep, detect-changes]
-    # Run when UMEP build succeeds (for PRs, nightly, releases)
-    # Skip if build was skipped (no code changes in PR)
+    # Run when:
+    # 1. UMEP build succeeds (normal mode), OR
+    # 2. qgis_test_only mode (skip builds, use TestPyPI wheel for fast iteration)
     if: |
       always() &&
-      needs.build_umep.result == 'success'
+      (needs.build_umep.result == 'success' || inputs.qgis_test_only == true)
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Download UMEP wheel artifact
+        if: inputs.qgis_test_only != true
         uses: actions/download-artifact@v4
         with:
           # Download Windows cp312 UMEP wheel
@@ -467,6 +478,7 @@ jobs:
           path: ./wheels/
 
       - name: List downloaded wheels
+        if: inputs.qgis_test_only != true
         shell: pwsh
         run: |
           Write-Host "Downloaded UMEP wheels:"
@@ -524,7 +536,8 @@ jobs:
           :: Check NumPy version (should be 1.x in QGIS)
           python -c "import numpy; print(f'NumPy version: {numpy.__version__}')"
 
-      - name: Install UMEP wheel in OSGeo4W
+      - name: Install UMEP wheel in OSGeo4W (from artifact)
+        if: inputs.qgis_test_only != true
         shell: cmd
         run: |
           call C:\OSGeo4W\bin\o4w_env.bat
@@ -541,11 +554,35 @@ jobs:
           :: Verify installation
           python -c "import supy; print(f'supy version: {supy.__version__}')"
 
+      - name: Install UMEP wheel in OSGeo4W (from TestPyPI - fast mode)
+        if: inputs.qgis_test_only == true
+        shell: cmd
+        run: |
+          call C:\OSGeo4W\bin\o4w_env.bat
+
+          :: Bootstrap pip (OSGeo4W Python doesn't include pip by default)
+          python -m ensurepip --upgrade
+
+          :: Install latest UMEP variant (.dev1) from TestPyPI
+          :: Uses --pre to get pre-release versions
+          python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre supy
+
+          :: Verify installation
+          python -c "import supy; print(f'supy version: {supy.__version__}')"
+
       - name: Run PyQGIS error handling test
         shell: cmd
         run: |
-          :: Use qgis_env.bat for full QGIS environment (includes qgis.core)
-          call C:\OSGeo4W\bin\qgis_env.bat
+          :: Set up OSGeo4W base environment
+          call C:\OSGeo4W\bin\o4w_env.bat
+
+          :: Configure QGIS Python environment (OSGeo4W v2 doesn't have qgis_env.bat)
+          set QGIS_PREFIX_PATH=C:\OSGeo4W\apps\qgis-ltr
+          set PYTHONPATH=%QGIS_PREFIX_PATH%\python;%PYTHONPATH%
+          set PATH=%QGIS_PREFIX_PATH%\bin;%PATH%
+
+          :: Verify QGIS module is accessible
+          python -c "from qgis.core import QgsApplication; print('QGIS Python bindings available')"
 
           :: Run test inside actual PyQGIS context (headless)
           :: Validates f90wrap signal handler fix (GH-1035)

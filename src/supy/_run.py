@@ -773,7 +773,6 @@ def run_supy_par(
     # create a temp directory for results
     with tempfile.TemporaryDirectory() as dir_temp:
         path_dir_temp = Path(dir_temp).resolve()
-        # print(path_dir_temp)
         list_dir_temp = [path_dir_temp for _ in range(n_grid)]
 
         # parallel run
@@ -864,7 +863,6 @@ def pack_var(ser_var: pd.Series) -> np.ndarray:
     try:
         # Convert index strings to tuples of integers
         # e.g. '(1,2)' -> (1,2)
-        # import pdb; pdb.set_trace()
         index_tuples = [
             tuple(map(int, filter(None, idx.strip("()").split(","))))
             for idx in ser_var.index
@@ -901,20 +899,7 @@ def pack_grid_dict(ser_grid):
     dict_var = {}
     for var in list_var:
         if var not in ["file_init"]:
-            # print(f"var: {var}")
-            # val_packed = pack_var(ser_grid[var])
-            # val_packed_old = pack_var_old(ser_grid[var])
-            # # Test if the old and new packed values are different
-            # if not np.array_equal(val_packed_old, val_packed):
-            #     # Save the input Series as a pickle file for debugging
-            #     ser_grid.to_pickle("ser_grid_debug.pkl")
-            #     # Stop execution
-            #     raise ValueError(f"Packed values for variable '{var}' are different between old and new methods.")
-
-            # dict_var[var] = pack_var(ser_grid[var])
-            # dict_var[var] = pack_var_old(ser_grid[var])
             try:
-                # dict_var[var] = pack_var(ser_grid[var])
                 dict_var[var] = pack_var_old(ser_grid[var])
             except Exception as e:
                 # Skip string metadata variables that don't need packing
@@ -930,13 +915,6 @@ def pack_grid_dict(ser_grid):
                             "Could not pack variable '%s' (tried both methods): %s / %s",
                             var, e, e2
                         )
-        else:
-            pass
-    # dict_var = {
-    #     var: pack_var(ser_grid[var])  # .astype(np.float)
-    #     for var in list_var
-    #     if var not in ["file_init"]
-    # }
     # convert to int
     dict_var_int = {
         var: dict_var[var].astype(int) for var in list_var if var in list_var_int

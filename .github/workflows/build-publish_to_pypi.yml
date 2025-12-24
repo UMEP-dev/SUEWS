@@ -530,9 +530,10 @@ jobs:
           call C:\OSGeo4W\bin\o4w_env.bat
 
           :: Find and install the wheel
+          :: NOTE: Use python -m pip as OSGeo4W doesn't expose pip directly in PATH
           for %%f in (wheels\*.whl) do (
             echo Installing wheel: %%f
-            pip install "%%f"
+            python -m pip install "%%f"
           )
 
           :: Verify installation

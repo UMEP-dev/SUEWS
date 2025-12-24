@@ -590,7 +590,7 @@ jobs:
 
           :: Run test inside actual PyQGIS context (headless)
           :: Validates f90wrap signal handler fix (GH-1035)
-          python test\qgis\test_pyqgis_error_handling.py
+          python test\umep\test_pyqgis_error_handling.py
 
   # PR gate: single consolidated check for branch protection
   # This job ALWAYS runs for PRs and merge queue and reports pass/fail based on build results

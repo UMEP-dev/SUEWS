@@ -107,4 +107,4 @@ jobs:
           python -c "from qgis.core import QgsApplication; print('QGIS Python bindings available')"
 
           :: Run the test
-          python test\qgis\test_pyqgis_error_handling.py
+          python test\umep\test_pyqgis_error_handling.py

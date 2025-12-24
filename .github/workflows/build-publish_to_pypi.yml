@@ -529,8 +529,10 @@ jobs:
         run: |
           call C:\OSGeo4W\bin\o4w_env.bat
 
+          :: Bootstrap pip (OSGeo4W Python doesn't include pip by default)
+          python -m ensurepip --upgrade
+
           :: Find and install the wheel
-          :: NOTE: Use python -m pip as OSGeo4W doesn't expose pip directly in PATH
           for %%f in (wheels\*.whl) do (
             echo Installing wheel: %%f
             python -m pip install "%%f"

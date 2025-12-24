@@ -76,13 +76,14 @@ jobs:
           python -m ensurepip --upgrade
 
           :: Install SuPy (specific version or latest dev)
-          set VERSION=${{ inputs.supy_version }}
-          if "%VERSION%"=="" (
+          :: Use quoted set to handle empty values correctly in Windows CMD
+          set "SUPY_VERSION=${{ inputs.supy_version }}"
+          if "%SUPY_VERSION%"=="" (
             echo Installing latest dev version from TestPyPI...
             python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre supy
           ) else (
-            echo Installing supy==%VERSION% from TestPyPI...
-            python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ supy==%VERSION%
+            echo Installing supy==%SUPY_VERSION% from TestPyPI...
+            python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "supy==%SUPY_VERSION%"
           )
 
           :: Verify installation

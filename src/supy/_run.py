@@ -66,7 +66,7 @@ class SUEWSKernelError(RuntimeError):
         super().__init__(f"SUEWS Error {code}: {message}")
 
 
-def _check_supy_error_from_state(state_block, timestep_idx: int = -1):
+def _check_supy_error_from_state(state_block, timestep_idx: int | None = None):
     """Check error state from SUEWS_STATE_BLOCK object.
 
     This is the preferred method for checking errors when state objects
@@ -78,7 +78,9 @@ def _check_supy_error_from_state(state_block, timestep_idx: int = -1):
     state_block : SUEWS_STATE_BLOCK
         The state block object containing error state from the kernel call.
     timestep_idx : int, optional
-        Index of the timestep to check. Defaults to -1 (last timestep).
+        Index of the timestep to check. If None (default), scans all timesteps
+        for errors (handles early exit on fatal errors). If specified, only
+        checks that specific timestep.
 
     Raises
     ------
@@ -89,22 +91,37 @@ def _check_supy_error_from_state(state_block, timestep_idx: int = -1):
         return
 
     try:
-        # Convert negative index to positive (f90wrap doesn't support negative indexing)
         block_len = len(state_block.block)
         if block_len == 0:
             return  # No states to check
 
-        if timestep_idx < 0:
-            timestep_idx = block_len + timestep_idx
+        if timestep_idx is not None:
+            # Check specific timestep only
+            # Convert negative index to positive (f90wrap doesn't support negative indexing)
+            if timestep_idx < 0:
+                timestep_idx = block_len + timestep_idx
+            indices_to_check = [timestep_idx]
+        else:
+            # Scan all timesteps for errors (handles early exit on fatal errors)
+            indices_to_check = range(block_len)
 
-        # Access the specified state in the block
-        state = state_block.block[timestep_idx]
-        error_state = state.errorstate
+        for idx in indices_to_check:
+            try:
+                state = state_block.block[idx]
+                error_state = state.errorstate
 
-        if error_state.flag:
-            code = int(error_state.code)
-            message = str(error_state.message).strip()
-            raise SUEWSKernelError(code, message)
+                if error_state.flag:
+                    code = int(error_state.code)
+                    message = str(error_state.message).strip()
+                    raise SUEWSKernelError(code, message)
+            except SUEWSKernelError:
+                # Re-raise kernel errors (don't catch as RuntimeError subclass)
+                raise
+            except (AttributeError, RuntimeError):
+                # State not populated at this index (early exit case)
+                # or structure not as expected - continue to next
+                continue
+
     except SUEWSKernelError:
         # Re-raise our own error type
         raise
@@ -597,6 +614,9 @@ def run_supy_ser(
             else:
                 list_dict_state_end, list_df_output = zip(*list_res_grid)
 
+        except SUEWSKernelError:
+            # Re-raise kernel errors without wrapping (allows proper handling upstream)
+            raise
         except Exception as e:
             path_zip_debug = save_zip_debug(df_forcing, df_state_init, error_info=e)
             raise RuntimeError(

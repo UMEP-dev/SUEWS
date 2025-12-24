@@ -168,3 +168,28 @@ class TestSUEWSProcessorAPI(TestCase):
             # Verify files were created
             output_files = list(Path(temp_dir).glob("*"))
             self.assertGreater(len(output_files), 0)
+
+    def test_config_contains_output_path(self):
+        """Test that config structure includes output path for UMEP Post-processor.
+
+        UMEP Post-processor requires:
+        yaml_dict['model']['control']['output_file']['path']
+        """
+        from supy.data_model import init_config_from_yaml
+
+        if not self.sample_config.exists():
+            self.skipTest("Sample config not available")
+
+        config = init_config_from_yaml(self.sample_config)
+
+        # Navigate to output path as UMEP does
+        self.assertTrue(hasattr(config, "model"))
+        self.assertTrue(hasattr(config.model, "control"))
+        self.assertTrue(hasattr(config.model.control, "output_file"))
+
+        # The output_file should have a path attribute
+        output_file = config.model.control.output_file
+        self.assertTrue(
+            hasattr(output_file, "path"),
+            "output_file must have 'path' attribute for UMEP compatibility",
+        )

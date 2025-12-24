@@ -99,6 +99,9 @@ jobs:
           set PYTHONPATH=%QGIS_PREFIX_PATH%\python;%PYTHONPATH%
           set PATH=%QGIS_PREFIX_PATH%\bin;%PATH%
 
+          :: Set Qt to headless mode (must be before any Qt import)
+          set QT_QPA_PLATFORM=offscreen
+
           :: Verify QGIS module
           python -c "from qgis.core import QgsApplication; print('QGIS Python bindings available')"
 

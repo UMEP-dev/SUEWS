@@ -11,13 +11,23 @@ For CI testing on Windows with OSGeo4W installation (GH-1035).
 import os
 import sys
 
+# QGIS LTR Python version - update when QGIS LTR changes
+# QGIS 3.40 LTR (2024-2025) uses Python 3.12
+# Check: https://qgis.org/en/site/forusers/visualchangelog340/
+QGIS_LTR_PYTHON_VERSION = (3, 12)
+
+# Target environment check
+_IS_QGIS_TARGET = (
+    sys.platform == "win32"
+    and sys.version_info[:2] == QGIS_LTR_PYTHON_VERSION
+)
+
 # Skip when run via pytest on non-QGIS platforms (pytest may not be installed)
-_IS_QGIS_TARGET = sys.platform == "win32" and sys.version_info[:2] == (3, 12)
 try:
     import pytest
     pytestmark = pytest.mark.skipif(
         not _IS_QGIS_TARGET,
-        reason="PyQGIS test only runs on Windows + Python 3.12 (QGIS 3.40 LTR)",
+        reason=f"PyQGIS test only runs on Windows + Python {QGIS_LTR_PYTHON_VERSION[0]}.{QGIS_LTR_PYTHON_VERSION[1]} (QGIS LTR)",
     )
 except ImportError:
     pass  # Running standalone without pytest

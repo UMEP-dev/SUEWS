@@ -11,14 +11,16 @@ For CI testing on Windows with OSGeo4W installation (GH-1035).
 import os
 import sys
 
-import pytest
-
-# Skip when run via pytest on non-QGIS platforms
+# Skip when run via pytest on non-QGIS platforms (pytest may not be installed)
 _IS_QGIS_TARGET = sys.platform == "win32" and sys.version_info[:2] == (3, 12)
-pytestmark = pytest.mark.skipif(
-    not _IS_QGIS_TARGET,
-    reason="PyQGIS test only runs on Windows + Python 3.12 (QGIS 3.40 LTR)",
-)
+try:
+    import pytest
+    pytestmark = pytest.mark.skipif(
+        not _IS_QGIS_TARGET,
+        reason="PyQGIS test only runs on Windows + Python 3.12 (QGIS 3.40 LTR)",
+    )
+except ImportError:
+    pass  # Running standalone without pytest
 
 # Must set QT_QPA_PLATFORM before importing Qt
 os.environ["QT_QPA_PLATFORM"] = "offscreen"

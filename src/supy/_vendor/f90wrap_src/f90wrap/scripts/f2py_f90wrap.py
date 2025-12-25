@@ -36,9 +36,21 @@ is generated. We make several changes to f2py:
      :c:func:`f90wrap_abort`. This is implemented using a
      :c:func:`setjmp`/ :c:func:`longjmp` trap.
 
-  3. Allow Fortran routines to be interrupted with :kbd:`Ctrl+C` by installing a custom
-     interrupt handler before the call into Fortran is made. After the Fortran routine
-     returns, the previous interrupt handler is restored.
+SUEWS VENDORING NOTE (GH-1035)
+------------------------------
+This file is vendored from f90wrap with the following modification:
+
+- REMOVED: SIGINT handler installation/restoration around Fortran calls.
+  The original code called signal(SIGINT, ...) before/after every Fortran
+  routine, which conflicts with Qt's signal handlers on Windows, causing
+  QGIS to crash. The setjmp/longjmp mechanism for f90wrap_abort() is
+  preserved for error handling.
+
+- TRADE-OFF: Users cannot Ctrl+C interrupt long-running Fortran computations,
+  but Qt/QGIS applications remain stable.
+
+Original upstream: github.com/jameskermode/f90wrap
+Vendored version base: f90wrap 0.2.x (circa 2024)
 
 """
 

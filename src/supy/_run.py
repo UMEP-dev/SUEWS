@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import multiprocessing
 import os
@@ -66,7 +68,7 @@ class SUEWSKernelError(RuntimeError):
         super().__init__(f"SUEWS Error {code}: {message}")
 
 
-def _check_supy_error_from_state(state_block, timestep_idx: int = -1):
+def _check_supy_error_from_state(state_block, timestep_idx: int | None = None):
     """Check error state from SUEWS_STATE_BLOCK object.
 
     This is the preferred method for checking errors when state objects
@@ -78,7 +80,9 @@ def _check_supy_error_from_state(state_block, timestep_idx: int = -1):
     state_block : SUEWS_STATE_BLOCK
         The state block object containing error state from the kernel call.
     timestep_idx : int, optional
-        Index of the timestep to check. Defaults to -1 (last timestep).
+        Index of the timestep to check. If None (default), scans all timesteps
+        for errors (handles early exit on fatal errors). If specified, only
+        checks that specific timestep.
 
     Raises
     ------
@@ -89,22 +93,37 @@ def _check_supy_error_from_state(state_block, timestep_idx: int = -1):
         return
 
     try:
-        # Convert negative index to positive (f90wrap doesn't support negative indexing)
         block_len = len(state_block.block)
         if block_len == 0:
             return  # No states to check
 
-        if timestep_idx < 0:
-            timestep_idx = block_len + timestep_idx
+        if timestep_idx is not None:
+            # Check specific timestep only
+            # Convert negative index to positive (f90wrap doesn't support negative indexing)
+            if timestep_idx < 0:
+                timestep_idx = block_len + timestep_idx
+            indices_to_check = [timestep_idx]
+        else:
+            # Scan all timesteps for errors (handles early exit on fatal errors)
+            indices_to_check = range(block_len)
 
-        # Access the specified state in the block
-        state = state_block.block[timestep_idx]
-        error_state = state.errorstate
+        for idx in indices_to_check:
+            try:
+                state = state_block.block[idx]
+                error_state = state.errorstate
 
-        if error_state.flag:
-            code = int(error_state.code)
-            message = str(error_state.message).strip()
-            raise SUEWSKernelError(code, message)
+                if error_state.flag:
+                    code = int(error_state.code)
+                    message = str(error_state.message).strip()
+                    raise SUEWSKernelError(code, message)
+            except SUEWSKernelError:
+                # Re-raise kernel errors (don't catch as RuntimeError subclass)
+                raise
+            except (AttributeError, RuntimeError):
+                # State not populated at this index (early exit case)
+                # or structure not as expected - continue to next
+                continue
+
     except SUEWSKernelError:
         # Re-raise our own error type
         raise
@@ -190,6 +209,8 @@ def suews_cal_tstep(dict_state_start, dict_met_forcing_tstep):
     # Note: This single-timestep path still uses module-level error check.
     # For fully thread-safe operation, use suews_cal_tstep_multi instead.
     try:
+        # Reset module-level error state before kernel call
+        _reset_supy_error()
         res_suews_tstep = sd.suews_cal_main(**dict_input)
         # Check for Fortran error flag (module-level, not fully thread-safe)
         _check_supy_error()
@@ -303,6 +324,10 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
     # No kernel lock needed - state-based error handling is thread-safe
     # Each call has its own block_mod_state for error capture
     try:
+        # Reset module-level error state before kernel call
+        # This prevents stale errors from previous calls affecting this one
+        _reset_supy_error()
+
         # Create and initialize block_mod_state for state-based error handling
         # NOTE: Must initialize from Python before kernel call, as f90wrap cannot
         # reflect Fortran ALLOCATABLE component changes back to Python
@@ -597,6 +622,9 @@ def run_supy_ser(
             else:
                 list_dict_state_end, list_df_output = zip(*list_res_grid)
 
+        except SUEWSKernelError:
+            # Re-raise kernel errors without wrapping (allows proper handling upstream)
+            raise
         except Exception as e:
             path_zip_debug = save_zip_debug(df_forcing, df_state_init, error_info=e)
             raise RuntimeError(
@@ -753,7 +781,6 @@ def run_supy_par(
     # create a temp directory for results
     with tempfile.TemporaryDirectory() as dir_temp:
         path_dir_temp = Path(dir_temp).resolve()
-        # print(path_dir_temp)
         list_dir_temp = [path_dir_temp for _ in range(n_grid)]
 
         # parallel run
@@ -844,7 +871,6 @@ def pack_var(ser_var: pd.Series) -> np.ndarray:
     try:
         # Convert index strings to tuples of integers
         # e.g. '(1,2)' -> (1,2)
-        # import pdb; pdb.set_trace()
         index_tuples = [
             tuple(map(int, filter(None, idx.strip("()").split(","))))
             for idx in ser_var.index
@@ -881,20 +907,7 @@ def pack_grid_dict(ser_grid):
     dict_var = {}
     for var in list_var:
         if var not in ["file_init"]:
-            # print(f"var: {var}")
-            # val_packed = pack_var(ser_grid[var])
-            # val_packed_old = pack_var_old(ser_grid[var])
-            # # Test if the old and new packed values are different
-            # if not np.array_equal(val_packed_old, val_packed):
-            #     # Save the input Series as a pickle file for debugging
-            #     ser_grid.to_pickle("ser_grid_debug.pkl")
-            #     # Stop execution
-            #     raise ValueError(f"Packed values for variable '{var}' are different between old and new methods.")
-
-            # dict_var[var] = pack_var(ser_grid[var])
-            # dict_var[var] = pack_var_old(ser_grid[var])
             try:
-                # dict_var[var] = pack_var(ser_grid[var])
                 dict_var[var] = pack_var_old(ser_grid[var])
             except Exception as e:
                 # Skip string metadata variables that don't need packing
@@ -910,13 +923,6 @@ def pack_grid_dict(ser_grid):
                             "Could not pack variable '%s' (tried both methods): %s / %s",
                             var, e, e2
                         )
-        else:
-            pass
-    # dict_var = {
-    #     var: pack_var(ser_grid[var])  # .astype(np.float)
-    #     for var in list_var
-    #     if var not in ["file_init"]
-    # }
     # convert to int
     dict_var_int = {
         var: dict_var[var].astype(int) for var in list_var if var in list_var_int

@@ -7,6 +7,7 @@ See: https://github.com/UMEP-dev/SUEWS/issues/901
 """
 
 import inspect
+import sys
 import tempfile
 from pathlib import Path
 from unittest import TestCase

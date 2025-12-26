@@ -209,6 +209,8 @@ def suews_cal_tstep(dict_state_start, dict_met_forcing_tstep):
     # Note: This single-timestep path still uses module-level error check.
     # For fully thread-safe operation, use suews_cal_tstep_multi instead.
     try:
+        # Reset module-level error state before kernel call
+        _reset_supy_error()
         res_suews_tstep = sd.suews_cal_main(**dict_input)
         # Check for Fortran error flag (module-level, not fully thread-safe)
         _check_supy_error()
@@ -322,6 +324,10 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
     # No kernel lock needed - state-based error handling is thread-safe
     # Each call has its own block_mod_state for error capture
     try:
+        # Reset module-level error state before kernel call
+        # This prevents stale errors from previous calls affecting this one
+        _reset_supy_error()
+
         # Create and initialize block_mod_state for state-based error handling
         # NOTE: Must initialize from Python before kernel call, as f90wrap cannot
         # reflect Fortran ALLOCATABLE component changes back to Python

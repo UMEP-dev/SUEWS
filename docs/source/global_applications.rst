@@ -5,11 +5,7 @@ Global Applications
 
 SUEWS has been applied in cities across the globe, spanning diverse climate zones from cold northern latitudes to tropical regions. This page provides an overview of documented SUEWS applications based on Web of Science publications.
 
-.. note::
-
-   Data on this page is automatically generated from Web of Science using the
-   `fetch_suews_papers.py <https://github.com/UMEP-dev/SUEWS/blob/master/scripts/wos-papers/fetch_suews_papers.py>`_
-   script. Last updated: 2025-11-26.
+*Data as of 2 Jan 2026. Source:* `Web of Science <https://www.webofscience.com/>`_
 
 Summary Statistics
 ------------------
@@ -177,20 +173,6 @@ SUEWS publications cover diverse research themes:
      - 10
      - UTCI, heat stress, outdoor comfort
 
-Publication Trends
-------------------
-
-SUEWS-related publications have grown steadily since the model's introduction:
-
-.. code-block:: text
-
-   2011: █ (1)       2017: ██████ (6)      2023: ██████ (6)
-   2014: █ (1)       2018: █████ (5)       2024: ███████████ (11)
-   2015: ███ (3)     2019: █████ (5)       2025: ██████████ (10)
-   2016: ███████ (7) 2020: ███ (3)         2026: █ (1) [in press]
-                     2021: █████ (5)
-                     2022: ████ (4)
-
 Data Sources
 ------------
 
@@ -229,12 +211,10 @@ The publication data can be refreshed using the provided script:
 
 See :doc:`scripts/wos-papers/README.md <../../../scripts/wos-papers/README>` for full documentation.
 
-Raw Data Files
---------------
+Raw Data
+--------
 
-- :download:`JSON Data <assets/wos-papers/suews_wos_papers_20251126.json>` - Full metadata with analysis
-- :download:`BibTeX <assets/wos-papers/suews_wos_papers_20251126.bib>` - Citation entries
-- :download:`Markdown Summary <assets/wos-papers/suews_wos_papers_20251126.md>` - Human-readable summary
+- :download:`JSON Data <assets/wos-papers/suews_wos_papers.json>` - Full metadata with analysis
 
 See Also
 --------

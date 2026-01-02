@@ -607,8 +607,8 @@ Environment:
         "-f",
         nargs="+",
         choices=["json", "bibtex", "markdown", "all"],
-        default=["all"],
-        help="Output formats (default: all)",
+        default=["json"],
+        help="Output formats (default: json)",
     )
     parser.add_argument(
         "--query",
@@ -669,10 +669,8 @@ Environment:
     print()
 
     # Write outputs
-    timestamp = datetime.now().strftime("%Y%m%d")
-
     if "json" in formats:
-        json_path = args.output_dir / f"suews_wos_papers_{timestamp}.json"
+        json_path = args.output_dir / "suews_wos_papers.json"
         with open(json_path, "w") as f:
             json.dump(
                 {
@@ -690,13 +688,13 @@ Environment:
         print(f"JSON: {json_path}")
 
     if "bibtex" in formats:
-        bib_path = args.output_dir / f"suews_wos_papers_{timestamp}.bib"
+        bib_path = args.output_dir / "suews_wos_papers.bib"
         with open(bib_path, "w") as f:
             f.write(generate_bibtex(papers))
         print(f"BibTeX: {bib_path}")
 
     if "markdown" in formats:
-        md_path = args.output_dir / f"suews_wos_papers_{timestamp}.md"
+        md_path = args.output_dir / "suews_wos_papers.md"
         with open(md_path, "w") as f:
             f.write(generate_markdown(papers, analysis))
         print(f"Markdown: {md_path}")

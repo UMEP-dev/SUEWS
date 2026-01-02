@@ -43,16 +43,16 @@ python fetch_suews_papers.py --formats json markdown
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--output-dir`, `-o` | Output directory | Current directory |
-| `--formats`, `-f` | Output formats: json, bibtex, markdown, all | all |
+| `--formats`, `-f` | Output formats: json, bibtex, markdown, all | json |
 | `--query`, `-q` | Custom WoS search query | SUEWS search |
 
 ### Output Files
 
-The script generates timestamped output files:
+The script generates:
 
-- `suews_wos_papers_YYYYMMDD.json` - Full data with metadata and analysis
-- `suews_wos_papers_YYYYMMDD.bib` - BibTeX entries for citation management
-- `suews_wos_papers_YYYYMMDD.md` - Markdown summary for documentation
+- `suews_wos_papers.json` - Full data with metadata and analysis (default)
+- `suews_wos_papers.bib` - BibTeX entries (optional, use `--formats bibtex`)
+- `suews_wos_papers.md` - Markdown summary (optional, use `--formats markdown`)
 
 ## Methodology
 
@@ -121,19 +121,16 @@ The script analyses papers for:
 
 To update SUEWS documentation with latest publications:
 
-1. Run the script to generate new outputs:
+1. Run the script:
    ```bash
-   python fetch_suews_papers.py --output-dir ../../docs/source/assets/refs/
+   python fetch_suews_papers.py --output-dir ../../docs/source/assets/wos-papers/
    ```
 
-2. Review the generated files
+2. Review the generated `suews_wos_papers.json`
 
-3. Update `docs/source/global_applications.rst` if needed
-
-4. Commit changes:
+3. Commit changes:
    ```bash
-   git add docs/source/assets/refs/suews_wos_papers_*.json
-   git add docs/source/assets/refs/suews_wos_papers_*.md
+   git add docs/source/assets/wos-papers/suews_wos_papers.json
    git commit -m "docs: update WoS publications data"
    ```
 
@@ -169,9 +166,7 @@ Total papers found: 68
 Year range: 2011 - 2026
 Unique locations: 36
 
-JSON: ./output/suews_wos_papers_20251126.json
-BibTeX: ./output/suews_wos_papers_20251126.bib
-Markdown: ./output/suews_wos_papers_20251126.md
+JSON: ./output/suews_wos_papers.json
 
 Done!
 ```

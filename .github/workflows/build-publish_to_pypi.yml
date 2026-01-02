@@ -570,6 +570,7 @@ jobs:
 
           :: Verify installation
           python -c "import supy; print(f'supy version: {supy.__version__}')"
+          python -c "import re, supy; v = supy.__version__; assert re.search(r'(rc1|\\.dev1)', v), f'Expected UMEP variant (rc1 or .dev1), got {v}'"
 
       - name: Run PyQGIS error handling test
         shell: cmd

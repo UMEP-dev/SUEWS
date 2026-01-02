@@ -8,6 +8,7 @@ in CI: python test/umep/test_pyqgis_error_handling.py
 For CI testing on Windows with OSGeo4W installation (GH-1035).
 """
 
+import importlib.util
 import os
 import sys
 
@@ -17,10 +18,12 @@ import sys
 QGIS_LTR_PYTHON_VERSION = (3, 12)
 
 # Target environment check
-_IS_QGIS_TARGET = (
+_IS_QGIS_PLATFORM = (
     sys.platform == "win32"
     and sys.version_info[:2] == QGIS_LTR_PYTHON_VERSION
 )
+_HAS_QGIS = importlib.util.find_spec("qgis") is not None
+_IS_QGIS_TARGET = _IS_QGIS_PLATFORM and _HAS_QGIS
 
 # Skip when run via pytest on non-QGIS platforms (pytest may not be installed)
 try:
@@ -93,6 +96,18 @@ def test_suews_error_in_qgis():
 
 def main():
     """Main test runner."""
+    if not _IS_QGIS_PLATFORM:
+        print(
+            "Skipping PyQGIS error handling test: QGIS not available or "
+            "not running on Windows + QGIS LTR Python."
+        )
+        return 0
+    if not _HAS_QGIS:
+        print(
+            "PyQGIS not available on sys.path. Ensure OSGeo4W/QGIS is installed "
+            "and the environment is configured (o4w_env.bat)."
+        )
+        return 1
     print("=" * 60)
     print("PyQGIS Error Handling Test")
     print("=" * 60)

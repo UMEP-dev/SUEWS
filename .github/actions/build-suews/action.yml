@@ -162,9 +162,9 @@ runs:
         CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
         CIBW_TEST_REQUIRES: ${{ inputs.is_umep_variant == 'true' && 'pytest numpy==1.26.*' || 'pytest' }}
         # Test tiers: choose subset based on path detection and trigger
-        # NOTE: --ignore={project}/test/qgis excludes QGIS tests (run separately in test_qgis job)
+        # NOTE: --ignore={project}/test/umep/test_pyqgis_error_handling.py excludes PyQGIS tests (run separately in test_qgis job)
         CIBW_TEST_COMMAND: >
-          python -m pytest {project}/test -v --tb=short --ignore={project}/test/qgis
+          python -m pytest {project}/test -v --tb=short --ignore={project}/test/umep/test_pyqgis_error_handling.py
           ${{ inputs.test_tier == 'smoke' && '-m smoke' ||
               inputs.test_tier == 'core' && '-m "smoke or core"' ||
               inputs.test_tier == 'cfg' && '-m "smoke or cfg"' ||

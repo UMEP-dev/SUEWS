@@ -80,9 +80,10 @@ def _check_supy_error_from_state(state_block, timestep_idx: int | None = None):
     state_block : SUEWS_STATE_BLOCK
         The state block object containing error state from the kernel call.
     timestep_idx : int, optional
-        Index of the timestep to check. If None (default), scans all timesteps
-        for errors (handles early exit on fatal errors). If specified, only
-        checks that specific timestep.
+        Index of the timestep to check. If None (default), checks the last
+        populated timestep (walking backwards if needed) to handle early
+        exits without scanning the full block. If specified, only checks
+        that specific timestep.
 
     Raises
     ------
@@ -103,9 +104,11 @@ def _check_supy_error_from_state(state_block, timestep_idx: int | None = None):
             if timestep_idx < 0:
                 timestep_idx = block_len + timestep_idx
             indices_to_check = [timestep_idx]
+            stop_after_first_valid = False
         else:
-            # Scan all timesteps for errors (handles early exit on fatal errors)
-            indices_to_check = range(block_len)
+            # Check the last populated timestep first to avoid a full scan
+            indices_to_check = range(block_len - 1, -1, -1)
+            stop_after_first_valid = True
 
         for idx in indices_to_check:
             try:
@@ -116,6 +119,9 @@ def _check_supy_error_from_state(state_block, timestep_idx: int | None = None):
                     code = int(error_state.code)
                     message = str(error_state.message).strip()
                     raise SUEWSKernelError(code, message)
+                if stop_after_first_valid:
+                    # One populated state without errors is enough
+                    break
             except SUEWSKernelError:
                 # Re-raise kernel errors (don't catch as RuntimeError subclass)
                 raise

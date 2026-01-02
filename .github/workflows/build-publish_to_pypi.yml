@@ -141,6 +141,10 @@ on:
         description: 'Skip builds, test QGIS with TestPyPI wheel (fast iteration)'
         type: boolean
         default: false
+      supy_version:
+        description: 'Optional SuPy version for qgis_test_only (e.g., 2025.1.2.dev1)'
+        type: string
+        default: ''
 
 # Cancel in-progress runs when new commits are pushed to the same PR/branch
 concurrency:
@@ -555,6 +559,7 @@ jobs:
           python -c "import supy; print(f'supy version: {supy.__version__}')"
 
       - name: Install UMEP wheel in OSGeo4W (from TestPyPI - fast mode)
+        id: install_umep_fast
         if: inputs.qgis_test_only == true
         shell: cmd
         run: |
@@ -563,16 +568,25 @@ jobs:
           :: Bootstrap pip (OSGeo4W Python doesn't include pip by default)
           python -m ensurepip --upgrade
 
-          :: Install latest UMEP variant (.dev1) from TestPyPI
+          :: Install requested version (if provided) or latest pre-release from TestPyPI
           :: Uses --pre to get pre-release versions
           :: UMEP wheel has numpy>=1.22,<2.0 baked into metadata (see build action)
-          python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre supy
+          set "SUPY_VERSION_INPUT=${{ inputs.supy_version }}"
+          if "%SUPY_VERSION_INPUT%"=="" (
+            set "SUPY_VERSION_PROVIDED=false"
+            echo Installing latest pre-release from TestPyPI...
+            python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre supy
+          ) else (
+            set "SUPY_VERSION_PROVIDED=true"
+            echo Installing supy==%SUPY_VERSION_INPUT% from TestPyPI...
+            python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "supy==%SUPY_VERSION_INPUT%"
+          )
 
-          :: Verify installation
-          python -c "import supy; print(f'supy version: {supy.__version__}')"
-          python -c "import re, supy; v = supy.__version__; assert re.search(r'(rc1|\\.dev1)', v), f'Expected UMEP variant (rc1 or .dev1), got {v}'"
+          :: Verify installation and decide whether to run QGIS test
+          python -c "import os, re, supy, sys; v=supy.__version__; print(f'supy version: {v}'); ok=bool(re.search(r'(rc1|\.dev1)', v)); open(os.environ['GITHUB_OUTPUT'],'a').write(f'qgis_test_ready={str(ok).lower()}\\n'); provided=os.environ.get('SUPY_VERSION_PROVIDED','false').lower()=='true'; (not ok and provided) and (print('ERROR: supy version is not an UMEP variant (rc1 or .dev1).') or sys.exit(1)); (not ok and not provided) and print('SKIP: UMEP variant not found on TestPyPI; skipping QGIS test. Provide supy_version input or publish a dev1/rc1 wheel.')"
 
       - name: Run PyQGIS error handling test
+        if: inputs.qgis_test_only != true || steps.install_umep_fast.outputs.qgis_test_ready == 'true'
         shell: cmd
         run: |
           :: Set up OSGeo4W base environment
@@ -614,7 +628,7 @@ jobs:
 
           # STEP 1: Verify detect-changes succeeded
           if [[ "${{ needs.detect-changes.result }}" != "success" ]]; then
-            echo "✗ Path detection failed - cannot verify PR safety"
+            echo "FAIL: Path detection failed - cannot verify PR safety"
             echo "  detect-changes result: ${{ needs.detect-changes.result }}"
             exit 1
           fi
@@ -631,9 +645,9 @@ jobs:
 
             if [[ "${{ needs.build_wheels.result }}" == "success" ]] && \
                [[ "${{ needs.build_umep.result }}" == "success" ]]; then
-              echo "✓ Code builds passed"
+              echo "OK: Code builds passed"
             else
-              echo "✗ Code builds failed or incomplete"
+              echo "FAIL: Code builds failed or incomplete"
               echo "  build_wheels: ${{ needs.build_wheels.result }}"
               echo "  build_umep: ${{ needs.build_umep.result }}"
               VALIDATION_PASSED=false
@@ -641,11 +655,11 @@ jobs:
 
             # Validate QGIS/Qt compatibility tests
             if [[ "${{ needs.test_qgis.result }}" == "success" ]]; then
-              echo "✓ QGIS/Qt compatibility tests passed"
+              echo "OK: QGIS/Qt compatibility tests passed"
             elif [[ "${{ needs.test_qgis.result }}" == "skipped" ]]; then
-              echo "⚠ QGIS tests skipped (UMEP build may have failed)"
+              echo "WARN: QGIS tests skipped (UMEP build may have failed)"
             else
-              echo "✗ QGIS/Qt compatibility tests failed"
+              echo "FAIL: QGIS/Qt compatibility tests failed"
               echo "  test_qgis: ${{ needs.test_qgis.result }}"
               VALIDATION_PASSED=false
             fi
@@ -656,9 +670,9 @@ jobs:
 
             if [[ "${{ needs.build_wheels.result }}" == "skipped" ]] && \
                [[ "${{ needs.build_umep.result }}" == "skipped" ]]; then
-              echo "✓ Code builds correctly skipped"
+              echo "OK: Code builds correctly skipped"
             else
-              echo "⚠ Unexpected: builds ran for non-code PR"
+              echo "WARN: Unexpected: builds ran for non-code PR"
               echo "  build_wheels: ${{ needs.build_wheels.result }}"
               echo "  build_umep: ${{ needs.build_umep.result }}"
               # Still pass if builds succeeded (conservative)
@@ -673,11 +687,11 @@ jobs:
 
             # QGIS tests should also be skipped when no code changes
             if [[ "${{ needs.test_qgis.result }}" == "skipped" ]]; then
-              echo "✓ QGIS tests correctly skipped"
+              echo "OK: QGIS tests correctly skipped"
             elif [[ "${{ needs.test_qgis.result }}" == "success" ]]; then
-              echo "✓ QGIS tests passed (ran unexpectedly but OK)"
+              echo "OK: QGIS tests passed (ran unexpectedly but OK)"
             else
-              echo "✗ QGIS tests failed"
+              echo "FAIL: QGIS tests failed"
               VALIDATION_PASSED=false
             fi
           fi
@@ -687,10 +701,10 @@ jobs:
           # Final result
           echo ""
           if [[ "$VALIDATION_PASSED" == "true" ]]; then
-            echo "✓ All validations passed"
+            echo "OK: All validations passed"
             exit 0
           else
-            echo "✗ Validation failed"
+            echo "FAIL: Validation failed"
             exit 1
           fi
 

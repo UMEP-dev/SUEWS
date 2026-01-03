@@ -449,6 +449,7 @@ def generate_bibtex(papers: list[Paper]) -> str:
         BibTeX formatted string
     """
     entries = []
+    used_keys = {}  # Track used keys for deduplication
 
     for paper in papers:
         if not paper.doi and not paper.title:
@@ -456,8 +457,16 @@ def generate_bibtex(papers: list[Paper]) -> str:
 
         # Generate citation key
         first_author = paper.authors[0].split(",")[0] if paper.authors else "Unknown"
-        key = f"{first_author}{paper.year}"
-        key = re.sub(r"[^a-zA-Z0-9]", "", key)
+        base_key = f"{first_author}{paper.year}"
+        base_key = re.sub(r"[^a-zA-Z0-9]", "", base_key)
+
+        # Handle duplicate keys by adding suffix (a, b, c, ...)
+        if base_key in used_keys:
+            used_keys[base_key] += 1
+            key = f"{base_key}{chr(ord('a') + used_keys[base_key] - 1)}"
+        else:
+            used_keys[base_key] = 1
+            key = base_key
 
         # Build entry
         entry_lines = [f"@article{{{key},"]

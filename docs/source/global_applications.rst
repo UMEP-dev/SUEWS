@@ -38,31 +38,31 @@ Europe
      - Key Applications
    * - London, UK
      - 9
-     - Energy balance, heat island, building energy, air-source heat pumps
+     - Energy balance, heat island, building energy, air-source heat pumps :cite:`Roberts2025,Xie2024,Stretton2023,Sun2024,Tang2021,Lindberg2020,Kokkonen2018b,Ward2016,Ward2017`
    * - Helsinki, Finland
      - 8
-     - Cold climate modelling, snow processes, carbon flux, vegetation
+     - Cold climate modelling, snow processes, carbon flux, vegetation :cite:`Tholix2025,Havu2024,Havu2022,Jarvi2019,Bellucco2017,Karsisto2016,Nordbo2015,Jarvi2014`
    * - Dublin, Ireland
      - 5
-     - Building energy, urban trees, residential energy consumption
+     - Building energy, urban trees, residential energy consumption :cite:`Ren2025,Alexander2015,Alexander2016,Alexander2016b,Alexander2015b`
    * - Porto, Portugal
      - 3
-     - WRF-SUEWS coupling, flux validation
+     - WRF-SUEWS coupling, flux validation :cite:`Rafael2019,Rafael2017,Rafael2016`
    * - Swindon, UK
      - 2
-     - Suburban flux evaluation
+     - Suburban flux evaluation :cite:`Sun2024,Ward2016`
    * - Hamburg, Germany
      - 2
-     - Urban flux network
+     - Urban flux network :cite:`Tholix2025,Alexander2016`
    * - Heraklion, Greece
      - 2
-     - Nature-based solutions, Mediterranean climate
+     - Nature-based solutions, Mediterranean climate :cite:`Tsirantonakis2022,Lindberg2020`
    * - Zurich, Switzerland
      - 1
-     - Urban parks, CO₂ flux intercomparison
+     - Urban parks, CO₂ flux intercomparison :cite:`Stagakis2025`
    * - Freiburg, Germany
      - 1
-     - High-resolution thermal comfort
+     - High-resolution thermal comfort :cite:`Briegel2024`
 
 Asia
 ^^^^
@@ -76,22 +76,22 @@ Asia
      - Key Applications
    * - Beijing, China
      - 6
-     - CO₂ flux, carbon neutrality, haze impacts, neighbourhood scale
+     - CO₂ flux, carbon neutrality, haze impacts, neighbourhood scale :cite:`Luo2025,Zheng2025,Wang2024,Dou2023,Zheng2023,Kokkonen2019`
    * - Shanghai, China
      - 3
-     - Anthropogenic heat, dense urban evaluation, irrigation
+     - Anthropogenic heat, dense urban evaluation, irrigation :cite:`Ao2022,Ao2018,Ao2016`
    * - Singapore
      - 2
-     - Tropical climate evaluation, building energy
+     - Tropical climate evaluation, building energy :cite:`Zheng2025b,Demuzere2017`
    * - Xiong'an/Baoding, China
      - 2
-     - Local climate zones, temperate monsoon
+     - Local climate zones, temperate monsoon :cite:`Hua2026`
    * - Mumbai, India
      - 1
-     - Academic campus energy balance
+     - Academic campus energy balance :cite:`Gupta2024`
    * - Tokyo, Japan
      - 1
-     - WRF-SUEWS, anthropogenic heat
+     - WRF-SUEWS, anthropogenic heat :cite:`Takane2024`
 
 North America
 ^^^^^^^^^^^^^
@@ -105,19 +105,19 @@ North America
      - Key Applications
    * - Vancouver, Canada
      - 3
-     - Original evaluation site, foundational validation
+     - Original evaluation site, foundational validation :cite:`Kokkonen2018,Kokkonen2018b,Jarvi2011`
    * - Phoenix, USA
      - 2
-     - Hot arid climate evaluation
+     - Hot arid climate evaluation :cite:`Chen2021,Alexander2016`
    * - Montreal, Canada
      - 1
-     - Cold climate snow model development
+     - Cold climate snow model development :cite:`Jarvi2014`
    * - Los Angeles, USA
      - 1
-     - Foundational evaluation
+     - Foundational evaluation :cite:`Jarvi2011`
    * - Baltimore, USA
      - 1
-     - Urban-rural gradients
+     - Urban-rural gradients :cite:`Li2016`
 
 Oceania
 ^^^^^^^
@@ -131,7 +131,7 @@ Oceania
      - Key Applications
    * - Melbourne, Australia
      - 1
-     - Climate evaluation across multiple cities
+     - Climate evaluation across multiple cities :cite:`Alexander2016`
 
 Application Areas
 -----------------
@@ -215,6 +215,13 @@ Raw Data
 --------
 
 - :download:`JSON Data <assets/wos-papers/suews_wos_papers.json>` - Full metadata with analysis
+
+References
+----------
+
+.. bibliography::
+   :filter: docname in docnames
+   :style: unsrt
 
 See Also
 --------

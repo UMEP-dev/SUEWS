@@ -22,22 +22,4 @@ fi
 echo "export VIRTUAL_ENV=\"$CLAUDE_PROJECT_DIR/.venv\"" >> "$CLAUDE_ENV_FILE"
 echo "export PATH=\"$CLAUDE_PROJECT_DIR/.venv/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"
 
-# Activate venv for this script
-export VIRTUAL_ENV="$CLAUDE_PROJECT_DIR/.venv"
-export PATH="$CLAUDE_PROJECT_DIR/.venv/bin:$PATH"
-
-# Install build dependencies and project in editable mode
-cd "$CLAUDE_PROJECT_DIR"
-
-# Fetch git tags (required for version detection)
-echo "Fetching git tags..."
-git fetch --depth=1 origin 'refs/tags/*:refs/tags/*'
-
-echo "Installing build dependencies..."
-uv pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"
-
-echo "Installing SUEWS in editable mode..."
-git submodule update --init --recursive
-uv pip install --no-build-isolation -e ".[dev]"
-
 echo "Session setup complete."

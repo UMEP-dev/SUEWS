@@ -31,6 +31,14 @@ py.install_sources(
             'cmd/to_yaml.py',
             'cmd/validate_config.py',
             'cmd/schema_cli.py',
+            'cmd/json_output.py',
+        ],
+        [
+            'cli/__init__.py',
+            'cli/wizard/__init__.py',
+            'cli/wizard/cli.py',
+            'cli/wizard/decision_tree.py',
+            'cli/wizard/engine.py',
         ],
         [
             'util/_UMEP2epw.py',

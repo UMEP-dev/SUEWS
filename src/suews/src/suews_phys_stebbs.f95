@@ -1044,8 +1044,9 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
       END IF
       !use updated temperature to calculate new coefficients
       self%h_o(1) = ext_conv_coeff(ws_out_hbh, self%Textwall - Tair_out_hbh) !wall
-      self%h_o(2) = ext_conv_coeff(ws_out_hbh, self%Textwindow - Tair_out_hbh) !new function maybe needed for windiws (smooth)
-      self%h_o(3) = ext_conv_coeff(ws_out_bh, self%Textroof - Tair_out_bh) !new function maybe needed for horizontal roof
+      self%h_o(2) = ext_conv_coeff(ws_out_bh, self%Textroof - Tair_out_bh) !roof
+      self%h_o(3) = ext_conv_coeff(ws_out_hbh, self%Textwindow - Tair_out_hbh) !window
+
       self%h_i(1) = int_conv_coeff(dT = (self%Tintwall - self%Tair_ind), surf_type = 1) !wall
       self%h_i(2) = int_conv_coeff(dT = (self%Tintwindow - self%Tair_ind), surf_type = 1) !windows
       self%h_i(3) = int_conv_coeff(dT = (self%Tintroof - self%Tair_ind), surf_type = 2) !roof

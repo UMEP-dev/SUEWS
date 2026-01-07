@@ -85,9 +85,13 @@ def test_suews_error_in_qgis():
             df_state_test,
             logging_level=50,  # CRITICAL only
         )
-    except RuntimeError as e:
+    except sp.SUEWSKernelError as e:
         error_caught = True
-        print(f"\n*** RuntimeError caught in PyQGIS context: ***")
+        if "Windspeed Ht too low" not in str(e):
+            raise AssertionError(
+                f"Unexpected SUEWS error for z/zdm test: {e}"
+            ) from e
+        print("\n*** SUEWSKernelError caught in PyQGIS context: ***")
         print(f"  {str(e)[:100]}...")
         print("*** QGIS did NOT crash! ***")
 

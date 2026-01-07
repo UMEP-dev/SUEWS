@@ -353,6 +353,9 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
         )
         # Check for errors using state-based approach (thread-safe)
         _check_supy_error_from_state(block_mod_state)
+        # Fallback: also check module-level error state in case state-based check missed it
+        # This handles edge cases where error occurs but state block wasn't fully populated
+        _check_supy_error()
 
     except SUEWSKernelError as e:
         # Fortran kernel set error flag instead of STOP

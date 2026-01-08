@@ -28,10 +28,13 @@ _IS_QGIS_TARGET = _IS_QGIS_PLATFORM and _HAS_QGIS
 # Skip when run via pytest on non-QGIS platforms (pytest may not be installed)
 try:
     import pytest
-    pytestmark = pytest.mark.skipif(
-        not _IS_QGIS_TARGET,
-        reason=f"PyQGIS test only runs on Windows + Python {QGIS_LTR_PYTHON_VERSION[0]}.{QGIS_LTR_PYTHON_VERSION[1]} (QGIS LTR)",
-    )
+    pytestmark = [
+        pytest.mark.qgis,
+        pytest.mark.skipif(
+            not _IS_QGIS_TARGET,
+            reason=f"PyQGIS test only runs on Windows + Python {QGIS_LTR_PYTHON_VERSION[0]}.{QGIS_LTR_PYTHON_VERSION[1]} (QGIS LTR)",
+        ),
+    ]
 except ImportError:
     pass  # Running standalone without pytest
 
@@ -95,6 +98,8 @@ def test_suews_error_in_qgis():
         print(f"  {str(e)[:100]}...")
         print("*** QGIS did NOT crash! ***")
 
+    if __name__ != "__main__" and "pytest" in sys.modules:
+        assert error_caught, "Expected SUEWSKernelError in PyQGIS context"
     return error_caught
 
 

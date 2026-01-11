@@ -1736,6 +1736,10 @@ Modes:
 
         elif phase == "ABC":
             # Complete A→B→C workflow with proper halt logic
+            # Track intermediate artefacts for consolidation/cleanup
+            phase_a_report_file = report_file
+            phases_run = ["A", "B", "C"]
+
             # Step 1: Run Phase A
             print("DEBUG: Starting ABC workflow")
             print("Configuration structure check...")
@@ -1895,7 +1899,7 @@ Modes:
 
                 # Create consolidated final report
                 create_consolidated_report(
-                    phases_run=["A", "B", "C"] if phases_run is None else phases_run,
+                    phases_run=phases_run,
                     no_action_messages=all_messages,
                     final_report_file=pydantic_report_file,
                     mode=internal_mode,

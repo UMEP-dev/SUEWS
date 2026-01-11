@@ -446,7 +446,7 @@ DECISION_TREE: list[PhysicsQuestion] = [
                     "snow_density",
                     "snow_melt_factor",
                 ],
-                output_groups=["Snow"],
+                output_groups=["snow"],
                 param_count=12,
             ),
         ],

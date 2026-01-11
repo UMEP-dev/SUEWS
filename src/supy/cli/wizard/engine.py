@@ -10,14 +10,14 @@ The engine manages:
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
-from typing import Callable, Optional
-import yaml
+from typing import Optional
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.prompt import Prompt, Confirm
+from rich.prompt import Confirm, Prompt
 from rich.syntax import Syntax
 from rich.table import Table
+import yaml
 
 from .decision_tree import (
     DECISION_TREE,
@@ -174,6 +174,7 @@ class WizardEngine:
 
         # Essential questions only
         self._run_location_step()
+        self._apply_profile_to_config()
 
         # Show profile summary
         self._show_profile_summary()
@@ -188,6 +189,7 @@ class WizardEngine:
         """Run wizard with pre-configured physics profile."""
         # Skip physics step, go straight to parameters
         self._run_location_step()
+        self._apply_profile_to_config()
         self._run_parameters_step()
         self._run_initial_step()
         self._run_output_step()
@@ -391,7 +393,7 @@ class WizardEngine:
         tz_str, nav = self._prompt_with_nav("Timezone offset from UTC (hours)", default="0")
         if nav:
             return nav
-        tz = int(tz_str)
+        tz = float(tz_str)
 
         # Forcing file
         forcing_path, nav = self._prompt_with_nav(
@@ -424,8 +426,8 @@ class WizardEngine:
             "control": {
                 "tstep": tstep,
                 "forcing_file": {"value": forcing_path},
-                "start_time": f"{start}T00:00:00",
-                "end_time": f"{end}T23:55:00",
+                "start_time": start,
+                "end_time": end,
             },
             "physics": {},
         }
@@ -437,7 +439,7 @@ class WizardEngine:
                     "lat": {"value": lat},
                     "lng": {"value": lon},
                     "alt": {"value": alt},
-                    "timezone": tz,
+                    "timezone": {"value": tz},
                 },
             }
         ]
@@ -504,11 +506,18 @@ class WizardEngine:
             question_idx += 1
 
         # Apply physics settings to config
-        self.config["model"]["physics"] = self.profile.settings
+        self._apply_profile_to_config()
 
         console.print("[green]Physics configured.[/green]")
         self._show_profile_summary()
         return None
+
+    def _apply_profile_to_config(self) -> None:
+        """Apply the accumulated physics profile to the configuration."""
+        if not self.config:
+            return
+        self.config.setdefault("model", {})
+        self.config["model"]["physics"] = dict(self.profile.settings)
 
     def _display_question(self, question: PhysicsQuestion, question_num: int) -> None:
         """Display a physics question with options.
@@ -671,9 +680,10 @@ class WizardEngine:
 
         # Store in config
         site = self.config["sites"][0]
-        site["land_cover"] = {}
+        site.setdefault("properties", {})
+        site["properties"]["land_cover"] = {}
         for surface, frac in fractions.items():
-            site["land_cover"][surface] = {"sfr": {"value": frac}}
+            site["properties"]["land_cover"][surface] = {"sfr": {"value": frac}}
 
         console.print("[green]Parameters configured.[/green]\n")
         return None
@@ -688,31 +698,17 @@ class WizardEngine:
         """
         self._show_step_header("Initial Conditions")
 
-        # Basic initial conditions
-        tair_str, nav = self._prompt_with_nav("Initial air temperature (C)", default="15")
-        if nav:
-            return nav
-        tair = float(tair_str)
-
-        rh_str, nav = self._prompt_with_nav("Initial relative humidity (%)", default="70")
-        if nav:
-            return nav
-        rh = float(rh_str)
-
+        # Initial states are optional; SUEWSConfig provides defaults for all required fields.
+        # Only collect a small, schema-aligned subset when snow is enabled.
         site = self.config["sites"][0]
-        site["initial_states"] = {
-            "tair": {"value": tair},
-            "rh": {"value": rh},
-        }
 
-        # Snow initial conditions (if enabled)
         if self.profile.settings.get("snowuse", 0) == 1:
             console.print("\n[yellow]Snow initial conditions[/yellow]")
-            snow_str, nav = self._prompt_with_nav("Initial snow fraction (0-1)", default="0.0")
+            snowalb_str, nav = self._prompt_with_nav("Initial snow albedo (0-1)", default="0.5")
             if nav:
                 return nav
-            snow_frac = float(snow_str)
-            site["initial_states"]["snow_frac"] = {"value": snow_frac}
+            snowalb = float(snowalb_str)
+            site["initial_states"] = {"snowalb": {"value": snowalb}}
 
         console.print("[green]Initial conditions configured.[/green]\n")
         return None
@@ -751,10 +747,14 @@ class WizardEngine:
         console.print(f"\n[yellow]Available output groups:[/yellow] {', '.join(available_groups)}")
 
         # Store in config
-        self.config["model"]["control"]["output_file"] = {
+        output_file = {
             "format": format_choice,
             "freq": freq,
         }
+        if format_choice == "txt":
+            output_file["groups"] = sorted(self.profile.output_groups)
+
+        self.config["model"]["control"]["output_file"] = output_file
 
         console.print("[green]Output configured.[/green]\n")
         return None

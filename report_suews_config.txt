@@ -1,0 +1,79 @@
+# SUEWS Validation Report
+# ==================================================
+# Mode: Public
+# ==================================================
+
+## ACTION NEEDED
+- Found (1) forcing data validation error(s):
+-- Forcing file not found: /Users/tingsun/conductor/workspaces/suews/salem/forcing/met_data.txt
+   Required fix: Review and correct forcing data file.
+   Suggestion: You may want to plot the time series of your input data.
+
+- Found (3) critical missing parameter(s):
+-- faimethod has been added to the updated YAML and set to null
+   Suggested fix: Set appropriate value based on SUEWS documentation -- https://suews.readthedocs.io/latest/
+-- stebbsmethod has been added to the updated YAML and set to null
+   Suggested fix: Set appropriate value based on SUEWS documentation -- https://suews.readthedocs.io/latest/
+-- rcmethod has been added to the updated YAML and set to null
+   Suggested fix: Set appropriate value based on SUEWS documentation -- https://suews.readthedocs.io/latest/
+
+- Found (4) not allowed extra parameter name(s):
+-- schema_version at level schema_version
+   Suggested fix: You selected Public mode. Consider either to switch to Dev mode, or remove this extra parameter since this is not in the standard yaml.
+-- land_cover at level sites[0].land_cover
+   Suggested fix: You selected Public mode. Consider either to switch to Dev mode, or remove this extra parameter since this is not in the standard yaml.
+-- tair at level sites[0].initial_states.tair
+   Suggested fix: You selected Public mode. Consider either to switch to Dev mode, or remove this extra parameter since this is not in the standard yaml.
+-- rh at level sites[0].initial_states.rh
+   Suggested fix: You selected Public mode. Consider either to switch to Dev mode, or remove this extra parameter since this is not in the standard yaml.
+
+## NO ACTION NEEDED
+- Updated (46) optional missing parameter(s) with null values:
+-- model.control.output_file.path added to the updated YAML and set to null
+-- model.control.output_file.groups added to the updated YAML and set to null
+-- model.control.diagnose added to the updated YAML and set to null
+-- sites[0].properties.surfacearea added to the updated YAML and set to null
+-- sites[0].properties.z added to the updated YAML and set to null
+-- sites[0].properties.z0m_in added to the updated YAML and set to null
+-- sites[0].properties.zdm_in added to the updated YAML and set to null
+-- sites[0].properties.pipecapacity added to the updated YAML and set to null
+-- sites[0].properties.runofftowater added to the updated YAML and set to null
+-- sites[0].properties.narp_trans_site added to the updated YAML and set to null
+-- sites[0].properties.lumps added to the updated YAML and set to null
+-- sites[0].properties.spartacus added to the updated YAML and set to null
+-- sites[0].properties.stebbs added to the updated YAML and set to null
+-- sites[0].properties.building_archetype added to the updated YAML and set to null
+-- sites[0].properties.conductance added to the updated YAML and set to null
+-- sites[0].properties.irrigation added to the updated YAML and set to null
+-- sites[0].properties.anthropogenic_emissions added to the updated YAML and set to null
+-- sites[0].properties.snow added to the updated YAML and set to null
+-- sites[0].properties.land_cover added to the updated YAML and set to null
+-- sites[0].properties.vertical_layers added to the updated YAML and set to null
+-- sites[0].properties.n_buildings added to the updated YAML and set to null
+-- sites[0].properties.h_std added to the updated YAML and set to null
+-- sites[0].properties.lambda_c added to the updated YAML and set to null
+-- sites[0].initial_states.snowalb added to the updated YAML and set to null
+-- sites[0].initial_states.paved added to the updated YAML and set to null
+-- sites[0].initial_states.bldgs added to the updated YAML and set to null
+-- sites[0].initial_states.evetr added to the updated YAML and set to null
+-- sites[0].initial_states.dectr added to the updated YAML and set to null
+-- sites[0].initial_states.grass added to the updated YAML and set to null
+-- sites[0].initial_states.bsoil added to the updated YAML and set to null
+-- sites[0].initial_states.water added to the updated YAML and set to null
+-- sites[0].initial_states.roofs added to the updated YAML and set to null
+-- sites[0].initial_states.walls added to the updated YAML and set to null
+-- sites[0].initial_states.dqndt added to the updated YAML and set to null
+-- sites[0].initial_states.dqnsdt added to the updated YAML and set to null
+-- sites[0].initial_states.dt_since_start added to the updated YAML and set to null
+-- sites[0].initial_states.lenday_id added to the updated YAML and set to null
+-- sites[0].initial_states.qn_av added to the updated YAML and set to null
+-- sites[0].initial_states.qn_s_av added to the updated YAML and set to null
+-- sites[0].initial_states.tair_av added to the updated YAML and set to null
+-- sites[0].initial_states.tmax_id added to the updated YAML and set to null
+-- sites[0].initial_states.tmin_id added to the updated YAML and set to null
+-- sites[0].initial_states.tstep_prev added to the updated YAML and set to null
+-- sites[0].initial_states.snowfallcum added to the updated YAML and set to null
+-- sites[0].initial_states.hdd_id added to the updated YAML and set to null
+-- description added to the updated YAML and set to null
+
+# ==================================================

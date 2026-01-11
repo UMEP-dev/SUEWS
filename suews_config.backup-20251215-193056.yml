@@ -1,0 +1,64 @@
+name: my_site_config
+schema_version: '0.1'
+model:
+  control:
+    tstep: 300
+    forcing_file:
+      value: forcing/met_data.txt
+    start_time: '2024-01-01T00:00:00'
+    end_time: '2024-12-31T23:55:00'
+    output_file:
+      format: parquet
+      freq: 3600
+  physics:
+    netradiationmethod: 0
+    storageheatmethod: 1
+    ohmincqf: 0
+    emissionsmethod: 0
+    roughlenmommethod: 1
+    roughlenheatmethod: 2
+    stabilitymethod: 3
+    rslmethod: 0
+    rsllevel: 0
+    gsmodel: 2
+    smdmethod: 0
+    waterusemethod: 0
+    snowuse: 0
+sites:
+- name: my_site
+  gridiv: 1
+  properties:
+    lat:
+      value: 51.5
+    lng:
+      value: -0.1
+    alt:
+      value: 10.0
+    timezone: 0
+  land_cover:
+    paved:
+      sfr:
+        value: 0.1
+    bldgs:
+      sfr:
+        value: 0.1
+    dectr:
+      sfr:
+        value: 0.0
+    evetr:
+      sfr:
+        value: 0.0
+    grass:
+      sfr:
+        value: 0.1
+    bsoil:
+      sfr:
+        value: 0.0
+    water:
+      sfr:
+        value: 0.0
+  initial_states:
+    tair:
+      value: 15.0
+    rh:
+      value: 70.0

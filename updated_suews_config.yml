@@ -1,0 +1,854 @@
+# ==============================================================================
+# Updated YAML
+# ==============================================================================
+#
+# This file has been updated by the SUEWS processor and is the updated version of the user provided YAML.
+# Details of changes are in the generated report.
+#
+# ==============================================================================
+
+name: my_site_config
+schema_version: '2025.12'
+model:
+  control:
+    tstep: 300
+    forcing_file:
+      value: forcing/met_data.txt
+    start_time: '2024-01-01T00:00:00'
+    end_time: '2024-12-31T23:55:00'
+    output_file:
+      format: parquet
+      freq: 3600
+      path: null
+      groups: null
+    diagnose: null
+  physics:
+    netradiationmethod: 0
+    storageheatmethod: 1
+    ohmincqf: 0
+    emissionsmethod: 0
+    roughlenmommethod: 1
+    roughlenheatmethod: 2
+    stabilitymethod: 3
+    rslmethod: 0
+    rsllevel: 0
+    gsmodel: 2
+    smdmethod: 0
+    waterusemethod: 0
+    snowuse: 0
+    faimethod:
+      value: null
+    stebbsmethod:
+      value: null
+    rcmethod:
+      value: null
+sites:
+- name: my_site
+  gridiv: 1
+  properties:
+    lat:
+      value: 51.5
+    lng:
+      value: -0.1
+    alt:
+      value: 10.0
+    timezone: 0
+    surfacearea:
+      value: null
+    z:
+      value: null
+    z0m_in:
+      value: null
+    zdm_in:
+      value: null
+    pipecapacity:
+      value: null
+    runofftowater:
+      value: null
+    narp_trans_site:
+      value: null
+    lumps:
+      raincover:
+        value: null
+      rainmaxres:
+        value: null
+      drainrt:
+        value: null
+      veg_type:
+        value: null
+    spartacus:
+      air_ext_lw:
+        value: null
+      air_ext_sw:
+        value: null
+      air_ssa_lw:
+        value: null
+      air_ssa_sw:
+        value: null
+      ground_albedo_dir_mult_fact:
+        value: null
+      n_stream_lw_urban:
+        value: null
+      n_stream_sw_urban:
+        value: null
+      n_vegetation_region_urban:
+        value: null
+      sw_dn_direct_frac:
+        value: null
+      use_sw_direct_albedo:
+        value: null
+      veg_contact_fraction_const:
+        value: null
+      veg_fsd_const:
+        value: null
+      veg_ssa_lw:
+        value: null
+      veg_ssa_sw:
+        value: null
+    stebbs:
+      WallInternalConvectionCoefficient:
+        value: null
+      InternalMassConvectionCoefficient:
+        value: null
+      FloorInternalConvectionCoefficient:
+        value: null
+      WindowInternalConvectionCoefficient:
+        value: null
+      WallExternalConvectionCoefficient:
+        value: null
+      WindowExternalConvectionCoefficient:
+        value: null
+      GroundDepth:
+        value: null
+      ExternalGroundConductivity:
+        value: null
+      MetabolicRate:
+        value: null
+      LatentSensibleRatio:
+        value: null
+      ApplianceRating:
+        value: null
+      TotalNumberofAppliances:
+        value: null
+      ApplianceUsageFactor:
+        value: null
+      HeatingSystemEfficiency:
+        value: null
+      MaxCoolingPower:
+        value: null
+      CoolingSystemCOP:
+        value: null
+      VentilationRate:
+        value: null
+      InitialOutdoorTemperature:
+        value: null
+      InitialIndoorTemperature:
+        value: null
+      DeepSoilTemperature:
+        value: null
+      WaterTankWallThickness:
+        value: null
+      MainsWaterTemperature:
+        value: null
+      WaterTankSurfaceArea:
+        value: null
+      HotWaterHeatingSetpointTemperature:
+        value: null
+      HotWaterTankWallEmissivity:
+        value: null
+      DHWVesselWallThickness:
+        value: null
+      DHWWaterVolume:
+        value: null
+      DHWSurfaceArea:
+        value: null
+      HotWaterFlowRate:
+        value: null
+      DHWDrainFlowRate:
+        value: null
+      DHWSpecificHeatCapacity:
+        value: null
+      HotWaterTankSpecificHeatCapacity:
+        value: null
+      DHWVesselSpecificHeatCapacity:
+        value: null
+      DHWDensity:
+        value: null
+      HotWaterTankWallDensity:
+        value: null
+      DHWVesselDensity:
+        value: null
+      HotWaterTankBuildingWallViewFactor:
+        value: null
+      HotWaterTankInternalMassViewFactor:
+        value: null
+      HotWaterTankWallConductivity:
+        value: null
+      HotWaterTankInternalWallConvectionCoefficient:
+        value: null
+      HotWaterTankExternalWallConvectionCoefficient:
+        value: null
+      DHWVesselWallConductivity:
+        value: null
+      DHWVesselInternalWallConvectionCoefficient:
+        value: null
+      DHWVesselExternalWallConvectionCoefficient:
+        value: null
+      DHWVesselWallEmissivity:
+        value: null
+      HotWaterHeatingEfficiency:
+        value: null
+      MinimumVolumeOfDHWinUse:
+        value: null
+    building_archetype:
+      BuildingType: null
+      BuildingName: null
+      BuildingCount:
+        value: null
+      Occupants:
+        value: null
+      stebbs_Height:
+        value: null
+      FootprintArea:
+        value: null
+      WallExternalArea:
+        value: null
+      RatioInternalVolume:
+        value: null
+      WWR:
+        value: null
+      WallThickness:
+        value: null
+      WallEffectiveConductivity:
+        value: null
+      WallDensity:
+        value: null
+      WallCp:
+        value: null
+      WallOuterCapFrac:
+        value: null
+      WallExternalEmissivity:
+        value: null
+      WallInternalEmissivity:
+        value: null
+      WallTransmissivity:
+        value: null
+      WallAbsorbtivity:
+        value: null
+      WallReflectivity:
+        value: null
+      FloorThickness:
+        value: null
+      GroundFloorEffectiveConductivity:
+        value: null
+      GroundFloorDensity:
+        value: null
+      GroundFloorCp:
+        value: null
+      WindowThickness:
+        value: null
+      WindowEffectiveConductivity:
+        value: null
+      WindowDensity:
+        value: null
+      WindowCp:
+        value: null
+      WindowExternalEmissivity:
+        value: null
+      WindowInternalEmissivity:
+        value: null
+      WindowTransmissivity:
+        value: null
+      WindowAbsorbtivity:
+        value: null
+      WindowReflectivity:
+        value: null
+      InternalMassDensity:
+        value: null
+      InternalMassCp:
+        value: null
+      InternalMassEmissivity:
+        value: null
+      MaxHeatingPower:
+        value: null
+      WaterTankWaterVolume:
+        value: null
+      MaximumHotWaterHeatingPower:
+        value: null
+      HeatingSetpointTemperature:
+        value: null
+      CoolingSetpointTemperature:
+        value: null
+    conductance:
+      g_max:
+        value: null
+      g_k:
+        value: null
+      g_q_base:
+        value: null
+      g_q_shape:
+        value: null
+      g_t:
+        value: null
+      g_sm:
+        value: null
+      kmax:
+        value: null
+      s1:
+        value: null
+      s2:
+        value: null
+      tl:
+        value: null
+      th:
+        value: null
+      ref:
+        ID: null
+        DOI: null
+    irrigation:
+      h_maintain:
+        value: null
+      faut:
+        value: null
+      ie_start:
+        value: null
+      ie_end:
+        value: null
+      internalwateruse_h:
+        value: null
+      daywatper:
+        monday: null
+        tuesday: null
+        wednesday: null
+        thursday: null
+        friday: null
+        saturday: null
+        sunday: null
+      daywat:
+        monday: null
+        tuesday: null
+        wednesday: null
+        thursday: null
+        friday: null
+        saturday: null
+        sunday: null
+      wuprofa_24hr:
+        working_day: null
+        holiday: null
+      wuprofm_24hr:
+        working_day: null
+        holiday: null
+    anthropogenic_emissions:
+      startdls:
+        value: null
+      enddls:
+        value: null
+      heat:
+        qf0_beu: null
+        qf_a: null
+        qf_b: null
+        qf_c: null
+        baset_cooling: null
+        baset_heating: null
+        ah_min: null
+        ah_slope_cooling: null
+        ah_slope_heating: null
+        ahprof_24hr: null
+        popdensdaytime: null
+        popdensnighttime: null
+        popprof_24hr: null
+      co2:
+        co2pointsource: null
+        ef_umolco2perj: null
+        enef_v_jkm: null
+        fcef_v_kgkm: null
+        frfossilfuel_heat: null
+        frfossilfuel_nonheat: null
+        maxfcmetab: null
+        maxqfmetab: null
+        minfcmetab: null
+        minqfmetab: null
+        trafficrate: null
+        trafficunits: null
+        traffprof_24hr: null
+        humactivity_24hr: null
+    snow:
+      crwmax:
+        value: null
+      crwmin:
+        value: null
+      narp_emis_snow:
+        value: null
+      preciplimit:
+        value: null
+      preciplimitalb:
+        value: null
+      snowalbmax:
+        value: null
+      snowalbmin:
+        value: null
+      snowdensmin:
+        value: null
+      snowdensmax:
+        value: null
+      snowlimbldg:
+        value: null
+      snowlimpaved:
+        value: null
+      snowprof_24hr:
+        working_day: null
+        holiday: null
+      tau_a:
+        value: null
+      tau_f:
+        value: null
+      tau_r:
+        value: null
+      tempmeltfact:
+        value: null
+      radmeltfact:
+        value: null
+    land_cover:
+      paved:
+        sfr: null
+        emis: null
+        ch_anohm: null
+        rho_cp_anohm: null
+        k_anohm: null
+        ohm_threshsw: null
+        ohm_threshwd: null
+        ohm_coef: null
+        soildepth: null
+        soilstorecap: null
+        statelimit: null
+        wetthresh: null
+        sathydraulicconduct: null
+        waterdist: null
+        storedrainprm: null
+        snowpacklimit: null
+        thermal_layers: null
+        irrfrac: null
+        alb: null
+      bldgs:
+        sfr: null
+        emis: null
+        ch_anohm: null
+        rho_cp_anohm: null
+        k_anohm: null
+        ohm_threshsw: null
+        ohm_threshwd: null
+        ohm_coef: null
+        soildepth: null
+        soilstorecap: null
+        statelimit: null
+        wetthresh: null
+        sathydraulicconduct: null
+        waterdist: null
+        storedrainprm: null
+        snowpacklimit: null
+        thermal_layers: null
+        irrfrac: null
+        alb: null
+        faibldg: null
+        bldgh: null
+      dectr:
+        sfr: null
+        emis: null
+        ch_anohm: null
+        rho_cp_anohm: null
+        k_anohm: null
+        ohm_threshsw: null
+        ohm_threshwd: null
+        ohm_coef: null
+        soildepth: null
+        soilstorecap: null
+        statelimit: null
+        wetthresh: null
+        sathydraulicconduct: null
+        waterdist: null
+        storedrainprm: null
+        snowpacklimit: null
+        thermal_layers: null
+        irrfrac: null
+        alb: null
+        alb_min: null
+        alb_max: null
+        beta_bioco2: null
+        beta_enh_bioco2: null
+        alpha_bioco2: null
+        alpha_enh_bioco2: null
+        resp_a: null
+        resp_b: null
+        theta_bioco2: null
+        maxconductance: null
+        min_res_bioco2: null
+        lai: null
+        ie_a: null
+        ie_m: null
+        faidectree: null
+        dectreeh: null
+        pormin_dec: null
+        pormax_dec: null
+        capmax_dec: null
+        capmin_dec: null
+      evetr:
+        sfr: null
+        emis: null
+        ch_anohm: null
+        rho_cp_anohm: null
+        k_anohm: null
+        ohm_threshsw: null
+        ohm_threshwd: null
+        ohm_coef: null
+        soildepth: null
+        soilstorecap: null
+        statelimit: null
+        wetthresh: null
+        sathydraulicconduct: null
+        waterdist: null
+        storedrainprm: null
+        snowpacklimit: null
+        thermal_layers: null
+        irrfrac: null
+        alb: null
+        alb_min: null
+        alb_max: null
+        beta_bioco2: null
+        beta_enh_bioco2: null
+        alpha_bioco2: null
+        alpha_enh_bioco2: null
+        resp_a: null
+        resp_b: null
+        theta_bioco2: null
+        maxconductance: null
+        min_res_bioco2: null
+        lai: null
+        ie_a: null
+        ie_m: null
+        faievetree: null
+        evetreeh: null
+      grass:
+        sfr: null
+        emis: null
+        ch_anohm: null
+        rho_cp_anohm: null
+        k_anohm: null
+        ohm_threshsw: null
+        ohm_threshwd: null
+        ohm_coef: null
+        soildepth: null
+        soilstorecap: null
+        statelimit: null
+        wetthresh: null
+        sathydraulicconduct: null
+        waterdist: null
+        storedrainprm: null
+        snowpacklimit: null
+        thermal_layers: null
+        irrfrac: null
+        alb: null
+        alb_min: null
+        alb_max: null
+        beta_bioco2: null
+        beta_enh_bioco2: null
+        alpha_bioco2: null
+        alpha_enh_bioco2: null
+        resp_a: null
+        resp_b: null
+        theta_bioco2: null
+        maxconductance: null
+        min_res_bioco2: null
+        lai: null
+        ie_a: null
+        ie_m: null
+      bsoil:
+        sfr: null
+        emis: null
+        ch_anohm: null
+        rho_cp_anohm: null
+        k_anohm: null
+        ohm_threshsw: null
+        ohm_threshwd: null
+        ohm_coef: null
+        soildepth: null
+        soilstorecap: null
+        statelimit: null
+        wetthresh: null
+        sathydraulicconduct: null
+        waterdist: null
+        storedrainprm: null
+        snowpacklimit: null
+        thermal_layers: null
+        irrfrac: null
+        alb: null
+      water:
+        sfr: null
+        emis: null
+        ch_anohm: null
+        rho_cp_anohm: null
+        k_anohm: null
+        ohm_threshsw: null
+        ohm_threshwd: null
+        ohm_coef: null
+        soildepth: null
+        soilstorecap: null
+        statelimit: null
+        wetthresh: null
+        sathydraulicconduct: null
+        storedrainprm: null
+        snowpacklimit: null
+        thermal_layers: null
+        irrfrac: null
+        alb: null
+        flowchange: null
+    vertical_layers:
+      nlayer:
+        value: null
+      height:
+        value: null
+      veg_frac:
+        value: null
+      veg_scale:
+        value: null
+      building_frac:
+        value: null
+      building_scale:
+        value: null
+      roofs: null
+      walls: null
+    n_buildings:
+      value: null
+    h_std:
+      value: null
+    lambda_c:
+      value: null
+  land_cover:
+    paved:
+      sfr:
+        value: 0.1
+    bldgs:
+      sfr:
+        value: 0.1
+    dectr:
+      sfr:
+        value: 0.0
+    evetr:
+      sfr:
+        value: 0.0
+    grass:
+      sfr:
+        value: 0.1
+    bsoil:
+      sfr:
+        value: 0.0
+    water:
+      sfr:
+        value: 0.0
+  initial_states:
+    tair:
+      value: 15.0
+    rh:
+      value: 70.0
+    snowalb:
+      value: null
+    paved:
+      state:
+        value: null
+      soilstore:
+        value: null
+      snowfrac:
+        value: null
+      snowpack:
+        value: null
+      icefrac:
+        value: null
+      snowwater:
+        value: null
+      snowdens:
+        value: null
+      temperature:
+        value: null
+      tsfc:
+        value: null
+      tin:
+        value: null
+    bldgs:
+      state:
+        value: null
+      soilstore:
+        value: null
+      snowfrac:
+        value: null
+      snowpack:
+        value: null
+      icefrac:
+        value: null
+      snowwater:
+        value: null
+      snowdens:
+        value: null
+      temperature:
+        value: null
+      tsfc:
+        value: null
+      tin:
+        value: null
+    evetr:
+      state:
+        value: null
+      soilstore:
+        value: null
+      snowfrac:
+        value: null
+      snowpack:
+        value: null
+      icefrac:
+        value: null
+      snowwater:
+        value: null
+      snowdens:
+        value: null
+      temperature:
+        value: null
+      tsfc:
+        value: null
+      tin:
+        value: null
+      alb_id:
+        value: null
+      lai_id:
+        value: null
+      gdd_id:
+        value: null
+      sdd_id:
+        value: null
+      wu:
+        wu_total: null
+        wu_auto: null
+        wu_manual: null
+    dectr:
+      state:
+        value: null
+      soilstore:
+        value: null
+      snowfrac:
+        value: null
+      snowpack:
+        value: null
+      icefrac:
+        value: null
+      snowwater:
+        value: null
+      snowdens:
+        value: null
+      temperature:
+        value: null
+      tsfc:
+        value: null
+      tin:
+        value: null
+      alb_id:
+        value: null
+      lai_id:
+        value: null
+      gdd_id:
+        value: null
+      sdd_id:
+        value: null
+      wu:
+        wu_total: null
+        wu_auto: null
+        wu_manual: null
+      porosity_id:
+        value: null
+      decidcap_id:
+        value: null
+    grass:
+      state:
+        value: null
+      soilstore:
+        value: null
+      snowfrac:
+        value: null
+      snowpack:
+        value: null
+      icefrac:
+        value: null
+      snowwater:
+        value: null
+      snowdens:
+        value: null
+      temperature:
+        value: null
+      tsfc:
+        value: null
+      tin:
+        value: null
+      alb_id:
+        value: null
+      lai_id:
+        value: null
+      gdd_id:
+        value: null
+      sdd_id:
+        value: null
+      wu:
+        wu_total: null
+        wu_auto: null
+        wu_manual: null
+    bsoil:
+      state:
+        value: null
+      soilstore:
+        value: null
+      snowfrac:
+        value: null
+      snowpack:
+        value: null
+      icefrac:
+        value: null
+      snowwater:
+        value: null
+      snowdens:
+        value: null
+      temperature:
+        value: null
+      tsfc:
+        value: null
+      tin:
+        value: null
+    water:
+      state:
+        value: null
+      soilstore:
+        value: null
+      snowfrac:
+        value: null
+      snowpack:
+        value: null
+      icefrac:
+        value: null
+      snowwater:
+        value: null
+      snowdens:
+        value: null
+      temperature:
+        value: null
+      tsfc:
+        value: null
+      tin:
+        value: null
+    roofs: null
+    walls: null
+    dqndt: null
+    dqnsdt: null
+    dt_since_start: null
+    lenday_id: null
+    qn_av: null
+    qn_s_av: null
+    tair_av: null
+    tmax_id: null
+    tmin_id: null
+    tstep_prev: null
+    snowfallcum: null
+    hdd_id: null

@@ -288,6 +288,7 @@ extensions = [
     "sphinx.ext.napoleon",
     # 'suews_config_editor',  # Our custom extension
     # 'sphinx-jsonschema', # to genenrate docs based JSON Schema from SUEWSConfig
+    "sphinx_gallery.gen_gallery",  # Gallery examples from Python scripts (GH-1029)
 ]
 
 # email_automode = True
@@ -301,6 +302,30 @@ extlinks = {
     "issue": ("https://github.com/UMEP-dev/SUEWS/issues/%s", "#%s"),
     "pr": ("https://github.com/UMEP-dev/SUEWS/pull/%s", "#%s"),
     "gh": ("https://github.com/UMEP-dev/SUEWS/issues/%s", "GH-%s"),
+}
+
+# sphinx-gallery configuration (GH-1029)
+# Converts percent-format Python scripts to gallery pages with executable examples
+sphinx_gallery_conf = {
+    # Source and output directories (relative to conf.py)
+    "examples_dirs": ["examples"],  # Source directory with .py files
+    "gallery_dirs": ["auto_examples"],  # Generated output directory
+    # File patterns
+    "filename_pattern": r"/plot_",  # Execute files starting with plot_
+    "ignore_pattern": r"__init__\.py",
+    # Execution settings
+    "plot_gallery": "True",
+    "abort_on_example_error": False,
+    "remove_config_comments": True,
+    # Download options
+    "download_all_examples": True,
+    "notebook_images": True,  # Embed images in generated notebooks
+    # Image handling
+    "image_scrapers": ("matplotlib",),
+    # Memory management
+    "reset_modules": ("matplotlib", "seaborn"),
+    # Capture output
+    "capture_repr": ("_repr_html_", "__repr__"),
 }
 
 # sphinx comments
@@ -348,6 +373,7 @@ exclude_patterns = [
     "_build",
     "**.ipynb_checkpoints",
     "build",
+    "auto_examples/.ipynb_checkpoints",  # sphinx-gallery generated notebooks
 ]
 # tags.add('html')
 # if tags.has('html'):

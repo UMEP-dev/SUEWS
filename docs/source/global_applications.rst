@@ -211,10 +211,20 @@ The publication data can be refreshed using the provided script:
 
 See :doc:`scripts/wos-papers/README.md <../../../scripts/wos-papers/README>` for full documentation.
 
+All Publications
+----------------
+
+Complete list of SUEWS-related publications indexed in Web of Science.
+
+.. csv-table::
+   :file: assets/wos-papers/suews_wos_papers.csv
+   :header-rows: 1
+
 Raw Data
 --------
 
 - :download:`JSON Data <assets/wos-papers/suews_wos_papers.json>` - Full metadata with analysis
+- :download:`CSV Data <assets/wos-papers/suews_wos_papers.csv>` - Spreadsheet format for filtering
 
 References
 ----------

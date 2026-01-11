@@ -29,6 +29,7 @@ Repository: https://github.com/UMEP-dev/SUEWS
 """
 
 import argparse
+import csv
 import json
 import os
 import re
@@ -37,6 +38,7 @@ import time
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from io import StringIO
 from pathlib import Path
 from typing import Optional
 
@@ -590,6 +592,137 @@ def generate_markdown(papers: list[Paper], analysis: dict) -> str:
     return "\n".join(lines)
 
 
+# Extended city list for CSV generation
+CITIES_BY_REGION = {
+    "Europe": [
+        "London", "Helsinki", "Dublin", "Porto", "Swindon", "Hamburg", "Heraklion",
+        "Zurich", "Freiburg", "Gothenburg", "Reading", "Paris", "Madrid", "Rome",
+        "Berlin", "Munich", "Frankfurt", "Amsterdam", "Brussels", "Vienna", "Prague",
+        "Warsaw", "Stockholm", "Oslo", "Copenhagen", "Lisbon", "Barcelona", "Milan",
+        "Athens", "Budapest", "Edinburgh", "Glasgow", "Manchester", "Birmingham",
+        "Marseille", "Lyon", "Rotterdam", "Cambridge", "Oxford",
+    ],
+    "Asia": [
+        "Beijing", "Shanghai", "Singapore", "Xiong'an", "Xiongan", "Baoding", "Mumbai",
+        "Tokyo", "Nanjing", "Guangzhou", "Shenzhen", "Hangzhou", "Wuhan", "Chengdu",
+        "Tianjin", "Chongqing", "Suzhou", "Dalian", "Qingdao", "Taipei", "Hong Kong",
+        "Kuala Lumpur", "Bangkok", "Jakarta", "Manila", "Seoul", "Osaka", "Nagoya",
+        "Kyoto", "Delhi", "Kolkata", "Chennai", "Bangalore", "Hyderabad", "Colombo",
+        "Hanoi", "Ho Chi Minh",
+    ],
+    "North America": [
+        "Vancouver", "Phoenix", "Montreal", "Los Angeles", "Baltimore", "New York",
+        "Chicago", "Boston", "Seattle", "Denver", "Miami", "Houston", "Dallas",
+        "San Francisco", "San Diego", "Portland", "Austin", "Atlanta", "Philadelphia",
+        "Washington", "Detroit", "Minneapolis", "Toronto", "Calgary", "Edmonton",
+        "Ottawa", "Mexico City",
+    ],
+    "South America": [
+        "Sao Paulo", "Rio de Janeiro", "Buenos Aires", "Bogota", "Lima", "Santiago",
+        "Caracas", "Montevideo", "Bahia Blanca", "Brasilia",
+    ],
+    "Oceania": [
+        "Melbourne", "Sydney", "Brisbane", "Perth", "Adelaide", "Auckland",
+        "Wellington", "Christchurch", "Canberra",
+    ],
+    "Africa": [
+        "Cape Town", "Cairo", "Lagos", "Nairobi", "Johannesburg", "Casablanca",
+        "Accra", "Dakar", "Addis Ababa",
+    ],
+    "Middle East": [
+        "Dubai", "Abu Dhabi", "Riyadh", "Doha", "Tel Aviv", "Istanbul", "Ankara",
+    ],
+}
+
+
+def detect_cities(text: str) -> tuple[list[str], str]:
+    """
+    Detect cities mentioned in text and determine region.
+
+    Args:
+        text: Text to search (title + abstract)
+
+    Returns:
+        Tuple of (list of cities found, primary region)
+    """
+    cities_found = []
+    regions_found = set()
+
+    for region, cities in CITIES_BY_REGION.items():
+        for city in cities:
+            if re.search(rf"\b{re.escape(city)}\b", text, re.IGNORECASE):
+                cities_found.append(city)
+                regions_found.add(region)
+
+    # Determine primary region
+    if len(regions_found) == 1:
+        primary_region = list(regions_found)[0]
+    elif len(regions_found) > 1:
+        primary_region = "Multiple"
+    else:
+        primary_region = "Global/Method"
+
+    return cities_found, primary_region
+
+
+def generate_csv(papers: list[Paper]) -> str:
+    """
+    Generate CSV with enriched paper data for interactive filtering.
+
+    Args:
+        papers: List of Paper objects
+
+    Returns:
+        CSV formatted string
+    """
+    output = StringIO()
+    writer = csv.writer(output)
+
+    # Header
+    writer.writerow([
+        "Citation Key", "Year", "First Author", "Title", "Journal",
+        "Cities", "Region", "Type", "DOI"
+    ])
+
+    # Track used keys for deduplication (same logic as bibtex)
+    used_keys = {}
+
+    for paper in papers:
+        # Generate citation key
+        first_author = paper.authors[0].split(",")[0] if paper.authors else "Unknown"
+        base_key = f"{first_author}{paper.year}"
+        base_key = re.sub(r"[^a-zA-Z0-9]", "", base_key)
+
+        if base_key in used_keys:
+            used_keys[base_key] += 1
+            key = f"{base_key}{chr(ord('a') + used_keys[base_key] - 1)}"
+        else:
+            used_keys[base_key] = 1
+            key = base_key
+
+        # Detect cities and region
+        text = f"{paper.title} {paper.abstract}"
+        cities, region = detect_cities(text)
+
+        # Determine paper type
+        paper_type = "City Study" if cities else "Methodology"
+
+        # Write row
+        writer.writerow([
+            key,
+            paper.year,
+            first_author,
+            paper.title[:100] + "..." if len(paper.title) > 100 else paper.title,
+            paper.journal,
+            "; ".join(cities) if cities else "-",
+            region,
+            paper_type,
+            f"https://doi.org/{paper.doi}" if paper.doi else "-",
+        ])
+
+    return output.getvalue()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Fetch SUEWS papers from Web of Science",
@@ -615,7 +748,7 @@ Environment:
         "--formats",
         "-f",
         nargs="+",
-        choices=["json", "bibtex", "markdown", "all"],
+        choices=["json", "bibtex", "markdown", "csv", "all"],
         default=["json"],
         help="Output formats (default: json)",
     )
@@ -641,7 +774,7 @@ Environment:
     # Determine formats
     formats = set(args.formats)
     if "all" in formats:
-        formats = {"json", "bibtex", "markdown"}
+        formats = {"json", "bibtex", "markdown", "csv"}
 
     print("=" * 60)
     print("SUEWS Papers - Web of Science Fetcher")
@@ -707,6 +840,12 @@ Environment:
         with open(md_path, "w") as f:
             f.write(generate_markdown(papers, analysis))
         print(f"Markdown: {md_path}")
+
+    if "csv" in formats:
+        csv_path = args.output_dir / "suews_wos_papers.csv"
+        with open(csv_path, "w", newline="") as f:
+            f.write(generate_csv(papers))
+        print(f"CSV: {csv_path}")
 
     print()
     print("Done!")

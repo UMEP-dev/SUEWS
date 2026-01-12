@@ -30,15 +30,15 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 │   ├── sync-docs.md       # Check doc-code consistency
 │   └── verify-build.md    # Verify build configuration
 │
-├── skills/                # Action-oriented workflows
-│   ├── audit-pr/          # PR review orchestrator
-│   ├── examine-issue/     # Issue analysis
-│   ├── lint-code/         # Code style (references rules/)
-│   ├── log-changes/       # CHANGELOG management
-│   ├── prep-release/      # Release preparation
-│   ├── setup-dev/         # Environment setup guide
-│   ├── sync-docs/         # Doc-code consistency
-│   └── verify-build/      # Build config checks
+├── skills/                # Action-oriented workflows (named with -skill suffix)
+│   ├── audit-pr-skill/    # PR review orchestrator
+│   ├── examine-issue-skill/  # Issue analysis
+│   ├── lint-code-skill/   # Code style (references rules/)
+│   ├── log-changes-skill/ # CHANGELOG management
+│   ├── prep-release-skill/  # Release preparation
+│   ├── setup-dev-skill/   # Environment setup guide
+│   ├── sync-docs-skill/   # Doc-code consistency
+│   └── verify-build-skill/  # Build config checks
 │
 ├── reference/             # Templates and static reference
 │   └── templates/         # Reusable templates
@@ -108,14 +108,14 @@ Commands are thin wrappers that invoke skills. They provide:
 ## Skill Relationships
 
 ```
-prep-release ──┬── verify-build (pre-flight)
-               ├── sync-docs (pre-flight)
-               ├── lint-code (pre-flight)
-               └── log-changes (CHANGELOG)
+prep-release-skill ──┬── verify-build-skill (pre-flight)
+                     ├── sync-docs-skill (pre-flight)
+                     ├── lint-code-skill (pre-flight)
+                     └── log-changes-skill (CHANGELOG)
 
-audit-pr ──────┬── lint-code (style review)
-               ├── sync-docs (doc review)
-               └── verify-build (build review)
+audit-pr-skill ──────┬── lint-code-skill (style review)
+                     ├── sync-docs-skill (doc review)
+                     └── verify-build-skill (build review)
 ```
 
 ## Quick Navigation

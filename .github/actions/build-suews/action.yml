@@ -58,12 +58,12 @@ runs:
         echo "Building UMEP variant with NumPy 1.x compatibility"
 
         # Runtime: Pin to NumPy 1.x (QGIS 3.40 LTR uses 1.26.4)
-        # MUST run before build-time replacement to match the trailing comma
-        sed -i.bak 's/"numpy>=2\.0",/"numpy>=1.22,<2.0",/g' pyproject.toml
+        # Limit to the [project] section to avoid touching build-system requirements
+        sed -i.bak '/^\[project\]/,/^\[/{s/"numpy>=2\.0",/"numpy>=1.22,<2.0",/g}' pyproject.toml
 
         # Build-time: Use oldest-supported-numpy for binary compatibility
-        # Runs second to replace the remaining occurrence (no trailing comma in build-requires)
-        sed -i.bak 's/"numpy>=2\.0"/"oldest-supported-numpy"/g' pyproject.toml
+        # Limit to the [build-system] section to keep build isolation compatible
+        sed -i.bak '/^\[build-system\]/,/^\[/{s/"numpy>=2\.0"/"oldest-supported-numpy"/g}' pyproject.toml
 
         echo "Modified pyproject.toml for UMEP build:"
         git diff pyproject.toml || true
@@ -160,7 +160,7 @@ runs:
           gcc --version &&
           pip install delvewheel
         CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
-        CIBW_TEST_REQUIRES: ${{ inputs.is_umep_variant == 'true' && 'pytest numpy<2' || 'pytest' }}
+        CIBW_TEST_REQUIRES: ${{ inputs.is_umep_variant == 'true' && 'pytest numpy==1.26.*' || 'pytest' }}
         # Test tiers: choose subset based on path detection and trigger
         CIBW_TEST_COMMAND: >
           python -m pytest {project}/test -v --tb=short

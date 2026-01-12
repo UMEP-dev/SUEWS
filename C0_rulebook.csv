@@ -1,0 +1,147 @@
+﻿Pipeline,Type,Affected Parameter,Formula,Reasoning
+C/Pydantic,Between 0 and 1,frfossilfuel_heat,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,frfossilfuel_nonheat,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,faut,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,to_bldgs,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,to_bsoil,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,to_dectr,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,to_evetr,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,to_grass,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,to_paved,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,to_runoff,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,to_soilstore,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,to_water,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,InternalMassEmissivity,"[0,1]",Emissivity.
+C/Pydantic,Between 0 and 1,RatioInternalVolume,"[0,1]",Ratio.
+C/Pydantic,Between 0 and 1,RoofAbsorbtivity,"[0,1]",Absorbtivity.
+C/Pydantic,Between 0 and 1,RoofExternalEmissivity,"[0,1]",Emissivity.
+C/Pydantic,Between 0 and 1,RoofInternalEmissivity,"[0,1]",Emissivity.
+C/Pydantic,Between 0 and 1,RoofReflectivity,"[0,1]",Reflectivity.
+C/Pydantic,Between 0 and 1,RoofTransmissivity,"[0,1]",Transmissivity.
+C/Pydantic,Between 0 and 1,RoofOuterCapFrac,"[0,1]",Weighting Factor.
+C/Pydantic,Between 0 and 1,WWR,"[0,1]",Ratio.
+C/Pydantic,Between 0 and 1,WallAbsorbtivity,"[0,1]",Absorbtivity.
+C/Pydantic,Between 0 and 1,WallExternalEmissivity,"[0,1]",Emissivity.
+C/Pydantic,Between 0 and 1,WallInternalEmissivity,"[0,1]",Emissivity.
+C/Pydantic,Between 0 and 1,WallReflectivity,"[0,1]",Reflectivity.
+C/Pydantic,Between 0 and 1,WallTransmissivity,"[0,1]",Transmissivity.
+C/Pydantic,Between 0 and 1,WallOuterCapFrac,"[0,1]",Weighting Factor.
+C/Pydantic,Between 0 and 1,WindowAbsorbtivity,"[0,1]",Absorbtivity.
+C/Pydantic,Between 0 and 1,WindowExternalEmissivity,"[0,1]",Emissivity.
+C/Pydantic,Between 0 and 1,WindowInternalEmissivity,"[0,1]",Emissivity.
+C/Pydantic,Between 0 and 1,WindowReflectivity,"[0,1]",Reflectivity.
+C/Pydantic,Between 0 and 1,WindowTransmissivity,"[0,1]",Transmissivity.
+C/Pydantic,Between 0 and 1,drainrt,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,raincover,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,air_ssa_lw,"[0,1]",Albedo.
+C/Pydantic,Between 0 and 1,air_ssa_sw,"[0,1]",Albedo.
+C/Pydantic,Between 0 and 1,veg_ssa_lw,"[0,1]",Albedo.
+C/Pydantic,Between 0 and 1,veg_ssa_sw,"[0,1]",Albedo.
+C/Pydantic,Between 0 and 1,runofftowater,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,crwmax,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,crwmin,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,narp_emis_snow,"[0,1]",Emissivity.
+C/Pydantic,Between 0 and 1,snowalbmax,"[0,1]",Albedo.
+C/Pydantic,Between 0 and 1,snowalbmin,"[0,1]",Albedo.
+C/Pydantic,Between 0 and 1,ApplianceUsageFactor,"[0,1]",Ratio.
+C/Pydantic,Between 0 and 1,DHWVesselWallEmissivity,"[0,1]",Emissivity.
+C/Pydantic,Between 0 and 1,HeatingSystemEfficiency,"[0,1]",Efficiency.
+C/Pydantic,Between 0 and 1,HotWaterHeatingEfficiency,"[0,1]",Efficiency.
+C/Pydantic,Between 0 and 1,HotWaterTankBuildingWallViewFactor,"[0,1]",View factor.
+C/Pydantic,Between 0 and 1,HotWaterTankInternalMassViewFactor,"[0,1]",View factor.
+C/Pydantic,Between 0 and 1,HotWaterTankWallEmissivity,"[0,1]",Emissivity.
+C/Pydantic,Between 0 and 1,emis,"[0,1]",Emissivity.
+C/Pydantic,Between 0 and 1,sfr,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,alb_max,"[0,1]",Albedo.
+C/Pydantic,Between 0 and 1,alb_min,"[0,1]",Albedo.
+C/Pydantic,Between 0 and 1,porosity_id,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,alb_id,"[0,1]",Albedo.
+C/Pydantic,Between 0 and 1,snowalb,"[0,1]",Albedo.
+C/Pydantic,Between 0 and 1,icefrac,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,snowfrac,"[0,1]",Fraction.
+C/Pydantic,Between 0 and 1,alb,"[0,1]",Albedo.
+C/Pydantic,Non negative,popdensnighttime,,Density.
+C/Pydantic,Non negative,store_cap,,Capacity.
+C/Pydantic,Non negative,store_max,,Capacity.
+C/Pydantic,Non negative,store_min,,Capacity.
+C/Pydantic,Non negative,MaxHeatingPower,,Power.
+C/Pydantic,Non negative,ground_albedo_dir_mult_fact,,Scaling factor.
+C/Pydantic,Non negative,lambda_c,, Rate.
+C/Pydantic,Non negative,preciplimitalb,,Threshold on a non‑negative quantity (precipitation rate)
+C/Pydantic,Non negative,ApplianceRating,,Rating.
+C/Pydantic,Non negative,CoolingSystemCOP,,Ratio of non-negative numerator and denominator.
+C/Pydantic,Non negative,DHWDrainFlowRate,,Rate.
+C/Pydantic,Non negative,HotWaterFlowRate,,Rate.
+C/Pydantic,Non negative,LatentSensibleRatio,,Ratio of two non‑negative fluxes.
+C/Pydantic,Non negative,MaxCoolingPower,,Power.
+C/Pydantic,Non negative,MetabolicRate,,Rate.
+C/Pydantic,Non negative,MinimumVolumeOfDHWinUse,,Volume.
+C/Pydantic,Non negative,TotalNumberofAppliances,,Count.
+C/Pydantic,Non negative,VentilationRate,,Rate.
+C/Pydantic,Non negative,decidcap_id,,Capacity.
+C/Pydantic,Non negative,snowdens,,Density.
+C/Pydantic,Non negative,snowpack,,Depth.
+C/Pydantic,Non negative,snowwater,,Water in snow amount in mm.
+C/Pydantic,Non negative,state,,Wetness amount in mm.
+C/Pydantic,Non negative,wu_auto,, Rate.
+C/Pydantic,Non negative,wu_manual,, Rate.
+C/Pydantic,Non negative,wu_total,, Rate.
+C/Pydantic,Non negative,bldgh,,Height.
+C/Pydantic,Non negative,faibldg,,Frontal Area Index.
+C/Pydantic,Non negative,roof_albedo_dir_mult_fact,,Scaling factor.
+C/Pydantic,Positive,FloorThickness,,Thickness.
+C/Pydantic,Positive,FootprintArea,,Area.
+C/Pydantic,Positive,GroundFloorCp,,Heat Capacity.
+C/Pydantic,Positive,GroundFloorDensity,,Density.
+C/Pydantic,Positive,GroundFloorEffectiveConductivity,,Conductivity.
+C/Pydantic,Positive,MaximumHotWaterHeatingPower,,Capacity.
+C/Pydantic,Positive,RoofCp,,Heat Capacity.
+C/Pydantic,Positive,RoofDensity,,Density.
+C/Pydantic,Positive,RoofEffectiveConductivity,,Conductivity.
+C/Pydantic,Positive,RoofThickness,,Thickness.
+C/Pydantic,Positive,RoofextCp,,Heat Capacity.
+C/Pydantic,Positive,RoofextDensity,,Density.
+C/Pydantic,Positive,RoofextEffectiveConductivity,,Conductivity.
+C/Pydantic,Positive,RoofextThickness,,Thickness.
+C/Pydantic,Positive,WallCp,,Heat Capacity.
+C/Pydantic,Positive,WallDensity,,Density.
+C/Pydantic,Positive,WallEffectiveConductivity,,Conductivity.
+C/Pydantic,Positive,WallExternalArea,,Area.
+C/Pydantic,Positive,WallThickness,,Thickness.
+C/Pydantic,Positive,WallextCp,,Heat Capacity.
+C/Pydantic,Positive,WallextDensity,,Density.
+C/Pydantic,Positive,WallextEffectiveConductivity,,Conductivity.
+C/Pydantic,Positive,WallextThickness,,Thickness.
+C/Pydantic,Positive,WaterTankWaterVolume,,Volume.
+C/Pydantic,Positive,WindowCp,,Heat Capacity.
+C/Pydantic,Positive,WindowDensity,,Density.
+C/Pydantic,Positive,WindowEffectiveConductivity,,Conductivity.
+C/Pydantic,Positive,WindowThickness,,Thickness.
+C/Pydantic,Positive,stebbs_Height,,Height.
+C/Pydantic,Positive,alt,,Altitude.
+C/Pydantic,Positive,pipecapacity,,Capacity.
+C/Pydantic,Positive,surfacearea,,Area.
+C/Pydantic,Positive,z,,Height.
+C/Pydantic,Positive,z0m_in,,Height.
+C/Pydantic,Positive,zdm_in,,Height.
+C/Pydantic,Positive,DHWDensity,,Density.
+C/Pydantic,Positive,DHWSpecificHeatCapacity,,Heat Capacity.
+C/Pydantic,Positive,DHWSurfaceArea,,Area.
+C/Pydantic,Positive,DHWVesselDensity,,Density.
+C/Pydantic,Positive,DHWVesselSpecificHeatCapacity,,Heat Capacity.
+C/Pydantic,Positive,DHWVesselWallConductivity,,Conductivity.
+C/Pydantic,Positive,DHWVesselWallThickness,,Thickness.
+C/Pydantic,Positive,DHWWaterVolume,,Volume.
+C/Pydantic,Positive,FloorInternalConvectionCoefficient,,Convection coefficient.
+C/Pydantic,Positive,HotWaterHeatingSetpointTemperature,,Temperature.
+C/Pydantic,Positive,HotWaterTankSpecificHeatCapacity,,Heat Capacity.
+C/Pydantic,Positive,HotWaterTankWallConductivity,,Conductivity.
+C/Pydantic,Positive,HotWaterTankWallDensity,,Density.
+C/Pydantic,Positive,InternalMassConvectionCoefficient,,Convection coefficient.
+C/Pydantic,Positive,RoofExternalConvectionCoefficient,,Convection coefficient.
+C/Pydantic,Positive,RoofInternalConvectionCoefficient,,Convection coefficient.
+C/Pydantic,Positive,WallExternalConvectionCoefficient,,Convection coefficient.
+C/Pydantic,Positive,WallInternalConvectionCoefficient,,Convection coefficient.
+C/Pydantic,Positive,WaterTankWallThickness,,Thickness.
+C/Pydantic,Positive,WindowExternalConvectionCoefficient,,Convection coefficient.
+C/Pydantic,Positive,WindowInternalConvectionCoefficient,,Convection coefficient.

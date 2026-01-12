@@ -225,12 +225,12 @@ class SurfaceProperties(BaseModel):
     )
     soildepth: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Depth of soil layer for hydrological calculations",
+        description="Depth of soil layer below surface for hydrological calculations, controlling sub-surface water storage and drainage processes. Site-specific value typically determined from soil surveys or borehole data",
         json_schema_extra={"unit": "mm", "display_name": "Soil Depth"},
     )
     soilstorecap: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Maximum water storage capacity of soil",
+        description="Maximum water storage capacity of soil layer, representing total water holding capacity between field capacity and wilting point. Site-specific value dependent on soil texture, structure, and depth",
         json_schema_extra={"unit": "mm", "display_name": "Soil Store Capacity"},
     )
     statelimit: FlexibleRefValue(float) = Field(
@@ -248,7 +248,7 @@ class SurfaceProperties(BaseModel):
     )
     sathydraulicconduct: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Saturated hydraulic conductivity of soil",
+        description="Saturated hydraulic conductivity of soil layer, controlling water drainage rate through fully saturated soil. Site-specific value determined from soil texture (higher for sandy, lower for clay); typically measured via laboratory or field infiltration tests",
         json_schema_extra={
             "unit": "mm s^-1",
             "display_name": "Saturated Hydraulic Conductivity",
@@ -693,6 +693,7 @@ class BuildingLayer(
     )
     roof_albedo_dir_mult_fact: Optional[FlexibleRefValue(float)] = Field(
         default=0.1,
+        ge=0.0,
         description="Directional albedo multiplication factor for roofs",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1039,7 +1040,7 @@ class VerticalLayers(BaseModel):
     height: FlexibleRefValue(List[float]) = Field(
         default=[0.0, 10.0, 20.0, 30.0],
         description="Heights of layer boundaries, length must be nlayer+1",
-        json_schema_extra={"unit": "m", "display_name": "Height"},
+        json_schema_extra={"unit": "m", "display_name": "Layer Heights"},
     )
     veg_frac: FlexibleRefValue(List[float]) = Field(
         default=[0.0, 0.0, 0.0],
@@ -1055,17 +1056,17 @@ class VerticalLayers(BaseModel):
         json_schema_extra={"unit": "dimensionless", "display_name": "Vegetation Scale"},
     )
     building_frac: FlexibleRefValue(List[float]) = Field(
-        default=[0.4, 0.3, 0.3],
-        description="Fraction of buildings in each layer, must sum to 1.0, length must be nlayer",
+        default=[0.4, 0.3, 0.2],
+        description="Cumulative grid building fraction at each vertical layer (decreasing with height), length must be nlayer",
         json_schema_extra={
-            "unit": "dimensionless",
+            "unit": "-",
             "display_name": "Building Fraction",
         },
     )
     building_scale: FlexibleRefValue(List[float]) = Field(
-        default=[1.0, 1.0, 1.0],
-        description="Scaling factor for buildings in each layer, length must be nlayer",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Building Scale"},
+        default=[10.0, 10.0, 10.0],
+        description="Diameter of buildings at each vertical layer, length must be nlayer",
+        json_schema_extra={"unit": "m", "display_name": "Building Scale"},
     )
     roofs: List[RoofLayer] = Field(
         default_factory=lambda: [RoofLayer(), RoofLayer(), RoofLayer()],

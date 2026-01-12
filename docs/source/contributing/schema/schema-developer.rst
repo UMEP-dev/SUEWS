@@ -2,7 +2,7 @@ Schema Development Documentation
 =================================
 
 .. note::
-   This documentation is for developers working on SUEWS schema implementation. 
+   This documentation is for developers working on SUEWS schema implementation.
    Users should refer to the main :doc:`index` for configuration guidance.
 
 Schema Versioning
@@ -39,22 +39,14 @@ For developers, the ``suews-schema`` command provides schema management:
    suews-schema migrate old.yml      # Migrate between versions
    suews-schema export               # Export JSON Schema
 
-Schema Publishing
------------------
+Generating JSON Schema
+----------------------
 
-Schemas are published as JSON Schema files for:
+JSON Schema files can be generated from Pydantic models for IDE autocomplete
+and external validation tools. The authoritative validation is always performed
+by the Pydantic models at runtime.
 
-- External validation tools
-- IDE autocomplete
-- API documentation generation
-- CI/CD pipeline validation
-
-Access schemas at:
-
-- GitHub Pages: ``https://umep-dev.github.io/SUEWS/schemas/suews-config/``
-- Raw GitHub: ``https://raw.githubusercontent.com/UMEP-dev/SUEWS/master/schemas/suews-config/latest.json``
-
-Generate schemas locally:
+Generate schema locally:
 
 .. code-block:: bash
 
@@ -65,13 +57,13 @@ Python API
 
 .. code-block:: python
 
-   from supy.data_model.schema.publisher import generate_json_schema
+   from supy.data_model import SUEWSConfig
+
+   # Generate JSON Schema from Pydantic model
+   schema = SUEWSConfig.model_json_schema()
+
+   # For migration between versions
    from supy.data_model.schema.migration import SchemaMigrator
-   
-   # Generate schema
-   schema = generate_json_schema(version='1.0')
-   
-   # Migrate configuration
    migrator = SchemaMigrator()
    new_config = migrator.migrate(old_config, to_version='1.0')
 

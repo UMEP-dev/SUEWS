@@ -46,15 +46,17 @@ Scheme options
 
 .. option:: BaseTMethod
 
+	.. deprecated:: v2025a
+
+		This option has been removed. The model now always uses weekday/weekend-specific
+		base temperatures (``BaseT_Heating`` and ``BaseT_Cooling``) for HDD/CDD calculations.
+		If present in legacy input files, this parameter is ignored.
+
 	:Requirement:
-		Required
+		Optional (ignored)
 	:Description:
-		Determines method for base temperature used in HDD/CDD calculations.
-	:Configuration:
-		.. csv-table::
-			:file: csv-table/BaseTMethod.csv
-			:header-rows: 1
-			:widths: 10 80
+		Previously determined method for base temperature used in HDD/CDD calculations.
+		Now deprecated in favour of always using weekday/weekend-specific base temperatures.
 
 .. option:: EmissionsMethod
 
@@ -62,6 +64,14 @@ Scheme options
 		Required
 	:Description:
 		Determines method for QF calculation.
+
+	.. note::
+
+		Methods 11-45 include **biogenic CO2** calculations and are **experimental**.
+		While scientifically validated against established photosynthesis models,
+		users should verify results for their specific applications.
+		See :ref:`SUEWS_BiogenCO2` for required parameters.
+
 	:Configuration:
 		.. csv-table::
 			:file: csv-table/EmissionsMethod.csv

@@ -75,12 +75,27 @@ class EmissionsMethod(Enum):
     """
     Method for calculating anthropogenic heat flux (QF) and CO2 emissions.
 
-    0: OBSERVED - Uses observed QF values from forcing file. Set to zero in forcing file to exclude QF from energy balance
-    1: L11 - Loridan et al. (2011) SAHP method. Linear relation with air temperature, weekday/weekend profiles, scales with population density
-    2: J11 - Järvi et al. (2011) SAHP_2 method. Uses heating/cooling degree days, weekday/weekend differences via profiles and coefficients
-    3: L11_UPDATED - Modified Loridan method using daily mean air temperature instead of instantaneous values
-    4: J19 - Järvi et al. (2019) method. Includes building energy use, human metabolism, and traffic contributions
-    5: J19_UPDATED - As method 4 but also calculates CO2 emissions (biogenic and anthropogenic components)
+    0: OBSERVED - Uses observed QF values from forcing file (set to zero to exclude QF from energy balance)
+    1: L11 - Loridan et al. (2011) SAHP method with air temperature and population density
+    2: J11 - Järvi et al. (2011) SAHP_2 method with heating/cooling degree days
+    3: L11_UPDATED - Modified Loridan method using daily mean air temperature
+    4: J19 - Järvi et al. (2019) method with building energy, metabolism, and traffic
+    5: J19_UPDATED - As method 4 but also calculates CO2 emissions
+    11: BIOGEN_RECT_L11 - Rectangular hyperbola photosynthesis + L11 QF (experimental)
+    12: BIOGEN_RECT_J11 - Rectangular hyperbola photosynthesis + J11 QF (experimental)
+    13: BIOGEN_RECT_L11U - Rectangular hyperbola photosynthesis + L11_UPDATED QF (experimental)
+    14: BIOGEN_RECT_J19 - Rectangular hyperbola photosynthesis + J19 QF (experimental)
+    15: BIOGEN_RECT_J19U - Rectangular hyperbola photosynthesis + J19_UPDATED QF (experimental)
+    21: BIOGEN_NRECT_L11 - Non-rectangular hyperbola (Bellucco 2017) + L11 QF (experimental)
+    22: BIOGEN_NRECT_J11 - Non-rectangular hyperbola (Bellucco 2017) + J11 QF (experimental)
+    23: BIOGEN_NRECT_L11U - Non-rectangular hyperbola (Bellucco 2017) + L11_UPDATED QF (experimental)
+    24: BIOGEN_NRECT_J19 - Non-rectangular hyperbola (Bellucco 2017) + J19 QF (experimental)
+    25: BIOGEN_NRECT_J19U - Non-rectangular hyperbola (Bellucco 2017) + J19_UPDATED QF (experimental)
+    41: BIOGEN_COND_L11 - Conductance-based photosynthesis (Järvi 2019) + L11 QF (experimental)
+    42: BIOGEN_COND_J11 - Conductance-based photosynthesis (Järvi 2019) + J11 QF (experimental)
+    43: BIOGEN_COND_L11U - Conductance-based photosynthesis (Järvi 2019) + L11_UPDATED QF (experimental)
+    44: BIOGEN_COND_J19 - Conductance-based photosynthesis (Järvi 2019) + J19 QF (experimental)
+    45: BIOGEN_COND_J19U - Conductance-based photosynthesis (Järvi 2019) + J19_UPDATED QF (experimental)
     """
 
     # just a demo to show how to use Enum for emissionsmethod

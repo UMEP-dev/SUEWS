@@ -20,13 +20,13 @@ class SurfaceInitialState(BaseModel):
 
     state: FlexibleRefValue(float) = Field(
         description="Initial water state of the surface",
-        json_schema_extra={"unit": "mm", "display_name": "State"},
+        json_schema_extra={"unit": "mm", "display_name": "Initial Surface Water State"},
         default=0.0,
         ge=0,
     )  # Default set to 0.0 means dry surface.
     soilstore: FlexibleRefValue(float) = Field(
         description="Initial soil store. Related to Soil Moisture Deficit (SMD) as SMD = soilstorecap - soilstore.",
-        json_schema_extra={"unit": "mm", "display_name": "Soilstore"},
+        json_schema_extra={"unit": "mm", "display_name": "Initial Soil Store"},
         default=150.0,
         ge=10,
     )  # Default set to 150.0 (wet soil) and ge=10 (less than 10 would be too dry) are physically reasonable for a model run.
@@ -289,19 +289,19 @@ class WaterUse(BaseModel):
 
     wu_total: FlexibleRefValue(float) = Field(
         description="Total water use",
-        json_schema_extra={"unit": "mm", "display_name": "Wu Total"},
+        json_schema_extra={"unit": "mm", "display_name": "Total Water Use"},
         default=0.0,
         ge=0,
     )  # Default set to 0.0 means no irrigation.
     wu_auto: FlexibleRefValue(float) = Field(
         description="Automatic water use",
-        json_schema_extra={"unit": "mm", "display_name": "Wu Auto"},
+        json_schema_extra={"unit": "mm", "display_name": "Automatic Water Use"},
         default=0.0,
         ge=0,
     )
     wu_manual: FlexibleRefValue(float) = Field(
         description="Manual water use",
-        json_schema_extra={"unit": "mm", "display_name": "Wu Manual"},
+        json_schema_extra={"unit": "mm", "display_name": "Manual Water Use"},
         default=0.0,
         ge=0,
     )
@@ -367,22 +367,24 @@ class InitialStateVeg(SurfaceInitialState):
 
     alb_id: FlexibleRefValue(float) = Field(
         description="Albedo at the start of the model run.",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Alb Id"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "Initial Albedo"},
         default=0.25,
+        ge=0.0,
+        le=1.0,
     )
     lai_id: FlexibleRefValue(float) = Field(
         description="Leaf area index at the start of the model run.",
-        json_schema_extra={"unit": "m^2 m^-2", "display_name": "Lai Id"},
+        json_schema_extra={"unit": "m^2 m^-2", "display_name": "Initial Leaf Area Index"},
         default=1.0,
     )
     gdd_id: FlexibleRefValue(float) = Field(
         description="Growing degree days at the start of the model run",
-        json_schema_extra={"unit": "degC d", "display_name": "Gdd Id"},
+        json_schema_extra={"unit": "degC d", "display_name": "Initial Growing Degree Days"},
         default=0,
     )  # We need to check this and give info for setting values.
     sdd_id: FlexibleRefValue(float) = Field(
         description="Senescence degree days at the start of the model run",
-        json_schema_extra={"unit": "degC d", "display_name": "Sdd Id"},
+        json_schema_extra={"unit": "degC d", "display_name": "Initial Senescence Degree Days"},
         default=0,
     )  # This need to be consistent with GDD.
     wu: WaterUse = Field(
@@ -522,14 +524,14 @@ class InitialStateDectr(InitialStateVeg):
 
     porosity_id: FlexibleRefValue(float) = Field(
         description="Porosity for deciduous trees at the start of the model run",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Porosity Id"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "Initial Porosity"},
         default=0.2,
         ge=0,
         le=1,
     )
     decidcap_id: FlexibleRefValue(float) = Field(
         description="Deciduous capacity for deciduous trees at the start of the model run",
-        json_schema_extra={"unit": "mm", "display_name": "Decidcap Id"},
+        json_schema_extra={"unit": "mm", "display_name": "Initial Deciduous Capacity"},
         default=0.3,
         ge=0,
     )
@@ -658,7 +660,7 @@ class InitialStateWater(SurfaceInitialState):
     # Override soilstore for water surfaces to allow 0 (water doesn't have soil)
     soilstore: FlexibleRefValue(float) = Field(
         description="Initial soil store (not applicable for water surfaces)",
-        json_schema_extra={"unit": "mm", "display_name": "Soilstore"},
+        json_schema_extra={"unit": "mm", "display_name": "Initial Soil Store"},
         default=0.0,
         ge=0,  # Water surfaces can have 0 soilstore
     )
@@ -680,7 +682,7 @@ class HDD_ID(BaseModel):
         description="Current day's heating degree days accumulation [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Hdd Accum",
+            "display_name": "Heating Degree Days Accumulation",
             "internal_only": True,
         },
     )
@@ -689,7 +691,7 @@ class HDD_ID(BaseModel):
         description="Current day's cooling degree days accumulation [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Cdd Accum",
+            "display_name": "Cooling Degree Days Accumulation",
             "internal_only": True,
         },
     )
@@ -698,7 +700,7 @@ class HDD_ID(BaseModel):
         description="Current day's temperature accumulation for daily mean [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Temp Accum",
+            "display_name": "Temperature Accumulation",
             "internal_only": True,
         },
     )
@@ -707,7 +709,7 @@ class HDD_ID(BaseModel):
         description="5-day running mean temperature accumulation [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Temp 5Day Accum",
+            "display_name": "5-Day Temperature Accumulation",
             "internal_only": True,
         },
     )
@@ -716,16 +718,16 @@ class HDD_ID(BaseModel):
         description="Current day's precipitation total [mm]",
         json_schema_extra={
             "unit": "mm",
-            "display_name": "Precip Accum",
+            "display_name": "Precipitation Accumulation",
             "internal_only": True,
         },
     )
     days_since_rain_accum: float = Field(
         default=0.0,
-        description="Days since rain counter (current) [days]",
+        description="Days since rain counter (current) [d]",
         json_schema_extra={
-            "unit": "days",
-            "display_name": "Days Since Rain Accum",
+            "unit": "d",
+            "display_name": "Days Since Rain (Accumulator)",
             "internal_only": True,
         },
     )
@@ -736,7 +738,7 @@ class HDD_ID(BaseModel):
         description="Previous day's heating degree days for QF calculations [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Hdd Daily",
+            "display_name": "Daily Heating Degree Days",
             "internal_only": True,
         },
     )
@@ -745,7 +747,7 @@ class HDD_ID(BaseModel):
         description="Previous day's cooling degree days for QF calculations [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Cdd Daily",
+            "display_name": "Daily Cooling Degree Days",
             "internal_only": True,
         },
     )
@@ -754,7 +756,7 @@ class HDD_ID(BaseModel):
         description="Previous day's mean temperature for water use calculations [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Temp Daily Mean",
+            "display_name": "Daily Mean Temperature",
             "internal_only": True,
         },
     )
@@ -763,7 +765,7 @@ class HDD_ID(BaseModel):
         description="Previous 5-day running mean temperature for QF calculations [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Temp 5Day Mean",
+            "display_name": "5-Day Mean Temperature",
             "internal_only": True,
         },
     )
@@ -772,15 +774,15 @@ class HDD_ID(BaseModel):
         description="Previous day's precipitation total [mm]",
         json_schema_extra={
             "unit": "mm",
-            "display_name": "Precip Daily Total",
+            "display_name": "Daily Precipitation Total",
             "internal_only": True,
         },
     )
     days_since_rain: float = Field(
         default=0.0,
-        description="Days since rain for irrigation calculations [days]",
+        description="Days since rain for irrigation calculations [d]",
         json_schema_extra={
-            "unit": "days",
+            "unit": "d",
             "display_name": "Days Since Rain",
             "internal_only": True,
         },

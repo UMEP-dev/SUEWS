@@ -16,7 +16,7 @@ from supy.suews_sim import SUEWSSimulation
 class TestInit:
     """Test initialization."""
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_empty_init(self):
         """Test empty initialization."""
         sim = SUEWSSimulation()
@@ -24,7 +24,7 @@ class TestInit:
         assert sim.forcing is None
         assert sim.results is None
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_yaml_init(self):
         """Test initialization from YAML."""
         yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
@@ -32,7 +32,7 @@ class TestInit:
         assert sim.config is not None
         assert sim._df_state_init is not None
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_from_sample_data(self):
         """Test initialization from sample data factory method."""
         sim = SUEWSSimulation.from_sample_data()
@@ -408,10 +408,10 @@ class TestRun:
         sim._df_state_init = df_state
         sim.update_forcing(df_forcing.iloc[:24])  # 2 hours
 
-        results = sim.run()
-        assert results is not None
-        assert len(results) > 0
-        assert "QH" in results.columns.get_level_values("var")
+        output = sim.run()
+        assert output is not None
+        assert len(output.df) > 0
+        assert "QH" in output.df.columns.get_level_values("var")
 
     def test_run_without_forcing(self):
         """Test run fails without forcing."""
@@ -420,6 +420,64 @@ class TestRun:
 
         with pytest.raises(RuntimeError, match="No forcing"):
             sim.run()
+
+    def test_run_respects_config_date_range(self):
+        """Test that config start_time/end_time filters the model run period (GH-996)."""
+        # Create simulation from sample data
+        sim = SUEWSSimulation.from_sample_data()
+
+        # Note the full forcing range and resolution
+        full_forcing_start = sim._df_forcing.index.min()
+        full_forcing_len = len(sim._df_forcing)
+
+        # Determine the forcing timestep resolution (in minutes)
+        timestep_minutes = (
+            sim._df_forcing.index[1] - sim._df_forcing.index[0]
+        ).total_seconds() / 60
+
+        # Calculate expected timesteps for one day based on actual resolution
+        # (24 hours * 60 minutes / timestep_minutes)
+        expected_timesteps_per_day = int(24 * 60 / timestep_minutes)
+
+        # Set a narrow date range via config (just first day of forcing)
+        config_start = str(full_forcing_start.date())  # e.g., '2012-01-01'
+        config_end = str(full_forcing_start.date())
+
+        sim.update_config({
+            "model": {
+                "control": {
+                    "start_time": config_start,
+                    "end_time": config_end,
+                }
+            }
+        })
+
+        # Verify config was updated
+        assert sim._config.model.control.start_time == config_start
+        assert sim._config.model.control.end_time == config_end
+
+        # Run WITHOUT passing start_date/end_date arguments
+        # Should use config values as fallback
+        output = sim.run()
+
+        # Verify results are filtered to the config date range
+        assert output is not None
+        assert len(output.df) > 0
+
+        # Results should be approximately one day of timesteps, with small tolerance
+        # for edge effects (first/last timestep handling)
+        tolerance = 5
+        assert len(output.times) <= expected_timesteps_per_day + tolerance, (
+            f"Expected ~{expected_timesteps_per_day} timesteps for 1 day "
+            f"(at {timestep_minutes}-min resolution), got {len(output.times)}. "
+            f"Config date range not being respected (full forcing has {full_forcing_len})."
+        )
+
+        # Verify the results are within the configured date
+        results_start_date = output.times.min().date()
+        results_end_date = output.times.max().date()
+        assert results_start_date == full_forcing_start.date()
+        assert results_end_date == full_forcing_start.date()
 
 
 class TestSave:
@@ -722,7 +780,7 @@ class TestContinuationRuns:
         sim1 = SUEWSSimulation.from_sample_data()
 
         # Save full forcing before subsetting
-        df_forcing_full = sim1.forcing.copy()
+        df_forcing_full = sim1.forcing.df.copy()
 
         df_forcing = df_forcing_full.iloc[:288]  # First day only
         sim1.update_forcing(df_forcing)
@@ -759,7 +817,7 @@ class TestContinuationRuns:
         sim1 = SUEWSSimulation.from_sample_data()
 
         # Save full forcing before subsetting
-        df_forcing_full = sim1.forcing.copy()
+        df_forcing_full = sim1.forcing.df.copy()
 
         df_forcing = df_forcing_full.iloc[:288]  # First day only
         sim1.update_forcing(df_forcing)
@@ -788,7 +846,7 @@ class TestContinuationRuns:
         sim1 = SUEWSSimulation.from_sample_data()
 
         # Save full forcing before subsetting
-        df_forcing_full = sim1.forcing.copy()
+        df_forcing_full = sim1.forcing.df.copy()
 
         df_forcing = df_forcing_full.iloc[:288]
         sim1.update_forcing(df_forcing)

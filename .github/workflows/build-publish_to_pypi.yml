@@ -188,6 +188,8 @@ jobs:
       util-changed: ${{ steps.filter.outputs.util }}
       cfg-changed: ${{ steps.filter.outputs.cfg }}
       tests-changed: ${{ steps.filter.outputs.tests }}
+      docs-changed: ${{ steps.filter.outputs.docs }}
+      site-changed: ${{ steps.filter.outputs.site }}
     steps:
       - uses: actions/checkout@v4
 
@@ -223,18 +225,33 @@ jobs:
               - 'src/supy/cmd/**'
               # JSON configs
               - 'src/supy/*.json'
-              # Schemas
-              - 'schemas/**'
-              # Build system / infra
-              - '.github/**'
+              # Build workflows and scripts (explicit, not .github/**)
+              - '.github/workflows/build-publish_to_pypi.yml'
+              - '.github/workflows/cibuildwheel-debug.yml'
+              - '.github/scripts/**'
+              # Build system files
               - 'pyproject.toml'
               - 'meson.build'
               - 'meson_options.txt'
               - 'Makefile'
               - 'get_ver_git.py'
               - 'scripts/**'
+            site:
+              # Static site content (GitHub Pages) - separate from wheel builds
+              - 'site/**'
             tests:
               - 'test/**'
+            docs:
+              # Documentation source files
+              - 'docs/**'
+              # Data models that generate RST
+              - 'src/supy/data_model/**'
+              # RTD configuration
+              - '.readthedocs.yml'
+              # Version detection used by docs
+              - 'get_ver_git.py'
+              # Dependencies that affect doc builds
+              - 'pyproject.toml'
 
   # Determine if we should run limited or full matrix
   determine_matrix:
@@ -254,7 +271,7 @@ jobs:
         id: set-matrix
         run: |
           # Platform matrix
-          FULL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-13", "macosx", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
+          FULL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-15-intel", "macosx", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
           PR_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
           MINIMAL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"]]'
 
@@ -408,6 +425,9 @@ jobs:
           test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
           is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
 
+  # NOTE: Documentation preview deployment moved to pages-deploy.yml
+  # This consolidates all GitHub Pages content (site, schemas, docs) in one workflow
+
   # PR gate: single consolidated check for branch protection
   # This job ALWAYS runs for PRs and merge queue and reports pass/fail based on build results
   pr-gate:
@@ -433,7 +453,10 @@ jobs:
             exit 1
           fi
 
-          # STEP 2: Check if code changes require builds
+          # Track validation status
+          VALIDATION_PASSED=true
+
+          # Check if code changes require builds
           NEEDS_BUILD="${{ needs.detect-changes.outputs.needs-build }}"
 
           if [[ "$NEEDS_BUILD" == "true" ]]; then
@@ -442,36 +465,46 @@ jobs:
 
             if [[ "${{ needs.build_wheels.result }}" == "success" ]] && \
                [[ "${{ needs.build_umep.result }}" == "success" ]]; then
-              echo "✓ All builds passed"
-              exit 0
+              echo "✓ Code builds passed"
             else
-              echo "✗ Builds failed or incomplete"
+              echo "✗ Code builds failed or incomplete"
               echo "  build_wheels: ${{ needs.build_wheels.result }}"
               echo "  build_umep: ${{ needs.build_umep.result }}"
-              exit 1
+              VALIDATION_PASSED=false
             fi
 
           else
-            # Documentation-only changes - builds should skip
-            echo "Documentation-only changes - builds not required"
+            # No code changes - builds should skip
+            echo "No code changes - builds not required"
 
             if [[ "${{ needs.build_wheels.result }}" == "skipped" ]] && \
                [[ "${{ needs.build_umep.result }}" == "skipped" ]]; then
-              echo "✓ Builds correctly skipped"
-              exit 0
+              echo "✓ Code builds correctly skipped"
             else
-              echo "⚠ Unexpected: builds ran for doc-only PR"
+              echo "⚠ Unexpected: builds ran for non-code PR"
               echo "  build_wheels: ${{ needs.build_wheels.result }}"
               echo "  build_umep: ${{ needs.build_umep.result }}"
               # Still pass if builds succeeded (conservative)
-              if [[ "${{ needs.build_wheels.result }}" == "success" ]] && \
-                 [[ "${{ needs.build_umep.result }}" == "success" ]]; then
-                echo "✓ Builds passed anyway"
-                exit 0
-              else
-                exit 1
+              if [[ "${{ needs.build_wheels.result }}" != "success" ]] || \
+                 [[ "${{ needs.build_umep.result }}" != "success" ]]; then
+                if [[ "${{ needs.build_wheels.result }}" != "skipped" ]] || \
+                   [[ "${{ needs.build_umep.result }}" != "skipped" ]]; then
+                  VALIDATION_PASSED=false
+                fi
               fi
             fi
+          fi
+
+          # NOTE: Docs build validation moved to pages-deploy.yml
+
+          # Final result
+          echo ""
+          if [[ "$VALIDATION_PASSED" == "true" ]]; then
+            echo "✓ All validations passed"
+            exit 0
+          else
+            echo "✗ Validation failed"
+            exit 1
           fi
 
   deploy_testpypi:

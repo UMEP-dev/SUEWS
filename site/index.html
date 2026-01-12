@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUEWS - Surface Urban Energy and Water Balance Scheme</title>
+    <meta name="description" content="SUEWS is an urban land surface model for simulating energy and water balance in urban environments">
+    <link rel="canonical" href="https://suews.io/">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/brand/assets/icon/suews-icon-dark.svg">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Shared CSS -->
+    <link rel="stylesheet" href="/css/tokens.css">
+    <link rel="stylesheet" href="/css/base.css">
+
+    <style>
+        /* ========== Page-specific styles ========== */
+        body {
+            overflow-x: hidden;
+        }
+
+        /* ========== Background Elements ========== */
+        .topo-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                radial-gradient(ellipse 800px 600px at 20% 30%, rgba(247,181,56,0.04) 0%, transparent 70%),
+                radial-gradient(ellipse 600px 400px at 80% 70%, rgba(0,119,182,0.05) 0%, transparent 70%),
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 60px 60px, 60px 60px;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.6;
+            transition: opacity 0.3s ease;
+        }
+
+        .contours {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 1;
+            opacity: var(--contour-opacity);
+            transition: opacity 0.3s ease;
+        }
+
+        .contour-line {
+            position: absolute;
+            border: 1px solid var(--water-blue);
+            border-radius: 50%;
+            animation: pulse 8s ease-in-out infinite;
+        }
+
+        .contour-line:nth-child(1) { width: 300px; height: 300px; top: 10%; left: -100px; }
+        .contour-line:nth-child(2) { width: 500px; height: 500px; top: 5%; left: -150px; animation-delay: 0.5s; }
+        .contour-line:nth-child(3) { width: 700px; height: 700px; top: 0%; left: -200px; animation-delay: 1s; }
+        .contour-line:nth-child(4) { width: 400px; height: 400px; bottom: 10%; right: -150px; border-color: var(--sun-gold); animation-delay: 2s; }
+        .contour-line:nth-child(5) { width: 600px; height: 600px; bottom: 5%; right: -200px; border-color: var(--sun-gold); animation-delay: 2.5s; }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.3; }
+            50% { transform: scale(1.05); opacity: 0.15; }
+        }
+
+        /* ========== Layout (extends base.css) ========== */
+        .container {
+            position: relative;
+            z-index: 10;
+            padding: 0 40px;
+        }
+
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 80px 0;
+            position: relative;
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: center;
+        }
+
+        @media (max-width: 900px) {
+            .hero-grid {
+                grid-template-columns: 1fr;
+                gap: 60px;
+                text-align: center;
+            }
+        }
+
+        /* ========== Logo ========== */
+        .logo-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .logo-glow {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(247,181,56,var(--glow-opacity)) 0%, transparent 70%);
+            filter: blur(40px);
+            transition: opacity 0.3s ease;
+        }
+
+        .logo-svg {
+            width: 320px;
+            height: 320px;
+            position: relative;
+            z-index: 2;
+            filter: drop-shadow(0 12px 40px rgba(0,0,0,0.15));
+        }
+
+        .logo-svg .logo-circle {
+            fill: var(--logo-bg);
+            stroke: var(--logo-stroke);
+            stroke-width: var(--logo-stroke-width);
+            transition: fill 0.3s ease, stroke 0.3s ease;
+        }
+
+        .logo-svg .logo-building {
+            fill: var(--logo-buildings);
+            transition: fill 0.3s ease;
+        }
+
+        .logo-link {
+            display: block;
+            transition: transform 0.3s ease;
+        }
+
+        .logo-link:hover {
+            transform: scale(1.02);
+        }
+
+        .logo-link:hover .logo-svg {
+            filter: drop-shadow(0 16px 50px rgba(0,0,0,0.2));
+        }
+
+        /* Logo animations (wave-undulate extends base.css with more keyframes) */
+        @keyframes wave-undulate {
+            0%, 100% { transform: translateY(0) scaleY(1); }
+            25% { transform: translateY(-8px) scaleY(1.05); }
+            50% { transform: translateY(4px) scaleY(0.95); }
+            75% { transform: translateY(-8px) scaleY(1.05); }
+        }
+
+        .logo-svg #sun-outer {
+            animation: sun-glow 6s ease-in-out infinite;
+            transform-origin: 620px 560px;
+        }
+
+        .logo-svg #wave {
+            animation: wave-undulate 6s ease-in-out infinite;
+            transform-origin: center bottom;
+            transform-box: fill-box;
+        }
+
+        /* ========== Hero Content ========== */
+        .hero-content {
+            animation: slideUp 0.8s ease-out;
+        }
+
+        .hero-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--accent-label);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .hero-label::before {
+            content: '';
+            width: 40px;
+            height: 1px;
+            background: var(--accent-label);
+        }
+
+        @media (max-width: 900px) {
+            .hero-label { justify-content: center; }
+        }
+
+        .hero-title {
+            font-family: 'Crimson Pro', Georgia, serif;
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 500;
+            line-height: 1.1;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+
+        .hero-title .highlight {
+            color: var(--accent-highlight);
+            font-style: italic;
+        }
+
+        .hero-subtitle {
+            font-family: 'Crimson Pro', Georgia, serif;
+            font-size: 1.5rem;
+            font-style: italic;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+        }
+
+        .hero-description {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            max-width: 500px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 900px) {
+            .hero-description { margin-left: auto; margin-right: auto; }
+        }
+
+        /* ========== Badges ========== */
+        .badges {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 900px) {
+            .badges {
+                justify-content: center;
+                padding-bottom: 160px; /* Space for stats bar */
+            }
+        }
+
+        .badges a {
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .badges a:hover { opacity: 1; }
+        .badges img { height: 22px; }
+
+        /* ========== Stats Bar ========== */
+        .stats-bar {
+            position: absolute;
+            bottom: 60px;
+            left: 0;
+            right: 0;
+            z-index: 10;
+        }
+
+        .stats-grid {
+            display: flex;
+            justify-content: center;
+            gap: 60px;
+            padding: 24px 0;
+            border-top: 1px solid var(--border-light);
+            border-bottom: 1px solid var(--border-light);
+            transition: border-color 0.3s ease;
+        }
+
+        @media (max-width: 600px) {
+            .stats-grid { gap: 30px; flex-wrap: wrap; }
+        }
+
+        .stat {
+            text-align: center;
+            animation: fadeIn 0.6s ease-out both;
+        }
+
+        .stat:nth-child(1) { animation-delay: 0.3s; }
+        .stat:nth-child(2) { animation-delay: 0.4s; }
+        .stat:nth-child(3) { animation-delay: 0.5s; }
+
+        .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2rem;
+            font-weight: 500;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        /* ========== Resources Section ========== */
+        .resources {
+            padding: 120px 0;
+            position: relative;
+            background: var(--bg-secondary);
+            transition: background-color 0.3s ease;
+        }
+
+        /* Section header (extends base.css) */
+        .section-title {
+            font-family: 'Crimson Pro', Georgia, serif;
+            font-size: 2rem;
+            font-weight: 400;
+            letter-spacing: -0.01em;
+        }
+
+        /* ========== Resource Cards ========== */
+        .resource-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        @media (max-width: 900px) {
+            .resource-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 600px) {
+            .resource-grid { grid-template-columns: 1fr; }
+        }
+
+        .resource-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 32px 28px;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            animation: cardReveal 0.6s ease-out both;
+            box-shadow: var(--shadow-card);
+        }
+
+        .resource-card:nth-child(1) { animation-delay: 0.1s; }
+        .resource-card:nth-child(2) { animation-delay: 0.15s; }
+        .resource-card:nth-child(3) { animation-delay: 0.2s; }
+        .resource-card:nth-child(4) { animation-delay: 0.25s; }
+        .resource-card:nth-child(5) { animation-delay: 0.3s; }
+        .resource-card:nth-child(6) { animation-delay: 0.35s; }
+
+        @keyframes cardReveal {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .resource-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--water-blue), var(--sun-gold));
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .resource-card:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--border-medium);
+            transform: translateY(-4px);
+        }
+
+        .resource-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .card-icon {
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,119,182,0.1);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .resource-card:hover .card-icon {
+            background: rgba(0,119,182,0.15);
+            transform: scale(1.05);
+        }
+
+        .card-icon svg {
+            width: 22px;
+            height: 22px;
+            stroke: var(--water-blue);
+            stroke-width: 1.5;
+            fill: none;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .card-description {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .card-description code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            background: rgba(0,119,182,0.1);
+            color: var(--water-blue);
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+
+        /* ========== Applications Section ========== */
+        .applications {
+            padding: 80px 0 120px;
+            background: var(--bg-primary);
+            transition: background-color 0.3s ease;
+        }
+
+        .applications-box {
+            background: linear-gradient(135deg, rgba(0,119,182,0.04) 0%, rgba(247,181,56,0.04) 100%);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            padding: 48px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s ease;
+        }
+
+        .applications-box::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(0,119,182,0.06) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .applications-title {
+            font-family: 'Crimson Pro', Georgia, serif;
+            font-size: 1.5rem;
+            font-weight: 400;
+            margin-bottom: 32px;
+            position: relative;
+        }
+
+        .applications-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px 40px;
+            position: relative;
+        }
+
+        @media (max-width: 800px) {
+            .applications-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 500px) {
+            .applications-grid { grid-template-columns: 1fr; }
+            .applications-box { padding: 32px 24px; }
+        }
+
+        .app-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            padding: 8px 0;
+            transition: color 0.3s ease;
+        }
+
+        .app-item:hover { color: var(--text-primary); }
+
+        .app-bullet {
+            width: 6px;
+            height: 6px;
+            background: linear-gradient(135deg, var(--water-blue), var(--water-blue-light));
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        /* ========== Scroll Indicator ========== */
+        .scroll-indicator {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(8px); }
+        }
+
+        .scroll-indicator span {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--text-muted);
+        }
+
+        .scroll-indicator svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--text-muted);
+            stroke-width: 2;
+            fill: none;
+        }
+
+        @media (max-width: 900px) {
+            .scroll-indicator { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Theme Toggle Button -->
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+        <svg class="icon-sun" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+    </button>
+
+    <!-- Background -->
+    <div class="topo-grid"></div>
+    <div class="contours">
+        <div class="contour-line"></div>
+        <div class="contour-line"></div>
+        <div class="contour-line"></div>
+        <div class="contour-line"></div>
+        <div class="contour-line"></div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-grid">
+                <div class="logo-container">
+                    <div class="logo-glow"></div>
+                    <a href="/brand/" class="logo-link" title="View brand assets">
+                        <svg class="logo-svg" viewBox="0 0 2048 2048" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Sun -->
+                            <circle id="sun-outer" cx="620" cy="560" r="320" fill="#F7B538"/>
+                            <circle id="sun-inner" cx="620" cy="560" r="200" fill="#E85D04"/>
+                            <!-- Buildings -->
+                            <path fill="#5DADE2" d="m1237 647 8 7 3 2q6 9 5 21v21l1 18v206l1 186v129c0 17 0 17-3 22l-12 6-7 5-10 7q-17 12-31 25-3 4-5 3l-1 2-5 4V740l-9 6-3 1-25 17-53 33-72 45-5 3-5 2v150l1 39c0 19 0 19-6 27l-2 3q-8 10-21 11-11 1-19-4l-2-1-17-10-7-4-17-10-20-13-16-9-2-2-1-1-2-1-5-3-6-2-9 5-21 14-6 3-9 6-25 16-13 8-15 10-4 2-1 344-13-3q-26-7-53-10l-6-1v-178H545v187l-16 5q-26 8-50 21l-6 1v-251l-1-3q1-13 9-24h2v-2q12-9 26-8h31l46-1h105v-83c0-29 0-29 10-40l9-7 3-1 29-19 3-2 7-4 3-2 7-3v-2l6-4 43-27 20-13 15-9 2-1 5-3 2-1 15-2h3q13 2 23 10l3 1 33 21 5 3v-58l-1-79q0-19 13-32l16-11 19-12 2-1 4-2 7-3v-2l2-1 19-11 54-34 8-5 3-1 5-4 15-9 5-3 16-10 13-8 5-2 2-2 47-29 3-2 8-4 3-2q17-6 32 4"/>
+                            <path fill="#5DADE2" d="m1331 846 3 2 25 15 3 1 2 2 5 2v2l3 1 9 5 14 9q6 2 10 6l7 4 10 6 3 1 61 37 24 14v2h2l10 5 2 2q15 9 20 26l1 19v22l-1 48v108l-10 3-3 1h-3l-4 1-6 1-7 1q-20 3-40 2l-1-179-12-6-4-3-5-3-18-10-54-34-11-7-2-1-8-4v267l-19 6-12 5-23 9-7 3-10 4V884q-2-20 10-34 17-15 36-4"/>
+                            <!-- Vegetation -->
+                            <path fill="#09a25c" d="m1754 1130 2 1v2l2 1 5 5 1 3q6 16 4 34v2l-2 40v2l-1 8v3l-3 14-1 7-3 23v3l-4 15-3 19-4 14-1 7-1 3v3h-2v2l-5 21-1 3-8 24-1 4-1 3-1 2-4 8-2 6-10 26-7 15-7 15h-2l-10 21-1 3-4 5-2 4-9 15-3 5h-2l-1 2-6 11-2 2-5 7-2 2-18 23-7 9-1 1h-2l-1 2-8 10-6 6-4 4-2 2-2 2-1 2-4 1v2l-4 3-7 7q-3 4-5 3v2l-4 4-11 8-27 20-3 2-2 1-2 2-4 1v2q-4 4-7 3v2l-2 1-17 10-12 6-5 2-5 3-2 1-7 3-2 1q-6 4-13 4v2l-10 3-2 1-19 6q-11 5-23 6v2h-2l-11 2-4 1-4 1-11 2-24 4h-3q-25 3-52 2h-22l-5-1h-7l-2-1h-6c-24-1-24-1-32-3l-14-3-4-1-6-1-21-3-3-1-18-5-7-2v-2h-4l-21-5-6-2-15-6q-10-5-22-7l-10-5-17-6v-2h-3q-13-4-24-11l-7-2v-2h-2l-12-5-21-10v-2h-2l-9-4-12-6-8-4-2-1-4-2-8-4-4-2v-2h-2l-10-5-9-6-8-4-8-5-6-3-14-8q-3-3-7-3v-2h-2l-8-4-3-1v-2h-2q-12-4-22-11l-26-11-14-5-33-11q-40-15-82-17l-5-1h-70v2h-2l-42 6a343 343 0 0 0-74 22 323 323 0 0 0-76 38l-9 4-19 12-22 16-5 4-17 13-4 3 7-14 3-5h2l1-5h2l1-2 4-8 2-3 1-2h2l1-2 5-8 9-11 5-7 2-2 2-2 1-2h2l1-3h2l1-2q1-4 6-7l2-3 3-2 3-3 6-6 12-11 2-2 4-2v-2l11-9 2-2 8-4v-2l4-3 2-1 3-2 3-2 5-3 7-4 30-16 23-11h2l8-2v-2l11-3 20-6 5-1 11-3h5l2-1 7-1q29-4 60-3h2a416 416 0 0 1 98 11l28 8 30 10 15 5v2h3l24 9 7 3 4 2 3 1v2l3 1 13 5v2l12 5 3 1 3 2 3 1 28 15v2h2l7 3 29 17v2l3 1 10 5 10 5v2l2 1 10 5 2 1 19 10v2l3 1 5 2 11 5v2h3l8 4 14 6 8 4 30 12v2h2l2 1h3l19 7 35 10 7 2 16 5 4 1 7 1 6 2 36 6h2a331 331 0 0 0 185-23l5-3 4-1q9-2 15-8l5-2 5-4 13-5v-2l2-1q20-11 39-27l2-2 2-2 4-1v-2l4-3 13-11 2-2 12-12 3-1 1-2 7-10 8-8 1-2h2l1-2 4-6 2-2 1-2h2l1-2 3-6h2l1-2 4-8 2-2 2-2h2v-2l5-9 13-23h2l1-3 5-10 2-4 1-2q9-16 15-34h2v-2l5-13 2-5 1-3 7-18 1-2c12-35 23-75 26-112l1-3 1-7-7 4-2 1-8 5-5 2-7 3-5 1v2l-2 1-8 2-2 1-16 7-10 3-11 3-14 4-7 2-12 2-19 4h-2l-10 4-17 2-19 1-21 2a533 533 0 0 0-119 21l-6 2-39 17-1 1-7 5-7 3-2 2-5 2-8 5-2 1-24 19-5 2v2l-3 3-3 2-2 2-16 16-3 3-18 23-3 5-19 32-7 18h-2l-1 2-5 18h-2l-1 4-4 17-4 14q55-5 107-20l5-2 28-9 2-1 2-1 8-3 8-4 33-14 7-3 22-11 13-7 10-6 6-3 35-22 20-13 6-3 26-18 24-18 4-1v-2l7-5 2-2 8-5 2-1 1-3h2v-2l4-3 2-1 2-2 5-3 3-3 1 2-3 5-2 3-2 3-2 3a452 452 0 0 1-46 61h-2l-1 2c-7 12-21 23-31 33l-9 9-16 14-13 10-4 2v2l-6 5-2 1-4 3-6 4-3 2-3 2-5 2-1 3-4 3q-8 3-15 8l-53 27v2l-2 1-4 1-3 1-8 4-6 2-8 3q-7 4-14 5l-8 3-30 10-13 3-16 4-3 1-10 1-8 2q-28 6-58 5h-20q-16 1-29-10-10-13-9-29 1-14 4-27l1-4 6-22v-2q4-16 11-33l1-6 4-6 3-8q2-7 6-13l2-4a225 225 0 0 1 33-58l1-1h2l1-4h2l1-4h2l1-2q4-7 10-13l2-2a257 257 0 0 1 41-40l19-14 2-1 6-3v-2l5-3 3-2 2-1 6-4 3-1 4-3 2-1 2-1 5-1v-2l3-2 5-2 2-1 24-11 3-1 32-11 7-3q16-6 32-8l9-2 39-6 23-2 39-4h2l6-1h10l15-3 16-3a274 274 0 0 0 71-22l7-3 16-7 2-2 15-8 4-1v-2l9-4 1-3 5-3 11-8 5-2v-2l4-3 9-7c12-10 27-15 42-6"/>
+                            <!-- Wave -->
+                            <path id="wave" fill="#0558a5" d="M624 1557h26q20 0 39 5l10 1 33 9 11 3a200 200 0 0 1 40 15l15 7 3 1 56 27v2l3 1 9 4 3 2 3 2 4 1 38 22 18 10 13 7a1153 1153 0 0 0 134 57l33 10v2l-46 7h-35q-25 0-50-3h-3q-47-6-91-23l-5-2-20-8-3-1-6-3-5-2-53-26a470 470 0 0 0-132-46q-47-7-93 2l-4 1q-38 7-74 24l-5 1v2l-3 1q-19 8-35 18l-5 3-30 19-38 29q-6 7-15 10l-3 1q-14 4-29-2-16-9-22-26-3-19 8-35l17-15 2-1a553 553 0 0 1 155-89l2-1 33-10 3-1a288 288 0 0 1 56-10q19-3 38-2"/>
+                        </svg>
+                    </a>
+                </div>
+
+                <div class="hero-content">
+                    <div class="hero-label">Urban Climate Model</div>
+                    <h1 class="hero-title">
+                        <span class="highlight">SUEWS</span>
+                    </h1>
+                    <p class="hero-subtitle">Surface Urban Energy & Water Balance Scheme</p>
+                    <p class="hero-description">
+                        A physically-based model for simulating energy, water, and carbon dioxide fluxes
+                        in cities. Developed through international collaboration for urban climate research,
+                        planning applications, and environmental assessment.
+                    </p>
+                    <div class="badges">
+                        <a href="https://github.com/UMEP-dev/SUEWS/releases/latest"><img src="https://img.shields.io/github/v/release/UMEP-dev/SUEWS?style=flat-square&label=release" alt="Latest Release"></a>
+                        <a href="https://pypi.org/project/supy/"><img src="https://img.shields.io/pypi/v/supy?style=flat-square" alt="PyPI version"></a>
+                        <a href="https://docs.suews.io/"><img src="https://img.shields.io/readthedocs/suews?style=flat-square&label=docs" alt="Documentation"></a>
+                        <a href="https://github.com/UMEP-dev/SUEWS/blob/master/LICENSE"><img src="https://img.shields.io/github/license/UMEP-dev/SUEWS?style=flat-square" alt="License"></a>
+                        <a href="https://doi.org/10.5281/zenodo.5721639"><img src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.5721639-blue?style=flat-square" alt="DOI"></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-bar">
+            <div class="container">
+                <div class="stats-grid">
+                    <div class="stat">
+                        <div class="stat-value">15+</div>
+                        <div class="stat-label">Years Active</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">200+</div>
+                        <div class="stat-label">Citations</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">20+</div>
+                        <div class="stat-label">Global Sites</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="scroll-indicator">
+            <span>Scroll</span>
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+        </div>
+    </section>
+
+    <!-- Resources Section -->
+    <section class="resources">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-number">01</span>
+                <h2 class="section-title">Resources</h2>
+                <div class="section-line"></div>
+            </div>
+
+            <div class="resource-grid">
+                <a href="https://code.suews.io" class="resource-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                    </div>
+                    <h3 class="card-title">Source Code</h3>
+                    <p class="card-description">GitHub repository with source code, issue tracking, and development</p>
+                </a>
+
+                <a href="https://docs.suews.io" class="resource-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                    </div>
+                    <h3 class="card-title">Documentation</h3>
+                    <p class="card-description">User guide, scientific background, tutorials, and API reference</p>
+                </a>
+
+                <a href="schemas/suews-config/" class="resource-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                    </div>
+                    <h3 class="card-title">Schema Registry</h3>
+                    <p class="card-description">YAML configuration schemas for model input validation</p>
+                </a>
+
+                <a href="https://pypi.org/project/supy/" class="resource-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                    </div>
+                    <h3 class="card-title">Python Package</h3>
+                    <p class="card-description">SuPy wrapper for Python: <code>pip install supy</code></p>
+                </a>
+
+                <a href="https://umep-docs.readthedocs.io" class="resource-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+                    </div>
+                    <h3 class="card-title">UMEP</h3>
+                    <p class="card-description">Comprehensive urban climate tool in QGIS, also provides GUI for running SUEWS</p>
+                </a>
+
+                <a href="https://community.suews.io" class="resource-card">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </div>
+                    <h3 class="card-title">Community</h3>
+                    <p class="card-description">Discussion forum for questions and community support</p>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Applications Section -->
+    <section class="applications">
+        <div class="container">
+            <div class="applications-box">
+                <h3 class="applications-title">Research Applications</h3>
+                <div class="applications-grid">
+                    <div class="app-item">
+                        <span class="app-bullet"></span>
+                        <span>Urban heat island analysis</span>
+                    </div>
+                    <div class="app-item">
+                        <span class="app-bullet"></span>
+                        <span>Building energy demand</span>
+                    </div>
+                    <div class="app-item">
+                        <span class="app-bullet"></span>
+                        <span>Urban water management</span>
+                    </div>
+                    <div class="app-item">
+                        <span class="app-bullet"></span>
+                        <span>Green infrastructure planning</span>
+                    </div>
+                    <div class="app-item">
+                        <span class="app-bullet"></span>
+                        <span>Climate adaptation strategies</span>
+                    </div>
+                    <div class="app-item">
+                        <span class="app-bullet"></span>
+                        <span>Carbon flux estimation</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p class="footer-institutions">
+                University of Reading · University College London · University of Helsinki · University of Gothenburg<br>
+                and collaborators worldwide
+            </p>
+            <p class="footer-legal">© 2025 SUEWS Development Team</p>
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 16px;">
+                Branding designed with AI assistance · <a href="/brand/" style="color: var(--text-muted); text-decoration: underline;">View design approach</a>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Theme Toggle Logic
+        const toggle = document.getElementById('themeToggle');
+        const root = document.documentElement;
+
+        // Check for saved preference or system preference
+        function getPreferredTheme() {
+            const saved = localStorage.getItem('theme');
+            if (saved) return saved;
+            return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+
+        // Apply theme
+        function setTheme(theme) {
+            if (theme === 'light') {
+                root.setAttribute('data-theme', 'light');
+            } else {
+                root.setAttribute('data-theme', 'dark');
+            }
+            localStorage.setItem('theme', theme);
+        }
+
+        // Initialize
+        setTheme(getPreferredTheme());
+
+        // Toggle handler
+        toggle.addEventListener('click', () => {
+            const current = root.getAttribute('data-theme') ||
+                (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            setTheme(current === 'light' ? 'dark' : 'light');
+        });
+
+        // Listen for system preference changes
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) {
+                setTheme(e.matches ? 'light' : 'dark');
+            }
+        });
+
+        // Local Development Mode Detection
+        (function() {
+            const isLocalDev = window.location.hostname === 'localhost' ||
+                               window.location.hostname === '127.0.0.1';
+
+            if (isLocalDev) {
+                // Update docs card link to local server (use 127.0.0.1 for IPv4 compatibility)
+                const docsCard = document.querySelector('a.resource-card[href="https://docs.suews.io"]');
+                if (docsCard) {
+                    docsCard.href = 'http://127.0.0.1:8000';
+                    docsCard.querySelector('.card-description').innerHTML =
+                        '<span style="color: var(--sun-gold);">LOCAL:</span> http://127.0.0.1:8000';
+                }
+
+                // Create and inject dev banner
+                const banner = document.createElement('div');
+                banner.id = 'dev-banner';
+                banner.innerHTML = `
+                    <span>LOCAL DEVELOPMENT</span>
+                    <span style="opacity: 0.7; margin-left: 16px;">
+                        Site: ${window.location.host} |
+                        Docs: <a href="http://127.0.0.1:8000" style="color: inherit;">127.0.0.1:8000</a>
+                    </span>
+                `;
+                banner.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    background: linear-gradient(90deg, var(--energy-orange), var(--sun-gold));
+                    color: #000;
+                    padding: 8px 20px;
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.1em;
+                    z-index: 9999;
+                    text-align: center;
+                    font-family: 'JetBrains Mono', monospace;
+                `;
+                document.body.prepend(banner);
+
+                // Adjust body padding for banner
+                document.body.style.paddingTop = '36px';
+            }
+        })();
+    </script>
+</body>
+</html>

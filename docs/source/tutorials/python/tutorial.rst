@@ -16,7 +16,7 @@ Start here for your SUEWS learning journey:
   quick-start
   impact-studies
 
-  .. setup-own-site (not ready yet - some issue about forcing height to fix)
+.. Comment: setup-own-site not ready yet - forcing height issue to fix
 
 **Recommended Learning Path:**
 
@@ -104,7 +104,7 @@ Getting Help
 ------------
 
 **Community Resources:**
-- **GitHub Repository**: `Issues and discussions <https://github.com/UMEP-dev/SUEWS>`__
+- **Community**: `SUEWS community discussions <https://suews.discourse.group/>`__
 - **Mailing List**: `SUEWS community forum <https://www.lists.reading.ac.uk/mailman/listinfo/met-suews>`__
 - **Documentation**: :doc:`Complete API reference <../../inputs/yaml/index>`
 

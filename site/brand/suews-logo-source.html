@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SUEWS Logo Workshop</title>
+
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+
+  <style>
+    /* ========== Page-specific styles ========== */
+    body {
+      padding: 2rem;
+    }
+
+    h1 {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-weight: 300;
+      margin-bottom: 0.5rem;
+    }
+
+    h2 {
+      font-size: 1.2rem;
+      font-weight: 300;
+      margin: 2rem 0 1rem;
+      opacity: 0.7;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .card.dark {
+      background: var(--urban-slate);
+    }
+
+    .card.checker {
+      background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 20px 20px;
+    }
+
+    .card h3 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #666;
+    }
+
+    .card.dark h3 {
+      color: #aaa;
+    }
+
+    .sizes {
+      display: flex;
+      gap: 2rem;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .size-item {
+      text-align: center;
+    }
+
+    .size-item p {
+      font-size: 0.7rem;
+      color: #666;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>SUEWS Logo Workshop</h1>
+    <p style="color: #888; margin-bottom: 2rem;">Edit the SVG below, save file, refresh browser</p>
+
+    <!-- ============================================================
+         EDIT THIS SVG - All paths are labelled with comments
+         ============================================================ -->
+    <svg id="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" style="display:none;">
+
+      <!-- ========== SUN ========== -->
+      <!-- Outer gold disk -->
+      <circle id="sun-outer" cx="620" cy="560" r="320" fill="#F7B538"/>
+      <!-- Inner orange disk (energy orange from official palette) -->
+      <circle id="sun-inner" cx="620" cy="560" r="200" fill="#E85D04"/>
+
+      <!-- ========== BUILDINGS (sky blue - urban skyline) ========== -->
+      <path id="buildings-main" fill="#5DADE2" d="m1237 647 8 7 3 2q6 9 5 21v21l1 18v206l1 186v129c0 17 0 17-3 22l-12 6-7 5-10 7q-17 12-31 25-3 4-5 3l-1 2-5 4V740l-9 6-3 1-25 17-53 33-72 45-5 3-5 2v150l1 39c0 19 0 19-6 27l-2 3q-8 10-21 11-11 1-19-4l-2-1-17-10-7-4-17-10-20-13-16-9-2-2-1-1-2-1-5-3-6-2-9 5-21 14-6 3-9 6-25 16-13 8-15 10-4 2-1 344-13-3q-26-7-53-10l-6-1v-178H545v187l-16 5q-26 8-50 21l-6 1v-251l-1-3q1-13 9-24h2v-2q12-9 26-8h31l46-1h105v-83c0-29 0-29 10-40l9-7 3-1 29-19 3-2 7-4 3-2 7-3v-2l6-4 43-27 20-13 15-9 2-1 5-3 2-1 15-2h3q13 2 23 10l3 1 33 21 5 3v-58l-1-79q0-19 13-32l16-11 19-12 2-1 4-2 7-3v-2l2-1 19-11 54-34 8-5 3-1 5-4 15-9 5-3 16-10 13-8 5-2 2-2 47-29 3-2 8-4 3-2q17-6 32 4"/>
+
+      <path id="buildings-detail" fill="#5DADE2" d="m1331 846 3 2 25 15 3 1 2 2 5 2v2l3 1 9 5 14 9q6 2 10 6l7 4 10 6 3 1 61 37 24 14v2h2l10 5 2 2q15 9 20 26l1 19v22l-1 48v108l-10 3-3 1h-3l-4 1-6 1-7 1q-20 3-40 2l-1-179-12-6-4-3-5-3-18-10-54-34-11-7-2-1-8-4v267l-19 6-12 5-23 9-7 3-10 4V884q-2-20 10-34 17-15 36-4"/>
+
+      <!-- ========== LEAF/GROUND (original traced) ========== -->
+      <path id="leaf-ground" fill="#09a25c" d="m1754 1130 2 1v2l2 1 5 5 1 3q6 16 4 34v2l-2 40v2l-1 8v3l-3 14-1 7-3 23v3l-4 15-3 19-4 14-1 7-1 3v3h-2v2l-5 21-1 3-8 24-1 4-1 3-1 2-4 8-2 6-10 26-7 15-7 15h-2l-10 21-1 3-4 5-2 4-9 15-3 5h-2l-1 2-6 11-2 2-5 7-2 2-18 23-7 9-1 1h-2l-1 2-8 10-6 6-4 4-2 2-2 2-1 2-4 1v2l-4 3-7 7q-3 4-5 3v2l-4 4-11 8-27 20-3 2-2 1-2 2-4 1v2q-4 4-7 3v2l-2 1-17 10-12 6-5 2-5 3-2 1-7 3-2 1q-6 4-13 4v2l-10 3-2 1-19 6q-11 5-23 6v2h-2l-11 2-4 1-4 1-11 2-24 4h-3q-25 3-52 2h-22l-5-1h-7l-2-1h-6c-24-1-24-1-32-3l-14-3-4-1-6-1-21-3-3-1-18-5-7-2v-2h-4l-21-5-6-2-15-6q-10-5-22-7l-10-5-17-6v-2h-3q-13-4-24-11l-7-2v-2h-2l-12-5-21-10v-2h-2l-9-4-12-6-8-4-2-1-4-2-8-4-4-2v-2h-2l-10-5-9-6-8-4-8-5-6-3-14-8q-3-3-7-3v-2h-2l-8-4-3-1v-2h-2q-12-4-22-11l-26-11-14-5-33-11q-40-15-82-17l-5-1h-70v2h-2l-42 6a343 343 0 0 0-74 22 323 323 0 0 0-76 38l-9 4-19 12-22 16-5 4-17 13-4 3 7-14 3-5h2l1-5h2l1-2 4-8 2-3 1-2h2l1-2 5-8 9-11 5-7 2-2 2-2 1-2h2l1-3h2l1-2q1-4 6-7l2-3 3-2 3-3 6-6 12-11 2-2 4-2v-2l11-9 2-2 8-4v-2l4-3 2-1 3-2 3-2 5-3 7-4 30-16 23-11h2l8-2v-2l11-3 20-6 5-1 11-3h5l2-1 7-1q29-4 60-3h2a416 416 0 0 1 98 11l28 8 30 10 15 5v2h3l24 9 7 3 4 2 3 1v2l3 1 13 5v2l12 5 3 1 3 2 3 1 28 15v2h2l7 3 29 17v2l3 1 10 5 10 5v2l2 1 10 5 2 1 19 10v2l3 1 5 2 11 5v2h3l8 4 14 6 8 4 30 12v2h2l2 1h3l19 7 35 10 7 2 16 5 4 1 7 1 6 2 36 6h2a331 331 0 0 0 185-23l5-3 4-1q9-2 15-8l5-2 5-4 13-5v-2l2-1q20-11 39-27l2-2 2-2 4-1v-2l4-3 13-11 2-2 12-12 3-1 1-2 7-10 8-8 1-2h2l1-2 4-6 2-2 1-2h2l1-2 3-6h2l1-2 4-8 2-2 2-2h2v-2l5-9 13-23h2l1-3 5-10 2-4 1-2q9-16 15-34h2v-2l5-13 2-5 1-3 7-18 1-2c12-35 23-75 26-112l1-3 1-7-7 4-2 1-8 5-5 2-7 3-5 1v2l-2 1-8 2-2 1-16 7-10 3-11 3-14 4-7 2-12 2-19 4h-2l-10 4-17 2-19 1-21 2a533 533 0 0 0-119 21l-6 2-39 17-1 1-7 5-7 3-2 2-5 2-8 5-2 1-24 19-5 2v2l-3 3-3 2-2 2-16 16-3 3-18 23-3 5-19 32-7 18h-2l-1 2-5 18h-2l-1 4-4 17-4 14q55-5 107-20l5-2 28-9 2-1 2-1 8-3 8-4 33-14 7-3 22-11 13-7 10-6 6-3 35-22 20-13 6-3 26-18 24-18 4-1v-2l7-5 2-2 8-5 2-1 1-3h2v-2l4-3 2-1 2-2 5-3 3-3 1 2-3 5-2 3-2 3-2 3a452 452 0 0 1-46 61h-2l-1 2c-7 12-21 23-31 33l-9 9-16 14-13 10-4 2v2l-6 5-2 1-4 3-6 4-3 2-3 2-5 2-1 3-4 3q-8 3-15 8l-53 27v2l-2 1-4 1-3 1-8 4-6 2-8 3q-7 4-14 5l-8 3-30 10-13 3-16 4-3 1-10 1-8 2q-28 6-58 5h-20q-16 1-29-10-10-13-9-29 1-14 4-27l1-4 6-22v-2q4-16 11-33l1-6 4-6 3-8q2-7 6-13l2-4a225 225 0 0 1 33-58l1-1h2l1-4h2l1-4h2l1-2q4-7 10-13l2-2a257 257 0 0 1 41-40l19-14 2-1 6-3v-2l5-3 3-2 2-1 6-4 3-1 4-3 2-1 2-1 5-1v-2l3-2 5-2 2-1 24-11 3-1 32-11 7-3q16-6 32-8l9-2 39-6 23-2 39-4h2l6-1h10l15-3 16-3a274 274 0 0 0 71-22l7-3 16-7 2-2 15-8 4-1v-2l9-4 1-3 5-3 11-8 5-2v-2l4-3 9-7c12-10 27-15 42-6"/>
+
+      <!-- ========== WAVE (original traced) ========== -->
+      <path id="wave" fill="#0558a5" d="M624 1557h26q20 0 39 5l10 1 33 9 11 3a200 200 0 0 1 40 15l15 7 3 1 56 27v2l3 1 9 4 3 2 3 2 4 1 38 22 18 10 13 7a1153 1153 0 0 0 134 57l33 10v2l-46 7h-35q-25 0-50-3h-3q-47-6-91-23l-5-2-20-8-3-1-6-3-5-2-53-26a470 470 0 0 0-132-46q-47-7-93 2l-4 1q-38 7-74 24l-5 1v2l-3 1q-19 8-35 18l-5 3-30 19-38 29q-6 7-15 10l-3 1q-14 4-29-2-16-9-22-26-3-19 8-35l17-15 2-1a553 553 0 0 1 155-89l2-1 33-10 3-1a288 288 0 0 1 56-10q19-3 38-2"/>
+
+    </svg>
+
+    <h2>Preview</h2>
+    <div class="grid">
+      <div class="card checker">
+        <svg viewBox="0 0 2048 2048" width="300" height="300"><use href="#logo > *"/></svg>
+        <h3>Transparent</h3>
+      </div>
+      <div class="card dark">
+        <svg viewBox="0 0 2048 2048" width="300" height="300"><use href="#logo > *"/></svg>
+        <h3>Dark Background</h3>
+      </div>
+      <div class="card">
+        <svg viewBox="0 0 2048 2048" width="300" height="300"><use href="#logo > *"/></svg>
+        <h3>Light Background</h3>
+      </div>
+    </div>
+
+    <h2>Size Test</h2>
+    <div class="card" style="margin-top: 1rem;">
+      <div class="sizes">
+        <div class="size-item">
+          <svg viewBox="0 0 2048 2048" width="128" height="128"><use href="#logo > *"/></svg>
+          <p>128px</p>
+        </div>
+        <div class="size-item">
+          <svg viewBox="0 0 2048 2048" width="64" height="64"><use href="#logo > *"/></svg>
+          <p>64px</p>
+        </div>
+        <div class="size-item">
+          <svg viewBox="0 0 2048 2048" width="32" height="32"><use href="#logo > *"/></svg>
+          <p>32px</p>
+        </div>
+        <div class="size-item">
+          <svg viewBox="0 0 2048 2048" width="16" height="16"><use href="#logo > *"/></svg>
+          <p>16px</p>
+        </div>
+      </div>
+    </div>
+
+    <h2>Individual Elements</h2>
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+      <div class="card checker" style="padding: 2rem;">
+        <svg class="individual" viewBox="250 190 740 740" width="100%" style="max-height: 400px;">
+          <use href="#sun-outer"/><use href="#sun-inner"/>
+        </svg>
+        <h3>Sun</h3>
+      </div>
+      <div class="card checker" style="padding: 2rem;">
+        <svg class="individual" viewBox="400 550 1200 900" width="100%" style="max-height: 350px;">
+          <use href="#buildings-main"/><use href="#buildings-detail"/>
+        </svg>
+        <h3>Buildings</h3>
+      </div>
+      <div class="card checker" style="padding: 2rem;">
+        <svg class="individual" viewBox="100 1050 1750 850" width="100%" style="max-height: 300px;">
+          <use href="#leaf-ground"/>
+        </svg>
+        <h3>Leaf/Ground</h3>
+      </div>
+      <div class="card checker" style="padding: 2rem;">
+        <svg class="individual" viewBox="200 1500 1000 400" width="100%" style="max-height: 250px;">
+          <use href="#wave"/>
+        </svg>
+        <h3>Wave</h3>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Clone all paths from hidden SVG to full-logo previews only
+    document.querySelectorAll('svg[viewBox="0 0 2048 2048"]:not(#logo):not(.individual)').forEach(svg => {
+      const source = document.getElementById('logo');
+      svg.innerHTML = source.innerHTML;
+    });
+  </script>
+</body>
+</html>

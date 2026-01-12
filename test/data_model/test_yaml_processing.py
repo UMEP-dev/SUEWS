@@ -56,6 +56,10 @@ from supy.data_model.validation.pipeline.phase_a import (
     is_physics_option,
 )
 
+from supy.data_model.validation.pipeline.phase_b import (
+    adjust_model_dependent_nullification,
+)
+
 
 class TestUptodateYaml(unittest.TestCase):
     """Test suite for uptodate_yaml.py functionality."""
@@ -1045,6 +1049,7 @@ from supy.data_model.validation.core.yaml_helpers import (
     precheck_site_season_adjustments,
     precheck_start_end_date,
     precheck_update_temperature,
+    _nullify_biogenic_in_props,
 )
 
 
@@ -1930,6 +1935,225 @@ def test_stebbsmethod1_leaves_stebbs_untouched():
 
     out = result["sites"][0]["properties"]["stebbs"]
     assert out["WallInternalConvectionCoefficient"]["value"] == 5.0
+
+
+def test_stebbsmethod0_nullifies_building_archetype_values():
+    yaml_input = {
+        "model": {"physics": {"stebbsmethod": {"value": 0}}},
+        "sites": [
+            {
+                "properties": {
+                    "building_archetype": {
+                        "BuildingType": {"value": "SampleType"},
+                        "stebbs_Height": {"value": 10.0},
+                    }
+                }
+            }
+        ],
+    }
+    result = precheck_model_option_rules(deepcopy(yaml_input))
+    out = result["sites"][0]["properties"]["building_archetype"]
+    assert out["BuildingType"]["value"] is None
+    assert out["stebbs_Height"]["value"] is None
+
+
+def _build_site_with_co2(co2_block):
+    return {"properties": {"anthropogenic_emissions": {"co2": co2_block}}}
+
+
+def test_emissionsmethod_less_than_5_nullifies_co2_block():
+    co2_block = {
+        "co2pointsource": {"value": 0.1},
+        "nested": {"ef_umolco2perj": {"value": 2.0}},
+    }
+    data = {
+        "model": {"physics": {"emissionsmethod": 0}},  # < 5 => CO2 disabled
+        "sites": [_build_site_with_co2(co2_block)],
+    }
+    result = precheck_model_option_rules(deepcopy(data))
+
+    out = result["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
+    assert out["co2pointsource"]["value"] is None
+    assert out["nested"]["ef_umolco2perj"]["value"] is None
+
+
+def test_empty_co2_block_is_handled_gracefully():
+    data = {
+        "model": {"physics": {"emissionsmethod": 0}},
+        "sites": [_build_site_with_co2({})],
+    }
+    out = precheck_model_option_rules(deepcopy(data))
+    co2 = out["sites"][0]["properties"]["anthropogenic_emissions"].get("co2", {})
+    assert isinstance(co2, dict)
+    assert co2 == {} or co2 == {
+        "value": None
+    }  # accept either empty or normalized empty
+
+
+def test_emissionsmethod_none_leaves_co2_untouched():
+    co2_block = {"co2pointsource": {"value": 0.1}}
+    data = {
+        "model": {"physics": {"emissionsmethod": None}},
+        "sites": [_build_site_with_co2(co2_block)],
+    }
+    out = precheck_model_option_rules(deepcopy(data))
+    co2 = out["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
+    # should remain numeric value because emissionsmethod not in 0..4
+    assert co2["co2pointsource"]["value"] == 0.1
+
+
+def test_deeply_nested_co2_structures_get_nullified():
+    co2_block = {
+        "traffic": {
+            "traffprof_24hr": {
+                "working_day": {"1": 0.1, "2": 0.2},
+                "holiday": {"1": 0.0},
+            }
+        },
+        "nested": {"level1": {"level2": {"ef_umolco2perj": {"value": 2.0}}}},
+        "arr": {"value": [0.1, 0.2, 0.3]},
+    }
+    data = {
+        "model": {"physics": {"emissionsmethod": 0}},
+        "sites": [_build_site_with_co2(co2_block)],
+    }
+    out = precheck_model_option_rules(deepcopy(data))
+    co2 = out["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
+
+    # nested numeric leaf must be nullified
+    assert co2["nested"]["level1"]["level2"]["ef_umolco2perj"]["value"] is None
+
+    # arrays should become list-of-None (or value -> None); accept either
+    arr_val = co2["arr"]["value"]
+    assert arr_val is None or (
+        isinstance(arr_val, list) and all(x is None for x in arr_val)
+    )
+
+    # profile working_day/holiday should be nullified (either whole field None or inner keys None)
+    tp = co2["traffic"]["traffprof_24hr"]
+    assert "working_day" in tp and (
+        "working_day" is None or isinstance(tp["working_day"], dict)
+    )
+    # if dict, its inner values must be None
+    if isinstance(tp["working_day"], dict):
+        assert all(v is None for v in tp["working_day"].values())
+
+
+def test_phase_b_adjust_model_dependent_nullification_reports_changes():
+    co2_block = {"co2pointsource": {"value": 0.5}, "nested": {"x": {"value": 1.0}}}
+    data = {
+        "model": {"physics": {"emissionsmethod": 0}},
+        "sites": [_build_site_with_co2(co2_block)],
+    }
+    yaml_after, adjustments = adjust_model_dependent_nullification(deepcopy(data))
+    # check that an adjustment for CO2 was recorded
+    assert any("anthropogenic_emissions.co2" in adj.parameter for adj in adjustments)
+    # confirm the co2 values were nullified in-place
+    co2 = yaml_after["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
+    assert co2["co2pointsource"]["value"] is None
+    assert co2["nested"]["x"]["value"] is None
+
+
+def test_nullify_biogenic_in_props_nullifies_values_and_lists():
+    """Ensure _nullify_biogenic_in_props nullifies scalar and list 'value' entries."""
+    props = {
+        "land_cover": {
+            "dectr": {
+                "alpha_bioco2": {"value": 0.8},
+                "beta_bioco2": {"value": [1.0, 2.0, 3.0]},
+                "theta_bioco2": 42.0,  # scalar -> should become None
+                "unrelated_param": {"value": 2.5},
+            }
+        }
+    }
+
+    changed = _nullify_biogenic_in_props(props)
+    assert changed is True
+
+    dectr = props["land_cover"]["dectr"]
+
+    # dict-with-value -> value set to None
+    assert isinstance(dectr["alpha_bioco2"], dict)
+    assert dectr["alpha_bioco2"]["value"] is None
+
+    # list -> replaced with list-of-None of same length
+    assert isinstance(dectr["beta_bioco2"], dict)
+    assert dectr["beta_bioco2"]["value"] == [None, None, None]
+
+    # scalar -> replaced with None
+    assert dectr["theta_bioco2"] is None
+
+    # unrelated param not in the target list remains unchanged
+    assert dectr["unrelated_param"]["value"] == 2.5
+
+
+def test_nullify_biogenic_in_props_handles_grass_and_evetr():
+    """Ensure helper nullifies biogenic params for multiple vegetation surfaces."""
+    props = {
+        "land_cover": {
+            "grass": {
+                "alpha_bioco2": {"value": 0.4},
+                "beta_bioco2": {"value": [1.0, 2.0]},
+                "unrelated": {"value": 9.9},
+            },
+            "evetr": {
+                "theta_bioco2": {"value": 3.1},
+                "beta_bioco2": 5.6,
+            },
+        }
+    }
+
+    changed = _nullify_biogenic_in_props(props)
+    assert changed is True
+
+    grass = props["land_cover"]["grass"]
+    assert grass["alpha_bioco2"]["value"] is None
+    assert grass["beta_bioco2"]["value"] == [None, None]
+    assert grass["unrelated"]["value"] == 9.9
+
+    evetr = props["land_cover"]["evetr"]
+    assert evetr["theta_bioco2"]["value"] is None
+    assert evetr["beta_bioco2"] is None
+
+
+def test_nullify_biogenic_in_props_handles_resp_params():
+    props = {
+        "land_cover": {
+            "evetr": {
+                "resp_a": {"value": 0.4},
+                "resp_b": {"value": [0.1, 0.2, 0.3]},
+                "unrelated": {"value": 1.0},
+            }
+        }
+    }
+
+    changed = _nullify_biogenic_in_props(props)
+    assert changed is True
+
+    evetr = props["land_cover"]["evetr"]
+    assert evetr["resp_a"]["value"] is None
+    assert evetr["resp_b"]["value"] == [None, None, None]
+    assert evetr["unrelated"]["value"] == 1.0
+
+
+def test_nullify_biogenic_in_props_resp_params_scalar_and_missing_value_key():
+    props = {
+        "land_cover": {
+            "grass": {
+                "resp_a": 0.5,  # scalar should become None
+                "resp_b": {"value": 0.7},
+                "other_param": {"value": 2.2},
+            }
+        }
+    }
+
+    changed = _nullify_biogenic_in_props(props)
+    assert changed is True
+
+    grass = props["land_cover"]["grass"]
+    assert grass["resp_a"] is None
+    assert grass["resp_b"]["value"] is None
+    assert grass["other_param"]["value"] == 2.2
 
 
 def test_collect_yaml_differences_simple():

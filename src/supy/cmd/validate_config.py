@@ -13,7 +13,6 @@ import os
 from pathlib import Path
 import importlib.resources
 from typing import Optional, List
-import supy
 import jsonschema
 from rich.console import Console
 from rich.table import Table
@@ -798,12 +797,21 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
         return 1
 
     # Use importlib.resources for robust package resource access
-    sample_data_files = importlib.resources.files(supy) / "sample_data"
-    with importlib.resources.as_file(
-        sample_data_files / "sample_config.yml"
-    ) as standard_yaml_path:
-        # Check for experimental features restrictions before proceeding
-        standard_yaml_file = str(standard_yaml_path)
+    # Use string "supy" instead of module reference to avoid NameError
+    # Read the standard config content directly to avoid temp file cleanup issues
+    # when package is installed from a wheel (as_file() creates temp files that
+    # are deleted when context manager exits)
+    import tempfile
+
+    sample_data_files = importlib.resources.files("supy") / "sample_data"
+    standard_config_content = (sample_data_files / "sample_config.yml").read_text()
+
+    # Write to a persistent temp file that won't be deleted during pipeline execution
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".yml", delete=False
+    ) as tmp_standard:
+        tmp_standard.write(standard_config_content)
+        standard_yaml_file = tmp_standard.name
 
     (
         uptodate_file,

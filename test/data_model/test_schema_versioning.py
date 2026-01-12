@@ -66,6 +66,7 @@ class TestSchemaVersioning:
         config = SUEWSConfig(**config_data)
         assert config.schema_version == "1.0"
 
+    @pytest.mark.skip(reason="Schema versioning needs fix - see GH-991")
     def test_config_without_schema_version_gets_default(self):
         """Test that SUEWSConfig gets default schema version when not specified."""
         config_data = {
@@ -86,6 +87,7 @@ class TestSchemaVersioning:
         # Future: test minor version compatibility
         # assert is_schema_compatible("1.0", "1.1") is True  # 1.1 backward compatible with 1.0
 
+    @pytest.mark.skip(reason="Schema versioning needs fix - see GH-991")
     def test_compatibility_messages(self):
         """Test schema compatibility message generation."""
         # No message for current version

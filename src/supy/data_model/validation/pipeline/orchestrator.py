@@ -17,7 +17,6 @@ import importlib.resources
 import shutil
 import io
 from contextlib import redirect_stdout, redirect_stderr
-import supy
 from pathlib import Path
 
 # Import Phase A and B functions

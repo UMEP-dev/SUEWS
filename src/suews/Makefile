@@ -168,19 +168,19 @@ UTILS = suews_ctrl_const.o \
 	suews_type_landcover.o \
 	suews_ctrl_type.o \
 	suews_util_stringmod.o \
-	suews_util_qsort.o\
 	suews_util_time.o \
 	suews_util_meteo.o \
 	suews_util_datetime.o \
 	suews_util_minpack.o
 
 # SUEWS physics modules
-PHYS =	suews_phys_narp.o \
+# Note: suews_ctrl_error.o must come first as it provides module_ctrl_error_state
+PHYS =	suews_ctrl_error.o  \
+	suews_util_profile.o  \
+	suews_phys_narp.o \
 	suews_phys_spartacus.o \
 	suews_phys_atmmoiststab.o \
 	suews_phys_resist.o \
-	suews_ctrl_error.o  \
-	suews_ctrl_input.o  \
 	suews_phys_bluews.o \
 	suews_phys_waterdist.o \
 	suews_phys_evap.o \

@@ -55,7 +55,7 @@ First time steps of storage output could give NaN values during the initial conv
 
 First things to Check if the program seems to have problems
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--  Check the problems.txt file.
+-  Check the Python runtime logs (SuPy logger output). Legacy ``problems.txt``/``warnings.txt`` files are no longer written.
 -  Check file options – in RunControl.nml.
 -  Look in the output directory for the SS_FileChoices.txt. This allows you to check all options that were used in the run. You may want to compare it with the original version supplied with the model.
 -  Note there can not be missing time steps in the data. If you need help with this you may want to checkout `UMEP`_
@@ -89,7 +89,7 @@ This is something you do not need to worry as it does not mean wrong input data.
 “Reference to undefined variable, array element or function result”
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Parameter(s) missing from input files.
-See also the error messages provided in problems.txt and warnings.txt
+See also the error messages and warnings emitted to the console / Python logger.
 
 SuPy related
 ------------
@@ -188,6 +188,41 @@ Please check the following:
 A general rule of thumb is to use the ``load_SampleData`` to generate the initial model states from the sample data shipped by SuPy.
 
 
+Wind speed seems incorrect when using EPW data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Symptom**: Wind-related outputs (turbulent fluxes, roughness parameters, u*) appear unrealistic when using EPW weather files.
+
+**Likely cause**: Mismatch between EPW wind speed measurement height (10 m) and configured forcing height (``z``).
+
+EPW files contain wind speed measured at 10 m above ground level. If your site configuration uses a different forcing height (e.g., ``z: 50``), SUEWS will incorrectly assume the EPW wind data originated from 50 m, leading to erroneous friction velocity and flux calculations.
+
+**Solution**: Ensure your site configuration sets ``z: 10`` when using EPW data:
+
+.. code-block:: yaml
+
+   sites:
+     - name: "MySite"
+       properties:
+         z: 10.0  # Match EPW standard wind measurement height
+
+Alternatively, use the ``target_height`` parameter in :func:`~supy.util.read_epw` to extrapolate wind speed to your desired forcing height:
+
+.. code-block:: python
+
+   import supy as sp
+   from pathlib import Path
+
+   # Extrapolate EPW wind speed from 10 m to 50 m
+   df_epw = sp.util.read_epw(
+       Path("weather.epw"),
+       target_height=50.0,
+       z0m=0.5  # roughness length for urban areas
+   )
+
+See :ref:`met_forcing` for detailed guidance on EPW data usage.
+
+
 YAML Configuration Validation Errors
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -240,4 +275,84 @@ Common validation errors:
 - Missing surface fractions that don't sum to 1.0
 - Missing vegetation parameters when vegetation surfaces are present
 
+
+FcPhoto (Photosynthesis Flux) Near Zero in Summer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Problem**: FcPhoto values become close to 0 during the growing season (summer months) when they should be at their highest.
+
+**Cause**: This typically occurs when using SMD (Soil Moisture Deficit) method 0 with improper soil moisture initialization or parameters, leading to severe water stress that shuts down photosynthesis.
+
+**Background**: The photosynthesis flux (FcPhoto) is regulated by several environmental stress factors:
+
+- **g_dq**: Vapour pressure deficit stress
+- **g_ta**: Temperature stress  
+- **g_smd**: Soil moisture stress
+- **g_kdown**: Light stress
+
+These are combined into a total stress factor: ``gfunc = g_dq × g_ta × g_smd × g_kdown``
+
+When using SMD method 0 (modelled soil moisture), the soil water balance is calculated internally. If the soil moisture becomes too low, ``g_smd`` approaches 0, causing ``FcPhoto`` to approach 0.
+
+**Solutions**:
+
+1. **Switch to SMD method 1 or 2** (recommended if you have observed soil moisture data):
+   
+   In your YAML configuration::
+   
+       smd_method: {value: 1}  # Use observed volumetric soil moisture
+       # or
+       smd_method: {value: 2}  # Use observed gravimetric soil moisture
+   
+   This requires providing soil moisture data in your forcing file.
+
+2. **If using SMD method 0**, check and adjust:
+   
+   a. **Initial soil moisture states** - ensure reasonable starting values::
+   
+       initial_conditions:
+         soilstore_bldgs: {value: 50.0}  # Not too low
+         soilstore_paved: {value: 50.0}
+         soilstore_evetr: {value: 100.0}
+         soilstore_dectr: {value: 100.0}
+         soilstore_grass: {value: 80.0}
+         soilstore_bsoil: {value: 60.0}
+   
+   b. **Soil capacity parameters** - verify they match your site::
+   
+       soil:
+         bldgs:
+           soilstorecap: {value: 150.0}  # mm
+         paved:
+           soilstorecap: {value: 150.0}
+         # ... similar for other surfaces
+   
+   c. **Soil moisture stress parameters**::
+   
+       vegetation:
+         s1: {value: 5.56}   # Wilting point threshold (mm)
+         s2: {value: 100.0}  # Capacity threshold (mm)
+         g_sm: {value: 3.5}  # Soil moisture sensitivity
+   
+   d. **Enable irrigation** if appropriate for your site::
+   
+       water_use:
+         method: {value: 1}  # Enable irrigation
+         # Configure irrigation parameters
+
+**Diagnostic Steps**:
+
+1. Check the daily state output for soil moisture values
+2. Plot SMD alongside precipitation and FcPhoto
+3. Look for correlation between rain events and FcPhoto spikes
+4. Verify that LAI values are reasonable for the vegetation present
+
+**Example**: If FcPhoto only appears briefly after rain events, this confirms severe water stress is limiting photosynthesis between precipitation.
+
+**Prevention**: When setting up a new simulation:
+
+- Use realistic initial soil moisture (not 0 or very low values)
+- Consider seasonal variation in soil parameters
+- If modelling urban areas, account for irrigation
+- Validate soil parameters against local measurements if available
 

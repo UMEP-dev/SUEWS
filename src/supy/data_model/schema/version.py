@@ -14,24 +14,22 @@ Schema Version Policy:
 from typing import Optional
 import warnings
 
-# Current supported schema version
-CURRENT_SCHEMA_VERSION = "0.1"
+# Current supported schema version (aligned with SUEWS CalVer: YYYY.MM)
+CURRENT_SCHEMA_VERSION = "2025.12"
 
 # Schema version history and descriptions
 SCHEMA_VERSIONS: dict[str, str] = {
-    "0.1": "Initial YAML schema with full Pydantic data model (2025.8)"
+    "2025.12": "Initial YAML schema with full Pydantic data model",
     # Future examples:
-    # "1.0": "First stable release with complete validation"
-    # "1.1": "Added optional field X for feature Y (2025.10)"
-    # "2.0": "Breaking change: Renamed field A to B, restructured C (2026.1)"
+    # "2026.1": "Added optional field X for feature Y"
+    # "2026.6": "Breaking change: Renamed field A to B, restructured C"
 }
 
 # Compatibility matrix: which schema versions are compatible
 COMPATIBLE_VERSIONS = {
-    "0.1": ["0.1"],  # 0.1 only compatible with itself (initial release)
-    # Future: "1.0": ["0.1", "1.0"],  # 1.0 backward compatible with 0.1
-    # Future: "1.1": ["1.0", "1.1"],  # 1.1 backward compatible with 1.0
-    # Future: "2.0": ["2.0"],  # Major version breaks compatibility
+    "0.1": ["0.1"],  # Legacy pre-release version
+    "2025.12": ["0.1", "2025.12"],  # 2025.12 accepts 0.1 configs (auto-migrated)
+    # Future: "2026.1": ["2025.12", "2026.1"],  # backward compatible
 }
 
 

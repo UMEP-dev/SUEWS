@@ -152,8 +152,9 @@ class OutputVariableRSTGenerator:
             "",
         ])
 
-        # Use yaml:option directive for consistency with input docs
-        lines.append(f".. yaml:option:: {var.name}")
+        # Use output:variable directive to avoid namespace collisions with input params
+        # See GitHub issue #1031 for context
+        lines.append(f".. output:variable:: {var.name}")
         lines.append("")
 
         # Add description

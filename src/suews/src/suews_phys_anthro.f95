@@ -121,6 +121,7 @@ CONTAINS
       QF_traff = 0
       QF_SAHP_heating = 0
       QF_SAHP_cooling = 0
+      NumCapita = 0.0D0
 
       ! Transfer HDD/CDD values to local explict variables
       HDD_daily = HDD_id(7)

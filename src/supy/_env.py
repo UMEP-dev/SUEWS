@@ -42,9 +42,15 @@ def get_file_handler():
     try:
         path_logfile = Path(LOG_FILE)
         path_logfile.touch()
-    except Exception:
+    except Exception as e:
+        import warnings
         tempdir = tempfile.gettempdir()
         path_logfile = Path(tempdir) / LOG_FILE
+        warnings.warn(
+            f"Could not create log file at {LOG_FILE} ({e}); using {path_logfile} instead",
+            UserWarning,
+            stacklevel=2,
+        )
 
     file_handler = TimedRotatingFileHandler(
         path_logfile,

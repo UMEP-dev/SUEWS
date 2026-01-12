@@ -1,8 +1,14 @@
+import logging
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
+
+from .._post import resample_output
+
+# Logger for this module
+logger = logging.getLogger(__name__)
 
 
 #################################################################
@@ -311,19 +317,91 @@ def conv_0to24(df_TMY):
 
 
 # function to read in EPW file
-def read_epw(path_epw: Path) -> pd.DataFrame:
-    """Read in `epw` file as a DataFrame
+def read_epw(
+    path_epw: Path,
+    target_height: float = 10.0,
+    z0m: float = 0.1,
+) -> pd.DataFrame:
+    """Read in EPW (EnergyPlus Weather) file as a DataFrame.
 
     Parameters
     ----------
     path_epw : Path
-        path to `epw` file
+        Path to EPW file.
+    target_height : float, optional
+        Target height for wind speed extrapolation [m]. EPW files contain
+        wind speed at 10 m agl. If target_height differs from 10 m, the
+        wind speed will be adjusted using a logarithmic wind profile.
+        Default is 10.0 (no correction applied).
+    z0m : float, optional
+        Roughness length for momentum [m], used in wind profile correction.
+        Typical values: 0.01 (open water), 0.1 (grassland), 0.5-2.0 (urban).
+        Default is 0.1.
 
     Returns
     -------
-    df_tmy: pd.DataFrame
-        TMY results of `epw` file
+    df_tmy : pd.DataFrame
+        DataFrame containing weather data with columns named according
+        to EPW standard variable names.
+
+    Notes
+    -----
+    **Measurement Height Assumptions**
+
+    EPW files follow standard meteorological station conventions:
+
+    - **Wind Speed**: 10 m above ground level (agl)
+    - **Temperature and Humidity**: 2 m agl (screen height)
+
+    When using EPW data with SUEWS, ensure the forcing height parameter
+    ``z`` in your site configuration matches these heights. For EPW data,
+    set ``z = 10`` to match the wind speed measurement height.
+
+    **Wind Speed Height Correction**
+
+    If ``target_height != 10.0``, the wind speed is adjusted using the
+    logarithmic wind profile (assuming neutral atmospheric conditions):
+
+    .. math::
+
+        U(z_2) = U(z_1) \\frac{\\ln((z_2 + z_0) / z_0)}{\\ln((z_1 + z_0) / z_0)}
+
+    where :math:`z_1 = 10` m (EPW height), :math:`z_2` is the target height,
+    and :math:`z_0` is the roughness length.
+
+    .. warning::
+
+        The log-law profile assumes neutral atmospheric stability. Under
+        strongly stable or unstable conditions, actual wind profiles may
+        differ significantly from this approximation.
+
+    See Also
+    --------
+    gen_epw : Generate EPW file from SUEWS simulation output.
+    supy.util.gen_forcing_era5 : Generate forcing from ERA5 (extrapolated
+        to user-specified height).
+
+    Examples
+    --------
+    >>> import supy as sp
+    >>> from pathlib import Path
+    >>>
+    >>> # Read EPW file without height correction (default)
+    >>> df_epw = sp.util.read_epw(Path("weather.epw"))
+    >>>
+    >>> # Read EPW file and extrapolate wind speed to 50 m
+    >>> df_epw = sp.util.read_epw(
+    ...     Path("weather.epw"),
+    ...     target_height=50.0,
+    ...     z0m=0.5  # urban roughness length
+    ... )
     """
+    # Input validation
+    if z0m <= 0:
+        raise ValueError(f"z0m must be positive, got {z0m}")
+    if target_height <= 0:
+        raise ValueError(f"target_height must be positive, got {target_height}")
+
     df_tmy = pd.read_csv(path_epw, skiprows=8, sep=",", header=None)
     df_tmy.columns = [x.strip() for x in header_EPW.split("\n")[1:-1]]
     df_tmy["DateTime"] = pd.to_datetime(
@@ -334,31 +412,60 @@ def read_epw(path_epw: Path) -> pd.DataFrame:
         + pd.to_timedelta(df_tmy["Hour"], unit="h")
     )
     df_tmy = df_tmy.set_index("DateTime")
+
+    # Apply wind speed height correction if target height differs from EPW standard (10 m)
+    epw_height = 10.0
+    if not np.isclose(target_height, epw_height):
+        logger.warning(
+            f"Applying wind speed height correction from {epw_height}m to {target_height}m "
+            f"using log-law profile (assumes neutral atmospheric conditions). "
+            f"This approximation may be less accurate under strongly stable or unstable conditions."
+        )
+        # Log-law wind profile correction (neutral conditions)
+        correction_factor = np.log((target_height + z0m) / z0m) / np.log(
+            (epw_height + z0m) / z0m
+        )
+        df_tmy["Wind Speed"] = df_tmy["Wind Speed"] * correction_factor
+
     return df_tmy
 
 
 # generate EPW file from `df_TMY`
 def gen_epw(
     df_output: pd.DataFrame,
-    lat,
-    lon,
-    tz=0,
-    path_epw=Path("./uTMY.epw"),
+    lat: float,
+    lon: float,
+    tz: float = 0,
+    path_epw: Union[str, Path] = Path("./uTMY.epw"),
+    freq: Optional[str] = None,
+    grid: Optional[int] = None,
 ) -> Tuple[pd.DataFrame, str, Path]:
-    """Generate an ``epw`` file of uTMY (urbanised Typical Meteorological Year) using SUEWS simulation results
+    """Generate an ``epw`` file of uTMY (urbanised Typical Meteorological Year) using SUEWS simulation results.
 
     Parameters
     ----------
     df_output : pandas.DataFrame
-        SUEWS simulation results.
+        SUEWS simulation results. Can be either:
+
+        - Full MultiIndex output from `run_supy` (grid, datetime) x (group, var)
+        - Pre-extracted single-grid SUEWS output (datetime) x (var)
     lat : float
         Latitude of the site, used for calculating solar angle.
     lon : float
         Longitude of the site, used for calculating solar angle.
     tz : float, optional
-        time zone represented by time difference from UTC+0 (e.g., 8 for UTC+8), by default 0 (i.e., UTC+0)
-    path_epw : pathlib.Path, optional
+        Time zone represented by time difference from UTC+0 (e.g., 8 for UTC+8),
+        by default 0 (i.e., UTC+0).
+    path_epw : pathlib.Path or str, optional
         Path to store generated epw file, by default Path('./uTMY.epw').
+    freq : str, optional
+        Target frequency for resampling (e.g., 'h', '60min', '1h').
+        If provided, the output is resampled before EPW generation using
+        variable-appropriate aggregation methods.
+        Recommended for sub-hourly simulation output. Default is None (no resampling).
+    grid : int, optional
+        Grid number to extract if df_output has MultiIndex (grid, datetime).
+        If not provided and MultiIndex detected, uses the first grid.
 
     Returns
     -------
@@ -378,6 +485,26 @@ def gen_epw(
     pvlib is not included as a required dependency due to its h5py requirement
     which can cause build issues on some platforms.
 
+    Examples
+    --------
+    Basic usage with pre-extracted data:
+
+    >>> df_epw, meta, path = sp.util.gen_epw(
+    ...     df_output.loc[grid, 'SUEWS'],
+    ...     lat=51.5, lon=-0.1
+    ... )
+
+    With automatic resampling and grid extraction:
+
+    >>> df_epw, meta, path = sp.util.gen_epw(
+    ...     df_output,  # Full MultiIndex output from run_supy
+    ...     lat=51.5, lon=-0.1,
+    ...     freq='h'   # Resample to hourly
+    ... )
+
+    See Also
+    --------
+    supy.resample_output : Resample output with variable-appropriate aggregation
     """
     import atmosp
     from pathlib import Path
@@ -389,6 +516,30 @@ def gen_epw(
             "TMY/EPW generation requires pvlib. Install it with: pip install pvlib\n"
             "Note: pvlib requires h5py which may need compilation on some systems."
         )
+
+    # Handle MultiIndex input from run_supy
+    if isinstance(df_output.index, pd.MultiIndex):
+        # Extract grid if needed
+        if grid is None:
+            grid = df_output.index.get_level_values("grid").unique()[0]
+
+        # Resample if frequency specified (before extracting to single grid)
+        if freq is not None:
+            df_output = resample_output(df_output, freq=freq)
+
+        # Extract SUEWS group for the specified grid
+        if isinstance(df_output.columns, pd.MultiIndex):
+            groups = df_output.columns.get_level_values("group").unique()
+            if "SUEWS" in groups:
+                df_output = df_output.loc[grid, "SUEWS"]
+            else:
+                df_output = df_output.loc[grid]
+        else:
+            df_output = df_output.loc[grid]
+    elif freq is not None:
+        # Single-grid input with freq specified - use simple resampling
+        # For single-grid SUEWS output, variables are typically averaged
+        df_output = df_output.resample(freq, closed="right", label="right").mean()
 
     # select months from representative years
     df_tmy = gen_TMY(df_output.copy())

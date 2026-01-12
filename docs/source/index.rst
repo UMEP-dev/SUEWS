@@ -73,7 +73,7 @@ Before performing SUEWS simulations, users should understand the :ref:`physical 
 How to get help in using SUEWS?
 ---------------------------------------------
 
-Please let us know in the `SUEWS Discussion Channel`_.
+Please let us know in the `SUEWS Community`_.
 The developers and other users are willing to help you.
 
 
@@ -171,4 +171,4 @@ How to support SUEWS?
    :hidden:
 
    community_publications
-   GitHub discussion <https://github.com/UMEP-dev/SUEWS/discussions>
+   Community <https://suews.discourse.group/>

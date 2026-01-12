@@ -32,7 +32,7 @@ class TestInitSuPy(TestCase):
             Path(__file__).parent.parent / "fixtures" / "benchmark1" / "benchmark1.yml"
         )
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_init_supy_sample_config(self):
         """Test initializing with sample configuration."""
         print("\n========================================")

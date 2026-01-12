@@ -63,6 +63,9 @@ try:
     from supy.data_model.validation.core.yaml_helpers import (
         get_mean_monthly_air_temperature as _get_mean_monthly_air_temperature,
         get_mean_annual_air_temperature as _get_mean_annual_air_temperature,
+        nullify_co2_block_recursive,
+        collect_nullified_paths,
+        _nullify_biogenic_in_props,
     )
 
     HAS_SUPY = True
@@ -1337,6 +1340,7 @@ def adjust_model_dependent_nullification(
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
+    # --- STEBBS ---
     stebbsmethod = get_value_safe(physics, "stebbsmethod")
 
     if stebbsmethod == 0:
@@ -1344,31 +1348,35 @@ def adjust_model_dependent_nullification(
 
         for site_idx, site in enumerate(sites):
             props = site.get("properties", {})
-            stebbs_block = props.get("stebbs", {})
             site_gridid = get_site_gridid(site)
 
-            if stebbs_block:
-                nullified_params = []
+            def _nullify_block(block_name: str, block: Union[dict, list]) -> bool:
+                if not isinstance(block, (dict, list)) or not block:
+                    return False
 
-                def _recursive_nullify(block: dict, path: str = ""):
-                    for key, val in block.items():
-                        current_path = f"{path}.{key}" if path else key
+                nullified_params: List[str] = []
 
-                        if isinstance(val, dict):
-                            if "value" in val and val["value"] is not None:
-                                val["value"] = None
-                                nullified_params.append(current_path)
-                            else:
-                                _recursive_nullify(val, current_path)
+                def _recursive_nullify(node: Any, path: str):
+                    if isinstance(node, dict):
+                        if "value" in node:
+                            if node["value"] is not None:
+                                node["value"] = None
+                                nullified_params.append(path)
+                        else:
+                            for key, val in node.items():
+                                child_path = f"{path}.{key}" if path else key
+                                _recursive_nullify(val, child_path)
+                    elif isinstance(node, list):
+                        for idx, item in enumerate(node):
+                            child_path = f"{path}[{idx}]" if path else f"[{idx}]"
+                            _recursive_nullify(item, child_path)
 
-                _recursive_nullify(stebbs_block)
-
+                _recursive_nullify(block, block_name)
                 if nullified_params:
                     param_list = ", ".join(nullified_params)
-
                     adjustments.append(
                         ScientificAdjustment(
-                            parameter="stebbs",
+                            parameter=block_name,
                             site_index=site_idx,
                             site_gridid=site_gridid,
                             old_value=f"stebbsmethod is switched off, nullified {len(nullified_params)} related parameters - {param_list}",
@@ -1376,10 +1384,80 @@ def adjust_model_dependent_nullification(
                             reason=f"stebbsmethod switched off, nullified {len(nullified_params)} related parameters",
                         )
                     )
+                    return True
 
-                props["stebbs"] = stebbs_block
+                return False
+
+            site_updated = False
+            for block_name in ("stebbs", "building_archetype"):
+                block = props.get(block_name)
+                if _nullify_block(block_name, block):
+                    props[block_name] = block
+                    site_updated = True
+
+            if site_updated:
                 site["properties"] = props
                 yaml_data["sites"][site_idx] = site
+
+    # --- ANTHROPOGENIC CO2 ---
+    emissionsmethod = get_value_safe(physics, "emissionsmethod")
+
+    if emissionsmethod is not None and emissionsmethod in [0, 1, 2, 3, 4]:
+        sites = yaml_data.get("sites", [])
+
+        for site_idx, site in enumerate(sites):
+            props = site.get("properties", {})
+            anth_emis = props.get("anthropogenic_emissions", {})
+            co2_block = anth_emis.get("co2", {})
+            site_gridid = get_site_gridid(site)
+
+            if co2_block:
+                before_snapshot = deepcopy(co2_block)
+                try:
+                    nullify_co2_block_recursive(co2_block)
+                except Exception:
+                    logger_supy.exception(
+                        "[precheck] failed to nullify co2 block with shared helper"
+                    )
+
+                nullified_params = collect_nullified_paths(before_snapshot, co2_block)
+                if nullified_params:
+                    param_list = ", ".join(nullified_params)
+                    adjustments.append(
+                        ScientificAdjustment(
+                            parameter="anthropogenic_emissions.co2",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            old_value=f"emissionsmethod 0..4 (CO2 disabled), nullified {len(nullified_params)} related parameters - {param_list}",
+                            new_value="null",
+                            reason=f"emissionsmethod 0..4 (CO2 disabled), nullified {len(nullified_params)} related parameters",
+                        )
+                    )
+
+                anth_emis["co2"] = co2_block
+                props["anthropogenic_emissions"] = anth_emis
+                site["properties"] = props
+                yaml_data["sites"][site_idx] = site
+
+            # Nullify biogenic dectr params here as well (same canonical helper)
+            try:
+                if _nullify_biogenic_in_props(props):
+                    yaml_data["sites"][site_idx]["properties"] = props
+                    adjustments.append(
+                        ScientificAdjustment(
+                            parameter="land_cover.dectr.biogenic_params",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            old_value="biogenic dectr params present",
+                            new_value="null",
+                            reason="emissionsmethod 0..4 (CO2 disabled) – nullified dectr biogenic parameters",
+                        )
+                    )
+            except Exception:
+                logger_supy.exception(
+                    "[phase_b] failed to nullify dectr biogenic params for site %d",
+                    site_idx,
+                )
 
     return yaml_data, adjustments
 

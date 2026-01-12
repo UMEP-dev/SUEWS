@@ -310,7 +310,7 @@ pythonenv*
 .ropeproject
 
 # mkdocs documentation
-/site
+# /site  # Removed: we use site/ for GitHub Pages content
 
 # mypy
 .mypy_cache/
@@ -645,3 +645,6 @@ docs/source/api/_autosummary/
 # Exclude large test data but track structure
 test/fixtures/gh846/*.zip
 
+
+# Conductor worktree workspaces
+.conductor/

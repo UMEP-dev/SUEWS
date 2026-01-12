@@ -6,26 +6,44 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 
 ```
 .claude/
+├── rules/                 # AUTO-LOADED conventions (path-conditional)
+│   ├── 00-project-essentials.md    # Always loaded
+│   ├── fortran/
+│   │   └── conventions.md          # When editing src/suews/**/*.f9*
+│   ├── python/
+│   │   ├── conventions.md          # When editing src/supy/**/*.py
+│   │   └── config-patterns.md      # When editing src/supy/**/*.py
+│   ├── docs/
+│   │   └── conventions.md          # When editing docs/**/*
+│   ├── tests/
+│   │   └── patterns.md             # When editing test*/**/*.py
+│   └── changelog/
+│       └── format.md               # When editing CHANGELOG.md
+│
 ├── commands/              # Thin wrappers that invoke skills
-│   ├── setup-dev.md       # Set up development environment
+│   ├── audit-pr.md        # Review a pull request
+│   ├── examine-issue.md   # Analyse GitHub issues
 │   ├── lint-code.md       # Check code style
-│   ├── log-changes.md     # Analyse code changes, update CHANGELOG
+│   ├── log-changes.md     # Update CHANGELOG
 │   ├── prep-release.md    # Prepare release
+│   ├── setup-dev.md       # Set up dev environment
 │   ├── sync-docs.md       # Check doc-code consistency
 │   └── verify-build.md    # Verify build configuration
 │
-├── skills/                # All knowledge + functionality
-│   ├── apply-patterns/    # Config patterns, DRY principles
-│   ├── check-naming/      # Variant-neutral naming
-│   ├── design-tests/      # Test design with FIRST principles
-│   ├── lint-code/         # Code style conventions
-│   ├── log-changes/       # CHANGELOG management
-│   ├── prep-release/      # Release preparation
-│   ├── setup-dev/         # Environment setup guide
-│   ├── sync-docs/         # Documentation consistency
-│   └── verify-build/      # Build configuration checks
+├── skills/                # Action-oriented workflows (named with -skill suffix)
+│   ├── audit-pr-skill/    # PR review orchestrator
+│   ├── examine-issue-skill/  # Issue analysis
+│   ├── lint-code-skill/   # Code style (references rules/)
+│   ├── log-changes-skill/ # CHANGELOG management
+│   ├── prep-release-skill/  # Release preparation
+│   ├── setup-dev-skill/   # Environment setup guide
+│   ├── sync-docs-skill/   # Doc-code consistency
+│   └── verify-build-skill/  # Build config checks
 │
-├── scripts/               # Shared infrastructure
+├── reference/             # Templates and static reference
+│   └── templates/         # Reusable templates
+│
+├── scripts/               # Infrastructure
 │   ├── validate-claude-md.py
 │   ├── pre-commit-hook.sh
 │   └── setup-claude-protection.sh
@@ -35,62 +53,82 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 
 ## Concepts
 
-### Skills (Single Source of Truth)
+### Rules (Auto-Loaded)
 
-Skills contain all the knowledge Claude needs for specific workflows. Each skill has:
+Rules in `.claude/rules/` are **automatically loaded** when Claude Code starts a session.
+
+**Path-conditional loading**: Rules with `paths:` frontmatter only load when working with matching files:
+```yaml
+---
+paths:
+  - src/suews/**/*.f9*
+---
+```
+
+**Always loaded**: Rules without `paths:` frontmatter (like `00-project-essentials.md`) load for every session.
+
+### Skills (On-Demand)
+
+Skills perform specific workflows when invoked via commands. Each skill has:
 - `SKILL.md` - Main content with frontmatter (name, description)
-- Optional subdirectories for references, templates, or scripts
+- Optional subdirectories for references
 
-### Commands (Thin Wrappers)
+**Key difference from rules**: Skills are invoked explicitly; rules are always available.
 
-Commands are entry points that invoke skills. They provide:
+### Commands (Entry Points)
+
+Commands are thin wrappers that invoke skills. They provide:
 - Short description for the command menu
-- Any dynamic context (git status, dates, etc.)
+- Dynamic context (git status, dates, etc.)
 - Reference to the skill to invoke
-
-### Scripts (Infrastructure)
-
-Scripts handle CLAUDE.md protection and Git hooks - shared infrastructure that isn't skill-specific.
-
-## Available Skills
-
-| Skill | Purpose |
-|-------|---------|
-| `apply-patterns` | Configuration patterns, DRY principles |
-| `check-naming` | Variant-neutral naming conventions |
-| `design-tests` | Test design with FIRST principles |
-| `lint-code` | Code conventions for Fortran and Python |
-| `log-changes` | CHANGELOG management and formatting |
-| `prep-release` | Release preparation with pre-flight checks |
-| `setup-dev` | Environment setup (uv, venv, mamba, compilers) |
-| `sync-docs` | Documentation-code consistency |
-| `verify-build` | Build configuration consistency |
 
 ## Available Commands
 
 | Command | Purpose |
 |---------|---------|
-| `/setup-dev` | Set up development environment |
+| `/audit-pr <PR>` | Review a pull request comprehensively |
+| `/examine-issue <issue>` | Analyse a GitHub issue |
 | `/lint-code` | Check code style |
 | `/log-changes` | Update CHANGELOG |
 | `/prep-release` | Prepare release |
+| `/setup-dev` | Set up development environment |
 | `/sync-docs` | Check doc-code consistency |
 | `/verify-build` | Verify build configuration |
 
+## Rules vs Skills
+
+| Aspect | Rules | Skills |
+|--------|-------|--------|
+| Loading | Automatic | On-demand |
+| Purpose | Conventions, guidelines | Workflows, actions |
+| Location | `.claude/rules/` | `.claude/skills/` |
+| Invocation | None needed | Via `/command` |
+| Path-conditional | Yes (`paths:` frontmatter) | No |
+
+## Skill Relationships
+
+```
+prep-release-skill ──┬── verify-build-skill (pre-flight)
+                     ├── sync-docs-skill (pre-flight)
+                     ├── lint-code-skill (pre-flight)
+                     └── log-changes-skill (CHANGELOG)
+
+audit-pr-skill ──────┬── lint-code-skill (style review)
+                     ├── sync-docs-skill (doc review)
+                     └── verify-build-skill (build review)
+```
+
 ## Quick Navigation
 
-**"How do I set up my environment?"** -> `/setup-dev` or `setup-dev` skill
-**"Check my code style"** -> `/lint-code` or `lint-code` skill
-**"Update the CHANGELOG"** -> `/log-changes`
-**"Prepare for release"** -> `/prep-release`
-
-## For Claude Code Sessions
-
-1. Check current branch: `git branch --show-current`
-2. Environment setup: Use `setup-dev` skill
-3. Before committing: Use `lint-code` skill
+- **"How do I set up my environment?"** -> `/setup-dev`
+- **"Check my code style"** -> `/lint-code`
+- **"Update the CHANGELOG"** -> `/log-changes`
+- **"Prepare for release"** -> `/prep-release`
+- **"Fortran conventions"** -> `.claude/rules/fortran/`
+- **"Python conventions"** -> `.claude/rules/python/`
+- **"Test patterns"** -> `.claude/rules/tests/`
 
 ## Git Policy
 
-- Commit: All directories and files
-- Ignore: settings.local.json, any temp-* files
+- **Commit**: All directories and files
+- **Ignore**: settings.local.json, any temp-* files

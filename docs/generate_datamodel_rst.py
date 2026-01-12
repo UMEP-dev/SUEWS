@@ -109,6 +109,11 @@ class RSTGenerator:
         """Format a single model as RST."""
         lines = []
 
+        # Add orphan directive for utility models not in toctree (see GH#984)
+        if model_name in {"RefValue", "Reference"}:
+            lines.append(":orphan:")
+            lines.append("")
+
         # Add meta tags
         lines.extend(self._format_meta_tags(model_name, model_doc))
 
@@ -275,6 +280,23 @@ class RSTGenerator:
 
         # Add options if present
         if field_doc.get("options"):
+            # Check if any options are experimental
+            has_experimental = any(
+                "(experimental)" in opt.get("description", "").lower()
+                for opt in field_doc["options"]
+            )
+
+            # Add admonition before options if experimental options exist
+            if has_experimental:
+                lines.append("   .. note::")
+                lines.append("")
+                lines.append(
+                    "      Some options below are marked as **experimental**. "
+                    "While scientifically validated, users should verify results "
+                    "for their specific applications."
+                )
+                lines.append("")
+
             lines.append("   :Options:")
             for opt in field_doc["options"]:
                 opt_str = self._format_option(opt)
@@ -288,7 +310,7 @@ class RSTGenerator:
             lines.append(f"   :Unit: {formatted_unit}")
 
         # Add default/sample value
-        default_label, default_value = self._format_default(field_doc, model_name)
+        default_label, default_value = self._format_default(field_doc)
         if default_label is not None and default_value is not None:
             lines.append(f"   :{default_label}: {default_value}")
 
@@ -352,8 +374,8 @@ class RSTGenerator:
         # Add index entries
         lines.extend(self._add_field_index_entries(field_name, model_name))
 
-        # Use yaml:option directive for YAML configuration options
-        lines.append(f".. yaml:option:: {field_name}")
+        # Use input:option directive for YAML configuration options
+        lines.append(f".. input:option:: {field_name}")
         lines.append("")
 
         # Add description
@@ -471,9 +493,7 @@ class RSTGenerator:
         return " ".join(formatted)
 
     @staticmethod
-    def _format_default(
-        field_doc: dict[str, Any], model_name: str = ""
-    ) -> tuple[str, str]:  # noqa: PLR0912
+    def _format_default(field_doc: dict[str, Any]) -> tuple[str, str]:  # noqa: PLR0912
         """Format default value for display with consistent labeling.
 
         Returns appropriate label-value pair based on field characteristics:
@@ -482,9 +502,11 @@ class RSTGenerator:
         - Optional without defaults: ("Default", "None (optional)")
         - Nested models: (None, None) to skip display
 
+        Site-specific fields (detected by doc_utils.py pattern matching) show
+        "Example" instead of "Default" to indicate values are illustrative.
+
         Args:
-            field_doc: Field documentation dictionary
-            model_name: Name of the containing model (for context)
+            field_doc: Field documentation dictionary with is_site_specific flag
         """
         nested_model = field_doc.get("nested_model")
 
@@ -516,20 +538,9 @@ class RSTGenerator:
                 return "Default", "None (optional)"
 
         # We have a non-None default value - format it
-        # Determine if this is a site/surface-specific model
-        # These models contain fields that vary by site or surface type
-        site_surface_models = {
-            "Site",
-            "SiteProperties",
-            "PavedProperties",
-            "BldgsProperties",
-            "EvetrProperties",
-            "DectrProperties",
-            "GrassProperties",
-            "BsoilProperties",
-            "WaterProperties",
-        }
-        is_site_specific = model_name in site_surface_models
+        # Use the is_site_specific flag from doc_utils.py extraction
+        # This provides field-level granularity based on pattern matching
+        is_site_specific = field_doc.get("is_site_specific", False)
 
         # Format the value for display
         if isinstance(default, (str, int, float, bool)):
@@ -1116,7 +1127,7 @@ class RSTGenerator:
             field_name = field["name"]
             if field_name == "ref":
                 continue
-            lines.append(f"{dropdown_indent}- :yaml:option:`{field_name}`")
+            lines.append(f"{dropdown_indent}- :input:option:`{field_name}`")
         lines.append("")
 
         return lines
@@ -1239,7 +1250,7 @@ class RSTGenerator:
             field_name = field["name"]
             if field_name == "ref":
                 continue
-            lines.append(f"{dropdown_indent}- :yaml:option:`{field_name}`")
+            lines.append(f"{dropdown_indent}- :input:option:`{field_name}`")
         lines.append("")
 
         return lines
@@ -1334,13 +1345,13 @@ class RSTGenerator:
                 field_name = (
                     field.get("name", field) if isinstance(field, dict) else field
                 )
-                lines.append(f"{indent}   * :yaml:option:`{field_name}`")
+                lines.append(f"{indent}   * :input:option:`{field_name}`")
         else:
             for field in filtered_fields:
                 field_name = (
                     field.get("name", field) if isinstance(field, dict) else field
                 )
-                lines.append(f"{indent}* :yaml:option:`{field_name}`")
+                lines.append(f"{indent}* :input:option:`{field_name}`")
 
         return lines
 
@@ -1387,13 +1398,13 @@ class RSTGenerator:
                 field_name = field["name"]
                 if field_name == "ref":
                     continue
-                lines.append(f"{indent}         * :yaml:option:`{field_name}`")
+                lines.append(f"{indent}         * :input:option:`{field_name}`")
         else:
             for field in fields:
                 field_name = field["name"]
                 if field_name == "ref":
                     continue
-                lines.append(f"{indent}      * :yaml:option:`{field_name}`")
+                lines.append(f"{indent}      * :input:option:`{field_name}`")
 
         lines.append("")
         return lines
@@ -1626,13 +1637,13 @@ class RSTGenerator:
                                 for field in tab_content:
                                     if field["name"] != "ref":
                                         lines.append(
-                                            f"{indent}         * :yaml:option:`{field['name']}`"
+                                            f"{indent}         * :input:option:`{field['name']}`"
                                         )
                             else:
                                 for field in tab_content:
                                     if field["name"] != "ref":
                                         lines.append(
-                                            f"{indent}      * :yaml:option:`{field['name']}`"
+                                            f"{indent}      * :input:option:`{field['name']}`"
                                         )
                             lines.append("")
                         else:
@@ -1692,13 +1703,13 @@ class RSTGenerator:
                                             for field in child_fields:
                                                 if field.get("name") != "ref":
                                                     lines.append(
-                                                        f"{indent}{next_level_indent}   - :yaml:option:`{field['name']}`"
+                                                        f"{indent}{next_level_indent}   - :input:option:`{field['name']}`"
                                                     )
                                         else:
                                             for field in child_fields:
                                                 if field.get("name") != "ref":
                                                     lines.append(
-                                                        f"{indent}{next_level_indent}* :yaml:option:`{field['name']}`"
+                                                        f"{indent}{next_level_indent}* :input:option:`{field['name']}`"
                                                     )
                                         lines.append("")
 
@@ -1741,14 +1752,14 @@ class RSTGenerator:
                                             for field in nested_fields:
                                                 if field.get("name") != "ref":
                                                     lines.append(
-                                                        f"{indent}{next_level_indent}     - :yaml:option:`{field['name']}`"
+                                                        f"{indent}{next_level_indent}     - :input:option:`{field['name']}`"
                                                     )
                                             lines.append("")
                                         elif nested_field_count > 0:
                                             for field in nested_fields:
                                                 if field.get("name") != "ref":
                                                     lines.append(
-                                                        f"{indent}{next_level_indent}  - :yaml:option:`{field['name']}`"
+                                                        f"{indent}{next_level_indent}  - :input:option:`{field['name']}`"
                                                     )
                                             lines.append("")
 

@@ -92,6 +92,11 @@ def main():
     extern char abort_message[ABORT_BUFFER_SIZE];
     void f90wrap_abort_(char *message, int len);
     void f90wrap_abort_int_handler(int signum);
+    void suews_stop_string(const char *message, int len);
+    void suews_stop_numeric(int code);
+    void _gfortran_stop_string(char *message, int len);
+    void _gfortran_stop_numeric(int code);
+    void for_stop_core(char *message, int len);
 
     #include <stdlib.h>
     #include <string.h>
@@ -113,6 +118,47 @@ def main():
       strncpy(abort_message, message, ABORT_BUFFER_SIZE);
       abort_message[ABORT_BUFFER_SIZE-1] = '\\0';
       longjmp(environment_buffer, 0);
+    }
+
+    /* Fortran STOP interception (GH-1035):
+       Convert STOP to a Python RuntimeError via longjmp. */
+    void suews_stop_string(const char *message, int len_message)
+    {
+      int n = len_message;
+      if (message == NULL || n <= 0) {
+        strncpy(abort_message, "Fortran STOP", ABORT_BUFFER_SIZE);
+        abort_message[ABORT_BUFFER_SIZE-1] = '\\0';
+      } else {
+        if (n >= ABORT_BUFFER_SIZE) n = ABORT_BUFFER_SIZE - 1;
+        memcpy(abort_message, message, n);
+        abort_message[n] = '\\0';
+      }
+      longjmp(environment_buffer, 1);
+    }
+
+    void suews_stop_numeric(int code)
+    {
+      (void)code; /* suppress unused warning */
+      strncpy(abort_message, "Fortran STOP (numeric)", ABORT_BUFFER_SIZE);
+      abort_message[ABORT_BUFFER_SIZE-1] = '\\0';
+      longjmp(environment_buffer, 1);
+    }
+
+    /* GNU Fortran STOP hooks */
+    void _gfortran_stop_string(char *message, int len_message)
+    {
+      suews_stop_string(message, len_message);
+    }
+
+    void _gfortran_stop_numeric(int code)
+    {
+      suews_stop_numeric(code);
+    }
+
+    /* Intel Fortran STOP hook */
+    void for_stop_core(char *message, int len_message)
+    {
+      suews_stop_string(message, len_message);
     }
 
 

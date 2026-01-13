@@ -99,7 +99,7 @@ jobs:
 
           echo.
           echo === Running STOP interception test ===
-          python test\umep\test_stop_interception.py
+          python test\core\test_build_symbols.py
 
       - name: Run PyQGIS error handling test
         shell: cmd

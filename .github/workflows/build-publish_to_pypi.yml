@@ -609,10 +609,10 @@ jobs:
           :: Note: dumpbin may not be available; use strings-like approach
           python -c "import supy._supy_driver as d; f=open(d.__file__,'rb'); data=f.read(); f.close(); syms=['suews_stop_string','suews_stop_numeric','_gfortran_stop_string','_gfortran_stop_numeric','f90wrap_abort_']; [print(f'  {s}: {\"FOUND\" if s.encode() in data else \"not found\"}') for s in syms]"
 
-          :: Run the dedicated test script
+          :: Run the dedicated test script (cross-platform, moved from test/umep/)
           echo.
           echo === Running STOP interception test ===
-          python test\umep\test_stop_interception.py
+          python test\core\test_build_symbols.py
 
       - name: Run PyQGIS error handling test
         if: inputs.qgis_test_only != true || steps.install_umep_fast.outputs.qgis_test_ready == 'true'

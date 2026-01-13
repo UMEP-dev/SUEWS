@@ -235,7 +235,7 @@ CONTAINS
          CALL ErrorHint(32, &
                         'Windspeed Ht too low relative to zdm [Stability calc]- values [z-zdm, zdm]', &
                         Zzd, zdm, notUsedI)
-         RETURN  ! Prevent LOG(negative) crash before Python can catch error
+         ! f90wrap_abort in ErrorHint triggers longjmp - execution never reaches here
       END IF
 
       UStar = KUZ/LOG(Zzd/z0m) ! Initial guess for UStar assuming neutral conditions — used only to seed the iteration

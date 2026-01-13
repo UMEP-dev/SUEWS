@@ -14,10 +14,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
+# Optional pytest import - allows standalone execution without pytest
+try:
+    import pytest
 
-# Mark as core test - runs with smoke and core tiers
-pytestmark = pytest.mark.core
+    # Mark as core test - runs with smoke and core tiers
+    pytestmark = pytest.mark.core
+except ImportError:
+    pytest = None  # type: ignore[assignment]
+    pytestmark = []
 
 
 def get_extension_path() -> Path | None:
@@ -93,14 +98,18 @@ def test_stop_symbols_present():
     """
     ext_path = get_extension_path()
     if ext_path is None:
-        pytest.skip("_supy_driver extension not found")
+        if pytest is not None:
+            pytest.skip("_supy_driver extension not found")
+        return
 
     print(f"\nExtension path: {ext_path}")
 
     symbols, tools_available = get_stop_symbols(ext_path)
 
     if not tools_available:
-        pytest.skip("Symbol inspection tools (nm/dumpbin) not available")
+        if pytest is not None:
+            pytest.skip("Symbol inspection tools (nm/dumpbin) not available")
+        return
 
     print("\nSTOP intercept symbols:")
     for sym, present in symbols.items():
@@ -112,12 +121,16 @@ def test_stop_symbols_present():
     missing = [sym for sym in critical_symbols if not symbols.get(sym, False)]
 
     if missing:
-        pytest.fail(
+        msg = (
             f"Critical STOP intercept symbols missing: {missing}\n"
             f"This indicates the vendored f90wrap with STOP handlers was not used during build.\n"
             f"Check that meson.build uses f2py-f90wrap-patched.py and that\n"
             f"src/supy/_vendor/f90wrap_src/f90wrap/__init__.py exists."
         )
+        if pytest is not None:
+            pytest.fail(msg)
+        else:
+            raise AssertionError(msg)
 
 
 def main():

@@ -73,8 +73,8 @@ def test_suews_error_in_qgis():
     df_state_init, df_forcing = sp.load_SampleData()
     df_state_test = copy.deepcopy(df_state_init)
 
-    # Modify state to trigger "Windspeed Ht too low" error
-    # z=5.0 with zdm=15.0 causes (z-zdm) < 0
+    # Modify state to trigger z < zdm error (invalid configuration)
+    # z=5.0 with zdm=15.0 causes (z-zdm) < 0, triggering kernel error
     df_state_test.loc[:, ("z", "0")] = 5.0
     df_state_test.loc[:, ("zdm_in", "0")] = 15.0
 
@@ -90,7 +90,12 @@ def test_suews_error_in_qgis():
         )
     except sp.SUEWSKernelError as e:
         error_caught = True
-        if "Windspeed Ht too low" not in str(e):
+        # Accept either error - both indicate z < zdm issue caught correctly
+        # - "Windspeed Ht too low" from stability calculation
+        # - "(z-zd) < 0" from roughness parameter calculation
+        error_str = str(e)
+        valid_errors = ["Windspeed Ht too low", "(z-zd) < 0"]
+        if not any(msg in error_str for msg in valid_errors):
             raise AssertionError(
                 f"Unexpected SUEWS error for z/zdm test: {e}"
             ) from e

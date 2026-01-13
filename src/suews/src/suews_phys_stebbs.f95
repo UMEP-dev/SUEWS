@@ -697,10 +697,12 @@ CONTAINS
       REAL(KIND(1D0)) :: n_layer_wall ! layers from spartacus to extract short and longwave radiation
       REAL(KIND(1D0)) :: n_layer_roof  ! layers from spartacus to extract short and longwave radiation    
       INTEGER :: iu !type of day: weekday/weekend
+      INTEGER :: idx !index of profiles for 10 mins interval
       ASSOCIATE ( &
          timestep => timer%tstep, &
          dt_start => timer%dt_since_start, &
          it => timer%it, &!hour of day
+         imin => timer%imin, & !minute of day
          dayofWeek_id => timer%dayofWeek_id, & !1 - day of week; 2 - month; 3 - season
          flagstate => modState%flagstate, &
          heatState => modState%heatState, &
@@ -829,10 +831,11 @@ CONTAINS
             iu = 1 !Set to 1=weekday
             IF (DayofWeek_id(1) == 1 .OR. DayofWeek_id(1) == 7) iu = 2 !Set to 2=weekend
             !select heating/cooling setpoint from prescribed schedules
-            buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature(it ,iu) + 273.15
-            buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature(it ,iu) + 273.15
-            buildings(1)%frac_occupants = building_archtype%OccupantsProfile(it ,iu)
-            buildings(1)%frac_appliance = building_archtype%ApplianceProfile(it ,iu)
+            idx = imin / 10 + 1 !for 10 minutes resolution
+            buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature(it, iu) + 273.15
+            buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature(it, iu) + 273.15
+            buildings(1)%frac_occupants = building_archtype%OccupantsProfile(it, iu)
+            buildings(1)%frac_appliance = building_archtype%ApplianceProfile(idx, iu)
             CALL setdatetime(datetimeLine)
 
             CALL suewsstebbscouple( &

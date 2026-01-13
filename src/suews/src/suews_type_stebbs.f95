@@ -73,7 +73,7 @@ module module_type_stebbs
       REAL(KIND(1D0)), DIMENSION(0:23, 2) :: HeatingSetpointTemperature = 0.0D0 ! Heating setpoint temperature [degC]
       REAL(KIND(1D0)), DIMENSION(0:23, 2) :: CoolingSetpointTemperature = 0.0D0 ! Cooling setpoint temperature [degC]
       REAL(KIND(1D0)), DIMENSION(0:23, 2) :: OccupantsProfile = 0.0D0 ! diurnal profiles of occupants presence
-      REAL(KIND(1D0)), DIMENSION(0:23, 2) :: ApplianceProfile = 0.0D0 ! diurnal profiles of appliance energy power
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: ApplianceProfile = 0.0D0 ! diurnal profiles of appliance energy power
       ! flag for iteration safety - YES - as we this should be updated every iteration
       LOGICAL :: iter_safe = .TRUE.
    END TYPE BUILDING_ARCHETYPE_PRM

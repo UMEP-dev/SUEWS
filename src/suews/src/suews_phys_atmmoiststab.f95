@@ -231,9 +231,12 @@ CONTAINS
       IF (debug) WRITE (*, *) StabilityMethod, z0m, avU1, H_init, UStar, L_MOD
       G_T_K = (Grav/(Temp_C + 273.16))*k !gravity constant/(Temperature*Von Karman Constant)
       KUZ = k*AvU1 !Von Karman constant*mean wind speed
-      IF (zzd < 0) CALL ErrorHint(32, &
-                                  'Windspeed Ht too low relative to zdm [Stability calc]- values [z-zdm, zdm]', &
-                                  Zzd, zdm, notUsedI)
+      IF (zzd < 0) THEN
+         CALL ErrorHint(32, &
+                        'Windspeed Ht too low relative to zdm [Stability calc]- values [z-zdm, zdm]', &
+                        Zzd, zdm, notUsedI)
+         RETURN  ! Prevent LOG(negative) crash before Python can catch error
+      END IF
 
       UStar = KUZ/LOG(Zzd/z0m) ! Initial guess for UStar assuming neutral conditions — used only to seed the iteration
 !       IF (ABS(H_init) < 0.001) THEN ! prevent zero TStar

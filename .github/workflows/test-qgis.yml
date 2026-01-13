@@ -89,6 +89,18 @@ jobs:
           :: Verify installation
           python -c "import supy; print(f'supy version: {supy.__version__}')"
 
+      - name: Inspect STOP intercept symbols in .pyd (GH-1035)
+        shell: cmd
+        run: |
+          call C:\OSGeo4W\bin\o4w_env.bat
+
+          echo === STOP Intercept Symbol Inspection ===
+          python -c "import supy._supy_driver as d; f=open(d.__file__,'rb'); data=f.read(); f.close(); syms=['suews_stop_string','suews_stop_numeric','_gfortran_stop_string','_gfortran_stop_numeric','f90wrap_abort_']; [print(f'  {s}: {\"FOUND\" if s.encode() in data else \"not found\"}') for s in syms]"
+
+          echo.
+          echo === Running STOP interception test ===
+          python test\umep\test_stop_interception.py
+
       - name: Run PyQGIS error handling test
         shell: cmd
         run: |

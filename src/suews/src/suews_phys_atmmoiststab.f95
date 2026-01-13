@@ -236,6 +236,8 @@ CONTAINS
                         'Windspeed Ht too low relative to zdm [Stability calc]- values [z-zdm, zdm]', &
                         Zzd, zdm, notUsedI)
          ! f90wrap_abort in ErrorHint triggers longjmp - execution never reaches here
+         ! RETURN added as safety net in case longjmp fails (e.g., Qt/QGIS context)
+         RETURN
       END IF
 
       UStar = KUZ/LOG(Zzd/z0m) ! Initial guess for UStar assuming neutral conditions — used only to seed the iteration

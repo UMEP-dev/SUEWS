@@ -171,4 +171,4 @@ How to support SUEWS?
    :hidden:
 
    community_publications
-   Community <https://suews.discourse.group/>
+   Community <https://community.suews.io>

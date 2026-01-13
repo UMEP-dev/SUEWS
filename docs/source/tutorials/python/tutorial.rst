@@ -104,8 +104,7 @@ Getting Help
 ------------
 
 **Community Resources:**
-- **Community**: `SUEWS community discussions <https://suews.discourse.group/>`__
-- **Mailing List**: `SUEWS community forum <https://www.lists.reading.ac.uk/mailman/listinfo/met-suews>`__
+- **Community**: `SUEWS community discussions <https://community.suews.io>`__
 - **Documentation**: :doc:`Complete API reference <../../inputs/yaml/index>`
 
 **Scientific Background:**

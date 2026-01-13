@@ -14,9 +14,9 @@ We welcome community contributions in the following areas:
 
 - **Bug Reports**: Open an issue on `GitHub Issues <https://github.com/UMEP-dev/SUEWS/issues>`_
 - **Documentation Improvements**: Click the "Suggest an edit" button at the top right of the page (the GitHub icon) and make your changes.
-- **Feature Requests**: Discuss ideas in the `SUEWS Community <https://suews.discourse.group/>`_
+- **Feature Requests**: Discuss ideas in the `SUEWS Community <https://community.suews.io>`_
 
-.. note:: If you are interested in contributing to the project, please start a discussion in the `SUEWS Community <https://suews.discourse.group/>`_ to share your ideas.
+.. note:: If you are interested in contributing to the project, please start a discussion in the `SUEWS Community <https://community.suews.io>`_ to share your ideas.
 
 Building SUEWS Locally
 ----------------------
@@ -34,6 +34,6 @@ Getting Help
 ------------
 
 - **Issues**: `GitHub Issues <https://github.com/UMEP-dev/SUEWS/issues>`_
-- **Discussions**: `SUEWS Community <https://suews.discourse.group/>`_
+- **Discussions**: `SUEWS Community <https://community.suews.io>`_
 - **Documentation**: `ReadTheDocs <https://suews.readthedocs.io>`_
 

@@ -47,10 +47,13 @@ def get_extension_path() -> Path | None:
         return None
 
 
-def get_stop_symbols_dumpbin(pyd_path: Path) -> dict[str, bool]:
+def get_stop_symbols_dumpbin(pyd_path: Path) -> tuple[dict[str, bool], bool]:
     """Check for STOP intercept symbols using dumpbin (Windows only).
 
-    Returns a dict mapping symbol name to whether it was found.
+    Returns:
+        tuple: (symbols_found dict, tools_available bool)
+            - symbols_found: dict mapping symbol name to whether it was found
+            - tools_available: True if dumpbin/nm was available for inspection
     """
     symbols_to_check = [
         "suews_stop_string",
@@ -63,8 +66,9 @@ def get_stop_symbols_dumpbin(pyd_path: Path) -> dict[str, bool]:
     found = {sym: False for sym in symbols_to_check}
 
     if not _IS_WINDOWS:
-        return found
+        return found, False
 
+    output = None
     try:
         # Try dumpbin (Visual Studio)
         result = subprocess.run(
@@ -86,37 +90,56 @@ def get_stop_symbols_dumpbin(pyd_path: Path) -> dict[str, bool]:
             output = result.stdout + result.stderr
         except (FileNotFoundError, subprocess.TimeoutExpired):
             print("WARNING: Neither dumpbin nor nm available for symbol inspection")
-            return found
+            return found, False
 
     for sym in symbols_to_check:
         if sym in output:
             found[sym] = True
 
-    return found
+    return found, True
 
 
 def test_stop_symbols_present():
-    """Verify STOP intercept symbols are present in the extension."""
+    """Verify STOP intercept symbols are present in the extension.
+
+    This test FAILS if:
+    - Symbol inspection tools are available AND critical symbols are missing
+
+    This test SKIPS if:
+    - Symbol inspection tools (dumpbin/nm) are not available
+
+    Critical symbols that must be present (from vendored f90wrap):
+    - suews_stop_string: Custom STOP handler
+    - suews_stop_numeric: Custom numeric STOP handler
+    - f90wrap_abort_: Error propagation handler
+    """
     pyd_path = get_extension_path()
     if pyd_path is None:
         pytest.skip("_supy_driver extension not found")
 
     print(f"\nExtension path: {pyd_path}")
 
-    symbols = get_stop_symbols_dumpbin(pyd_path)
+    symbols, tools_available = get_stop_symbols_dumpbin(pyd_path)
+
+    if not tools_available:
+        pytest.skip("Symbol inspection tools (dumpbin/nm) not available")
+
     print("\nSTOP intercept symbols:")
     for sym, found in symbols.items():
         status = "FOUND" if found else "MISSING"
         print(f"  {sym}: {status}")
 
-    # Core symbols that must be present
+    # Core symbols that must be present for QGIS compatibility
     critical_symbols = ["suews_stop_string", "suews_stop_numeric", "f90wrap_abort_"]
     missing = [sym for sym in critical_symbols if not symbols.get(sym, False)]
 
     if missing:
-        # Don't fail hard - dumpbin/nm may not be available
-        print(f"\nWARNING: Critical symbols not found: {missing}")
-        print("This may be due to missing dumpbin/nm tools or symbol stripping.")
+        pytest.fail(
+            f"Critical STOP intercept symbols missing: {missing}\n"
+            f"This indicates the vendored f90wrap with STOP handlers was not used during build.\n"
+            f"Check that meson.build uses f2py-f90wrap-patched.py and that\n"
+            f"src/supy/_vendor/f90wrap_src/f90wrap/__init__.py exists."
+        )
 
 
 def test_stop_interception_via_ctypes():
@@ -156,7 +179,13 @@ def test_stop_interception_via_ctypes():
 
 
 def inspect_extension_symbols():
-    """Print detailed symbol information for debugging."""
+    """Print detailed symbol information for debugging.
+
+    Returns exit code:
+    - 0: All critical symbols found OR tools not available (can't verify)
+    - 1: Extension not found
+    - 2: Tools available but critical symbols missing (BUILD ERROR)
+    """
     pyd_path = get_extension_path()
     if pyd_path is None:
         print("ERROR: _supy_driver extension not found")
@@ -168,22 +197,31 @@ def inspect_extension_symbols():
     print(f"\nExtension: {pyd_path}")
     print(f"Size: {pyd_path.stat().st_size:,} bytes")
 
-    symbols = get_stop_symbols_dumpbin(pyd_path)
+    symbols, tools_available = get_stop_symbols_dumpbin(pyd_path)
+
+    if not tools_available:
+        print("\nWARNING: Symbol inspection tools (dumpbin/nm) not available")
+        print("Cannot verify STOP intercept symbols - skipping check")
+        return 0
 
     print("\n--- STOP Intercept Symbols ---")
-    all_found = True
     for sym, found in symbols.items():
         status = "OK" if found else "MISSING"
         print(f"  [{status}] {sym}")
-        if not found:
-            all_found = False
 
-    if all_found:
-        print("\nSUCCESS: All STOP intercept symbols found!")
-        return 0
-    else:
-        print("\nWARNING: Some symbols missing (may be due to tooling)")
-        return 0  # Don't fail - tooling may not be available
+    # Check critical symbols
+    critical_symbols = ["suews_stop_string", "suews_stop_numeric", "f90wrap_abort_"]
+    missing = [sym for sym in critical_symbols if not symbols.get(sym, False)]
+
+    if missing:
+        print(f"\nERROR: Critical STOP intercept symbols missing: {missing}")
+        print("This indicates the vendored f90wrap was NOT used during build!")
+        print("Check: meson.build should use f2py-f90wrap-patched.py")
+        print("Check: src/supy/_vendor/f90wrap_src/f90wrap/__init__.py must exist")
+        return 2  # Build error - fail CI
+
+    print("\nSUCCESS: All critical STOP intercept symbols found!")
+    return 0
 
 
 def main():

@@ -1,5 +1,5 @@
 import yaml
-from typing import Optional, Union, List
+from typing import Optional, Union, List, Any
 import numpy as np
 from pydantic import ConfigDict, BaseModel, Field, field_validator, model_validator
 import pandas as pd
@@ -8,6 +8,16 @@ import inspect
 
 from .type import RefValue, Reference, FlexibleRefValue
 from .type import init_df_state
+from .physics_options import (
+    NetRadiationMethodConfig,
+    RadiationPhysics,
+    LongwaveSource,
+    NETRAD_MAPPER,
+    EmissionsMethodConfig,
+    BiogenicModel,
+    QFMethod,
+    EMISSIONS_MAPPER,
+)
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -69,6 +79,192 @@ def _enum_description(enum_class: type[Enum]) -> str:
             return f"{summary} Options: {options_text}"
 
     return summary
+
+
+def _coerce_enum_value(
+    v: Any, enum_class: type[Enum], aliases: Optional[dict[str, str]] = None
+) -> Any:
+    """Coerce string or dict input to enum value (case-insensitive).
+
+    Supports:
+    - Enum member: returns as-is
+    - Integer: returns as-is (Pydantic handles)
+    - String: case-insensitive lookup by member name or alias
+    - Dict with 'value' key: extracts and processes the value
+
+    Parameters
+    ----------
+    v : Any
+        Input value to coerce
+    enum_class : type[Enum]
+        Target enum class for lookup
+    aliases : dict[str, str], optional
+        Short alias → member name mapping (case-insensitive)
+
+    Returns
+    -------
+    Any
+        Coerced value suitable for Pydantic validation
+    """
+    if v is None or isinstance(v, enum_class):
+        return v
+
+    # Handle dict with 'value' key
+    if isinstance(v, dict) and "value" in v:
+        v = v["value"]
+
+    # Handle string (case-insensitive lookup by alias, then member name)
+    if isinstance(v, str):
+        v_upper = v.upper()
+
+        # Check aliases first
+        if aliases:
+            for alias, member_name in aliases.items():
+                if alias.upper() == v_upper:
+                    return enum_class[member_name]
+
+        # Then check member names
+        for member in enum_class:
+            if member.name.upper() == v_upper:
+                return member
+        # If no match, let Pydantic handle (will raise appropriate error)
+
+    return v
+
+
+# =============================================================================
+# Physics Option Aliases
+# =============================================================================
+#
+# Naming Convention for Physics Options
+# -------------------------------------
+# Physics options support multiple input formats for flexibility:
+#
+# 1. NUMERIC CODES (legacy, still supported)
+#    - Integer values matching Fortran interface
+#    - Example: storageheatmethod: 1
+#
+# 2. EXPLICIT MODEL NAMES (preferred for named models)
+#    - Use the established model acronym in lowercase
+#    - Examples:
+#      - ohm: Objective Hysteresis Model
+#      - anohm: Analytical OHM
+#      - estm: Element Surface Temperature Method
+#      - ehc: Explicit Heat Conduction
+#      - dyohm: Dynamic OHM
+#      - narp: Net All-wave Radiation Parameterization
+#      - most: Monin-Obukhov Similarity Theory
+#      - rst: Roughness Sublayer Theory
+#
+# 3. AUTHOR-YEAR FORMAT (Xyy) for methods without model names
+#    - Format: First letter of first author surname + two-digit year
+#    - Case-insensitive (K09, k09, K09 all work)
+#    - Examples:
+#      - K09: Kawai et al. 2009 (thermal roughness)
+#      - CN98: Campbell & Norman 1998 (stability functions)
+#      - W16: Ward et al. 2016 (stomatal conductance)
+#      - J11: Järvi et al. 2011 (stomatal conductance, QF)
+#      - B82: Brutsaert 1982 (thermal roughness)
+#      - M98: MacDonald et al. 1998 (momentum roughness)
+#      - GO99: Grimmond & Oke 1999 (roughness length)
+#
+# 4. GENERIC DESCRIPTIVE TERMS (for simple choices)
+#    - fixed, variable, auto: method selection
+#    - model, obs: modelled vs observed
+#    - provided, calc: use input vs calculate
+#
+# 5. BINARY OPTIONS (yes/no)
+#    - ohmincqf: yes/no (include QF in OHM)
+#    - snowuse: yes/no (enable snow module)
+#
+# All string inputs are case-insensitive.
+# =============================================================================
+
+# Maps short alias → enum member name
+STORAGE_HEAT_ALIASES = {
+    "obs": "OBSERVED",
+    "ohm": "OHM_WITHOUT_QF",
+    "anohm": "ANOHM",  # Analytical OHM
+    "estm": "ESTM",  # Element Surface Temperature Method
+    "ehc": "EHC",  # Explicit Heat Conduction
+    "dyohm": "DyOHM",  # Dynamic OHM
+    "stebbs": "STEBBS",
+}
+
+OHM_INC_QF_ALIASES = {
+    "no": "EXCLUDE",
+    "yes": "INCLUDE",
+}
+
+ROUGHLEN_MOM_ALIASES = {
+    "fixed": "FIXED",
+    "variable": "VARIABLE",
+    "M98": "MACDONALD",  # MacDonald et al. 1998
+    "GO99": "LAMBDAP_DEPENDENT",  # Grimmond & Oke 1999
+}
+
+ROUGHLEN_HEAT_ALIASES = {
+    "B82": "BRUTSAERT",  # Brutsaert 1982
+    "K09": "KAWAI",  # Kawai et al. 2009
+    "K07": "KANDA",  # Kanda et al. 2007
+    "auto": "ADAPTIVE",
+}
+
+STABILITY_ALIASES = {
+    "H88": "HOEGSTROM",  # Högström 1988
+    "CN98": "CAMPBELL_NORMAN",  # Campbell & Norman 1998
+    "B71": "BUSINGER_HOEGSTROM",  # Businger et al. 1971
+}
+
+SMD_ALIASES = {
+    "model": "MODELLED",
+    "obs_vol": "OBSERVED_VOLUMETRIC",
+    "obs_grav": "OBSERVED_GRAVIMETRIC",
+}
+
+WATER_USE_ALIASES = {
+    "model": "MODELLED",
+    "obs": "OBSERVED",
+}
+
+RSL_ALIASES = {
+    "most": "MOST",
+    "rst": "RST",
+    "auto": "VARIABLE",
+}
+
+FAI_ALIASES = {
+    "provided": "USE_PROVIDED",
+    "calc": "SIMPLE_SCHEME",
+}
+
+RSL_LEVEL_ALIASES = {
+    "off": "NONE",
+    "basic": "BASIC",
+    "full": "DETAILED",
+}
+
+GS_MODEL_ALIASES = {
+    "J11": "JARVI",  # Järvi et al. 2011
+    "W16": "WARD",  # Ward et al. 2016
+}
+
+SNOW_USE_ALIASES = {
+    "no": "DISABLED",
+    "yes": "ENABLED",
+}
+
+STEBBS_ALIASES = {
+    "off": "NONE",
+    "default": "DEFAULT",
+    "custom": "PROVIDED",
+}
+
+RC_ALIASES = {
+    "off": "NONE",
+    "basic": "BASIC",
+    "full": "DETAILED",
+}
 
 
 class EmissionsMethod(Enum):
@@ -173,6 +369,37 @@ class NetRadiationMethod(Enum):
 
     def __repr__(self):
         return str(self.value)
+
+    @property
+    def model(self) -> str:
+        """Return model dimension: obs, narp, or spartacus.
+
+        Returns
+        -------
+        str
+            'obs' for observed, 'narp' for NARP, 'spartacus' for SPARTACUS
+        """
+        if self.value == 0:
+            return "obs"
+        elif self.value >= 1000:
+            return "spartacus"
+        else:
+            return "narp"
+
+    @property
+    def ldown(self) -> Optional[str]:
+        """Return ldown dimension: obs, cloud, air, or None.
+
+        Returns
+        -------
+        str or None
+            L↓ source, or None for observed model
+        """
+        if self.value == 0:
+            return None
+        # Extract last digit for ldown code
+        lw_code = self.value % 10
+        return {1: "obs", 2: "cloud", 3: "air"}.get(lw_code)
 
 
 class StorageHeatMethod(Enum):
@@ -557,16 +784,97 @@ class ModelPhysics(BaseModel):
 
     model_config = ConfigDict(title="Physics Methods")
 
-    netradiationmethod: FlexibleRefValue(NetRadiationMethod) = Field(
-        default=NetRadiationMethod.LDOWN_AIR,
-        description=_enum_description(NetRadiationMethod),
+    netradiationmethod: NetRadiationMethodConfig = Field(
+        default_factory=lambda: NetRadiationMethodConfig(
+            scheme=RadiationPhysics.NARP, ldown=LongwaveSource.AIR
+        ),
+        description=(
+            "Method for calculating net all-wave radiation (Q*). "
+            "Uses orthogonal dimensions: scheme (obs/narp/spartacus) and "
+            "ldown source (obs/cloud/air). See nested structure for details."
+        ),
         json_schema_extra={"unit": "dimensionless"},
     )
-    emissionsmethod: FlexibleRefValue(EmissionsMethod) = Field(
-        default=EmissionsMethod.J11,
-        description=_enum_description(EmissionsMethod),
+
+    @field_validator("netradiationmethod", mode="before")
+    @classmethod
+    def coerce_netradiationmethod(cls, v: Any) -> Any:
+        """Accept legacy and dimension-based forms for netradiationmethod.
+
+        Accepted forms:
+        - Dimension-based: {"scheme": "narp", "ldown": "air"}
+        - Legacy RefValue: {"value": 3}
+        - Plain integer: 3
+        - Enum member: NetRadiationMethod.LDOWN_AIR
+        - Already a NetRadiationMethodConfig instance
+        """
+        if v is None or isinstance(v, NetRadiationMethodConfig):
+            return v
+
+        # Dimension-based form: {scheme: narp, ldown: air}
+        if isinstance(v, dict):
+            if "scheme" in v:
+                return v  # Pass to Pydantic for validation
+
+            # Legacy form: {value: N}
+            if "value" in v:
+                code = int(v["value"])
+                scheme_val, ldown_val = NETRAD_MAPPER.from_code(code)
+                result: dict[str, Any] = {"scheme": scheme_val}
+                if ldown_val:
+                    result["ldown"] = ldown_val
+                return result
+
+        # Plain int or enum
+        code = v.value if isinstance(v, Enum) else int(v)
+        scheme_val, ldown_val = NETRAD_MAPPER.from_code(code)
+        result = {"scheme": scheme_val}
+        if ldown_val:
+            result["ldown"] = ldown_val
+        return result
+
+    emissionsmethod: EmissionsMethodConfig = Field(
+        default_factory=lambda: EmissionsMethodConfig(
+            heat=QFMethod.J11, co2=BiogenicModel.NONE
+        ),
+        description=(
+            "Method for calculating anthropogenic heat flux and CO2 emissions. "
+            "Uses orthogonal dimensions: heat (obs/L11/J11/L11_updated/J19/J19_updated) "
+            "and co2 (none/rectangular/non_rectangular/conductance). See nested structure for details."
+        ),
         json_schema_extra={"unit": "dimensionless"},
     )
+
+    @field_validator("emissionsmethod", mode="before")
+    @classmethod
+    def coerce_emissionsmethod(cls, v: Any) -> Any:
+        """Accept legacy and dimension-based forms for emissionsmethod.
+
+        Accepted forms:
+        - Dimension-based: {"heat": "L11", "co2": "none"}
+        - Legacy RefValue: {"value": 1}
+        - Plain integer: 1
+        - Already an EmissionsMethodConfig instance
+        """
+        if v is None or isinstance(v, EmissionsMethodConfig):
+            return v
+
+        # Dimension-based form: {heat: L11, co2: none}
+        if isinstance(v, dict):
+            if "heat" in v or "co2" in v:
+                return v  # Pass to Pydantic for validation
+
+            # Legacy form: {value: N}
+            if "value" in v:
+                code = int(v["value"])
+                co2_val, heat_val = EMISSIONS_MAPPER.from_code(code)
+                return {"heat": heat_val, "co2": co2_val}
+
+        # Plain int
+        code = int(v)
+        co2_val, heat_val = EMISSIONS_MAPPER.from_code(code)
+        return {"heat": heat_val, "co2": co2_val}
+
     storageheatmethod: FlexibleRefValue(StorageHeatMethod) = Field(
         default=StorageHeatMethod.OHM_WITHOUT_QF,
         description=_enum_description(StorageHeatMethod),
@@ -657,6 +965,91 @@ class ModelPhysics(BaseModel):
     )
     ref: Optional[Reference] = None
 
+    # Validators for case-insensitive string name support (with short aliases)
+    @field_validator("storageheatmethod", mode="before")
+    @classmethod
+    def coerce_storageheatmethod(cls, v: Any) -> Any:
+        """Accept string names and short aliases for storageheatmethod."""
+        return _coerce_enum_value(v, StorageHeatMethod, STORAGE_HEAT_ALIASES)
+
+    @field_validator("ohmincqf", mode="before")
+    @classmethod
+    def coerce_ohmincqf(cls, v: Any) -> Any:
+        """Accept string names and short aliases (yes/no) for ohmincqf."""
+        return _coerce_enum_value(v, OhmIncQf, OHM_INC_QF_ALIASES)
+
+    @field_validator("roughlenmommethod", mode="before")
+    @classmethod
+    def coerce_roughlenmommethod(cls, v: Any) -> Any:
+        """Accept string names and short aliases for roughlenmommethod."""
+        return _coerce_enum_value(v, MomentumRoughnessMethod, ROUGHLEN_MOM_ALIASES)
+
+    @field_validator("roughlenheatmethod", mode="before")
+    @classmethod
+    def coerce_roughlenheatmethod(cls, v: Any) -> Any:
+        """Accept string names and short aliases for roughlenheatmethod."""
+        return _coerce_enum_value(v, HeatRoughnessMethod, ROUGHLEN_HEAT_ALIASES)
+
+    @field_validator("stabilitymethod", mode="before")
+    @classmethod
+    def coerce_stabilitymethod(cls, v: Any) -> Any:
+        """Accept string names and short aliases for stabilitymethod."""
+        return _coerce_enum_value(v, StabilityMethod, STABILITY_ALIASES)
+
+    @field_validator("smdmethod", mode="before")
+    @classmethod
+    def coerce_smdmethod(cls, v: Any) -> Any:
+        """Accept string names and short aliases for smdmethod."""
+        return _coerce_enum_value(v, SMDMethod, SMD_ALIASES)
+
+    @field_validator("waterusemethod", mode="before")
+    @classmethod
+    def coerce_waterusemethod(cls, v: Any) -> Any:
+        """Accept string names and short aliases for waterusemethod."""
+        return _coerce_enum_value(v, WaterUseMethod, WATER_USE_ALIASES)
+
+    @field_validator("rslmethod", mode="before")
+    @classmethod
+    def coerce_rslmethod(cls, v: Any) -> Any:
+        """Accept string names and short aliases for rslmethod."""
+        return _coerce_enum_value(v, RSLMethod, RSL_ALIASES)
+
+    @field_validator("faimethod", mode="before")
+    @classmethod
+    def coerce_faimethod(cls, v: Any) -> Any:
+        """Accept string names and short aliases for faimethod."""
+        return _coerce_enum_value(v, FAIMethod, FAI_ALIASES)
+
+    @field_validator("rsllevel", mode="before")
+    @classmethod
+    def coerce_rsllevel(cls, v: Any) -> Any:
+        """Accept string names and short aliases for rsllevel."""
+        return _coerce_enum_value(v, RSLLevel, RSL_LEVEL_ALIASES)
+
+    @field_validator("gsmodel", mode="before")
+    @classmethod
+    def coerce_gsmodel(cls, v: Any) -> Any:
+        """Accept string names and short aliases for gsmodel."""
+        return _coerce_enum_value(v, GSModel, GS_MODEL_ALIASES)
+
+    @field_validator("snowuse", mode="before")
+    @classmethod
+    def coerce_snowuse(cls, v: Any) -> Any:
+        """Accept string names and short aliases (yes/no) for snowuse."""
+        return _coerce_enum_value(v, SnowUse, SNOW_USE_ALIASES)
+
+    @field_validator("stebbsmethod", mode="before")
+    @classmethod
+    def coerce_stebbsmethod(cls, v: Any) -> Any:
+        """Accept string names and short aliases for stebbsmethod."""
+        return _coerce_enum_value(v, StebbsMethod, STEBBS_ALIASES)
+
+    @field_validator("rcmethod", mode="before")
+    @classmethod
+    def coerce_rcmethod(cls, v: Any) -> Any:
+        """Accept string names and short aliases for rcmethod."""
+        return _coerce_enum_value(v, RCMethod, RC_ALIASES)
+
     # We then need to set to 0 (or None) all the CO2-related parameters or rules
     # in the code and return them accordingly in the yml file.
 
@@ -665,12 +1058,17 @@ class ModelPhysics(BaseModel):
         df_state = init_df_state(grid_id)
 
         # Helper function to set values in DataFrame
-        def set_df_value(col_name: str, value: float):
+        def set_df_value(col_name: str, value: Any):
             idx_str = "0"
             if (col_name, idx_str) not in df_state.columns:
-                # df_state[(col_name, idx_str)] = np.nan
                 df_state[(col_name, idx_str)] = None
-            val = value.value if isinstance(value, RefValue) else value
+            # Handle different value types
+            if isinstance(value, NetRadiationMethodConfig):
+                val = value.int_value
+            elif isinstance(value, RefValue):
+                val = value.value
+            else:
+                val = value
             df_state.at[grid_id, (col_name, idx_str)] = int(val)
 
         list_attr = [
@@ -731,7 +1129,14 @@ class ModelPhysics(BaseModel):
 
         for attr in list_attr:
             try:
-                properties[attr] = RefValue(int(df.loc[grid_id, (attr, "0")]))
+                int_val = int(df.loc[grid_id, (attr, "0")])
+                # Handle dimensional config methods specially
+                if attr == "netradiationmethod":
+                    properties[attr] = NetRadiationMethodConfig.from_code(int_val)
+                elif attr == "emissionsmethod":
+                    properties[attr] = EmissionsMethodConfig.from_code(int_val)
+                else:
+                    properties[attr] = RefValue(int_val)
             except KeyError:
                 raise ValueError(f"Missing attribute '{attr}' in the DataFrame")
 

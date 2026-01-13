@@ -23,17 +23,32 @@ SUEWS-specific Python conventions. Complements ruff for standard linting.
 
 ## Critical Rules
 
-1. **Config separation**: No config objects in low-level functions
+1. **Python 3.9 compatibility**: Use `Optional[X]` not `X | None` for union types
+   ```python
+   from typing import Optional, Union
+
+   # BAD: PEP 604 syntax requires Python 3.10+
+   def foo(x: str | None = None): ...
+   def bar(items: list[int] | None): ...
+
+   # GOOD: Works on Python 3.9+
+   def foo(x: Optional[str] = None): ...
+   def bar(items: Optional[list[int]]): ...
+   ```
+   **Why**: PEP 604 union syntax (`X | Y`) requires Python 3.10+. Pydantic evaluates
+   type hints at runtime, so `from __future__ import annotations` is not a safe workaround.
+
+2. **Config separation**: No config objects in low-level functions
    ```python
    # BAD: def save_supy(df_output, config): ...
    # GOOD: def save_supy(df_output, freq_s: int = 3600): ...
    ```
 
-2. **Deep copy**: Use `copy.deepcopy()` for mutable state
+3. **Deep copy**: Use `copy.deepcopy()` for mutable state
 
-3. **Logging**: Use `logger_supy` not `print()`
+4. **Logging**: Use `logger_supy` not `print()`
 
-4. **pathlib**: Use `Path` not `os.path`
+5. **pathlib**: Use `Path` not `os.path`
 
 ---
 

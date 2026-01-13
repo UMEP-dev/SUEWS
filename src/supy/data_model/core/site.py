@@ -1613,27 +1613,25 @@ class ArchetypeProperties(BaseModel):
         json_schema_extra={"unit": "W", "display_name": "Maximum Hot Water Heating Power"},
         gt=0.0,
     )
-    HeatingSetpointTemperature: Optional[HourlyProfile] = Field(
-        default_factory=HourlyProfile,  
-        description="Heating setpoint temperature [degC] or a profile.",
+    HeatingSetpointTemperature: Optional[TenMinuteProfile] = Field(
+        default_factory=TenMinuteProfile,  
+        description="Heating setpoint temperature [degC] profile.",
         json_schema_extra={
             "unit": "degC",
             "display_name": "Heating Setpoint Temperature",
-            "note": "Can be a scalar or a profile."
         },
     )
-    CoolingSetpointTemperature: Optional[HourlyProfile] = Field(
-        default_factory=HourlyProfile, 
-        description="Cooling setpoint temperature [degC] or a profile.",
+    CoolingSetpointTemperature: Optional[TenMinuteProfile] = Field(
+        default_factory=TenMinuteProfile, 
+        description="Cooling setpoint temperature [degC] profile.",
         json_schema_extra={
             "unit": "degC",
             "display_name": "Cooling Setpoint Temperature",
-            "note": "Can be a scalar or a profile."
         },
     )
 
-    OccupantsProfile: Optional[HourlyProfile] = Field(
-        default_factory=HourlyProfile,
+    OccupantsProfile: Optional[TenMinuteProfile] = Field(
+        default_factory=TenMinuteProfile,
         description="Profile of number of occupants in building [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1647,8 +1645,8 @@ class ArchetypeProperties(BaseModel):
         df_state = init_df_state(grid_id)
 
         string_fields = {"BuildingType", "BuildingName"}
-        hourly_profile_fields = {"HeatingSetpointTemperature", "CoolingSetpointTemperature", "OccupantsProfile"}
-        excluded_fields = string_fields | hourly_profile_fields | {"ref"}
+        ten_minute_profile_fields = {"HeatingSetpointTemperature", "CoolingSetpointTemperature", "OccupantsProfile"}
+        excluded_fields = string_fields | ten_minute_profile_fields | {"ref"}
 
         for field_name in self.model_fields:
             if field_name in excluded_fields:
@@ -1661,7 +1659,7 @@ class ArchetypeProperties(BaseModel):
             value = getattr(self, field_name)
             df_state.loc[grid_id, (field_name.lower(), "0")] = value
 
-        for field_name in hourly_profile_fields:
+        for field_name in ten_minute_profile_fields:
             profile = getattr(self, field_name)
             if profile is None:
                 continue
@@ -1673,7 +1671,7 @@ class ArchetypeProperties(BaseModel):
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ArchetypeProperties":
         string_fields = {"BuildingType", "BuildingName"}
-        hourly_profile_fields = {"HeatingSetpointTemperature", "CoolingSetpointTemperature", "OccupantsProfile"}
+        ten_minute_profile_fields = {"HeatingSetpointTemperature", "CoolingSetpointTemperature", "OccupantsProfile"}
 
         default_instance = cls()
         params: Dict[str, object] = {}
@@ -1695,11 +1693,11 @@ class ArchetypeProperties(BaseModel):
                     params[field_name] = getattr(default_instance, field_name)
                 continue
 
-            if field_name in hourly_profile_fields:
+            if field_name in ten_minute_profile_fields:
                 has_profile_columns = any(col[0] == field_name.lower() for col in df.columns)
                 if has_profile_columns:
                     try:
-                        params[field_name] = HourlyProfile.from_df_state(
+                        params[field_name] = TenMinuteProfile.from_df_state(
                             df, grid_id, field_name.lower()
                         )
                     except KeyError:

@@ -1664,6 +1664,7 @@ CONTAINS
             zenith_deg => solarstate%zenith_deg, &
             qf => heatState%qf, &
             qn => heatState%qn, &
+            qn_surf => heatState%qn_surf, &
             qs => heatState%qs, &
             ldown => heatState%ldown, &
             tsfc_roof => heatState%tsfc_roof, &
@@ -1938,8 +1939,10 @@ CONTAINS
                ELSEIF (StorageHeatMethod == 1 .OR. StorageHeatMethod == 6 .OR. StorageHeatMethod == 7) THEN !Use OHM to calculate QS
                   Tair_mav_5d = HDD_id(10)
                   IF (Diagnose == 1) WRITE (*, *) 'Calling OHM...'
-                  CALL OHM(qn_use, ohmState%qn_av, ohmState%dqndt, &
+                  CALL OHM(qn_use, qn_surf, ohmState%qn_av, ohmState%dqndt, &
                            ohmState%qn_av, ohmState%dqndt, &
+                           ohmState%qn_surfs, ohmState%dqndt_surf, &
+                           ohmState%qn_surfs, ohmState%dqndt_surf, &
                            qn_snow, ohmState%qn_s_av, ohmState%dqnsdt, &
                            ohmState%qn_s_av, ohmState%dqnsdt, &
                            tstep, dt_since_start, &
@@ -1964,9 +1967,9 @@ CONTAINS
                            a1_grass, a2_grass, a3_grass, &
                            a1_bsoil, a2_bsoil, a3_bsoil, &
                            a1_water, a2_water, a3_water, &
-                           a1, a2, a3, qs, deltaQi, &
+                           a1, a2, a3, qs, qs_surf, deltaQi, &
                            modState)
-                  QS_surf = qs
+                  !QS_surf = qs
                   QS_roof = qs
                   QS_wall = qs
 
@@ -2049,6 +2052,7 @@ CONTAINS
                      dataOutLineSTEBBS) ! output
                   IF (StorageHeatMethod == 7) THEN
                      qs = qs + QS_stebbs * sfr_surf(2)
+                     QS_surf(2) = QS_stebbs
                   END IF
                END IF
 
@@ -3418,9 +3422,11 @@ CONTAINS
             QmFreez => snowState%QmFreez, &
             QmRain => snowState%QmRain, &
             qn => heatState%qn, &
+            qn_surf => heatState%qn_surf, &
             qn_snow => snowState%qn_snow, &
             qn_snowfree => heatState%qn_snowfree, &
             qs => heatState%qs, &
+            qs_surf => heatState%qs_surf, &
             RA => atmState%RA_h, &
             RS => atmState%RS, &
             RH2 => atmState%RH2, &
@@ -3504,8 +3510,8 @@ CONTAINS
                                qn_snowfree, qn_snow, SnowAlb, &
                                Qm, QmFreez, QmRain, swe, mwh, MwStore, chSnow_per_interval, &
                                SnowRemoval(1:2), &
-                               tsfc_C, t2_C, q2_gkg, avU10_ms, RH2_pct, Tsfc_surf, Tsfc_surf_dyohm & ! surface-level diagonostics
-                               ]
+                               tsfc_C, t2_C, q2_gkg, avU10_ms, RH2_pct, Tsfc_surf, Tsfc_surf_dyohm, & ! surface-level diagonostics
+                               qn_surf, qs_surf]
             ! set invalid values to NAN
             ! dataOutLineSUEWS = set_nan(dataOutLineSUEWS)
 
@@ -3833,7 +3839,7 @@ CONTAINS
       beta_bioCO2, beta_enh_bioCO2, bldgH, CapMax_dec, CapMin_dec, &
       chAnOHM, CO2PointSource, cpAnOHM, CRWmax, CRWmin, DayWat, DayWatPer, &
       DecTreeH, RSLMethod, Diagnose, DRAINRT, &
-      dt_since_start, dqndt, qn_av, dqnsdt, qn_s_av, &
+      dt_since_start, dqndt, qn_av, dqndt_surf, qn_surfs, dqnsdt, qn_s_av, &
       EF_umolCO2perJ, emis, EmissionsMethod, EnEF_v_Jkm, endDLS, EveTreeH, FAIBldg, &
       FAIDecTree, FAIEveTree, FAIMethod, Faut, FcEF_v_kgkm, FlowChange, &
       FrFossilFuel_Heat, FrFossilFuel_NonHeat, G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, GDD_id, &
@@ -4224,7 +4230,9 @@ CONTAINS
       ! ---OHM related states
       TYPE(OHM_STATE) :: ohmState
       REAL(KIND(1D0)), INTENT(INOUT) :: qn_av ! weighted average of net all-wave radiation [W m-2]
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(INOUT) :: qn_surfs ! weighted average of net all-wave radiation [W m-2]
       REAL(KIND(1D0)), INTENT(INOUT) :: dqndt ! rate of change of net radiation [W m-2 h-1]
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(INOUT) :: dqndt_surf ! rate of change of net radiation [W m-2 h-1]
       REAL(KIND(1D0)), INTENT(INOUT) :: qn_s_av ! weighted average of qn over snow [W m-2]
       REAL(KIND(1D0)), INTENT(INOUT) :: dqnsdt ! Rate of change of net radiation [W m-2 h-1]
 
@@ -4232,7 +4240,7 @@ CONTAINS
       REAL(KIND(1D0)) :: t2_prev ! previous day midnight air temperature [degC]
       REAL(KIND(1D0)) :: ws_rav ! running average of wind speed [m s-1]
       REAL(KIND(1D0)) :: tair_prev
-      REAL(KIND(1D0)) :: qn_rav ! running average of net radiation [W m-2]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: qn_rav ! running average of net radiation of each surface [W m-2]
       REAL(KIND(1D0)) :: a1_bldg ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)) :: a2_bldg ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)) :: a3_bldg ! Dynamic OHM coefficients of buildings
@@ -5095,7 +5103,9 @@ CONTAINS
 
       ! OHM related:
       ohmState%qn_av = qn_av
+      ohmState%qn_surfs = qn_surfs
       ohmState%dqndt = dqndt
+      ohmState%dqndt_surf = dqndt_surf
       ohmState%qn_s_av = qn_s_av
       ohmState%dqnsdt = dqnsdt
 
@@ -5436,6 +5446,8 @@ CONTAINS
 
       qn_av = ohmState%qn_av
       dqndt = ohmState%dqndt
+      qn_surfs = ohmState%qn_surfs
+      dqndt_surf = ohmState%dqndt_surf
       qn_s_av = ohmState%qn_s_av
       dqnsdt = ohmState%dqnsdt
 

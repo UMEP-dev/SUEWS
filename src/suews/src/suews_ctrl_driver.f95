@@ -4286,9 +4286,9 @@ CONTAINS
       REAL(KIND(1D0)) :: MaxHeatingPower
       REAL(KIND(1D0)) :: WaterTankWaterVolume
       REAL(KIND(1D0)) :: MaximumHotWaterHeatingPower
-      REAL(KIND(1D0)), DIMENSION(0:23, 2) :: HeatingSetpointTemperature ! Heating setpoint diurnal profiles for weekday and weekend
-      REAL(KIND(1D0)), DIMENSION(0:23, 2) :: CoolingSetpointTemperature ! Cooling setpoint diurnal profiles for weekday and weekend
-      REAL(KIND(1D0)), DIMENSION(0:23, 2) :: OccupantsProfile
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: HeatingSetpointTemperature ! Heating setpoint diurnal profiles for weekday and weekend
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: CoolingSetpointTemperature ! Cooling setpoint diurnal profiles for weekday and weekend
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: OccupantsProfile
       REAL(KIND(1D0)), DIMENSION(0:143, 2) ::ApplianceProfile
       TYPE(STEBBS_PRM) :: stebbsPrm
 

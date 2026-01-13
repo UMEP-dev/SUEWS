@@ -72,6 +72,12 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
 
    IMPLICIT NONE
 
+   ! External declaration for f90wrap abort handler (GH-1035)
+   ! This triggers longjmp back to Python, raising RuntimeError
+   ! Defined in vendored f90wrap C wrapper (f2py_f90wrap.py)
+   ! Note: gfortran adds underscore, so f90wrap_abort -> f90wrap_abort_
+   EXTERNAL :: f90wrap_abort
+
    REAL(KIND(1D0)) :: VALUE, value2
 
    CHARACTER(len=*) :: ProblemFile ! Name of the problem file
@@ -436,10 +442,13 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
       IF (LEN_TRIM(Errmessage) > 0) WRITE (*, *) TRIM(Errmessage)
       WRITE (*, '(a,i3)') ' Error code: ', errh
 
-      ! Set error state for Python/SuPy interface instead of STOP
-      ! This allows Python to detect the error and raise an exception
+      ! Set error state for Python/SuPy interface
       CALL set_supy_error(errh, TRIM(text1)//': '//TRIM(ProblemFile))
-      RETURN
+
+      ! Trigger longjmp back to Python via f90wrap abort handler (GH-1035)
+      ! This jumps directly to the C wrapper, skipping the entire Fortran call stack
+      ! The C wrapper then raises Python RuntimeError
+      CALL f90wrap_abort(TRIM(StopMessage), LEN_TRIM(StopMessage))
 
 #endif
    END IF

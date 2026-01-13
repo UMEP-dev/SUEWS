@@ -1,7 +1,7 @@
 from typing import Optional
 from pydantic import ConfigDict, BaseModel, Field, model_validator
 from .type import RefValue, Reference, FlexibleRefValue
-from .profile import HourlyProfile, DayProfile, WeeklyProfile
+from .profile import HourlyProfile, DayProfile, WeeklyProfile, TenMinuteProfile
 from .type import init_df_state
 from .timezone_enum import TimezoneOffset
 from ..validation.core.utils import (
@@ -2120,9 +2120,9 @@ class StebbsProperties(BaseModel):
         ge=0.0,
     )
 
-    ApplianceProfile: Optional[HourlyProfile] = Field(
-        default_factory=HourlyProfile,
-        description="Profile of appliance usage factor in building [-]",
+    ApplianceProfile: Optional[TenMinuteProfile] = Field(
+        default_factory=TenMinuteProfile,
+        description="10-minute profile of appliance usage factor in building [-]",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Appliance Profile",
@@ -2135,9 +2135,10 @@ class StebbsProperties(BaseModel):
         """Convert StebbsProperties to DataFrame state format."""
         df_state = init_df_state(grid_id)
 
-        hourly_profile_fields = {"ApplianceProfile"}
-        excluded_fields = hourly_profile_fields | {"ref"}
+        tenmin_profile_fields = {"ApplianceProfile"}
+        excluded_fields = tenmin_profile_fields | {"ref"}
 
+        # scalar fields
         for field_name in self.model_fields:
             if field_name in excluded_fields:
                 continue
@@ -2145,7 +2146,8 @@ class StebbsProperties(BaseModel):
             value = field_val.value if isinstance(field_val, RefValue) else field_val
             df_state.loc[grid_id, (field_name.lower(), "0")] = value
 
-        for field_name in hourly_profile_fields:
+        # 10-minute profile fields
+        for field_name in tenmin_profile_fields:
             profile = getattr(self, field_name)
             if profile is None:
                 continue
@@ -2157,7 +2159,7 @@ class StebbsProperties(BaseModel):
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "StebbsProperties":
         """Reconstruct StebbsProperties from DataFrame state format."""
-        hourly_profile_fields = {"ApplianceProfile"}
+        tenmin_profile_fields = {"ApplianceProfile"}
         default_instance = cls()
         params: Dict[str, object] = {}
 
@@ -2165,11 +2167,11 @@ class StebbsProperties(BaseModel):
             if field_name == "ref":
                 continue
 
-            if field_name in hourly_profile_fields:
+            if field_name in tenmin_profile_fields:
                 has_profile_columns = any(col[0] == field_name.lower() for col in df.columns)
                 if has_profile_columns:
                     try:
-                        params[field_name] = HourlyProfile.from_df_state(
+                        params[field_name] = TenMinuteProfile.from_df_state(
                             df, grid_id, field_name.lower()
                         )
                     except KeyError:

@@ -90,14 +90,23 @@ def test_suews_error_in_qgis():
         )
     except sp.SUEWSKernelError as e:
         error_caught = True
-        # Accept either error - both indicate z < zdm issue caught correctly
-        # - "Windspeed Ht too low" from stability calculation
-        # - "(z-zd) < 0" from roughness parameter calculation
+        # Accept errors that indicate z < zdm issue caught correctly
+        # - Code 14: "Inappropriate value calculated" (roughness parameters)
+        # - Code 32: "Windspeed Ht too low" (stability calculation)
+        # Use error code and simple patterns to avoid character encoding issues
         error_str = str(e)
-        valid_errors = ["Windspeed Ht too low", "(z-zd) < 0"]
-        if not any(msg in error_str for msg in valid_errors):
+        valid_codes = {14, 32}
+        valid_patterns = [
+            "Windspeed Ht too low",
+            "z-zd",  # Simpler pattern without < character
+            "Inappropriate value",
+            "RoughnessParameters",
+        ]
+        code_valid = e.code in valid_codes
+        pattern_valid = any(msg in error_str for msg in valid_patterns)
+        if not (code_valid or pattern_valid):
             raise AssertionError(
-                f"Unexpected SUEWS error for z/zdm test: {e}"
+                f"Unexpected SUEWS error for z/zdm test (code={e.code}): {e}"
             ) from e
         print("\n*** SUEWSKernelError caught in PyQGIS context: ***")
         print(f"  {str(e)[:100]}...")

@@ -362,7 +362,14 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
         logger_supy.critical("SUEWS kernel error: %s", e)
         raise
     except Exception as ex:
-        # Include simulation block context for debugging
+        # Check if Fortran set error state before the exception (GH-1035)
+        # When f90wrap_abort triggers longjmp, the error state is set in Fortran
+        # but a RuntimeError is raised from C before Python error checks run
+        try:
+            _check_supy_error()  # This will raise SUEWSKernelError if state is set
+        except SUEWSKernelError:
+            raise  # Re-raise as proper SUEWSKernelError
+        # If no Fortran error state was set, wrap as generic error
         len_sim = dict_input.get("len_sim", "unknown")
         logger_supy.exception("Kernel call failed for simulation block of length %s", len_sim)
         raise RuntimeError(f"SUEWS kernel error (block length {len_sim}): {ex}") from ex

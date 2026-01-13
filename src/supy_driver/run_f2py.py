@@ -20,10 +20,18 @@ def main():
         env["PYTHONIOENCODING"] = "utf-8"
 
     # Call f2py to generate the modules
+    # Handle both executable scripts and Python scripts (GH-1035)
+    if f2py_executable.endswith('.py'):
+        # Python script - run with interpreter
+        f2py_cmd = [sys.executable, f2py_executable]
+    else:
+        # Executable script (e.g., from pip install)
+        f2py_cmd = [f2py_executable]
+
     try:
         subprocess.check_call(
             [
-                f2py_executable,
+                *f2py_cmd,
                 "-m",
                 module_name,
                 *input_files,

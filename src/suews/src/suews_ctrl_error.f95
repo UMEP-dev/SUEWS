@@ -445,10 +445,9 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
       ! Set error state for Python/SuPy interface
       CALL set_supy_error(errh, TRIM(text1)//': '//TRIM(ProblemFile))
 
-      ! Trigger longjmp back to Python via f90wrap abort handler (GH-1035)
-      ! This jumps directly to the C wrapper, skipping the entire Fortran call stack
-      ! The C wrapper then raises Python RuntimeError
-      CALL f90wrap_abort(TRIM(StopMessage), LEN_TRIM(StopMessage))
+      ! GH-1035 FIX: Return normally instead of using longjmp
+      ! Error propagates via supy_error_flag checkpoint in main loop
+      RETURN
 
 #endif
    END IF

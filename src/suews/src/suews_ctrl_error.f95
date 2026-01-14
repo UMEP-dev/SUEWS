@@ -283,7 +283,7 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
       v1 = .TRUE.
    ELSEIF (errh == 51) THEN
       text1 = 'Problems in opening the file'
-      WRITE (*, *) ProblemFile
+      ! GH-1035: WRITE removed - crashes QGIS GUI
    ELSEIF (errh == 52) THEN
       text1 = 'Problems opening the output file.'
    ELSEIF (errh == 53) THEN
@@ -383,6 +383,9 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
 
    !---------------------------------------------------------------------
    !This part of the code determines how the error/warning message is written out
+   ! GH-1035: Internal WRITE statements can crash QGIS GUI
+   ! Skip detailed value formatting - error code and text1 provide enough info
+#ifdef wrf
    IF (v1) THEN ! 1 real
       WRITE (Errmessage, '(a,f9.4)') ' Value: ', VALUE
    ELSEIF (v2) THEN ! 2 real
@@ -402,6 +405,10 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
    ELSEIF (v8) THEN
       ! no error values
    END IF
+#else
+   ! For SuPy/QGIS: skip value formatting, just clear message
+   Errmessage = ''
+#endif
 
    ! Diagnostics are written to stdout/stderr (legacy problems.txt/warnings.txt removed).
    IF (flag_continue_on_error) THEN
@@ -413,10 +420,9 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
          CALL wrf_debug(100, message)
          CALL wrf_debug(100, Errmessage)
 #else
-         WRITE (*, *) 'Warning: ', TRIM(ProblemFile)
-         WRITE (*, *) TRIM(text1)
-         IF (LEN_TRIM(Errmessage) > 0) WRITE (*, *) TRIM(Errmessage)
-         WRITE (*, '(a,i3)') ' Warning code: ', errh
+         ! GH-1035: WRITE statements removed - they crash QGIS GUI
+         ! Warnings still set via set_supy_error for Python to access
+         CALL set_supy_error(errh, 'Warning: '//TRIM(text1)//': '//TRIM(ProblemFile))
 #endif
       END IF
 
@@ -435,12 +441,11 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
       WRITE (message, *) 'fatal error in SUEWS:', TRIM(text1)
       CALL wrf_error_fatal(message)
 #else
-      WRITE (StopMessage, *) 'fatal error in SUEWS:'//NEW_LINE('A')//TRIM(text1)
+      ! GH-1035: Even internal WRITE can crash QGIS - use string concatenation
+      StopMessage = 'fatal error in SUEWS: '//TRIM(text1)
 
-      WRITE (*, *) 'Problem: ', TRIM(ProblemFile)
-      WRITE (*, *) 'ERROR! Program stopped: ', TRIM(text1)
-      IF (LEN_TRIM(Errmessage) > 0) WRITE (*, *) TRIM(Errmessage)
-      WRITE (*, '(a,i3)') ' Error code: ', errh
+      ! GH-1035: WRITE statements removed - they crash QGIS GUI
+      ! Error info is passed via set_supy_error() instead
 
       ! Set error state for Python/SuPy interface
       CALL set_supy_error(errh, TRIM(text1)//': '//TRIM(ProblemFile))

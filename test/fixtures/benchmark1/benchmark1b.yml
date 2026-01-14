@@ -482,8 +482,6 @@ sites:
         value: 0.8
       HotWaterFlowRate:
         value: 0.001
-      DHWDrainFlowRate:
-        value: 0.001
       DHWSpecificHeatCapacity:
         value: 5000.0
       HotWaterTankSpecificHeatCapacity:

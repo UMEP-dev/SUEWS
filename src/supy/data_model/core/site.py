@@ -1953,12 +1953,6 @@ class StebbsProperties(BaseModel):
         json_schema_extra={"unit": "m^3 s^-1", "display_name": "Hot Water Flow Rate"},
         ge=0.0,
     )
-    DHWDrainFlowRate: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Flow rate of hot water held in building to drain [m3 s-1]",
-        json_schema_extra={"unit": "m^3 s^-1", "display_name": "DHW Drain Flow Rate"},
-        ge=0.0,
-    )
     DHWSpecificHeatCapacity: Optional[FlexibleRefValue(float)] = Field(
         default=4186.0,
         description="Specific heat capacity of hot water [J kg-1 K-1]",

@@ -1,5 +1,5 @@
 ---
-name: setup-dev-env
+name: setup-dev
 description: Set up SUEWS development environment on macOS, Linux, or Windows.
 ---
 
@@ -31,7 +31,7 @@ uv venv && source .venv/bin/activate && make dev && make test
 **Windows (PowerShell):**
 ```powershell
 # Run setup script first (one-time)
-.\.claude\skills\setup-dev-env\scripts\setup-windows-dev.ps1
+.\.claude\skills\setup-dev\scripts\setup-windows-dev.ps1
 
 # Then build SUEWS
 uv venv && .venv\Scripts\activate && uv pip install -e .[dev] && make test

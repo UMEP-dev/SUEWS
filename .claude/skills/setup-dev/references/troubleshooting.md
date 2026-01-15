@@ -94,7 +94,7 @@ gfortran --version
 
 **Solutions**:
 1. Open Microsoft Store and update "App Installer"
-2. Or download installers manually from official websites
+2. Or download installers manually from official websites (Git, GitHub CLI, Python, uv, VS Code)
 3. Run PowerShell as Administrator
 
 ---
@@ -108,3 +108,14 @@ gfortran --version
 2. Close and reopen MSYS2 terminal
 3. Run update again: `pacman -Syu`
 4. Install packages: `pacman -S mingw-w64-ucrt-x86_64-gcc-fortran`
+
+---
+
+## Windows: MSYS2 Download Fails
+
+**Symptoms**: Setup script reports a download failure for the MSYS2 installer
+
+**Solutions**:
+1. Download the installer manually: https://www.msys2.org/
+2. Alternative: https://github.com/msys2/msys2-installer/releases
+3. Re-run the setup script after installation

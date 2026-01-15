@@ -26,7 +26,7 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 │   ├── lint-code/         # Code style (references rules/)
 │   ├── log-changes/       # CHANGELOG management
 │   ├── prep-release/      # Release preparation
-│   ├── setup-dev-env/     # Environment setup guide
+│   ├── setup-dev/         # Environment setup guide
 │   ├── sync-docs/         # Doc-code consistency
 │   └── verify-build/      # Build config checks
 │

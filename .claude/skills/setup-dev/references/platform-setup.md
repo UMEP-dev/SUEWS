@@ -52,12 +52,16 @@ uv venv && source .venv/bin/activate && make dev && make test
 
 Run the PowerShell script from the SUEWS repo root:
 ```powershell
-.\.claude\skills\setup-dev-env\scripts\setup-windows-dev.ps1
+.\.claude\skills\setup-dev\scripts\setup-windows-dev.ps1
 ```
 
 Options:
 - `-SkipMSYS2` - Skip MSYS2 installation if already present
 - `-SkipQGIS` - Skip QGIS installation prompt
+
+Notes:
+- The script uses `winget` for installs where available. If `winget` is missing, it skips those steps and prints manual download links.
+- The script attempts to download the latest MSYS2 installer from GitHub releases and falls back to a pinned release if the API is unavailable.
 
 ### Manual Setup
 
@@ -68,7 +72,7 @@ Install in this order:
 3. **Python 3.12**: `winget install Python.Python.3.12`
 4. **uv**: `winget install astral-sh.uv`
 5. **MSYS2 UCRT64** (for gfortran):
-   - Download: https://www.msys2.org/
+   - Download: https://www.msys2.org/ (or https://github.com/msys2/msys2-installer/releases)
    - Install to `C:\msys64`
    - In MSYS2 UCRT64 terminal:
      ```bash

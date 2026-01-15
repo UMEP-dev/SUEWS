@@ -11,7 +11,7 @@
       "description": "Complete development toolkit for SUEWS contributors - environment setup, code linting, build verification, PR review, and release management",
       "source": "./",
       "skills": [
-        "./.claude/skills/setup-dev-env",
+        "./.claude/skills/setup-dev",
         "./.claude/skills/lint-code",
         "./.claude/skills/verify-build",
         "./.claude/skills/audit-pr",

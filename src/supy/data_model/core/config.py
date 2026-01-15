@@ -168,6 +168,7 @@ class SUEWSConfig(BaseModel):
         "MetabolicRate",
         "LatentSensibleRatio",
         "ApplianceRating",
+        "ApplianceProfile",
         "HeatingSystemEfficiency",
         "MaxCoolingPower",
         "CoolingSystemCOP",
@@ -184,6 +185,7 @@ class SUEWSConfig(BaseModel):
         "DHWWaterVolume",
         "DHWSurfaceArea",
         "HotWaterFlowRate",
+        "HotWaterFlowProfile"
         "DHWSpecificHeatCapacity",
         "HotWaterTankSpecificHeatCapacity",
         "DHWVesselSpecificHeatCapacity",
@@ -209,6 +211,7 @@ class SUEWSConfig(BaseModel):
         "BuildingName",
         "BuildingCount",
         "Occupants",
+        "OccupantsProfile",
         "stebbs_Height",
         "FootprintArea",
         "WallExternalArea",

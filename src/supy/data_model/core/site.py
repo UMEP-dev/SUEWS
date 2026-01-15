@@ -1953,6 +1953,15 @@ class StebbsProperties(BaseModel):
         json_schema_extra={"unit": "m^3 s^-1", "display_name": "Hot Water Flow Rate"},
         ge=0.0,
     )
+
+    HotWaterFlowProfile: Optional[TenMinuteProfile] = Field(
+        default_factory=TenMinuteProfile,
+        description="Profile of hot water flow rate from tank to vessel [m3 s-1]",
+        json_schema_extra={
+            "unit": "m^3 s^-1", "display_name": "Hot Water Flow Profile"
+        },
+    )   
+
     DHWSpecificHeatCapacity: Optional[FlexibleRefValue(float)] = Field(
         default=4186.0,
         description="Specific heat capacity of hot water [J kg-1 K-1]",
@@ -2127,7 +2136,7 @@ class StebbsProperties(BaseModel):
         """Convert StebbsProperties to DataFrame state format."""
         df_state = init_df_state(grid_id)
 
-        tenmin_profile_fields = {"ApplianceProfile"}
+        tenmin_profile_fields = {"ApplianceProfile", "HotWaterFlowProfile"}
         excluded_fields = tenmin_profile_fields | {"ref"}
 
         # scalar fields

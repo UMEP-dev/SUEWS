@@ -15,7 +15,7 @@ CRITICAL_SECTIONS = [
     "## Quick Start",
     "## Essential Rules",
     "## Project Structure",
-    "## Commands",
+    "## Skills",
     "## Auto-Loaded Rules",
     "## References",
 ]

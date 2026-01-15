@@ -905,7 +905,6 @@ CONTAINS
 
             !============= calculate surface temperature based on QS ===============
             nz = 5
-            T_bottom = 11.1D0 !annual mean air temperature in London 2012
             z = (/ 0.0D0, 0.03D0, 0.1D0, 1.5D0, 3.0D0 /)
             ! Loop over surfaces
             DO i_surf = 1, nsurf

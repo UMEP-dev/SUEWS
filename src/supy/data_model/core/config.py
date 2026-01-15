@@ -185,7 +185,7 @@ class SUEWSConfig(BaseModel):
         "DHWWaterVolume",
         "DHWSurfaceArea",
         "HotWaterFlowRate",
-        "HotWaterFlowProfile"
+        "HotWaterFlowProfile",
         "DHWSpecificHeatCapacity",
         "HotWaterTankSpecificHeatCapacity",
         "DHWVesselSpecificHeatCapacity",

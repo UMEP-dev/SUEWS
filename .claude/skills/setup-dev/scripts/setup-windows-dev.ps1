@@ -27,7 +27,8 @@ function Test-CommandExists {
 function Add-ToUserPath {
     param($PathToAdd)
     $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-    if ($currentPath -notlike "*$PathToAdd*") {
+    $pathArray = $currentPath -split ";" | Where-Object { $_ -ne "" }
+    if ($PathToAdd -notin $pathArray) {
         [Environment]::SetEnvironmentVariable("PATH", "$currentPath;$PathToAdd", "User")
         $env:PATH = "$env:PATH;$PathToAdd"
         Write-Host "  Added to PATH: $PathToAdd" -ForegroundColor Green
@@ -167,15 +168,19 @@ if ($SkipMSYS2) {
     if (-not (Test-Path $msys2Path)) {
         Write-Host "  Downloading MSYS2..." -ForegroundColor Gray
         $msys2Installer = "$env:TEMP\msys2-installer.exe"
-        $msys2InstallerUrl = "https://github.com/msys2/msys2-installer/releases/download/2024-01-13/msys2-x86_64-20240113.exe" # Pinned fallback; update if needed.
+        # Pinned fallback URL (last verified: 2024-01-13). Update periodically.
+        $msys2InstallerUrl = "https://github.com/msys2/msys2-installer/releases/download/2024-01-13/msys2-x86_64-20240113.exe"
+        $usingFallback = $true
         try {
             $release = Invoke-RestMethod -Uri "https://api.github.com/repos/msys2/msys2-installer/releases/latest" -Headers @{ "User-Agent" = "SUEWS-setup-script" }
             $asset = $release.assets | Where-Object { $_.name -match "^msys2-x86_64-.*\.exe$" } | Select-Object -First 1
             if ($null -ne $asset) {
                 $msys2InstallerUrl = $asset.browser_download_url
+                $usingFallback = $false
             }
         } catch {
-            Write-Host "  Could not query latest MSYS2 release; using pinned installer." -ForegroundColor Yellow
+            Write-Host "  Could not query latest MSYS2 release; using pinned fallback installer." -ForegroundColor Yellow
+            Write-Host "  Note: Fallback may be outdated. Check https://www.msys2.org/ for latest version." -ForegroundColor Yellow
         }
         try {
             Invoke-WebRequest -Uri $msys2InstallerUrl -OutFile $msys2Installer -ErrorAction Stop
@@ -190,6 +195,8 @@ if ($SkipMSYS2) {
             if ($installProcess.ExitCode -ne 0) {
                 throw "MSYS2 installer exit code $($installProcess.ExitCode)"
             }
+            # Clean up downloaded installer
+            Remove-Item $msys2Installer -Force -ErrorAction SilentlyContinue
         } catch {
             Write-Host "  MSYS2 installation failed: $_" -ForegroundColor Red
             Write-Host "  Please download MSYS2 manually from https://www.msys2.org/" -ForegroundColor Yellow

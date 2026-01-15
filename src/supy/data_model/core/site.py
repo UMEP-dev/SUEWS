@@ -1200,6 +1200,13 @@ class ArchetypeProperties(BaseModel):
         description="Building archetype name [-]",
         json_schema_extra={"display_name": "Building Name"},
     )
+    sfr: Optional[FlexibleRefValue(float)] = Field(
+        default=1.0,
+        description="Surface fraction of this archetype within total building footprint [-] (GH#360)",
+        json_schema_extra={"unit": "dimensionless", "display_name": "Surface Fraction"},
+        ge=0.0,
+        le=1.0,
+    )
     BuildingCount: Optional[FlexibleRefValue(int)] = Field(
         default=1,
         description="Number of buildings of this archetype [-]",
@@ -1660,6 +1667,42 @@ class ArchetypeProperties(BaseModel):
 
         return df_state
 
+    def to_df_state_indexed(self, grid_id: int, arch_idx: int) -> pd.DataFrame:
+        """Convert ArchetypeProperties to DataFrame with archetype index (GH#360).
+
+        Args:
+            grid_id: Grid ID for the DataFrame index
+            arch_idx: Archetype index (0, 1, 2, ...)
+
+        Returns:
+            DataFrame with columns like (field_name, "arch_0"), (field_name, "arch_1"), etc.
+        """
+        df_state = init_df_state(grid_id)
+
+        # Create columns with archetype index suffix
+        idx_str = f"arch_{arch_idx}"
+        columns = [
+            (field.lower(), idx_str)
+            for field in self.__class__.model_fields.keys()
+            if field != "ref"
+        ]
+        df_state = pd.DataFrame(
+            index=[grid_id], columns=pd.MultiIndex.from_tuples(columns)
+        )
+
+        # Set the values in the DataFrame
+        for field_name in self.__class__.model_fields.keys():
+            if field_name == "ref":
+                continue
+            attribute = getattr(self, field_name)
+            if isinstance(attribute, RefValue):
+                value = attribute.value
+            else:
+                value = attribute
+            df_state.loc[grid_id, (field_name.lower(), idx_str)] = value
+
+        return df_state
+
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ArchetypeProperties":
         """Reconstruct ArchetypeProperties from DataFrame state format."""
@@ -1688,6 +1731,46 @@ class ArchetypeProperties(BaseModel):
         }
 
         # Create an instance using the extracted parameters
+        return cls(**params)
+
+    @classmethod
+    def from_df_state_indexed(
+        cls, df: pd.DataFrame, grid_id: int, arch_idx: int
+    ) -> "ArchetypeProperties":
+        """Reconstruct ArchetypeProperties from indexed DataFrame columns (GH#360).
+
+        Args:
+            df: DataFrame containing archetype parameters
+            grid_id: Grid ID for the DataFrame index
+            arch_idx: Archetype index (0, 1, 2, ...)
+
+        Returns:
+            ArchetypeProperties instance
+        """
+        idx_str = f"arch_{arch_idx}"
+        params = {}
+        for field_name in cls.model_fields.keys():
+            if field_name == "ref":
+                continue
+
+            col = (field_name.lower(), idx_str)
+            if col in df.columns:
+                params[field_name] = df.loc[grid_id, col]
+            else:
+                # Use default value from field definition for missing columns
+                field_info = cls.model_fields[field_name]
+                if field_info.default is not None:
+                    params[field_name] = field_info.default
+                elif field_info.default_factory is not None:
+                    params[field_name] = field_info.default_factory()
+
+        # Convert params to RefValue
+        non_value_with_doi = ["BuildingType", "BuildingName"]
+        params = {
+            key: (RefValue(value) if key not in non_value_with_doi else value)
+            for key, value in params.items()
+        }
+
         return cls(**params)
 
 
@@ -2528,9 +2611,15 @@ class SiteProperties(BaseModel):
         default_factory=StebbsProperties,
         description="Parameters for the STEBBS building energy model",
     )
-    building_archetype: ArchetypeProperties = Field(
+    building_archetype: Optional[ArchetypeProperties] = Field(
         default_factory=ArchetypeProperties,
-        description="Parameters for building archetypes",
+        description="Parameters for a single building archetype (backwards compatible)",
+    )
+    building_archetypes: Optional[dict[str, ArchetypeProperties]] = Field(
+        default=None,
+        description="Named building archetypes for multi-archetype simulations (GH#360). "
+        "Keys are archetype names (e.g., 'residential', 'commercial'), values are ArchetypeProperties. "
+        "Sum of all sfr values must equal 1.0.",
     )
     conductance: Conductance = Field(
         default_factory=Conductance,
@@ -2608,6 +2697,76 @@ class SiteProperties(BaseModel):
 
         return values
 
+    @model_validator(mode="after")
+    def validate_building_archetypes(self) -> "SiteProperties":
+        """Validate building archetypes configuration (GH#360).
+
+        - If building_archetypes is set, sfr values must sum to 1.0
+        - If all archetypes have default sfr=1.0, auto-distribute equal fractions
+        - Cannot exceed 10 archetypes (nbtypes_max in Fortran)
+        """
+        if self.building_archetypes is not None and len(self.building_archetypes) > 0:
+            narch = len(self.building_archetypes)
+
+            # Validate maximum archetypes first (nbtypes_max = 10 in Fortran)
+            if narch > 10:
+                raise ValueError(
+                    f"Maximum 10 building archetypes supported, got {narch}"
+                )
+
+            # Check if all archetypes have the default sfr value (1.0)
+            # If so, auto-distribute equal fractions for better UX
+            all_default = True
+            sfr_sum = 0.0
+            for archetype in self.building_archetypes.values():
+                sfr_val = archetype.sfr
+                if isinstance(sfr_val, RefValue):
+                    sfr_val = sfr_val.value
+                # sfr defaults to 1.0, treat None as default too
+                if sfr_val is None:
+                    sfr_val = 1.0
+                # Check if non-default value was provided
+                if abs(sfr_val - 1.0) > 1e-6:
+                    all_default = False
+                sfr_sum += sfr_val
+
+            if all_default and narch > 1:
+                # Auto-distribute equal fractions when all use default
+                equal_sfr = 1.0 / narch
+                for archetype in self.building_archetypes.values():
+                    # Update the sfr value to equal fraction
+                    if isinstance(archetype.sfr, RefValue):
+                        archetype.sfr.value = equal_sfr
+                    else:
+                        archetype.sfr = equal_sfr
+            elif abs(sfr_sum - 1.0) > 1e-6:
+                # Validate that explicit sfr values sum to 1.0
+                raise ValueError(
+                    f"Building archetype sfr values must sum to 1.0, got {sfr_sum:.6f}. "
+                    f"Archetypes: {list(self.building_archetypes.keys())}"
+                )
+
+        return self
+
+    @property
+    def effective_archetypes(self) -> dict[str, ArchetypeProperties]:
+        """Get effective building archetypes dict (GH#360).
+
+        Returns building_archetypes if set, otherwise wraps building_archetype
+        as a single-item dict with key 'default'.
+        """
+        if self.building_archetypes is not None and len(self.building_archetypes) > 0:
+            return self.building_archetypes
+        elif self.building_archetype is not None:
+            return {"default": self.building_archetype}
+        else:
+            return {"default": ArchetypeProperties()}
+
+    @property
+    def nbtypes(self) -> int:
+        """Get number of building archetypes (GH#360)."""
+        return len(self.effective_archetypes)
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert site properties to DataFrame state format"""
         df_state = init_df_state(grid_id)
@@ -2648,7 +2807,25 @@ class SiteProperties(BaseModel):
         df_land_cover = self.land_cover.to_df_state(grid_id)
         df_vertical_layers = self.vertical_layers.to_df_state(grid_id)
         df_stebbs = self.stebbs.to_df_state(grid_id)
-        df_building_archetype = self.building_archetype.to_df_state(grid_id)
+
+        # Handle building archetypes (GH#360)
+        archetypes = self.effective_archetypes
+        nbtypes = len(archetypes)
+
+        # Store nbtypes and archetype names in DataFrame
+        df_state.loc[grid_id, ("nbtypes", "0")] = nbtypes
+
+        # Store archetype names for round-trip (comma-separated)
+        # Note: relies on Python 3.7+ dict insertion order preservation
+        archetype_names = list(archetypes.keys())
+        df_state.loc[grid_id, ("archetype_names", "0")] = ",".join(archetype_names)
+
+        # Serialize each archetype with indexed columns (arch_0, arch_1, ...)
+        # Order matches archetype_names for round-trip consistency
+        list_df_archetypes = [
+            archetype.to_df_state_indexed(grid_id, i)
+            for i, archetype in enumerate(archetypes.values())
+        ]
 
         df_state = pd.concat(
             [
@@ -2662,7 +2839,7 @@ class SiteProperties(BaseModel):
                 df_land_cover,
                 df_vertical_layers,
                 df_stebbs,
-                df_building_archetype,
+                *list_df_archetypes,
             ],
             axis=1,
         )
@@ -2723,7 +2900,41 @@ class SiteProperties(BaseModel):
         params["vertical_layers"] = VerticalLayers.from_df_state(df, grid_id)
 
         params["stebbs"] = StebbsProperties.from_df_state(df, grid_id)
-        params["building_archetype"] = ArchetypeProperties.from_df_state(df, grid_id)
+
+        # Handle building archetypes (GH#360)
+        nbtypes = 1
+        if ("nbtypes", "0") in df.columns:
+            nbtypes = int(df.loc[grid_id, ("nbtypes", "0")])
+
+        archetype_names = ["default"]
+        if ("archetype_names", "0") in df.columns:
+            names_str = df.loc[grid_id, ("archetype_names", "0")]
+            if names_str and isinstance(names_str, str):
+                archetype_names = names_str.split(",")
+
+        if nbtypes == 1:
+            # Single archetype - backwards compatible
+            # Try indexed format first, fall back to legacy format
+            if ("buildingtype", "arch_0") in df.columns:
+                params["building_archetype"] = ArchetypeProperties.from_df_state_indexed(
+                    df, grid_id, 0
+                )
+            else:
+                params["building_archetype"] = ArchetypeProperties.from_df_state(
+                    df, grid_id
+                )
+        else:
+            # Multiple archetypes
+            archetypes = {}
+            for i in range(nbtypes):
+                name = archetype_names[i] if i < len(archetype_names) else f"archetype_{i}"
+                archetypes[name] = ArchetypeProperties.from_df_state_indexed(
+                    df, grid_id, i
+                )
+            params["building_archetypes"] = archetypes
+            # Also set building_archetype to first for backwards compatibility
+            # Note: relies on Python 3.7+ dict insertion order preservation
+            params["building_archetype"] = next(iter(archetypes.values()))
 
         return cls(**params)
 

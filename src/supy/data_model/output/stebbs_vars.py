@@ -119,3 +119,73 @@ STEBBS_VARIABLES = [
     )
     for name, unit, description, level in STEBBS_VARIABLE_DEFS
 ]
+
+
+# Key variables that should have per-archetype outputs (GH#360)
+# These are the most useful variables for analysing archetype-specific behaviour
+STEBBS_ARCHETYPE_KEY_VARS = [
+    # Indoor temperatures
+    "Tair_ind",
+    "Tindoormass",
+    "Tintwall",
+    "Tintroof",
+    "Textwall",
+    "Textroof",
+    # Heating/cooling loads
+    "Qload_heating_F",
+    "Qload_cooling_F",
+    # Storage heat fluxes
+    "QS_total_FA",
+    "QS_wall_FA",
+    "QS_roof_FA",
+]
+
+
+def generate_archetype_variables(archetype_names: list[str]) -> list[OutputVariable]:
+    """Generate per-archetype STEBBS output variables (GH#360).
+
+    Creates output variables for each archetype with naming format:
+    {variable}_{archetype_name}
+
+    Args:
+        archetype_names: List of archetype names (e.g., ['residential', 'commercial'])
+
+    Returns:
+        List of OutputVariable instances for all archetype-specific variables.
+
+    Example:
+        >>> vars = generate_archetype_variables(['residential', 'commercial'])
+        >>> [v.name for v in vars[:4]]
+        ['Tair_ind_residential', 'Tair_ind_commercial', 'Tindoormass_residential', ...]
+    """
+    archetype_vars = []
+
+    # Get definitions for key variables
+    key_var_defs = {
+        name: (unit, description)
+        for name, unit, description, _ in STEBBS_VARIABLE_DEFS
+        if name in STEBBS_ARCHETYPE_KEY_VARS
+    }
+
+    for var_name in STEBBS_ARCHETYPE_KEY_VARS:
+        if var_name not in key_var_defs:
+            continue
+        unit, base_description = key_var_defs[var_name]
+
+        for arch_name in archetype_names:
+            # Format archetype name for variable suffix (consistent with plan)
+            arch_suffix = arch_name.replace(" ", "_").replace("-", "_")
+            full_name = f"{var_name}_{arch_suffix}"
+
+            archetype_vars.append(
+                OutputVariable(
+                    name=full_name,
+                    unit=unit,
+                    description=f"{base_description} for {arch_name} archetype",
+                    aggregation=AggregationMethod.AVERAGE,
+                    group=OutputGroup.STEBBS_ARCHETYPE,
+                    level=OutputLevel.DEFAULT,
+                )
+            )
+
+    return archetype_vars

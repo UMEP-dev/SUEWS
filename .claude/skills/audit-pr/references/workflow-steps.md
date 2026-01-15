@@ -22,15 +22,15 @@ Apply lint-code checks. See `style-checks.md`.
 
 ### Module Reviewers
 
-| File Pattern | Module | Reviewers |
-|--------------|--------|-----------|
-| `suews_phys_stebbs` | module:stebbs | @yiqing1021, @denisehertwig |
-| `suews_phys_rslprof` | module:rslprof | @vitorlavor, @suegrimmond |
-| `suews_phys_spartacus` | module:spartacus | @suegrimmond, @yiqing1021 |
-| `suews_phys_snow` | module:snow | @havum, @ljarvi |
-| `suews_phys_ehc` | module:ehc | @sunt05 |
-| `suews_phys_anohm` | module:anohm | @sunt05 |
-| General | Overall | @sunt05, @MatthewPaskin |
+Assign reviewers based on module expertise. Example mapping:
+
+- `suews_phys_stebbs` (module:stebbs) → building energy experts
+- `suews_phys_rslprof` (module:rslprof) → roughness sublayer experts
+- `suews_phys_spartacus` (module:spartacus) → radiation experts
+- `suews_phys_snow` (module:snow) → snow/cold climate experts
+- `suews_phys_ehc` (module:ehc) → explicit heat conduction experts
+- `suews_phys_anohm` (module:anohm) → analytical OHM experts
+- General PRs → core maintainers
 
 ### Validation Checks
 

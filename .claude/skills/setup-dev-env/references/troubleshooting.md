@@ -73,3 +73,38 @@ gfortran --version
 1. Verify installation: `python -c "import supy; print(supy.__version__)"`
 2. Run smoke tests: `make test-smoke`
 3. Check for environment activation
+
+---
+
+## Windows: gfortran Not Found
+
+**Symptoms**: `gfortran: command not found` or meson can't find Fortran compiler
+
+**Solutions**:
+1. Ensure MSYS2 is installed: `C:\msys64\ucrt64\bin\gfortran.exe`
+2. Add to PATH: `C:\msys64\ucrt64\bin`
+3. Restart terminal after modifying PATH
+4. Verify: `gfortran --version`
+
+---
+
+## Windows: winget Not Recognised
+
+**Symptoms**: `winget: command not recognized`
+
+**Solutions**:
+1. Open Microsoft Store and update "App Installer"
+2. Or download installers manually from official websites
+3. Run PowerShell as Administrator
+
+---
+
+## Windows: MSYS2 Package Issues
+
+**Symptoms**: pacman fails to install packages
+
+**Solutions**:
+1. Update MSYS2 first: `pacman -Syu`
+2. Close and reopen MSYS2 terminal
+3. Run update again: `pacman -Syu`
+4. Install packages: `pacman -S mingw-w64-ucrt-x86_64-gcc-fortran`

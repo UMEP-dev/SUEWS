@@ -1,5 +1,5 @@
 ---
-name: verify-build-skill
+name: verify-build
 description: Check build config consistency (meson, pyproject.toml, CI).
 ---
 

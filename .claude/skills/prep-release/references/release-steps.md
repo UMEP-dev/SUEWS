@@ -76,9 +76,9 @@ gh issue create --template release-checklist.md \
 
 ### Invoke Skills
 
-1. `verify-build-skill` - meson.build, pyproject.toml, CI
-2. `sync-docs-skill` - Documentation matches code
-3. `lint-code-skill` - Code style compliance
+1. `verify-build` - meson.build, pyproject.toml, CI
+2. `sync-docs` - Documentation matches code
+3. `lint-code` - Code style compliance
 
 ### Core Checks
 
@@ -94,7 +94,7 @@ make docs                        # Docs build
 
 ## Step 3: CHANGELOG Analysis
 
-Use `log-changes-skill` or:
+Use `log-changes` or:
 
 ```bash
 git describe --tags --abbrev=0

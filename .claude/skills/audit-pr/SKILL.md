@@ -1,5 +1,5 @@
 ---
-name: audit-pr-skill
+name: audit-pr
 description: Review SUEWS PRs. Drafts comments for approval before posting.
 ---
 
@@ -19,7 +19,7 @@ gh pr diff {pr} --name-only
 | Step | Action | Skill/Reference |
 |------|--------|-----------------|
 | 1 | **Context** | Gather files, classify changes |
-| 2 | **Code Style** | lint-code-skill |
+| 2 | **Code Style** | lint-code |
 | 3 | **Scientific** | Physics validation (if applicable) |
 | 4 | **Testing** | Coverage, FIRST principles |
 | 5 | **Docs** | CHANGELOG, PR description |

@@ -2160,7 +2160,7 @@ class StebbsProperties(BaseModel):
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "StebbsProperties":
         """Reconstruct StebbsProperties from DataFrame state format."""
-        tenmin_profile_fields = {"ApplianceProfile"}
+        tenmin_profile_fields = {"ApplianceProfile", "HotWaterFlowProfile"}
         default_instance = cls()
         params: Dict[str, object] = {}
 

@@ -836,6 +836,7 @@ CONTAINS
             buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature(idx, iu) + 273.15
             buildings(1)%frac_occupants = building_archtype%OccupantsProfile(idx, iu)
             buildings(1)%frac_appliance = building_archtype%ApplianceProfile(idx, iu)
+            buildings(1)%frac_hotwater = stebbsPrm%HotWaterFlowProfile(idx, iu)
             CALL setdatetime(datetimeLine)
 
             CALL suewsstebbscouple( &
@@ -1269,7 +1270,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%Vwater_tank, self%Asurf_tank, self%Vwall_tank, self%setTwater_tank, &
       self%Twater_vessel, self%Tintwall_vessel, self%Textwall_vessel, &
       self%thickness_wall_vessel, self%Vwater_vessel, self%Awater_vessel, &
-      self%Vwall_vessel, self%flowrate_water_supply, self%flowrate_water_drain, &
+      self%Vwall_vessel, self%flowrate_water_supply*self%frac_hotwater, self%flowrate_water_supply*self%frac_hotwater, &
       self%cp_water, self%cp_wall_tank, self%cp_wall_vessel, &
       self%density_water, self%density_wall_tank, self%density_wall_vessel, &
       self%BVF_tank, self%MVF_tank, self%conductivity_wall_tank, &
@@ -2256,14 +2257,11 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%Awater_vessel = stebbsPrm%DHWSurfaceArea ! # Surface Area of Hot Water in Vessels in Building (m^2)
    self%Vwall_vessel = self%Awater_vessel*self%thickness_wall_vessel ! # Wall volume of Hot water Vessels in Building
    self%flowrate_water_supply = stebbsPrm%HotWaterFlowRate ! # Hot Water Flow Rate in m^3 / s
-   self%flowrate_water_drain = stebbsPrm%DHWDrainFlowRate ! # Draining of Domestic Hot Water held in building
+   self%flowrate_water_supply_profile = stebbsPrm%HotWaterFlowProfile ! # Diurnal profile of hot water usage [0-1]
+   !self%flowrate_water_drain = stebbsPrm%DHWDrainFlowRate ! # Draining of Domestic Hot Water held in building
 
    self%single_flowrate_water_supply = stebbsPrm%HotWaterFlowRate ! # Hot Water Flow Rate in m^3 s^-1 for a single HW unit
-   self%flowrate_water_supply = stebbsPrm%HotWaterFlowRate ! # Hot Water Flow Rate in m^3 / s
-   self%flowrate_water_drain = stebbsPrm%DHWDrainFlowRate ! # Draining of Domestic Hot Water held in building
-
-   self%single_flowrate_water_supply = stebbsPrm%HotWaterFlowRate ! # Hot Water Flow Rate in m^3 s^-1 for a single HW unit
-   self%single_flowrate_water_drain = stebbsPrm%DHWDrainFlowRate ! # Draining of Domestic Hot Water held in building
+   !self%flowrate_water_drain = stebbsPrm%DHWDrainFlowRate ! # Draining of Domestic Hot Water held in building
 
    self%cp_water = stebbsPrm%DHWSpecificHeatCapacity ! # Specific Heat Capacity of Domestic Hot Water (J/kg K)
    self%cp_wall_tank = stebbsPrm%HotWaterTankSpecificHeatCapacity ! # Specific Heat Capacity of Hot Water Tank wall
@@ -2464,10 +2462,10 @@ SUBROUTINE create_building(CASE, self, icase)
    self%Awater_vessel = 10 ! # Surface Area of Hot Water in Vessels in Building (m^2)
    self%Vwall_vessel = self%Awater_vessel*self%thickness_wall_vessel ! # Wall volume of Hot water Vessels in Building
    self%flowrate_water_supply = 0 ! # Hot Water Flow Rate in m^3 / s
-   self%flowrate_water_drain = 0 ! # Draining of Domestic Hot Water held in building
+   !self%flowrate_water_drain = 0 ! # Draining of Domestic Hot Water held in building
 
    self%single_flowrate_water_supply = 0 ! # Hot Water Flow Rate in m^3 s^-1 for a single HW unit
-   self%single_flowrate_water_drain = 0 ! # Draining of Domestic Hot Water held in building
+   !self%single_flowrate_water_drain = 0 ! # Draining of Domestic Hot Water held in building
 
    self%cp_water = 4180.1 ! # Specific Heat Capacity of Domestic Hot Water (J/kg K)
    self%cp_wall_tank = 1000 ! # Specific Heat Capacity of Hot Water Tank wall

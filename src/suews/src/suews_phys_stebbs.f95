@@ -447,8 +447,8 @@ CONTAINS
 
       ! Compute required coefficients, similar to new OHM a1 parameterisation.
       S_x1 = 100*SQRT(TD_ext)
-      omega_x1 = -8.8*LOG(SQRT(TD_ext)) - 106.0
-      theta_x1 = -2.3*LOG(SQRT(TD_ext)) - 24.4
+      omega_x1 = -8.8*LOG(TD_ext) - 106.0
+      theta_x1 = -2.3*LOG(TD_ext) - 24.4
       d1 = S_x1*(1 - EXP(-theta_x1*d_ext)*COS(omega_x1*d_ext))
       ! compute the final x1
       x1 = (d1*cp_ext*rho_ext)/(d*cp*rho)
@@ -1058,8 +1058,9 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
       END IF
       !use updated temperature to calculate new coefficients
       self%h_o(1) = ext_conv_coeff(ws_out_hbh, self%Textwall - Tair_out_hbh) !wall
-      self%h_o(2) = ext_conv_coeff(ws_out_hbh, self%Textwindow - Tair_out_hbh) !new function maybe needed for windiws (smooth)
-      self%h_o(3) = ext_conv_coeff(ws_out_bh, self%Textroof - Tair_out_bh) !new function maybe needed for horizontal roof
+      self%h_o(2) = ext_conv_coeff(ws_out_bh, self%Textroof - Tair_out_bh) !roof
+      self%h_o(3) = ext_conv_coeff(ws_out_hbh, self%Textwindow - Tair_out_hbh) !window
+      
       self%h_i(1) = int_conv_coeff(dT = (self%Tintwall - self%Tair_ind), surf_type = 1) !wall
       self%h_i(2) = int_conv_coeff(dT = (self%Tintwindow - self%Tair_ind), surf_type = 1) !windows
       self%h_i(3) = int_conv_coeff(dT = (self%Tintroof - self%Tair_ind), surf_type = 2) !roof

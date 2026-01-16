@@ -82,8 +82,7 @@ def convert_observed_soil_moisture(
 
     metadata_per_grid: Dict[int, SoilObservationMetadata] = {}
     for grid, row in df_state_init.iterrows():
-        method = int(row[("smdmethod", "0")])
-        if method > 0:
+        if smd_methods[grid] > 0:
             metadata_per_grid[grid] = _extract_soil_obs_metadata(row, grid)
 
     if not metadata_per_grid:

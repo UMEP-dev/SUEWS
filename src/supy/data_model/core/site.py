@@ -26,7 +26,7 @@ from .hydro import (
 from .state import InitialStates
 
 import pandas as pd
-from typing import List, Literal, Union, Dict, Tuple
+from typing import ClassVar, List, Literal, Union, Dict, Tuple
 
 from datetime import datetime
 from pytz import timezone
@@ -2392,19 +2392,19 @@ class SoilObservationConfig(BaseModel):
 
     ref: Optional[Reference] = None
 
+    # Map field names to df_state column names (all use obs_sm_ prefix)
+    _FIELD_TO_COLUMN: ClassVar[Dict[str, str]] = {
+        "depth": "obs_sm_depth",
+        "smcap": "obs_sm_smcap",
+        "soil_not_rocks": "obs_sm_soil_not_rocks",
+        "bulk_density": "obs_sm_bulk_density",
+    }
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert soil observation config to DataFrame state format."""
         df_state = init_df_state(grid_id)
 
-        # Map field names to df_state column names (all use obs_sm_ prefix)
-        col_mapping = {
-            "depth": "obs_sm_depth",
-            "smcap": "obs_sm_smcap",
-            "soil_not_rocks": "obs_sm_soil_not_rocks",
-            "bulk_density": "obs_sm_bulk_density",
-        }
-
-        for attr, col_name in col_mapping.items():
+        for attr, col_name in self._FIELD_TO_COLUMN.items():
             field_val = getattr(self, attr)
             val = field_val.value if isinstance(field_val, RefValue) else field_val
             df_state[(col_name, "0")] = val
@@ -2415,14 +2415,8 @@ class SoilObservationConfig(BaseModel):
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "SoilObservationConfig":
         """Create SoilObservationConfig from DataFrame state format."""
         params = {}
-        field_mapping = {
-            "depth": "obs_sm_depth",
-            "smcap": "obs_sm_smcap",
-            "soil_not_rocks": "obs_sm_soil_not_rocks",
-            "bulk_density": "obs_sm_bulk_density",
-        }
 
-        for field_name, col_name in field_mapping.items():
+        for field_name, col_name in cls._FIELD_TO_COLUMN.items():
             if (col_name, "0") in df.columns:
                 val = df.loc[grid_id, (col_name, "0")]
                 if val is not None and not pd.isna(val) and val > -998:

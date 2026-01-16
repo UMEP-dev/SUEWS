@@ -447,7 +447,7 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
 
     # SMDMethod and soil_observation dependency
     smdmethod = get_value_safe(physics, "smdmethod")
-    if smdmethod is not None and smdmethod > 0:
+    if smdmethod:  # Truthy check: skips None and 0 (modelled), validates 1+ (observed)
         sites = yaml_data.get("sites", [])
         sites_missing_soil_obs = []
         for site in sites:

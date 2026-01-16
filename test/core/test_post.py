@@ -7,6 +7,7 @@ output resampling, aggregation, and data manipulation utilities.
 
 from unittest import TestCase
 import warnings
+import pytest
 
 import pandas as pd
 

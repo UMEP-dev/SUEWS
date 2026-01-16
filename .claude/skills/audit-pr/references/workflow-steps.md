@@ -12,7 +12,7 @@ gh api repos/UMEP-dev/SUEWS/pulls/{pr}/files --jq '.[] | {filename, status, addi
 
 ## Step 2: Code Style
 
-Apply lint-code-skill checks. See `style-checks.md`.
+Apply lint-code checks. See `style-checks.md`.
 
 ---
 

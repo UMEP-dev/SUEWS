@@ -15,7 +15,7 @@ CRITICAL_SECTIONS = [
     "## Quick Start",
     "## Essential Rules",
     "## Project Structure",
-    "## Commands",
+    "## Skills",
     "## Auto-Loaded Rules",
     "## References",
 ]
@@ -23,8 +23,8 @@ CRITICAL_SECTIONS = [
 # Required skill files that contain detailed content
 # These are the core skills that must exist for CLAUDE.md to function properly
 REQUIRED_SKILL_FILES = [
-    ".claude/skills/setup-dev-skill/SKILL.md",  # Environment setup
-    ".claude/skills/lint-code-skill/SKILL.md",  # Code style conventions
+    ".claude/skills/setup-dev/SKILL.md",  # Environment setup
+    ".claude/skills/lint-code/SKILL.md",  # Code style conventions
 ]
 
 # Required rule files (auto-loaded conventions)

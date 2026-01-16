@@ -1,5 +1,5 @@
 ---
-name: examine-issue-skill
+name: examine-issue
 description: Examine GitHub issues and provide actionable suggestions. NEVER posts without approval.
 ---
 

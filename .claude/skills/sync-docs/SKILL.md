@@ -1,6 +1,6 @@
 ---
-name: sync-docs-skill
-description: Check doc-code content consistency. For RST/Markdown formatting, use lint-code-skill.
+name: sync-docs
+description: Check doc-code content consistency. For RST/Markdown formatting, use lint-code.
 ---
 
 # Sync Docs

@@ -1,5 +1,5 @@
 ---
-name: log-changes-skill
+name: log-changes
 description: Update CHANGELOG.md with recent commits. Follows SUEWS conventions.
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: lint-code-skill
+name: lint-code
 description: Check code style against SUEWS conventions. Complements ruff/fprettify.
 ---
 

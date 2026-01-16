@@ -1,5 +1,5 @@
 ---
-name: prep-release-skill
+name: prep-release
 description: Prepare SUEWS release with pre-flight checks and tag generation.
 ---
 
@@ -13,8 +13,8 @@ Guide through release process per `dev-ref/RELEASE_MANUAL.md`.
 |------|--------|---------|
 | 0 | **Assess** necessity | Score commits, check timing |
 | 1 | **Create** tracking issue | `gh issue create --template release-checklist.md` |
-| 2 | **Pre-flight** checks | verify-build-skill, sync-docs-skill, lint-code-skill |
-| 3 | **CHANGELOG** analysis | Use log-changes-skill or manual |
+| 2 | **Pre-flight** checks | verify-build, sync-docs, lint-code |
+| 3 | **CHANGELOG** analysis | Use log-changes or manual |
 | 4 | **Update** docs | CHANGELOG.md, version-history page |
 | 5 | **Version** | Format: `YYYY.M.D` |
 | 6 | **Commit & tag** | Push docs, create annotated tag |
@@ -39,8 +39,8 @@ Details: `references/release-steps.md`
 ```
 [PASS/FAIL] On master branch
 [PASS/FAIL] Clean working tree
-[PASS/FAIL] verify-build-skill: No issues
-[PASS/FAIL] sync-docs-skill: Docs consistent
+[PASS/FAIL] verify-build: No issues
+[PASS/FAIL] sync-docs: Docs consistent
 [PASS/FAIL] Tests pass
 [PASS/FAIL] Docs build
 Ready: YES/NO

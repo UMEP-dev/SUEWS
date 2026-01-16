@@ -37,9 +37,12 @@ For developers, see the [Developer Note](#developer-note) section below.
 SUEWS includes Claude Code configuration in the `.claude/` directory with development skills for environment setup, code linting, build verification, PR review, and release management.
 
 **Install Skills via Marketplace** (recommended for new contributors):
-```bash
-# Install SUEWS development skills directly into Claude Code
-claude mcp add-json suews-dev '{"type":"github","repo":"UMEP-dev/SUEWS","path":".claude-plugin/marketplace.json"}'
+```
+# In Claude Code, add the SUEWS skills marketplace
+/plugin marketplace add UMEP-dev/SUEWS
+
+# Then install the skills
+/plugin install suews-dev@UMEP-dev/SUEWS
 ```
 
 This provides access to:

@@ -483,15 +483,8 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
                     message="SMDMethod-soil_observation configuration validated",
                 )
             )
-    else:
-        results.append(
-            ValidationResult(
-                status="PASS",
-                category="MODEL_OPTIONS",
-                parameter="smdmethod-soil_observation",
-                message="SMDMethod=0 (modelled), soil_observation not required",
-            )
-        )
+    # When SMDMethod=0 (modelled), no validation needed - skip adding PASS result
+    # to reduce noise in validation output.
 
     return results
 

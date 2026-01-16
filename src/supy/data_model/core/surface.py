@@ -12,6 +12,7 @@ import pandas as pd
 import warnings
 from .type import RefValue, Reference, FlexibleRefValue
 from ..validation.core.utils import warn_missing_params, validate_only_when_complete
+from ..._env import logger_supy
 
 from .type import init_df_state
 
@@ -541,6 +542,10 @@ class SurfaceProperties(BaseModel):
                     # Column doesn't exist - skip if optional, raise if required
                     field_info = cls.model_fields.get(property)
                     if field_info and not field_info.is_required():
+                        logger_supy.debug(
+                            f"Column {col_key} not found for surface {surf_idx}, "
+                            "using None (backwards compatibility)"
+                        )
                         property_values[property] = None
                     # If required, let Pydantic validation catch it later
 

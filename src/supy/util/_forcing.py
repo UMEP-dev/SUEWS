@@ -221,7 +221,9 @@ def _extract_soil_obs_metadata(row: pd.Series, grid: int) -> SoilObservationMeta
         soil_not_rocks=soil_not_rocks,
     )
 
-    # Validate metadata values
+    # Defence-in-depth validation: Pydantic constraints in SoilObservationConfig
+    # already enforce these bounds, but this runtime check catches issues from
+    # non-YAML paths (e.g., direct df_state manipulation or legacy table loading).
     if meta.depth_mm <= 0:
         raise ValueError(
             f"`depth` must be positive for grid {grid}. Got {meta.depth_mm}."

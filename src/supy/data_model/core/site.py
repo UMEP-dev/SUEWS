@@ -2371,8 +2371,12 @@ class SoilObservationConfig(BaseModel):
     )
     smcap: FlexibleRefValue(float) = Field(
         gt=0,
-        description="Maximum observable soil moisture (saturated θ or w at sensor location)",
-        json_schema_extra={"unit": "fraction", "display_name": "Saturation Capacity"},
+        description=(
+            "Maximum observable soil moisture (saturated θ or w at sensor location). "
+            "For volumetric (SMDMethod=1), this is typically ≤1.0 (m³/m³). "
+            "For gravimetric (SMDMethod=2), values >1.0 are possible (g water/g dry soil)."
+        ),
+        json_schema_extra={"unit": "fraction or g/g", "display_name": "Saturation Capacity"},
     )
     soil_not_rocks: FlexibleRefValue(float) = Field(
         gt=0,

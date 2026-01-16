@@ -260,7 +260,9 @@ class TestObservedSoilMoistureIntegration:
         # Load sample data
         df_state, df_forcing = sp.load_sample_data()
 
-        # Increase vegetation fraction to show soil moisture effect more clearly
+        # Increase vegetation fraction (original KCL site is ~5% veg) to amplify
+        # the soil moisture effect on QE. Soil moisture stress only affects
+        # vegetated surfaces via stomatal conductance (g_smd factor).
         # Original: 43% Paved, 38% Bldgs, 0% EveTr, 2% DecTr, 3% Grass, 0% BSoil, 14% Water
         # Modified: 30% Paved, 30% Bldgs, 0% EveTr, 10% DecTr, 15% Grass, 0% BSoil, 15% Water
         df_state[("sfr_surf", "(0,)")] = 0.30  # Paved

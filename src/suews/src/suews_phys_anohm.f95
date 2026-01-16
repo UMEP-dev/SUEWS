@@ -17,6 +17,7 @@ MODULE module_phys_anohm
    USE module_phys_ohm, ONLY: OHM_dqndt_cal_X, OHM_QS_cal
    USE module_ctrl_error_state, ONLY: supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
+   USE module_ctrl_type, ONLY: SUEWS_STATE
 
    IMPLICIT NONE
 CONTAINS
@@ -36,7 +37,8 @@ CONTAINS
       alb, emis, cpAnOHM, kkAnOHM, chAnOHM, & ! input
       sfr_surf, nsurf, EmissionsMethod, id, Gridiv, &
       qn_av_next, dqndt_next, &
-      a1, a2, a3, qs, deltaQi) ! output
+      a1, a2, a3, qs, deltaQi, & ! output
+      modState) ! optional: for thread-safe error logging
 
       IMPLICIT NONE
       INTEGER, INTENT(in) :: tstep ! time step [s]
@@ -74,6 +76,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: a3 !< AnOHM coefficients of grid [W m-2]
       REAL(KIND(1D0)), INTENT(out) :: qs !< storage heat flux [W m-2]
       REAL(KIND(1D0)), INTENT(out) :: deltaQi(nsurf) !< storage heat flux of snow surfaces
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       INTEGER :: is, xid !< @var qn1 net all-wave radiation
       INTEGER, SAVE :: id_save ! store index of the valid day with enough data ! TODO: Remove SAVE states from the model
@@ -136,7 +139,7 @@ CONTAINS
          CALL OHM_QS_cal(qn1, dqndt_prev, a1, a2, a3, qs)
 
       ELSE
-         CALL ErrorHint(21, 'SUEWS_AnOHM.f95: bad value for qn found during qs calculation.', qn1, NotUsed, notUsedI)
+         CALL ErrorHint(21, 'SUEWS_AnOHM.f95: bad value for qn found during qs calculation.', qn1, NotUsed, notUsedI, modState)
          IF (supy_error_flag) RETURN
       END IF
 

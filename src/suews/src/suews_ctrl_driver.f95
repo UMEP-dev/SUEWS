@@ -1087,7 +1087,8 @@ CONTAINS
                      TrafficRate, &
                      QF0_BEU, QF_SAHP, &
                      Fc_anthro, Fc_metab, Fc_traff, Fc_build, Fc_point, &
-                     AHProf_24hr, HumActivity_24hr, TraffProf_24hr, PopProf_24hr, SurfaceArea)
+                     AHProf_24hr, HumActivity_24hr, TraffProf_24hr, PopProf_24hr, SurfaceArea, &
+                     modState)
 
                ELSE
                   CALL ErrorHint(73, 'RunControl.nml:EmissionsMethod unusable', notUsed, notUsed, EmissionsMethod, modState)
@@ -1253,7 +1254,8 @@ CONTAINS
                      CALL cal_AtmMoist( &
                         t2, Press_hPa, avRh, dectime, & ! input:
                         dummy1, dummy2, & ! output:
-                        dummy3, dummy4, dummy5, dummy6, dq, dummy7, dummy8, dummy9)
+                        dummy3, dummy4, dummy5, dummy6, dq, dummy7, dummy8, dummy9, &
+                        modState)
                      ! Surface resistance calculation for gfunc2
                      CALL SurfaceResistance( &
                         id, it, & ! input:
@@ -1944,7 +1946,8 @@ CONTAINS
                            a1_grass, a2_grass, a3_grass, &
                            a1_bsoil, a2_bsoil, a3_bsoil, &
                            a1_water, a2_water, a3_water, &
-                           a1, a2, a3, qs, deltaQi)
+                           a1, a2, a3, qs, deltaQi, &
+                           modState)
                   QS_surf = qs
                   QS_roof = qs
                   QS_wall = qs
@@ -2188,7 +2191,8 @@ CONTAINS
                      StoreDrainPrm(3, is), &
                      StoreDrainPrm(4, is), &
                      nsh_real, &
-                     drain_surf(is)) ! output
+                     drain_surf(is), & ! output
+                     modState)
 
                   ! !HCW added and changed to StoreDrainPrm(6,is) here 20 Feb 2015
                   ! drain_per_tstep=drain_per_tstep+(drain(is)*sfr_surf(is)/NonWaterFraction)   !No water body included
@@ -2952,7 +2956,8 @@ CONTAINS
                   SMDMethod, xsmd, NonWaterFraction, SoilMoistCap, & !input
                   SoilStoreCap_surf, surf_chang_per_tstep, &
                   soilstore_surf, soilstore_surf_in, sfr_surf, &
-                  smd, smd_surf, tot_chang_per_tstep, SoilState) !output
+                  smd, smd_surf, tot_chang_per_tstep, SoilState, & !output
+                  modState)
 
             END ASSOCIATE
          END ASSOCIATE
@@ -3241,7 +3246,8 @@ CONTAINS
                   L_mod, & ! output: !Obukhov length
                   TStar, & !T*, temperature scale
                   UStar, & !Friction velocity
-                  zL) !Stability scale
+                  zL, & !Stability scale
+                  modState)
 
                IF (Diagnose == 1) WRITE (*, *) 'Calling AerodynamicResistance...'
                CALL AerodynamicResistance( &

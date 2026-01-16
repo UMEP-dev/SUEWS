@@ -589,6 +589,90 @@ CONTAINS
    END SUBROUTINE SUEWS_cal_Main
 ! ================================================================================
 
+   ! Batch DTS execution subroutine - loops internally over timesteps for efficiency
+   ! This avoids Python->Fortran call overhead when processing multiple timesteps
+   SUBROUTINE SUEWS_cal_multitsteps_dts( &
+      timer, MetForcingBlock, len_sim, &
+      config, siteInfo, &
+      modState, &
+      dataOutBlockSUEWS)
+
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, &
+                                  SUEWS_STATE, output_line, anthroEMIS_PRM
+      USE module_util_time, ONLY: SUEWS_cal_dectime_DTS, SUEWS_cal_tstep_DTS, &
+                                  SUEWS_cal_weekday_DTS, SUEWS_cal_DLS
+
+      IMPLICIT NONE
+
+      ! Input/Output arguments
+      TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
+      INTEGER, INTENT(IN) :: len_sim
+      REAL(KIND(1D0)), DIMENSION(len_sim, 21), INTENT(IN) :: MetForcingBlock
+      TYPE(SUEWS_CONFIG), INTENT(IN) :: config
+      TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
+      TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
+      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSUEWS), INTENT(OUT) :: dataOutBlockSUEWS
+
+      ! Local variables
+      TYPE(SUEWS_FORCING) :: forcing
+      TYPE(output_line) :: output_line_local
+      TYPE(anthroEMIS_PRM) :: ahemisPrm
+      INTEGER :: ir
+
+      ! Initialise anthropogenic heat parameters for DLS calculation
+      ahemisPrm%startDLS = siteInfo%anthroemis%startDLS
+      ahemisPrm%endDLS = siteInfo%anthroemis%endDLS
+
+      ! Loop over timesteps
+      DO ir = 1, len_sim, 1
+         ! === Update timer from forcing block ===
+         timer%iy = INT(MetForcingBlock(ir, 1))
+         timer%id = INT(MetForcingBlock(ir, 2))
+         timer%it = INT(MetForcingBlock(ir, 3))
+         timer%imin = INT(MetForcingBlock(ir, 4))
+         timer%isec = 0
+
+         ! Calculate derived timer values
+         CALL SUEWS_cal_dectime_DTS(timer, timer%dectime)
+         CALL SUEWS_cal_tstep_DTS(timer, timer%nsh, timer%nsh_real, timer%tstep_real)
+         CALL SUEWS_cal_weekday_DTS(timer, siteInfo, timer%dayofWeek_id)
+         CALL SUEWS_cal_DLS(timer, ahemisPrm, timer%DLS)
+
+         ! === Update forcing from forcing block ===
+         ! Note: columns 6, 7 are reserved but not used (qh_obs, qe_obs are outputs not inputs)
+         forcing%qn1_obs = MetForcingBlock(ir, 5)
+         forcing%qs_obs = MetForcingBlock(ir, 8)
+         forcing%qf_obs = MetForcingBlock(ir, 9)
+         forcing%U = MetForcingBlock(ir, 10)
+         forcing%RH = MetForcingBlock(ir, 11)
+         forcing%temp_c = MetForcingBlock(ir, 12)
+         forcing%pres = MetForcingBlock(ir, 13)
+         forcing%rain = MetForcingBlock(ir, 14)
+         forcing%kdown = MetForcingBlock(ir, 15)
+         forcing%snowfrac = MetForcingBlock(ir, 16)
+         forcing%ldown = MetForcingBlock(ir, 17)
+         forcing%fcld = MetForcingBlock(ir, 18)
+         forcing%Wu_m3 = MetForcingBlock(ir, 19)
+         forcing%xsmd = MetForcingBlock(ir, 20)
+         forcing%LAI_obs = MetForcingBlock(ir, 21)
+
+         ! === Call main calculation ===
+         CALL SUEWS_cal_Main( &
+            timer, forcing, config, siteInfo, &
+            modState, &
+            output_line_local)
+
+         ! === Store output (dataOutLineSUEWS already includes datetime in columns 1-5) ===
+         dataOutBlockSUEWS(ir, :) = output_line_local%dataOutLineSUEWS
+
+         ! === Update dt_since_start for next iteration ===
+         timer%dt_since_start = timer%dt_since_start + timer%tstep
+
+      END DO
+
+   END SUBROUTINE SUEWS_cal_multitsteps_dts
+! ================================================================================
+
    SUBROUTINE update_debug_info( &
       timer, config, forcing, siteInfo, & ! input
       modState_init, & ! input

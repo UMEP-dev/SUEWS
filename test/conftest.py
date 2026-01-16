@@ -42,6 +42,9 @@ except ImportError:
 # Global Test Configuration
 # =============================================================================
 
+# Named constants for test clarity
+TIMESTEPS_PER_DAY = 288  # 24*60/5 = 288 five-minute intervals
+
 
 @pytest.fixture(autouse=True)
 def suppress_import_warnings():

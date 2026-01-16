@@ -8,13 +8,13 @@ including state initialization, forcing data loading, and configuration loading.
 from pathlib import Path
 import tempfile
 from unittest import TestCase
-import warnings
 
 import pandas as pd
 import pytest
 import yaml
 
 import supy as sp
+from conftest import TIMESTEPS_PER_DAY
 from supy.util.converter import convert_table, detect_table_version
 
 
@@ -275,7 +275,7 @@ class TestLoadingScenarios(TestCase):
 
         # Run simulation with modified state
         df_output, df_state_final = sp.run_supy(
-            df_forcing.iloc[:288],  # One day
+            df_forcing.iloc[:TIMESTEPS_PER_DAY],  # One day
             df_state,
             check_input=False,
         )

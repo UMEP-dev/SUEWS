@@ -15,6 +15,7 @@ from supy import SUEWSSimulation
 
 # Import debug utilities from conftest (centralised)
 from conftest import (
+    TIMESTEPS_PER_DAY,
     capture_test_artifacts,
     debug_dataframe_output,
     debug_on_ci,
@@ -67,7 +68,7 @@ class TestSuPy(TestCase):
         sim = SUEWSSimulation.from_sample_data()
 
         # Run only 2 days instead of 10 days
-        end_index = 288 * 2 - 1  # 0-indexed
+        end_index = TIMESTEPS_PER_DAY * 2 - 1  # 0-indexed
         results = sim.run(end_date=sim.forcing.index[end_index])
 
         # Debug output
@@ -102,7 +103,7 @@ class TestSuPy(TestCase):
 
         df_state_init_multi = pd.concat([df_state_init_base for x in range(n_grid)])
         df_state_init_multi.index = pd.RangeIndex(n_grid, name="grid")
-        df_forcing_part = df_forcing_tstep.iloc[: 288 * 60]
+        df_forcing_part = df_forcing_tstep.iloc[: TIMESTEPS_PER_DAY * 60]
         t_start = time()
         df_output, df_state = sp.run_supy(df_forcing_part, df_state_init_multi)
         t_end = time()
@@ -147,7 +148,7 @@ class TestSuPy(TestCase):
         # Load sample data
         df_state_init, df_forcing_tstep = sp.load_SampleData()
 
-        df_forcing_part = df_forcing_tstep.iloc[: 288 * 10]
+        df_forcing_part = df_forcing_tstep.iloc[: TIMESTEPS_PER_DAY * 10]
         df_output, df_state, df_debug, res_state = sp.run_supy(
             df_forcing_part,
             df_state_init,
@@ -339,7 +340,7 @@ class TestSuPy(TestCase):
         sim = SUEWSSimulation.from_sample_data()
 
         # Run for 2 days
-        end_index = 288 * 2 - 1  # 0-indexed
+        end_index = TIMESTEPS_PER_DAY * 2 - 1  # 0-indexed
         t_start = time()
         results = sim.run(end_date=sim.forcing.index[end_index])
         t_end = time()
@@ -463,7 +464,7 @@ class TestSuPy(TestCase):
 
         # Run for 10 days
         n_days = 10
-        end_index = 288 * n_days - 1  # 0-indexed
+        end_index = TIMESTEPS_PER_DAY * n_days - 1  # 0-indexed
         results = sim.run(end_date=sim.forcing.index[end_index])
 
         # Check that DailyState exists in output
@@ -521,7 +522,7 @@ class TestSuPy(TestCase):
 
         # Run for 100 days
         n_days = 100
-        end_index = 288 * n_days - 1  # 0-indexed
+        end_index = TIMESTEPS_PER_DAY * n_days - 1  # 0-indexed
         results = sim.run(end_date=sim.forcing.index[end_index])
 
         # Get soilstore from debug output

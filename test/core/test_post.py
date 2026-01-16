@@ -6,11 +6,11 @@ output resampling, aggregation, and data manipulation utilities.
 """
 
 from unittest import TestCase
-import warnings
 
 import pandas as pd
 
 import supy as sp
+from conftest import TIMESTEPS_PER_DAY
 from supy._post import dict_var_aggm, resample_output  # noqa: PLC2701
 
 
@@ -23,7 +23,7 @@ class TestResampleOutput(TestCase):
         self.df_state_init, self.df_forcing = sp.load_SampleData()
 
         # Run a short simulation to get output
-        df_forcing_short = self.df_forcing.iloc[: 288 * 7]  # One week
+        df_forcing_short = self.df_forcing.iloc[: TIMESTEPS_PER_DAY * 7]  # One week
         self.df_output, self.df_state = sp.run_supy(
             df_forcing_short, self.df_state_init, check_input=False
         )
@@ -256,7 +256,7 @@ class TestPostProcessingUtilities(TestCase):
         """Set up test environment."""
         # Run a minimal simulation
         df_state_init, df_forcing = sp.load_SampleData()
-        df_forcing_short = df_forcing.iloc[: 288 * 2]  # Two days
+        df_forcing_short = df_forcing.iloc[: TIMESTEPS_PER_DAY * 2]  # Two days
         self.df_output, self.df_state = sp.run_supy(
             df_forcing_short, df_state_init, check_input=False
         )
@@ -377,7 +377,7 @@ class TestMultiGridPostProcessing(TestCase):
         df_state_multi.index = pd.RangeIndex(n_grids, name="grid")
 
         # Run short simulation
-        df_forcing_short = df_forcing.iloc[:288]  # One day
+        df_forcing_short = df_forcing.iloc[:TIMESTEPS_PER_DAY]  # One day
         self.df_output, self.df_state = sp.run_supy(
             df_forcing_short, df_state_multi, check_input=False
         )
@@ -413,7 +413,7 @@ class TestMultiGridPostProcessing(TestCase):
         df_mean = df_suews.groupby(level="datetime").mean()
 
         # Validate
-        self.assertEqual(len(df_mean), 288)  # One day of 5-min data
+        self.assertEqual(len(df_mean), TIMESTEPS_PER_DAY)  # One day of 5-min data
         # Check that we have a simple index (not MultiIndex)
         self.assertEqual(df_mean.index.nlevels, 1)  # Single level index
         self.assertEqual(df_mean.index.name, "datetime")  # Index name is datetime
@@ -449,7 +449,7 @@ class TestErrorHandling(TestCase):
 
         # Create minimal output
         df_state, df_forcing = sp.load_SampleData()
-        df_output, _ = sp.run_supy(df_forcing.iloc[:288], df_state)
+        df_output, _ = sp.run_supy(df_forcing.iloc[:TIMESTEPS_PER_DAY], df_state)
 
         # Test invalid frequency
         with self.assertRaises((ValueError, KeyError)):

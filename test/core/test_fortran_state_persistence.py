@@ -16,7 +16,8 @@ python kernel will reset both python and fortran states."
 import logging
 from pathlib import Path
 from unittest import TestCase
-import warnings
+
+from conftest import TIMESTEPS_PER_DAY
 
 import pytest
 import supy as sp
@@ -66,7 +67,7 @@ class TestFortranStatePersistence(TestCase):
         )
 
         # Run one year
-        df_forcing_part = df_forcing_tstep.iloc[: 288 * 366]
+        df_forcing_part = df_forcing_tstep.iloc[: TIMESTEPS_PER_DAY * 366]
         df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)
 
         return df_output.SUEWS["QE"].values[286]
@@ -92,7 +93,7 @@ class TestFortranStatePersistence(TestCase):
                 p_config, df_state_init.index[0], df_state_init=df_state_init
             )
             # Just run first day to minimize time
-            df_forcing_part = df_forcing_tstep.iloc[:288]
+            df_forcing_part = df_forcing_tstep.iloc[:TIMESTEPS_PER_DAY]
             df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)
             return True
         return False

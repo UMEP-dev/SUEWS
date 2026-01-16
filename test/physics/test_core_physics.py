@@ -18,7 +18,6 @@ Test Categories:
 These tests catch unphysical behavior that might pass numerical tests.
 """
 
-import warnings
 from pathlib import Path
 from unittest import TestCase, skipIf
 
@@ -26,6 +25,7 @@ import numpy as np
 import pandas as pd
 
 import supy as sp
+from conftest import TIMESTEPS_PER_DAY
 
 
 class TestPhysicalValidation(TestCase):
@@ -36,7 +36,7 @@ class TestPhysicalValidation(TestCase):
         # Load and run a short simulation for testing
         self.df_state_init, self.df_forcing = sp.load_SampleData()
         # Run for 7 days to get meaningful statistics
-        self.df_forcing_week = self.df_forcing.iloc[: 288 * 7]
+        self.df_forcing_week = self.df_forcing.iloc[: TIMESTEPS_PER_DAY * 7]
         self.df_output, self.df_state_final = sp.run_supy(
             self.df_forcing_week, self.df_state_init
         )
@@ -424,7 +424,7 @@ class TestNumericalStability(TestCase):
         df_state_init, df_forcing = sp.load_SampleData()
 
         # Create zero forcing (except mandatory fields)
-        df_zero = df_forcing.iloc[:288].copy()  # One day
+        df_zero = df_forcing.iloc[:TIMESTEPS_PER_DAY].copy()  # One day
 
         # Set mandatory fields using case-insensitive column matching
         for col in df_zero.columns:
@@ -494,7 +494,7 @@ class TestNumericalStability(TestCase):
         df_state_init, df_forcing = sp.load_SampleData()
 
         # Test hot conditions
-        df_hot = df_forcing.iloc[:288].copy()
+        df_hot = df_forcing.iloc[:TIMESTEPS_PER_DAY].copy()
         df_hot["Tair"] = 45  # Very hot
         df_hot["RH"] = 20  # Low humidity
 
@@ -507,7 +507,7 @@ class TestNumericalStability(TestCase):
         self.assertTrue(hot_success, "Model failed with hot conditions")
 
         # Test cold conditions
-        df_cold = df_forcing.iloc[:288].copy()
+        df_cold = df_forcing.iloc[:TIMESTEPS_PER_DAY].copy()
         df_cold["Tair"] = -20  # Very cold
         df_cold["RH"] = 80  # High humidity
 

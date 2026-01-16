@@ -55,7 +55,7 @@ Get started immediately with the :ref:`Getting Started with SUEWS <Workflow>` gu
 **For new users:**
 
 1. **Install SuPy**: ``pip install supy``
-2. **Follow tutorials**: Start with :ref:`SUEWS Tutorials <tutorials_suews>` for hands-on learning
+2. **Follow tutorials**: Start with :ref:`SUEWS Tutorials <suews_tutorials>` for hands-on learning
 3. **Configure your site**: Use the :ref:`Configuration Guide <Workflow>` and YAML tools
 4. **Explore advanced features**: Multi-site studies, climate impacts, model coupling
 
@@ -130,7 +130,7 @@ How to support SUEWS?
 
    installation
    workflow
-   sub-tutorials/tutorials
+   auto_examples/index
    inputs/index
    outputs/index
    api

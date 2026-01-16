@@ -44,6 +44,13 @@ The ``soil_observation`` block describes the sensor installation and measurement
    The ``soil_observation`` parameters describe the **measurement setup**, not the SUEWS model's soil properties.
    These values are used to convert observed volumetric/gravimetric moisture to a soil moisture deficit (mm).
 
+.. note::
+   Soil observation configuration applies to the **entire site**, not individual land cover types.
+   Since a soil moisture sensor measures at a single physical location, the same conversion
+   parameters are used across all land cover types within the grid. If you have multiple sensors
+   with different installation depths or soil characteristics, run each grid configuration
+   separately using ``supy.run_supy()``.
+
 .. DON'T manually modify the csv file below
 .. as it is always automatically regenrated by each build:
 .. edit the item descriptions in file `Input_Options.rst`

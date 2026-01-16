@@ -2,6 +2,7 @@
 MODULE module_phys_atmmoiststab
    USE module_ctrl_type, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
    USE module_ctrl_const_physconst, ONLY: eps_fp
+   USE module_ctrl_error_state, ONLY: set_supy_error
    IMPLICIT NONE
    REAL(KIND(1D0)), PARAMETER :: neut_limit = 1.E-4 !Limit for neutral stability
    REAL(KIND(1D0)), PARAMETER :: k = 0.4 !Von Karman's contant
@@ -231,9 +232,12 @@ CONTAINS
       IF (debug) WRITE (*, *) StabilityMethod, z0m, avU1, H_init, UStar, L_MOD
       G_T_K = (Grav/(Temp_C + 273.16))*k !gravity constant/(Temperature*Von Karman Constant)
       KUZ = k*AvU1 !Von Karman constant*mean wind speed
-      IF (zzd < 0) CALL ErrorHint(32, &
-                                  'Windspeed Ht too low relative to zdm [Stability calc]- values [z-zdm, zdm]', &
-                                  Zzd, zdm, notUsedI)
+      IF (zzd < 0) THEN
+         ! GH-1035: Bypass ErrorHint entirely - it crashes QGIS GUI
+         ! Set error directly and return
+         CALL set_supy_error(32, 'Windspeed Ht too low relative to zdm [Stability calc]')
+         RETURN
+      END IF
 
       UStar = KUZ/LOG(Zzd/z0m) ! Initial guess for UStar assuming neutral conditions — used only to seed the iteration
 !       IF (ABS(H_init) < 0.001) THEN ! prevent zero TStar

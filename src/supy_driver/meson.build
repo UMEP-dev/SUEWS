@@ -225,12 +225,13 @@ gen_f90wrap_f90 = custom_target(
 ##################################################################
 # 3. use f2py-f90wrap to generate the C file for the python interface
 # build the driver module c file
-prog_f2py_f90wrap = find_program('f2py-f90wrap')
+# Use patched f2py-f90wrap with vendored code for Qt/QGIS compatibility (GH-1035)
+# This ensures STOP interception handlers are included in the generated C code
 gen_module_c = custom_target(
   command: [
     py,
     '@CURRENT_SOURCE_DIR@/run_f2py.py', # Path to your Python wrapper script
-    prog_f2py_f90wrap, # Assuming this is defined elsewhere as the f2py executable
+    '@CURRENT_SOURCE_DIR@/f2py-f90wrap-patched.py', # Patched version with vendored f90wrap (GH-1035)
     '_supy_driver',
     '@CURRENT_SOURCE_DIR@',
     '@OUTDIR@',

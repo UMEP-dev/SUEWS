@@ -108,7 +108,7 @@ class TestSuPy(TestCase):
     # NOTE: This test uses functional API (sp.run_supy) instead of SUEWSSimulation
     # because multi-grid parallelization is a low-level feature not exposed in the OOP interface.
     # SUEWSSimulation is designed for single-grid workflows.
-    @pytest.mark.skip(reason="Temporarily skipping")
+    #@pytest.mark.skip(reason="Temporarily skipping")
     def test_is_supy_sim_save_multi_grid_par(self):
         print("\n========================================")
         print("Testing if multi-grid simulation can run in parallel...")

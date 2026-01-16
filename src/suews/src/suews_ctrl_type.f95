@@ -350,20 +350,31 @@ CONTAINS
       has_err = self%flag
    END FUNCTION has_error_state
 
-   SUBROUTINE report_error_impl(self, timer, message, location, is_fatal)
+   SUBROUTINE report_error_impl(self, message, location, is_fatal, timer)
       !> Report an error/warning to the error log
       CLASS(error_state), INTENT(INOUT) :: self
-      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
       CHARACTER(LEN=*), INTENT(IN) :: message
       CHARACTER(LEN=*), INTENT(IN) :: location
       LOGICAL, INTENT(IN), OPTIONAL :: is_fatal
+      TYPE(SUEWS_TIMER), INTENT(IN), OPTIONAL :: timer
 
       TYPE(error_entry), ALLOCATABLE :: temp(:)
+      TYPE(SUEWS_TIMER) :: timer_use
       INTEGER :: new_size
       LOGICAL :: fatal
 
-      fatal = .TRUE.
+      fatal = .FALSE.
       IF (PRESENT(is_fatal)) fatal = is_fatal
+
+      ! Use provided timer or default to zeros
+      IF (PRESENT(timer)) THEN
+         timer_use = timer
+      ELSE
+         timer_use%iy = 0
+         timer_use%id = 0
+         timer_use%it = 0
+         timer_use%imin = 0
+      END IF
 
       ! Grow array if needed
       IF (.NOT. ALLOCATED(self%log)) THEN
@@ -377,7 +388,7 @@ CONTAINS
 
       ! Append entry
       self%count = self%count + 1
-      self%log(self%count)%timer = timer
+      self%log(self%count)%timer = timer_use
       self%log(self%count)%message = message
       self%log(self%count)%location = location
       self%log(self%count)%is_fatal = fatal
@@ -393,6 +404,7 @@ CONTAINS
       !> Clear the error log and reset all error state
       CLASS(error_state), INTENT(INOUT) :: self
 
+      IF (ALLOCATED(self%log)) DEALLOCATE (self%log)
       self%count = 0
       self%has_fatal = .FALSE.
       self%flag = .FALSE.

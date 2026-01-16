@@ -5,7 +5,8 @@ MODULE module_phys_rslprof
    USE module_ctrl_const_allocate, ONLY: &
       nsurf, BldgSurf, ConifSurf, DecidSurf, ncolumnsDataOutRSL
    USE module_ctrl_const_physconst, ONLY: eps_fp
-   USE module_ctrl_error_state, ONLY: set_supy_error
+   USE module_ctrl_error_state, ONLY: set_supy_error, add_supy_warning
+   USE module_ctrl_error, ONLY: ErrorHint
    IMPLICIT NONE
 
    INTEGER, PARAMETER :: nz = 30 ! number of levels 10 levels in canopy plus 20 (3 x Zh) above the canopy
@@ -647,10 +648,12 @@ CONTAINS
          ! z_x is one of zarray elements - exact match
          v_x = v(idx_x)
       ELSE IF (idx_low == 0 .AND. idx_high > 0) THEN
-         ! z_x is below array minimum - use boundary value
+         ! z_x is below array minimum - use boundary value with warning
+         CALL add_supy_warning('interp_z: z_x below array minimum, using boundary value')
          v_x = v(1)
       ELSE IF (idx_high == 0 .AND. idx_low > 0) THEN
-         ! z_x is above array maximum - use boundary value
+         ! z_x is above array maximum - use boundary value with warning
+         CALL add_supy_warning('interp_z: z_x above array maximum, using boundary value')
          v_x = v(nz)
       ELSE IF (idx_low == 0 .AND. idx_high == 0) THEN
          ! Invalid state - should not happen with valid input

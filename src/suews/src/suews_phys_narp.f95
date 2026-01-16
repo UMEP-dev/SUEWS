@@ -39,6 +39,7 @@ MODULE module_phys_narp
    ! USE module_ctrl_const_allocate
    USE module_util_time, ONLY: day2month, dectime_to_timevec
    USE module_ctrl_error_state, ONLY: set_supy_error
+   USE module_ctrl_error, ONLY: ErrorHint
 
    IMPLICIT NONE
 

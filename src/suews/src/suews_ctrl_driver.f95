@@ -70,6 +70,7 @@ MODULE SUEWS_Driver
    ! Re-export error state from module_ctrl_error_state for Python/f90wrap access
    USE module_ctrl_error_state, ONLY: supy_error_flag, supy_error_code, supy_error_message, &
                                        reset_supy_error, set_supy_error
+   USE module_ctrl_error, ONLY: ErrorHint
 
    IMPLICIT NONE
 
@@ -1005,7 +1006,7 @@ CONTAINS
                      AHProf_24hr, HumActivity_24hr, TraffProf_24hr, PopProf_24hr, SurfaceArea)
 
                ELSE
-                  CALL ErrorHint(73, 'RunControl.nml:EmissionsMethod unusable', notUsed, notUsed, EmissionsMethod)
+                  CALL ErrorHint(73, 'RunControl.nml:EmissionsMethod unusable', notUsed, notUsed, EmissionsMethod, modState)
                   IF (supy_error_flag) RETURN
                END IF
 

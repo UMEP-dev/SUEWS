@@ -2,6 +2,7 @@
 MODULE module_phys_atmmoiststab
    USE module_ctrl_type, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
    USE module_ctrl_const_physconst, ONLY: eps_fp
+   USE module_ctrl_error, ONLY: ErrorHint
    IMPLICIT NONE
    REAL(KIND(1D0)), PARAMETER :: neut_limit = 1.E-4 !Limit for neutral stability
    REAL(KIND(1D0)), PARAMETER :: k = 0.4 !Von Karman's contant

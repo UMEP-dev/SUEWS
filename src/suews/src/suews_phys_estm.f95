@@ -579,6 +579,7 @@ MODULE module_phys_estm
    ! TS 09 Oct 2017: re-organised ESTM subroutines into a module
    !===============================================================================
    USE module_ctrl_error_state, ONLY: supy_error_flag
+   USE module_ctrl_error, ONLY: ErrorHint
    IMPLICIT NONE
 
 CONTAINS
@@ -740,7 +741,6 @@ CONTAINS
          tin_surf, tin_surf_grids, &
          nspec
       USE module_ctrl_const_datain, ONLY: FileInputPath, filecode
-      USE module_util_stringmod, ONLY: writenum
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: gridIV
       INTEGER, INTENT(IN) :: diagnose
@@ -798,7 +798,7 @@ CONTAINS
          cp_surf
 
       IF (MultipleLayoutFiles) THEN
-         CALL writenum(gridIV, str_gridIV, 'i4')
+         WRITE (str_gridIV, '(i0)') gridIV
          FileLayout = 'GridLayout'//TRIM(filecode)//TRIM(str_gridIV)//'.nml'
       ELSE
          FileLayout = 'GridLayout'//TRIM(filecode)//'.nml'

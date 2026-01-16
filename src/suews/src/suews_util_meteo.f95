@@ -3,6 +3,7 @@
 MODULE module_util_meteo
 
    USE module_ctrl_const_mathconst
+   USE module_ctrl_error, ONLY: ErrorHint
    IMPLICIT NONE
 
    ! REAL (KIND(1d0)),PARAMETER ::  PI=3.141592654

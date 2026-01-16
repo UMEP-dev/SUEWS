@@ -7,6 +7,7 @@ MODULE module_phys_ohm
    ! USE module_ctrl_const_sues
    ! USE module_ctrl_const_time
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
+   USE module_ctrl_error, ONLY: ErrorHint
 
    IMPLICIT NONE
 CONTAINS

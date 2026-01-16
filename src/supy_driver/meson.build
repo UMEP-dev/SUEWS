@@ -99,7 +99,6 @@ dir_src_suews = dir_suews / 'src'
 src_f95_all = [
   'suews_ctrl_const.f95',
   'suews_ctrl_type.f95',
-  'suews_util_stringmod.f95',
   'suews_util_profile.f95',
   'suews_util_time.f95',
   'suews_util_meteo.f95',

@@ -2,6 +2,7 @@
 MODULE module_phys_anthro
    USE module_ctrl_input_profile, ONLY: get_Prof_SpecTime_inst, get_Prof_SpecTime_mean
    USE module_ctrl_error_state, ONLY: supy_error_flag
+   USE module_ctrl_error, ONLY: ErrorHint
 
    IMPLICIT NONE
 
@@ -252,7 +253,8 @@ CONTAINS
             QF_build = QF_SAHP_base*QF0_BEU(iu) + QF_SAHP_heating + QF_SAHP_cooling !QF0_BEU = QF0_BuildingEnergyUse = Fraction of base value coming from buildings
             !relative to traffic as metabolism is separately calculated
          ELSE
-            CALL ErrorHint(69, 'QF metab exceeds base QF.', QF_metab, QF_SAHP_base)
+            ! Error 69 is a non-fatal warning (v1=.TRUE.), no RETURN needed
+            CALL ErrorHint(69, 'QF metab exceeds base QF.', QF_metab, QF_SAHP_base, 0)
 
             QF_build = QF_SAHP_heating + QF_SAHP_cooling + (QF_SAHP_base - QF_metab) !If human metabolism greater than Base QF, remove this from the heating/cooling contribution also
          END IF
@@ -306,7 +308,7 @@ CONTAINS
             Fc_traff = TrafficRate(iu)/(60*60*24)*FcEF_v_kgkm(iu)*1E3*1E6/44*DP_x_RhoPop_traff
 
          ELSE ! If TrafficUnits doesn't match possible units
-            CALL ErrorHint(75, 'Check TrafficUnits', TrafficUnits, -999D1)
+            CALL ErrorHint(75, 'Check TrafficUnits', TrafficUnits, -999D0, INT(TrafficUnits))
             IF (supy_error_flag) RETURN
 
          END IF

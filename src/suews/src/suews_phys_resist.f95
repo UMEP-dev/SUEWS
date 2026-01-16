@@ -1,5 +1,6 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_resist
+   USE module_ctrl_error, ONLY: ErrorHint
    IMPLICIT NONE
 
 CONTAINS
@@ -663,16 +664,16 @@ CONTAINS
                zdm = DOT_PRODUCT([zdm_zh, zdm_zh0], [PAI, 1 - PAI])
 
             ELSEIF (Zh == 0) THEN !If zh calculated to be zero, set default roughness length and displacement height
-               IF (PAI /= 0) CALL ErrorHint(15, 'In SUEWS_RoughnessParameters.f95, zh = 0 m but areaZh > 0', zh, PAI, notUsedI)
+               IF (PAI /= 0) CALL ErrorHint(15, 'In SUEWS_RoughnessParameters.f95, zh = 0 m but areaZh > 0', zh, PAI, notUsedI, modState)
                !Estimate z0 and zd using default values and surfaces that do not contribute to areaZh
                IF (PAI /= 1) THEN
                   z0m = z0m_zh0
                   zdm = zdm_zh0
-                  CALL ErrorHint(15, 'Setting z0m and zdm using default values', z0m, zdm, notUsedI)
+                  CALL ErrorHint(15, 'Setting z0m and zdm using default values', z0m, zdm, notUsedI, modState)
                ELSEIF (PAI == 1) THEN !If, for some reason, Zh = 0 and areaZh == 1, assume height of 10 m and use rule-of-thumb
                   z0m = 1
                   zdm = 7
-                  CALL ErrorHint(15, 'Assuming mean height = 10 m, Setting z0m and zdm to default value', z0m, zdm, notUsedI)
+                  CALL ErrorHint(15, 'Assuming mean height = 10 m, Setting z0m and zdm to default value', z0m, zdm, notUsedI, modState)
                END IF
             END IF
 
@@ -685,15 +686,15 @@ CONTAINS
 
             ! Error messages if aerodynamic parameters negative
             IF (z0m < 0) THEN
-               CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, z0 < 0 m.', z0m, notUsed, notUsedI)
+               CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, z0 < 0 m.', z0m, notUsed, notUsedI, modState)
                IF (supy_error_flag) RETURN
             END IF
             IF (zdm < 0) THEN
-               CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, zd < 0 m.', zdm, notUsed, notUsedI)
+               CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, zd < 0 m.', zdm, notUsed, notUsedI, modState)
                IF (supy_error_flag) RETURN
             END IF
             IF (zzd < 0) THEN
-               CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, (z-zd) < 0 m.', zzd, notUsed, notUsedI)
+               CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, (z-zd) < 0 m.', zzd, notUsed, notUsedI, modState)
                IF (supy_error_flag) RETURN
             END IF
 

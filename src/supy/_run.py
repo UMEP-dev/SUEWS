@@ -121,6 +121,96 @@ def _reset_supy_error():
     _sd.f90wrap_module_ctrl_error_state__reset_supy_error()
 
 
+def _format_timer(timer):
+    """Format a SUEWS_TIMER object for logging output.
+
+    Parameters
+    ----------
+    timer : SUEWS_TIMER
+        Timer object with iy, id, it, imin fields.
+
+    Returns
+    -------
+    str
+        Formatted timestamp string.
+    """
+    try:
+        iy = int(timer.iy)
+        id_ = int(timer.id)
+        it = int(timer.it)
+        imin = int(timer.imin)
+        if iy == 0 and id_ == 0:
+            return "no timestamp"
+        return f"{iy:04d}-{id_:03d} {it:02d}:{imin:02d}"
+    except (AttributeError, ValueError):
+        return "unknown"
+
+
+def _log_warnings_from_state(state_block):
+    """Log warnings from state-based error log.
+
+    This reads from the per-call error_state.log array which contains
+    the full warning history for subroutines that pass modState.
+
+    Parameters
+    ----------
+    state_block : SUEWS_STATE_BLOCK
+        The state block object containing error state from the kernel call.
+    """
+    if state_block is None:
+        return
+
+    try:
+        for state in state_block.block:
+            errstate = state.errorstate
+            count = int(errstate.count)
+            for i in range(count):
+                entry = errstate.log[i]
+                if not entry.is_fatal:
+                    logger_supy.warning(
+                        "[%s] %s: %s",
+                        _format_timer(entry.timer),
+                        str(entry.location).strip(),
+                        str(entry.message).strip(),
+                    )
+    except (AttributeError, IndexError, RuntimeError):
+        # State structure not as expected - silently skip
+        pass
+
+
+def _log_supy_warnings():
+    """Log module-level warnings (fallback for subroutines without state).
+
+    This reads from shared module-level variables which capture warnings
+    from subroutines that don't have access to modState.
+    """
+    from . import _supy_driver as _sd
+
+    try:
+        count = int(_sd.f90wrap_module_ctrl_error_state__get__supy_warning_count())
+        if count > 0:
+            message = str(
+                _sd.f90wrap_module_ctrl_error_state__get__supy_last_warning_message()
+            ).strip()
+            logger_supy.warning(
+                "SUEWS kernel warning (count %d): %s", count, message
+            )
+    except (AttributeError, RuntimeError):
+        # Module-level variable not available - silently skip
+        pass
+
+
+def _reset_supy_warnings():
+    """Reset module-level warning state before calling Fortran kernel."""
+    from . import _supy_driver as _sd
+
+    try:
+        _sd.f90wrap_module_ctrl_error_state__set__supy_warning_count(0)
+        _sd.f90wrap_module_ctrl_error_state__set__supy_last_warning_message("")
+    except (AttributeError, RuntimeError):
+        pass
+
+
 ##############################################################################
 
 # Note: suews_cal_tstep_multi uses state-based error handling which is thread-safe.
@@ -193,6 +283,9 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
     # No kernel lock needed - state-based error handling is thread-safe
     # Each call has its own block_mod_state for error capture
     try:
+        # Reset module-level warning state before kernel call
+        _reset_supy_warnings()
+
         # Create and initialize block_mod_state for state-based error handling
         # NOTE: Must initialize from Python before kernel call, as f90wrap cannot
         # reflect Fortran ALLOCATABLE component changes back to Python
@@ -212,6 +305,10 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
         )
         # Check for errors using state-based approach (thread-safe)
         _check_supy_error_from_state(block_mod_state)
+
+        # Log warnings from both state-based (full log) and module-level (fallback)
+        _log_warnings_from_state(block_mod_state)
+        _log_supy_warnings()
 
     except SUEWSKernelError as e:
         # Fortran kernel set error flag instead of STOP

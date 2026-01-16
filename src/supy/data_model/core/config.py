@@ -56,6 +56,8 @@ except ImportError:
         )
         logger_supy.addHandler(handler)
         logger_supy.setLevel(logging.INFO)
+
+from ..._misc import normalise_sfr_surf
 from ..validation.pipeline.yaml_annotator import YAMLAnnotator
 
 _validation_available = False
@@ -2589,6 +2591,9 @@ class SUEWSConfig(BaseModel):
         # set column names
         df.columns.set_names(["var", "ind_dim"], inplace=True)
         df.index.name = "grid"
+
+        # normalise surface fractions to prevent non-1 sums
+        df = normalise_sfr_surf(df)
 
         return df
 

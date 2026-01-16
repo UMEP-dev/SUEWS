@@ -1,0 +1,25 @@
+{
+  "name": "suews",
+  "metadata": {
+    "description": "Development skills for SUEWS urban climate model",
+    "version": "1.0.0",
+    "repository": "https://github.com/UMEP-dev/SUEWS"
+  },
+  "plugins": [
+    {
+      "name": "suews-dev",
+      "description": "Complete development toolkit for SUEWS contributors - environment setup, code linting, build verification, PR review, and release management",
+      "source": "./",
+      "skills": [
+        "./.claude/skills/setup-dev",
+        "./.claude/skills/lint-code",
+        "./.claude/skills/verify-build",
+        "./.claude/skills/audit-pr",
+        "./.claude/skills/examine-issue",
+        "./.claude/skills/log-changes",
+        "./.claude/skills/prep-release",
+        "./.claude/skills/sync-docs"
+      ]
+    }
+  ]
+}

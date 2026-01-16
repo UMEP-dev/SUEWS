@@ -19,7 +19,7 @@ Please submit your issue via `our GitHub page. <https://github.com/UMEP-dev/SUEW
 2. How to join your email-list?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Please join our email-list `here. <https://www.lists.reading.ac.uk/mailman/listinfo/met-suews>`_
+Please join our community `here. <https://community.suews.io>`_
 
 3. How to create a directory?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

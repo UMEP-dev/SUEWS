@@ -18,7 +18,7 @@ from . import supy_driver as sd
 
 
 from ._env import logger_supy, trv_supy_module
-from ._misc import path_insensitive
+from ._misc import path_insensitive, normalise_sfr_surf
 
 # choose different second representation to accommodate different pandas versions
 # pandas version <1.5
@@ -2153,9 +2153,7 @@ def load_InitialCond_grid_df(path_runcontrol, force_reload=True):
     # print('localclimatemethod is not in df_init')
 
     # normalise surface fractions to prevent non-1 sums
-    df_sfr_surf = df_init.sfr_surf.copy()
-    df_sfr_surf = df_sfr_surf.div(df_sfr_surf.sum(axis=1), axis=0)
-    df_init.sfr_surf = df_sfr_surf
+    df_init = normalise_sfr_surf(df_init)
     return df_init
 
 

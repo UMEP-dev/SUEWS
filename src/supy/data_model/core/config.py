@@ -56,6 +56,8 @@ except ImportError:
         )
         logger_supy.addHandler(handler)
         logger_supy.setLevel(logging.INFO)
+
+from ..._misc import normalise_sfr_surf
 from ..validation.pipeline.yaml_annotator import YAMLAnnotator
 
 _validation_available = False
@@ -2591,29 +2593,7 @@ class SUEWSConfig(BaseModel):
         df.index.name = "grid"
 
         # normalise surface fractions to prevent non-1 sums
-        if "sfr_surf" in df.columns.get_level_values(0):
-            df_sfr_surf = df.sfr_surf.copy()
-            sfr_sums = df_sfr_surf.sum(axis=1)
-
-            # warn if any grid has surface fractions significantly different from 1.0
-            tolerance = 0.0001
-            deviations = (sfr_sums - 1.0).abs()
-            problematic_grids = deviations[deviations > tolerance]
-
-            if not problematic_grids.empty:
-                grid_details = ", ".join(
-                    f"grid {idx}: {sfr_sums[idx]:.4f}"
-                    for idx in problematic_grids.index
-                )
-                logger_supy.warning(
-                    f"Surface fractions do not sum to 1.0 (tolerance {tolerance}). "
-                    f"Values will be normalised automatically. "
-                    f"Affected grids: {grid_details}. "
-                    f"For strict validation, use the YAML validator workflow."
-                )
-
-            df_sfr_surf = df_sfr_surf.div(sfr_sums, axis=0)
-            df["sfr_surf"] = df_sfr_surf
+        df = normalise_sfr_surf(df)
 
         return df
 

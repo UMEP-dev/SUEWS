@@ -18,7 +18,7 @@ from . import supy_driver as sd
 
 
 from ._env import logger_supy, trv_supy_module
-from ._misc import path_insensitive
+from ._misc import path_insensitive, normalise_sfr_surf
 
 # choose different second representation to accommodate different pandas versions
 # pandas version <1.5
@@ -2149,28 +2149,7 @@ def load_InitialCond_grid_df(path_runcontrol, force_reload=True):
     # print('localclimatemethod is not in df_init')
 
     # normalise surface fractions to prevent non-1 sums
-    df_sfr_surf = df_init.sfr_surf.copy()
-    sfr_sums = df_sfr_surf.sum(axis=1)
-
-    # warn if any grid has surface fractions significantly different from 1.0
-    tolerance = 0.0001
-    deviations = (sfr_sums - 1.0).abs()
-    problematic_grids = deviations[deviations > tolerance]
-
-    if not problematic_grids.empty:
-        grid_details = ", ".join(
-            f"grid {idx}: {sfr_sums[idx]:.4f}"
-            for idx in problematic_grids.index
-        )
-        logger_supy.warning(
-            f"Surface fractions do not sum to 1.0 (tolerance {tolerance}). "
-            f"Values will be normalised automatically. "
-            f"Affected grids: {grid_details}. "
-            f"For strict validation, use the YAML validator workflow."
-        )
-
-    df_sfr_surf = df_sfr_surf.div(sfr_sums, axis=0)
-    df_init.sfr_surf = df_sfr_surf
+    df_init = normalise_sfr_surf(df_init)
     return df_init
 
 

@@ -433,11 +433,37 @@ def populate_state_from_pydantic(
     if hasattr(initial_states.grass, "alb_id"):
         state_dts.phenstate.albgrass_id = _unwrap(initial_states.grass.alb_id)
 
-    # Temperature extremes tracking - initialized to sentinel values
+    # Temperature extremes tracking
     # Reference: suews_ctrl_driver.f95 lines 5030-5032, _load.py lines 1870-1872
-    state_dts.phenstate.tmin_id = 90.0    # Will be updated to actual min during simulation
-    state_dts.phenstate.tmax_id = -90.0   # Will be updated to actual max during simulation
-    state_dts.phenstate.lenday_id = 0.0   # Day length accumulator
+    # For continuation runs, preserve actual values; for fresh runs, use sentinel values
+    if hasattr(initial_states, "tmin_id"):
+        tmin_val = _unwrap(initial_states.tmin_id)
+        # Use extracted value if it's a real temperature (not sentinel 90.0)
+        if tmin_val is not None and tmin_val != 90.0:
+            state_dts.phenstate.tmin_id = tmin_val
+        else:
+            state_dts.phenstate.tmin_id = 90.0  # Sentinel: will be updated to actual min
+    else:
+        state_dts.phenstate.tmin_id = 90.0
+
+    if hasattr(initial_states, "tmax_id"):
+        tmax_val = _unwrap(initial_states.tmax_id)
+        # Use extracted value if it's a real temperature (not sentinel -90.0)
+        if tmax_val is not None and tmax_val != -90.0:
+            state_dts.phenstate.tmax_id = tmax_val
+        else:
+            state_dts.phenstate.tmax_id = -90.0  # Sentinel: will be updated to actual max
+    else:
+        state_dts.phenstate.tmax_id = -90.0
+
+    if hasattr(initial_states, "lenday_id"):
+        lenday_val = _unwrap(initial_states.lenday_id)
+        if lenday_val is not None:
+            state_dts.phenstate.lenday_id = float(lenday_val)
+        else:
+            state_dts.phenstate.lenday_id = 0.0
+    else:
+        state_dts.phenstate.lenday_id = 0.0
 
     # Albedo per surface (7 surfaces)
     # For vegetation (evetr, dectr, grass), use alb_id from initial_states
@@ -476,6 +502,25 @@ def populate_state_from_pydantic(
         else:
             hdd_list = [0.0] * 12  # Default fallback
         state_dts.anthroemisstate.hdd_id = np.array(hdd_list, dtype=np.float64)
+
+    # OHM state: running averages for storage heat flux calculations
+    # These are critical for continuation runs to maintain accurate QS partitioning
+    if hasattr(initial_states, "qn_av"):
+        qn_av_val = _unwrap(initial_states.qn_av)
+        if qn_av_val is not None and qn_av_val != 0:
+            state_dts.ohmstate.qn_av = qn_av_val
+    if hasattr(initial_states, "qn_s_av"):
+        qn_s_av_val = _unwrap(initial_states.qn_s_av)
+        if qn_s_av_val is not None:
+            state_dts.ohmstate.qn_s_av = qn_s_av_val
+    if hasattr(initial_states, "dqndt"):
+        dqndt_val = _unwrap(initial_states.dqndt)
+        if dqndt_val is not None:
+            state_dts.ohmstate.dqndt = dqndt_val
+    if hasattr(initial_states, "dqnsdt"):
+        dqnsdt_val = _unwrap(initial_states.dqnsdt)
+        if dqnsdt_val is not None:
+            state_dts.ohmstate.dqnsdt = dqnsdt_val
 
 
 def populate_storedrainprm(
@@ -1155,6 +1200,12 @@ def populate_roughnessstate(
 def populate_atmstate(
     state_dts: dts.SUEWS_STATE,
     forcing_dts: dts.SUEWS_FORCING,
+    tair_av: float | None = None,
+    l_mod: float | None = None,
+    ustar: float | None = None,
+    ra_h: float | None = None,
+    rb: float | None = None,
+    rs: float | None = None,
 ) -> None:
     """Populate atmstate with initial atmospheric values.
 
@@ -1168,21 +1219,48 @@ def populate_atmstate(
         State object to populate.
     forcing_dts : dts.SUEWS_FORCING
         Forcing object with initial meteorological values.
+    tair_av : float, optional
+        5-day moving average temperature [K] from previous run's final state.
+        If provided (continuation run), use this instead of initialising from
+        forcing temperature. If None (fresh run), initialise from forcing.
+    l_mod : float, optional
+        Obukhov length [m] from previous run. Essential for stability-dependent
+        resistance calculations in continuation runs.
+    ustar : float, optional
+        Friction velocity [m s-1] from previous run.
+    ra_h : float, optional
+        Aerodynamic resistance for heat [s m-1] from previous run.
 
     Notes
     -----
     Most atmstate values (avcp, avdens, etc.) are recalculated each timestep
     by cal_AtmMoist. However, tair_av needs initialization as it's a running
-    average that persists across timesteps.
+    average that persists across timesteps. For continuation runs, l_mod,
+    ustar, and ra_h provide better initial guesses for iterative stability
+    calculations, ensuring bit-identical output with continuous runs.
     """
     atm = state_dts.atmstate
     temp_c = forcing_dts.temp_c
     pres = forcing_dts.pres
     rh = forcing_dts.rh
 
-    # Initialize tair_av with temperature in Kelvin
-    # This is the running 24-hour average, start with current temperature
-    atm.tair_av = temp_c + 273.15
+    # Initialize tair_av: use provided value (continuation) or forcing temperature (fresh)
+    if tair_av is not None and tair_av > 0:
+        atm.tair_av = tair_av
+    else:
+        atm.tair_av = temp_c + 273.15
+
+    # Initialize stability/resistance values for continuation runs
+    if l_mod is not None and l_mod != 0:
+        atm.l_mod = l_mod
+    if ustar is not None and ustar > 0:
+        atm.ustar = ustar
+    if ra_h is not None and ra_h > 0:
+        atm.ra_h = ra_h
+    if rb is not None and rb > 0:
+        atm.rb = rb
+    if rs is not None and rs > 0:
+        atm.rs = rs
 
     # Calculate initial atmospheric moisture values
     # These match the cal_AtmMoist calculations in Fortran

@@ -81,6 +81,7 @@ class SUEWSSimulation:
         self._df_forcing = None
         self._df_output = None
         self._df_state_final = None
+        self._initial_states_final = None  # Pydantic state for DTS backend
         self._run_completed = False
 
         if config is not None:
@@ -518,8 +519,9 @@ class SUEWSSimulation:
                 config=self._config,
             )
             self._df_output = df_output
-            # DTS returns Fortran DTS objects, not DataFrame state
+            # DTS extracts state to Pydantic InitialStates (not DataFrame)
             self._df_state_final = None
+            self._initial_states_final = final_state.get("initial_states")
         else:
             # Traditional backend: DataFrame-based execution
             result = run_supy_ser(
@@ -1247,3 +1249,33 @@ class SUEWSSimulation:
         True
         """
         return self._df_state_final
+
+    @property
+    def initial_states_final(self):
+        """Final state as Pydantic InitialStates after DTS simulation.
+
+        Available only after running simulation with ``backend='dts'``.
+        Contains the evolved state variables as a Pydantic model that can
+        be used for continuation runs or YAML persistence.
+
+        Returns
+        -------
+        InitialStates or None
+            Pydantic InitialStates model after DTS simulation.
+            None if simulation hasn't been run or used traditional backend.
+
+        See Also
+        --------
+        state_final : DataFrame state for traditional backend
+        run : Run simulation with backend parameter
+
+        Examples
+        --------
+        >>> sim = SUEWSSimulation.from_sample_data()
+        >>> sim.run(backend='dts')
+        >>> sim.initial_states_final is not None
+        True
+        >>> # Save state to YAML
+        >>> sim.initial_states_final.to_yaml('final_state.yaml')
+        """
+        return self._initial_states_final

@@ -29,6 +29,7 @@ Extraction Functions
 extract_output_line_to_dict : Extract output arrays to dictionary
 build_output_dataframe_from_block : Build DataFrame from batch output array
 build_full_output_dataframe : Build DataFrame with all output groups
+extract_state_from_dts : Extract final state to Pydantic InitialStates
 """
 
 from ._core import (
@@ -43,6 +44,7 @@ from ._extract import (
     build_full_output_dataframe,
     build_output_dataframe_from_block,
     extract_output_line_to_dict,
+    extract_state_from_dts,
 )
 from ._populate import (
     populate_atmstate,
@@ -67,6 +69,7 @@ __all__ = [
     "create_suews_state",
     "create_suews_timer",
     "extract_output_line_to_dict",
+    "extract_state_from_dts",
     "populate_atmstate",
     "populate_config_from_pydantic",
     "populate_forcing_from_row",

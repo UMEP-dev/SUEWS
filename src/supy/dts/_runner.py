@@ -23,6 +23,7 @@ from ._core import (
 )
 from ._extract import (
     build_output_dataframe_from_block,
+    extract_state_from_dts,
 )
 from ._populate import (
     populate_atmstate,
@@ -187,7 +188,31 @@ def run_dts(
     # Initialize atmospheric state from first forcing timestep
     first_row = df_forcing.iloc[0]
     populate_forcing_from_row(forcing_dts, first_row)
-    populate_atmstate(state_dts, forcing_dts)
+
+    # Get atmospheric state values from initial_states for continuation runs
+    def _get_atm_value(name: str) -> float | None:
+        val = getattr(initial_states, name, None)
+        if val is not None:
+            return val.value if hasattr(val, "value") else val
+        return None
+
+    tair_av_init = _get_atm_value("tair_av")
+    l_mod_init = _get_atm_value("l_mod")
+    ustar_init = _get_atm_value("ustar")
+    ra_h_init = _get_atm_value("ra_h")
+    rb_init = _get_atm_value("rb")
+    rs_init = _get_atm_value("rs")
+
+    populate_atmstate(
+        state_dts,
+        forcing_dts,
+        tair_av=tair_av_init,
+        l_mod=l_mod_init,
+        ustar=ustar_init,
+        ra_h=ra_h_init,
+        rb=rb_init,
+        rs=rs_init,
+    )
 
     # Prepare forcing block for batch execution
     len_sim = len(df_forcing)
@@ -228,11 +253,19 @@ def run_dts(
         grid_id=grid_id,
     )
 
+    # Extract final state to Pydantic InitialStates for continuation runs
+    initial_states_final = extract_state_from_dts(
+        state_dts=state_dts,
+        nlayer=nlayer,
+        ndepth=ndepth,
+    )
+
     # Prepare final state dictionary (for potential restart)
     final_state = {
         "state_dts": state_dts,
         "site_dts": site_dts,
         "config_dts": config_dts,
+        "initial_states": initial_states_final,
     }
 
     return df_output, final_state

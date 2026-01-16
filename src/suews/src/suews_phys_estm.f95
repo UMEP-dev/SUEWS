@@ -208,6 +208,7 @@ MODULE module_phys_estm_solver
    !     Copyright (c) 2001 MyCompany. All rights reserved.
 
    USE module_ctrl_const_physconst, ONLY: eps_fp
+   USE module_ctrl_error_state, ONLY: add_supy_warning
    IMPLICIT NONE
 
 CONTAINS
@@ -253,7 +254,7 @@ CONTAINS
       END DO
       niter = i - 1
       IF (.NOT. converged) THEN
-         ! Non-convergence: return initial guess (caller should validate)
+         CALL add_supy_warning('NewtonPolynomial did not converge, returning initial guess')
          x = x0
       END IF
    END FUNCTION NewtonPolynomial
@@ -578,7 +579,7 @@ MODULE module_phys_estm
    ! revision history:
    ! TS 09 Oct 2017: re-organised ESTM subroutines into a module
    !===============================================================================
-   USE module_ctrl_error_state, ONLY: supy_error_flag
+   USE module_ctrl_error_state, ONLY: supy_error_flag, add_supy_warning
    USE module_ctrl_error, ONLY: ErrorHint
    IMPLICIT NONE
 
@@ -1419,16 +1420,16 @@ CONTAINS
       !ivf_fr=ivf_rf;
 
       ! Validate internal view factors sum to 1 (configuration check)
-      ! IF ((ivf_ii + ivf_iw + ivf_ir + ivf_if > 1.0001) .OR. &
-      !     (ivf_wi + ivf_ww + ivf_wr + ivf_wf > 1.0001) .OR. &
-      !     (ivf_ri + ivf_rw + ivf_rf > 1.0001) .OR. &
-      !     (ivf_fi + ivf_fw + ivf_fr > 1.0001) .OR. &
-      !     (ivf_ii + ivf_iw + ivf_ir + ivf_if < 0.9999) .OR. &
-      !     (ivf_wi + ivf_ww + ivf_wr + ivf_wf < 0.9999) .OR. &
-      !     (ivf_ri + ivf_rw + ivf_rf < 0.9999) .OR. &
-      !     (ivf_fi + ivf_fw + ivf_fr < 0.9999)) THEN
-      !    ! View factor validation: check ivf in ESTMinput.nml
-      ! END IF
+      IF ((ivf_ii + ivf_iw + ivf_ir + ivf_if > 1.0001) .OR. &
+          (ivf_wi + ivf_ww + ivf_wr + ivf_wf > 1.0001) .OR. &
+          (ivf_ri + ivf_rw + ivf_rf > 1.0001) .OR. &
+          (ivf_fi + ivf_fw + ivf_fr > 1.0001) .OR. &
+          (ivf_ii + ivf_iw + ivf_ir + ivf_if < 0.9999) .OR. &
+          (ivf_wi + ivf_ww + ivf_wr + ivf_wf < 0.9999) .OR. &
+          (ivf_ri + ivf_rw + ivf_rf < 0.9999) .OR. &
+          (ivf_fi + ivf_fw + ivf_fr < 0.9999)) THEN
+         CALL add_supy_warning('ESTM: At least one internal view factor <> 1. Check ivf in ESTMinput.nml')
+      END IF
 
       !=======Initial setting==============================================
       !! Rewritten by HCW 15 Jun 2016 to use existing SUEWS error handling

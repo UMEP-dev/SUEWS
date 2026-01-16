@@ -69,7 +69,7 @@ MODULE SUEWS_Driver
                           SUEWS_cal_DLS
    ! Re-export error state from module_ctrl_error_state for Python/f90wrap access
    USE module_ctrl_error_state, ONLY: supy_error_flag, supy_error_code, supy_error_message, &
-                                       reset_supy_error, set_supy_error
+                                       reset_supy_error, set_supy_error, add_supy_warning
    USE module_ctrl_error, ONLY: ErrorHint
 
    IMPLICIT NONE
@@ -5585,8 +5585,9 @@ FUNCTION cal_tsfc_dyohm(Temp_in, Qs, K, C, z, nz, T_bottom, dt) RESULT(Temp_out)
     ! Stability check
     !----------------------------------------------------------
     dz_min = MINVAL(z(2:nz) - z(1:nz-1))
-    ! Stability criterion check: alpha*dt/dz_min^2 <= 0.5
-    ! Warning removed for QGIS compatibility (GH-1080)
+    IF (alpha * dt / (dz_min**2) > 0.5D0) THEN
+       CALL add_supy_warning('cal_tsfc_dyohm: time step may be too large for stability')
+    END IF
 
     ! Initialize output
     Temp_out = Temp_in

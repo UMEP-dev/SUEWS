@@ -415,7 +415,9 @@ CONTAINS
                IF (config%SnowUse == 1) THEN
                   ! Only show warning once per grid cell (state-based, thread-safe)
                   IF (.NOT. flagState%snow_warning_shown) THEN
+#ifdef wrf
                      WRITE (*, *) "WARNING SNOW ON! Not recommended at the moment"
+#endif
                      flagState%snow_warning_shown = .TRUE.
                   END IF
                   ! ===================Calculate snow related hydrology=======================
@@ -1004,6 +1006,7 @@ CONTAINS
 
                ELSE
                   CALL ErrorHint(73, 'RunControl.nml:EmissionsMethod unusable', notUsed, notUsed, EmissionsMethod)
+                  IF (supy_error_flag) RETURN
                END IF
 
                IF (EmissionsMethod >= 1) qf = QF_SAHP

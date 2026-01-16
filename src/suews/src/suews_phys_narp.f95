@@ -103,8 +103,10 @@ CONTAINS
             NetRadiationMethod_use = NetRadiationMethod
             !If bad NetRadiationMethod value
             IF (MOD(NetRadiationMethod, 10) > 3 .OR. AlbedoChoice == -9) THEN
+#ifdef wrf
                WRITE (*, *) 'NetRadiationMethod=', NetRadiationMethod_use
                WRITE (*, *) 'Value not usable'
+#endif
                CALL set_supy_error(100, 'NARP: NetRadiationMethod value not usable')
                RETURN
             END IF
@@ -113,8 +115,10 @@ CONTAINS
 
          !If bad NetRadiationMethod value
          IF (MOD(NetRadiationMethod, 10) > 3 .OR. AlbedoChoice == -9) THEN
+#ifdef wrf
             WRITE (*, *) 'NetRadiationMethod=', NetRadiationMethod_use
             WRITE (*, *) 'Value not usable'
+#endif
             CALL set_supy_error(100, 'NARP: NetRadiationMethod value not usable')
             RETURN
          END IF

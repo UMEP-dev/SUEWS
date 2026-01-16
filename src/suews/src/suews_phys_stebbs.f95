@@ -437,7 +437,9 @@ CONTAINS
 
       ! Validate inputs
       IF (d <= 0 .OR. cp <= 0 .OR. rho <= 0) THEN
+#ifdef wrf
          PRINT *, "Thickness (d), specific heat (cp), and density (rho) must be positive."
+#endif
          CALL set_supy_error(102, 'STEBBS calculate_x1: d, cp, rho must be positive')
          x1 = -999.0D0
          RETURN
@@ -456,7 +458,9 @@ CONTAINS
 
       ! limit the output x1 between 0 and 1
       IF (x1 <= 0 .OR. x1 >= 1) THEN
+#ifdef wrf
          PRINT *, "OuterCapFrac should be between 0 and 1."
+#endif
          CALL set_supy_error(102, 'STEBBS calculate_x1: OuterCapFrac should be between 0 and 1')
          x1 = -999.0D0
          RETURN
@@ -2071,7 +2075,9 @@ SUBROUTINE tstep( &
       Qlw_up_roof_tstepSA = Qlw_up_roof_tsteptotal / timestep / Aroof
    ELSE !iftimestepresolution
       !  printf("Timestep: %i not equally divisible by given resolution: %i.\n", timestep, resolution)
+#ifdef wrf
       WRITE (*, *) "Timestep: ", timestep, " not equally divisible by given resolution: ", resolution
+#endif
    END IF
 END SUBROUTINE tstep
 SUBROUTINE reinitialiseTemperatures

@@ -6,7 +6,7 @@ MODULE module_phys_ohm
    ! USE module_ctrl_const_gis
    ! USE module_ctrl_const_sues
    ! USE module_ctrl_const_time
-   USE module_ctrl_error_state, ONLY: set_supy_error
+   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
 
    IMPLICIT NONE
 CONTAINS
@@ -410,6 +410,7 @@ CONTAINS
 
       ELSE
          CALL ErrorHint(21, 'In SUEWS_OHM.f95: bad value for qn1 found during qs calculation.', qn1, -55.55D0, -55)
+         IF (supy_error_flag) RETURN
       END IF
 
       !write(*,*) qs
@@ -445,6 +446,7 @@ CONTAINS
 
          ELSE
             CALL ErrorHint(21, 'In SUEWS_OHM.f95: bad value for qn1(snow) found during qs calculation.', qn1_S, -55.55D0, -55)
+            IF (supy_error_flag) RETURN
          END IF
 
       END IF
@@ -708,13 +710,17 @@ CONTAINS
 
       ! Validate inputs
       IF (d <= 0 .OR. C <= 0 .OR. k <= 0 .OR. lambda_c <= 0) THEN
+#ifdef wrf
          PRINT *, "Thickness (d), heat capacity (C), conductivity (k), and lambda_c must be positive."
+#endif
          CALL set_supy_error(101, 'OHM calculate_a1: d, C, k, lambda_c must be positive')
          a1 = -999.0D0
          RETURN
       END IF
       IF (WS < 0) THEN
+#ifdef wrf
          PRINT *, "Wind speed (WS) cannot be negative."
+#endif
          CALL set_supy_error(101, 'OHM calculate_a1: Wind speed cannot be negative')
          a1 = -999.0D0
          RETURN
@@ -758,13 +764,17 @@ CONTAINS
 
       ! Validate inputs
       IF (d <= 0 .OR. C <= 0 .OR. k <= 0 .OR. lambda_c <= 0) THEN
+#ifdef wrf
          PRINT *, "Thickness (d), heat capacity (C), conductivity (k), and lambda_c must be positive."
+#endif
          CALL set_supy_error(101, 'OHM calculate_a2: d, C, k, lambda_c must be positive')
          a2 = -999.0D0
          RETURN
       END IF
       IF (WS <= 0) THEN
+#ifdef wrf
          PRINT *, "Wind speed (WS) must be positive."
+#endif
          CALL set_supy_error(101, 'OHM calculate_a2: Wind speed must be positive')
          a2 = -999.0D0
          RETURN

@@ -7,7 +7,24 @@ instead of terminating Python via Fortran STOP.
 
 import pytest
 from supy import SUEWSKernelError
-from supy._run import _check_supy_error, _reset_supy_error
+from supy._run import _reset_supy_error
+
+
+def _check_module_level_error():
+    """Check module-level error state and raise if set.
+
+    Test helper that checks the Fortran module-level error state.
+    This is used to test the error state mechanism directly.
+    """
+    from supy import _supy_driver as _sd
+
+    if _sd.f90wrap_module_ctrl_error_state__get__supy_error_flag():
+        code = int(_sd.f90wrap_module_ctrl_error_state__get__supy_error_code())
+        message = str(
+            _sd.f90wrap_module_ctrl_error_state__get__supy_error_message()
+        ).strip()
+        _sd.f90wrap_module_ctrl_error_state__reset_supy_error()
+        raise SUEWSKernelError(code, message)
 
 
 @pytest.mark.core
@@ -30,9 +47,9 @@ class TestSUEWSKernelError:
         flag = _sd.f90wrap_module_ctrl_error_state__get__supy_error_flag()
         assert flag, "Error flag should be True after set_supy_error"
 
-        # Verify _check_supy_error raises SUEWSKernelError
+        # Verify _check_module_level_error raises SUEWSKernelError
         with pytest.raises(SUEWSKernelError) as exc_info:
-            _check_supy_error()
+            _check_module_level_error()
 
         assert exc_info.value.code == 42
         assert "Test error" in str(exc_info.value.message)
@@ -61,12 +78,12 @@ class TestSUEWSKernelError:
         assert msg.strip() == b"" or msg.strip() == "", "Error message should be empty"
 
     def test_no_error_does_not_raise(self):
-        """Test that _check_supy_error does nothing when no error is set."""
+        """Test that _check_module_level_error does nothing when no error is set."""
         # Ensure clean state
         _reset_supy_error()
 
         # This should NOT raise
-        _check_supy_error()  # If this raises, the test fails
+        _check_module_level_error()  # If this raises, the test fails
 
     def test_suews_kernel_error_attributes(self):
         """Test SUEWSKernelError has correct attributes."""
@@ -96,8 +113,8 @@ class TestSUEWSKernelError:
         # Reset (simulating what happens at start of new simulation)
         _reset_supy_error()
 
-        # Verify error is cleared - _check_supy_error should NOT raise
-        _check_supy_error()  # If this raises, error state leaked
+        # Verify error is cleared - _check_module_level_error should NOT raise
+        _check_module_level_error()  # If this raises, error state leaked
 
         # Verify state is clean
         flag = _sd.f90wrap_module_ctrl_error_state__get__supy_error_flag()
@@ -133,10 +150,11 @@ class TestSUEWSKernelErrorIntegration:
         This verifies the fix for the silent failure issue where exception
         handlers logged but didn't re-raise, causing functions to return None.
         """
-        from supy._run import suews_cal_tstep
+        import pandas as pd
+        from supy._run import suews_cal_tstep_multi
 
         # Calling with invalid/missing dict should raise, not return None
         with pytest.raises(Exception):
-            # Empty dict will cause KeyError or similar - the important thing
-            # is that an exception is raised, not that None is returned
-            suews_cal_tstep({}, {})
+            # Empty dict and DataFrame will cause KeyError or similar - the important
+            # thing is that an exception is raised, not that None is returned
+            suews_cal_tstep_multi({}, pd.DataFrame())

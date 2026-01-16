@@ -578,6 +578,7 @@ MODULE module_phys_estm
    ! revision history:
    ! TS 09 Oct 2017: re-organised ESTM subroutines into a module
    !===============================================================================
+   USE module_ctrl_error_state, ONLY: supy_error_flag
    IMPLICIT NONE
 
 CONTAINS
@@ -633,6 +634,7 @@ CONTAINS
             IF (tstep_estm /= tstep_real .AND. ESTMArray(2) == iday_prev) THEN
                CALL ErrorHint(39, 'TSTEP in RunControl does not match TSTEP of ESTM data (DOY).', &
                               REAL(tstep, KIND(1D0)), tstep_estm, INT(ESTMArray(2)))
+               IF (supy_error_flag) RETURN
             END IF
          END IF
       END DO

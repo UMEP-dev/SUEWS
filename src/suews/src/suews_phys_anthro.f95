@@ -1,6 +1,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_anthro
    USE module_ctrl_input_profile, ONLY: get_Prof_SpecTime_inst, get_Prof_SpecTime_mean
+   USE module_ctrl_error_state, ONLY: supy_error_flag
 
    IMPLICIT NONE
 
@@ -306,6 +307,7 @@ CONTAINS
 
          ELSE ! If TrafficUnits doesn't match possible units
             CALL ErrorHint(75, 'Check TrafficUnits', TrafficUnits, -999D1)
+            IF (supy_error_flag) RETURN
 
          END IF
 

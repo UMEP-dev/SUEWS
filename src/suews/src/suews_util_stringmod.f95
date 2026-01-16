@@ -473,11 +473,9 @@ CONTAINS
          iend = 1
          inc = -1
       CASE default
-         WRITE (*, *) delim1, ' is not a valid delimiter'
          RETURN
       END SELECT
       IF (istart < 1 .OR. istart > lenstr) THEN
-         WRITE (*, *) delim1, ' has no matching delimiter'
          RETURN
       END IF
       delim2 = ACHAR(idelim2) ! matching delimiter
@@ -491,7 +489,6 @@ CONTAINS
          IF (isum == 0) EXIT
       END DO
       IF (isum /= 0) THEN
-         WRITE (*, *) delim1, ' has no matching delimiter'
          RETURN
       END IF
       imatch = i

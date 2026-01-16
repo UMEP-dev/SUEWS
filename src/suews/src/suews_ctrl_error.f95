@@ -8,6 +8,7 @@
 !   100: NARP - NetRadiationMethod value not usable
 !   101: OHM  - Invalid input parameters (d, C, k, lambda_c, WS must be positive)
 !   102: STEBBS - Invalid thermal parameters (d, cp, rho must be positive; x1 in [0,1])
+!   103: RSL - Interpolation bounds error in interp_z
 !
 ! Note: Error state uses SAVE variables, so is NOT thread-safe.
 !       Do not call SUEWS from multiple threads simultaneously.
@@ -20,12 +21,20 @@ MODULE module_ctrl_error_state
    INTEGER, SAVE :: supy_error_code = 0
    CHARACTER(LEN=512), SAVE :: supy_error_message = ''
 
+   ! Warning state variables for non-fatal issues
+   INTEGER, SAVE :: supy_warning_count = 0
+   INTEGER, SAVE :: supy_last_warning_code = 0
+   CHARACTER(LEN=512), SAVE :: supy_last_warning_message = ''
+
 CONTAINS
 
    SUBROUTINE reset_supy_error()
       supy_error_flag = .FALSE.
       supy_error_code = 0
       supy_error_message = ''
+      supy_warning_count = 0
+      supy_last_warning_code = 0
+      supy_last_warning_message = ''
    END SUBROUTINE reset_supy_error
 
    SUBROUTINE set_supy_error(code, message)
@@ -38,6 +47,18 @@ CONTAINS
       msg_len = MIN(LEN_TRIM(message), 512)
       supy_error_message = message(1:msg_len)
    END SUBROUTINE set_supy_error
+
+   SUBROUTINE add_supy_warning(code, message)
+      !> Add a warning to the warning state (non-fatal)
+      INTEGER, INTENT(IN) :: code
+      CHARACTER(LEN=*), INTENT(IN) :: message
+      INTEGER :: msg_len
+
+      supy_warning_count = supy_warning_count + 1
+      supy_last_warning_code = code
+      msg_len = MIN(LEN_TRIM(message), 512)
+      supy_last_warning_message = message(1:msg_len)
+   END SUBROUTINE add_supy_warning
 
 END MODULE module_ctrl_error_state
 
@@ -67,7 +88,7 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
    !   Use process-based parallelism or serialize calls with a lock in the caller.
 
    USE module_ctrl_const_datain
-   USE module_ctrl_error_state, ONLY: set_supy_error
+   USE module_ctrl_error_state, ONLY: set_supy_error, add_supy_warning
    ! USE module_ctrl_const_wherewhen
 
    IMPLICIT NONE
@@ -277,7 +298,9 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
       v1 = .TRUE.
    ELSEIF (errh == 51) THEN
       text1 = 'Problems in opening the file'
+#ifdef wrf
       WRITE (*, *) ProblemFile
+#endif
    ELSEIF (errh == 52) THEN
       text1 = 'Problems opening the output file.'
    ELSEIF (errh == 53) THEN
@@ -407,10 +430,8 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
          CALL wrf_debug(100, message)
          CALL wrf_debug(100, Errmessage)
 #else
-         WRITE (*, *) 'Warning: ', TRIM(ProblemFile)
-         WRITE (*, *) TRIM(text1)
-         IF (LEN_TRIM(Errmessage) > 0) WRITE (*, *) TRIM(Errmessage)
-         WRITE (*, '(a,i3)') ' Warning code: ', errh
+         ! SuPy: propagate warnings to Python via warning state
+         CALL add_supy_warning(errh, TRIM(text1)//': '//TRIM(ProblemFile))
 #endif
       END IF
 
@@ -429,18 +450,9 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
       WRITE (message, *) 'fatal error in SUEWS:', TRIM(text1)
       CALL wrf_error_fatal(message)
 #else
-      WRITE (StopMessage, *) 'fatal error in SUEWS:'//NEW_LINE('A')//TRIM(text1)
-
-      WRITE (*, *) 'Problem: ', TRIM(ProblemFile)
-      WRITE (*, *) 'ERROR! Program stopped: ', TRIM(text1)
-      IF (LEN_TRIM(Errmessage) > 0) WRITE (*, *) TRIM(Errmessage)
-      WRITE (*, '(a,i3)') ' Error code: ', errh
-
-      ! Set error state for Python/SuPy interface instead of STOP
-      ! This allows Python to detect the error and raise an exception
+      ! SuPy: no stdout writes - Python handles error reporting
       CALL set_supy_error(errh, TRIM(text1)//': '//TRIM(ProblemFile))
       RETURN
-
 #endif
    END IF
 

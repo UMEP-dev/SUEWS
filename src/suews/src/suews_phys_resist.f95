@@ -335,7 +335,9 @@ CONTAINS
          QNM = Kmax/(Kmax + G_k)
          g_kdown = (avkdn/(avkdn + G_k))/QNM
          IF (avkdn >= Kmax) THEN !! Add proper error handling later - HCW!!
+#ifdef wrf
             WRITE (*, *) 'Kmax exceeds Kdn setting to g(Kdn) to 1'
+#endif
             g_kdown = 1
          END IF
 
@@ -461,6 +463,7 @@ CONTAINS
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                IRRIGATION_PRM, anthroEmis_STATE, &
                                HYDRO_STATE, PHENOLOGY_STATE, ROUGHNESS_STATE, SUEWS_STATE
+      USE module_ctrl_error_state, ONLY: supy_error_flag
       IMPLICIT NONE
 
       INTEGER, PARAMETER :: nsurf = 7 ! number of surface types
@@ -681,9 +684,18 @@ CONTAINS
             ZZD = Z - zdm
 
             ! Error messages if aerodynamic parameters negative
-            IF (z0m < 0) CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, z0 < 0 m.', z0m, notUsed, notUsedI)
-            IF (zdm < 0) CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, zd < 0 m.', zdm, notUsed, notUsedI)
-            IF (zzd < 0) CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, (z-zd) < 0 m.', zzd, notUsed, notUsedI)
+            IF (z0m < 0) THEN
+               CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, z0 < 0 m.', z0m, notUsed, notUsedI)
+               IF (supy_error_flag) RETURN
+            END IF
+            IF (zdm < 0) THEN
+               CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, zd < 0 m.', zdm, notUsed, notUsedI)
+               IF (supy_error_flag) RETURN
+            END IF
+            IF (zzd < 0) THEN
+               CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, (z-zd) < 0 m.', zzd, notUsed, notUsedI)
+               IF (supy_error_flag) RETURN
+            END IF
 
          END ASSOCIATE
       END ASSOCIATE

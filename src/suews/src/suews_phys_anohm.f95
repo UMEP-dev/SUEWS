@@ -15,6 +15,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_anohm
    USE module_phys_ohm, ONLY: OHM_dqndt_cal_X, OHM_QS_cal
+   USE module_ctrl_error_state, ONLY: supy_error_flag
 
    IMPLICIT NONE
 CONTAINS
@@ -135,6 +136,7 @@ CONTAINS
 
       ELSE
          CALL ErrorHint(21, 'SUEWS_AnOHM.f95: bad value for qn found during qs calculation.', qn1, NotUsed, notUsedI)
+         IF (supy_error_flag) RETURN
       END IF
 
    END SUBROUTINE AnOHM

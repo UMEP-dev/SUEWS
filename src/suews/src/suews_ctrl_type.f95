@@ -150,13 +150,18 @@ MODULE module_ctrl_type
    ! Error state for thread-safe error handling (replaces module-level SAVE variables)
    ! Each grid cell gets its own error state, enabling WRF coupling and parallel execution
    TYPE, PUBLIC :: error_state
-      LOGICAL :: flag = .FALSE.           ! Error flag: .TRUE. if error occurred
-      INTEGER :: code = 0                  ! Error code (see suews_ctrl_error.f95 for codes)
-      CHARACTER(LEN=512) :: message = ''   ! Error message describing the problem
+      LOGICAL :: flag = .FALSE.           ! Error flag: .TRUE. if error occurred (legacy)
+      INTEGER :: code = 0                  ! Error code (legacy)
+      CHARACTER(LEN=512) :: message = ''   ! Error message describing the problem (legacy)
+      LOGICAL :: has_fatal = .FALSE.       ! Any fatal error occurred?
+      TYPE(error_entry), ALLOCATABLE :: log(:)  ! Error/warning log
+      INTEGER :: count = 0                 ! Number of entries in log
    CONTAINS
       PROCEDURE :: set => set_error_state
       PROCEDURE :: reset => reset_error_state
       PROCEDURE :: has_error => has_error_state
+      PROCEDURE :: report => report_error_impl
+      PROCEDURE :: clear_log => clear_error_log
    END TYPE error_state
 
    TYPE, PUBLIC :: SUEWS_STATE
@@ -228,6 +233,14 @@ MODULE module_ctrl_type
       INTEGER :: new_day = 0 ! flag to indicate a new day !TODO: Should this be bool?
 
    END TYPE SUEWS_TIMER
+
+   ! Single error/warning log entry
+   TYPE, PUBLIC :: error_entry
+      TYPE(SUEWS_TIMER) :: timer           ! When it happened
+      CHARACTER(LEN=256) :: message = ''   ! What went wrong (includes values)
+      CHARACTER(LEN=64) :: location = ''   ! Where (subroutine name)
+      LOGICAL :: is_fatal = .FALSE.        ! Stop execution?
+   END TYPE error_entry
 
    TYPE, PUBLIC :: output_block
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockSUEWS
@@ -325,6 +338,8 @@ CONTAINS
       self%flag = .FALSE.
       self%code = 0
       self%message = ''
+      self%has_fatal = .FALSE.
+      self%count = 0
    END SUBROUTINE reset_error_state
 
    FUNCTION has_error_state(self) RESULT(has_err)
@@ -334,6 +349,56 @@ CONTAINS
 
       has_err = self%flag
    END FUNCTION has_error_state
+
+   SUBROUTINE report_error_impl(self, timer, message, location, is_fatal)
+      !> Report an error/warning to the error log
+      CLASS(error_state), INTENT(INOUT) :: self
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      CHARACTER(LEN=*), INTENT(IN) :: message
+      CHARACTER(LEN=*), INTENT(IN) :: location
+      LOGICAL, INTENT(IN), OPTIONAL :: is_fatal
+
+      TYPE(error_entry), ALLOCATABLE :: temp(:)
+      INTEGER :: new_size
+      LOGICAL :: fatal
+
+      fatal = .TRUE.
+      IF (PRESENT(is_fatal)) fatal = is_fatal
+
+      ! Grow array if needed
+      IF (.NOT. ALLOCATED(self%log)) THEN
+         ALLOCATE (self%log(16))
+      ELSE IF (self%count >= SIZE(self%log)) THEN
+         new_size = SIZE(self%log)*2
+         ALLOCATE (temp(new_size))
+         temp(1:self%count) = self%log(1:self%count)
+         CALL MOVE_ALLOC(temp, self%log)
+      END IF
+
+      ! Append entry
+      self%count = self%count + 1
+      self%log(self%count)%timer = timer
+      self%log(self%count)%message = message
+      self%log(self%count)%location = location
+      self%log(self%count)%is_fatal = fatal
+
+      IF (fatal) THEN
+         self%has_fatal = .TRUE.
+         self%flag = .TRUE.
+         self%message = message
+      END IF
+   END SUBROUTINE report_error_impl
+
+   SUBROUTINE clear_error_log(self)
+      !> Clear the error log and reset all error state
+      CLASS(error_state), INTENT(INOUT) :: self
+
+      self%count = 0
+      self%has_fatal = .FALSE.
+      self%flag = .FALSE.
+      self%code = 0
+      self%message = ''
+   END SUBROUTINE clear_error_log
 
    !===========================================================================
 

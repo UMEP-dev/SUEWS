@@ -23,7 +23,6 @@ class TestInitSuPy(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
         # Get the sample config path
         self.sample_config = (
             Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
@@ -101,7 +100,6 @@ class TestLoadForcing(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
         self.sample_config = (
             Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
         )
@@ -208,7 +206,6 @@ class TestConfigLoading(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
         self.sample_config = (
             Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
         )
@@ -267,10 +264,6 @@ class TestConfigLoading(TestCase):
 
 class TestLoadingScenarios(TestCase):
     """Test various loading scenarios and edge cases."""
-
-    def setUp(self):
-        """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
 
     def test_load_modify_reload(self):
         """Test loading, modifying, and reloading state."""

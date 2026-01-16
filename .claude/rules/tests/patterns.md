@@ -101,6 +101,54 @@ test/
 - Testing implementation details rather than behaviour
 - Relative paths from repository root
 - Tests depending on execution order
+- Duplicating setup logic across multiple test files (use conftest.py)
+- Warning suppression in setUp methods (use autouse fixtures)
+- Relative imports for shared test utilities from subdirectories
+- Magic numbers without named constants (e.g., `288` for timesteps/day)
+
+---
+
+## Centralisation Patterns
+
+### Shared Utilities in conftest.py
+
+Place shared decorators, fixtures, and utilities in `test/conftest.py`:
+
+```python
+# test/conftest.py
+
+# Centralised imports with fallbacks
+try:
+    from debug_utils import debug_on_ci, capture_test_artifacts
+except ImportError:
+    def debug_on_ci(func):
+        return func
+    def capture_test_artifacts(name):
+        return lambda func: func
+
+# Global warning suppression (replaces setUp boilerplate)
+@pytest.fixture(autouse=True)
+def suppress_import_warnings():
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=ImportWarning)
+        yield
+
+# Named constants
+TIMESTEPS_PER_DAY = 288  # 24*60/5 = 288 five-minute intervals
+```
+
+### Importing in Test Files
+
+```python
+# Good: Import from conftest
+from conftest import debug_on_ci, capture_test_artifacts, TIMESTEPS_PER_DAY
+
+# Bad: Relative imports with fallback logic in each file
+try:
+    from .debug_utils import debug_on_ci  # Don't do this
+except ImportError:
+    def debug_on_ci(func): return func  # Duplicated everywhere
+```
 
 ---
 

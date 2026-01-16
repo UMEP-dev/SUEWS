@@ -288,8 +288,6 @@ class TestSampleOutput(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
-
         # Clear any cached data from previous tests
         # This prevents test interference when tests run in sequence
         import functools
@@ -677,8 +675,6 @@ class TestSTEBBSOutput(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
-
         # Check if running in CI
         self.in_ci = os.environ.get("CI", "").lower() == "true"
         self.artifact_dir = None

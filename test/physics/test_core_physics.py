@@ -33,8 +33,6 @@ class TestPhysicalValidation(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        warnings.simplefilter("ignore", category=ImportWarning)
-
         # Load and run a short simulation for testing
         self.df_state_init, self.df_forcing = sp.load_SampleData()
         # Run for 7 days to get meaningful statistics

@@ -19,8 +19,6 @@ class TestResampleOutput(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
-
         # Create sample output data for testing
         self.df_state_init, self.df_forcing = sp.load_SampleData()
 
@@ -256,8 +254,6 @@ class TestPostProcessingUtilities(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
-
         # Run a minimal simulation
         df_state_init, df_forcing = sp.load_SampleData()
         df_forcing_short = df_forcing.iloc[: 288 * 2]  # Two days
@@ -372,8 +368,6 @@ class TestMultiGridPostProcessing(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
-
         # Create multi-grid simulation
         df_state_single, df_forcing = sp.load_SampleData()
 

@@ -31,8 +31,6 @@ class TestFortranStatePersistence(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
-
         # Clear any cached data from previous tests
         import functools
         import gc

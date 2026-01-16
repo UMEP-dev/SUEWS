@@ -5,7 +5,6 @@ import sys
 import tempfile
 from time import time
 from unittest import TestCase, skipIf
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -14,27 +13,13 @@ import pytest
 import supy as sp
 from supy import SUEWSSimulation
 
-# Import debug utilities
-try:
-    from .debug_utils import (
-        capture_test_artifacts,
-        debug_dataframe_output,
-        debug_on_ci,
-        debug_water_balance,
-    )
-except ImportError:
-    # Fallback if decorators not available
-    def debug_on_ci(func):
-        return func
-
-    def debug_dataframe_output(func):
-        return func
-
-    def debug_water_balance(func):
-        return func
-
-    def capture_test_artifacts(name):
-        return lambda func: func
+# Import debug utilities from conftest (centralised)
+from conftest import (
+    capture_test_artifacts,
+    debug_dataframe_output,
+    debug_on_ci,
+    debug_water_balance,
+)
 
 
 # Get the test data directory from the environment variable
@@ -51,9 +36,6 @@ flag_full_test = True
 
 
 class TestSuPy(TestCase):
-    def setUp(self):
-        warnings.simplefilter("ignore", category=ImportWarning)
-
     # test if single-tstep mode can run
     @pytest.mark.smoke
     def test_is_supy_running_single_step(self):

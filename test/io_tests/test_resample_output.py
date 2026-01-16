@@ -6,19 +6,8 @@ import pytest
 import supy as sp
 from supy._post import resample_output, dict_var_aggm
 
-# Import debug utilities
-try:
-    from .debug_utils import debug_on_ci, capture_test_artifacts, analyze_dailystate_nan
-except ImportError:
-    # Fallback if decorators not available
-    def debug_on_ci(func):
-        return func
-
-    def capture_test_artifacts(name):
-        return lambda func: func
-
-    def analyze_dailystate_nan(func):
-        return func
+# Import debug utilities from conftest (centralised)
+from conftest import debug_on_ci, capture_test_artifacts, analyze_dailystate_nan
 
 
 class TestResampleOutput:

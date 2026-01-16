@@ -1,10 +1,58 @@
 """pytest configuration for SUEWS test suite."""
 
 import subprocess
+import warnings
 
 import pytest
 import supy
 from click.testing import CliRunner
+
+
+# =============================================================================
+# Debug Decorators - Centralised to avoid duplication in test files
+# =============================================================================
+
+try:
+    from debug_utils import (
+        debug_on_ci,
+        debug_dataframe_output,
+        debug_water_balance,
+        capture_test_artifacts,
+        analyze_dailystate_nan,
+    )
+except ImportError:
+    # No-op fallbacks when debug_utils is not available
+    def debug_on_ci(func):
+        return func
+
+    def debug_dataframe_output(func):
+        return func
+
+    def debug_water_balance(func):
+        return func
+
+    def capture_test_artifacts(name):
+        return lambda func: func
+
+    def analyze_dailystate_nan(func):
+        return func
+
+
+# =============================================================================
+# Global Test Configuration
+# =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def suppress_import_warnings():
+    """Suppress ImportWarning globally for all tests.
+
+    This centralises the warning suppression that was previously
+    duplicated in setUp methods across multiple test files.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=ImportWarning)
+        yield
 
 
 # =============================================================================

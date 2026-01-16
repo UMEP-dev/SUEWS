@@ -1,32 +1,29 @@
-:orphan:
+.. _suews_tutorials:
 
-.. _examples_gallery:
+SUEWS Tutorials
+===============
 
-SUEWS Examples Gallery
-======================
+Step-by-step tutorials for learning SUEWS urban climate modelling using the
+modern Python interface. Each tutorial combines executable code with detailed
+explanations.
 
-Interactive tutorials demonstrating SUEWS urban climate modelling using the
-modern Python interface. Each example is an executable Python script that
-combines code with detailed explanations.
+**Structure**
 
-**Download Options**
+- **Basic** - Start here. Core simulation workflows from first run to scenario analysis.
+- **Advanced** - Model coupling and external integrations. Complete basic tutorials first.
 
-Each example page provides download links for:
+**Formats**
 
-- **Python script** (``.py``) - Percent-format file with embedded documentation
-- **Jupyter notebook** (``.ipynb``) - Auto-generated notebook for interactive use
+Each tutorial is available as:
 
-**Running Examples**
-
-.. code-block:: bash
-
-   # Run as Python script
-   python plot_impact_studies.py
-
-   # Or convert to Jupyter notebook and run interactively
-   jupyter notebook plot_impact_studies.ipynb
+- **Python script** (``.py``) - Percent-format with embedded documentation
+- **Jupyter notebook** (``.ipynb``) - Auto-generated for interactive use
 
 .. note::
 
-   These examples require SuPy to be installed. See :doc:`/introduction/quick-start`
-   for installation instructions.
+   Tutorials require SuPy. See :doc:`/introduction/quick-start` for installation.
+
+.. toctree::
+   :hidden:
+
+   /sub-tutorials/suews-simulation-tutorial

@@ -334,3 +334,7 @@ plt.show()
 #
 # These sensitivity analyses demonstrate how SUEWS can be used to evaluate
 # urban climate mitigation strategies (e.g., cool roofs) and climate change impacts.
+#
+# **Next steps:**
+#
+# - :doc:`/auto_examples/advanced/plot_external_coupling` - Couple SUEWS with external models

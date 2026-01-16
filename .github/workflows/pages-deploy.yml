@@ -68,6 +68,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y pandoc
 
       - name: Build documentation
+        env:
+          CI: "true"  # Enable reduced computation in sphinx-gallery examples
         run: |
           uv venv
           source .venv/bin/activate

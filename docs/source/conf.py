@@ -45,6 +45,7 @@ from pybtex.style.template import (
 )
 
 import supy
+from sphinx_gallery.sorting import ExplicitOrder, FileNameSortKey
 
 # -- Git version information --------------------------------------------------------
 
@@ -313,6 +314,16 @@ sphinx_gallery_conf = {
     # File patterns
     "filename_pattern": r"/plot_",  # Execute files starting with plot_
     "ignore_pattern": r"__init__\.py",
+    # Ordering: basic before advanced (pedagogical progression)
+    "subsection_order": ExplicitOrder(
+        [
+            "examples/basic",
+            "examples/advanced",
+        ]
+    ),
+    # Within subsections: order by filename (numeric prefixes ensure pedagogical order)
+    # plot_01_quick_start < plot_02_setup < plot_03_impact
+    "within_subsection_order": FileNameSortKey,
     # Execution settings
     "plot_gallery": "True",
     "abort_on_example_error": False,

@@ -345,9 +345,11 @@ def extract_state_from_dts(
         for i in range(min(nlayer, len(tsfc_roof))):
             # Ensure soilstore meets validation (min 10 for non-water surfaces)
             soilstore_val = max(float(soilstore_roof[i]), 10.0)
+            # Ensure state meets validation (min 0 for water state)
+            state_val = max(float(state_roof[i]), 0.0)
             roofs.append(
                 SurfaceInitialState(
-                    state=RefValue(float(state_roof[i])),
+                    state=RefValue(state_val),
                     soilstore=RefValue(soilstore_val),
                     temperature=RefValue(
                         [float(temp_roof[i, j]) for j in range(ndepth)]
@@ -373,9 +375,11 @@ def extract_state_from_dts(
         for i in range(min(nlayer, len(tsfc_wall))):
             # Ensure soilstore meets validation (min 10 for non-water surfaces)
             soilstore_val = max(float(soilstore_wall[i]), 10.0)
+            # Ensure state meets validation (min 0 for water state)
+            state_val = max(float(state_wall[i]), 0.0)
             walls.append(
                 SurfaceInitialState(
-                    state=RefValue(float(state_wall[i])),
+                    state=RefValue(state_val),
                     soilstore=RefValue(soilstore_val),
                     temperature=RefValue(
                         [float(temp_wall[i, j]) for j in range(ndepth)]

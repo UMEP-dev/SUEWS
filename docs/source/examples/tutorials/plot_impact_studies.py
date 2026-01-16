@@ -17,6 +17,7 @@ in parallel mode to investigate the impacts on urban climate of:
 #
 # First, we import the required packages and load the sample dataset.
 
+import os
 import supy as sp
 from supy import SUEWSSimulation
 
@@ -26,6 +27,9 @@ import matplotlib.pyplot as plt
 
 from time import time
 from concurrent.futures import ThreadPoolExecutor
+
+# Detect CI environment for reduced computation
+_IS_CI = os.environ.get("CI", "false").lower() == "true"
 
 # Load sample datasets using the modern OOP interface
 sim = SUEWSSimulation.from_sample_data()
@@ -44,8 +48,11 @@ print("Ready for impact studies")
 # By default, two years of forcing data are included. To save running time
 # for this demonstration, we use only one year.
 
-# Use 2012 data only
-df_forcing = df_forcing.loc["2012"].iloc[1:]
+# Use 2012 data only (shorter period for CI)
+if _IS_CI:
+    df_forcing = df_forcing.loc["2012 01":"2012 03"].iloc[1:]  # Jan-Mar for CI
+else:
+    df_forcing = df_forcing.loc["2012"].iloc[1:]  # Full year for local
 
 # Perform an example run to get output samples for later use
 sim.update_forcing(df_forcing)
@@ -93,7 +100,8 @@ print(df_state_init_test.sfr_surf)
 #
 # Construct a DataFrame with multiple albedo values (0.1 to 0.8) to test.
 
-n_test = 10
+# Reduce scenarios for CI to avoid timeout
+n_test = 3 if _IS_CI else 10
 list_alb_test = np.linspace(0.1, 0.8, n_test).round(2)
 
 df_state_init_x = (
@@ -115,9 +123,10 @@ print(df_state_init_x.alb)
 # Run Albedo Simulations
 # ----------------------
 #
-# Conduct simulations using the OOP approach for January-July 2012.
+# Conduct simulations using the OOP approach.
 
-df_forcing_part = df_forcing.loc["2012 01":"2012 07"]
+# Use available forcing data (shorter for CI)
+df_forcing_part = df_forcing.copy()
 
 # Create simulation from modified state and forcing
 sim_test = SUEWSSimulation.from_state(df_state_init_x).update_forcing(df_forcing_part)
@@ -129,13 +138,15 @@ df_res_alb_test = sim_test.run(logging_level=90)
 # Analyse Albedo Results
 # ----------------------
 #
-# Examine the temperature response to albedo changes in July 2012.
+# Examine the temperature response to albedo changes.
 
-# Select July 2012 results
-df_res_alb_test_july = df_res_alb_test.SUEWS.unstack(0).loc["2012 7"]
+# Select results from last month of available data
+df_res_alb_unstacked = df_res_alb_test.SUEWS.unstack(0)
+last_month = df_res_alb_unstacked.index[-1].strftime("%Y %-m")
+df_res_alb_test_month = df_res_alb_unstacked.loc[last_month]
 
 # Calculate temperature statistics
-df_res_alb_T2_stat = df_res_alb_test_july.T2.describe()
+df_res_alb_T2_stat = df_res_alb_test_month.T2.describe()
 
 # Calculate temperature difference from baseline
 df_res_alb_T2_diff = df_res_alb_T2_stat.transform(
@@ -154,7 +165,7 @@ df_res_alb_T2_diff.loc[["max", "mean", "min"]].T.plot(ax=ax)
 ax.set_ylabel(r"$\Delta T_2$ ($^\circ$C)")
 ax.set_xlabel(r"$\Delta\alpha$ (albedo change)")
 ax.margins(x=0.2, y=0.2)
-ax.set_title("Temperature Response to Albedo Change (July 2012)")
+ax.set_title(f"Temperature Response to Albedo Change ({last_month})")
 ax.legend(title="Statistic")
 plt.tight_layout()
 plt.show()
@@ -243,12 +254,13 @@ def run_supy_mclims(df_state_init, dict_df_forcing_mclims):
 #
 # Construct forcing datasets with different air temperature offsets (0 to +2°C).
 
-# Prepare test data
-df_forcing_part_test = df_forcing.loc["2012 1":"2012 7"].copy()
+# Prepare test data (use available forcing data)
+df_forcing_part_test = df_forcing.copy()
 df_state_init_test = df_state_init.copy()
 
 # Create scenarios with temperature increases from 0 to 2°C
-n_test = 12  # Can be reduced to save simulation time
+# Reduce scenarios for CI to avoid timeout
+n_test = 3 if _IS_CI else 12
 list_TairDiff_test = np.linspace(0.0, 2, n_test).round(2)
 
 dict_df_forcing_x = {
@@ -283,8 +295,9 @@ print(f"Execution time: {t1 - t0:.2f} s")
 df_airtemp_test = df_airtemp_test_x.SUEWS.unstack(0)
 df_temp_diff = df_airtemp_test.T2.transform(lambda x: x - df_airtemp_test.T2[0.0])
 
-# Focus on July 2012 results
-df_temp_diff_ana = df_temp_diff.loc["2012 7"]
+# Focus on last month of available data
+last_month_clm = df_temp_diff.index[-1].strftime("%Y %-m")
+df_temp_diff_ana = df_temp_diff.loc[last_month_clm]
 df_temp_diff_stat = df_temp_diff_ana.describe().loc[["max", "mean", "min"]].T
 
 # %%
@@ -299,7 +312,7 @@ df_temp_diff_stat.plot(ax=ax, marker="o")
 ax.set_ylabel(r"$\Delta T_2$ ($^\circ$C)")
 ax.set_xlabel(r"$\Delta T_{a}$ ($^\circ$C)")
 ax.set_aspect("equal")
-ax.set_title("Temperature Response to Background Climate Change (July 2012)")
+ax.set_title(f"Temperature Response to Background Climate Change ({last_month_clm})")
 ax.legend(title="Statistic")
 plt.tight_layout()
 plt.show()

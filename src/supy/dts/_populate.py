@@ -8,12 +8,16 @@ DataFrame conversion layer.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 
 from ..supy_driver import module_ctrl_type as dts
+
+if TYPE_CHECKING:
+    from ..data_model.core import LandCover, Model, Site
+    from ..data_model.core.state import InitialStates
 
 SURFACE_ORDER = ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water")
 VEG_SURFACE_ORDER = ("evetr", "dectr", "grass")
@@ -194,7 +198,7 @@ def populate_timer_from_datetime(
 
 def populate_config_from_pydantic(
     config_dts: dts.SUEWS_CONFIG,
-    model: Model,  # noqa: F821
+    model: Model,
 ) -> None:
     """Populate SUEWS_CONFIG from Pydantic Model configuration.
 
@@ -282,11 +286,11 @@ def populate_forcing_from_row(
 
 def populate_state_from_pydantic(
     state_dts: dts.SUEWS_STATE,
-    initial_states: InitialStates,  # noqa: F821
+    initial_states: InitialStates,
     nlayer: int = 5,
     ndepth: int = 5,
     nsurf: int = 7,
-    land_cover: LandCover = None,  # noqa: F821
+    land_cover: LandCover = None,
 ) -> None:
     """Populate SUEWS_STATE from Pydantic InitialStates.
 
@@ -525,7 +529,7 @@ def populate_state_from_pydantic(
 
 def populate_storedrainprm(
     state_dts: dts.SUEWS_STATE,
-    land_cover: LandCover,  # noqa: F821
+    land_cover: LandCover,
     nsurf: int = 7,
 ) -> None:
     """Populate storedrainprm array in phenstate from land cover config.
@@ -585,8 +589,8 @@ def populate_storedrainprm(
 
 def populate_site_from_pydantic(
     site_dts: dts.SUEWS_SITE,
-    site: Site,  # noqa: F821
-    model: Model,  # noqa: F821
+    site: Site,
+    model: Model,
 ) -> None:
     """Populate SUEWS_SITE from Pydantic Site configuration.
 

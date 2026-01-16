@@ -207,8 +207,6 @@ def extract_state_from_dts(
     )
     from ..data_model.core.type import RefValue
 
-    nsurf = 7  # noqa: F841
-
     # Extract arrays from Fortran state
     # Heat state
     temp_surf = np.array(state_dts.heatstate.temp_surf)

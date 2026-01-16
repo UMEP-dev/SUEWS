@@ -509,7 +509,9 @@ class SUEWSSimulation:
         # Validate forcing data (shared by both backends)
         list_issues = check_forcing(df_forcing_slice)
         if isinstance(list_issues, list) and len(list_issues) > 0:
-            raise ValueError(f"Invalid forcing data: {list_issues}")
+            issues_summary = list_issues[:3] if len(list_issues) > 3 else list_issues
+            suffix = f" (and {len(list_issues) - 3} more)" if len(list_issues) > 3 else ""
+            raise ValueError(f"Invalid forcing data: {issues_summary}{suffix}")
 
         # Run simulation with selected backend
         if backend == "dts":

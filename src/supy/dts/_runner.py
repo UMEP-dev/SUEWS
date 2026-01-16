@@ -7,8 +7,13 @@ intermediate df_state conversion layer.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pandas as pd
+
+if TYPE_CHECKING:
+    from ..data_model import SUEWSConfig
 
 from ..supy_driver import (
     module_ctrl_const_allocate as alloc,
@@ -98,7 +103,7 @@ def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
 
 def run_dts(
     df_forcing: pd.DataFrame,
-    config: SUEWSConfig,  # noqa: F821
+    config: SUEWSConfig,
     site_index: int = 0,
     nlayer: int | None = None,
     ndepth: int | None = None,

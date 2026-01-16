@@ -390,7 +390,6 @@ class TestMultiGridPostProcessing(TestCase):
         )
         self.n_grids = n_grids
 
-    #@pytest.mark.skip(reason="Temporarily skipping TestMultiGridPostProcessing tess")
     def test_multigrid_resample(self):
         """Test resampling multi-grid output."""
         print("\n========================================")

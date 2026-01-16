@@ -15,7 +15,71 @@ from .._post import gen_index
 from ..supy_driver import module_ctrl_type as dts
 
 if TYPE_CHECKING:
-    from ..data_model.core.state import InitialStates
+    from ..data_model.core.state import InitialStates, SurfaceInitialState
+    from ..data_model.core.type import RefValue
+
+# Validation constraints for state extraction
+# These match the validation limits in state.py for non-water surfaces
+MIN_SOILSTORE_NONWATER = 10.0  # Minimum soilstore for non-water surfaces [mm]
+MIN_STATE_VALUE = 0.0  # Minimum water state value [mm]
+
+
+def _extract_facet_states(
+    temp_arr: np.ndarray,
+    tsfc_arr: np.ndarray,
+    soilstore_arr: np.ndarray,
+    state_arr: np.ndarray,
+    nlayer: int,
+    ndepth: int,
+) -> "list[SurfaceInitialState]":
+    """Extract facet (roof/wall) states from DTS arrays with validation clamping.
+
+    For roofs/walls, soilstore/state are not physically meaningful but must
+    satisfy validation constraints (soilstore >= 10, state >= 0).
+
+    Parameters
+    ----------
+    temp_arr : np.ndarray
+        Temperature profile array of shape (nlayer, ndepth).
+    tsfc_arr : np.ndarray
+        Surface temperature array of shape (nlayer,).
+    soilstore_arr : np.ndarray
+        Soil store array of shape (nlayer,).
+    state_arr : np.ndarray
+        Water state array of shape (nlayer,).
+    nlayer : int
+        Number of vertical layers.
+    ndepth : int
+        Number of depth levels.
+
+    Returns
+    -------
+    list[SurfaceInitialState]
+        List of surface initial states for each layer.
+    """
+    # Late import to avoid circular imports
+    from ..data_model.core.state import SurfaceInitialState
+    from ..data_model.core.type import RefValue
+
+    facets = []
+    for i in range(min(nlayer, len(tsfc_arr))):
+        soilstore_val = max(float(soilstore_arr[i]), MIN_SOILSTORE_NONWATER)
+        state_val = max(float(state_arr[i]), MIN_STATE_VALUE)
+        facets.append(
+            SurfaceInitialState(
+                state=RefValue(state_val),
+                soilstore=RefValue(soilstore_val),
+                temperature=RefValue([float(temp_arr[i, j]) for j in range(ndepth)]),
+                tsfc=RefValue(float(tsfc_arr[i])),
+                snowfrac=None,
+                snowpack=None,
+                icefrac=None,
+                snowwater=None,
+                snowdens=None,
+            )
+        )
+    return facets
+
 
 _OUTPUT_LINE_FIELDS = (
     "dataoutlinesuews",
@@ -331,67 +395,30 @@ def extract_state_from_dts(
     roofs = []
     walls = []
 
-    # Check if roof arrays are allocated and have data
-    # Note: For roofs/walls, soilstore/state are not physically meaningful
-    # but must satisfy validation constraints (soilstore >= 10 for default model)
     try:
-        temp_roof = np.array(state_dts.heatstate.temp_roof)
-        tsfc_roof = np.array(state_dts.heatstate.tsfc_roof)
-        soilstore_roof = np.array(state_dts.hydrostate.soilstore_roof)
-        state_roof = np.array(state_dts.hydrostate.state_roof)
-
-        for i in range(min(nlayer, len(tsfc_roof))):
-            # Ensure soilstore meets validation (min 10 for non-water surfaces)
-            soilstore_val = max(float(soilstore_roof[i]), 10.0)
-            # Ensure state meets validation (min 0 for water state)
-            state_val = max(float(state_roof[i]), 0.0)
-            roofs.append(
-                SurfaceInitialState(
-                    state=RefValue(state_val),
-                    soilstore=RefValue(soilstore_val),
-                    temperature=RefValue(
-                        [float(temp_roof[i, j]) for j in range(ndepth)]
-                    ),
-                    tsfc=RefValue(float(tsfc_roof[i])),
-                    snowfrac=None,
-                    snowpack=None,
-                    icefrac=None,
-                    snowwater=None,
-                    snowdens=None,
-                )
-            )
+        roofs = _extract_facet_states(
+            np.array(state_dts.heatstate.temp_roof),
+            np.array(state_dts.heatstate.tsfc_roof),
+            np.array(state_dts.hydrostate.soilstore_roof),
+            np.array(state_dts.hydrostate.state_roof),
+            nlayer,
+            ndepth,
+        )
     except (AttributeError, IndexError, TypeError):
-        # Roof arrays not allocated - use defaults
+        # Arrays not allocated (e.g., nlayer=0) or wrong shape - use defaults
         roofs = [SurfaceInitialState() for _ in range(nlayer)]
 
     try:
-        temp_wall = np.array(state_dts.heatstate.temp_wall)
-        tsfc_wall = np.array(state_dts.heatstate.tsfc_wall)
-        soilstore_wall = np.array(state_dts.hydrostate.soilstore_wall)
-        state_wall = np.array(state_dts.hydrostate.state_wall)
-
-        for i in range(min(nlayer, len(tsfc_wall))):
-            # Ensure soilstore meets validation (min 10 for non-water surfaces)
-            soilstore_val = max(float(soilstore_wall[i]), 10.0)
-            # Ensure state meets validation (min 0 for water state)
-            state_val = max(float(state_wall[i]), 0.0)
-            walls.append(
-                SurfaceInitialState(
-                    state=RefValue(state_val),
-                    soilstore=RefValue(soilstore_val),
-                    temperature=RefValue(
-                        [float(temp_wall[i, j]) for j in range(ndepth)]
-                    ),
-                    tsfc=RefValue(float(tsfc_wall[i])),
-                    snowfrac=None,
-                    snowpack=None,
-                    icefrac=None,
-                    snowwater=None,
-                    snowdens=None,
-                )
-            )
+        walls = _extract_facet_states(
+            np.array(state_dts.heatstate.temp_wall),
+            np.array(state_dts.heatstate.tsfc_wall),
+            np.array(state_dts.hydrostate.soilstore_wall),
+            np.array(state_dts.hydrostate.state_wall),
+            nlayer,
+            ndepth,
+        )
     except (AttributeError, IndexError, TypeError):
-        # Wall arrays not allocated - use defaults
+        # Arrays not allocated (e.g., nlayer=0) or wrong shape - use defaults
         walls = [SurfaceInitialState() for _ in range(nlayer)]
 
     # Create HDD_ID from array (field names match HDD_ID model)

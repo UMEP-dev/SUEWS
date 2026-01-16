@@ -12,6 +12,26 @@ from supy.data_model import SUEWSConfig
 from supy.data_model.core.state import InitialStates
 from supy.dts import run_dts
 
+# Tolerance constants for numerical comparisons
+FLUX_TOLERANCE_W_M2 = 0.1  # Acceptable difference for energy fluxes [W/m²]
+EXACT_MATCH_TOLERANCE = 1e-6  # Tolerance for values that should match exactly
+
+
+def _get_value(obj):
+    """Unwrap RefValue wrapper to get raw value.
+
+    Parameters
+    ----------
+    obj : Any
+        Object that may be wrapped in RefValue.
+
+    Returns
+    -------
+    Any
+        The unwrapped value.
+    """
+    return obj.value if hasattr(obj, "value") else obj
+
 
 class TestDTSStateExtraction:
     """Tests for DTS state extraction functionality."""
@@ -73,37 +93,23 @@ class TestDTSStateExtraction:
         # Check surface states are non-negative (water state)
         for surface_name in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil"]:
             surface = getattr(initial_states, surface_name)
-            state_val = (
-                surface.state.value
-                if hasattr(surface.state, "value")
-                else surface.state
-            )
-            assert state_val >= 0, f"{surface_name} state should be non-negative"
+            state_val = _get_value(surface.state)
+            assert state_val >= 0, f"{surface_name} state should be non-negative, got {state_val}"
 
         # Check soil moisture is positive
         for surface_name in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil"]:
             surface = getattr(initial_states, surface_name)
-            soilstore_val = (
-                surface.soilstore.value
-                if hasattr(surface.soilstore, "value")
-                else surface.soilstore
-            )
-            assert soilstore_val >= 0, f"{surface_name} soilstore should be positive"
+            soilstore_val = _get_value(surface.soilstore)
+            assert soilstore_val >= 0, f"{surface_name} soilstore should be positive, got {soilstore_val}"
 
         # Check LAI is reasonable (0-10 m²/m²)
         for veg_name in ["evetr", "dectr", "grass"]:
             veg = getattr(initial_states, veg_name)
-            lai_val = (
-                veg.lai_id.value if hasattr(veg.lai_id, "value") else veg.lai_id
-            )
+            lai_val = _get_value(veg.lai_id)
             assert 0 <= lai_val <= 15, f"{veg_name} LAI should be 0-15"
 
         # Check snow albedo is valid (0-1)
-        snowalb_val = (
-            initial_states.snowalb.value
-            if hasattr(initial_states.snowalb, "value")
-            else initial_states.snowalb
-        )
+        snowalb_val = _get_value(initial_states.snowalb)
         assert 0 <= snowalb_val <= 1, "Snow albedo should be 0-1"
 
         # Check HDD_ID exists and has reasonable structure
@@ -126,19 +132,11 @@ class TestDTSStateExtraction:
 
             # Surface temperature
             if surface.tsfc is not None:
-                tsfc_val = (
-                    surface.tsfc.value
-                    if hasattr(surface.tsfc, "value")
-                    else surface.tsfc
-                )
+                tsfc_val = _get_value(surface.tsfc)
                 assert -50 <= tsfc_val <= 70, f"{surface_name} tsfc out of range"
 
             # Temperature profile
-            temp_vals = (
-                surface.temperature.value
-                if hasattr(surface.temperature, "value")
-                else surface.temperature
-            )
+            temp_vals = _get_value(surface.temperature)
             for i, t in enumerate(temp_vals):
                 assert -50 <= t <= 70, f"{surface_name} temp[{i}] out of range"
 
@@ -162,9 +160,7 @@ class TestDTSStateExtraction:
         # Check roof/wall temperatures are reasonable
         for i, roof in enumerate(initial_states.roofs):
             if roof.tsfc is not None:
-                tsfc_val = (
-                    roof.tsfc.value if hasattr(roof.tsfc, "value") else roof.tsfc
-                )
+                tsfc_val = _get_value(roof.tsfc)
                 assert -50 <= tsfc_val <= 70, f"roof[{i}] tsfc out of range"
 
     @pytest.mark.core
@@ -258,14 +254,13 @@ class TestDTSStateExtraction:
         df_full_second_half = df_output_full.iloc[48:]
 
         # Check energy balance variables are within tolerance
-        tolerance = 0.1  # W/m²
         for var in ["QN", "QF", "QH", "QE", "QS"]:
             full_vals = df_full_second_half[("SUEWS", var)].values.flatten()
             cont_vals = df_output_b[("SUEWS", var)].values.flatten()
             max_diff = np.max(np.abs(full_vals - cont_vals))
 
-            assert max_diff < tolerance, (
-                f"{var} max difference {max_diff:.4f} W/m² exceeds tolerance {tolerance}"
+            assert max_diff < FLUX_TOLERANCE_W_M2, (
+                f"{var} max difference {max_diff:.4f} W/m² exceeds tolerance {FLUX_TOLERANCE_W_M2}"
             )
 
         # Verify QN and QF match exactly (they depend only on forcing/params)
@@ -275,7 +270,7 @@ class TestDTSStateExtraction:
                 - df_output_b[("SUEWS", "QN")].values
             )
         )
-        assert qn_diff < 1e-6, f"QN should match exactly but differs by {qn_diff}"
+        assert qn_diff < EXACT_MATCH_TOLERANCE, f"QN should match exactly but differs by {qn_diff}"
 
         qf_diff = np.max(
             np.abs(
@@ -283,4 +278,4 @@ class TestDTSStateExtraction:
                 - df_output_b[("SUEWS", "QF")].values
             )
         )
-        assert qf_diff < 1e-6, f"QF should match exactly but differs by {qf_diff}"
+        assert qf_diff < EXACT_MATCH_TOLERANCE, f"QF should match exactly but differs by {qf_diff}"

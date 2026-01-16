@@ -110,6 +110,32 @@ def _set_day_profile(dst, prefix: str, profile) -> None:
     setattr(dst, f"{prefix}_holiday", _unwrap(profile.holiday))
 
 
+def _hourly_dict_to_array(hourly_dict: dict[str, float] | None) -> np.ndarray:
+    """Convert hourly profile dict to 24-element numpy array.
+
+    Parameters
+    ----------
+    hourly_dict : dict[str, float] | None
+        Dictionary with hour keys ("1" to "24") and float values.
+
+    Returns
+    -------
+    np.ndarray
+        24-element array with hourly values.
+    """
+    if not hourly_dict:
+        return np.ones(24, dtype=np.float64) / 24.0  # Uniform default
+    arr = np.zeros(24, dtype=np.float64)
+    for hour_str, val in hourly_dict.items():
+        try:
+            hour = int(hour_str) - 1  # Convert 1-24 to 0-23
+            if 0 <= hour < 24 and val is not None:
+                arr[hour] = val
+        except (ValueError, TypeError):
+            pass
+    return arr
+
+
 def populate_timer_from_datetime(
     timer: dts.SUEWS_TIMER,
     dt: pd.Timestamp,
@@ -284,35 +310,15 @@ def populate_forcing_from_row(
     forcing_dts.tair_av_5d = _row_value(row, "Tair_av_5d", default=forcing_dts.temp_c)
 
 
-def populate_state_from_pydantic(
+def _populate_heat_state(
     state_dts: dts.SUEWS_STATE,
-    initial_states: InitialStates,
-    nlayer: int = 5,
-    ndepth: int = 5,
-    nsurf: int = 7,
-    land_cover: LandCover = None,
+    surfaces: list,
+    initial_states: "InitialStates",
+    nlayer: int,
+    ndepth: int,
+    nsurf: int,
 ) -> None:
-    """Populate SUEWS_STATE from Pydantic InitialStates.
-
-    Parameters
-    ----------
-    state_dts : dts.SUEWS_STATE
-        State object to populate (must be pre-allocated).
-    initial_states : InitialStates
-        Pydantic InitialStates object.
-    nlayer : int
-        Number of vertical layers.
-    ndepth : int
-        Number of depth levels.
-    nsurf : int
-        Number of surface types (always 7).
-    land_cover : LandCover, optional
-        Land cover object for getting albedo values for non-vegetation surfaces.
-    """
-    # Get surface initial states in order
-    surfaces = _collect_surfaces(initial_states)
-
-    # Heat state: temperature arrays
+    """Populate heat state arrays (temperature profiles)."""
     temp_surf = np.zeros((nsurf, ndepth), dtype=np.float64, order="F")
     tsfc_surf = np.zeros(nsurf, dtype=np.float64)
 
@@ -329,50 +335,6 @@ def populate_state_from_pydantic(
 
     state_dts.heatstate.temp_surf = temp_surf
     state_dts.heatstate.tsfc_surf = tsfc_surf
-
-    # Hydro state: soil moisture and surface wetness
-    soilstore_surf = np.zeros(nsurf, dtype=np.float64)
-    state_surf = np.zeros(nsurf, dtype=np.float64)
-
-    for i, surf in enumerate(surfaces):
-        soilstore_surf[i] = _unwrap(surf.soilstore)
-        state_surf[i] = _unwrap(surf.state)
-
-    state_dts.hydrostate.soilstore_surf = soilstore_surf
-    state_dts.hydrostate.state_surf = state_surf
-
-    # Snow state
-    snowpack = np.zeros(nsurf, dtype=np.float64)
-    snowfrac = np.zeros(nsurf, dtype=np.float64)
-    snowdens = np.zeros(nsurf, dtype=np.float64)
-    icefrac = np.zeros(nsurf, dtype=np.float64)
-    snowwater = np.zeros(nsurf, dtype=np.float64)
-
-    for i, surf in enumerate(surfaces):
-        sp = _unwrap(surf.snowpack)
-        if sp is not None:
-            snowpack[i] = sp
-        sf = _unwrap(surf.snowfrac)
-        if sf is not None:
-            snowfrac[i] = sf
-        sd = _unwrap(surf.snowdens)
-        if sd is not None:
-            snowdens[i] = sd
-        ic = _unwrap(surf.icefrac)
-        if ic is not None:
-            icefrac[i] = ic
-        sw = _unwrap(surf.snowwater)
-        if sw is not None:
-            snowwater[i] = sw
-
-    state_dts.snowstate.snowpack = snowpack
-    state_dts.snowstate.snowfrac = snowfrac
-    state_dts.snowstate.snowdens = snowdens
-    state_dts.snowstate.icefrac = icefrac
-    state_dts.snowstate.snowwater = snowwater
-
-    # Snow albedo
-    state_dts.snowstate.snowalb = _unwrap(initial_states.snowalb)
 
     # Roof/wall temperatures if available
     if hasattr(initial_states, "roofs") and initial_states.roofs:
@@ -401,8 +363,71 @@ def populate_state_from_pydantic(
         state_dts.heatstate.temp_wall = temp_wall
         state_dts.heatstate.tsfc_wall = tsfc_wall
 
-    # Phenology state for vegetation
-    # Get vegetation initial states in order: evetr, dectr, grass (indices 2, 3, 4)
+
+def _populate_hydro_state(
+    state_dts: dts.SUEWS_STATE,
+    surfaces: list,
+    nsurf: int,
+) -> None:
+    """Populate hydro state arrays (soil moisture and surface wetness)."""
+    soilstore_surf = np.zeros(nsurf, dtype=np.float64)
+    state_surf = np.zeros(nsurf, dtype=np.float64)
+
+    for i, surf in enumerate(surfaces):
+        soilstore_surf[i] = _unwrap(surf.soilstore)
+        state_surf[i] = _unwrap(surf.state)
+
+    state_dts.hydrostate.soilstore_surf = soilstore_surf
+    state_dts.hydrostate.state_surf = state_surf
+
+
+def _populate_snow_state(
+    state_dts: dts.SUEWS_STATE,
+    surfaces: list,
+    initial_states: "InitialStates",
+    nsurf: int,
+) -> None:
+    """Populate snow state arrays."""
+    snowpack = np.zeros(nsurf, dtype=np.float64)
+    snowfrac = np.zeros(nsurf, dtype=np.float64)
+    snowdens = np.zeros(nsurf, dtype=np.float64)
+    icefrac = np.zeros(nsurf, dtype=np.float64)
+    snowwater = np.zeros(nsurf, dtype=np.float64)
+
+    for i, surf in enumerate(surfaces):
+        sp = _unwrap(surf.snowpack)
+        if sp is not None:
+            snowpack[i] = sp
+        sf = _unwrap(surf.snowfrac)
+        if sf is not None:
+            snowfrac[i] = sf
+        sd = _unwrap(surf.snowdens)
+        if sd is not None:
+            snowdens[i] = sd
+        ic = _unwrap(surf.icefrac)
+        if ic is not None:
+            icefrac[i] = ic
+        sw = _unwrap(surf.snowwater)
+        if sw is not None:
+            snowwater[i] = sw
+
+    state_dts.snowstate.snowpack = snowpack
+    state_dts.snowstate.snowfrac = snowfrac
+    state_dts.snowstate.snowdens = snowdens
+    state_dts.snowstate.icefrac = icefrac
+    state_dts.snowstate.snowwater = snowwater
+    state_dts.snowstate.snowalb = _unwrap(initial_states.snowalb)
+
+
+def _populate_phenology_state(
+    state_dts: dts.SUEWS_STATE,
+    initial_states: "InitialStates",
+    surfaces: list,
+    land_cover: "LandCover | None",
+    nsurf: int,
+) -> None:
+    """Populate phenology state (LAI, GDD, albedo, temperature extremes)."""
+    # Vegetation LAI/GDD/SDD
     veg_surfaces = _collect_surfaces(initial_states, VEG_SURFACE_ORDER)
 
     lai_id = np.zeros(3, dtype=np.float64)
@@ -474,15 +499,11 @@ def populate_state_from_pydantic(
     # For non-vegetation (paved, bldgs, bsoil, water), alb comes from land_cover
     alb_surf = np.zeros(nsurf, dtype=np.float64)
 
-    # Try to get albedo from initial_states first (vegetation surfaces)
-    surfaces_for_alb = surfaces
-
-    # Also get land cover surfaces if provided
     lc_surfaces = None
     if land_cover is not None:
         lc_surfaces = _collect_surfaces(land_cover)
 
-    for i, surf in enumerate(surfaces_for_alb):
+    for i, surf in enumerate(surfaces):
         if hasattr(surf, "alb_id"):
             alb_surf[i] = _unwrap(surf.alb_id)
         elif hasattr(surf, "alb"):
@@ -492,9 +513,14 @@ def populate_state_from_pydantic(
 
     state_dts.phenstate.alb = alb_surf
 
+
+def _populate_anthro_and_ohm_state(
+    state_dts: dts.SUEWS_STATE,
+    initial_states: "InitialStates",
+) -> None:
+    """Populate anthropogenic emissions and OHM state."""
     # Anthropogenic emissions state: HDD_id (Heating Degree Days)
-    # This is critical for QF calculations as it contains temperature
-    # history used for heating/cooling degree day computations
+    # Critical for QF calculations - contains temperature history
     if hasattr(initial_states, "hdd_id") and initial_states.hdd_id is not None:
         hdd = initial_states.hdd_id
         # HDD_id is a 12-element array with both current day accumulators (0-5)
@@ -508,7 +534,7 @@ def populate_state_from_pydantic(
         state_dts.anthroemisstate.hdd_id = np.array(hdd_list, dtype=np.float64)
 
     # OHM state: running averages for storage heat flux calculations
-    # These are critical for continuation runs to maintain accurate QS partitioning
+    # Critical for continuation runs to maintain accurate QS partitioning
     if hasattr(initial_states, "qn_av"):
         qn_av_val = _unwrap(initial_states.qn_av)
         if qn_av_val is not None and qn_av_val != 0:
@@ -525,6 +551,40 @@ def populate_state_from_pydantic(
         dqnsdt_val = _unwrap(initial_states.dqnsdt)
         if dqnsdt_val is not None:
             state_dts.ohmstate.dqnsdt = dqnsdt_val
+
+
+def populate_state_from_pydantic(
+    state_dts: dts.SUEWS_STATE,
+    initial_states: InitialStates,
+    nlayer: int = 5,
+    ndepth: int = 5,
+    nsurf: int = 7,
+    land_cover: LandCover | None = None,
+) -> None:
+    """Populate SUEWS_STATE from Pydantic InitialStates.
+
+    Parameters
+    ----------
+    state_dts : dts.SUEWS_STATE
+        State object to populate (must be pre-allocated).
+    initial_states : InitialStates
+        Pydantic InitialStates object.
+    nlayer : int
+        Number of vertical layers.
+    ndepth : int
+        Number of depth levels.
+    nsurf : int
+        Number of surface types (always 7).
+    land_cover : LandCover, optional
+        Land cover object for getting albedo values for non-vegetation surfaces.
+    """
+    surfaces = _collect_surfaces(initial_states)
+
+    _populate_heat_state(state_dts, surfaces, initial_states, nlayer, ndepth, nsurf)
+    _populate_hydro_state(state_dts, surfaces, nsurf)
+    _populate_snow_state(state_dts, surfaces, initial_states, nsurf)
+    _populate_phenology_state(state_dts, initial_states, surfaces, land_cover, nsurf)
+    _populate_anthro_and_ohm_state(state_dts, initial_states)
 
 
 def populate_storedrainprm(
@@ -1234,14 +1294,18 @@ def populate_atmstate(
         Friction velocity [m s-1] from previous run.
     ra_h : float, optional
         Aerodynamic resistance for heat [s m-1] from previous run.
+    rb : float, optional
+        Quasi-laminar boundary layer resistance [s m-1] from previous run.
+    rs : float, optional
+        Surface resistance [s m-1] from previous run.
 
     Notes
     -----
     Most atmstate values (avcp, avdens, etc.) are recalculated each timestep
     by cal_AtmMoist. However, tair_av needs initialization as it's a running
     average that persists across timesteps. For continuation runs, l_mod,
-    ustar, and ra_h provide better initial guesses for iterative stability
-    calculations, ensuring bit-identical output with continuous runs.
+    ustar, ra_h, rb, and rs provide better initial guesses for iterative
+    stability calculations, ensuring bit-identical output with continuous runs.
     """
     atm = state_dts.atmstate
     temp_c = forcing_dts.temp_c
@@ -1386,26 +1450,11 @@ def _populate_anthroemis(anthroemis_dts, anthro_pydantic) -> None:
     ah.popdensnighttime = _unwrap(heat.popdensnighttime)
 
     # 24-hour profiles - convert dict to numpy arrays
-    # HourlyProfile stores values as Dict[str, float] with keys "1" to "24"
-    def hourly_dict_to_array(hourly_dict: dict[str, float] | None) -> np.ndarray:
-        """Convert hourly profile dict to 24-element numpy array."""
-        if not hourly_dict:
-            return np.ones(24, dtype=np.float64) / 24.0  # Uniform default
-        arr = np.zeros(24, dtype=np.float64)
-        for hour_str, val in hourly_dict.items():
-            try:
-                hour = int(hour_str) - 1  # Convert 1-24 to 0-23
-                if 0 <= hour < 24 and val is not None:
-                    arr[hour] = val
-            except (ValueError, TypeError):
-                pass
-        return arr
+    ah.ahprof_24hr_working = _hourly_dict_to_array(heat.ahprof_24hr.working_day)
+    ah.ahprof_24hr_holiday = _hourly_dict_to_array(heat.ahprof_24hr.holiday)
 
-    ah.ahprof_24hr_working = hourly_dict_to_array(heat.ahprof_24hr.working_day)
-    ah.ahprof_24hr_holiday = hourly_dict_to_array(heat.ahprof_24hr.holiday)
-
-    ah.popprof_24hr_working = hourly_dict_to_array(heat.popprof_24hr.working_day)
-    ah.popprof_24hr_holiday = hourly_dict_to_array(heat.popprof_24hr.holiday)
+    ah.popprof_24hr_working = _hourly_dict_to_array(heat.popprof_24hr.working_day)
+    ah.popprof_24hr_holiday = _hourly_dict_to_array(heat.popprof_24hr.holiday)
 
     # CO2 parameters
     co2 = anthro_pydantic.co2
@@ -1439,13 +1488,13 @@ def _populate_anthroemis(anthroemis_dts, anthro_pydantic) -> None:
 
     # Traffic profiles - HourlyProfile
     if hasattr(co2, "traffprof_24hr") and co2.traffprof_24hr:
-        anthroemis_dts.traffprof_24hr_working = hourly_dict_to_array(co2.traffprof_24hr.working_day)
-        anthroemis_dts.traffprof_24hr_holiday = hourly_dict_to_array(co2.traffprof_24hr.holiday)
+        anthroemis_dts.traffprof_24hr_working = _hourly_dict_to_array(co2.traffprof_24hr.working_day)
+        anthroemis_dts.traffprof_24hr_holiday = _hourly_dict_to_array(co2.traffprof_24hr.holiday)
 
     # Human activity profiles - HourlyProfile
     if hasattr(co2, "humactivity_24hr") and co2.humactivity_24hr:
-        anthroemis_dts.humactivity_24hr_working = hourly_dict_to_array(co2.humactivity_24hr.working_day)
-        anthroemis_dts.humactivity_24hr_holiday = hourly_dict_to_array(co2.humactivity_24hr.holiday)
+        anthroemis_dts.humactivity_24hr_working = _hourly_dict_to_array(co2.humactivity_24hr.working_day)
+        anthroemis_dts.humactivity_24hr_holiday = _hourly_dict_to_array(co2.humactivity_24hr.holiday)
 
     # FcEF_v_kgkm - DayProfile gives working/holiday values as 2-element array
     if hasattr(co2, "fcef_v_kgkm") and co2.fcef_v_kgkm:

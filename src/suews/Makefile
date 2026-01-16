@@ -172,7 +172,6 @@ UTILS = suews_ctrl_const.o \
 	suews_util_time.o \
 	suews_util_meteo.o \
 	suews_util_datetime.o \
-	suews_util_minpack.o \
 	suews_util_profile.o
 
 # SUEWS physics modules

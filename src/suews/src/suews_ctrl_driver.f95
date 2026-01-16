@@ -5585,10 +5585,8 @@ FUNCTION cal_tsfc_dyohm(Temp_in, Qs, K, C, z, nz, T_bottom, dt) RESULT(Temp_out)
     ! Stability check
     !----------------------------------------------------------
     dz_min = MINVAL(z(2:nz) - z(1:nz-1))
-    IF (alpha * dt / (dz_min**2) > 0.5D0) THEN
-        PRINT *, 'Warning: time step may be too large for stability.'
-        PRINT '(A,ES12.4,2X,A,I8,2X,A,F8.4)', 'alpha=', alpha, 'dt=', dt, 'dz_min=', dz_min
-    END IF
+    ! Stability criterion check: alpha*dt/dz_min^2 <= 0.5
+    ! Warning removed for QGIS compatibility (GH-1080)
 
     ! Initialize output
     Temp_out = Temp_in

@@ -253,7 +253,7 @@ CONTAINS
       END DO
       niter = i - 1
       IF (.NOT. converged) THEN
-         PRINT *, "Solution did not converge. Niter=", niter, " Error=", e
+         ! Non-convergence: return initial guess (caller should validate)
          x = x0
       END IF
    END FUNCTION NewtonPolynomial
@@ -1141,7 +1141,7 @@ CONTAINS
       ALLOCATE (temp_surf_grids(NumberOfGrids, nsurf, ndepth))
 
       DO i_grid = 1, NumberOfGrids
-         PRINT *, 'Reading layout data for grid ', i_grid
+         IF (Diagnose == 1) PRINT *, 'Reading layout data for grid ', i_grid
          CALL load_GridLayout(i_grid, flag_mutiple_layout_files, diagnose)
       END DO
 
@@ -1418,16 +1418,17 @@ CONTAINS
       !ivf_rw=1.-ivf_ri-ivf_rf;
       !ivf_fr=ivf_rf;
 
-      IF ((ivf_ii + ivf_iw + ivf_ir + ivf_if > 1.0001) .OR. &
-          (ivf_wi + ivf_ww + ivf_wr + ivf_wf > 1.0001) .OR. &
-          (ivf_ri + ivf_rw + ivf_rf > 1.0001) .OR. &
-          (ivf_fi + ivf_fw + ivf_fr > 1.0001) .OR. &
-          (ivf_ii + ivf_iw + ivf_ir + ivf_if < 0.9999) .OR. &
-          (ivf_wi + ivf_ww + ivf_wr + ivf_wf < 0.9999) .OR. &
-          (ivf_ri + ivf_rw + ivf_rf < 0.9999) .OR. &
-          (ivf_fi + ivf_fw + ivf_fr < 0.9999)) THEN
-         PRINT *, "At least one internal view factor <> 1. Check ivf in ESTMinput.nml"
-      END IF
+      ! Validate internal view factors sum to 1 (configuration check)
+      ! IF ((ivf_ii + ivf_iw + ivf_ir + ivf_if > 1.0001) .OR. &
+      !     (ivf_wi + ivf_ww + ivf_wr + ivf_wf > 1.0001) .OR. &
+      !     (ivf_ri + ivf_rw + ivf_rf > 1.0001) .OR. &
+      !     (ivf_fi + ivf_fw + ivf_fr > 1.0001) .OR. &
+      !     (ivf_ii + ivf_iw + ivf_ir + ivf_if < 0.9999) .OR. &
+      !     (ivf_wi + ivf_ww + ivf_wr + ivf_wf < 0.9999) .OR. &
+      !     (ivf_ri + ivf_rw + ivf_rf < 0.9999) .OR. &
+      !     (ivf_fi + ivf_fw + ivf_fr < 0.9999)) THEN
+      !    ! View factor validation: check ivf in ESTMinput.nml
+      ! END IF
 
       !=======Initial setting==============================================
       !! Rewritten by HCW 15 Jun 2016 to use existing SUEWS error handling

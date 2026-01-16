@@ -70,6 +70,7 @@ MODULE SUEWS_Driver
    ! Re-export error state from module_ctrl_error_state for Python/f90wrap access
    USE module_ctrl_error_state, ONLY: supy_error_flag, supy_error_code, supy_error_message, &
                                        reset_supy_error, set_supy_error
+   USE module_ctrl_error, ONLY: ErrorHint
 
    IMPLICIT NONE
 
@@ -415,7 +416,9 @@ CONTAINS
                IF (config%SnowUse == 1) THEN
                   ! Only show warning once per grid cell (state-based, thread-safe)
                   IF (.NOT. flagState%snow_warning_shown) THEN
+#ifdef wrf
                      WRITE (*, *) "WARNING SNOW ON! Not recommended at the moment"
+#endif
                      flagState%snow_warning_shown = .TRUE.
                   END IF
                   ! ===================Calculate snow related hydrology=======================
@@ -1003,7 +1006,8 @@ CONTAINS
                      AHProf_24hr, HumActivity_24hr, TraffProf_24hr, PopProf_24hr, SurfaceArea)
 
                ELSE
-                  CALL ErrorHint(73, 'RunControl.nml:EmissionsMethod unusable', notUsed, notUsed, EmissionsMethod)
+                  CALL ErrorHint(73, 'RunControl.nml:EmissionsMethod unusable', notUsed, notUsed, EmissionsMethod, modState)
+                  IF (supy_error_flag) RETURN
                END IF
 
                IF (EmissionsMethod >= 1) qf = QF_SAHP

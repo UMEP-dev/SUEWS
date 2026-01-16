@@ -108,6 +108,7 @@ END MODULE module_ctrl_input_profile
 !-------------------------------------------------------------------------
 SUBROUTINE SkipHeader(lfn, skip)
    USE defaultnotUsed
+   USE module_ctrl_error, ONLY: ErrorHint
    IMPLICIT NONE
 
    INTEGER, INTENT(IN) :: lfn   ! Logical file number

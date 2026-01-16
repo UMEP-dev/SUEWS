@@ -1,5 +1,6 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_resist
+   USE module_ctrl_error, ONLY: ErrorHint
    IMPLICIT NONE
 
 CONTAINS
@@ -335,7 +336,9 @@ CONTAINS
          QNM = Kmax/(Kmax + G_k)
          g_kdown = (avkdn/(avkdn + G_k))/QNM
          IF (avkdn >= Kmax) THEN !! Add proper error handling later - HCW!!
+#ifdef wrf
             WRITE (*, *) 'Kmax exceeds Kdn setting to g(Kdn) to 1'
+#endif
             g_kdown = 1
          END IF
 
@@ -461,6 +464,7 @@ CONTAINS
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                IRRIGATION_PRM, anthroEmis_STATE, &
                                HYDRO_STATE, PHENOLOGY_STATE, ROUGHNESS_STATE, SUEWS_STATE
+      USE module_ctrl_error_state, ONLY: supy_error_flag
       IMPLICIT NONE
 
       INTEGER, PARAMETER :: nsurf = 7 ! number of surface types
@@ -660,16 +664,16 @@ CONTAINS
                zdm = DOT_PRODUCT([zdm_zh, zdm_zh0], [PAI, 1 - PAI])
 
             ELSEIF (Zh == 0) THEN !If zh calculated to be zero, set default roughness length and displacement height
-               IF (PAI /= 0) CALL ErrorHint(15, 'In SUEWS_RoughnessParameters.f95, zh = 0 m but areaZh > 0', zh, PAI, notUsedI)
+               IF (PAI /= 0) CALL ErrorHint(15, 'In SUEWS_RoughnessParameters.f95, zh = 0 m but areaZh > 0', zh, PAI, notUsedI, modState)
                !Estimate z0 and zd using default values and surfaces that do not contribute to areaZh
                IF (PAI /= 1) THEN
                   z0m = z0m_zh0
                   zdm = zdm_zh0
-                  CALL ErrorHint(15, 'Setting z0m and zdm using default values', z0m, zdm, notUsedI)
+                  CALL ErrorHint(15, 'Setting z0m and zdm using default values', z0m, zdm, notUsedI, modState)
                ELSEIF (PAI == 1) THEN !If, for some reason, Zh = 0 and areaZh == 1, assume height of 10 m and use rule-of-thumb
                   z0m = 1
                   zdm = 7
-                  CALL ErrorHint(15, 'Assuming mean height = 10 m, Setting z0m and zdm to default value', z0m, zdm, notUsedI)
+                  CALL ErrorHint(15, 'Assuming mean height = 10 m, Setting z0m and zdm to default value', z0m, zdm, notUsedI, modState)
                END IF
             END IF
 
@@ -681,9 +685,18 @@ CONTAINS
             ZZD = Z - zdm
 
             ! Error messages if aerodynamic parameters negative
-            IF (z0m < 0) CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, z0 < 0 m.', z0m, notUsed, notUsedI)
-            IF (zdm < 0) CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, zd < 0 m.', zdm, notUsed, notUsedI)
-            IF (zzd < 0) CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, (z-zd) < 0 m.', zzd, notUsed, notUsedI)
+            IF (z0m < 0) THEN
+               CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, z0 < 0 m.', z0m, notUsed, notUsedI, modState)
+               IF (supy_error_flag) RETURN
+            END IF
+            IF (zdm < 0) THEN
+               CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, zd < 0 m.', zdm, notUsed, notUsedI, modState)
+               IF (supy_error_flag) RETURN
+            END IF
+            IF (zzd < 0) THEN
+               CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, (z-zd) < 0 m.', zzd, notUsed, notUsedI, modState)
+               IF (supy_error_flag) RETURN
+            END IF
 
          END ASSOCIATE
       END ASSOCIATE

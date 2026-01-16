@@ -578,6 +578,8 @@ MODULE module_phys_estm
    ! revision history:
    ! TS 09 Oct 2017: re-organised ESTM subroutines into a module
    !===============================================================================
+   USE module_ctrl_error_state, ONLY: supy_error_flag
+   USE module_ctrl_error, ONLY: ErrorHint
    IMPLICIT NONE
 
 CONTAINS
@@ -633,6 +635,7 @@ CONTAINS
             IF (tstep_estm /= tstep_real .AND. ESTMArray(2) == iday_prev) THEN
                CALL ErrorHint(39, 'TSTEP in RunControl does not match TSTEP of ESTM data (DOY).', &
                               REAL(tstep, KIND(1D0)), tstep_estm, INT(ESTMArray(2)))
+               IF (supy_error_flag) RETURN
             END IF
          END IF
       END DO
@@ -738,7 +741,6 @@ CONTAINS
          tin_surf, tin_surf_grids, &
          nspec
       USE module_ctrl_const_datain, ONLY: FileInputPath, filecode
-      USE module_util_stringmod, ONLY: writenum
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: gridIV
       INTEGER, INTENT(IN) :: diagnose
@@ -796,7 +798,7 @@ CONTAINS
          cp_surf
 
       IF (MultipleLayoutFiles) THEN
-         CALL writenum(gridIV, str_gridIV, 'i4')
+         WRITE (str_gridIV, '(i0)') gridIV
          FileLayout = 'GridLayout'//TRIM(filecode)//TRIM(str_gridIV)//'.nml'
       ELSE
          FileLayout = 'GridLayout'//TRIM(filecode)//'.nml'

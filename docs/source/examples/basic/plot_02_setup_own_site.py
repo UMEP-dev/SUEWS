@@ -172,8 +172,15 @@ print("Configuration validation complete")
 # Load meteorological observations from the US-AR1 site.
 # The forcing file contains hourly observations for 2010.
 
-# Path to forcing data (relative to this script)
-path_forcing = Path(__file__).parent / "data" / "US-AR1_2010_data_60.txt"
+# Determine script directory (works both standalone and in sphinx-gallery)
+try:
+    _script_dir = Path(__file__).resolve().parent
+except NameError:
+    # sphinx-gallery context - construct path relative to docs/source
+    _script_dir = Path("examples/basic")
+
+# Path to forcing data
+path_forcing = _script_dir / "data" / "US-AR1_2010_data_60.txt"
 df_forcing_raw = sp.load_forcing_txt(path_forcing, grid=1, tstep=60, timezone=-6)
 
 # Use reduced period for CI builds

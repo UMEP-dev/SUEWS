@@ -45,6 +45,7 @@ from pybtex.style.template import (
 )
 
 import supy
+from sphinx_gallery.sorting import ExplicitOrder, FileNameSortKey
 
 # -- Git version information --------------------------------------------------------
 
@@ -288,12 +289,47 @@ extensions = [
     "sphinx.ext.napoleon",
     # 'suews_config_editor',  # Our custom extension
     # 'sphinx-jsonschema', # to genenrate docs based JSON Schema from SUEWSConfig
+    "sphinx_gallery.gen_gallery",  # Gallery examples from Python scripts (GH-1029)
 ]
 
 # email_automode = True
 
 # sphinx_last_updated_by_git options
 git_last_updated_metatags = True
+
+# sphinx-gallery configuration (GH-1029)
+# Converts percent-format Python scripts to gallery pages with executable examples
+sphinx_gallery_conf = {
+    # Source and output directories (relative to conf.py)
+    "examples_dirs": ["examples"],  # Source directory with .py files
+    "gallery_dirs": ["auto_examples"],  # Generated output directory
+    # File patterns
+    "filename_pattern": r"/plot_",  # Execute files starting with plot_
+    "ignore_pattern": r"__init__\.py",
+    # Ordering: basic before advanced (pedagogical progression)
+    "subsection_order": ExplicitOrder(
+        [
+            "examples/basic",
+            "examples/advanced",
+        ]
+    ),
+    # Within subsections: order by filename (numeric prefixes ensure pedagogical order)
+    # plot_01_quick_start < plot_02_setup < plot_03_impact
+    "within_subsection_order": FileNameSortKey,
+    # Execution settings
+    "plot_gallery": "True",
+    "abort_on_example_error": False,
+    "remove_config_comments": True,
+    # Download options
+    "download_all_examples": True,
+    "notebook_images": True,  # Embed images in generated notebooks
+    # Image handling
+    "image_scrapers": ("matplotlib",),
+    # Memory management
+    "reset_modules": ("matplotlib", "seaborn"),
+    # Capture output
+    "capture_repr": ("_repr_html_", "__repr__"),
+}
 
 # sphinx comments
 # https://sphinx-comments.readthedocs.io/
@@ -340,6 +376,7 @@ exclude_patterns = [
     "_build",
     "**.ipynb_checkpoints",
     "build",
+    "auto_examples/.ipynb_checkpoints",  # sphinx-gallery generated notebooks
 ]
 # tags.add('html')
 # if tags.has('html'):

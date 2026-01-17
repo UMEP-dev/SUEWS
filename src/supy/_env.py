@@ -26,6 +26,9 @@ FORMATTER = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messag
 # log file name
 LOG_FILE = "SuPy.log"
 
+# issue reporting URL
+ISSUES_URL = "https://github.com/UMEP-dev/SUEWS/issues/new"
+
 
 def get_console_handler():
     # Check if stdout is available (can be None in GUI environments like QGIS)

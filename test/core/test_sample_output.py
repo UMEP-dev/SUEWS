@@ -49,13 +49,13 @@ import platform
 import sys
 import tempfile
 from unittest import TestCase
-import warnings
 
 import numpy as np
 import pandas as pd
 import pytest
 
 import supy as sp
+from conftest import TIMESTEPS_PER_DAY
 
 # Get the test data directory
 test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
@@ -288,8 +288,6 @@ class TestSampleOutput(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
-
         # Clear any cached data from previous tests
         # This prevents test interference when tests run in sequence
         import functools
@@ -453,7 +451,7 @@ class TestSampleOutput(TestCase):
         )
 
         df_forcing_part = df_forcing_tstep.iloc[
-            : 288 * 366
+            : TIMESTEPS_PER_DAY * 366
         ]  # One year (2012 is a leap year)
 
         # Run simulation - full year to capture seasonal variations
@@ -677,8 +675,6 @@ class TestSTEBBSOutput(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
-
         # Check if running in CI
         self.in_ci = os.environ.get("CI", "").lower() == "true"
         self.artifact_dir = None
@@ -763,10 +759,10 @@ class TestSTEBBSOutput(TestCase):
         print("=" * 70)
 
         # Extract only 2017-08-27 data from simulation output to match reference
-        # Reference contains data for 2017-08-27 00:00 to 23:55 (288 timesteps)
-        # Simulation output contains 2 days (576 timesteps), so we take the second day (indices 288:576)
+        # Reference contains data for 2017-08-27 00:00 to 23:55 (TIMESTEPS_PER_DAY timesteps)
+        # Simulation output contains 2 days, so we take the second day
         # df_output has MultiIndex columns, so we slice the second day of data
-        df_output_day2 = df_output.iloc[288:576]
+        df_output_day2 = df_output.iloc[TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY * 2]
 
         print(f"\nFiltered output to match reference period (2017-08-27):")
         print(f"  Simulation output (2nd day) length: {len(df_output_day2)}")

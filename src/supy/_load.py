@@ -17,7 +17,7 @@ from . import _supy_driver as _sd
 from . import supy_driver as sd
 
 
-from ._env import logger_supy, trv_supy_module
+from ._env import logger_supy, trv_supy_module, ISSUES_URL
 from ._misc import path_insensitive, normalise_sfr_surf
 
 # choose different second representation to accommodate different pandas versions
@@ -1590,7 +1590,7 @@ def load_SUEWS_InitialCond_df(path_runcontrol):
                 val,
                 type(val),
                 "is not included: this should not happen!",
-                "please report to the developer: https://github.com/UMEP-dev/SuPy/issues/new",
+                f"please report to the developer: {ISSUES_URL}",
             )
 
     # set values according to `list_var_dim_from_dict_ModConfig`

@@ -24,6 +24,17 @@ MIN_SOILSTORE_NONWATER = 10.0  # Minimum soilstore for non-water surfaces [mm]
 MIN_STATE_VALUE = 0.0  # Minimum water state value [mm]
 
 
+def _safe_clamp(value: float, minimum: float) -> float:
+    """Clamp value to minimum, treating NaN as minimum.
+
+    Python's max() returns NaN when comparing NaN with any number,
+    so explicit NaN handling is required.
+    """
+    if np.isnan(value):
+        return minimum
+    return max(value, minimum)
+
+
 def _extract_facet_states(
     temp_arr: np.ndarray,
     tsfc_arr: np.ndarray,
@@ -63,8 +74,8 @@ def _extract_facet_states(
 
     facets = []
     for i in range(min(nlayer, len(tsfc_arr))):
-        soilstore_val = max(float(soilstore_arr[i]), MIN_SOILSTORE_NONWATER)
-        state_val = max(float(state_arr[i]), MIN_STATE_VALUE)
+        soilstore_val = _safe_clamp(float(soilstore_arr[i]), MIN_SOILSTORE_NONWATER)
+        state_val = _safe_clamp(float(state_arr[i]), MIN_STATE_VALUE)
         facets.append(
             SurfaceInitialState(
                 state=RefValue(state_val),

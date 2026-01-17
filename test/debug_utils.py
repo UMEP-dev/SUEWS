@@ -32,12 +32,12 @@ def debug_on_ci(func):
         try:
             result = func(*args, **kwargs)
             if is_ci:
-                print(f"\n✓ {func.__name__} completed successfully")
+                print(f"\n[OK] {func.__name__} completed successfully")
             return result
         except Exception as e:
             if is_ci:
                 print(f"\n{'=' * 60}")
-                print(f"✗ {func.__name__} FAILED")
+                print(f"[FAIL] {func.__name__} FAILED")
                 print(f"Error type: {type(e).__name__}")
                 print(f"Error message: {str(e)}")
                 print(f"Platform: {sys.platform}")
@@ -257,7 +257,7 @@ def capture_test_artifacts(artifact_name):
                     with open(artifact_file, "wb") as f:
                         pickle.dump(test_data, f)
 
-                    print(f"\n✓ Test artifacts saved to: {artifact_file}")
+                    print(f"\n[OK] Test artifacts saved to: {artifact_file}")
                     print(
                         f"  File size: {os.path.getsize(artifact_file) / 1024:.1f} KB"
                     )

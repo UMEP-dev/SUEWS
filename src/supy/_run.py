@@ -36,7 +36,8 @@ from ._post import (
 )
 from ._version import __version__ as sp_version
 
-from ._env import logger_supy
+from ._env import logger_supy, ISSUES_URL
+from .util._forcing import convert_observed_soil_moisture
 
 from .util._debug import save_zip_debug
 
@@ -493,6 +494,9 @@ def run_supy_ser(
     ]
     df_forcing = df_forcing.loc[:, list_var_forcing]
 
+    # Convert observed soil moisture to deficits (if required)
+    df_forcing = convert_observed_soil_moisture(df_forcing, df_init)
+
     # grid list determined by initial states
     list_grid = df_init.index
 
@@ -592,7 +596,7 @@ def run_supy_ser(
                 f"A zip file for debugging has been saved as:\n"
                 f"  {path_zip_debug.as_posix()}\n"
                 f"Please report this issue with the above zip file to the developer at:\n"
-                f"  https://github.com/UMEP-dev/SuPy/issues/new?assignees=&labels=&template=issue-report.md\n"
+                f"  {ISSUES_URL}?template=issue-report.md\n"
                 f"\n====================\n"
             )
 

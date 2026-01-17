@@ -20,6 +20,7 @@ from unittest import TestCase
 import pandas as pd
 
 import supy as sp
+from conftest import TIMESTEPS_PER_DAY
 
 
 class TestSUEWSProcessorAPI(TestCase):
@@ -121,9 +122,9 @@ class TestSUEWSProcessorAPI(TestCase):
         )
 
         # Run with chunk_day parameter as UMEP does
-        # Use short forcing for test speed: 288 = 24h x 12 intervals/h (5-min data)
+        # Use short forcing for test speed (one day of 5-min data)
         df_output, df_state_final = sp.run_supy(
-            df_forcing.iloc[:288],
+            df_forcing.iloc[:TIMESTEPS_PER_DAY],
             df_state_init,
             chunk_day=1,
             check_input=False,
@@ -154,9 +155,9 @@ class TestSUEWSProcessorAPI(TestCase):
             self.sample_config, grid=grid, df_state_init=df_state_init
         )
 
-        # 288 = 24h x 12 intervals/h (5-min data)
+        # One day of 5-min data
         df_output, df_state_final = sp.run_supy(
-            df_forcing.iloc[:288],
+            df_forcing.iloc[:TIMESTEPS_PER_DAY],
             df_state_init,
             check_input=False,
         )

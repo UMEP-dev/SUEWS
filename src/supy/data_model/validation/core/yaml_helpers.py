@@ -89,7 +89,6 @@ except ImportError:
             return False
 
     trv_supy_module = MockTraversable()
-import os
 
 
 def get_value_safe(param_dict, param_key, default=None):

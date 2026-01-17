@@ -1,2 +1,0 @@
-"Referencing Table","Requirement","Comment"
-"`SUEWS_Soil.txt`","`O`","Use only if soil moisture is observed and provided in the met forcing file and `SMDMethod` = 1 or 2. Use of observed soil moisture not currently tested"

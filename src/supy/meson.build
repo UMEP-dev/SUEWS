@@ -38,6 +38,7 @@ py.install_sources(
             'util/_atm.py',
             'util/_debug.py',
             'util/_era5.py',
+            'util/_forcing.py',
             'util/code_manager.py',
             'util/conversion_engine.py',
             'util/_gap_filler.py',

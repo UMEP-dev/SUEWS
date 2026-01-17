@@ -445,6 +445,47 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
             )
         )
 
+    # SMDMethod and soil_observation dependency
+    smdmethod = get_value_safe(physics, "smdmethod")
+    if smdmethod:  # Truthy check: skips None and 0 (modelled), validates 1+ (observed)
+        sites = yaml_data.get("sites", [])
+        sites_missing_soil_obs = []
+        for site in sites:
+            site_name = site.get("name", "Unknown")
+            properties = site.get("properties", {})
+            soil_obs = properties.get("soil_observation")
+            if soil_obs is None:
+                sites_missing_soil_obs.append(site_name)
+
+        if sites_missing_soil_obs:
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="MODEL_OPTIONS",
+                    parameter="smdmethod-soil_observation",
+                    message=(
+                        f"SMDMethod is set to {smdmethod} (observed soil moisture), "
+                        f"but site(s) {sites_missing_soil_obs} are missing the required "
+                        "'soil_observation' configuration block."
+                    ),
+                    suggested_value=(
+                        "Add 'soil_observation' block to site properties with: "
+                        "depth, smcap, soil_not_rocks, and bulk_density"
+                    ),
+                )
+            )
+        else:
+            results.append(
+                ValidationResult(
+                    status="PASS",
+                    category="MODEL_OPTIONS",
+                    parameter="smdmethod-soil_observation",
+                    message="SMDMethod-soil_observation configuration validated",
+                )
+            )
+    # When SMDMethod=0 (modelled), no validation needed - skip adding PASS result
+    # to reduce noise in validation output.
+
     return results
 
 

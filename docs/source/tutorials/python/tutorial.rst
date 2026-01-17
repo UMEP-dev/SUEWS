@@ -15,6 +15,7 @@ Start here for your SUEWS learning journey:
 
   quick-start
   impact-studies
+  attribution-tutorial
 
 .. Comment: setup-own-site not ready yet - forcing height issue to fix
 
@@ -23,10 +24,12 @@ Start here for your SUEWS learning journey:
 1. **[Quick Start](quick-start.ipynb)** - Your first SUEWS simulation using built-in sample data
 2. **[Setup Your Own Site](setup-own-site.ipynb)** - Configure SUEWS for your research location
 3. **[Impact Studies](impact-studies.ipynb)** - Climate change and scenario analysis
+4. **[Attribution Analysis](attribution-tutorial.ipynb)** - Understand *why* temperatures change between scenarios
 
 **Advanced Topics:**
 
 - **Model Coupling**: See :doc:`../../integration/index` for external model integration examples
+- **Temperature Attribution**: Decompose T2 changes into physical mechanisms (flux, resistance, air properties)
 
 Prerequisites
 -------------
@@ -39,7 +42,7 @@ Prerequisites
 **Required Python packages** (automatically installed with SuPy):
 - **pandas**: Data analysis and manipulation
 - **numpy**: Numerical computing
-- **matplotlib**: Plotting and visualization
+- **matplotlib**: Plotting and visualisation
 - **xarray**: Multi-dimensional data analysis
 
 **Recommended setup:**
@@ -78,7 +81,7 @@ SUEWS uses YAML configuration files for type-safe, hierarchical parameter manage
 
 **Data Integration:**
 - **Built-in sample data**: ``SUEWSSimulation.from_sample_data()`` for immediate use
-- **pandas DataFrames**: Native integration for analysis and visualization
+- **pandas DataFrames**: Native integration for analysis and visualisation
 - **Multiple formats**: Support for CSV, netCDF, and scientific data formats
 
 Advanced Features
@@ -132,9 +135,9 @@ New to Python? These resources help you get started with scientific computing fo
   - `Jupyter Project <https://jupyter.org/>`__: Official documentation and installation
   - `Gallery of Interesting Notebooks <https://github.com/jupyter/jupyter/wiki/A-gallery-of-interesting-Jupyter-Notebooks>`__: Real-world examples
 
-**matplotlib** - Scientific plotting and visualization:
+**matplotlib** - Scientific plotting and visualisation:
   - `Matplotlib Tutorials <https://matplotlib.org/stable/tutorials/index.html>`__: Comprehensive plotting guide
-  - `Scientific Visualization <https://github.com/rougier/scientific-visualization-book>`__: Advanced visualization techniques
+  - `Scientific Visualization <https://github.com/rougier/scientific-visualization-book>`__: Advanced visualisation techniques
 
 **Climate Data Analysis:**
 - `Pangeo Tutorial <https://pangeo.io/tutorials.html>`__: Big data oceanography and climatology
@@ -163,7 +166,7 @@ If you're familiar with MATLAB, R, or other scientific computing environments, f
 2. **Time series resampling**: ``.resample()`` for temporal aggregation
 3. **GroupBy operations**: ``.groupby()`` for statistical analysis
 4. **MultiIndex handling**: Working with hierarchical data structures
-5. **Plotting integration**: ``.plot()`` method for quick visualizations
+5. **Plotting integration**: ``.plot()`` method for quick visualisations
 
 **Ready to Start?**
 

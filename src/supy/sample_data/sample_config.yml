@@ -73,6 +73,12 @@ sites:
       value: 0.0
     narp_trans_site:
       value: 1.0
+    # Uncomment below when using observed soil moisture (smdmethod: 1 or 2)
+    # soil_observation:
+    #   depth: 200.0        # mm - sensor installation depth
+    #   smcap: 0.40         # fraction - saturated moisture at sensor location
+    #   soil_not_rocks: 0.9 # fraction - soil volume (not rocks)
+    #   bulk_density: 1.3   # g/cm³ - required for gravimetric (smdmethod: 2)
     lumps:
       raincover:
         value: 1.0

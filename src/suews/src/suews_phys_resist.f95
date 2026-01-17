@@ -104,7 +104,6 @@ CONTAINS
          CALL errorHint(7, 'In AerodynamicResistance.f95, calculated RA < 10 s m-1; RA set to 10 s m-1', RA_h, notUsed, notUsedI)
          RA_h = 10
          ! RA=(log(ZZD/z0m))**2/(k2*AVU1)
-         IF (avu1 < 0) WRITE (*, *) avu1, RA_h
       END IF
 
       RETURN

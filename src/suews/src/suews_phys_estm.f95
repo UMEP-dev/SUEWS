@@ -208,6 +208,7 @@ MODULE module_phys_estm_solver
    !     Copyright (c) 2001 MyCompany. All rights reserved.
 
    USE module_ctrl_const_physconst, ONLY: eps_fp
+   USE module_ctrl_error_state, ONLY: add_supy_warning
    IMPLICIT NONE
 
 CONTAINS
@@ -253,7 +254,7 @@ CONTAINS
       END DO
       niter = i - 1
       IF (.NOT. converged) THEN
-         PRINT *, "Solution did not converge. Niter=", niter, " Error=", e
+         CALL add_supy_warning('NewtonPolynomial did not converge, returning initial guess')
          x = x0
       END IF
    END FUNCTION NewtonPolynomial
@@ -578,7 +579,7 @@ MODULE module_phys_estm
    ! revision history:
    ! TS 09 Oct 2017: re-organised ESTM subroutines into a module
    !===============================================================================
-   USE module_ctrl_error_state, ONLY: supy_error_flag
+   USE module_ctrl_error_state, ONLY: supy_error_flag, add_supy_warning
    USE module_ctrl_error, ONLY: ErrorHint
    IMPLICIT NONE
 
@@ -1141,7 +1142,7 @@ CONTAINS
       ALLOCATE (temp_surf_grids(NumberOfGrids, nsurf, ndepth))
 
       DO i_grid = 1, NumberOfGrids
-         PRINT *, 'Reading layout data for grid ', i_grid
+         IF (Diagnose == 1) PRINT *, 'Reading layout data for grid ', i_grid
          CALL load_GridLayout(i_grid, flag_mutiple_layout_files, diagnose)
       END DO
 
@@ -1418,6 +1419,7 @@ CONTAINS
       !ivf_rw=1.-ivf_ri-ivf_rf;
       !ivf_fr=ivf_rf;
 
+      ! Validate internal view factors sum to 1 (configuration check)
       IF ((ivf_ii + ivf_iw + ivf_ir + ivf_if > 1.0001) .OR. &
           (ivf_wi + ivf_ww + ivf_wr + ivf_wf > 1.0001) .OR. &
           (ivf_ri + ivf_rw + ivf_rf > 1.0001) .OR. &
@@ -1426,7 +1428,7 @@ CONTAINS
           (ivf_wi + ivf_ww + ivf_wr + ivf_wf < 0.9999) .OR. &
           (ivf_ri + ivf_rw + ivf_rf < 0.9999) .OR. &
           (ivf_fi + ivf_fw + ivf_fr < 0.9999)) THEN
-         PRINT *, "At least one internal view factor <> 1. Check ivf in ESTMinput.nml"
+         CALL add_supy_warning('ESTM: At least one internal view factor <> 1. Check ivf in ESTMinput.nml')
       END IF
 
       !=======Initial setting==============================================

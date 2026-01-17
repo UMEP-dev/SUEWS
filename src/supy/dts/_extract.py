@@ -24,15 +24,11 @@ MIN_SOILSTORE_NONWATER = 10.0  # Minimum soilstore for non-water surfaces [mm]
 MIN_STATE_VALUE = 0.0  # Minimum water state value [mm]
 
 
-def _safe_clamp(value: float, minimum: float) -> float:
-    """Clamp value to minimum, treating NaN as minimum.
-
-    Python's max() returns NaN when comparing NaN with any number,
-    so explicit NaN handling is required.
-    """
-    if np.isnan(value):
-        return minimum
-    return max(value, minimum)
+def _safe_clamp(val: float, min_val: float) -> float:
+    """Clamp value to minimum, treating NaN as needing replacement."""
+    if np.isnan(val):
+        return min_val
+    return max(val, min_val)
 
 
 def _extract_facet_states(

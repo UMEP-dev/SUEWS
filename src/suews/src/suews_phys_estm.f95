@@ -581,6 +581,7 @@ MODULE module_phys_estm
    !===============================================================================
    USE module_ctrl_error_state, ONLY: supy_error_flag, add_supy_warning
    USE module_ctrl_error, ONLY: ErrorHint
+   USE module_ctrl_type, ONLY: SUEWS_STATE
    IMPLICIT NONE
 
 CONTAINS
@@ -588,7 +589,7 @@ CONTAINS
    !======================================================================================
    ! Subroutine to read in ESTM data in the same way as met data (SUEWS_InitializeMetData)
    ! HCW 30 Jun 2016
-   SUBROUTINE SUEWS_GetESTMData(lunit)
+   SUBROUTINE SUEWS_GetESTMData(lunit, modState)
       USE module_ctrl_const_allocate, ONLY: ncolsestmdata, estmforcingdata
       USE module_ctrl_const_datain, ONLY: fileestmts, skipheadermet
       USE module_ctrl_const_sues, ONLY: tstep_real, tstep
@@ -598,6 +599,7 @@ CONTAINS
       IMPLICIT NONE
 
       INTEGER, INTENT(in) :: lunit
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
       INTEGER :: i, iyy !,RunNumber,NSHcounter
       INTEGER :: iostat_var
       REAL(KIND(1D0)), DIMENSION(ncolsESTMdata) :: ESTMArray
@@ -635,7 +637,7 @@ CONTAINS
             tstep_estm = ((ESTMArray(4) + 60*ESTMArray(3)) - (imin_prev + 60*ih_prev))*60 !tstep in seconds
             IF (tstep_estm /= tstep_real .AND. ESTMArray(2) == iday_prev) THEN
                CALL ErrorHint(39, 'TSTEP in RunControl does not match TSTEP of ESTM data (DOY).', &
-                              REAL(tstep, KIND(1D0)), tstep_estm, INT(ESTMArray(2)))
+                              REAL(tstep, KIND(1D0)), tstep_estm, INT(ESTMArray(2)), modState)
                IF (supy_error_flag) RETURN
             END IF
          END IF
@@ -645,7 +647,7 @@ CONTAINS
 
       RETURN
 
-315   CALL errorHint(11, TRIM(fileESTMTs), notUsed, notUsed, ios_out)
+315   CALL errorHint(11, TRIM(fileESTMTs), notUsed, notUsed, ios_out, modState)
 
    END SUBROUTINE SUEWS_GetESTMData
    !======================================================================================

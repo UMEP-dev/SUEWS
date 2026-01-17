@@ -6,6 +6,7 @@ MODULE module_phys_waterdist
                             BSoilSurf, WaterSurf, ExcessSurf
    USE module_ctrl_error_state, ONLY: supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
+   USE module_ctrl_type, ONLY: SUEWS_STATE
    IMPLICIT NONE
 CONTAINS
 
@@ -18,7 +19,8 @@ CONTAINS
       DrainCoef1, &
       DrainCoef2, &
       nsh_real, &
-      drain_is) !output
+      drain_is, & !output
+      modState) !optional: for thread-safe error logging
 
       !Calculation of drainage for each land surface.
       !INPUT: Storage capacity, type of drainage equation used, drainage coefficients
@@ -41,6 +43,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: DrainEq !Drainage equation to use
       REAL(KIND(1D0)), INTENT(in) :: nsh_real !nsh cast as a real for use in calculations
       REAL(KIND(1D0)), INTENT(out) :: drain_is !Drainage of surface type "is" [mm]
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       !If surface is dry, no drainage occurs
       IF (state_is < 0.000000001) THEN
@@ -69,7 +72,7 @@ CONTAINS
          ! May indicate shorter tstep needed, or a more suitable equation
          IF (drain_is > state_is) THEN
             !write(*,*) 'Drainage:', is, drain(is), state_id(is), drain(is)-state_id(is), DrainEq, DrainCoef1, DrainCoef2, nsh_real
-            CALL ErrorHint(61, 'SUEWS_drain: drain_is > state_is for surface is ', drain_is, state_is, is)
+            CALL ErrorHint(61, 'SUEWS_drain: drain_is > state_is for surface is ', drain_is, state_is, is, modState)
             drain_is = state_is !All water in state_id is drained (but no more)
          ELSEIF (drain_is < 0.0001) THEN
             drain_is = 0
@@ -89,7 +92,8 @@ CONTAINS
       PervFraction, addVeg, SoilStoreCap, addWaterBody, FlowChange, StateLimit, &
       runoffAGimpervious, runoffAGveg, runoffPipes, ev, soilstore, & ! inout:
       surplusWaterBody, SurplusEvap, runoffWaterBody, & ! inout:
-      runoff, state_out) !output:
+      runoff, state_out, & !output:
+      modState) !optional: for thread-safe error logging
       !------------------------------------------------------------------------------
       !Calculation of storage change
       ! TS 30 Nov 2019
@@ -171,6 +175,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(inout) :: runoffPipes !Runoff in pipes [mm] for whole surface area
       REAL(KIND(1D0)), INTENT(inout) :: ev !Evaporation
       REAL(KIND(1D0)), INTENT(inout) :: runoffWaterBody !Above ground runoff from water surface [mm] for whole surface area
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       REAL(KIND(1D0)) :: p_mm !Inputs to surface water balance
 
@@ -318,7 +323,7 @@ CONTAINS
             runoff(is) = runoff(is) + (soilstore(is) - SoilStoreCap(is))
             soilstore(is) = SoilStoreCap(is)
          ELSEIF (soilstore(is) < 0) THEN !! QUESTION: But where does this lack of water go? !!Can this really happen here?
-            CALL ErrorHint(62, 'SUEWS_store: soilstore_id(is) < 0 ', soilstore(is), NotUsed, is)
+            CALL ErrorHint(62, 'SUEWS_store: soilstore_id(is) < 0 ', soilstore(is), NotUsed, is, modState)
             IF (supy_error_flag) RETURN
             ! Code this properly - soilstore_id(is) < 0 shouldn't happen given the above loops
             !soilstore_id(is)=0   !Groundwater / deeper soil should kick in
@@ -902,7 +907,8 @@ CONTAINS
       SMDMethod, xsmd, NonWaterFraction, SoilMoistCap, & !input
       SoilStoreCap_surf, surf_chang_per_tstep, &
       soilstore_surf, soilstore_surf_in, sfr_surf, &
-      smd, smd_surf, tot_chang_per_tstep, SoilState) !output
+      smd, smd_surf, tot_chang_per_tstep, SoilState, & !output
+      modState) !optional: for thread-safe error logging
 
       IMPLICIT NONE
       ! INTEGER, PARAMETER :: nsurf = 7
@@ -922,6 +928,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: SoilState !Area-averaged soil moisture [mm] for whole surface
       REAL(KIND(1D0)), INTENT(out) :: smd !One value for whole surface
       REAL(KIND(1D0)), INTENT(out) :: tot_chang_per_tstep !Change in surface state_id
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       REAL(KIND(1D0)), PARAMETER :: NotUsed = -999
       REAL(KIND(1D0)), PARAMETER :: NAN = -999
@@ -932,10 +939,10 @@ CONTAINS
          DO is = 1, nsurf - 1 !No water body included
             SoilState = SoilState + (soilstore_surf(is)*sfr_surf(is)/NonWaterFraction)
             IF (SoilState < 0) THEN
-               CALL ErrorHint(62, 'SUEWS_Calculations: total SoilState < 0 (just added surface is) ', SoilState, NotUsed, is)
+               CALL ErrorHint(62, 'SUEWS_Calculations: total SoilState < 0 (just added surface is) ', SoilState, NotUsed, is, modState)
                IF (supy_error_flag) RETURN
             ELSEIF (SoilState > SoilMoistCap) THEN
-               CALL ErrorHint(62, 'SUEWS_Calculations: total SoilState > capacity (just added surface is) ', SoilState, NotUsed, is)
+               CALL ErrorHint(62, 'SUEWS_Calculations: total SoilState > capacity (just added surface is) ', SoilState, NotUsed, is, modState)
                IF (supy_error_flag) RETURN
                !SoilMoist_state=SoilMoistCap !What is this LJ 10/2010 - QUESTION: SM exceeds capacity, but where does extra go?HCW 11/2014
             END IF

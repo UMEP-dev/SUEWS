@@ -8,6 +8,7 @@ MODULE module_phys_ohm
    ! USE module_ctrl_const_time
    USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
    USE module_ctrl_error, ONLY: ErrorHint
+   USE module_ctrl_type, ONLY: SUEWS_STATE, SUEWS_TIMER
 
    IMPLICIT NONE
 CONTAINS
@@ -35,8 +36,9 @@ CONTAINS
                   a1_dectr, a2_dectr, a3_dectr, &
                   a1_grass, a2_grass, a3_grass, &
                   a1_bsoil, a2_bsoil, a3_bsoil, &
-                  a1_water, a2_water, a3_water, & 
-                  a1, a2, a3, qs, deltaQi)
+                  a1_water, a2_water, a3_water, &
+                  a1, a2, a3, qs, deltaQi, &
+                  modState)
       ! Made by HCW Jan 2015 to replace OHMnew (no longer needed).
       ! Calculates net storage heat flux (QS) from Eq 4, Grimmond et al. 1991, Atm Env.
       ! Accounts for variable timesteps in dQ*/dt term.
@@ -142,6 +144,7 @@ CONTAINS
                                           a1_bsoil, a2_bsoil, a3_bsoil, &
                                           a1_water, a2_water, a3_water ! Dynamic OHM coefficients of other 6 surface types
       REAL(KIND(1D0)), INTENT(out) :: a1, a2, a3 ! OHM coefficients of grid
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       ! REAL(KIND(1d0)):: nsh_nna ! number of timesteps per hour with non -999 values (used for spinup)
 
@@ -410,7 +413,7 @@ CONTAINS
          IF (DiagQS == 1) WRITE (*, *) 'qs: ', qs, 'qn1:', qn1, 'dqndt: ', dqndt_next
 
       ELSE
-         CALL ErrorHint(21, 'In SUEWS_OHM.f95: bad value for qn1 found during qs calculation.', qn1, -55.55D0, -55)
+         CALL ErrorHint(21, 'In SUEWS_OHM.f95: bad value for qn1 found during qs calculation.', qn1, -55.55D0, -55, modState)
          IF (supy_error_flag) RETURN
       END IF
 
@@ -446,7 +449,7 @@ CONTAINS
             deltaQi = deltaQi0
 
          ELSE
-            CALL ErrorHint(21, 'In SUEWS_OHM.f95: bad value for qn1(snow) found during qs calculation.', qn1_S, -55.55D0, -55)
+            CALL ErrorHint(21, 'In SUEWS_OHM.f95: bad value for qn1(snow) found during qs calculation.', qn1_S, -55.55D0, -55, modState)
             IF (supy_error_flag) RETURN
          END IF
 

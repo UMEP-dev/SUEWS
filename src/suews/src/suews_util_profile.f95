@@ -106,13 +106,16 @@ END MODULE module_ctrl_input_profile
 ! Utility subroutine for skipping header lines in input files
 ! Used by ESTM module for reading external temperature data
 !-------------------------------------------------------------------------
-SUBROUTINE SkipHeader(lfn, skip)
+SUBROUTINE SkipHeader(lfn, skip, modState)
    USE defaultnotUsed
    USE module_ctrl_error, ONLY: ErrorHint
+   USE module_ctrl_error_state, ONLY: supy_error_flag
+   USE module_ctrl_type, ONLY: SUEWS_STATE
    IMPLICIT NONE
 
    INTEGER, INTENT(IN) :: lfn   ! Logical file number
    INTEGER, INTENT(IN) :: skip  ! Number of header lines to skip
+   TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
    INTEGER :: i
 
    DO i = 1, skip
@@ -122,5 +125,6 @@ SUBROUTINE SkipHeader(lfn, skip)
    RETURN
 
 201 reall = REAL(skip)
-   CALL ErrorHint(20, 'In SkipHeader subroutine.', reall, notUsed, ios_out)
+   CALL ErrorHint(20, 'In SkipHeader subroutine.', reall, notUsed, ios_out, modState)
+   IF (supy_error_flag) RETURN
 END SUBROUTINE SkipHeader

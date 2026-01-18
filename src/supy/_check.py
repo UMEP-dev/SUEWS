@@ -82,7 +82,7 @@ def check_range(ser_to_check: pd.Series, rule_var: dict) -> Tuple:
             min_hpa, max_hpa = min_v, max_v
             min_kpa, max_kpa = min_hpa / 10, max_hpa / 10
             description = (
-                f"`pres` should be between [{min_kpa:.1f}, {max_kpa:.1f}] kPa "
+                f"`pres` should be between [{min_kpa:.1f}, {max_kpa:.1f}] kPa; "
                 f"{n_flag} outliers are found at:\n {ind}"
             )
         else:

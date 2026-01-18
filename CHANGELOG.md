@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
+| 2025 | 60 | 69 | 22 | 71 | 36 | 257 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -32,6 +32,10 @@
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2025
+
+### 18 Jan 2025
+
+- [bugfix] Fixed error message in _check.py::check_range to reflect the documentation and avoid misleading interpretation of the allowed pres range. (PR #1090)
 
 ### 17 Dec 2025
 

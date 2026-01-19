@@ -831,7 +831,7 @@ CONTAINS
             iu = 1 !Set to 1=weekday
             IF (DayofWeek_id(1) == 1 .OR. DayofWeek_id(1) == 7) iu = 2 !Set to 2=weekend
             !select heating/cooling setpoint from prescribed schedules
-            idx = imin / 10 + 1 !for 10 minutes resolution
+            idx = imin / 10 !for 10 minutes resolution
             buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature(idx, iu) + 273.15
             buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature(idx, iu) + 273.15
             buildings(1)%frac_occupants = building_archtype%OccupantsProfile(idx, iu)

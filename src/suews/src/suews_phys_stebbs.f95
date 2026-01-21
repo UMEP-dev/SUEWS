@@ -436,7 +436,9 @@ CONTAINS
 
       ! Validate inputs
       IF (d <= 0 .OR. cp <= 0 .OR. rho <= 0) THEN
+#ifdef wrf
          PRINT *, "Thickness (d), specific heat (cp), and density (rho) must be positive."
+#endif
          CALL set_supy_error(102, 'STEBBS calculate_x1: d, cp, rho must be positive')
          x1 = -999.0D0
          RETURN
@@ -455,7 +457,9 @@ CONTAINS
 
       ! limit the output x1 between 0 and 1
       IF (x1 <= 0 .OR. x1 >= 1) THEN
+#ifdef wrf
          PRINT *, "OuterCapFrac should be between 0 and 1."
+#endif
          CALL set_supy_error(102, 'STEBBS calculate_x1: OuterCapFrac should be between 0 and 1')
          x1 = -999.0D0
          RETURN
@@ -2084,16 +2088,19 @@ SUBROUTINE tstep( &
       Qlw_up_roof_tstepSA = Qlw_up_roof_tsteptotal / timestep / Aroof
    ELSE !iftimestepresolution
       !  printf("Timestep: %i not equally divisible by given resolution: %i.\n", timestep, resolution)
+#ifdef wrf
       WRITE (*, *) "Timestep: ", timestep, " not equally divisible by given resolution: ", resolution
+#endif
    END IF
 END SUBROUTINE tstep
 SUBROUTINE reinitialiseTemperatures
 END SUBROUTINE reinitialiseTemperatures
 
 SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self, num_layer)
-   
+
    USE module_ctrl_type, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, STEBBS_BLDG, SUEWS_CONFIG
    USE module_phys_stebbs_func, ONLY: calculate_x1
+   USE module_ctrl_error_state, ONLY: add_supy_warning
    IMPLICIT NONE
 
    TYPE(STEBBS_BLDG) :: self
@@ -2303,11 +2310,11 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
                                              self%thickness_wallext, self%cp_wallext, self%density_wallext, self%conductivity_wallext)
       self%weighting_factor_heatcapacity_roof = calculate_x1(self%thickness_roof, self%cp_roof, self%density_roof, &
                                              self%thickness_roofext, self%cp_roofext, self%density_roofext, self%conductivity_roofext)
-      IF ((self%weighting_factor_heatcapacity_wall>1) .OR. (self%weighting_factor_heatcapacity_wall>1)) THEN
-         print*, "Wall_OuterCapFrac = ", self%weighting_factor_heatcapacity_wall, 'parameterisation should not be used'
-      END IF   
-      IF ((self%weighting_factor_heatcapacity_roof>1) .OR. (self%weighting_factor_heatcapacity_roof>1)) THEN
-         print*, "Roof_OuterCapFrac = ", self%weighting_factor_heatcapacity_roof, 'parameterisation should not be used'
+      IF (self%weighting_factor_heatcapacity_wall > 1) THEN
+         CALL add_supy_warning('STEBBS: Wall_OuterCapFrac > 1, parameterisation should not be used')
+      END IF
+      IF (self%weighting_factor_heatcapacity_roof > 1) THEN
+         CALL add_supy_warning('STEBBS: Roof_OuterCapFrac > 1, parameterisation should not be used')
       END IF  
    END IF                                                    
 END SUBROUTINE gen_building

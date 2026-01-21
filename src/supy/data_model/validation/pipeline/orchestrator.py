@@ -8,6 +8,7 @@ Three-phase validation workflow:
 Supports individual phases (A, B, C) or combined workflows (AB, AC, BC, ABC).
 """
 
+import supy
 import sys
 import os
 import argparse

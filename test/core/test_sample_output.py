@@ -49,13 +49,13 @@ import platform
 import sys
 import tempfile
 from unittest import TestCase
-import warnings
 
 import numpy as np
 import pandas as pd
 import pytest
 
 import supy as sp
+from conftest import TIMESTEPS_PER_DAY
 
 # Get the test data directory
 test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
@@ -288,8 +288,6 @@ class TestSampleOutput(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
-
         # Clear any cached data from previous tests
         # This prevents test interference when tests run in sequence
         import functools
@@ -453,7 +451,7 @@ class TestSampleOutput(TestCase):
         )
 
         df_forcing_part = df_forcing_tstep.iloc[
-            : 288 * 366
+            : TIMESTEPS_PER_DAY * 366
         ]  # One year (2012 is a leap year)
 
         # Run simulation - full year to capture seasonal variations
@@ -562,6 +560,104 @@ class TestSampleOutput(TestCase):
             f"Sample output validation failed for: {', '.join(failed_variables)}",
         )
 
+    @pytest.mark.core
+    @pytest.mark.smoke
+    def test_dts_vs_traditional_parity(self):
+        """
+        Test DTS interface produces identical output to traditional run_supy.
+
+        This smoke test validates that the new DTS (Derived Type Structure)
+        interface produces bit-identical output to the traditional run_supy
+        method. This is critical for ensuring the DTS interface can be used
+        as a drop-in replacement.
+
+        Two modes are tested:
+        1. Traditional: Uses run_supy() which goes through df_state packing
+        2. DTS: Uses direct Pydantic->DTS->Fortran kernel path
+
+        The test uses a short 48-timestep (4-hour) simulation for fast feedback.
+        """
+        print("\n" + "=" * 70)
+        print("DTS vs Traditional Run Parity Test")
+        print("=" * 70)
+
+        # Print platform info
+        platform_info = self.get_platform_info()
+        print(f"Platform: {platform_info['platform']} {platform_info['machine']}")
+        print(f"Python: {platform_info['python_version_tuple']}")
+        print("=" * 70)
+
+        # Import DTS infrastructure
+        from supy import load_SampleData
+        from supy.data_model import SUEWSConfig
+        from supy.dts import run_dts
+
+        # Load sample data
+        print("\nLoading sample data...")
+        df_state_init, df_forcing = load_SampleData()
+        grid_id = df_state_init.index[0]
+
+        # Use 48 timesteps (4 hours) for smoke test - enough to verify correctness
+        n_timesteps = 48
+        df_forcing_subset = df_forcing.head(n_timesteps)
+
+        # =====================================================================
+        # MODE 1: Traditional run_supy
+        # =====================================================================
+        print(f"\n[MODE 1] Running traditional run_supy ({n_timesteps} timesteps)...")
+        df_output_trad, _ = sp.run_supy(df_forcing_subset, df_state_init)
+
+        # =====================================================================
+        # MODE 2: DTS interface (batch runner)
+        # =====================================================================
+        print(f"[MODE 2] Running DTS interface ({n_timesteps} timesteps)...")
+
+        # Create Pydantic config
+        config = SUEWSConfig.from_df_state(df_state_init.loc[[grid_id]])
+
+        # Run DTS batch simulation
+        df_output_dts, _ = run_dts(df_forcing_subset, config, site_index=0)
+
+        # =====================================================================
+        # COMPARISON
+        # =====================================================================
+        print("\n" + "=" * 70)
+        print("COMPARING OUTPUTS")
+        print("=" * 70)
+
+        all_passed = True
+        failed_variables = []
+        variables_to_compare = ("QN", "QF", "QS", "QH", "QE")
+
+        for var in variables_to_compare:
+            dts_arr = df_output_dts[('SUEWS', var)].values
+            trad_arr = df_output_trad[('SUEWS', var)].values
+
+            # Check for exact match (DTS should be bit-identical)
+            max_diff = np.max(np.abs(dts_arr - trad_arr))
+
+            if max_diff == 0:
+                print(f"[PASS] {var}: Identical (max diff = 0)")
+            else:
+                print(f"[FAIL] {var}: max diff = {max_diff:.6e}")
+                failed_variables.append(var)
+                all_passed = False
+
+        # Summary
+        print("\n" + "=" * 70)
+        print("SUMMARY")
+        print("=" * 70)
+
+        if all_passed:
+            print("[PASS] DTS interface produces identical output to traditional run!")
+        else:
+            print(f"[FAIL] Parity failed for: {', '.join(failed_variables)}")
+
+        self.assertTrue(
+            all_passed,
+            f"DTS vs traditional parity failed for: {', '.join(failed_variables)}"
+        )
+
 
 if __name__ == "__main__":
     import unittest
@@ -579,8 +675,6 @@ class TestSTEBBSOutput(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
-
         # Check if running in CI
         self.in_ci = os.environ.get("CI", "").lower() == "true"
         self.artifact_dir = None
@@ -665,10 +759,10 @@ class TestSTEBBSOutput(TestCase):
         print("=" * 70)
 
         # Extract only 2017-08-27 data from simulation output to match reference
-        # Reference contains data for 2017-08-27 00:00 to 23:55 (288 timesteps)
-        # Simulation output contains 2 days (576 timesteps), so we take the second day (indices 288:576)
+        # Reference contains data for 2017-08-27 00:00 to 23:55 (TIMESTEPS_PER_DAY timesteps)
+        # Simulation output contains 2 days, so we take the second day
         # df_output has MultiIndex columns, so we slice the second day of data
-        df_output_day2 = df_output.iloc[288:576]
+        df_output_day2 = df_output.iloc[TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY * 2]
 
         print(f"\nFiltered output to match reference period (2017-08-27):")
         print(f"  Simulation output (2nd day) length: {len(df_output_day2)}")

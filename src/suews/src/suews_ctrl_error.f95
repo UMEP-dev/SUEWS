@@ -8,6 +8,7 @@
 !   100: NARP - NetRadiationMethod value not usable
 !   101: OHM  - Invalid input parameters (d, C, k, lambda_c, WS must be positive)
 !   102: STEBBS - Invalid thermal parameters (d, cp, rho must be positive; x1 in [0,1])
+!   103: RSL - Interpolation bounds error in interp_z
 !
 ! Note: Error state uses SAVE variables, so is NOT thread-safe.
 !       Do not call SUEWS from multiple threads simultaneously.
@@ -20,12 +21,18 @@ MODULE module_ctrl_error_state
    INTEGER, SAVE :: supy_error_code = 0
    CHARACTER(LEN=512), SAVE :: supy_error_message = ''
 
+   ! Warning state variables for non-fatal issues (module-level fallback)
+   INTEGER, SAVE :: supy_warning_count = 0
+   CHARACTER(LEN=512), SAVE :: supy_last_warning_message = ''
+
 CONTAINS
 
    SUBROUTINE reset_supy_error()
       supy_error_flag = .FALSE.
       supy_error_code = 0
       supy_error_message = ''
+      supy_warning_count = 0
+      supy_last_warning_message = ''
    END SUBROUTINE reset_supy_error
 
    SUBROUTINE set_supy_error(code, message)
@@ -39,17 +46,33 @@ CONTAINS
       supy_error_message = message(1:msg_len)
    END SUBROUTINE set_supy_error
 
+   SUBROUTINE add_supy_warning(message)
+      !> Add a warning to the warning state (non-fatal, module-level fallback)
+      CHARACTER(LEN=*), INTENT(IN) :: message
+      INTEGER :: msg_len
+
+      supy_warning_count = supy_warning_count + 1
+      msg_len = MIN(LEN_TRIM(message), 512)
+      supy_last_warning_message = message(1:msg_len)
+   END SUBROUTINE add_supy_warning
+
 END MODULE module_ctrl_error_state
 
 !==================================================================================================
+! Module wrapper for ErrorHint to expose explicit interface with OPTIONAL parameter
+MODULE module_ctrl_error
+   IMPLICIT NONE
+CONTAINS
 
-SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
+SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI, modState)
    !errh        -- Create a numbered code for the situation so get a unique message to help solve the problem
    !ProblemFile -- Filename where the problem occurs/error message
    !value       -- Error value (real number with correct type)
    !value2      -- Second error value (real number with correct type)
    !valueI      -- Error value (integer)
+   !modState    -- Optional SUEWS_STATE for state-based warning logging
    ! Last modified -----------------------------------------------------
+   ! TS  17 Jan 2026: Add optional modState for state-based warning logging
    ! TS  17 Dec 2025: Remove legacy problems.txt/warnings.txt output (Python handles logging)
    ! MH  12 Apr 2017: Error code for stability added
    ! HCW 17 Feb 2017: Write (serious) errors to problems.txt; write warnings to warnings.txt (program continues)
@@ -61,13 +84,14 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
    !--------------------------------------------------------------------
    !
    ! Thread Safety (GH#1042):
-   !   Avoid initialized local variables which can become SAVE variables and be
-   !   shared across threads.
-   !   Do not call the SUEWS kernel concurrently from multiple threads.
+   !   When modState is provided, warnings are logged to state%errorstate (thread-safe).
+   !   Otherwise, falls back to module-level warning state (NOT thread-safe).
+   !   Do not call the SUEWS kernel concurrently from multiple threads without state.
    !   Use process-based parallelism or serialize calls with a lock in the caller.
 
    USE module_ctrl_const_datain
-   USE module_ctrl_error_state, ONLY: set_supy_error
+   USE module_ctrl_error_state, ONLY: set_supy_error, add_supy_warning
+   USE module_ctrl_type, ONLY: SUEWS_STATE
    ! USE module_ctrl_const_wherewhen
 
    IMPLICIT NONE
@@ -76,6 +100,7 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
 
    CHARACTER(len=*) :: ProblemFile ! Name of the problem file
    CHARACTER(len=150) :: text1 ! Initialization of text
+   TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
    ! CHARACTER(len=20)::filename                  !file name for writting out error info
    INTEGER :: errh, ValueI, ValueI2, ValueI3 ! v7,v8 initialised as false, HCW 28/10/2014
 #ifdef wrf
@@ -277,7 +302,9 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
       v1 = .TRUE.
    ELSEIF (errh == 51) THEN
       text1 = 'Problems in opening the file'
+#ifdef wrf
       WRITE (*, *) ProblemFile
+#endif
    ELSEIF (errh == 52) THEN
       text1 = 'Problems opening the output file.'
    ELSEIF (errh == 53) THEN
@@ -407,10 +434,16 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
          CALL wrf_debug(100, message)
          CALL wrf_debug(100, Errmessage)
 #else
-         WRITE (*, *) 'Warning: ', TRIM(ProblemFile)
-         WRITE (*, *) TRIM(text1)
-         IF (LEN_TRIM(Errmessage) > 0) WRITE (*, *) TRIM(Errmessage)
-         WRITE (*, '(a,i3)') ' Warning code: ', errh
+         ! SuPy: use state-based logging if available (thread-safe, full history)
+         IF (PRESENT(modState)) THEN
+            CALL modState%errorstate%report( &
+               message=TRIM(text1)//': '//TRIM(ProblemFile), &
+               location='ErrorHint', &
+               is_fatal=.FALSE.)
+         ELSE
+            ! Fallback to module-level warning state (not thread-safe)
+            CALL add_supy_warning(TRIM(text1)//': '//TRIM(ProblemFile))
+         END IF
 #endif
       END IF
 
@@ -429,22 +462,14 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI)
       WRITE (message, *) 'fatal error in SUEWS:', TRIM(text1)
       CALL wrf_error_fatal(message)
 #else
-      WRITE (StopMessage, *) 'fatal error in SUEWS:'//NEW_LINE('A')//TRIM(text1)
-
-      WRITE (*, *) 'Problem: ', TRIM(ProblemFile)
-      WRITE (*, *) 'ERROR! Program stopped: ', TRIM(text1)
-      IF (LEN_TRIM(Errmessage) > 0) WRITE (*, *) TRIM(Errmessage)
-      WRITE (*, '(a,i3)') ' Error code: ', errh
-
-      ! Set error state for Python/SuPy interface instead of STOP
-      ! This allows Python to detect the error and raise an exception
+      ! SuPy: no stdout writes - Python handles error reporting
       CALL set_supy_error(errh, TRIM(text1)//': '//TRIM(ProblemFile))
       RETURN
-
 #endif
    END IF
 
 END SUBROUTINE ErrorHint
 
+END MODULE module_ctrl_error
 
 !=============================================================

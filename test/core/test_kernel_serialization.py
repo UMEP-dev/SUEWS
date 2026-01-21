@@ -4,13 +4,10 @@ These tests verify that:
 1. State-based error handling works correctly (thread-safe via per-call state)
 2. The multi-timestep path (suews_cal_tstep_multi) can run concurrently
 
-The SUEWS kernel now uses state-based error handling for the main production
-path (suews_cal_tstep_multi). Each call creates its own SUEWS_STATE_BLOCK
-which captures any errors, enabling thread-safe parallel execution.
-
-Note: The single-timestep path (suews_cal_tstep) still uses module-level
-error variables and is NOT thread-safe. Use suews_cal_tstep_multi for
-parallel work (important for WRF coupling with MPI/OpenMP).
+The SUEWS kernel uses state-based error handling via suews_cal_tstep_multi.
+Each call creates its own SUEWS_STATE_BLOCK which captures any errors,
+enabling thread-safe parallel execution (important for WRF coupling with
+MPI/OpenMP).
 """
 
 import pytest
@@ -118,14 +115,3 @@ def test_no_kernel_lock():
     )
 
 
-@pytest.mark.core
-def test_module_level_error_check_exists():
-    """Verify _check_supy_error still exists for backwards compatibility.
-
-    This is used by suews_cal_tstep (single-timestep path) which doesn't
-    have access to state objects. It's NOT thread-safe.
-    """
-    import supy._run as run
-
-    assert hasattr(run, "_check_supy_error")
-    assert callable(run._check_supy_error)

@@ -69,7 +69,8 @@ MODULE SUEWS_Driver
                           SUEWS_cal_DLS
    ! Re-export error state from module_ctrl_error_state for Python/f90wrap access
    USE module_ctrl_error_state, ONLY: supy_error_flag, supy_error_code, supy_error_message, &
-                                       reset_supy_error, set_supy_error
+                                       reset_supy_error, set_supy_error, add_supy_warning
+   USE module_ctrl_error, ONLY: ErrorHint
 
    IMPLICIT NONE
 
@@ -415,7 +416,9 @@ CONTAINS
                IF (config%SnowUse == 1) THEN
                   ! Only show warning once per grid cell (state-based, thread-safe)
                   IF (.NOT. flagState%snow_warning_shown) THEN
+#ifdef wrf
                      WRITE (*, *) "WARNING SNOW ON! Not recommended at the moment"
+#endif
                      flagState%snow_warning_shown = .TRUE.
                   END IF
                   ! ===================Calculate snow related hydrology=======================
@@ -584,6 +587,90 @@ CONTAINS
       END ASSOCIATE
 
    END SUBROUTINE SUEWS_cal_Main
+! ================================================================================
+
+   ! Batch DTS execution subroutine - loops internally over timesteps for efficiency
+   ! This avoids Python->Fortran call overhead when processing multiple timesteps
+   SUBROUTINE SUEWS_cal_multitsteps_dts( &
+      timer, MetForcingBlock, len_sim, &
+      config, siteInfo, &
+      modState, &
+      dataOutBlockSUEWS)
+
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, &
+                                  SUEWS_STATE, output_line, anthroEMIS_PRM
+      USE module_util_time, ONLY: SUEWS_cal_dectime_DTS, SUEWS_cal_tstep_DTS, &
+                                  SUEWS_cal_weekday_DTS, SUEWS_cal_DLS
+
+      IMPLICIT NONE
+
+      ! Input/Output arguments
+      TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
+      INTEGER, INTENT(IN) :: len_sim
+      REAL(KIND(1D0)), DIMENSION(len_sim, 21), INTENT(IN) :: MetForcingBlock
+      TYPE(SUEWS_CONFIG), INTENT(IN) :: config
+      TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
+      TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
+      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSUEWS), INTENT(OUT) :: dataOutBlockSUEWS
+
+      ! Local variables
+      TYPE(SUEWS_FORCING) :: forcing
+      TYPE(output_line) :: output_line_local
+      TYPE(anthroEMIS_PRM) :: ahemisPrm
+      INTEGER :: ir
+
+      ! Initialise anthropogenic heat parameters for DLS calculation
+      ahemisPrm%startDLS = siteInfo%anthroemis%startDLS
+      ahemisPrm%endDLS = siteInfo%anthroemis%endDLS
+
+      ! Loop over timesteps
+      DO ir = 1, len_sim, 1
+         ! === Update timer from forcing block ===
+         timer%iy = INT(MetForcingBlock(ir, 1))
+         timer%id = INT(MetForcingBlock(ir, 2))
+         timer%it = INT(MetForcingBlock(ir, 3))
+         timer%imin = INT(MetForcingBlock(ir, 4))
+         timer%isec = 0
+
+         ! Calculate derived timer values
+         CALL SUEWS_cal_dectime_DTS(timer, timer%dectime)
+         CALL SUEWS_cal_tstep_DTS(timer, timer%nsh, timer%nsh_real, timer%tstep_real)
+         CALL SUEWS_cal_weekday_DTS(timer, siteInfo, timer%dayofWeek_id)
+         CALL SUEWS_cal_DLS(timer, ahemisPrm, timer%DLS)
+
+         ! === Update forcing from forcing block ===
+         ! Note: columns 6, 7 are reserved but not used (qh_obs, qe_obs are outputs not inputs)
+         forcing%qn1_obs = MetForcingBlock(ir, 5)
+         forcing%qs_obs = MetForcingBlock(ir, 8)
+         forcing%qf_obs = MetForcingBlock(ir, 9)
+         forcing%U = MetForcingBlock(ir, 10)
+         forcing%RH = MetForcingBlock(ir, 11)
+         forcing%temp_c = MetForcingBlock(ir, 12)
+         forcing%pres = MetForcingBlock(ir, 13)
+         forcing%rain = MetForcingBlock(ir, 14)
+         forcing%kdown = MetForcingBlock(ir, 15)
+         forcing%snowfrac = MetForcingBlock(ir, 16)
+         forcing%ldown = MetForcingBlock(ir, 17)
+         forcing%fcld = MetForcingBlock(ir, 18)
+         forcing%Wu_m3 = MetForcingBlock(ir, 19)
+         forcing%xsmd = MetForcingBlock(ir, 20)
+         forcing%LAI_obs = MetForcingBlock(ir, 21)
+
+         ! === Call main calculation ===
+         CALL SUEWS_cal_Main( &
+            timer, forcing, config, siteInfo, &
+            modState, &
+            output_line_local)
+
+         ! === Store output (dataOutLineSUEWS already includes datetime in columns 1-5) ===
+         dataOutBlockSUEWS(ir, :) = output_line_local%dataOutLineSUEWS
+
+         ! === Update dt_since_start for next iteration ===
+         timer%dt_since_start = timer%dt_since_start + timer%tstep
+
+      END DO
+
+   END SUBROUTINE SUEWS_cal_multitsteps_dts
 ! ================================================================================
 
    SUBROUTINE update_debug_info( &
@@ -1000,10 +1087,12 @@ CONTAINS
                      TrafficRate, &
                      QF0_BEU, QF_SAHP, &
                      Fc_anthro, Fc_metab, Fc_traff, Fc_build, Fc_point, &
-                     AHProf_24hr, HumActivity_24hr, TraffProf_24hr, PopProf_24hr, SurfaceArea)
+                     AHProf_24hr, HumActivity_24hr, TraffProf_24hr, PopProf_24hr, SurfaceArea, &
+                     modState)
 
                ELSE
-                  CALL ErrorHint(73, 'RunControl.nml:EmissionsMethod unusable', notUsed, notUsed, EmissionsMethod)
+                  CALL ErrorHint(73, 'RunControl.nml:EmissionsMethod unusable', notUsed, notUsed, EmissionsMethod, modState)
+                  IF (supy_error_flag) RETURN
                END IF
 
                IF (EmissionsMethod >= 1) qf = QF_SAHP
@@ -1165,7 +1254,8 @@ CONTAINS
                      CALL cal_AtmMoist( &
                         t2, Press_hPa, avRh, dectime, & ! input:
                         dummy1, dummy2, & ! output:
-                        dummy3, dummy4, dummy5, dummy6, dq, dummy7, dummy8, dummy9)
+                        dummy3, dummy4, dummy5, dummy6, dq, dummy7, dummy8, dummy9, &
+                        modState)
                      ! Surface resistance calculation for gfunc2
                      CALL SurfaceResistance( &
                         id, it, & ! input:
@@ -1856,7 +1946,8 @@ CONTAINS
                            a1_grass, a2_grass, a3_grass, &
                            a1_bsoil, a2_bsoil, a3_bsoil, &
                            a1_water, a2_water, a3_water, &
-                           a1, a2, a3, qs, deltaQi)
+                           a1, a2, a3, qs, deltaQi, &
+                           modState)
                   QS_surf = qs
                   QS_roof = qs
                   QS_wall = qs
@@ -2100,7 +2191,8 @@ CONTAINS
                      StoreDrainPrm(3, is), &
                      StoreDrainPrm(4, is), &
                      nsh_real, &
-                     drain_surf(is)) ! output
+                     drain_surf(is), & ! output
+                     modState)
 
                   ! !HCW added and changed to StoreDrainPrm(6,is) here 20 Feb 2015
                   ! drain_per_tstep=drain_per_tstep+(drain(is)*sfr_surf(is)/NonWaterFraction)   !No water body included
@@ -2864,7 +2956,8 @@ CONTAINS
                   SMDMethod, xsmd, NonWaterFraction, SoilMoistCap, & !input
                   SoilStoreCap_surf, surf_chang_per_tstep, &
                   soilstore_surf, soilstore_surf_in, sfr_surf, &
-                  smd, smd_surf, tot_chang_per_tstep, SoilState) !output
+                  smd, smd_surf, tot_chang_per_tstep, SoilState, & !output
+                  modState)
 
             END ASSOCIATE
          END ASSOCIATE
@@ -3153,7 +3246,8 @@ CONTAINS
                   L_mod, & ! output: !Obukhov length
                   TStar, & !T*, temperature scale
                   UStar, & !Friction velocity
-                  zL) !Stability scale
+                  zL, & !Stability scale
+                  modState)
 
                IF (Diagnose == 1) WRITE (*, *) 'Calling AerodynamicResistance...'
                CALL AerodynamicResistance( &
@@ -5498,8 +5592,7 @@ FUNCTION cal_tsfc_dyohm(Temp_in, Qs, K, C, z, nz, T_bottom, dt) RESULT(Temp_out)
     !----------------------------------------------------------
     dz_min = MINVAL(z(2:nz) - z(1:nz-1))
     IF (alpha * dt / (dz_min**2) > 0.5D0) THEN
-        PRINT *, 'Warning: time step may be too large for stability.'
-        PRINT '(A,ES12.4,2X,A,I8,2X,A,F8.4)', 'alpha=', alpha, 'dt=', dt, 'dz_min=', dz_min
+       CALL add_supy_warning('cal_tsfc_dyohm: time step may be too large for stability')
     END IF
 
     ! Initialize output

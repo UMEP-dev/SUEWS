@@ -12,6 +12,7 @@ import pandas as pd
 import warnings
 from .type import RefValue, Reference, FlexibleRefValue
 from ..validation.core.utils import warn_missing_params, validate_only_when_complete
+from ..._env import logger_supy
 
 from .type import init_df_state
 
@@ -254,6 +255,14 @@ class SurfaceProperties(BaseModel):
             "display_name": "Saturated Hydraulic Conductivity",
         },
     )
+    soildensity: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="Bulk soil density",
+        json_schema_extra={
+            "unit": "g cm^-3",
+            "display_name": "Soil Density",
+        },
+    )
     waterdist: Optional[WaterDistribution] = Field(
         default=None,  # TODO: Can this be None?
         description="Water distribution parameters",
@@ -346,6 +355,7 @@ class SurfaceProperties(BaseModel):
             "statelimit",
             "wetthresh",
             "sathydraulicconduct",
+            "soildensity",
             "waterdist",
             "storedrainprm",
             "snowpacklimit",
@@ -413,6 +423,7 @@ class SurfaceProperties(BaseModel):
                     defaults = {
                         "soildepth": 150.0,
                         "sathydraulicconduct": 0.0001,
+                        "soildensity": -999.0,
                     }
                     value = defaults.get(property, 0.0)
                 set_df_value(property, value)
@@ -464,6 +475,7 @@ class SurfaceProperties(BaseModel):
             "statelimit",
             "wetthresh",
             "sathydraulicconduct",
+            "soildensity",
             "waterdist",
             "storedrainprm",
             "snowpacklimit",
@@ -521,8 +533,21 @@ class SurfaceProperties(BaseModel):
                 value = df.loc[grid_id, ("kkanohm", f"({surf_idx},)")]
                 property_values["k_anohm"] = RefValue(value)
             else:
-                value = df.loc[grid_id, (property, f"({surf_idx},)")]
-                property_values[property] = RefValue(value)
+                # Check if column exists (for backwards compatibility with old tables)
+                col_key = (property, f"({surf_idx},)")
+                if col_key in df.columns:
+                    value = df.loc[grid_id, col_key]
+                    property_values[property] = RefValue(value)
+                else:
+                    # Column doesn't exist - skip if optional, raise if required
+                    field_info = cls.model_fields.get(property)
+                    if field_info and not field_info.is_required():
+                        logger_supy.debug(
+                            f"Column {col_key} not found for surface {surf_idx}, "
+                            "using None (backwards compatibility)"
+                        )
+                        property_values[property] = None
+                    # If required, let Pydantic validation catch it later
 
         return cls(**property_values)
 

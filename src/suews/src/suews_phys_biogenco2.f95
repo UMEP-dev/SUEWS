@@ -1,5 +1,6 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_biogenco2
+   USE module_ctrl_error, ONLY: ErrorHint
    IMPLICIT NONE
 
 CONTAINS

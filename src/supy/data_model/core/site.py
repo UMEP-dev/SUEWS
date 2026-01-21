@@ -450,13 +450,6 @@ class LAIParams(BaseModel):
 
 
 class VegetatedSurfaceProperties(SurfaceProperties):
-    alb: FlexibleRefValue(float) = Field(
-        ge=0,
-        le=1,
-        description="Albedo",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Albedo"},
-        default=0.2,
-    )
     alb_min: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
@@ -549,7 +542,7 @@ class VegetatedSurfaceProperties(SurfaceProperties):
 
         # add ordinary float properties
         for attr in [
-            "alb",
+            #"alb",
             # "alb_min",
             # "alb_max",
             "beta_bioco2",
@@ -592,7 +585,7 @@ class VegetatedSurfaceProperties(SurfaceProperties):
         instance = super().from_df_state(df, grid_id, surf_idx)
         # add ordinary float properties
         for attr in [
-            "alb",
+            #"alb",
             # "alb_min",
             # "alb_max",
             "beta_bioco2",
@@ -625,13 +618,6 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
     """
 
     model_config = ConfigDict(title="Evergreen Trees")
-    alb: FlexibleRefValue(float) = Field(
-        ge=0,
-        le=1,
-        default=0.2,
-        description="Albedo",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Albedo"},
-    )
     faievetree: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Frontal area index of evergreen trees",
@@ -667,9 +653,6 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
                 val = defaults.get(attr, 0.0)
             values_to_assign[(attr, "0")] = val
 
-        values_to_assign[("alb", "(2,)")] = (
-            self.alb.value if isinstance(self.alb, RefValue) else self.alb
-        )
         values_to_assign[("albmin_evetr", "0")] = (
             self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
         )
@@ -696,7 +679,6 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
         surf_idx = 2
         instance = super().from_df_state(df, grid_id, surf_idx)
 
-        instance.alb = RefValue(df.loc[grid_id, ("alb", "(2,)")])
         instance.faievetree = RefValue(df.loc[grid_id, ("faievetree", "0")])
         instance.evetreeh = RefValue(df.loc[grid_id, ("evetreeh", "0")])
 
@@ -715,13 +697,6 @@ class DectrProperties(VegetatedSurfaceProperties):
     """
 
     model_config = ConfigDict(title="Deciduous Trees")
-    alb: FlexibleRefValue(float) = Field(
-        ge=0,
-        le=1,
-        default=0.2,
-        description="Albedo",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Albedo"},
-    )
     faidectree: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Frontal area index of deciduous trees",
@@ -788,9 +763,6 @@ class DectrProperties(VegetatedSurfaceProperties):
                 val = defaults.get(attr, field_val)
             values_to_assign[(attr, "0")] = val
 
-        values_to_assign[("alb", "(3,)")] = (
-            self.alb.value if isinstance(self.alb, RefValue) else self.alb
-        )
         values_to_assign[("albmin_dectr", "0")] = (
             self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
         )
@@ -817,7 +789,6 @@ class DectrProperties(VegetatedSurfaceProperties):
         surf_idx = 3
         instance = super().from_df_state(df, grid_id, surf_idx)
 
-        instance.alb = RefValue(df.loc[grid_id, ("alb", "(3,)")])
         instance.faidectree = RefValue(df.loc[grid_id, ("faidectree", "0")])
         instance.dectreeh = RefValue(df.loc[grid_id, ("dectreeh", "0")])
         instance.pormin_dec = RefValue(df.loc[grid_id, ("pormin_dec", "0")])
@@ -840,13 +811,6 @@ class GrassProperties(VegetatedSurfaceProperties):
     """
 
     model_config = ConfigDict(title="Grass")
-    alb: FlexibleRefValue(float) = Field(
-        ge=0,
-        le=1,
-        default=0.2,
-        description="Minimum albedo",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Albedo"},
-    )
     _surface_type: Literal[SurfaceType.GRASS] = SurfaceType.GRASS
     waterdist: WaterDistribution = Field(
         default_factory=lambda: WaterDistribution(SurfaceType.GRASS),
@@ -860,9 +824,6 @@ class GrassProperties(VegetatedSurfaceProperties):
 
         # Collect all values to assign
         values_to_assign = {
-            ("alb", "(4,)"): (
-                self.alb.value if isinstance(self.alb, RefValue) else self.alb
-            ),
             ("albmin_grass", "0"): (
                 self.alb_min.value
                 if isinstance(self.alb_min, RefValue)
@@ -894,7 +855,6 @@ class GrassProperties(VegetatedSurfaceProperties):
         surf_idx = 4
         instance = super().from_df_state(df, grid_id, surf_idx)
 
-        instance.alb = RefValue(df.loc[grid_id, ("alb", "(4,)")])
         instance.alb_min = RefValue(df.loc[grid_id, ("albmin_grass", "0")])
         instance.alb_max = RefValue(df.loc[grid_id, ("albmax_grass", "0")])
 

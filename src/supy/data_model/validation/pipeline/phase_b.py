@@ -122,6 +122,8 @@ except ImportError:
         """Stub function - raises error in standalone mode."""
         raise FileNotFoundError("CRU data not available in standalone mode")
 
+# Constants 
+SFR_FRACTION_TOL = 1e-4
 
 @dataclass
 class ValidationResult:
@@ -524,7 +526,7 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                     sfr_sum += sfr_value
                     surface_types.append((surface_type, sfr_value))
 
-        if abs(sfr_sum - 1.0) > 0.0001:
+        if abs(sfr_sum - 1.0) > SFR_FRACTION_TOL:
             if sfr_sum == 0.0:
                 results.append(
                     ValidationResult(
@@ -555,7 +557,7 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                         parameter=f"{max_surface}.sfr",
                         site_index=site_idx,
                         site_gridid=site_gridid,
-                        message=f"Surface fractions sum to {sfr_sum:.6f}, should equal 1.0 (auto-correction range: 0.9999-1.0001, current: {surface_list})",
+                        message=f"Surface fractions sum to {sfr_sum:.6f}, should equal 1.0 (auto-correction range: 1.0 ± {SFR_FRACTION_TOL:.1e}, current: {surface_list}. Validator will auto‑correct small deviations in this range.)",
                         suggested_value=f"Adjust {max_surface}.sfr or other surface fractions so they sum to exactly 1.0",
                     )
                 )
@@ -1296,8 +1298,11 @@ def adjust_land_cover_fractions(
 
         correction_applied = False
 
+        lower = 1.0 - SFR_FRACTION_TOL
+        upper = 1.0 + SFR_FRACTION_TOL
+
         # Auto-correct only small floating point errors (same as precheck logic)
-        if 0.9999 <= sfr_sum < 1.0:
+        if lower <= sfr_sum < 1.0:
             max_surface = max(
                 surface_fractions.keys(), key=lambda k: surface_fractions[k]
             )
@@ -1332,7 +1337,7 @@ def adjust_land_cover_fractions(
                     )
                 )
 
-        elif 1.0 < sfr_sum <= 1.0001:
+        elif 1.0 < sfr_sum <= upper:
             max_surface = max(
                 surface_fractions.keys(), key=lambda k: surface_fractions[k]
             )

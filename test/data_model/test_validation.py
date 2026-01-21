@@ -381,13 +381,6 @@ LAND_COVER_TEST_CASES = [
 ]
 
 
-@pytest.mark.parametrize(
-    "case_name,land_cover,expected_has_issues,expected_sum_str,check_details",
-    LAND_COVER_TEST_CASES,
-    ids=[case[0] for case in LAND_COVER_TEST_CASES],
-)
-
-
 # From test_validation_topdown.py
 class TestTopDownValidation:
     """Test the new top-down validation approach."""

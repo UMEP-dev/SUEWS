@@ -1175,8 +1175,6 @@ sites:
             - 1600000.0
         irrfrac:
           value: 0.0
-        alb:
-          value: 0.18
         alb_min:
           value: 0.12
         alb_max:
@@ -1347,8 +1345,6 @@ sites:
             - 1600000.0
         irrfrac:
           value: 0.0
-        alb:
-          value: 0.18
         alb_min:
           value: 0.1
         alb_max:
@@ -1511,8 +1507,6 @@ sites:
             - 1860000.0
         irrfrac:
           value: 0.0
-        alb:
-          value: 0.21
         alb_min:
           value: 0.18
         alb_max:

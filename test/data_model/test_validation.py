@@ -386,34 +386,6 @@ LAND_COVER_TEST_CASES = [
     LAND_COVER_TEST_CASES,
     ids=[case[0] for case in LAND_COVER_TEST_CASES],
 )
-def test_validate_land_cover_fractions(
-    case_name, land_cover, expected_has_issues, expected_sum_str, check_details
-):
-    """Test land cover fraction validation across all scenarios."""
-    cfg = SUEWSConfig.model_construct()
-    has_issues = cfg._check_land_cover_fractions(land_cover, "TestSite")
-    assert has_issues is expected_has_issues
-
-    if expected_has_issues:
-        assert cfg._validation_summary["total_warnings"] >= 1
-        assert (
-            "Land cover fraction validation" in cfg._validation_summary["issue_types"]
-        )
-        if expected_sum_str:
-            assert any(
-                "must sum to 1.0 within tolerance" in msg and expected_sum_str in msg
-                for msg in cfg._validation_summary["detailed_messages"]
-            )
-        if check_details:
-            messages = cfg._validation_summary["detailed_messages"]
-            assert len(messages) >= 1
-            message = messages[0]
-            assert "TestSite" in message
-            assert "paved=0.300" in message
-            assert "bldgs=0.200" in message
-            assert "grass=0.100" in message
-    elif case_name == "sum_to_one":
-        assert cfg._validation_summary["total_warnings"] == 0
 
 
 # From test_validation_topdown.py

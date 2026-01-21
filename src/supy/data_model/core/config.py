@@ -752,11 +752,6 @@ class SUEWSConfig(BaseModel):
             if self._check_lai_ranges(site.properties.land_cover, site_name):
                 site_has_issues = True
 
-        # Validate land cover fractions sum to 1.0
-        if hasattr(site.properties, "land_cover") and site.properties.land_cover:
-            if self._check_land_cover_fractions(site.properties.land_cover, site_name):
-                site_has_issues = True
-
         # Track sites with issues
         if (
             site_has_issues
@@ -1087,63 +1082,6 @@ class SUEWSConfig(BaseModel):
         if site_name not in self._validation_summary["sites_with_issues"]:
             self._validation_summary["sites_with_issues"].append(site_name)
         return True
-
-    def _check_land_cover_fractions(self, land_cover, site_name: str) -> bool:
-        """Check that land cover fractions sum to 1.0. Returns True if issues found."""
-        has_issues = False
-
-        # Initialize validation summary if it doesn't exist (for testing)
-        if not hasattr(self, "_validation_summary"):
-            self._validation_summary = {
-                "total_warnings": 0,
-                "sites_with_issues": [],
-                "issue_types": set(),
-                "yaml_path": getattr(self, "_yaml_path", None),
-                "detailed_messages": [],
-                "info_messages": [],
-            }
-
-        # Return early if no land cover
-        if land_cover is None:
-            return False
-
-        # Get all surface types and their fractions
-        surface_types = ["bldgs", "grass", "dectr", "evetr", "bsoil", "paved", "water"]
-        fractions = {}
-
-        for surface_type in surface_types:
-            if hasattr(land_cover, surface_type):
-                surface = getattr(land_cover, surface_type)
-                if surface and hasattr(surface, "sfr") and surface.sfr is not None:
-                    # Extract fraction value (handle RefValue)
-                    sfr_value = getattr(surface.sfr, "value", surface.sfr)
-                    fractions[surface_type] = (
-                        float(sfr_value) if sfr_value is not None else 0.0
-                    )
-                else:
-                    fractions[surface_type] = 0.0
-            else:
-                fractions[surface_type] = 0.0
-
-        # Check if fractions sum to exactly 1.0 (with tolerance for floating-point errors)
-        total_fraction = sum(fractions.values())
-        tolerance = 1e-6
-
-        if abs(total_fraction - 1.0) > tolerance:
-            self._validation_summary["total_warnings"] += 1
-            self._validation_summary["issue_types"].add(
-                "Land cover fraction validation"
-            )
-
-            # Create detailed message with breakdown
-            fraction_details = ", ".join([f"{k}={v:.3f}" for k, v in fractions.items()])
-            difference = abs(total_fraction - 1.0)
-            self._validation_summary["detailed_messages"].append(
-                f"{site_name}: Land cover fractions must sum to 1.0 within tolerance {tolerance} (got {total_fraction:.6f}, difference {difference:.2e}): {fraction_details}"
-            )
-            has_issues = True
-
-        return has_issues
 
     def _needs_stebbs_validation(self) -> bool:
         """

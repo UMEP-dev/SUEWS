@@ -168,13 +168,14 @@ runs:
         CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
         CIBW_TEST_REQUIRES: ${{ inputs.is_umep_variant == 'true' && 'pytest numpy==1.26.*' || 'pytest' }}
         # Test tiers: choose subset based on path detection and trigger
+        # Always include --durations=10 to show slowest tests in output
         CIBW_TEST_COMMAND: >
-          python -m pytest {project}/test -v --tb=short
+          python -m pytest {project}/test -v --tb=short --durations=10
           ${{ inputs.test_tier == 'smoke' && '-m smoke' ||
               inputs.test_tier == 'core' && '-m "smoke or core"' ||
               inputs.test_tier == 'cfg' && '-m "smoke or cfg"' ||
               inputs.test_tier == 'standard' && '-m "not slow"' ||
-              '--durations=10' }}
+              '' }}
         MACOSX_DEPLOYMENT_TARGET: '15.0'
 
     - name: Upload wheels

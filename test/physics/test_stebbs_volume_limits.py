@@ -35,6 +35,7 @@ def _load_stebbs_test_config():
 
 
 @pytest.mark.core
+@pytest.mark.slow
 def test_maximum_volume_capping():
     """
     Test that vessel water volume is capped at MaximumVolumeOfDHWinUse.
@@ -79,6 +80,7 @@ def test_maximum_volume_capping():
 
 
 @pytest.mark.core
+@pytest.mark.slow
 def test_volume_accumulation_with_supply_greater_than_drain():
     """
     Test volume capping when supply flow rate exceeds drain flow rate.
@@ -138,6 +140,7 @@ def test_volume_accumulation_with_supply_greater_than_drain():
 
 
 @pytest.mark.core
+@pytest.mark.slow
 def test_maximum_volume_disabled_when_zero():
     """
     Test that maximum volume constraint is disabled when set to 0.0.
@@ -183,6 +186,7 @@ def test_maximum_volume_disabled_when_zero():
 
 
 @pytest.mark.core
+@pytest.mark.slow
 def test_minimum_volume_still_enforced():
     """
     Test that minimum volume constraint still works alongside maximum.
@@ -231,6 +235,7 @@ def test_minimum_volume_still_enforced():
 
 
 @pytest.mark.core
+@pytest.mark.slow
 def test_volume_stability_at_maximum():
     """
     Test that volume remains stable when starting at maximum.

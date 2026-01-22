@@ -106,7 +106,7 @@
 .. option:: pres
 
     :Description:
-        Barometric pressure [kPa] (measurement height (`z`) is needed in `SUEWS_SiteSelect.txt`)
+        Barometric pressure [kPa, 3 decimal places] (measurement height (`z`) is needed in `SUEWS_SiteSelect.txt`)
 
 
 .. option:: qe

@@ -39,22 +39,19 @@ rebuild with ``make clean && make dev-dts``.
 """
 
 # Check if DTS types are available (built with wrap_dts_types=true)
-_DTS_AVAILABLE = False
 _DTS_ERROR_MSG = (
     "DTS features not available in this build.\n"
     "This build was compiled with 'make dev' (fast build without DTS support).\n"
     "To use DTS features, rebuild with: make clean && make dev-dts"
 )
 
-try:
-    # Try to import a module that only exists when type files are wrapped
-    # suews_type_heat.f95 generates module_type_heat when wrapped
-    from ..supy_driver import module_type_heat as _test_dts  # noqa: F401
+# First verify supy_driver itself is importable (fail hard if broken)
+# This ensures real build/ABI failures are not silently masked
+from .. import supy_driver as _supy_driver
 
-    _DTS_AVAILABLE = True
-except ImportError:
-    # Type modules not available - fast build without DTS support
-    pass
+# Check if DTS type modules exist (only present in full build)
+# module_type_heat is generated from suews_type_heat.f95 when type files are wrapped
+_DTS_AVAILABLE = hasattr(_supy_driver, "module_type_heat")
 
 
 def _check_dts_available():

@@ -367,7 +367,6 @@ class SUEWSSimulation:
         result.index.freq = pd.infer_freq(result.index)
         return result
 
-
     @staticmethod
     def _load_forcing_file(forcing_path: Path) -> pd.DataFrame:
         """Load forcing data from file or directory."""

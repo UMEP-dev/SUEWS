@@ -197,8 +197,37 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
 
     Notes
     -----
+    **Timestamp Convention**
+
     The SUEWS convention uses right-closed intervals with right labels,
-    meaning timestamps represent the END of each period.
+    meaning timestamps represent the END of each period. For example,
+    hourly data at 13:00 covers the period 12:00-13:00.
+
+    **DailyState Labeling**
+
+    When resampling to daily frequency, the DailyState group uses a different
+    labeling convention (``label='left'``) compared to other groups
+    (``label='right'``). This is intentional:
+
+    - **SUEWS, snow, ESTM, etc.** (``label='right'``): Daily data is labeled
+      with the END of each day. Data for January 1st is labeled "Jan 2"
+      (the midnight timestamp at the end of Jan 1).
+
+    - **DailyState** (``label='left'``): Daily data is labeled with the
+      START of each day. Data for January 1st is labeled "Jan 1".
+      This makes the output more intuitive - the row "Jan 1" contains
+      the state at the end of January 1st.
+
+    As a result, when resampling 7 full days of simulation data to daily
+    frequency, the combined output may contain 8 unique dates:
+
+    - SUEWS group: Jan 2 through Jan 8 (7 days)
+    - DailyState group: Jan 1 through Jan 7 (7 days)
+    - Combined: Jan 1 through Jan 8 (8 unique dates)
+
+    The first date (Jan 1) will have NaN for SUEWS variables, and the last
+    date (Jan 8) will have NaN for DailyState variables. This asymmetry
+    reflects the different semantic meanings of each group's timestamps.
 
     Examples
     --------
@@ -256,18 +285,13 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
                     index=pd.DatetimeIndex([]), columns=df_group.columns
                 )
 
-            # Resample the non-empty data
-            df_resampled = df_with_data.resample(freq, closed="right", label=label).agg(
+            # Resample the non-empty data and return directly
+            # Note: We don't reindex because Pandas 3.0's asfreq() behaviour changed
+            # and can produce different boundary dates. The resampled data already
+            # contains the correct timestamps.
+            return df_with_data.resample(freq, closed="right", label=label).agg(
                 dict_aggm_group
             )
-
-            # Reindex to match the expected output timerange
-            # This ensures we have the full time range even if data is sparse
-            full_index = (
-                df_group.resample(freq, closed="right", label=label).asfreq().index
-            )
-            df_resampled = df_resampled.reindex(full_index)
-            return df_resampled
         else:
             df_to_resample = df_group
 
@@ -309,6 +333,25 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
 
     # clean results
     df_rsmp = df_rsmp.dropna(how="all", axis=0)
+
+    # Ensure the index has proper names (grid, datetime)
+    # After concat, the datetime level may lose its name
+    if isinstance(df_rsmp.index, pd.MultiIndex):
+        if df_rsmp.index.names[1] is None:
+            df_rsmp.index = df_rsmp.index.set_names(["grid", "datetime"])
+
+    # Filter to actual data range to ensure consistent behaviour across Pandas versions
+    # Pandas 3.0 may create extra boundary bins that fall outside the actual data range.
+    # Use floor/ceil of the data range to allow for label='left' convention (DailyState)
+    # where the label can be up to one period before the first data point.
+    dt_idx = df_output.index.get_level_values("datetime")
+    dt_min, dt_max = dt_idx.min(), dt_idx.max()
+    # Extend dt_min by one period to allow for 'left' labels
+    dt_min_floor = dt_min.floor(freq)
+    rsmp_dt_idx = df_rsmp.index.get_level_values("datetime")
+    mask = (rsmp_dt_idx >= dt_min_floor) & (rsmp_dt_idx <= dt_max)
+    df_rsmp = df_rsmp[mask]
+
     return df_rsmp
 
 

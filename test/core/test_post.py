@@ -76,7 +76,9 @@ class TestResampleOutput(TestCase):
 
         # Validation
         self.assertIsInstance(df_daily, pd.DataFrame)
-        self.assertEqual(len(df_daily), 7)  # 7 days
+        # 8 days: SUEWS (label='right') produces Jan 2-8, DailyState (label='left')
+        # produces Jan 1-7, combined gives Jan 1-8 (8 unique dates)
+        self.assertEqual(len(df_daily), 8)
 
         # Check aggregation methods for grid 1
         # Note: df_output has MultiIndex (datetime, grid), so we need to handle it properly
@@ -86,18 +88,36 @@ class TestResampleOutput(TestCase):
 
         # Energy fluxes should be averaged
         # Use same resampling parameters as resample_output (closed='right', label='right')
+        # Note: Filter to dates in df_daily as resample_output filters boundary bins
         qn_manual = (
             df_grid.SUEWS["QN"].resample("D", closed="right", label="right").mean()
         )
         qn_daily = df_daily_grid.SUEWS["QN"]
-        pd.testing.assert_series_equal(qn_manual, qn_daily, check_names=False)
+        # Filter manual to match dates in df_daily (Pandas 3.0+ produces extra boundary bins)
+        qn_manual_filtered = qn_manual.loc[qn_daily.index]
+        pd.testing.assert_series_equal(qn_manual_filtered, qn_daily, check_names=False)
 
         # Rain should be summed
         rain_manual = (
             df_grid.SUEWS["Rain"].resample("D", closed="right", label="right").sum()
         )
         rain_daily = df_daily_grid.SUEWS["Rain"]
-        pd.testing.assert_series_equal(rain_manual, rain_daily, check_names=False)
+        # Filter manual to match dates in df_daily (Pandas 3.0+ produces extra boundary bins)
+        rain_manual_filtered = rain_manual.loc[rain_daily.index]
+        pd.testing.assert_series_equal(rain_manual_filtered, rain_daily, check_names=False)
+
+        # Verify DailyState boundary data is preserved (label='left' convention)
+        # Jan 1 should have DailyState data (day 1 aggregates to label='left' = Jan 1)
+        daily_state_cols = [
+            c for c in df_daily_grid.columns if c[0] == "DailyState"
+        ]
+        if daily_state_cols:
+            jan1_dailystate = df_daily_grid.loc["2012-01-01", daily_state_cols]
+            # Should have some non-NaN values (DailyState data for day 1)
+            self.assertTrue(
+                jan1_dailystate.notna().any(),
+                "DailyState data at Jan 1 (label='left' boundary) should be preserved",
+            )
 
         print(f"✓ Resampled to {len(df_daily)} daily records with correct aggregation")
 
@@ -139,7 +159,9 @@ class TestResampleOutput(TestCase):
         # Use same resampling parameters as resample_output (closed='right', label='right')
         qn_max = qn_series.resample("D", closed="right", label="right").max()
         qn_custom = df_custom.xs(grid_id, level="grid").SUEWS["QN"]
-        pd.testing.assert_series_equal(qn_max, qn_custom, check_names=False)
+        # Filter manual to match dates in df_custom (Pandas 3.0+ produces extra boundary bins)
+        qn_max_filtered = qn_max.loc[qn_custom.index]
+        pd.testing.assert_series_equal(qn_max_filtered, qn_custom, check_names=False)
 
         print("✓ Custom aggregation methods work correctly")
 

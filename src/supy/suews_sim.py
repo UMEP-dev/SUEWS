@@ -363,7 +363,10 @@ class SUEWSSimulation:
             df = read_forcing(str(path))
             dfs.append(df)
 
-        return pd.concat(dfs, axis=0).sort_index()
+        result = pd.concat(dfs, axis=0).sort_index()
+        result.index.freq = pd.infer_freq(result.index)
+        return result
+
 
     @staticmethod
     def _load_forcing_file(forcing_path: Path) -> pd.DataFrame:

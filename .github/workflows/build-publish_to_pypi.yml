@@ -558,8 +558,8 @@ jobs:
           wheel_name_suffix: ''
           test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
           is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
-          # Enable DTS for nightly builds only (PR checks use fast build)
-          enable_dts: ${{ github.event_name == 'schedule' }}
+          # Enable DTS for releases (nightly + production tags), fast build for dev-facing (PRs)
+          enable_dts: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/') }}
 
   build_umep:
     name: Build UMEP wheel (rc1/dev1) for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
@@ -605,8 +605,8 @@ jobs:
           wheel_name_suffix: '-umep'
           test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
           is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
-          # Enable DTS for nightly builds only (PR checks use fast build)
-          enable_dts: ${{ github.event_name == 'schedule' }}
+          # Enable DTS for releases (nightly + production tags), fast build for dev-facing (PRs)
+          enable_dts: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/') }}
 
   # NOTE: Documentation preview deployment moved to pages-deploy.yml
   # This consolidates all GitHub Pages content (site, schemas, docs) in one workflow

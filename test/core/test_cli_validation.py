@@ -51,16 +51,13 @@ def _run_validate(exe: str, workdir: Path, args=None, timeout=30):
     return proc
 
 
-def _any_non_empty(files):
-    return any(f.exists() and f.stat().st_size > 0 for f in files)
+def _all_non_empty(files):
+    return all(f.exists() and f.stat().st_size > 0 for f in files)
 
 
 def test_validate_generates_non_empty_report_and_updated_yaml(suews_validate_exe, tmp_path):
-    """
-    suews-validate should create a non-empty report and updated yaml
-    when given invalid input.
-    """
-    yaml_path = tmp_path / "invalid_setup.yml"
+    """suews-validate should create non-empty report and updated yaml for invalid input."""
+    yaml_path = tmp_path / "yaml_setup.yml"
     _write_minimal_invalid_yaml(yaml_path)
 
     proc = _run_validate(suews_validate_exe, tmp_path, args=[str(yaml_path)])
@@ -68,46 +65,51 @@ def test_validate_generates_non_empty_report_and_updated_yaml(suews_validate_exe
     reports = _find_reports(tmp_path)
     updated = _find_updated(tmp_path)
 
-    # At least one report and one updated yaml should be created
     assert reports, f"No report files created. stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
     assert updated, f"No updated yaml files created. stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
 
-    # They should not all be empty
-    assert _any_non_empty(reports), f"All report files are empty. reports={reports}"
-    assert _any_non_empty(updated), f"All updated yaml files are empty. updated={updated}"
+    assert _all_non_empty(reports), f"Some report files are empty: {reports}"
+    assert _all_non_empty(updated), f"Some updated yaml files are empty: {updated}"
 
 
 def test_validate_second_run_does_not_truncate_reports(suews_validate_exe, tmp_path):
-    """
-    Running suews-validate twice on the same file should not leave
-    report/updated files as zero-length (truncated).
-    """
-    yaml_path = tmp_path / "invalid_setup.yml"
+    """Running validate twice should not leave report/updated files zero-length (truncated)."""
+    yaml_path = tmp_path / "yaml_setup.yml"
     _write_minimal_invalid_yaml(yaml_path)
 
     # First run
     proc1 = _run_validate(suews_validate_exe, tmp_path, args=[str(yaml_path)])
     reports1 = _find_reports(tmp_path)
     updated1 = _find_updated(tmp_path)
+
+    assert reports1 or updated1, (
+        f"First run produced no outputs. stdout:\n{proc1.stdout}\nstderr:\n{proc1.stderr}"
+    )
+
+    # On first run, require all produced outputs to be non-empty
+    assert _all_non_empty(reports1), f"First-run reports have empty files: {reports1}"
+    assert _all_non_empty(updated1), f"First-run updated yamls have empty files: {updated1}"
+
     outputs1 = reports1 + updated1
-
-    assert outputs1, f"First run produced no outputs. stdout:\n{proc1.stdout}\nstderr:\n{proc1.stderr}"
-    assert _any_non_empty(outputs1), "First-run outputs are empty"
-
-    # Record sizes
     sizes_before = {f.name: f.stat().st_size for f in outputs1 if f.exists()}
 
-    time.sleep(0.1)  # small pause to allow mtime differences if needed
+    time.sleep(0.1)  # small pause to allow mtime differences
 
     # Second run (simulate user re-running; should not truncate to zero)
     proc2 = _run_validate(suews_validate_exe, tmp_path, args=[str(yaml_path)])
     reports2 = _find_reports(tmp_path)
     updated2 = _find_updated(tmp_path)
+
+    assert reports2 or updated2, (
+        f"Second run produced no outputs. stdout:\n{proc2.stdout}\nstderr:\n{proc2.stderr}"
+    )
+
     outputs2 = reports2 + updated2
 
-    assert outputs2, f"Second run produced no outputs. stdout:\n{proc2.stdout}\nstderr:\n{proc2.stderr}"
-    assert _any_non_empty(outputs2), "Second-run outputs are empty"
+    # Check that all outputs present after second run are non-empty
+    assert _all_non_empty(outputs2), f"Some second-run outputs are empty: {outputs2}"
 
+    # Specifically ensure previously existing files were not truncated
     for name, size_before in sizes_before.items():
         f = tmp_path / name
         assert f.exists(), f"{name} disappeared after second run"
@@ -118,15 +120,17 @@ def test_validate_second_run_does_not_truncate_reports(suews_validate_exe, tmp_p
         )
 
 
+
 def test_validate_returns_error_but_writes_output_on_invalid_input(suews_validate_exe, tmp_path):
     """
     The CLI may exit with non-zero for validation failures; ensure that when it does,
-    it still writes a non-empty report/updated file (doesn't fail silently).
+    it still writes non-empty report/updated files (doesn't fail silently).
     """
-    yaml_path = tmp_path / "invalid_setup.yml"
+    yaml_path = tmp_path / "yaml_setup.yml"
     _write_minimal_invalid_yaml(yaml_path)
 
     proc = _run_validate(suews_validate_exe, tmp_path, args=[str(yaml_path)])
+
     reports = _find_reports(tmp_path)
     updated = _find_updated(tmp_path)
     outputs = reports + updated
@@ -137,7 +141,7 @@ def test_validate_returns_error_but_writes_output_on_invalid_input(suews_validat
     # assert proc.returncode != 0, f"Expected non-zero exit for invalid input, got {proc.returncode}"
 
     assert outputs, f"No report/updated files were created. stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
-    assert _any_non_empty(outputs), "Report/updated files exist but are empty"
+    assert _all_non_empty(outputs), f"Some report/updated files are empty: {outputs}"
 
 def test_validate_second_run_on_updated_yaml_produces_non_empty_report(
     suews_validate_exe,
@@ -145,7 +149,7 @@ def test_validate_second_run_on_updated_yaml_produces_non_empty_report(
 ):
     """
     Running suews-validate on the updated YAML generated by a first run
-    should still produce a non-empty report and not truncate existing files.
+    should still produce non-empty report/updated files and not truncate existing files.
     """
     # First run on the original invalid YAML
     original_yaml = tmp_path / "invalid_setup.yml"
@@ -157,9 +161,10 @@ def test_validate_second_run_on_updated_yaml_produces_non_empty_report(
     outputs1 = reports1 + updated1
 
     assert outputs1, f"First run produced no outputs. stdout:\n{proc1.stdout}\nstderr:\n{proc1.stderr}"
-    assert _any_non_empty(outputs1), "First-run outputs are empty"
+    # All first-run outputs must be non-empty
+    assert _all_non_empty(outputs1), f"First-run outputs contain empty files: {outputs1}"
 
-    # We expect exactly one updated YAML (or at least one); take the latest
+    # We expect at least one updated YAML; take the most recent
     assert updated1, "First run produced no updated yaml files"
     updated_yaml = max(updated1, key=lambda p: p.stat().st_mtime)
 
@@ -175,7 +180,8 @@ def test_validate_second_run_on_updated_yaml_produces_non_empty_report(
     outputs2 = reports2 + updated2
 
     assert outputs2, f"Second run produced no outputs. stdout:\n{proc2.stdout}\nstderr:\n{proc2.stderr}"
-    assert _any_non_empty(outputs2), "Second-run outputs are empty"
+    # All outputs present after second run must be non-empty
+    assert _all_non_empty(outputs2), f"Second-run outputs contain empty files: {outputs2}"
 
     # Check that previously existing files did not get truncated to zero
     for name, size_before in sizes_before.items():
@@ -187,14 +193,10 @@ def test_validate_second_run_on_updated_yaml_produces_non_empty_report(
             f"(size_before={size_before}, size_after={size_after})"
         )
 
-    # Additionally, ensure that at least one *new* or updated report is non-empty
-    latest_report = max(reports2, key=lambda p: p.stat().st_mtime)
-    assert latest_report.stat().st_size > 0, "Latest report after second run is empty"
-
-from pathlib import Path
-
-def _write_fixture_yaml(path: Path, text: str):
-    path.write_text(text, encoding="utf8")
+    # Additionally, ensure that the most recent report is non-empty
+    if reports2:
+        latest_report = max(reports2, key=lambda p: p.stat().st_mtime)
+        assert latest_report.stat().st_size > 0, "Latest report after second run is empty"
 
 
 def test_second_run_on_user_edited_yaml_produces_non_empty_report(
@@ -205,18 +207,25 @@ def test_second_run_on_user_edited_yaml_produces_non_empty_report(
     Given a YAML that has already been 'updated by SUEWS' and edited by the user,
     running suews-validate again should still produce a non-empty report.
     """
-
     fixture = Path(__file__).parent / "data" / "issue_1097" / "yaml_setup.yml"
     yaml_path = tmp_path / "yaml_setup.yml"
     yaml_path.write_text(fixture.read_text(encoding="utf8"), encoding="utf8")
 
-
     proc = _run_validate(suews_validate_exe, tmp_path, args=[str(yaml_path)])
 
     reports = _find_reports(tmp_path)
-    assert reports, f"No report files created. stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+    updated = _find_updated(tmp_path)
+    outputs = reports + updated
 
+    assert outputs, f"No report/updated files created. stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+    # All outputs created in this second-run scenario must be non-empty
+    assert _all_non_empty(outputs), f"Some second-run outputs are empty: {outputs}"
+
+    # And specifically ensure that the most recent report is non-empty
+    assert reports, f"No report files created. stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
     latest_report = max(reports, key=lambda p: p.stat().st_mtime)
     content = latest_report.read_text(encoding="utf8", errors="replace")
-
-    assert content.strip(), f"Second-run report is blank. path={latest_report}, stdout={proc.stdout}, stderr={proc.stderr}"
+    assert content.strip(), (
+        f"Second-run report is blank. path={latest_report}, "
+        f"stdout={proc.stdout}, stderr={proc.stderr}"
+    )

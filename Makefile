@@ -180,16 +180,16 @@ dev-dts:
 		uv pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran for macOS compatibility"; \
-			bash -c 'FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]"'; \
+			bash -c 'FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=true"'; \
 		else \
-			uv pip install --no-build-isolation -e ".[dev]"; \
+			uv pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=true"; \
 		fi \
 	else \
 		$(PYTHON) -m pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
-			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation -e ".[dev]"; \
+			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=true"; \
 		else \
-			$(PYTHON) -m pip install --no-build-isolation -e ".[dev]"; \
+			$(PYTHON) -m pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=true"; \
 		fi \
 	fi
 	@# Ensure meson build directory is initialized (fixes post-clean state)

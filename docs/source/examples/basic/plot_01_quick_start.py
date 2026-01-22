@@ -263,9 +263,12 @@ plt.show()
 
 df_plot = df_output_suews.loc[grid].copy()
 df_plot.index = df_plot.index.set_names("Month")
-rsmp_1M = df_plot.shift(-1).dropna(how="all").resample("1ME", kind="period")
+rsmp_1M = df_plot.shift(-1).dropna(how="all").resample("1ME")
 df_1M_mean = rsmp_1M.mean()
 df_1M_sum = rsmp_1M.sum()
+# Convert index to period for better month display
+df_1M_mean.index = df_1M_mean.index.to_period("M")
+df_1M_sum.index = df_1M_sum.index.to_period("M")
 
 # Month names for labels
 name_mon = [x.strftime("%b") for x in rsmp_1M.groups]

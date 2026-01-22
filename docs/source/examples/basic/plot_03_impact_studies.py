@@ -87,7 +87,7 @@ print(df_state_init.alb)
 df_state_init_test = df_state_init.copy()
 
 # Set surface fractions: 99% buildings, 1% paved
-df_state_init_test.sfr_surf = 0
+df_state_init_test.sfr_surf = 0.0  # Use float to preserve dtype
 df_state_init_test.loc[:, ("sfr_surf", "(1,)")] = 0.99  # Buildings
 df_state_init_test.loc[:, ("sfr_surf", "(0,)")] = 0.01  # Paved
 

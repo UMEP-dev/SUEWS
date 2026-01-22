@@ -84,7 +84,7 @@ print("Default surface fractions:")
 print(df_state_site.loc[:, "sfr_surf"])
 
 # Configure for a grassland site (100% grass)
-df_state_site.loc[:, "sfr_surf"] = 0
+df_state_site.loc[:, "sfr_surf"] = 0.0  # Use float to preserve dtype
 df_state_site.loc[:, ("sfr_surf", "(4,)")] = 1.0  # 100% grass
 
 print("\nModified surface fractions (grassland):")
@@ -181,7 +181,7 @@ except NameError:
 
 # Path to forcing data
 path_forcing = _script_dir / "data" / "US-AR1_2010_data_60.txt"
-df_forcing_raw = sp.load_forcing_txt(path_forcing, grid=1, tstep=60, timezone=-6)
+df_forcing_raw = sp.util.read_forcing(str(path_forcing), tstep_mod=None)
 
 # Use reduced period for CI builds
 if _IS_CI:

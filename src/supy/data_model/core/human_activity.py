@@ -55,7 +55,10 @@ class IrrigationParams(
     )
     daywatper: WeeklyProfile = Field(
         default_factory=WeeklyProfile,
-        json_schema_extra={"unit": "dimensionless", "display_name": "Weekly Water Use Fraction"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Weekly Water Use Fraction",
+        },
     )
     daywat: WeeklyProfile = Field(
         default_factory=WeeklyProfile,
@@ -225,7 +228,10 @@ class AnthropogenicHeat(
     ah_min: DayProfile = Field(
         description="Minimum anthropogenic heat flux",
         default_factory=DayProfile,
-        json_schema_extra={"unit": "W m^-2", "display_name": "Minimum Anthropogenic Heat"},
+        json_schema_extra={
+            "unit": "W m^-2",
+            "display_name": "Minimum Anthropogenic Heat",
+        },
     )
     ah_slope_cooling: DayProfile = Field(
         description="Slope of anthropogenic heat vs cooling degree days",

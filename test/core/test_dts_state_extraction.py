@@ -103,13 +103,17 @@ class TestDTSStateExtraction:
         for surface_name in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil"]:
             surface = getattr(initial_states, surface_name)
             state_val = _get_value(surface.state)
-            assert state_val >= 0, f"{surface_name} state should be non-negative, got {state_val}"
+            assert state_val >= 0, (
+                f"{surface_name} state should be non-negative, got {state_val}"
+            )
 
         # Check soil moisture is positive
         for surface_name in ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil"]:
             surface = getattr(initial_states, surface_name)
             soilstore_val = _get_value(surface.soilstore)
-            assert soilstore_val >= 0, f"{surface_name} soilstore should be positive, got {soilstore_val}"
+            assert soilstore_val >= 0, (
+                f"{surface_name} soilstore should be positive, got {soilstore_val}"
+            )
 
         # Check LAI is reasonable (0-10 m²/m²)
         for veg_name in ["evetr", "dectr", "grass"]:
@@ -279,7 +283,9 @@ class TestDTSStateExtraction:
                 - df_output_b[("SUEWS", "QN")].values
             )
         )
-        assert qn_diff < EXACT_MATCH_TOLERANCE, f"QN should match exactly but differs by {qn_diff}"
+        assert qn_diff < EXACT_MATCH_TOLERANCE, (
+            f"QN should match exactly but differs by {qn_diff}"
+        )
 
         qf_diff = np.max(
             np.abs(
@@ -287,4 +293,6 @@ class TestDTSStateExtraction:
                 - df_output_b[("SUEWS", "QF")].values
             )
         )
-        assert qf_diff < EXACT_MATCH_TOLERANCE, f"QF should match exactly but differs by {qf_diff}"
+        assert qf_diff < EXACT_MATCH_TOLERANCE, (
+            f"QF should match exactly but differs by {qf_diff}"
+        )

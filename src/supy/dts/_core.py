@@ -19,7 +19,9 @@ def create_suews_config() -> dts.SUEWS_CONFIG:
     return dts.SUEWS_CONFIG()
 
 
-def create_suews_state(nlayer: int = 5, ndepth: int = 5, nbtypes: int = 1) -> dts.SUEWS_STATE:
+def create_suews_state(
+    nlayer: int = 5, ndepth: int = 5, nbtypes: int = 1
+) -> dts.SUEWS_STATE:
     """Create and allocate a new SUEWS_STATE object.
 
     Parameters
@@ -62,7 +64,9 @@ def create_suews_state(nlayer: int = 5, ndepth: int = 5, nbtypes: int = 1) -> dt
     return state
 
 
-def create_suews_site(nlayer: int = 5, ndepth: int = 5, nsurf: int = 7) -> dts.SUEWS_SITE:
+def create_suews_site(
+    nlayer: int = 5, ndepth: int = 5, nsurf: int = 7
+) -> dts.SUEWS_SITE:
     """Create and allocate a new SUEWS_SITE object.
 
     Parameters

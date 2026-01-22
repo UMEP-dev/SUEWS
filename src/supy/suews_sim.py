@@ -464,7 +464,7 @@ class SUEWSSimulation:
 
         Using the DTS backend:
 
-        >>> output = sim.run(backend='dts')
+        >>> output = sim.run(backend="dts")
         """
         # Validate backend
         valid_backends = ("traditional", "dts")
@@ -514,7 +514,9 @@ class SUEWSSimulation:
         list_issues = check_forcing(df_forcing_slice)
         if isinstance(list_issues, list) and len(list_issues) > 0:
             issues_summary = list_issues[:3] if len(list_issues) > 3 else list_issues
-            suffix = f" (and {len(list_issues) - 3} more)" if len(list_issues) > 3 else ""
+            suffix = (
+                f" (and {len(list_issues) - 3} more)" if len(list_issues) > 3 else ""
+            )
             raise ValueError(f"Invalid forcing data: {issues_summary}{suffix}")
 
         # Run simulation with selected backend
@@ -1278,10 +1280,10 @@ class SUEWSSimulation:
         Examples
         --------
         >>> sim = SUEWSSimulation.from_sample_data()
-        >>> sim.run(backend='dts')
+        >>> sim.run(backend="dts")
         >>> sim.initial_states_final is not None
         True
         >>> # Save state to YAML
-        >>> sim.initial_states_final.to_yaml('final_state.yaml')
+        >>> sim.initial_states_final.to_yaml("final_state.yaml")
         """
         return self._initial_states_final

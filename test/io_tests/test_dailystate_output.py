@@ -20,7 +20,9 @@ class TestDailyStateOutput:
         df_state_init, df_forcing = sp.load_SampleData()
 
         # Run for multiple days to ensure we have DailyState data
-        df_forcing_multi_day = df_forcing.iloc[: TIMESTEPS_PER_DAY * 3]  # 3 days of 5-min data
+        df_forcing_multi_day = df_forcing.iloc[
+            : TIMESTEPS_PER_DAY * 3
+        ]  # 3 days of 5-min data
 
         # Run simulation
         df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)

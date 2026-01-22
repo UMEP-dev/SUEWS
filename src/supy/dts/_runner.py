@@ -178,7 +178,9 @@ def run_dts(
     populate_config_from_pydantic(config_dts, model)
     populate_site_from_pydantic(site_dts, site, model)
     land_cover = site.properties.land_cover
-    populate_state_from_pydantic(state_dts, initial_states, nlayer, ndepth, land_cover=land_cover)
+    populate_state_from_pydantic(
+        state_dts, initial_states, nlayer, ndepth, land_cover=land_cover
+    )
 
     # Populate storedrainprm (needs land cover from site)
     populate_storedrainprm(state_dts, land_cover)

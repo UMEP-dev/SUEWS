@@ -88,23 +88,28 @@ class TestResampleOutput(TestCase):
 
         # Energy fluxes should be averaged
         # Use same resampling parameters as resample_output (closed='right', label='right')
-        # Note: Filter to dates in df_daily as resample_output filters boundary bins
+        # Note: df_daily has combined SUEWS + DailyState dates (Jan 1-8), but SUEWS only has
+        # Jan 2-8 (label='right'). Use dropna() to compare only valid SUEWS data.
         qn_manual = (
             df_grid.SUEWS["QN"].resample("D", closed="right", label="right").mean()
         )
-        qn_daily = df_daily_grid.SUEWS["QN"]
-        # Filter manual to match dates in df_daily (Pandas 3.0+ produces extra boundary bins)
-        qn_manual_filtered = qn_manual.loc[qn_daily.index]
-        pd.testing.assert_series_equal(qn_manual_filtered, qn_daily, check_names=False)
+        qn_daily = df_daily_grid.SUEWS["QN"].dropna()
+        # Compare using intersection of indices (handles different date ranges)
+        common_idx = qn_manual.index.intersection(qn_daily.index)
+        pd.testing.assert_series_equal(
+            qn_manual.loc[common_idx], qn_daily.loc[common_idx], check_names=False
+        )
 
         # Rain should be summed
         rain_manual = (
             df_grid.SUEWS["Rain"].resample("D", closed="right", label="right").sum()
         )
-        rain_daily = df_daily_grid.SUEWS["Rain"]
-        # Filter manual to match dates in df_daily (Pandas 3.0+ produces extra boundary bins)
-        rain_manual_filtered = rain_manual.loc[rain_daily.index]
-        pd.testing.assert_series_equal(rain_manual_filtered, rain_daily, check_names=False)
+        rain_daily = df_daily_grid.SUEWS["Rain"].dropna()
+        # Compare using intersection of indices (handles different date ranges)
+        common_idx = rain_manual.index.intersection(rain_daily.index)
+        pd.testing.assert_series_equal(
+            rain_manual.loc[common_idx], rain_daily.loc[common_idx], check_names=False
+        )
 
         # Verify DailyState boundary data is preserved (label='left' convention)
         # Jan 1 should have DailyState data (day 1 aggregates to label='left' = Jan 1)
@@ -158,10 +163,13 @@ class TestResampleOutput(TestCase):
         qn_series = self.df_output.xs(grid_id, level="grid").SUEWS["QN"]
         # Use same resampling parameters as resample_output (closed='right', label='right')
         qn_max = qn_series.resample("D", closed="right", label="right").max()
-        qn_custom = df_custom.xs(grid_id, level="grid").SUEWS["QN"]
-        # Filter manual to match dates in df_custom (Pandas 3.0+ produces extra boundary bins)
-        qn_max_filtered = qn_max.loc[qn_custom.index]
-        pd.testing.assert_series_equal(qn_max_filtered, qn_custom, check_names=False)
+        # df_custom has combined SUEWS + DailyState dates, but SUEWS only has label='right' dates
+        # Use dropna() and intersection to compare only valid SUEWS data
+        qn_custom = df_custom.xs(grid_id, level="grid").SUEWS["QN"].dropna()
+        common_idx = qn_max.index.intersection(qn_custom.index)
+        pd.testing.assert_series_equal(
+            qn_max.loc[common_idx], qn_custom.loc[common_idx], check_names=False
+        )
 
         print("✓ Custom aggregation methods work correctly")
 

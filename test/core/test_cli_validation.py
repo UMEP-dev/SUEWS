@@ -190,3 +190,33 @@ def test_validate_second_run_on_updated_yaml_produces_non_empty_report(
     # Additionally, ensure that at least one *new* or updated report is non-empty
     latest_report = max(reports2, key=lambda p: p.stat().st_mtime)
     assert latest_report.stat().st_size > 0, "Latest report after second run is empty"
+
+from pathlib import Path
+
+def _write_fixture_yaml(path: Path, text: str):
+    path.write_text(text, encoding="utf8")
+
+
+def test_second_run_on_user_edited_yaml_produces_non_empty_report(
+    suews_validate_exe,
+    tmp_path,
+):
+    """
+    Given a YAML that has already been 'updated by SUEWS' and edited by the user,
+    running suews-validate again should still produce a non-empty report.
+    """
+
+    fixture = Path(__file__).parent / "data" / "issue_1097" / "yaml_setup.yml"
+    yaml_path = tmp_path / "yaml_setup.yml"
+    yaml_path.write_text(fixture.read_text(encoding="utf8"), encoding="utf8")
+
+
+    proc = _run_validate(suews_validate_exe, tmp_path, args=[str(yaml_path)])
+
+    reports = _find_reports(tmp_path)
+    assert reports, f"No report files created. stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+
+    latest_report = max(reports, key=lambda p: p.stat().st_mtime)
+    content = latest_report.read_text(encoding="utf8", errors="replace")
+
+    assert content.strip(), f"Second-run report is blank. path={latest_report}, stdout={proc.stdout}, stderr={proc.stderr}"

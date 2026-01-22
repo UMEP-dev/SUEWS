@@ -14,7 +14,7 @@ import pandas as pd
 
 from ._check import check_forcing
 from ._run import run_supy_ser
-from .dts import run_dts
+from .dts import _DTS_AVAILABLE, _check_dts_available, run_dts
 
 # Import SuPy components directly
 from ._supy_module import _save_supy
@@ -472,6 +472,10 @@ class SUEWSSimulation:
             raise ValueError(
                 f"Invalid backend '{backend}'. Must be one of: {valid_backends}"
             )
+
+        # Check DTS availability early (before other validation)
+        if backend == "dts":
+            _check_dts_available()
 
         # Validate inputs
         if self._df_state_init is None:

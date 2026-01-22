@@ -30,34 +30,152 @@ extract_output_line_to_dict : Extract output arrays to dictionary
 build_output_dataframe_from_block : Build DataFrame from batch output array
 build_full_output_dataframe : Build DataFrame with all output groups
 extract_state_from_dts : Extract final state to Pydantic InitialStates
+
+Note
+----
+DTS features require a full build with type wrappers. If using a fast build
+(``make dev``), DTS functions will raise RuntimeError with instructions to
+rebuild with ``make clean && make dev-dts``.
 """
 
-from ._core import (
-    create_output_line,
-    create_suews_config,
-    create_suews_forcing,
-    create_suews_site,
-    create_suews_state,
-    create_suews_timer,
+# Check if DTS types are available (built with wrap_dts_types=true)
+_DTS_AVAILABLE = False
+_DTS_ERROR_MSG = (
+    "DTS features not available in this build.\n"
+    "This build was compiled with 'make dev' (fast build without DTS support).\n"
+    "To use DTS features, rebuild with: make clean && make dev-dts"
 )
-from ._extract import (
-    build_full_output_dataframe,
-    build_output_dataframe_from_block,
-    extract_output_line_to_dict,
-    extract_state_from_dts,
-)
-from ._populate import (
-    populate_atmstate,
-    populate_config_from_pydantic,
-    populate_forcing_from_row,
-    populate_ohmstate_defaults,
-    populate_roughnessstate,
-    populate_site_from_pydantic,
-    populate_state_from_pydantic,
-    populate_storedrainprm,
-    populate_timer_from_datetime,
-)
-from ._runner import run_dts
+
+try:
+    # Try to import a module that only exists when type files are wrapped
+    # suews_type_heat.f95 generates module_type_heat when wrapped
+    from ..supy_driver import module_type_heat as _test_dts  # noqa: F401
+
+    _DTS_AVAILABLE = True
+except ImportError:
+    # Type modules not available - fast build without DTS support
+    pass
+
+
+def _check_dts_available():
+    """Raise error if DTS not available."""
+    if not _DTS_AVAILABLE:
+        raise RuntimeError(_DTS_ERROR_MSG)
+
+
+# Conditionally import DTS functions or provide stubs
+if _DTS_AVAILABLE:
+    # Full build - import actual implementations
+    from ._core import (
+        create_output_line,
+        create_suews_config,
+        create_suews_forcing,
+        create_suews_site,
+        create_suews_state,
+        create_suews_timer,
+    )
+    from ._extract import (
+        build_full_output_dataframe,
+        build_output_dataframe_from_block,
+        extract_output_line_to_dict,
+        extract_state_from_dts,
+    )
+    from ._populate import (
+        populate_atmstate,
+        populate_config_from_pydantic,
+        populate_forcing_from_row,
+        populate_ohmstate_defaults,
+        populate_roughnessstate,
+        populate_site_from_pydantic,
+        populate_state_from_pydantic,
+        populate_storedrainprm,
+        populate_timer_from_datetime,
+    )
+    from ._runner import run_dts
+
+else:
+    # Fast build - provide stub functions that raise clear errors
+
+    def create_output_line():
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def create_suews_config():
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def create_suews_forcing():
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def create_suews_site(*args, **kwargs):
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def create_suews_state(*args, **kwargs):
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def create_suews_timer():
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def build_full_output_dataframe(*args, **kwargs):
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def build_output_dataframe_from_block(*args, **kwargs):
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def extract_output_line_to_dict(*args, **kwargs):
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def extract_state_from_dts(*args, **kwargs):
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def populate_atmstate(*args, **kwargs):
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def populate_config_from_pydantic(*args, **kwargs):
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def populate_forcing_from_row(*args, **kwargs):
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def populate_ohmstate_defaults(*args, **kwargs):
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def populate_roughnessstate(*args, **kwargs):
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def populate_site_from_pydantic(*args, **kwargs):
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def populate_state_from_pydantic(*args, **kwargs):
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def populate_storedrainprm(*args, **kwargs):
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def populate_timer_from_datetime(*args, **kwargs):
+        """Stub: DTS not available."""
+        _check_dts_available()
+
+    def run_dts(*args, **kwargs):
+        """Stub: DTS not available."""
+        _check_dts_available()
+
 
 __all__ = [
     "build_full_output_dataframe",
@@ -80,4 +198,7 @@ __all__ = [
     "populate_storedrainprm",
     "populate_timer_from_datetime",
     "run_dts",
+    # Utility for checking availability
+    "_DTS_AVAILABLE",
+    "_check_dts_available",
 ]

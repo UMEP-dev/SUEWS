@@ -893,18 +893,20 @@ CONTAINS
          phi_hatmZh = 1.
       END IF
 
-      IF (phi_hatmZh >= 1.) THEN
-         ! more stable, but less correct
-         c2 = 0.5
-         phi_hatmZh = 1.
-      ELSE
-         ! if very unstable this might cause some high values of psihat_z
-         c2 = (kappa*(3.-(2.*beta**2.*Lc/phim_zh*dphi)))/(2.*beta*phim_zh - kappa)
-      END IF
+      ! Removing fixed c2m value #Issue 1055
+      !IF (phi_hatmZh >= 1.) THEN
+      !   ! more stable, but less correct
+      !   c2 = 0.5
+      !   phi_hatmZh = 1.
+      !ELSE
+      !   ! if very unstable this might cause some high values of psihat_z
+      !   c2 = (kappa*(3.-(2.*beta**2.*Lc/phim_zh*dphi)))/(2.*beta*phim_zh - kappa)
+      !END IF
       ! force c2 to 0.5 for better stability. TS 14 Jul 2020
       ! TODO: a more proper threshold needs to be determined
-      c2 = 0.5
+      !c2 = 0.5
 
+      c2 = (kappa*(3.-(2.*beta**2.*Lc/phim_zh*dphi)))/(2.*beta*phim_zh - kappa)
       cm = (1.-phi_hatmZh)*EXP(c2/2.)
 
    END SUBROUTINE cal_cm
@@ -945,18 +947,20 @@ CONTAINS
          phi_hathZh = 1.
       END IF
 
-      IF (phi_hathZh >= 1.) THEN
-         ! more stable, but less correct
-         c2h = 0.5
-         phi_hathZh = 1.
-      ELSE
-         ! if very unstable this might cause some high values of psihat_z
-         c2h = (kappa*Scc*(2.+f - (dphih*2.*beta**2.*Lc/phih_zh)))/(2.*beta*phih_zh - kappa*Scc)
-      END IF
+      ! Removing fixed c2h value #Issue 1055
+      !IF (phi_hathZh >= 1.) THEN
+      !   ! more stable, but less correct
+      !   c2h = 0.5
+      !   phi_hathZh = 1.
+      !ELSE
+      !   ! if very unstable this might cause some high values of psihat_z
+      !   c2h = (kappa*Scc*(2.+f - (dphih*2.*beta**2.*Lc/phih_zh)))/(2.*beta*phih_zh - kappa*Scc)
+      !END IF
       ! force c2h to 0.5 for better stability. TS 14 Jul 2020
       ! TODO: a more proper threshold needs to be determined
-      c2h = 0.5
+      !c2h = 0.5
 
+      c2h = (kappa*Scc*(2.+f - (dphih*2.*beta**2.*Lc/phih_zh)))/(2.*beta*phih_zh - kappa*Scc)
       ch = (1.-phi_hathZh)*EXP(c2h/2.)
 
    END SUBROUTINE cal_ch

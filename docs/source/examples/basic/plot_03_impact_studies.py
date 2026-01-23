@@ -185,7 +185,7 @@ plt.show()
 #
 # View the monthly mean air temperature from the sample dataset.
 
-df_plot = df_forcing.Tair.loc["2012"].resample("1m").mean()
+df_plot = df_forcing.Tair.loc["2012"].resample("1ME").mean()
 
 fig, ax = plt.subplots(figsize=(8, 5))
 df_plot.plot.bar(ax=ax, color="tab:blue")

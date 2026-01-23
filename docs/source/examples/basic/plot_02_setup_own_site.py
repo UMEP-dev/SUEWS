@@ -176,8 +176,8 @@ print("Configuration validation complete")
 try:
     _script_dir = Path(__file__).resolve().parent
 except NameError:
-    # sphinx-gallery context - construct path relative to docs/source
-    _script_dir = Path("examples/basic")
+    # sphinx-gallery context - sphinx runs from docs/, source is in docs/source/
+    _script_dir = Path("source/examples/basic")
 
 # Path to forcing data
 path_forcing = _script_dir / "data" / "US-AR1_2010_data_60.txt"

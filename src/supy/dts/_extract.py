@@ -143,8 +143,7 @@ def extract_output_line_to_dict(output_line: dts.output_line) -> dict[str, np.nd
         Dictionary with output array names as keys.
     """
     return {
-        key: np.array(getattr(output_line, key)).copy()
-        for key in _OUTPUT_LINE_FIELDS
+        key: np.array(getattr(output_line, key)).copy() for key in _OUTPUT_LINE_FIELDS
     }
 
 

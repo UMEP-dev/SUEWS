@@ -46,11 +46,17 @@ class VegetationParams(BaseModel):
     )
     gdd_id: FlexibleRefValue(int) = Field(
         description="Growing degree days ID",
-        json_schema_extra={"unit": "degC d", "display_name": "Initial Growing Degree Days"},
+        json_schema_extra={
+            "unit": "degC d",
+            "display_name": "Initial Growing Degree Days",
+        },
     )
     sdd_id: FlexibleRefValue(int) = Field(
         description="Senescence degree days ID",
-        json_schema_extra={"unit": "degC d", "display_name": "Initial Senescence Degree Days"},
+        json_schema_extra={
+            "unit": "degC d",
+            "display_name": "Initial Senescence Degree Days",
+        },
     )
     lai: Dict[str, Union[FlexibleRefValue(float), List[FlexibleRefValue(float)]]] = (
         Field(
@@ -60,11 +66,17 @@ class VegetationParams(BaseModel):
     )
     ie_a: FlexibleRefValue(float) = Field(
         description="Irrigation efficiency coefficient a",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Automatic Irrigation Coefficient"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Automatic Irrigation Coefficient",
+        },
     )
     ie_m: FlexibleRefValue(float) = Field(
         description="Irrigation efficiency coefficient m",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Manual Irrigation Coefficient"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Manual Irrigation Coefficient",
+        },
     )
 
     ref: Optional[Reference] = None
@@ -82,12 +94,18 @@ class Conductance(BaseModel):
     g_max: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Maximum surface conductance for photosynthesis",
-        json_schema_extra={"unit": "mm s^-1", "display_name": "Maximum Surface Conductance"},
+        json_schema_extra={
+            "unit": "mm s^-1",
+            "display_name": "Maximum Surface Conductance",
+        },
     )
     g_k: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Conductance parameter related to incoming solar radiation",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Radiation Response Parameter"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Radiation Response Parameter",
+        },
     )
     g_q_base: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -97,17 +115,26 @@ class Conductance(BaseModel):
     g_q_shape: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Shape parameter for conductance related to vapour pressure deficit",
-        json_schema_extra={"unit": "dimensionless", "display_name": "VPD Response Shape Parameter"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "VPD Response Shape Parameter",
+        },
     )
     g_t: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Conductance parameter related to air temperature",
-        json_schema_extra={"unit": "degC", "display_name": "Temperature Response Parameter"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Temperature Response Parameter",
+        },
     )
     g_sm: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Conductance parameter related to soil moisture",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Soil Moisture Response Parameter"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Soil Moisture Response Parameter",
+        },
     )
     kmax: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -117,7 +144,10 @@ class Conductance(BaseModel):
     s1: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Lower soil moisture threshold for conductance response",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Lower Soil Moisture Threshold"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Lower Soil Moisture Threshold",
+        },
     )
     s2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -127,12 +157,18 @@ class Conductance(BaseModel):
     tl: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Lower air temperature threshold for conductance response",
-        json_schema_extra={"unit": "degC", "display_name": "Lower Temperature Threshold"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Lower Temperature Threshold",
+        },
     )
     th: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Upper air temperature threshold for conductance response",
-        json_schema_extra={"unit": "degC", "display_name": "Upper Temperature Threshold"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Upper Temperature Threshold",
+        },
     )
 
     ref: Optional[Reference] = Reference(ref="Test ref", DOI="test doi", ID="test id")
@@ -213,22 +249,34 @@ class LAIPowerCoefficients(BaseModel):
     growth_lai: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Power coefficient for LAI in growth equation (LAIPower[1])",
-        json_schema_extra={"unit": "dimensionless", "display_name": "LAI Growth Power Coefficient"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "LAI Growth Power Coefficient",
+        },
     )
     growth_gdd: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Power coefficient for GDD in growth equation (LAIPower[2])",
-        json_schema_extra={"unit": "dimensionless", "display_name": "GDD Growth Power Coefficient"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "GDD Growth Power Coefficient",
+        },
     )
     senescence_lai: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Power coefficient for LAI in senescence equation (LAIPower[3])",
-        json_schema_extra={"unit": "dimensionless", "display_name": "LAI Senescence Power Coefficient"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "LAI Senescence Power Coefficient",
+        },
     )
     senescence_sdd: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Power coefficient for SDD in senescence equation (LAIPower[4])",
-        json_schema_extra={"unit": "dimensionless", "display_name": "SDD Senescence Power Coefficient"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "SDD Senescence Power Coefficient",
+        },
     )
 
     ref: Optional[Reference] = None
@@ -307,22 +355,34 @@ class LAIParams(BaseModel):
     baset: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Base temperature for initiating growing degree days (GDD) for leaf growth",
-        json_schema_extra={"unit": "degC", "display_name": "Base Temperature for Growing Degree Days"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Base Temperature for Growing Degree Days",
+        },
     )
     gddfull: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Growing degree days (GDD) needed for full capacity of LAI",
-        json_schema_extra={"unit": "degC d", "display_name": "Growing Degree Days for Full LAI"},
+        json_schema_extra={
+            "unit": "degC d",
+            "display_name": "Growing Degree Days for Full LAI",
+        },
     )
     basete: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Base temperature for initiating senescence degree days (SDD) for leaf off",
-        json_schema_extra={"unit": "degC", "display_name": "Base Temperature for Senescence Degree Days"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Base Temperature for Senescence Degree Days",
+        },
     )
     sddfull: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Senescence degree days (SDD) needed to initiate leaf off",
-        json_schema_extra={"unit": "degC d", "display_name": "Senescence Degree Days for Leaf Off"},
+        json_schema_extra={
+            "unit": "degC d",
+            "display_name": "Senescence Degree Days for Leaf Off",
+        },
     )
     laimin: FlexibleRefValue(float) = Field(
         default=0.1,
@@ -341,7 +401,10 @@ class LAIParams(BaseModel):
     laitype: FlexibleRefValue(int) = Field(
         default=0,
         description="LAI calculation choice (0: original, 1: new high latitude)",
-        json_schema_extra={"unit": "dimensionless", "display_name": "LAI Calculation Method"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "LAI Calculation Method",
+        },
     )
 
     ref: Optional[Reference] = None
@@ -474,27 +537,42 @@ class VegetatedSurfaceProperties(SurfaceProperties):
     beta_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Light-saturated gross photosynthesis rate of the canopy",
-        json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Biogenic CO2 Beta Coefficient"},
+        json_schema_extra={
+            "unit": "umol m^-2 s^-1",
+            "display_name": "Biogenic CO2 Beta Coefficient",
+        },
     )
     beta_enh_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=0.7,
         description="Enhanced photosynthesis coefficient related to vegetation fraction",
-        json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Biogenic CO2 Enhanced Beta"},
+        json_schema_extra={
+            "unit": "umol m^-2 s^-1",
+            "display_name": "Biogenic CO2 Enhanced Beta",
+        },
     )
     alpha_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Mean apparent ecosystem quantum yield (initial slope of light-response curve)",
-        json_schema_extra={"unit": "umol CO2 / umol photons", "display_name": "Biogenic CO2 Alpha Coefficient"},
+        json_schema_extra={
+            "unit": "umol CO2 / umol photons",
+            "display_name": "Biogenic CO2 Alpha Coefficient",
+        },
     )
     alpha_enh_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Enhanced quantum yield coefficient related to vegetation fraction",
-        json_schema_extra={"unit": "umol CO2 / umol photons", "display_name": "Biogenic CO2 Enhanced Alpha"},
+        json_schema_extra={
+            "unit": "umol CO2 / umol photons",
+            "display_name": "Biogenic CO2 Enhanced Alpha",
+        },
     )
     resp_a: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Base respiration rate coefficient",
-        json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Respiration Coefficient A"},
+        json_schema_extra={
+            "unit": "umol m^-2 s^-1",
+            "display_name": "Respiration Coefficient A",
+        },
     )
     resp_b: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -504,7 +582,10 @@ class VegetatedSurfaceProperties(SurfaceProperties):
     theta_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Curvature parameter for non-rectangular hyperbola at light saturation",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Biogenic CO2 Theta Parameter"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Biogenic CO2 Theta Parameter",
+        },
     )
     maxconductance: FlexibleRefValue(float) = Field(
         default=0.5,
@@ -514,7 +595,10 @@ class VegetatedSurfaceProperties(SurfaceProperties):
     min_res_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=0.1,
         description="Minimum soil respiration rate for cold-temperature limit",
-        json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Biogenic CO2 Minimum Respiration"},
+        json_schema_extra={
+            "unit": "umol m^-2 s^-1",
+            "display_name": "Biogenic CO2 Minimum Respiration",
+        },
     )
     lai: LAIParams = Field(
         default_factory=LAIParams, description="Leaf area index parameters"
@@ -522,12 +606,18 @@ class VegetatedSurfaceProperties(SurfaceProperties):
     ie_a: FlexibleRefValue(float) = Field(
         default=0.5,
         description="Irrigation efficiency coefficient-automatic",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Automatic Irrigation Coefficient"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Automatic Irrigation Coefficient",
+        },
     )
     ie_m: FlexibleRefValue(float) = Field(
         default=0.6,
         description="Irrigation efficiency coefficient-manual",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Manual Irrigation Coefficient"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Manual Irrigation Coefficient",
+        },
     )
 
     ref: Optional[Reference] = None
@@ -635,7 +725,10 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
     faievetree: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Frontal area index of evergreen trees",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Evergreen Tree Frontal Area Index"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Evergreen Tree Frontal Area Index",
+        },
     )
     evetreeh: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -725,7 +818,10 @@ class DectrProperties(VegetatedSurfaceProperties):
     faidectree: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Frontal area index of deciduous trees",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Deciduous Tree Frontal Area Index"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Deciduous Tree Frontal Area Index",
+        },
     )
     dectreeh: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -737,14 +833,20 @@ class DectrProperties(VegetatedSurfaceProperties):
         le=0.9,
         default=0.2,
         description="Minimum porosity",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Deciduous Minimum Porosity"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Deciduous Minimum Porosity",
+        },
     )  # pormin_dec cannot be less than 0.1 and greater than 0.9
     pormax_dec: FlexibleRefValue(float) = Field(
         ge=0.1,
         le=0.9,
         default=0.6,
         description="Maximum porosity",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Deciduous Maximum Porosity"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Deciduous Maximum Porosity",
+        },
     )  # pormax_dec cannot be less than 0.1 and greater than 0.9
     capmax_dec: FlexibleRefValue(float) = Field(
         default=100.0,
@@ -907,12 +1009,18 @@ class SnowParams(BaseModel):
     crwmax: FlexibleRefValue(float) = Field(
         default=0.1,
         description="Maximum water holding capacity of snow",
-        json_schema_extra={"unit": "mm", "display_name": "Maximum Water Retention Capacity"},
+        json_schema_extra={
+            "unit": "mm",
+            "display_name": "Maximum Water Retention Capacity",
+        },
     )
     crwmin: FlexibleRefValue(float) = Field(
         default=0.05,
         description="Minimum water holding capacity of snow",
-        json_schema_extra={"unit": "mm", "display_name": "Minimum Water Retention Capacity"},
+        json_schema_extra={
+            "unit": "mm",
+            "display_name": "Minimum Water Retention Capacity",
+        },
     )
     narp_emis_snow: FlexibleRefValue(float) = Field(
         default=0.99,
@@ -924,7 +1032,10 @@ class SnowParams(BaseModel):
     preciplimit: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Temperature threshold for snow vs rain precipitation",
-        json_schema_extra={"unit": "degC", "display_name": "Precipitation Temperature Limit"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Precipitation Temperature Limit",
+        },
     )
     preciplimitalb: FlexibleRefValue(float) = Field(
         default=0.1,
@@ -935,12 +1046,18 @@ class SnowParams(BaseModel):
     snowalbmax: FlexibleRefValue(float) = Field(
         default=0.85,
         description="Maximum snow albedo",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Maximum Snow Albedo"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Maximum Snow Albedo",
+        },
     )
     snowalbmin: FlexibleRefValue(float) = Field(
         default=0.4,
         description="Minimum snow albedo",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Minimum Snow Albedo"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Minimum Snow Albedo",
+        },
     )
     snowdensmin: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -968,27 +1085,42 @@ class SnowParams(BaseModel):
     tau_a: FlexibleRefValue(float) = Field(
         default=0.018,
         description="Time constant for snow albedo aging in cold snow",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Snow Albedo Ageing Time (Cold)"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Snow Albedo Ageing Time (Cold)",
+        },
     )
     tau_f: FlexibleRefValue(float) = Field(
         default=0.11,
         description="Time constant for snow albedo aging in melting snow",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Snow Albedo Ageing Time (Melting)"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Snow Albedo Ageing Time (Melting)",
+        },
     )
     tau_r: FlexibleRefValue(float) = Field(
         default=0.05,
         description="Time constant for snow albedo aging in refreezing snow",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Snow Albedo Ageing Time (Refreezing)"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Snow Albedo Ageing Time (Refreezing)",
+        },
     )
     tempmeltfact: FlexibleRefValue(float) = Field(
         default=0.12,
         description="Hourly temperature melt factor of snow",
-        json_schema_extra={"unit": "mm K^-1 h^-1", "display_name": "Temperature Melt Factor"},
+        json_schema_extra={
+            "unit": "mm K^-1 h^-1",
+            "display_name": "Temperature Melt Factor",
+        },
     )
     radmeltfact: FlexibleRefValue(float) = Field(
         default=0.0016,
         description="Hourly radiation melt factor of snow",
-        json_schema_extra={"unit": "mm W^-1 m^2 h^-1", "display_name": "Radiation Melt Factor"},
+        json_schema_extra={
+            "unit": "mm W^-1 m^2 h^-1",
+            "display_name": "Radiation Melt Factor",
+        },
     )
 
     ref: Optional[Reference] = None
@@ -1259,7 +1391,10 @@ class ArchetypeProperties(BaseModel):
     WWR: Optional[FlexibleRefValue(float)] = Field(
         default=0.20,
         description="window to wall ratio [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Window to Wall Ratio"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Window to Wall Ratio",
+        },
         ge=0.0,
         le=1.0,
     )
@@ -1313,13 +1448,19 @@ class ArchetypeProperties(BaseModel):
     WallextCp: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
         description="Effective specific heat capacity of layers external to insulation in walls [J kg-1 K-1]",
-        json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Wall Ext Specific Heat"},
+        json_schema_extra={
+            "unit": "J kg^-1 K^-1",
+            "display_name": "Wall Ext Specific Heat",
+        },
         gt=0.0,
     )
     WallOuterCapFrac: Optional[FlexibleRefValue(float)] = Field(
         default=1.0,
         description="Weighting factor for heat capacity of walls [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Wall Outer Capacity Fraction"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Wall Outer Capacity Fraction",
+        },
         ge=0.0,
         le=1.0,
     )
@@ -1356,14 +1497,20 @@ class ArchetypeProperties(BaseModel):
     WallAbsorbtivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.8,
         description="Absorbtivity of walls [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Wall Absorptivity"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Wall Absorptivity",
+        },
         ge=0.0,
         le=1.0,
     )
     WallReflectivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.2,
         description="Reflectivity of the external surface of walls [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Wall Reflectivity"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Wall Reflectivity",
+        },
         ge=0.0,
         le=1.0,
     )
@@ -1417,13 +1564,19 @@ class ArchetypeProperties(BaseModel):
     RoofextCp: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
         description="Effective specific heat capacity of layers external to insulation in roof [J kg-1 K-1]",
-        json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Roof Ext Specific Heat"},
+        json_schema_extra={
+            "unit": "J kg^-1 K^-1",
+            "display_name": "Roof Ext Specific Heat",
+        },
         gt=0.0,
     )
     RoofOuterCapFrac: Optional[FlexibleRefValue(float)] = Field(
         default=1.0,
         description="Weighting factor for heat capacity of roof [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Roof Outer Capacity Fraction"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Roof Outer Capacity Fraction",
+        },
         ge=0.0,
         le=1.0,
     )
@@ -1460,14 +1613,20 @@ class ArchetypeProperties(BaseModel):
     RoofAbsorbtivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.8,
         description="Absorbtivity of roof [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Roof Absorptivity"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Roof Absorptivity",
+        },
         ge=0.0,
         le=1.0,
     )
     RoofReflectivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.2,
         description="Reflectivity of the external surface of roof [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Roof Reflectivity"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Roof Reflectivity",
+        },
         ge=0.0,
         le=1.0,
     )
@@ -1495,7 +1654,10 @@ class ArchetypeProperties(BaseModel):
     GroundFloorCp: Optional[FlexibleRefValue(float)] = Field(
         default=1500.0,
         description="Effective specific heat capacity of the ground floor [J kg-1 K-1]",
-        json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Ground Floor Specific Heat"},
+        json_schema_extra={
+            "unit": "J kg^-1 K^-1",
+            "display_name": "Ground Floor Specific Heat",
+        },
         gt=0.0,
     )
     WindowThickness: Optional[FlexibleRefValue(float)] = Field(
@@ -1522,7 +1684,10 @@ class ArchetypeProperties(BaseModel):
     WindowCp: Optional[FlexibleRefValue(float)] = Field(
         default=840.0,
         description="Effective specific heat capacity of windows [J kg-1 K-1]",
-        json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Window Specific Heat"},
+        json_schema_extra={
+            "unit": "J kg^-1 K^-1",
+            "display_name": "Window Specific Heat",
+        },
         gt=0.0,
     )
     WindowExternalEmissivity: Optional[FlexibleRefValue(float)] = Field(
@@ -1584,7 +1749,10 @@ class ArchetypeProperties(BaseModel):
     InternalMassCp: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Effective specific heat capacity of internal mass [J kg-1 K-1]",
-        json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Internal Mass Specific Heat"},
+        json_schema_extra={
+            "unit": "J kg^-1 K^-1",
+            "display_name": "Internal Mass Specific Heat",
+        },
     )
     InternalMassEmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -1611,7 +1779,10 @@ class ArchetypeProperties(BaseModel):
     MaximumHotWaterHeatingPower: Optional[FlexibleRefValue(float)] = Field(
         default=3000.0,
         description="Maximum power demand of water heating system [W]",
-        json_schema_extra={"unit": "W", "display_name": "Maximum Hot Water Heating Power"},
+        json_schema_extra={
+            "unit": "W",
+            "display_name": "Maximum Hot Water Heating Power",
+        },
         gt=0.0,
     )
     HeatingSetpointTemperature: Optional[TenMinuteProfile] = Field(
@@ -1857,7 +2028,10 @@ class StebbsProperties(BaseModel):
     CoolingSystemCOP: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Coefficient of performance of cooling system [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Cooling System COP"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Cooling System COP",
+        },
         ge=0.0,
     )
     VentilationRate: Optional[FlexibleRefValue(float)] = Field(
@@ -2112,13 +2286,19 @@ class StebbsProperties(BaseModel):
     MinimumVolumeOfDHWinUse: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Minimum volume of hot water in use [m3]",
-        json_schema_extra={"unit": "m^3", "display_name": "Minimum Volume of DHW in Use"},
+        json_schema_extra={
+            "unit": "m^3",
+            "display_name": "Minimum Volume of DHW in Use",
+        },
         ge=0.0,
     )
     MaximumVolumeOfDHWinUse: Optional[FlexibleRefValue(float)] = Field(
         default=100.0,
         description="Maximum volume of hot water in use [m3]. Default is arbitrary placeholder to be refined with validation.",
-        json_schema_extra={"unit": "m^3", "display_name": "Maximum Volume of DHW in Use"},
+        json_schema_extra={
+            "unit": "m^3",
+            "display_name": "Maximum Volume of DHW in Use",
+        },
         ge=0.0,
     )
 
@@ -2409,7 +2589,10 @@ class SoilObservationConfig(BaseModel):
             "For volumetric (SMDMethod=1), this is typically ≤1.0 (m³/m³). "
             "For gravimetric (SMDMethod=2), values >1.0 are possible (g water/g dry soil)."
         ),
-        json_schema_extra={"unit": "fraction or g/g", "display_name": "Saturation Capacity"},
+        json_schema_extra={
+            "unit": "fraction or g/g",
+            "display_name": "Saturation Capacity",
+        },
     )
     soil_not_rocks: FlexibleRefValue(float) = Field(
         gt=0,

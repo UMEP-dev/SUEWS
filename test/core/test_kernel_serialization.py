@@ -113,5 +113,3 @@ def test_no_kernel_lock():
     assert not hasattr(run, "_kernel_lock"), (
         "_kernel_lock should be removed - use state-based error handling"
     )
-
-

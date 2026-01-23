@@ -565,7 +565,7 @@ class TestSampleOutput(TestCase):
     @pytest.mark.smoke
     @pytest.mark.skipif(
         not _DTS_AVAILABLE,
-        reason="DTS not available (fast build without type wrappers)"
+        reason="DTS not available (fast build without type wrappers)",
     )
     def test_dts_vs_traditional_parity(self):
         """
@@ -635,8 +635,8 @@ class TestSampleOutput(TestCase):
         variables_to_compare = ("QN", "QF", "QS", "QH", "QE")
 
         for var in variables_to_compare:
-            dts_arr = df_output_dts[('SUEWS', var)].values
-            trad_arr = df_output_trad[('SUEWS', var)].values
+            dts_arr = df_output_dts[("SUEWS", var)].values
+            trad_arr = df_output_trad[("SUEWS", var)].values
 
             # Check for exact match (DTS should be bit-identical)
             max_diff = np.max(np.abs(dts_arr - trad_arr))
@@ -660,7 +660,7 @@ class TestSampleOutput(TestCase):
 
         self.assertTrue(
             all_passed,
-            f"DTS vs traditional parity failed for: {', '.join(failed_variables)}"
+            f"DTS vs traditional parity failed for: {', '.join(failed_variables)}",
         )
 
 

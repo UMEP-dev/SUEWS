@@ -1242,17 +1242,33 @@ def adjust_model_dependent_nullification(
                 def _recursive_nullify(node: Any, path: str):
                     if isinstance(node, dict):
                         if "value" in node:
-                            if node["value"] is not None:
-                                node["value"] = None
-                                nullified_params.append(path)
+                            inner = node.get("value")
+                            if isinstance(inner, list):
+                                if any(item is not None for item in inner):
+                                    node["value"] = [None] * len(inner)
+                                    nullified_params.append(path)
+                            else:
+                                if inner is not None:
+                                    node["value"] = None
+                                    nullified_params.append(path)
                         else:
                             for key, val in node.items():
                                 child_path = f"{path}.{key}" if path else key
-                                _recursive_nullify(val, child_path)
+                                if isinstance(val, (dict, list)):
+                                    _recursive_nullify(val, child_path)
+                                else:
+                                    if val is not None:
+                                        node[key] = None
+                                        nullified_params.append(child_path)
                     elif isinstance(node, list):
                         for idx, item in enumerate(node):
                             child_path = f"{path}[{idx}]" if path else f"[{idx}]"
-                            _recursive_nullify(item, child_path)
+                            if isinstance(item, (dict, list)):
+                                _recursive_nullify(item, child_path)
+                            else:
+                                if item is not None:
+                                    node[idx] = None
+                                    nullified_params.append(child_path)
 
                 _recursive_nullify(block, block_name)
                 if nullified_params:

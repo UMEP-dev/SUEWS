@@ -55,6 +55,7 @@ def _all_non_empty(files):
     return all(f.exists() and f.stat().st_size > 0 for f in files)
 
 @pytest.mark.cfg
+@pytest.mark.smoke
 def test_validate_generates_non_empty_report_and_updated_yaml(suews_validate_exe, tmp_path):
     """suews-validate should create non-empty report and updated yaml for invalid input."""
     yaml_path = tmp_path / "yaml_setup.yml"
@@ -72,6 +73,7 @@ def test_validate_generates_non_empty_report_and_updated_yaml(suews_validate_exe
     assert _all_non_empty(updated), f"Some updated yaml files are empty: {updated}"
 
 @pytest.mark.cfg
+@pytest.mark.smoke
 def test_validate_second_run_does_not_truncate_reports(suews_validate_exe, tmp_path):
     """Running validate twice should not leave report/updated files zero-length (truncated)."""
     yaml_path = tmp_path / "yaml_setup.yml"
@@ -145,6 +147,7 @@ def test_validate_returns_error_but_writes_output_on_invalid_input(suews_validat
     assert _all_non_empty(outputs), f"Some report/updated files are empty: {outputs}"
 
 @pytest.mark.cfg
+@pytest.mark.smoke
 def test_validate_second_run_on_updated_yaml_produces_non_empty_report(
     suews_validate_exe,
     tmp_path,
@@ -201,6 +204,7 @@ def test_validate_second_run_on_updated_yaml_produces_non_empty_report(
         assert latest_report.stat().st_size > 0, "Latest report after second run is empty"
 
 @pytest.mark.cfg
+@pytest.mark.smoke
 def test_second_run_on_user_edited_yaml_produces_non_empty_report(
     suews_validate_exe,
     tmp_path,

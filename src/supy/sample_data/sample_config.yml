@@ -15,38 +15,28 @@ model:
         - "SUEWS"
     diagnose: 0
   physics:
+    # Multi-dimensional: nested format with scheme + dimension
     netradiationmethod:
-      value: 3
+      scheme: narp
+      ldown: air
     emissionsmethod:
-      value: 2
-    storageheatmethod:
-      value: 1
-    ohmincqf:
-      value: 0
-    roughlenmommethod:
-      value: 1
-    roughlenheatmethod:
-      value: 2
-    stabilitymethod:
-      value: 3
-    smdmethod:
-      value: 0
-    waterusemethod:
-      value: 0
-    rslmethod:
-      value: 2
-    faimethod:
-      value: 0
-    rsllevel:
-      value: 1
-    gsmodel:
-        value: 2
-    snowuse:
-      value: 0
-    stebbsmethod:
-      value: 0
-    rcmethod:
-      value: 0
+      heat: J11
+      co2: none
+    # Single-dimensional: model names or Xyy (author initial + year)
+    storageheatmethod: ohm
+    ohmincqf: no
+    roughlenmommethod: fixed
+    roughlenheatmethod: K09
+    stabilitymethod: CN98
+    smdmethod: model
+    waterusemethod: model
+    rslmethod: auto
+    faimethod: provided
+    rsllevel: basic
+    gsmodel: W16
+    snowuse: no
+    stebbsmethod: off
+    rcmethod: off
 sites:
 - name: KCL
   gridiv: 1

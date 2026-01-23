@@ -36,7 +36,7 @@ CONTAINS
       alpha_bioCO2, alpha_enh_bioCO2, avkdn, beta_bioCO2, beta_enh_bioCO2, BSoilSurf, & ! input:
       ConifSurf, DecidSurf, dectime, EmissionsMethod, gfunc, gfunc2, GrassSurf, gsmodel, &
       id, it, ivConif, ivDecid, ivGrass, LAI_id, LAIMin, LAIMax, min_res_bioCO2, nsurf, &
-      NVegSurf, resp_a, resp_b, sfr_surf, SnowFrac, t2, Temp_C, theta_bioCO2, &
+      NVegSurf, resp_a, resp_b, sfr_surf, SnowFrac, t2, theta_bioCO2, &
       Fc_biogen, Fc_photo, Fc_respi) ! output:
 
       IMPLICIT NONE
@@ -50,7 +50,6 @@ CONTAINS
          dectime, &
          gfunc, &
          gfunc2, &
-         Temp_C, &
          t2
 
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: &

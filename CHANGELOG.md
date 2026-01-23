@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 60 | 70 | 22 | 71 | 36 | 258 |
+| 2026 | 60 | 71 | 23 | 71 | 36 | 260 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -33,6 +33,11 @@
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 23 Jan 2026
+
+- [bugfix] Fixed missing STEBBS parameters in sample_config.yml (PR #1111)
+- [change] Changed values of some STEBBS parameters in sample_config.yml to be physically reasonable (PR #1111)
 
 ### 20 Jan 2026
 

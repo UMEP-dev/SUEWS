@@ -25,102 +25,19 @@ from datetime import datetime
 from copy import deepcopy
 import pandas as pd
 import numpy as np
-from pydantic import BaseModel
-import pytz
 
-# Use tzfpy instead of timezonefinder for Windows compatibility
-# tzfpy has pre-built Windows wheels and provides similar functionality
-try:
-    from tzfpy import get_tz
-
-    HAS_TIMEZONE_FINDER = True
-
-    # Create a compatibility wrapper for timezonefinder API
-    class TimezoneFinder:
-        def timezone_at(self, lat, lng):
-            """Wrapper to match timezonefinder API."""
-            # tzfpy uses (longitude, latitude) order
-            return get_tz(lng, lat)
-
-except ImportError:
-    # Fallback to original timezonefinder if tzfpy not available
-    try:
-        from timezonefinder import TimezoneFinder
-
-        HAS_TIMEZONE_FINDER = True
-    except ImportError:
-        HAS_TIMEZONE_FINDER = False
-        import warnings
-
-        warnings.warn(
-            "Neither tzfpy nor timezonefinder available. DST calculations will be skipped.",
-            UserWarning,
-        )
-
-# Try to import from supy if available, otherwise use standalone mode
-try:
-    from supy._env import logger_supy, trv_supy_module
-    from supy.data_model.validation.core.yaml_helpers import (
-        get_mean_monthly_air_temperature as _get_mean_monthly_air_temperature,
-        get_mean_annual_air_temperature as _get_mean_annual_air_temperature,
-        nullify_co2_block_recursive,
-        collect_nullified_paths,
-        _nullify_biogenic_in_props,
-    )
-
-    HAS_SUPY = True
-except ImportError:
-    # Standalone mode - create minimal dependencies
-    import logging
-    from pathlib import Path
-
-    # Create standalone logger
-    logger_supy = logging.getLogger("supy.data_model")
-    if not logger_supy.handlers:
-        handler = logging.StreamHandler()
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        )
-        logger_supy.addHandler(handler)
-        logger_supy.setLevel(logging.INFO)
-
-    # Create mock traversable for resource access
-    class MockTraversable:
-        """Mock for accessing package resources in standalone mode."""
-
-        def __init__(self):
-            # Try to find the package root
-            current = Path(__file__).parent
-            while current.parent != current:
-                if (current / "ext_data").exists():
-                    self.base = current
-                    break
-                current = current.parent
-            else:
-                self.base = Path(__file__).parent.parent.parent
-
-        def __truediv__(self, other):
-            return self.base / other
-
-        def exists(self):
-            # In standalone mode, CRU data might not be available
-            return False
-
-    trv_supy_module = MockTraversable()
-    HAS_SUPY = False
-
-    # Create stub functions for standalone mode
-    def _get_mean_monthly_air_temperature(
-        lat: float, lon: float, month: int, spatial_res: float = 0.5
-    ) -> float:
-        """Stub function - raises error in standalone mode."""
-        raise FileNotFoundError("CRU data not available in standalone mode")
-
-    def _get_mean_annual_air_temperature(
-        lat: float, lon: float, spatial_res: float = 0.5
-    ) -> float:
-        """Stub function - raises error in standalone mode."""
-        raise FileNotFoundError("CRU data not available in standalone mode")
+# Import from validation package
+from .. import logger_supy
+from ..core.yaml_helpers import (
+    get_mean_monthly_air_temperature as _get_mean_monthly_air_temperature,
+    get_mean_annual_air_temperature as _get_mean_annual_air_temperature,
+    nullify_co2_block_recursive,
+    collect_nullified_paths,
+    _nullify_biogenic_in_props,
+    DLSCheck,
+    get_value_safe,
+    HAS_TIMEZONE_FINDER,
+)
 
 
 @dataclass
@@ -147,81 +64,6 @@ class ScientificAdjustment:
     old_value: Any = None
     new_value: Any = None
     reason: str = ""
-
-
-class DLSCheck(BaseModel):
-    """Calculate daylight saving time transitions and timezone offset from coordinates."""
-
-    lat: float
-    lng: float
-    year: int
-    startdls: Optional[int] = None
-    enddls: Optional[int] = None
-
-    def compute_dst_transitions(self):
-        """Compute DST start/end days and timezone offset for coordinates and year."""
-        if not HAS_TIMEZONE_FINDER:
-            logger_supy.debug(
-                "[DLS] No timezone finder available, skipping DST calculation."
-            )
-            return None, None, None
-
-        tf = TimezoneFinder()
-        tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
-        if not tz_name:
-            logger_supy.debug(
-                f"[DLS] Cannot determine timezone for lat={self.lat}, lng={self.lng}"
-            )
-            return None, None, None
-
-        logger_supy.debug(f"[DLS] Timezone identified as '{tz_name}'")
-        tz = pytz.timezone(tz_name)
-
-        def find_transition(month: int) -> Optional[int]:
-            try:
-                prev_dt = tz.localize(datetime(self.year, month, 1, 12), is_dst=None)
-                prev_offset = prev_dt.utcoffset()
-
-                for day in range(2, 32):
-                    try:
-                        curr_dt = tz.localize(
-                            datetime(self.year, month, day, 12), is_dst=None
-                        )
-                        curr_offset = curr_dt.utcoffset()
-                        if curr_offset != prev_offset:
-                            return curr_dt.timetuple().tm_yday
-                        prev_offset = curr_offset
-                    except Exception:
-                        continue
-                return None
-            except Exception:
-                return None
-
-        try:
-            std_dt = tz.localize(datetime(self.year, 1, 15), is_dst=False)
-            utc_offset_hours = std_dt.utcoffset().total_seconds() / 3600
-            logger_supy.debug(f"[DLS] UTC offset in standard time: {utc_offset_hours}")
-        except Exception as e:
-            logger_supy.debug(f"[DLS] Failed to compute UTC offset: {e}")
-            utc_offset_hours = None
-
-        if self.lat >= 0:  # Northern Hemisphere
-            start = find_transition(3) or find_transition(4)
-            end = find_transition(10) or find_transition(11)
-        else:  # Southern Hemisphere
-            start = find_transition(9) or find_transition(10)
-            end = find_transition(3) or find_transition(4)
-
-        return start, end, utc_offset_hours
-
-
-def get_value_safe(param_dict, param_key, default=None):
-    """Safely extract value from RefValue or plain format."""
-    param = param_dict.get(param_key, default)
-    if isinstance(param, dict) and "value" in param:
-        return param["value"]
-    else:
-        return param
 
 
 def get_site_gridid(site_data: dict) -> int:

@@ -55,3 +55,6 @@ Temporal Information
 
    For example, for hourly data, ``2021-09-12 13:00`` indicates a record for the period
    between ``2021-09-12 12:00`` (inclusive) and ``2021-09-12 13:00`` (exclusive).
+
+   **Exception for DailyState**: When resampled to daily frequency, DailyState uses
+   day-start labelling for readability. See :ref:`output-dailystate` for details.

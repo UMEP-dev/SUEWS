@@ -3,6 +3,9 @@
 This module tests the extraction of final state from Fortran DTS objects
 to Pydantic InitialStates models, enabling continuation runs with the
 DTS backend.
+
+Note: These tests require a full build with DTS type wrappers (make dev-dts).
+      They are automatically skipped when running with a fast build (make dev).
 """
 
 import pytest
@@ -10,7 +13,13 @@ import pytest
 from supy import SUEWSSimulation, load_SampleData
 from supy.data_model import SUEWSConfig
 from supy.data_model.core.state import InitialStates
-from supy.dts import run_dts
+from supy.dts import _DTS_AVAILABLE, run_dts
+
+# Skip all tests in this module if DTS is not available (fast build)
+pytestmark = pytest.mark.skipif(
+    not _DTS_AVAILABLE,
+    reason="DTS not available (fast build without type wrappers)"
+)
 
 # Tolerance constants for numerical comparisons
 FLUX_TOLERANCE_W_M2 = 0.1  # Acceptable difference for energy fluxes [W/m²]

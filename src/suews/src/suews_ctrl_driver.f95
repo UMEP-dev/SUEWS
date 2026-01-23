@@ -3858,18 +3858,19 @@ CONTAINS
       WindowDensity, WindowCp, WindowExternalEmissivity, WindowInternalEmissivity, WindowTransmissivity, &
       WindowAbsorbtivity, WindowReflectivity, InternalMassDensity, InternalMassCp, InternalMassEmissivity, &
       MaxHeatingPower, WaterTankWaterVolume, MaximumHotWaterHeatingPower, HeatingSetpointTemperature, &
-      CoolingSetpointTemperature, &
+      CoolingSetpointTemperature, OccupantsProfile, &
       WallInternalConvectionCoefficient, RoofInternalConvectionCoefficient, InternalMassConvectionCoefficient, & ! stebbs general input
       FloorInternalConvectionCoefficient, WindowInternalConvectionCoefficient, &
       WallExternalConvectionCoefficient, RoofExternalConvectionCoefficient, WindowExternalConvectionCoefficient, &
       GroundDepth, ExternalGroundConductivity, &
-      MetabolicRate, LatentSensibleRatio, ApplianceRating, &
-      TotalNumberofAppliances, ApplianceUsageFactor, HeatingSystemEfficiency, &
+      MetabolicRate, LatentSensibleRatio, &
+      ApplianceRating, ApplianceProfile, &
+      HeatingSystemEfficiency, &
       MaxCoolingPower, CoolingSystemCOP, VentilationRate, DeepSoilTemperature, InitialOutdoorTemperature, InitialIndoorTemperature, &
       WaterTankWallThickness, MainsWaterTemperature, WaterTankSurfaceArea, &
       HotWaterHeatingSetpointTemperature, HotWaterTankWallEmissivity, &
       DHWVesselWallThickness, DHWWaterVolume, &
-      DHWSurfaceArea, HotWaterFlowRate, DHWDrainFlowRate, &
+      DHWSurfaceArea, HotWaterFlowRate, HotWaterFlowProfile, &
       DHWSpecificHeatCapacity, HotWaterTankSpecificHeatCapacity, DHWVesselSpecificHeatCapacity, &
       DHWDensity, HotWaterTankWallDensity, DHWVesselDensity, HotWaterTankBuildingWallViewFactor, &
       HotWaterTankInternalMassViewFactor, HotWaterTankWallConductivity, HotWaterTankInternalWallConvectionCoefficient, &
@@ -4276,8 +4277,6 @@ CONTAINS
       REAL(KIND(1D0)) :: MetabolicRate
       REAL(KIND(1D0)) :: LatentSensibleRatio
       REAL(KIND(1D0)) :: ApplianceRating
-      REAL(KIND(1D0)) :: TotalNumberofAppliances
-      REAL(KIND(1D0)) :: ApplianceUsageFactor
       REAL(KIND(1D0)) :: HeatingSystemEfficiency
       REAL(KIND(1D0)) :: MaxCoolingPower
       REAL(KIND(1D0)) :: CoolingSystemCOP
@@ -4294,7 +4293,7 @@ CONTAINS
       REAL(KIND(1D0)) :: DHWWaterVolume
       REAL(KIND(1D0)) :: DHWSurfaceArea
       REAL(KIND(1D0)) :: HotWaterFlowRate
-      REAL(KIND(1D0)) :: DHWDrainFlowRate
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: HotWaterFlowProfile
       REAL(KIND(1D0)) :: DHWSpecificHeatCapacity
       REAL(KIND(1D0)) :: HotWaterTankSpecificHeatCapacity
       REAL(KIND(1D0)) :: DHWVesselSpecificHeatCapacity
@@ -4381,9 +4380,10 @@ CONTAINS
       REAL(KIND(1D0)) :: MaxHeatingPower
       REAL(KIND(1D0)) :: WaterTankWaterVolume
       REAL(KIND(1D0)) :: MaximumHotWaterHeatingPower
-      REAL(KIND(1D0)) :: HeatingSetpointTemperature
-      REAL(KIND(1D0)) :: CoolingSetpointTemperature
-
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: HeatingSetpointTemperature ! Heating setpoint diurnal profiles for weekday and weekend
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: CoolingSetpointTemperature ! Cooling setpoint diurnal profiles for weekday and weekend
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: OccupantsProfile
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) ::ApplianceProfile
       TYPE(STEBBS_PRM) :: stebbsPrm
 
       ! lumped states
@@ -5146,8 +5146,6 @@ CONTAINS
       stebbsPrm%MetabolicRate = MetabolicRate
       stebbsPrm%LatentSensibleRatio = LatentSensibleRatio
       stebbsPrm%ApplianceRating = ApplianceRating
-      stebbsPrm%TotalNumberofAppliances = TotalNumberofAppliances
-      stebbsPrm%ApplianceUsageFactor = ApplianceUsageFactor
       stebbsPrm%HeatingSystemEfficiency = HeatingSystemEfficiency
       stebbsPrm%MaxCoolingPower = MaxCoolingPower
       stebbsPrm%CoolingSystemCOP = CoolingSystemCOP
@@ -5160,7 +5158,7 @@ CONTAINS
       stebbsPrm%DHWWaterVolume = DHWWaterVolume
       stebbsPrm%DHWSurfaceArea = DHWSurfaceArea
       stebbsPrm%HotWaterFlowRate = HotWaterFlowRate
-      stebbsPrm%DHWDrainFlowRate = DHWDrainFlowRate
+      stebbsPrm%HotWaterFlowProfile = HotWaterFlowProfile
       stebbsPrm%DHWSpecificHeatCapacity = DHWSpecificHeatCapacity
       stebbsPrm%HotWaterTankSpecificHeatCapacity = HotWaterTankSpecificHeatCapacity
       stebbsPrm%DHWVesselSpecificHeatCapacity = DHWVesselSpecificHeatCapacity
@@ -5291,6 +5289,8 @@ CONTAINS
       building_archtype%MaximumHotWaterHeatingPower = MaximumHotWaterHeatingPower
       building_archtype%HeatingSetpointTemperature = HeatingSetpointTemperature
       building_archtype%CoolingSetpointTemperature = CoolingSetpointTemperature
+      building_archtype%OccupantsProfile = OccupantsProfile
+      building_archtype%ApplianceProfile = ApplianceProfile
       siteInfo%building_archtype = building_archtype
 
       IF (mod_state%flagState%stebbs_bldg_init == 0) THEN

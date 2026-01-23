@@ -21,7 +21,8 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2025 | 60 | 69 | 22 | 71 | 36 | 257 |
+| 2026 | 60 | 70 | 22 | 71 | 36 | 258 |
+| 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
 | 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
@@ -31,11 +32,17 @@
 | 2018 | 7 | 1 | 6 | 5 | 0 | 19 |
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
-## 2025
+## 2026
 
-### 18 Jan 2025
+### 20 Jan 2026
+
+- [bugfix] Fixed missing import supy in orchestrator.py (SUEWS validator) that caused error message in report.txt (PR #1094)
+
+### 18 Jan 2026
 
 - [bugfix] Fixed error message in _check.py::check_range to reflect the documentation and avoid misleading interpretation of the allowed pres range. (PR #1090)
+
+## 2025
 
 ### 17 Dec 2025
 

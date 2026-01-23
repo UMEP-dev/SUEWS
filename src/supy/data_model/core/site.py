@@ -1,7 +1,7 @@
 from typing import Optional
 from pydantic import ConfigDict, BaseModel, Field, model_validator
 from .type import RefValue, Reference, FlexibleRefValue
-from .profile import HourlyProfile
+from .profile import HourlyProfile, DayProfile, WeeklyProfile, TenMinuteProfile
 from .type import init_df_state
 from .timezone_enum import TimezoneOffset
 from ..._env import logger_supy
@@ -1614,82 +1614,111 @@ class ArchetypeProperties(BaseModel):
         json_schema_extra={"unit": "W", "display_name": "Maximum Hot Water Heating Power"},
         gt=0.0,
     )
-    HeatingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Heating setpoint temperature [degC]",
+    HeatingSetpointTemperature: Optional[TenMinuteProfile] = Field(
+        default_factory=TenMinuteProfile,  
+        description="Heating setpoint temperature [degC] profile.",
         json_schema_extra={
             "unit": "degC",
             "display_name": "Heating Setpoint Temperature",
         },
     )
-    CoolingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Cooling setpoint temperature [degC]",
+    CoolingSetpointTemperature: Optional[TenMinuteProfile] = Field(
+        default_factory=TenMinuteProfile, 
+        description="Cooling setpoint temperature [degC] profile.",
         json_schema_extra={
             "unit": "degC",
             "display_name": "Cooling Setpoint Temperature",
         },
     )
 
+    OccupantsProfile: Optional[TenMinuteProfile] = Field(
+        default_factory=TenMinuteProfile,
+        description="Profile of number of occupants in building [-]",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Occupants Profile",
+        },
+    )
+
     ref: Optional[Reference] = None
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """Convert ArchetypeProperties to DataFrame state format."""
-
         df_state = init_df_state(grid_id)
 
-        # Create an empty DataFrame with MultiIndex columns
-        columns = [
-            (field.lower(), "0")
-            for field in self.__class__.model_fields.keys()
-            if field != "ref"
-        ]
-        df_state = pd.DataFrame(
-            index=[grid_id], columns=pd.MultiIndex.from_tuples(columns)
-        )
+        string_fields = {"BuildingType", "BuildingName"}
+        ten_minute_profile_fields = {"HeatingSetpointTemperature", "CoolingSetpointTemperature", "OccupantsProfile"}
+        excluded_fields = string_fields | ten_minute_profile_fields | {"ref"}
 
-        # Set the values in the DataFrame
-        for field_name, field_info in self.__class__.model_fields.items():
-            if field_name == "ref":
+        for field_name in self.model_fields:
+            if field_name in excluded_fields:
                 continue
-            attribute = getattr(self, field_name)
-            if isinstance(attribute, RefValue):
-                value = attribute.value
-            else:
-                value = attribute
+            field_val = getattr(self, field_name)
+            value = field_val.value if isinstance(field_val, RefValue) else field_val
             df_state.loc[grid_id, (field_name.lower(), "0")] = value
+
+        for field_name in string_fields:
+            value = getattr(self, field_name)
+            df_state.loc[grid_id, (field_name.lower(), "0")] = value
+
+        for field_name in ten_minute_profile_fields:
+            profile = getattr(self, field_name)
+            if profile is None:
+                continue
+            df_profile = profile.to_df_state(grid_id, field_name.lower())
+            df_state = df_state.combine_first(df_profile)
 
         return df_state
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ArchetypeProperties":
-        """Reconstruct ArchetypeProperties from DataFrame state format."""
-        # Extract the values from the DataFrame, using defaults for missing columns
-        params = {}
-        for field_name in cls.model_fields.keys():
+        string_fields = {"BuildingType", "BuildingName"}
+        ten_minute_profile_fields = {"HeatingSetpointTemperature", "CoolingSetpointTemperature", "OccupantsProfile"}
+
+        default_instance = cls()
+        params: Dict[str, object] = {}
+
+        for field_name, field_info in cls.model_fields.items():
             if field_name == "ref":
+                continue
+
+            if field_name in string_fields:
+                col = (field_name.lower(), "0")
+                if col in df.columns:
+                    value = df.loc[grid_id, col]
+                    params[field_name] = (
+                        getattr(default_instance, field_name)
+                        if pd.isna(value)
+                        else value
+                    )
+                else:
+                    params[field_name] = getattr(default_instance, field_name)
+                continue
+
+            if field_name in ten_minute_profile_fields:
+                has_profile_columns = any(col[0] == field_name.lower() for col in df.columns)
+                if has_profile_columns:
+                    try:
+                        params[field_name] = TenMinuteProfile.from_df_state(
+                            df, grid_id, field_name.lower()
+                        )
+                    except KeyError:
+                        params[field_name] = getattr(default_instance, field_name)
+                else:
+                    params[field_name] = getattr(default_instance, field_name)
                 continue
 
             col = (field_name.lower(), "0")
             if col in df.columns:
-                params[field_name] = df.loc[grid_id, col]
+                value = df.loc[grid_id, col]
+                if pd.isna(value):
+                    params[field_name] = getattr(default_instance, field_name)
+                else:
+                    params[field_name] = RefValue(value)
             else:
-                # Use default value from field definition for missing columns
-                field_info = cls.model_fields[field_name]
-                if field_info.default is not None:
-                    params[field_name] = field_info.default
-                elif field_info.default_factory is not None:
-                    params[field_name] = field_info.default_factory()
+                params[field_name] = getattr(default_instance, field_name)
 
-        # Convert params to RefValue
-        non_value_with_doi = ["BuildingType", "BuildingName"]
-        params = {
-            key: (RefValue(value) if key not in non_value_with_doi else value)
-            for key, value in params.items()
-        }
-
-        # Create an instance using the extracted parameters
         return cls(**params)
+
 
 
 class StebbsProperties(BaseModel):
@@ -1809,25 +1838,6 @@ class StebbsProperties(BaseModel):
         json_schema_extra={"unit": "W", "display_name": "Appliance Rating"},
         ge=0.0,
     )
-    TotalNumberofAppliances: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Number of appliances present in building [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Total Number of Appliances",
-        },
-        ge=0.0,
-    )
-    ApplianceUsageFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Number of appliances in use [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Appliance Usage Factor",
-        },
-        ge=0.0,
-        le=1.0,
-    )
     HeatingSystemEfficiency: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Efficiency of space heating system [-]",
@@ -1944,12 +1954,15 @@ class StebbsProperties(BaseModel):
         json_schema_extra={"unit": "m^3 s^-1", "display_name": "Hot Water Flow Rate"},
         ge=0.0,
     )
-    DHWDrainFlowRate: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Flow rate of hot water held in building to drain [m3 s-1]",
-        json_schema_extra={"unit": "m^3 s^-1", "display_name": "DHW Drain Flow Rate"},
-        ge=0.0,
-    )
+
+    HotWaterFlowProfile: Optional[TenMinuteProfile] = Field(
+        default_factory=TenMinuteProfile,
+        description="Profile of hot water flow rate from tank to vessel [m3 s-1]",
+        json_schema_extra={
+            "unit": "m^3 s^-1", "display_name": "Hot Water Flow Profile"
+        },
+    )   
+
     DHWSpecificHeatCapacity: Optional[FlexibleRefValue(float)] = Field(
         default=4186.0,
         description="Specific heat capacity of hot water [J kg-1 K-1]",
@@ -2109,56 +2122,76 @@ class StebbsProperties(BaseModel):
         ge=0.0,
     )
 
+    ApplianceProfile: Optional[TenMinuteProfile] = Field(
+        default_factory=TenMinuteProfile,
+        description="10-minute profile of appliance usage factor in building [-]",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Appliance Profile",
+        },
+    )
+
     ref: Optional[Reference] = None
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert StebbsProperties to DataFrame state format."""
         df_state = init_df_state(grid_id)
 
-        # Create an empty DataFrame with MultiIndex columns
-        columns = [
-            (field.lower(), "0")
-            for field in self.__class__.model_fields.keys()
-            if field != "ref"
-        ]
-        df_state = pd.DataFrame(
-            index=[grid_id], columns=pd.MultiIndex.from_tuples(columns)
-        )
+        tenmin_profile_fields = {"ApplianceProfile", "HotWaterFlowProfile"}
+        excluded_fields = tenmin_profile_fields | {"ref"}
 
-        # Set the values in the DataFrame
-        for field_name, field_info in self.__class__.model_fields.items():
-            if field_name == "ref":
+        # scalar fields
+        for field_name in self.model_fields:
+            if field_name in excluded_fields:
                 continue
             field_val = getattr(self, field_name)
-            val = field_val.value if isinstance(field_val, RefValue) else field_val
-            df_state.loc[grid_id, (field_name.lower(), "0")] = val
+            value = field_val.value if isinstance(field_val, RefValue) else field_val
+            df_state.loc[grid_id, (field_name.lower(), "0")] = value
+
+        # 10-minute profile fields
+        for field_name in tenmin_profile_fields:
+            profile = getattr(self, field_name)
+            if profile is None:
+                continue
+            df_profile = profile.to_df_state(grid_id, field_name.lower())
+            df_state = df_state.combine_first(df_profile)
 
         return df_state
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "StebbsProperties":
         """Reconstruct StebbsProperties from DataFrame state format."""
-        # Extract the values from the DataFrame, using defaults for missing columns
-        params = {}
-        for field_name in cls.model_fields.keys():
+        tenmin_profile_fields = {"ApplianceProfile", "HotWaterFlowProfile"}
+        default_instance = cls()
+        params: Dict[str, object] = {}
+
+        for field_name, field_info in cls.model_fields.items():
             if field_name == "ref":
+                continue
+
+            if field_name in tenmin_profile_fields:
+                has_profile_columns = any(col[0] == field_name.lower() for col in df.columns)
+                if has_profile_columns:
+                    try:
+                        params[field_name] = TenMinuteProfile.from_df_state(
+                            df, grid_id, field_name.lower()
+                        )
+                    except KeyError:
+                        params[field_name] = getattr(default_instance, field_name)
+                else:
+                    params[field_name] = getattr(default_instance, field_name)
                 continue
 
             col = (field_name.lower(), "0")
             if col in df.columns:
-                params[field_name] = df.loc[grid_id, col]
+                value = df.loc[grid_id, col]
+                if pd.isna(value):
+                    params[field_name] = getattr(default_instance, field_name)
+                else:
+                    params[field_name] = RefValue(value)
             else:
-                # Use default value from field definition for missing columns
-                field_info = cls.model_fields[field_name]
-                if field_info.default is not None:
-                    params[field_name] = field_info.default
-                elif field_info.default_factory is not None:
-                    params[field_name] = field_info.default_factory()
+                params[field_name] = getattr(default_instance, field_name)
 
-        # Convert params to RefValue
-        params = {key: RefValue(value) for key, value in params.items()}
-
-        # Create an instance using the extracted parameters
         return cls(**params)
 
 

@@ -475,6 +475,10 @@ def load_SUEWS_SurfaceChar(path_input):
             "humactivity_24hr",
             "wuprofm_24hr",
             "wuprofa_24hr",
+            "heatingsetpointtemperature_24hr",
+            "coolingsetpointtemperature_24hr",
+            "occupantsprofile_24hr",
+            "applianceprofile_24hr",
         ]
         df_gridSurfaceChar.loc[xgrid, list_varTstep] = df_gridSurfaceChar.loc[
             xgrid, list_varTstep

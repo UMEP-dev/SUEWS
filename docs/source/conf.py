@@ -47,6 +47,15 @@ from pybtex.style.template import (
 import supy
 from sphinx_gallery.sorting import ExplicitOrder, FileNameSortKey
 
+# Check if DTS features are available in this build
+# The dts module may fail to import entirely if supy_driver has issues
+try:
+    from supy.dts import _DTS_AVAILABLE
+except Exception:
+    _DTS_AVAILABLE = False
+
+print(f"DEBUG: DTS available = {_DTS_AVAILABLE}")
+
 # -- Git version information --------------------------------------------------------
 
 # Import get_ver_git module
@@ -386,6 +395,17 @@ exclude_patterns = [
     "build",
     "auto_examples/.ipynb_checkpoints",  # sphinx-gallery generated notebooks
 ]
+
+# Conditionally exclude DTS documentation if DTS features not available
+# DTS requires a full build with type wrappers (make dev-dts)
+if _DTS_AVAILABLE:
+    tags.add("dts_available")
+else:
+    exclude_patterns.extend([
+        "api/dts.rst",
+        "api/generated/supy.dts.*",
+    ])
+
 # tags.add('html')
 # if tags.has('html'):
 #     exclude_patterns = ['references.rst']

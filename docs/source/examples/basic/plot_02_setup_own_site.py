@@ -147,8 +147,10 @@ print("Surface resistance parameters configured")
 #
 # Set the height where forcing variables are measured. This affects
 # the aerodynamic calculations.
+# Note: z must be above the displacement height (zdm), which is typically
+# about 2/3 of building height. Use 40m for typical sites with buildings.
 
-df_state_site.z = 10.0  # Measurement height (metres)
+df_state_site.z = 40.0  # Measurement height (metres)
 
 # Disable anthropogenic heat (rural site)
 df_state_site.popdensdaytime = 0
@@ -188,6 +190,11 @@ if _IS_CI:
     df_forcing_site = df_forcing_raw.loc["2010-01":"2010-03"]
 else:
     df_forcing_site = df_forcing_raw.loc["2010-01":"2010-06"]
+
+# Clean forcing data: clip small negative kdown values to 0
+# (common measurement noise from pyranometers at night)
+df_forcing_site = df_forcing_site.copy()
+df_forcing_site["kdown"] = df_forcing_site["kdown"].clip(lower=0)
 
 # Validate forcing data
 sp.check_forcing(df_forcing_site)
@@ -250,7 +257,7 @@ grid = df_state_site.index[0]
 df_results = df_suews.loc[grid]
 
 # Daily means
-df_daily = df_results.resample("1d").mean()
+df_daily = df_results.resample("1D").mean()
 
 dict_var_disp = {
     "QN": r"$Q^*$",
@@ -274,9 +281,9 @@ plt.show()
 #
 # Check how LAI evolves through the simulation based on temperature accumulation.
 
-df_daily_state = df_output.loc[grid, "DailyState"].dropna(how="all").resample("1d").mean()
+df_daily_state = df_output.loc[grid, "DailyState"].dropna(how="all").resample("1D").mean()
 
-if "LAI_Grass" in df_daily_state.columns:
+if "LAI_Grass" in df_daily_state.columns and not df_daily_state["LAI_Grass"].dropna().empty:
     fig, ax = plt.subplots(figsize=(10, 3))
     df_daily_state["LAI_Grass"].plot(ax=ax)
     ax.set_xlabel("Date")
@@ -285,7 +292,7 @@ if "LAI_Grass" in df_daily_state.columns:
     plt.tight_layout()
     plt.show()
 else:
-    print("LAI_Grass not available in DailyState output")
+    print("LAI_Grass not available or empty in DailyState output")
 
 # %%
 # Surface Resistance Analysis
@@ -296,7 +303,7 @@ else:
 ser_rs = df_results["RS"]
 
 # Daily median resistance (filter extreme values)
-df_rs_daily = ser_rs.between_time("10:00", "16:00").resample("1d").median()
+df_rs_daily = ser_rs.between_time("10:00", "16:00").resample("1D").median()
 df_rs_daily = df_rs_daily[df_rs_daily < 500]  # Filter outliers
 
 fig, ax = plt.subplots(figsize=(10, 3))

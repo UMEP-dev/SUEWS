@@ -49,9 +49,13 @@ _DTS_ERROR_MSG = (
 # This ensures real build/ABI failures are not silently masked
 from .. import supy_driver as _supy_driver
 
-# Check if DTS type modules exist (only present in full build)
-# module_type_heat is generated from suews_type_heat.f95 when type files are wrapped
-_DTS_AVAILABLE = hasattr(_supy_driver, "module_type_heat")
+# Check if DTS type classes exist (only present in full build with wrap_dts_types=true)
+# The module_type_heat module exists in both builds, but the HEATSTATE class
+# is only generated when DTS type wrappers are enabled
+_DTS_AVAILABLE = (
+    hasattr(_supy_driver, "module_type_heat") and
+    hasattr(_supy_driver.module_type_heat, "HEATSTATE")
+)
 
 
 def _check_dts_available():

@@ -374,17 +374,26 @@ class InitialStateVeg(SurfaceInitialState):
     )
     lai_id: FlexibleRefValue(float) = Field(
         description="Leaf area index at the start of the model run.",
-        json_schema_extra={"unit": "m^2 m^-2", "display_name": "Initial Leaf Area Index"},
+        json_schema_extra={
+            "unit": "m^2 m^-2",
+            "display_name": "Initial Leaf Area Index",
+        },
         default=1.0,
     )
     gdd_id: FlexibleRefValue(float) = Field(
         description="Growing degree days at the start of the model run",
-        json_schema_extra={"unit": "degC d", "display_name": "Initial Growing Degree Days"},
+        json_schema_extra={
+            "unit": "degC d",
+            "display_name": "Initial Growing Degree Days",
+        },
         default=0,
     )  # We need to check this and give info for setting values.
     sdd_id: FlexibleRefValue(float) = Field(
         description="Senescence degree days at the start of the model run",
-        json_schema_extra={"unit": "degC d", "display_name": "Initial Senescence Degree Days"},
+        json_schema_extra={
+            "unit": "degC d",
+            "display_name": "Initial Senescence Degree Days",
+        },
         default=0,
     )  # This need to be consistent with GDD.
     wu: WaterUse = Field(
@@ -982,6 +991,48 @@ class InitialStates(BaseModel):
             "internal_only": True,
         },
         description="Heating degree days and meteorological tracking parameters (internal use only)",
+    )
+
+    # Atmospheric state for continuation runs (resistance calculations)
+    l_mod: float = Field(
+        default=0.0,
+        description="Obukhov length [m] for stability calculations",
+        json_schema_extra={
+            "display_name": "Obukhov Length",
+            "internal_only": True,
+        },
+    )
+    ustar: float = Field(
+        default=0.0,
+        description="Friction velocity [m s-1]",
+        json_schema_extra={
+            "display_name": "Friction Velocity",
+            "internal_only": True,
+        },
+    )
+    ra_h: float = Field(
+        default=0.0,
+        description="Aerodynamic resistance for heat [s m-1]",
+        json_schema_extra={
+            "display_name": "Aerodynamic Resistance",
+            "internal_only": True,
+        },
+    )
+    rb: float = Field(
+        default=0.0,
+        description="Boundary layer resistance [s m-1]",
+        json_schema_extra={
+            "display_name": "Boundary Layer Resistance",
+            "internal_only": True,
+        },
+    )
+    rs: float = Field(
+        default=0.0,
+        description="Surface resistance [s m-1]",
+        json_schema_extra={
+            "display_name": "Surface Resistance",
+            "internal_only": True,
+        },
     )
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:

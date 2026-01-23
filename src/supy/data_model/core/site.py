@@ -1,9 +1,10 @@
 from typing import Optional
 from pydantic import ConfigDict, BaseModel, Field, model_validator
 from .type import RefValue, Reference, FlexibleRefValue
-from .profile import HourlyProfile
+from .profile import HourlyProfile, DayProfile, WeeklyProfile, TenMinuteProfile
 from .type import init_df_state
 from .timezone_enum import TimezoneOffset
+from ..._env import logger_supy
 from ..validation.core.utils import (
     warn_missing_params,
     check_missing_params,
@@ -25,7 +26,7 @@ from .hydro import (
 from .state import InitialStates
 
 import pandas as pd
-from typing import List, Literal, Union, Dict, Tuple
+from typing import ClassVar, List, Literal, Union, Dict, Tuple
 
 from datetime import datetime
 from pytz import timezone
@@ -45,11 +46,17 @@ class VegetationParams(BaseModel):
     )
     gdd_id: FlexibleRefValue(int) = Field(
         description="Growing degree days ID",
-        json_schema_extra={"unit": "degC d", "display_name": "Initial Growing Degree Days"},
+        json_schema_extra={
+            "unit": "degC d",
+            "display_name": "Initial Growing Degree Days",
+        },
     )
     sdd_id: FlexibleRefValue(int) = Field(
         description="Senescence degree days ID",
-        json_schema_extra={"unit": "degC d", "display_name": "Initial Senescence Degree Days"},
+        json_schema_extra={
+            "unit": "degC d",
+            "display_name": "Initial Senescence Degree Days",
+        },
     )
     lai: Dict[str, Union[FlexibleRefValue(float), List[FlexibleRefValue(float)]]] = (
         Field(
@@ -59,11 +66,17 @@ class VegetationParams(BaseModel):
     )
     ie_a: FlexibleRefValue(float) = Field(
         description="Irrigation efficiency coefficient a",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Automatic Irrigation Coefficient"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Automatic Irrigation Coefficient",
+        },
     )
     ie_m: FlexibleRefValue(float) = Field(
         description="Irrigation efficiency coefficient m",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Manual Irrigation Coefficient"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Manual Irrigation Coefficient",
+        },
     )
 
     ref: Optional[Reference] = None
@@ -81,12 +94,18 @@ class Conductance(BaseModel):
     g_max: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Maximum surface conductance for photosynthesis",
-        json_schema_extra={"unit": "mm s^-1", "display_name": "Maximum Surface Conductance"},
+        json_schema_extra={
+            "unit": "mm s^-1",
+            "display_name": "Maximum Surface Conductance",
+        },
     )
     g_k: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Conductance parameter related to incoming solar radiation",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Radiation Response Parameter"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Radiation Response Parameter",
+        },
     )
     g_q_base: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -96,17 +115,26 @@ class Conductance(BaseModel):
     g_q_shape: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Shape parameter for conductance related to vapour pressure deficit",
-        json_schema_extra={"unit": "dimensionless", "display_name": "VPD Response Shape Parameter"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "VPD Response Shape Parameter",
+        },
     )
     g_t: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Conductance parameter related to air temperature",
-        json_schema_extra={"unit": "degC", "display_name": "Temperature Response Parameter"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Temperature Response Parameter",
+        },
     )
     g_sm: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Conductance parameter related to soil moisture",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Soil Moisture Response Parameter"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Soil Moisture Response Parameter",
+        },
     )
     kmax: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -116,7 +144,10 @@ class Conductance(BaseModel):
     s1: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Lower soil moisture threshold for conductance response",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Lower Soil Moisture Threshold"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Lower Soil Moisture Threshold",
+        },
     )
     s2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -126,12 +157,18 @@ class Conductance(BaseModel):
     tl: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Lower air temperature threshold for conductance response",
-        json_schema_extra={"unit": "degC", "display_name": "Lower Temperature Threshold"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Lower Temperature Threshold",
+        },
     )
     th: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Upper air temperature threshold for conductance response",
-        json_schema_extra={"unit": "degC", "display_name": "Upper Temperature Threshold"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Upper Temperature Threshold",
+        },
     )
 
     ref: Optional[Reference] = Reference(ref="Test ref", DOI="test doi", ID="test id")
@@ -212,22 +249,34 @@ class LAIPowerCoefficients(BaseModel):
     growth_lai: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Power coefficient for LAI in growth equation (LAIPower[1])",
-        json_schema_extra={"unit": "dimensionless", "display_name": "LAI Growth Power Coefficient"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "LAI Growth Power Coefficient",
+        },
     )
     growth_gdd: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Power coefficient for GDD in growth equation (LAIPower[2])",
-        json_schema_extra={"unit": "dimensionless", "display_name": "GDD Growth Power Coefficient"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "GDD Growth Power Coefficient",
+        },
     )
     senescence_lai: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Power coefficient for LAI in senescence equation (LAIPower[3])",
-        json_schema_extra={"unit": "dimensionless", "display_name": "LAI Senescence Power Coefficient"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "LAI Senescence Power Coefficient",
+        },
     )
     senescence_sdd: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Power coefficient for SDD in senescence equation (LAIPower[4])",
-        json_schema_extra={"unit": "dimensionless", "display_name": "SDD Senescence Power Coefficient"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "SDD Senescence Power Coefficient",
+        },
     )
 
     ref: Optional[Reference] = None
@@ -306,22 +355,34 @@ class LAIParams(BaseModel):
     baset: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Base temperature for initiating growing degree days (GDD) for leaf growth",
-        json_schema_extra={"unit": "degC", "display_name": "Base Temperature for Growing Degree Days"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Base Temperature for Growing Degree Days",
+        },
     )
     gddfull: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Growing degree days (GDD) needed for full capacity of LAI",
-        json_schema_extra={"unit": "degC d", "display_name": "Growing Degree Days for Full LAI"},
+        json_schema_extra={
+            "unit": "degC d",
+            "display_name": "Growing Degree Days for Full LAI",
+        },
     )
     basete: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Base temperature for initiating senescence degree days (SDD) for leaf off",
-        json_schema_extra={"unit": "degC", "display_name": "Base Temperature for Senescence Degree Days"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Base Temperature for Senescence Degree Days",
+        },
     )
     sddfull: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Senescence degree days (SDD) needed to initiate leaf off",
-        json_schema_extra={"unit": "degC d", "display_name": "Senescence Degree Days for Leaf Off"},
+        json_schema_extra={
+            "unit": "degC d",
+            "display_name": "Senescence Degree Days for Leaf Off",
+        },
     )
     laimin: FlexibleRefValue(float) = Field(
         default=0.1,
@@ -340,7 +401,10 @@ class LAIParams(BaseModel):
     laitype: FlexibleRefValue(int) = Field(
         default=0,
         description="LAI calculation choice (0: original, 1: new high latitude)",
-        json_schema_extra={"unit": "dimensionless", "display_name": "LAI Calculation Method"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "LAI Calculation Method",
+        },
     )
 
     ref: Optional[Reference] = None
@@ -473,27 +537,42 @@ class VegetatedSurfaceProperties(SurfaceProperties):
     beta_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Light-saturated gross photosynthesis rate of the canopy",
-        json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Biogenic CO2 Beta Coefficient"},
+        json_schema_extra={
+            "unit": "umol m^-2 s^-1",
+            "display_name": "Biogenic CO2 Beta Coefficient",
+        },
     )
     beta_enh_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=0.7,
         description="Enhanced photosynthesis coefficient related to vegetation fraction",
-        json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Biogenic CO2 Enhanced Beta"},
+        json_schema_extra={
+            "unit": "umol m^-2 s^-1",
+            "display_name": "Biogenic CO2 Enhanced Beta",
+        },
     )
     alpha_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Mean apparent ecosystem quantum yield (initial slope of light-response curve)",
-        json_schema_extra={"unit": "umol CO2 / umol photons", "display_name": "Biogenic CO2 Alpha Coefficient"},
+        json_schema_extra={
+            "unit": "umol CO2 / umol photons",
+            "display_name": "Biogenic CO2 Alpha Coefficient",
+        },
     )
     alpha_enh_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Enhanced quantum yield coefficient related to vegetation fraction",
-        json_schema_extra={"unit": "umol CO2 / umol photons", "display_name": "Biogenic CO2 Enhanced Alpha"},
+        json_schema_extra={
+            "unit": "umol CO2 / umol photons",
+            "display_name": "Biogenic CO2 Enhanced Alpha",
+        },
     )
     resp_a: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Base respiration rate coefficient",
-        json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Respiration Coefficient A"},
+        json_schema_extra={
+            "unit": "umol m^-2 s^-1",
+            "display_name": "Respiration Coefficient A",
+        },
     )
     resp_b: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -503,7 +582,10 @@ class VegetatedSurfaceProperties(SurfaceProperties):
     theta_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Curvature parameter for non-rectangular hyperbola at light saturation",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Biogenic CO2 Theta Parameter"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Biogenic CO2 Theta Parameter",
+        },
     )
     maxconductance: FlexibleRefValue(float) = Field(
         default=0.5,
@@ -513,7 +595,10 @@ class VegetatedSurfaceProperties(SurfaceProperties):
     min_res_bioco2: Optional[FlexibleRefValue(float)] = Field(
         default=0.1,
         description="Minimum soil respiration rate for cold-temperature limit",
-        json_schema_extra={"unit": "umol m^-2 s^-1", "display_name": "Biogenic CO2 Minimum Respiration"},
+        json_schema_extra={
+            "unit": "umol m^-2 s^-1",
+            "display_name": "Biogenic CO2 Minimum Respiration",
+        },
     )
     lai: LAIParams = Field(
         default_factory=LAIParams, description="Leaf area index parameters"
@@ -521,12 +606,18 @@ class VegetatedSurfaceProperties(SurfaceProperties):
     ie_a: FlexibleRefValue(float) = Field(
         default=0.5,
         description="Irrigation efficiency coefficient-automatic",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Automatic Irrigation Coefficient"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Automatic Irrigation Coefficient",
+        },
     )
     ie_m: FlexibleRefValue(float) = Field(
         default=0.6,
         description="Irrigation efficiency coefficient-manual",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Manual Irrigation Coefficient"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Manual Irrigation Coefficient",
+        },
     )
 
     ref: Optional[Reference] = None
@@ -634,7 +725,10 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
     faievetree: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Frontal area index of evergreen trees",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Evergreen Tree Frontal Area Index"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Evergreen Tree Frontal Area Index",
+        },
     )
     evetreeh: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -724,7 +818,10 @@ class DectrProperties(VegetatedSurfaceProperties):
     faidectree: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Frontal area index of deciduous trees",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Deciduous Tree Frontal Area Index"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Deciduous Tree Frontal Area Index",
+        },
     )
     dectreeh: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -736,14 +833,20 @@ class DectrProperties(VegetatedSurfaceProperties):
         le=0.9,
         default=0.2,
         description="Minimum porosity",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Deciduous Minimum Porosity"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Deciduous Minimum Porosity",
+        },
     )  # pormin_dec cannot be less than 0.1 and greater than 0.9
     pormax_dec: FlexibleRefValue(float) = Field(
         ge=0.1,
         le=0.9,
         default=0.6,
         description="Maximum porosity",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Deciduous Maximum Porosity"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Deciduous Maximum Porosity",
+        },
     )  # pormax_dec cannot be less than 0.1 and greater than 0.9
     capmax_dec: FlexibleRefValue(float) = Field(
         default=100.0,
@@ -906,12 +1009,18 @@ class SnowParams(BaseModel):
     crwmax: FlexibleRefValue(float) = Field(
         default=0.1,
         description="Maximum water holding capacity of snow",
-        json_schema_extra={"unit": "mm", "display_name": "Maximum Water Retention Capacity"},
+        json_schema_extra={
+            "unit": "mm",
+            "display_name": "Maximum Water Retention Capacity",
+        },
     )
     crwmin: FlexibleRefValue(float) = Field(
         default=0.05,
         description="Minimum water holding capacity of snow",
-        json_schema_extra={"unit": "mm", "display_name": "Minimum Water Retention Capacity"},
+        json_schema_extra={
+            "unit": "mm",
+            "display_name": "Minimum Water Retention Capacity",
+        },
     )
     narp_emis_snow: FlexibleRefValue(float) = Field(
         default=0.99,
@@ -923,7 +1032,10 @@ class SnowParams(BaseModel):
     preciplimit: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Temperature threshold for snow vs rain precipitation",
-        json_schema_extra={"unit": "degC", "display_name": "Precipitation Temperature Limit"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Precipitation Temperature Limit",
+        },
     )
     preciplimitalb: FlexibleRefValue(float) = Field(
         default=0.1,
@@ -934,12 +1046,18 @@ class SnowParams(BaseModel):
     snowalbmax: FlexibleRefValue(float) = Field(
         default=0.85,
         description="Maximum snow albedo",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Maximum Snow Albedo"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Maximum Snow Albedo",
+        },
     )
     snowalbmin: FlexibleRefValue(float) = Field(
         default=0.4,
         description="Minimum snow albedo",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Minimum Snow Albedo"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Minimum Snow Albedo",
+        },
     )
     snowdensmin: Optional[FlexibleRefValue(float)] = Field(
         default=None,
@@ -967,27 +1085,42 @@ class SnowParams(BaseModel):
     tau_a: FlexibleRefValue(float) = Field(
         default=0.018,
         description="Time constant for snow albedo aging in cold snow",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Snow Albedo Ageing Time (Cold)"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Snow Albedo Ageing Time (Cold)",
+        },
     )
     tau_f: FlexibleRefValue(float) = Field(
         default=0.11,
         description="Time constant for snow albedo aging in melting snow",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Snow Albedo Ageing Time (Melting)"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Snow Albedo Ageing Time (Melting)",
+        },
     )
     tau_r: FlexibleRefValue(float) = Field(
         default=0.05,
         description="Time constant for snow albedo aging in refreezing snow",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Snow Albedo Ageing Time (Refreezing)"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Snow Albedo Ageing Time (Refreezing)",
+        },
     )
     tempmeltfact: FlexibleRefValue(float) = Field(
         default=0.12,
         description="Hourly temperature melt factor of snow",
-        json_schema_extra={"unit": "mm K^-1 h^-1", "display_name": "Temperature Melt Factor"},
+        json_schema_extra={
+            "unit": "mm K^-1 h^-1",
+            "display_name": "Temperature Melt Factor",
+        },
     )
     radmeltfact: FlexibleRefValue(float) = Field(
         default=0.0016,
         description="Hourly radiation melt factor of snow",
-        json_schema_extra={"unit": "mm W^-1 m^2 h^-1", "display_name": "Radiation Melt Factor"},
+        json_schema_extra={
+            "unit": "mm W^-1 m^2 h^-1",
+            "display_name": "Radiation Melt Factor",
+        },
     )
 
     ref: Optional[Reference] = None
@@ -1258,7 +1391,10 @@ class ArchetypeProperties(BaseModel):
     WWR: Optional[FlexibleRefValue(float)] = Field(
         default=0.20,
         description="window to wall ratio [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Window to Wall Ratio"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Window to Wall Ratio",
+        },
         ge=0.0,
         le=1.0,
     )
@@ -1312,13 +1448,19 @@ class ArchetypeProperties(BaseModel):
     WallextCp: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
         description="Effective specific heat capacity of layers external to insulation in walls [J kg-1 K-1]",
-        json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Wall Ext Specific Heat"},
+        json_schema_extra={
+            "unit": "J kg^-1 K^-1",
+            "display_name": "Wall Ext Specific Heat",
+        },
         gt=0.0,
     )
     WallOuterCapFrac: Optional[FlexibleRefValue(float)] = Field(
         default=1.0,
         description="Weighting factor for heat capacity of walls [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Wall Outer Capacity Fraction"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Wall Outer Capacity Fraction",
+        },
         ge=0.0,
         le=1.0,
     )
@@ -1355,14 +1497,20 @@ class ArchetypeProperties(BaseModel):
     WallAbsorbtivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.8,
         description="Absorbtivity of walls [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Wall Absorptivity"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Wall Absorptivity",
+        },
         ge=0.0,
         le=1.0,
     )
     WallReflectivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.2,
         description="Reflectivity of the external surface of walls [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Wall Reflectivity"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Wall Reflectivity",
+        },
         ge=0.0,
         le=1.0,
     )
@@ -1416,13 +1564,19 @@ class ArchetypeProperties(BaseModel):
     RoofextCp: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
         description="Effective specific heat capacity of layers external to insulation in roof [J kg-1 K-1]",
-        json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Roof Ext Specific Heat"},
+        json_schema_extra={
+            "unit": "J kg^-1 K^-1",
+            "display_name": "Roof Ext Specific Heat",
+        },
         gt=0.0,
     )
     RoofOuterCapFrac: Optional[FlexibleRefValue(float)] = Field(
         default=1.0,
         description="Weighting factor for heat capacity of roof [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Roof Outer Capacity Fraction"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Roof Outer Capacity Fraction",
+        },
         ge=0.0,
         le=1.0,
     )
@@ -1459,14 +1613,20 @@ class ArchetypeProperties(BaseModel):
     RoofAbsorbtivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.8,
         description="Absorbtivity of roof [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Roof Absorptivity"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Roof Absorptivity",
+        },
         ge=0.0,
         le=1.0,
     )
     RoofReflectivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.2,
         description="Reflectivity of the external surface of roof [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Roof Reflectivity"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Roof Reflectivity",
+        },
         ge=0.0,
         le=1.0,
     )
@@ -1494,7 +1654,10 @@ class ArchetypeProperties(BaseModel):
     GroundFloorCp: Optional[FlexibleRefValue(float)] = Field(
         default=1500.0,
         description="Effective specific heat capacity of the ground floor [J kg-1 K-1]",
-        json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Ground Floor Specific Heat"},
+        json_schema_extra={
+            "unit": "J kg^-1 K^-1",
+            "display_name": "Ground Floor Specific Heat",
+        },
         gt=0.0,
     )
     WindowThickness: Optional[FlexibleRefValue(float)] = Field(
@@ -1521,7 +1684,10 @@ class ArchetypeProperties(BaseModel):
     WindowCp: Optional[FlexibleRefValue(float)] = Field(
         default=840.0,
         description="Effective specific heat capacity of windows [J kg-1 K-1]",
-        json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Window Specific Heat"},
+        json_schema_extra={
+            "unit": "J kg^-1 K^-1",
+            "display_name": "Window Specific Heat",
+        },
         gt=0.0,
     )
     WindowExternalEmissivity: Optional[FlexibleRefValue(float)] = Field(
@@ -1583,7 +1749,10 @@ class ArchetypeProperties(BaseModel):
     InternalMassCp: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Effective specific heat capacity of internal mass [J kg-1 K-1]",
-        json_schema_extra={"unit": "J kg^-1 K^-1", "display_name": "Internal Mass Specific Heat"},
+        json_schema_extra={
+            "unit": "J kg^-1 K^-1",
+            "display_name": "Internal Mass Specific Heat",
+        },
     )
     InternalMassEmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -1610,85 +1779,117 @@ class ArchetypeProperties(BaseModel):
     MaximumHotWaterHeatingPower: Optional[FlexibleRefValue(float)] = Field(
         default=3000.0,
         description="Maximum power demand of water heating system [W]",
-        json_schema_extra={"unit": "W", "display_name": "Maximum Hot Water Heating Power"},
+        json_schema_extra={
+            "unit": "W",
+            "display_name": "Maximum Hot Water Heating Power",
+        },
         gt=0.0,
     )
-    HeatingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Heating setpoint temperature [degC]",
+    HeatingSetpointTemperature: Optional[TenMinuteProfile] = Field(
+        default_factory=TenMinuteProfile,  
+        description="Heating setpoint temperature [degC] profile.",
         json_schema_extra={
             "unit": "degC",
             "display_name": "Heating Setpoint Temperature",
         },
     )
-    CoolingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Cooling setpoint temperature [degC]",
+    CoolingSetpointTemperature: Optional[TenMinuteProfile] = Field(
+        default_factory=TenMinuteProfile, 
+        description="Cooling setpoint temperature [degC] profile.",
         json_schema_extra={
             "unit": "degC",
             "display_name": "Cooling Setpoint Temperature",
         },
     )
 
+    OccupantsProfile: Optional[TenMinuteProfile] = Field(
+        default_factory=TenMinuteProfile,
+        description="Profile of number of occupants in building [-]",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Occupants Profile",
+        },
+    )
+
     ref: Optional[Reference] = None
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        """Convert ArchetypeProperties to DataFrame state format."""
-
         df_state = init_df_state(grid_id)
 
-        # Create an empty DataFrame with MultiIndex columns
-        columns = [
-            (field.lower(), "0")
-            for field in self.__class__.model_fields.keys()
-            if field != "ref"
-        ]
-        df_state = pd.DataFrame(
-            index=[grid_id], columns=pd.MultiIndex.from_tuples(columns)
-        )
+        string_fields = {"BuildingType", "BuildingName"}
+        ten_minute_profile_fields = {"HeatingSetpointTemperature", "CoolingSetpointTemperature", "OccupantsProfile"}
+        excluded_fields = string_fields | ten_minute_profile_fields | {"ref"}
 
-        # Set the values in the DataFrame
-        for field_name, field_info in self.__class__.model_fields.items():
-            if field_name == "ref":
+        for field_name in self.model_fields:
+            if field_name in excluded_fields:
                 continue
-            attribute = getattr(self, field_name)
-            if isinstance(attribute, RefValue):
-                value = attribute.value
-            else:
-                value = attribute
+            field_val = getattr(self, field_name)
+            value = field_val.value if isinstance(field_val, RefValue) else field_val
             df_state.loc[grid_id, (field_name.lower(), "0")] = value
+
+        for field_name in string_fields:
+            value = getattr(self, field_name)
+            df_state.loc[grid_id, (field_name.lower(), "0")] = value
+
+        for field_name in ten_minute_profile_fields:
+            profile = getattr(self, field_name)
+            if profile is None:
+                continue
+            df_profile = profile.to_df_state(grid_id, field_name.lower())
+            df_state = df_state.combine_first(df_profile)
 
         return df_state
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ArchetypeProperties":
-        """Reconstruct ArchetypeProperties from DataFrame state format."""
-        # Extract the values from the DataFrame, using defaults for missing columns
-        params = {}
-        for field_name in cls.model_fields.keys():
+        string_fields = {"BuildingType", "BuildingName"}
+        ten_minute_profile_fields = {"HeatingSetpointTemperature", "CoolingSetpointTemperature", "OccupantsProfile"}
+
+        default_instance = cls()
+        params: Dict[str, object] = {}
+
+        for field_name, field_info in cls.model_fields.items():
             if field_name == "ref":
+                continue
+
+            if field_name in string_fields:
+                col = (field_name.lower(), "0")
+                if col in df.columns:
+                    value = df.loc[grid_id, col]
+                    params[field_name] = (
+                        getattr(default_instance, field_name)
+                        if pd.isna(value)
+                        else value
+                    )
+                else:
+                    params[field_name] = getattr(default_instance, field_name)
+                continue
+
+            if field_name in ten_minute_profile_fields:
+                has_profile_columns = any(col[0] == field_name.lower() for col in df.columns)
+                if has_profile_columns:
+                    try:
+                        params[field_name] = TenMinuteProfile.from_df_state(
+                            df, grid_id, field_name.lower()
+                        )
+                    except KeyError:
+                        params[field_name] = getattr(default_instance, field_name)
+                else:
+                    params[field_name] = getattr(default_instance, field_name)
                 continue
 
             col = (field_name.lower(), "0")
             if col in df.columns:
-                params[field_name] = df.loc[grid_id, col]
+                value = df.loc[grid_id, col]
+                if pd.isna(value):
+                    params[field_name] = getattr(default_instance, field_name)
+                else:
+                    params[field_name] = RefValue(value)
             else:
-                # Use default value from field definition for missing columns
-                field_info = cls.model_fields[field_name]
-                if field_info.default is not None:
-                    params[field_name] = field_info.default
-                elif field_info.default_factory is not None:
-                    params[field_name] = field_info.default_factory()
+                params[field_name] = getattr(default_instance, field_name)
 
-        # Convert params to RefValue
-        non_value_with_doi = ["BuildingType", "BuildingName"]
-        params = {
-            key: (RefValue(value) if key not in non_value_with_doi else value)
-            for key, value in params.items()
-        }
-
-        # Create an instance using the extracted parameters
         return cls(**params)
+
 
 
 class StebbsProperties(BaseModel):
@@ -1808,25 +2009,6 @@ class StebbsProperties(BaseModel):
         json_schema_extra={"unit": "W", "display_name": "Appliance Rating"},
         ge=0.0,
     )
-    TotalNumberofAppliances: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Number of appliances present in building [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Total Number of Appliances",
-        },
-        ge=0.0,
-    )
-    ApplianceUsageFactor: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Number of appliances in use [-]",
-        json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Appliance Usage Factor",
-        },
-        ge=0.0,
-        le=1.0,
-    )
     HeatingSystemEfficiency: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Efficiency of space heating system [-]",
@@ -1846,7 +2028,10 @@ class StebbsProperties(BaseModel):
     CoolingSystemCOP: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Coefficient of performance of cooling system [-]",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Cooling System COP"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Cooling System COP",
+        },
         ge=0.0,
     )
     VentilationRate: Optional[FlexibleRefValue(float)] = Field(
@@ -1943,12 +2128,15 @@ class StebbsProperties(BaseModel):
         json_schema_extra={"unit": "m^3 s^-1", "display_name": "Hot Water Flow Rate"},
         ge=0.0,
     )
-    DHWDrainFlowRate: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Flow rate of hot water held in building to drain [m3 s-1]",
-        json_schema_extra={"unit": "m^3 s^-1", "display_name": "DHW Drain Flow Rate"},
-        ge=0.0,
-    )
+
+    HotWaterFlowProfile: Optional[TenMinuteProfile] = Field(
+        default_factory=TenMinuteProfile,
+        description="Profile of hot water flow rate from tank to vessel [m3 s-1]",
+        json_schema_extra={
+            "unit": "m^3 s^-1", "display_name": "Hot Water Flow Profile"
+        },
+    )   
+
     DHWSpecificHeatCapacity: Optional[FlexibleRefValue(float)] = Field(
         default=4186.0,
         description="Specific heat capacity of hot water [J kg-1 K-1]",
@@ -2098,14 +2286,29 @@ class StebbsProperties(BaseModel):
     MinimumVolumeOfDHWinUse: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Minimum volume of hot water in use [m3]",
-        json_schema_extra={"unit": "m^3", "display_name": "Minimum Volume of DHW in Use"},
+        json_schema_extra={
+            "unit": "m^3",
+            "display_name": "Minimum Volume of DHW in Use",
+        },
         ge=0.0,
     )
     MaximumVolumeOfDHWinUse: Optional[FlexibleRefValue(float)] = Field(
         default=100.0,
         description="Maximum volume of hot water in use [m3]. Default is arbitrary placeholder to be refined with validation.",
-        json_schema_extra={"unit": "m^3", "display_name": "Maximum Volume of DHW in Use"},
+        json_schema_extra={
+            "unit": "m^3",
+            "display_name": "Maximum Volume of DHW in Use",
+        },
         ge=0.0,
+    )
+
+    ApplianceProfile: Optional[TenMinuteProfile] = Field(
+        default_factory=TenMinuteProfile,
+        description="10-minute profile of appliance usage factor in building [-]",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Appliance Profile",
+        },
     )
 
     ref: Optional[Reference] = None
@@ -2114,50 +2317,61 @@ class StebbsProperties(BaseModel):
         """Convert StebbsProperties to DataFrame state format."""
         df_state = init_df_state(grid_id)
 
-        # Create an empty DataFrame with MultiIndex columns
-        columns = [
-            (field.lower(), "0")
-            for field in self.__class__.model_fields.keys()
-            if field != "ref"
-        ]
-        df_state = pd.DataFrame(
-            index=[grid_id], columns=pd.MultiIndex.from_tuples(columns)
-        )
+        tenmin_profile_fields = {"ApplianceProfile", "HotWaterFlowProfile"}
+        excluded_fields = tenmin_profile_fields | {"ref"}
 
-        # Set the values in the DataFrame
-        for field_name, field_info in self.__class__.model_fields.items():
-            if field_name == "ref":
+        # scalar fields
+        for field_name in self.model_fields:
+            if field_name in excluded_fields:
                 continue
             field_val = getattr(self, field_name)
-            val = field_val.value if isinstance(field_val, RefValue) else field_val
-            df_state.loc[grid_id, (field_name.lower(), "0")] = val
+            value = field_val.value if isinstance(field_val, RefValue) else field_val
+            df_state.loc[grid_id, (field_name.lower(), "0")] = value
+
+        # 10-minute profile fields
+        for field_name in tenmin_profile_fields:
+            profile = getattr(self, field_name)
+            if profile is None:
+                continue
+            df_profile = profile.to_df_state(grid_id, field_name.lower())
+            df_state = df_state.combine_first(df_profile)
 
         return df_state
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "StebbsProperties":
         """Reconstruct StebbsProperties from DataFrame state format."""
-        # Extract the values from the DataFrame, using defaults for missing columns
-        params = {}
-        for field_name in cls.model_fields.keys():
+        tenmin_profile_fields = {"ApplianceProfile", "HotWaterFlowProfile"}
+        default_instance = cls()
+        params: Dict[str, object] = {}
+
+        for field_name, field_info in cls.model_fields.items():
             if field_name == "ref":
+                continue
+
+            if field_name in tenmin_profile_fields:
+                has_profile_columns = any(col[0] == field_name.lower() for col in df.columns)
+                if has_profile_columns:
+                    try:
+                        params[field_name] = TenMinuteProfile.from_df_state(
+                            df, grid_id, field_name.lower()
+                        )
+                    except KeyError:
+                        params[field_name] = getattr(default_instance, field_name)
+                else:
+                    params[field_name] = getattr(default_instance, field_name)
                 continue
 
             col = (field_name.lower(), "0")
             if col in df.columns:
-                params[field_name] = df.loc[grid_id, col]
+                value = df.loc[grid_id, col]
+                if pd.isna(value):
+                    params[field_name] = getattr(default_instance, field_name)
+                else:
+                    params[field_name] = RefValue(value)
             else:
-                # Use default value from field definition for missing columns
-                field_info = cls.model_fields[field_name]
-                if field_info.default is not None:
-                    params[field_name] = field_info.default
-                elif field_info.default_factory is not None:
-                    params[field_name] = field_info.default_factory()
+                params[field_name] = getattr(default_instance, field_name)
 
-        # Convert params to RefValue
-        params = {key: RefValue(value) for key, value in params.items()}
-
-        # Create an instance using the extracted parameters
         return cls(**params)
 
 
@@ -2344,6 +2558,97 @@ class SPARTACUSParams(BaseModel):
         params = {
             param: RefValue(df.loc[grid_id, (param, "0")]) for param in spartacus_params
         }
+
+        return cls(**params)
+
+
+class SoilObservationConfig(BaseModel):
+    """Configuration for observed soil moisture measurements.
+
+    Required when SMDMethod = 1 (volumetric) or 2 (gravimetric).
+    These parameters describe the sensor installation and measurement setup,
+    not the physical soil properties used by the SUEWS water balance model.
+
+    Note:
+        - `depth`: Where the sensor is installed, not SUEWS's modelled soil depth
+        - `smcap`: Maximum observable moisture, not SUEWS's soil storage capacity
+        - `bulk_density`: Only used for gravimetric (SMDMethod=2) conversion
+    """
+
+    model_config = ConfigDict(title="Soil Observation Configuration")
+
+    depth: FlexibleRefValue(float) = Field(
+        gt=0,
+        description="Depth of the soil moisture sensor installation",
+        json_schema_extra={"unit": "mm", "display_name": "Observation Depth"},
+    )
+    smcap: FlexibleRefValue(float) = Field(
+        gt=0,
+        description=(
+            "Maximum observable soil moisture (saturated θ or w at sensor location). "
+            "For volumetric (SMDMethod=1), this is typically ≤1.0 (m³/m³). "
+            "For gravimetric (SMDMethod=2), values >1.0 are possible (g water/g dry soil)."
+        ),
+        json_schema_extra={
+            "unit": "fraction or g/g",
+            "display_name": "Saturation Capacity",
+        },
+    )
+    soil_not_rocks: FlexibleRefValue(float) = Field(
+        gt=0,
+        le=1,
+        description="Fraction of the measured soil volume that is soil (not rocks)",
+        json_schema_extra={"unit": "dimensionless", "display_name": "Soil Fraction"},
+    )
+    bulk_density: FlexibleRefValue(float) = Field(
+        gt=0,
+        description="Soil bulk density at the measurement point (used for gravimetric conversion)",
+        json_schema_extra={"unit": "g cm^-3", "display_name": "Bulk Density"},
+    )
+
+    ref: Optional[Reference] = None
+
+    # Map field names to df_state column names (all use obs_sm_ prefix)
+    _FIELD_TO_COLUMN: ClassVar[Dict[str, str]] = {
+        "depth": "obs_sm_depth",
+        "smcap": "obs_sm_smcap",
+        "soil_not_rocks": "obs_sm_soil_not_rocks",
+        "bulk_density": "obs_sm_bulk_density",
+    }
+
+    def to_df_state(self, grid_id: int) -> pd.DataFrame:
+        """Convert soil observation config to DataFrame state format."""
+        df_state = init_df_state(grid_id)
+
+        for attr, col_name in self._FIELD_TO_COLUMN.items():
+            field_val = getattr(self, attr)
+            val = field_val.value if isinstance(field_val, RefValue) else field_val
+            df_state[(col_name, "0")] = val
+
+        return df_state
+
+    @classmethod
+    def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "SoilObservationConfig":
+        """Create SoilObservationConfig from DataFrame state format."""
+        params = {}
+
+        for field_name, col_name in cls._FIELD_TO_COLUMN.items():
+            if (col_name, "0") in df.columns:
+                val = df.loc[grid_id, (col_name, "0")]
+                if val is not None and not pd.isna(val) and val > -998:
+                    params[field_name] = RefValue(val)
+
+        # Return None if no valid parameters found (all 4 required)
+        if len(params) < 4:
+            if params:
+                # Log partial metadata for debugging
+                logger_supy.debug(
+                    "Grid %d: partial soil observation metadata found (%d/4 fields), "
+                    "skipping soil observation config",
+                    grid_id,
+                    len(params),
+                )
+            return None
 
         return cls(**params)
 
@@ -2547,6 +2852,10 @@ class SiteProperties(BaseModel):
     snow: SnowParams = Field(
         default_factory=SnowParams, description="Parameters for snow modelling"
     )
+    soil_observation: Optional[SoilObservationConfig] = Field(
+        default=None,
+        description="Soil moisture observation metadata (required if SMDMethod > 0)",
+    )
     land_cover: LandCover = Field(
         default_factory=LandCover,
         description="Parameters for land cover characteristics",
@@ -2650,22 +2959,26 @@ class SiteProperties(BaseModel):
         df_stebbs = self.stebbs.to_df_state(grid_id)
         df_building_archetype = self.building_archetype.to_df_state(grid_id)
 
-        df_state = pd.concat(
-            [
-                df_state,
-                df_lumps,
-                df_spartacus,
-                df_conductance,
-                df_irrigation,
-                df_anthropogenic_emissions,
-                df_snow,
-                df_land_cover,
-                df_vertical_layers,
-                df_stebbs,
-                df_building_archetype,
-            ],
-            axis=1,
-        )
+        dfs_to_concat = [
+            df_state,
+            df_lumps,
+            df_spartacus,
+            df_conductance,
+            df_irrigation,
+            df_anthropogenic_emissions,
+            df_snow,
+            df_land_cover,
+            df_vertical_layers,
+            df_stebbs,
+            df_building_archetype,
+        ]
+
+        # Optional soil observation config (only when SMDMethod > 0)
+        if self.soil_observation is not None:
+            df_soil_obs = self.soil_observation.to_df_state(grid_id)
+            dfs_to_concat.append(df_soil_obs)
+
+        df_state = pd.concat(dfs_to_concat, axis=1)
         return df_state
 
     @classmethod
@@ -2724,6 +3037,9 @@ class SiteProperties(BaseModel):
 
         params["stebbs"] = StebbsProperties.from_df_state(df, grid_id)
         params["building_archetype"] = ArchetypeProperties.from_df_state(df, grid_id)
+
+        # Optional soil observation config (returns None if not present)
+        params["soil_observation"] = SoilObservationConfig.from_df_state(df, grid_id)
 
         return cls(**params)
 

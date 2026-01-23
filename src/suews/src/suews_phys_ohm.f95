@@ -6,7 +6,9 @@ MODULE module_phys_ohm
    ! USE module_ctrl_const_gis
    ! USE module_ctrl_const_sues
    ! USE module_ctrl_const_time
-   USE module_ctrl_error_state, ONLY: set_supy_error
+   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
+   USE module_ctrl_error, ONLY: ErrorHint
+   USE module_ctrl_type, ONLY: SUEWS_STATE, SUEWS_TIMER
 
    IMPLICIT NONE
 CONTAINS
@@ -21,7 +23,7 @@ CONTAINS
                   soilstore_id, SoilStoreCap, state_id, &
                   BldgSurf, WaterSurf, &
                   SnowUse, SnowFrac, &
-                  ws, T_hbh_C, T_prev, &
+                  ws, T_half_bldg_C, T_prev, &
                   ws_rav, qn_rav, nlayer, &
                   dz_roof, cp_roof, k_roof, &
                   dz_wall, cp_wall, k_wall, &
@@ -34,8 +36,9 @@ CONTAINS
                   a1_dectr, a2_dectr, a3_dectr, &
                   a1_grass, a2_grass, a3_grass, &
                   a1_bsoil, a2_bsoil, a3_bsoil, &
-                  a1_water, a2_water, a3_water, & 
-                  a1, a2, a3, qs, deltaQi)
+                  a1_water, a2_water, a3_water, &
+                  a1, a2, a3, qs, deltaQi, &
+                  modState)
       ! Made by HCW Jan 2015 to replace OHMnew (no longer needed).
       ! Calculates net storage heat flux (QS) from Eq 4, Grimmond et al. 1991, Atm Env.
       ! Accounts for variable timesteps in dQ*/dt term.
@@ -112,7 +115,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: deltaQi(nsurf) ! storage heat flux of snow surfaces
 
       REAL(KIND(1D0)), INTENT(in) :: ws ! wind speed at half building height [m/s]
-      REAL(KIND(1D0)), INTENT(in) :: T_hbh_C ! current half building height temperature [°C]
+      REAL(KIND(1D0)), INTENT(in) :: T_half_bldg_C ! current half building height temperature [°C]
       REAL(KIND(1D0)), INTENT(inout) :: T_prev ! previous midnight air temperature [°C]
       REAL(KIND(1D0)), INTENT(inout) :: ws_rav ! running average of wind speed [m/s]
       REAL(KIND(1D0)), INTENT(inout) :: qn_rav ! running average of net all-wave radiation [W m-2]
@@ -141,6 +144,7 @@ CONTAINS
                                           a1_bsoil, a2_bsoil, a3_bsoil, &
                                           a1_water, a2_water, a3_water ! Dynamic OHM coefficients of other 6 surface types
       REAL(KIND(1D0)), INTENT(out) :: a1, a2, a3 ! OHM coefficients of grid
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       ! REAL(KIND(1d0)):: nsh_nna ! number of timesteps per hour with non -999 values (used for spinup)
 
@@ -192,43 +196,43 @@ CONTAINS
 
             IF (first_tstep_Q .AND. new_day == 1) THEN
                CALL OHM_yl_cal(dt_since_start, &
-                               ws_rav, T_hbh_C, T_prev, qn_rav, & ! Input
+                               ws_rav, T_half_bldg_C, T_prev, qn_rav, & ! Input
                                dz_wall(1, 1), cp_wall(1, 1), k_wall(1, 1), lambda_c, &
                                a1_bldg, a2_bldg, a3_bldg & ! Output
                                )
                !test: using dyOHM for other surface types, assume WS=0 at ground level, lambda_c=1
                CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_hbh_C, T_prev, qn_rav, & ! Input
+                               ws0, T_half_bldg_C, T_prev, qn_rav, & ! Input
                                dz_surf(1, 1), cp_surf(1, 1), k_surf(1, 1), lambda_c1, &
                                a1_paved, a2_paved, a3_paved & ! Output
                                )         
                CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_hbh_C, T_prev, qn_rav, & ! Input
+                               ws0, T_half_bldg_C, T_prev, qn_rav, & ! Input
                                dz_surf(3, 1), cp_surf(3, 1), k_surf(3, 1), lambda_c1, &
                                a1_evetr, a2_evetr, a3_evetr & ! Output
                                )    
                CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_hbh_C, T_prev, qn_rav, & ! Input
+                               ws0, T_half_bldg_C, T_prev, qn_rav, & ! Input
                                dz_surf(4, 1), cp_surf(4, 1), k_surf(4, 1), lambda_c1, &
                                a1_dectr, a2_dectr, a3_dectr & ! Output
                                )                                                                                                                               
                CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_hbh_C, T_prev, qn_rav, & ! Input
+                               ws0, T_half_bldg_C, T_prev, qn_rav, & ! Input
                                dz_surf(5, 1), cp_surf(5, 1), k_surf(5, 1), lambda_c1, &
                                a1_grass, a2_grass, a3_grass & ! Output
                                )  
                CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_hbh_C, T_prev, qn_rav, & ! Input
+                               ws0, T_half_bldg_C, T_prev, qn_rav, & ! Input
                                dz_surf(6, 1), cp_surf(6, 1), k_surf(6, 1), lambda_c1, &
                                a1_bsoil, a2_bsoil, a3_bsoil & ! Output
                                )  
                CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_hbh_C, T_prev, qn_rav, & ! Input
+                               ws0, T_half_bldg_C, T_prev, qn_rav, & ! Input
                                dz_surf(7, 1), cp_surf(7, 1), k_surf(7, 1), lambda_c1, &
                                a1_water, a2_water, a3_water & ! Output
                                )                                                                                                                                                                                                                                                      
                new_day = 0
-               T_prev = T_hbh_C
+               T_prev = T_half_bldg_C
             ELSE IF (last_tstep_Q) THEN
                new_day = 1
             END IF
@@ -409,7 +413,8 @@ CONTAINS
          IF (DiagQS == 1) WRITE (*, *) 'qs: ', qs, 'qn1:', qn1, 'dqndt: ', dqndt_next
 
       ELSE
-         CALL ErrorHint(21, 'In SUEWS_OHM.f95: bad value for qn1 found during qs calculation.', qn1, -55.55D0, -55)
+         CALL ErrorHint(21, 'In SUEWS_OHM.f95: bad value for qn1 found during qs calculation.', qn1, -55.55D0, -55, modState)
+         IF (supy_error_flag) RETURN
       END IF
 
       !write(*,*) qs
@@ -444,7 +449,8 @@ CONTAINS
             deltaQi = deltaQi0
 
          ELSE
-            CALL ErrorHint(21, 'In SUEWS_OHM.f95: bad value for qn1(snow) found during qs calculation.', qn1_S, -55.55D0, -55)
+            CALL ErrorHint(21, 'In SUEWS_OHM.f95: bad value for qn1(snow) found during qs calculation.', qn1_S, -55.55D0, -55, modState)
+            IF (supy_error_flag) RETURN
          END IF
 
       END IF
@@ -708,13 +714,17 @@ CONTAINS
 
       ! Validate inputs
       IF (d <= 0 .OR. C <= 0 .OR. k <= 0 .OR. lambda_c <= 0) THEN
+#ifdef wrf
          PRINT *, "Thickness (d), heat capacity (C), conductivity (k), and lambda_c must be positive."
+#endif
          CALL set_supy_error(101, 'OHM calculate_a1: d, C, k, lambda_c must be positive')
          a1 = -999.0D0
          RETURN
       END IF
       IF (WS < 0) THEN
+#ifdef wrf
          PRINT *, "Wind speed (WS) cannot be negative."
+#endif
          CALL set_supy_error(101, 'OHM calculate_a1: Wind speed cannot be negative')
          a1 = -999.0D0
          RETURN
@@ -758,13 +768,17 @@ CONTAINS
 
       ! Validate inputs
       IF (d <= 0 .OR. C <= 0 .OR. k <= 0 .OR. lambda_c <= 0) THEN
+#ifdef wrf
          PRINT *, "Thickness (d), heat capacity (C), conductivity (k), and lambda_c must be positive."
+#endif
          CALL set_supy_error(101, 'OHM calculate_a2: d, C, k, lambda_c must be positive')
          a2 = -999.0D0
          RETURN
       END IF
       IF (WS <= 0) THEN
+#ifdef wrf
          PRINT *, "Wind speed (WS) must be positive."
+#endif
          CALL set_supy_error(101, 'OHM calculate_a2: Wind speed must be positive')
          a2 = -999.0D0
          RETURN

@@ -17,7 +17,7 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # 1. VALIDATION ONLY (no deployment):
 #    - Pull requests (draft): Minimal matrix (manylinux only, bookend Python 3.9 + 3.14)
 #    - Pull requests (ready): Reduced matrix (ARM Mac + Linux + Windows, Python 3.9 + 3.14)
-#    - Manual workflow_dispatch: Full matrix (all platforms + Python 3.9-3.14)
+#    - Manual workflow_dispatch: Configurable matrix and deployment target (see below)
 #
 # 2. DEVELOPMENT RELEASES (TestPyPI only):
 #    - Nightly cron (2 AM UTC, master branch only): Creates YYYY.M.D.dev tag → TestPyPI
@@ -30,6 +30,44 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # 3. PRODUCTION RELEASES (PyPI only):
 #    - Tags without 'dev': Deploy to PyPI
 #    Installation: pip install supy
+#
+# ============================================================================
+# MANUAL DISPATCH OPTIONS (workflow_dispatch)
+# ============================================================================
+# When triggering manually via Actions tab, configure:
+#
+# MATRIX CONFIGURATION:
+#   matrix_config: Choose preset or 'custom' for individual toggles
+#     - full:    All platforms (Linux, macOS Intel, macOS ARM, Windows), Python 3.9-3.14
+#     - pr:      Reduced (Linux, macOS ARM, Windows), Python 3.9 + 3.14
+#     - minimal: Linux only, Python 3.9 + 3.14
+#     - custom:  Use individual platform/Python toggles below
+#
+#   Platform toggles (when matrix_config=custom):
+#     - plat_linux:       Linux/manylinux x86_64
+#     - plat_macos_intel: macOS Intel x86_64
+#     - plat_macos_arm:   macOS ARM64 (Apple Silicon)
+#     - plat_windows:     Windows AMD64
+#
+#   Python toggles (when matrix_config=custom):
+#     - py39, py310, py311, py312, py313, py314
+#
+# OTHER OPTIONS:
+#   deploy_target: Where to publish built wheels
+#     - none:     Validation only (default)
+#     - testpypi: Deploy to TestPyPI
+#     (PyPI deployment restricted to tagged releases only)
+#
+#   include_umep: Build UMEP variant (NumPy 1.x compatible)
+#     - true:  Build standard + UMEP wheels (default)
+#     - false: Build standard wheels only
+#
+#   test_tier: Test suite level
+#     - all:      Full test suite (default)
+#     - standard: All except slow tests
+#     - core:     Core physics tests
+#     - cfg:      Configuration tests
+#     - smoke:    Critical tests only
 #
 # ============================================================================
 # VERSIONING SYSTEM FOR NIGHTLY BUILDS
@@ -129,6 +167,88 @@ on:
     - cron: '0 2 * * *'
 
   workflow_dispatch:
+    inputs:
+      # Matrix presets
+      matrix_config:
+        description: 'Build matrix (custom = use toggles below)'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - full      # All platforms, all Python versions
+          - pr        # Reduced: ARM Mac + Linux + Windows, Python 3.9 + 3.14
+          - minimal   # Manylinux only, Python 3.9 + 3.14
+          - custom    # Use individual toggles below
+
+      # Platform toggles (only when matrix_config=custom)
+      plat_linux:
+        description: '[custom] Linux (manylinux x86_64)'
+        type: boolean
+        default: true
+      plat_macos_intel:
+        description: '[custom] macOS Intel (x86_64)'
+        type: boolean
+        default: false
+      plat_macos_arm:
+        description: '[custom] macOS ARM (arm64)'
+        type: boolean
+        default: true
+      plat_windows:
+        description: '[custom] Windows (AMD64)'
+        type: boolean
+        default: true
+
+      # Python version toggles (only when matrix_config=custom)
+      py39:
+        description: '[custom] Python 3.9'
+        type: boolean
+        default: true
+      py310:
+        description: '[custom] Python 3.10'
+        type: boolean
+        default: false
+      py311:
+        description: '[custom] Python 3.11'
+        type: boolean
+        default: false
+      py312:
+        description: '[custom] Python 3.12'
+        type: boolean
+        default: false
+      py313:
+        description: '[custom] Python 3.13'
+        type: boolean
+        default: false
+      py314:
+        description: '[custom] Python 3.14'
+        type: boolean
+        default: true
+
+      # Other options
+      deploy_target:
+        description: 'Deployment target (PyPI requires tagged release)'
+        required: true
+        default: 'none'
+        type: choice
+        options:
+          - none      # Validation only
+          - testpypi  # Deploy to TestPyPI
+      include_umep:
+        description: 'Build UMEP variant (NumPy 1.x compatible)'
+        required: true
+        default: true
+        type: boolean
+      test_tier:
+        description: 'Test suite level'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all       # Full test suite
+          - standard  # All except slow tests
+          - core      # Core physics tests
+          - cfg       # Configuration tests
+          - smoke     # Critical tests only
 
 # Cancel in-progress runs when new commits are pushed to the same PR/branch
 concurrency:
@@ -329,8 +449,66 @@ jobs:
             echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
             echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]' >> $GITHUB_OUTPUT
             echo "test_tier=all" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Manual dispatch with configurable matrix
+            MATRIX_CONFIG="${{ inputs.matrix_config }}"
+            TEST_TIER="${{ inputs.test_tier }}"
+
+            case "$MATRIX_CONFIG" in
+              full)
+                echo "Manual dispatch: full matrix"
+                echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
+                echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]' >> $GITHUB_OUTPUT
+                ;;
+              pr)
+                echo "Manual dispatch: PR-style reduced matrix"
+                echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
+                echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+                ;;
+              minimal)
+                echo "Manual dispatch: minimal matrix"
+                echo "buildplat=$MINIMAL_PLATFORMS" >> $GITHUB_OUTPUT
+                echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+                ;;
+              custom)
+                echo "Manual dispatch: custom matrix from toggles"
+
+                # Build platform array from toggles
+                PLATFORMS="["
+                [[ "${{ inputs.plat_linux }}" == "true" ]] && PLATFORMS+='["ubuntu-latest", "manylinux", "x86_64"],'
+                [[ "${{ inputs.plat_macos_intel }}" == "true" ]] && PLATFORMS+='["macos-15-intel", "macosx", "x86_64"],'
+                [[ "${{ inputs.plat_macos_arm }}" == "true" ]] && PLATFORMS+='["macos-latest", "macosx", "arm64"],'
+                [[ "${{ inputs.plat_windows }}" == "true" ]] && PLATFORMS+='["windows-2025", "win", "AMD64"],'
+                PLATFORMS="${PLATFORMS%,}]"  # Remove trailing comma
+
+                # Build Python array from toggles
+                PYTHONS="["
+                [[ "${{ inputs.py39 }}" == "true" ]] && PYTHONS+='"cp39",'
+                [[ "${{ inputs.py310 }}" == "true" ]] && PYTHONS+='"cp310",'
+                [[ "${{ inputs.py311 }}" == "true" ]] && PYTHONS+='"cp311",'
+                [[ "${{ inputs.py312 }}" == "true" ]] && PYTHONS+='"cp312",'
+                [[ "${{ inputs.py313 }}" == "true" ]] && PYTHONS+='"cp313",'
+                [[ "${{ inputs.py314 }}" == "true" ]] && PYTHONS+='"cp314",'
+                PYTHONS="${PYTHONS%,}]"  # Remove trailing comma
+
+                # Validate at least one platform and one Python version selected
+                if [[ "$PLATFORMS" == "[]" ]]; then
+                  echo "::error::Custom matrix requires at least one platform to be selected"
+                  exit 1
+                fi
+                if [[ "$PYTHONS" == "[]" ]]; then
+                  echo "::error::Custom matrix requires at least one Python version to be selected"
+                  exit 1
+                fi
+
+                echo "buildplat=$PLATFORMS" >> $GITHUB_OUTPUT
+                echo "python=$PYTHONS" >> $GITHUB_OUTPUT
+                ;;
+            esac
+            echo "test_tier=$TEST_TIER" >> $GITHUB_OUTPUT
           else
-            echo "Running full matrix for tags/manual (all platforms, all Python versions, all tests)"
+            # Tag pushes - full matrix for releases
+            echo "Running full matrix for tags (all platforms, all Python versions, all tests)"
             echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
             echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]' >> $GITHUB_OUTPUT
             echo "test_tier=all" >> $GITHUB_OUTPUT
@@ -380,6 +558,8 @@ jobs:
           wheel_name_suffix: ''
           test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
           is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
+          # Enable DTS for releases (nightly + production tags), fast build for dev-facing (PRs)
+          enable_dts: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/') }}
 
   build_umep:
     name: Build UMEP wheel (rc1/dev1) for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
@@ -396,7 +576,8 @@ jobs:
       always() &&
       needs.determine_matrix.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
-      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true')
+      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true') &&
+      (github.event_name != 'workflow_dispatch' || inputs.include_umep == true)
     strategy:
       matrix:
         # Limited matrix (manylinux cp312) for PRs/master/nightly/manual
@@ -424,6 +605,8 @@ jobs:
           wheel_name_suffix: '-umep'
           test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
           is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
+          # Enable DTS for releases (nightly + production tags), fast build for dev-facing (PRs)
+          enable_dts: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/') }}
 
   # NOTE: Documentation preview deployment moved to pages-deploy.yml
   # This consolidates all GitHub Pages content (site, schemas, docs) in one workflow
@@ -516,13 +699,15 @@ jobs:
       - create_nightly_tag  # Will be skipped for non-nightly builds
     # Deploy to TestPyPI for nightly builds even if some platforms fail
     # This ensures continuous availability of development builds
+    # Also allows manual dispatch with deploy_target == 'testpypi'
     if: |
       always() &&
       needs.build_wheels.result != 'cancelled' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (
         github.event_name == 'schedule' ||
-        (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev'))
+        (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) ||
+        (github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'testpypi')
       )
 
     # Set up permissions for OIDC authentication

@@ -38,7 +38,9 @@ MODULE module_phys_narp
    !==============================================================================================
    ! USE module_ctrl_const_allocate
    USE module_util_time, ONLY: day2month, dectime_to_timevec
-   USE module_ctrl_error_state, ONLY: set_supy_error
+   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
+   USE module_ctrl_error, ONLY: ErrorHint
+   USE module_ctrl_type, ONLY: SUEWS_STATE
 
    IMPLICIT NONE
 
@@ -103,8 +105,10 @@ CONTAINS
             NetRadiationMethod_use = NetRadiationMethod
             !If bad NetRadiationMethod value
             IF (MOD(NetRadiationMethod, 10) > 3 .OR. AlbedoChoice == -9) THEN
+#ifdef wrf
                WRITE (*, *) 'NetRadiationMethod=', NetRadiationMethod_use
                WRITE (*, *) 'Value not usable'
+#endif
                CALL set_supy_error(100, 'NARP: NetRadiationMethod value not usable')
                RETURN
             END IF
@@ -113,8 +117,10 @@ CONTAINS
 
          !If bad NetRadiationMethod value
          IF (MOD(NetRadiationMethod, 10) > 3 .OR. AlbedoChoice == -9) THEN
+#ifdef wrf
             WRITE (*, *) 'NetRadiationMethod=', NetRadiationMethod_use
             WRITE (*, *) 'Value not usable'
+#endif
             CALL set_supy_error(100, 'NARP: NetRadiationMethod value not usable')
             RETURN
          END IF
@@ -1547,7 +1553,7 @@ CONTAINS
    END FUNCTION solar_ESdist
 
    !===============================================================================
-   FUNCTION SmithLambda(lat) RESULT(G)
+   FUNCTION SmithLambda(lat, modState) RESULT(G)
       USE FileName
       USE defaultnotUsed
       !read kriged data based on Smith 1966 (JAM)
@@ -1556,6 +1562,7 @@ CONTAINS
       ! Journal of Applied Meteorology 5.5 (1966): 726-727.
       INTEGER :: lat, ios, ilat
       REAL(KIND(1D0)), DIMENSION(365) :: G
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       !open(99,file="Smith1966.grd",access="direct",action="read",recl=365*4,iostat=ios)
       !read(99,rec=lat+1,iostat=ios) G
@@ -1565,7 +1572,8 @@ CONTAINS
       END DO
       READ (99, *, iostat=ios) ilat, G
       IF (ios /= 0) THEN
-         CALL ErrorHint(11, 'reading Smith1966.grd (ios).', notUsed, notUsed, ios)
+         CALL ErrorHint(11, 'reading Smith1966.grd (ios).', notUsed, notUsed, ios, modState)
+         IF (supy_error_flag) RETURN
       END IF
       CLOSE (99)
    END FUNCTION SmithLambda

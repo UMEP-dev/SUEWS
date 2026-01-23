@@ -99,7 +99,6 @@ dir_src_suews = dir_suews / 'src'
 src_f95_all = [
   'suews_ctrl_const.f95',
   'suews_ctrl_type.f95',
-  'suews_util_stringmod.f95',
   'suews_util_profile.f95',
   'suews_util_time.f95',
   'suews_util_meteo.f95',
@@ -130,7 +129,29 @@ endforeach
 
 src_f95_files = files(src_f95_files)
 
-src_f95_sub = [
+# Get wrap_dts_types option - controls whether DTS type definition files are wrapped
+wrap_dts_types = get_option('wrap_dts_types')
+
+# Type definition files - only wrapped when wrap_dts_types=true
+# These enable direct Python access to nested Fortran derived types (e.g. state.heatstate)
+src_f95_types = [
+  'suews_type_anthro.f95',
+  'suews_type_atmosphere.f95',
+  'suews_type_ehc.f95',
+  'suews_type_heat.f95',
+  'suews_type_hydro.f95',
+  'suews_type_landcover.f95',
+  'suews_type_snow.f95',
+  'suews_type_soil.f95',
+  'suews_type_spartacus.f95',
+  'suews_type_stebbs.f95',
+  'suews_type_surface.f95',
+  'suews_type_vegetation.f95',
+  'suews_type_waterdist.f95',
+]
+
+# Core files - always wrapped (required for basic SUEWS functionality)
+src_f95_core = [
   'suews_ctrl_const.f95',
   'suews_ctrl_error.f95',  # Needed for error state module (module_ctrl_error_state)
   'suews_ctrl_type.f95',
@@ -147,7 +168,16 @@ src_f95_sub = [
   'suews_phys_waterdist.f95',
   'suews_util_meteo.f95',
 ]
-src_to_wrap = src_f95_sub
+
+# Conditionally include type files based on wrap_dts_types option
+if wrap_dts_types
+  message('Building with DTS type wrappers (full build - DTS features enabled)')
+  # Type files must come first for f90wrap to properly expose nested types
+  src_to_wrap = src_f95_types + src_f95_core
+else
+  message('Building WITHOUT DTS type wrappers (fast build - traditional interface only)')
+  src_to_wrap = src_f95_core
+endif
 
 src_wrap_files = []
 foreach f : src_to_wrap
@@ -158,6 +188,9 @@ endforeach
 ##################################################################
 # 1. build the SUEWS library using fortran compiler
 # invoke make in the suews directory to build the objects
+# Track Makefile for build config changes
+makefile_deps = files(dir_suews / 'Makefile')
+
 build_suews = custom_target(
   'suews_objects',
   command: [
@@ -167,7 +200,7 @@ build_suews = custom_target(
     '@OUTPUT@',
   ],
   build_by_default: true,
-  build_always_stale: true,
+  depend_files: [src_f95_files, makefile_deps],
   output: 'suews_objects',
 )
 

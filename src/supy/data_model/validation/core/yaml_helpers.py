@@ -89,7 +89,6 @@ except ImportError:
             return False
 
     trv_supy_module = MockTraversable()
-import os
 
 
 def get_value_safe(param_dict, param_key, default=None):
@@ -1407,14 +1406,32 @@ def precheck_model_option_rules(data: dict) -> dict:
     """
     physics = data.get("model", {}).get("physics", {})
 
-    # Helper: recursively nullify any "value" leaves in the passed block
-    def _recursive_nullify(block: dict):
-        for key, val in block.items():
-            if isinstance(val, dict):
-                if "value" in val:
-                    val["value"] = None
+    def _recursive_nullify(block):
+        if isinstance(block, dict):
+            for key, val in block.items():
+                if isinstance(val, dict):
+                    if "value" in val:
+                        inner = val["value"]
+                        if isinstance(inner, list):
+                            val["value"] = [None] * len(inner)
+                        else:
+                            val["value"] = None
+                    else:
+                        _recursive_nullify(val)
+                elif isinstance(val, list):
+                    for idx, item in enumerate(val):
+                        if isinstance(item, (dict, list)):
+                            _recursive_nullify(item)
+                        else:
+                            val[idx] = None
                 else:
-                    _recursive_nullify(val)
+                    block[key] = None
+        elif isinstance(block, list):
+            for idx, item in enumerate(block):
+                if isinstance(item, (dict, list)):
+                    _recursive_nullify(item)
+                else:
+                    block[idx] = None
 
     # --- STEBBSMETHOD RULE: when stebbsmethod == 0, wipe out all stebbs params ---
     stebbsmethod = get_value_safe(physics, "stebbsmethod")

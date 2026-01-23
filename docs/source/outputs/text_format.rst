@@ -124,6 +124,23 @@ Group Details
    - Vegetation parameters
    - One file per grid (may contain multiple years)
 
+   .. note::
+
+      **Timestamp Convention for DailyState**
+
+      DailyState uses a different timestamp labelling convention than other output
+      groups to improve readability. While other groups label timestamps with the
+      END of each period (e.g., data for January 1st labelled as "Jan 2 00:00"),
+      DailyState labels with the START of each day (e.g., data for January 1st
+      labelled as "Jan 1").
+
+      This means the row labelled "2012-01-15" in DailyState contains the model
+      state at the end of January 15th, making the output more intuitive to read.
+
+      When combining DailyState with other groups (e.g., in SuPy's
+      ``resample_output``), the date ranges may differ by one day at the
+      boundaries. See :py:func:`supy.resample_output` for details.
+
 .. _output-snow:
 
 **snow** - ``SSss_YYYY_snow_TT.txt``

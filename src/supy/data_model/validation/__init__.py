@@ -9,6 +9,10 @@ Structure:
 - pipeline/: Three-phase validation pipeline (Phase A, B, C and orchestrator)
 """
 
+# Re-export package-level utilities for use by submodules
+# This avoids deep relative imports like '...._env' in pipeline modules
+from ..._env import logger_supy
+
 # Core validation exports
 from .core.controller import (
     ValidationController,

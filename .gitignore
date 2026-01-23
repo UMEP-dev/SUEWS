@@ -648,3 +648,6 @@ test/fixtures/gh846/*.zip
 
 # Conductor worktree workspaces
 .conductor/
+
+# Conductor agent collaboration directory
+.context/

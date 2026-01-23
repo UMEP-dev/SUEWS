@@ -23,7 +23,8 @@ dependencies = [
     # Data processing
     "pandas",
     "numpy>=2.0",
-    "scipy",
+    "scipy<1.15; python_version >= '3.11' and python_version < '3.13' and platform_system == 'Linux'",  # manylinux2014 wheels
+    "scipy; python_version < '3.11' or python_version >= '3.13' or platform_system != 'Linux'",  # Others use latest
     # xarray removed - only needed for gridded ERA5 (install separately)
     # dask removed - CLI uses stdlib multiprocessing.pool.ThreadPool
 

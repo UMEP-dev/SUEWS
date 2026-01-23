@@ -21,6 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
+| 2026 | 60 | 72 | 23 | 71 | 36 | 261 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -30,6 +31,22 @@
 | 2019 | 4 | 8 | 1 | 6 | 1 | 20 |
 | 2018 | 7 | 1 | 6 | 5 | 0 | 19 |
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
+
+## 2026
+
+### 23 Jan 2026
+
+- [bugfix] Fixed missing STEBBS parameters in sample_config.yml (PR #1111)
+- [change] Changed values of some STEBBS parameters in sample_config.yml to be physically reasonable (PR #1111)
+- [bugfix] Extended nullification logic in validator for stebbsmethod==0 to handle nested TenMinutesProfiles structures (PR #1115)
+
+### 20 Jan 2026
+
+- [bugfix] Fixed missing import supy in orchestrator.py (SUEWS validator) that caused error message in report.txt (PR #1094)
+
+### 18 Jan 2026
+
+- [bugfix] Fixed error message in _check.py::check_range to reflect the documentation and avoid misleading interpretation of the allowed pres range. (PR #1090)
 
 ## 2025
 
@@ -253,6 +270,18 @@
   - Same functionality, lighter dependencies
   - Consolidates all parallel processing to one library
 
+### 1 Dec 2025
+- [feature] Added site-level soil observation configuration (GH-3 improvement)
+  - New `soil_observation` block in site properties for cleaner YAML configuration
+  - Soil observation metadata now correctly modelled as a site-level property (not per-surface)
+  - Maintains backwards compatibility with legacy per-surface configuration
+  - Documentation updated with preferred YAML approach and legacy fallback
+
+### 16 Nov 2025
+- [maintenance] Reorganised soil observation conversion logic from top-level `_soil_obs.py` to `util/_forcing.py`
+  - Follows SuPy's established pattern where specialized utilities live in the `util/` subdirectory
+  - No functional changes; purely organisational refactoring for better code structure
+
 ### 14 Nov 2025
 
 - [feature] Added `SUEWSSimulation.from_sample_data()` factory method and comprehensive OOP enhancements (#779)
@@ -268,6 +297,11 @@
   - Four validation layers: (1) basic range [1, 366], (2) consistency (both set or both None), (3) leap year (DOY 366 only in leap years), (4) hemisphere pattern check (NH/SH typical ranges)
   - First three layers raise ERROR; hemisphere check adds INFO to report "NO ACTION NEEDED" section
   - Useful when Phase C runs standalone or via `SUEWSConfig.from_yaml()` (Phase B auto-corrects values in full pipeline)
+- [bugfix] Enabled observed soil moisture forcing (GH-3)
+  - Added soil observation metadata fields (`obs_sm_depth`, `obs_sm_cap`, `obs_soil_not_rocks`, `soildensity`) to the land-cover definition
+  - SuPy now converts observed volumetric/gravimetric `xsmd` data to soil moisture deficits before calling the SUEWS kernel
+  - Simplified approach: metadata only needed on surface 0 (Paved); other surfaces ignored
+  - Documentation updated to reflect the required inputs when `SMDMethod` = 1 or 2
 
 ### 12 Nov 2025
 

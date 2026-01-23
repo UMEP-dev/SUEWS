@@ -1,9 +1,11 @@
 """Test gen_epw with resampling functionality (GitHub issue #150)."""
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 import pytest
+
 import supy as sp
+from conftest import TIMESTEPS_PER_DAY
 
 
 class TestGenEpwResample:
@@ -44,7 +46,9 @@ class TestGenEpwResample:
     def test_resample_aggregation_methods(self):
         """Test that aggregation methods are applied correctly."""
         df_state_init, df_forcing = sp.load_SampleData()
-        df_output, _ = sp.run_supy(df_forcing.iloc[:288], df_state_init)  # 1 day
+        df_output, _ = sp.run_supy(
+            df_forcing.iloc[:TIMESTEPS_PER_DAY], df_state_init
+        )  # 1 day
 
         df_hourly = sp.util.resample_output(df_output, freq="h")
 
@@ -68,7 +72,9 @@ class TestGenEpwMultiIndexInput:
         """Create sample SUEWS output for testing."""
         df_state_init, df_forcing = sp.load_SampleData()
         # Use enough data for meaningful test but not too much
-        df_output, _ = sp.run_supy(df_forcing.iloc[:288], df_state_init)  # 1 day
+        df_output, _ = sp.run_supy(
+            df_forcing.iloc[:TIMESTEPS_PER_DAY], df_state_init
+        )  # 1 day
         return df_output
 
     def test_gen_epw_accepts_multiindex(self, sample_output, tmp_path):

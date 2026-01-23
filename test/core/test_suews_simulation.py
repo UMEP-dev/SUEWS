@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+from conftest import TIMESTEPS_PER_DAY
 
 try:
     from importlib.resources import files
@@ -782,7 +783,7 @@ class TestContinuationRuns:
         # Save full forcing before subsetting
         df_forcing_full = sim1.forcing.df.copy()
 
-        df_forcing = df_forcing_full.iloc[:288]  # First day only
+        df_forcing = df_forcing_full.iloc[:TIMESTEPS_PER_DAY]  # First day only
         sim1.update_forcing(df_forcing)
         sim1.run()
 
@@ -799,7 +800,9 @@ class TestContinuationRuns:
         assert sim2.is_ready() is False  # No forcing yet
 
         # Add forcing and run continuation
-        df_forcing_2 = df_forcing_full.iloc[288:576]  # Second day
+        df_forcing_2 = df_forcing_full.iloc[
+            TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY * 2
+        ]  # Second day
         sim2.update_forcing(df_forcing_2)
         assert sim2.is_ready() is True
 
@@ -819,7 +822,7 @@ class TestContinuationRuns:
         # Save full forcing before subsetting
         df_forcing_full = sim1.forcing.df.copy()
 
-        df_forcing = df_forcing_full.iloc[:288]  # First day only
+        df_forcing = df_forcing_full.iloc[:TIMESTEPS_PER_DAY]  # First day only
         sim1.update_forcing(df_forcing)
         sim1.run()
 
@@ -835,7 +838,9 @@ class TestContinuationRuns:
         assert sim2._df_state_init is not None
 
         # Continue simulation
-        df_forcing_2 = df_forcing_full.iloc[288:576]  # Second day
+        df_forcing_2 = df_forcing_full.iloc[
+            TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY * 2
+        ]  # Second day
         sim2.update_forcing(df_forcing_2)
         sim2.run()
         assert sim2.is_complete() is True
@@ -848,7 +853,7 @@ class TestContinuationRuns:
         # Save full forcing before subsetting
         df_forcing_full = sim1.forcing.df.copy()
 
-        df_forcing = df_forcing_full.iloc[:288]
+        df_forcing = df_forcing_full.iloc[:TIMESTEPS_PER_DAY]
         sim1.update_forcing(df_forcing)
         sim1.run()
 
@@ -861,7 +866,7 @@ class TestContinuationRuns:
         assert sim2.is_ready() is False  # No forcing yet
 
         # Continue simulation
-        df_forcing_2 = df_forcing_full.iloc[288:576]
+        df_forcing_2 = df_forcing_full.iloc[TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY * 2]
         sim2.update_forcing(df_forcing_2)
         sim2.run()
         assert sim2.is_complete() is True

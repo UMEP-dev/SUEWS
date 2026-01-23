@@ -175,4 +175,4 @@ How to support SUEWS?
 
    global_applications
    community_publications
-   Community <https://suews.discourse.group/>
+   Community <https://community.suews.io>

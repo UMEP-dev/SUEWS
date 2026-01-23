@@ -30,6 +30,10 @@ inputs:
     description: 'Whether this is a TestPyPI build (adds notice to README)'
     required: false
     default: 'false'
+  enable_dts:
+    description: 'Enable DTS type wrappers (full build with DTS features)'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -57,11 +61,13 @@ runs:
       run: |
         echo "Building UMEP variant with NumPy 1.x compatibility"
 
-        # Build-time: Use oldest-supported-numpy for binary compatibility
-        sed -i.bak 's/"numpy>=2\.0"/"oldest-supported-numpy"/g' pyproject.toml
-
         # Runtime: Pin to NumPy 1.x (QGIS 3.40 LTR uses 1.26.4)
-        sed -i.bak 's/"numpy>=2\.0",/"numpy>=1.22,<2.0",/g' pyproject.toml
+        # Limit to the [project] section to avoid touching build-system requirements
+        sed -i.bak '/^\[project\]/,/^\[/{s/"numpy>=2\.0",/"numpy>=1.22,<2.0",/g}' pyproject.toml
+
+        # Build-time: Use oldest-supported-numpy for binary compatibility
+        # Limit to the [build-system] section to keep build isolation compatible
+        sed -i.bak '/^\[build-system\]/,/^\[/{s/"numpy>=2\.0"/"oldest-supported-numpy"/g}' pyproject.toml
 
         echo "Modified pyproject.toml for UMEP build:"
         git diff pyproject.toml || true
@@ -92,6 +98,8 @@ runs:
         BUILD_UMEP_VARIANT: ${{ inputs.is_umep_variant }}
         CIBW_BUILD: ${{ inputs.python }}-${{ inputs.buildplat_name }}*
         CIBW_ARCHS: ${{ inputs.buildplat_arch }}
+        # Pass meson option to enable/disable DTS type wrappers
+        CIBW_CONFIG_SETTINGS: ${{ inputs.enable_dts == 'true' && 'setup-args=-Dwrap_dts_types=true' || '' }}
         # CIBW_ENABLE: ${{ inputs.python == 'cp314' && 'cp314' || '' }}
         CIBW_ENVIRONMENT_PASS_LINUX: ${{ inputs.is_umep_variant == 'true' && 'RUNNER_OS BUILD_UMEP_VARIANT' || 'RUNNER_OS' }}
         # Use manylinux_2_28 for Python 3.13+ (newer dependencies require it), manylinux2014 for 3.9-3.12 (older Linux compatibility)
@@ -158,15 +166,16 @@ runs:
           gcc --version &&
           pip install delvewheel
         CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
-        CIBW_TEST_REQUIRES: ${{ inputs.is_umep_variant == 'true' && 'pytest oldest-supported-numpy' || 'pytest' }}
+        CIBW_TEST_REQUIRES: ${{ inputs.is_umep_variant == 'true' && 'pytest numpy==1.26.*' || 'pytest' }}
         # Test tiers: choose subset based on path detection and trigger
+        # Always include --durations=10 to show slowest tests in output
         CIBW_TEST_COMMAND: >
-          python -m pytest {project}/test -v --tb=short
+          python -m pytest {project}/test -v --tb=short --durations=10
           ${{ inputs.test_tier == 'smoke' && '-m smoke' ||
               inputs.test_tier == 'core' && '-m "smoke or core"' ||
               inputs.test_tier == 'cfg' && '-m "smoke or cfg"' ||
               inputs.test_tier == 'standard' && '-m "not slow"' ||
-              '--durations=10' }}
+              '' }}
         MACOSX_DEPLOYMENT_TARGET: '15.0'
 
     - name: Upload wheels

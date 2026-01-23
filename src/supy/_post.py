@@ -197,8 +197,37 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
 
     Notes
     -----
+    **Timestamp Convention**
+
     The SUEWS convention uses right-closed intervals with right labels,
-    meaning timestamps represent the END of each period.
+    meaning timestamps represent the END of each period. For example,
+    hourly data at 13:00 covers the period 12:00-13:00.
+
+    **DailyState Labeling**
+
+    When resampling to daily frequency, the DailyState group uses a different
+    labeling convention (``label='left'``) compared to other groups
+    (``label='right'``). This is intentional:
+
+    - **SUEWS, snow, ESTM, etc.** (``label='right'``): Daily data is labeled
+      with the END of each day. Data for January 1st is labeled "Jan 2"
+      (the midnight timestamp at the end of Jan 1).
+
+    - **DailyState** (``label='left'``): Daily data is labeled with the
+      START of each day. Data for January 1st is labeled "Jan 1".
+      This makes the output more intuitive - the row "Jan 1" contains
+      the state at the end of January 1st.
+
+    As a result, when resampling 7 full days of simulation data to daily
+    frequency, the combined output may contain 8 unique dates:
+
+    - SUEWS group: Jan 2 through Jan 8 (7 days)
+    - DailyState group: Jan 1 through Jan 7 (7 days)
+    - Combined: Jan 1 through Jan 8 (8 unique dates)
+
+    The first date (Jan 1) will have NaN for SUEWS variables, and the last
+    date (Jan 8) will have NaN for DailyState variables. This asymmetry
+    reflects the different semantic meanings of each group's timestamps.
 
     Examples
     --------
@@ -207,21 +236,20 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
     >>> import supy as sp
     >>> df_state_init, df_forcing = sp.load_SampleData()
     >>> df_output, df_state_final = sp.run_supy(df_forcing, df_state_init)
-    >>> df_hourly = sp.resample_output(df_output, freq='h')
+    >>> df_hourly = sp.resample_output(df_output, freq="h")
 
     Resample for EPW generation:
 
-    >>> df_hourly = sp.resample_output(df_output, freq='h')
-    >>> grid = df_hourly.index.get_level_values('grid')[0]
+    >>> df_hourly = sp.resample_output(df_output, freq="h")
+    >>> grid = df_hourly.index.get_level_values("grid")[0]
     >>> df_epw, meta, path = sp.util.gen_epw(
-    ...     df_hourly.loc[grid, 'SUEWS'],
-    ...     lat=51.5, lon=-0.1
+    ...     df_hourly.loc[grid, "SUEWS"], lat=51.5, lon=-0.1
     ... )
 
     Or use the convenience freq parameter in gen_epw:
 
     >>> df_epw, meta, path = sp.util.gen_epw(
-    ...     df_output, lat=51.5, lon=-0.1, freq='h'
+    ...     df_output, lat=51.5, lon=-0.1, freq="h"
     ... )
 
     See Also
@@ -229,6 +257,7 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
     supy.util.gen_epw : Generate EPW files (supports freq parameter)
     supy.data_model.output.OUTPUT_REGISTRY : Aggregation rules source
     """
+
     # Helper function to resample a group with specified parameters
     def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None):
         """Resample a dataframe group with specified aggregation rules.
@@ -256,18 +285,13 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
                     index=pd.DatetimeIndex([]), columns=df_group.columns
                 )
 
-            # Resample the non-empty data
-            df_resampled = df_with_data.resample(freq, closed="right", label=label).agg(
+            # Resample the non-empty data and return directly
+            # Note: We don't reindex because Pandas 3.0's asfreq() behaviour changed
+            # and can produce different boundary dates. The resampled data already
+            # contains the correct timestamps.
+            return df_with_data.resample(freq, closed="right", label=label).agg(
                 dict_aggm_group
             )
-
-            # Reindex to match the expected output timerange
-            # This ensures we have the full time range even if data is sparse
-            full_index = (
-                df_group.resample(freq, closed="right", label=label).asfreq().index
-            )
-            df_resampled = df_resampled.reindex(full_index)
-            return df_resampled
         else:
             df_to_resample = df_group
 
@@ -309,6 +333,25 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
 
     # clean results
     df_rsmp = df_rsmp.dropna(how="all", axis=0)
+
+    # Ensure the index has proper names (grid, datetime)
+    # After concat, the datetime level may lose its name
+    if isinstance(df_rsmp.index, pd.MultiIndex):
+        if df_rsmp.index.names[1] is None:
+            df_rsmp.index = df_rsmp.index.set_names(["grid", "datetime"])
+
+    # Filter to actual data range to ensure consistent behaviour across Pandas versions
+    # Pandas 3.0 may create extra boundary bins that fall outside the actual data range.
+    # Use floor/ceil of the data range to allow for label='left' convention (DailyState)
+    # where the label can be up to one period before the first data point.
+    dt_idx = df_output.index.get_level_values("datetime")
+    dt_min, dt_max = dt_idx.min(), dt_idx.max()
+    # Extend dt_min by one period to allow for 'left' labels
+    dt_min_floor = dt_min.floor(freq)
+    rsmp_dt_idx = df_rsmp.index.get_level_values("datetime")
+    mask = (rsmp_dt_idx >= dt_min_floor) & (rsmp_dt_idx <= dt_max)
+    df_rsmp = df_rsmp[mask]
+
     return df_rsmp
 
 
@@ -648,43 +691,55 @@ def has_dict(dict_d):
     bool
         True if any value in the dictionary is itself a dictionary.
     """
+    if not isinstance(dict_d, dict):
+        return False
     return any(isinstance(v, dict) for v in dict_d.values())
 
 
 def pack_dict_dts(dict_dts):
     """
-    Convert a nested dictionary of debug information into a pandas DataFrame.
+    Convert a nested dictionary of debug information into a pandas Series.
 
-    This is an intermediate step in the process of converting debug data
-    to a user-friendly DataFrame format.
-
-    Parameters
-    ----------
-    dict_dts : dict
-        Nested dictionary from pack_dict_dts() containing debug information.
-
-    Returns
-    -------
-    pandas.DataFrame
-        DataFrame with a MultiIndex structure preserving the nested hierarchy.
-
-    Notes
-    -----
-    This function handles the recursive flattening of potentially deeply nested
-    dictionaries into a single DataFrame with a MultiIndex.
+    This flattens the nested structure into a single Series with a MultiIndex
+    that preserves the hierarchy and any array indices.
     """
-    dict_df_dts = {}
-    for k, v in dict_dts.items():
-        if has_dict(v):
-            # Recursively process nested dictionaries
-            dict_df_dts[k] = pack_dict_dts(v)
-        else:
-            # Convert leaf nodes to Series
-            dict_df_dts[k] = pd.Series(v)
+    rows = []
 
-    # Concatenate all series/dataframes into a single dataframe
-    df_dts = pd.concat(dict_df_dts, axis=0)
-    return df_dts
+    def _flatten(obj, prefix):
+        if isinstance(obj, dict):
+            if not obj:
+                return
+            for key, value in obj.items():
+                _flatten(value, prefix + (key,))
+            return
+
+        if isinstance(obj, np.ndarray) and obj.ndim > 1:
+            for idx in np.ndindex(obj.shape):
+                rows.append((prefix + idx, obj[idx]))
+            return
+
+        series = pd.Series(obj)
+        if series.empty:
+            return
+        for idx, val in series.items():
+            if isinstance(idx, tuple):
+                rows.append((prefix + idx, val))
+            else:
+                rows.append((prefix + (idx,), val))
+
+    if not isinstance(dict_dts, dict):
+        return pd.Series(dict_dts)
+
+    _flatten(dict_dts, ())
+
+    if not rows:
+        return pd.Series(dtype=float)
+
+    max_len = max(len(item[0]) for item in rows)
+    tuples = [item[0] + (None,) * (max_len - len(item[0])) for item in rows]
+    values = [item[1] for item in rows]
+    index = pd.MultiIndex.from_tuples(tuples)
+    return pd.Series(values, index=index)
 
 
 sample_dts = sd_dts.SUEWS_STATE_BLOCK()
@@ -725,20 +780,23 @@ def pack_dict_dts_datetime_grid(dict_dts_datetime_grid):
     df_dts_raw = pack_dict_dts(dict_dts_datetime_grid)
 
     # Rename index levels for clarity
-    df_dts_raw.index = df_dts_raw.index.rename([
-        "datetime",
-        "grid",
-        "step",
-        "group",
-        "var",
-    ])
+    base_names = ["datetime", "grid", "step", "group", "var"]
+    if df_dts_raw.index.nlevels <= len(base_names):
+        names = base_names[: df_dts_raw.index.nlevels]
+    else:
+        extra = [f"dim_{i}" for i in range(df_dts_raw.index.nlevels - len(base_names))]
+        names = base_names + extra
+    df_dts_raw.index = df_dts_raw.index.rename(names)
 
     # Restructure to have a more user-friendly format
-    df_dts = (
-        df_dts_raw.unstack(level=["group", "var"])
-        .sort_index(level=0, axis=1)
-        .dropna(axis=1, how="all")
-    )
+    if "group" in df_dts_raw.index.names and "var" in df_dts_raw.index.names:
+        df_dts = (
+            df_dts_raw.unstack(level=["group", "var"])
+            .sort_index(level=0, axis=1)
+            .dropna(axis=1, how="all")
+        )
+    else:
+        df_dts = df_dts_raw.to_frame(name="value")
 
     return df_dts
 

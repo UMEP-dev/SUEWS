@@ -26,19 +26,18 @@ Full setup: `/setup-dev` | Style check: `/lint-code` | Build check: `/verify-bui
 | `src/supy/` | Python | `.claude/rules/python/` |
 | `docs/` | Documentation | `.claude/rules/docs/` |
 | `test/` | Tests | `.claude/rules/tests/` |
+| `.github/workflows/` | CI/Actions | `.claude/rules/ci/` |
 
-## Commands
+## Skills
 
-| Command | Purpose |
-|---------|---------|
-| `/setup-dev` | Environment setup |
-| `/lint-code` | Check code style |
-| `/sync-docs` | Doc-code consistency |
-| `/verify-build` | Build configuration |
-| `/audit-pr` | Review pull requests |
-| `/log-changes` | Update CHANGELOG |
-| `/prep-release` | Prepare releases |
-| `/examine-issue` | Analyse GitHub issues |
+- `/setup-dev` - Environment setup
+- `/lint-code` - Check code style
+- `/sync-docs` - Doc-code consistency
+- `/verify-build` - Build configuration
+- `/audit-pr` - Review pull requests
+- `/log-changes` - Update CHANGELOG
+- `/prep-release` - Prepare releases
+- `/examine-issue` - Analyse GitHub issues
 
 ## Auto-Loaded Rules
 
@@ -47,5 +46,5 @@ Rules in `.claude/rules/` load automatically based on files being edited.
 ## References
 
 - `.claude/README.md` - Full workspace documentation
-- `.claude/skills/*-skill/` - Detailed skill workflows
+- `.claude/skills/` - Detailed skill workflows
 - `.claude/rules/` - Style conventions

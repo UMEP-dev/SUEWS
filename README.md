@@ -34,11 +34,30 @@ For developers, see the [Developer Note](#developer-note) section below.
 
 #### Claude Code Integration
 
-SUEWS includes Claude Code configuration in the `.claude/` directory:
+SUEWS includes Claude Code configuration in the `.claude/` directory with development skills for environment setup, code linting, build verification, PR review, and release management.
 
+**Install Skills via Marketplace** (recommended for new contributors):
+```
+# In Claude Code, add the SUEWS skills marketplace
+/plugin marketplace add UMEP-dev/SUEWS
+
+# Then install the skills
+/plugin install suews-dev@UMEP-dev/SUEWS
+```
+
+This provides access to:
+* `/setup-dev` - Set up development environment (macOS, Linux, Windows)
+* `/lint-code` - Check code style against SUEWS conventions
+* `/verify-build` - Verify build configuration consistency
+* `/audit-pr` - Review pull requests comprehensively
+* `/examine-issue` - Analyse GitHub issues
+* `/log-changes` - Update CHANGELOG with recent commits
+* `/prep-release` - Prepare releases with pre-flight checks
+* `/sync-docs` - Check doc-code consistency
+
+**Local Configuration** (for contributors with cloned repo):
 * **Setup Guide**: See [`.claude/README.md`](.claude/README.md) for workspace structure
-* **Quick Start**: See [`.claude/reference/quick-start.md`](.claude/reference/quick-start.md) for environment setup
-* **Custom Commands**: `/log-changes` for automatic CHANGELOG updates
+* **Skills Reference**: See [`.claude/skills/`](.claude/skills/) for detailed workflows
 
 #### CLAUDE.md Protection System
 

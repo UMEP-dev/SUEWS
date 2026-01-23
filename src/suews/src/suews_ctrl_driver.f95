@@ -1279,8 +1279,11 @@ CONTAINS
                         G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, &
                         unused_gc1, unused_gc2, unused_gc3, unused_gc4, unused_gc5, & ! output: (unused conductances)
                         gfunc2, unused_gs, unused_rs) ! output:
+                  ELSEIF ((gsmodel == 1 .OR. gsmodel == 2) .AND. RSLLevel > 0) THEN
+                     ! Use local temperature for gsmodel 1/2 with RSL diagnostics
+                     t2 = Tair_local
                   ELSE
-                     ! Use measured temperature
+                     ! Use forcing temperature (RSLLevel=0 or unrecognised gsmodel)
                      t2 = Temp_C
                   END IF
 

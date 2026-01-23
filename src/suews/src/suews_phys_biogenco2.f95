@@ -213,8 +213,8 @@ CONTAINS
       IF (VegFracSum > 0.01) THEN
          DO iv = ivConif, ivGrass
             IF (sfr_surf(2 + iv) > 0.005) THEN
-               IF (gsmodel == 1 .OR. gsmodel == 2) THEN !With air temperature
-                  Bellucco2017_Res_surf = MAX(min_res_bioCO2(iv), resp_a(iv)*EXP(resp_b(iv)*Temp_C))
+               IF (gsmodel == 1 .OR. gsmodel == 2) THEN !With air temperature (t2 set by driver)
+                  Bellucco2017_Res_surf = MAX(min_res_bioCO2(iv), resp_a(iv)*EXP(resp_b(iv)*t2))
                ELSEIF (gsmodel == 3 .OR. gsmodel == 4) THEN !With modelled 2 meter temperature
                   Bellucco2017_Res_surf = MAX(min_res_bioCO2(iv), resp_a(iv)*EXP(resp_b(iv)*t2))
                END IF

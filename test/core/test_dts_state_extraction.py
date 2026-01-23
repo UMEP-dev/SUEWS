@@ -17,8 +17,7 @@ from supy.dts import _DTS_AVAILABLE, run_dts
 
 # Skip all tests in this module if DTS is not available (fast build)
 pytestmark = pytest.mark.skipif(
-    not _DTS_AVAILABLE,
-    reason="DTS not available (fast build without type wrappers)"
+    not _DTS_AVAILABLE, reason="DTS not available (fast build without type wrappers)"
 )
 
 # Tolerance constants for numerical comparisons

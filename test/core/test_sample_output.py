@@ -565,7 +565,7 @@ class TestSampleOutput(TestCase):
     @pytest.mark.smoke
     @pytest.mark.skipif(
         not _DTS_AVAILABLE,
-        reason="DTS not available (fast build without type wrappers)"
+        reason="DTS not available (fast build without type wrappers)",
     )
     def test_dts_vs_traditional_parity(self):
         """

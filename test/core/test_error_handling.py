@@ -177,14 +177,10 @@ class TestSUEWSWarnings:
         _reset_supy_warnings()
 
         # Set warning via Fortran function
-        _sd.f90wrap_module_ctrl_error_state__add_supy_warning(
-            "Test warning message"
-        )
+        _sd.f90wrap_module_ctrl_error_state__add_supy_warning("Test warning message")
 
         # Verify warning count is incremented
-        count = int(
-            _sd.f90wrap_module_ctrl_error_state__get__supy_warning_count()
-        )
+        count = int(_sd.f90wrap_module_ctrl_error_state__get__supy_warning_count())
         assert count == 1, "Warning count should be 1 after add_supy_warning"
 
         # Verify message is stored
@@ -204,16 +200,16 @@ class TestSUEWSWarnings:
         _reset_supy_warnings()
 
         # Verify all fields are cleared
-        count = int(
-            _sd.f90wrap_module_ctrl_error_state__get__supy_warning_count()
-        )
+        count = int(_sd.f90wrap_module_ctrl_error_state__get__supy_warning_count())
         message = str(
             _sd.f90wrap_module_ctrl_error_state__get__supy_last_warning_message()
         ).strip()
 
         assert count == 0, "Warning count should be 0 after reset"
         # Message may be empty string, bytes, or string representation of bytes
-        assert message in ("", "b''", b"") or len(message) == 0, "Warning message should be empty"
+        assert message in ("", "b''", b"") or len(message) == 0, (
+            "Warning message should be empty"
+        )
 
     def test_multiple_warnings_increment_count(self):
         """Test that multiple warnings increment the count."""
@@ -228,9 +224,7 @@ class TestSUEWSWarnings:
         _sd.f90wrap_module_ctrl_error_state__add_supy_warning("Third warning")
 
         # Verify count
-        count = int(
-            _sd.f90wrap_module_ctrl_error_state__get__supy_warning_count()
-        )
+        count = int(_sd.f90wrap_module_ctrl_error_state__get__supy_warning_count())
         assert count == 3, "Warning count should be 3 after three warnings"
 
         # Last message should be the most recent
@@ -272,10 +266,9 @@ class TestSUEWSWarnings:
 
         # Check warning was logged (either in caplog or verify count was processed)
         # Note: caplog may not capture from the SuPy logger depending on setup
-        count = int(
-            _sd.f90wrap_module_ctrl_error_state__get__supy_warning_count()
-        )
+        count = int(_sd.f90wrap_module_ctrl_error_state__get__supy_warning_count())
         # If count > 0, the warning was processed by _log_supy_warnings
         # The actual logging verification can be done by checking caplog or count
-        assert count >= 1 or len(caplog.records) >= 1, \
+        assert count >= 1 or len(caplog.records) >= 1, (
             "Warning should exist or be logged"
+        )

@@ -374,17 +374,26 @@ class InitialStateVeg(SurfaceInitialState):
     )
     lai_id: FlexibleRefValue(float) = Field(
         description="Leaf area index at the start of the model run.",
-        json_schema_extra={"unit": "m^2 m^-2", "display_name": "Initial Leaf Area Index"},
+        json_schema_extra={
+            "unit": "m^2 m^-2",
+            "display_name": "Initial Leaf Area Index",
+        },
         default=1.0,
     )
     gdd_id: FlexibleRefValue(float) = Field(
         description="Growing degree days at the start of the model run",
-        json_schema_extra={"unit": "degC d", "display_name": "Initial Growing Degree Days"},
+        json_schema_extra={
+            "unit": "degC d",
+            "display_name": "Initial Growing Degree Days",
+        },
         default=0,
     )  # We need to check this and give info for setting values.
     sdd_id: FlexibleRefValue(float) = Field(
         description="Senescence degree days at the start of the model run",
-        json_schema_extra={"unit": "degC d", "display_name": "Initial Senescence Degree Days"},
+        json_schema_extra={
+            "unit": "degC d",
+            "display_name": "Initial Senescence Degree Days",
+        },
         default=0,
     )  # This need to be consistent with GDD.
     wu: WaterUse = Field(

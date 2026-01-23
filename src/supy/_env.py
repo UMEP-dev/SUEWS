@@ -47,6 +47,7 @@ def get_file_handler():
         path_logfile.touch()
     except Exception as e:
         import warnings
+
         tempdir = tempfile.gettempdir()
         path_logfile = Path(tempdir) / LOG_FILE
         warnings.warn(

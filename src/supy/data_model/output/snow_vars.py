@@ -146,9 +146,7 @@ DENSSNOW_VARS = make_surface_vars(
 )
 
 # Snow depth by surface
-SD_VARS = make_surface_vars(
-    "Sd", "mm", "Snow depth for {}", AggregationMethod.AVERAGE
-)
+SD_VARS = make_surface_vars("Sd", "mm", "Snow depth for {}", AggregationMethod.AVERAGE)
 
 # Snow surface temperature by surface
 TSNOW_VARS = make_surface_vars(

@@ -55,6 +55,7 @@ import pandas as pd
 import pytest
 
 import supy as sp
+from supy.dts import _DTS_AVAILABLE
 from conftest import TIMESTEPS_PER_DAY
 
 # Get the test data directory
@@ -562,6 +563,10 @@ class TestSampleOutput(TestCase):
 
     @pytest.mark.core
     @pytest.mark.smoke
+    @pytest.mark.skipif(
+        not _DTS_AVAILABLE,
+        reason="DTS not available (fast build without type wrappers)"
+    )
     def test_dts_vs_traditional_parity(self):
         """
         Test DTS interface produces identical output to traditional run_supy.

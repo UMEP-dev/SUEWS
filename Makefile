@@ -1,5 +1,5 @@
 # SUEWS Simplified Makefile - Essential recipes only
-.PHONY: help setup submodules dev reinstall test test-smoke test-all docs clean format
+.PHONY: help setup submodules dev dev-dts reinstall test test-smoke test-all docs clean format
 
 # Default Python
 PYTHON := python
@@ -8,7 +8,8 @@ help:
 	@echo "SUEWS Development - Essential Commands"
 	@echo ""
 	@echo "  setup      - Create virtual environment (if using uv)"
-	@echo "  dev        - Install in editable mode (requires activated venv)"
+	@echo "  dev        - Fast build without DTS type wrappers (traditional interface)"
+	@echo "  dev-dts    - Full build with DTS type wrappers (DTS interface enabled)"
 	@echo "  test       - Run standard tests (excludes slow, ~2-3 min)"
 	@echo "  test-smoke - Run smoke tests only (fast CI validation, ~30-60 sec)"
 	@echo "  test-all   - Run ALL tests including slow (~4-5 min)"
@@ -19,6 +20,10 @@ help:
 	@echo "Quick start:"
 	@echo "  With uv:    make setup && source .venv/bin/activate && make dev"
 	@echo "  With conda: mamba env create -f env.yml && mamba activate suews-dev && make dev"
+	@echo ""
+	@echo "Build options:"
+	@echo "  make dev      - Fast build (skips 13 type files in f90wrap)"
+	@echo "  make dev-dts  - Full build (for DTS interface development)"
 	@echo ""
 	@echo "Common workflows:"
 	@echo "  Fresh start:     make clean && make dev"
@@ -47,7 +52,9 @@ setup:
 submodules:
 	@git submodule update --init --recursive
 
-# Install in editable mode (self-healing - works after clean)
+# Fast build without DTS type wrappers (for most development)
+# Skips wrapping 13 type definition files, significantly reducing f90wrap time
+# Traditional DataFrame interface works; DTS features will raise clear error
 dev:
 	@# Check for activated virtual environment
 	@if [ -z "$$VIRTUAL_ENV" ]; then \
@@ -63,7 +70,8 @@ dev:
 		exit 1; \
 	fi
 	@$(MAKE) submodules
-	@echo "Installing SUEWS in editable mode..."
+	@echo "Installing SUEWS in editable mode (fast build - no DTS type wrappers)..."
+	@echo "Note: DTS features unavailable. Use 'make dev-dts' for full build."
 	@# Get current Python version tag
 	@PYVER=$$($(PYTHON) -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')") || { \
 		echo "ERROR: Failed to get Python version"; \
@@ -101,21 +109,92 @@ dev:
 		uv pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran for macOS compatibility"; \
-			bash -c 'FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]"'; \
+			bash -c 'FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=false"'; \
 		else \
-			uv pip install --no-build-isolation -e ".[dev]"; \
+			uv pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=false"; \
 		fi \
 	else \
 		$(PYTHON) -m pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
-			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation -e ".[dev]"; \
+			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=false"; \
 		else \
-			$(PYTHON) -m pip install --no-build-isolation -e ".[dev]"; \
+			$(PYTHON) -m pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=false"; \
 		fi \
 	fi
 	@# Ensure meson build directory is initialized (fixes post-clean state)
 	@$(MAKE) rebuild-meson
-	@echo "✓ Installation complete"
+	@echo "Build complete (fast build - DTS features disabled)"
+
+# Full build with DTS type wrappers (for DTS interface development)
+# Wraps all type definition files for direct Python access to nested Fortran types
+dev-dts:
+	@# Check for activated virtual environment
+	@if [ -z "$$VIRTUAL_ENV" ]; then \
+		echo ""; \
+		echo "ERROR: No virtual environment activated."; \
+		echo ""; \
+		echo "Please activate a virtual environment first:"; \
+		echo "  make setup && source .venv/bin/activate && make dev-dts"; \
+		echo ""; \
+		echo "Or with conda:"; \
+		echo "  mamba activate suews-dev && make dev-dts"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@$(MAKE) submodules
+	@echo "Installing SUEWS in editable mode (full build - with DTS type wrappers)..."
+	@# Get current Python version tag
+	@PYVER=$$($(PYTHON) -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')") || { \
+		echo "ERROR: Failed to get Python version"; \
+		exit 1; \
+	}; \
+	echo "Python version: $$PYVER"; \
+	# Stale build detection: check for builds from different Python versions \
+	if [ -d "build" ]; then \
+		STALE_BUILDS=$$(ls -d build/cp* 2>/dev/null | grep -v "build/$$PYVER" || true); \
+		if [ -n "$$STALE_BUILDS" ]; then \
+			echo ""; \
+			echo "WARNING: Found build directories for different Python versions:"; \
+			echo "$$STALE_BUILDS"; \
+			echo ""; \
+			echo "Cleaning stale builds to avoid import errors..."; \
+			for dir in $$STALE_BUILDS; do \
+				rm -rf "$$dir"; \
+				echo "  Removed: $$dir"; \
+			done; \
+			echo ""; \
+		fi \
+	fi; \
+	# Uninstall first if build directory is missing (post-clean state) \
+	if [ ! -d "build/$$PYVER" ]; then \
+		echo "Build directory missing for $$PYVER - performing clean reinstall..."; \
+		if command -v uv >/dev/null 2>&1; then \
+			uv pip uninstall supy 2>/dev/null || true; \
+		else \
+			$(PYTHON) -m pip uninstall supy -y 2>/dev/null || true; \
+		fi \
+	fi
+	@# Install build dependencies first (required for --no-build-isolation)
+	@if command -v uv >/dev/null 2>&1; then \
+		echo "Using uv for fast installation..."; \
+		uv pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
+		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
+			echo "Using Homebrew gfortran for macOS compatibility"; \
+			bash -c 'FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=true"'; \
+		else \
+			uv pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=true"; \
+		fi \
+	else \
+		$(PYTHON) -m pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
+		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
+			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=true"; \
+		else \
+			$(PYTHON) -m pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=true"; \
+		fi \
+	fi
+	@# Ensure meson build directory is initialized (fixes post-clean state)
+	@$(MAKE) rebuild-meson
+	@echo "Build complete (full build - DTS features enabled)"
 
 # Deprecated: use 'make clean && make dev' instead (kept for backwards compatibility)
 reinstall:

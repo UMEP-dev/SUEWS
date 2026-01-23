@@ -284,7 +284,9 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
     # No kernel lock needed - state-based error handling is thread-safe
     # Each call has its own block_mod_state for error capture
     try:
-        # Reset module-level warning state before kernel call
+        # Reset module-level error and warning state before kernel call
+        # GH#1103: Must reset error flag to prevent stale errors from previous runs
+        _reset_supy_error()
         _reset_supy_warnings()
 
         # Create and initialize block_mod_state for state-based error handling

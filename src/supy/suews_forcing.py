@@ -148,7 +148,10 @@ class SUEWSForcing:
 
     Load multiple files:
 
-    >>> forcing = SUEWSForcing.from_file(["forcing_2023.txt", "forcing_2024.txt"])
+    >>> forcing = SUEWSForcing.from_file([
+    ...     "forcing_2023.txt",
+    ...     "forcing_2024.txt",
+    ... ])
 
     Access variables with intuitive names:
 
@@ -498,7 +501,9 @@ class SUEWSForcing:
         filled = filled.replace(-999, np.nan)
 
         # Handle sum variables (rain, Wuh) specially - fill with 0
-        sum_vars = [col for col in filled.columns if FORCING_VAR_TYPES.get(col) == "sum"]
+        sum_vars = [
+            col for col in filled.columns if FORCING_VAR_TYPES.get(col) == "sum"
+        ]
         for var in sum_vars:
             if var in filled.columns:
                 filled[var] = filled[var].fillna(0)

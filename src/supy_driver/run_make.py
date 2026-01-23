@@ -75,13 +75,19 @@ def main() -> None:
             )
             clean = _run_make(["clean-obj", "clean-mods"], suews_dir, fc)
             if clean.returncode != 0:
-                raise subprocess.CalledProcessError(clean.returncode, clean.args, output=clean.stdout)
+                raise subprocess.CalledProcessError(
+                    clean.returncode, clean.args, output=clean.stdout
+                )
 
             retry = _run_make([], suews_dir, fc)
             if retry.returncode != 0:
-                raise subprocess.CalledProcessError(retry.returncode, retry.args, output=retry.stdout)
+                raise subprocess.CalledProcessError(
+                    retry.returncode, retry.args, output=retry.stdout
+                )
         else:
-            raise subprocess.CalledProcessError(result.returncode, result.args, output=result.stdout)
+            raise subprocess.CalledProcessError(
+                result.returncode, result.args, output=result.stdout
+            )
 
     # Ensure an output file exists so Meson can track this custom target.
     stamp_file.parent.mkdir(parents=True, exist_ok=True)

@@ -72,7 +72,9 @@ def _populate_thermal_layer_arrays(
     """
     dz = _unwrap(thermal_layers.dz) if hasattr(thermal_layers, "dz") else None
     k = _unwrap(thermal_layers.k) if hasattr(thermal_layers, "k") else None
-    rho_cp = _unwrap(thermal_layers.rho_cp) if hasattr(thermal_layers, "rho_cp") else None
+    rho_cp = (
+        _unwrap(thermal_layers.rho_cp) if hasattr(thermal_layers, "rho_cp") else None
+    )
 
     if dz is not None:
         for j, val in enumerate(dz[:ndepth]):
@@ -184,7 +186,12 @@ def populate_timer_from_datetime(
 
     # Calculate decimal time (day of year + fraction of day)
     # Note: Fortran dectime = (id - 1) + it/24 + imin/(60*24) + isec/(60*60*24)
-    timer.dectime = (dt.dayofyear - 1) + dt.hour / 24.0 + dt.minute / (60 * 24) + dt.second / (60 * 60 * 24)
+    timer.dectime = (
+        (dt.dayofyear - 1)
+        + dt.hour / 24.0
+        + dt.minute / (60 * 24)
+        + dt.second / (60 * 60 * 24)
+    )
 
     # Day of week array: [weekday, month, season]
     # Fortran convention: 1=Sun, 2=Mon, ..., 7=Sat (not ISO 8601!)
@@ -471,7 +478,9 @@ def _populate_phenology_state(
         if tmin_val is not None and tmin_val != 90.0:
             state_dts.phenstate.tmin_id = tmin_val
         else:
-            state_dts.phenstate.tmin_id = 90.0  # Sentinel: will be updated to actual min
+            state_dts.phenstate.tmin_id = (
+                90.0  # Sentinel: will be updated to actual min
+            )
     else:
         state_dts.phenstate.tmin_id = 90.0
 
@@ -481,7 +490,9 @@ def _populate_phenology_state(
         if tmax_val is not None and tmax_val != -90.0:
             state_dts.phenstate.tmax_id = tmax_val
         else:
-            state_dts.phenstate.tmax_id = -90.0  # Sentinel: will be updated to actual max
+            state_dts.phenstate.tmax_id = (
+                -90.0
+            )  # Sentinel: will be updated to actual max
     else:
         state_dts.phenstate.tmax_id = -90.0
 
@@ -709,9 +720,7 @@ def populate_site_from_pydantic(
         _unwrap(props.n_buildings) if hasattr(props, "n_buildings") else 0.0
     )
     site_dts.h_std = _unwrap(props.h_std) if hasattr(props, "h_std") else 0.0
-    site_dts.lambda_c = (
-        _unwrap(props.lambda_c) if hasattr(props, "lambda_c") else 0.0
-    )
+    site_dts.lambda_c = _unwrap(props.lambda_c) if hasattr(props, "lambda_c") else 0.0
 
     # Populate nested land cover types
     _populate_landcover_paved(site_dts.lc_paved, lc.paved)
@@ -744,7 +753,9 @@ def populate_site_from_pydantic(
         _populate_anthroemis(site_dts.anthroemis, props.anthropogenic_emissions)
 
 
-def _populate_landcover_common(lc_dts: Any, lc_pydantic: Any, is_water: bool = False) -> None:
+def _populate_landcover_common(
+    lc_dts: Any, lc_pydantic: Any, is_water: bool = False
+) -> None:
     """Populate common parameters for all land cover types.
 
     This includes surface state limits, soil parameters, OHM parameters,
@@ -815,11 +826,19 @@ def _populate_landcover_common(lc_dts: Any, lc_pydantic: Any, is_water: bool = F
         lc_dts.ohm.ohm_coef_lc[2].winter_wet = _unwrap(ohm_coef.winter_wet.a3)
 
     # Water distribution (not for water surface)
-    if not is_water and hasattr(lc_pydantic, "waterdist") and lc_pydantic.waterdist is not None:
+    if (
+        not is_water
+        and hasattr(lc_pydantic, "waterdist")
+        and lc_pydantic.waterdist is not None
+    ):
         wd = lc_pydantic.waterdist
         wd_dts = lc_dts.waterdist
         wd_dts.to_paved = _unwrap(wd.to_paved) if wd.to_paved is not None else 0.0
-        wd_dts.to_bldg = _unwrap(wd.to_bldgs) if hasattr(wd, "to_bldgs") and wd.to_bldgs is not None else 0.0
+        wd_dts.to_bldg = (
+            _unwrap(wd.to_bldgs)
+            if hasattr(wd, "to_bldgs") and wd.to_bldgs is not None
+            else 0.0
+        )
         wd_dts.to_evetr = _unwrap(wd.to_evetr) if wd.to_evetr is not None else 0.0
         wd_dts.to_dectr = _unwrap(wd.to_dectr) if wd.to_dectr is not None else 0.0
         wd_dts.to_grass = _unwrap(wd.to_grass) if wd.to_grass is not None else 0.0
@@ -864,7 +883,7 @@ def _populate_vegetation_params(lc_dts, lc_pydantic) -> None:
     This is called for evetr, dectr, and grass land cover types.
     """
     # LAI parameters
-    if hasattr(lc_pydantic, 'lai') and lc_pydantic.lai is not None:
+    if hasattr(lc_pydantic, "lai") and lc_pydantic.lai is not None:
         lai_py = lc_pydantic.lai
         lai_dts = lc_dts.lai
         lai_dts.laimin = _unwrap(lai_py.laimin)
@@ -875,7 +894,7 @@ def _populate_vegetation_params(lc_dts, lc_pydantic) -> None:
         lai_dts.basete = _unwrap(lai_py.basete)
         lai_dts.laitype = _unwrap(lai_py.laitype)
         # LAI power coefficients (array of 4)
-        if hasattr(lai_py, 'laipower') and lai_py.laipower is not None:
+        if hasattr(lai_py, "laipower") and lai_py.laipower is not None:
             lp = lai_py.laipower
             lai_dts.laipower[0] = _unwrap(lp.growth_lai)
             lai_dts.laipower[1] = _unwrap(lp.growth_gdd)
@@ -883,13 +902,13 @@ def _populate_vegetation_params(lc_dts, lc_pydantic) -> None:
             lai_dts.laipower[3] = _unwrap(lp.senescence_sdd)
 
     # Albedo min/max
-    if hasattr(lc_pydantic, 'alb_min'):
+    if hasattr(lc_pydantic, "alb_min"):
         lc_dts.alb_min = _unwrap(lc_pydantic.alb_min)
-    if hasattr(lc_pydantic, 'alb_max'):
+    if hasattr(lc_pydantic, "alb_max"):
         lc_dts.alb_max = _unwrap(lc_pydantic.alb_max)
 
     # Max conductance
-    if hasattr(lc_pydantic, 'maxconductance'):
+    if hasattr(lc_pydantic, "maxconductance"):
         lc_dts.maxconductance = _unwrap(lc_pydantic.maxconductance)
 
 
@@ -962,7 +981,19 @@ def _populate_conductance(cond_dts, cond_pydantic, gsmodel: int | None = None) -
     _set_attrs(
         cond_dts,
         cond_pydantic,
-        ("g_max", "g_k", "g_q_base", "g_q_shape", "g_t", "g_sm", "kmax", "s1", "s2", "th", "tl"),
+        (
+            "g_max",
+            "g_k",
+            "g_q_base",
+            "g_q_shape",
+            "g_t",
+            "g_sm",
+            "kmax",
+            "s1",
+            "s2",
+            "th",
+            "tl",
+        ),
     )
     # gsmodel comes from config; fall back to site or default
     if gsmodel is not None:
@@ -1016,7 +1047,10 @@ def _populate_snow(snow_dts, snow_pydantic, land_cover=None) -> None:
 
     # Snow profiles (24-hour diurnal patterns)
     # Fortran expects (24,) arrays for working and holiday
-    if hasattr(snow_pydantic, "snowprof_24hr") and snow_pydantic.snowprof_24hr is not None:
+    if (
+        hasattr(snow_pydantic, "snowprof_24hr")
+        and snow_pydantic.snowprof_24hr is not None
+    ):
         profile = snow_pydantic.snowprof_24hr
         working = np.full(24, -999.0, dtype=np.float64)
         holiday = np.full(24, -999.0, dtype=np.float64)
@@ -1048,7 +1082,9 @@ def _populate_snow(snow_dts, snow_pydantic, land_cover=None) -> None:
         snow_dts.snowpacklimit = snowpacklimit
 
 
-def _populate_ehc(ehc_dts, land_cover, initial_states, nsurf: int = 7, ndepth: int = 5) -> None:
+def _populate_ehc(
+    ehc_dts, land_cover, initial_states, nsurf: int = 7, ndepth: int = 5
+) -> None:
     """Populate EHC_PRM from Pydantic land cover thermal_layers.
 
     Parameters
@@ -1073,29 +1109,29 @@ def _populate_ehc(ehc_dts, land_cover, initial_states, nsurf: int = 7, ndepth: i
     # Populate arrays for each surface type
     for i, (lc, state) in enumerate(zip(surfaces, state_surfaces)):
         # Get thermal_layers if available
-        if hasattr(lc, 'thermal_layers') and lc.thermal_layers is not None:
+        if hasattr(lc, "thermal_layers") and lc.thermal_layers is not None:
             tl = lc.thermal_layers
 
             # Layer thicknesses (dz)
-            dz = _unwrap(tl.dz) if hasattr(tl, 'dz') else None
+            dz = _unwrap(tl.dz) if hasattr(tl, "dz") else None
             if dz is not None:
                 for j, val in enumerate(dz[:ndepth]):
                     ehc_dts.dz_surf[i, j] = val
 
             # Thermal conductivity (k)
-            k = _unwrap(tl.k) if hasattr(tl, 'k') else None
+            k = _unwrap(tl.k) if hasattr(tl, "k") else None
             if k is not None:
                 for j, val in enumerate(k[:ndepth]):
                     ehc_dts.k_surf[i, j] = val
 
             # Heat capacity (rho_cp -> cp)
-            rho_cp = _unwrap(tl.rho_cp) if hasattr(tl, 'rho_cp') else None
+            rho_cp = _unwrap(tl.rho_cp) if hasattr(tl, "rho_cp") else None
             if rho_cp is not None:
                 for j, val in enumerate(rho_cp[:ndepth]):
                     ehc_dts.cp_surf[i, j] = val
 
         # Internal temperature from initial states
-        tin = _unwrap(state.temperature) if hasattr(state, 'temperature') else 2.0
+        tin = _unwrap(state.temperature) if hasattr(state, "temperature") else 2.0
         if isinstance(tin, (list, np.ndarray)):
             ehc_dts.tin_surf[i] = tin[0] if len(tin) > 0 else 2.0
         else:
@@ -1166,8 +1202,7 @@ def _populate_vertical_layers(
     for i, roof in enumerate(roofs[:nlayer]):
         if hasattr(roof, "thermal_layers") and roof.thermal_layers is not None:
             _populate_thermal_layer_arrays(
-                roof.thermal_layers, i, ndepth,
-                ehc.dz_roof, ehc.k_roof, ehc.cp_roof
+                roof.thermal_layers, i, ndepth, ehc.dz_roof, ehc.k_roof, ehc.cp_roof
             )
 
         # Soil store capacity for roofs
@@ -1181,8 +1216,7 @@ def _populate_vertical_layers(
     for i, wall in enumerate(walls[:nlayer]):
         if hasattr(wall, "thermal_layers") and wall.thermal_layers is not None:
             _populate_thermal_layer_arrays(
-                wall.thermal_layers, i, ndepth,
-                ehc.dz_wall, ehc.k_wall, ehc.cp_wall
+                wall.thermal_layers, i, ndepth, ehc.dz_wall, ehc.k_wall, ehc.cp_wall
             )
 
         # Soil store capacity for walls
@@ -1400,10 +1434,10 @@ def populate_ohmstate_defaults(state_dts: dts.SUEWS_STATE) -> None:
     ohm = state_dts.ohmstate
 
     # Running average values
-    ohm.t2_prev = 0.0      # Previous midnight temperature [degC]
-    ohm.ws_rav = 2.0       # Wind speed running average [m s-1]
-    ohm.tair_prev = 0.0    # Previous air temperature [degC]
-    ohm.qn_rav = 0.0       # Net radiation running average [W m-2]
+    ohm.t2_prev = 0.0  # Previous midnight temperature [degC]
+    ohm.ws_rav = 2.0  # Wind speed running average [m s-1]
+    ohm.tair_prev = 0.0  # Previous air temperature [degC]
+    ohm.qn_rav = 0.0  # Net radiation running average [W m-2]
 
     # Dynamic OHM coefficients for all surfaces - initialize to 0.0
     # These are updated during simulation based on conditions
@@ -1483,23 +1517,35 @@ def _populate_anthroemis(anthroemis_dts, anthro_pydantic) -> None:
         anthroemis_dts.trafficrate_working = _unwrap(co2.trafficrate.working_day) or 0.0
         anthroemis_dts.trafficrate_holiday = _unwrap(co2.trafficrate.holiday) or 0.0
     anthroemis_dts.trafficunits = (
-        _unwrap(co2.trafficunits) if hasattr(co2, "trafficunits") and co2.trafficunits else 0.0
+        _unwrap(co2.trafficunits)
+        if hasattr(co2, "trafficunits") and co2.trafficunits
+        else 0.0
     )
 
     # Traffic profiles - HourlyProfile
     if hasattr(co2, "traffprof_24hr") and co2.traffprof_24hr:
-        anthroemis_dts.traffprof_24hr_working = _hourly_dict_to_array(co2.traffprof_24hr.working_day)
-        anthroemis_dts.traffprof_24hr_holiday = _hourly_dict_to_array(co2.traffprof_24hr.holiday)
+        anthroemis_dts.traffprof_24hr_working = _hourly_dict_to_array(
+            co2.traffprof_24hr.working_day
+        )
+        anthroemis_dts.traffprof_24hr_holiday = _hourly_dict_to_array(
+            co2.traffprof_24hr.holiday
+        )
 
     # Human activity profiles - HourlyProfile
     if hasattr(co2, "humactivity_24hr") and co2.humactivity_24hr:
-        anthroemis_dts.humactivity_24hr_working = _hourly_dict_to_array(co2.humactivity_24hr.working_day)
-        anthroemis_dts.humactivity_24hr_holiday = _hourly_dict_to_array(co2.humactivity_24hr.holiday)
+        anthroemis_dts.humactivity_24hr_working = _hourly_dict_to_array(
+            co2.humactivity_24hr.working_day
+        )
+        anthroemis_dts.humactivity_24hr_holiday = _hourly_dict_to_array(
+            co2.humactivity_24hr.holiday
+        )
 
     # FcEF_v_kgkm - DayProfile gives working/holiday values as 2-element array
     if hasattr(co2, "fcef_v_kgkm") and co2.fcef_v_kgkm:
         fcef_working = _unwrap(co2.fcef_v_kgkm.working_day) or 0.0
         fcef_holiday = _unwrap(co2.fcef_v_kgkm.holiday) or 0.0
-        anthroemis_dts.fcef_v_kgkm = np.array([fcef_working, fcef_holiday], dtype=np.float64)
+        anthroemis_dts.fcef_v_kgkm = np.array(
+            [fcef_working, fcef_holiday], dtype=np.float64
+        )
     else:
         anthroemis_dts.fcef_v_kgkm = np.array([0.0, 0.0], dtype=np.float64)

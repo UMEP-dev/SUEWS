@@ -299,18 +299,16 @@ class TestObservedSoilMoistureIntegration:
         df_forcing_dry = df_forcing_period.copy()
         df_forcing_dry["xsmd"] = 0.05  # Very dry soil
 
-        df_output_dry, _ = sp.run_supy(
-            df_forcing_dry, df_state_dry, save_state=False
-        )
+        df_output_dry, _ = sp.run_supy(df_forcing_dry, df_state_dry, save_state=False)
 
         # === Run 3: Observed soil moisture with WET conditions ===
         df_state_wet = df_state_dry.copy()  # Same config
         df_forcing_wet = df_forcing_period.copy()
-        df_forcing_wet["xsmd"] = 0.38  # Near saturation; deficit = (0.4-0.38)*200*0.9 = 3.6mm
-
-        df_output_wet, _ = sp.run_supy(
-            df_forcing_wet, df_state_wet, save_state=False
+        df_forcing_wet["xsmd"] = (
+            0.38  # Near saturation; deficit = (0.4-0.38)*200*0.9 = 3.6mm
         )
+
+        df_output_wet, _ = sp.run_supy(df_forcing_wet, df_state_wet, save_state=False)
 
         # === Assertions ===
         # Extract daytime QE (when evaporation is active, Kdown > 100 W/m²)

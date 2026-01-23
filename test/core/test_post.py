@@ -113,9 +113,7 @@ class TestResampleOutput(TestCase):
 
         # Verify DailyState boundary data is preserved (label='left' convention)
         # Jan 1 should have DailyState data (day 1 aggregates to label='left' = Jan 1)
-        daily_state_cols = [
-            c for c in df_daily_grid.columns if c[0] == "DailyState"
-        ]
+        daily_state_cols = [c for c in df_daily_grid.columns if c[0] == "DailyState"]
         if daily_state_cols:
             jan1_dailystate = df_daily_grid.loc["2012-01-01", daily_state_cols]
             # Should have some non-NaN values (DailyState data for day 1)

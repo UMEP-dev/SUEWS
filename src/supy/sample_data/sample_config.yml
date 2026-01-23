@@ -438,7 +438,7 @@ sites:
       HeatingSystemEfficiency:
         value: 0.8
       MaxCoolingPower:
-        value: 1000000.0
+        value: 14595
       CoolingSystemCOP:
         value: 3.4
       VentilationRate:
@@ -1191,7 +1191,7 @@ sites:
       InternalMassEmissivity:
         value: 0.91
       MaxHeatingPower:
-        value: 1000000
+        value: 12510
       WaterTankWaterVolume:
         value: 0.3
       MaximumHotWaterHeatingPower:

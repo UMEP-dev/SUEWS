@@ -11,7 +11,7 @@ No.,Use,Column Name,Description
 10,`MU`,U,Wind speed [m s-1] (measurement height (`z`) is needed in `SUEWS_SiteSelect.txt`). **Minimum: 0.01 m/s** to avoid division by zero errors in atmospheric calculations.
 11,`MU`,RH,Relative Humidity [%] (measurement height (`z`) is needed in `SUEWS_SiteSelect.txt`)
 12,`MU`,Tair,Air temperature [°C] (measurement height (`z`) is needed in `SUEWS_SiteSelect.txt`)
-13,`MU`,pres,Barometric pressure [kPa3 decimal places] (measurement height (`z`) is needed in `SUEWS_SiteSelect.txt`)
+13,`MU`,pres,Barometric pressure [kPa] (measurement height (`z`) is needed in `SUEWS_SiteSelect.txt`)
 14,`MU`,rain,Rainfall [mm] (measurement height (`z`) is needed in `SUEWS_SiteSelect.txt`)
 15,`MU`,kdown,Incoming shortwave radiation [W |m^-2|] Must be > 0 W |m^-2|.
 16,`O`,snow,Snow cover fraction (0 – 1) [-] (Required if `SnowUse` = 1)

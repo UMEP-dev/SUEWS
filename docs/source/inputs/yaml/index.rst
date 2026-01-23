@@ -151,7 +151,7 @@ The forcing file must be a text file with specific columns in the correct order.
 2. **Wind speed** [m/s] - minimum 0.01 m/s
 3. **Relative humidity** [%]
 4. **Air temperature** [°C]
-5. **Pressure** [kPa] - provide 3 digits after the decimal point in the forcing file
+5. **Pressure** [kPa] - ideally 3, at least 2 decimal places
 6. **Rainfall** [mm]
 7. **Incoming shortwave radiation** [W/m²] - must be > 0
 8. **Incoming longwave radiation** [W/m²] - optional, will be modeled if missing (use -999)

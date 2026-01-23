@@ -4,9 +4,7 @@ from pathlib import Path
 import time
 import sys
 import os
-import tempfile
 import stat
-from unittest.mock import patch, mock_open
 
 import pytest
 
@@ -489,16 +487,15 @@ def test_validate_error_injection_file_write_failure(suews_validate_exe, tmp_pat
     _write_minimal_invalid_yaml(yaml_path)
 
     # Create a scenario where output files might have write issues
-    # by pre-creating empty files with specific names that the validator might use
-    potential_reports = [
+    # by pre-creating files with names matching the input file
+    # (validator generates report_<input_basename>.txt from error_injection.yml)
+    files_to_precreate = [
         tmp_path / "report_error_injection.txt",
-        tmp_path / "report_yaml_setup.txt",
         tmp_path / "updated_error_injection.yml",
-        tmp_path / "updated_yaml_setup.yml",
     ]
-    
-    # Pre-create some files to test overwrite scenarios
-    for potential_file in potential_reports[:2]:
+
+    # Pre-create files to test overwrite scenarios
+    for potential_file in files_to_precreate:
         potential_file.write_text("pre-existing content")
     
     proc = _run_validate(suews_validate_exe, tmp_path, args=[str(yaml_path)])

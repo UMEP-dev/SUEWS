@@ -62,3 +62,4 @@ For full setup options, use `/setup-dev` command.
 | `src/supy/` | Python wrapper (see `rules/python/`) |
 | `docs/` | Documentation (see `rules/docs/`) |
 | `test/` | Tests (see `rules/tests/`) |
+| `.github/workflows/` | CI/Actions (see `rules/ci/`) |

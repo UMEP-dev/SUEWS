@@ -1968,9 +1968,12 @@ CONTAINS
                            a1_water, a2_water, a3_water, &
                            a1, a2, a3, qs, qs_surf, deltaQi, &
                            modState)
-                  !QS_surf = qs
-                  QS_roof = qs
-                  QS_wall = qs
+                  IF (StorageHeatMethod /= 6 .AND. StorageHeatMethod /= 7) THEN
+                     QS_surf = qs
+                  END IF
+                     QS_roof = qs
+                     QS_wall = qs
+                  
 
                   ! use AnOHM to calculate QS, TS 14 Mar 2016
                   ! disable AnOHM, TS 20 Jul 2023

@@ -200,7 +200,7 @@ CONTAINS
                ELSE
                   ws_rav = ws_rav + (ws - ws_rav)/(86400/tstep)
                   DO i_surf = 1, nsurf
-                     qn_rav = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(86400/tstep)
+                     qn_rav(i_surf) = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(86400/tstep)
                   END DO
                END IF
             END IF
@@ -415,15 +415,8 @@ CONTAINS
          ! print*,''
          ! CALL OHM_dqndt_cal(nsh,qn1,qn1_store_grid,qn1_av_store_grid,dqndt)
          ! print*, 'old dqndt',dqndt
-         CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
-                              qn_av_next, dqndt_next)
-         ! print*, 'new dqndt',dqndt
-
          ! Calculate net storage heat flux
-         CALL OHM_QS_cal(qn1, dqndt_next, a1, a2, a3, qs)
-         IF (DiagQS == 1) WRITE (*, *) 'qs: ', qs, 'qn1:', qn1, 'dqndt: ', dqndt_next
-
-         IF (StorageHeatMethod == 6 .OR. storageheatmethod == 7) THEN
+         IF (StorageHeatMethod == 6 .OR. storageheatmethod == 7) THEN !for dyOHM for dyOHM+STEBBS
             !calculate dqndt_next for each surface (for dyOHM)
             DO i_surf = 1, nsurf
                CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_surf_prev(i_surf), qn1_surf(i_surf), dqndt_surf_prev(i_surf), &
@@ -436,7 +429,30 @@ CONTAINS
             CALL OHM_QS_cal(qn1_surf(5), dqndt_surf_next(5), a1_grass, a2_grass, a3_grass, qs_surf(5))
             CALL OHM_QS_cal(qn1_surf(6), dqndt_surf_next(6), a1_bsoil, a2_bsoil, a3_bsoil, qs_surf(6))
             CALL OHM_QS_cal(qn1_surf(7), dqndt_surf_next(7), a1_water, a2_water, a3_water, qs_surf(7))
-         END IF 
+            
+            qs = 0
+            IF (StorageHeatMethod == 6) THEN
+               !full dyOHM
+               DO i_surf = 1, nsurf
+                  qs = qs + qs_surf(i_surf) * sfr_surf(i_surf)
+               End DO            
+            ELSE ! STEBBS is used for building, dyOHM-building is not included
+               DO i_surf = 1, nsurf
+                  IF (i_surf /= 2) THEN   ! surface 2 = building
+                     qs = qs + qs_surf(i_surf) * sfr_surf(i_surf)
+                  END IF
+               End DO
+            END IF
+
+         ELSE
+            ! traditional OHM
+            CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
+                              qn_av_next, dqndt_next)
+            ! print*, 'new dqndt',dqndt
+            CALL OHM_QS_cal(qn1, dqndt_next, a1, a2, a3, qs)
+            IF (DiagQS == 1) WRITE (*, *) 'qs: ', qs, 'qn1:', qn1, 'dqndt: ', dqndt_next
+         END IF
+
       ELSE
          CALL ErrorHint(21, 'In SUEWS_OHM.f95: bad value for qn1 found during qs calculation.', qn1, -55.55D0, -55, modState)
          IF (supy_error_flag) RETURN

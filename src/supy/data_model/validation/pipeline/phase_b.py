@@ -1936,8 +1936,9 @@ def run_science_check(
 
         # Write error report file
         if science_report_file:
-            with open(science_report_file, "w") as f:
+            with open(science_report_file, "w", encoding="utf-8", newline="\n") as f:
                 f.write(report_content)
+                f.flush()
 
         # Re-raise the exception so orchestrator knows it failed
         raise e
@@ -1964,8 +1965,9 @@ def run_science_check(
     )
 
     if science_report_file:
-        with open(science_report_file, "w") as f:
+        with open(science_report_file, "w", encoding="utf-8", newline="\n") as f:
             f.write(report_content)
+            f.flush()
 
     if critical_errors:
         print_critical_halt_message(critical_errors)
@@ -1975,11 +1977,12 @@ def run_science_check(
 
     if science_yaml_file and not critical_errors:
         header = create_science_yaml_header(phase_a_performed)
-        with open(science_yaml_file, "w") as f:
+        with open(science_yaml_file, "w", encoding="utf-8", newline="\n") as f:
             f.write(header)
             yaml.dump(
                 science_checked_data, f, default_flow_style=False, sort_keys=False
             )
+            f.flush()
 
     return science_checked_data
 

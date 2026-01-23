@@ -516,3 +516,21 @@ def test_validate_error_injection_file_write_failure(suews_validate_exe, tmp_pat
             assert _has_meaningful_content(report), (
                 f"Error injection report lacks meaningful content: {report}"
             )
+
+
+@pytest.mark.cfg
+@pytest.mark.smoke
+def test_create_consolidated_report_writes_utf8(tmp_path):
+    """create_consolidated_report should write UTF-8 reports (Windows locale safe)."""
+    from supy.data_model.validation.pipeline.orchestrator import create_consolidated_report
+
+    report_file = tmp_path / "report_unicode.txt"
+    create_consolidated_report(
+        phases_run=["B"],
+        no_action_messages=["- Updated (1) parameter(s):", "-- x: 1 → 2 (example)"],
+        final_report_file=str(report_file),
+        mode="public",
+    )
+
+    decoded = report_file.read_bytes().decode("utf-8")
+    assert "→" in decoded

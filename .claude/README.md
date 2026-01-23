@@ -17,8 +17,10 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 │   │   └── conventions.md          # When editing docs/**/*
 │   ├── tests/
 │   │   └── patterns.md             # When editing test*/**/*.py
-│   └── changelog/
-│       └── format.md               # When editing CHANGELOG.md
+│   ├── changelog/
+│   │   └── format.md               # When editing CHANGELOG.md
+│   └── ci/
+│       └── conventions.md          # When editing .github/workflows/**/*
 │
 ├── skills/                # Action-oriented workflows (invoked via /skill-name)
 │   ├── audit-pr/          # PR review orchestrator
@@ -106,6 +108,7 @@ audit-pr ────────────┬── lint-code (style review)
 - **"Fortran conventions"** -> `.claude/rules/fortran/`
 - **"Python conventions"** -> `.claude/rules/python/`
 - **"Test patterns"** -> `.claude/rules/tests/`
+- **"CI/GitHub Actions"** -> `.claude/rules/ci/`
 
 ## Git Policy
 

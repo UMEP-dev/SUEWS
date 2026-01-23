@@ -26,6 +26,7 @@ Full setup: `/setup-dev` | Style check: `/lint-code` | Build check: `/verify-bui
 | `src/supy/` | Python | `.claude/rules/python/` |
 | `docs/` | Documentation | `.claude/rules/docs/` |
 | `test/` | Tests | `.claude/rules/tests/` |
+| `.github/workflows/` | CI/Actions | `.claude/rules/ci/` |
 
 ## Skills
 

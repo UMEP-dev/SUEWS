@@ -494,7 +494,7 @@ def save_precheck_diff_report(diffs: List[dict], original_yaml_path: str):
     report_filename = f"precheck_report_{os.path.basename(original_yaml_path).replace('.yml', '.csv')}"
     report_path = os.path.join(os.path.dirname(original_yaml_path), report_filename)
 
-    with open(report_path, "w", newline="") as csvfile:
+    with open(report_path, "w", encoding="utf-8", newline="") as csvfile:
         writer = csv.DictWriter(
             csvfile,
             fieldnames=["site", "parameter", "old_value", "new_value", "reason"],
@@ -1577,7 +1577,7 @@ def run_precheck(path: str) -> dict:
     output_filename = f"py0_{os.path.basename(path)}"
     output_path = os.path.join(os.path.dirname(path), output_filename)
 
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8", newline="\n") as f:
         yaml.dump(data, f, sort_keys=False, allow_unicode=True)
 
     logger_supy.info(f"Saved updated YAML file to: {output_path}")

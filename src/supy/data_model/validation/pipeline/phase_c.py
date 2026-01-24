@@ -199,7 +199,7 @@ def generate_phase_c_report(
         ) = _parse_consolidated_messages(no_action_messages)
     elif phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
-            with open(phase_a_report_file, "r") as f:
+            with open(phase_a_report_file, "r", encoding="utf-8", errors="replace") as f:
                 report_content = f.read()
             (
                 phase_a_renames,
@@ -485,7 +485,7 @@ def generate_phase_c_report(
 
     report_lines.extend(["", "# " + "=" * 50])
 
-    with open(output_report_file, "w") as f:
+    with open(output_report_file, "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(report_lines))
 
 
@@ -517,7 +517,7 @@ def generate_fallback_report(
         ) = _parse_consolidated_messages(no_action_messages)
     elif phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
-            with open(phase_a_report_file, "r") as f:
+            with open(phase_a_report_file, "r", encoding="utf-8", errors="replace") as f:
                 report_content = f.read()
             (
                 phase_a_renames,
@@ -576,5 +576,5 @@ def generate_fallback_report(
 # ==================================================
 """
 
-    with open(output_report_file, "w") as f:
+    with open(output_report_file, "w", encoding="utf-8", newline="\n") as f:
         f.write(error_report)

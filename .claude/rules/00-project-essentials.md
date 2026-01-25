@@ -8,7 +8,11 @@ Rules that apply to ALL Claude Code sessions in this repository.
 
 - **British English** for documentation, comments, file names, and communication
   - Exception: Scientific computing terms follow numpy/scipy conventions (e.g., "analyze" not "analyse")
-- **No emoji-like characters** in print/logging functions - use plain ASCII only
+- **ASCII-only output** in print/logging functions, validation reports, and all generated files
+  - Use `->` not `→` for arrows
+  - Use `[X]` not `✗` for failure indicators
+  - Use `[OK]` not `✓` for success indicators
+  - Reason: Ensures compatibility across all platforms and encodings
 
 ## Variant-Neutral Naming
 

@@ -20,6 +20,8 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.progress import track
 
+from ..data_model.validation.pipeline.report_writer import REPORT_WRITER
+
 # Import the new JSON output formatter
 try:
     from .json_output import JSONOutput, ErrorCode, ValidationError
@@ -104,7 +106,7 @@ def validate_single_file(
 
         if validation_errors:
             for error in validation_errors:
-                path = " → ".join(str(p) for p in error.path) if error.path else "root"
+                path = " -> ".join(str(p) for p in error.path) if error.path else "root"
                 if ValidationError and ErrorCode:
                     # Categorize the error based on its content
                     if "required" in error.message.lower():
@@ -543,7 +545,7 @@ def _print_schema_info():
 
     console.print("\n[bold]Version History:[/bold]")
     for version, description in SCHEMA_VERSIONS.items():
-        marker = "→" if version == CURRENT_SCHEMA_VERSION else " "
+        marker = ">" if version == CURRENT_SCHEMA_VERSION else " "
         console.print(f"  {marker} v{version}: {description}")
 
     console.print("\n[bold]Schema Files:[/bold]")
@@ -617,7 +619,7 @@ def version(files, update, target_version, backup):
                     cfg["schema_version"] = new_version
                     with open(path, "w") as f:
                         yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
-                    action = f"Updated → {new_version}"
+                    action = f"Updated -> {new_version}"
                 else:
                     action = "No change needed"
 
@@ -1200,8 +1202,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
 
                 # Read Phase C error report and append Phase B messages
                 if Path(pydantic_report_file).exists():
-                    with open(pydantic_report_file, "r", encoding="utf-8", errors="replace") as f:
-                        phase_c_content = f.read()
+                    phase_c_content = REPORT_WRITER.read(pydantic_report_file)
 
                     # Append Phase B NO ACTION NEEDED messages to Phase C report
                     if phase_b_messages:
@@ -1226,9 +1227,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
                         phase_c_content += f"\n\n# {'=' * 50}\n"
 
                         # Write consolidated report
-                        with open(pydantic_report_file, "w", encoding="utf-8", newline="\n") as f:
-                            f.write(phase_c_content)
-                            f.flush()
+                        REPORT_WRITER.write(pydantic_report_file, phase_c_content)
 
                 # Use Phase B YAML as final (last successful phase)
                 if Path(science_yaml_file).exists():

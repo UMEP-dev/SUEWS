@@ -542,9 +542,6 @@ class VegetatedSurfaceProperties(SurfaceProperties):
 
         # add ordinary float properties
         for attr in [
-            #"alb",
-            # "alb_min",
-            # "alb_max",
             "beta_bioco2",
             "beta_enh_bioco2",
             "alpha_bioco2",
@@ -585,9 +582,6 @@ class VegetatedSurfaceProperties(SurfaceProperties):
         instance = super().from_df_state(df, grid_id, surf_idx)
         # add ordinary float properties
         for attr in [
-            #"alb",
-            # "alb_min",
-            # "alb_max",
             "beta_bioco2",
             "beta_enh_bioco2",
             "alpha_bioco2",

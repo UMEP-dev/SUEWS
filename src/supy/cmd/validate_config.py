@@ -106,7 +106,7 @@ def validate_single_file(
 
         if validation_errors:
             for error in validation_errors:
-                path = " → ".join(str(p) for p in error.path) if error.path else "root"
+                path = " -> ".join(str(p) for p in error.path) if error.path else "root"
                 if ValidationError and ErrorCode:
                     # Categorize the error based on its content
                     if "required" in error.message.lower():
@@ -545,7 +545,7 @@ def _print_schema_info():
 
     console.print("\n[bold]Version History:[/bold]")
     for version, description in SCHEMA_VERSIONS.items():
-        marker = "→" if version == CURRENT_SCHEMA_VERSION else " "
+        marker = ">" if version == CURRENT_SCHEMA_VERSION else " "
         console.print(f"  {marker} v{version}: {description}")
 
     console.print("\n[bold]Schema Files:[/bold]")
@@ -619,7 +619,7 @@ def version(files, update, target_version, backup):
                     cfg["schema_version"] = new_version
                     with open(path, "w") as f:
                         yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
-                    action = f"Updated → {new_version}"
+                    action = f"Updated -> {new_version}"
                 else:
                     action = "No change needed"
 

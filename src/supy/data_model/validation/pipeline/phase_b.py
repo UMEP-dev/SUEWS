@@ -1701,7 +1701,7 @@ def create_science_report(
                 else ""
             )
             report_lines.append(
-                f"-- {adjustment.parameter}{site_ref}: {adjustment.old_value} → {adjustment.new_value} ({adjustment.reason})"
+                f"-- {adjustment.parameter}{site_ref}: {adjustment.old_value} -> {adjustment.new_value} ({adjustment.reason})"
             )
 
     phase_a_items = []
@@ -1776,7 +1776,7 @@ def print_critical_halt_message(critical_errors: List[ValidationResult]):
         site_ref = (
             f" at site [{error.site_gridid}]" if error.site_gridid is not None else ""
         )
-        print(f"  ✗ {error.parameter}{site_ref}")
+        print(f"  [X] {error.parameter}{site_ref}")
         print(f"    {error.message}")
         if error.suggested_value is not None:
             print(f"    Suggested: {error.suggested_value}")

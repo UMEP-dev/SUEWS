@@ -304,9 +304,11 @@ def generate_phase_c_report(
                             param_name = issue.split(" is set to null")[0]
                             issue_field_name = param_name
                             issue_path = f"model.physics.{param_name}"
-                        elif " → " in issue:
-                            # StorageHeat parameter format: "site: storageheatmethod=6 → properties.lambda_c must be set"
-                            parts = issue.split(" → ", 1)
+                        elif " -> " in issue or " \u2192 " in issue:
+                            # StorageHeat parameter format: "site: storageheatmethod=6 -> properties.lambda_c must be set"
+                            # Handle both ASCII (->) and Unicode (→) for backward compatibility
+                            separator = " -> " if " -> " in issue else " \u2192 "
+                            parts = issue.split(separator, 1)
                             if len(parts) == 2:
                                 site_part = parts[0].strip()
                                 param_part = parts[1].strip()
@@ -373,9 +375,11 @@ def generate_phase_c_report(
                         param_name = issue.split(" is set to null")[0]
                         field_name = param_name
                         path = f"model.physics.{param_name}"
-                    elif " → " in issue:
-                        # StorageHeat parameter format: "site: storageheatmethod=6 → properties.lambda_c must be set"
-                        parts = issue.split(" → ", 1)
+                    elif " -> " in issue or " \u2192 " in issue:
+                        # StorageHeat parameter format: "site: storageheatmethod=6 -> properties.lambda_c must be set"
+                        # Handle both ASCII (->) and Unicode (→) for backward compatibility
+                        separator = " -> " if " -> " in issue else " \u2192 "
+                        parts = issue.split(separator, 1)
                         if len(parts) == 2:
                             site_part = parts[0].strip()
                             param_part = parts[1].strip()

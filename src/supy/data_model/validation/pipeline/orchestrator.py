@@ -550,13 +550,13 @@ def run_phase_a(
         if not os.path.exists(uptodate_file):
             if not silent:
                 print()
-                print("✗ Validation failed - check report for details")
+                print("[X] Validation failed - check report for details")
             return False
 
         if not os.path.exists(report_file):
             if not silent:
                 print()
-                print("✗ Validation failed - unable to generate report")
+                print("[X] Validation failed - unable to generate report")
             return False
 
         with open(uptodate_file, "r", encoding="utf-8", errors="replace") as f:
@@ -564,14 +564,14 @@ def run_phase_a(
             if "Updated YAML" not in content:
                 if not silent:
                     print()
-                    print("✗ Validation failed - check report for details")
+                    print("[X] Validation failed - check report for details")
                 return False
 
         report_content = REPORT_WRITER.read(report_file)
 
         if "## ACTION NEEDED" in report_content:
             if not silent:
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {report_file}")
                 print(f"Updated YAML: {uptodate_file}")
             return False
@@ -583,7 +583,7 @@ def run_phase_a(
     except Exception as e:
         if not silent:
             print()
-            print(f"✗ Validation failed with error: {e}")
+            print(f"[X] Validation failed with error: {e}")
         return False
 
 
@@ -618,13 +618,13 @@ def run_phase_b(
         if not os.path.exists(science_yaml_file):
             if not silent:
                 print()
-                print("✗ Validation failed - check report for details")
+                print("[X] Validation failed - check report for details")
             return False
 
         if not os.path.exists(science_report_file):
             if not silent:
                 print()
-                print("✗ Validation failed - unable to generate report")
+                print("[X] Validation failed - unable to generate report")
             return False
 
         # Check if Phase B report indicates critical issues
@@ -632,7 +632,7 @@ def run_phase_b(
 
         if "CRITICAL ISSUES DETECTED" in report_content or "URGENT" in report_content:
             if not silent:
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {science_report_file}")
                 print(f"Updated YAML: {science_yaml_file}")
             return False
@@ -644,20 +644,20 @@ def run_phase_b(
     except ValueError as e:
         if "Critical scientific errors detected" in str(e):
             if not silent:
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {science_report_file}")
                 print(f"Updated YAML: {science_yaml_file}")
             return False
         else:
             if not silent:
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {science_report_file}")
                 print(f"Updated YAML: {science_yaml_file}")
             return False
     except Exception as e:
         if not silent:
             print()
-            print(f"✗ Validation failed with unexpected error: {e}")
+            print(f"[X] Validation failed with unexpected error: {e}")
         return False
 
 
@@ -776,7 +776,7 @@ def run_phase_c(
                         print(f"[DEBUG]   After write, file size: {actual_size} bytes", file=sys.stderr)
 
                     if not silent:
-                        print("✗ Validation failed!")
+                        print("[X] Validation failed!")
                         print(f"Report: {pydantic_report_file}")
                         print(f"Updated YAML: {pydantic_yaml_file}")
                     return False
@@ -1014,7 +1014,7 @@ Validation passed
                     )
 
                 if not silent:
-                    print("✗ Validation failed!")
+                    print("[X] Validation failed!")
                     print(f"Report: {pydantic_report_file}")
                     print(f"Updated YAML: {pydantic_yaml_file}")
                 return False
@@ -1022,7 +1022,7 @@ Validation passed
         except ImportError as import_error:
             if not silent:
                 print(
-                    f"✗ Validation failed - Cannot import SUEWSConfig: {import_error}"
+                    f"[X] Validation failed - Cannot import SUEWSConfig: {import_error}"
                 )
 
             # Import error report
@@ -1059,7 +1059,7 @@ Phase C validation could not be executed due to import issues.
 
     except Exception as e:
         if not silent:
-            print(f"✗ Validation failed: {e}")
+            print(f"[X] Validation failed: {e}")
 
         # General error report
         error_report = f"""# SUEWS Validation Report
@@ -1157,7 +1157,7 @@ Modes:
         "-p",
         choices=["A", "B", "C", "AB", "AC", "BC", "ABC"],
         default="ABC",
-        help="Phase to run: A (structure check), B (physics validation), C (consistency check), AB (A→B workflow), AC (A→C), BC (B→C), or ABC (complete workflow, default)",
+        help="Phase to run: A (structure check), B (physics validation), C (consistency check), AB (A->B workflow), AC (A->C), BC (B->C), or ABC (complete workflow, default)",
     )
 
     parser.add_argument(
@@ -1299,7 +1299,7 @@ Modes:
 
         if not os.path.exists(standard_yaml_file):
             print()
-            print(f"✗ Standard YAML file not found: {standard_yaml_file}")
+            print(f"[X] Standard YAML file not found: {standard_yaml_file}")
             print("Make sure you're running from the SUEWS root directory")
             return 1
 
@@ -1337,7 +1337,7 @@ Modes:
                 print("Report:", final_report)
                 print("Updated YAML:", final_yaml)
             else:
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print("Report:", final_report)
                 print("Updated YAML:", final_yaml)
             return 0 if phase_a_success else 1
@@ -1381,7 +1381,7 @@ Modes:
                 except Exception:
                     pass  # Don't fail if removal doesn't work
                 # Phase B standalone failure: only show Report and Suggestion (no Updated YAML)
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print("Report:", final_report)
             return 0 if phase_b_success else 1
 
@@ -1418,7 +1418,7 @@ Modes:
                 except Exception:
                     pass  # Don't fail if removal doesn't work
                 # Phase C standalone failure: only show Report and Suggestion (no Updated YAML)
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print("Report:", final_report)
             return 0 if phase_c_success else 1
 
@@ -1441,7 +1441,7 @@ Modes:
                     user_yaml_file, uptodate_file, report_file
                 )
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {final_report}")
                 print(f"Updated YAML: {final_yaml}")
                 return 1
@@ -1491,7 +1491,7 @@ Modes:
                 except Exception:
                     pass
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {final_report}")
                 print(f"Updated YAML: {final_yaml}")
                 return 1
@@ -1557,7 +1557,7 @@ Modes:
                 except Exception:
                     pass  # Don't fail if rename doesn't work
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
                 return 1
@@ -1601,7 +1601,7 @@ Modes:
                 except Exception:
                     pass
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {final_report}")
                 print(f"Updated YAML: {final_yaml}")
                 return 1
@@ -1670,7 +1670,7 @@ Modes:
                 except Exception:
                     pass  # Don't fail if rename doesn't work
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
                 return 1
@@ -1749,7 +1749,7 @@ Modes:
                 except Exception:
                     pass
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {final_report}")
                 print(f"Updated YAML: {final_yaml}")
                 return 1
@@ -1829,7 +1829,7 @@ Modes:
                 except Exception as e:
                     print(f"DEBUG: Exception during file move: {e}")
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
                 return 1
@@ -1876,7 +1876,7 @@ Modes:
                 except Exception:
                     pass  # Don't fail if cleanup doesn't work
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
                 return 1
@@ -1919,7 +1919,7 @@ Modes:
                 except Exception:
                     pass  # Don't fail if cleanup doesn't work
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
                 return 1
@@ -1972,21 +1972,21 @@ Modes:
 
         else:
             # Fallback for unknown phase combinations
-            print(f"✗ Unknown validation option '{phase}'")
+            print(f"[X] Unknown validation option '{phase}'")
             print("For help: suews-validate --help")
             return 1
 
     except FileNotFoundError as e:
         print()
-        print(f"✗ File error: {e}")
+        print(f"[X] File error: {e}")
         return 1
     except ValueError as e:
         print()
-        print(f"✗ Input error: {e}")
+        print(f"[X] Input error: {e}")
         return 1
     except Exception as e:
         print()
-        print(f"✗ Unexpected error: {e}")
+        print(f"[X] Unexpected error: {e}")
         return 1
 
 

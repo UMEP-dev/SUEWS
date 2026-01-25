@@ -20,6 +20,8 @@ import io
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 
+from .report_writer import REPORT_WRITER
+
 # Import Phase A and B functions
 try:
     from .phase_a import annotate_missing_parameters
@@ -348,8 +350,7 @@ def extract_no_action_messages_from_report(report_file: str) -> list:
         return messages
 
     try:
-        with open(report_file, "r", encoding="utf-8", errors="replace") as f:
-            content = f.read()
+        content = REPORT_WRITER.read(report_file)
 
         # Extract NO ACTION NEEDED section
         lines = content.split("\n")
@@ -451,9 +452,7 @@ def create_consolidated_report(
         print(f"[DEBUG]   report_content length: {len(report_content)} chars", file=sys.stderr)
         print(f"[DEBUG]   Writing to: {final_report_file}", file=sys.stderr)
 
-    with open(final_report_file, "w", encoding="utf-8", newline="\n") as f:
-        f.write(report_content)
-        f.flush()  # Explicit flush for Windows
+    REPORT_WRITER.write(final_report_file, report_content)
 
     if debug:
         actual_size = os.path.getsize(final_report_file) if os.path.exists(final_report_file) else -1
@@ -568,8 +567,7 @@ def run_phase_a(
                     print("✗ Validation failed - check report for details")
                 return False
 
-        with open(report_file, "r", encoding="utf-8", errors="replace") as f:
-            report_content = f.read()
+        report_content = REPORT_WRITER.read(report_file)
 
         if "## ACTION NEEDED" in report_content:
             if not silent:
@@ -630,8 +628,7 @@ def run_phase_b(
             return False
 
         # Check if Phase B report indicates critical issues
-        with open(science_report_file, "r", encoding="utf-8", errors="replace") as f:
-            report_content = f.read()
+        report_content = REPORT_WRITER.read(science_report_file)
 
         if "CRITICAL ISSUES DETECTED" in report_content or "URGENT" in report_content:
             if not silent:
@@ -744,8 +741,7 @@ def run_phase_c(
                 phase_a_info = ""
                 if phase_a_report_file and os.path.exists(phase_a_report_file):
                     try:
-                        with open(phase_a_report_file, "r", encoding="utf-8", errors="replace") as f:
-                            phase_a_content = f.read()
+                        phase_a_content = REPORT_WRITER.read(phase_a_report_file)
 
                         # Add consolidation info
                         phase_a_info = "\n\n## PREVIOUS PHASES INFORMATION CONSOLIDATED\nSee below for prior phase results.\n"
@@ -774,9 +770,7 @@ def run_phase_c(
 
                     if debug:
                         print(f"[DEBUG]   Writing failure_report ({len(failure_report)} chars) for critical_nulls", file=sys.stderr)
-                    with open(pydantic_report_file, "w", encoding="utf-8", newline="\n") as f:
-                        f.write(failure_report)
-                        f.flush()  # Explicit flush for Windows
+                    REPORT_WRITER.write(pydantic_report_file, failure_report)
                     if debug:
                         actual_size = os.path.getsize(pydantic_report_file) if os.path.exists(pydantic_report_file) else -1
                         print(f"[DEBUG]   After write, file size: {actual_size} bytes", file=sys.stderr)
@@ -872,9 +866,7 @@ def run_phase_c(
                     # Write the report to file
                     if debug:
                         print(f"[DEBUG]   Writing success_report ({len(success_report)} chars) to {pydantic_report_file}", file=sys.stderr)
-                    with open(pydantic_report_file, "w", encoding="utf-8", newline="\n") as f:
-                        f.write(success_report)
-                        f.flush()  # Explicit flush for Windows
+                    REPORT_WRITER.write(pydantic_report_file, success_report)
                     if debug:
                         actual_size = os.path.getsize(pydantic_report_file) if os.path.exists(pydantic_report_file) else -1
                         print(f"[DEBUG]   After write, file size: {actual_size} bytes", file=sys.stderr)
@@ -966,8 +958,7 @@ def run_phase_c(
 
 # =================================================="""
 
-                        with open(pydantic_report_file, "w", encoding="utf-8", newline="\n") as f:
-                            f.write(success_report)
+                        REPORT_WRITER.write(pydantic_report_file, success_report)
 
                 # Ensure report is always generated for successful validation
                 if not os.path.exists(pydantic_report_file):
@@ -980,8 +971,7 @@ def run_phase_c(
 Validation passed
 
 # =================================================="""
-                    with open(pydantic_report_file, "w", encoding="utf-8", newline="\n") as f:
-                        f.write(simple_success_report)
+                    REPORT_WRITER.write(pydantic_report_file, simple_success_report)
 
                 # Restore logging level before return
                 supy_logger.setLevel(original_level)
@@ -1062,8 +1052,7 @@ Phase C validation could not be executed due to import issues.
 {str(import_error)}
 """
 
-            with open(pydantic_report_file, "w", encoding="utf-8", newline="\n") as f:
-                f.write(error_report)
+            REPORT_WRITER.write(pydantic_report_file, error_report)
 
             print(f"  Report generated: {os.path.basename(pydantic_report_file)}")
             return False
@@ -1097,8 +1086,7 @@ Phase C validation could not be executed due to system errors.
 {str(e)}
 """
 
-        with open(pydantic_report_file, "w", encoding="utf-8", newline="\n") as f:
-            f.write(error_report)
+        REPORT_WRITER.write(pydantic_report_file, error_report)
 
         print(f"  Report generated: {os.path.basename(pydantic_report_file)}")
         return False
@@ -1717,8 +1705,7 @@ Modes:
 
                     # Read Phase C error report and append Phase B messages
                     if os.path.exists(pydantic_report_file):
-                        with open(pydantic_report_file, "r", encoding="utf-8", errors="replace") as f:
-                            phase_c_content = f.read()
+                        phase_c_content = REPORT_WRITER.read(pydantic_report_file)
 
                         # Append Phase B NO ACTION NEEDED messages to Phase C report
                         if phase_b_messages:
@@ -1743,8 +1730,7 @@ Modes:
                             phase_c_content += f"\n\n# {'=' * 50}\n"
 
                             # Write consolidated report
-                            with open(pydantic_report_file, "w", encoding="utf-8", newline="\n") as f:
-                                f.write(phase_c_content)
+                            REPORT_WRITER.write(pydantic_report_file, phase_c_content)
 
                     # Use Phase B YAML as final (last successful phase)
                     if os.path.exists(science_yaml_file):

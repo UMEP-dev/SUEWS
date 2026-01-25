@@ -94,6 +94,7 @@ py.install_sources(
             'data_model/validation/pipeline/phase_a.py',
             'data_model/validation/pipeline/phase_b.py',
             'data_model/validation/pipeline/phase_c.py',
+            'data_model/validation/pipeline/report_writer.py',
             'data_model/validation/pipeline/yaml_annotator.py',
             'data_model/schema/__init__.py',
             'data_model/schema/version.py',

@@ -4,6 +4,8 @@ import os
 import re
 import yaml
 
+from .report_writer import REPORT_WRITER
+
 # Use unified report title for all validation phases
 REPORT_TITLE = "SUEWS Validation Report"
 
@@ -199,8 +201,7 @@ def generate_phase_c_report(
         ) = _parse_consolidated_messages(no_action_messages)
     elif phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
-            with open(phase_a_report_file, "r", encoding="utf-8", errors="replace") as f:
-                report_content = f.read()
+            report_content = REPORT_WRITER.read(phase_a_report_file)
             (
                 phase_a_renames,
                 phase_a_optional_missing,
@@ -485,8 +486,7 @@ def generate_phase_c_report(
 
     report_lines.extend(["", "# " + "=" * 50])
 
-    with open(output_report_file, "w", encoding="utf-8", newline="\n") as f:
-        f.write("\n".join(report_lines))
+    REPORT_WRITER.write(output_report_file, "\n".join(report_lines))
 
 
 def generate_fallback_report(
@@ -517,8 +517,7 @@ def generate_fallback_report(
         ) = _parse_consolidated_messages(no_action_messages)
     elif phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
-            with open(phase_a_report_file, "r", encoding="utf-8", errors="replace") as f:
-                report_content = f.read()
+            report_content = REPORT_WRITER.read(phase_a_report_file)
             (
                 phase_a_renames,
                 phase_a_optional_missing,
@@ -576,5 +575,4 @@ def generate_fallback_report(
 # ==================================================
 """
 
-    with open(output_report_file, "w", encoding="utf-8", newline="\n") as f:
-        f.write(error_report)
+    REPORT_WRITER.write(output_report_file, error_report)

@@ -20,6 +20,8 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.progress import track
 
+from ..data_model.validation.pipeline.report_writer import REPORT_WRITER
+
 # Import the new JSON output formatter
 try:
     from .json_output import JSONOutput, ErrorCode, ValidationError
@@ -1200,8 +1202,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
 
                 # Read Phase C error report and append Phase B messages
                 if Path(pydantic_report_file).exists():
-                    with open(pydantic_report_file, "r", encoding="utf-8", errors="replace") as f:
-                        phase_c_content = f.read()
+                    phase_c_content = REPORT_WRITER.read(pydantic_report_file)
 
                     # Append Phase B NO ACTION NEEDED messages to Phase C report
                     if phase_b_messages:
@@ -1226,9 +1227,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
                         phase_c_content += f"\n\n# {'=' * 50}\n"
 
                         # Write consolidated report
-                        with open(pydantic_report_file, "w", encoding="utf-8", newline="\n") as f:
-                            f.write(phase_c_content)
-                            f.flush()
+                        REPORT_WRITER.write(pydantic_report_file, phase_c_content)
 
                 # Use Phase B YAML as final (last successful phase)
                 if Path(science_yaml_file).exists():

@@ -28,6 +28,7 @@ import numpy as np
 
 # Import from validation package
 from .. import logger_supy
+from .report_writer import REPORT_WRITER
 from ..core.yaml_helpers import (
     get_mean_monthly_air_temperature as _get_mean_monthly_air_temperature,
     get_mean_annual_air_temperature as _get_mean_annual_air_temperature,
@@ -1626,8 +1627,7 @@ def create_science_report(
 
     if phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
-            with open(phase_a_report_file, "r") as f:
-                phase_a_content = f.read()
+            phase_a_content = REPORT_WRITER.read(phase_a_report_file)
 
             lines = phase_a_content.split("\n")
             current_section = None
@@ -1936,9 +1936,7 @@ def run_science_check(
 
         # Write error report file
         if science_report_file:
-            with open(science_report_file, "w", encoding="utf-8", newline="\n") as f:
-                f.write(report_content)
-                f.flush()
+            REPORT_WRITER.write(science_report_file, report_content)
 
         # Re-raise the exception so orchestrator knows it failed
         raise e
@@ -1965,9 +1963,7 @@ def run_science_check(
     )
 
     if science_report_file:
-        with open(science_report_file, "w", encoding="utf-8", newline="\n") as f:
-            f.write(report_content)
-            f.flush()
+        REPORT_WRITER.write(science_report_file, report_content)
 
     if critical_errors:
         print_critical_halt_message(critical_errors)
@@ -1982,7 +1978,6 @@ def run_science_check(
             yaml.dump(
                 science_checked_data, f, default_flow_style=False, sort_keys=False
             )
-            f.flush()
 
     return science_checked_data
 

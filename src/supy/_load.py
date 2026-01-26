@@ -1889,6 +1889,8 @@ def add_state_init_df(df_init):
         ("tstep_prev", 0, "tstep"),
         ("tair24hr", int(24 * 3600 / df_init["tstep"].values[0, 0]), 273.15),
         ("tair_av", 0, 273.15),
+        ("qn_surfs", 7, 0.0),
+        ("dqndt_surf", 7, 0.0),
     ]
 
     # set values according to `list_var_dim`

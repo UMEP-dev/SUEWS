@@ -13,7 +13,8 @@ MODULE module_phys_ohm
    IMPLICIT NONE
 CONTAINS
 !========================================================================================
-   SUBROUTINE OHM(qn1, qn_av_prev, dqndt_prev, qn_av_next, dqndt_next, &
+   SUBROUTINE OHM(qn1, qn1_surf, qn_av_prev, dqndt_prev, qn_av_next, dqndt_next, &
+                  qn_surf_prev, dqndt_surf_prev, qn_surf_next, dqndt_surf_next, &
                   qn1_S, qn_s_av_prev, dqnsdt_prev, qn_s_av_next, dqnsdt_next, &
                   tstep, dt_since_start, &
                   sfr_surf, nsurf, &
@@ -37,7 +38,7 @@ CONTAINS
                   a1_grass, a2_grass, a3_grass, &
                   a1_bsoil, a2_bsoil, a3_bsoil, &
                   a1_water, a2_water, a3_water, &
-                  a1, a2, a3, qs, deltaQi, &
+                  a1, a2, a3, qs, qs_surf, deltaQi, &
                   modState)
       ! Made by HCW Jan 2015 to replace OHMnew (no longer needed).
       ! Calculates net storage heat flux (QS) from Eq 4, Grimmond et al. 1991, Atm Env.
@@ -82,6 +83,7 @@ CONTAINS
       !INTEGER :: tstep_prev
 
       REAL(KIND(1D0)), INTENT(in) :: qn1 ! net all-wave radiation
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: qn1_surf ! net all-wave radiation for each surface
       REAL(KIND(1D0)), INTENT(in) :: qn1_S ! net all-wave radiation over snow
       REAL(KIND(1D0)), INTENT(in) :: sfr_surf(nsurf) ! surface fractions
       REAL(KIND(1D0)), INTENT(in) :: SnowFrac(nsurf) ! snow fractions of each surface
@@ -102,15 +104,20 @@ CONTAINS
       INTEGER, INTENT(in) :: DiagQS ! diagnostic option
 
       REAL(KIND(1D0)), INTENT(in) :: qn_av_prev
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: qn_surf_prev
       REAL(KIND(1D0)), INTENT(out) :: qn_av_next
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: qn_surf_next
       REAL(KIND(1D0)), INTENT(in) :: dqndt_prev ! Rate of change of net radiation [W m-2 h-1] at t-1
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: dqndt_surf_prev ! Rate of change of net radiation [W m-2 h-1] at t-1
       REAL(KIND(1D0)), INTENT(out) :: dqndt_next ! Rate of change of net radiation [W m-2 h-1] at t-1
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: dqndt_surf_next ! Rate of change of net radiation [W m-2 h-1] at t-1
       REAL(KIND(1D0)), INTENT(in) :: qn_s_av_prev
       REAL(KIND(1D0)), INTENT(out) :: qn_s_av_next
       REAL(KIND(1D0)), INTENT(in) :: dqnsdt_prev ! Rate of change of net radiation [W m-2 h-1] at t-1
       REAL(KIND(1D0)), INTENT(out) :: dqnsdt_next ! Rate of change of net radiation [W m-2 h-1] at t-1
 
       REAL(KIND(1D0)), INTENT(out) :: qs ! storage heat flux
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: qs_surf
       ! REAL(KIND(1d0)),INTENT(out)::deltaQi(nsurf+1) ! storage heat flux of snow surfaces
       REAL(KIND(1D0)), INTENT(out) :: deltaQi(nsurf) ! storage heat flux of snow surfaces
 
@@ -118,7 +125,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: T_half_bldg_C ! current half building height temperature [°C]
       REAL(KIND(1D0)), INTENT(inout) :: T_prev ! previous midnight air temperature [°C]
       REAL(KIND(1D0)), INTENT(inout) :: ws_rav ! running average of wind speed [m/s]
-      REAL(KIND(1D0)), INTENT(inout) :: qn_rav ! running average of net all-wave radiation [W m-2]
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(inout) :: qn_rav ! running average of net all-wave radiation [W m-2]
 
       ! Building material properties
       REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: k_roof
@@ -145,7 +152,7 @@ CONTAINS
                                           a1_water, a2_water, a3_water ! Dynamic OHM coefficients of other 6 surface types
       REAL(KIND(1D0)), INTENT(out) :: a1, a2, a3 ! OHM coefficients of grid
       TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
-
+      INTEGER :: i_surf
       ! REAL(KIND(1d0)):: nsh_nna ! number of timesteps per hour with non -999 values (used for spinup)
 
       ! REAL(KIND(1d0)):: dqndt    !Rate of change of net radiation [W m-2 h-1] at t-1
@@ -187,47 +194,51 @@ CONTAINS
             IF (dt_since_start /= dt_since_start_prev) THEN
                IF (dt_since_start < 86400) THEN
                   ws_rav = ws_rav + (ws - ws_rav)/(dt_since_start/tstep)
-                  qn_rav = qn_rav + (qn1 - qn_rav)/(dt_since_start/tstep)
+                  DO i_surf = 1, nsurf
+                     qn_rav(i_surf) = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(dt_since_start/tstep)
+                  END DO
                ELSE
                   ws_rav = ws_rav + (ws - ws_rav)/(86400/tstep)
-                  qn_rav = qn_rav + (qn1 - qn_rav)/(86400/tstep)
+                  DO i_surf = 1, nsurf
+                     qn_rav(i_surf) = qn_rav(i_surf) + (qn1_surf(i_surf) - qn_rav(i_surf))/(86400/tstep)
+                  END DO
                END IF
             END IF
 
             IF (first_tstep_Q .AND. new_day == 1) THEN
                CALL OHM_yl_cal(dt_since_start, &
-                               ws_rav, T_half_bldg_C, T_prev, qn_rav, & ! Input
+                               ws_rav, T_half_bldg_C, T_prev, qn_rav(2), & ! Input
                                dz_wall(1, 1), cp_wall(1, 1), k_wall(1, 1), lambda_c, &
                                a1_bldg, a2_bldg, a3_bldg & ! Output
                                )
                !test: using dyOHM for other surface types, assume WS=0 at ground level, lambda_c=1
                CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_half_bldg_C, T_prev, qn_rav, & ! Input
+                               ws0, T_half_bldg_C, T_prev, qn_rav(1), & ! Input
                                dz_surf(1, 1), cp_surf(1, 1), k_surf(1, 1), lambda_c1, &
                                a1_paved, a2_paved, a3_paved & ! Output
                                )         
                CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_half_bldg_C, T_prev, qn_rav, & ! Input
+                               ws0, T_half_bldg_C, T_prev, qn_rav(3), & ! Input
                                dz_surf(3, 1), cp_surf(3, 1), k_surf(3, 1), lambda_c1, &
                                a1_evetr, a2_evetr, a3_evetr & ! Output
                                )    
                CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_half_bldg_C, T_prev, qn_rav, & ! Input
+                               ws0, T_half_bldg_C, T_prev, qn_rav(4), & ! Input
                                dz_surf(4, 1), cp_surf(4, 1), k_surf(4, 1), lambda_c1, &
                                a1_dectr, a2_dectr, a3_dectr & ! Output
                                )                                                                                                                               
                CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_half_bldg_C, T_prev, qn_rav, & ! Input
+                               ws0, T_half_bldg_C, T_prev, qn_rav(5), & ! Input
                                dz_surf(5, 1), cp_surf(5, 1), k_surf(5, 1), lambda_c1, &
                                a1_grass, a2_grass, a3_grass & ! Output
                                )  
                CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_half_bldg_C, T_prev, qn_rav, & ! Input
+                               ws0, T_half_bldg_C, T_prev, qn_rav(6), & ! Input
                                dz_surf(6, 1), cp_surf(6, 1), k_surf(6, 1), lambda_c1, &
                                a1_bsoil, a2_bsoil, a3_bsoil & ! Output
                                )  
                CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_half_bldg_C, T_prev, qn_rav, & ! Input
+                               ws0, T_half_bldg_C, T_prev, qn_rav(7), & ! Input
                                dz_surf(7, 1), cp_surf(7, 1), k_surf(7, 1), lambda_c1, &
                                a1_water, a2_water, a3_water & ! Output
                                )                                                                                                                                                                                                                                                      
@@ -404,13 +415,43 @@ CONTAINS
          ! print*,''
          ! CALL OHM_dqndt_cal(nsh,qn1,qn1_store_grid,qn1_av_store_grid,dqndt)
          ! print*, 'old dqndt',dqndt
-         CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
-                              qn_av_next, dqndt_next)
-         ! print*, 'new dqndt',dqndt
-
          ! Calculate net storage heat flux
-         CALL OHM_QS_cal(qn1, dqndt_next, a1, a2, a3, qs)
-         IF (DiagQS == 1) WRITE (*, *) 'qs: ', qs, 'qn1:', qn1, 'dqndt: ', dqndt_next
+         IF (StorageHeatMethod == 6 .OR. storageHeatMethod == 7) THEN !for dyOHM for dyOHM+STEBBS
+            !calculate dqndt_next for each surface (for dyOHM)
+            DO i_surf = 1, nsurf
+               CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_surf_prev(i_surf), qn1_surf(i_surf), dqndt_surf_prev(i_surf), &
+                                 qn_surf_next(i_surf), dqndt_surf_next(i_surf))   
+            End Do
+            CALL OHM_QS_cal(qn1_surf(1), dqndt_surf_next(1), a1_paved, a2_paved, a3_paved, qs_surf(1))
+            CALL OHM_QS_cal(qn1_surf(2), dqndt_surf_next(2), a1_bldg, a2_bldg, a3_bldg, qs_surf(2))
+            CALL OHM_QS_cal(qn1_surf(3), dqndt_surf_next(3), a1_evetr, a2_evetr, a3_evetr, qs_surf(3))
+            CALL OHM_QS_cal(qn1_surf(4), dqndt_surf_next(4), a1_dectr, a2_dectr, a3_dectr, qs_surf(4))
+            CALL OHM_QS_cal(qn1_surf(5), dqndt_surf_next(5), a1_grass, a2_grass, a3_grass, qs_surf(5))
+            CALL OHM_QS_cal(qn1_surf(6), dqndt_surf_next(6), a1_bsoil, a2_bsoil, a3_bsoil, qs_surf(6))
+            CALL OHM_QS_cal(qn1_surf(7), dqndt_surf_next(7), a1_water, a2_water, a3_water, qs_surf(7))
+            
+            qs = 0
+            IF (StorageHeatMethod == 6) THEN
+               !full dyOHM
+               DO i_surf = 1, nsurf
+                  qs = qs + qs_surf(i_surf) * sfr_surf(i_surf)
+               END DO            
+            ELSE ! STEBBS is used for building, dyOHM-building is not included
+               DO i_surf = 1, nsurf
+                  IF (i_surf /= 2) THEN   ! surface 2 = building
+                     qs = qs + qs_surf(i_surf) * sfr_surf(i_surf)
+                  END IF
+               END DO
+            END IF
+
+         ELSE
+            ! traditional OHM
+            CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
+                              qn_av_next, dqndt_next)
+            ! print*, 'new dqndt',dqndt
+            CALL OHM_QS_cal(qn1, dqndt_next, a1, a2, a3, qs)
+            IF (DiagQS == 1) WRITE (*, *) 'qs: ', qs, 'qn1:', qn1, 'dqndt: ', dqndt_next
+         END IF
 
       ELSE
          CALL ErrorHint(21, 'In SUEWS_OHM.f95: bad value for qn1 found during qs calculation.', qn1, -55.55D0, -55, modState)

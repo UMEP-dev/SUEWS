@@ -1034,7 +1034,22 @@ class InitialStates(BaseModel):
             "internal_only": True,
         },
     )
-
+    qn_surfs: List[float] = Field(
+        default_factory=lambda: [0.0] * 7,
+        json_schema_extra={
+            "display_name": "Initial QN for each surface",
+            "internal_only": True,
+        },
+        description="Initial QN for each surface (internal use only)",
+    )
+    dqndt_surf: List[float] = Field(
+        default_factory=lambda: [0.0] * 7,
+        json_schema_extra={
+            "display_name": "Initial dQN/dt for each surface",
+            "internal_only": True,
+        },
+        description="Initial dQN/dt for each surface (internal use only)",
+    )
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert initial states to DataFrame state format."""
         df_state = init_df_state(grid_id)
@@ -1081,6 +1096,14 @@ class InitialStates(BaseModel):
         df_state[("tstep_prev", "0")] = self.tstep_prev
         df_state[("snowfallcum", "0")] = self.snowfallcum
 
+        # qn_surfs (7)
+        for i, val in enumerate(self.qn_surfs):
+            df_state[("qn_surfs", f"({i},)")] = val
+
+        # dqndt_surf (7)
+        for i, val in enumerate(self.dqndt_surf):
+            df_state[("dqndt_surf", f"({i},)")] = val
+            
         df_state = df_state.sort_index(axis=1)
         # special treatment for hdd_id - convert to list format for legacy compatibility
         hdd_list = self.hdd_id.to_list()
@@ -1154,7 +1177,9 @@ class InitialStates(BaseModel):
         snowfallcum = df.loc[grid_id, ("snowfallcum", "0")]
         hdd_id_list = [df.loc[grid_id, (f"hdd_id", f"({i},)")] for i in range(12)]
         hdd_id = HDD_ID.from_list(hdd_id_list)
-
+        qn_surfs = [float(df.loc[grid_id, ("qn_surfs", f"({i},)")]) for i in range(7)]
+        dqndt_surf = [float(df.loc[grid_id, ("dqndt_surf", f"({i},)")]) for i in range(7)]
+        
         initital_state = {
             "snowalb": snowalb,
             "paved": surfaces["paved"],
@@ -1178,6 +1203,8 @@ class InitialStates(BaseModel):
             "tstep_prev": tstep_prev,
             "snowfallcum": snowfallcum,
             "hdd_id": hdd_id,
+            "qn_surfs": qn_surfs,
+            "dqndt_surf": dqndt_surf
         }
 
         return cls(

@@ -1,7 +1,7 @@
 {
   "scripts": {
-    "setup": "git fetch origin --prune && git reset --hard origin/master && for remote in $(git remote | grep -v '^origin$'); do git remote remove \"$remote\"; done && uv venv --clear && source .venv/bin/activate",
+    "setup": "git fetch origin --prune && git reset --hard origin/$(git branch --show-current) && for remote in $(git remote | grep -v '^origin$'); do git remote remove \"$remote\"; done && uv venv --clear && source .venv/bin/activate",
     "run": "source .venv/bin/activate && npx -y browser-sync start --server site --port 3000 --files 'site/**/*' & cd docs && make livehtml",
-    "archive": "cd $CONDUCTOR_ROOT_PATH && git fetch origin --prune && git reset --hard origin/master"
+    "archive": "cd $CONDUCTOR_ROOT_PATH && git fetch origin --prune && git reset --hard origin/$(git branch --show-current)"
   }
 }

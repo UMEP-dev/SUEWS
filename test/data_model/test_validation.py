@@ -25,6 +25,7 @@ from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
 
 
+
 # A tiny “site” stub that only carries exactly the properties our validators look at
 class DummySite:
     def __init__(self, properties, name="SiteX"):
@@ -266,6 +267,49 @@ def test_validate_lai_ranges_none_values():
     has_issues = cfg._check_lai_ranges(lc, "TestSite")
     assert has_issues is False
 
+
+def test_validate_samealbedo_wall_requires_identical_wall_albedos():
+    """
+    When samealbedo_wall is ON but walls have different albedos,
+    we should get an error about them needing to be identical.
+    """
+    cfg = make_cfg(samealbedo_wall=1)
+
+    walls = [
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+        SimpleNamespace(alb=SimpleNamespace(value=0.6)),  # mismatch
+    ]
+    vl = SimpleNamespace(walls=walls)
+    ba = SimpleNamespace(WallReflectivity=SimpleNamespace(value=0.5))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteWallMismatch")
+
+    msgs = SUEWSConfig._validate_samealbedo_wall(cfg, site, 0)
+    assert len(msgs) == 1
+    assert "all wall albedoes must be identical" in msgs[0]
+    assert "SiteWallMismatch" in msgs[0]
+
+
+def test_validate_samealbedo_wall_requires_match_with_wallreflectivity():
+    """
+    When samealbedo_wall is ON, all walls have same alb but it differs
+    from building_archetype.WallReflectivity, we should get an error.
+    """
+    cfg = make_cfg(samealbedo_wall=1)
+
+    walls = [
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+    ]
+    vl = SimpleNamespace(walls=walls)
+    ba = SimpleNamespace(WallReflectivity=SimpleNamespace(value=0.345))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteRefMismatch")
+
+    msgs = SUEWSConfig._validate_samealbedo_wall(cfg, site, 0)
+    assert len(msgs) == 1
+    assert "all wall albedoes (0.5) must equal properties.building_archetype.WallReflectivity (0.345)" in msgs[0]
+    assert "SiteRefMismatch" in msgs[0]
 
 # Land cover fraction test data: (description, land_cover, expected_has_issues, expected_sum_str, check_details)
 LAND_COVER_TEST_CASES = [

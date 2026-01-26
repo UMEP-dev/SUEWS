@@ -356,6 +356,7 @@ jobs:
               - 'Makefile'
               - 'get_ver_git.py'
               - 'scripts/**'
+              - '!scripts/conductor/**'  # Exclude Conductor workspace scripts
             site:
               # Static site content (GitHub Pages) - separate from wheel builds
               - 'site/**'

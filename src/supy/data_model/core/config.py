@@ -1330,6 +1330,23 @@ class SUEWSConfig(BaseModel):
             pass
 
         return saw == 1
+    
+    def _needs_samealbedo_roof_validation(self) -> bool:
+        """
+        Return True if samealbedo_roof option is enabled (==1).
+        """
+        if not hasattr(self.model, "physics") or not hasattr(
+            self.model.physics, "samealbedo_roof"
+        ):
+            return False
+
+        saw = getattr(self.model.physics.samealbedo_roof, "value", None)
+        try:
+            saw = int(saw)
+        except (TypeError, ValueError):
+            pass
+
+        return saw == 1
 
     def _is_physics_explicitly_configured(self) -> bool:
         """

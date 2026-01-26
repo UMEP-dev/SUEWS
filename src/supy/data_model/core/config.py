@@ -1312,6 +1312,23 @@ class SUEWSConfig(BaseModel):
             return self._is_physics_explicitly_configured()
 
         return False
+    
+    def _needs_samealbedo_wall_validation(self) -> bool:
+        """
+        Return True if samealbedo_wall option is enabled (==1).
+        """
+        if not hasattr(self.model, "physics") or not hasattr(
+            self.model.physics, "samealbedo_wall"
+        ):
+            return False
+
+        saw = getattr(self.model.physics.samealbedo_wall, "value", None)
+        try:
+            saw = int(saw)
+        except (TypeError, ValueError):
+            pass
+
+        return saw == 1
 
     def _is_physics_explicitly_configured(self) -> bool:
         """
@@ -1373,6 +1390,100 @@ class SUEWSConfig(BaseModel):
 
         return issues
 
+    def _validate_samealbedo_wall(self, site: Site, site_index: int) -> List[str]:
+        """
+        When samealbedo_wall is enabled:
+
+        - All wall albedoes in vertical_layers.walls must be identical
+        - That common value must equal properties.building_archetype.WallReflectivity
+        """
+        issues: List[str] = []
+        site_name = getattr(site, "name", f"Site {site_index}")
+
+        # --- Get walls and their albedoes ---
+        props = getattr(site, "properties", None)
+        vl = getattr(props, "vertical_layers", None)
+        walls = getattr(vl, "walls", None) if vl else None
+
+        wall_albs: List[float] = []
+        for i, wall in enumerate(walls):
+            alb_field = getattr(wall, "alb", None)
+            if alb_field is None:
+                issues.append(
+                    f"{site_name}: samealbedo_wall=1, so walls[{i}].alb must be set"
+                )
+                continue
+
+            # Handle RefValue or bare value
+            val = getattr(alb_field, "value", alb_field)
+            try:
+                val_float = float(val)
+            except (TypeError, ValueError):
+                issues.append(
+                    f"{site_name}: samealbedo_wall=1 but walls[{i}].alb ({val!r}) is not numeric"
+                )
+                continue
+
+            wall_albs.append(val_float)
+
+        if issues:
+            return issues
+
+        if len(wall_albs) == 0:
+            issues.append(
+                f"{site_name}: samealbedo_wall=1 but no valid wall albedo values found"
+            )
+            return issues
+
+        # --- Check that all wall albedoes are identical ---
+        first_alb = wall_albs[0]
+        tol = 1e-6  # numeric tolerance
+
+        for i, a in enumerate(wall_albs[1:], start=1):
+            if abs(a - first_alb) > tol:
+                issues.append(
+                    f"{site_name}: samealbedo_wall=1, so all wall albedoes must be identical, "
+                    f"found mismatch between walls[0]={first_alb} and walls[{i}]={a}"
+                )
+                break
+
+        if issues:
+            return issues
+
+        # --- Get building_archetype.WallReflectivity ---
+        ba = getattr(props, "building_archetype", None)
+        if ba is None:
+            issues.append(
+                f"{site_name}: samealbedo_wall=1, so properties.building_archetype must be defined"
+            )
+            return issues
+
+        wf_field = getattr(ba, "WallReflectivity", None)
+        if wf_field is None:
+            issues.append(
+                f"{site_name}: samealbedo_wall=1, so properties.building_archetype.WallReflectivity must be set"
+            )
+            return issues
+
+        wf_val = getattr(wf_field, "value", wf_field)
+        try:
+            wall_reflectivity = float(wf_val)
+        except (TypeError, ValueError):
+            issues.append(
+                f"{site_name}: samealbedo_wall=1 but properties.building_archetype.WallReflectivity "
+                f"({wf_val!r}) is not numeric"
+            )
+            return issues
+
+        # --- Check equality between wall albedo and WallReflectivity ---
+        if abs(first_alb - wall_reflectivity) > tol:
+            issues.append(
+                f"{site_name}: samealbedo_wall=1, so all wall albedoes ({first_alb}) must equal "
+                f"properties.building_archetype.WallReflectivity ({wall_reflectivity})"
+            )
+
+        return issues
+
     def _validate_conditional_parameters(self) -> List[str]:
         """
         Run any method‐specific validations (STEBBS, RSL, StorageHeat) in one
@@ -1384,9 +1495,10 @@ class SUEWSConfig(BaseModel):
         needs_stebbs = self._needs_stebbs_validation()
         needs_rsl = self._needs_rsl_validation()
         needs_storage = self._needs_storage_validation()
+        needs_samealbedo_wall = self._needs_samealbedo_wall_validation()
 
         # Nothing to do?
-        if not (needs_stebbs or needs_rsl or needs_storage):
+        if not (needs_stebbs or needs_rsl or needs_storage or needs_samealbedo_wall):
             return all_issues
 
         for idx, site in enumerate(self.sites):
@@ -1420,7 +1532,17 @@ class SUEWSConfig(BaseModel):
                     if site_name not in self._validation_summary["sites_with_issues"]:
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(storage_issues)
-
+            
+            # samealbedo_wall
+            if needs_samealbedo_wall:
+                samealbedo_wall_issues = self._validate_samealbedo_wall(site, idx)
+                if samealbedo_wall_issues:
+                    self._validation_summary["issue_types"].add(
+                        "samealbedo_wall parameters"
+                    )
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(samealbedo_wall_issues)
         return all_issues
 
     def _check_critical_null_physics_params(self) -> List[str]:
@@ -1446,6 +1568,8 @@ class SUEWSConfig(BaseModel):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
+            "samealbedo_wall",
+            "samealbedo_roof",
         ]
 
         critical_issues = []
@@ -2393,7 +2517,7 @@ class SUEWSConfig(BaseModel):
             loc_str = ".".join(str(x) for x in err["loc"])
             error_lines.append(loc_str)
             error_lines.append(
-                f"  {err['msg']} [type={err['type']}, input_value={err['input']}, input_type={type(err['input']).__name__}]"
+                f"  {err['msg']} [type={err['type']}]"
             )
             if "url" in err:
                 error_lines.append(f"    For further information visit {err['url']}")

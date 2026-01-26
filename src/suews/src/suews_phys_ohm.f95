@@ -416,7 +416,7 @@ CONTAINS
          ! CALL OHM_dqndt_cal(nsh,qn1,qn1_store_grid,qn1_av_store_grid,dqndt)
          ! print*, 'old dqndt',dqndt
          ! Calculate net storage heat flux
-         IF (StorageHeatMethod == 6 .OR. storageheatmethod == 7) THEN !for dyOHM for dyOHM+STEBBS
+         IF (StorageHeatMethod == 6 .OR. storageHeatMethod == 7) THEN !for dyOHM for dyOHM+STEBBS
             !calculate dqndt_next for each surface (for dyOHM)
             DO i_surf = 1, nsurf
                CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_surf_prev(i_surf), qn1_surf(i_surf), dqndt_surf_prev(i_surf), &
@@ -435,13 +435,13 @@ CONTAINS
                !full dyOHM
                DO i_surf = 1, nsurf
                   qs = qs + qs_surf(i_surf) * sfr_surf(i_surf)
-               End DO            
+               END DO            
             ELSE ! STEBBS is used for building, dyOHM-building is not included
                DO i_surf = 1, nsurf
                   IF (i_surf /= 2) THEN   ! surface 2 = building
                      qs = qs + qs_surf(i_surf) * sfr_surf(i_surf)
                   END IF
-               End DO
+               END DO
             END IF
 
          ELSE

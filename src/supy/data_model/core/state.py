@@ -1203,6 +1203,8 @@ class InitialStates(BaseModel):
             "tstep_prev": tstep_prev,
             "snowfallcum": snowfallcum,
             "hdd_id": hdd_id,
+            "qn_surfs": qn_surfs,
+            "dqndt_surf": dqndt_surf
         }
 
         return cls(

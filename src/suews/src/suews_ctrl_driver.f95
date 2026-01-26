@@ -1932,6 +1932,17 @@ CONTAINS
                   qn_use = qn
                END IF
 
+               !==============use STEBBS to get localised surface temperature and storage heat flux==================
+               ! MP 12 Sep 2024: STEBBS is a simplified BEM
+               IF (config%stebbsmethod == 1 .OR. config%stebbsmethod == 2) THEN
+                  IF (Diagnose == 1) WRITE (*, *) 'Calling STEBBS...'
+                  CALL stebbsonlinecouple( &
+                     timer, config, forcing, siteInfo, & ! input
+                     modState, & ! input/output:
+                     datetimeLine, nlayer, & ! input
+                     dataOutLineSTEBBS) ! output
+               END IF
+
                IF (StorageHeatMethod == 0) THEN !Use observed QS
                   qs = qs_obs
 
@@ -1970,10 +1981,19 @@ CONTAINS
                            modState)
                   IF (StorageHeatMethod /= 6 .AND. StorageHeatMethod /= 7) THEN
                      QS_surf = qs
-                  END IF
                      QS_roof = qs
                      QS_wall = qs
-                  
+                  ELSE
+                     ! Methods 6 and 7 
+                     IF (StorageHeatMethod == 7) THEN !for method 7 when STEBBS is used for building
+                        qs = qs + QS_stebbs * sfr_surf(2)
+                        QS_surf(2) = QS_stebbs
+                     END IF
+                     ! Method 6 dyOHM for all surfaces.
+                     QS_roof = QS_surf(2)
+                     QS_wall = QS_surf(2)
+
+                  END IF
 
                   ! use AnOHM to calculate QS, TS 14 Mar 2016
                   ! disable AnOHM, TS 20 Jul 2023
@@ -2043,21 +2063,6 @@ CONTAINS
                   ! PRINT *, ''
 
                END IF
-               !==============use STEBBS to get localised surface temperature and storage heat flux==================
-               ! MP 12 Sep 2024: STEBBS is a simplified BEM
-               IF (config%stebbsmethod == 1 .OR. config%stebbsmethod == 2) THEN
-                  IF (Diagnose == 1) WRITE (*, *) 'Calling STEBBS...'
-                  CALL stebbsonlinecouple( &
-                     timer, config, forcing, siteInfo, & ! input
-                     modState, & ! input/output:
-                     datetimeLine, nlayer, & ! input
-                     dataOutLineSTEBBS) ! output
-                  IF (StorageHeatMethod == 7) THEN
-                     qs = qs + QS_stebbs * sfr_surf(2)
-                     QS_surf(2) = QS_stebbs
-                  END IF
-               END IF
-
             END ASSOCIATE
          END ASSOCIATE
       END ASSOCIATE

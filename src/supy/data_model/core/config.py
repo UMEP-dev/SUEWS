@@ -67,6 +67,7 @@ enhanced_to_df_state_validation = None
 import os
 import warnings
 
+SAME_ALB_TOL = 1e-6  # Tolerance for same albedo checks
 
 class ConditionalValidationWarning(UserWarning):
     """Warning issued when conditional validation is requested but not available.
@@ -1437,7 +1438,7 @@ class SUEWSConfig(BaseModel):
 
         # --- Check that all wall albedoes are identical ---
         first_alb = wall_albs[0]
-        tol = 1e-6  # numeric tolerance
+        tol = SAME_ALB_TOL
 
         for i, a in enumerate(wall_albs[1:], start=1):
             if abs(a - first_alb) > tol:
@@ -1480,6 +1481,100 @@ class SUEWSConfig(BaseModel):
             issues.append(
                 f"{site_name}: samealbedo_wall=1, so all wall albedoes ({first_alb}) must equal "
                 f"properties.building_archetype.WallReflectivity ({wall_reflectivity})"
+            )
+
+        return issues
+    
+    def _validate_samealbedo_roof(self, site: Site, site_index: int) -> List[str]:
+        """
+        When samealbedo_roof is enabled:
+
+        - All roof albedoes in vertical_layers.roofs must be identical
+        - That common value must equal properties.building_archetype.RoofReflectivity
+        """
+        issues: List[str] = []
+        site_name = getattr(site, "name", f"Site {site_index}")
+
+        # --- Get walls and their albedoes ---
+        props = getattr(site, "properties", None)
+        vl = getattr(props, "vertical_layers", None)
+        roofs = getattr(vl, "roofs", None) if vl else None
+
+        roof_albs: List[float] = []
+        for i, roof in enumerate(roofs):
+            alb_field = getattr(roof, "alb", None)
+            if alb_field is None:
+                issues.append(
+                    f"{site_name}: samealbedo_roof=1, so roofs[{i}].alb must be set"
+                )
+                continue
+
+            # Handle RefValue or bare value
+            val = getattr(alb_field, "value", alb_field)
+            try:
+                val_float = float(val)
+            except (TypeError, ValueError):
+                issues.append(
+                    f"{site_name}: samealbedo_roof=1 but roofs[{i}].alb ({val!r}) is not numeric"
+                )
+                continue
+
+            roof_albs.append(val_float)
+
+        if issues:
+            return issues
+
+        if len(roof_albs) == 0:
+            issues.append(
+                f"{site_name}: samealbedo_roof=1 but no valid roof albedo values found"
+            )
+            return issues
+
+        # --- Check that all roof albedoes are identical ---
+        first_alb = roof_albs[0]
+        tol = SAME_ALB_TOL  
+
+        for i, a in enumerate(roof_albs[1:], start=1):
+            if abs(a - first_alb) > tol:
+                issues.append(
+                    f"{site_name}: samealbedo_roof=1, so all roof albedoes must be identical, "
+                    f"found mismatch between roofs[0]={first_alb} and roofs[{i}]={a}"
+                )
+                break
+
+        if issues:
+            return issues
+
+        # --- Get building_archetype.RoofReflectivity ---
+        ba = getattr(props, "building_archetype", None)
+        if ba is None:
+            issues.append(
+                f"{site_name}: samealbedo_roof=1, so properties.building_archetype must be defined"
+            )
+            return issues
+
+        rf_field = getattr(ba, "RoofReflectivity", None)
+        if rf_field is None:
+            issues.append(
+                f"{site_name}: samealbedo_roof=1, so properties.building_archetype.RoofReflectivity must be set"
+            )
+            return issues
+
+        rf_val = getattr(rf_field, "value", rf_field)
+        try:
+            roof_reflectivity = float(rf_val)
+        except (TypeError, ValueError):
+            issues.append(
+                f"{site_name}: samealbedo_roof=1 but properties.building_archetype.RoofReflectivity "
+                f"({rf_val!r}) is not numeric"
+            )
+            return issues
+
+        # --- Check equality between roof albedo and RoofReflectivity ---
+        if abs(first_alb - roof_reflectivity) > tol:
+            issues.append(
+                f"{site_name}: samealbedo_roof=1, so all roof albedoes ({first_alb}) must equal "
+                f"properties.building_archetype.RoofReflectivity ({roof_reflectivity})"
             )
 
         return issues

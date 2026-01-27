@@ -742,7 +742,7 @@
                 University of Reading · University College London · University of Helsinki · University of Gothenburg<br>
                 and collaborators worldwide
             </p>
-            <p class="footer-legal">© 2025 SUEWS Development Team</p>
+            <p class="footer-legal">© 2025-<span id="current-year"></span> SUEWS Development Team</p>
             <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 16px;">
                 Branding designed with AI assistance · <a href="/brand/" style="color: var(--text-muted); text-decoration: underline;">View design approach</a>
             </p>
@@ -750,6 +750,9 @@
     </footer>
 
     <script>
+        // Dynamic copyright year
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+
         // Theme Toggle Logic
         const toggle = document.getElementById('themeToggle');
         const root = document.documentElement;

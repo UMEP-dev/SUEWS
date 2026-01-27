@@ -38,6 +38,7 @@ py.install_sources(
             'util/_atm.py',
             'util/_debug.py',
             'util/_era5.py',
+            'util/_forcing.py',
             'util/code_manager.py',
             'util/conversion_engine.py',
             'util/_gap_filler.py',
@@ -93,6 +94,7 @@ py.install_sources(
             'data_model/validation/pipeline/phase_a.py',
             'data_model/validation/pipeline/phase_b.py',
             'data_model/validation/pipeline/phase_c.py',
+            'data_model/validation/pipeline/report_writer.py',
             'data_model/validation/pipeline/yaml_annotator.py',
             'data_model/schema/__init__.py',
             'data_model/schema/version.py',
@@ -119,6 +121,14 @@ py.install_sources(
         ],
         [
             'ext_data/CRU_TS4.06_1991_2020.parquet',
+        ],
+        [
+            # GH-1045: DTS interface for direct Pydantic→Fortran mapping
+            'dts/__init__.py',
+            'dts/_core.py',
+            'dts/_extract.py',
+            'dts/_populate.py',
+            'dts/_runner.py',
         ],
     ],
     subdir: 'supy',

@@ -64,6 +64,7 @@ END MODULE cbl_MODULE
 MODULE module_phys_bluews
    USE module_phys_bluews_cbl
    USE meteo, ONLY: qsatf, sat_vap_press_x
+   USE module_ctrl_error, ONLY: ErrorHint
 
    IMPLICIT NONE
 CONTAINS

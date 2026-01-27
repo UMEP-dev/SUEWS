@@ -89,7 +89,6 @@ suffix_code = .f95
 # names (without suffix), f90 sources
 LIBSRC_SOURCES = suews_ctrl_const \
 	suews_ctrl_type \
-	suews_util_stringmod \
 	suews_ctrl_input \
 	suews_util_time \
 	suews_util_meteo \

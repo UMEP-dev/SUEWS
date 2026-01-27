@@ -8,6 +8,7 @@ Three-phase validation workflow:
 Supports individual phases (A, B, C) or combined workflows (AB, AC, BC, ABC).
 """
 
+import supy
 import sys
 import os
 import argparse
@@ -18,6 +19,8 @@ import shutil
 import io
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
+
+from .report_writer import REPORT_WRITER
 
 # Import Phase A and B functions
 try:
@@ -347,8 +350,7 @@ def extract_no_action_messages_from_report(report_file: str) -> list:
         return messages
 
     try:
-        with open(report_file, "r") as f:
-            content = f.read()
+        content = REPORT_WRITER.read(report_file)
 
         # Extract NO ACTION NEEDED section
         lines = content.split("\n")
@@ -380,6 +382,14 @@ def create_consolidated_report(
     mode: str = "public",
 ) -> None:
     """Create final consolidated report with all NO ACTION NEEDED messages."""
+    import sys
+
+    debug = os.environ.get("SUEWS_DEBUG", "").lower() in ("1", "true", "yes")
+    if debug:
+        print(f"[DEBUG] create_consolidated_report called", file=sys.stderr)
+        print(f"[DEBUG]   final_report_file: {final_report_file}", file=sys.stderr)
+        print(f"[DEBUG]   phases_run: {phases_run}", file=sys.stderr)
+        print(f"[DEBUG]   no_action_messages count: {len(no_action_messages)}", file=sys.stderr)
 
     phase_str = "".join(phases_run) if phases_run else "Combined"
 
@@ -438,13 +448,23 @@ def create_consolidated_report(
     report_content += f"\n\n# {'=' * 50}"
 
     # Write final consolidated report
-    with open(final_report_file, "w") as f:
-        f.write(report_content)
+    if debug:
+        print(f"[DEBUG]   report_content length: {len(report_content)} chars", file=sys.stderr)
+        print(f"[DEBUG]   Writing to: {final_report_file}", file=sys.stderr)
+
+    REPORT_WRITER.write(final_report_file, report_content)
+
+    if debug:
+        actual_size = os.path.getsize(final_report_file) if os.path.exists(final_report_file) else -1
+        print(f"[DEBUG]   File written, actual size on disk: {actual_size} bytes", file=sys.stderr)
 
 
 def create_final_user_files(user_yaml_file: str, source_yaml: str, source_report: str):
     """Create final user-facing files with simple names from intermediate files."""
     import shutil
+    import sys
+
+    debug = os.environ.get("SUEWS_DEBUG", "").lower() in ("1", "true", "yes")
 
     dirname = os.path.dirname(user_yaml_file)
     basename = os.path.basename(user_yaml_file)
@@ -453,22 +473,46 @@ def create_final_user_files(user_yaml_file: str, source_yaml: str, source_report
     final_yaml = os.path.join(dirname, f"updated_{basename}")
     final_report = os.path.join(dirname, f"report_{name_without_ext}.txt")
 
+    if debug:
+        print(f"[DEBUG] create_final_user_files called", file=sys.stderr)
+        print(f"[DEBUG]   source_report: {source_report}", file=sys.stderr)
+        print(f"[DEBUG]   source_report exists: {Path(source_report).exists()}", file=sys.stderr)
+        if Path(source_report).exists():
+            print(f"[DEBUG]   source_report size: {os.path.getsize(source_report)} bytes", file=sys.stderr)
+        print(f"[DEBUG]   final_report: {final_report}", file=sys.stderr)
+
     # Move/copy intermediate files to final user-facing names
     try:
         if Path(source_yaml).exists():
             shutil.move(source_yaml, final_yaml)  # Move instead of copy
 
         if Path(source_report).exists():
+            if debug:
+                print(f"[DEBUG]   Moving report: {source_report} -> {final_report}", file=sys.stderr)
             shutil.move(source_report, final_report)  # Move instead of copy
+            if debug:
+                final_size = os.path.getsize(final_report) if os.path.exists(final_report) else -1
+                print(f"[DEBUG]   After move, final_report size: {final_size} bytes", file=sys.stderr)
     except Exception as e:
+        if debug:
+            print(f"[DEBUG]   Move failed with error: {e}", file=sys.stderr)
         # Fallback to copy if move fails
         try:
             if Path(source_yaml).exists():
                 shutil.copy2(source_yaml, final_yaml)
             if Path(source_report).exists():
+                if debug:
+                    print(f"[DEBUG]   Trying copy fallback for report", file=sys.stderr)
                 shutil.copy2(source_report, final_report)
-        except Exception:
+        except Exception as copy_err:
+            if debug:
+                print(f"[DEBUG]   Copy also failed: {copy_err}", file=sys.stderr)
             pass  # If all fails, at least return the expected paths
+
+    if debug:
+        final_exists = os.path.exists(final_report)
+        final_size = os.path.getsize(final_report) if final_exists else -1
+        print(f"[DEBUG]   Final state: exists={final_exists}, size={final_size} bytes", file=sys.stderr)
 
     return final_yaml, final_report
 
@@ -506,29 +550,28 @@ def run_phase_a(
         if not os.path.exists(uptodate_file):
             if not silent:
                 print()
-                print("✗ Validation failed - check report for details")
+                print("[X] Validation failed - check report for details")
             return False
 
         if not os.path.exists(report_file):
             if not silent:
                 print()
-                print("✗ Validation failed - unable to generate report")
+                print("[X] Validation failed - unable to generate report")
             return False
 
-        with open(uptodate_file, "r") as f:
+        with open(uptodate_file, "r", encoding="utf-8", errors="replace") as f:
             content = f.read()
             if "Updated YAML" not in content:
                 if not silent:
                     print()
-                    print("✗ Validation failed - check report for details")
+                    print("[X] Validation failed - check report for details")
                 return False
 
-        with open(report_file, "r") as f:
-            report_content = f.read()
+        report_content = REPORT_WRITER.read(report_file)
 
         if "## ACTION NEEDED" in report_content:
             if not silent:
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {report_file}")
                 print(f"Updated YAML: {uptodate_file}")
             return False
@@ -540,7 +583,7 @@ def run_phase_a(
     except Exception as e:
         if not silent:
             print()
-            print(f"✗ Validation failed with error: {e}")
+            print(f"[X] Validation failed with error: {e}")
         return False
 
 
@@ -575,22 +618,21 @@ def run_phase_b(
         if not os.path.exists(science_yaml_file):
             if not silent:
                 print()
-                print("✗ Validation failed - check report for details")
+                print("[X] Validation failed - check report for details")
             return False
 
         if not os.path.exists(science_report_file):
             if not silent:
                 print()
-                print("✗ Validation failed - unable to generate report")
+                print("[X] Validation failed - unable to generate report")
             return False
 
         # Check if Phase B report indicates critical issues
-        with open(science_report_file, "r") as f:
-            report_content = f.read()
+        report_content = REPORT_WRITER.read(science_report_file)
 
         if "CRITICAL ISSUES DETECTED" in report_content or "URGENT" in report_content:
             if not silent:
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {science_report_file}")
                 print(f"Updated YAML: {science_yaml_file}")
             return False
@@ -602,20 +644,20 @@ def run_phase_b(
     except ValueError as e:
         if "Critical scientific errors detected" in str(e):
             if not silent:
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {science_report_file}")
                 print(f"Updated YAML: {science_yaml_file}")
             return False
         else:
             if not silent:
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {science_report_file}")
                 print(f"Updated YAML: {science_yaml_file}")
             return False
     except Exception as e:
         if not silent:
             print()
-            print(f"✗ Validation failed with unexpected error: {e}")
+            print(f"[X] Validation failed with unexpected error: {e}")
         return False
 
 
@@ -631,6 +673,12 @@ def run_phase_c(
     silent: bool = False,
 ) -> bool:
     """Execute Phase C: Configuration consistency validation based on physics options."""
+    debug = os.environ.get("SUEWS_DEBUG", "").lower() in ("1", "true", "yes")
+    if debug:
+        print(f"[DEBUG] run_phase_c called", file=sys.stderr)
+        print(f"[DEBUG]   pydantic_report_file: {pydantic_report_file}", file=sys.stderr)
+        print(f"[DEBUG]   phases_run: {phases_run}", file=sys.stderr)
+        print(f"[DEBUG]   no_action_messages count: {len(no_action_messages) if no_action_messages else 'None'}", file=sys.stderr)
     try:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         supy_root = os.path.abspath(os.path.join(current_dir, "../../"))
@@ -693,8 +741,7 @@ def run_phase_c(
                 phase_a_info = ""
                 if phase_a_report_file and os.path.exists(phase_a_report_file):
                     try:
-                        with open(phase_a_report_file, "r") as f:
-                            phase_a_content = f.read()
+                        phase_a_content = REPORT_WRITER.read(phase_a_report_file)
 
                         # Add consolidation info
                         phase_a_info = "\n\n## PREVIOUS PHASES INFORMATION CONSOLIDATED\nSee below for prior phase results.\n"
@@ -721,11 +768,15 @@ def run_phase_c(
 {action_needed}
 # =================================================="""
 
-                    with open(pydantic_report_file, "w") as f:
-                        f.write(failure_report)
+                    if debug:
+                        print(f"[DEBUG]   Writing failure_report ({len(failure_report)} chars) for critical_nulls", file=sys.stderr)
+                    REPORT_WRITER.write(pydantic_report_file, failure_report)
+                    if debug:
+                        actual_size = os.path.getsize(pydantic_report_file) if os.path.exists(pydantic_report_file) else -1
+                        print(f"[DEBUG]   After write, file size: {actual_size} bytes", file=sys.stderr)
 
                     if not silent:
-                        print("✗ Validation failed!")
+                        print("[X] Validation failed!")
                         print(f"Report: {pydantic_report_file}")
                         print(f"Updated YAML: {pydantic_yaml_file}")
                     return False
@@ -813,9 +864,15 @@ def run_phase_c(
 # =================================================="""
 
                     # Write the report to file
-                    with open(pydantic_report_file, "w") as f:
-                        f.write(success_report)
+                    if debug:
+                        print(f"[DEBUG]   Writing success_report ({len(success_report)} chars) to {pydantic_report_file}", file=sys.stderr)
+                    REPORT_WRITER.write(pydantic_report_file, success_report)
+                    if debug:
+                        actual_size = os.path.getsize(pydantic_report_file) if os.path.exists(pydantic_report_file) else -1
+                        print(f"[DEBUG]   After write, file size: {actual_size} bytes", file=sys.stderr)
                 else:
+                    if debug:
+                        print(f"[DEBUG]   consolidated_no_action is empty, entering else branch", file=sys.stderr)
                     # Map phase strings to descriptive messages
                     def get_phase_message(phase_str):
                         if phase_str == "A":
@@ -836,7 +893,11 @@ def run_phase_c(
                             return f"Phase {phase_str} passed"  # fallback
 
                     # Check if this is a multi-phase call that needs consolidation
+                    if debug:
+                        print(f"[DEBUG]   phases_run={phases_run}, len={len(phases_run) if phases_run else 0}", file=sys.stderr)
                     if phases_run and len(phases_run) > 1:
+                        if debug:
+                            print(f"[DEBUG]   Taking multi-phase consolidation path", file=sys.stderr)
                         # Multi-phase consolidation: use passed messages or extract from files
                         if no_action_messages is not None:
                             # Use passed messages (variable-based approach)
@@ -897,8 +958,7 @@ def run_phase_c(
 
 # =================================================="""
 
-                        with open(pydantic_report_file, "w") as f:
-                            f.write(success_report)
+                        REPORT_WRITER.write(pydantic_report_file, success_report)
 
                 # Ensure report is always generated for successful validation
                 if not os.path.exists(pydantic_report_file):
@@ -911,8 +971,7 @@ def run_phase_c(
 Validation passed
 
 # =================================================="""
-                    with open(pydantic_report_file, "w") as f:
-                        f.write(simple_success_report)
+                    REPORT_WRITER.write(pydantic_report_file, simple_success_report)
 
                 # Restore logging level before return
                 supy_logger.setLevel(original_level)
@@ -955,7 +1014,7 @@ Validation passed
                     )
 
                 if not silent:
-                    print("✗ Validation failed!")
+                    print("[X] Validation failed!")
                     print(f"Report: {pydantic_report_file}")
                     print(f"Updated YAML: {pydantic_yaml_file}")
                 return False
@@ -963,7 +1022,7 @@ Validation passed
         except ImportError as import_error:
             if not silent:
                 print(
-                    f"✗ Validation failed - Cannot import SUEWSConfig: {import_error}"
+                    f"[X] Validation failed - Cannot import SUEWSConfig: {import_error}"
                 )
 
             # Import error report
@@ -993,15 +1052,14 @@ Phase C validation could not be executed due to import issues.
 {str(import_error)}
 """
 
-            with open(pydantic_report_file, "w") as f:
-                f.write(error_report)
+            REPORT_WRITER.write(pydantic_report_file, error_report)
 
             print(f"  Report generated: {os.path.basename(pydantic_report_file)}")
             return False
 
     except Exception as e:
         if not silent:
-            print(f"✗ Validation failed: {e}")
+            print(f"[X] Validation failed: {e}")
 
         # General error report
         error_report = f"""# SUEWS Validation Report
@@ -1028,8 +1086,7 @@ Phase C validation could not be executed due to system errors.
 {str(e)}
 """
 
-        with open(pydantic_report_file, "w") as f:
-            f.write(error_report)
+        REPORT_WRITER.write(pydantic_report_file, error_report)
 
         print(f"  Report generated: {os.path.basename(pydantic_report_file)}")
         return False
@@ -1037,7 +1094,7 @@ Phase C validation could not be executed due to system errors.
 
 def copy_yaml_with_standard_header(source_file: str, dest_file: str) -> None:
     """Copy YAML file and add standardised header."""
-    with open(source_file, "r") as f:
+    with open(source_file, "r", encoding="utf-8", errors="replace") as f:
         original_content = f.read()
 
     lines = original_content.split("\n")
@@ -1063,7 +1120,7 @@ def copy_yaml_with_standard_header(source_file: str, dest_file: str) -> None:
 
 """
 
-    with open(dest_file, "w") as f:
+    with open(dest_file, "w", encoding="utf-8", newline="\n") as f:
         f.write(standard_header + clean_content)
 
 
@@ -1100,7 +1157,7 @@ Modes:
         "-p",
         choices=["A", "B", "C", "AB", "AC", "BC", "ABC"],
         default="ABC",
-        help="Phase to run: A (structure check), B (physics validation), C (consistency check), AB (A→B workflow), AC (A→C), BC (B→C), or ABC (complete workflow, default)",
+        help="Phase to run: A (structure check), B (physics validation), C (consistency check), AB (A->B workflow), AC (A->C), BC (B->C), or ABC (complete workflow, default)",
     )
 
     parser.add_argument(
@@ -1242,7 +1299,7 @@ Modes:
 
         if not os.path.exists(standard_yaml_file):
             print()
-            print(f"✗ Standard YAML file not found: {standard_yaml_file}")
+            print(f"[X] Standard YAML file not found: {standard_yaml_file}")
             print("Make sure you're running from the SUEWS root directory")
             return 1
 
@@ -1280,7 +1337,7 @@ Modes:
                 print("Report:", final_report)
                 print("Updated YAML:", final_yaml)
             else:
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print("Report:", final_report)
                 print("Updated YAML:", final_yaml)
             return 0 if phase_a_success else 1
@@ -1324,7 +1381,7 @@ Modes:
                 except Exception:
                     pass  # Don't fail if removal doesn't work
                 # Phase B standalone failure: only show Report and Suggestion (no Updated YAML)
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print("Report:", final_report)
             return 0 if phase_b_success else 1
 
@@ -1361,7 +1418,7 @@ Modes:
                 except Exception:
                     pass  # Don't fail if removal doesn't work
                 # Phase C standalone failure: only show Report and Suggestion (no Updated YAML)
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print("Report:", final_report)
             return 0 if phase_c_success else 1
 
@@ -1384,7 +1441,7 @@ Modes:
                     user_yaml_file, uptodate_file, report_file
                 )
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {final_report}")
                 print(f"Updated YAML: {final_yaml}")
                 return 1
@@ -1434,7 +1491,7 @@ Modes:
                 except Exception:
                     pass
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {final_report}")
                 print(f"Updated YAML: {final_yaml}")
                 return 1
@@ -1500,7 +1557,7 @@ Modes:
                 except Exception:
                     pass  # Don't fail if rename doesn't work
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
                 return 1
@@ -1544,7 +1601,7 @@ Modes:
                 except Exception:
                     pass
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {final_report}")
                 print(f"Updated YAML: {final_yaml}")
                 return 1
@@ -1613,7 +1670,7 @@ Modes:
                 except Exception:
                     pass  # Don't fail if rename doesn't work
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
                 return 1
@@ -1648,8 +1705,7 @@ Modes:
 
                     # Read Phase C error report and append Phase B messages
                     if os.path.exists(pydantic_report_file):
-                        with open(pydantic_report_file, "r") as f:
-                            phase_c_content = f.read()
+                        phase_c_content = REPORT_WRITER.read(pydantic_report_file)
 
                         # Append Phase B NO ACTION NEEDED messages to Phase C report
                         if phase_b_messages:
@@ -1674,8 +1730,7 @@ Modes:
                             phase_c_content += f"\n\n# {'=' * 50}\n"
 
                             # Write consolidated report
-                            with open(pydantic_report_file, "w") as f:
-                                f.write(phase_c_content)
+                            REPORT_WRITER.write(pydantic_report_file, phase_c_content)
 
                     # Use Phase B YAML as final (last successful phase)
                     if os.path.exists(science_yaml_file):
@@ -1694,7 +1749,7 @@ Modes:
                 except Exception:
                     pass
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {final_report}")
                 print(f"Updated YAML: {final_yaml}")
                 return 1
@@ -1774,7 +1829,7 @@ Modes:
                 except Exception as e:
                     print(f"DEBUG: Exception during file move: {e}")
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
                 return 1
@@ -1821,7 +1876,7 @@ Modes:
                 except Exception:
                     pass  # Don't fail if cleanup doesn't work
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
                 return 1
@@ -1864,7 +1919,7 @@ Modes:
                 except Exception:
                     pass  # Don't fail if cleanup doesn't work
 
-                print("✗ Validation failed!")
+                print("[X] Validation failed!")
                 print(f"Report: {pydantic_report_file}")
                 print(f"Updated YAML: {pydantic_yaml_file}")
                 return 1
@@ -1917,21 +1972,21 @@ Modes:
 
         else:
             # Fallback for unknown phase combinations
-            print(f"✗ Unknown validation option '{phase}'")
+            print(f"[X] Unknown validation option '{phase}'")
             print("For help: suews-validate --help")
             return 1
 
     except FileNotFoundError as e:
         print()
-        print(f"✗ File error: {e}")
+        print(f"[X] File error: {e}")
         return 1
     except ValueError as e:
         print()
-        print(f"✗ Input error: {e}")
+        print(f"[X] Input error: {e}")
         return 1
     except Exception as e:
         print()
-        print(f"✗ Unexpected error: {e}")
+        print(f"[X] Unexpected error: {e}")
         return 1
 
 

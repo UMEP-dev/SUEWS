@@ -363,13 +363,12 @@ CONTAINS
    ! Returns:
    !   qapp - total energy of appliances - assume all goes to heat (sensible) [W]
    !-------------------------------------------------------------------
-   FUNCTION internalApplianceGains(P, f, n) RESULT(qapp)
+   FUNCTION internalApplianceGains(P, f) RESULT(qapp)
       USE module_phys_stebbs_precision
       IMPLICIT NONE
-      INTEGER, INTENT(in) :: n
       REAL(KIND(1D0)), INTENT(in) :: P, f
       REAL(KIND(1D0)) :: qapp
-      qapp = P*f*n
+      qapp = P*f
    END FUNCTION internalApplianceGains
    !-------------------------------------------------------------------
    ! Function: ext_conv_coeff
@@ -437,7 +436,9 @@ CONTAINS
 
       ! Validate inputs
       IF (d <= 0 .OR. cp <= 0 .OR. rho <= 0) THEN
+#ifdef wrf
          PRINT *, "Thickness (d), specific heat (cp), and density (rho) must be positive."
+#endif
          CALL set_supy_error(102, 'STEBBS calculate_x1: d, cp, rho must be positive')
          x1 = -999.0D0
          RETURN
@@ -448,15 +449,17 @@ CONTAINS
 
       ! Compute required coefficients, similar to new OHM a1 parameterisation.
       S_x1 = 100*SQRT(TD_ext)
-      omega_x1 = -8.8*LOG(SQRT(TD_ext)) - 106.0
-      theta_x1 = -2.3*LOG(SQRT(TD_ext)) - 24.4
+      omega_x1 = -8.8*LOG(TD_ext) - 106.0
+      theta_x1 = -2.3*LOG(TD_ext) - 24.4
       d1 = S_x1*(1 - EXP(-theta_x1*d_ext)*COS(omega_x1*d_ext))
       ! compute the final x1
       x1 = (d1*cp_ext*rho_ext)/(d*cp*rho)
 
       ! limit the output x1 between 0 and 1
       IF (x1 <= 0 .OR. x1 >= 1) THEN
+#ifdef wrf
          PRINT *, "OuterCapFrac should be between 0 and 1."
+#endif
          CALL set_supy_error(102, 'STEBBS calculate_x1: OuterCapFrac should be between 0 and 1')
          x1 = -999.0D0
          RETURN
@@ -697,9 +700,14 @@ CONTAINS
       REAL(KIND(1D0)) :: Vwater_tank
       REAL(KIND(1D0)) :: n_layer_wall ! layers from spartacus to extract short and longwave radiation
       REAL(KIND(1D0)) :: n_layer_roof  ! layers from spartacus to extract short and longwave radiation    
+      INTEGER :: iu !type of day: weekday/weekend
+      INTEGER :: idx !index of profiles for 10 mins interval
       ASSOCIATE ( &
          timestep => timer%tstep, &
          dt_start => timer%dt_since_start, &
+         it => timer%it, &!hour of day
+         imin => timer%imin, & !minute of day
+         dayofWeek_id => timer%dayofWeek_id, & !1 - day of week; 2 - month; 3 - season
          flagstate => modState%flagstate, &
          heatState => modState%heatState, &
          atmState => modState%atmState, &
@@ -823,6 +831,16 @@ CONTAINS
             sout%ws_exch_bh = ws_bh
             sout%ws_exch_hbh = ws_hbh
 
+              
+            iu = 1 !Set to 1=weekday
+            IF (DayofWeek_id(1) == 1 .OR. DayofWeek_id(1) == 7) iu = 2 !Set to 2=weekend
+            !select heating/cooling setpoint from prescribed schedules
+            idx = imin / 10 !for 10 minutes resolution
+            buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature(idx, iu) + 273.15
+            buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature(idx, iu) + 273.15
+            buildings(1)%frac_occupants = building_archtype%OccupantsProfile(idx, iu)
+            buildings(1)%frac_appliance = building_archtype%ApplianceProfile(idx, iu)
+            buildings(1)%frac_hotwater = stebbsPrm%HotWaterFlowProfile(idx, iu)
             CALL setdatetime(datetimeLine)
 
             CALL suewsstebbscouple( &
@@ -1044,8 +1062,9 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
       END IF
       !use updated temperature to calculate new coefficients
       self%h_o(1) = ext_conv_coeff(ws_out_hbh, self%Textwall - Tair_out_hbh) !wall
-      self%h_o(2) = ext_conv_coeff(ws_out_hbh, self%Textwindow - Tair_out_hbh) !new function maybe needed for windiws (smooth)
-      self%h_o(3) = ext_conv_coeff(ws_out_bh, self%Textroof - Tair_out_bh) !new function maybe needed for horizontal roof
+      self%h_o(2) = ext_conv_coeff(ws_out_bh, self%Textroof - Tair_out_bh) !roof
+      self%h_o(3) = ext_conv_coeff(ws_out_hbh, self%Textwindow - Tair_out_hbh) !window
+      
       self%h_i(1) = int_conv_coeff(dT = (self%Tintwall - self%Tair_ind), surf_type = 1) !wall
       self%h_i(2) = int_conv_coeff(dT = (self%Tintwindow - self%Tair_ind), surf_type = 1) !windows
       self%h_i(3) = int_conv_coeff(dT = (self%Tintroof - self%Tair_ind), surf_type = 2) !roof
@@ -1239,8 +1258,8 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%windowTransmissivity, self%windowAbsorbtivity, self%windowReflectivity, &
       self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity, &
       self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity, &
-      self%occupants, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
-      self%appliance_power_rating, self%appliance_usage_factor, &
+      self%occupants, self%frac_occupants, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
+      self%appliance_power_rating, self%frac_appliance, &
       self%maxheatingpower_air, self%heating_efficiency_air, &
       self%maxcoolingpower_air, self%coeff_performance_cooling, &
       self%Vair_ind, self%ventilation_rate, self%Awall, self%Aroof, &
@@ -1250,13 +1269,13 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%Tintwindow, self%Textwindow, self%Tintgroundfloor, self%Textgroundfloor, &
       self%Ts, &
       !  self%Ts(1), self%Ts(2),                                                               &
-      self%appliance_totalnumber, timestep, resolution, &
+      timestep, resolution, &
       self%Qtotal_water_tank, self%Twater_tank, self%Tintwall_tank, &
       self%Textwall_tank, self%thickness_tankwall, self%Tincomingwater_tank, &
       self%Vwater_tank, self%Asurf_tank, self%Vwall_tank, self%setTwater_tank, &
       self%Twater_vessel, self%Tintwall_vessel, self%Textwall_vessel, &
       self%thickness_wall_vessel, self%Vwater_vessel, self%Awater_vessel, &
-      self%Vwall_vessel, self%flowrate_water_supply, self%flowrate_water_drain, &
+      self%Vwall_vessel, self%flowrate_water_supply*self%frac_hotwater, self%flowrate_water_supply*self%frac_hotwater, &
       self%cp_water, self%cp_wall_tank, self%cp_wall_vessel, &
       self%density_water, self%density_wall_tank, self%density_wall_vessel, &
       self%BVF_tank, self%MVF_tank, self%conductivity_wall_tank, &
@@ -1337,8 +1356,8 @@ SUBROUTINE tstep( &
    windowTransmissivity, windowAbsorbtivity, windowReflectivity, &
    wallTransmisivity, wallAbsorbtivity, wallReflectivity, &
    roofTransmisivity, roofAbsorbtivity, roofReflectivity, &
-   occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
-   appliance_power_rating, appliance_usage_factor, &
+   occupants, frac_occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
+   appliance_power_rating, frac_appliance, &
    maxheatingpower_air, heating_efficiency_air, &
    maxcoolingpower_air, coeff_performance_cooling, &
    Vair_ind, ventilation_rate, Awall, Aroof, &
@@ -1348,7 +1367,7 @@ SUBROUTINE tstep( &
    Tintwindow, Textwindow, Tintgroundfloor, Textgroundfloor, & !IO
    Ts, & !IO
    !  Ts(1), Ts(2),                                                          &
-   appliance_totalnumber, timestep, resolution, &
+   timestep, resolution, &
    Qtotal_water_tank, Twater_tank, Tintwall_tank, & !IO
    Textwall_tank, thickness_tankwall, Tincomingwater_tank, & !IO
    Vwater_tank, Asurf_tank, Vwall_tank, setTwater_tank, & !IO
@@ -1473,12 +1492,10 @@ SUBROUTINE tstep( &
                       windowTransmissivity, windowAbsorbtivity, windowReflectivity, & ! [-], [-], [-]
                       wallTransmisivity, wallAbsorbtivity, wallReflectivity, & ! [-], [-], [-]
                  roofTransmisivity, roofAbsorbtivity, roofReflectivity ! [-], [-], [-]
-   REAL(KIND(1D0)) :: occupants ! Number of occupants [-]
+   REAL(KIND(1D0)) :: occupants, frac_occupants ! Number of occupants [-]
    REAL(KIND(1D0)) :: metabolic_rate, ratio_metabolic_latent_sensible, & ! [W], [-]
-                      appliance_power_rating ! [W]
-   INTEGER :: appliance_totalnumber ! Number of appliances [-]
-   REAL(KIND(1D0)) :: appliance_usage_factor, & ! Number of appliances in use [-]
-                      maxheatingpower_air, heating_efficiency_air, & ! [W], [-]
+                      appliance_power_rating, frac_appliance ! [W]
+   REAL(KIND(1D0)) :: maxheatingpower_air, heating_efficiency_air, & ! [W], [-]
                       maxcoolingpower_air, coeff_performance_cooling, & ! [W], [-]
                       Vair_ind, ventilation_rate, & ! Fixed at begining to have no natural ventilation.
                       Awall, Vwall, & ! [m2], [m3]
@@ -1662,7 +1679,7 @@ SUBROUTINE tstep( &
          Qlw_net_intwindow_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for window internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
          Qlw_net_intgroundfloor_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for ground floor internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
          QH_appliance = &
-            internalApplianceGains(appliance_power_rating, appliance_usage_factor, appliance_totalnumber)
+            internalApplianceGains(appliance_power_rating, frac_appliance)
          QH_ventilation = &
             ventilationHeatTransfer(density_air_ind, cp_air_ind, ventilation_rate, Tair_out_hbh, Tair_ind)
          QHconv_indair_to_intwall = &
@@ -1680,7 +1697,7 @@ SUBROUTINE tstep( &
          QHload_cooling_timestep = cooling(Ts(2), Tair_ind, coeff_performance_cooling, maxcoolingpower_air)
 
          !internalOccupancyGains(occupants, metabolic_rate, ratio_metabolic_latent_sensible, Qmetabolic_sensible, Qmetabolic_latent)
-         Qm = internalOccupancyGains(occupants, metabolic_rate, ratio_metabolic_latent_sensible)
+         Qm = internalOccupancyGains(occupants*frac_occupants, metabolic_rate, ratio_metabolic_latent_sensible)
          QH_metabolism = Qm(1)
          QE_metabolism = Qm(2)
          QHrejection_heating = &
@@ -2071,16 +2088,19 @@ SUBROUTINE tstep( &
       Qlw_up_roof_tstepSA = Qlw_up_roof_tsteptotal / timestep / Aroof
    ELSE !iftimestepresolution
       !  printf("Timestep: %i not equally divisible by given resolution: %i.\n", timestep, resolution)
+#ifdef wrf
       WRITE (*, *) "Timestep: ", timestep, " not equally divisible by given resolution: ", resolution
+#endif
    END IF
 END SUBROUTINE tstep
 SUBROUTINE reinitialiseTemperatures
 END SUBROUTINE reinitialiseTemperatures
 
 SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self, num_layer)
-   
+
    USE module_ctrl_type, ONLY: BUILDING_ARCHETYPE_PRM, STEBBS_STATE, STEBBS_PRM, STEBBS_BLDG, SUEWS_CONFIG
    USE module_phys_stebbs_func, ONLY: calculate_x1
+   USE module_ctrl_error_state, ONLY: add_supy_warning
    IMPLICIT NONE
 
    TYPE(STEBBS_BLDG) :: self
@@ -2170,8 +2190,6 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%metabolic_rate = stebbsPrm%MetabolicRate
    self%ratio_metabolic_latent_sensible = stebbsPrm%LatentSensibleRatio
    self%appliance_power_rating = stebbsPrm%ApplianceRating
-   self%appliance_totalnumber = INT(stebbsPrm%TotalNumberofAppliances)
-   self%appliance_usage_factor = stebbsPrm%ApplianceUsageFactor
    self%maxheatingpower_air = building_archtype%MaxHeatingPower
    self%heating_efficiency_air = stebbsPrm%HeatingSystemEfficiency
    self%maxcoolingpower_air = stebbsPrm%MaxCoolingPower
@@ -2220,11 +2238,11 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%Textwindow = stebbsState%WindowOutdoorSurfaceTemperature + 273.15 ! # Window outdoor surface temperature (K)
    self%Tintgroundfloor = stebbsState%GroundFloorIndoorSurfaceTemperature + 273.15 ! # Ground floor indoor surface temperature (K)
    self%Textgroundfloor = stebbsState%GroundFloorOutdoorSurfaceTemperature + 273.15 ! # Ground floor outdoor surface temperature (K)
-
-   self%Ts = (/building_archtype%HeatingSetpointTemperature + 273.15, &
-               building_archtype%CoolingSetpointTemperature + 273.15/) ! # Heating and Cooling setpoint temperatures (K), respectively
-   self%initTs = (/building_archtype%HeatingSetpointTemperature + 273.15, &
-                   building_archtype%CoolingSetpointTemperature + 273.15/)
+   !Heating/cooling setpoint is determined from prescribed profiles of hoursofday
+   !self%Ts = (/building_archtype%HeatingSetpointTemperature + 273.15, &
+   !            building_archtype%CoolingSetpointTemperature + 273.15/) ! # Heating and Cooling setpoint temperatures (K), respectively
+   !self%initTs = (/building_archtype%HeatingSetpointTemperature + 273.15, &
+   !                building_archtype%CoolingSetpointTemperature + 273.15/)
    self%HTsAverage = (/18 + 273.15, 18 + 273.15, 18 + 273.15/) ! #
    self%HWTsAverage = (/10 + 273.15, 10 + 273.15, 10 + 273.15/)
 
@@ -2247,14 +2265,11 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%Awater_vessel = stebbsPrm%DHWSurfaceArea ! # Surface Area of Hot Water in Vessels in Building (m^2)
    self%Vwall_vessel = self%Awater_vessel*self%thickness_wall_vessel ! # Wall volume of Hot water Vessels in Building
    self%flowrate_water_supply = stebbsPrm%HotWaterFlowRate ! # Hot Water Flow Rate in m^3 / s
-   self%flowrate_water_drain = stebbsPrm%DHWDrainFlowRate ! # Draining of Domestic Hot Water held in building
+   self%flowrate_water_supply_profile = stebbsPrm%HotWaterFlowProfile ! # Diurnal profile of hot water usage [0-1]
+   !self%flowrate_water_drain = stebbsPrm%DHWDrainFlowRate ! # Draining of Domestic Hot Water held in building
 
    self%single_flowrate_water_supply = stebbsPrm%HotWaterFlowRate ! # Hot Water Flow Rate in m^3 s^-1 for a single HW unit
-   self%flowrate_water_supply = stebbsPrm%HotWaterFlowRate ! # Hot Water Flow Rate in m^3 / s
-   self%flowrate_water_drain = stebbsPrm%DHWDrainFlowRate ! # Draining of Domestic Hot Water held in building
-
-   self%single_flowrate_water_supply = stebbsPrm%HotWaterFlowRate ! # Hot Water Flow Rate in m^3 s^-1 for a single HW unit
-   self%single_flowrate_water_drain = stebbsPrm%DHWDrainFlowRate ! # Draining of Domestic Hot Water held in building
+   !self%flowrate_water_drain = stebbsPrm%DHWDrainFlowRate ! # Draining of Domestic Hot Water held in building
 
    self%cp_water = stebbsPrm%DHWSpecificHeatCapacity ! # Specific Heat Capacity of Domestic Hot Water (J/kg K)
    self%cp_wall_tank = stebbsPrm%HotWaterTankSpecificHeatCapacity ! # Specific Heat Capacity of Hot Water Tank wall
@@ -2295,11 +2310,11 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
                                              self%thickness_wallext, self%cp_wallext, self%density_wallext, self%conductivity_wallext)
       self%weighting_factor_heatcapacity_roof = calculate_x1(self%thickness_roof, self%cp_roof, self%density_roof, &
                                              self%thickness_roofext, self%cp_roofext, self%density_roofext, self%conductivity_roofext)
-      IF ((self%weighting_factor_heatcapacity_wall>1) .OR. (self%weighting_factor_heatcapacity_wall>1)) THEN
-         print*, "Wall_OuterCapFrac = ", self%weighting_factor_heatcapacity_wall, 'parameterisation should not be used'
-      END IF   
-      IF ((self%weighting_factor_heatcapacity_roof>1) .OR. (self%weighting_factor_heatcapacity_roof>1)) THEN
-         print*, "Roof_OuterCapFrac = ", self%weighting_factor_heatcapacity_roof, 'parameterisation should not be used'
+      IF (self%weighting_factor_heatcapacity_wall > 1) THEN
+         CALL add_supy_warning('STEBBS: Wall_OuterCapFrac > 1, parameterisation should not be used')
+      END IF
+      IF (self%weighting_factor_heatcapacity_roof > 1) THEN
+         CALL add_supy_warning('STEBBS: Roof_OuterCapFrac > 1, parameterisation should not be used')
       END IF  
    END IF                                                    
 END SUBROUTINE gen_building
@@ -2379,18 +2394,10 @@ SUBROUTINE create_building(CASE, self, icase)
    self%roofTransmisivity = 0.0
    self%roofAbsorbtivity = 0.5
    self%roofReflectivity = 0.5
-   !self%BVF_extwall = 0.4
-   !self%GVF_extwall = 0.2
-   !self%SVF_extwall = 0.4
-   !self%BVF_extroof = 0.3
-   !self%GVF_extroof = 0.0
-   !self%SVF_extroof = 0.7
    self%occupants = 15
    self%metabolic_rate = 250
    self%ratio_metabolic_latent_sensible = 0.8
    self%appliance_power_rating = 100
-   self%appliance_totalnumber = 45
-   self%appliance_usage_factor = 0.8
    self%maxheatingpower_air = 45000
    self%heating_efficiency_air = 0.9
    self%maxcoolingpower_air = 3000
@@ -2426,7 +2433,6 @@ SUBROUTINE create_building(CASE, self, icase)
    self%wiTAR = (/self%windowTransmissivity, self%windowAbsorbtivity, self%windowReflectivity/)
    self%waTAR = (/self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity/)
    self%roofTAR = (/self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity/)
-   !self%viewFactors = (/self%BVF_extwall, self%GVF_extwall, self%SVF_extwall, self%BVF_extroof, self%GVF_extroof, self%SVF_extroof/) !  # Building, ground, and sky view factors
    self%occupantData = (/self%occupants, self%metabolic_rate, &
                          self%ratio_metabolic_latent_sensible/)
 
@@ -2464,10 +2470,10 @@ SUBROUTINE create_building(CASE, self, icase)
    self%Awater_vessel = 10 ! # Surface Area of Hot Water in Vessels in Building (m^2)
    self%Vwall_vessel = self%Awater_vessel*self%thickness_wall_vessel ! # Wall volume of Hot water Vessels in Building
    self%flowrate_water_supply = 0 ! # Hot Water Flow Rate in m^3 / s
-   self%flowrate_water_drain = 0 ! # Draining of Domestic Hot Water held in building
+   !self%flowrate_water_drain = 0 ! # Draining of Domestic Hot Water held in building
 
    self%single_flowrate_water_supply = 0 ! # Hot Water Flow Rate in m^3 s^-1 for a single HW unit
-   self%single_flowrate_water_drain = 0 ! # Draining of Domestic Hot Water held in building
+   !self%single_flowrate_water_drain = 0 ! # Draining of Domestic Hot Water held in building
 
    self%cp_water = 4180.1 ! # Specific Heat Capacity of Domestic Hot Water (J/kg K)
    self%cp_wall_tank = 1000 ! # Specific Heat Capacity of Hot Water Tank wall

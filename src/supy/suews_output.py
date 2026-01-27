@@ -79,7 +79,9 @@ class SUEWSOutput:
             Additional metadata (timing, version, etc.)
         """
         self._df_output = df_output.copy()
-        self._df_state_final = df_state_final.copy()
+        self._df_state_final = (
+            df_state_final.copy() if df_state_final is not None else None
+        )
         self._config = config
         self._metadata = metadata or {}
 

@@ -151,7 +151,7 @@ The forcing file must be a text file with specific columns in the correct order.
 2. **Wind speed** [m/s] - minimum 0.01 m/s
 3. **Relative humidity** [%]
 4. **Air temperature** [°C]
-5. **Pressure** [kPa]
+5. **Pressure** [kPa] - ideally 3, at least 2 decimal places
 6. **Rainfall** [mm]
 7. **Incoming shortwave radiation** [W/m²] - must be > 0
 8. **Incoming longwave radiation** [W/m²] - optional, will be modeled if missing (use -999)
@@ -271,4 +271,4 @@ Getting Help
 - **Validation issues**: Check the report file (``report_*.txt``)
 - **Parameter documentation**: See the error messages from validation
 - **Examples**: Look in ``sample_data/`` directory
-- **Community support**: `SUEWS Community <https://suews.discourse.group/>`_
+- **Community support**: `SUEWS Community <https://community.suews.io>`_

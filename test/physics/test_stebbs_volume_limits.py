@@ -35,6 +35,7 @@ def _load_stebbs_test_config():
 
 
 @pytest.mark.core
+@pytest.mark.slow
 def test_maximum_volume_capping():
     """
     Test that vessel water volume is capped at MaximumVolumeOfDHWinUse.
@@ -79,6 +80,7 @@ def test_maximum_volume_capping():
 
 
 @pytest.mark.core
+@pytest.mark.slow
 def test_volume_accumulation_with_supply_greater_than_drain():
     """
     Test volume capping when supply flow rate exceeds drain flow rate.
@@ -131,13 +133,17 @@ def test_volume_accumulation_with_supply_greater_than_drain():
 
     # Verify volume reached/approached maximum (accumulation was attempted)
     # This confirms the capping was actually triggered, not just avoided
-    assert max_observed >= max_volume - 0.5, (
-        f"Volume ({max_observed:.4f} m3) never approached maximum ({max_volume} m3). "
-        "Test may not be exercising the capping mechanism."
+    #assert max_observed >= max_volume - 0.5, (
+    #    f"Volume ({max_observed:.4f} m3) never approached maximum ({max_volume} m3). "
+    #    "Test may not be exercising the capping mechanism."
+    #YL: currently STEBBS assume water supply==drain, so water volume will keep unchanged, above code may be recovered when we consider the difference between water supply and drain
+    assert vwater_vessel.nunique() == 1, (
+        "Vessel water volume values are not constant, supply!=drain. "
+        f"Observed values: {vwater_vessel.unique()}"
     )
 
-
 @pytest.mark.core
+@pytest.mark.slow
 def test_maximum_volume_disabled_when_zero():
     """
     Test that maximum volume constraint is disabled when set to 0.0.
@@ -183,6 +189,7 @@ def test_maximum_volume_disabled_when_zero():
 
 
 @pytest.mark.core
+@pytest.mark.slow
 def test_minimum_volume_still_enforced():
     """
     Test that minimum volume constraint still works alongside maximum.
@@ -231,6 +238,7 @@ def test_minimum_volume_still_enforced():
 
 
 @pytest.mark.core
+@pytest.mark.slow
 def test_volume_stability_at_maximum():
     """
     Test that volume remains stable when starting at maximum.

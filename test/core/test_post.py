@@ -6,11 +6,11 @@ output resampling, aggregation, and data manipulation utilities.
 """
 
 from unittest import TestCase
-import warnings
 
 import pandas as pd
 
 import supy as sp
+from conftest import TIMESTEPS_PER_DAY
 from supy._post import dict_var_aggm, resample_output  # noqa: PLC2701
 
 
@@ -19,13 +19,11 @@ class TestResampleOutput(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
-
         # Create sample output data for testing
         self.df_state_init, self.df_forcing = sp.load_SampleData()
 
         # Run a short simulation to get output
-        df_forcing_short = self.df_forcing.iloc[: 288 * 7]  # One week
+        df_forcing_short = self.df_forcing.iloc[: TIMESTEPS_PER_DAY * 7]  # One week
         self.df_output, self.df_state = sp.run_supy(
             df_forcing_short, self.df_state_init, check_input=False
         )
@@ -78,7 +76,9 @@ class TestResampleOutput(TestCase):
 
         # Validation
         self.assertIsInstance(df_daily, pd.DataFrame)
-        self.assertEqual(len(df_daily), 7)  # 7 days
+        # 8 days: SUEWS (label='right') produces Jan 2-8, DailyState (label='left')
+        # produces Jan 1-7, combined gives Jan 1-8 (8 unique dates)
+        self.assertEqual(len(df_daily), 8)
 
         # Check aggregation methods for grid 1
         # Note: df_output has MultiIndex (datetime, grid), so we need to handle it properly
@@ -88,18 +88,39 @@ class TestResampleOutput(TestCase):
 
         # Energy fluxes should be averaged
         # Use same resampling parameters as resample_output (closed='right', label='right')
+        # Note: df_daily has combined SUEWS + DailyState dates (Jan 1-8), but SUEWS only has
+        # Jan 2-8 (label='right'). Use dropna() to compare only valid SUEWS data.
         qn_manual = (
             df_grid.SUEWS["QN"].resample("D", closed="right", label="right").mean()
         )
-        qn_daily = df_daily_grid.SUEWS["QN"]
-        pd.testing.assert_series_equal(qn_manual, qn_daily, check_names=False)
+        qn_daily = df_daily_grid.SUEWS["QN"].dropna()
+        # Compare using intersection of indices (handles different date ranges)
+        common_idx = qn_manual.index.intersection(qn_daily.index)
+        pd.testing.assert_series_equal(
+            qn_manual.loc[common_idx], qn_daily.loc[common_idx], check_names=False
+        )
 
         # Rain should be summed
         rain_manual = (
             df_grid.SUEWS["Rain"].resample("D", closed="right", label="right").sum()
         )
-        rain_daily = df_daily_grid.SUEWS["Rain"]
-        pd.testing.assert_series_equal(rain_manual, rain_daily, check_names=False)
+        rain_daily = df_daily_grid.SUEWS["Rain"].dropna()
+        # Compare using intersection of indices (handles different date ranges)
+        common_idx = rain_manual.index.intersection(rain_daily.index)
+        pd.testing.assert_series_equal(
+            rain_manual.loc[common_idx], rain_daily.loc[common_idx], check_names=False
+        )
+
+        # Verify DailyState boundary data is preserved (label='left' convention)
+        # Jan 1 should have DailyState data (day 1 aggregates to label='left' = Jan 1)
+        daily_state_cols = [c for c in df_daily_grid.columns if c[0] == "DailyState"]
+        if daily_state_cols:
+            jan1_dailystate = df_daily_grid.loc["2012-01-01", daily_state_cols]
+            # Should have some non-NaN values (DailyState data for day 1)
+            self.assertTrue(
+                jan1_dailystate.notna().any(),
+                "DailyState data at Jan 1 (label='left' boundary) should be preserved",
+            )
 
         print(f"✓ Resampled to {len(df_daily)} daily records with correct aggregation")
 
@@ -140,8 +161,13 @@ class TestResampleOutput(TestCase):
         qn_series = self.df_output.xs(grid_id, level="grid").SUEWS["QN"]
         # Use same resampling parameters as resample_output (closed='right', label='right')
         qn_max = qn_series.resample("D", closed="right", label="right").max()
-        qn_custom = df_custom.xs(grid_id, level="grid").SUEWS["QN"]
-        pd.testing.assert_series_equal(qn_max, qn_custom, check_names=False)
+        # df_custom has combined SUEWS + DailyState dates, but SUEWS only has label='right' dates
+        # Use dropna() and intersection to compare only valid SUEWS data
+        qn_custom = df_custom.xs(grid_id, level="grid").SUEWS["QN"].dropna()
+        common_idx = qn_max.index.intersection(qn_custom.index)
+        pd.testing.assert_series_equal(
+            qn_max.loc[common_idx], qn_custom.loc[common_idx], check_names=False
+        )
 
         print("✓ Custom aggregation methods work correctly")
 
@@ -256,11 +282,9 @@ class TestPostProcessingUtilities(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
-
         # Run a minimal simulation
         df_state_init, df_forcing = sp.load_SampleData()
-        df_forcing_short = df_forcing.iloc[: 288 * 2]  # Two days
+        df_forcing_short = df_forcing.iloc[: TIMESTEPS_PER_DAY * 2]  # Two days
         self.df_output, self.df_state = sp.run_supy(
             df_forcing_short, df_state_init, check_input=False
         )
@@ -372,8 +396,6 @@ class TestMultiGridPostProcessing(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
-
         # Create multi-grid simulation
         df_state_single, df_forcing = sp.load_SampleData()
 
@@ -383,7 +405,7 @@ class TestMultiGridPostProcessing(TestCase):
         df_state_multi.index = pd.RangeIndex(n_grids, name="grid")
 
         # Run short simulation
-        df_forcing_short = df_forcing.iloc[:288]  # One day
+        df_forcing_short = df_forcing.iloc[:TIMESTEPS_PER_DAY]  # One day
         self.df_output, self.df_state = sp.run_supy(
             df_forcing_short, df_state_multi, check_input=False
         )
@@ -419,7 +441,7 @@ class TestMultiGridPostProcessing(TestCase):
         df_mean = df_suews.groupby(level="datetime").mean()
 
         # Validate
-        self.assertEqual(len(df_mean), 288)  # One day of 5-min data
+        self.assertEqual(len(df_mean), TIMESTEPS_PER_DAY)  # One day of 5-min data
         # Check that we have a simple index (not MultiIndex)
         self.assertEqual(df_mean.index.nlevels, 1)  # Single level index
         self.assertEqual(df_mean.index.name, "datetime")  # Index name is datetime
@@ -455,7 +477,7 @@ class TestErrorHandling(TestCase):
 
         # Create minimal output
         df_state, df_forcing = sp.load_SampleData()
-        df_output, _ = sp.run_supy(df_forcing.iloc[:288], df_state)
+        df_output, _ = sp.run_supy(df_forcing.iloc[:TIMESTEPS_PER_DAY], df_state)
 
         # Test invalid frequency
         with self.assertRaises((ValueError, KeyError)):

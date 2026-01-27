@@ -5,6 +5,8 @@ MODULE module_phys_rslprof
    USE module_ctrl_const_allocate, ONLY: &
       nsurf, BldgSurf, ConifSurf, DecidSurf, ncolumnsDataOutRSL
    USE module_ctrl_const_physconst, ONLY: eps_fp
+   USE module_ctrl_error_state, ONLY: set_supy_error, add_supy_warning
+   USE module_ctrl_error, ONLY: ErrorHint
    IMPLICIT NONE
 
    INTEGER, PARAMETER :: nz = 30 ! number of levels 10 levels in canopy plus 20 (3 x Zh) above the canopy
@@ -393,7 +395,7 @@ CONTAINS
             q2_gkg => atmState%q2_gkg, &
             U10_ms => atmState%U10_ms, &
             U_hbh => atmState%U_hbh, &
-            T_hbh_C => atmState%T_hbh_C, &
+            T_half_bldg_C => atmState%T_half_bldg_C, &
             RH2 => atmState%RH2, &
             Zh => roughnessState%Zh, &
             z0m => roughnessState%z0m, &
@@ -608,7 +610,7 @@ CONTAINS
             RH2 = qa2RH(q2_gkg, press_hPa, T2_C)
             ! get wind speed and air temp at half building height
             U_hbh = dataoutLineURSL(10)
-            T_hbh_C = dataoutLineTRSL(10)
+            T_half_bldg_C = dataoutLineTRSL(10)
 
          END ASSOCIATE
       END ASSOCIATE
@@ -642,28 +644,23 @@ CONTAINS
       idx_low = MAXLOC(dif, 1, dif < 0.)
       idx_high = MINLOC(dif, 1, dif > 0.)
 
-      ! Add error reporting for debugging
-      IF (idx_low == 0 .OR. idx_high == 0) THEN
-         PRINT *, "ERROR in interp_z: Interpolation bounds issue"
-         PRINT *, "  z_x (target height) = ", z_x
-         PRINT *, "  z array min = ", MINVAL(z), " max = ", MAXVAL(z)
-         PRINT *, "  idx_low = ", idx_low, " (should find z < z_x)"
-         PRINT *, "  idx_high = ", idx_high, " (should find z > z_x)"
-         IF (idx_low == 0) THEN
-            PRINT *, "  WARNING: z_x is below or at minimum height in array"
-         END IF
-         IF (idx_high == 0) THEN
-            PRINT *, "  WARNING: z_x is above or at maximum height in array"
-         END IF
-         PRINT *, "  First 5 z values: ", z(1:MIN(5,nz))
-         PRINT *, "  Last 5 z values: ", z(MAX(1,nz-4):nz)
-      END IF
-
       IF (idx_x > 0) THEN
-         ! z_x is one of zarray elements
+         ! z_x is one of zarray elements - exact match
          v_x = v(idx_x)
+      ELSE IF (idx_low == 0 .AND. idx_high > 0) THEN
+         ! z_x is below array minimum - use boundary value with warning
+         CALL add_supy_warning('interp_z: z_x below array minimum, using boundary value')
+         v_x = v(1)
+      ELSE IF (idx_high == 0 .AND. idx_low > 0) THEN
+         ! z_x is above array maximum - use boundary value with warning
+         CALL add_supy_warning('interp_z: z_x above array maximum, using boundary value')
+         v_x = v(nz)
+      ELSE IF (idx_low == 0 .AND. idx_high == 0) THEN
+         ! Invalid state - should not happen with valid input
+         CALL set_supy_error(103, 'interp_z: No valid interpolation bounds found')
+         v_x = 0.0D0
       ELSE
-         ! linear interpolation is performed
+         ! Normal case: linear interpolation between idx_low and idx_high
          dz = z(idx_high) - z(idx_low)
          slope = (v(idx_high) - v(idx_low))/dz
          v_x = v(idx_low) + (z_x - z(idx_low))*slope

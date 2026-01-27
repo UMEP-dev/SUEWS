@@ -16,6 +16,10 @@ permissions:
 
 jobs:
   format:
+    # Only run on upstream repo, not on forks
+    # Forks inherit this workflow but should not auto-format and push commits
+    # as this prevents PR build validation checks from running on the new commits
+    if: github.repository == 'UMEP-dev/SUEWS'
     runs-on: ubuntu-latest
 
     steps:

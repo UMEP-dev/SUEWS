@@ -374,17 +374,26 @@ class InitialStateVeg(SurfaceInitialState):
     )
     lai_id: FlexibleRefValue(float) = Field(
         description="Leaf area index at the start of the model run.",
-        json_schema_extra={"unit": "m^2 m^-2", "display_name": "Initial Leaf Area Index"},
+        json_schema_extra={
+            "unit": "m^2 m^-2",
+            "display_name": "Initial Leaf Area Index",
+        },
         default=1.0,
     )
     gdd_id: FlexibleRefValue(float) = Field(
         description="Growing degree days at the start of the model run",
-        json_schema_extra={"unit": "degC d", "display_name": "Initial Growing Degree Days"},
+        json_schema_extra={
+            "unit": "degC d",
+            "display_name": "Initial Growing Degree Days",
+        },
         default=0,
     )  # We need to check this and give info for setting values.
     sdd_id: FlexibleRefValue(float) = Field(
         description="Senescence degree days at the start of the model run",
-        json_schema_extra={"unit": "degC d", "display_name": "Initial Senescence Degree Days"},
+        json_schema_extra={
+            "unit": "degC d",
+            "display_name": "Initial Senescence Degree Days",
+        },
         default=0,
     )  # This need to be consistent with GDD.
     wu: WaterUse = Field(
@@ -984,6 +993,63 @@ class InitialStates(BaseModel):
         description="Heating degree days and meteorological tracking parameters (internal use only)",
     )
 
+    # Atmospheric state for continuation runs (resistance calculations)
+    l_mod: float = Field(
+        default=0.0,
+        description="Obukhov length [m] for stability calculations",
+        json_schema_extra={
+            "display_name": "Obukhov Length",
+            "internal_only": True,
+        },
+    )
+    ustar: float = Field(
+        default=0.0,
+        description="Friction velocity [m s-1]",
+        json_schema_extra={
+            "display_name": "Friction Velocity",
+            "internal_only": True,
+        },
+    )
+    ra_h: float = Field(
+        default=0.0,
+        description="Aerodynamic resistance for heat [s m-1]",
+        json_schema_extra={
+            "display_name": "Aerodynamic Resistance",
+            "internal_only": True,
+        },
+    )
+    rb: float = Field(
+        default=0.0,
+        description="Boundary layer resistance [s m-1]",
+        json_schema_extra={
+            "display_name": "Boundary Layer Resistance",
+            "internal_only": True,
+        },
+    )
+    rs: float = Field(
+        default=0.0,
+        description="Surface resistance [s m-1]",
+        json_schema_extra={
+            "display_name": "Surface Resistance",
+            "internal_only": True,
+        },
+    )
+    qn_surfs: List[float] = Field(
+        default_factory=lambda: [0.0] * 7,
+        json_schema_extra={
+            "display_name": "Initial QN for each surface",
+            "internal_only": True,
+        },
+        description="Initial QN for each surface (internal use only)",
+    )
+    dqndt_surf: List[float] = Field(
+        default_factory=lambda: [0.0] * 7,
+        json_schema_extra={
+            "display_name": "Initial dQN/dt for each surface",
+            "internal_only": True,
+        },
+        description="Initial dQN/dt for each surface (internal use only)",
+    )
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert initial states to DataFrame state format."""
         df_state = init_df_state(grid_id)
@@ -1030,6 +1096,14 @@ class InitialStates(BaseModel):
         df_state[("tstep_prev", "0")] = self.tstep_prev
         df_state[("snowfallcum", "0")] = self.snowfallcum
 
+        # qn_surfs (7)
+        for i, val in enumerate(self.qn_surfs):
+            df_state[("qn_surfs", f"({i},)")] = val
+
+        # dqndt_surf (7)
+        for i, val in enumerate(self.dqndt_surf):
+            df_state[("dqndt_surf", f"({i},)")] = val
+            
         df_state = df_state.sort_index(axis=1)
         # special treatment for hdd_id - convert to list format for legacy compatibility
         hdd_list = self.hdd_id.to_list()
@@ -1103,7 +1177,9 @@ class InitialStates(BaseModel):
         snowfallcum = df.loc[grid_id, ("snowfallcum", "0")]
         hdd_id_list = [df.loc[grid_id, (f"hdd_id", f"({i},)")] for i in range(12)]
         hdd_id = HDD_ID.from_list(hdd_id_list)
-
+        qn_surfs = [float(df.loc[grid_id, ("qn_surfs", f"({i},)")]) for i in range(7)]
+        dqndt_surf = [float(df.loc[grid_id, ("dqndt_surf", f"({i},)")]) for i in range(7)]
+        
         initital_state = {
             "snowalb": snowalb,
             "paved": surfaces["paved"],
@@ -1127,6 +1203,8 @@ class InitialStates(BaseModel):
             "tstep_prev": tstep_prev,
             "snowfallcum": snowfallcum,
             "hdd_id": hdd_id,
+            "qn_surfs": qn_surfs,
+            "dqndt_surf": dqndt_surf
         }
 
         return cls(

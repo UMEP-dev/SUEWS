@@ -2,6 +2,7 @@
 MODULE module_phys_atmmoiststab
    USE module_ctrl_type, ONLY: atm_state, SUEWS_FORCING, SUEWS_TIMER, SUEWS_STATE
    USE module_ctrl_const_physconst, ONLY: eps_fp
+   USE module_ctrl_error, ONLY: ErrorHint
    IMPLICIT NONE
    REAL(KIND(1D0)), PARAMETER :: neut_limit = 1.E-4 !Limit for neutral stability
    REAL(KIND(1D0)), PARAMETER :: k = 0.4 !Von Karman's contant
@@ -85,7 +86,8 @@ CONTAINS
    SUBROUTINE cal_AtmMoist( &
       Temp_C, Press_hPa, avRh, dectime, & ! input:
       lv_J_kg, lvS_J_kg, & ! output:
-      es_hPa, Ea_hPa, VPd_hpa, VPD_Pa, dq, dens_dry, avcp, air_dens)
+      es_hPa, Ea_hPa, VPd_hpa, VPD_Pa, dq, dens_dry, avcp, air_dens, &
+      modState) ! optional: for thread-safe error logging
 
       USE meteo, ONLY: &
          sat_vap_press_x, spec_heat_beer, &
@@ -109,6 +111,7 @@ CONTAINS
          dens_dry, & !Vap density or absolute humidity [kg m-3]
          avcp, & !specific heat capacity in J kg-1 K-1
          air_dens !Air density in kg/m3
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       REAL(KIND(1D0)), PARAMETER :: &
          !  comp          = 0.9995, &
@@ -159,7 +162,7 @@ CONTAINS
       END IF
       !if(debug)write(*,*)lv_J_kg,Temp_C,'lv2'
       IF (press_hPa < 900) THEN
-         CALL ErrorHint(46, 'Function LUMPS_cal_AtmMoist', press_hPa, -55.55D0, -55)
+         CALL ErrorHint(46, 'Function LUMPS_cal_AtmMoist', press_hPa, -55.55D0, -55, modState)
       END IF
       RETURN
    END SUBROUTINE cal_AtmMoist
@@ -190,8 +193,10 @@ CONTAINS
       L_MOD, & !Obukhov length! output:
       TStar, & !T*
       UStar, & !Friction velocity
-      zL) !Stability scale
+      zL, & !Stability scale
+      modState) ! optional: for thread-safe error logging
 
+      USE module_ctrl_error_state, ONLY: supy_error_flag
       IMPLICIT NONE
       INTEGER, INTENT(in) :: StabilityMethod
 
@@ -208,6 +213,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: TStar !T*
       REAL(KIND(1D0)), INTENT(out) :: UStar !Friction velocity
       REAL(KIND(1D0)), INTENT(out) :: zL ! Stability scale
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
       ! REAL(KIND(1d0)),INTENT(out)::psim   !Stability function of momentum
 
       REAL(KIND(1D0)) :: G_T_K, &
@@ -231,9 +237,12 @@ CONTAINS
       IF (debug) WRITE (*, *) StabilityMethod, z0m, avU1, H_init, UStar, L_MOD
       G_T_K = (Grav/(Temp_C + 273.16))*k !gravity constant/(Temperature*Von Karman Constant)
       KUZ = k*AvU1 !Von Karman constant*mean wind speed
-      IF (zzd < 0) CALL ErrorHint(32, &
-                                  'Windspeed Ht too low relative to zdm [Stability calc]- values [z-zdm, zdm]', &
-                                  Zzd, zdm, notUsedI)
+      IF (zzd < 0) THEN
+         CALL ErrorHint(32, &
+                        'Windspeed Ht too low relative to zdm [Stability calc]- values [z-zdm, zdm]', &
+                        Zzd, zdm, notUsedI, modState)
+         IF (supy_error_flag) RETURN
+      END IF
 
       UStar = KUZ/LOG(Zzd/z0m) ! Initial guess for UStar assuming neutral conditions — used only to seed the iteration
 !       IF (ABS(H_init) < 0.001) THEN ! prevent zero TStar
@@ -254,7 +263,8 @@ CONTAINS
 
       IF (LOG(zzd/z0m) < 0.001000) THEN
          ! PRINT*, 1/(z0m-z0m)
-         CALL ErrorHint(17, 'In stability subroutine, (z-zd) < z0.', zzd, z0m, notUsedI)
+         CALL ErrorHint(17, 'In stability subroutine, (z-zd) < z0.', zzd, z0m, notUsedI, modState)
+         IF (supy_error_flag) RETURN
       END IF
       i = 1
       LOLD = -999.

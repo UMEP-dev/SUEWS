@@ -21,10 +21,11 @@ This workflow is **workspace-independent** - run from any worktree.
 1. **Select dev tag** - Pick a CI-verified dev tag as release base
 2. **Create release branch** - `git checkout -b release/YYYY.M.D origin/master`
 3. **CHANGELOG analysis** - Use log-changes or manual (current format)
-4. **Update docs** - CHANGELOG.md, version history page and toctree
-5. **Submit PR** - Create PR, wait for CI, merge to master
-6. **Tag release** - Tag the merge commit on master
-7. **Verify** - Monitor Actions, PyPI, GitHub Release, Zenodo
+4. **Update docs** - CHANGELOG.md, version history RST (`:pr:` syntax), toctree
+5. **GitHub Release notes** - Create `.github/releases/YYYY.M.D.md` (Markdown)
+6. **Submit PR** - Create PR, wait for CI, merge to master
+7. **Tag release** - Tag the merge commit on master
+8. **Verify** - Monitor Actions, PyPI, GitHub Release, Zenodo
 
 Details: `references/release-steps.md`
 
@@ -66,7 +67,8 @@ Selection criteria:
 [PASS/FAIL] CI status: All workflows passed
 [PASS/FAIL] On master lineage
 [PASS/FAIL] Release branch created
-[PASS/FAIL] Docs updated (CHANGELOG, version-history)
+[PASS/FAIL] Docs updated (CHANGELOG, version-history RST)
+[PASS/FAIL] GitHub Release notes created (.github/releases/)
 [PASS/FAIL] PR submitted and CI passed
 [PASS/FAIL] PR merged to master
 Ready to tag: YES/NO
@@ -87,8 +89,11 @@ VERSION="$(date +%Y.%-m.%-d)"
 git fetch origin master
 git checkout -b release/$VERSION origin/master
 
-# 3. Update docs, commit
-git add CHANGELOG.md docs/source/version-history/
+# 3. Update docs (use :pr:`XXX` in RST, #XXX in Markdown)
+# - CHANGELOG.md
+# - docs/source/version-history/v$VERSION.rst
+# - .github/releases/$VERSION.md (GitHub Release notes)
+git add CHANGELOG.md docs/source/version-history/ .github/releases/
 git commit -m "docs: update changelog and version history for $VERSION"
 
 # 4. Submit PR

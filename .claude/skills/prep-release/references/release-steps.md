@@ -1,5 +1,7 @@
 # Release Steps - Detailed
 
+This workflow is **workspace-independent** - run from any git worktree with access to the repository.
+
 ## Step 0: Release Necessity Assessment
 
 ### Gather Metrics
@@ -27,6 +29,8 @@ git log ${LAST_TAG}..HEAD --format="%s" --no-merges | \
       print "Total:", features+fixes+docs+maintenance+0
     }
   '
+
+# Note: If commit messages do not use these prefixes, review the log manually.
 
 # Critical commits
 git log ${LAST_TAG}..HEAD --format="%s" --no-merges | grep -iE "(critical|security|urgent|hotfix)" || echo "No critical commits"
@@ -62,33 +66,86 @@ Recommendation: RELEASE RECOMMENDED
 
 ---
 
-## Step 1: Create Tracking Issue
+## Step 1: Select Dev Tag
+
+Dev tags (`YYYY.M.D.dev`) are created by CI and represent tested commits. Releasing from a known-good dev tag skips redundant local testing.
+
+**Run from any worktree** - just need `git` and `gh` access to the repo.
+
+### Find Candidate Tags
 
 ```bash
-gh issue create --template release-checklist.md \
-  --title "Release YYYY.M.D: [Feature Name]" \
-  --label release
+# Fetch latest tags from any worktree
+git fetch --tags origin
+git tag -l "*.dev" --sort=-v:refname | head -10
+
+# Check CI status for a specific tag
+DEV_TAG="2026.1.25.dev"
+gh run list --commit $(git rev-parse $DEV_TAG) --json conclusion,name,createdAt \
+  --jq '.[] | "\(.conclusion)\t\(.name)"'
+```
+
+### Verify Tag Lineage
+
+```bash
+# Ensure dev tag is in master history
+git merge-base --is-ancestor $DEV_TAG origin/master && echo "OK: in master lineage"
+
+# Show commits between dev tag and master HEAD (should be few/none)
+git log ${DEV_TAG}..origin/master --oneline
+```
+
+### Selection Criteria
+
+- **CI passed**: All workflows green (build_wheels, tests, docs)
+- **On master lineage**: Tag must be ancestor of origin/master
+- **Recent enough**: Contains the changes you want to release
+- **No blockers**: No critical issues reported since the tag
+
+### Selection Report
+
+```
+=== DEV TAG SELECTION ===
+
+Candidate: 2026.1.25.dev
+Commit: abc1234
+Date: 2026-01-25 14:30:00
+
+CI Status:
+  build_wheels: passed
+  test-full:    passed
+  docs:         passed
+
+Lineage: In master history
+Commits since tag: 3 (all docs/minor)
+
+Selected: YES
 ```
 
 ---
 
-## Step 2: Pre-Flight Checks
+## Step 2: Create Release Branch
 
-### Invoke Skills
-
-1. `verify-build` - meson.build, pyproject.toml, CI
-2. `sync-docs` - Documentation matches code
-3. `lint-code` - Code style compliance
-
-### Core Checks
+Create a release branch from `origin/master`. This can be done from any worktree.
 
 ```bash
-git branch --show-current        # Must be master
-git status --porcelain           # Must be clean
-git log origin/master..HEAD      # No unpushed commits
-make test                        # Tests pass
-make docs                        # Docs build
+VERSION="$(date +%Y.%-m.%-d)"
+
+# Fetch latest master
+git fetch origin master
+
+# Create release branch (no need to be on master)
+git checkout -b release/$VERSION origin/master
+
+# Verify you're on the release branch
+git branch --show-current  # Should show: release/YYYY.M.D
 ```
+
+**Why a release branch?**
+- Keeps docs changes separate from ongoing master work
+- PR-based workflow for review and CI
+- No direct commits to master
+- Can be done from any worktree
 
 ---
 
@@ -97,11 +154,14 @@ make docs                        # Docs build
 Use `log-changes` or:
 
 ```bash
-git describe --tags --abbrev=0
-git log $(git describe --tags --abbrev=0)..HEAD --format="%h %s" --no-merges
+# Find last proper release (not dev tags)
+LAST_RELEASE=$(git tag -l --sort=-v:refname | grep -v -E "(dev|rc)" | head -1)
+git log ${LAST_RELEASE}..origin/master --format="%h %s" --no-merges
 ```
 
 Categories: `[feature]`, `[bugfix]`, `[change]`, `[maintenance]`, `[doc]`
+
+Current format in `CHANGELOG.md` uses date headings like `### 23 Jan 2026`.
 
 ---
 
@@ -115,43 +175,70 @@ Add entry under today's date.
 
 ```bash
 VERSION="YYYY.M.D"
-cat > docs/source/version-history/v${VERSION}.rst << 'EOF'
-.. _new_latest:
+PREV="2025.11.20"  # Update to latest existing version file
 
-Version YYYY.M.D
-================
-
-.. include:: ../../CHANGELOG.md
-   :parser: myst_parser.sphinx_
-   :start-after: ## YYYY.M.D
-   :end-before: ##
-EOF
+cp "docs/source/version-history/v${PREV}.rst" "docs/source/version-history/v${VERSION}.rst"
 ```
 
-Update toctree, remove `new_latest` from previous.
+Edit the new file to:
+- Update the title and release date
+- Replace the narrative summary and highlights with the new release details
+- Keep `.. _new_latest:` on the new file and remove it from the previous latest
+
+Update `docs/source/version-history/version-history.rst` to add the new file at the top of the toctree.
 
 ---
 
-## Step 5: Version
+## Step 5: Submit PR
+
+Commit docs changes and submit a PR for review.
 
 ```bash
 VERSION="$(date +%Y.%-m.%-d)"
-git tag -l "$VERSION"  # Check availability
+
+# Commit docs changes
+git add CHANGELOG.md docs/source/version-history/
+git commit -m "docs: update changelog and version history for $VERSION"
+
+# Push release branch
+git push -u origin release/$VERSION
+
+# Create PR
+gh pr create \
+  --title "Release $VERSION" \
+  --body "## Release Documentation
+
+Updates for version $VERSION:
+- CHANGELOG.md
+- Version history page
+
+Ready to merge and tag after CI passes."
 ```
+
+### Wait for CI and Merge
+
+- Wait for PR CI checks to pass
+- Review docs if needed
+- Merge PR to master (use merge commit, not squash)
 
 ---
 
-## Step 6: Commit & Tag
+## Step 6: Tag Release
+
+After PR merges, tag the merge commit on master.
 
 ```bash
-VERSION="2025.11.27"
+VERSION="2026.1.27"
 TITLE="Feature Name"
 
-git add CHANGELOG.md docs/source/version-history/
-git commit -m "docs: update changelog and version history for $VERSION"
-git push
+# Get the merge commit SHA
+MERGE_SHA=$(gh pr list --state merged --search "Release $VERSION" \
+  --json mergeCommit --jq '.[0].mergeCommit.oid')
 
-git tag -a "$VERSION" -m "$TITLE
+echo "Tagging commit: $MERGE_SHA"
+
+# Create annotated tag on the merge commit
+git tag -a "$VERSION" "$MERGE_SHA" -m "$TITLE
 
 Key changes:
 - Feature 1
@@ -159,8 +246,11 @@ Key changes:
 
 Full changelog: https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md"
 
-git push origin $VERSION
+# Push the tag
+git push origin "$VERSION"
 ```
+
+**Note**: Version format is `YYYY.M.D` with no leading zeros (e.g. `2026.1.7`).
 
 ---
 
@@ -168,12 +258,21 @@ git push origin $VERSION
 
 **Monitor (~20 min):**
 - GitHub Actions: build_wheels, build_umep, publish
-- PyPI: supy YYYY.M.D, supy YYYY.M.Drc1
-- Zenodo DOI
-- Test: `pip install --upgrade supy`
+- PyPI: supy `YYYY.M.D` and `YYYY.M.Drc1` both appear
+- GitHub Release: created automatically after successful publish
+- Zenodo DOI appears on the dashboard
+- ReadTheDocs build succeeds
+- Test: `pip install --upgrade supy` in a fresh environment
 
 **24h monitoring:**
 - Watch GitHub issues
+
+**Cleanup:**
+```bash
+# Delete local and remote release branch (optional)
+git branch -d release/$VERSION
+git push origin --delete release/$VERSION
+```
 
 ---
 
@@ -184,7 +283,9 @@ git tag -d $VERSION
 git push origin :refs/tags/$VERSION
 ```
 
-## RC Release
+## RC Release (Testing Only)
+
+RC tags are for pre-release testing. Standard releases use the base tag, and the UMEP build automatically publishes a `rc1` variant from that tag.
 
 ```bash
 git tag -a "${VERSION}rc1" -m "Release candidate 1 for $VERSION"

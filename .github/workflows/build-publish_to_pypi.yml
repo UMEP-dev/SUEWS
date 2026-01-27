@@ -357,6 +357,7 @@ jobs:
               - 'get_ver_git.py'
               - 'scripts/**'
               - '!scripts/conductor/**'  # Exclude Conductor workspace scripts
+              - '!.claude/**'  # Exclude Claude Code configuration (skills, rules)
             site:
               # Static site content (GitHub Pages) - separate from wheel builds
               - 'site/**'

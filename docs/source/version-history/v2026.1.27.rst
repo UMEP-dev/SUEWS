@@ -1,0 +1,57 @@
+
+.. _new_latest:
+
+.. _new_2026.1.27:
+
+Version 2026.1.27 (released on 27 January 2026)
+------------------------------------------------
+
+This release introduces significant STEBBS enhancements, physics improvements for dyOHM calculations, and extensive stability fixes for QGIS/UMEP integration.
+
+**Major Features:**
+
+- **STEBBS Time-Varying Profiles**: Added support for 10-minute profiles for Heating setpoints, Cooling setpoints, Appliance usage, Occupants, and Hot Water demand. This enables more realistic diurnal variation in building energy simulations. (#1038)
+
+- **Dynamic OHM Surface Separation**: Separated surfaces for dyOHM (dynamic Objective Hysteresis Model) calculation, allowing more accurate surface heat storage modelling for different land cover types. (#1122)
+
+- **DTS Interface**: New Direct Type System interface for Pydantic-to-Fortran execution, enabling cleaner integration between Python configuration and Fortran physics core. (#1050)
+
+- **Build Speed Improvement**: Split ``make dev`` and ``make dev-dts`` targets for faster development builds when DTS components are unchanged. (#1108)
+
+**Stability Improvements:**
+
+- **Thread-Safe Error Logging**: Added modState parameter for thread-safe error handling, preventing race conditions in parallel simulations. (#1083)
+
+- **QGIS Crash Fix**: Removed stdout writes that caused QGIS to crash when running SUEWS through the UMEP plugin. (#1086)
+
+- **Pandas 3.0 Compatibility**: Fixed Copy-on-Write and ``asfreq()`` changes for forward compatibility with Pandas 3.0. (#1106)
+
+- **QGIS/UMEP Test Suite**: Added comprehensive compatibility test suite to catch integration issues early. (#905)
+
+**Physics Fixes:**
+
+- **Biogenic CO2**: Fixed biogenic CO2 calculations to use local climate instead of global average temperature, improving FcRespi accuracy in regional studies. (#1117)
+
+- **NumCapita Initialisation**: Fixed uninitialised NumCapita variable that caused NaN values in CO2 flux calculations. (#1053)
+
+- **Error Flag Reset**: Reset error flag before kernel calls to prevent stale errors from previous runs affecting subsequent simulations. (#1109)
+
+**Validation Enhancements:**
+
+- Improved albedo ranges for physics-aware validation (#978)
+- Improved emissivity ranges for physics-aware validation (#979)
+- Added warning when surface fractions are auto-normalised (#1071)
+- Structured error handling with detailed validation reports (#1070)
+
+**Build System:**
+
+- Vendored f90wrap runtime to eliminate pip dependency conflicts (#963)
+- Fixed UMEP NumPy ABI compatibility for QGIS environments (#1056)
+- Added merge queue support to CI workflow (#954)
+
+**Breaking Changes:**
+
+None. This release maintains full backward compatibility with 2025.11.20.
+
+For complete details, see the `CHANGELOG <https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md>`_.
+

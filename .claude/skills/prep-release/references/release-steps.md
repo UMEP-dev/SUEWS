@@ -184,8 +184,53 @@ Edit the new file to:
 - Update the title and release date
 - Replace the narrative summary and highlights with the new release details
 - Keep `.. _new_latest:` on the new file and remove it from the previous latest
+- **Use `:pr:` roles for GitHub references** (configured in `conf.py` via `extlinks`)
 
 Update `docs/source/version-history/version-history.rst` to add the new file at the top of the toctree.
+
+### GitHub Release Notes
+
+Create `.github/releases/${VERSION}.md` with the release notes for GitHub Releases page.
+
+This file should include:
+- Installation instructions
+- Changes summary (converted from RST to Markdown)
+- Citation info
+- Documentation links
+
+The CI workflow will use this file if it exists, otherwise falls back to extracting from CHANGELOG.
+
+```bash
+# Convert RST to Markdown (manual or via Claude Code)
+# Key conversions:
+#   (:pr:`1038`)  →  (#1038)
+#   ``code``      →  `code`
+#   **bold**      →  **bold** (same)
+```
+
+### RST GitHub Link Syntax
+
+Use Sphinx extlinks roles for clickable PR/issue references:
+
+```rst
+- Fixed biogenic CO2 calculations (:pr:`1117`)
+- Resolved thread safety issue (:issue:`1081`)
+- See :gh:`245` for background
+```
+
+Renders as:
+- `:pr:`1117`` → [#1117](https://github.com/UMEP-dev/SUEWS/pull/1117)
+- `:issue:`1081`` → [#1081](https://github.com/UMEP-dev/SUEWS/issues/1081)
+- `:gh:`245`` → [GH-245](https://github.com/UMEP-dev/SUEWS/issues/245)
+
+Configuration in `docs/source/conf.py`:
+```python
+extlinks = {
+    "issue": ("https://github.com/UMEP-dev/SUEWS/issues/%s", "#%s"),
+    "pr": ("https://github.com/UMEP-dev/SUEWS/pull/%s", "#%s"),
+    "gh": ("https://github.com/UMEP-dev/SUEWS/issues/%s", "GH-%s"),
+}
+```
 
 ---
 

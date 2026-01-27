@@ -295,6 +295,14 @@ extensions = [
 # sphinx_last_updated_by_git options
 git_last_updated_metatags = True
 
+# extlinks: GitHub issue/PR shorthand
+# Usage: :issue:`123` -> #123 (links to issue), :pr:`123` -> #123 (links to PR)
+extlinks = {
+    "issue": ("https://github.com/UMEP-dev/SUEWS/issues/%s", "#%s"),
+    "pr": ("https://github.com/UMEP-dev/SUEWS/pull/%s", "#%s"),
+    "gh": ("https://github.com/UMEP-dev/SUEWS/issues/%s", "GH-%s"),
+}
+
 # sphinx comments
 # https://sphinx-comments.readthedocs.io/
 # Commenting system disabled

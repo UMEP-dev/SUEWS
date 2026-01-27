@@ -345,9 +345,10 @@ jobs:
               - 'src/supy/cmd/**'
               # JSON configs
               - 'src/supy/*.json'
-              # Build workflows and scripts (explicit, not .github/**)
+              # Build workflows and actions (only build-related)
               - '.github/workflows/build-publish_to_pypi.yml'
               - '.github/workflows/cibuildwheel-debug.yml'
+              - '.github/actions/build-suews/**'
               - '.github/scripts/**'
               # Build system files
               - 'pyproject.toml'
@@ -355,9 +356,19 @@ jobs:
               - 'meson_options.txt'
               - 'Makefile'
               - 'get_ver_git.py'
+              - 'env.yml'
               - 'scripts/**'
-              - '!scripts/conductor/**'  # Exclude Conductor workspace scripts
-              - '!.claude/**'  # Exclude Claude Code configuration (skills, rules)
+              # Exclusions - files that should NOT trigger builds
+              - '!scripts/conductor/**'  # Conductor workspace scripts
+              - '!.claude/**'  # Claude Code configuration
+              - '!docs/**'  # Documentation
+              - '!CHANGELOG.md'  # Changelog
+              - '!README.md'  # Readme
+              - '!CLAUDE.md'  # Claude instructions
+              - '!CITATION.cff'  # Citation metadata
+              - '!.zenodo.json'  # Zenodo metadata
+              - '!conductor.json'  # Conductor workspace config
+              - '!LICENSE'  # License file
             site:
               # Static site content (GitHub Pages) - separate from wheel builds
               - 'site/**'
@@ -366,6 +377,7 @@ jobs:
             docs:
               # Documentation source files
               - 'docs/**'
+              - 'CHANGELOG.md'
               # Data models that generate RST
               - 'src/supy/data_model/**'
               # RTD configuration
@@ -791,54 +803,51 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
-      - name: Extract changelog for this version
-        id: changelog
+      - name: Prepare release notes
+        id: release_notes
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
+          RELEASE_FILE=".github/releases/${VERSION}.md"
 
-          # Extract the date from version (YYYY.M.D format)
-          YEAR=$(echo $VERSION | cut -d. -f1)
-          MONTH=$(echo $VERSION | cut -d. -f2)
-          DAY=$(echo $VERSION | cut -d. -f3)
+          # Check if pre-prepared release notes exist (from prep-release workflow)
+          if [ -f "$RELEASE_FILE" ]; then
+            echo "Using pre-prepared release notes: $RELEASE_FILE"
+            cp "$RELEASE_FILE" release_notes.md
+          else
+            echo "No pre-prepared release notes found, extracting from CHANGELOG"
 
-          # Try different date formats in CHANGELOG.md
-          # Format: "### D MMM YYYY" or "### DD MMM YYYY"
-          MONTH_NAME=$(date -d "$YEAR-$MONTH-$DAY" +"%b" 2>/dev/null || date -j -f "%Y-%m-%d" "$YEAR-$MONTH-$DAY" +"%b" 2>/dev/null || echo "")
+            # Extract the date from version (YYYY.M.D format)
+            YEAR=$(echo $VERSION | cut -d. -f1)
+            MONTH=$(echo $VERSION | cut -d. -f2)
+            DAY=$(echo $VERSION | cut -d. -f3)
 
-          if [ -n "$MONTH_NAME" ]; then
-            # Try with and without leading zero
-            CHANGELOG_SECTION=$(awk "/^### $DAY $MONTH_NAME $YEAR/,/^### [0-9]/" CHANGELOG.md | sed '$d' || echo "")
-            if [ -z "$CHANGELOG_SECTION" ]; then
-              # Try with zero-padded day
-              DAY_PADDED=$(printf "%02d" $DAY)
-              CHANGELOG_SECTION=$(awk "/^### $DAY_PADDED $MONTH_NAME $YEAR/,/^### [0-9]/" CHANGELOG.md | sed '$d' || echo "")
+            # Try different date formats in CHANGELOG.md
+            MONTH_NAME=$(date -d "$YEAR-$MONTH-$DAY" +"%b" 2>/dev/null || date -j -f "%Y-%m-%d" "$YEAR-$MONTH-$DAY" +"%b" 2>/dev/null || echo "")
+
+            CHANGELOG_SECTION=""
+            if [ -n "$MONTH_NAME" ]; then
+              CHANGELOG_SECTION=$(awk "/^### $DAY $MONTH_NAME $YEAR/,/^### [0-9]/" CHANGELOG.md | sed '$d' || echo "")
+              if [ -z "$CHANGELOG_SECTION" ]; then
+                DAY_PADDED=$(printf "%02d" $DAY)
+                CHANGELOG_SECTION=$(awk "/^### $DAY_PADDED $MONTH_NAME $YEAR/,/^### [0-9]/" CHANGELOG.md | sed '$d' || echo "")
+              fi
             fi
-          fi
 
-          if [ -z "$CHANGELOG_SECTION" ]; then
-            CHANGELOG_SECTION="See [CHANGELOG.md](https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md) for details."
-          fi
+            if [ -z "$CHANGELOG_SECTION" ]; then
+              CHANGELOG_SECTION="See [CHANGELOG.md](https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md) for details."
+            fi
 
-          # Save to file for multiline content
-          echo "$CHANGELOG_SECTION" > changelog_section.txt
-
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          VERSION="${{ steps.get_version.outputs.version }}"
-          CHANGELOG=$(cat changelog_section.txt)
-
-          # Create release notes
-          cat << EOF > release_notes.md
+            # Generate release notes from CHANGELOG
+            cat << EOF > release_notes.md
           ## Installation
+
           \`\`\`bash
           pip install --upgrade supy
           \`\`\`
 
           ## Changes
 
-          $CHANGELOG
+          $CHANGELOG_SECTION
 
           ## Citation
 
@@ -850,6 +859,13 @@ jobs:
           - [CHANGELOG](https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md)
           - [GitHub Repository](https://github.com/UMEP-dev/SUEWS)
           EOF
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
 
           # Extract title from tag annotation if available
           TITLE=$(git tag -l --format='%(contents:subject)' "$VERSION" || echo "SUEWS Release")

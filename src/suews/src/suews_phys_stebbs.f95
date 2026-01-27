@@ -1451,7 +1451,7 @@ SUBROUTINE tstep( &
                       density_wall_tank, & ! Density of hot water tank wall [kg m-3]
                       density_wall_vessel ! Density of vessels containing DHW in use in buildings [kg m-3]
    REAL(KIND(1D0)) :: BVF_tank, & ! water tank - building wall view factor [-]
-                      MVF_tank ! water tank - building internal mass view factor [-]
+                      MVF_tank! water tank - building internal mass view factor [-]
    REAL(KIND(1D0)) :: conductivity_wall_tank, & ! Effective Wall conductivity of the Hot Water Tank [W m-1 K-1]
                       conv_coeff_intwall_tank, & ! Effective Internal Wall convection coefficient of the Hot Water Tank [W m-2 K-1]
                       conv_coeff_extwall_tank, & ! Effective External Wall convection coefficient of the Hot Water Tank [W m-2 K-1]
@@ -1510,7 +1510,6 @@ SUBROUTINE tstep( &
                       dTintgroundfloor = 0.0, dTextgroundfloor = 0.0 ! [K], [K]
    REAL(KIND(1D0)) :: Qconv_water_to_inttankwall = 0.0, & ! heat flux to internal wall of hot water tank
                       Qconv_exttankwall_to_indair = 0.0, & ! convective heat flux to external wall of hot water tank
-                      Qlw_net_exttankwall_to_intwall = 0.0, & !
                       Qlw_net_exttankwall_to_indoormass = 0.0, & ! radiative heat flux to external wall of hot water tank
                       Qcond_tankwall = 0.0, & ! heat flux through wall of hot water tank
                       Qtotal_water_tank, & ! total heat input into water of hot water tank over simulation, hence do not equate to zero
@@ -1747,9 +1746,10 @@ SUBROUTINE tstep( &
             ! // radiative heat flux for external wall of hot water tank
             ! //TODO: Should expand to consider windows and floor as well.
 
-            Qlw_net_exttankwall_to_intwall = &
-               outdoorRadiativeHeatTransfer &
-               (BVF_tank, Asurf_tank, emissivity_extwall_tank, Textwall_tank, Tintwall) ! // to building walls
+            ! assume all of longwave radiation from tank/vessel goes to internal mass only
+            !Qlw_net_exttankwall_to_intwall = &
+            !   outdoorRadiativeHeatTransfer &
+            !   (BVF_tank, Asurf_tank, emissivity_extwall_tank, Textwall_tank, Tintwall) ! // to building walls
             Qlw_net_exttankwall_to_indoormass = &
                outdoorRadiativeHeatTransfer &
                (MVF_tank, Asurf_tank, emissivity_extwall_tank, Textwall_tank, Tindoormass) ! // to internal mass
@@ -1780,9 +1780,10 @@ SUBROUTINE tstep( &
                (conv_coeff_extwall_vessel, Awater_vessel, Textwall_vessel, Tair_ind)
             ! // radiative heat flux to external wall of vessels holding DHW in use in building
             ! // TODO: Should expand to consider windows and floor as well.
-            Qlw_net_extvesselwall_to_wall = &
-               outdoorRadiativeHeatTransfer &
-               (BVF_tank, Awater_vessel, emissivity_extwall_vessel, Textwall_vessel, Tintwall)
+            !longwave radiation from vessel goes to internal mass only
+            !Qlw_net_extvesselwall_to_wall = &
+            !  outdoorRadiativeHeatTransfer &
+            !   (BVF_tank, Awater_vessel, emissivity_extwall_vessel, Textwall_vessel, Tintwall)
             Qlw_net_extvesselwall_to_indoormass = &
                outdoorRadiativeHeatTransfer &
                (MVF_tank, Awater_vessel, emissivity_extwall_vessel, Textwall_vessel, Tindoormass)
@@ -1802,8 +1803,7 @@ SUBROUTINE tstep( &
          Qtotal_net_water_tank = qhwt_timestep - Qconv_water_to_inttankwall
          Qtotal_net_intwall_tank = Qconv_water_to_inttankwall - Qcond_tankwall
          Qtotal_net_extwall_tank = &
-            Qcond_tankwall - Qconv_exttankwall_to_indair - &
-            Qlw_net_exttankwall_to_intwall - Qlw_net_exttankwall_to_indoormass
+            Qcond_tankwall - Qconv_exttankwall_to_indair - Qlw_net_exttankwall_to_indoormass
          Qtotal_net_water_vessel = -Qconv_water_to_intvesselwall
          Qtotal_net_intwall_vessel = Qconv_water_to_intvesselwall - Qcond_vesselwall
 
@@ -1825,8 +1825,7 @@ SUBROUTINE tstep( &
             Qconv_extvesselwall_to_indair + Qloss_efficiency_heating_water
          QStotal_net_intwall = &
             QHconv_indair_to_intwall - QHcond_wall - &
-            Qlw_net_intwall_to_allotherindoorsurfaces + &
-            Qlw_net_exttankwall_to_intwall + Qlw_net_extvesselwall_to_wall
+            Qlw_net_intwall_to_allotherindoorsurfaces + Qlw_net_extvesselwall_to_wall
          QStotal_net_introof = &
             QHconv_indair_to_introof - QHcond_roof - &
             Qlw_net_introof_to_allotherindoorsurfaces
@@ -2284,8 +2283,8 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%density_wall_tank = stebbsPrm%HotWaterTankWallDensity ! # Density of hot water tank wall
    self%density_wall_vessel = stebbsPrm%DHWVesselDensity ! # Density of vessels containing DHW in use in buildings
 
-   self%BVF_tank = stebbsPrm%HotWaterTankBuildingWallViewFactor ! # water tank - building wall view factor
-   self%MVF_tank = stebbsPrm%HotWaterTankInternalMassViewFactor ! # water tank - building internal mass view factor
+   self%BVF_tank = 0.0 ! # water tank - building wall view factor
+   self%MVF_tank = 1.0 ! # water tank - building internal mass view factor
 
    self%conductivity_wall_tank = stebbsPrm%HotWaterTankWallConductivity ! # Effective Wall conductivity of the Hot Water Tank
    self%conv_coeff_intwall_tank = stebbsPrm%HotWaterTankInternalWallConvectionCoefficient ! # Effective Internal Wall convection coefficient of the Hot Water Tank
@@ -2488,8 +2487,8 @@ SUBROUTINE create_building(CASE, self, icase)
    self%density_wall_tank = 50 ! # Density of hot water tank wall
    self%density_wall_vessel = 930 ! # Density of vessels containing DHW in use in buildings
 
-   self%BVF_tank = 0.2 ! # water tank - building wall view factor
-   self%MVF_tank = 0.8 ! # water tank - building internal mass view factor
+   self%BVF_tank = 0.0 ! # water tank - building wall view factor
+   self%MVF_tank = 1.0 ! # water tank - building internal mass view factor
 
    self%conductivity_wall_tank = 0.1 ! # Effective Wall conductivity of the Hot Water Tank (based on polyurethan foam given in https://www.lsta.lt/files/events/28_jarfelt.pdf and from https://www.sciencedirect.com/science/article/pii/S0360544214011189?via%3Dihub)
    self%conv_coeff_intwall_tank = 243 ! # Effective Internal Wall convection coefficient of the Hot Water Tank (W/m2 . K) given in http://orbit.dtu.dk/fedora/objects/orbit:77843/datastreams/file_2640258/content

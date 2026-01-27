@@ -345,9 +345,10 @@ jobs:
               - 'src/supy/cmd/**'
               # JSON configs
               - 'src/supy/*.json'
-              # Build workflows and scripts (explicit, not .github/**)
+              # Build workflows and actions (only build-related)
               - '.github/workflows/build-publish_to_pypi.yml'
               - '.github/workflows/cibuildwheel-debug.yml'
+              - '.github/actions/build-suews/**'
               - '.github/scripts/**'
               # Build system files
               - 'pyproject.toml'
@@ -355,9 +356,19 @@ jobs:
               - 'meson_options.txt'
               - 'Makefile'
               - 'get_ver_git.py'
+              - 'env.yml'
               - 'scripts/**'
-              - '!scripts/conductor/**'  # Exclude Conductor workspace scripts
-              - '!.claude/**'  # Exclude Claude Code configuration (skills, rules)
+              # Exclusions - files that should NOT trigger builds
+              - '!scripts/conductor/**'  # Conductor workspace scripts
+              - '!.claude/**'  # Claude Code configuration
+              - '!docs/**'  # Documentation
+              - '!CHANGELOG.md'  # Changelog
+              - '!README.md'  # Readme
+              - '!CLAUDE.md'  # Claude instructions
+              - '!CITATION.cff'  # Citation metadata
+              - '!.zenodo.json'  # Zenodo metadata
+              - '!conductor.json'  # Conductor workspace config
+              - '!LICENSE'  # License file
             site:
               # Static site content (GitHub Pages) - separate from wheel builds
               - 'site/**'
@@ -366,6 +377,7 @@ jobs:
             docs:
               # Documentation source files
               - 'docs/**'
+              - 'CHANGELOG.md'
               # Data models that generate RST
               - 'src/supy/data_model/**'
               # RTD configuration

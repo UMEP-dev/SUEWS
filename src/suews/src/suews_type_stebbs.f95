@@ -143,8 +143,8 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: QHload_cooling_tstepFA = 0.0D0
       REAL(KIND(1D0)) :: QH_metabolism = 0.0D0
       REAL(KIND(1D0)) :: QE_metabolism = 0.0D0
-      REAL(KIND(1D0)) :: Qtotal_water_tank = 0.0D0
-      REAL(KIND(1D0)) :: qhwtDrain = 0.0D0
+      REAL(KIND(1D0)) :: Qtotal_water_tank_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: Qloss_drain_tstepFA = 0.0D0
       REAL(KIND(1D0)) :: ratio_window_wall = 0.0D0
       REAL(KIND(1D0)) :: Afootprint = 0.0D0
       REAL(KIND(1D0)) :: height_building = 0.0D0

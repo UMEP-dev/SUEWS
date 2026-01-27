@@ -679,8 +679,8 @@ CONTAINS
       REAL(KIND(1D0)) :: QHconv_extroof_to_outair_tstepFA
       REAL(KIND(1D0)) :: QHconv_extwindow_to_outair_tstepFA
       REAL(KIND(1D0)) :: QHrejection_cooling_tstepFA
-      REAL(KIND(1D0)) :: Qtotal_water_tank
-      REAL(KIND(1D0)) :: Qloss_drain
+      REAL(KIND(1D0)) :: Qtotal_water_tank_tstepFA
+      REAL(KIND(1D0)) :: Qloss_drain_tstepFA
       REAL(KIND(1D0)) :: Twater_tank
       REAL(KIND(1D0)) :: Tintwall_tank
       REAL(KIND(1D0)) :: Textwall_tank
@@ -856,7 +856,7 @@ CONTAINS
                QHcond_wall_tstepFA, QHcond_roof_tstepFA, QHcond_window_tstepFA, QHcond_groundfloor_tstepFA, &
                QHcond_ground_tstepFA, Qlw_net_wall_tstepFA, Qlw_net_roof_tstepFA, &
                Qlw_net_window_tstepFA, QHconv_extwall_to_outair_tstepFA, QHconv_extroof_to_outair_tstepFA, &
-               QHconv_extwindow_to_outair_tstepFA, QHrejection_cooling_tstepFA, Qtotal_water_tank, Qloss_drain, &
+               QHconv_extwindow_to_outair_tstepFA, QHrejection_cooling_tstepFA, Qtotal_water_tank_tstepFA, Qloss_drain_tstepFA, &
                Twater_tank, Tintwall_tank, Textwall_tank, Twater_vessel, Tintwall_vessel, Textwall_vessel, &
                Vwater_vessel, Awater_vessel, Vwall_vessel, QH_metabolism_tstepFA, QE_metabolism_tstepFA, &
                QS_tstepFA, QS_wall_tstepFA, QS_roof_tstepFA, QS_air_tstepFA, &
@@ -900,7 +900,7 @@ CONTAINS
                                 Qlw_net_window_tstepFA, &
                                 QHconv_extwall_to_outair_tstepFA, QHconv_extroof_to_outair_tstepFA, &
                                 QHconv_extwindow_to_outair_tstepFA, QHrejection_cooling_tstepFA, &
-                                Qtotal_water_tank, Qloss_drain, &
+                                Qtotal_water_tank_tstepFA, Qloss_drain_tstepFA, &
                                 Twater_tank, Tintwall_tank, Textwall_tank, Twater_vessel, &
                                 Tintwall_vessel, Textwall_vessel, &
                                 Vwater_vessel, Awater_vessel, Vwall_vessel, QH_metabolism_tstepFA, &
@@ -931,7 +931,7 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
                              QHcond_wall_tstepFA, QHcond_roof_tstepFA, QHcond_window_tstepFA, QHcond_groundfloor_tstepFA, &
                              QHcond_ground_tstepFA, Qlw_net_wall_tstepFA, Qlw_net_roof_tstepFA, &
                    Qlw_net_window_tstepFA, QHconv_extwall_to_outair_tstepFA, QHconv_extroof_to_outair_tstepFA, &
-                             QHconv_extwindow_to_outair_tstepFA, QHrejection_cooling_tstepFA, Qtotal_water_tank, Qloss_drain, &
+                             QHconv_extwindow_to_outair_tstepFA, QHrejection_cooling_tstepFA, Qtotal_water_tank_tstepFA, Qloss_drain_tstepFA, &
                              Twater_tank, Tintwall_tank, Textwall_tank, Twater_vessel, Tintwall_vessel, Textwall_vessel, &
                              Vwater_vessel, Awater_vessel, Vwall_vessel, QH_metabolism_tstepFA, QE_metabolism_tstepFA, &
                              QS_tstepFA, QS_wall_tstepFA, QS_roof_tstepFA, QS_air_tstepFA, &
@@ -1010,8 +1010,8 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
    REAL(KIND(1D0)), INTENT(OUT) :: QHconv_extroof_to_outair_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: QHconv_extwindow_to_outair_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: QHrejection_cooling_tstepFA
-   REAL(KIND(1D0)), INTENT(OUT) :: Qtotal_water_tank
-   REAL(KIND(1D0)), INTENT(OUT) :: Qloss_drain
+   REAL(KIND(1D0)), INTENT(OUT) :: Qtotal_water_tank_tstepFA
+   REAL(KIND(1D0)), INTENT(OUT) :: Qloss_drain_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: Twater_tank
    REAL(KIND(1D0)), INTENT(OUT) :: Tintwall_tank
    REAL(KIND(1D0)), INTENT(OUT) :: Textwall_tank
@@ -1137,11 +1137,11 @@ Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, Qsw_absorbed_roof_tstepF
       Qlw_net_roof_tstepSA = self%EnergyExchanges(38)
       Qlw_up_wall_tstepSA = self%EnergyExchanges(39)
       Qlw_up_roof_tstepSA = self%EnergyExchanges(40)   
-      Qloss_drain = self%qhwtDrain !Qloss_drain
+      Qloss_drain_tstepFA = self%Qloss_drain_tstepFA
       QH_metabolism_tstepFA = self%QH_metabolism !qsensible_tstepFA
       QE_metabolism_tstepFA = self%QH_metabolism !qlatent_tstepFA
 
-      Qtotal_water_tank = self%Qtotal_water_tank
+      Qtotal_water_tank_tstepFA = self%Qtotal_water_tank_tstepFA
       Twater_tank = self%Twater_tank
       Tintwall_tank = self%Tintwall_tank
       Textwall_tank = self%Textwall_tank
@@ -1228,8 +1228,8 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
    TYPE(STEBBS_BLDG) :: self
    self%QHload_heating_tstepFA = 0.0
    self%QHload_cooling_tstepFA = 0.0
-   self%Qtotal_water_tank = 0.0
-   self%qhwtDrain = 0.0
+   self%Qtotal_water_tank_tstepFA = 0.0
+   self%Qloss_drain_tstepFA = 0.0
    CALL tstep( &
       ! flginit,
       datetimeLine, Tair_out, Tair_out_bh, Tair_out_hbh, Tground_deep, Tsurf, &
@@ -1270,7 +1270,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%Ts, &
       !  self%Ts(1), self%Ts(2),                                                               &
       timestep, resolution, &
-      self%Qtotal_water_tank, self%Twater_tank, self%Tintwall_tank, &
+      self%Qtotal_water_tank_tstepFA, self%Twater_tank, self%Tintwall_tank, &
       self%Textwall_tank, self%thickness_tankwall, self%Tincomingwater_tank, &
       self%Vwater_tank, self%Asurf_tank, self%Vwall_tank, self%setTwater_tank, &
       self%Twater_vessel, self%Tintwall_vessel, self%Textwall_vessel, &
@@ -1328,7 +1328,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%EnergyExchanges(38), & !Qlw_net_extroof_to_outair_tstepSA
       self%EnergyExchanges(39), & !Qlw_up_extwall_to_outair_tstepSA
       self%EnergyExchanges(40), & !Qlw_up_extroof_to_outair_tstepSA
-      self%qhwtDrain, & !Qloss_drain
+      self%Qloss_drain_tstepFA, & !Qloss_drain
       self%QH_metabolism, & !qsensible_tstepFA
       self%QE_metabolism) !qlatent_tstepFA
    RETURN
@@ -1368,7 +1368,7 @@ SUBROUTINE tstep( &
    Ts, & !IO
    !  Ts(1), Ts(2),                                                          &
    timestep, resolution, &
-   Qtotal_water_tank, Twater_tank, Tintwall_tank, & !IO
+   Qtotal_water_tank_tstepFA, Twater_tank, Tintwall_tank, & !IO
    Textwall_tank, thickness_tankwall, Tincomingwater_tank, & !IO
    Vwater_tank, Asurf_tank, Vwall_tank, setTwater_tank, & !IO
    Twater_vessel, Tintwall_vessel, Textwall_vessel, & !IO
@@ -1412,7 +1412,7 @@ SUBROUTINE tstep( &
    Qsw_reflected_wall_tstepSA, Qsw_reflected_roof_tstepSA, &
    Qlw_net_wall_tstepSA, Qlw_net_roof_tstepSA, &
    Qlw_up_wall_tstepSA, Qlw_up_roof_tstepSA, &
-   Qloss_drain, & !qhwtDrain
+   Qloss_drain_tstepFA, & !qhwtDrain
    QH_metabolism_tstepFA, QE_metabolism_tstepFA) !Qmetabolic_sensible, Qmetabolic_latent
    USE module_phys_stebbs_precision
    USE module_phys_stebbs_func
@@ -1519,10 +1519,11 @@ SUBROUTINE tstep( &
                       Qconv_extvesselwall_to_indair = 0.0, & ! convective heat flux to external wall of vessels holding DHW in use in building
                       Qlw_net_extvesselwall_to_wall = 0.0, &
                       Qlw_net_extvesselwall_to_indoormass = 0.0, & ! radiative heat flux to external wall of vessels holding DHW in use in building
-                      !                      Qloss_drain = 0.0,                         & ! Heat loss as water held in use in building drains to sewer
+                      Qloss_drain,  & ! Heat loss as water held in use in building drains to sewer
                       Qloss_efficiency_heating_water = 0.0 ! additional heat release from efficieny losses/gains of heating hot water
 
-   REAL(KIND(1D0)), INTENT(out) :: Qloss_drain ! Heat loss as water held in use in building drains to sewer
+   REAL(KIND(1D0)), INTENT(out) :: Qloss_drain_tstepFA ! Heat loss as water held in use in building drains to sewer
+   REAL(KIND(1D0)), INTENT(out) :: Qtotal_water_tank_tstepFA !total heat input into water of hot water tank over simulation,
    REAL(KIND(1D0)) :: Qtotal_net_water_tank = 0.0, Qtotal_net_intwall_tank = 0.0, &
                       Qtotal_net_extwall_tank = 0.0, Qtotal_net_water_vessel = 0.0, &
                       Qtotal_net_intwall_vessel = 0.0, Qtotal_net_extwall_vessel = 0.0
@@ -2076,6 +2077,10 @@ SUBROUTINE tstep( &
 
       QHload_heating_tstepFA = QHload_heating_tstepTotal / timestep / Afootprint
       QHload_cooling_tstepFA = QHload_cooling_tstepTotal / timestep / Afootprint
+      
+      !Normalise DHW related heat flux
+      Qloss_drain_tstepFA =  Qloss_drain / timestep / Afootprint
+      Qtotal_water_tank_tstepFA = Qtotal_water_tank / timestep / Afootprint
 
       !normalize radiative heat flux by surface area SA
       Qsw_absorbed_wall_tstepSA = Qsw_absorbed_wall_tstepTotal / timestep / Awall
@@ -2123,8 +2128,8 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%QH_metabolism = 0.0 ! # Sensible heat flux from people in building
    self%QE_metabolism = 0.0 ! # Latent heat flux from people in building
 
-   self%Qtotal_water_tank = 0.0
-   self%qhwtDrain = 0.0
+   self%Qtotal_water_tank_tstepFA = 0.0
+   self%Qloss_drain_tstepFA = 0.0
    self%EnergyExchanges(:) = 0.0
 
    ! self%BuildingType = bldgState%BuildingType
@@ -2336,8 +2341,8 @@ SUBROUTINE create_building(CASE, self, icase)
    self%QH_metabolism = 0.0 ! # Sensible heat flux from people in building
    self%QE_metabolism = 0.0 ! # Latent heat flux from people in building
 
-   self%Qtotal_water_tank = 0.0
-   self%qhwtDrain = 0.0
+   self%Qtotal_water_tank_tstepFA = 0.0
+   self%Qloss_drain_tstepFA = 0.0
    self%EnergyExchanges(:) = 0.0
    self%BuildingType = 'None'
    self%BuildingName = 'Default'

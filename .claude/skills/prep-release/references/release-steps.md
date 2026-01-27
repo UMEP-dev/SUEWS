@@ -188,6 +188,26 @@ Edit the new file to:
 
 Update `docs/source/version-history/version-history.rst` to add the new file at the top of the toctree.
 
+### GitHub Release Notes
+
+Create `.github/releases/${VERSION}.md` with the release notes for GitHub Releases page.
+
+This file should include:
+- Installation instructions
+- Changes summary (converted from RST to Markdown)
+- Citation info
+- Documentation links
+
+The CI workflow will use this file if it exists, otherwise falls back to extracting from CHANGELOG.
+
+```bash
+# Convert RST to Markdown (manual or via Claude Code)
+# Key conversions:
+#   (:pr:`1038`)  →  (#1038)
+#   ``code``      →  `code`
+#   **bold**      →  **bold** (same)
+```
+
 ### RST GitHub Link Syntax
 
 Use Sphinx extlinks roles for clickable PR/issue references:

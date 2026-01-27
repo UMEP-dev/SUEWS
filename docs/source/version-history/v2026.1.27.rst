@@ -14,10 +14,6 @@ This release introduces significant STEBBS enhancements, physics improvements fo
 
 - **Dynamic OHM Surface Separation**: Separated surfaces for dyOHM (dynamic Objective Hysteresis Model) calculation, allowing more accurate surface heat storage modelling for different land cover types. (:pr:`1122`)
 
-- **DTS Interface**: New Direct Type System interface for Pydantic-to-Fortran execution, enabling cleaner integration between Python configuration and Fortran physics core. (:pr:`1050`)
-
-- **Build Speed Improvement**: Split ``make dev`` and ``make dev-dts`` targets for faster development builds when DTS components are unchanged. (:pr:`1108`)
-
 **Stability Improvements:**
 
 - **Thread-Safe Error Logging**: Added modState parameter for thread-safe error handling, preventing race conditions in parallel simulations. (:pr:`1083`)
@@ -45,6 +41,7 @@ This release introduces significant STEBBS enhancements, physics improvements fo
 
 **Build System:**
 
+- Split ``make dev`` and ``make dev-dts`` targets for faster development builds when DTS components are unchanged (:pr:`1108`)
 - Vendored f90wrap runtime to eliminate pip dependency conflicts (:pr:`963`)
 - Fixed UMEP NumPy ABI compatibility for QGIS environments (:pr:`1056`)
 - Added merge queue support to CI workflow (:pr:`954`)

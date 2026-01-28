@@ -94,15 +94,6 @@ STEBBS_VARIABLE_DEFS = [
     ("QS_wall_FA", "W", "Storage heat flux in wall (FA)", 0),
     ("QS_roof_FA", "W", "Storage heat flux in roof (FA)", 0),
     ("QS_air_FA", "W", "Storage heat flux in air (FA)", 0),
-    # SPARTACUS coupling outputs (8)
-    ("Qsw_abs_wall_SA", "W", "Shortwave absorbed by wall (SPARTACUS)", 0),
-    ("Qsw_abs_roof_SA", "W", "Shortwave absorbed by roof (SPARTACUS)", 0),
-    ("Qsw_up_wall_SA", "W", "Shortwave reflected by wall (SPARTACUS)", 0),
-    ("Qsw_up_roof_SA", "W", "Shortwave reflected by roof (SPARTACUS)", 0),
-    ("Qlw_net_wall_SA", "W", "Net longwave wall (SPARTACUS)", 0),
-    ("Qlw_net_roof_SA", "W", "Net longwave roof (SPARTACUS)", 0),
-    ("Qlw_up_wall_SA", "W", "Upward longwave wall (SPARTACUS)", 0),
-    ("Qlw_up_roof_SA", "W", "Upward longwave roof (SPARTACUS)", 0),
     # Tank wall and water volume (2)
     ("Vwall_tank", "m3", "Volume of wall in tank", 0),
     ("Vwater_tank", "m3", "Volume of water in tank", 0),

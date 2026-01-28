@@ -62,6 +62,10 @@ runs:
         echo "Building UMEP variant with NumPy 1.x compatibility"
 
         # Use Python for cross-platform TOML modification (BSD sed on macOS differs from GNU sed)
+        # Note: Regex approach relies on pyproject.toml structure where [build-system] uses
+        # 'requires' and [project] uses 'dependencies'. A TOML parser (tomli/tomllib) would
+        # be more robust but adds complexity. If pyproject.toml structure changes significantly,
+        # revisit this approach.
         python3 << 'EOF'
         import re
 
@@ -69,7 +73,7 @@ runs:
             content = f.read()
 
         # Runtime: Pin to NumPy 1.x (QGIS 3.40 LTR uses 1.26.4)
-        # Only modify the dependency in [project] section, not build-system
+        # Targets [project].dependencies (not [build-system].requires)
         content = re.sub(
             r'(dependencies\s*=\s*\[.*?)"numpy>=2\.0"',
             r'\1"numpy>=1.22,<2.0"',
@@ -78,7 +82,7 @@ runs:
         )
 
         # Build-time: Use oldest-supported-numpy for binary compatibility
-        # Only modify in [build-system] requires
+        # Targets [build-system].requires explicitly
         content = re.sub(
             r'(\[build-system\].*?requires\s*=\s*\[.*?)"numpy>=2\.0"',
             r'\1"oldest-supported-numpy"',

@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 62 | 75 | 23 | 77 | 37 | 274 |
+| 2026 | 62 | 75 | 24 | 77 | 37 | 275 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -33,6 +33,10 @@
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 28 Jan 2026
+
+- [changes] Refactor config.py, _load.py and _misc.py to have Phase B as the single authority for check sum of land cover fractions. (PR #1099)
 
 ### 27 Jan 2026
 

@@ -112,6 +112,7 @@ dev = [
     "sphinx-last-updated-by-git", # Git info in docs
     "sphinx-click",             # CLI documentation
     "sphinx_comments",          # Comments (may be re-enabled)
+    "sphinx-gallery>=0.16.0",   # Gallery examples from Python scripts (GH-1029)
     "docutils>=0.16,<0.17",     # Version pinned for compatibility
     "jinja2>=3.0",         # Version pinned for compatibility - # MP removed upper limit
 ]

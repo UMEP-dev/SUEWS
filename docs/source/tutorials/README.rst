@@ -1,10 +1,11 @@
-SUEWS Tutorials
-===============
+.. _tutorial_source_readme:
+
+Tutorials
+=========
 
 Step-by-step tutorials for learning SUEWS urban climate modelling using the
 modern Python interface. Each tutorial combines executable code with detailed
 explanations.
-
 
 .. note::
 

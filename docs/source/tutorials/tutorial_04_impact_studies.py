@@ -292,4 +292,4 @@ plt.tight_layout()
 #
 # **Next steps:**
 #
-# - :doc:`tutorial_04_external_coupling` - Couple SUEWS with external models
+# - :doc:`tutorial_06_external_coupling` - Couple SUEWS with external models

@@ -71,12 +71,19 @@ print(f"SUEWS variables (first 10): {results['SUEWS'].columns.tolist()[:10]}")
 
 
 def get_var(sim, name, group="SUEWS"):
-    """Extract a single variable as a Series."""
-    return sim.get_variable(name, group=group).iloc[:, 0]
+    """Extract a single variable as a Series with DatetimeIndex.
+
+    For single-grid simulations, drops the grid level to simplify indexing.
+    """
+    ser = sim.get_variable(name, group=group).iloc[:, 0]
+    # Drop grid level if single grid (common case for tutorials)
+    if isinstance(ser.index, pd.MultiIndex) and ser.index.nlevels == 2:
+        ser = ser.droplevel("grid")
+    return ser
 
 
 def get_vars(sim, names, group="SUEWS"):
-    """Extract multiple variables as a DataFrame."""
+    """Extract multiple variables as a DataFrame with DatetimeIndex."""
     return pd.DataFrame({name: get_var(sim, name, group) for name in names})
 
 

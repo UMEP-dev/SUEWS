@@ -1,5 +1,4 @@
-Advanced Tutorials
-------------------
+.. rubric:: Advanced Tutorials
 
 Model coupling and external integrations. Complete basic tutorials first.
 

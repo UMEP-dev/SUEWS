@@ -700,6 +700,39 @@ def source_read_handler(app, docname, source):
         # and do nothing
         return
 
+    # Handle :orphan: directive - must remain at document start to work properly
+    # rst_prolog prepends content which breaks :orphan:, causing it to render as text.
+    # For orphan files, we strip :orphan: entirely since:
+    # 1. Most sphinx-gallery "orphan" files ARE in a toctree and don't need it
+    # 2. Removing it avoids the rendering issue
+    # 3. Any resulting warnings can be addressed by proper toctree inclusion
+    if src.lstrip().startswith(":orphan:"):
+        # Remove :orphan: and any following blank lines
+        src = src.lstrip()
+        src = src[len(":orphan:") :].lstrip("\n")
+
+    # Fix sphinx-gallery tutorials toctree: replace subsection index references
+    # with direct tutorial page references to avoid duplicate navigation entries
+    if docname == "auto_examples/index":
+        import re
+
+        # Replace toctree that includes subsection index files with direct tutorial pages
+        old_toctree = r""".. toctree::
+   :hidden:
+   :includehidden:
+
+
+   /auto_examples/basic/index.rst
+   /auto_examples/advanced/index.rst"""
+        new_toctree = """.. toctree::
+   :hidden:
+
+   /auto_examples/basic/plot_01_quick_start
+   /auto_examples/basic/plot_02_setup_own_site
+   /auto_examples/basic/plot_03_impact_studies
+   /auto_examples/advanced/plot_external_coupling"""
+        src = src.replace(old_toctree, new_toctree)
+
     # Add deprecation warning to table-based input documentation
     deprecation_warning = ""
     if docname.startswith("inputs/tables/") and not docname.endswith("index"):

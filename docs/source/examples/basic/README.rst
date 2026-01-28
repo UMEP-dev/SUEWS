@@ -1,5 +1,4 @@
-Basic Tutorials
----------------
+.. rubric:: Basic Tutorials
 
 Core SUEWS workflows. Complete these in order.
 

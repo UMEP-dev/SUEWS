@@ -64,7 +64,7 @@ df_state_final = sim.state_final
 
 # %%
 # Surface Properties: Albedo Study
-# ================================
+# --------------------------------
 #
 # We investigate how changes in surface albedo affect urban air temperature.
 
@@ -174,7 +174,7 @@ plt.show()
 
 # %%
 # Background Climate: Air Temperature Study
-# =========================================
+# -----------------------------------------
 #
 # We investigate how changes in background air temperature affect
 # the simulated 2-metre temperature.

@@ -22,8 +22,3 @@ Each tutorial is available as:
 .. note::
 
    Tutorials require SuPy. See :doc:`/introduction/quick-start` for installation.
-
-.. toctree::
-   :hidden:
-
-   /sub-tutorials/suews-simulation-tutorial

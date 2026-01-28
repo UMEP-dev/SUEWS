@@ -32,9 +32,9 @@ from supy import SUEWSSimulation
 # SUEWS tracks state variables for each land cover type. The key variables are:
 #
 # - **soilstore**: Soil moisture storage [mm] - critical for evapotranspiration
-# - **lai_id**: Leaf area index [m²/m²] - controls transpiration
-# - **gdd_id/sdd_id**: Growing/senescence degree days [°C·d] - phenology tracking
-# - **temperature**: Thermal layer temperatures [°C] - subsurface heat storage
+# - **lai_id**: Leaf area index [:math:`m^2/m^2`] - controls transpiration
+# - **gdd_id/sdd_id**: Growing/senescence degree days [:math:`^{\circ}C \cdot d`] - phenology tracking
+# - **temperature**: Thermal layer temperatures [:math:`^{\circ}C`] - subsurface heat storage
 #
 # Let's examine the initial state from sample data.
 
@@ -79,7 +79,7 @@ _ = sim_spinup.run()
 state_equilibrated = sim_spinup.state_final.copy()
 
 print("Spin-up complete!")
-print(f"Equilibrated state ready for analysis period")
+print("Equilibrated state ready for analysis period")
 
 # Step 3: Use for analysis (in practice, you'd load new forcing data)
 # sim_analysis = SUEWSSimulation.from_state(state_equilibrated)
@@ -101,7 +101,7 @@ sim = SUEWSSimulation.from_sample_data()
 _ = sim.run()
 soil_history.append(sim.state_final.filter(like="soilstore").mean().mean())
 
-# Capture forcing once — it stays the same across all spin-up iterations.
+# Capture forcing once -- it stays the same across all spin-up iterations.
 forcing_data = sim.forcing
 
 # Spin-up iterations: reuse the same forcing but transfer evolved state.
@@ -190,7 +190,7 @@ lai_values = [get_initial_lai(m) for m in months]
 fig, ax = plt.subplots(figsize=(10, 5))
 ax.bar(months, lai_values, color="forestgreen", alpha=0.7, edgecolor="darkgreen")
 ax.set_xlabel("Month")
-ax.set_ylabel("Initial LAI (m²/m²)")
+ax.set_ylabel("Initial LAI (m$^2$/m$^2$)")
 ax.set_title("Recommended Initial LAI by Start Month (Deciduous Trees)")
 ax.set_xticks(months)
 ax.set_xticklabels(["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"])

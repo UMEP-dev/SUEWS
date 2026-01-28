@@ -124,7 +124,10 @@ def _init_dts_check():
         return hasattr(_supy_driver, "module_type_heat") and hasattr(
             _supy_driver.module_type_heat, "HEATSTATE"
         )
-    except Exception:
+    except ImportError:
+        return False
+    except Exception as exc:
+        logger_supy.debug("Unexpected error checking DTS availability: %s", exc)
         return False
 
 

@@ -326,7 +326,7 @@ sphinx_gallery_conf = {
     "within_subsection_order": FileNameSortKey,
     # Execution settings
     "plot_gallery": "True",
-    "abort_on_example_error": os.environ.get("SPHINX_GALLERY_ABORT", "False") == "True",
+    "abort_on_example_error": os.environ.get("SPHINX_GALLERY_ABORT", "false").lower() == "true",
     "remove_config_comments": True,
     # Download options
     "download_all_examples": True,

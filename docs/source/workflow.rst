@@ -212,9 +212,13 @@ For the full hands-on experience, run the complete tutorial notebook:
 
 This notebook includes:
 - Detailed explanations of each step
-- Additional visualisation examples  
+- Additional visualisation examples
 - Data exploration exercises
 - Troubleshooting tips
+
+**Essential Workflows Guide**
+
+For comprehensive coverage of preparing initial conditions, designing simulation scenarios, and examining results, see the :doc:`User Workflow Guide </sub-tutorials/user-workflow-guide>`.
 
 Part II: Configure SUEWS for Your Site
 ---------------------------------------

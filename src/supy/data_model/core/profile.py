@@ -1,8 +1,7 @@
 from pydantic import ConfigDict, BaseModel, Field, field_validator, model_validator
 from typing import Optional, Dict
 import pandas as pd
-from .type import Reference
-from .type import init_df_state
+from .type import Reference, df_from_cols
 
 
 class DayProfile(BaseModel):
@@ -31,17 +30,16 @@ class DayProfile(BaseModel):
             pd.DataFrame: DataFrame containing day profile parameters.
         """
 
-        df_state = init_df_state(grid_id)
-
         day_map = {
             "working_day": 0,
             "holiday": 1,
         }
 
+        cols = {("gridiv", "0"): grid_id}
         for day, idx in day_map.items():
-            df_state.loc[grid_id, (param_name, f"({idx},)")] = getattr(self, day)
+            cols[(param_name, f"({idx},)")] = getattr(self, day)
 
-        return df_state
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(
@@ -101,8 +99,6 @@ class WeeklyProfile(BaseModel):
         Returns:
             pd.DataFrame: DataFrame containing weekly profile parameters
         """
-        df_state = init_df_state(grid_id)
-
         # Map days to their index
         day_map = {
             "monday": 0,
@@ -114,10 +110,11 @@ class WeeklyProfile(BaseModel):
             "sunday": 6,
         }
 
+        cols = {("gridiv", "0"): grid_id}
         for day, idx in day_map.items():
-            df_state[(param_name, f"({idx},)")] = getattr(self, day)
+            cols[(param_name, f"({idx},)")] = getattr(self, day)
 
-        return df_state
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(
@@ -209,17 +206,17 @@ class HourlyProfile(BaseModel):
         Returns:
             pd.DataFrame: DataFrame containing hourly profile parameters
         """
-        df_state = init_df_state(grid_id)
+        cols = {("gridiv", "0"): grid_id}
 
         # Set working day values (index 0)
         for hour, value in self.working_day.items():
-            df_state[(param_name, f"({int(hour) - 1}, 0)")] = value
+            cols[(param_name, f"({int(hour) - 1}, 0)")] = value
 
         # Set holiday/weekend values (index 1)
         for hour, value in self.holiday.items():
-            df_state[(param_name, f"({int(hour) - 1}, 1)")] = value
+            cols[(param_name, f"({int(hour) - 1}, 1)")] = value
 
-        return df_state
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(
@@ -304,17 +301,17 @@ class TenMinuteProfile(BaseModel):
         Returns:
             pd.DataFrame: DataFrame containing 10-minute profile parameters
         """
-        df_state = init_df_state(grid_id)
+        cols = {("gridiv", "0"): grid_id}
 
         # Set working day values (index 0)
         for bin_id, value in self.working_day.items():
-            df_state[(param_name, f"({int(bin_id) - 1}, 0)")] = value
+            cols[(param_name, f"({int(bin_id) - 1}, 0)")] = value
 
         # Set holiday/weekend values (index 1)
         for bin_id, value in self.holiday.items():
-            df_state[(param_name, f"({int(bin_id) - 1}, 1)")] = value
+            cols[(param_name, f"({int(bin_id) - 1}, 1)")] = value
 
-        return df_state
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(
@@ -343,4 +340,3 @@ class TenMinuteProfile(BaseModel):
         }
 
         return cls(working_day=working_day, holiday=holiday)
-

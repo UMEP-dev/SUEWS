@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 60 | 72 | 24 | 71 | 36 | 262 |
+| 2026 | 62 | 75 | 23 | 77 | 37 | 274 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -38,11 +38,35 @@
 
 - [changes] Refactor config.py, _load.py and _misc.py to have Phase B as the single authority for check sum of land cover fractions. (PR #1099)
 
+### 27 Jan 2026
+
+- [maintenance] Refactored prep-release skill to use PR-based workflow (#1126)
+
+### 26 Jan 2026
+
+- [feature] Added separate surfaces for dyOHM (dynamic Objective Hysteresis Model) calculation (#1122)
+- [maintenance] Refactored albedo handling for vegetated surfaces (#1100)
+- [maintenance] Fixed conductor.json to use current branch instead of hardcoded master (#1124)
+
+### 25 Jan 2026
+
+- [maintenance] Centralised report I/O with ValidationReportWriter class (#1121)
+
+### 24 Jan 2026
+
+- [bugfix] Added test_cli_validation.py to test suews-validate behaviour on Windows (#1098)
+
 ### 23 Jan 2026
 
-- [bugfix] Fixed missing STEBBS parameters in sample_config.yml (PR #1111)
-- [change] Changed values of some STEBBS parameters in sample_config.yml to be physically reasonable (PR #1111)
-- [bugfix] Extended nullification logic in validator for stebbsmethod==0 to handle nested TenMinutesProfiles structures (PR #1115)
+- [feature] Added STEBBS profiles for Heating and Cooling setpoints, Appliance, Occupants and Hot Water (#1038)
+- [bugfix] Fixed biogenic CO2 to use local climate instead of global average temperature (#1117)
+- [bugfix] Retained DatetimeIndex.freq after concat in forcing data loading (#1105)
+- [bugfix] Fixed missing STEBBS parameters in sample_config.yml (#1111)
+- [change] Changed values of some STEBBS parameters in sample_config.yml to be physically reasonable (#1111)
+- [bugfix] Extended nullification logic in validator for stebbsmethod==0 to handle nested TenMinutesProfiles structures (#1115)
+- [doc] Specified precision requirements for pressure input (#1107)
+- [maintenance] Added CI rules for fork PR handling (#1118)
+- [maintenance] Fixed CI to skip pages deployment and format-master for fork PRs (#1113, #1114)
 
 ### 20 Jan 2026
 

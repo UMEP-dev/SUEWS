@@ -18,7 +18,7 @@ from . import supy_driver as sd
 
 
 from ._env import logger_supy, trv_supy_module, ISSUES_URL
-from ._misc import path_insensitive, normalise_sfr_surf
+from ._misc import path_insensitive 
 
 # choose different second representation to accommodate different pandas versions
 # pandas version <1.5
@@ -1889,6 +1889,8 @@ def add_state_init_df(df_init):
         ("tstep_prev", 0, "tstep"),
         ("tair24hr", int(24 * 3600 / df_init["tstep"].values[0, 0]), 273.15),
         ("tair_av", 0, 273.15),
+        ("qn_surfs", 7, 0.0),
+        ("dqndt_surf", 7, 0.0),
     ]
 
     # set values according to `list_var_dim`
@@ -2161,8 +2163,7 @@ def load_InitialCond_grid_df(path_runcontrol, force_reload=True):
     # else:
     # print('localclimatemethod is not in df_init')
 
-    # normalise surface fractions to prevent non-1 sums
-    df_init = normalise_sfr_surf(df_init)
+
     return df_init
 
 

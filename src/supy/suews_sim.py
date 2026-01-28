@@ -14,17 +14,17 @@ import pandas as pd
 
 from ._check import check_forcing
 from ._run import run_supy_ser
-from .dts import _DTS_AVAILABLE, _check_dts_available, run_dts
 
 # Import SuPy components directly
 from ._supy_module import _save_supy
 from .data_model import RefValue
 from .data_model.core import SUEWSConfig
-from .util._io import read_forcing
+from .dts import _check_dts_available, run_dts
 
 # Import new OOP classes
 from .suews_forcing import SUEWSForcing
 from .suews_output import SUEWSOutput
+from .util._io import read_forcing
 
 # Constants
 DEFAULT_OUTPUT_FREQ_SECONDS = 3600  # Default hourly output frequency
@@ -231,6 +231,12 @@ class SUEWSSimulation:
         SUEWSSimulation
             Self, for method chaining.
 
+        Notes
+        -----
+        When loading from file paths, forcing data is resampled to match the
+        model timestep from ``model.control.tstep`` in the configuration.
+        If no configuration is loaded, defaults to 300 seconds (5 minutes).
+
         Examples
         --------
         >>> sim.update_forcing("forcing_2023.txt")
@@ -239,6 +245,15 @@ class SUEWSSimulation:
         >>> sim.update_forcing(SUEWSForcing.from_file("forcing.txt"))
         >>> sim.update_config(cfg).update_forcing(forcing).run()
         """
+        # Get tstep from config if available, otherwise default to 300s
+        tstep_mod = 300
+        if self._config is not None:
+            try:
+                tstep_val = self._config.model.control.tstep
+                tstep_mod = tstep_val.value if hasattr(tstep_val, "value") else tstep_val
+            except AttributeError:
+                pass
+
         if isinstance(forcing_data, RefValue):
             forcing_data = forcing_data.value
         if isinstance(forcing_data, SUEWSForcing):
@@ -247,12 +262,16 @@ class SUEWSSimulation:
             self._df_forcing = forcing_data.copy()
         elif isinstance(forcing_data, list):
             # Handle list of files
-            self._df_forcing = SUEWSSimulation._load_forcing_from_list(forcing_data)
+            self._df_forcing = SUEWSSimulation._load_forcing_from_list(
+                forcing_data, tstep_mod=tstep_mod
+            )
         elif isinstance(forcing_data, (str, Path)):
             forcing_path = Path(forcing_data).expanduser().resolve()
             if not forcing_path.exists():
                 raise FileNotFoundError(f"Forcing path not found: {forcing_path}")
-            self._df_forcing = SUEWSSimulation._load_forcing_file(forcing_path)
+            self._df_forcing = SUEWSSimulation._load_forcing_file(
+                forcing_path, tstep_mod=tstep_mod
+            )
         else:
             raise ValueError(f"Unsupported forcing data type: {type(forcing_data)}")
 
@@ -342,7 +361,9 @@ class SUEWSSimulation:
         return str((self._config_path.parent / Path(path_str)).resolve())
 
     @staticmethod
-    def _load_forcing_from_list(forcing_list: list[Union[str, Path]]) -> pd.DataFrame:
+    def _load_forcing_from_list(
+        forcing_list: list[Union[str, Path]], tstep_mod: int = 300
+    ) -> pd.DataFrame:
         """Load and concatenate forcing data from a list of files."""
         if not forcing_list:
             raise ValueError("Empty forcing file list provided")
@@ -360,7 +381,7 @@ class SUEWSSimulation:
                     "Directories are not allowed in lists."
                 )
 
-            df = read_forcing(str(path))
+            df = read_forcing(str(path), tstep_mod=tstep_mod)
             dfs.append(df)
 
         result = pd.concat(dfs, axis=0).sort_index()
@@ -368,7 +389,7 @@ class SUEWSSimulation:
         return result
 
     @staticmethod
-    def _load_forcing_file(forcing_path: Path) -> pd.DataFrame:
+    def _load_forcing_file(forcing_path: Path, tstep_mod: int = 300) -> pd.DataFrame:
         """Load forcing data from file or directory."""
         if forcing_path.is_dir():
             # Issue deprecation warning for directory usage
@@ -392,11 +413,11 @@ class SUEWSSimulation:
             # Concatenate all files
             dfs = []
             for file in forcing_files:
-                dfs.append(read_forcing(str(file)))
+                dfs.append(read_forcing(str(file), tstep_mod=tstep_mod))
 
             return pd.concat(dfs, axis=0).sort_index()
         else:
-            return read_forcing(str(forcing_path))
+            return read_forcing(str(forcing_path), tstep_mod=tstep_mod)
 
     def run(
         self, start_date=None, end_date=None, backend: str = "traditional", **run_kwargs
@@ -1159,6 +1180,10 @@ class SUEWSSimulation:
     def results(self) -> Optional[pd.DataFrame]:
         """Access to simulation results DataFrame (raw).
 
+        .. deprecated:: 2025.1
+            Use ``output = sim.run()`` to get a ``SUEWSOutput`` object,
+            then ``output.df`` for the raw DataFrame if needed.
+
         Returns
         -------
         pandas.DataFrame or None
@@ -1172,11 +1197,22 @@ class SUEWSSimulation:
         get_variable : Extract specific variables from output groups
         save : Save results to files
         """
+        warnings.warn(
+            "sim.results is deprecated. Use 'output = sim.run()' to get a SUEWSOutput "
+            "object, then 'output.df' for the raw DataFrame if needed.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._df_output
 
     @property
     def output(self) -> Optional[SUEWSOutput]:
         """Access to simulation results as SUEWSOutput object.
+
+        .. note::
+            Preferred pattern is ``output = sim.run()`` which returns the
+            same ``SUEWSOutput`` object. This property is provided for
+            convenience when re-accessing results after simulation.
 
         Returns
         -------
@@ -1187,17 +1223,22 @@ class SUEWSSimulation:
 
         See Also
         --------
-        results : Access raw DataFrame directly
-        run : Run simulation and return SUEWSOutput
+        run : Run simulation and return SUEWSOutput (preferred)
         :ref:`df_output_var` : Complete output data structure
 
         Examples
         --------
+        Preferred pattern - capture return value:
+
+        >>> sim = SUEWSSimulation.from_sample_data()
+        >>> output = sim.run()  # Capture output
+        >>> output.QH  # Access sensible heat flux
+
+        Alternative - use property after run:
+
         >>> sim = SUEWSSimulation.from_sample_data()
         >>> sim.run()
-        >>> sim.output.QH  # Access sensible heat flux
-        >>> sim.output.diurnal_average("QH")  # Get diurnal pattern
-        >>> sim.output.energy_balance_closure()  # Analyse energy balance
+        >>> sim.output.QH  # Re-access via property
         """
         if self._df_output is None:
             return None

@@ -8,10 +8,10 @@ meteorological forcing data for SUEWS simulations.
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
+import warnings
 
 import numpy as np
 import pandas as pd
-
 
 # Variable aliases for more intuitive access
 FORCING_ALIASES = {
@@ -124,6 +124,34 @@ class ValidationResult:
         return f"ValidationResult({status}, {n_errors} errors, {n_warnings} warnings)"
 
 
+class _ForcingLocIndexer:
+    """Wrapper for loc indexer that returns SUEWSForcing objects."""
+
+    def __init__(self, forcing: "SUEWSForcing"):
+        self._forcing = forcing
+
+    def __getitem__(self, key):
+        """Return sliced data as SUEWSForcing."""
+        sliced_data = self._forcing._data.loc[key]
+        if isinstance(sliced_data, pd.Series):
+            sliced_data = sliced_data.to_frame().T
+        return SUEWSForcing(sliced_data, source=self._forcing._source)
+
+
+class _ForcingILocIndexer:
+    """Wrapper for iloc indexer that returns SUEWSForcing objects."""
+
+    def __init__(self, forcing: "SUEWSForcing"):
+        self._forcing = forcing
+
+    def __getitem__(self, key):
+        """Return sliced data as SUEWSForcing."""
+        sliced_data = self._forcing._data.iloc[key]
+        if isinstance(sliced_data, pd.Series):
+            sliced_data = sliced_data.to_frame().T
+        return SUEWSForcing(sliced_data, source=self._forcing._source)
+
+
 class SUEWSForcing:
     """
     Wrapper for meteorological forcing data with convenience functions.
@@ -161,6 +189,13 @@ class SUEWSForcing:
     Case-insensitive access:
 
     >>> forcing.tair  # Same as forcing.Tair
+
+    Time slicing (returns new SUEWSForcing):
+
+    >>> forcing["2012"]  # All of 2012 (if no column named "2012")
+    >>> forcing["2012-01":"2012-06"]  # Slice notation is always time-based
+    >>> forcing.loc["2012"]  # Always time selection (unambiguous)
+    >>> forcing.iloc[:1000]  # First 1000 timesteps
 
     Validate forcing data:
 
@@ -251,7 +286,21 @@ class SUEWSForcing:
 
     @property
     def df(self) -> pd.DataFrame:
-        """Access underlying DataFrame."""
+        """Access underlying DataFrame (copy).
+
+        Use this when you need raw DataFrame access for advanced operations
+        like column selection, complex indexing, or passing to functions
+        expecting DataFrames.
+
+        For time slicing that returns SUEWSForcing objects, prefer:
+        - ``forcing["2012"]`` - subscript access
+        - ``forcing.loc["2012-01":"2012-06"]`` - label-based slicing
+
+        Returns
+        -------
+        pd.DataFrame
+            Copy of the underlying DataFrame
+        """
         return self._data.copy()
 
     @property
@@ -260,14 +309,26 @@ class SUEWSForcing:
         return self._data.index
 
     @property
-    def loc(self):
-        """Label-based indexer (pandas-compatible)."""
-        return self._data.loc
+    def loc(self) -> _ForcingLocIndexer:
+        """Label-based indexer returning SUEWSForcing objects.
+
+        Examples
+        --------
+        >>> forcing.loc["2012"]  # All of 2012
+        >>> forcing.loc["2012-01":"2012-06"]  # Jan-Jun 2012
+        """
+        return _ForcingLocIndexer(self)
 
     @property
-    def iloc(self):
-        """Integer-based indexer (pandas-compatible)."""
-        return self._data.iloc
+    def iloc(self) -> _ForcingILocIndexer:
+        """Integer-based indexer returning SUEWSForcing objects.
+
+        Examples
+        --------
+        >>> forcing.iloc[0]  # First timestep
+        >>> forcing.iloc[:100]  # First 100 timesteps
+        """
+        return _ForcingILocIndexer(self)
 
     @property
     def time_range(self) -> Tuple[pd.Timestamp, pd.Timestamp]:
@@ -328,24 +389,91 @@ class SUEWSForcing:
             f"Available columns: {list(self._data.columns)}"
         )
 
-    def __getitem__(self, key: str) -> pd.Series:
-        """Access variables by column name (case-insensitive, alias-aware)."""
-        # Support alias lookup
-        canonical = _ALIAS_TO_CANONICAL.get(key.lower())
-        if canonical is not None and canonical in self._data.columns:
-            return self._data[canonical]
+    def __getitem__(self, key) -> Union[pd.Series, pd.DataFrame, "SUEWSForcing"]:
+        """Access variables or slice by time.
 
-        # Exact match
-        if key in self._data.columns:
+        Parameters
+        ----------
+        key : str, list, slice, or array-like
+            - String matching column name: returns pd.Series
+            - List of column names: returns pd.DataFrame
+            - Slice or datetime-like: returns sliced SUEWSForcing
+
+        Returns
+        -------
+        pd.Series, pd.DataFrame, or SUEWSForcing
+            Series for single column, DataFrame for multiple columns,
+            SUEWSForcing for time slicing
+
+        Notes
+        -----
+        **Priority**: Column names take precedence over time strings. If a column
+        is named "2012", ``forcing["2012"]`` returns the column, not the year.
+
+        **Disambiguation**: Use ``.loc`` for unambiguous time selection:
+
+        - ``forcing.loc["2012"]`` - Always time selection
+        - ``forcing["2012"]`` - Column if exists, else time selection
+
+        Slice notation is always time-based: ``forcing["2012-01":"2012-06"]``
+
+        Examples
+        --------
+        Column access (returns Series):
+
+        >>> forcing["Tair"]
+        >>> forcing["temperature"]  # Alias
+
+        Multiple columns (returns DataFrame):
+
+        >>> forcing[["Tair", "RH", "U"]]
+
+        Time slicing (returns SUEWSForcing):
+
+        >>> forcing["2012"]  # Time if no column named "2012"
+        >>> forcing["2012-01":"2012-06"]  # Always time slicing
+        >>> forcing.loc["2012"]  # Always time slicing (unambiguous)
+        """
+        # Handle slice objects (time slicing)
+        if isinstance(key, slice):
+            sliced_data = self._data.loc[key]
+            return SUEWSForcing(sliced_data, source=self._source)
+
+        # Handle list of column names (returns DataFrame)
+        if isinstance(key, list):
             return self._data[key]
 
-        # Case-insensitive fallback
-        key_lower = key.lower()
-        for col in self._data.columns:
-            if col.lower() == key_lower:
-                return self._data[col]
+        # Handle string keys
+        if isinstance(key, str):
+            # First check if it's a column name or alias
+            canonical = _ALIAS_TO_CANONICAL.get(key.lower())
+            if canonical is not None and canonical in self._data.columns:
+                return self._data[canonical]
 
-        return self._data[key]  # Let pandas raise KeyError
+            if key in self._data.columns:
+                return self._data[key]
+
+            # Case-insensitive column lookup
+            key_lower = key.lower()
+            for col in self._data.columns:
+                if col.lower() == key_lower:
+                    return self._data[col]
+
+            # Not a column - try as time selection (e.g., "2012")
+            try:
+                sliced_data = self._data.loc[key]
+                if isinstance(sliced_data, pd.Series):
+                    sliced_data = sliced_data.to_frame().T
+                return SUEWSForcing(sliced_data, source=self._source)
+            except KeyError:
+                # Let pandas raise the original error
+                return self._data[key]
+
+        # For other types (boolean arrays, etc.), try time slicing
+        sliced_data = self._data.loc[key]
+        if isinstance(sliced_data, pd.Series):
+            sliced_data = sliced_data.to_frame().T
+        return SUEWSForcing(sliced_data, source=self._source)
 
     # =========================================================================
     # Validation

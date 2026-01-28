@@ -40,6 +40,8 @@ from ..core.yaml_helpers import (
     HAS_TIMEZONE_FINDER,
 )
 
+# Constants 
+SFR_FRACTION_TOL = 1e-4
 
 @dataclass
 class ValidationResult:
@@ -436,7 +438,7 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                     sfr_sum += sfr_value
                     surface_types.append((surface_type, sfr_value))
 
-        if abs(sfr_sum - 1.0) > 0.0001:
+        if abs(sfr_sum - 1.0) > SFR_FRACTION_TOL:
             if sfr_sum == 0.0:
                 results.append(
                     ValidationResult(
@@ -451,7 +453,7 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                 )
             else:
                 surface_list = ", ".join([
-                    f"{surf}={val:.3f}" for surf, val in surface_types
+                    f"{surf}={val:.4f}" for surf, val in surface_types
                 ])
                 # Identify the surface with the largest fraction (same as auto-correction logic)
                 surface_dict = dict(surface_types)
@@ -467,8 +469,8 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                         parameter=f"{max_surface}.sfr",
                         site_index=site_idx,
                         site_gridid=site_gridid,
-                        message=f"Surface fractions sum to {sfr_sum:.6f}, should equal 1.0 (auto-correction range: 0.9999-1.0001, current: {surface_list})",
-                        suggested_value=f"Adjust {max_surface}.sfr or other surface fractions so they sum to exactly 1.0",
+                        message=f"Surface fractions sum to {sfr_sum:.4f}, should equal 1.0 (auto-correction range: 1.0 ± {SFR_FRACTION_TOL:.1e}, current: {surface_list}. Validator will auto‑correct small deviations in this range.)",
+                        suggested_value=f"Adjust the max surface {max_surface}.sfr or other surface fractions so they sum to exactly 1.0",
                     )
                 )
 
@@ -1210,8 +1212,11 @@ def adjust_land_cover_fractions(
 
         correction_applied = False
 
+        lower = 1.0 - SFR_FRACTION_TOL
+        upper = 1.0 + SFR_FRACTION_TOL
+
         # Auto-correct only small floating point errors (same as precheck logic)
-        if 0.9999 <= sfr_sum < 1.0:
+        if lower <= sfr_sum < 1.0:
             max_surface = max(
                 surface_fractions.keys(), key=lambda k: surface_fractions[k]
             )
@@ -1231,7 +1236,7 @@ def adjust_land_cover_fractions(
                         site_gridid=site_gridid,
                         old_value=f"{old_value:.6f}",
                         new_value=f"{new_value:.6f}",
-                        reason=f"Auto-corrected sum from {sfr_sum:.6f} to 1.0 (small floating point error)",
+                        reason=f"Auto-corrected {max_surface}.sfr to have sum from {sfr_sum:.6f} to 1.0 (small floating point error)",
                     )
                 )
             else:  # Tiny correction not visible at display precision
@@ -1246,7 +1251,7 @@ def adjust_land_cover_fractions(
                     )
                 )
 
-        elif 1.0 < sfr_sum <= 1.0001:
+        elif 1.0 < sfr_sum <= upper:
             max_surface = max(
                 surface_fractions.keys(), key=lambda k: surface_fractions[k]
             )
@@ -1266,7 +1271,7 @@ def adjust_land_cover_fractions(
                         site_gridid=site_gridid,
                         old_value=f"{old_value:.6f}",
                         new_value=f"{new_value:.6f}",
-                        reason=f"Auto-corrected sum from {sfr_sum:.6f} to 1.0 (small floating point error)",
+                        reason=f"Auto-corrected {max_surface}.sfr to have sum from {sfr_sum:.6f} to 1.0 (small floating point error)",
                     )
                 )
             else:  # Tiny correction not visible at display precision

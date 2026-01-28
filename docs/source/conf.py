@@ -45,6 +45,14 @@ from pybtex.style.template import (
 )
 
 import supy
+from sphinx_gallery.sorting import FileNameSortKey
+
+# Check if DTS features are available in this build
+# The dts module may fail to import entirely if supy_driver has issues
+try:
+    from supy.dts import _DTS_AVAILABLE
+except Exception:
+    _DTS_AVAILABLE = False
 
 # -- Git version information --------------------------------------------------------
 
@@ -288,12 +296,48 @@ extensions = [
     "sphinx.ext.napoleon",
     # 'suews_config_editor',  # Our custom extension
     # 'sphinx-jsonschema', # to genenrate docs based JSON Schema from SUEWSConfig
+    "sphinx_gallery.gen_gallery",  # Gallery examples from Python scripts (GH-1029)
 ]
 
 # email_automode = True
 
 # sphinx_last_updated_by_git options
 git_last_updated_metatags = True
+
+# extlinks: GitHub issue/PR shorthand
+# Usage: :issue:`123` -> #123 (links to issue), :pr:`123` -> #123 (links to PR)
+extlinks = {
+    "issue": ("https://github.com/UMEP-dev/SUEWS/issues/%s", "#%s"),
+    "pr": ("https://github.com/UMEP-dev/SUEWS/pull/%s", "#%s"),
+    "gh": ("https://github.com/UMEP-dev/SUEWS/issues/%s", "GH-%s"),
+}
+
+# sphinx-gallery configuration (GH-1029)
+# Converts percent-format Python scripts to gallery pages with executable examples
+sphinx_gallery_conf = {
+    # Source and output directories (relative to conf.py)
+    "examples_dirs": ["tutorials"],  # Source directory with .py files
+    "gallery_dirs": ["auto_examples"],  # Generated output directory
+    # File patterns
+    "filename_pattern": r"/tutorial_",  # Execute files starting with tutorial_
+    "ignore_pattern": r"__init__\.py",
+    # Order by filename (numeric prefixes ensure pedagogical order)
+    # tutorial_01_quick_start < tutorial_02_setup < tutorial_03_impact < tutorial_04_external
+    "within_subsection_order": FileNameSortKey,
+    # Execution settings
+    "plot_gallery": "True",
+    "abort_on_example_error": False,
+    "remove_config_comments": True,
+    # Download options
+    "download_all_examples": True,
+    "notebook_images": True,  # Embed images in generated notebooks
+    # Image handling
+    "image_scrapers": ("matplotlib",),
+    # Memory management
+    "reset_modules": ("matplotlib", "seaborn"),
+    # Capture output
+    "capture_repr": ("_repr_html_", "__repr__"),
+}
 
 # sphinx comments
 # https://sphinx-comments.readthedocs.io/
@@ -340,7 +384,19 @@ exclude_patterns = [
     "_build",
     "**.ipynb_checkpoints",
     "build",
+    "auto_examples/.ipynb_checkpoints",  # sphinx-gallery generated notebooks
 ]
+
+# Conditionally exclude DTS documentation if DTS features not available
+# DTS requires a full build with type wrappers (make dev-dts)
+if _DTS_AVAILABLE:
+    tags.add("dts_available")
+else:
+    exclude_patterns.extend([
+        "api/dts.rst",
+        "api/generated/supy.dts.*",
+    ])
+
 # tags.add('html')
 # if tags.has('html'):
 #     exclude_patterns = ['references.rst']
@@ -634,6 +690,17 @@ def source_read_handler(app, docname, source):
         # consider this as an ipynb
         # and do nothing
         return
+
+    # Handle :orphan: directive - must remain at document start to work properly
+    # rst_prolog prepends content which breaks :orphan:, causing it to render as text.
+    # For orphan files, we strip :orphan: entirely since:
+    # 1. Most sphinx-gallery "orphan" files ARE in a toctree and don't need it
+    # 2. Removing it avoids the rendering issue
+    # 3. Any resulting warnings can be addressed by proper toctree inclusion
+    if src.lstrip().startswith(":orphan:"):
+        # Remove :orphan: and any following blank lines
+        src = src.lstrip()
+        src = src[len(":orphan:") :].lstrip("\n")
 
     # Add deprecation warning to table-based input documentation
     deprecation_warning = ""

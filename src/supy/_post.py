@@ -5,6 +5,13 @@ from .supy_driver import module_ctrl_type as sd_dts
 from ._env import logger_supy
 from .data_model.output import OUTPUT_REGISTRY
 
+# Use shared DTS availability check (see _env.py for implementation details)
+from ._env import DTS_AVAILABLE as _DTS_TYPES_AVAILABLE
+from ._env import _init_dts_check
+
+# Initialise DTS check now that supy_driver is available (imported above)
+_init_dts_check()
+
 
 ##############################################################################
 # post-processing part
@@ -742,9 +749,14 @@ def pack_dict_dts(dict_dts):
     return pd.Series(values, index=index)
 
 
-sample_dts = sd_dts.SUEWS_STATE_BLOCK()
-sample_dts.init(3, 3, 3)
-dict_structure = inspect_dts_structure(sample_dts.block[0])
+# Initialize dict_structure only if DTS types are available
+# This is used as a template for pack_dts_state_selective
+if _DTS_TYPES_AVAILABLE:
+    sample_dts = sd_dts.SUEWS_STATE_BLOCK()
+    sample_dts.init(3, 3, 3)
+    dict_structure = inspect_dts_structure(sample_dts.block[0])
+else:
+    dict_structure = None
 
 
 def pack_dict_dts_datetime_grid(dict_dts_datetime_grid):
@@ -804,7 +816,7 @@ def pack_dict_dts_datetime_grid(dict_dts_datetime_grid):
 def pack_dts_state_selective(
     dict_dts_state,
     df_output,
-    dict_vars_sel=dict_structure,
+    dict_vars_sel=None,
 ):
     """
     Selectively extract and pack specified variables from a debug state dictionary into a DataFrame.
@@ -815,18 +827,34 @@ def pack_dts_state_selective(
         Dictionary containing debug state information (typically from res_state)
     df_output : pandas.DataFrame
         DataFrame containing simulation output, used to get datetime index
-    dict_vars_sel : dict
+    dict_vars_sel : dict, optional
         Dictionary mapping state categories to lists of specific variables to extract.
         Format: {'state_category': ['var1', 'var2', ...], ...}
         Example: {'heatState': ['qn', 'qh', 'qe'], 'atmState': ['RH2']}
         If a value is None or empty list, all variables in that state will be extracted.
+        If not provided, uses the default dict_structure (requires DTS build).
 
     Returns
     -------
     pandas.DataFrame
         DataFrame containing only the requested variables, with MultiIndex columns organized
         by state category and variable name, and datetime index.
+
+    Raises
+    ------
+    RuntimeError
+        If dict_vars_sel is None and DTS types are not available in this build.
     """
+    # Use module-level dict_structure as default if not provided
+    if dict_vars_sel is None:
+        if dict_structure is None:
+            raise RuntimeError(
+                "DTS features not available in this build.\n"
+                "This function requires dict_vars_sel parameter or a build with DTS support.\n"
+                "To use DTS features, rebuild with: make clean && make dev-dts"
+            )
+        dict_vars_sel = dict_structure
+
     dict_result = {}
 
     # retrieve datetime from df_output

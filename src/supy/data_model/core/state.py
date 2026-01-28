@@ -9,7 +9,13 @@ from pydantic import (
     PrivateAttr,
 )
 
-from .type import RefValue, Reference, FlexibleRefValue, init_df_state, SurfaceType
+from .type import (
+    RefValue,
+    Reference,
+    FlexibleRefValue,
+    df_from_cols,
+    SurfaceType,
+)
 from ..._env import logger_supy
 
 
@@ -118,52 +124,53 @@ class SurfaceInitialState(BaseModel):
         Returns:
             pd.DataFrame: DataFrame containing initial state parameters
         """
-        df_state = init_df_state(grid_id)
-
         # Get surface index
         if vert_idx is None:
-            idx = self.get_surface_index()
+            surf_idx = self.get_surface_index()
             str_type = "surf"
         else:
-            idx = vert_idx
+            surf_idx = vert_idx
             str_type = "roof" if is_roof else "wall"
         # Set basic state parameters
-        df_state[(f"state_{str_type}", f"({idx},)")] = (
-            self.state.value if isinstance(self.state, RefValue) else self.state
-        )
-        df_state[(f"soilstore_{str_type}", f"({idx},)")] = (
-            self.soilstore.value
-            if isinstance(self.soilstore, RefValue)
-            else self.soilstore
-        )
+        cols = {
+            ("gridiv", "0"): grid_id,
+            (f"state_{str_type}", f"({surf_idx},)"): (
+                self.state.value if isinstance(self.state, RefValue) else self.state
+            ),
+            (f"soilstore_{str_type}", f"({surf_idx},)"): (
+                self.soilstore.value
+                if isinstance(self.soilstore, RefValue)
+                else self.soilstore
+            ),
+        }
 
         # Set snow/ice parameters if present
         if self.snowfrac is not None:
-            df_state[(f"snowfrac", f"({idx},)")] = (
+            cols[(f"snowfrac", f"({surf_idx},)")] = (
                 self.snowfrac.value
                 if isinstance(self.snowfrac, RefValue)
                 else self.snowfrac
             )
         if self.snowpack is not None:
-            df_state[(f"snowpack", f"({idx},)")] = (
+            cols[(f"snowpack", f"({surf_idx},)")] = (
                 self.snowpack.value
                 if isinstance(self.snowpack, RefValue)
                 else self.snowpack
             )
         if self.icefrac is not None:
-            df_state[(f"icefrac", f"({idx},)")] = (
+            cols[(f"icefrac", f"({surf_idx},)")] = (
                 self.icefrac.value
                 if isinstance(self.icefrac, RefValue)
                 else self.icefrac
             )
         if self.snowwater is not None:
-            df_state[(f"snowwater", f"({idx},)")] = (
+            cols[(f"snowwater", f"({surf_idx},)")] = (
                 self.snowwater.value
                 if isinstance(self.snowwater, RefValue)
                 else self.snowwater
             )
         if self.snowdens is not None:
-            df_state[(f"snowdens", f"({idx},)")] = (
+            cols[(f"snowdens", f"({surf_idx},)")] = (
                 self.snowdens.value
                 if isinstance(self.snowdens, RefValue)
                 else self.snowdens
@@ -176,18 +183,18 @@ class SurfaceInitialState(BaseModel):
             else self.temperature
         )
         for i, temp in enumerate(temp_values):
-            df_state[(f"temp_{str_type}", f"({idx}, {i})")] = temp
+            cols[(f"temp_{str_type}", f"({surf_idx}, {i})")] = temp
 
         if self.tsfc is not None:
-            df_state[(f"tsfc_{str_type}", f"({idx},)")] = (
+            cols[(f"tsfc_{str_type}", f"({surf_idx},)")] = (
                 self.tsfc.value if isinstance(self.tsfc, RefValue) else self.tsfc
             )
         if self.tin is not None:
-            df_state[(f"tin_{str_type}", f"({idx},)")] = (
+            cols[(f"tin_{str_type}", f"({surf_idx},)")] = (
                 self.tin.value if isinstance(self.tin, RefValue) else self.tin
             )
 
-        return df_state
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(
@@ -310,21 +317,25 @@ class WaterUse(BaseModel):
 
     def to_df_state(self, veg_idx: int, grid_id: int) -> pd.DataFrame:
         """Convert water use to DataFrame state format."""
-        df_state = init_df_state(grid_id)
-        df_state.loc[grid_id, ("wuday_id", f"({veg_idx * 3 + 0},)")] = (
-            self.wu_total.value
-            if isinstance(self.wu_total, RefValue)
-            else self.wu_total
-        )
-        df_state.loc[grid_id, ("wuday_id", f"({veg_idx * 3 + 1},)")] = (
-            self.wu_auto.value if isinstance(self.wu_auto, RefValue) else self.wu_auto
-        )
-        df_state.loc[grid_id, ("wuday_id", f"({veg_idx * 3 + 2},)")] = (
-            self.wu_manual.value
-            if isinstance(self.wu_manual, RefValue)
-            else self.wu_manual
-        )
-        return df_state
+        cols = {
+            ("gridiv", "0"): grid_id,
+            ("wuday_id", f"({veg_idx * 3 + 0},)"): (
+                self.wu_total.value
+                if isinstance(self.wu_total, RefValue)
+                else self.wu_total
+            ),
+            ("wuday_id", f"({veg_idx * 3 + 1},)"): (
+                self.wu_auto.value
+                if isinstance(self.wu_auto, RefValue)
+                else self.wu_auto
+            ),
+            ("wuday_id", f"({veg_idx * 3 + 2},)"): (
+                self.wu_manual.value
+                if isinstance(self.wu_manual, RefValue)
+                else self.wu_manual
+            ),
+        }
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, veg_idx: int, grid_id: int) -> "WaterUse":
@@ -420,23 +431,33 @@ class InitialStateVeg(SurfaceInitialState):
 
         # Add vegetated surface specific parameters
         # alb is universal so use surf_idx
-        df_state[("alb", f"({surf_idx},)")] = (
-            self.alb_id.value if isinstance(self.alb_id, RefValue) else self.alb_id
-        )
-        # others are aligned with veg_idx
-        df_state[("lai_id", f"({veg_idx},)")] = (
-            self.lai_id.value if isinstance(self.lai_id, RefValue) else self.lai_id
-        )
-        df_state[("gdd_id", f"({veg_idx},)")] = (
-            self.gdd_id.value if isinstance(self.gdd_id, RefValue) else self.gdd_id
-        )
-        df_state[("sdd_id", f"({veg_idx},)")] = (
-            self.sdd_id.value if isinstance(self.sdd_id, RefValue) else self.sdd_id
-        )
+        cols = {
+            ("alb", f"({surf_idx},)"): (
+                self.alb_id.value
+                if isinstance(self.alb_id, RefValue)
+                else self.alb_id
+            ),
+            ("lai_id", f"({veg_idx},)"): (
+                self.lai_id.value
+                if isinstance(self.lai_id, RefValue)
+                else self.lai_id
+            ),
+            ("gdd_id", f"({veg_idx},)"): (
+                self.gdd_id.value
+                if isinstance(self.gdd_id, RefValue)
+                else self.gdd_id
+            ),
+            ("sdd_id", f"({veg_idx},)"): (
+                self.sdd_id.value
+                if isinstance(self.sdd_id, RefValue)
+                else self.sdd_id
+            ),
+        }
+        df_veg = df_from_cols(cols, index=df_state.index)
 
         # Add water use parameters
         df_wu = self.wu.to_df_state(veg_idx, grid_id)
-        df_state = pd.concat([df_state, df_wu], axis=1)
+        df_state = pd.concat([df_state, df_veg, df_wu], axis=1)
 
         # Drop any duplicate columns
         df_state = df_state.loc[:, ~df_state.columns.duplicated()]
@@ -492,10 +513,13 @@ class InitialStateEvetr(InitialStateVeg):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert evergreen tree initial state to DataFrame state format."""
         df_state = super().to_df_state(grid_id)
-        df_state[("albevetr_id", "0")] = (
-            self.alb_id.value if isinstance(self.alb_id, RefValue) else self.alb_id
-        )
-        return df_state
+        cols = {
+            ("albevetr_id", "0"): (
+                self.alb_id.value if isinstance(self.alb_id, RefValue) else self.alb_id
+            )
+        }
+        df_evetr = df_from_cols(cols, index=df_state.index)
+        return pd.concat([df_state, df_evetr], axis=1)
 
     @classmethod
     def from_df_state(
@@ -561,21 +585,23 @@ class InitialStateDectr(InitialStateVeg):
         df_state = super().to_df_state(grid_id)
 
         # Add deciduous tree specific parameters
-        df_state[("porosity_id", "0")] = (
-            self.porosity_id.value
-            if isinstance(self.porosity_id, RefValue)
-            else self.porosity_id
-        )
-        df_state[("decidcap_id", "0")] = (
-            self.decidcap_id.value
-            if isinstance(self.decidcap_id, RefValue)
-            else self.decidcap_id
-        )
-        df_state[("albdectr_id", "0")] = (
-            self.alb_id.value if isinstance(self.alb_id, RefValue) else self.alb_id
-        )
-
-        return df_state
+        cols = {
+            ("porosity_id", "0"): (
+                self.porosity_id.value
+                if isinstance(self.porosity_id, RefValue)
+                else self.porosity_id
+            ),
+            ("decidcap_id", "0"): (
+                self.decidcap_id.value
+                if isinstance(self.decidcap_id, RefValue)
+                else self.decidcap_id
+            ),
+            ("albdectr_id", "0"): (
+                self.alb_id.value if isinstance(self.alb_id, RefValue) else self.alb_id
+            ),
+        }
+        df_dectr = df_from_cols(cols, index=df_state.index)
+        return pd.concat([df_state, df_dectr], axis=1)
 
     @classmethod
     def from_df_state(
@@ -623,10 +649,13 @@ class InitialStateGrass(InitialStateVeg):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert grass initial state to DataFrame state format."""
         df_state = super().to_df_state(grid_id)
-        df_state[("albgrass_id", "0")] = (
-            self.alb_id.value if isinstance(self.alb_id, RefValue) else self.alb_id
-        )
-        return df_state
+        cols = {
+            ("albgrass_id", "0"): (
+                self.alb_id.value if isinstance(self.alb_id, RefValue) else self.alb_id
+            )
+        }
+        df_grass = df_from_cols(cols, index=df_state.index)
+        return pd.concat([df_state, df_grass], axis=1)
 
     @classmethod
     def from_df_state(
@@ -1034,15 +1063,60 @@ class InitialStates(BaseModel):
             "internal_only": True,
         },
     )
-
+    qn_surfs: List[float] = Field(
+        default_factory=lambda: [0.0] * 7,
+        json_schema_extra={
+            "display_name": "Initial QN for each surface",
+            "internal_only": True,
+        },
+        description="Initial QN for each surface (internal use only)",
+    )
+    dqndt_surf: List[float] = Field(
+        default_factory=lambda: [0.0] * 7,
+        json_schema_extra={
+            "display_name": "Initial dQN/dt for each surface",
+            "internal_only": True,
+        },
+        description="Initial dQN/dt for each surface (internal use only)",
+    )
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert initial states to DataFrame state format."""
-        df_state = init_df_state(grid_id)
+        index = pd.Index([grid_id], name="grid")
 
-        # Add snowalb
-        df_state[("snowalb", "0")] = (
-            self.snowalb.value if isinstance(self.snowalb, RefValue) else self.snowalb
-        )
+        cols = {
+            ("gridiv", "0"): grid_id,
+            ("snowalb", "0"): (
+                self.snowalb.value
+                if isinstance(self.snowalb, RefValue)
+                else self.snowalb
+            ),
+            ("dqndt", "0"): self.dqndt,
+            ("dqnsdt", "0"): self.dqnsdt,
+            ("dt_since_start", "0"): self.dt_since_start,
+            ("lenday_id", "0"): self.lenday_id,
+            ("qn_av", "0"): self.qn_av,
+            ("qn_s_av", "0"): self.qn_s_av,
+            ("tair_av", "0"): self.tair_av,
+            ("tmax_id", "0"): self.tmax_id,
+            ("tmin_id", "0"): self.tmin_id,
+            ("tstep_prev", "0"): self.tstep_prev,
+            ("snowfallcum", "0"): self.snowfallcum,
+        }
+
+        # qn_surfs (7)
+        for i, val in enumerate(self.qn_surfs):
+            cols[("qn_surfs", f"({i},)")] = val
+
+        # dqndt_surf (7)
+        for i, val in enumerate(self.dqndt_surf):
+            cols[("dqndt_surf", f"({i},)")] = val
+
+        # special treatment for hdd_id - convert to list format for legacy compatibility
+        hdd_list = self.hdd_id.to_list()
+        for i, hdd in enumerate(hdd_list):
+            cols[(f"hdd_id", f"({i},)")] = hdd
+
+        frames = [df_from_cols(cols, index=index)]
 
         # Add surface states
         surfaces = {
@@ -1056,38 +1130,17 @@ class InitialStates(BaseModel):
         }
         # Add surface states
         for surface in surfaces.values():
-            df_surface = surface.to_df_state(grid_id)
-            df_state = pd.concat([df_state, df_surface], axis=1)
+            frames.append(surface.to_df_state(grid_id))
 
         # Add roof and wall states
         for facet_list, facet_type in [(self.roofs, "roof"), (self.walls, "wall")]:
             if facet_list is not None:  # Check for None explicitly
                 for i, facet in enumerate(facet_list):
                     is_roof = facet_type == "roof"
-                    df_facet = facet.to_df_state(grid_id, i, is_roof)
-                    df_state = pd.concat([df_state, df_facet], axis=1)
-                    df_state = df_state.sort_index(axis=1)
+                    frames.append(facet.to_df_state(grid_id, i, is_roof))
 
-        # Add these attributes to the DataFrame
-        df_state[("dqndt", "0")] = self.dqndt
-        df_state[("dqnsdt", "0")] = self.dqnsdt
-        df_state[("dt_since_start", "0")] = self.dt_since_start
-        df_state[("lenday_id", "0")] = self.lenday_id
-        df_state[("qn_av", "0")] = self.qn_av
-        df_state[("qn_s_av", "0")] = self.qn_s_av
-        df_state[("tair_av", "0")] = self.tair_av
-        df_state[("tmax_id", "0")] = self.tmax_id
-        df_state[("tmin_id", "0")] = self.tmin_id
-        df_state[("tstep_prev", "0")] = self.tstep_prev
-        df_state[("snowfallcum", "0")] = self.snowfallcum
-
+        df_state = pd.concat(frames, axis=1)
         df_state = df_state.sort_index(axis=1)
-        # special treatment for hdd_id - convert to list format for legacy compatibility
-        hdd_list = self.hdd_id.to_list()
-        for i, hdd in enumerate(hdd_list):
-            df_state[(f"hdd_id", f"({i},)")] = hdd
-        df_state = df_state.sort_index(axis=1)
-
         # Drop duplicate columns while preserving first occurrence
         df_state = df_state.loc[:, ~df_state.columns.duplicated(keep="first")]
 
@@ -1154,7 +1207,9 @@ class InitialStates(BaseModel):
         snowfallcum = df.loc[grid_id, ("snowfallcum", "0")]
         hdd_id_list = [df.loc[grid_id, (f"hdd_id", f"({i},)")] for i in range(12)]
         hdd_id = HDD_ID.from_list(hdd_id_list)
-
+        qn_surfs = [float(df.loc[grid_id, ("qn_surfs", f"({i},)")]) for i in range(7)]
+        dqndt_surf = [float(df.loc[grid_id, ("dqndt_surf", f"({i},)")]) for i in range(7)]
+        
         initital_state = {
             "snowalb": snowalb,
             "paved": surfaces["paved"],
@@ -1178,6 +1233,8 @@ class InitialStates(BaseModel):
             "tstep_prev": tstep_prev,
             "snowfallcum": snowfallcum,
             "hdd_id": hdd_id,
+            "qn_surfs": qn_surfs,
+            "dqndt_surf": dqndt_surf
         }
 
         return cls(

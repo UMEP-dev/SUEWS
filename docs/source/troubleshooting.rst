@@ -58,7 +58,7 @@ First things to Check if the program seems to have problems
 -  Check the Python runtime logs (SuPy logger output). Legacy ``problems.txt``/``warnings.txt`` files are no longer written.
 -  Check file options – in RunControl.nml.
 -  Look in the output directory for the SS_FileChoices.txt. This allows you to check all options that were used in the run. You may want to compare it with the original version supplied with the model.
--  Note there can not be missing time steps in the data. If you need help with this you may want to checkout `UMEP`_
+-  Note there can not be missing time steps in the data. If you need help with this you may want to checkout `UMEP <https://umep-docs.readthedocs.io/>`__
 
 A pop-up saying “file path not found"
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

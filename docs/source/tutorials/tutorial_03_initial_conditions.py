@@ -101,13 +101,16 @@ sim = SUEWSSimulation.from_sample_data()
 _ = sim.run()
 soil_history.append(sim.state_final.filter(like="soilstore").mean().mean())
 
+# Capture forcing once — it stays the same across all spin-up iterations.
+forcing_data = sim.forcing
+
 # Spin-up iterations: reuse the same forcing but transfer evolved state.
 # Typically 2-3 iterations suffice for convergence (change < 1 mm).
 n_spinup = 3
 for i in range(n_spinup):
     # Create new simulation from final state and re-attach forcing
     sim_next = SUEWSSimulation.from_state(sim.state_final)
-    sim_next.update_forcing(sim.forcing)
+    sim_next.update_forcing(forcing_data)
     _ = sim_next.run()
     soil_history.append(sim_next.state_final.filter(like="soilstore").mean().mean())
 
@@ -143,12 +146,21 @@ plt.tight_layout()
 
 
 def get_initial_lai(month, laimin=1.0, laimax=5.5):
-    """Estimate initial LAI for a given month.
+    """Estimate initial LAI for a given month (deciduous trees).
+
+    Uses a simple piecewise-linear interpolation between winter minimum
+    and summer maximum LAI. This schedule assumes **northern hemisphere
+    mid-latitude** phenology (winter = DJF, summer = JJA). For southern
+    hemisphere sites, shift months by 6 before calling this function.
+
+    Only appropriate for **deciduous vegetation**. Evergreen trees and
+    grass surfaces have different phenology and should use separate LAI
+    curves (see SUEWS documentation on vegetation parameters).
 
     Parameters
     ----------
     month : int
-        Start month (1-12)
+        Start month (1-12). Northern hemisphere convention.
     laimin : float
         Minimum LAI (winter, leaves off)
     laimax : float

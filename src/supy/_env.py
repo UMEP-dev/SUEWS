@@ -124,7 +124,7 @@ def _init_dts_check():
         return hasattr(_supy_driver, "module_type_heat") and hasattr(
             _supy_driver.module_type_heat, "HEATSTATE"
         )
-    except ImportError:
+    except Exception:
         return False
 
 

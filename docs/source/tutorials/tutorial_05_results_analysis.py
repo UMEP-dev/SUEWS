@@ -74,11 +74,19 @@ print(f"SUEWS variables (first 10): {results['SUEWS'].columns.tolist()[:10]}")
 def get_var(out, name, group="SUEWS"):
     """Extract a single variable as a Series with DatetimeIndex.
 
-    For single-grid simulations, drops the grid level to simplify indexing.
+    Assumes single-grid output (as produced by the sample data).
+    Raises an error if multiple grids are present, since dropping
+    the grid level would produce a non-unique index.
     """
     ser = out.get_variable(name, group=group).iloc[:, 0]
-    # Drop grid level if single grid (common case for tutorials)
+    # Drop grid level only when safe (single grid)
     if isinstance(ser.index, pd.MultiIndex) and ser.index.nlevels == 2:
+        n_grids = ser.index.get_level_values("grid").nunique()
+        if n_grids != 1:
+            raise ValueError(
+                f"Expected single-grid output, but found {n_grids} grids. "
+                "Use MultiIndex indexing directly for multi-grid runs."
+            )
         ser = ser.droplevel("grid")
     return ser
 
@@ -313,10 +321,10 @@ def validation_statistics(observed, modelled):
     # Mean Absolute Error
     mae = (mod - obs).abs().mean()
 
-    # Index of Agreement (Willmott)
+    # Index of Agreement (Willmott, 1981)
     numer = ((mod - obs) ** 2).sum()
-    denom = ((mod - mean_obs).abs() + (obs - mean_obs).abs()) ** 2
-    ioa = 1 - numer / denom.sum() if denom.sum() > 0 else np.nan
+    denom_terms = ((mod - mean_obs).abs() + (obs - mean_obs).abs()) ** 2
+    ioa = 1 - numer / denom_terms.sum() if denom_terms.sum() > 0 else np.nan
 
     return {
         "n": n,

@@ -5,14 +5,8 @@ from .supy_driver import module_ctrl_type as sd_dts
 from ._env import logger_supy
 from .data_model.output import OUTPUT_REGISTRY
 
-# Check if DTS types are available (built with wrap_dts_types=true)
-# The module_type_heat module exists in both builds, but the HEATSTATE class
-# is only generated when DTS type wrappers are enabled
-from . import supy_driver as _supy_driver
-_DTS_TYPES_AVAILABLE = (
-    hasattr(_supy_driver, "module_type_heat") and
-    hasattr(_supy_driver.module_type_heat, "HEATSTATE")
-)
+# Use shared DTS availability check (see _dts_check.py for implementation details)
+from ._dts_check import DTS_AVAILABLE as _DTS_TYPES_AVAILABLE
 
 
 ##############################################################################

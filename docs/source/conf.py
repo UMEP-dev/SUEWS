@@ -54,8 +54,6 @@ try:
 except Exception:
     _DTS_AVAILABLE = False
 
-print(f"DEBUG: DTS available = {_DTS_AVAILABLE}")
-
 # -- Git version information --------------------------------------------------------
 
 # Import get_ver_git module
@@ -712,10 +710,18 @@ def source_read_handler(app, docname, source):
         src = src[len(":orphan:") :].lstrip("\n")
 
     # Fix sphinx-gallery tutorials toctree: replace subsection index references
-    # with direct tutorial page references to avoid duplicate navigation entries
+    # with direct tutorial page references to avoid duplicate navigation entries.
+    #
+    # MAINTENANCE NOTE: This string replacement depends on sphinx-gallery's output
+    # format (tested with sphinx-gallery 0.18+). If sphinx-gallery changes its
+    # generated toctree structure, this replacement may silently fail (no error,
+    # but navigation will show duplicate entries). When upgrading sphinx-gallery,
+    # verify the tutorials navigation structure is correct.
+    #
+    # Alternative approaches considered but not used:
+    # - sphinx-gallery's nested_sections config: doesn't solve the duplicate heading issue
+    # - Custom gallery template: more complex and harder to maintain
     if docname == "auto_examples/index":
-        import re
-
         # Replace toctree that includes subsection index files with direct tutorial pages
         old_toctree = r""".. toctree::
    :hidden:

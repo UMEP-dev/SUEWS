@@ -307,8 +307,8 @@ plt.tight_layout()
 #
 # This tutorial demonstrated the essential SUEWS workflow:
 #
-# 1. **Load sample data** using ``SUEWSSimulation.from_sample_data()``
-# 2. **Run simulation** with ``sim.run()`` which returns ``SUEWSOutput``
+# 1. **Load sample data** using :meth:`~supy.SUEWSSimulation.from_sample_data`
+# 2. **Run simulation** with :meth:`~supy.SUEWSSimulation.run` which returns :class:`~supy.SUEWSOutput`
 # 3. **Explore results** using the OOP interface for intuitive variable access
 #
 # Key concepts covered:

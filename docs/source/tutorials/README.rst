@@ -1,5 +1,3 @@
-.. _suews_tutorials:
-
 SUEWS Tutorials
 ===============
 

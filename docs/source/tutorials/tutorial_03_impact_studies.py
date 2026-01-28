@@ -10,7 +10,7 @@ to investigate the impacts on urban climate of:
 1. **Surface properties**: Physical attributes of land covers (e.g., albedo)
 2. **Background climate**: Long-term meteorological conditions (e.g., air temperature)
 
-**API approach**: This tutorial uses the `SUEWSSimulation` OOP interface but
+**API approach**: This tutorial uses the :class:`~supy.SUEWSSimulation` OOP interface but
 extracts DataFrames for scenario construction. This hybrid pattern is appropriate
 for multi-scenario sensitivity analysis where you need to programmatically
 modify parameters across many test cases.

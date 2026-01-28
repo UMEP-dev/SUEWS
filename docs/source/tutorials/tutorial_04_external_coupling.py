@@ -1,21 +1,21 @@
-"""
+r"""
 External Model Coupling
 =======================
 
 Coupling SUEWS with external models for anthropogenic heat flux.
 
 This example demonstrates how SUEWS can be coupled to external models that
-provide forcing data. We use a simple anthropogenic heat flux (Q_F) model
+provide forcing data. We use a simple anthropogenic heat flux (:math:`Q_F`) model
 driven by outdoor air temperature to show the coupling approach.
 
 **Key concepts:**
 
 - Anthropogenic heat flux depends on outdoor temperature
-- SUEWS can receive external Q_F as forcing input
+- SUEWS can receive external :math:`Q_F` as forcing input
 - One-way coupling: external model provides forcing to SUEWS
 - Temperature feedback affects urban energy balance
 
-**API approach**: This tutorial uses the `SUEWSSimulation` OOP interface but
+**API approach**: This tutorial uses the :class:`~supy.SUEWSSimulation` OOP interface but
 extracts DataFrames for forcing modification. This hybrid pattern is required
 for external model coupling where forcing variables must be modified at runtime.
 """
@@ -30,11 +30,11 @@ from supy import SUEWSSimulation
 # Simple Anthropogenic Heat Model
 # -------------------------------
 #
-# We define a simple Q_F model based on building heating and cooling:
+# We define a simple :math:`Q_F` model based on building heating and cooling:
 #
 # - Heating activates when T < 10°C
 # - Cooling activates when T > 20°C
-# - Between 10-20°C: baseline Q_F = 0
+# - Between 10-20°C: baseline :math:`Q_F` = 0
 #
 # This simplified model captures the temperature-dependent nature of
 # building energy use without requiring detailed building simulation.
@@ -70,10 +70,10 @@ def QF_simple(T2):
 
 
 # %%
-# Visualise the Q_F Model
-# -----------------------
+# Visualise the :math:`Q_F` Model
+# -------------------------------
 #
-# Plot the Q_F response to temperature to understand the model behaviour.
+# Plot the :math:`Q_F` response to temperature to understand the model behaviour.
 
 temp_range = np.arange(-5, 45, 0.5)
 qf_values = [QF_simple(t) for t in temp_range]
@@ -132,31 +132,31 @@ forcing_sliced = sim.forcing["2012-01":"2012-02"].iloc[1:]
 # .. important::
 #
 #    **External coupling requires DataFrame extraction**: When injecting
-#    variables from external models (here: Q_F), you must extract the
+#    variables from external models (here: :math:`Q_F`), you must extract the
 #    DataFrame with ``.df``, add the new column, then pass it to the
 #    simulation. This is the expected pattern for model coupling.
 
-# Get DataFrame for modification (adding external Q_F)
+# Get DataFrame for modification (adding external :math:`Q_F`)
 df_forcing = forcing_sliced.df
 
 print(f"Simulation period: {df_forcing.index[0]} to {df_forcing.index[-1]}")
 print(f"Time steps: {len(df_forcing)}")
 
 # %%
-# Calculate External Q_F from Forcing Data
-# ----------------------------------------
+# Calculate External :math:`Q_F` from Forcing Data
+# ------------------------------------------------
 #
-# Apply the simple Q_F model to the air temperature from the forcing data.
+# Apply the simple :math:`Q_F` model to the air temperature from the forcing data.
 # This is a one-way coupling: the external model uses prescribed temperatures.
 
-# Calculate Q_F for each timestep
+# Calculate :math:`Q_F` for each timestep
 qf_external = df_forcing["Tair"].apply(QF_simple)
 
-# Create modified forcing with external Q_F
+# Create modified forcing with external :math:`Q_F`
 df_forcing_with_qf = df_forcing.copy()
 df_forcing_with_qf["qf"] = qf_external
 
-# Configure SUEWS to use external Q_F
+# Configure SUEWS to use external :math:`Q_F`
 df_state_qf = df_state_init.copy()
 df_state_qf.loc[:, "emissionsmethod"] = 0  # Use prescribed Q_F
 
@@ -166,8 +166,8 @@ print(f"  Max:  {qf_external.max():.2f} W/m²")
 print(f"  Min:  {qf_external.min():.2f} W/m²")
 
 # %%
-# Run Baseline Simulation (Q_F = 0)
-# ---------------------------------
+# Run Baseline Simulation (:math:`Q_F` = 0)
+# -----------------------------------------
 #
 # First, run a simulation without anthropogenic heat for comparison.
 
@@ -186,10 +186,10 @@ df_suews_baseline = output_baseline.SUEWS.loc[grid]
 print("Baseline simulation complete (Q_F = 0)")
 
 # %%
-# Run Simulation with External Q_F
-# --------------------------------
+# Run Simulation with External :math:`Q_F`
+# ----------------------------------------
 #
-# Now run with the temperature-dependent Q_F from our simple model.
+# Now run with the temperature-dependent :math:`Q_F` from our simple model.
 
 sim_with_qf = SUEWSSimulation.from_state(df_state_qf).update_forcing(df_forcing_with_qf)
 output_qf = sim_with_qf.run(logging_level=90)
@@ -199,16 +199,16 @@ df_suews_qf = output_qf.SUEWS.loc[grid]
 print("Coupled simulation complete (with external Q_F)")
 
 # %%
-# Compare Q_F Values
-# ------------------
+# Compare :math:`Q_F` Values
+# --------------------------
 #
-# Compare the prescribed Q_F with the baseline (zero) case.
+# Compare the prescribed :math:`Q_F` with the baseline (zero) case.
 
 fig, axes = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
 
 # Plot Q_F time series
-df_suews_qf["QF"].resample("1h").mean().plot(ax=axes[0], label="With external Q_F")
-df_suews_baseline["QF"].resample("1h").mean().plot(ax=axes[0], label="Baseline (Q_F=0)")
+df_suews_qf["QF"].resample("1h").mean().plot(ax=axes[0], label="With external $Q_F$")
+df_suews_baseline["QF"].resample("1h").mean().plot(ax=axes[0], label="Baseline ($Q_F$=0)")
 axes[0].set_ylabel("$Q_F$ (W m$^{-2}$)")
 axes[0].set_title("Anthropogenic Heat Flux")
 axes[0].legend()
@@ -218,7 +218,7 @@ diff_qf = (df_suews_qf["QF"] - df_suews_baseline["QF"]).resample("1h").mean()
 diff_qf.plot(ax=axes[1], color="C2")
 axes[1].set_ylabel("$\\Delta Q_F$ (W m$^{-2}$)")
 axes[1].set_xlabel("Date")
-axes[1].set_title("Q_F Difference (Coupled - Baseline)")
+axes[1].set_title("$Q_F$ Difference (Coupled - Baseline)")
 axes[1].axhline(0, color="grey", linestyle="--", alpha=0.5)
 
 plt.tight_layout()
@@ -227,12 +227,12 @@ plt.tight_layout()
 # Temperature Feedback
 # --------------------
 #
-# Examine how the external Q_F affects the simulated 2-metre temperature.
+# Examine how the external :math:`Q_F` affects the simulated 2-metre temperature.
 
 fig, axes = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
 
 # Plot T2 time series
-df_suews_qf["T2"].resample("1h").mean().plot(ax=axes[0], label="With external Q_F")
+df_suews_qf["T2"].resample("1h").mean().plot(ax=axes[0], label="With external $Q_F$")
 df_suews_baseline["T2"].resample("1h").mean().plot(ax=axes[0], label="Baseline")
 axes[0].set_ylabel("$T_2$ ($^\\circ$C)")
 axes[0].set_title("2-Metre Air Temperature")
@@ -249,10 +249,10 @@ axes[1].axhline(0, color="grey", linestyle="--", alpha=0.5)
 plt.tight_layout()
 
 # %%
-# Q_F vs Temperature Response
-# ---------------------------
+# :math:`Q_F` vs Temperature Response
+# -----------------------------------
 #
-# Analyse the relationship between Q_F change and temperature change.
+# Analyse the relationship between :math:`Q_F` change and temperature change.
 
 # Daily statistics
 df_daily_qf = df_suews_qf.resample("1D").mean()
@@ -265,7 +265,7 @@ fig, ax = plt.subplots(figsize=(6, 5))
 ax.scatter(diff_qf_daily, diff_t2_daily, alpha=0.7, s=30)
 ax.set_xlabel("$\\Delta Q_F$ (W m$^{-2}$)")
 ax.set_ylabel("$\\Delta T_2$ ($^\\circ$C)")
-ax.set_title("Q_F - Temperature Feedback (Daily Means)")
+ax.set_title("$Q_F$ - Temperature Feedback (Daily Means)")
 
 # Add trend line
 if len(diff_qf_daily.dropna()) > 2:
@@ -285,20 +285,20 @@ plt.tight_layout()
 # This example demonstrated one-way coupling between SUEWS and an external
 # anthropogenic heat flux model:
 #
-# 1. **Simple Q_F model**: Temperature-dependent heating/cooling emissions
-# 2. **One-way coupling**: External Q_F prescribed from air temperature
-# 3. **Temperature feedback**: Q_F affects simulated air temperature
+# 1. Simple :math:`Q_F` model: Temperature-dependent heating/cooling emissions
+# 2. One-way coupling: External :math:`Q_F` prescribed from air temperature
+# 3. Temperature feedback: :math:`Q_F` affects simulated air temperature
 #
 # **Key findings:**
 #
 # - Anthropogenic heat adds energy to the urban surface
-# - Higher Q_F leads to elevated air temperatures
+# - Higher :math:`Q_F` leads to elevated air temperatures
 # - The feedback magnitude depends on atmospheric conditions
 #
 # **Extensions:**
 #
-# - Two-way coupling: SUEWS T2 drives external model, which provides Q_F
-# - Building energy models for detailed Q_F estimation
+# - Two-way coupling: SUEWS T2 drives external model, which provides :math:`Q_F`
+# - Building energy models for detailed :math:`Q_F` estimation
 # - Traffic and metabolic heat contributions
 #
 # .. note::

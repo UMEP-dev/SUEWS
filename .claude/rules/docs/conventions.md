@@ -42,20 +42,25 @@ cd docs && make livehtml     # Live-reload development server
 
 ## Critical RST Rules
 
-1. **No nested markup**: Cannot combine `**` with `:doc:`, `:ref:`
+1. **No nested markup**: Cannot combine `**` with `:doc:`, `:ref:`, `:sub:`, `:math:`
    ```rst
    .. WRONG
    **:doc:`link text <target>`**
+   **Q\ :sub:`F` model**
 
    .. CORRECT
    :doc:`link text <target>`
+   :math:`Q_F` model
    ```
 
-2. **Images require `:alt:`**: All figures must have alt text
+2. **Scientific notation**: Use `:math:` role for subscripts and symbols
+   - `:math:`Q_F`` renders properly as Q with subscript F
+   - Works in all contexts (lists, paragraphs, headings)
+   - Avoid `Q\ :sub:`F`` which breaks in nested contexts
 
-3. **Image path**: Must be `/assets/img/` (absolute from docs/source)
+3. **Images require `:alt:`**: All figures must have alt text
 
-4. **Scientific notation**: `Q\ :sub:`F`` (backslash-space before `:sub:`)
+4. **Image path**: Must be `/assets/img/` (absolute from docs/source)
 
 ---
 
@@ -65,6 +70,31 @@ cd docs && make livehtml     # Live-reload development server
 - **Code blocks**: Always specify language (`python`, `bash`, `fortran`, `yaml`)
 - **Cross-references**: `:ref:` for sections, `:doc:` for documents, `:option:` for parameters
 - **British English**: organise, analyse, colour, behaviour
+
+### API References (Classes and Methods)
+
+Use Sphinx roles for proper linking to API documentation:
+
+- **Classes**: `:class:`~supy.SUEWSSimulation`` (tilde hides module path)
+- **Methods**: `:meth:`~supy.SUEWSSimulation.from_sample_data``
+- **Functions**: `:func:`~supy.run_supy``
+- **Attributes**: `:attr:`~supy.SUEWSSimulation.state_init``
+
+Examples:
+```rst
+The :class:`~supy.SUEWSSimulation` class provides the main interface.
+Use :meth:`~supy.SUEWSSimulation.run` to execute simulations.
+Results are returned as :class:`~supy.SUEWSOutput` objects.
+```
+
+**DO NOT** use backticks alone for API references:
+```rst
+.. WRONG
+``SUEWSSimulation`` or `SUEWSSimulation`
+
+.. CORRECT
+:class:`~supy.SUEWSSimulation`
+```
 
 ---
 
@@ -108,12 +138,12 @@ More content.
 
 ## Tutorial API Approach
 
-Tutorials must use the `SUEWSSimulation` class as the primary interface.
+Tutorials must use the :class:`~supy.SUEWSSimulation` class as the primary interface.
 See `rules/python/api-approach.md` for full guidance.
 
 ### Required Patterns
 
-- **Pure OOP**: Quick-start tutorials use only `SUEWSSimulation` methods
+- **Pure OOP**: Quick-start tutorials use only :class:`~supy.SUEWSSimulation` methods
 - **Hybrid with context**: Tutorials extracting DataFrames must include a docstring note
 
 ### Docstring Notes for Hybrid Tutorials
@@ -127,7 +157,7 @@ Tutorial Title
 
 Description of the tutorial.
 
-**API approach**: This tutorial uses the `SUEWSSimulation` OOP interface but
+**API approach**: This tutorial uses the :class:`~supy.SUEWSSimulation` OOP interface but
 extracts DataFrames for [scenario building/parameter modification/forcing
 modification]. This hybrid pattern is appropriate for [impact studies/external
 coupling/programmatic configuration]. For simpler use cases, prefer pure OOP

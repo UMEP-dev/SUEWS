@@ -45,7 +45,7 @@ from pybtex.style.template import (
 )
 
 import supy
-from sphinx_gallery.sorting import ExplicitOrder, FileNameSortKey
+from sphinx_gallery.sorting import FileNameSortKey
 
 # Check if DTS features are available in this build
 # The dts module may fail to import entirely if supy_driver has issues
@@ -321,15 +321,8 @@ sphinx_gallery_conf = {
     # File patterns
     "filename_pattern": r"/tutorial_",  # Execute files starting with tutorial_
     "ignore_pattern": r"__init__\.py",
-    # Ordering: basic before advanced (pedagogical progression)
-    "subsection_order": ExplicitOrder(
-        [
-            "tutorials/basic",
-            "tutorials/advanced",
-        ]
-    ),
-    # Within subsections: order by filename (numeric prefixes ensure pedagogical order)
-    # tutorial_01_quick_start < tutorial_02_setup < tutorial_03_impact
+    # Order by filename (numeric prefixes ensure pedagogical order)
+    # tutorial_01_quick_start < tutorial_02_setup < tutorial_03_impact < tutorial_04_external
     "within_subsection_order": FileNameSortKey,
     # Execution settings
     "plot_gallery": "True",
@@ -708,36 +701,6 @@ def source_read_handler(app, docname, source):
         # Remove :orphan: and any following blank lines
         src = src.lstrip()
         src = src[len(":orphan:") :].lstrip("\n")
-
-    # Fix sphinx-gallery tutorials toctree: replace subsection index references
-    # with direct tutorial page references to avoid duplicate navigation entries.
-    #
-    # MAINTENANCE NOTE: This string replacement depends on sphinx-gallery's output
-    # format (tested with sphinx-gallery 0.18+). If sphinx-gallery changes its
-    # generated toctree structure, this replacement may silently fail (no error,
-    # but navigation will show duplicate entries). When upgrading sphinx-gallery,
-    # verify the tutorials navigation structure is correct.
-    #
-    # Alternative approaches considered but not used:
-    # - sphinx-gallery's nested_sections config: doesn't solve the duplicate heading issue
-    # - Custom gallery template: more complex and harder to maintain
-    if docname == "auto_examples/index":
-        # Replace toctree that includes subsection index files with direct tutorial pages
-        old_toctree = r""".. toctree::
-   :hidden:
-   :includehidden:
-
-
-   /auto_examples/basic/index.rst
-   /auto_examples/advanced/index.rst"""
-        new_toctree = """.. toctree::
-   :hidden:
-
-   /auto_examples/basic/plot_01_quick_start
-   /auto_examples/basic/plot_02_setup_own_site
-   /auto_examples/basic/plot_03_impact_studies
-   /auto_examples/advanced/plot_external_coupling"""
-        src = src.replace(old_toctree, new_toctree)
 
     # Add deprecation warning to table-based input documentation
     deprecation_warning = ""

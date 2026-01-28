@@ -15,8 +15,8 @@ You will learn to:
 2. Load external forcing data from a file
 3. Run the simulation and analyse results
 
-**API approach**: This tutorial uses the ``SUEWSSimulation`` OOP interface
-with ``update_config()`` for parameter modification. This approach provides
+**API approach**: This tutorial uses the :class:`~supy.SUEWSSimulation` OOP interface
+with :meth:`~supy.SUEWSSimulation.update_config` for parameter modification. This approach provides
 a clean separation between configuration and execution.
 """
 
@@ -278,10 +278,10 @@ else:
 # This tutorial demonstrated how to configure SUEWS for a custom site using
 # the OOP API:
 #
-# 1. **Create simulation**: ``SUEWSSimulation.from_sample_data()`` for defaults
-# 2. **Configure site**: ``update_config()`` with nested dictionary structure
-# 3. **Load forcing**: ``update_forcing(path)`` with automatic resampling
-# 4. **Run simulation**: ``sim.run()`` returns ``SUEWSOutput`` object
+# 1. **Create simulation**: :meth:`~supy.SUEWSSimulation.from_sample_data` for defaults
+# 2. **Configure site**: :meth:`~supy.SUEWSSimulation.update_config` with nested dictionary structure
+# 3. **Load forcing**: :meth:`~supy.SUEWSSimulation.update_forcing` with automatic resampling
+# 4. **Run simulation**: :meth:`~supy.SUEWSSimulation.run` returns :class:`~supy.SUEWSOutput` object
 #
 # **Key concepts:**
 #

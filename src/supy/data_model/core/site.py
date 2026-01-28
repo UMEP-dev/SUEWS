@@ -341,6 +341,10 @@ class LAIPowerCoefficients(BaseModel):
 class LAIParams(BaseModel):
     model_config = ConfigDict(title="LAI")
 
+    # Default laimax for DataFrame serialisation when field value is None.
+    # Used by to_df_state() and config-level auto-albedo calculation.
+    LAIMAX_DF_DEFAULT: ClassVar[float] = 10.0
+
     baset: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Base temperature for initiating growing degree days (GDD) for leaf growth",
@@ -433,7 +437,7 @@ class LAIParams(BaseModel):
                     "gddfull": 100.0,
                     "basete": 10.0,
                     "sddfull": 100.0,
-                    "laimax": 10.0,
+                    "laimax": self.LAIMAX_DF_DEFAULT,
                     "laitype": 0,
                 }
                 val = defaults.get(param, 0.0)
@@ -497,14 +501,14 @@ class VegetatedSurfaceProperties(SurfaceProperties):
     alb_min: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
-        description="Minimum albedo",
+        description="Minimum albedo (trees: leaf-off; grass: full-leaf)",
         json_schema_extra={"unit": "dimensionless", "display_name": "Minimum Albedo"},
         default=0.2,
     )
     alb_max: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
-        description="Maximum albedo",
+        description="Maximum albedo (trees: leaf-on; grass: sparse or senesced)",
         json_schema_extra={"unit": "dimensionless", "display_name": "Maximum Albedo"},
         default=0.3,
     )

@@ -247,7 +247,13 @@ def gen_suews_arg_info_df(docstring):
 # note: infer data types for variables to avoid type conversion
 df_info_suews_cal_multitsteps = gen_suews_arg_info_df(
     _sd.f90wrap_suews_driver__suews_cal_multitsteps.__doc__
-).infer_objects(copy=False)
+)
+if version.parse(pd.__version__) >= version.parse("3.0.0"):
+    df_info_suews_cal_multitsteps = df_info_suews_cal_multitsteps.infer_objects()
+else:
+    df_info_suews_cal_multitsteps = df_info_suews_cal_multitsteps.infer_objects(
+        copy=False
+    )
 
 df_var_info = df_info_suews_cal_multitsteps.set_index("name")
 

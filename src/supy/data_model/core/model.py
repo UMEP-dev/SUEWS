@@ -6,8 +6,7 @@ import pandas as pd
 from enum import Enum
 import inspect
 
-from .type import RefValue, Reference, FlexibleRefValue
-from .type import init_df_state
+from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -662,17 +661,7 @@ class ModelPhysics(BaseModel):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model physics properties to DataFrame state format."""
-        df_state = init_df_state(grid_id)
-
-        # Helper function to set values in DataFrame
-        def set_df_value(col_name: str, value: float):
-            idx_str = "0"
-            if (col_name, idx_str) not in df_state.columns:
-                # df_state[(col_name, idx_str)] = np.nan
-                df_state[(col_name, idx_str)] = None
-            val = value.value if isinstance(value, RefValue) else value
-            df_state.at[grid_id, (col_name, idx_str)] = int(val)
-
+        cols = {("gridiv", "0"): grid_id}
         list_attr = [
             "netradiationmethod",
             "emissionsmethod",
@@ -692,8 +681,10 @@ class ModelPhysics(BaseModel):
             "rcmethod",
         ]
         for attr in list_attr:
-            set_df_value(attr, getattr(self, attr))
-        return df_state
+            value = getattr(self, attr)
+            val = value.value if isinstance(value, RefValue) else value
+            cols[(attr, "0")] = int(val)
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ModelPhysics":
@@ -834,23 +825,14 @@ class ModelControl(BaseModel):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model control properties to DataFrame state format."""
-        df_state = init_df_state(grid_id)
-
-        # Helper function to set values in DataFrame
-        def set_df_value(col_name: str, value: float):
-            idx_str = "0"
-            if (col_name, idx_str) not in df_state.columns:
-                # df_state[(col_name, idx_str)] = np.nan
-                df_state[(col_name, idx_str)] = None
-            df_state.at[grid_id, (col_name, idx_str)] = value
-
+        cols = {("gridiv", "0"): grid_id}
         list_attr = ["tstep", "diagnose"]
         for attr in list_attr:
             value = getattr(self, attr)
             # Extract value from RefValue if needed
             val = value.value if isinstance(value, RefValue) else value
-            set_df_value(attr, val)
-        return df_state
+            cols[(attr, "0")] = val
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ModelControl":
@@ -880,7 +862,9 @@ class Model(BaseModel):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model to DataFrame state format"""
-        df_state = init_df_state(grid_id)
+        df_state = df_from_cols(
+            {("gridiv", "0"): grid_id}, index=pd.Index([grid_id], name="grid")
+        )
         df_control = self.control.to_df_state(grid_id)
         df_physics = self.physics.to_df_state(grid_id)
         df_state = pd.concat([df_state, df_control, df_physics], axis=1)

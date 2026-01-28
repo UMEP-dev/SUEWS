@@ -169,6 +169,14 @@ def FlexibleRefValue(type_param):
     return Union[RefValue[type_param], type_param]
 
 
+def df_from_cols(cols: dict, index: pd.Index) -> pd.DataFrame:
+    df_state = pd.DataFrame(cols, index=index)
+    df_state.columns = pd.MultiIndex.from_tuples(
+        df_state.columns, names=["var", "ind_dim"]
+    )
+    return df_state
+
+
 def init_df_state(grid_id: int) -> pd.DataFrame:
     idx = pd.Index([grid_id], name="grid")
     col = pd.MultiIndex.from_tuples([("gridiv", "0")], names=["var", "ind_dim"])

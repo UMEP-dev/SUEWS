@@ -28,6 +28,7 @@ import numpy as np
 
 # Import from validation package
 from .. import logger_supy
+from .report_writer import REPORT_WRITER
 from ..core.yaml_helpers import (
     get_mean_monthly_air_temperature as _get_mean_monthly_air_temperature,
     get_mean_annual_air_temperature as _get_mean_annual_air_temperature,
@@ -1247,17 +1248,33 @@ def adjust_model_dependent_nullification(
                 def _recursive_nullify(node: Any, path: str):
                     if isinstance(node, dict):
                         if "value" in node:
-                            if node["value"] is not None:
-                                node["value"] = None
-                                nullified_params.append(path)
+                            inner = node.get("value")
+                            if isinstance(inner, list):
+                                if any(item is not None for item in inner):
+                                    node["value"] = [None] * len(inner)
+                                    nullified_params.append(path)
+                            else:
+                                if inner is not None:
+                                    node["value"] = None
+                                    nullified_params.append(path)
                         else:
                             for key, val in node.items():
                                 child_path = f"{path}.{key}" if path else key
-                                _recursive_nullify(val, child_path)
+                                if isinstance(val, (dict, list)):
+                                    _recursive_nullify(val, child_path)
+                                else:
+                                    if val is not None:
+                                        node[key] = None
+                                        nullified_params.append(child_path)
                     elif isinstance(node, list):
                         for idx, item in enumerate(node):
                             child_path = f"{path}[{idx}]" if path else f"[{idx}]"
-                            _recursive_nullify(item, child_path)
+                            if isinstance(item, (dict, list)):
+                                _recursive_nullify(item, child_path)
+                            else:
+                                if item is not None:
+                                    node[idx] = None
+                                    nullified_params.append(child_path)
 
                 _recursive_nullify(block, block_name)
                 if nullified_params:
@@ -1615,8 +1632,7 @@ def create_science_report(
 
     if phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
-            with open(phase_a_report_file, "r") as f:
-                phase_a_content = f.read()
+            phase_a_content = REPORT_WRITER.read(phase_a_report_file)
 
             lines = phase_a_content.split("\n")
             current_section = None
@@ -1690,7 +1706,7 @@ def create_science_report(
                 else ""
             )
             report_lines.append(
-                f"-- {adjustment.parameter}{site_ref}: {adjustment.old_value} → {adjustment.new_value} ({adjustment.reason})"
+                f"-- {adjustment.parameter}{site_ref}: {adjustment.old_value} -> {adjustment.new_value} ({adjustment.reason})"
             )
 
     phase_a_items = []
@@ -1765,7 +1781,7 @@ def print_critical_halt_message(critical_errors: List[ValidationResult]):
         site_ref = (
             f" at site [{error.site_gridid}]" if error.site_gridid is not None else ""
         )
-        print(f"  ✗ {error.parameter}{site_ref}")
+        print(f"  [X] {error.parameter}{site_ref}")
         print(f"    {error.message}")
         if error.suggested_value is not None:
             print(f"    Suggested: {error.suggested_value}")
@@ -1925,8 +1941,7 @@ def run_science_check(
 
         # Write error report file
         if science_report_file:
-            with open(science_report_file, "w") as f:
-                f.write(report_content)
+            REPORT_WRITER.write(science_report_file, report_content)
 
         # Re-raise the exception so orchestrator knows it failed
         raise e
@@ -1953,8 +1968,7 @@ def run_science_check(
     )
 
     if science_report_file:
-        with open(science_report_file, "w") as f:
-            f.write(report_content)
+        REPORT_WRITER.write(science_report_file, report_content)
 
     if critical_errors:
         print_critical_halt_message(critical_errors)
@@ -1964,7 +1978,7 @@ def run_science_check(
 
     if science_yaml_file and not critical_errors:
         header = create_science_yaml_header(phase_a_performed)
-        with open(science_yaml_file, "w") as f:
+        with open(science_yaml_file, "w", encoding="utf-8", newline="\n") as f:
             f.write(header)
             yaml.dump(
                 science_checked_data, f, default_flow_style=False, sort_keys=False

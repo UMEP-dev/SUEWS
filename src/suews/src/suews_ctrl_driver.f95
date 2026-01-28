@@ -403,14 +403,6 @@ CONTAINS
                END IF
                !===================Resistance Calculations End=======================
 
-               ! ========================================================================
-               ! SUEWS_cal_BiogenCO2: calculate biogenic CO2 fluxes
-               ! N.B.: Must be called after SUEWS_cal_Resistance which sets phenState%gfunc
-               ! ========================================================================
-               CALL SUEWS_cal_BiogenCO2( &
-                  timer, config, forcing, siteInfo, & ! input
-                  modState) ! input/output:
-
                !===================Calculate surface hydrology and related soil water=======================
                ! MP: Until Snow has been fixed this should not be used (TODO)
                IF (config%SnowUse == 1) THEN
@@ -484,7 +476,7 @@ CONTAINS
             END IF
 
             !==============================================================
-            ! Calculate diagnostics: these variables are decoupled from the main SUEWS calculation
+            ! Calculate diagnostics and biogenic CO2 (no feedback to energy balance)
 
             !============ roughness sub-layer diagonostics ===============
             IF (Diagnose == 1) WRITE (*, *) 'Calling RSLProfile...'
@@ -496,17 +488,18 @@ CONTAINS
                debugState%state_13_rsl = modState
             END IF
 
-!             ! SG 05/25: Subroutine commented out until checked
-!             ! ============ BIOGENIC CO2 FLUX =======================
-!             IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_BiogenCO2_DTS...'
-!             CALL SUEWS_cal_BiogenCO2( &
-!                timer, config, forcing, siteInfo, & ! input
-!                modState) ! input/output:
-!             IF (config%flag_test .AND. PRESENT(debugState)) THEN
-!                debugState%state_14_biogenco2 = modState
-!             END IF
+            ! ========================================================================
+            ! SUEWS_cal_BiogenCO2: calculate biogenic CO2 fluxes
+            ! N.B.: Called after SUEWS_cal_Resistance and RSLProfile to use current local climate diagnostics
+            ! ========================================================================
+            CALL SUEWS_cal_BiogenCO2( &
+               timer, config, forcing, siteInfo, & ! input
+               modState) ! input/output:
+            IF (config%flag_test .AND. PRESENT(debugState)) THEN
+               debugState%state_14_biogenco2 = modState
+            END IF
 
-            ! calculations of diagnostics end
+            ! calculations of diagnostics and biogenic CO2 end
             !==============================================================
             IF (Diagnose == 1) WRITE (*, *) 'update inout variables with new values...'
             !==============================================================
@@ -912,7 +905,6 @@ CONTAINS
 
             !============= calculate surface temperature based on QS ===============
             nz = 5
-            T_bottom = 11.1D0 !annual mean air temperature in London 2012
             z = (/ 0.0D0, 0.03D0, 0.1D0, 1.5D0, 3.0D0 /)
             ! Loop over surfaces
             DO i_surf = 1, nsurf
@@ -1028,7 +1020,7 @@ CONTAINS
                QF => heatState%QF, &
                QF_SAHP => heatState%QF_SAHP, &
                T2_c => atmstate%t2_C, &
-               T_hbh_C => atmState%T_hbh_C, &
+               T_half_bldg_C => atmState%T_half_bldg_C, &
                Temp_C => forcing%Temp_C, &
                QF_obs => forcing%QF_obs &
                )
@@ -1072,7 +1064,7 @@ CONTAINS
                   qf = QF_obs
                ELSEIF ((EmissionsMethod > 0 .AND. EmissionsMethod <= 6) .OR. EmissionsMethod >= 11) THEN
                   ! choose temperature for anthropogenic heat flux calculation
-                  Tair = MERGE(T_hbh_C, MERGE(T2_C, Temp_C, RSLLevel == 1), RSLLevel == 2)
+                  Tair = MERGE(T_half_bldg_C, MERGE(T2_C, Temp_C, RSLLevel == 1), RSLLevel == 2)
 
                   CALL AnthropogenicEmissions( &
                      CO2PointSource, EmissionsMethod, &
@@ -1138,8 +1130,10 @@ CONTAINS
       TYPE(SUEWS_STATE), INTENT(INout) :: modState
 
       REAL(KIND(1D0)) :: gfunc2 !gdq*gtemp*gs*gq for photosynthesis calculations (With modelled 2 meter temperature)
+      REAL(KIND(1D0)) :: gfunc_use ! conductance function for biogenic CO2 calculations [-]
       REAL(KIND(1D0)) :: dq !Specific humidity deficit [g/kg]
       REAL(KIND(1D0)) :: t2 !air temperature at 2m [degC]
+      REAL(KIND(1D0)) :: Tair_local ! air temperature for biogenic CO2 [degC]
       REAL(KIND(1D0)) :: dummy1 !Latent heat of vaporization in [J kg-1]
       REAL(KIND(1D0)) :: dummy2 !Latent heat of sublimation in J/kg
       REAL(KIND(1D0)) :: dummy3 !Saturation vapour pressure over water[hPa]
@@ -1182,6 +1176,7 @@ CONTAINS
             avRH => forcing%RH, &
             Press_hPa => forcing%pres, &
             t2_C => atmState%t2_C, &
+            T_half_bldg_C => atmState%T_half_bldg_C, &
             LAI_id => phenState%LAI_id, &
             gfunc => phenState%gfunc, &
             vsmd => hydroState%vsmd, &
@@ -1196,6 +1191,7 @@ CONTAINS
             SnowFrac => snowState%SnowFrac, &
             SMDMethod => config%SMDMethod, &
             EmissionsMethod => config%EmissionsMethod, &
+            RSLLevel => config%RSLLevel, &
             Diagnose => config%Diagnose &
             )
 
@@ -1238,8 +1234,26 @@ CONTAINS
                )
 
                IF (EmissionsMethod >= 11) THEN
-                  ! Initialize gfunc2 to same as gfunc
-                  gfunc2 = gfunc
+                  ! Initialise conductance functions for biogenic CO2 calculations
+                  gfunc_use = gfunc
+                  gfunc2 = gfunc_use
+
+                  ! Select local air temperature for biogenic CO2 calculations
+                  Tair_local = MERGE(T_half_bldg_C, MERGE(t2_C, Temp_C, RSLLevel == 1), RSLLevel == 2)
+
+                  IF ((gsmodel == 1 .OR. gsmodel == 2) .AND. RSLLevel > 0) THEN
+                     CALL cal_AtmMoist( &
+                        Tair_local, Press_hPa, avRh, dectime, & ! input:
+                        dummy1, dummy2, & ! output:
+                        dummy3, dummy4, dummy5, dummy6, dq, dummy7, dummy8, dummy9)
+                     CALL SurfaceResistance( &
+                        id, it, & ! input:
+                        SMDMethod, SnowFrac, sfr_surf, avkdn, Tair_local, dq, xsmd, vsmd, MaxConductance, &
+                        LAIMax, LAI_id, gsModel, Kmax, &
+                        G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, &
+                        unused_gc1, unused_gc2, unused_gc3, unused_gc4, unused_gc5, & ! output: (unused conductances)
+                        gfunc_use, unused_gs, unused_rs) ! output:
+                  END IF
 
                   IF (gsmodel == 3 .OR. gsmodel == 4) THEN ! With modelled 2 meter temperature
                      ! Call LUMPS_cal_AtmMoist for dq and SurfaceResistance for gfunc with 2 meter temperature
@@ -1264,8 +1278,11 @@ CONTAINS
                         G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, &
                         unused_gc1, unused_gc2, unused_gc3, unused_gc4, unused_gc5, & ! output: (unused conductances)
                         gfunc2, unused_gs, unused_rs) ! output:
+                  ELSEIF ((gsmodel == 1 .OR. gsmodel == 2) .AND. RSLLevel > 0) THEN
+                     ! Use local temperature for gsmodel 1/2 with RSL diagnostics
+                     t2 = Tair_local
                   ELSE
-                     ! Use measured temperature
+                     ! Use forcing temperature (RSLLevel=0 or unrecognised gsmodel)
                      t2 = Temp_C
                   END IF
 
@@ -1273,9 +1290,9 @@ CONTAINS
                   IF (Diagnose == 1) WRITE (*, *) 'Calling CO2_biogen...'
                   CALL CO2_biogen( &
                      alpha_bioCO2, alpha_enh_bioCO2, avkdn, beta_bioCO2, beta_enh_bioCO2, BSoilSurf, & ! input:
-                     ConifSurf, DecidSurf, dectime, EmissionsMethod, gfunc, gfunc2, GrassSurf, gsmodel, &
+                     ConifSurf, DecidSurf, dectime, EmissionsMethod, gfunc_use, gfunc2, GrassSurf, gsmodel, &
                      id, it, ivConif, ivDecid, ivGrass, LAI_id, LAIMin, LAIMax, min_res_bioCO2, nsurf, &
-                     NVegSurf, resp_a, resp_b, sfr_surf, SnowFrac, t2, Temp_C, theta_bioCO2, &
+                     NVegSurf, resp_a, resp_b, sfr_surf, SnowFrac, t2, theta_bioCO2, &
                      Fc_biogen, Fc_photo, Fc_respi) ! output:
                ELSE
                   ! EmissionsMethod 0-10: No biogenic CO2 calculations
@@ -1646,6 +1663,7 @@ CONTAINS
             zenith_deg => solarstate%zenith_deg, &
             qf => heatState%qf, &
             qn => heatState%qn, &
+            qn_surf => heatState%qn_surf, &
             qs => heatState%qs, &
             ldown => heatState%ldown, &
             tsfc_roof => heatState%tsfc_roof, &
@@ -1914,14 +1932,27 @@ CONTAINS
                   qn_use = qn
                END IF
 
+               !==============use STEBBS to get localised surface temperature and storage heat flux==================
+               ! MP 12 Sep 2024: STEBBS is a simplified BEM
+               IF (config%stebbsmethod == 1 .OR. config%stebbsmethod == 2) THEN
+                  IF (Diagnose == 1) WRITE (*, *) 'Calling STEBBS...'
+                  CALL stebbsonlinecouple( &
+                     timer, config, forcing, siteInfo, & ! input
+                     modState, & ! input/output:
+                     datetimeLine, nlayer, & ! input
+                     dataOutLineSTEBBS) ! output
+               END IF
+
                IF (StorageHeatMethod == 0) THEN !Use observed QS
                   qs = qs_obs
 
                ELSEIF (StorageHeatMethod == 1 .OR. StorageHeatMethod == 6 .OR. StorageHeatMethod == 7) THEN !Use OHM to calculate QS
                   Tair_mav_5d = HDD_id(10)
                   IF (Diagnose == 1) WRITE (*, *) 'Calling OHM...'
-                  CALL OHM(qn_use, ohmState%qn_av, ohmState%dqndt, &
+                  CALL OHM(qn_use, qn_surf, ohmState%qn_av, ohmState%dqndt, &
                            ohmState%qn_av, ohmState%dqndt, &
+                           ohmState%qn_surfs, ohmState%dqndt_surf, &
+                           ohmState%qn_surfs, ohmState%dqndt_surf, &
                            qn_snow, ohmState%qn_s_av, ohmState%dqnsdt, &
                            ohmState%qn_s_av, ohmState%dqnsdt, &
                            tstep, dt_since_start, &
@@ -1932,7 +1963,7 @@ CONTAINS
                            soilstore_id, SoilStoreCap, state_id, &
                            BldgSurf, WaterSurf, &
                            SnowUse, SnowFrac, &
-                           atmState%U_hbh, atmState%T_hbh_C, t2_prev, &
+                           atmState%U_hbh, atmState%T_half_bldg_C, t2_prev, &
                            ws_rav, qn_rav, nlayer, &
                            dz_roof, cp_roof, k_roof, &
                            dz_wall, cp_wall, k_wall, &
@@ -1946,11 +1977,23 @@ CONTAINS
                            a1_grass, a2_grass, a3_grass, &
                            a1_bsoil, a2_bsoil, a3_bsoil, &
                            a1_water, a2_water, a3_water, &
-                           a1, a2, a3, qs, deltaQi, &
+                           a1, a2, a3, qs, qs_surf, deltaQi, &
                            modState)
-                  QS_surf = qs
-                  QS_roof = qs
-                  QS_wall = qs
+                  IF (StorageHeatMethod /= 6 .AND. StorageHeatMethod /= 7) THEN
+                     QS_surf = qs
+                     QS_roof = qs
+                     QS_wall = qs
+                  ELSE
+                     ! Methods 6 and 7 
+                     IF (StorageHeatMethod == 7) THEN !for method 7 when STEBBS is used for building
+                        qs = qs + QS_stebbs * sfr_surf(2)
+                        QS_surf(2) = QS_stebbs
+                     END IF
+                     ! Method 6 dyOHM for all surfaces.
+                     QS_roof = QS_surf(2)
+                     QS_wall = QS_surf(2)
+
+                  END IF
 
                   ! use AnOHM to calculate QS, TS 14 Mar 2016
                   ! disable AnOHM, TS 20 Jul 2023
@@ -2020,20 +2063,6 @@ CONTAINS
                   ! PRINT *, ''
 
                END IF
-               !==============use STEBBS to get localised surface temperature and storage heat flux==================
-               ! MP 12 Sep 2024: STEBBS is a simplified BEM
-               IF (config%stebbsmethod == 1 .OR. config%stebbsmethod == 2) THEN
-                  IF (Diagnose == 1) WRITE (*, *) 'Calling STEBBS...'
-                  CALL stebbsonlinecouple( &
-                     timer, config, forcing, siteInfo, & ! input
-                     modState, & ! input/output:
-                     datetimeLine, nlayer, & ! input
-                     dataOutLineSTEBBS) ! output
-                  IF (StorageHeatMethod == 7) THEN
-                     qs = qs + QS_stebbs * sfr_surf(2)
-                  END IF
-               END IF
-
             END ASSOCIATE
          END ASSOCIATE
       END ASSOCIATE
@@ -3188,7 +3217,7 @@ CONTAINS
             L_mod => atmState%L_mod, &
             RB => atmState%RB, &
             T2_C => atmState%T2_C, &
-            T_hbh_C => atmState%T_hbh_C, &
+            T_half_bldg_C => atmState%T_half_bldg_C, &
             QH_init => heatState%QH_init, &
             z0v => roughnessState%z0v, &
             zzd => roughnessState%zzd, &
@@ -3279,7 +3308,7 @@ CONTAINS
 
                IF (Diagnose == 1) WRITE (*, *) 'Calling SurfaceResistance...'
                ! CALL SurfaceResistance(id,it)   !qsc and surface resistance out
-               Tair = MERGE(T_hbh_C, MERGE(T2_C, Temp_C, RSLLevel == 1), RSLLevel == 2)
+               Tair = MERGE(T_half_bldg_C, MERGE(T2_C, Temp_C, RSLLevel == 1), RSLLevel == 2)
                CALL SurfaceResistance( &
                   id, it, & ! input:
                   SMDMethod, SnowFrac, sfr_surf, avkdn, Tair, dq, xsmd, vsmd, MaxConductance, &
@@ -3400,9 +3429,11 @@ CONTAINS
             QmFreez => snowState%QmFreez, &
             QmRain => snowState%QmRain, &
             qn => heatState%qn, &
+            qn_surf => heatState%qn_surf, &
             qn_snow => snowState%qn_snow, &
             qn_snowfree => heatState%qn_snowfree, &
             qs => heatState%qs, &
+            qs_surf => heatState%qs_surf, &
             RA => atmState%RA_h, &
             RS => atmState%RS, &
             RH2 => atmState%RH2, &
@@ -3486,8 +3517,8 @@ CONTAINS
                                qn_snowfree, qn_snow, SnowAlb, &
                                Qm, QmFreez, QmRain, swe, mwh, MwStore, chSnow_per_interval, &
                                SnowRemoval(1:2), &
-                               tsfc_C, t2_C, q2_gkg, avU10_ms, RH2_pct, Tsfc_surf, Tsfc_surf_dyohm & ! surface-level diagonostics
-                               ]
+                               tsfc_C, t2_C, q2_gkg, avU10_ms, RH2_pct, Tsfc_surf, Tsfc_surf_dyohm, & ! surface-level diagonostics
+                               qn_surf, qs_surf]
             ! set invalid values to NAN
             ! dataOutLineSUEWS = set_nan(dataOutLineSUEWS)
 
@@ -3815,7 +3846,7 @@ CONTAINS
       beta_bioCO2, beta_enh_bioCO2, bldgH, CapMax_dec, CapMin_dec, &
       chAnOHM, CO2PointSource, cpAnOHM, CRWmax, CRWmin, DayWat, DayWatPer, &
       DecTreeH, RSLMethod, Diagnose, DRAINRT, &
-      dt_since_start, dqndt, qn_av, dqnsdt, qn_s_av, &
+      dt_since_start, dqndt, qn_av, dqndt_surf, qn_surfs, dqnsdt, qn_s_av, &
       EF_umolCO2perJ, emis, EmissionsMethod, EnEF_v_Jkm, endDLS, EveTreeH, FAIBldg, &
       FAIDecTree, FAIEveTree, FAIMethod, Faut, FcEF_v_kgkm, FlowChange, &
       FrFossilFuel_Heat, FrFossilFuel_NonHeat, G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, GDD_id, &
@@ -4206,7 +4237,9 @@ CONTAINS
       ! ---OHM related states
       TYPE(OHM_STATE) :: ohmState
       REAL(KIND(1D0)), INTENT(INOUT) :: qn_av ! weighted average of net all-wave radiation [W m-2]
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(INOUT) :: qn_surfs ! weighted average of net all-wave radiation [W m-2]
       REAL(KIND(1D0)), INTENT(INOUT) :: dqndt ! rate of change of net radiation [W m-2 h-1]
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(INOUT) :: dqndt_surf ! rate of change of net radiation [W m-2 h-1]
       REAL(KIND(1D0)), INTENT(INOUT) :: qn_s_av ! weighted average of qn over snow [W m-2]
       REAL(KIND(1D0)), INTENT(INOUT) :: dqnsdt ! Rate of change of net radiation [W m-2 h-1]
 
@@ -4214,7 +4247,7 @@ CONTAINS
       REAL(KIND(1D0)) :: t2_prev ! previous day midnight air temperature [degC]
       REAL(KIND(1D0)) :: ws_rav ! running average of wind speed [m s-1]
       REAL(KIND(1D0)) :: tair_prev
-      REAL(KIND(1D0)) :: qn_rav ! running average of net radiation [W m-2]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: qn_rav ! running average of net radiation of each surface [W m-2]
       REAL(KIND(1D0)) :: a1_bldg ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)) :: a2_bldg ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)) :: a3_bldg ! Dynamic OHM coefficients of buildings
@@ -5077,7 +5110,9 @@ CONTAINS
 
       ! OHM related:
       ohmState%qn_av = qn_av
+      ohmState%qn_surfs = qn_surfs
       ohmState%dqndt = dqndt
+      ohmState%dqndt_surf = dqndt_surf
       ohmState%qn_s_av = qn_s_av
       ohmState%dqnsdt = dqnsdt
 
@@ -5418,6 +5453,8 @@ CONTAINS
 
       qn_av = ohmState%qn_av
       dqndt = ohmState%dqndt
+      qn_surfs = ohmState%qn_surfs
+      dqndt_surf = ohmState%dqndt_surf
       qn_s_av = ohmState%qn_s_av
       dqnsdt = ohmState%dqnsdt
 

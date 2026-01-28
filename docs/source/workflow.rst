@@ -216,10 +216,6 @@ This notebook includes:
 - Data exploration exercises
 - Troubleshooting tips
 
-**Essential Workflows Guide**
-
-For comprehensive coverage of preparing initial conditions, designing simulation scenarios, and examining results, see the :doc:`User Workflow Guide </sub-tutorials/user-workflow-guide>`.
-
 Part II: Configure SUEWS for Your Site
 ---------------------------------------
 

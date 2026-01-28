@@ -131,7 +131,6 @@ How to support SUEWS?
    installation
    workflow
    auto_examples/index
-   sub-tutorials/user-workflow-guide
    inputs/index
    outputs/index
    api

@@ -22,9 +22,8 @@ seamless integration with the scientific Python ecosystem.
 import os
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import supy as sp
+
 from supy import SUEWSSimulation
 
 # Detect CI environment for reduced computation
@@ -37,24 +36,12 @@ _IS_CI = os.environ.get("CI", "false").lower() == "true"
 # SuPy includes built-in sample data to get you started immediately.
 # Load sample data for the simulation using the modern OOP API.
 
-sim_sample = SUEWSSimulation.from_sample_data()
-
-# Extract state and forcing for examination
-df_state_init = sim_sample.state_init
-df_forcing = sim_sample.forcing.df  # Use .df property to get DataFrame
+sim = SUEWSSimulation.from_sample_data()
 
 print("Sample data loaded successfully!")
-print(f"Grid ID: {df_state_init.index[0]}")
-print(f"Forcing period: {df_forcing.index[0]} to {df_forcing.index[-1]}")
-print(f"Time steps: {len(df_forcing)}")
-
-# Use reduced data period for CI, full year for local
-if _IS_CI:
-    df_forcing = df_forcing.loc["2012-01":"2012-03"].iloc[1:]  # 3 months for CI
-else:
-    df_forcing = df_forcing.loc["2012"].iloc[1:]  # Full year for local
-
-grid = df_state_init.index[0]
+print(f"Grid ID: {sim.state_init.index[0]}")
+print(f"Forcing period: {sim.forcing.time_range}")
+print(f"Time steps: {len(sim.forcing)}")
 
 # %%
 # Understanding Input Data
@@ -62,26 +49,45 @@ grid = df_state_init.index[0]
 #
 # SUEWS requires two main input datasets:
 #
-# - ``df_state_init``: Initial conditions and site configuration
-# - ``df_forcing``: Meteorological forcing data (time series)
+# - ``state_init``: Initial conditions and site configuration
+# - ``forcing``: Meteorological forcing data (time series)
 #
-# Let's examine the key parameters.
+# Access these through the simulation object's properties.
 
 # Surface characteristics: building and tree heights
 print("Building and tree heights:")
-print(df_state_init.loc[:, ["bldgh", "evetreeh", "dectreeh"]])
+print(sim.state_init.loc[:, ["bldgh", "evetreeh", "dectreeh"]])
 
 # Surface fractions by land cover type
 print("\nSurface fractions:")
-print(df_state_init.filter(like="sfr_surf"))
+print(sim.state_init.filter(like="sfr_surf"))
 
 # %%
 # Visualise Forcing Data
 # ----------------------
 #
-# The forcing data drives the simulation. Let's plot the key meteorological
-# variables for the simulation period.
+# The forcing data drives the simulation. Access forcing variables directly
+# as attributes of ``sim.forcing``.
 
+# Access forcing variables through the OOP interface
+print("\nForcing data summary:")
+print(f"  Air temperature range: {sim.forcing.Tair.min():.1f} to {sim.forcing.Tair.max():.1f} C")
+print(f"  Wind speed range: {sim.forcing.U.min():.1f} to {sim.forcing.U.max():.1f} m/s")
+print(f"  Total rainfall: {sim.forcing.rain.sum():.1f} mm")
+
+# For plotting, use the raw DataFrame via .df property
+df_forcing = sim.forcing.df
+
+# Use reduced data period for CI, full year for local
+if _IS_CI:
+    df_forcing = df_forcing.loc["2012-01":"2012-03"].iloc[1:]  # 3 months for CI
+else:
+    df_forcing = df_forcing.loc["2012"].iloc[1:]  # Full year for local
+
+# Update simulation with the time-sliced forcing
+sim.update_forcing(df_forcing)
+
+# Plot key meteorological variables
 list_var_forcing = ["kdown", "Tair", "RH", "pres", "U", "rain"]
 dict_var_label = {
     "kdown": r"Incoming Solar Radiation ($\mathrm{W\ m^{-2}}$)",
@@ -110,46 +116,49 @@ plt.show()
 # Modify Input Parameters
 # -----------------------
 #
-# Since SuPy uses pandas DataFrames, you can easily modify input parameters.
-# Here we demonstrate modifying surface fractions.
+# Modify surface parameters using the ``update_config`` method.
+# This is the recommended approach for parameter changes.
 
 # View original surface fractions
 print("Original surface fractions:")
-print(df_state_init.loc[:, "sfr_surf"])
+print(sim.state_init.loc[:, "sfr_surf"])
 
-# Modify surface fractions (example)
-df_state_init.loc[:, "sfr_surf"] = [0.1, 0.1, 0.2, 0.3, 0.25, 0.05, 0]
+# Modify surface fractions using update_config
+sim.update_config({"initial_states": {"sfr_surf": [0.1, 0.1, 0.2, 0.3, 0.25, 0.05, 0]}})
 
 print("\nModified surface fractions:")
-print(df_state_init.loc[:, "sfr_surf"])
+print(sim.state_init.loc[:, "sfr_surf"])
 
 # %%
 # Run Simulation
 # --------------
 #
 # With forcing data and initial conditions ready, run the SUEWS simulation.
-# Results are accessible via ``sim.results`` and ``sim.state_final``.
+# The ``run()`` method returns a ``SUEWSOutput`` object for convenient access.
 
-# Update simulation with potentially modified forcing and run
-sim_sample.update_forcing(df_forcing)
-sim_sample.run()
+output = sim.run()
 
-# Access results
-df_output = sim_sample.results
-df_state_final = sim_sample.state_final
-
-print(f"Simulation complete: {len(df_output)} timesteps")
-print(f"Output groups: {list(df_output.columns.levels[0])}")
+print(f"Simulation complete: {len(output.times)} timesteps")
+print(f"Output groups: {output.groups}")
+print(f"Grids: {output.grids}")
 
 # %%
 # Explore Results: Statistics
 # ---------------------------
 #
-# Use pandas' built-in methods for quick statistical summaries of the
-# energy balance components.
+# Access output variables directly as attributes of the output object.
+# Use pandas' built-in methods for quick statistical summaries.
 
-df_output_suews = df_output["SUEWS"]
-df_output_suews.loc[:, ["QN", "QS", "QH", "QE", "QF"]].describe()
+# Access energy balance variables directly
+print("Energy balance statistics:")
+print(f"  Net radiation (QN): mean = {output.QN.mean().values[0]:.1f} W/m2")
+print(f"  Sensible heat (QH): mean = {output.QH.mean().values[0]:.1f} W/m2")
+print(f"  Latent heat (QE): mean = {output.QE.mean().values[0]:.1f} W/m2")
+print(f"  Storage heat (QS): mean = {output.QS.mean().values[0]:.1f} W/m2")
+
+# For detailed statistics, access the SUEWS group
+df_suews = output.SUEWS
+df_suews.loc[:, ["QN", "QS", "QH", "QE", "QF"]].describe()
 
 # %%
 # Explore Results: Weekly Energy Balance
@@ -165,13 +174,16 @@ dict_var_disp = {
     "QF": "$Q_F$",
 }
 
+# Get grid ID for indexing
+grid = output.grids[0]
+
 # Select first week of available data for plotting
-start_date = df_output_suews.index.get_level_values("datetime")[0]
+start_date = output.times[0]
 end_date = start_date + pd.Timedelta(days=7)
 
 fig, ax = plt.subplots(figsize=(10, 4))
 (
-    df_output_suews.loc[grid]
+    df_suews.loc[grid]
     .loc[start_date:end_date, ["QN", "QS", "QE", "QH", "QF"]]
     .rename(columns=dict_var_disp)
     .plot(ax=ax)
@@ -192,7 +204,7 @@ plt.show()
 # SUEWS runs at 5-minute intervals. Resampling to daily values reveals
 # seasonal patterns.
 
-rsmp_1d = df_output_suews.loc[grid].resample("1d")
+rsmp_1d = df_suews.loc[grid].resample("1d")
 df_1d_mean = rsmp_1d.mean()
 df_1d_sum = rsmp_1d.sum()
 
@@ -261,7 +273,7 @@ plt.show()
 #
 # Aggregate to monthly values for seasonal overview using bar charts.
 
-df_plot = df_output_suews.loc[grid].copy()
+df_plot = df_suews.loc[grid].copy()
 df_plot.index = df_plot.index.set_names("Month")
 rsmp_1M = df_plot.shift(-1).dropna(how="all").resample("1ME")
 df_1M_mean = rsmp_1M.mean()
@@ -307,8 +319,8 @@ plt.show()
 # This tutorial demonstrated the essential SUEWS workflow:
 #
 # 1. **Load sample data** using ``SUEWSSimulation.from_sample_data()``
-# 2. **Run simulation** with ``sim.run()``
-# 3. **Explore results** using pandas for statistics, resampling, and plotting
+# 2. **Run simulation** with ``sim.run()`` which returns ``SUEWSOutput``
+# 3. **Explore results** using the OOP interface for intuitive variable access
 #
 # Key concepts covered:
 #
@@ -319,5 +331,5 @@ plt.show()
 #
 # **Next steps:**
 #
-# - :doc:`plot_02_setup_own_site` - Configure SUEWS for your own site
-# - :doc:`plot_03_impact_studies` - Sensitivity analysis and scenario modelling
+# - :doc:`tutorial_02_setup_own_site` - Configure SUEWS for your own site
+# - :doc:`tutorial_03_impact_studies` - Sensitivity analysis and scenario modelling

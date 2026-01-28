@@ -103,3 +103,34 @@ More content.
 .. note::
    Important information for the reader.
 ```
+
+---
+
+## Tutorial API Approach
+
+Tutorials must use the `SUEWSSimulation` class as the primary interface.
+See `rules/python/api-approach.md` for full guidance.
+
+### Required Patterns
+
+- **Pure OOP**: Quick-start tutorials use only `SUEWSSimulation` methods
+- **Hybrid with context**: Tutorials extracting DataFrames must include a docstring note
+
+### Docstring Notes for Hybrid Tutorials
+
+When a tutorial uses DataFrame extraction (for scenarios, coupling, etc.), include:
+
+```python
+"""
+Tutorial Title
+==============
+
+Description of the tutorial.
+
+**API approach**: This tutorial uses the `SUEWSSimulation` OOP interface but
+extracts DataFrames for [scenario building/parameter modification/forcing
+modification]. This hybrid pattern is appropriate for [impact studies/external
+coupling/programmatic configuration]. For simpler use cases, prefer pure OOP
+or YAML configuration.
+"""
+```

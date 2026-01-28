@@ -9,6 +9,11 @@ in parallel mode to investigate the impacts on urban climate of:
 
 1. **Surface properties**: Physical attributes of land covers (e.g., albedo)
 2. **Background climate**: Long-term meteorological conditions (e.g., air temperature)
+
+**API approach**: This tutorial uses the `SUEWSSimulation` OOP interface but
+extracts DataFrames for scenario construction. This hybrid pattern is appropriate
+for multi-scenario sensitivity analysis where you need to programmatically
+modify parameters across many test cases.
 """
 
 # %%
@@ -17,16 +22,15 @@ in parallel mode to investigate the impacts on urban climate of:
 #
 # First, we import the required packages and load the sample dataset.
 
-import os
-import supy as sp
-from supy import SUEWSSimulation
-
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-
-from time import time
 from concurrent.futures import ThreadPoolExecutor
+import os
+from time import time
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from supy import SUEWSSimulation
 
 # Detect CI environment for reduced computation
 _IS_CI = os.environ.get("CI", "false").lower() == "true"
@@ -36,7 +40,7 @@ sim = SUEWSSimulation.from_sample_data()
 
 # Extract initial state and forcing for impact studies
 df_state_init = sim.state_init
-df_forcing = sim.forcing
+df_forcing = sim.forcing.df  # Use .df property to get DataFrame
 
 print("Sample data loaded using SUEWSSimulation.from_sample_data() API")
 print("Ready for impact studies")
@@ -56,10 +60,10 @@ else:
 
 # Perform an example run to get output samples for later use
 sim.update_forcing(df_forcing)
-df_output = sim.run()
+output = sim.run()
 
-# Access results
-df_output = sim.results
+# Access results through the SUEWSOutput object
+df_output = output.df  # Raw DataFrame if needed
 df_state_final = sim.state_final
 
 # %%
@@ -132,7 +136,7 @@ df_forcing_part = df_forcing.copy()
 sim_test = SUEWSSimulation.from_state(df_state_init_x).update_forcing(df_forcing_part)
 
 # Run simulation (suppress logging)
-df_res_alb_test = sim_test.run(logging_level=90)
+output_alb = sim_test.run(logging_level=90)
 
 # %%
 # Analyse Albedo Results
@@ -141,7 +145,7 @@ df_res_alb_test = sim_test.run(logging_level=90)
 # Examine the temperature response to albedo changes.
 
 # Select results from last month of available data
-df_res_alb_unstacked = df_res_alb_test.SUEWS.unstack(0)
+df_res_alb_unstacked = output_alb.SUEWS.unstack(0)
 last_month = df_res_alb_unstacked.index[-1].strftime("%Y %-m")
 df_res_alb_test_month = df_res_alb_unstacked.loc[last_month]
 
@@ -227,8 +231,8 @@ def run_supy_mclims(df_state_init, dict_df_forcing_mclims):
     def run_sim_oop(key, df_forcing, df_state_init, logging_level=90):
         sim = SUEWSSimulation.from_state(df_state_init)
         sim.update_forcing(df_forcing)
-        sim.run(logging_level=logging_level)
-        return (key, sim.results)
+        output = sim.run(logging_level=logging_level)
+        return (key, output.df)  # Return raw DataFrame for concatenation
 
     # Run simulations in parallel using threads
     with ThreadPoolExecutor() as executor:
@@ -337,4 +341,4 @@ plt.show()
 #
 # **Next steps:**
 #
-# - :doc:`/auto_examples/advanced/plot_external_coupling` - Couple SUEWS with external models
+# - :doc:`/auto_examples/advanced/tutorial_04_external_coupling` - Couple SUEWS with external models

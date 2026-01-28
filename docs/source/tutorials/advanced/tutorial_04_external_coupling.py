@@ -14,6 +14,10 @@ driven by outdoor air temperature to show the coupling approach.
 - SUEWS can receive external Q_F as forcing input
 - One-way coupling: external model provides forcing to SUEWS
 - Temperature feedback affects urban energy balance
+
+**API approach**: This tutorial uses the `SUEWSSimulation` OOP interface but
+extracts DataFrames for forcing modification. This hybrid pattern is required
+for external model coupling where forcing variables must be modified at runtime.
 """
 
 import os
@@ -21,7 +25,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import supy as sp
+
 from supy import SUEWSSimulation
 
 # Detect CI environment for reduced computation
@@ -154,7 +158,7 @@ df_forcing_with_qf["qf"] = qf_external
 df_state_qf = df_state_init.copy()
 df_state_qf.loc[:, "emissionsmethod"] = 0  # Use prescribed Q_F
 
-print(f"Q_F statistics:")
+print("Q_F statistics:")
 print(f"  Mean: {qf_external.mean():.2f} W/m²")
 print(f"  Max:  {qf_external.max():.2f} W/m²")
 print(f"  Min:  {qf_external.min():.2f} W/m²")
@@ -172,11 +176,10 @@ df_state_baseline = df_state_init.copy()
 df_state_baseline.loc[:, "emissionsmethod"] = 0
 
 sim_baseline = SUEWSSimulation.from_state(df_state_baseline).update_forcing(df_forcing_baseline)
-sim_baseline.run(logging_level=90)
+output_baseline = sim_baseline.run(logging_level=90)
 
-df_output_baseline = sim_baseline.results
 grid = df_state_init.index[0]
-df_suews_baseline = df_output_baseline.loc[grid, "SUEWS"]
+df_suews_baseline = output_baseline.SUEWS.loc[grid]
 
 print("Baseline simulation complete (Q_F = 0)")
 
@@ -187,10 +190,9 @@ print("Baseline simulation complete (Q_F = 0)")
 # Now run with the temperature-dependent Q_F from our simple model.
 
 sim_with_qf = SUEWSSimulation.from_state(df_state_qf).update_forcing(df_forcing_with_qf)
-sim_with_qf.run(logging_level=90)
+output_qf = sim_with_qf.run(logging_level=90)
 
-df_output_qf = sim_with_qf.results
-df_suews_qf = df_output_qf.loc[grid, "SUEWS"]
+df_suews_qf = output_qf.SUEWS.loc[grid]
 
 print("Coupled simulation complete (with external Q_F)")
 

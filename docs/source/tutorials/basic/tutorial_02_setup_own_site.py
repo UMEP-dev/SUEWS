@@ -16,16 +16,18 @@ You will learn to:
 3. Configure site-specific settings (location, measurement height)
 4. Run the simulation and compare with observations
 
-**Important**: This tutorial shows the legacy DataFrame approach. For new projects,
-consider using YAML configuration files for better structure and validation.
+**API approach**: This tutorial uses the `SUEWSSimulation` OOP interface but
+extracts DataFrames for direct parameter modification. This hybrid pattern is
+appropriate when you need programmatic control over individual parameters.
+For new sites with fixed configurations, consider using YAML configuration
+files which provide better structure, validation, and documentation.
 """
 
 import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
+
 import supy as sp
 from supy import SUEWSSimulation
 
@@ -60,7 +62,7 @@ df_state_site.loc[:, "lng"] = -97.5  # Longitude (degrees)
 df_state_site.loc[:, "alt"] = 314.0  # Altitude (metres)
 df_state_site.loc[:, "timezone"] = -6  # Central Time (UTC-6)
 
-print(f"Site: US-AR1 (ARM Southern Great Plains)")
+print("Site: US-AR1 (ARM Southern Great Plains)")
 print(f"Location: lat={df_state_site.lat.values[0]}, lng={df_state_site.lng.values[0]}")
 
 # %%
@@ -239,12 +241,9 @@ plt.show()
 # Create a simulation with the modified configuration and run it.
 
 sim_site = SUEWSSimulation.from_state(df_state_validated).update_forcing(df_forcing_site)
-sim_site.run(logging_level=90)
+output = sim_site.run(logging_level=90)
 
-df_output = sim_site.results
-df_state_final = sim_site.state_final
-
-print(f"Simulation complete: {len(df_output)} timesteps")
+print(f"Simulation complete: {len(output.times)} timesteps")
 
 # %%
 # Analyse Energy Balance
@@ -252,7 +251,7 @@ print(f"Simulation complete: {len(df_output)} timesteps")
 #
 # Examine the simulated surface energy balance components.
 
-df_suews = df_output["SUEWS"]
+df_suews = output.SUEWS
 grid = df_state_site.index[0]
 df_results = df_suews.loc[grid]
 
@@ -281,7 +280,7 @@ plt.show()
 #
 # Check how LAI evolves through the simulation based on temperature accumulation.
 
-df_daily_state = df_output.loc[grid, "DailyState"].dropna(how="all").resample("1D").mean()
+df_daily_state = output.DailyState.loc[grid].dropna(how="all").resample("1D").mean()
 
 if "LAI_Grass" in df_daily_state.columns and not df_daily_state["LAI_Grass"].dropna().empty:
     fig, ax = plt.subplots(figsize=(10, 3))
@@ -335,4 +334,4 @@ plt.show()
 #
 # **Next steps:**
 #
-# - :doc:`plot_03_impact_studies` - Sensitivity analysis and scenario modelling
+# - :doc:`tutorial_03_impact_studies` - Sensitivity analysis and scenario modelling

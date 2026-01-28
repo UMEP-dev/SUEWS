@@ -316,20 +316,20 @@ extlinks = {
 # Converts percent-format Python scripts to gallery pages with executable examples
 sphinx_gallery_conf = {
     # Source and output directories (relative to conf.py)
-    "examples_dirs": ["examples"],  # Source directory with .py files
+    "examples_dirs": ["tutorials"],  # Source directory with .py files
     "gallery_dirs": ["auto_examples"],  # Generated output directory
     # File patterns
-    "filename_pattern": r"/plot_",  # Execute files starting with plot_
+    "filename_pattern": r"/tutorial_",  # Execute files starting with tutorial_
     "ignore_pattern": r"__init__\.py",
     # Ordering: basic before advanced (pedagogical progression)
     "subsection_order": ExplicitOrder(
         [
-            "examples/basic",
-            "examples/advanced",
+            "tutorials/basic",
+            "tutorials/advanced",
         ]
     ),
     # Within subsections: order by filename (numeric prefixes ensure pedagogical order)
-    # plot_01_quick_start < plot_02_setup < plot_03_impact
+    # tutorial_01_quick_start < tutorial_02_setup < tutorial_03_impact
     "within_subsection_order": FileNameSortKey,
     # Execution settings
     "plot_gallery": "True",

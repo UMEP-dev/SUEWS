@@ -208,7 +208,7 @@ Results are stored with MultiIndex columns ``(group, variable)``. Always use ``s
 
 For the full hands-on experience, run the complete tutorial notebook:
 
-📓 **Interactive Tutorial**: :doc:`Complete Quick Start Tutorial </auto_examples/basic/plot_01_quick_start>`
+**Interactive Tutorial**: :doc:`Complete Quick Start Tutorial </auto_examples/basic/tutorial_01_quick_start>`
 
 This notebook includes:
 - Detailed explanations of each step
@@ -310,7 +310,7 @@ Setup Your Site Tutorial
 
 For detailed guidance on configuring SUEWS for your specific site:
 
-📓 **Interactive Tutorial**: :doc:`Setup Your Own Site </auto_examples/basic/plot_02_setup_own_site>`
+**Interactive Tutorial**: :doc:`Setup Your Own Site </auto_examples/basic/tutorial_02_setup_own_site>`
 
 This comprehensive notebook covers:
 - Site characterisation and data collection
@@ -463,7 +463,7 @@ Climate Change Impact Studies
        'Storage Heat': rcp85_fluxes['QS'].mean() - baseline_fluxes['QS'].mean()
    }
 
-**Complete Tutorial**: :doc:`Impact Studies </auto_examples/basic/plot_03_impact_studies>`
+**Complete Tutorial**: :doc:`Impact Studies </auto_examples/basic/tutorial_03_impact_studies>`
 
 Model Coupling and Integration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

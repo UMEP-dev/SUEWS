@@ -14,17 +14,17 @@ import pandas as pd
 
 from ._check import check_forcing
 from ._run import run_supy_ser
-from .dts import _DTS_AVAILABLE, _check_dts_available, run_dts
 
 # Import SuPy components directly
 from ._supy_module import _save_supy
 from .data_model import RefValue
 from .data_model.core import SUEWSConfig
-from .util._io import read_forcing
+from .dts import _check_dts_available, run_dts
 
 # Import new OOP classes
 from .suews_forcing import SUEWSForcing
 from .suews_output import SUEWSOutput
+from .util._io import read_forcing
 
 # Constants
 DEFAULT_OUTPUT_FREQ_SECONDS = 3600  # Default hourly output frequency
@@ -1159,6 +1159,10 @@ class SUEWSSimulation:
     def results(self) -> Optional[pd.DataFrame]:
         """Access to simulation results DataFrame (raw).
 
+        .. deprecated:: 2025.1
+            Use ``output = sim.run()`` to get a ``SUEWSOutput`` object,
+            then ``output.df`` for the raw DataFrame if needed.
+
         Returns
         -------
         pandas.DataFrame or None
@@ -1172,11 +1176,22 @@ class SUEWSSimulation:
         get_variable : Extract specific variables from output groups
         save : Save results to files
         """
+        warnings.warn(
+            "sim.results is deprecated. Use 'output = sim.run()' to get a SUEWSOutput "
+            "object, then 'output.df' for the raw DataFrame if needed.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._df_output
 
     @property
     def output(self) -> Optional[SUEWSOutput]:
         """Access to simulation results as SUEWSOutput object.
+
+        .. note::
+            Preferred pattern is ``output = sim.run()`` which returns the
+            same ``SUEWSOutput`` object. This property is provided for
+            convenience when re-accessing results after simulation.
 
         Returns
         -------
@@ -1187,17 +1202,22 @@ class SUEWSSimulation:
 
         See Also
         --------
-        results : Access raw DataFrame directly
-        run : Run simulation and return SUEWSOutput
+        run : Run simulation and return SUEWSOutput (preferred)
         :ref:`df_output_var` : Complete output data structure
 
         Examples
         --------
+        Preferred pattern - capture return value:
+
+        >>> sim = SUEWSSimulation.from_sample_data()
+        >>> output = sim.run()  # Capture output
+        >>> output.QH  # Access sensible heat flux
+
+        Alternative - use property after run:
+
         >>> sim = SUEWSSimulation.from_sample_data()
         >>> sim.run()
-        >>> sim.output.QH  # Access sensible heat flux
-        >>> sim.output.diurnal_average("QH")  # Get diurnal pattern
-        >>> sim.output.energy_balance_closure()  # Analyse energy balance
+        >>> sim.output.QH  # Re-access via property
         """
         if self._df_output is None:
             return None

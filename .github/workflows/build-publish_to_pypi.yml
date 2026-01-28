@@ -357,18 +357,7 @@ jobs:
               - 'Makefile'
               - 'get_ver_git.py'
               - 'env.yml'
-              - 'scripts/**'
-              # Exclusions - files that should NOT trigger builds
-              - '!scripts/conductor/**'  # Conductor workspace scripts
-              - '!.claude/**'  # Claude Code configuration
-              - '!docs/**'  # Documentation
-              - '!CHANGELOG.md'  # Changelog
-              - '!README.md'  # Readme
-              - '!CLAUDE.md'  # Claude instructions
-              - '!CITATION.cff'  # Citation metadata
-              - '!.zenodo.json'  # Zenodo metadata
-              - '!conductor.json'  # Conductor workspace config
-              - '!LICENSE'  # License file
+              - 'scripts/*.py'
             site:
               # Static site content (GitHub Pages) - separate from wheel builds
               - 'site/**'

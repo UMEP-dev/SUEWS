@@ -112,9 +112,14 @@ print(energy_df.head())
 print("Annual Energy Balance Statistics (W/m2):")
 print(energy_df.describe().round(1))
 
-# Seasonal means
-seasonal = energy_df.groupby(energy_df.index.quarter).mean()
-seasonal.index = ["Winter (DJF)", "Spring (MAM)", "Summer (JJA)", "Autumn (SON)"]
+# Seasonal means using meteorological seasons (month-based grouping)
+season_map = {12: "Winter (DJF)", 1: "Winter (DJF)", 2: "Winter (DJF)",
+              3: "Spring (MAM)", 4: "Spring (MAM)", 5: "Spring (MAM)",
+              6: "Summer (JJA)", 7: "Summer (JJA)", 8: "Summer (JJA)",
+              9: "Autumn (SON)", 10: "Autumn (SON)", 11: "Autumn (SON)"}
+season_order = ["Winter (DJF)", "Spring (MAM)", "Summer (JJA)", "Autumn (SON)"]
+seasonal = energy_df.groupby(energy_df.index.month.map(season_map)).mean()
+seasonal = seasonal.loc[season_order]
 print("\nSeasonal Means (W/m2):")
 print(seasonal.round(1))
 
@@ -321,7 +326,7 @@ def validation_statistics(observed, modelled):
     # Mean Absolute Error
     mae = (mod - obs).abs().mean()
 
-    # Index of Agreement (Willmott, 1981)
+    # Index of Agreement d1 (Willmott, 1981, doi:10.1080/02723646.1981.10642213)
     numer = ((mod - obs) ** 2).sum()
     denom_terms = ((mod - mean_obs).abs() + (obs - mean_obs).abs()) ** 2
     ioa = 1 - numer / denom_terms.sum() if denom_terms.sum() > 0 else np.nan
@@ -382,7 +387,7 @@ def validation_scatter(observed, modelled, variable_name, units="", ax=None):
 
     # Statistics annotation
     stats_dict = validation_statistics(observed, modelled)
-    stats_text = f"n = {stats_dict['n']}\n" f"R² = {stats_dict['r2']:.3f}\n" f"RMSE = {stats_dict['rmse']:.2f}\n" f"Bias = {stats_dict['bias']:.2f}"
+    stats_text = f"n = {stats_dict['n']}\n" f"$R^2$ = {stats_dict['r2']:.3f}\n" f"RMSE = {stats_dict['rmse']:.2f}\n" f"Bias = {stats_dict['bias']:.2f}"
     ax.text(0.05, 0.95, stats_text, transform=ax.transAxes, verticalalignment="top", fontsize=10, bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8))
 
     ax.set_xlabel(f"Observed {variable_name} ({units})")
@@ -427,7 +432,7 @@ print("Ready to save with: final_state.to_csv('final_state.csv')")
 # 2. **Check balance closure** - energy and water budgets should close
 # 3. **Seasonal patterns** - use ``groupby()`` with month/quarter
 # 4. **Diurnal patterns** - use ``groupby()`` with hour
-# 5. **Validation metrics** - RMSE, bias, R², Index of Agreement
+# 5. **Validation metrics** - RMSE, bias, R\ :sup:`2`, Index of Agreement
 # 6. **Export results** - CSV for spreadsheets, Parquet for large datasets
 #
 # For external model coupling, see :doc:`tutorial_06_external_coupling`.

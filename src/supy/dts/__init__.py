@@ -40,13 +40,11 @@ rebuild with ``make clean && make dev-dts``.
 
 # Use shared DTS availability check (see _env.py for implementation details)
 # This ensures consistent check logic across all modules that need it
-from .._env import DTS_AVAILABLE as _DTS_AVAILABLE
-from .._env import DTS_ERROR_MSG as _DTS_ERROR_MSG
 from .._env import check_dts_available as _check_dts_available
 from .._env import _init_dts_check
 
-# Initialise DTS check (safe to call multiple times)
-_init_dts_check()
+# Check DTS availability (returns bool)
+_DTS_AVAILABLE = _init_dts_check()
 
 
 # Conditionally import DTS functions or provide stubs

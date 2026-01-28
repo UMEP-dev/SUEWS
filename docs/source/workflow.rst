@@ -1,7 +1,7 @@
-.. _Workflow:
+.. _getting_started:
 
-Getting Started with SUEWS
-===========================
+Getting Started
+===============
 
 SUEWS is a powerful urban climate modelling tool delivered through **SuPy**, a comprehensive Python interface that integrates seamlessly with the scientific Python ecosystem. This guide provides a clear learning path from your first simulation to advanced urban climate research.
 
@@ -212,7 +212,7 @@ For the full hands-on experience, run the complete tutorial notebook:
 
 This notebook includes:
 - Detailed explanations of each step
-- Additional visualisation examples  
+- Additional visualisation examples
 - Data exploration exercises
 - Troubleshooting tips
 

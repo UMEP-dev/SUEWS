@@ -13,6 +13,7 @@ import warnings
 import pandas as pd
 
 from ._check import check_forcing
+from ._env import logger_supy
 from ._run import run_supy_ser
 
 # Import SuPy components directly
@@ -252,7 +253,10 @@ class SUEWSSimulation:
                 tstep_val = self._config.model.control.tstep
                 tstep_mod = tstep_val.value if hasattr(tstep_val, "value") else tstep_val
             except AttributeError:
-                pass
+                logger_supy.debug(
+                    "Could not extract tstep from config; using default %ds",
+                    tstep_mod,
+                )
 
         if isinstance(forcing_data, RefValue):
             forcing_data = forcing_data.value
@@ -1198,7 +1202,8 @@ class SUEWSSimulation:
         save : Save results to files
         """
         warnings.warn(
-            "sim.results is deprecated. Use 'output = sim.run()' to get a SUEWSOutput "
+            "sim.results is deprecated and will be removed in version 2026.1. "
+            "Use 'output = sim.run()' to get a SUEWSOutput "
             "object, then 'output.df' for the raw DataFrame if needed.",
             DeprecationWarning,
             stacklevel=2,

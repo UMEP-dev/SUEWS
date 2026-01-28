@@ -19,6 +19,12 @@
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/validate-tutorial.sh",
             "timeout": 180000,
             "statusMessage": "Validating tutorial..."
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/check-doc-ascii.sh",
+            "timeout": 10000,
+            "statusMessage": "Checking doc ASCII..."
           }
         ]
       },
@@ -30,6 +36,12 @@
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/validate-tutorial.sh",
             "timeout": 180000,
             "statusMessage": "Validating tutorial..."
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/check-doc-ascii.sh",
+            "timeout": 10000,
+            "statusMessage": "Checking doc ASCII..."
           }
         ]
       }

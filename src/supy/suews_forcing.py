@@ -8,7 +8,6 @@ meteorological forcing data for SUEWS simulations.
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -124,6 +123,13 @@ class ValidationResult:
         return f"ValidationResult({status}, {n_errors} errors, {n_warnings} warnings)"
 
 
+def _as_forcing(data, source):
+    """Wrap sliced data as SUEWSForcing, converting single-row Series to DataFrame."""
+    if isinstance(data, pd.Series):
+        data = data.to_frame().T
+    return SUEWSForcing(data, source=source)
+
+
 class _ForcingLocIndexer:
     """Wrapper for loc indexer that returns SUEWSForcing objects."""
 
@@ -132,10 +138,7 @@ class _ForcingLocIndexer:
 
     def __getitem__(self, key):
         """Return sliced data as SUEWSForcing."""
-        sliced_data = self._forcing._data.loc[key]
-        if isinstance(sliced_data, pd.Series):
-            sliced_data = sliced_data.to_frame().T
-        return SUEWSForcing(sliced_data, source=self._forcing._source)
+        return _as_forcing(self._forcing._data.loc[key], self._forcing._source)
 
 
 class _ForcingILocIndexer:
@@ -146,10 +149,7 @@ class _ForcingILocIndexer:
 
     def __getitem__(self, key):
         """Return sliced data as SUEWSForcing."""
-        sliced_data = self._forcing._data.iloc[key]
-        if isinstance(sliced_data, pd.Series):
-            sliced_data = sliced_data.to_frame().T
-        return SUEWSForcing(sliced_data, source=self._forcing._source)
+        return _as_forcing(self._forcing._data.iloc[key], self._forcing._source)
 
 
 class SUEWSForcing:
@@ -323,9 +323,13 @@ class SUEWSForcing:
     def iloc(self) -> _ForcingILocIndexer:
         """Integer-based indexer returning SUEWSForcing objects.
 
+        All results are returned as SUEWSForcing, including single-row
+        selections (e.g., ``iloc[0]`` returns a one-row SUEWSForcing,
+        not a Series as standard pandas would).
+
         Examples
         --------
-        >>> forcing.iloc[0]  # First timestep
+        >>> forcing.iloc[0]  # First timestep (returns SUEWSForcing)
         >>> forcing.iloc[:100]  # First 100 timesteps
         """
         return _ForcingILocIndexer(self)
@@ -417,6 +421,13 @@ class SUEWSForcing:
 
         Slice notation is always time-based: ``forcing["2012-01":"2012-06"]``
 
+        **Return types by key type:**
+
+        - Single column string: ``pd.Series``
+        - List of column names: ``pd.DataFrame``
+        - Time string or slice: ``SUEWSForcing``
+        - Boolean mask: ``SUEWSForcing``
+
         Examples
         --------
         Column access (returns Series):
@@ -436,8 +447,7 @@ class SUEWSForcing:
         """
         # Handle slice objects (time slicing)
         if isinstance(key, slice):
-            sliced_data = self._data.loc[key]
-            return SUEWSForcing(sliced_data, source=self._source)
+            return _as_forcing(self._data.loc[key], self._source)
 
         # Handle list of column names (returns DataFrame)
         if isinstance(key, list):
@@ -461,19 +471,15 @@ class SUEWSForcing:
 
             # Not a column - try as time selection (e.g., "2012")
             try:
-                sliced_data = self._data.loc[key]
-                if isinstance(sliced_data, pd.Series):
-                    sliced_data = sliced_data.to_frame().T
-                return SUEWSForcing(sliced_data, source=self._source)
+                return _as_forcing(self._data.loc[key], self._source)
             except KeyError:
-                # Let pandas raise the original error
-                return self._data[key]
+                raise KeyError(
+                    f"'{key}' not found as column name, alias, or time index. "
+                    f"Available columns: {list(self._data.columns)}"
+                ) from None
 
         # For other types (boolean arrays, etc.), try time slicing
-        sliced_data = self._data.loc[key]
-        if isinstance(sliced_data, pd.Series):
-            sliced_data = sliced_data.to_frame().T
-        return SUEWSForcing(sliced_data, source=self._source)
+        return _as_forcing(self._data.loc[key], self._source)
 
     # =========================================================================
     # Validation

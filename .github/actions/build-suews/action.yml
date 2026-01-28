@@ -61,13 +61,36 @@ runs:
       run: |
         echo "Building UMEP variant with NumPy 1.x compatibility"
 
+        # Use Python for cross-platform TOML modification (BSD sed on macOS differs from GNU sed)
+        python3 << 'EOF'
+        import re
+
+        with open('pyproject.toml', 'r') as f:
+            content = f.read()
+
         # Runtime: Pin to NumPy 1.x (QGIS 3.40 LTR uses 1.26.4)
-        # Limit to the [project] section to avoid touching build-system requirements
-        sed -i.bak '/^\[project\]/,/^\[/{s/"numpy>=2\.0",/"numpy>=1.22,<2.0",/g}' pyproject.toml
+        # Only modify the dependency in [project] section, not build-system
+        content = re.sub(
+            r'(dependencies\s*=\s*\[.*?)"numpy>=2\.0"',
+            r'\1"numpy>=1.22,<2.0"',
+            content,
+            flags=re.DOTALL
+        )
 
         # Build-time: Use oldest-supported-numpy for binary compatibility
-        # Limit to the [build-system] section to keep build isolation compatible
-        sed -i.bak '/^\[build-system\]/,/^\[/{s/"numpy>=2\.0"/"oldest-supported-numpy"/g}' pyproject.toml
+        # Only modify in [build-system] requires
+        content = re.sub(
+            r'(\[build-system\].*?requires\s*=\s*\[.*?)"numpy>=2\.0"',
+            r'\1"oldest-supported-numpy"',
+            content,
+            flags=re.DOTALL
+        )
+
+        with open('pyproject.toml', 'w') as f:
+            f.write(content)
+
+        print("pyproject.toml modified successfully")
+        EOF
 
         echo "Modified pyproject.toml for UMEP build:"
         git diff pyproject.toml || true

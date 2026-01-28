@@ -19,15 +19,10 @@ modern Python interface that provides powerful data analysis capabilities and
 seamless integration with the scientific Python ecosystem.
 """
 
-import os
-
 import matplotlib.pyplot as plt
 import pandas as pd
 
 from supy import SUEWSSimulation
-
-# Detect CI environment for reduced computation
-_IS_CI = os.environ.get("CI", "false").lower() == "true"
 
 # %%
 # Load Sample Data
@@ -75,17 +70,11 @@ print(f"  Air temperature range: {sim.forcing.Tair.min():.1f} to {sim.forcing.Ta
 print(f"  Wind speed range: {sim.forcing.U.min():.1f} to {sim.forcing.U.max():.1f} m/s")
 print(f"  Total rainfall: {sim.forcing.rain.sum():.1f} mm")
 
-# For plotting, use the raw DataFrame via .df property
-df_forcing = sim.forcing.df
-
-# Use reduced data period for CI, full year for local
-if _IS_CI:
-    df_forcing = df_forcing.loc["2012-01":"2012-03"].iloc[1:]  # 3 months for CI
-else:
-    df_forcing = df_forcing.loc["2012"].iloc[1:]  # Full year for local
+# Slice forcing data by time (returns new SUEWSForcing object)
+forcing_sliced = sim.forcing["2012-01":"2012-03"].iloc[1:]
 
 # Update simulation with the time-sliced forcing
-sim.update_forcing(df_forcing)
+sim.update_forcing(forcing_sliced)
 
 # Plot key meteorological variables
 list_var_forcing = ["kdown", "Tair", "RH", "pres", "U", "rain"]
@@ -98,19 +87,22 @@ dict_var_label = {
     "U": r"Wind Speed ($\mathrm{m\ s^{-1}}$)",
 }
 
+# %%
+# .. tip::
+#
+#    When resampling forcing data, always call ``resample()`` **before**
+#    selecting columns. ``SUEWSForcing.resample()`` applies the correct
+#    aggregation method for each variable type (rain=sum, radiation=mean,
+#    instantaneous=last). Selecting columns first bypasses this logic.
+
 # Resample to hourly for cleaner plots
-df_plot_forcing_x = (
-    df_forcing.loc[:, list_var_forcing].copy().shift(-1).dropna(how="any")
-)
-df_plot_forcing = df_plot_forcing_x.resample("1h").mean()
-df_plot_forcing["rain"] = df_plot_forcing_x["rain"].resample("1h").sum()
+df_plot_forcing = forcing_sliced.resample("1h")[list_var_forcing]
 
 fig, axes = plt.subplots(6, 1, figsize=(10, 12), sharex=True)
 for ax, var in zip(axes, list_var_forcing):
     df_plot_forcing[var].plot(ax=ax, legend=False)
     ax.set_ylabel(dict_var_label[var])
 fig.tight_layout()
-plt.show()
 
 # %%
 # Modify Input Parameters
@@ -149,15 +141,16 @@ print(f"Grids: {output.grids}")
 # Access output variables directly as attributes of the output object.
 # Use pandas' built-in methods for quick statistical summaries.
 
-# Access energy balance variables directly
-print("Energy balance statistics:")
-print(f"  Net radiation (QN): mean = {output.QN.mean().values[0]:.1f} W/m2")
-print(f"  Sensible heat (QH): mean = {output.QH.mean().values[0]:.1f} W/m2")
-print(f"  Latent heat (QE): mean = {output.QE.mean().values[0]:.1f} W/m2")
-print(f"  Storage heat (QS): mean = {output.QS.mean().values[0]:.1f} W/m2")
-
-# For detailed statistics, access the SUEWS group
+# Access energy balance variables via SUEWS output group
 df_suews = output.SUEWS
+
+print("Energy balance statistics:")
+print(f"  Net radiation (QN): mean = {df_suews['QN'].mean():.1f} W/m2")
+print(f"  Sensible heat (QH): mean = {df_suews['QH'].mean():.1f} W/m2")
+print(f"  Latent heat (QE): mean = {df_suews['QE'].mean():.1f} W/m2")
+print(f"  Storage heat (QS): mean = {df_suews['QS'].mean():.1f} W/m2")
+
+# Detailed statistics
 df_suews.loc[:, ["QN", "QS", "QH", "QE", "QF"]].describe()
 
 # %%
@@ -193,9 +186,8 @@ ax.set_ylabel(r"Flux ($\mathrm{W\ m^{-2}}$)")
 ax.set_title("Surface Energy Balance (One Week)")
 ax.legend()
 plt.tight_layout()
-plt.show()
 
-# sphinx_gallery_thumbnail_number = 2
+# sphinx_gallery_thumbnail_number = 2  # Second figure as thumbnail
 
 # %%
 # Temporal Resampling: Daily Patterns
@@ -220,7 +212,6 @@ ax.set_ylabel(r"Mean Flux ($\mathrm{W\ m^{-2}}$)")
 ax.set_title("Daily Mean Surface Energy Balance")
 ax.legend()
 plt.tight_layout()
-plt.show()
 
 # %%
 # Radiation and Water Balance
@@ -265,7 +256,6 @@ axes[1].set_title("Surface Water Balance")
 axes[1].legend()
 
 plt.tight_layout()
-plt.show()
 
 # %%
 # Monthly Patterns
@@ -310,7 +300,6 @@ axes[1].xaxis.set_ticklabels(name_mon, rotation=0)
 axes[1].legend()
 
 plt.tight_layout()
-plt.show()
 
 # %%
 # Summary

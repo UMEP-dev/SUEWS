@@ -20,16 +20,11 @@ extracts DataFrames for forcing modification. This hybrid pattern is required
 for external model coupling where forcing variables must be modified at runtime.
 """
 
-import os
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from supy import SUEWSSimulation
-
-# Detect CI environment for reduced computation
-_IS_CI = os.environ.get("CI", "false").lower() == "true"
 
 # %%
 # Simple Anthropogenic Heat Model
@@ -64,9 +59,9 @@ def QF_simple(T2):
     H_B = 10  # Heating rate (W m⁻² K⁻¹)
     scale = 0.3  # Scaling factor
 
-    if T2 > T_cool:
+    if T2 > T_cool:  # noqa: SIM300
         qf = (T2 - T_cool) * C_B
-    elif T2 < T_heat:
+    elif T2 < T_heat:  # noqa: SIM300
         qf = (T_heat - T2) * H_B
     else:
         qf = 0
@@ -114,7 +109,6 @@ ax.set_title("Simple Anthropogenic Heat Flux Model")
 ax.legend()
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.show()
 
 # sphinx_gallery_thumbnail_number = 1
 
@@ -126,16 +120,24 @@ plt.show()
 
 sim = SUEWSSimulation.from_sample_data()
 df_state_init = sim.state_init.copy()
-df_forcing = sim.forcing.df  # Use .df property to get DataFrame
 
 # Disable snow module (not needed for this site)
 df_state_init.loc[:, "snowuse"] = 0
 
-# Use reduced period for CI
-if _IS_CI:
-    df_forcing = df_forcing.loc["2012-01":"2012-02"].iloc[1:]
-else:
-    df_forcing = df_forcing.loc["2012-06":"2012-08"].iloc[1:]
+# Slice forcing by time (returns SUEWSForcing object)
+# Use shorter period for faster tutorial execution
+forcing_sliced = sim.forcing["2012-01":"2012-02"].iloc[1:]
+
+# %%
+# .. important::
+#
+#    **External coupling requires DataFrame extraction**: When injecting
+#    variables from external models (here: Q_F), you must extract the
+#    DataFrame with ``.df``, add the new column, then pass it to the
+#    simulation. This is the expected pattern for model coupling.
+
+# Get DataFrame for modification (adding external Q_F)
+df_forcing = forcing_sliced.df
 
 print(f"Simulation period: {df_forcing.index[0]} to {df_forcing.index[-1]}")
 print(f"Time steps: {len(df_forcing)}")
@@ -220,7 +222,6 @@ axes[1].set_title("Q_F Difference (Coupled - Baseline)")
 axes[1].axhline(0, color="grey", linestyle="--", alpha=0.5)
 
 plt.tight_layout()
-plt.show()
 
 # %%
 # Temperature Feedback
@@ -246,7 +247,6 @@ axes[1].set_title("Temperature Difference (Coupled - Baseline)")
 axes[1].axhline(0, color="grey", linestyle="--", alpha=0.5)
 
 plt.tight_layout()
-plt.show()
 
 # %%
 # Q_F vs Temperature Response
@@ -255,8 +255,8 @@ plt.show()
 # Analyse the relationship between Q_F change and temperature change.
 
 # Daily statistics
-df_daily_qf = df_suews_qf.resample("1d").mean()
-df_daily_baseline = df_suews_baseline.resample("1d").mean()
+df_daily_qf = df_suews_qf.resample("1D").mean()
+df_daily_baseline = df_suews_baseline.resample("1D").mean()
 
 diff_qf_daily = df_daily_qf["QF"] - df_daily_baseline["QF"]
 diff_t2_daily = df_daily_qf["T2"] - df_daily_baseline["T2"]
@@ -277,7 +277,6 @@ if len(diff_qf_daily.dropna()) > 2:
 
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.show()
 
 # %%
 # Summary

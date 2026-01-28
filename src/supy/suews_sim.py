@@ -231,6 +231,12 @@ class SUEWSSimulation:
         SUEWSSimulation
             Self, for method chaining.
 
+        Notes
+        -----
+        When loading from file paths, forcing data is resampled to match the
+        model timestep from ``model.control.tstep`` in the configuration.
+        If no configuration is loaded, defaults to 300 seconds (5 minutes).
+
         Examples
         --------
         >>> sim.update_forcing("forcing_2023.txt")
@@ -239,6 +245,15 @@ class SUEWSSimulation:
         >>> sim.update_forcing(SUEWSForcing.from_file("forcing.txt"))
         >>> sim.update_config(cfg).update_forcing(forcing).run()
         """
+        # Get tstep from config if available, otherwise default to 300s
+        tstep_mod = 300
+        if self._config is not None:
+            try:
+                tstep_val = self._config.model.control.tstep
+                tstep_mod = tstep_val.value if hasattr(tstep_val, "value") else tstep_val
+            except AttributeError:
+                pass
+
         if isinstance(forcing_data, RefValue):
             forcing_data = forcing_data.value
         if isinstance(forcing_data, SUEWSForcing):
@@ -247,12 +262,16 @@ class SUEWSSimulation:
             self._df_forcing = forcing_data.copy()
         elif isinstance(forcing_data, list):
             # Handle list of files
-            self._df_forcing = SUEWSSimulation._load_forcing_from_list(forcing_data)
+            self._df_forcing = SUEWSSimulation._load_forcing_from_list(
+                forcing_data, tstep_mod=tstep_mod
+            )
         elif isinstance(forcing_data, (str, Path)):
             forcing_path = Path(forcing_data).expanduser().resolve()
             if not forcing_path.exists():
                 raise FileNotFoundError(f"Forcing path not found: {forcing_path}")
-            self._df_forcing = SUEWSSimulation._load_forcing_file(forcing_path)
+            self._df_forcing = SUEWSSimulation._load_forcing_file(
+                forcing_path, tstep_mod=tstep_mod
+            )
         else:
             raise ValueError(f"Unsupported forcing data type: {type(forcing_data)}")
 
@@ -342,7 +361,9 @@ class SUEWSSimulation:
         return str((self._config_path.parent / Path(path_str)).resolve())
 
     @staticmethod
-    def _load_forcing_from_list(forcing_list: list[Union[str, Path]]) -> pd.DataFrame:
+    def _load_forcing_from_list(
+        forcing_list: list[Union[str, Path]], tstep_mod: int = 300
+    ) -> pd.DataFrame:
         """Load and concatenate forcing data from a list of files."""
         if not forcing_list:
             raise ValueError("Empty forcing file list provided")
@@ -360,7 +381,7 @@ class SUEWSSimulation:
                     "Directories are not allowed in lists."
                 )
 
-            df = read_forcing(str(path))
+            df = read_forcing(str(path), tstep_mod=tstep_mod)
             dfs.append(df)
 
         result = pd.concat(dfs, axis=0).sort_index()
@@ -368,7 +389,7 @@ class SUEWSSimulation:
         return result
 
     @staticmethod
-    def _load_forcing_file(forcing_path: Path) -> pd.DataFrame:
+    def _load_forcing_file(forcing_path: Path, tstep_mod: int = 300) -> pd.DataFrame:
         """Load forcing data from file or directory."""
         if forcing_path.is_dir():
             # Issue deprecation warning for directory usage
@@ -392,11 +413,11 @@ class SUEWSSimulation:
             # Concatenate all files
             dfs = []
             for file in forcing_files:
-                dfs.append(read_forcing(str(file)))
+                dfs.append(read_forcing(str(file), tstep_mod=tstep_mod))
 
             return pd.concat(dfs, axis=0).sort_index()
         else:
-            return read_forcing(str(forcing_path))
+            return read_forcing(str(forcing_path), tstep_mod=tstep_mod)
 
     def run(
         self, start_date=None, end_date=None, backend: str = "traditional", **run_kwargs

@@ -9,6 +9,30 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/validate-tutorial.sh",
+            "timeout": 180000,
+            "statusMessage": "Validating tutorial..."
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/validate-tutorial.sh",
+            "timeout": 180000,
+            "statusMessage": "Validating tutorial..."
+          }
+        ]
+      }
     ]
   }
 }

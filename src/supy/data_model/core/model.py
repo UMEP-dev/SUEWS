@@ -509,6 +509,44 @@ class SnowUse(Enum):
 
     def __repr__(self):
         return str(self.value)
+    
+class SameAlbedo_Wall(Enum):
+    """
+    Controls assumption of same albedoes for walls.
+
+    0: OFF
+    1: ON
+    """
+
+    DISABLED = 0
+    ENABLED = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+    
+
+class SameAlbedo_Roof(Enum):
+    """
+    Controls assumption of same albedoes for roofs.
+
+    0: OFF
+    1: ON
+    """
+
+    DISABLED = 0
+    ENABLED = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+    
+    
+
 
 
 def yaml_equivalent_of_default(dumper, data):
@@ -545,6 +583,8 @@ for enum_class in [
     RCMethod,
     SnowUse,
     OhmIncQf,
+    SameAlbedo_Wall,
+    SameAlbedo_Roof,
 ]:
     yaml.add_representer(enum_class, yaml_equivalent_of_default)
 
@@ -654,6 +694,17 @@ class ModelPhysics(BaseModel):
         description=_enum_description(RCMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
+    samealbedo_wall: FlexibleRefValue(SameAlbedo_Wall) = Field(
+        default=SameAlbedo_Wall.DISABLED,
+        description=_enum_description(SameAlbedo_Wall),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    samealbedo_roof: FlexibleRefValue(SameAlbedo_Roof) = Field(
+        default=SameAlbedo_Roof.DISABLED,
+        description=_enum_description(SameAlbedo_Roof),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+
     ref: Optional[Reference] = None
 
     # We then need to set to 0 (or None) all the CO2-related parameters or rules
@@ -679,6 +730,8 @@ class ModelPhysics(BaseModel):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
+            "samealbedo_wall",
+            "samealbedo_roof",
         ]
         for attr in list_attr:
             value = getattr(self, attr)
@@ -698,10 +751,9 @@ class ModelPhysics(BaseModel):
         Returns:
             ModelPhysics: Instance of ModelPhysics
         """
+        properties: dict = {}
 
-        properties = {}
-
-        list_attr = [
+        required_attrs = [
             "netradiationmethod",
             "emissionsmethod",
             "storageheatmethod",
@@ -720,11 +772,25 @@ class ModelPhysics(BaseModel):
             "rcmethod",
         ]
 
-        for attr in list_attr:
+        # New options: optional in legacy DataFrames, default if missing
+        optional_new_attrs_with_defaults = {
+            "samealbedo_wall": SameAlbedo_Wall.DISABLED,
+            "samealbedo_roof": SameAlbedo_Roof.DISABLED,
+        }
+
+        for attr in required_attrs:
             try:
                 properties[attr] = RefValue(int(df.loc[grid_id, (attr, "0")]))
             except KeyError:
                 raise ValueError(f"Missing attribute '{attr}' in the DataFrame")
+
+        # Optional new attributes
+        for attr, default_enum in optional_new_attrs_with_defaults.items():
+            try:
+                value = df.loc[grid_id, (attr, "0")]
+                properties[attr] = RefValue(int(value))
+            except KeyError:
+                properties[attr] = RefValue(int(default_enum))
 
         return cls(**properties)
 

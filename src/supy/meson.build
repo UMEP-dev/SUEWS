@@ -5,7 +5,6 @@ py.install_sources(
         '_vendor/__init__.py',
         '_vendor/f90wrap/__init__.py',
         '_check.py',
-        '_dts_check.py',
         '_env.py',
         '_load.py',
         '_misc.py',

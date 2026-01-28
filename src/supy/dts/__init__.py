@@ -38,11 +38,15 @@ DTS features require a full build with type wrappers. If using a fast build
 rebuild with ``make clean && make dev-dts``.
 """
 
-# Use shared DTS availability check (see _dts_check.py for implementation details)
+# Use shared DTS availability check (see _env.py for implementation details)
 # This ensures consistent check logic across all modules that need it
-from .._dts_check import DTS_AVAILABLE as _DTS_AVAILABLE
-from .._dts_check import DTS_ERROR_MSG as _DTS_ERROR_MSG
-from .._dts_check import check_dts_available as _check_dts_available
+from .._env import DTS_AVAILABLE as _DTS_AVAILABLE
+from .._env import DTS_ERROR_MSG as _DTS_ERROR_MSG
+from .._env import check_dts_available as _check_dts_available
+from .._env import _init_dts_check
+
+# Initialise DTS check (safe to call multiple times)
+_init_dts_check()
 
 
 # Conditionally import DTS functions or provide stubs

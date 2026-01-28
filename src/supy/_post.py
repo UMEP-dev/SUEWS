@@ -5,8 +5,12 @@ from .supy_driver import module_ctrl_type as sd_dts
 from ._env import logger_supy
 from .data_model.output import OUTPUT_REGISTRY
 
-# Use shared DTS availability check (see _dts_check.py for implementation details)
-from ._dts_check import DTS_AVAILABLE as _DTS_TYPES_AVAILABLE
+# Use shared DTS availability check (see _env.py for implementation details)
+from ._env import DTS_AVAILABLE as _DTS_TYPES_AVAILABLE
+from ._env import _init_dts_check
+
+# Initialise DTS check now that supy_driver is available (imported above)
+_init_dts_check()
 
 
 ##############################################################################

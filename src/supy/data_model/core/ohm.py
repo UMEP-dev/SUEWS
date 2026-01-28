@@ -1,8 +1,7 @@
 from typing import Optional
 import pandas as pd
 from pydantic import ConfigDict, BaseModel, Field
-from .type import RefValue, Reference, FlexibleRefValue
-from .type import init_df_state
+from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
 
 
 class OHMCoefficients(BaseModel):
@@ -41,8 +40,6 @@ class OHMCoefficients(BaseModel):
         Returns:
             pd.DataFrame: DataFrame containing OHM coefficients with MultiIndex columns
         """
-        df_state = init_df_state(grid_id)
-
         # Map season/wetness combinations to indices
         a_map = {
             "a1": 0,
@@ -51,6 +48,7 @@ class OHMCoefficients(BaseModel):
         }
 
         # Set values for each season/wetness combination
+        cols = {("gridiv", "0"): grid_id}
         for aX, idx_a in a_map.items():
             str_idx = f"({surf_idx}, {idx_s}, {idx_a})"
             field_val = getattr(self, aX)
@@ -58,9 +56,9 @@ class OHMCoefficients(BaseModel):
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
                 val = 0.0
-            df_state.loc[grid_id, ("ohm_coef", str_idx)] = val
+            cols[("ohm_coef", str_idx)] = val
 
-        return df_state
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(
@@ -131,8 +129,11 @@ class OHM_Coefficient_season_wetness(BaseModel):
         Returns:
             pd.DataFrame: DataFrame containing OHM coefficients with MultiIndex columns
         """
-        df_state = init_df_state(grid_id)
-
+        frames = [
+            df_from_cols(
+                {("gridiv", "0"): grid_id}, index=pd.Index([grid_id], name="grid")
+            )
+        ]
         # Convert each coefficient
         for idx_s, coef in enumerate([
             self.summer_wet,
@@ -144,8 +145,9 @@ class OHM_Coefficient_season_wetness(BaseModel):
             df_coef_extra = coef.to_df_state(
                 grid_id, 7, idx_s
             )  # always include this extra row to conform to SUEWS convention
-            df_state = pd.concat([df_state, df_coef, df_coef_extra], axis=1)
+            frames.extend([df_coef, df_coef_extra])
 
+        df_state = pd.concat(frames, axis=1)
         # drop duplicate columns
         df_state = df_state.loc[:, ~df_state.columns.duplicated()]
 

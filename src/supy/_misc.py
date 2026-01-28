@@ -95,3 +95,55 @@ def url_is_alive(url):
         return True
     except urllib.request.HTTPError:
         return False
+
+
+##############################################################################
+# normalise surface fractions in DataFrame
+def normalise_sfr_surf(df: pd.DataFrame, tolerance: float = 0.0001) -> pd.DataFrame:
+    """Normalise surface fractions to sum to 1.0 with warning.
+
+    Checks if surface fractions in df.sfr_surf sum to 1.0 within tolerance.
+    If not, logs a warning and normalises the fractions.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing sfr_surf columns (MultiIndex with 'sfr_surf' at level 0)
+    tolerance : float, optional
+        Tolerance for deviation from 1.0 (default: 0.0001)
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with normalised surface fractions
+    """
+    if "sfr_surf" not in df.columns.get_level_values(0):
+        return df
+
+    df_sfr_surf = df.sfr_surf.copy()
+    sfr_sums = df_sfr_surf.sum(axis=1)
+
+    # warn if any grid has surface fractions significantly different from 1.0
+    deviations = (sfr_sums - 1.0).abs()
+    problematic_grids = deviations[deviations > tolerance]
+
+    if not problematic_grids.empty:
+        grid_details = ", ".join(
+            f"grid {idx}: {sfr_sums[idx]:.4f}" for idx in problematic_grids.index
+        )
+        logger_supy.warning(
+            f"Surface fractions do not sum to 1.0 (tolerance {tolerance}). "
+            f"Values will be normalised automatically. "
+            f"Affected grids: {grid_details}. "
+            f"For strict validation, use the YAML validator workflow."
+        )
+
+    # Only normalise rows that deviate beyond tolerance
+    mask_needs_fix = deviations > tolerance
+    if mask_needs_fix.any():
+        df_sfr_surf.loc[mask_needs_fix] = df_sfr_surf.loc[mask_needs_fix].div(
+            sfr_sums[mask_needs_fix], axis=0
+        )
+    df["sfr_surf"] = df_sfr_surf
+
+    return df

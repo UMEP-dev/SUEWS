@@ -6,6 +6,7 @@ except ImportError:
 
 
 from logging.handlers import TimedRotatingFileHandler
+import functools
 import sys
 import logging
 import inspect
@@ -93,8 +94,6 @@ else:
 # DTS features require a full build with type wrappers (wrap_dts_types=true).
 # Fast builds (make dev) do not include DTS support.
 
-# Import lazily to avoid circular imports - this will be populated after supy_driver loads
-DTS_AVAILABLE = False
 DTS_ERROR_MSG = (
     "DTS features not available in this build.\n"
     "This build was compiled with 'make dev' (fast build without DTS support).\n"
@@ -102,25 +101,34 @@ DTS_ERROR_MSG = (
 )
 
 
+@functools.cache
 def _init_dts_check():
-    """Initialise DTS availability check after supy_driver is loaded."""
-    global DTS_AVAILABLE
+    """Check DTS availability after supy_driver is loaded.
+
+    Returns
+    -------
+    bool
+        True if DTS type classes are available in this build.
+
+    Notes
+    -----
+    Result is cached after first call since DTS availability
+    does not change during a session.
+    """
     try:
         from . import supy_driver as _supy_driver
 
         # Check if DTS type classes exist (only present in full build with wrap_dts_types=true)
         # The module_type_heat module exists in both builds, but the HEATSTATE class
         # is only generated when DTS type wrappers are enabled
-        DTS_AVAILABLE = hasattr(_supy_driver, "module_type_heat") and hasattr(
+        return hasattr(_supy_driver, "module_type_heat") and hasattr(
             _supy_driver.module_type_heat, "HEATSTATE"
         )
     except ImportError:
-        DTS_AVAILABLE = False
+        return False
 
 
 def check_dts_available():
     """Raise RuntimeError if DTS features are not available."""
-    # Ensure DTS check is initialised (safe to call multiple times)
-    _init_dts_check()
-    if not DTS_AVAILABLE:
+    if not _init_dts_check():
         raise RuntimeError(DTS_ERROR_MSG)

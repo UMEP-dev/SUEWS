@@ -57,7 +57,7 @@ print(soil_cols[:5])
 # can cause artifacts in the first weeks/months of simulation.
 
 # Run a short simulation to see state evolution
-sim.run()
+_ = sim.run()
 
 # Compare initial and final states for soil moisture
 print("State evolution during simulation:")
@@ -73,7 +73,7 @@ print(f"  Final soil moisture (mean): {sim.state_final.filter(like='soilstore').
 
 # Step 1: Run spin-up year
 sim_spinup = SUEWSSimulation.from_sample_data()
-sim_spinup.run()
+_ = sim_spinup.run()
 
 # Step 2: Get equilibrated state
 state_equilibrated = sim_spinup.state_final.copy()
@@ -98,22 +98,25 @@ soil_history = []
 sim = SUEWSSimulation.from_sample_data()
 
 # Initial run
-sim.run()
+_ = sim.run()
 soil_history.append(sim.state_final.filter(like="soilstore").mean().mean())
 
-# Spin-up iterations
+# Spin-up iterations: reuse the same forcing but transfer evolved state.
+# Typically 2-3 iterations suffice for convergence (change < 1 mm).
 n_spinup = 3
 for i in range(n_spinup):
-    # Create new simulation from final state
-    sim_next = SUEWSSimulation.from_sample_data()
-    # In practice: sim_next = SUEWSSimulation.from_state(sim.state_final)
-    sim_next.run()
+    # Create new simulation from final state and re-attach forcing
+    sim_next = SUEWSSimulation.from_state(sim.state_final)
+    sim_next.update_forcing(sim.forcing)
+    _ = sim_next.run()
     soil_history.append(sim_next.state_final.filter(like="soilstore").mean().mean())
 
     # Check convergence
-    if i > 0:
-        change = abs(soil_history[-1] - soil_history[-2])
-        print(f"Spin-up {i+1}: Soil moisture = {soil_history[-1]:.1f} mm (change: {change:.2f} mm)")
+    change = abs(soil_history[-1] - soil_history[-2])
+    print(f"Spin-up {i+1}: Soil moisture = {soil_history[-1]:.1f} mm (change: {change:.2f} mm)")
+
+    # Carry forward for next iteration
+    sim = sim_next
 
 # %%
 # Visualise Spin-Up Convergence

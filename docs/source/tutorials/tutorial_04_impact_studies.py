@@ -1,6 +1,6 @@
 """
-Impact Studies Using SuPy.
-==========================
+Impact Studies Using SuPy
+=========================
 
 Sensitivity analysis for urban climate modelling with SUEWS.
 
@@ -37,7 +37,7 @@ from supy import SUEWSSimulation
 sim = SUEWSSimulation.from_sample_data()
 
 # Slice forcing to a shorter period for faster execution (returns SUEWSForcing)
-forcing_sliced = sim.forcing["2012 01":"2012 03"].iloc[1:]
+forcing_sliced = sim.forcing["2012-01":"2012-03"].iloc[1:]
 
 print("Sample data loaded using SUEWSSimulation.from_sample_data()")
 print(f"Simulation period: {forcing_sliced.df.index[0]} to {forcing_sliced.df.index[-1]}")
@@ -78,6 +78,9 @@ df_state_test.sfr_surf = 0.0  # Use float to preserve dtype
 df_state_test.loc[:, ("sfr_surf", "(1,)")] = 0.99  # Buildings
 df_state_test.loc[:, ("sfr_surf", "(0,)")] = 0.01  # Paved
 
+# Verify fractions sum to 1.0
+assert abs(df_state_test.sfr_surf.sum(axis=1).iloc[0] - 1.0) < 1e-6, "Surface fractions must sum to 1.0"
+
 print("Modified surface fractions:")
 print(df_state_test.sfr_surf)
 
@@ -95,15 +98,16 @@ list_albedo = np.linspace(0.1, 0.8, n_albedo).round(2)
 # Create scenario matrix by concatenating copies with different albedo values
 df_state_scenarios = (
     pd.concat(
-        dict.fromkeys(list_albedo, df_state_test),
+        {a: df_state_test.copy() for a in list_albedo},
         names=["alb", "grid"],
     )
     .droplevel("grid", axis=0)
     .rename_axis(index="grid")
 )
 
-# Set building albedo for each scenario
-df_state_scenarios.loc[:, ("alb", "(1,)")] = list_albedo
+# Set building albedo for each scenario (explicit per-row assignment for safety)
+for idx, alb_val in zip(df_state_scenarios.index, list_albedo):
+    df_state_scenarios.loc[idx, ("alb", "(1,)")] = alb_val
 
 print(f"Created {n_albedo} albedo scenarios:")
 print(df_state_scenarios.alb)
@@ -131,7 +135,7 @@ print(f"Completed {n_albedo} albedo simulations")
 df_results = output_albedo.SUEWS.unstack(0)
 
 # Select last month for analysis
-last_month = df_results.index[-1].strftime("%Y %-m")
+last_month = f"{df_results.index[-1].year}-{df_results.index[-1].month:02d}"
 df_month = df_results.loc[last_month]
 
 # Calculate temperature statistics across scenarios
@@ -247,7 +251,7 @@ df_climate_results = df_climate_results.droplevel("grid")
 df_temp_diff = df_climate_results.transform(lambda x: x - df_climate_results[0.0])
 
 # Focus on last month
-last_month_climate = df_temp_diff.index[-1].strftime("%Y %-m")
+last_month_climate = f"{df_temp_diff.index[-1].year}-{df_temp_diff.index[-1].month:02d}"
 df_temp_diff_month = df_temp_diff.loc[last_month_climate]
 df_temp_diff_stats = df_temp_diff_month.describe().loc[["max", "mean", "min"]].T
 

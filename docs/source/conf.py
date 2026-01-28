@@ -326,7 +326,7 @@ sphinx_gallery_conf = {
     "within_subsection_order": FileNameSortKey,
     # Execution settings
     "plot_gallery": "True",
-    "abort_on_example_error": False,
+    "abort_on_example_error": os.environ.get("SPHINX_GALLERY_ABORT", "False") == "True",
     "remove_config_comments": True,
     # Download options
     "download_all_examples": True,
@@ -691,13 +691,11 @@ def source_read_handler(app, docname, source):
         # and do nothing
         return
 
-    # Handle :orphan: directive - must remain at document start to work properly
+    # Handle :orphan: directive in sphinx-gallery generated files only.
     # rst_prolog prepends content which breaks :orphan:, causing it to render as text.
-    # For orphan files, we strip :orphan: entirely since:
-    # 1. Most sphinx-gallery "orphan" files ARE in a toctree and don't need it
-    # 2. Removing it avoids the rendering issue
-    # 3. Any resulting warnings can be addressed by proper toctree inclusion
-    if src.lstrip().startswith(":orphan:"):
+    # We only strip :orphan: from auto_examples/ files (sphinx-gallery output)
+    # because these are included in a toctree and don't need it.
+    if docname.startswith("auto_examples/") and src.lstrip().startswith(":orphan:"):
         # Remove :orphan: and any following blank lines
         src = src.lstrip()
         src = src[len(":orphan:") :].lstrip("\n")

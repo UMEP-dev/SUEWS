@@ -19,6 +19,7 @@ interpretation and model validation. This tutorial covers:
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from scipy import stats
 
 from supy import SUEWSSimulation
 
@@ -29,11 +30,11 @@ from supy import SUEWSSimulation
 # First, run a simulation to generate results for analysis.
 
 sim = SUEWSSimulation.from_sample_data()
-sim.run()
+output = sim.run()
 
 print("Simulation complete!")
-print(f"Output period: {sim.results.index[0]} to {sim.results.index[-1]}")
-print(f"Time steps: {len(sim.results)}")
+print(f"Output period: {output.times[0]} to {output.times[-1]}")
+print(f"Time steps: {len(output.times)}")
 
 # %%
 # Understanding Output Structure
@@ -48,18 +49,18 @@ print(f"Time steps: {len(sim.results)}")
 #
 # Access variables using ``get_variable()`` or direct MultiIndex indexing.
 
-results = sim.results
+results = output.df
 
-# Method 1: get_variable() - recommended
-qh = sim.get_variable("QH", group="SUEWS")
+# Method 1: get_variable() on output object - recommended
+qh = output.get_variable("QH", group="SUEWS")
 print(f"QH shape: {qh.shape}")
 
-# Method 2: Direct MultiIndex access
+# Method 2: Direct MultiIndex access on raw DataFrame
 qn = results[("SUEWS", "QN")]
 print(f"QN shape: {qn.shape}")
 
 # List available groups and variables
-print(f"\nAvailable groups: {results.columns.get_level_values('group').unique().tolist()}")
+print(f"\nAvailable groups: {output.groups}")
 print(f"SUEWS variables (first 10): {results['SUEWS'].columns.tolist()[:10]}")
 
 
@@ -70,26 +71,26 @@ print(f"SUEWS variables (first 10): {results['SUEWS'].columns.tolist()[:10]}")
 # Create a helper to simplify extracting multiple variables.
 
 
-def get_var(sim, name, group="SUEWS"):
+def get_var(out, name, group="SUEWS"):
     """Extract a single variable as a Series with DatetimeIndex.
 
     For single-grid simulations, drops the grid level to simplify indexing.
     """
-    ser = sim.get_variable(name, group=group).iloc[:, 0]
+    ser = out.get_variable(name, group=group).iloc[:, 0]
     # Drop grid level if single grid (common case for tutorials)
     if isinstance(ser.index, pd.MultiIndex) and ser.index.nlevels == 2:
         ser = ser.droplevel("grid")
     return ser
 
 
-def get_vars(sim, names, group="SUEWS"):
+def get_vars(out, names, group="SUEWS"):
     """Extract multiple variables as a DataFrame with DatetimeIndex."""
-    return pd.DataFrame({name: get_var(sim, name, group) for name in names})
+    return pd.DataFrame({name: get_var(out, name, group) for name in names})
 
 
 # Extract energy balance components
 energy_vars = ["QN", "QF", "QS", "QE", "QH"]
-energy_df = get_vars(sim, energy_vars)
+energy_df = get_vars(output, energy_vars)
 
 print("Energy balance components:")
 print(energy_df.head())
@@ -115,8 +116,8 @@ print(seasonal.round(1))
 #
 # Verify that the energy balance closes: QN + QF = QS + QE + QH
 
-energy_in = get_var(sim, "QN") + get_var(sim, "QF")
-energy_out = get_var(sim, "QS") + get_var(sim, "QE") + get_var(sim, "QH")
+energy_in = get_var(output, "QN") + get_var(output, "QF")
+energy_out = get_var(output, "QS") + get_var(output, "QE") + get_var(output, "QH")
 residual = energy_in - energy_out
 
 print("Energy Balance Closure Check:")
@@ -132,12 +133,12 @@ print("indicate numerical precision limits only.")
 #
 # Calculate annual water balance: P + I = E + R + D + dS
 
-rain = get_var(sim, "Rain")
-evap = get_var(sim, "Evap")
-runoff = get_var(sim, "RO")
-drainage = get_var(sim, "Drainage")
-irr = get_var(sim, "Irr")
-storage_change = get_var(sim, "TotCh")
+rain = get_var(output, "Rain")
+evap = get_var(output, "Evap")
+runoff = get_var(output, "RO")
+drainage = get_var(output, "Drainage")
+irr = get_var(output, "Irr")
+storage_change = get_var(output, "TotCh")
 
 # Annual totals (mm/year)
 print("Annual Water Balance (mm):")
@@ -193,7 +194,7 @@ ax.axhline(y=0, color="k", linestyle="--", alpha=0.3)
 
 # 4. Bowen ratio (QH/QE) over time
 ax = axes[1, 1]
-bowen = get_var(sim, "QH") / get_var(sim, "QE").replace(0, np.nan)
+bowen = get_var(output, "QH") / get_var(output, "QE").replace(0, np.nan)
 bowen_daily = bowen.resample("D").mean()
 bowen_daily.plot(ax=ax)
 ax.set_ylabel("Bowen Ratio (QH/QE)")
@@ -210,8 +211,8 @@ plt.tight_layout()
 #
 # Analyse air and surface temperature patterns.
 
-t2 = get_var(sim, "T2")
-tsurf = get_var(sim, "Tsurf")
+t2 = get_var(output, "T2")
+tsurf = get_var(output, "Tsurf")
 
 fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
@@ -285,8 +286,6 @@ def validation_statistics(observed, modelled):
     dict
         Validation statistics including bias, RMSE, R2, and IoA
     """
-    from scipy import stats
-
     # Align data
     obs, mod = observed.align(modelled, join="inner")
     obs = obs.dropna()
@@ -336,7 +335,7 @@ def validation_statistics(observed, modelled):
 # Example: Compare modelled T2 with forcing Tair (as proxy for "observations")
 # In practice, you would load actual observation data
 tair_forcing = sim.forcing.df["Tair"]
-t2_model = get_var(sim, "T2")
+t2_model = get_var(output, "T2")
 
 stats_t2 = validation_statistics(tair_forcing, t2_model)
 print("T2 vs Forcing Tair (demonstration):")
@@ -399,7 +398,7 @@ plt.tight_layout()
 
 # Export to CSV
 export_vars = ["QN", "QH", "QE", "QS", "T2", "RH2"]
-export_df = get_vars(sim, export_vars)
+export_df = get_vars(output, export_vars)
 # export_df.to_csv('suews_output.csv')  # Uncomment to save
 print(f"Export DataFrame shape: {export_df.shape}")
 print(f"Ready to save with: export_df.to_csv('suews_output.csv')")

@@ -121,20 +121,23 @@ print("Site properties configured")
 #    the model timestep (``model.control.tstep``, default 300s = 5 minutes).
 #    Hourly forcing data is interpolated to the finer model resolution.
 
-# Determine script directory (works both standalone and in sphinx-gallery)
+# Determine script directory (works both standalone and in sphinx-gallery).
+# sphinx-gallery does not define __file__ in its execution context, so
+# we fall back to cwd (which sphinx-gallery sets to the script's source dir).
+# This pattern is repeated across tutorials that load local data files.
 try:
     _script_dir = Path(__file__).resolve().parent
 except NameError:
-    # sphinx-gallery context - working directory is set to script's source directory
     _script_dir = Path.cwd()
 
 # Path to forcing data
 path_forcing = _script_dir / "data" / "US-AR1_2010_data_60.txt"
 
-# Load forcing - automatically resampled to match model.control.tstep (default 300s)
+# Load forcing from file. Automatically resampled to match model.control.tstep (300s).
 sim.update_forcing(path_forcing)
 
-# Slice forcing by time for the simulation period
+# Slice to the analysis period. This is a separate call because
+# update_forcing() first loads the full file, then we select the time window.
 sim.update_forcing(sim.forcing["2010-01":"2010-03"])
 
 # %%
@@ -147,7 +150,7 @@ sim.update_forcing(sim.forcing["2010-01":"2010-03"])
 
 # Clean forcing data: clip small negative kdown values to 0
 # (common measurement noise from pyranometers at night)
-df_forcing_cleaned = sim.forcing.df.copy()
+df_forcing_cleaned = sim.forcing.df  # .df returns a copy
 df_forcing_cleaned["kdown"] = df_forcing_cleaned["kdown"].clip(lower=0)
 sim.update_forcing(df_forcing_cleaned)
 

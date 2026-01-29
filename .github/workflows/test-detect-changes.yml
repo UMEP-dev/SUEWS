@@ -10,6 +10,10 @@
 #
 # This reuses the exact same path-filters.yml as the real build workflow,
 # ensuring local testing matches CI behaviour.
+#
+# NOTE: Content-aware pyproject.toml classification (build-relevant vs
+# metadata-only) only runs in the real CI workflow. This test shows the
+# raw path-filter result for pyproject.toml.
 
 name: "[Local] Test detect-changes"
 
@@ -26,10 +30,16 @@ jobs:
     name: Detect code changes
     runs-on: ubuntu-latest
     outputs:
-      needs-build: ${{ steps.filter.outputs.core == 'true' || steps.filter.outputs.util == 'true' || steps.filter.outputs.cfg == 'true' || steps.filter.outputs.tests == 'true' }}
-      core-changed: ${{ steps.filter.outputs.core }}
+      # NOTE: needs-build here treats any pyproject.toml change as build-triggering.
+      # The real CI workflow classifies pyproject.toml by content (see build-publish_to_pypi.yml).
+      # SYNC-NOTE: update if needs-build categories change in build-publish_to_pypi.yml
+      needs-build: ${{ steps.filter.outputs.fortran == 'true' || steps.filter.outputs.python == 'true' || steps.filter.outputs.util == 'true' || steps.filter.outputs.build == 'true' || steps.filter.outputs.pyproject == 'true' || steps.filter.outputs.ci == 'true' || steps.filter.outputs.tests == 'true' }}
+      fortran-changed: ${{ steps.filter.outputs.fortran }}
+      python-changed: ${{ steps.filter.outputs.python }}
       util-changed: ${{ steps.filter.outputs.util }}
-      cfg-changed: ${{ steps.filter.outputs.cfg }}
+      build-changed: ${{ steps.filter.outputs.build }}
+      pyproject-changed: ${{ steps.filter.outputs.pyproject }}
+      ci-changed: ${{ steps.filter.outputs.ci }}
       tests-changed: ${{ steps.filter.outputs.tests }}
       docs-changed: ${{ steps.filter.outputs.docs }}
       site-changed: ${{ steps.filter.outputs.site }}
@@ -45,23 +55,34 @@ jobs:
           list-files: csv
           filters: .github/path-filters.yml
 
+      - name: Warn about pyproject.toml limitation
+        if: steps.filter.outputs.pyproject == 'true'
+        run: |
+          echo "::warning::pyproject.toml changed. This local test treats ALL pyproject.toml changes as build-triggering. The real CI classifies by content (build-system/cibuildwheel -> multiplatform, dependencies -> single-platform, tooling -> no build)."
+
       - name: Show results
         run: |
           echo "=== Changed Files ==="
-          echo "core files:  ${{ steps.filter.outputs.core_files }}"
-          echo "util files:  ${{ steps.filter.outputs.util_files }}"
-          echo "cfg files:   ${{ steps.filter.outputs.cfg_files }}"
-          echo "tests files: ${{ steps.filter.outputs.tests_files }}"
-          echo "docs files:  ${{ steps.filter.outputs.docs_files }}"
-          echo "site files:  ${{ steps.filter.outputs.site_files }}"
+          echo "fortran files:   ${{ steps.filter.outputs.fortran_files }}"
+          echo "python files:    ${{ steps.filter.outputs.python_files }}"
+          echo "util files:      ${{ steps.filter.outputs.util_files }}"
+          echo "build files:     ${{ steps.filter.outputs.build_files }}"
+          echo "pyproject files: ${{ steps.filter.outputs.pyproject_files }}"
+          echo "ci files:        ${{ steps.filter.outputs.ci_files }}"
+          echo "tests files:     ${{ steps.filter.outputs.tests_files }}"
+          echo "docs files:      ${{ steps.filter.outputs.docs_files }}"
+          echo "site files:      ${{ steps.filter.outputs.site_files }}"
           echo ""
           echo "=== Category Results ==="
-          echo "core:   ${{ steps.filter.outputs.core }}"
-          echo "util:   ${{ steps.filter.outputs.util }}"
-          echo "cfg:    ${{ steps.filter.outputs.cfg }}"
-          echo "tests:  ${{ steps.filter.outputs.tests }}"
-          echo "docs:   ${{ steps.filter.outputs.docs }}"
-          echo "site:   ${{ steps.filter.outputs.site }}"
+          echo "fortran:   ${{ steps.filter.outputs.fortran }}"
+          echo "python:    ${{ steps.filter.outputs.python }}"
+          echo "util:      ${{ steps.filter.outputs.util }}"
+          echo "build:     ${{ steps.filter.outputs.build }}"
+          echo "pyproject: ${{ steps.filter.outputs.pyproject }}"
+          echo "ci:        ${{ steps.filter.outputs.ci }}"
+          echo "tests:     ${{ steps.filter.outputs.tests }}"
+          echo "docs:      ${{ steps.filter.outputs.docs }}"
+          echo "site:      ${{ steps.filter.outputs.site }}"
 
   show-build-decision:
     name: Show build decision
@@ -71,9 +92,12 @@ jobs:
       - name: Build decision summary
         env:
           NEEDS_BUILD: ${{ needs.detect-changes.outputs.needs-build }}
-          CORE: ${{ needs.detect-changes.outputs.core-changed }}
+          FORTRAN: ${{ needs.detect-changes.outputs.fortran-changed }}
+          PYTHON: ${{ needs.detect-changes.outputs.python-changed }}
           UTIL: ${{ needs.detect-changes.outputs.util-changed }}
-          CFG: ${{ needs.detect-changes.outputs.cfg-changed }}
+          BUILD: ${{ needs.detect-changes.outputs.build-changed }}
+          PYPROJECT: ${{ needs.detect-changes.outputs.pyproject-changed }}
+          CI: ${{ needs.detect-changes.outputs.ci-changed }}
           TESTS: ${{ needs.detect-changes.outputs.tests-changed }}
           DOCS: ${{ needs.detect-changes.outputs.docs-changed }}
           SITE: ${{ needs.detect-changes.outputs.site-changed }}
@@ -82,17 +106,42 @@ jobs:
           echo "needs-build: $NEEDS_BUILD"
           echo ""
 
+          # Determine multiplatform requirement
+          # (fortran or build-system — NOT ci workflow tweaks)
+          NEEDS_MULTIPLATFORM=false
+          if [[ "$FORTRAN" == "true" ]] || [[ "$BUILD" == "true" ]]; then
+            NEEDS_MULTIPLATFORM=true
+          fi
+          echo "needs-multiplatform: $NEEDS_MULTIPLATFORM"
+
+          if [[ "$PYPROJECT" == "true" ]]; then
+            echo ""
+            echo "NOTE: pyproject.toml changed. In real CI, content classification"
+            echo "determines whether this triggers multiplatform (build-system/"
+            echo "cibuildwheel), single-platform (dependencies), or no build"
+            echo "(tooling/optional-deps). This local test cannot classify content."
+          fi
+          echo ""
+
           if [[ "$NEEDS_BUILD" == "true" ]]; then
-            # Reproduce the test tier logic from determine_matrix
-            if [[ "$CORE" == "true" ]]; then
-              echo "Draft PR -> platforms: reduced, test tier: core"
-              echo "Ready PR -> platforms: reduced, test tier: standard"
-            elif [[ "$CFG" == "true" ]]; then
-              echo "Draft PR -> platforms: reduced, test tier: cfg"
-              echo "Ready PR -> platforms: reduced, test tier: standard"
+            # NOTE: Simplified reproduction of determine_matrix logic.
+            # Update if build-publish_to_pypi.yml changes tier rules.
+            echo "--- Draft PR ---"
+            if [[ "$FORTRAN" == "true" ]]; then
+              echo "  platforms: reduced (3), test tier: core"
+            elif [[ "$BUILD" == "true" ]]; then
+              echo "  platforms: reduced (3), test tier: cfg"
             else
-              echo "Draft PR -> platforms: minimal, test tier: smoke"
-              echo "Ready PR -> platforms: reduced, test tier: smoke"
+              echo "  platforms: minimal (1), test tier: smoke"
+            fi
+
+            echo "--- Ready PR ---"
+            if [[ "$NEEDS_MULTIPLATFORM" == "true" ]]; then
+              echo "  platforms: reduced (3), test tier: standard"
+            elif [[ "$PYTHON" == "true" ]] || [[ "$UTIL" == "true" ]]; then
+              echo "  platforms: minimal (1), test tier: standard"
+            else
+              echo "  platforms: minimal (1), test tier: smoke"
             fi
           else
             echo "(no build required - PR gate passes without building)"

@@ -303,20 +303,150 @@ jobs:
     # Only run for pull requests and merge queue (push/tag/schedule always build)
     if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     outputs:
-      needs-build: ${{ steps.filter.outputs.core == 'true' || steps.filter.outputs.util == 'true' || steps.filter.outputs.cfg == 'true' || steps.filter.outputs.tests == 'true' }}
-      core-changed: ${{ steps.filter.outputs.core }}
+      needs-build: ${{ steps.decide.outputs.needs-build }}
+      fortran-changed: ${{ steps.filter.outputs.fortran }}
+      python-changed: ${{ steps.decide.outputs.python-changed }}
       util-changed: ${{ steps.filter.outputs.util }}
-      cfg-changed: ${{ steps.filter.outputs.cfg }}
+      build-changed: ${{ steps.decide.outputs.build-changed }}
+      ci-changed: ${{ steps.filter.outputs.ci }}
       tests-changed: ${{ steps.filter.outputs.tests }}
       docs-changed: ${{ steps.filter.outputs.docs }}
       site-changed: ${{ steps.filter.outputs.site }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history needed for pyproject.toml content classification
 
       - uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: .github/path-filters.yml
+
+      # Content-aware classification of pyproject.toml changes.
+      # Only [build-system] and [tool.cibuildwheel] need multiplatform builds.
+      # [project] dependencies/requires-python need single-platform (metadata).
+      # Everything else (tool.ruff, optional-dependencies, etc.) needs no build.
+      #
+      # Requires Python >= 3.11 for tomllib (ubuntu-latest ships 3.12+).
+      # Falls back to conservative "build everything" if tomllib is unavailable.
+      - name: Classify pyproject.toml changes
+        id: classify-pyproject
+        if: steps.filter.outputs.pyproject == 'true'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: |
+          python3 << 'PYEOF'
+          import os, subprocess, sys
+          try:
+              import tomllib
+          except ImportError:
+              print(f"::warning::tomllib unavailable (Python {sys.version}); needs >= 3.11. Treating as build-relevant.")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write("build_relevant=true\npackage_relevant=true\n")
+              sys.exit(0)
+
+          base_sha = os.environ.get("BASE_SHA", "")
+          output = os.environ["GITHUB_OUTPUT"]
+
+          if not base_sha:
+              print("No base SHA, treating as build-relevant (conservative)")
+              with open(output, "a") as f:
+                  f.write("build_relevant=true\npackage_relevant=true\n")
+              sys.exit(0)
+
+          # Load base version of pyproject.toml
+          try:
+              base_text = subprocess.check_output(
+                  ["git", "show", f"{base_sha}:pyproject.toml"],
+                  text=True, stderr=subprocess.DEVNULL
+              )
+              base = tomllib.loads(base_text)
+          except Exception as e:
+              print(f"Cannot read base pyproject.toml ({e}), treating as build-relevant")
+              with open(output, "a") as f:
+                  f.write("build_relevant=true\npackage_relevant=true\n")
+              sys.exit(0)
+
+          # Load HEAD version
+          try:
+              with open("pyproject.toml", "rb") as f:
+                  head = tomllib.load(f)
+          except Exception as e:
+              print(f"Cannot read HEAD pyproject.toml ({e}), treating as build-relevant")
+              with open(output, "a") as f:
+                  f.write("build_relevant=true\npackage_relevant=true\n")
+              sys.exit(0)
+
+          build_relevant = False
+          package_relevant = False
+
+          # [build-system] — affects compilation
+          if base.get("build-system") != head.get("build-system"):
+              build_relevant = True
+              print("[build-system] changed -> multiplatform build")
+
+          # [tool.cibuildwheel] — affects wheel build config
+          if base.get("tool", {}).get("cibuildwheel") != head.get("tool", {}).get("cibuildwheel"):
+              build_relevant = True
+              print("[tool.cibuildwheel] changed -> multiplatform build")
+
+          # [project] dependencies / requires-python — wheel metadata only
+          base_proj = base.get("project", {})
+          head_proj = head.get("project", {})
+          if base_proj.get("dependencies") != head_proj.get("dependencies"):
+              package_relevant = True
+              print("[project] dependencies changed -> single-platform build")
+          if base_proj.get("requires-python") != head_proj.get("requires-python"):
+              package_relevant = True
+              print("[project] requires-python changed -> single-platform build")
+
+          if not build_relevant and not package_relevant:
+              print("pyproject.toml: non-build changes only (tooling, metadata, optional deps)")
+
+          with open(output, "a") as f:
+              f.write(f"build_relevant={'true' if build_relevant else 'false'}\n")
+              f.write(f"package_relevant={'true' if package_relevant else 'false'}\n")
+          PYEOF
+
+      # Compose final outputs from path filter + pyproject classification
+      - name: Compute build decision
+        id: decide
+        run: |
+          FILTER_BUILD="${{ steps.filter.outputs.build }}"
+          FILTER_PYTHON="${{ steps.filter.outputs.python }}"
+          PYPROJ_BUILD="${{ steps.classify-pyproject.outputs.build_relevant || 'false' }}"
+          PYPROJ_PKG="${{ steps.classify-pyproject.outputs.package_relevant || 'false' }}"
+
+          # build-changed: meson/env files OR pyproject build-relevant sections
+          if [[ "$FILTER_BUILD" == "true" ]] || [[ "$PYPROJ_BUILD" == "true" ]]; then
+            echo "build-changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "build-changed=false" >> $GITHUB_OUTPUT
+          fi
+
+          # python-changed: source files OR pyproject package-relevant sections
+          if [[ "$FILTER_PYTHON" == "true" ]] || [[ "$PYPROJ_PKG" == "true" ]]; then
+            echo "python-changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "python-changed=false" >> $GITHUB_OUTPUT
+          fi
+
+          # needs-build: any build-triggering category
+          FORTRAN="${{ steps.filter.outputs.fortran }}"
+          UTIL="${{ steps.filter.outputs.util }}"
+          CI="${{ steps.filter.outputs.ci }}"
+          TESTS="${{ steps.filter.outputs.tests }}"
+
+          NEEDS_BUILD=false
+          if [[ "$FORTRAN" == "true" ]] || \
+             [[ "$FILTER_PYTHON" == "true" ]] || [[ "$PYPROJ_PKG" == "true" ]] || \
+             [[ "$UTIL" == "true" ]] || \
+             [[ "$FILTER_BUILD" == "true" ]] || [[ "$PYPROJ_BUILD" == "true" ]] || \
+             [[ "$CI" == "true" ]] || \
+             [[ "$TESTS" == "true" ]]; then
+            NEEDS_BUILD=true
+          fi
+          echo "needs-build=$NEEDS_BUILD" >> $GITHUB_OUTPUT
 
   # Determine if we should run limited or full matrix
   determine_matrix:
@@ -340,10 +470,19 @@ jobs:
           PR_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
           MINIMAL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"]]'
 
-          CORE_CHANGED="${{ needs.detect-changes.outputs.core-changed || 'false' }}"
+          FORTRAN_CHANGED="${{ needs.detect-changes.outputs.fortran-changed || 'false' }}"
+          PYTHON_CHANGED="${{ needs.detect-changes.outputs.python-changed || 'false' }}"
           UTIL_CHANGED="${{ needs.detect-changes.outputs.util-changed || 'false' }}"
-          CFG_CHANGED="${{ needs.detect-changes.outputs.cfg-changed || 'false' }}"
+          BUILD_CHANGED="${{ needs.detect-changes.outputs.build-changed || 'false' }}"
+          CI_CHANGED="${{ needs.detect-changes.outputs.ci-changed || 'false' }}"
           TESTS_CHANGED="${{ needs.detect-changes.outputs.tests-changed || 'false' }}"
+
+          # Multiplatform needed when compiled extension might change
+          # (fortran source or build system — NOT ci workflow tweaks)
+          NEEDS_MULTIPLATFORM=false
+          if [[ "$FORTRAN_CHANGED" == "true" ]] || [[ "$BUILD_CHANGED" == "true" ]]; then
+            NEEDS_MULTIPLATFORM=true
+          fi
 
           # Python version strategies:
           # - Draft PR: minimal (1 platform, bookend versions) for fastest feedback
@@ -351,36 +490,36 @@ jobs:
           # - Tags/Schedule/Manual: full (all platforms including x86_64 Mac, all Python versions) for comprehensive testing
 
           if [[ "${{ github.event_name }}" == "pull_request" ]] && [[ "${{ github.event.pull_request.draft }}" == "true" ]]; then
-            if [[ "$CORE_CHANGED" == "true" ]]; then
-              echo "Draft PR with core changes - reduced platforms, core tests"
+            if [[ "$FORTRAN_CHANGED" == "true" ]]; then
+              echo "Draft PR with fortran changes - reduced platforms, core tests"
               echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
               echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
               echo "test_tier=core" >> $GITHUB_OUTPUT
-            elif [[ "$CFG_CHANGED" == "true" ]]; then
-              echo "Draft PR with cfg changes - reduced platforms, cfg tests"
+            elif [[ "$BUILD_CHANGED" == "true" ]]; then
+              echo "Draft PR with build-system changes - reduced platforms, cfg tests"
               echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
               echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
               echo "test_tier=cfg" >> $GITHUB_OUTPUT
             else
-              echo "Draft PR with util/tests changes - minimal platform, smoke tests"
+              echo "Draft PR with python/util/ci/tests changes - minimal platform, smoke tests"
               echo "buildplat=$MINIMAL_PLATFORMS" >> $GITHUB_OUTPUT
               echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
               echo "test_tier=smoke" >> $GITHUB_OUTPUT
             fi
           elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            if [[ "$CORE_CHANGED" == "true" ]]; then
-              echo "Ready PR with core changes - reduced platforms, standard tests"
+            if [[ "$NEEDS_MULTIPLATFORM" == "true" ]]; then
+              echo "Ready PR with fortran/build changes - reduced platforms, standard tests"
               echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
               echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
               echo "test_tier=standard" >> $GITHUB_OUTPUT
-            elif [[ "$CFG_CHANGED" == "true" ]]; then
-              echo "Ready PR with cfg changes - reduced platforms, standard tests"
-              echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
+            elif [[ "$PYTHON_CHANGED" == "true" ]] || [[ "$UTIL_CHANGED" == "true" ]]; then
+              echo "Ready PR with python/util changes - minimal platform, standard tests"
+              echo "buildplat=$MINIMAL_PLATFORMS" >> $GITHUB_OUTPUT
               echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
               echo "test_tier=standard" >> $GITHUB_OUTPUT
             else
-              echo "Ready PR with util/tests changes - reduced platforms, smoke tests"
-              echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
+              echo "Ready PR with ci/tests-only changes - minimal platform, smoke tests"
+              echo "buildplat=$MINIMAL_PLATFORMS" >> $GITHUB_OUTPUT
               echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
               echo "test_tier=smoke" >> $GITHUB_OUTPUT
             fi

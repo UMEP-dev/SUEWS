@@ -426,6 +426,9 @@ class InitialStateVeg(SurfaceInitialState):
             self.alb_id.value if isinstance(self.alb_id, RefValue) else self.alb_id
         )
         if alb_val is None:
+            # Only reached when no land_cover properties are available to
+            # derive albedo (the normal auto-calculation path runs in
+            # SUEWSConfig.set_default_vegetation_albedo before this).
             logger_supy.warning(
                 "alb_id is None for %s; using legacy default 0.25. "
                 "Set alb_id explicitly or provide LAI params for auto-calculation.",

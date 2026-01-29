@@ -654,6 +654,10 @@ class SUEWSConfig(BaseModel):
         - alb_min <= alb_max for all vegetated surfaces (evetr, dectr, grass)
 
         This ensures proper albedo parameter ranges for vegetation modeling.
+
+        NOTE: This validator depends on set_default_vegetation_albedo running
+        first (Pydantic v2 executes model_validators in definition order).
+        Do not reorder these validators.
         """
         from .type import RefValue  # Import here to avoid circular import
 

@@ -462,6 +462,59 @@ def test_auto_albedo_clamps_lai_outside_range():
     assert config.sites[1].initial_states.evetr.alb_id == pytest.approx(0.3)
 
 
+def test_auto_albedo_zero_lai_range():
+    """Test auto-albedo when laimin equals laimax (zero range).
+
+    When lai_range <= 0, lai_ratio should be set to 0.0.
+    For trees: alb_id = alb_min + (alb_max - alb_min) * 0.0 = alb_min
+    For grass: alb_id = alb_max - (alb_max - alb_min) * 0.0 = alb_max
+    """
+    evetr_props = EvetrProperties(
+        alb_min=0.1,
+        alb_max=0.3,
+        lai=LAIParams(laimin=2.0, laimax=2.0),
+    )
+    grass_props = GrassProperties(
+        alb_min=0.2,
+        alb_max=0.4,
+        lai=LAIParams(laimin=1.5, laimax=1.5),
+    )
+    land_cover = LandCover(evetr=evetr_props, grass=grass_props)
+    site_props = SiteProperties(land_cover=land_cover)
+
+    evetr_state = InitialStateEvetr(alb_id=None, lai_id=2.0)
+    grass_state = InitialStateGrass(alb_id=None, lai_id=1.5)
+    initial_states = InitialStates(evetr=evetr_state, grass=grass_state)
+
+    site = Site(properties=site_props, initial_states=initial_states)
+    config = SUEWSConfig(sites=[site])
+
+    assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.1)
+    assert config.sites[0].initial_states.grass.alb_id == pytest.approx(0.4)
+
+
+def test_auto_albedo_with_refvalue_inputs():
+    """Test auto-albedo with RefValue-wrapped inputs exercises _unwrap_value."""
+    evetr_props = EvetrProperties(
+        alb_min=RefValue(value=0.1),
+        alb_max=RefValue(value=0.3),
+        lai=LAIParams(laimin=1.0, laimax=3.0),
+    )
+    land_cover = LandCover(evetr=evetr_props)
+    site_props = SiteProperties(land_cover=land_cover)
+
+    evetr_state = InitialStateEvetr(alb_id=None, lai_id=RefValue(value=2.0))
+    site = Site(
+        properties=site_props,
+        initial_states=InitialStates(evetr=evetr_state),
+    )
+
+    config = SUEWSConfig(sites=[site])
+    # lai_ratio = (2.0 - 1.0) / (3.0 - 1.0) = 0.5
+    # alb_id = 0.1 + (0.3 - 0.1) * 0.5 = 0.2
+    assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.2)
+
+
 # From test_validation_topdown.py
 class TestTopDownValidation:
     """Test the new top-down validation approach."""

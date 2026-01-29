@@ -248,9 +248,9 @@ def gen_suews_arg_info_df(docstring):
 df_info_suews_cal_multitsteps = gen_suews_arg_info_df(
     _sd.f90wrap_suews_driver__suews_cal_multitsteps.__doc__
 )
-if version.parse(pd.__version__) >= version.parse("3.0.0"):
+try:
     df_info_suews_cal_multitsteps = df_info_suews_cal_multitsteps.infer_objects()
-else:
+except TypeError:
     df_info_suews_cal_multitsteps = df_info_suews_cal_multitsteps.infer_objects(
         copy=False
     )

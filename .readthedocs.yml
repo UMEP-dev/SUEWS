@@ -53,6 +53,8 @@ build:
           python -m pip install "supy[dev]"
         fi
     post_install:
+      # Re-pin Sphinx after RTD's own install step (which may upgrade beyond 8.2)
+      - python -m pip install "sphinx>=4.0,<8.2"
       # Generate RST files after package is installed (data model docs)
       - cd docs && make generate-rst
 

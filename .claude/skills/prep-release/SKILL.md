@@ -63,6 +63,7 @@ Selection criteria:
 ## Pre-Release Checklist
 
 ```
+[PASS/FAIL] No incomplete prior releases (all merged release PRs have tags)
 [PASS/FAIL] Dev tag selected: YYYY.M.D.dev
 [PASS/FAIL] CI status: All workflows passed
 [PASS/FAIL] On master lineage
@@ -71,8 +72,41 @@ Selection criteria:
 [PASS/FAIL] GitHub Release notes created (.github/releases/)
 [PASS/FAIL] PR submitted and CI passed
 [PASS/FAIL] PR merged to master
-Ready to tag: YES/NO
+[PASS/FAIL] Git tag created on merge commit
+[PASS/FAIL] GitHub Release published (triggers Zenodo DOI)
+Ready: YES/NO
 ```
+
+## Common Mistakes
+
+### Incomplete release: PR merged but no tag created
+
+The most common release failure is merging the release PR (step 6) and then forgetting steps 7-8 (tag and verify). Without the tag:
+- No wheels are built or published to PyPI
+- No GitHub Release or Zenodo DOI is created
+- The CHANGELOG references a version that does not exist on PyPI
+
+**Recovery:** Complete the release by tagging the merge commit on master:
+
+```bash
+git fetch origin master
+MERGE_SHA=$(gh pr list --state merged --search "Release YYYY.M.D" \
+  --json mergeCommit --jq '.[0].mergeCommit.oid')
+git tag -a "YYYY.M.D" "$MERGE_SHA" -m "Release YYYY.M.D"
+git push origin "YYYY.M.D"
+```
+
+### Starting a new release when a previous one is incomplete
+
+Before starting a new release, check for incomplete releases:
+
+```bash
+# Compare merged release PRs to existing tags
+gh pr list --state merged --search "Release" --limit 5 --json title,mergeCommit
+git tag -l "[0-9]*.[0-9]*.[0-9]*" --sort=-v:refname | head -5
+```
+
+If a previous release PR was merged but never tagged, complete that release first. Starting a new release on top of an incomplete one creates confusion in the CHANGELOG and version history.
 
 ## Key Commands
 

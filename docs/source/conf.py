@@ -368,7 +368,7 @@ exclude_patterns = [
     "_build",
     "**.ipynb_checkpoints",
     "build",
-    "auto_examples/.ipynb_checkpoints",  # sphinx-gallery generated notebooks
+    "auto_examples/**/*.ipynb",  # sphinx-gallery notebooks are download-only; prevent nbsphinx re-execution
 ]
 
 # Conditionally exclude DTS documentation if DTS features not available

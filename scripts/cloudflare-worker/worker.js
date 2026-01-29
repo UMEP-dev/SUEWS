@@ -44,13 +44,22 @@ export default {
     const payload = JSON.parse(body);
     const topic = payload.topic;
     if (!topic) {
-      return new Response("No topic in payload", { status: 400 });
+      return new Response("No topic in payload", { status: 200 });
+    }
+
+    // 3. Deduplication: only forward if github-issue tag present and not already processed
+    const tags = (topic.tags || []).map((t) => (typeof t === "string" ? t : t.name || ""));
+    if (!tags.includes("github-issue")) {
+      return new Response("Tag github-issue not present, skipping", { status: 200 });
+    }
+    if (tags.includes("github-issue-created")) {
+      return new Response("Already processed (github-issue-created present)", { status: 200 });
     }
 
     const topicId = topic.id;
     const topicUrl = `https://community.suews.io/t/${topic.slug}/${topicId}`;
 
-    // 3. POST to GitHub repository_dispatch
+    // 4. POST to GitHub repository_dispatch
     const ghResponse = await fetch(
       "https://api.github.com/repos/UMEP-dev/SUEWS/dispatches",
       {

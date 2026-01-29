@@ -135,34 +135,24 @@ jobs:
             -d "$PAYLOAD" \
             "${DISCOURSE_HOST}/posts.json"
 
-      - name: Tag Discourse topic
+      - name: Update Discourse topic tags
         env:
           DISCOURSE_API_KEY: ${{ secrets.DISCOURSE_SUEWS_ADMIN_KEY }}
         run: |
           TOPIC_ID="${{ steps.discourse.outputs.topic_id }}"
 
-          # Fetch current tags
-          CURRENT_TAGS=$(curl -s -f \
+          # Fetch current tags, remove github-issue, add github-issue-created
+          UPDATED_TAGS=$(curl -s -f \
             -H "Api-Key: ${DISCOURSE_API_KEY}" \
             -H "Api-Username: ${DISCOURSE_USERNAME}" \
             "${DISCOURSE_HOST}/t/${TOPIC_ID}.json" \
-            | jq -r '[.tags[]?] | join(",")')
-
-          # Add github-issue-created tag
-          if [ -n "$CURRENT_TAGS" ]; then
-            ALL_TAGS="${CURRENT_TAGS},github-issue-created"
-          else
-            ALL_TAGS="github-issue-created"
-          fi
-
-          # Convert to JSON array
-          TAGS_JSON=$(echo "$ALL_TAGS" | tr ',' '\n' | jq -R . | jq -s .)
+            | jq '[.tags[]? | select(. != "github-issue")] + ["github-issue-created"] | unique')
 
           curl -s -f -X PUT \
             -H "Api-Key: ${DISCOURSE_API_KEY}" \
             -H "Api-Username: ${DISCOURSE_USERNAME}" \
             -H "Content-Type: application/json" \
-            -d "{\"tags\": ${TAGS_JSON}}" \
+            -d "{\"tags\": ${UPDATED_TAGS}}" \
             "${DISCOURSE_HOST}/t/-/${TOPIC_ID}.json"
 
-          echo "Tagged topic ${TOPIC_ID} with github-issue-created"
+          echo "Updated topic ${TOPIC_ID}: removed github-issue, added github-issue-created"

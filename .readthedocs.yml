@@ -1,5 +1,5 @@
 # .readthedocs.yaml
-# Read the Docs configuration file for the `docs` branch
+# Read the Docs configuration file for the `rtd` branch
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
 #
 # This branch contains pre-built sphinx-gallery artefacts, so RTD only needs
@@ -23,18 +23,33 @@ build:
     post_create_environment:
       # Pre-install Sphinx with upper bound (Sphinx 9.0 breaks sphinx_click)
       - python -m pip install "sphinx>=4.0,<8.2"
-      # Install supy from PyPI wheel (version from provenance metadata)
+      # Install latest supy wheel (PyPI first, TestPyPI fallback for dev builds)
       - |
-        SUPY_VER=$(python3 -c "
-        import json, pathlib
-        data = json.loads(pathlib.Path('docs/.docs-source.json').read_text())
-        tag = data.get('source_tag', '')
-        print(tag if tag else 'supy')
-        ")
-        echo "Installing supy version: $SUPY_VER"
-        if [ "$SUPY_VER" != "supy" ] && [ -n "$SUPY_VER" ]; then
-          python -m pip install "supy[dev]==$SUPY_VER" || python -m pip install "supy[dev]"
-        else
+        SUPY_VERSION=$(python get_ver_git.py 2>/dev/null || echo "unknown")
+        echo "Detected SuPy version: $SUPY_VERSION"
+        INSTALLED=0
+
+        case "$SUPY_VERSION" in
+          *".dev"*|"unknown")
+            # Dev version: normalise to .dev0 and try Test PyPI first
+            PYPI_VERSION=$(echo "$SUPY_VERSION" | sed 's/\.dev[0-9]*/\.dev0/')
+            echo "Trying Test PyPI wheel: $PYPI_VERSION"
+            if python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "supy[dev]==$PYPI_VERSION"; then
+              INSTALLED=1
+            fi
+            ;;
+          *)
+            # Release version: try PyPI
+            echo "Trying PyPI wheel: $SUPY_VERSION"
+            if python -m pip install "supy[dev]==$SUPY_VERSION"; then
+              INSTALLED=1
+            fi
+            ;;
+        esac
+
+        # Fallback: install latest from PyPI
+        if [ "$INSTALLED" -eq 0 ]; then
+          echo "Exact version not found, installing latest supy from PyPI"
           python -m pip install "supy[dev]"
         fi
     post_install:

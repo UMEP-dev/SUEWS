@@ -291,11 +291,8 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
     "sphinx.ext.extlinks",
-    "sphinx_comments",
     "input_domain",  # Custom domain for input configuration options (see GH#1031)
     "output_domain",  # Custom domain for output variables (see GH#1031)
-    "recommonmark",
-    "nbsphinx",
     "sphinx_design",  # For collapsible sections, tabs, and dropdowns in YAML config reference
     "sphinx_last_updated_by_git",
     "sphinx_click.ext",
@@ -349,22 +346,8 @@ if not _PREBUILT_GALLERY:
         "capture_repr": ("_repr_html_", "__repr__"),
     }
 
-# sphinx comments
-# https://sphinx-comments.readthedocs.io/
-# Commenting system disabled
-# comments_config = {
-#     "hypothesis": True,
-#     "utterances": {
-#         "repo": "UMEP-dev/SUEWS",
-#         "issue-term": "title",
-#         #   "optional": "config",
-#     },
-# }
-
 # The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
-source_suffix = [".rst", ".md"]
-# source_suffix = '.rst'
+source_suffix = [".rst"]
 
 # fortran source code for `fortran_autodoc` and `fortran_domain`
 fortran_src = [
@@ -394,7 +377,6 @@ exclude_patterns = [
     "_build",
     "**.ipynb_checkpoints",
     "build",
-    "auto_examples/.ipynb_checkpoints",  # sphinx-gallery generated notebooks
 ]
 
 # Conditionally exclude DTS documentation if DTS features not available

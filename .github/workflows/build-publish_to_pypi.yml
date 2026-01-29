@@ -334,104 +334,28 @@ jobs:
         if: steps.filter.outputs.pyproject == 'true'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
-        run: |
-          python3 << 'PYEOF'
-          import os, subprocess, sys
-          try:
-              import tomllib
-          except ImportError:
-              print(f"::warning::tomllib unavailable (Python {sys.version}); needs >= 3.11. Treating as build-relevant.")
-              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-                  f.write("build_relevant=true\npackage_relevant=true\n")
-              sys.exit(0)
-
-          base_sha = os.environ.get("BASE_SHA", "")
-          output = os.environ["GITHUB_OUTPUT"]
-
-          if not base_sha:
-              print("No base SHA, treating as build-relevant (conservative)")
-              with open(output, "a") as f:
-                  f.write("build_relevant=true\npackage_relevant=true\n")
-              sys.exit(0)
-
-          # Load base version of pyproject.toml
-          try:
-              base_text = subprocess.check_output(
-                  ["git", "show", f"{base_sha}:pyproject.toml"],
-                  text=True, stderr=subprocess.DEVNULL
-              )
-              base = tomllib.loads(base_text)
-          except Exception as e:
-              print(f"Cannot read base pyproject.toml ({e}), treating as build-relevant")
-              with open(output, "a") as f:
-                  f.write("build_relevant=true\npackage_relevant=true\n")
-              sys.exit(0)
-
-          # Load HEAD version
-          try:
-              with open("pyproject.toml", "rb") as f:
-                  head = tomllib.load(f)
-          except Exception as e:
-              print(f"Cannot read HEAD pyproject.toml ({e}), treating as build-relevant")
-              with open(output, "a") as f:
-                  f.write("build_relevant=true\npackage_relevant=true\n")
-              sys.exit(0)
-
-          build_relevant = False
-          package_relevant = False
-
-          # [build-system] — affects compilation
-          if base.get("build-system") != head.get("build-system"):
-              build_relevant = True
-              print("[build-system] changed -> multiplatform build")
-
-          # [tool.cibuildwheel] — affects wheel build config
-          if base.get("tool", {}).get("cibuildwheel") != head.get("tool", {}).get("cibuildwheel"):
-              build_relevant = True
-              print("[tool.cibuildwheel] changed -> multiplatform build")
-
-          # [project] dependencies / requires-python — wheel metadata only
-          base_proj = base.get("project", {})
-          head_proj = head.get("project", {})
-          if base_proj.get("dependencies") != head_proj.get("dependencies"):
-              package_relevant = True
-              print("[project] dependencies changed -> single-platform build")
-          if base_proj.get("requires-python") != head_proj.get("requires-python"):
-              package_relevant = True
-              print("[project] requires-python changed -> single-platform build")
-
-          if not build_relevant and not package_relevant:
-              print("pyproject.toml: non-build changes only (tooling, metadata, optional deps)")
-
-          with open(output, "a") as f:
-              f.write(f"build_relevant={'true' if build_relevant else 'false'}\n")
-              f.write(f"package_relevant={'true' if package_relevant else 'false'}\n")
-          PYEOF
+        run: python3 .github/scripts/classify_pyproject.py
 
       # Compose final outputs from path filter + pyproject classification
       - name: Compute build decision
         id: decide
         run: |
-          FILTER_BUILD="${{ steps.filter.outputs.build }}"
-          FILTER_PYTHON="${{ steps.filter.outputs.python }}"
-          PYPROJ_BUILD="${{ steps.classify-pyproject.outputs.build_relevant || 'false' }}"
-          PYPROJ_PKG="${{ steps.classify-pyproject.outputs.package_relevant || 'false' }}"
-
-          # build-changed: meson/env files OR pyproject build-relevant sections
-          if [[ "$FILTER_BUILD" == "true" ]] || [[ "$PYPROJ_BUILD" == "true" ]]; then
-            echo "build-changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "build-changed=false" >> $GITHUB_OUTPUT
+          # Compose build-changed and python-changed from path filter + pyproject
+          BUILD_CHANGED=false
+          if [[ "${{ steps.filter.outputs.build }}" == "true" ]] || \
+             [[ "${{ steps.classify-pyproject.outputs.build_relevant || 'false' }}" == "true" ]]; then
+            BUILD_CHANGED=true
           fi
+          echo "build-changed=$BUILD_CHANGED" >> $GITHUB_OUTPUT
 
-          # python-changed: source files OR pyproject package-relevant sections
-          if [[ "$FILTER_PYTHON" == "true" ]] || [[ "$PYPROJ_PKG" == "true" ]]; then
-            echo "python-changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "python-changed=false" >> $GITHUB_OUTPUT
+          PYTHON_CHANGED=false
+          if [[ "${{ steps.filter.outputs.python }}" == "true" ]] || \
+             [[ "${{ steps.classify-pyproject.outputs.package_relevant || 'false' }}" == "true" ]]; then
+            PYTHON_CHANGED=true
           fi
+          echo "python-changed=$PYTHON_CHANGED" >> $GITHUB_OUTPUT
 
-          # needs-build: any build-triggering category
+          # needs-build: any build-triggering category changed
           FORTRAN="${{ steps.filter.outputs.fortran }}"
           UTIL="${{ steps.filter.outputs.util }}"
           CI="${{ steps.filter.outputs.ci }}"
@@ -439,9 +363,9 @@ jobs:
 
           NEEDS_BUILD=false
           if [[ "$FORTRAN" == "true" ]] || \
-             [[ "$FILTER_PYTHON" == "true" ]] || [[ "$PYPROJ_PKG" == "true" ]] || \
+             [[ "$PYTHON_CHANGED" == "true" ]] || \
              [[ "$UTIL" == "true" ]] || \
-             [[ "$FILTER_BUILD" == "true" ]] || [[ "$PYPROJ_BUILD" == "true" ]] || \
+             [[ "$BUILD_CHANGED" == "true" ]] || \
              [[ "$CI" == "true" ]] || \
              [[ "$TESTS" == "true" ]]; then
             NEEDS_BUILD=true
@@ -465,107 +389,107 @@ jobs:
       - name: Set matrix based on trigger type
         id: set-matrix
         run: |
-          # Platform matrix
+          # Platform presets
           FULL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-15-intel", "macosx", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
           PR_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
           MINIMAL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"]]'
+
+          # Python version presets
+          BOOKEND_PYTHON='["cp39", "cp314"]'
+          ALL_PYTHON='["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]'
 
           FORTRAN_CHANGED="${{ needs.detect-changes.outputs.fortran-changed || 'false' }}"
           PYTHON_CHANGED="${{ needs.detect-changes.outputs.python-changed || 'false' }}"
           UTIL_CHANGED="${{ needs.detect-changes.outputs.util-changed || 'false' }}"
           BUILD_CHANGED="${{ needs.detect-changes.outputs.build-changed || 'false' }}"
-          CI_CHANGED="${{ needs.detect-changes.outputs.ci-changed || 'false' }}"
-          TESTS_CHANGED="${{ needs.detect-changes.outputs.tests-changed || 'false' }}"
 
           # Multiplatform needed when compiled extension might change
-          # (fortran source or build system — NOT ci workflow tweaks)
+          # (fortran source or build system -- not CI workflow tweaks)
           NEEDS_MULTIPLATFORM=false
           if [[ "$FORTRAN_CHANGED" == "true" ]] || [[ "$BUILD_CHANGED" == "true" ]]; then
             NEEDS_MULTIPLATFORM=true
           fi
 
-          # Python version strategies:
-          # - Draft PR: minimal (1 platform, bookend versions) for fastest feedback
-          # - PR/Master: reduced (ARM Mac + Linux + Windows, bookend versions) for speed with good coverage
-          # - Tags/Schedule/Manual: full (all platforms including x86_64 Mac, all Python versions) for comprehensive testing
+          # Matrix strategy by event type:
+          #   Draft PR:  minimal/reduced platforms, bookend Python, light tests
+          #   Ready PR:  reduced/minimal platforms, bookend Python, standard/smoke tests
+          #   Merge queue: reduced platforms, bookend Python, standard tests
+          #   Schedule/tags: full platforms, all Python, all tests
+          #   Dispatch: configurable
 
           if [[ "${{ github.event_name }}" == "pull_request" ]] && [[ "${{ github.event.pull_request.draft }}" == "true" ]]; then
             if [[ "$FORTRAN_CHANGED" == "true" ]]; then
               echo "Draft PR with fortran changes - reduced platforms, core tests"
               echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
-              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
               echo "test_tier=core" >> $GITHUB_OUTPUT
             elif [[ "$BUILD_CHANGED" == "true" ]]; then
               echo "Draft PR with build-system changes - reduced platforms, cfg tests"
               echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
-              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
               echo "test_tier=cfg" >> $GITHUB_OUTPUT
             else
               echo "Draft PR with python/util/ci/tests changes - minimal platform, smoke tests"
               echo "buildplat=$MINIMAL_PLATFORMS" >> $GITHUB_OUTPUT
-              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
               echo "test_tier=smoke" >> $GITHUB_OUTPUT
             fi
+            echo "python=$BOOKEND_PYTHON" >> $GITHUB_OUTPUT
+
           elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            TIER=standard
             if [[ "$NEEDS_MULTIPLATFORM" == "true" ]]; then
               echo "Ready PR with fortran/build changes - reduced platforms, standard tests"
               echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
-              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
-              echo "test_tier=standard" >> $GITHUB_OUTPUT
             elif [[ "$PYTHON_CHANGED" == "true" ]] || [[ "$UTIL_CHANGED" == "true" ]]; then
               echo "Ready PR with python/util changes - minimal platform, standard tests"
               echo "buildplat=$MINIMAL_PLATFORMS" >> $GITHUB_OUTPUT
-              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
-              echo "test_tier=standard" >> $GITHUB_OUTPUT
             else
               echo "Ready PR with ci/tests-only changes - minimal platform, smoke tests"
               echo "buildplat=$MINIMAL_PLATFORMS" >> $GITHUB_OUTPUT
-              echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
-              echo "test_tier=smoke" >> $GITHUB_OUTPUT
+              TIER=smoke
             fi
+            echo "python=$BOOKEND_PYTHON" >> $GITHUB_OUTPUT
+            echo "test_tier=$TIER" >> $GITHUB_OUTPUT
+
           elif [[ "${{ github.event_name }}" == "merge_group" ]]; then
-            echo "Running reduced matrix for merge queue validation"
+            echo "Merge queue validation - reduced platforms, standard tests"
             echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
-            echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+            echo "python=$BOOKEND_PYTHON" >> $GITHUB_OUTPUT
             echo "test_tier=standard" >> $GITHUB_OUTPUT
+
           elif [[ "${{ github.event_name }}" == "schedule" ]]; then
-            echo "Running full matrix for nightly (all platforms, all Python versions, all tests)"
+            echo "Nightly - full matrix, all tests"
             echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
-            echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]' >> $GITHUB_OUTPUT
+            echo "python=$ALL_PYTHON" >> $GITHUB_OUTPUT
             echo "test_tier=all" >> $GITHUB_OUTPUT
+
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            # Manual dispatch with configurable matrix
             MATRIX_CONFIG="${{ inputs.matrix_config }}"
-            TEST_TIER="${{ inputs.test_tier }}"
 
             case "$MATRIX_CONFIG" in
               full)
                 echo "Manual dispatch: full matrix"
                 echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
-                echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]' >> $GITHUB_OUTPUT
+                echo "python=$ALL_PYTHON" >> $GITHUB_OUTPUT
                 ;;
               pr)
                 echo "Manual dispatch: PR-style reduced matrix"
                 echo "buildplat=$PR_PLATFORMS" >> $GITHUB_OUTPUT
-                echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+                echo "python=$BOOKEND_PYTHON" >> $GITHUB_OUTPUT
                 ;;
               minimal)
                 echo "Manual dispatch: minimal matrix"
                 echo "buildplat=$MINIMAL_PLATFORMS" >> $GITHUB_OUTPUT
-                echo 'python=["cp39", "cp314"]' >> $GITHUB_OUTPUT
+                echo "python=$BOOKEND_PYTHON" >> $GITHUB_OUTPUT
                 ;;
               custom)
                 echo "Manual dispatch: custom matrix from toggles"
 
-                # Build platform array from toggles
                 PLATFORMS="["
                 [[ "${{ inputs.plat_linux }}" == "true" ]] && PLATFORMS+='["ubuntu-latest", "manylinux", "x86_64"],'
                 [[ "${{ inputs.plat_macos_intel }}" == "true" ]] && PLATFORMS+='["macos-15-intel", "macosx", "x86_64"],'
                 [[ "${{ inputs.plat_macos_arm }}" == "true" ]] && PLATFORMS+='["macos-latest", "macosx", "arm64"],'
                 [[ "${{ inputs.plat_windows }}" == "true" ]] && PLATFORMS+='["windows-2025", "win", "AMD64"],'
-                PLATFORMS="${PLATFORMS%,}]"  # Remove trailing comma
+                PLATFORMS="${PLATFORMS%,}]"
 
-                # Build Python array from toggles
                 PYTHONS="["
                 [[ "${{ inputs.py39 }}" == "true" ]] && PYTHONS+='"cp39",'
                 [[ "${{ inputs.py310 }}" == "true" ]] && PYTHONS+='"cp310",'
@@ -573,15 +497,14 @@ jobs:
                 [[ "${{ inputs.py312 }}" == "true" ]] && PYTHONS+='"cp312",'
                 [[ "${{ inputs.py313 }}" == "true" ]] && PYTHONS+='"cp313",'
                 [[ "${{ inputs.py314 }}" == "true" ]] && PYTHONS+='"cp314",'
-                PYTHONS="${PYTHONS%,}]"  # Remove trailing comma
+                PYTHONS="${PYTHONS%,}]"
 
-                # Validate at least one platform and one Python version selected
                 if [[ "$PLATFORMS" == "[]" ]]; then
-                  echo "::error::Custom matrix requires at least one platform to be selected"
+                  echo "::error::Custom matrix requires at least one platform"
                   exit 1
                 fi
                 if [[ "$PYTHONS" == "[]" ]]; then
-                  echo "::error::Custom matrix requires at least one Python version to be selected"
+                  echo "::error::Custom matrix requires at least one Python version"
                   exit 1
                 fi
 
@@ -589,19 +512,18 @@ jobs:
                 echo "python=$PYTHONS" >> $GITHUB_OUTPUT
                 ;;
             esac
-            echo "test_tier=$TEST_TIER" >> $GITHUB_OUTPUT
+            echo "test_tier=${{ inputs.test_tier }}" >> $GITHUB_OUTPUT
+
           else
             # Tag pushes - full matrix for releases
-            echo "Running full matrix for tags (all platforms, all Python versions, all tests)"
+            echo "Tag release - full matrix, all tests"
             echo "buildplat=$FULL_PLATFORMS" >> $GITHUB_OUTPUT
-            echo 'python=["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]' >> $GITHUB_OUTPUT
+            echo "python=$ALL_PYTHON" >> $GITHUB_OUTPUT
             echo "test_tier=all" >> $GITHUB_OUTPUT
           fi
 
-          # UMEP builds: Python 3.12 only (aligned with QGIS 3.40 LTR bundled Python)
-          # PR/nightly: Windows only (QGIS primary platform) for quick validation
-          # Production: all platforms for complete UMEP distribution
-          echo "UMEP matrix: cp312 only (QGIS 3.40 LTR uses Python 3.12)"
+          # UMEP: Python 3.12 only (QGIS 3.40 LTR), Windows only for validation
+          # Production tags use full platforms (handled in build_umep job's matrix expression)
           echo 'umep_buildplat=[["windows-2025", "win", "AMD64"]]' >> $GITHUB_OUTPUT
           echo 'umep_python=["cp312"]' >> $GITHUB_OUTPUT
 

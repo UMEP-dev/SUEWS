@@ -103,7 +103,6 @@ dev = [
     "sphinx>=4.0,<8.2",
     "sphinx-autobuild",
     "sphinx-book-theme",        # Active theme in conf.py
-    "nbsphinx",                 # Jupyter notebook support
     "pybtex",                   # Bibliography processing
     "sphinxcontrib.bibtex~=2.4", # Bibliography support (heavily customised)
     "sphinx-design>=0.7.0",     # Collapsible sections for YAML config docs (>=0.7 supports Sphinx 8)

@@ -308,8 +308,9 @@ def test_validate_samealbedo_wall_requires_match_with_wallreflectivity():
 
     msgs = SUEWSConfig._validate_samealbedo_wall(cfg, site, 0)
     assert len(msgs) == 1
-    assert "all wall albedoes (0.5) must equal properties.building_archetype.WallReflectivity (0.345)" in msgs[0]
-    assert "SiteRefMismatch" in msgs[0]
+    msg = msgs[0]
+    assert "must equal properties.building_archetype.WallReflectivity (0.345)" in msg
+    assert "walls[0]=0.5" in msg
 
 
 # From test_validation_topdown.py

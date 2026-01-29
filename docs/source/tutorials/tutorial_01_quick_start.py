@@ -70,7 +70,10 @@ print(f"  Air temperature range: {sim.forcing.Tair.min():.1f} to {sim.forcing.Ta
 print(f"  Wind speed range: {sim.forcing.U.min():.1f} to {sim.forcing.U.max():.1f} m/s")
 print(f"  Total rainfall: {sim.forcing.rain.sum():.1f} mm")
 
-# Slice forcing data by time (returns new SUEWSForcing object)
+# Slice forcing data by time (returns new SUEWSForcing object).
+# Drop the first row with `.iloc[1:]` because accumulated variables
+# (e.g. rainfall) for the partial period at the slice boundary are
+# incomplete, making that row invalid as forcing input.
 forcing_sliced = sim.forcing["2012-01":"2012-03"].iloc[1:]
 
 # Update simulation with the time-sliced forcing
@@ -90,8 +93,8 @@ dict_var_label = {
 # %%
 # .. tip::
 #
-#    When resampling forcing data, always call ``resample()`` **before**
-#    selecting columns. ``SUEWSForcing.resample()`` applies the correct
+#    When resampling forcing data, call ``resample()`` first, then select
+#    columns. ``SUEWSForcing.resample()`` applies the correct
 #    aggregation method for each variable type (rain=sum, radiation=mean,
 #    instantaneous=last). Selecting columns first bypasses this logic.
 

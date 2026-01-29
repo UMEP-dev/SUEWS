@@ -32,9 +32,9 @@ from supy import SUEWSSimulation
 #
 # We define a simple :math:`Q_F` model based on building heating and cooling:
 #
-# - Heating activates when T < 10°C
-# - Cooling activates when T > 20°C
-# - Between 10-20°C: baseline :math:`Q_F` = 0
+# - Heating activates when T < 10 :math:`^{\circ}C`
+# - Cooling activates when T > 20 :math:`^{\circ}C`
+# - Between 10-20 :math:`^{\circ}C`: baseline :math:`Q_F` = 0
 #
 # This simplified model captures the temperature-dependent nature of
 # building energy use without requiring detailed building simulation.
@@ -46,17 +46,17 @@ def QF_simple(T2):
     Parameters
     ----------
     T2 : float
-        2-metre air temperature (°C)
+        2-metre air temperature (:math:`^{\circ}C`)
 
     Returns
     -------
     float
-        Anthropogenic heat flux (W m⁻²)
+        Anthropogenic heat flux (W m\ :sup:`-2`)
     """
-    T_cool = 20  # Cooling threshold (°C)
-    T_heat = 10  # Heating threshold (°C)
-    C_B = 5  # Cooling rate (W m⁻² K⁻¹)
-    H_B = 10  # Heating rate (W m⁻² K⁻¹)
+    T_cool = 20  # Cooling threshold (degC)
+    T_heat = 10  # Heating threshold (degC)
+    C_B = 5  # Cooling rate (W m^-2 K^-1)
+    H_B = 10  # Heating rate (W m^-2 K^-1)
     scale = 0.3  # Scaling factor
 
     if T2 > T_cool:  # noqa: SIM300
@@ -83,25 +83,25 @@ df_qf = pd.DataFrame({"Temperature": temp_range, "QF": qf_values})
 
 fig, ax = plt.subplots(figsize=(8, 5))
 
-# Heating region (T < 10°C)
+# Heating region (T < 10 degC)
 mask_heat = temp_range < 10
 ax.plot(temp_range[mask_heat], np.array(qf_values)[mask_heat], "C1-", label="Heating", linewidth=2)
 
-# Neutral region (10 <= T <= 20°C)
+# Neutral region (10 <= T <= 20 degC)
 mask_neutral = (temp_range >= 10) & (temp_range <= 20)
 ax.plot(
     temp_range[mask_neutral], np.array(qf_values)[mask_neutral], "C2-", label="Baseline", linewidth=2
 )
 
-# Cooling region (T > 20°C)
+# Cooling region (T > 20 degC)
 mask_cool = temp_range > 20
 ax.plot(temp_range[mask_cool], np.array(qf_values)[mask_cool], "C0-", label="Cooling", linewidth=2)
 
 # Annotations
 ax.axvline(10, color="grey", linestyle="--", alpha=0.5)
 ax.axvline(20, color="grey", linestyle="--", alpha=0.5)
-ax.annotate("$T_H$ = 10°C", xy=(10, 5), fontsize=10)
-ax.annotate("$T_C$ = 20°C", xy=(20, 5), fontsize=10)
+ax.annotate("$T_H$ = 10$^{\\circ}$C", xy=(10, 5), fontsize=10)
+ax.annotate("$T_C$ = 20$^{\\circ}$C", xy=(20, 5), fontsize=10)
 
 ax.set_xlabel("Air Temperature ($^\\circ$C)")
 ax.set_ylabel("$Q_F$ (W m$^{-2}$)")
@@ -161,9 +161,9 @@ df_state_qf = df_state_init.copy()
 df_state_qf.loc[:, "emissionsmethod"] = 0  # Use prescribed Q_F
 
 print("Q_F statistics:")
-print(f"  Mean: {qf_external.mean():.2f} W/m²")
-print(f"  Max:  {qf_external.max():.2f} W/m²")
-print(f"  Min:  {qf_external.min():.2f} W/m²")
+print(f"  Mean: {qf_external.mean():.2f} W/m^2")
+print(f"  Max:  {qf_external.max():.2f} W/m^2")
+print(f"  Min:  {qf_external.min():.2f} W/m^2")
 
 # %%
 # Run Baseline Simulation (:math:`Q_F` = 0)
@@ -272,7 +272,7 @@ if len(diff_qf_daily.dropna()) > 2:
     z = np.polyfit(diff_qf_daily.dropna(), diff_t2_daily.dropna(), 1)
     p = np.poly1d(z)
     x_line = np.linspace(diff_qf_daily.min(), diff_qf_daily.max(), 100)
-    ax.plot(x_line, p(x_line), "r--", alpha=0.7, label=f"Slope: {z[0]:.3f} °C/(W/m²)")
+    ax.plot(x_line, p(x_line), "r--", alpha=0.7, label=f"Slope: {z[0]:.3f} $^{{\\circ}}$C/(W/m$^2$)")
     ax.legend()
 
 ax.grid(True, alpha=0.3)

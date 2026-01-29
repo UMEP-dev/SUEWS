@@ -5,12 +5,9 @@ from .supy_driver import module_ctrl_type as sd_dts
 from ._env import logger_supy
 from .data_model.output import OUTPUT_REGISTRY
 
-# Use shared DTS availability check (see _env.py for implementation details)
-from ._env import DTS_AVAILABLE as _DTS_TYPES_AVAILABLE
+# Check DTS availability now that supy_driver is available (imported above)
 from ._env import _init_dts_check
-
-# Initialise DTS check now that supy_driver is available (imported above)
-_init_dts_check()
+_DTS_TYPES_AVAILABLE = _init_dts_check()
 
 
 ##############################################################################
@@ -751,12 +748,14 @@ def pack_dict_dts(dict_dts):
 
 # Initialize dict_structure only if DTS types are available
 # This is used as a template for pack_dts_state_selective
+dict_structure = None
 if _DTS_TYPES_AVAILABLE:
-    sample_dts = sd_dts.SUEWS_STATE_BLOCK()
-    sample_dts.init(3, 3, 3)
-    dict_structure = inspect_dts_structure(sample_dts.block[0])
-else:
-    dict_structure = None
+    try:
+        sample_dts = sd_dts.SUEWS_STATE_BLOCK()
+        sample_dts.init(3, 3, 3)
+        dict_structure = inspect_dts_structure(sample_dts.block[0])
+    except Exception as e:
+        logger_supy.debug("DTS structure init failed: %s; dict_structure unavailable", e)
 
 
 def pack_dict_dts_datetime_grid(dict_dts_datetime_grid):

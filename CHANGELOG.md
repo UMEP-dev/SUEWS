@@ -21,7 +21,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 63 | 75 | 24 | 77 | 37 | 276 |
+| 2026 | 64 | 76 | 24 | 79 | 38 | 281 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -41,7 +41,12 @@
 - [feature] Added `samealbedo_wall` and `samealbedo_roof` model options for roof and wall albedo validation (PR #1123)
   - When enabled (`=1`), enforces all roof/wall albedo values match their respective reflectivity parameters; errors reported if inconsistent as ACTION NEEDED in the report.
   - When disabled (`=0`), skips consistency checks and issues a user warning listing current albedo values in NO ACTION NEEDED section of the report.
-- [changes] Refactor config.py, _load.py and _misc.py to have Phase B as the single authority for check sum of land cover fractions. (PR #1099)
+- [feature] Added sphinx-gallery for executable documentation examples (#1057)
+- [doc] Added user workflow guide for getting started with SUEWS (#1014)
+- [change] Refactored land cover fraction check to use Phase B as single authority (#1099)
+- [maintenance] Replaced incremental DataFrame assignment with batch column creation (#1129)
+- [bugfix] Fixed macOS UMEP wheel build by replacing sed with Python (#1128)
+- [maintenance] Removed format-master workflow incompatible with merge queue (#1130)
 
 ### 27 Jan 2026
 

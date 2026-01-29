@@ -1,0 +1,248 @@
+name: Sync rtd branch from master
+
+# Merges master into the `rtd` branch, rebuilds sphinx-gallery when tutorials
+# change, and propagates CalVer tags as rtd/* tags for RTD versioned builds.
+# Branch is named `rtd` (not `docs`) to avoid ref conflict with existing docs/* branches.
+
+on:
+  push:
+    branches: [master]
+    tags:
+      - "[0-9]*"           # CalVer releases, e.g. 2026.1.28
+    paths:
+      - "docs/**"
+      - "src/supy/**"
+      - "src/suews/src/**"
+  workflow_dispatch:
+    inputs:
+      force_gallery_rebuild:
+        description: "Force gallery rebuild (ignore change detection)"
+        type: boolean
+        default: false
+
+# Cancel in-progress runs for the same workflow
+concurrency:
+  group: docs-sync
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      # ------------------------------------------------------------------
+      # 1. Checkout full history (needed for merge + change detection)
+      # ------------------------------------------------------------------
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      # ------------------------------------------------------------------
+      # 2. Configure git identity
+      # ------------------------------------------------------------------
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # ------------------------------------------------------------------
+      # 3. Merge master into rtd branch
+      # ------------------------------------------------------------------
+      - name: Merge master into rtd
+        id: merge
+        run: |
+          git checkout rtd
+          git merge origin/master --no-edit || {
+            echo "merge_conflict=true" >> "$GITHUB_OUTPUT"
+            git merge --abort
+            exit 0
+          }
+          echo "merge_conflict=false" >> "$GITHUB_OUTPUT"
+
+      # ------------------------------------------------------------------
+      # 3a. Open issue on merge conflict
+      # ------------------------------------------------------------------
+      - name: Open issue on merge conflict
+        if: steps.merge.outputs.merge_conflict == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'rtd branch merge conflict with master',
+              body: [
+                'The `docs-sync` workflow failed to merge `master` into `rtd`.',
+                '',
+                `Triggered by: ${context.eventName} (${context.sha.slice(0, 8)})`,
+                '',
+                'Please resolve the conflict manually:',
+                '```bash',
+                'git checkout rtd',
+                'git merge origin/master',
+                '# resolve conflicts',
+                'git commit',
+                'git push origin rtd',
+                '```',
+              ].join('\n'),
+              labels: ['docs'],
+            });
+
+      - name: Abort on merge conflict
+        if: steps.merge.outputs.merge_conflict == 'true'
+        run: exit 1
+
+      # ------------------------------------------------------------------
+      # 4. Detect whether tutorials changed since last sync
+      # ------------------------------------------------------------------
+      - name: Detect tutorial changes
+        id: detect
+        run: |
+          FORCE="${{ github.event.inputs.force_gallery_rebuild || 'false' }}"
+          if [ "$FORCE" = "true" ]; then
+            echo "gallery_changed=true" >> "$GITHUB_OUTPUT"
+            echo "Forced rebuild requested"
+            exit 0
+          fi
+
+          # Read last-synced commit from provenance file
+          LAST_COMMIT=""
+          if [ -f docs/.docs-source.json ]; then
+            LAST_COMMIT=$(python3 -c "
+          import json, pathlib
+          data = json.loads(pathlib.Path('docs/.docs-source.json').read_text())
+          print(data.get('source_commit', ''))
+          ")
+          fi
+
+          if [ -z "$LAST_COMMIT" ]; then
+            echo "gallery_changed=true" >> "$GITHUB_OUTPUT"
+            echo "No previous sync commit found -- rebuilding"
+            exit 0
+          fi
+
+          # Check if tutorial sources changed between last sync and current master
+          CURRENT_MASTER=$(git rev-parse origin/master)
+          CHANGED=$(git diff --name-only "$LAST_COMMIT" "$CURRENT_MASTER" -- \
+            docs/source/tutorials/ \
+            docs/source/conf.py \
+            src/supy/ \
+            src/suews/src/ || echo "error")
+
+          if [ "$CHANGED" = "error" ] || [ -n "$CHANGED" ]; then
+            echo "gallery_changed=true" >> "$GITHUB_OUTPUT"
+            echo "Changes detected:"
+            echo "$CHANGED"
+          else
+            echo "gallery_changed=false" >> "$GITHUB_OUTPUT"
+            echo "No tutorial/source changes since last sync"
+          fi
+
+      # ------------------------------------------------------------------
+      # 5. Build gallery (only when tutorials changed)
+      # ------------------------------------------------------------------
+      - name: Install system dependencies
+        if: steps.detect.outputs.gallery_changed == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gfortran
+
+      - name: Install uv
+        if: steps.detect.outputs.gallery_changed == 'true'
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        if: steps.detect.outputs.gallery_changed == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install supy from source and build gallery
+        if: steps.detect.outputs.gallery_changed == 'true'
+        run: |
+          uv pip install --system ".[dev]"
+          cd docs
+          # Generate data-model RST files first
+          make generate-rst
+          # Build HTML (executes tutorials via sphinx-gallery)
+          sphinx-build -M html source build
+
+      - name: Commit gallery artefacts
+        if: steps.detect.outputs.gallery_changed == 'true'
+        run: |
+          # Create marker file
+          touch docs/source/auto_examples/.prebuilt
+
+          # Stage gallery output (force-add since gitignored on master)
+          git add -f docs/source/auto_examples/
+          git add -f docs/source/sg_execution_times.rst
+
+          # Update provenance metadata
+          CURRENT_MASTER=$(git rev-parse origin/master)
+          TAG=$(git describe --tags --exact-match origin/master 2>/dev/null || echo "")
+          python3 -c "
+          import json, datetime
+          data = {
+              'source_branch': 'master',
+              'source_commit': '$CURRENT_MASTER',
+              'source_tag': '$TAG',
+              'gallery_built': datetime.datetime.utcnow().isoformat() + 'Z',
+              'builder': 'github-actions',
+          }
+          with open('docs/.docs-source.json', 'w') as f:
+              json.dump(data, f, indent=2)
+              f.write('\n')
+          "
+          git add docs/.docs-source.json
+
+          git commit -m "Update pre-built gallery artefacts
+
+          Source: master @ ${CURRENT_MASTER::8}
+          Builder: github-actions" || echo "No gallery changes to commit"
+
+      # ------------------------------------------------------------------
+      # 6. Update provenance even when gallery not rebuilt
+      # ------------------------------------------------------------------
+      - name: Update provenance (no gallery rebuild)
+        if: steps.detect.outputs.gallery_changed != 'true'
+        run: |
+          CURRENT_MASTER=$(git rev-parse origin/master)
+          TAG=$(git describe --tags --exact-match origin/master 2>/dev/null || echo "")
+          if [ -f docs/.docs-source.json ]; then
+            python3 -c "
+          import json, pathlib
+          path = pathlib.Path('docs/.docs-source.json')
+          data = json.loads(path.read_text())
+          data['source_commit'] = '$CURRENT_MASTER'
+          if '$TAG':
+              data['source_tag'] = '$TAG'
+          path.write_text(json.dumps(data, indent=2) + '\n')
+          "
+            git add docs/.docs-source.json
+            git commit -m "Sync rtd branch with master @ ${CURRENT_MASTER::8}" || echo "No changes to commit"
+          fi
+
+      # ------------------------------------------------------------------
+      # 7. Tag for versioned RTD builds (on CalVer tag push)
+      # ------------------------------------------------------------------
+      - name: Create rtd tag
+        if: github.ref_type == 'tag'
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}"
+          RTD_TAG="rtd/${TAG_NAME}"
+          echo "Creating tag: $RTD_TAG"
+          git tag "$RTD_TAG"
+
+      # ------------------------------------------------------------------
+      # 8. Push rtd branch and tags
+      # ------------------------------------------------------------------
+      - name: Push rtd branch
+        run: |
+          git push origin rtd
+          git push origin --tags

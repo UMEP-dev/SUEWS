@@ -19,23 +19,11 @@ You will learn:
 :doc:`tutorial_02_setup_own_site` first.
 """
 
-import os
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from supy import SUEWSSimulation
-
-_ON_RTD = os.environ.get("READTHEDOCS") == "True"
-
-# %%
-# .. note::
-#
-#    **RTD build note**: This tutorial uses reduced simulation parameters
-#    on ReadTheDocs to fit within build resource limits. Spin-up uses
-#    1 iteration on RTD (typically 3). Convergence may not be fully
-#    demonstrated; run locally to verify state equilibration.
 
 # %%
 # Understanding Initial States
@@ -118,7 +106,7 @@ forcing_data = sim.forcing
 
 # Spin-up iterations: reuse the same forcing but transfer evolved state.
 # Typically 2-3 iterations suffice for convergence (change < 1 mm).
-n_spinup = 1 if _ON_RTD else 3
+n_spinup = 3
 for i in range(n_spinup):
     # Create new simulation from final state and re-attach forcing
     sim_next = SUEWSSimulation.from_state(sim.state_final)

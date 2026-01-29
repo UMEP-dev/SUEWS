@@ -16,25 +16,12 @@ interpretation and model validation. This tutorial covers:
 **Prerequisites**: Complete :doc:`tutorial_01_quick_start` first.
 """
 
-import os
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy import stats
 
 from supy import SUEWSSimulation
-
-_ON_RTD = os.environ.get("READTHEDOCS") == "True"
-
-# %%
-# .. note::
-#
-#    **RTD build note**: This tutorial uses reduced simulation parameters
-#    on ReadTheDocs to fit within build resource limits. The simulation
-#    covers Jan-Mar on RTD (full year locally). Seasonal and summer diurnal
-#    analyses are incomplete -- only winter/early spring data is available.
-#    Run the script locally for complete results.
 
 # %%
 # Load and Run Simulation
@@ -43,8 +30,6 @@ _ON_RTD = os.environ.get("READTHEDOCS") == "True"
 # First, run a simulation to generate results for analysis.
 
 sim = SUEWSSimulation.from_sample_data()
-if _ON_RTD:
-    sim.update_forcing(sim.forcing["2012-01":"2012-03"])
 output = sim.run()
 
 print("Simulation complete!")

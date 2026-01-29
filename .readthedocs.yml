@@ -55,6 +55,11 @@ build:
     post_install:
       # Re-pin Sphinx after RTD's own install step (which may upgrade beyond 8.2)
       - python -m pip install "sphinx>=4.0,<8.2"
+      # Ensure sphinx-gallery is installed (needed for sphinx_gallery.load_style
+      # extension even with pre-built gallery). The supy[dev] wheel from TestPyPI
+      # may not include it if the wheel metadata was built before the dependency
+      # was added to pyproject.toml.
+      - python -m pip install "sphinx-gallery>=0.16.0"
       # Generate RST files after package is installed (data model docs)
       - cd docs && make generate-rst
 

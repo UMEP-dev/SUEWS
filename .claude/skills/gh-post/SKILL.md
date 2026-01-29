@@ -13,7 +13,7 @@ Draft and post GitHub comments with embedded figures on PRs or Issues.
    - Argument: `PR:1135`, `ISSUE:42`
    - Auto-detect: `gh pr view --json number -q .number`
 2. **Collect images** from explicit paths or glob patterns
-3. **Upload images** to `gh-artifacts` branch via `scripts/post_figures.py --upload-only`
+3. **Upload images** to `gh-artifacts` branch via `.claude/skills/gh-post/scripts/post_figures.py --upload-only`
 4. **Draft comment** combining prose/analysis with embedded image Markdown
 5. **Present draft** for user review (fenced with `---`)
 6. **STOP and ask for approval** -- do NOT proceed until the user explicitly says "yes", "post it", or similar. This is mandatory.
@@ -30,7 +30,7 @@ Draft and post GitHub comments with embedded figures on PRs or Issues.
 ### Step 1: Upload images
 
 ```bash
-python scripts/post_figures.py --target PR:1135 --images fig1.png fig2.png --upload-only
+python .claude/skills/gh-post/scripts/post_figures.py --target PR:1135 --images fig1.png fig2.png --upload-only
 ```
 
 Capture the Markdown image links from the output.
@@ -104,16 +104,16 @@ The net effect on energy balance is modest (< 5 W/m2) but physically correct.
 
 ```bash
 # Post figures as sticky comment
-python scripts/post_figures.py --target PR:1135 --images fig1.png fig2.png
+python .claude/skills/gh-post/scripts/post_figures.py --target PR:1135 --images fig1.png fig2.png
 
 # Upload only (get Markdown links for drafted comment)
-python scripts/post_figures.py --target PR:1135 --images fig1.png --upload-only
+python .claude/skills/gh-post/scripts/post_figures.py --target PR:1135 --images fig1.png --upload-only
 
 # With title
-python scripts/post_figures.py --target ISSUE:42 --images *.png --title "Energy balance"
+python .claude/skills/gh-post/scripts/post_figures.py --target ISSUE:42 --images *.png --title "Energy balance"
 
 # Clean up uploaded artifacts
-python scripts/post_figures.py --target PR:1135 --cleanup
+python .claude/skills/gh-post/scripts/post_figures.py --target PR:1135 --cleanup
 ```
 
 ## Safety Rules

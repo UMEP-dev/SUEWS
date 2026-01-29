@@ -7,9 +7,9 @@ a sticky comment with embedded image links.
 Requires: gh CLI (authenticated).
 
 Usage:
-    python scripts/post_figures.py --target PR:1135 --images fig1.png fig2.png
-    python scripts/post_figures.py --target ISSUE:42 --images output/*.png --title "Albedo"
-    python scripts/post_figures.py --target PR:1135 --cleanup
+    python .claude/skills/gh-post/scripts/post_figures.py --target PR:1135 --images fig1.png fig2.png
+    python .claude/skills/gh-post/scripts/post_figures.py --target ISSUE:42 --images output/*.png --title "Albedo"
+    python .claude/skills/gh-post/scripts/post_figures.py --target PR:1135 --cleanup
 """
 
 from __future__ import annotations
@@ -104,7 +104,7 @@ def ensure_artifacts_branch(nwo: str) -> None:
     # 1. Create a blob for a README
     readme_content = base64.b64encode(
         b"# gh-artifacts\n\n"
-        b"This branch stores images uploaded by `scripts/post_figures.py`.\n"
+        b"This branch stores images uploaded by the gh-post skill.\n"
         b"Do not merge this branch into main.\n"
     ).decode()
 

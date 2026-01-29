@@ -14,7 +14,7 @@ plt.savefig('albedo_before_after.png', dpi=150, bbox_inches='tight')
 "
 
 # 2. Upload to the PR
-python scripts/post_figures.py \
+python .claude/skills/gh-post/scripts/post_figures.py \
   --target PR:1135 \
   --images albedo_before_after.png \
   --title "Albedo fix: before vs after"
@@ -23,7 +23,7 @@ python scripts/post_figures.py \
 ### Multiple figures from a test run
 
 ```bash
-python scripts/post_figures.py \
+python .claude/skills/gh-post/scripts/post_figures.py \
   --target PR:1135 \
   --images test_output/*.png \
   --title "Validation results"
@@ -32,7 +32,7 @@ python scripts/post_figures.py \
 ### Posting to an issue for discussion
 
 ```bash
-python scripts/post_figures.py \
+python .claude/skills/gh-post/scripts/post_figures.py \
   --target ISSUE:42 \
   --images investigation/fig*.png \
   --title "Investigation findings"
@@ -43,7 +43,7 @@ python scripts/post_figures.py \
 ```bash
 PR_NUM=$(gh pr view --json number -q .number 2>/dev/null)
 if [ -n "$PR_NUM" ]; then
-  python scripts/post_figures.py --target "PR:${PR_NUM}" --images fig.png
+  python .claude/skills/gh-post/scripts/post_figures.py --target "PR:${PR_NUM}" --images fig.png
 else
   echo "No open PR for current branch"
 fi
@@ -62,7 +62,7 @@ fi
 Remove all artifacts for a target:
 
 ```bash
-python scripts/post_figures.py --target PR:1135 --cleanup
+python .claude/skills/gh-post/scripts/post_figures.py --target PR:1135 --cleanup
 ```
 
 This deletes files from the `gh-artifacts` branch but does NOT remove the comment.

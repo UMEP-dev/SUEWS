@@ -316,65 +316,7 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
-          filters: |
-            core:
-              # Fortran physics
-              - 'src/suews/src/**'
-              # Fortran driver interface
-              - 'src/supy_driver/**'
-              - 'src/supy/supy_driver/**'
-              # Core Python files that affect scientific rigour
-              - 'src/supy/_run.py'
-              - 'src/supy/_supy_module.py'
-              - 'src/supy/_load.py'
-              - 'src/supy/_post.py'
-              - 'src/supy/_check.py'
-              - 'src/supy/_save.py'
-              - 'src/supy/suews_sim.py'
-              # Catch-all for core package changes
-              - 'src/suews/**'
-            util:
-              # Utility modules (nice-to-have)
-              - 'src/supy/util/**'
-              # Default category for remaining supy changes
-              - 'src/supy/**'
-            cfg:
-              # Config validation
-              - 'src/supy/data_model/**'
-              # CLI commands
-              - 'src/supy/cmd/**'
-              # JSON configs
-              - 'src/supy/*.json'
-              # Build workflows and actions (only build-related)
-              - '.github/workflows/build-publish_to_pypi.yml'
-              - '.github/workflows/cibuildwheel-debug.yml'
-              - '.github/actions/build-suews/**'
-              - '.github/scripts/**'
-              # Build system files
-              - 'pyproject.toml'
-              - 'meson.build'
-              - 'meson_options.txt'
-              - 'Makefile'
-              - 'get_ver_git.py'
-              - 'env.yml'
-              - 'scripts/*.py'
-            site:
-              # Static site content (GitHub Pages) - separate from wheel builds
-              - 'site/**'
-            tests:
-              - 'test/**'
-            docs:
-              # Documentation source files
-              - 'docs/**'
-              - 'CHANGELOG.md'
-              # Data models that generate RST
-              - 'src/supy/data_model/**'
-              # RTD configuration
-              - '.readthedocs.yml'
-              # Version detection used by docs
-              - 'get_ver_git.py'
-              # Dependencies that affect doc builds
-              - 'pyproject.toml'
+          filters: .github/path-filters.yml
 
   # Determine if we should run limited or full matrix
   determine_matrix:

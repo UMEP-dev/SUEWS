@@ -1,0 +1,107 @@
+# Local-only workflow for testing path detection logic with `act`
+#
+# Usage (via wrapper script):
+#   ./scripts/test-detect-changes.sh              # compare HEAD vs master
+#   ./scripts/test-detect-changes.sh origin/main   # compare HEAD vs specific base
+#
+# Direct act usage:
+#   act workflow_dispatch -W .github/workflows/test-detect-changes.yml \
+#       --input base=master -j detect-changes
+#
+# This reuses the exact same path-filters.yml as the real build workflow,
+# ensuring local testing matches CI behaviour.
+
+name: "[Local] Test detect-changes"
+
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'Base branch/commit to compare against'
+        required: true
+        default: 'master'
+
+jobs:
+  detect-changes:
+    name: Detect code changes
+    runs-on: ubuntu-latest
+    outputs:
+      needs-build: ${{ steps.filter.outputs.core == 'true' || steps.filter.outputs.util == 'true' || steps.filter.outputs.cfg == 'true' || steps.filter.outputs.tests == 'true' }}
+      core-changed: ${{ steps.filter.outputs.core }}
+      util-changed: ${{ steps.filter.outputs.util }}
+      cfg-changed: ${{ steps.filter.outputs.cfg }}
+      tests-changed: ${{ steps.filter.outputs.tests }}
+      docs-changed: ${{ steps.filter.outputs.docs }}
+      site-changed: ${{ steps.filter.outputs.site }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          base: ${{ inputs.base }}
+          list-files: csv
+          filters: .github/path-filters.yml
+
+      - name: Show results
+        run: |
+          echo "=== Changed Files ==="
+          echo "core files:  ${{ steps.filter.outputs.core_files }}"
+          echo "util files:  ${{ steps.filter.outputs.util_files }}"
+          echo "cfg files:   ${{ steps.filter.outputs.cfg_files }}"
+          echo "tests files: ${{ steps.filter.outputs.tests_files }}"
+          echo "docs files:  ${{ steps.filter.outputs.docs_files }}"
+          echo "site files:  ${{ steps.filter.outputs.site_files }}"
+          echo ""
+          echo "=== Category Results ==="
+          echo "core:   ${{ steps.filter.outputs.core }}"
+          echo "util:   ${{ steps.filter.outputs.util }}"
+          echo "cfg:    ${{ steps.filter.outputs.cfg }}"
+          echo "tests:  ${{ steps.filter.outputs.tests }}"
+          echo "docs:   ${{ steps.filter.outputs.docs }}"
+          echo "site:   ${{ steps.filter.outputs.site }}"
+
+  show-build-decision:
+    name: Show build decision
+    runs-on: ubuntu-latest
+    needs: [detect-changes]
+    steps:
+      - name: Build decision summary
+        env:
+          NEEDS_BUILD: ${{ needs.detect-changes.outputs.needs-build }}
+          CORE: ${{ needs.detect-changes.outputs.core-changed }}
+          UTIL: ${{ needs.detect-changes.outputs.util-changed }}
+          CFG: ${{ needs.detect-changes.outputs.cfg-changed }}
+          TESTS: ${{ needs.detect-changes.outputs.tests-changed }}
+          DOCS: ${{ needs.detect-changes.outputs.docs-changed }}
+          SITE: ${{ needs.detect-changes.outputs.site-changed }}
+        run: |
+          echo "=== Build Decision ==="
+          echo "needs-build: $NEEDS_BUILD"
+          echo ""
+
+          if [[ "$NEEDS_BUILD" == "true" ]]; then
+            # Reproduce the test tier logic from determine_matrix
+            if [[ "$CORE" == "true" ]]; then
+              echo "Draft PR -> platforms: reduced, test tier: core"
+              echo "Ready PR -> platforms: reduced, test tier: standard"
+            elif [[ "$CFG" == "true" ]]; then
+              echo "Draft PR -> platforms: reduced, test tier: cfg"
+              echo "Ready PR -> platforms: reduced, test tier: standard"
+            else
+              echo "Draft PR -> platforms: minimal, test tier: smoke"
+              echo "Ready PR -> platforms: reduced, test tier: smoke"
+            fi
+          else
+            echo "(no build required - PR gate passes without building)"
+          fi
+
+          echo ""
+          echo "=== What would trigger in CI ==="
+          TRIGGERED=false
+          if [[ "$DOCS" == "true" ]]; then echo "- docs build (pages-deploy.yml)"; TRIGGERED=true; fi
+          if [[ "$SITE" == "true" ]]; then echo "- site deploy (pages-deploy.yml)"; TRIGGERED=true; fi
+          if [[ "$NEEDS_BUILD" == "true" ]]; then echo "- wheel build (build_wheels + build_umep)"; TRIGGERED=true; fi
+          if [[ "$TRIGGERED" == "false" ]]; then echo "- nothing (all skipped)"; fi

@@ -9,10 +9,9 @@ on:
     branches: [master]
     tags:
       - "[0-9]*"           # CalVer releases, e.g. 2026.1.28
-    paths:
-      - "docs/**"
-      - "src/supy/**"
-      - "src/suews/src/**"
+    # No `paths` filter: tag pushes have no file diff, so a paths filter
+    # would silently prevent CalVer tags from triggering this workflow.
+    # Step 4 already detects whether tutorials actually changed.
   workflow_dispatch:
     inputs:
       force_gallery_rebuild:
@@ -57,7 +56,8 @@ jobs:
       - name: Merge master into rtd
         id: merge
         run: |
-          git checkout rtd
+          # Reset local rtd to match remote (explicit; avoids stale state)
+          git checkout -B rtd origin/rtd
           git merge origin/master --no-edit || {
             echo "merge_conflict=true" >> "$GITHUB_OUTPUT"
             git merge --abort
@@ -73,10 +73,29 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const title = 'rtd branch merge conflict with master';
+            // Check for an existing open issue to avoid duplicates
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'docs',
+              per_page: 10,
+            });
+            const duplicate = existing.data.find(i => i.title === title);
+            if (duplicate) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: duplicate.number,
+                body: `Still unresolved. Triggered again by: ${context.eventName} (${context.sha.slice(0, 8)})`,
+              });
+              return;
+            }
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: 'rtd branch merge conflict with master',
+              title,
               body: [
                 'The `docs-sync` workflow failed to merge `master` into `rtd`.',
                 '',
@@ -128,8 +147,8 @@ jobs:
           fi
 
           # Check if tutorial sources changed between last sync and current master
-          CURRENT_MASTER=$(git rev-parse origin/master)
-          CHANGED=$(git diff --name-only "$LAST_COMMIT" "$CURRENT_MASTER" -- \
+          MASTER_SHA=$(git rev-parse origin/master)
+          CHANGED=$(git diff --name-only "$LAST_COMMIT" "$MASTER_SHA" -- \
             docs/source/tutorials/ \
             docs/source/conf.py \
             src/supy/ \
@@ -175,6 +194,9 @@ jobs:
 
       - name: Commit gallery artefacts
         if: steps.detect.outputs.gallery_changed == 'true'
+        env:
+          CURRENT_MASTER: ${{ github.sha }}
+          SOURCE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
           # Create marker file
           touch docs/source/auto_examples/.prebuilt
@@ -184,15 +206,13 @@ jobs:
           git add -f docs/source/sg_execution_times.rst
 
           # Update provenance metadata
-          CURRENT_MASTER=$(git rev-parse origin/master)
-          TAG=$(git describe --tags --exact-match origin/master 2>/dev/null || echo "")
           python3 -c "
-          import json, datetime
+          import json, datetime, os
           data = {
               'source_branch': 'master',
-              'source_commit': '$CURRENT_MASTER',
-              'source_tag': '$TAG',
-              'gallery_built': datetime.datetime.utcnow().isoformat() + 'Z',
+              'source_commit': os.environ['CURRENT_MASTER'],
+              'source_tag': os.environ.get('SOURCE_TAG', ''),
+              'gallery_built': datetime.datetime.now(datetime.timezone.utc).isoformat(),
               'builder': 'github-actions',
           }
           with open('docs/.docs-source.json', 'w') as f:
@@ -201,9 +221,10 @@ jobs:
           "
           git add docs/.docs-source.json
 
+          SHORT_SHA="${CURRENT_MASTER::8}"
           git commit -m "Update pre-built gallery artefacts
 
-          Source: master @ ${CURRENT_MASTER::8}
+          Source: master @ ${SHORT_SHA}
           Builder: github-actions" || echo "No gallery changes to commit"
 
       # ------------------------------------------------------------------
@@ -211,22 +232,31 @@ jobs:
       # ------------------------------------------------------------------
       - name: Update provenance (no gallery rebuild)
         if: steps.detect.outputs.gallery_changed != 'true'
+        env:
+          CURRENT_MASTER: ${{ github.sha }}
+          SOURCE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
-          CURRENT_MASTER=$(git rev-parse origin/master)
-          TAG=$(git describe --tags --exact-match origin/master 2>/dev/null || echo "")
-          if [ -f docs/.docs-source.json ]; then
-            python3 -c "
-          import json, pathlib
+          python3 -c "
+          import json, pathlib, os, datetime
           path = pathlib.Path('docs/.docs-source.json')
-          data = json.loads(path.read_text())
-          data['source_commit'] = '$CURRENT_MASTER'
-          if '$TAG':
-              data['source_tag'] = '$TAG'
+          if path.exists():
+              data = json.loads(path.read_text())
+          else:
+              # First run: create initial provenance
+              data = {
+                  'source_branch': 'master',
+                  'gallery_built': '',
+                  'builder': 'github-actions',
+              }
+          data['source_commit'] = os.environ['CURRENT_MASTER']
+          tag = os.environ.get('SOURCE_TAG', '')
+          if tag:
+              data['source_tag'] = tag
           path.write_text(json.dumps(data, indent=2) + '\n')
           "
-            git add docs/.docs-source.json
-            git commit -m "Sync rtd branch with master @ ${CURRENT_MASTER::8}" || echo "No changes to commit"
-          fi
+          git add docs/.docs-source.json
+          SHORT_SHA="${CURRENT_MASTER::8}"
+          git commit -m "Sync rtd branch with master @ ${SHORT_SHA}" || echo "No changes to commit"
 
       # ------------------------------------------------------------------
       # 7. Tag for versioned RTD builds (on CalVer tag push)
@@ -240,9 +270,11 @@ jobs:
           git tag "$RTD_TAG"
 
       # ------------------------------------------------------------------
-      # 8. Push rtd branch and tags
+      # 8. Push rtd branch (and tag if created)
       # ------------------------------------------------------------------
       - name: Push rtd branch
-        run: |
-          git push origin rtd
-          git push origin --tags
+        run: git push origin rtd
+
+      - name: Push rtd tag
+        if: github.ref_type == 'tag'
+        run: git push origin "rtd/${{ github.ref_name }}"

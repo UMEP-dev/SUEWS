@@ -45,7 +45,14 @@ from pybtex.style.template import (
 )
 
 import supy
-from sphinx_gallery.sorting import FileNameSortKey
+
+# Detect pre-built gallery artefacts (docs branch has committed output)
+_PREBUILT_GALLERY = os.path.isfile(
+    os.path.join(os.path.dirname(__file__), "auto_examples", ".prebuilt")
+)
+
+if not _PREBUILT_GALLERY:
+    from sphinx_gallery.sorting import FileNameSortKey
 
 # Check if DTS features are available in this build
 # The dts module may fail to import entirely if supy_driver has issues
@@ -296,7 +303,8 @@ extensions = [
     "sphinx.ext.napoleon",
     # 'suews_config_editor',  # Our custom extension
     # 'sphinx-jsonschema', # to genenrate docs based JSON Schema from SUEWSConfig
-    "sphinx_gallery.gen_gallery",  # Gallery examples from Python scripts (GH-1029)
+    # sphinx-gallery: use load_style (CSS only) for pre-built, gen_gallery (full) otherwise
+    "sphinx_gallery.load_style" if _PREBUILT_GALLERY else "sphinx_gallery.gen_gallery",
 ]
 
 # email_automode = True
@@ -314,30 +322,32 @@ extlinks = {
 
 # sphinx-gallery configuration (GH-1029)
 # Converts percent-format Python scripts to gallery pages with executable examples
-sphinx_gallery_conf = {
-    # Source and output directories (relative to conf.py)
-    "examples_dirs": ["tutorials"],  # Source directory with .py files
-    "gallery_dirs": ["auto_examples"],  # Generated output directory
-    # File patterns
-    "filename_pattern": r"/tutorial_",  # Execute files starting with tutorial_
-    "ignore_pattern": r"__init__\.py",
-    # Order by filename (numeric prefixes ensure pedagogical order)
-    # tutorial_01_quick_start < tutorial_02_setup < tutorial_03_impact < tutorial_04_external
-    "within_subsection_order": FileNameSortKey,
-    # Execution settings
-    "plot_gallery": "True",
-    "abort_on_example_error": os.environ.get("SPHINX_GALLERY_ABORT", "false").lower() == "true",
-    "remove_config_comments": True,
-    # Download options
-    "download_all_examples": True,
-    "notebook_images": True,  # Embed images in generated notebooks
-    # Image handling
-    "image_scrapers": ("matplotlib",),
-    # Memory management
-    "reset_modules": ("matplotlib", "seaborn"),
-    # Capture output
-    "capture_repr": ("_repr_html_", "__repr__"),
-}
+# Only needed when building gallery from scratch (not on docs branch with pre-built output)
+if not _PREBUILT_GALLERY:
+    sphinx_gallery_conf = {
+        # Source and output directories (relative to conf.py)
+        "examples_dirs": ["tutorials"],  # Source directory with .py files
+        "gallery_dirs": ["auto_examples"],  # Generated output directory
+        # File patterns
+        "filename_pattern": r"/tutorial_",  # Execute files starting with tutorial_
+        "ignore_pattern": r"__init__\.py",
+        # Order by filename (numeric prefixes ensure pedagogical order)
+        # tutorial_01_quick_start < tutorial_02_setup < tutorial_03_impact < tutorial_04_external
+        "within_subsection_order": FileNameSortKey,
+        # Execution settings
+        "plot_gallery": "True",
+        "abort_on_example_error": os.environ.get("SPHINX_GALLERY_ABORT", "false").lower() == "true",
+        "remove_config_comments": True,
+        # Download options
+        "download_all_examples": True,
+        "notebook_images": True,  # Embed images in generated notebooks
+        # Image handling
+        "image_scrapers": ("matplotlib",),
+        # Memory management
+        "reset_modules": ("matplotlib", "seaborn"),
+        # Capture output
+        "capture_repr": ("_repr_html_", "__repr__"),
+    }
 
 # sphinx comments
 # https://sphinx-comments.readthedocs.io/

@@ -263,8 +263,8 @@ instance/
 # Sphinx documentation
 docs/_build/
 doc/_build/
-docs/source/auto_examples/
-docs/source/sg_execution_times.rst
+# NOTE: auto_examples/ and sg_execution_times.rst are tracked on this branch
+# (pre-built gallery artefacts for RTD). They remain gitignored on master.
 
 # PyBuilder
 target/

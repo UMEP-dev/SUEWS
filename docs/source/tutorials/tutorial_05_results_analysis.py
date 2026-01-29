@@ -16,12 +16,25 @@ interpretation and model validation. This tutorial covers:
 **Prerequisites**: Complete :doc:`tutorial_01_quick_start` first.
 """
 
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy import stats
 
 from supy import SUEWSSimulation
+
+_ON_RTD = os.environ.get("READTHEDOCS") == "True"
+
+# %%
+# .. note::
+#
+#    **RTD build note**: This tutorial uses reduced simulation parameters
+#    on ReadTheDocs to fit within build resource limits. The simulation
+#    covers Jan-Mar on RTD (full year locally). Seasonal and summer diurnal
+#    analyses are incomplete -- only winter/early spring data is available.
+#    Run the script locally for complete results.
 
 # %%
 # Load and Run Simulation
@@ -30,6 +43,8 @@ from supy import SUEWSSimulation
 # First, run a simulation to generate results for analysis.
 
 sim = SUEWSSimulation.from_sample_data()
+if _ON_RTD:
+    sim.update_forcing(sim.forcing["2012-01":"2012-03"])
 output = sim.run()
 
 print("Simulation complete!")
@@ -119,7 +134,7 @@ season_map = {12: "Winter (DJF)", 1: "Winter (DJF)", 2: "Winter (DJF)",
               9: "Autumn (SON)", 10: "Autumn (SON)", 11: "Autumn (SON)"}
 season_order = ["Winter (DJF)", "Spring (MAM)", "Summer (JJA)", "Autumn (SON)"]
 seasonal = energy_df.groupby(energy_df.index.month.map(season_map)).mean()
-seasonal = seasonal.loc[season_order]
+seasonal = seasonal.loc[[s for s in season_order if s in seasonal.index]]
 print("\nSeasonal Means (W/m2):")
 print(seasonal.round(1))
 
@@ -193,15 +208,20 @@ ax.set_ylabel("Energy Flux (W/m2)")
 ax.set_title("Monthly Energy Partitioning")
 ax.legend(loc="upper right")
 
-# 3. Summer diurnal cycle
+# 3. Diurnal cycle (summer if available, otherwise all data)
 ax = axes[1, 0]
 summer_mask = energy_df.index.month.isin([6, 7, 8])
-summer_energy = energy_df[summer_mask]
-hourly_summer = summer_energy.groupby(summer_energy.index.hour).mean()
-hourly_summer.plot(ax=ax, marker="o", markersize=3)
+if summer_mask.any():
+    diurnal_energy = energy_df[summer_mask]
+    diurnal_label = "Summer Diurnal Cycle"
+else:
+    diurnal_energy = energy_df
+    diurnal_label = "Diurnal Cycle (all available data)"
+hourly_diurnal = diurnal_energy.groupby(diurnal_energy.index.hour).mean()
+hourly_diurnal.plot(ax=ax, marker="o", markersize=3)
 ax.set_xlabel("Hour of Day")
 ax.set_ylabel("Energy Flux (W/m2)")
-ax.set_title("Summer Diurnal Cycle")
+ax.set_title(diurnal_label)
 ax.legend(loc="upper right")
 ax.axhline(y=0, color="k", linestyle="--", alpha=0.3)
 
@@ -255,6 +275,8 @@ for season_name, months in [
     ("Autumn", [9, 10, 11]),
 ]:
     mask = t2.index.month.isin(months)
+    if not mask.any():
+        continue
     hourly = t2[mask].groupby(t2[mask].index.hour).mean()
     ax.plot(hourly.index, hourly.values, marker="o", markersize=3, label=season_name)
 ax.set_xlabel("Hour of Day")

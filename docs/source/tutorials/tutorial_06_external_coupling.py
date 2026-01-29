@@ -20,11 +20,24 @@ extracts DataFrames for forcing modification. This hybrid pattern is required
 for external model coupling where forcing variables must be modified at runtime.
 """
 
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from supy import SUEWSSimulation
+
+_ON_RTD = os.environ.get("READTHEDOCS") == "True"
+
+# %%
+# .. note::
+#
+#    **RTD build note**: This tutorial uses reduced simulation parameters
+#    on ReadTheDocs to fit within build resource limits. Coupling is
+#    demonstrated over 1 month on RTD (2 months locally).
+#    Temperature-QF feedback statistics use fewer data points. Run the
+#    script locally for complete results.
 
 # %%
 # Simple Anthropogenic Heat Model
@@ -126,7 +139,8 @@ df_state_init.loc[:, "snowuse"] = 0
 
 # Slice forcing by time (returns SUEWSForcing object)
 # Use shorter period for faster tutorial execution
-forcing_sliced = sim.forcing["2012-01":"2012-02"].iloc[1:]
+_end_month_06 = "2012-01" if _ON_RTD else "2012-02"
+forcing_sliced = sim.forcing["2012-01":_end_month_06].iloc[1:]
 
 # %%
 # .. important::

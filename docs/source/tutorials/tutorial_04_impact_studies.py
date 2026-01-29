@@ -27,11 +27,24 @@ modify parameters across many test cases.
 #
 # First, we import the required packages and load the sample dataset.
 
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from supy import SUEWSSimulation
+
+_ON_RTD = os.environ.get("READTHEDOCS") == "True"
+
+# %%
+# .. note::
+#
+#    **RTD build note**: This tutorial uses reduced simulation parameters
+#    on ReadTheDocs to fit within build resource limits. Sensitivity
+#    analysis uses 2 scenarios on RTD (typically 3). The response curve
+#    is sampled at endpoints only; intermediate behaviour is not shown.
+#    Run the script locally for full sensitivity analysis.
 
 # Load sample datasets using the OOP interface
 sim = SUEWSSimulation.from_sample_data()
@@ -91,8 +104,8 @@ print(df_state_test.sfr_surf)
 # Construct a multi-scenario DataFrame with different albedo values.
 # This is the key step where DataFrame manipulation is necessary.
 
-# Test 3 albedo values (0.1 to 0.8) for faster tutorial execution
-n_albedo = 3
+# Test albedo values (0.1 to 0.8) for faster tutorial execution
+n_albedo = 2 if _ON_RTD else 3
 list_albedo = np.linspace(0.1, 0.8, n_albedo).round(2)
 
 # Create scenario matrix by concatenating copies with different albedo values
@@ -203,7 +216,7 @@ plt.tight_layout()
 #    for clarity.
 
 # Temperature offsets to test
-n_climate = 3
+n_climate = 2 if _ON_RTD else 3
 list_temp_offset = np.linspace(0.0, 2.0, n_climate).round(2)
 
 # Extract forcing DataFrame for modification

@@ -20,11 +20,23 @@ with :meth:`~supy.SUEWSSimulation.update_config` for parameter modification. Thi
 a clean separation between configuration and execution.
 """
 
+import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 
 from supy import SUEWSSimulation
+
+_ON_RTD = os.environ.get("READTHEDOCS") == "True"
+
+# %%
+# .. note::
+#
+#    **RTD build note**: This tutorial uses reduced simulation parameters
+#    on ReadTheDocs to fit within build resource limits. The simulation
+#    covers January only (3 months locally). LAI and resistance evolution
+#    will be minimal for this winter month. Run the script locally for
+#    full 3-month results.
 
 # %%
 # Create Simulation from Sample Data
@@ -138,7 +150,8 @@ sim.update_forcing(path_forcing)
 
 # Slice to the analysis period. This is a separate call because
 # update_forcing() first loads the full file, then we select the time window.
-sim.update_forcing(sim.forcing["2010-01":"2010-03"])
+_end_month_02 = "2010-01" if _ON_RTD else "2010-03"
+sim.update_forcing(sim.forcing["2010-01":_end_month_02])
 
 # %%
 # .. note::
@@ -193,11 +206,12 @@ plt.tight_layout()
 # We must update the control times to match our 2010 forcing period
 # (the sample data defaults to 2011-2013).
 
+_end_date_02 = "2010-01-31" if _ON_RTD else "2010-03-31"
 sim.update_config({
     "model": {
         "control": {
             "start_time": "2010-01-01",
-            "end_time": "2010-03-31",
+            "end_time": _end_date_02,
         }
     }
 })

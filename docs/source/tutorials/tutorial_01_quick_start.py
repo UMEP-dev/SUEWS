@@ -19,10 +19,22 @@ modern Python interface that provides powerful data analysis capabilities and
 seamless integration with the scientific Python ecosystem.
 """
 
+import os
+
 import matplotlib.pyplot as plt
 import pandas as pd
 
 from supy import SUEWSSimulation
+
+_ON_RTD = os.environ.get("READTHEDOCS") == "True"
+
+# %%
+# .. note::
+#
+#    **RTD build note**: This tutorial uses reduced simulation parameters
+#    on ReadTheDocs to fit within build resource limits. The simulation
+#    covers January only (3 months locally). Monthly/seasonal aggregations
+#    show only January. Run the script locally for full 3-month results.
 
 # %%
 # Load Sample Data
@@ -74,7 +86,8 @@ print(f"  Total rainfall: {sim.forcing.rain.sum():.1f} mm")
 # Drop the first row with `.iloc[1:]` because accumulated variables
 # (e.g. rainfall) for the partial period at the slice boundary are
 # incomplete, making that row invalid as forcing input.
-forcing_sliced = sim.forcing["2012-01":"2012-03"].iloc[1:]
+_end_month = "2012-01" if _ON_RTD else "2012-03"
+forcing_sliced = sim.forcing["2012-01":_end_month].iloc[1:]
 
 # Update simulation with the time-sliced forcing
 sim.update_forcing(forcing_sliced)

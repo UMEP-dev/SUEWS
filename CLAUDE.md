@@ -38,6 +38,7 @@ Full setup: `/setup-dev` | Style check: `/lint-code` | Build check: `/verify-bui
 - `/log-changes` - Update CHANGELOG
 - `/prep-release` - Prepare releases
 - `/examine-issue` - Analyse GitHub issues
+- `/gh-post` - Post figures to GitHub PRs/Issues
 
 ## Auto-Loaded Rules
 

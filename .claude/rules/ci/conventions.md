@@ -111,55 +111,119 @@ When fixing CI issues that affect existing PRs:
 - Re-running workflows expecting new logic to apply
 - Silent failures without user feedback
 - Blocking fork PRs entirely when only deployment is affected
+- Using negation patterns (`!`) in `dorny/paths-filter` (see Path Filtering section)
+- Including `.github/releases/` files in the `docs` filter (they are release metadata, not documentation)
 
 ---
 
 ## Path Filtering with `dorny/paths-filter`
 
-When using `dorny/paths-filter` for conditional job execution, define filters explicitly with both inclusions and exclusions.
+When using `dorny/paths-filter` for conditional job execution, use **positive include patterns only**. Do NOT use negation patterns (`!`).
 
-**Filter Category Strategy:**
+### CRITICAL: Negation patterns do not work as exclusions
 
-Define distinct categories to ensure correct jobs trigger:
+Negation patterns in `dorny/paths-filter` are **evaluated independently using OR logic**, not as exclusions from other patterns. A filter like:
+
+```yaml
+core:
+  - 'src/suews/**'
+  - '!src/suews/docs/**'
+```
+
+does NOT mean "match `src/suews/**` but exclude `src/suews/docs/**`". Instead, both patterns are evaluated separately -- any file matching EITHER pattern returns `true`. The negation pattern `!src/suews/docs/**` matches every file that is NOT in `src/suews/docs/`, causing false positives on virtually all changes.
+
+See [dorny/paths-filter#184](https://github.com/dorny/paths-filter/issues/184) for details.
+
+### Correct approach: positive-only filters
+
+Define each category with explicit positive patterns that match exactly the files you need:
 
 ```yaml
 - uses: dorny/paths-filter@v3
-  id: changes
+  id: filter
   with:
     filters: |
       core:
+        - 'src/suews/src/**'
+        - 'src/supy_driver/**'
+        - 'src/supy/supy_driver/**'
+        - 'src/supy/_run.py'
+        - 'src/supy/_supy_module.py'
+        - 'src/supy/_load.py'
+        - 'src/supy/_post.py'
+        - 'src/supy/_check.py'
+        - 'src/supy/_save.py'
+        - 'src/supy/suews_sim.py'
         - 'src/suews/**'
-        - '!src/suews/docs/**'
       util:
+        - 'src/supy/util/**'
         - 'src/supy/**'
-        - '!src/supy/docs/**'
       cfg:
+        - 'src/supy/data_model/**'
+        - 'src/supy/cmd/**'
+        - 'src/supy/*.json'
+        - '.github/workflows/build-publish_to_pypi.yml'
+        - '.github/workflows/cibuildwheel-debug.yml'
+        - '.github/actions/build-suews/**'
+        - '.github/scripts/**'
         - 'pyproject.toml'
         - 'meson.build'
-        - '!docs/**'
+        - 'meson_options.txt'
+        - 'Makefile'
+        - 'get_ver_git.py'
+        - 'env.yml'
       docs:
         - 'docs/**'
-        - 'src/**/docs/**'
-        - '*.md'
+        - 'CHANGELOG.md'
+        - '.readthedocs.yml'
       site:
         - 'site/**'
       tests:
         - 'test/**'
 ```
 
-**Exclusion Patterns:**
+If a directory contains a mix of relevant and irrelevant files, enumerate the specific subdirectories or files rather than using a broad glob with a negation.
 
-Always use explicit exclusions (`!`) for files that should *not* trigger a filter:
+### Overlapping filter categories
+
+A single file change can match multiple categories. For example, `src/supy/util/foo.py` matches both `core` (via `src/supy/**`) and `util`. This is by design -- the `needs-build` condition ORs the relevant categories:
 
 ```yaml
-cfg:
-  - 'pyproject.toml'
-  - 'meson.build'
-  - '!docs/**'           # Exclude docs changes from cfg
-  - '!**/*.md'           # Exclude markdown from cfg
+needs-build: ${{ steps.filter.outputs.core == 'true' || steps.filter.outputs.util == 'true' || steps.filter.outputs.cfg == 'true' || steps.filter.outputs.tests == 'true' }}
 ```
 
-**Rationale:** The action can have unexpected pattern matching; explicit exclusions are safer than relying solely on inclusions.
+Review filters carefully when adding new paths to avoid unintended build triggers.
+
+---
+
+## Build Workflow Triggers (`build-publish_to_pypi.yml`)
+
+The main build workflow responds to these events:
+
+- **Nightly cron** (2 AM UTC): Full matrix build, deployed to TestPyPI
+- **Tag push** (production, e.g. `2026.1.28`): Full matrix build, deployed to PyPI
+- **Tag push** (dev, e.g. `2026.1.28.dev`): Full matrix build, deployed to TestPyPI
+- **Pull request**: Conditional build (path-filtered), no deployment
+- **Merge queue**: Reduced matrix, no deployment
+- **Manual dispatch**: Configurable matrix and deployment target
+- **Push to master**: **Skipped** (PR already validated, no deployment needed)
+
+### Docs-only changes skip wheel builds
+
+The `needs-build` condition includes `core`, `util`, `cfg`, and `tests` but NOT `docs` or `site`. Changes that only affect documentation paths do not trigger wheel builds. Docs are validated by the separate `pages-deploy.yml` workflow.
+
+### Release notes are not documentation
+
+Files in `.github/releases/` are release metadata consumed by the GitHub Release creation step. They must NOT be included in the `docs` filter category. If release notes changes need to trigger builds, place them in `cfg` or a dedicated filter.
+
+### Concurrency and cancel-in-progress
+
+The workflow uses `cancel-in-progress: true` scoped to `workflow-PR_number_or_ref`. When pushing multiple commits in quick succession (e.g., during a rebase), earlier runs are cancelled before later runs start. This can cause a race condition where no run completes if pushes arrive faster than jobs start.
+
+Mitigate by:
+- Waiting for CI to begin before pushing again
+- Squashing commits before pushing
+- Using `git push --force-with-lease` once rather than multiple pushes
 
 ---
 
@@ -289,3 +353,17 @@ Before approving workflow changes that include shell commands:
 - List only **completed** work in release notes
 - Move work-in-progress to appropriate sections (e.g., "Build System", "Known Issues")
 - Avoid listing features for which underlying code/build integration is incomplete
+
+---
+
+## Matrix Job Configuration
+
+**Use `fail-fast: false` for independent matrix jobs** to get complete feedback about which platforms succeed or fail, rather than stopping at the first failure.
+
+---
+
+## Project-Specific Workflow Details
+
+For versioning strategy (nightly `.devN` builds, production tags), UMEP/QGIS compatibility (dual wheel builds), and merge queue behaviour, see the header comments in:
+
+- `.github/workflows/build-publish_to_pypi.yml` (lines 1-147)

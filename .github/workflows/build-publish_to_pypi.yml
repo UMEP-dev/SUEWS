@@ -348,12 +348,12 @@ jobs:
       always() &&
       needs.determine_matrix.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
-      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true')
     strategy:
       matrix:
-        buildplat: ${{ fromJson(needs.determine_matrix.outputs.buildplat) }}
-        python: ${{ fromJson(needs.determine_matrix.outputs.python) }}
+        # Empty matrix when no build needed — avoids unresolved ${{ matrix.* }} in UI
+        buildplat: ${{ (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true') && fromJson(needs.determine_matrix.outputs.buildplat) || fromJson('[]') }}
+        python: ${{ (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true') && fromJson(needs.determine_matrix.outputs.python) || fromJson('[]') }}
       fail-fast: false
 
     steps:
@@ -384,14 +384,14 @@ jobs:
       always() &&
       needs.determine_matrix.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
-      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-umep-build == 'true') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true') &&
       (github.event_name != 'workflow_dispatch' || inputs.include_umep == true)
     strategy:
       matrix:
+        # Empty matrix when no UMEP build needed — avoids unresolved ${{ matrix.* }} in UI
         # Full platforms for production tags only; limited (win cp312) otherwise
-        buildplat: ${{ (startsWith(github.ref, 'refs/tags/') && !contains(github.ref, 'dev')) && fromJson(needs.determine_matrix.outputs.buildplat) || fromJson(needs.determine_matrix.outputs.umep_buildplat) }}
-        python: ${{ fromJson(needs.determine_matrix.outputs.umep_python) }}
+        buildplat: ${{ (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-umep-build == 'true') && ((startsWith(github.ref, 'refs/tags/') && !contains(github.ref, 'dev')) && fromJson(needs.determine_matrix.outputs.buildplat) || fromJson(needs.determine_matrix.outputs.umep_buildplat)) || fromJson('[]') }}
+        python: ${{ (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-umep-build == 'true') && fromJson(needs.determine_matrix.outputs.umep_python) || fromJson('[]') }}
       fail-fast: false
 
     steps:

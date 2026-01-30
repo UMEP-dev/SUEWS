@@ -67,8 +67,9 @@ if [[ "${NEEDS_BUILD}" == "true" ]]; then
 else
   echo "No code changes - builds not required"
 
-  if [[ "${BUILD_WHEELS_RESULT}" == "skipped" ]] && \
-     [[ "${BUILD_UMEP_RESULT}" == "skipped" ]]; then
+  # Empty matrix = success (0 entries); job-level if=false = skipped; both valid
+  if { [[ "${BUILD_WHEELS_RESULT}" == "skipped" ]] || [[ "${BUILD_WHEELS_RESULT}" == "success" ]]; } && \
+     { [[ "${BUILD_UMEP_RESULT}" == "skipped" ]] || [[ "${BUILD_UMEP_RESULT}" == "success" ]]; }; then
     echo "[OK] Code builds correctly skipped"
   else
     echo "Note: Unexpected build activity for non-code PR"

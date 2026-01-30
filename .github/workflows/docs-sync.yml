@@ -294,6 +294,7 @@ jobs:
           FORBIDDEN=$(git diff --name-only origin/master..HEAD -- \
             ':!docs/' \
             ':!.readthedocs.yml' \
+            ':!.gitignore' \
             ':!env.yml' \
             ':!pyproject.toml' \
           )
@@ -302,7 +303,7 @@ jobs:
             echo "::error::rtd branch has non-docs divergence from master:"
             echo "$FORBIDDEN"
             echo ""
-            echo "Only these paths may differ: docs/, .readthedocs.yml, env.yml, pyproject.toml"
+            echo "Only these paths may differ: docs/, .readthedocs.yml, .gitignore, env.yml, pyproject.toml"
             exit 1
           fi
           echo "✓ rtd branch diverges from master only in docs-allowed paths"

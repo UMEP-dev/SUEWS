@@ -5,7 +5,7 @@
 # via nektos/act, so results match what GitHub Actions would produce.
 #
 # Usage:
-#   ./scripts/test-detect-changes.sh              # compare HEAD vs master
+#   ./scripts/test-detect-changes.sh              # compare HEAD vs origin/master
 #   ./scripts/test-detect-changes.sh main          # compare HEAD vs main
 #   ./scripts/test-detect-changes.sh abc123        # compare HEAD vs specific commit
 #
@@ -15,16 +15,20 @@
 
 set -euo pipefail
 
-BASE="${1:-master}"
+BASE="${1:-origin/master}"
 
-echo "Comparing HEAD against: $BASE"
+# Resolve to SHA so the container doesn't need to git-fetch from the remote
+# (no SSH credentials available inside Docker).
+BASE_SHA="$(git rev-parse "$BASE")"
+
+echo "Comparing HEAD against: $BASE ($BASE_SHA)"
 echo "---"
 
 # Base act arguments
 ACT_ARGS=(
   workflow_dispatch
   -W .github/workflows/test-detect-changes.yml
-  --input "base=$BASE"
+  --input "base=$BASE_SHA"
   --detect-event
   --container-architecture linux/amd64
   --pull=false

@@ -34,6 +34,8 @@ jobs:
       # The real CI workflow classifies pyproject.toml by content (see build-publish_to_pypi.yml).
       # SYNC-NOTE: update if needs-build categories change in build-publish_to_pypi.yml
       needs-build: ${{ steps.filter.outputs.fortran == 'true' || steps.filter.outputs.python == 'true' || steps.filter.outputs.util == 'true' || steps.filter.outputs.build == 'true' || steps.filter.outputs.pyproject == 'true' || steps.filter.outputs.ci == 'true' || steps.filter.outputs.tests == 'true' }}
+      # SYNC-NOTE: UMEP build only needed when compiled extension ABI may differ
+      needs-umep-build: ${{ steps.filter.outputs.fortran == 'true' || steps.filter.outputs.build == 'true' }}
       fortran-changed: ${{ steps.filter.outputs.fortran }}
       python-changed: ${{ steps.filter.outputs.python }}
       util-changed: ${{ steps.filter.outputs.util }}
@@ -104,6 +106,13 @@ jobs:
         run: |
           echo "=== Build Decision ==="
           echo "needs-build: $NEEDS_BUILD"
+
+          # UMEP build needed only when compiled extension ABI may differ
+          NEEDS_UMEP_BUILD=false
+          if [[ "$FORTRAN" == "true" ]] || [[ "$BUILD" == "true" ]]; then
+            NEEDS_UMEP_BUILD=true
+          fi
+          echo "needs-umep-build: $NEEDS_UMEP_BUILD"
           echo ""
 
           # Determine multiplatform requirement
@@ -152,5 +161,13 @@ jobs:
           TRIGGERED=false
           if [[ "$DOCS" == "true" ]]; then echo "- docs build (pages-deploy.yml)"; TRIGGERED=true; fi
           if [[ "$SITE" == "true" ]]; then echo "- site deploy (pages-deploy.yml)"; TRIGGERED=true; fi
-          if [[ "$NEEDS_BUILD" == "true" ]]; then echo "- wheel build (build_wheels + build_umep)"; TRIGGERED=true; fi
+          if [[ "$NEEDS_BUILD" == "true" ]]; then
+            echo "- wheel build (build_wheels)"
+            TRIGGERED=true
+            if [[ "$FORTRAN" == "true" ]] || [[ "$BUILD" == "true" ]]; then
+              echo "- UMEP build (build_umep) [compiled extension changed]"
+            else
+              echo "- UMEP build skipped [no compiled extension changes]"
+            fi
+          fi
           if [[ "$TRIGGERED" == "false" ]]; then echo "- nothing (all skipped)"; fi

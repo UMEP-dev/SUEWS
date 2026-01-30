@@ -313,6 +313,16 @@ jobs:
       tests-changed: ${{ steps.filter.outputs.tests }}
       docs-changed: ${{ steps.filter.outputs.docs }}
       site-changed: ${{ steps.filter.outputs.site }}
+      # Per-category file lists for CI summary comment
+      fortran-files: ${{ steps.filter.outputs.fortran_files }}
+      python-files: ${{ steps.filter.outputs.python_files }}
+      util-files: ${{ steps.filter.outputs.util_files }}
+      build-files: ${{ steps.filter.outputs.build_files }}
+      ci-files: ${{ steps.filter.outputs.ci_files }}
+      tests-files: ${{ steps.filter.outputs.tests_files }}
+      docs-files: ${{ steps.filter.outputs.docs_files }}
+      site-files: ${{ steps.filter.outputs.site_files }}
+      pyproject-files: ${{ steps.filter.outputs.pyproject_files }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -322,6 +332,7 @@ jobs:
         id: filter
         with:
           filters: .github/path-filters.yml
+          list-files: 'json'
 
       # Content-aware classification of pyproject.toml changes.
       # Only [build-system] and [tool.cibuildwheel] need multiplatform builds.
@@ -536,6 +547,179 @@ jobs:
           # Production tags use full platforms (handled in build_umep job's matrix expression)
           echo 'umep_buildplat=[["windows-2025", "win", "AMD64"]]' >> $GITHUB_OUTPUT
           echo 'umep_python=["cp312"]' >> $GITHUB_OUTPUT
+
+  # Post a summary comment on PRs explaining what the CI will do
+  post-ci-summary:
+    name: Post CI summary comment
+    runs-on: ubuntu-latest
+    needs: [detect-changes, determine_matrix]
+    # Post summary on PRs when both detection and matrix determination succeed
+    if: >-
+      github.event_name == 'pull_request' &&
+      needs.detect-changes.result == 'success' &&
+      needs.determine_matrix.result == 'success'
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Post or update CI summary comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const isDraft = context.payload.pull_request.draft;
+
+            // --- Collect category flags and file lists ---
+            const categories = [
+              { name: 'fortran',  label: 'Fortran source',     changed: '${{ needs.detect-changes.outputs.fortran-changed }}',  files: ${{ needs.detect-changes.outputs.fortran-files || '[]' }} },
+              { name: 'python',   label: 'Python source',      changed: '${{ needs.detect-changes.outputs.python-changed }}',   files: ${{ needs.detect-changes.outputs.python-files || '[]' }} },
+              { name: 'util',     label: 'Utility modules',    changed: '${{ needs.detect-changes.outputs.util-changed }}',     files: ${{ needs.detect-changes.outputs.util-files || '[]' }} },
+              { name: 'build',    label: 'Build system',       changed: '${{ needs.detect-changes.outputs.build-changed }}',    files: ${{ needs.detect-changes.outputs.build-files || '[]' }} },
+              { name: 'ci',       label: 'CI/workflows',       changed: '${{ needs.detect-changes.outputs.ci-changed }}',       files: ${{ needs.detect-changes.outputs.ci-files || '[]' }} },
+              { name: 'tests',    label: 'Tests',              changed: '${{ needs.detect-changes.outputs.tests-changed }}',    files: ${{ needs.detect-changes.outputs.tests-files || '[]' }} },
+              { name: 'docs',     label: 'Documentation',      changed: '${{ needs.detect-changes.outputs.docs-changed }}',     files: ${{ needs.detect-changes.outputs.docs-files || '[]' }} },
+              { name: 'site',     label: 'Static site',        changed: '${{ needs.detect-changes.outputs.site-changed }}',     files: ${{ needs.detect-changes.outputs.site-files || '[]' }} },
+              { name: 'pyproject', label: 'pyproject.toml',    changed: 'false',                                                files: ${{ needs.detect-changes.outputs.pyproject-files || '[]' }} },
+            ];
+
+            // --- Build the "Changed Files" section ---
+            const changedCategories = categories.filter(c => c.changed === 'true' || c.files.length > 0);
+
+            let filesSection = '';
+            if (changedCategories.length === 0) {
+              filesSection = '_No code changes detected (docs/site only or no matching paths)._\n';
+            } else {
+              for (const cat of changedCategories) {
+                const count = cat.files.length;
+                filesSection += `**${cat.label}** (${count} file${count !== 1 ? 's' : ''})\n`;
+                // Show up to 15 files, collapse the rest
+                const shown = cat.files.slice(0, 15);
+                for (const f of shown) {
+                  filesSection += `- \`${f}\`\n`;
+                }
+                if (cat.files.length > 15) {
+                  filesSection += `- _...and ${cat.files.length - 15} more_\n`;
+                }
+                filesSection += '\n';
+              }
+            }
+
+            // --- Build the "Build Configuration" section ---
+            const needsBuild = '${{ needs.detect-changes.outputs.needs-build }}' === 'true';
+            const needsUmep = '${{ needs.detect-changes.outputs.needs-umep-build }}' === 'true';
+            const testTier = '${{ needs.determine_matrix.outputs.test_tier }}';
+
+            // Parse platform matrix for human-readable display
+            const buildplat = ${{ needs.determine_matrix.outputs.buildplat }};
+            const platformNames = {
+              'manylinux': 'Linux',
+              'macosx': 'macOS',
+              'win': 'Windows'
+            };
+            const archNames = {
+              'x86_64': 'x86_64',
+              'arm64': 'ARM64',
+              'AMD64': 'x64'
+            };
+            const platforms = buildplat.map(p => {
+              const os = platformNames[p[1]] || p[1];
+              const arch = archNames[p[2]] || p[2];
+              return `${os} ${arch}`;
+            });
+
+            // Parse Python versions
+            const pythonVersions = ${{ needs.determine_matrix.outputs.python }};
+            const pyDisplay = pythonVersions.map(v => v.replace('cp3', '3.')).join(', ');
+
+            // Test tier descriptions
+            const tierDesc = {
+              'smoke': 'smoke (critical tests only)',
+              'cfg': 'cfg (configuration + smoke)',
+              'core': 'core (physics + smoke)',
+              'standard': 'standard (all except slow)',
+              'all': 'all (full suite)'
+            };
+
+            let configSection = '';
+            if (!needsBuild) {
+              configSection = '**No code build required** -- changes are docs/site/non-code only.\n';
+            } else {
+              configSection += `| | Configuration |\n`;
+              configSection += `|---|---|\n`;
+              configSection += `| **Platforms** | ${platforms.join(', ')} |\n`;
+              configSection += `| **Python** | ${pyDisplay} |\n`;
+              configSection += `| **Test tier** | ${tierDesc[testTier] || testTier} |\n`;
+              configSection += `| **UMEP build** | ${needsUmep ? 'Yes (compiled extension may differ)' : 'Skipped (no ABI changes)'} |\n`;
+              configSection += `| **PR status** | ${isDraft ? 'Draft (reduced matrix)' : 'Ready (standard matrix)'} |\n`;
+            }
+
+            // --- Build rationale ---
+            const fortranChanged = '${{ needs.detect-changes.outputs.fortran-changed }}' === 'true';
+            const buildChanged = '${{ needs.detect-changes.outputs.build-changed }}' === 'true';
+            const pythonChanged = '${{ needs.detect-changes.outputs.python-changed }}' === 'true';
+            const utilChanged = '${{ needs.detect-changes.outputs.util-changed }}' === 'true';
+            const ciChanged = '${{ needs.detect-changes.outputs.ci-changed }}' === 'true';
+            const testsChanged = '${{ needs.detect-changes.outputs.tests-changed }}' === 'true';
+
+            let rationale = [];
+            if (fortranChanged) rationale.push('Fortran source changed -> multiplatform build required');
+            if (buildChanged) rationale.push('Build system changed -> multiplatform build required');
+            if (pythonChanged) rationale.push('Python source changed -> single-platform build');
+            if (utilChanged) rationale.push('Utility modules changed -> single-platform build');
+            if (ciChanged) rationale.push('CI/workflow files changed -> validation build');
+            if (testsChanged) rationale.push('Test files changed -> validation build');
+            if (needsUmep) rationale.push('Compiled extension ABI may differ -> UMEP (NumPy 1.x) build included');
+            if (!needsUmep && needsBuild) rationale.push('No compiled extension changes -> UMEP build skipped (nightly provides coverage)');
+            if (!needsBuild) rationale.push('No build-triggering changes detected -> builds skipped');
+
+            const rationaleSection = rationale.map(r => `- ${r}`).join('\n');
+
+            // --- Compose the comment ---
+            const marker = '<!-- ci-build-plan -->';
+            const body = `${marker}
+            ## CI Build Plan
+
+            ### Changed Files
+
+            ${filesSection}
+            ### Build Configuration
+
+            ${configSection}
+            ### Rationale
+
+            ${rationaleSection}
+
+            ---
+            <sub>Updated by CI on each push. See <a href="https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${context.sha}/.github/path-filters.yml">path-filters.yml</a> for category definitions.</sub>`;
+
+            // Dedent (template literal indentation)
+            const dedented = body.replace(/^            /gm, '');
+
+            // --- Post or update sticky comment ---
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+
+            const existing = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: dedented
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: dedented
+              });
+            }
 
   build_wheels:
     name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}

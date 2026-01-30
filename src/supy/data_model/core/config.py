@@ -1488,7 +1488,6 @@ class SUEWSConfig(BaseModel):
             return issues
 
         albs: List[float] = []
-        bad_indices: List[int] = []
 
         for i, layer in enumerate(layers):
             alb_field = getattr(layer, "alb", None)
@@ -1496,7 +1495,6 @@ class SUEWSConfig(BaseModel):
                 issues.append(
                     f"{site_name}: {param_name}=1, so {layers_attr}[{i}].alb must be set"
                 )
-                bad_indices.append(i)
                 continue
 
             val = getattr(alb_field, "value", alb_field)
@@ -1507,7 +1505,6 @@ class SUEWSConfig(BaseModel):
                 issues.append(
                     f"{site_name}: {param_name}=1 but {layers_attr}[{i}].alb ({val!r}) is not numeric"
                 )
-                bad_indices.append(i)
 
         if len(albs) == 0:
             issues.append(

@@ -1,0 +1,71 @@
+# Reusable workflow: build SUEWS wheels with a matrix strategy.
+#
+# Called by build-publish_to_pypi.yml for both standard and UMEP variants.
+# By isolating the matrix here, the caller jobs can use static names that
+# display cleanly when skipped (no unresolved ${{ matrix.* }} literals).
+
+name: Build wheels (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      buildplat_json:
+        description: 'JSON array of [runner, platform_name, arch] triples'
+        required: true
+        type: string
+      python_json:
+        description: 'JSON array of Python versions (e.g. ["cp312","cp313"])'
+        required: true
+        type: string
+      test_tier:
+        description: 'Test tier: smoke, core, cfg, standard, or all'
+        required: true
+        type: string
+      is_umep_variant:
+        description: 'Whether this is a UMEP variant build'
+        required: true
+        type: string
+      wheel_name_suffix:
+        description: 'Suffix for wheel artifact name (e.g. "", "-umep")'
+        required: false
+        type: string
+        default: ''
+      is_testpypi_build:
+        description: 'Whether this is a TestPyPI build'
+        required: false
+        type: string
+        default: 'false'
+      enable_dts:
+        description: 'Enable DTS type wrappers'
+        required: false
+        type: string
+        default: 'false'
+
+jobs:
+  build:
+    name: ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
+    runs-on: ${{ matrix.buildplat[0] }}
+    strategy:
+      matrix:
+        buildplat: ${{ fromJson(inputs.buildplat_json) }}
+        python: ${{ fromJson(inputs.python_json) }}
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Build SUEWS wheels
+        uses: ./.github/actions/build-suews
+        with:
+          buildplat: ${{ matrix.buildplat[0] }}
+          buildplat_name: ${{ matrix.buildplat[1] }}
+          buildplat_arch: ${{ matrix.buildplat[2] }}
+          python: ${{ matrix.python }}
+          is_umep_variant: ${{ inputs.is_umep_variant }}
+          wheel_name_suffix: ${{ inputs.wheel_name_suffix }}
+          test_tier: ${{ inputs.test_tier }}
+          is_testpypi_build: ${{ inputs.is_testpypi_build }}
+          enable_dts: ${{ inputs.enable_dts }}

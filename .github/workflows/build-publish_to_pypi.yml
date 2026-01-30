@@ -256,6 +256,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Verify that tag pushes originate from master before allowing releases.
+  # Non-master tags (e.g. docs-fix commits) skip deployment entirely.
+  verify-release-tag:
+    name: Verify tag is on master
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    outputs:
+      on-master: ${{ steps.check.outputs.on-master }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: check
+        run: |
+          if git merge-base --is-ancestor $GITHUB_SHA refs/remotes/origin/master; then
+            echo "on-master=true" >> $GITHUB_OUTPUT
+          else
+            echo "::warning::Tag ${{ github.ref_name }} not on master — skipping release"
+            echo "on-master=false" >> $GITHUB_OUTPUT
+          fi
+
   # Create nightly tag BEFORE building to ensure correct version
   create_nightly_tag:
     name: Create nightly tag for scheduled builds
@@ -530,16 +551,18 @@ jobs:
   build_wheels:
     name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
     runs-on: ${{ matrix.buildplat[0] }}
-    needs: [determine_matrix, create_nightly_tag, detect-changes]
+    needs: [determine_matrix, create_nightly_tag, detect-changes, verify-release-tag]
     # Run if:
     # 1. Not a PR (push/tag/schedule always build), OR
     # 2. PR with code changes (detect-changes.outputs.needs-build == 'true')
     # 3. AND other dependencies succeeded/skipped
+    # 4. For tag events: only build if tag is on master (verify-release-tag gate)
     if: |
       always() &&
       needs.determine_matrix.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
-      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true')
+      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true') &&
+      (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true')
     strategy:
       matrix:
         buildplat: ${{ fromJson(needs.determine_matrix.outputs.buildplat) }}
@@ -570,11 +593,12 @@ jobs:
   build_umep:
     name: Build UMEP wheel (rc1/dev1) for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
     runs-on: ${{ matrix.buildplat[0] }}
-    needs: [determine_matrix, create_nightly_tag, detect-changes]
+    needs: [determine_matrix, create_nightly_tag, detect-changes, verify-release-tag]
     # Run if:
     # 1. Not a PR (push/tag/schedule always build), OR
     # 2. PR with code changes (detect-changes.outputs.needs-build == 'true')
     # 3. AND other dependencies succeeded/skipped
+    # 4. For tag events: only build if tag is on master (verify-release-tag gate)
     # UMEP versioning:
     #   - Production tags: X.Y.Zrc1 (pre-release for QGIS)
     #   - Dev/nightly: X.Y.Z.dev1 (incremented to avoid collision with standard .dev0)
@@ -583,6 +607,7 @@ jobs:
       needs.determine_matrix.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true') &&
+      (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true') &&
       (github.event_name != 'workflow_dispatch' || inputs.include_umep == true)
     strategy:
       matrix:
@@ -703,13 +728,16 @@ jobs:
       - determine_matrix
       - build_wheels
       - create_nightly_tag  # Will be skipped for non-nightly builds
+      - verify-release-tag  # Will be skipped for non-tag events
     # Deploy to TestPyPI for nightly builds even if some platforms fail
     # This ensures continuous availability of development builds
     # Also allows manual dispatch with deploy_target == 'testpypi'
+    # For tag events: only deploy if tag is on master (verify-release-tag gate)
     if: |
       always() &&
       needs.build_wheels.result != 'cancelled' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
+      (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true') &&
       (
         github.event_name == 'schedule' ||
         (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) ||
@@ -743,15 +771,18 @@ jobs:
       - build_wheels
       - build_umep  # UMEP builds (rc1 variants)
       - create_nightly_tag  # Will be skipped for non-nightly builds
+      - verify-release-tag  # Will be skipped for non-tag events
     # Only run for tagged releases WITHOUT 'dev' in the tag name
     # Deploy only if BOTH standard AND UMEP builds succeed (complete release)
+    # For tag events: only deploy if tag is on master (verify-release-tag gate)
     if: |
       always() &&
       startsWith(github.ref, 'refs/tags') &&
       !contains(github.ref, 'dev') &&
       needs.build_wheels.result == 'success' &&
       needs.build_umep.result == 'success' &&
-      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped')
+      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
+      (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true')
 
     # Set up permissions for OIDC authentication
     permissions:

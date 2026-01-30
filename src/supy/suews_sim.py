@@ -425,7 +425,12 @@ class SUEWSSimulation:
             return read_forcing(str(forcing_path), tstep_mod=tstep_mod)
 
     def run(
-        self, start_date=None, end_date=None, backend: str = "traditional", **run_kwargs
+        self,
+        start_date=None,
+        end_date=None,
+        backend: str = "traditional",
+        chunk_day: int = 3660,
+        **run_kwargs,
     ) -> SUEWSOutput:
         """
         Run SUEWS simulation.
@@ -445,6 +450,10 @@ class SUEWSSimulation:
               Direct Pydantic-to-Fortran execution path, bypassing intermediate
               DataFrame conversion. May be faster for short simulations.
 
+        chunk_day : int, optional
+            Chunk size in days for splitting long simulations, by default 3660
+            (~10 years). Smaller values reduce peak memory at a small overhead
+            cost. Applied to both ``traditional`` and ``dts`` backends.
         run_kwargs : dict
             **Note**: Additional keyword arguments are currently not supported
             due to underlying function signature constraints. This parameter
@@ -452,11 +461,9 @@ class SUEWSSimulation:
 
             In a future version, the following options may be supported:
             - save_state: bool - Save state at each timestep (planned)
-            - chunk_day: int - Days per chunk for memory efficiency (planned)
 
             For now, simulations use default settings:
             - save_state=False (states not saved at each step)
-            - chunk_day=3660 (approximately 10 years per chunk)
 
         Returns
         -------
@@ -553,6 +560,7 @@ class SUEWSSimulation:
             df_output, dict_final_states = run_dts_multi(
                 df_forcing=df_forcing_slice,
                 config=self._config,
+                chunk_day=chunk_day,
             )
             self._df_output = df_output
             # DTS extracts state to Pydantic InitialStates (not DataFrame)
@@ -569,7 +577,7 @@ class SUEWSSimulation:
             result = run_supy_ser(
                 df_forcing_slice,
                 self._df_state_init,
-                # **run_kwargs # Causes problems - requires explicit arguments
+                chunk_day=chunk_day,
             )
             self._df_output = result[0]
             self._df_state_final = result[1]

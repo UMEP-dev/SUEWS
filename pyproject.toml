@@ -103,14 +103,13 @@ dev = [
     "sphinx>=7,<9",
     "sphinx-autobuild",
     "sphinx-book-theme",        # Active theme in conf.py
-    "myst-parser>=4.0,<5",      # Markdown support (replaced recommonmark)
     "pybtex",                   # Bibliography processing
     "sphinxcontrib-bibtex>=2.6,<3", # Bibliography support (heavily customised)
     "sphinx-design>=0.7.0",     # Collapsible sections for YAML config docs (>=0.7 supports Sphinx 8)
     "sphinx-last-updated-by-git", # Git info in docs
     "sphinx-click",             # CLI documentation
     "sphinx-gallery>=0.16.0",   # Gallery examples from Python scripts (GH-1029)
-    "docutils>=0.21,<0.22",     # Aligned with myst-parser + Sphinx 8
+    "docutils>=0.21,<0.22",     # Sphinx 8 requires docutils >=0.21
     "jinja2>=3.0",         # Version pinned for compatibility - # MP removed upper limit
 ]
 

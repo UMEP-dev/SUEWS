@@ -286,7 +286,6 @@ extensions = [
     "sphinx.ext.extlinks",
     "input_domain",  # Custom domain for input configuration options (see GH#1031)
     "output_domain",  # Custom domain for output variables (see GH#1031)
-    "myst_parser",
     "sphinx_design",  # For collapsible sections, tabs, and dropdowns in YAML config reference
     "sphinx_last_updated_by_git",
     "sphinx_click.ext",

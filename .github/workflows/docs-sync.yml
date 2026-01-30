@@ -43,6 +43,18 @@ jobs:
           fetch-tags: true
 
       # ------------------------------------------------------------------
+      # 1a. Verify tag is on master (skip docs sync for non-master tags)
+      # ------------------------------------------------------------------
+      - name: Verify tag is on master
+        if: github.ref_type == 'tag'
+        run: |
+          git fetch origin master --depth=50
+          if ! git merge-base --is-ancestor $GITHUB_SHA refs/remotes/origin/master; then
+            echo "::error::Tag ${{ github.ref_name }} not on master — skipping docs sync"
+            exit 1
+          fi
+
+      # ------------------------------------------------------------------
       # 2. Configure git identity
       # ------------------------------------------------------------------
       - name: Configure git

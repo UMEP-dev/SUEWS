@@ -1473,7 +1473,6 @@ class SUEWSConfig(BaseModel):
 
         return issues
 
-    def _validate_samealbedo_wall(self, site: Site, site_index: int) -> List[str]:
     def _validate_samealbedo_surface(
         self,
         site: Site,

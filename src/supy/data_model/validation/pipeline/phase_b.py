@@ -334,72 +334,70 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
     return results
 
 def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
-    """Validate consistency between model physics options."""
+    """Validate consistency between model physics options, reporting site names."""
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
     samealbedo_roof = get_value_safe(physics, "samealbedo_roof")
     samealbedo_wall = get_value_safe(physics, "samealbedo_wall")
 
-
     if samealbedo_wall == 0:
-        found_albedos = []
-        found_reflectivities = []
         for site in yaml_data.get("sites", []):
+            site_name = site.get("name", "Unknown")
             vlay = site.get("properties", {}).get("vertical_layers", {})
             walls = vlay.get("walls", [])
             if isinstance(walls, dict):  # rare but possible
                 walls = [walls]
+            found_albedos = []
             for wall in walls:
                 alb_val = get_value_safe(wall, "alb")
                 if alb_val is not None:
                     found_albedos.append(alb_val)
-            # WallReflectivity: properties.building_archetype.WallReflectivity.value
             building_archetype = site.get("properties", {}).get("building_archetype", {})
             wallrefl_val = get_value_safe(building_archetype, "WallReflectivity")
-            if wallrefl_val is not None:
-                found_reflectivities.append(wallrefl_val)
-        msg = (
-            f"You have selected samealbedo_wall == 0. No check of consistency between walls albedo (found values: {found_albedos}) and WallReflectivity (found values: {found_reflectivities})."
-        )
-        results.append(
-            ValidationResult(
-                status="WARNING",
-                category="MODEL_OPTIONS",
-                parameter="samealbedo_wall",
-                message=msg,
+            msg = (
+                f"samealbedo_wall == 0. No check of consistency between walls albedo (found values: {found_albedos}) and WallReflectivity (found value: {wallrefl_val})."
             )
-        )
+            results.append(
+                ValidationResult(
+                    status="WARNING",
+                    category="MODEL_OPTIONS",
+                    parameter="samealbedo_wall",
+                    site_gridid=site_name,
+                    site_index=None,
+                    message=f"{msg}",
+                    suggested_value=None,
+                )
+            )
 
-    # -- samealbedo_roof == 0: No action needed check --
     if samealbedo_roof == 0:
-        found_albedos = []
-        found_reflectivities = []
         for site in yaml_data.get("sites", []):
+            site_name = site.get("name", "Unknown")
             vlay = site.get("properties", {}).get("vertical_layers", {})
             roofs = vlay.get("roofs", [])
             if isinstance(roofs, dict):  # rare but possible
                 roofs = [roofs]
+            found_albedos = []
             for roof in roofs:
                 alb_val = get_value_safe(roof, "alb")
                 if alb_val is not None:
                     found_albedos.append(alb_val)
-            # RoofReflectivity: properties.building_archetype.RoofReflectivity.value
             building_archetype = site.get("properties", {}).get("building_archetype", {})
             roofrefl_val = get_value_safe(building_archetype, "RoofReflectivity")
-            if roofrefl_val is not None:
-                found_reflectivities.append(roofrefl_val)
-        msg = (
-            f"You have selected samealbedo_roof == 0. No check of consistency between roofs albedo (found values: {found_albedos}) and RoofReflectivity (found values: {found_reflectivities})."
-        )
-        results.append(
-            ValidationResult(
-                status="WARNING",
-                category="MODEL_OPTIONS",
-                parameter="samealbedo_roof",
-                message=msg,
+            msg = (
+                f"samealbedo_roof == 0. No check of consistency between roofs albedo (found values: {found_albedos}) and RoofReflectivity (found value: {roofrefl_val})."
             )
-        )
+            results.append(
+                ValidationResult(
+                    status="WARNING",
+                    category="MODEL_OPTIONS",
+                    parameter="samealbedo_roof",
+                    site_gridid=site_name,
+                    site_index=None,
+                    message=f"{msg}",
+                    suggested_value=None,
+                )
+            )
 
     return results
 

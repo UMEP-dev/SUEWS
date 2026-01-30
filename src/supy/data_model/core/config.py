@@ -1380,38 +1380,23 @@ class SUEWSConfig(BaseModel):
         return False
     
     def _needs_samealbedo_wall_validation(self) -> bool:
-        """
-        Return True if samealbedo_wall option is enabled (==1).
-        """
-        if not hasattr(self.model, "physics") or not hasattr(
-            self.model.physics, "samealbedo_wall"
-        ):
-            return False
+        """Return True if samealbedo_wall option is enabled (==1)."""
+        return self._needs_samealbedo_validation("samealbedo_wall")
 
-        saw = getattr(self.model.physics.samealbedo_wall, "value", None)
-        try:
-            saw = int(saw)
-        except (TypeError, ValueError):
-            pass
-
-        return saw == 1
-    
     def _needs_samealbedo_roof_validation(self) -> bool:
-        """
-        Return True if samealbedo_roof option is enabled (==1).
-        """
-        if not hasattr(self.model, "physics") or not hasattr(
-            self.model.physics, "samealbedo_roof"
-        ):
+        """Return True if samealbedo_roof option is enabled (==1)."""
+        return self._needs_samealbedo_validation("samealbedo_roof")
+
+    def _needs_samealbedo_validation(self, attr: str) -> bool:
+        """Helper for samealbedo_wall/roof validation."""
+        physics = getattr(self.model, "physics", None)
+        if not physics or not hasattr(physics, attr):
             return False
-
-        saw = getattr(self.model.physics.samealbedo_roof, "value", None)
+        val = getattr(getattr(physics, attr), "value", getattr(physics, attr))
         try:
-            saw = int(saw)
+            return int(val) == 1
         except (TypeError, ValueError):
-            pass
-
-        return saw == 1
+            return False
 
     def _is_physics_explicitly_configured(self) -> bool:
         """

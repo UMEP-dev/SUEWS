@@ -756,8 +756,8 @@ class TestSTEBBSOutput(TestCase):
             # Indoor conditions - affected by complex heat transfer
             "Tair_ind": {"rtol": 0.02, "atol": 0.5},  # 2% / 0.5K tolerance
             # Building loads - higher tolerance due to control logic
-            "Qload_heating_F": {"rtol": 0.05, "atol": 5.0},  # 5% / 5W tolerance
-            "Qload_cooling_F": {"rtol": 0.05, "atol": 5.0},  # 5% / 5W tolerance
+            "QHload_heating_FA": {"rtol": 0.05, "atol": 5.0},  # 5% / 5W tolerance
+            "QHload_cooling_FA": {"rtol": 0.05, "atol": 5.0},  # 5% / 5W tolerance
         }
 
         print(f"\nValidating STEBBS variables: {', '.join(stebbs_variables.keys())}")

@@ -38,6 +38,8 @@ from supy.data_model.core.state import (
 )
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
+from supy.data_model.validation.pipeline.phase_b import validate_model_option_samealbedo
+
 
 
 # A tiny “site” stub that only carries exactly the properties our validators look at
@@ -514,6 +516,136 @@ def test_auto_albedo_with_refvalue_inputs():
     # alb_id = 0.1 + (0.3 - 0.1) * 0.5 = 0.2
     assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.2)
 
+
+def test_validate_samealbedo_wall_requires_identical_wall_albedos():
+    """
+    When samealbedo_wall is ON but walls have different albedos,
+    we should get an error about them needing to be identical.
+    """
+    cfg = make_cfg(samealbedo_wall=1)
+
+    walls = [
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+        SimpleNamespace(alb=SimpleNamespace(value=0.6)),  # mismatch
+    ]
+    vl = SimpleNamespace(walls=walls)
+    ba = SimpleNamespace(WallReflectivity=SimpleNamespace(value=0.5))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteWallMismatch")
+
+    msgs = SUEWSConfig._validate_samealbedo_wall(cfg, site, 0)
+    assert len(msgs) == 1
+    assert "so all walls albedoes must be identical;" in msgs[0]
+    assert "SiteWallMismatch" in msgs[0]
+
+
+def test_validate_samealbedo_wall_requires_match_with_wallreflectivity():
+    """
+    When samealbedo_wall is ON, all walls have same alb but it differs
+    from building_archetype.WallReflectivity, we should get an error.
+    """
+    cfg = make_cfg(samealbedo_wall=1)
+
+    walls = [
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+    ]
+    vl = SimpleNamespace(walls=walls)
+    ba = SimpleNamespace(WallReflectivity=SimpleNamespace(value=0.345))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteRefMismatch")
+
+    msgs = SUEWSConfig._validate_samealbedo_wall(cfg, site, 0)
+    assert len(msgs) == 1
+    msg = msgs[0]
+    assert "must equal properties.building_archetype.WallReflectivity (0.345)" in msg
+    assert "walls[0]=0.5" in msg
+
+def test_validate_samealbedo_roof_requires_match_with_roofreflectivity():
+    """
+    When samealbedo_roof is ON, all roofs have same alb but it differs
+    from building_archetype.RoofReflectivity, we should get an error.
+    """
+    cfg = make_cfg(samealbedo_roof=1)
+
+    roofs = [
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+    ]
+    vl = SimpleNamespace(roofs=roofs)
+    ba = SimpleNamespace(RoofReflectivity=SimpleNamespace(value=0.345))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteRefMismatch")
+
+    msgs = SUEWSConfig._validate_samealbedo_roof(cfg, site, 0)
+    assert len(msgs) == 1
+    msg = msgs[0]
+    assert "must equal properties.building_archetype.RoofReflectivity (0.345)" in msg
+    assert "roofs[0]=0.5" in msg
+
+def test_validate_samealbedo_roof_requires_identical_roof_albedos():
+    """
+    When samealbedo_roof is ON but roofs have different albedos,
+    we should get an error about them needing to be identical.
+    """
+    cfg = make_cfg(samealbedo_roof=1)
+
+    roofs = [
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+        SimpleNamespace(alb=SimpleNamespace(value=0.6)),  # mismatch
+    ]
+    vl = SimpleNamespace(roofs=roofs)
+    ba = SimpleNamespace(RoofReflectivity=SimpleNamespace(value=0.5))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteRoofMismatch")
+
+    msgs = SUEWSConfig._validate_samealbedo_roof(cfg, site, 0)
+    assert len(msgs) == 1
+    assert "so all roofs albedoes must be identical;" in msgs[0]
+    assert "SiteRoofMismatch" in msgs[0]
+
+def test_needs_samealbedo_roof_validation_true_and_false():
+    cfg = make_cfg(samealbedo_roof=1)
+    assert cfg._needs_samealbedo_roof_validation() is True
+    cfg2 = make_cfg(samealbedo_roof=0)
+    assert cfg2._needs_samealbedo_roof_validation() is False
+
+def test_needs_samealbedo_wall_validation_true_and_false():
+    cfg = make_cfg(samealbedo_wall=1)
+    assert cfg._needs_samealbedo_wall_validation() is True
+    cfg2 = make_cfg(samealbedo_wall=0)
+    assert cfg2._needs_samealbedo_wall_validation() is False
+
+def test_phase_b_validate_model_option_samealbedo_disabled():
+    """Test validate_model_option_samealbedo returns WARNING when option is disabled (==0)."""
+
+    yaml_data_wall = {
+        "model": {
+            "physics": {
+                "samealbedo_wall": {"value": 0}
+            }
+        },
+        "sites": [{"name": "site1", "properties": {}}],  
+    }
+    results_wall = validate_model_option_samealbedo(yaml_data_wall)
+    assert len(results_wall) == 1
+    assert results_wall[0].status == "WARNING"
+    assert "no check of consistency" in results_wall[0].message.lower()
+    assert "samealbedo_wall == 0" in results_wall[0].message.lower()
+
+    yaml_data_roof = {
+        "model": {
+            "physics": {
+                "samealbedo_roof": {"value": 0}
+            }
+        },
+        "sites": [{"name": "site1", "properties": {}}],  
+    }
+    results_roof = validate_model_option_samealbedo(yaml_data_roof)
+    assert len(results_roof) == 1
+    assert results_roof[0].status == "WARNING"
+    assert "no check of consistency" in results_roof[0].message.lower()
+    assert "samealbedo_roof == 0" in results_roof[0].message.lower()
 
 # From test_validation_topdown.py
 class TestTopDownValidation:

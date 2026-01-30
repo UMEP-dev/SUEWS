@@ -534,7 +534,7 @@ def test_validate_samealbedo_wall_requires_identical_wall_albedos():
 
     msgs = SUEWSConfig._validate_samealbedo_wall(cfg, site, 0)
     assert len(msgs) == 1
-    assert "all wall albedoes must be identical" in msgs[0]
+    assert "so all walls albedoes must be identical;" in msgs[0]
     assert "SiteWallMismatch" in msgs[0]
 
 

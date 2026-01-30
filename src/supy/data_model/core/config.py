@@ -1474,34 +1474,43 @@ class SUEWSConfig(BaseModel):
         return issues
 
     def _validate_samealbedo_wall(self, site: Site, site_index: int) -> List[str]:
+    def _validate_samealbedo_surface(
+        self,
+        site: Site,
+        site_index: int,
+        surface_type: str,
+        layers_attr: str,
+        reflectivity_attr: str,
+        param_name: str,
+    ) -> List[str]:
         """
-        When samealbedo_wall is enabled:
+        Generic validator for samealbedo_wall and samealbedo_roof.
 
-        - All wall albedoes in vertical_layers.walls must be identical
-        - That common value must equal properties.building_archetype.WallReflectivity
+        - All albedoes in vertical_layers.<layers_attr> must be identical
+        - That common value must equal properties.building_archetype.<reflectivity_attr>
         """
         issues: List[str] = []
         site_name = getattr(site, "name", f"Site {site_index}")
 
-        # --- Get walls and their albedoes ---
+        # --- Get layers and their albedoes ---
         props = getattr(site, "properties", None)
         vl = getattr(props, "vertical_layers", None) if props is not None else None
-        walls = getattr(vl, "walls", None) if vl is not None else None
+        layers = getattr(vl, layers_attr, None) if vl is not None else None
 
-        if not walls:
+        if not layers:
             issues.append(
-                f"{site_name}: samealbedo_wall=1, so vertical_layers.walls must be defined and non-empty"
+                f"{site_name}: {param_name}=1, so vertical_layers.{layers_attr} must be defined and non-empty"
             )
             return issues
 
-        wall_albs: List[float] = []
+        albs: List[float] = []
         bad_indices: List[int] = []
 
-        for i, wall in enumerate(walls):
-            alb_field = getattr(wall, "alb", None)
+        for i, layer in enumerate(layers):
+            alb_field = getattr(layer, "alb", None)
             if alb_field is None:
                 issues.append(
-                    f"{site_name}: samealbedo_wall=1, so walls[{i}].alb must be set"
+                    f"{site_name}: {param_name}=1, so {layers_attr}[{i}].alb must be set"
                 )
                 bad_indices.append(i)
                 continue
@@ -1509,169 +1518,77 @@ class SUEWSConfig(BaseModel):
             val = getattr(alb_field, "value", alb_field)
             try:
                 val_float = float(val)
-                wall_albs.append(val_float)
+                albs.append(val_float)
             except (TypeError, ValueError):
                 issues.append(
-                    f"{site_name}: samealbedo_wall=1 but walls[{i}].alb ({val!r}) is not numeric"
+                    f"{site_name}: {param_name}=1 but {layers_attr}[{i}].alb ({val!r}) is not numeric"
                 )
                 bad_indices.append(i)
 
-        if len(wall_albs) == 0:
+        if len(albs) == 0:
             issues.append(
-                f"{site_name}: samealbedo_wall=1 but no valid wall albedo values found"
+                f"{site_name}: {param_name}=1 but no valid {layers_attr} albedo values found"
             )
             return issues
 
-        # --- Check that all wall albedoes are identical ---
-        first_alb = wall_albs[0]
+        # --- Check that all albedoes are identical ---
+        first_alb = albs[0]
         tol = SAME_ALB_TOL
         mismatching = [
-            (i, a) for i, a in enumerate(wall_albs) if abs(a - first_alb) > tol
+            (i, a) for i, a in enumerate(albs) if abs(a - first_alb) > tol
         ]
 
         if mismatching:
-            # List all albedoes in the message
-            all_alb_str = ", ".join(f"walls[{i}]={a}" for i, a in enumerate(wall_albs))
+            all_alb_str = ", ".join(f"{layers_attr}[{i}]={a}" for i, a in enumerate(albs))
             issues.append(
-                f"{site_name}: samealbedo_wall=1, so all wall albedoes must be identical; "
+                f"{site_name}: {param_name}=1, so all {layers_attr} albedoes must be identical; "
                 f"found values: {all_alb_str}"
             )
 
-        # --- Get building_archetype.WallReflectivity ---
+        # --- Get building_archetype.<reflectivity_attr> ---
         ba = getattr(props, "building_archetype", None)
         if ba is None:
             issues.append(
-                f"{site_name}: samealbedo_wall=1, so properties.building_archetype must be defined"
+                f"{site_name}: {param_name}=1, so properties.building_archetype must be defined"
             )
             return issues
 
-        wl_field = getattr(ba, "WallReflectivity", None)
-        if wl_field is None:
+        refl_field = getattr(ba, reflectivity_attr, None)
+        if refl_field is None:
             issues.append(
-                f"{site_name}: samealbedo_wall=1, so properties.building_archetype.WallReflectivity must be set"
+                f"{site_name}: {param_name}=1, so properties.building_archetype.{reflectivity_attr} must be set"
             )
             return issues
 
-        wl_val = getattr(wl_field, "value", wl_field)
+        refl_val = getattr(refl_field, "value", refl_field)
         try:
-            wall_reflectivity = float(wl_val)
+            reflectivity = float(refl_val)
         except (TypeError, ValueError):
             issues.append(
-                f"{site_name}: samealbedo_wall=1 but properties.building_archetype.WallReflectivity "
-                f"({wl_val!r}) is not numeric"
+                f"{site_name}: {param_name}=1 but properties.building_archetype.{reflectivity_attr} "
+                f"({refl_val!r}) is not numeric"
             )
             return issues
 
-        # --- Check equality between *common* wall albedo and WallReflectivity ---
-        if abs(first_alb - wall_reflectivity) > tol:
-            all_alb_str = ", ".join(f"walls[{i}]={a}" for i, a in enumerate(wall_albs))
+        # --- Check equality between *common* albedo and reflectivity ---
+        if abs(first_alb - reflectivity) > tol:
+            all_alb_str = ", ".join(f"{layers_attr}[{i}]={a}" for i, a in enumerate(albs))
             issues.append(
-                f"{site_name}: samealbedo_wall=1, so wall albedo (found {all_alb_str}) must equal "
-                f"properties.building_archetype.WallReflectivity ({wall_reflectivity})"
+                f"{site_name}: {param_name}=1, so common {layers_attr} albedo (found {all_alb_str}) must equal "
+                f"properties.building_archetype.{reflectivity_attr} ({reflectivity})"
             )
 
         return issues
-    
+
+    def _validate_samealbedo_wall(self, site: Site, site_index: int) -> List[str]:
+        return self._validate_samealbedo_surface(
+            site, site_index, "wall", "walls", "WallReflectivity", "samealbedo_wall"
+        )
+
     def _validate_samealbedo_roof(self, site: Site, site_index: int) -> List[str]:
-        """
-        When samealbedo_roof is enabled:
-
-        - All roof albedoes in vertical_layers.roofs must be identical
-        - That common value must equal properties.building_archetype.RoofReflectivity
-        """
-        issues: List[str] = []
-        site_name = getattr(site, "name", f"Site {site_index}")
-
-        # --- Get roofs and their albedoes ---
-        props = getattr(site, "properties", None)
-        vl = getattr(props, "vertical_layers", None) if props is not None else None
-        roofs = getattr(vl, "roofs", None) if vl is not None else None
-
-        if not roofs:
-            issues.append(
-                f"{site_name}: samealbedo_roof=1, so vertical_layers.roofs must be defined and non-empty"
-            )
-            return issues
-
-        roof_albs: List[float] = []
-        bad_indices: List[int] = []
-
-        for i, roof in enumerate(roofs):
-            alb_field = getattr(roof, "alb", None)
-            if alb_field is None:
-                issues.append(
-                    f"{site_name}: samealbedo_roof=1, so roofs[{i}].alb must be set"
-                )
-                bad_indices.append(i)
-                continue
-
-            val = getattr(alb_field, "value", alb_field)
-            try:
-                val_float = float(val)
-                roof_albs.append(val_float)
-            except (TypeError, ValueError):
-                issues.append(
-                    f"{site_name}: samealbedo_roof=1 but roofs[{i}].alb ({val!r}) is not numeric"
-                )
-                bad_indices.append(i)
-
-
-        if len(roof_albs) == 0:
-            issues.append(
-                f"{site_name}: samealbedo_roof=1 but no valid roof albedo values found"
-            )
-            return issues
-
-        # --- Check that all roof albedoes are identical ---
-        first_alb = roof_albs[0]
-        tol = SAME_ALB_TOL
-        mismatching = [
-            (i, a) for i, a in enumerate(roof_albs) if abs(a - first_alb) > tol
-        ]
-
-        if mismatching:
-            # List all albedoes in the message
-            all_alb_str = ", ".join(f"roofs[{i}]={a}" for i, a in enumerate(roof_albs))
-            issues.append(
-                f"{site_name}: samealbedo_roof=1, so all roof albedoes must be identical; "
-                f"found values: {all_alb_str}"
-            )
-            # return issues  # do NOT check against RoofReflectivity in this case
-
-        # --- Get building_archetype.RoofReflectivity ---
-        ba = getattr(props, "building_archetype", None)
-        if ba is None:
-            issues.append(
-                f"{site_name}: samealbedo_roof=1, so properties.building_archetype must be defined"
-            )
-            return issues
-
-        rf_field = getattr(ba, "RoofReflectivity", None)
-        if rf_field is None:
-            issues.append(
-                f"{site_name}: samealbedo_roof=1, so properties.building_archetype.RoofReflectivity must be set"
-            )
-            return issues
-
-        rf_val = getattr(rf_field, "value", rf_field)
-        try:
-            roof_reflectivity = float(rf_val)
-        except (TypeError, ValueError):
-            issues.append(
-                f"{site_name}: samealbedo_roof=1 but properties.building_archetype.RoofReflectivity "
-                f"({rf_val!r}) is not numeric"
-            )
-            return issues
-
-        # --- Check equality between *common* roof albedo and RoofReflectivity ---
-        if abs(first_alb - roof_reflectivity) > tol:
-            all_alb_str = ", ".join(f"roofs[{i}]={a}" for i, a in enumerate(roof_albs))
-            issues.append(
-                f"{site_name}: samealbedo_roof=1, so common roof albedo (found {all_alb_str}) must equal "
-                f"properties.building_archetype.RoofReflectivity ({roof_reflectivity})"
-            )
-
-        return issues
+        return self._validate_samealbedo_surface(
+            site, site_index, "roof", "roofs", "RoofReflectivity", "samealbedo_roof"
+        )
 
     def _validate_conditional_parameters(self) -> List[str]:
         """

@@ -510,7 +510,7 @@ class SnowUse(Enum):
     def __repr__(self):
         return str(self.value)
     
-class SameAlbedo_Wall(Enum):
+class SameAlbedoWall(Enum):
     """
     Controls assumption of same albedoes for walls.
 
@@ -528,7 +528,7 @@ class SameAlbedo_Wall(Enum):
         return str(self.value)
     
 
-class SameAlbedo_Roof(Enum):
+class SameAlbedoRoof(Enum):
     """
     Controls assumption of same albedoes for roofs.
 
@@ -583,8 +583,8 @@ for enum_class in [
     RCMethod,
     SnowUse,
     OhmIncQf,
-    SameAlbedo_Wall,
-    SameAlbedo_Roof,
+    SameAlbedoWall,
+    SameAlbedoRoof,
 ]:
     yaml.add_representer(enum_class, yaml_equivalent_of_default)
 
@@ -694,14 +694,14 @@ class ModelPhysics(BaseModel):
         description=_enum_description(RCMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    samealbedo_wall: FlexibleRefValue(SameAlbedo_Wall) = Field(
-        default=SameAlbedo_Wall.DISABLED,
-        description=_enum_description(SameAlbedo_Wall),
+    samealbedo_wall: FlexibleRefValue(SameAlbedoWall) = Field(
+        default=SameAlbedoWall.DISABLED,
+        description=_enum_description(SameAlbedoWall),
         json_schema_extra={"unit": "dimensionless"},
     )
-    samealbedo_roof: FlexibleRefValue(SameAlbedo_Roof) = Field(
-        default=SameAlbedo_Roof.DISABLED,
-        description=_enum_description(SameAlbedo_Roof),
+    samealbedo_roof: FlexibleRefValue(SameAlbedoRoof) = Field(
+        default=SameAlbedoRoof.DISABLED,
+        description=_enum_description(SameAlbedoRoof),
         json_schema_extra={"unit": "dimensionless"},
     )
 
@@ -774,8 +774,8 @@ class ModelPhysics(BaseModel):
 
         # New options: optional in legacy DataFrames, default if missing
         optional_new_attrs_with_defaults = {
-            "samealbedo_wall": SameAlbedo_Wall.DISABLED,
-            "samealbedo_roof": SameAlbedo_Roof.DISABLED,
+            "samealbedo_wall": SameAlbedoWall.DISABLED,
+            "samealbedo_roof": SameAlbedoRoof.DISABLED,
         }
 
         for attr in required_attrs:

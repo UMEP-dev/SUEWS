@@ -67,7 +67,6 @@ build:
   - 'meson_options.txt'
   - 'src/supy/meson.build'
   - 'get_ver_git.py'
-  - 'env.yml'
 
 pyproject:
   # Classified by content in detect-changes (not all sections need builds)

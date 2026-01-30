@@ -37,10 +37,13 @@ jobs:
       # ------------------------------------------------------------------
       # 1. Checkout full history (needed for merge + change detection)
       # ------------------------------------------------------------------
+      # Uses RTD_PUSH_TOKEN (admin PAT) instead of GITHUB_TOKEN so that
+      # pushes to the protected rtd branch bypass the PR requirement.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
+          token: ${{ secrets.RTD_PUSH_TOKEN }}
 
       # ------------------------------------------------------------------
       # 1a. Verify tag is on master (skip docs sync for non-master tags)
@@ -280,6 +283,30 @@ jobs:
           RTD_TAG="rtd/${TAG_NAME}"
           echo "Creating tag: $RTD_TAG"
           git tag "$RTD_TAG"
+
+      # ------------------------------------------------------------------
+      # 7a. Validate rtd only diverges from master in docs-related paths
+      # ------------------------------------------------------------------
+      - name: Validate docs-only divergence
+        run: |
+          # After merge + gallery commit, rtd should only differ from master
+          # in documentation-related files. Reject any other divergence.
+          FORBIDDEN=$(git diff --name-only origin/master..HEAD -- \
+            ':!docs/' \
+            ':!.readthedocs.yml' \
+            ':!.gitignore' \
+            ':!env.yml' \
+            ':!pyproject.toml' \
+          )
+
+          if [ -n "$FORBIDDEN" ]; then
+            echo "::error::rtd branch has non-docs divergence from master:"
+            echo "$FORBIDDEN"
+            echo ""
+            echo "Only these paths may differ: docs/, .readthedocs.yml, .gitignore, env.yml, pyproject.toml"
+            exit 1
+          fi
+          echo "✓ rtd branch diverges from master only in docs-allowed paths"
 
       # ------------------------------------------------------------------
       # 8. Push rtd branch (and tag if created)

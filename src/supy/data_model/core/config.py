@@ -1615,9 +1615,6 @@ class SUEWSConfig(BaseModel):
                 )
                 bad_indices.append(i)
 
-        # If any roofs were missing / non numeric, just return those issues
-        # if issues:
-        #     return issues
 
         if len(roof_albs) == 0:
             issues.append(

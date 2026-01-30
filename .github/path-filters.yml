@@ -33,7 +33,11 @@ fortran:
   - 'src/supy/supy_driver/**'
   # Vendored f90wrap C/Fortran source and runtime patches
   - 'src/supy/_vendor/**'
-  # Python loader for compiled extension
+  # Python loader for compiled extension -- intentional dual-category match.
+  # This file manages dlopen/importlib loading of the compiled f90wrap extension.
+  # Edits can change which .so/.pyd is loaded, error handling for missing
+  # binaries, or platform-specific import paths. Multiplatform build is
+  # warranted because breakage may only surface on specific OS/arch combos.
   - 'src/supy/_supy_driver_wrapper.py'
 
 python:

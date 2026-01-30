@@ -55,3 +55,33 @@ if [[ "$GIT_COMMON_DIR_RAW" != ".git" ]]; then
 fi
 
 act "${ACT_ARGS[@]}"
+
+# --- Host-side pyproject.toml content classification ---
+# The Docker container (node:20) lacks Python 3.11+, so classify_pyproject.py
+# cannot run inside act. Run it on the host where Python is available.
+# This mirrors the real CI classify-pyproject step (build-publish_to_pypi.yml).
+
+if git diff --name-only "$BASE_SHA" HEAD | grep -q '^pyproject\.toml$'; then
+  echo ""
+  echo "=== pyproject.toml Content Classification (host-side) ==="
+  PYPROJECT_SCRIPT=".github/scripts/classify_pyproject.py"
+  if python3 -c 'import tomllib' 2>/dev/null; then
+    TMPOUT=$(mktemp)
+    if BASE_SHA="$BASE_SHA" GITHUB_OUTPUT="$TMPOUT" python3 "$PYPROJECT_SCRIPT" 2>&1; then
+      echo "Classification outputs:"
+      while IFS='=' read -r key val; do
+        echo "  $key: $val"
+      done < "$TMPOUT"
+    else
+      echo "WARNING: classify_pyproject.py failed (exit $?)."
+    fi
+    rm -f "$TMPOUT"
+  else
+    PY_VER=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' 2>/dev/null || echo "unknown")
+    echo "WARNING: Python $PY_VER lacks tomllib (needs 3.11+). Cannot classify."
+    echo "  All pyproject.toml changes treated as build-triggering (conservative)."
+  fi
+else
+  echo ""
+  echo "(pyproject.toml unchanged -- classification skipped)"
+fi

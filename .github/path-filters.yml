@@ -1,9 +1,15 @@
 # Path filter categories for CI build detection
 #
-# IMPORTANT: The fortran category uses explicit file paths (not globs) to
-# distinguish compiled-extension files from pure Python. All other src/supy/
-# files are covered by globs. Nightly scheduled builds always run the full
-# matrix regardless.
+# Used by: build-publish_to_pypi.yml (detect-changes job)
+# Tested by: test-detect-changes.yml + scripts/test-detect-changes.sh
+#
+# IMPORTANT — DO NOT use negation patterns (! prefix) in this file.
+# dorny/paths-filter evaluates patterns with OR logic (picomatch).
+# A negation like '!foo/bar.py' matches EVERY file that is NOT foo/bar.py,
+# turning the entire category into a catch-all. See:
+#   https://github.com/dorny/paths-filter/issues/184
+# Use positive-only patterns. Accept minor overlap between categories
+# rather than attempting exclusions.
 #
 # Category guide:
 #   fortran  — compiled extension source (multiplatform build)
@@ -32,13 +38,11 @@ fortran:
 
 python:
   # Pure Python source (glob catches new files automatically)
-  # NOTE: fortran-adjacent files (_supy_driver_wrapper.py, _vendor/, supy_driver/)
-  # are excluded here and listed explicitly under fortran: above.
+  # NOTE: _supy_driver_wrapper.py also matches here (and under fortran:).
+  # Double-categorisation is harmless: fortran changes already trigger
+  # multiplatform builds, which is the stricter path.
   - 'src/supy/*.py'
-  - '!src/supy/_supy_driver_wrapper.py'
   # Sub-packages (pure Python)
-  # NOTE: if src/supy/supy_driver/ is created (see fortran guard above),
-  # add '!src/supy/supy_driver/**' here to avoid double-categorisation.
   - 'src/supy/dts/**'
   - 'src/supy/data_model/**'
   - 'src/supy/cmd/**'
@@ -74,9 +78,6 @@ ci:
   - '.github/scripts/**'
   - 'Makefile'
   - 'scripts/**'
-  # Exclusions within scripts/
-  - '!scripts/test-*'
-  - '!scripts/conductor/**'
 
 site:
   # Static site content (GitHub Pages) - separate from wheel builds

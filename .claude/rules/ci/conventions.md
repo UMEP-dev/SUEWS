@@ -111,88 +111,85 @@ When fixing CI issues that affect existing PRs:
 - Re-running workflows expecting new logic to apply
 - Silent failures without user feedback
 - Blocking fork PRs entirely when only deployment is affected
-- Using negation patterns (`!`) in `dorny/paths-filter` (see Path Filtering section)
+- Using negation patterns (`!`) in `dorny/paths-filter` -- they act as catch-alls (see Path Filtering section)
 - Including `.github/releases/` files in the `docs` filter (they are release metadata, not documentation)
 
 ---
 
 ## Path Filtering with `dorny/paths-filter`
 
-When using `dorny/paths-filter` for conditional job execution, use **positive include patterns only**. Do NOT use negation patterns (`!`).
+Filter definitions live in `.github/path-filters.yml` (external file, referenced by workflows). Use **positive include patterns only**. Do NOT use negation patterns (`!`).
 
 ### CRITICAL: Negation patterns do not work as exclusions
 
-Negation patterns in `dorny/paths-filter` are **evaluated independently using OR logic**, not as exclusions from other patterns. A filter like:
+`dorny/paths-filter` evaluates patterns with **OR logic** (the default `some` predicate quantifier). Each pattern is evaluated independently via picomatch. A negation like `!foo/bar.py` is interpreted as "match every file that is NOT `foo/bar.py`" -- which matches virtually everything, turning the entire category into a catch-all that fires on any change.
+
+Example of what NOT to do:
 
 ```yaml
-core:
-  - 'src/suews/**'
-  - '!src/suews/docs/**'
+python:
+  - 'src/supy/*.py'
+  - '!src/supy/_supy_driver_wrapper.py'   # BUG: matches ALL non-wrapper files
 ```
 
-does NOT mean "match `src/suews/**` but exclude `src/suews/docs/**`". Instead, both patterns are evaluated separately -- any file matching EITHER pattern returns `true`. The negation pattern `!src/suews/docs/**` matches every file that is NOT in `src/suews/docs/`, causing false positives on virtually all changes.
+The `!` pattern alone returns `true` for `.github/path-filters.yml`, `scripts/test.sh`, etc. -- any file that isn't `_supy_driver_wrapper.py`.
 
-See [dorny/paths-filter#184](https://github.com/dorny/paths-filter/issues/184) for details.
+**Why `predicate-quantifier: 'every'` doesn't help:** This v3.0.2 option requires ALL patterns to match a file. It fixes negation for single-directory categories, but breaks multi-directory categories (a file in `src/supy/` would fail because it doesn't match `src/supy/dts/**`).
 
-### Correct approach: positive-only filters
+See [dorny/paths-filter#184](https://github.com/dorny/paths-filter/issues/184) and [#97](https://github.com/dorny/paths-filter/issues/97).
 
-Define each category with explicit positive patterns that match exactly the files you need:
+### Correct approach: positive-only patterns
+
+Define each category with explicit positive patterns. Accept minor overlap between categories rather than attempting exclusions:
+
+```yaml
+# In .github/path-filters.yml
+fortran:
+  - 'src/suews/src/**'
+  - 'src/supy_driver/**'
+  - 'src/supy/_supy_driver_wrapper.py'  # also matches python -- harmless
+
+python:
+  - 'src/supy/*.py'    # includes _supy_driver_wrapper.py -- acceptable overlap
+  - 'src/supy/dts/**'
+  - 'src/supy/data_model/**'
+```
+
+Referenced from workflows as:
 
 ```yaml
 - uses: dorny/paths-filter@v3
   id: filter
   with:
-    filters: |
-      core:
-        - 'src/suews/src/**'
-        - 'src/supy_driver/**'
-        - 'src/supy/supy_driver/**'
-        - 'src/supy/_run.py'
-        - 'src/supy/_supy_module.py'
-        - 'src/supy/_load.py'
-        - 'src/supy/_post.py'
-        - 'src/supy/_check.py'
-        - 'src/supy/_save.py'
-        - 'src/supy/suews_sim.py'
-        - 'src/suews/**'
-      util:
-        - 'src/supy/util/**'
-        - 'src/supy/**'
-      cfg:
-        - 'src/supy/data_model/**'
-        - 'src/supy/cmd/**'
-        - 'src/supy/*.json'
-        - '.github/workflows/build-publish_to_pypi.yml'
-        - '.github/workflows/cibuildwheel-debug.yml'
-        - '.github/actions/build-suews/**'
-        - '.github/scripts/**'
-        - 'pyproject.toml'
-        - 'meson.build'
-        - 'meson_options.txt'
-        - 'Makefile'
-        - 'get_ver_git.py'
-        - 'env.yml'
-      docs:
-        - 'docs/**'
-        - 'CHANGELOG.md'
-        - '.readthedocs.yml'
-      site:
-        - 'site/**'
-      tests:
-        - 'test/**'
+    filters: .github/path-filters.yml
 ```
 
-If a directory contains a mix of relevant and irrelevant files, enumerate the specific subdirectories or files rather than using a broad glob with a negation.
+### Current filter categories
+
+Categories are defined in `.github/path-filters.yml`:
+
+- **fortran** -- compiled extension source (triggers multiplatform build)
+- **python** -- pure Python source (single-platform build)
+- **util** -- utility modules (single-platform build)
+- **build** -- build system files: meson, env.yml (multiplatform build)
+- **pyproject** -- pyproject.toml (classified by content in workflow)
+- **ci** -- CI workflows and tooling (single-platform build)
+- **tests** -- test files (single-platform build)
+- **docs** -- documentation source
+- **site** -- static site content
 
 ### Overlapping filter categories
 
-A single file change can match multiple categories. For example, `src/supy/util/foo.py` matches both `core` (via `src/supy/**`) and `util`. This is by design -- the `needs-build` condition ORs the relevant categories:
+A single file can match multiple categories. For example, `_supy_driver_wrapper.py` matches both `fortran` and `python`. This is acceptable -- the build decision logic ORs categories and picks the strictest platform requirement (fortran triggers multiplatform).
 
-```yaml
-needs-build: ${{ steps.filter.outputs.core == 'true' || steps.filter.outputs.util == 'true' || steps.filter.outputs.cfg == 'true' || steps.filter.outputs.tests == 'true' }}
+### Testing path filters locally
+
+```bash
+./scripts/test-detect-changes.sh              # compare HEAD vs origin/master
+./scripts/test-detect-changes.sh abc123       # compare HEAD vs specific commit
 ```
 
-Review filters carefully when adding new paths to avoid unintended build triggers.
+Requires Docker and `act` (`brew install act`).
 
 ---
 
@@ -210,7 +207,7 @@ The main build workflow responds to these events:
 
 ### Docs-only changes skip wheel builds
 
-The `needs-build` condition includes `core`, `util`, `cfg`, and `tests` but NOT `docs` or `site`. Changes that only affect documentation paths do not trigger wheel builds. Docs are validated by the separate `pages-deploy.yml` workflow.
+The `needs-build` condition includes `fortran`, `python`, `util`, `build`, `pyproject`, `ci`, and `tests` but NOT `docs` or `site`. Changes that only affect documentation paths do not trigger wheel builds. Docs are validated by the separate `pages-deploy.yml` workflow.
 
 ### Release notes are not documentation
 

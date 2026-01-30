@@ -100,7 +100,6 @@ make test
 |------|------------|--------------|----------------|
 | uv | 1s | 5-10s | **Best choice** |
 | pip | 3s | 60-120s | Works everywhere |
-| mamba | 5s | 30-60s | Complex deps |
 
 ### Using uv (fastest)
 ```bash
@@ -110,11 +109,6 @@ uv venv && source .venv/bin/activate && make dev
 ### Using venv
 ```bash
 python -m venv .venv && source .venv/bin/activate && make dev
-```
-
-### Using mamba
-```bash
-mamba env create -f env.yml && mamba activate suews-dev && make dev
 ```
 
 ---

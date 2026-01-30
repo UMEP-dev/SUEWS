@@ -10,7 +10,7 @@ This directory contains internal documentation for SUEWS core developers.
   - Start here if you're new to the team
   
 - **[Building Locally](building-locally.md)** - Quick guide to build and test SUEWS from source
-  - Prerequisites, setup with pip or conda/mamba, and test commands
+  - Prerequisites, setup with uv or pip, and test commands
 
 ### Development Guidelines
 - **[Coding Guidelines](CODING_GUIDELINES.md)** - Code style and conventions

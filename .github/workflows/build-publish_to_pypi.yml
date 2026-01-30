@@ -356,7 +356,6 @@ jobs:
               - 'meson_options.txt'
               - 'Makefile'
               - 'get_ver_git.py'
-              - 'env.yml'
               - 'scripts/*.py'
             site:
               # Static site content (GitHub Pages) - separate from wheel builds

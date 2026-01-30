@@ -19,18 +19,17 @@ Since 2023, SUEWS is available as a command line tool via its Python wrapper pac
 
 Installing Python
 *****************
-These instructions will set you up with `mamba`_, which makes it easy to install and manage Python packages.
+We recommend `uv <https://docs.astral.sh/uv/>`_, a fast Python package and environment manager written in Rust.
 
-To install the ``mamba`` Python distribution follow `the mamba installation instructions <https://mamba.readthedocs.io/en/latest/installation.html>`__.
+To install ``uv``, follow the `official installation instructions <https://docs.astral.sh/uv/getting-started/installation/>`__::
 
-This makes installing ``supy`` and many other packages in the scientific Python ecosystem much easier and quicker.
-It also provides many pre-compiled binaries that are not available on PyPI.
+    # macOS/Linux
+    curl -LsSf https://astral.sh/uv/install.sh | sh
 
-.. tip::
+    # Windows (PowerShell)
+    powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 
-    ``mamba`` is a drop-in replacement for ``conda`` (another widely used Python package manager):
-    ``mamba`` is faster and solves some common problems with ``conda``.
-    More details about ``mamba`` can be found at `mamba`_.
+``uv`` can automatically download and manage Python versions, so a separate Python installation is not required.
 
 
 Installing SuPy
@@ -43,19 +42,11 @@ One can install ``supy`` using ``pip``:
 
   python3 -m pip install supy --upgrade
 
-.. comment out the following section for now as supy is not yet available on conda-forge.
-.. or ``mamba``:
-
-.. .. code-block:: bash
-
-..     mamba install -c conda-forge supy
-
 
 
 
 
 .. _PyPI: https://pypi.org/project/supy/
-.. _mamba: https://github.com/mamba-org/mamba
 .. _SuPy: :ref:`supy_index`
 
 

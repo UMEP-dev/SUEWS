@@ -5,8 +5,11 @@ If you want to build SUEWS from source for local use, this guide covers prerequi
 ## Prerequisites
 
 - Python 3.9+
-- `gfortran` compiler
-- [`uv`](https://docs.astral.sh/uv/) (recommended) or `pip`/`conda`/`mamba`
+- `gfortran` compiler (≥ 9.3.0)
+  - macOS: `brew install gcc`
+  - Ubuntu/Debian: `sudo apt-get install gfortran`
+  - Windows (MSYS2 UCRT64): `pacman -S mingw-w64-ucrt-x86_64-gcc-fortran`
+- [`uv`](https://docs.astral.sh/uv/) (recommended) or `pip`
 
 ## Quick Start
 
@@ -26,15 +29,6 @@ make dev                        # Install SUEWS in editable mode
 
 # Verify installation
 make test
-```
-
-### Alternative: Using conda/mamba
-
-```bash
-# Create and activate conda environment
-mamba env create -f env.yml
-mamba activate suews-dev
-make dev
 ```
 
 ### Alternative: Using pip directly

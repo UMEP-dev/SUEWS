@@ -9,7 +9,7 @@ This directory contains the complete documentation build system for SUEWS (Surfa
 - **`make.bat`**: Windows build script
 - **`build/`**: Generated documentation output (HTML, PDF, etc.)
 
-> **Note**: Documentation dependencies are now included in the unified `../env.yml` environment file.
+> **Note**: Documentation dependencies are specified in `../pyproject.toml`.
 
 ### Source Content (`source/`)
 - **`conf.py`**: Sphinx configuration with custom styles, themes, and plugins
@@ -139,7 +139,7 @@ The build system automatically:
 - Generates JSON Schema for configuration UI
 
 ### Dependencies
-All dependencies specified in `env.yml`:
+All dependencies specified in `pyproject.toml`:
 - **Sphinx** with book theme
 - **pandoc** for format conversion
 - **bibtex** tools for bibliography

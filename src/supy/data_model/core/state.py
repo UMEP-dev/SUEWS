@@ -376,10 +376,17 @@ class InitialStateVeg(SurfaceInitialState):
 
     model_config = ConfigDict(title="Vegetation Initial State")
 
-    alb_id: FlexibleRefValue(float) = Field(
-        description="Albedo at the start of the model run.",
+    alb_id: Optional[FlexibleRefValue(float)] = Field(
+        description=(
+            "Albedo at the start of the model run. If not provided, it is "
+            "computed from the LAI state and vegetation-specific albedo limits "
+            "(alb_min, alb_max). Trees follow a direct LAI-albedo relationship "
+            "(denser canopy -> higher albedo due to leaves being more reflective "
+            "than bark), while grass follows a reversed relationship (denser grass "
+            "-> lower albedo as soil is more reflective than grass blades)."
+        ),
         json_schema_extra={"unit": "dimensionless", "display_name": "Initial Albedo"},
-        default=0.25,
+        default=None,
         ge=0.0,
         le=1.0,
     )
@@ -413,6 +420,23 @@ class InitialStateVeg(SurfaceInitialState):
 
     ref: Optional[Reference] = None
 
+    def _get_alb_id_value(self) -> float:
+        """Return a usable albedo value, falling back to a legacy default."""
+        alb_val = (
+            self.alb_id.value if isinstance(self.alb_id, RefValue) else self.alb_id
+        )
+        if alb_val is None:
+            # Only reached when no land_cover properties are available to
+            # derive albedo (the normal auto-calculation path runs in
+            # SUEWSConfig.set_default_vegetation_albedo before this).
+            logger_supy.warning(
+                "alb_id is None for %s; using legacy default 0.25. "
+                "Set alb_id explicitly or provide LAI params for auto-calculation.",
+                type(self).__name__,
+            )
+            return 0.25
+        return alb_val
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert vegetated surface initial state to DataFrame state format.
 
@@ -431,12 +455,9 @@ class InitialStateVeg(SurfaceInitialState):
 
         # Add vegetated surface specific parameters
         # alb is universal so use surf_idx
+        alb_val = self._get_alb_id_value()
         cols = {
-            ("alb", f"({surf_idx},)"): (
-                self.alb_id.value
-                if isinstance(self.alb_id, RefValue)
-                else self.alb_id
-            ),
+            ("alb", f"({surf_idx},)"): alb_val,
             ("lai_id", f"({veg_idx},)"): (
                 self.lai_id.value
                 if isinstance(self.lai_id, RefValue)
@@ -513,10 +534,9 @@ class InitialStateEvetr(InitialStateVeg):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert evergreen tree initial state to DataFrame state format."""
         df_state = super().to_df_state(grid_id)
+        alb_val = self._get_alb_id_value()
         cols = {
-            ("albevetr_id", "0"): (
-                self.alb_id.value if isinstance(self.alb_id, RefValue) else self.alb_id
-            )
+            ("albevetr_id", "0"): alb_val
         }
         df_evetr = df_from_cols(cols, index=df_state.index)
         return pd.concat([df_state, df_evetr], axis=1)
@@ -585,6 +605,7 @@ class InitialStateDectr(InitialStateVeg):
         df_state = super().to_df_state(grid_id)
 
         # Add deciduous tree specific parameters
+        alb_val = self._get_alb_id_value()
         cols = {
             ("porosity_id", "0"): (
                 self.porosity_id.value
@@ -596,9 +617,7 @@ class InitialStateDectr(InitialStateVeg):
                 if isinstance(self.decidcap_id, RefValue)
                 else self.decidcap_id
             ),
-            ("albdectr_id", "0"): (
-                self.alb_id.value if isinstance(self.alb_id, RefValue) else self.alb_id
-            ),
+            ("albdectr_id", "0"): alb_val,
         }
         df_dectr = df_from_cols(cols, index=df_state.index)
         return pd.concat([df_state, df_dectr], axis=1)
@@ -649,10 +668,9 @@ class InitialStateGrass(InitialStateVeg):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert grass initial state to DataFrame state format."""
         df_state = super().to_df_state(grid_id)
+        alb_val = self._get_alb_id_value()
         cols = {
-            ("albgrass_id", "0"): (
-                self.alb_id.value if isinstance(self.alb_id, RefValue) else self.alb_id
-            )
+            ("albgrass_id", "0"): alb_val
         }
         df_grass = df_from_cols(cols, index=df_state.index)
         return pd.concat([df_state, df_grass], axis=1)

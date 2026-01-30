@@ -21,6 +21,11 @@
 
 set -euo pipefail
 
+# Defaults for vars that may be empty outside their event context
+IS_DRAFT="${IS_DRAFT:-false}"
+INPUT_MATRIX_CONFIG="${INPUT_MATRIX_CONFIG:-}"
+INPUT_TEST_TIER="${INPUT_TEST_TIER:-all}"
+
 # Platform presets
 FULL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-15-intel", "macosx", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
 PR_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'

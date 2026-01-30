@@ -15,7 +15,7 @@
 module.exports = async ({ github, context }) => {
   const env = process.env;
   const prNumber = context.issue.number;
-  const isDraft = context.payload.pull_request.draft;
+  const isDraft = context.payload.pull_request?.draft || false;
 
   // Collect category flags and file lists
   const categories = [
@@ -27,6 +27,7 @@ module.exports = async ({ github, context }) => {
     { name: 'tests',     label: 'Tests',           changed: env.TESTS_CHANGED,    files: JSON.parse(env.TESTS_FILES     || '[]') },
     { name: 'docs',      label: 'Documentation',   changed: env.DOCS_CHANGED,     files: JSON.parse(env.DOCS_FILES      || '[]') },
     { name: 'site',      label: 'Static site',     changed: env.SITE_CHANGED,     files: JSON.parse(env.SITE_FILES      || '[]') },
+    // pyproject has no _CHANGED flag; detect-changes classifies it by content into build/python
     { name: 'pyproject', label: 'pyproject.toml',  changed: 'false',              files: JSON.parse(env.PYPROJECT_FILES  || '[]') },
   ];
 
@@ -56,7 +57,7 @@ module.exports = async ({ github, context }) => {
   const needsUmep = env.NEEDS_UMEP_BUILD === 'true';
   const testTier = env.TEST_TIER;
 
-  const buildplat = JSON.parse(env.BUILDPLAT_JSON);
+  const buildplat = JSON.parse(env.BUILDPLAT_JSON || '[]');
   const platformNames = { 'manylinux': 'Linux', 'macosx': 'macOS', 'win': 'Windows' };
   const archNames = { 'x86_64': 'x86_64', 'arm64': 'ARM64', 'AMD64': 'x64' };
   const platforms = buildplat.map(p => {
@@ -65,7 +66,7 @@ module.exports = async ({ github, context }) => {
     return `${os} ${arch}`;
   });
 
-  const pythonVersions = JSON.parse(env.PYTHON_JSON);
+  const pythonVersions = JSON.parse(env.PYTHON_JSON || '[]');
   const pyDisplay = pythonVersions.map(v => v.replace('cp3', '3.')).join(', ');
 
   const tierDesc = {

@@ -893,13 +893,14 @@ CONTAINS
                                 ! Forcing
                                 ws, ws_bh, ws_hbh, Tair_sout, Tair_bh, Tair_hbh, &
                                 Kroof_sout, Lroof_sout, Kwall_sout, Lwall_sout, &
+                                ! energy balance heat flux 
+                                QN_bldg_tstepFA, QEC_bldg_tstepFA, QS_total_tstepFA, QH_bldg_tstepFA, QBAE_bldg_tstepFA, QWaste_bldg_tstepFA, &
+                                ! components of QEC and dQS
+                                QS_bldg_tstepFA, QS_dhw_tstepFA, QS_ground_tstepFA, &
+                                QEC_heating_tstepFA, QEC_cooling_tstepFA, QEC_dhw_tstepFA, &
                                 ! Temperatures
                                 Tair_ind, Tindoormass, Tintwall, Tintroof, Textwall, Textroof,  &
                                 Tintwindow, Textwindow, Tintgroundfloor, Textgroundfloor, &
-                                ! energy balance heat flux 
-                                QN_bldg_tstepFA, QEC_bldg_tstepFA, QS_total_tstepFA, QH_bldg_tstepFA, QBAE_bldg_tstepFA, &
-                                QWaste_bldg_tstepFA, QS_bldg_tstepFA, QS_dhw_tstepFA, QS_ground_tstepFA, &
-                                QEC_heating_tstepFA, QEC_cooling_tstepFA, QEC_dhw_tstepFA, &
                                 ! Detailed heat flux
                                 Qsw_transmitted_window_tstepFA, Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, &
                                 Qsw_absorbed_roof_tstepFA, Qlw_net_wall_tstepFA, Qlw_net_roof_tstepFA, Qlw_net_window_tstepFA, &

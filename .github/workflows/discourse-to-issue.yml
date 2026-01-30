@@ -1,0 +1,158 @@
+name: Discourse → GitHub Issue
+
+on:
+  repository_dispatch:
+    types: [discourse-topic]
+  workflow_dispatch:
+    inputs:
+      topic_id:
+        description: "Discourse topic ID"
+        required: true
+        type: number
+      target_repo:
+        description: "Target repo (owner/name)"
+        required: false
+        default: "UMEP-dev/SUEWS"
+        type: string
+
+env:
+  DISCOURSE_HOST: https://community.suews.io
+  DISCOURSE_USERNAME: sunt05
+  DEFAULT_REPO: UMEP-dev/SUEWS
+
+jobs:
+  create-issue:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Resolve inputs
+        id: inputs
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "topic_id=${{ github.event.client_payload.topic_id }}" >> "$GITHUB_OUTPUT"
+            echo "target_repo=${{ env.DEFAULT_REPO }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "topic_id=${{ github.event.inputs.topic_id }}" >> "$GITHUB_OUTPUT"
+            echo "target_repo=${{ github.event.inputs.target_repo || env.DEFAULT_REPO }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch Discourse topic
+        id: discourse
+        env:
+          DISCOURSE_API_KEY: ${{ secrets.DISCOURSE_SUEWS_ADMIN_KEY }}
+        run: |
+          TOPIC_ID="${{ steps.inputs.outputs.topic_id }}"
+
+          RESPONSE=$(curl -s -f \
+            -H "Api-Key: ${DISCOURSE_API_KEY}" \
+            -H "Api-Username: ${DISCOURSE_USERNAME}" \
+            "${DISCOURSE_HOST}/t/${TOPIC_ID}.json")
+
+          TITLE=$(echo "$RESPONSE" | jq -r '.title')
+          SLUG=$(echo "$RESPONSE" | jq -r '.slug')
+          TOPIC_URL="${DISCOURSE_HOST}/t/${SLUG}/${TOPIC_ID}"
+
+          # Get the first post (OP)
+          FIRST_POST_RAW=$(echo "$RESPONSE" | jq -r '.post_stream.posts[0].cooked')
+          AUTHOR=$(echo "$RESPONSE" | jq -r '.post_stream.posts[0].username')
+
+          # Convert HTML to plain-ish markdown (basic cleanup)
+          FIRST_POST=$(echo "$FIRST_POST_RAW" \
+            | sed 's/<br>/\n/g' \
+            | sed 's/<\/p>/\n\n/g' \
+            | sed 's/<[^>]*>//g' \
+            | sed 's/&amp;/\&/g; s/&lt;/</g; s/&gt;/>/g; s/&quot;/"/g; s/&#39;/'"'"'/g')
+
+          # Write outputs (use files for multiline)
+          echo "title=${TITLE}" >> "$GITHUB_OUTPUT"
+          echo "topic_url=${TOPIC_URL}" >> "$GITHUB_OUTPUT"
+          echo "author=${AUTHOR}" >> "$GITHUB_OUTPUT"
+          echo "topic_id=${TOPIC_ID}" >> "$GITHUB_OUTPUT"
+
+          # Use delimiter for multiline body
+          {
+            echo "body<<DISCOURSE_EOF"
+            echo "$FIRST_POST"
+            echo "DISCOURSE_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build issue body
+        id: body
+        shell: bash
+        run: |
+          TOPIC_URL="${{ steps.discourse.outputs.topic_url }}"
+          AUTHOR="${{ steps.discourse.outputs.author }}"
+          TOPIC_ID="${{ steps.discourse.outputs.topic_id }}"
+
+          {
+            echo "**Reported on**: [SUEWS Community Forum](${TOPIC_URL})"
+            echo "**Reporter**: @${AUTHOR} (Discourse)"
+            echo ""
+            echo "---"
+            echo ""
+            echo "${{ steps.discourse.outputs.body }}"
+            echo ""
+            echo "---"
+            echo ""
+            echo "*Created from [Discourse topic #${TOPIC_ID}](${TOPIC_URL})*"
+          } > /tmp/issue-body.md
+
+      - name: Create GitHub issue
+        id: issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_URL=$(gh issue create \
+            --repo "${{ steps.inputs.outputs.target_repo }}" \
+            --title "${{ steps.discourse.outputs.title }}" \
+            --body-file /tmp/issue-body.md \
+            --label "user-report" \
+            2>&1)
+
+          echo "issue_url=${ISSUE_URL}" >> "$GITHUB_OUTPUT"
+          echo "Created issue: ${ISSUE_URL}"
+
+      - name: Reply on Discourse
+        env:
+          DISCOURSE_API_KEY: ${{ secrets.DISCOURSE_SUEWS_ADMIN_KEY }}
+        run: |
+          TOPIC_ID="${{ steps.discourse.outputs.topic_id }}"
+          ISSUE_URL="${{ steps.issue.outputs.issue_url }}"
+
+          REPLY_RAW="This topic has been tracked as a GitHub issue for the development team.\n\n**GitHub issue**: ${ISSUE_URL}\n\nThe team will follow up there. Updates will be posted in the GitHub issue."
+
+          # Build JSON payload with jq
+          PAYLOAD=$(jq -n \
+            --argjson tid "$TOPIC_ID" \
+            --arg raw "$(printf '%b' "$REPLY_RAW")" \
+            '{topic_id: $tid, raw: $raw}')
+
+          curl -s -f -X POST \
+            -H "Api-Key: ${DISCOURSE_API_KEY}" \
+            -H "Api-Username: ${DISCOURSE_USERNAME}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "${DISCOURSE_HOST}/posts.json"
+
+      - name: Update Discourse topic tags
+        env:
+          DISCOURSE_API_KEY: ${{ secrets.DISCOURSE_SUEWS_ADMIN_KEY }}
+        run: |
+          TOPIC_ID="${{ steps.discourse.outputs.topic_id }}"
+
+          # Fetch current tags, remove github-issue, add github-issue-created
+          UPDATED_TAGS=$(curl -s -f \
+            -H "Api-Key: ${DISCOURSE_API_KEY}" \
+            -H "Api-Username: ${DISCOURSE_USERNAME}" \
+            "${DISCOURSE_HOST}/t/${TOPIC_ID}.json" \
+            | jq '[.tags[]? | select(. != "github-issue")] + ["github-issue-created"] | unique')
+
+          curl -s -f -X PUT \
+            -H "Api-Key: ${DISCOURSE_API_KEY}" \
+            -H "Api-Username: ${DISCOURSE_USERNAME}" \
+            -H "Content-Type: application/json" \
+            -d "{\"tags\": ${UPDATED_TAGS}}" \
+            "${DISCOURSE_HOST}/t/-/${TOPIC_ID}.json"
+
+          echo "Updated topic ${TOPIC_ID}: removed github-issue, added github-issue-created"

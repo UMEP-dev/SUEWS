@@ -914,6 +914,69 @@ def validate_irrigation_parameters(
     return results
 
 
+def check_missing_vegetation_albedo(yaml_data: dict) -> List[ValidationResult]:
+    """Report when vegetated surfaces have null alb_id.
+
+    This is informational: SUEWSConfig will auto-calculate alb_id from
+    LAI state before the model run. Trees use a direct LAI-albedo
+    relationship (higher LAI -> higher albedo); grass uses a reversed
+    relationship (higher LAI -> lower albedo).
+    """
+    results = []
+    sites = yaml_data.get("sites", [])
+
+    surface_labels = {
+        "evetr": "evergreen trees",
+        "dectr": "deciduous trees",
+        "grass": "grass",
+    }
+
+    for site_idx, site in enumerate(sites):
+        props = site.get("properties", {})
+        initial_states = site.get("initial_states", {})
+        land_cover = props.get("land_cover", {})
+        site_gridid = get_site_gridid(site)
+
+        for surf_key, surf_label in surface_labels.items():
+            surf_props = land_cover.get(surf_key, {})
+            surf_state = initial_states.get(surf_key, {})
+            if not surf_props or not surf_state:
+                continue
+
+            # Check if surface has non-zero fraction
+            sfr_entry = surf_props.get("sfr", {})
+            sfr_val = (
+                sfr_entry.get("value") if isinstance(sfr_entry, dict) else sfr_entry
+            )
+            if not sfr_val or sfr_val <= 0:
+                continue
+
+            # Check if alb_id is null
+            alb_entry = surf_state.get("alb_id", {})
+            alb_val = (
+                alb_entry.get("value") if isinstance(alb_entry, dict) else alb_entry
+            )
+            if alb_val is not None:
+                continue
+
+            results.append(
+                ValidationResult(
+                    status="INFO",
+                    category="SEASONAL",
+                    parameter=f"{surf_key}.alb_id",
+                    site_index=site_idx,
+                    site_gridid=site_gridid,
+                    message=(
+                        f"alb_id is null for {surf_label} (sfr={sfr_val}). "
+                        "It will be auto-calculated from LAI state during "
+                        "SUEWSConfig construction"
+                    ),
+                )
+            )
+
+    return results
+
+
 def run_scientific_validation_pipeline(
     yaml_data: dict, start_date: str, model_year: int
 ) -> List[ValidationResult]:
@@ -931,6 +994,8 @@ def run_scientific_validation_pipeline(
     validation_results.extend(validate_geographic_parameters(yaml_data))
 
     validation_results.extend(validate_irrigation_parameters(yaml_data, model_year))
+
+    validation_results.extend(check_missing_vegetation_albedo(yaml_data))
 
     return validation_results
 
@@ -1807,6 +1872,8 @@ def create_science_report(
         if warnings or (not adjustments and not errors):
             report_lines.append("")
 
+    infos = [r for r in validation_results if r.status == "INFO"]
+
     if warnings:
         report_lines.append(f"- Revise ({len(warnings)}) warnings:")
         for warning in warnings:
@@ -1825,6 +1892,16 @@ def create_science_report(
                 report_lines.append("- Geographic parameters are valid")
             # Skip generic messages when phase A items exist
         # Skip generic messages when there are no errors
+
+    if infos:
+        report_lines.append(f"- Note ({len(infos)}):")
+        for info in infos:
+            site_ref = (
+                f" at site [{info.site_gridid}]"
+                if info.site_gridid is not None
+                else ""
+            )
+            report_lines.append(f"-- {info.parameter}{site_ref}: {info.message}")
 
     report_lines.append("")
 
@@ -1882,6 +1959,7 @@ def print_science_check_results(
     """
     errors = [r for r in validation_results if r.status == "ERROR"]
     warnings = [r for r in validation_results if r.status == "WARNING"]
+    infos = [r for r in validation_results if r.status == "INFO"]
 
     if errors:
         print("PHASE B -- SCIENTIFIC ERRORS FOUND:")
@@ -1904,6 +1982,15 @@ def print_science_check_results(
         print("PHASE B -- PASSED")
         if adjustments:
             print(f"Applied {len(adjustments)} automatic scientific adjustments")
+
+    if infos:
+        for info in infos:
+            site_ref = (
+                f" at site [{info.site_gridid}]"
+                if info.site_gridid is not None
+                else ""
+            )
+            print(f"  Note: {info.parameter}{site_ref}: {info.message}")
 
 
 def create_science_yaml_header(phase_a_performed: bool = True) -> str:

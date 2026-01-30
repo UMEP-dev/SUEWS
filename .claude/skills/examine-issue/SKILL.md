@@ -68,10 +68,19 @@ Affected: [files]
 Steps: [numbered list]
 Testing: [strategy]
 Risks: [mitigations]
+
+=== NEXT STEP ===
+Run /start-work to begin implementation (will link branch, build, and run baseline tests).
 ```
 
 ### Interactive (Complex)
-Ask clarifying questions → Explore codebase → Present options → Refine
+Ask clarifying questions -> Explore codebase -> Present options -> Refine
+
+After interactive exploration converges on an approach:
+```
+=== NEXT STEP ===
+Run /start-work to begin implementation (will link branch, build, and run baseline tests).
+```
 
 ## References
 

@@ -49,7 +49,7 @@ model:
     samealbedo_wall:
       value: 0
     samealbedo_roof:
-      value: 0  
+      value: 0
 sites:
 - name: selected grid
   gridiv: 1

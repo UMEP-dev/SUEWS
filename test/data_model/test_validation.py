@@ -38,6 +38,7 @@ from supy.data_model.core.state import (
 )
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
+from supy.data_model.validation.pipeline.phase_b import validate_model_option_samealbedo
 
 
 
@@ -614,7 +615,38 @@ def test_needs_samealbedo_wall_validation_true_and_false():
     assert cfg._needs_samealbedo_wall_validation() is True
     cfg2 = make_cfg(samealbedo_wall=0)
     assert cfg2._needs_samealbedo_wall_validation() is False
-    
+
+def test_phase_b_validate_model_option_samealbedo_disabled():
+    """Test validate_model_option_samealbedo returns WARNING when option is disabled (==0)."""
+
+    yaml_data_wall = {
+        "model": {
+            "physics": {
+                "samealbedo_wall": {"value": 0}
+            }
+        },
+        "sites": [{"name": "site1", "properties": {}}],  
+    }
+    results_wall = validate_model_option_samealbedo(yaml_data_wall)
+    assert len(results_wall) == 1
+    assert results_wall[0].status == "WARNING"
+    assert "no check of consistency" in results_wall[0].message.lower()
+    assert "samealbedo_wall == 0" in results_wall[0].message.lower()
+
+    yaml_data_roof = {
+        "model": {
+            "physics": {
+                "samealbedo_roof": {"value": 0}
+            }
+        },
+        "sites": [{"name": "site1", "properties": {}}],  
+    }
+    results_roof = validate_model_option_samealbedo(yaml_data_roof)
+    assert len(results_roof) == 1
+    assert results_roof[0].status == "WARNING"
+    assert "no check of consistency" in results_roof[0].message.lower()
+    assert "samealbedo_roof == 0" in results_roof[0].message.lower()
+
 # From test_validation_topdown.py
 class TestTopDownValidation:
     """Test the new top-down validation approach."""

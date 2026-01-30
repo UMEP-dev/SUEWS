@@ -121,8 +121,8 @@ Follow these steps to set up local development:
 3. **Create and activate virtual environment**:
    ```bash
    uv venv
-   source .venv/bin/activate   # Linux/macOS
-   # or: .venv\Scripts\activate  # Windows
+   source .venv/bin/activate   # Linux/macOS/MSYS2
+   # or: .venv\Scripts\activate  # Windows cmd/PowerShell
    ```
 
 4. **Build SUEWS**:

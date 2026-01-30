@@ -20,7 +20,7 @@ from ._run import run_supy_ser
 from ._supy_module import _save_supy
 from .data_model import RefValue
 from .data_model.core import SUEWSConfig
-from .dts import _check_dts_available, run_dts
+from .dts import _check_dts_available, run_dts_multi
 
 # Import new OOP classes
 from .suews_forcing import SUEWSForcing
@@ -83,6 +83,7 @@ class SUEWSSimulation:
         self._df_output = None
         self._df_state_final = None
         self._initial_states_final = None  # Pydantic state for DTS backend
+        self._dict_final_states = None  # Per-grid final states for DTS backend
         self._run_completed = False
 
         if config is not None:
@@ -556,7 +557,7 @@ class SUEWSSimulation:
         # Run simulation with selected backend
         if backend == "dts":
             # DTS backend: direct Pydantic-to-Fortran execution
-            df_output, final_state = run_dts(
+            df_output, dict_final_states = run_dts_multi(
                 df_forcing=df_forcing_slice,
                 config=self._config,
                 chunk_day=chunk_day,
@@ -564,7 +565,13 @@ class SUEWSSimulation:
             self._df_output = df_output
             # DTS extracts state to Pydantic InitialStates (not DataFrame)
             self._df_state_final = None
-            self._initial_states_final = final_state.get("initial_states")
+            # Store per-grid final states; expose first site's initial_states
+            # for single-grid backward compatibility
+            self._dict_final_states = dict_final_states
+            first_grid = self._config.sites[0].gridiv
+            self._initial_states_final = dict_final_states[first_grid].get(
+                "initial_states"
+            )
         else:
             # Traditional backend: DataFrame-based execution
             result = run_supy_ser(

@@ -18,6 +18,7 @@
 #   INPUT_PLAT_WINDOWS   -- inputs.plat_windows
 #   INPUT_PY39..PY314    -- inputs.py39..py314
 #   INPUT_TEST_TIER      -- inputs.test_tier (dispatch only)
+#   GITHUB_REF           -- github.ref (e.g. refs/tags/v2025a1)
 
 set -euo pipefail
 
@@ -25,6 +26,7 @@ set -euo pipefail
 IS_DRAFT="${IS_DRAFT:-false}"
 INPUT_MATRIX_CONFIG="${INPUT_MATRIX_CONFIG:-}"
 INPUT_TEST_TIER="${INPUT_TEST_TIER:-all}"
+GITHUB_REF="${GITHUB_REF:-}"
 
 # Platform presets
 FULL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-15-intel", "macosx", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
@@ -144,7 +146,11 @@ else
   echo "test_tier=all" >> "$GITHUB_OUTPUT"
 fi
 
-# UMEP: cp312 only (QGIS 3.40 LTR), Windows only for validation
-# Production tags use full platforms (handled in build_umep job's matrix expression)
-echo 'umep_buildplat=[["windows-2025", "win", "AMD64"]]' >> "$GITHUB_OUTPUT"
+# UMEP: cp312 only (QGIS 3.40 LTR)
+# Production tags build all platforms; otherwise Windows only for validation
+if [[ "$GITHUB_REF" == refs/tags/* ]] && [[ "$GITHUB_REF" != *dev* ]]; then
+  echo "umep_buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
+else
+  echo 'umep_buildplat=[["windows-2025", "win", "AMD64"]]' >> "$GITHUB_OUTPUT"
+fi
 echo 'umep_python=["cp312"]' >> "$GITHUB_OUTPUT"

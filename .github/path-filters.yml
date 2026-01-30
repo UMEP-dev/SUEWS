@@ -1,0 +1,106 @@
+# Path filter categories for CI build detection
+#
+# Used by: build-publish_to_pypi.yml (detect-changes job)
+# Tested by: test-detect-changes.yml + scripts/test-detect-changes.sh
+#
+# IMPORTANT — DO NOT use negation patterns (! prefix) in this file.
+# dorny/paths-filter evaluates patterns with OR logic (picomatch).
+# A negation like '!foo/bar.py' matches EVERY file that is NOT foo/bar.py,
+# turning the entire category into a catch-all. See:
+#   https://github.com/dorny/paths-filter/issues/184
+# Use positive-only patterns. Accept minor overlap between categories
+# rather than attempting exclusions.
+#
+# Category guide:
+#   fortran  — compiled extension source (multiplatform build)
+#   python   — pure Python source (single-platform build)
+#   util     — utility modules (single-platform build)
+#   build    — build system files affecting wheel output (multiplatform build)
+#   ci       — CI workflows and tooling (single-platform build)
+#   tests    — test files (single-platform build)
+#   docs     — documentation source
+#   site     — static site content
+
+fortran:
+  # Fortran physics source
+  - 'src/suews/src/**'
+  # External Fortran library (spartacus-surface)
+  - 'src/suews/ext_lib/**'
+  # f90wrap driver interface and build
+  - 'src/supy_driver/**'
+  # Guard: supy_driver may move under src/supy/ in future restructuring
+  # (currently at src/supy_driver/, covered above)
+  - 'src/supy/supy_driver/**'
+  # Vendored f90wrap C/Fortran source and runtime patches
+  - 'src/supy/_vendor/**'
+  # Python loader for compiled extension -- intentional dual-category match.
+  # This file manages dlopen/importlib loading of the compiled f90wrap extension.
+  # Edits can change which .so/.pyd is loaded, error handling for missing
+  # binaries, or platform-specific import paths. Multiplatform build is
+  # warranted because breakage may only surface on specific OS/arch combos.
+  - 'src/supy/_supy_driver_wrapper.py'
+
+python:
+  # Pure Python source (glob catches new files automatically)
+  # NOTE: _supy_driver_wrapper.py also matches here (and under fortran:).
+  # Double-categorisation is harmless: fortran changes already trigger
+  # multiplatform builds, which is the stricter path.
+  - 'src/supy/*.py'
+  # Sub-packages (pure Python)
+  - 'src/supy/dts/**'
+  - 'src/supy/data_model/**'
+  - 'src/supy/cmd/**'
+  # Bundled data and configs
+  - 'src/supy/*.json'
+  - 'src/supy/ext_data/**'
+  - 'src/supy/sample_data/**'
+
+util:
+  # Utility modules
+  - 'src/supy/util/**'
+
+build:
+  # Build system files that affect compiled wheel output
+  # NOTE: pyproject.toml excluded — classified by content in workflow
+  # (only [build-system] and [tool.cibuildwheel] sections need multiplatform)
+  - 'meson.build'
+  - 'meson_options.txt'
+  - 'src/supy/meson.build'
+  - 'get_ver_git.py'
+  - 'env.yml'
+
+pyproject:
+  # Classified by content in detect-changes (not all sections need builds)
+  - 'pyproject.toml'
+
+ci:
+  # CI workflows and build tooling
+  - '.github/path-filters.yml'
+  - '.github/workflows/build-publish_to_pypi.yml'
+  - '.github/workflows/cibuildwheel-debug.yml'
+  - '.github/actions/build-suews/**'
+  - '.github/scripts/**'
+  - 'Makefile'
+  - 'scripts/**'
+
+site:
+  # Static site content (GitHub Pages) - separate from wheel builds
+  - 'site/**'
+
+tests:
+  - 'test/**'
+
+docs:
+  # Documentation source files
+  - 'docs/**'
+  - 'CHANGELOG.md'
+  # Data models that generate RST
+  - 'src/supy/data_model/**'
+  # RTD configuration
+  - '.readthedocs.yml'
+  # Version detection used by docs
+  - 'get_ver_git.py'
+  # Dependencies that affect doc builds (broad: any pyproject.toml change
+  # triggers docs rebuild, including tooling sections like [tool.ruff].
+  # Acceptable trade-off: docs builds are cheap vs missing dependency changes.)
+  - 'pyproject.toml'

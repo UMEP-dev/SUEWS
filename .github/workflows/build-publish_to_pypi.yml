@@ -124,11 +124,11 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # - pyproject.toml modified for NumPy 1.x at build time
 # - Both wheel sets deployed to PyPI together (production tags only)
 # - UMEP builds use Python 3.12 only (aligned with QGIS 3.40 LTR bundled Python)
-# - UMEP build triggers (runs on ALL events for continuous NumPy 1.x testing):
-#   * PRs: win cp312 (NumPy 1.x validation before merge, Windows = QGIS primary platform)
+# - UMEP build triggers:
+#   * PRs: win cp312 ONLY when fortran/build-system changed (compiled extension ABI)
 #   * Master/manual: win cp312 (continuous UMEP compatibility testing)
 #   * Nightly/dev tags: win cp312 (daily testing, uses .dev1 to avoid version collision)
-#   * Production tags: all platforms cp312 (complete distribution → PyPI, uses rc1 suffix)
+#   * Production tags: all platforms cp312 (complete distribution -> PyPI, uses rc1 suffix)
 #
 # UMEP INTEGRATION:
 # - Production: UMEP requirements specify supy==2024.10.7rc1
@@ -304,6 +304,7 @@ jobs:
     if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     outputs:
       needs-build: ${{ steps.decide.outputs.needs-build }}
+      needs-umep-build: ${{ steps.decide.outputs.needs-umep-build }}
       fortran-changed: ${{ steps.filter.outputs.fortran }}
       python-changed: ${{ steps.decide.outputs.python-changed }}
       util-changed: ${{ steps.filter.outputs.util }}
@@ -371,6 +372,15 @@ jobs:
             NEEDS_BUILD=true
           fi
           echo "needs-build=$NEEDS_BUILD" >> $GITHUB_OUTPUT
+
+          # needs-umep-build: only when compiled extension ABI may differ
+          # (fortran source or build system changes affect NumPy 1.x vs 2.x linkage)
+          NEEDS_UMEP_BUILD=false
+          if [[ "$FORTRAN" == "true" ]] || \
+             [[ "$BUILD_CHANGED" == "true" ]]; then
+            NEEDS_UMEP_BUILD=true
+          fi
+          echo "needs-umep-build=$NEEDS_UMEP_BUILD" >> $GITHUB_OUTPUT
 
   # Determine if we should run limited or full matrix
   determine_matrix:
@@ -573,16 +583,18 @@ jobs:
     needs: [determine_matrix, create_nightly_tag, detect-changes]
     # Run if:
     # 1. Not a PR (push/tag/schedule always build), OR
-    # 2. PR with code changes (detect-changes.outputs.needs-build == 'true')
+    # 2. PR with compiled extension changes (fortran/build-system)
     # 3. AND other dependencies succeeded/skipped
     # UMEP versioning:
     #   - Production tags: X.Y.Zrc1 (pre-release for QGIS)
     #   - Dev/nightly: X.Y.Z.dev1 (incremented to avoid collision with standard .dev0)
+    # NOTE: Pure Python/util/ci/tests PRs skip UMEP -- the compiled extension is
+    # identical regardless of NumPy version. Nightly builds provide full coverage.
     if: |
       always() &&
       needs.determine_matrix.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
-      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true') &&
+      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-umep-build == 'true') &&
       (github.event_name != 'workflow_dispatch' || inputs.include_umep == true)
     strategy:
       matrix:
@@ -633,11 +645,12 @@ jobs:
           echo "build_wheels: ${{ needs.build_wheels.result }}"
           echo "build_umep: ${{ needs.build_umep.result }}"
           echo "needs-build: ${{ needs.detect-changes.outputs.needs-build }}"
+          echo "needs-umep-build: ${{ needs.detect-changes.outputs.needs-umep-build }}"
           echo ""
 
           # STEP 1: Verify detect-changes succeeded
           if [[ "${{ needs.detect-changes.result }}" != "success" ]]; then
-            echo "✗ Path detection failed - cannot verify PR safety"
+            echo "[X] Path detection failed - cannot verify PR safety"
             echo "  detect-changes result: ${{ needs.detect-changes.result }}"
             exit 1
           fi
@@ -645,21 +658,42 @@ jobs:
           # Track validation status
           VALIDATION_PASSED=true
 
-          # Check if code changes require builds
           NEEDS_BUILD="${{ needs.detect-changes.outputs.needs-build }}"
+          NEEDS_UMEP_BUILD="${{ needs.detect-changes.outputs.needs-umep-build }}"
 
           if [[ "$NEEDS_BUILD" == "true" ]]; then
-            # Code changes detected - builds must run and pass
-            echo "Code changes detected - validating builds..."
-
-            if [[ "${{ needs.build_wheels.result }}" == "success" ]] && \
-               [[ "${{ needs.build_umep.result }}" == "success" ]]; then
-              echo "✓ Code builds passed"
+            # Standard build must always succeed when code changed
+            echo "Code changes detected - validating standard build..."
+            if [[ "${{ needs.build_wheels.result }}" == "success" ]]; then
+              echo "[OK] Standard build passed"
             else
-              echo "✗ Code builds failed or incomplete"
+              echo "[X] Standard build failed"
               echo "  build_wheels: ${{ needs.build_wheels.result }}"
-              echo "  build_umep: ${{ needs.build_umep.result }}"
               VALIDATION_PASSED=false
+            fi
+
+            # UMEP build required only when compiled extension changed
+            if [[ "$NEEDS_UMEP_BUILD" == "true" ]]; then
+              echo "Compiled extension changed - validating UMEP build..."
+              if [[ "${{ needs.build_umep.result }}" == "success" ]]; then
+                echo "[OK] UMEP build passed"
+              else
+                echo "[X] UMEP build failed"
+                echo "  build_umep: ${{ needs.build_umep.result }}"
+                VALIDATION_PASSED=false
+              fi
+            else
+              echo "No compiled extension changes - UMEP build not required"
+              if [[ "${{ needs.build_umep.result }}" == "skipped" ]]; then
+                echo "[OK] UMEP build correctly skipped"
+              else
+                echo "Note: UMEP build ran unexpectedly (result: ${{ needs.build_umep.result }})"
+                # Non-fatal: accept success or skipped
+                if [[ "${{ needs.build_umep.result }}" != "success" ]] && \
+                   [[ "${{ needs.build_umep.result }}" != "skipped" ]]; then
+                  VALIDATION_PASSED=false
+                fi
+              fi
             fi
 
           else
@@ -668,18 +702,19 @@ jobs:
 
             if [[ "${{ needs.build_wheels.result }}" == "skipped" ]] && \
                [[ "${{ needs.build_umep.result }}" == "skipped" ]]; then
-              echo "✓ Code builds correctly skipped"
+              echo "[OK] Code builds correctly skipped"
             else
-              echo "⚠ Unexpected: builds ran for non-code PR"
+              echo "Note: Unexpected build activity for non-code PR"
               echo "  build_wheels: ${{ needs.build_wheels.result }}"
               echo "  build_umep: ${{ needs.build_umep.result }}"
               # Still pass if builds succeeded (conservative)
-              if [[ "${{ needs.build_wheels.result }}" != "success" ]] || \
-                 [[ "${{ needs.build_umep.result }}" != "success" ]]; then
-                if [[ "${{ needs.build_wheels.result }}" != "skipped" ]] || \
-                   [[ "${{ needs.build_umep.result }}" != "skipped" ]]; then
-                  VALIDATION_PASSED=false
-                fi
+              if [[ "${{ needs.build_wheels.result }}" != "success" ]] && \
+                 [[ "${{ needs.build_wheels.result }}" != "skipped" ]]; then
+                VALIDATION_PASSED=false
+              fi
+              if [[ "${{ needs.build_umep.result }}" != "success" ]] && \
+                 [[ "${{ needs.build_umep.result }}" != "skipped" ]]; then
+                VALIDATION_PASSED=false
               fi
             fi
           fi
@@ -689,10 +724,10 @@ jobs:
           # Final result
           echo ""
           if [[ "$VALIDATION_PASSED" == "true" ]]; then
-            echo "✓ All validations passed"
+            echo "[OK] All validations passed"
             exit 0
           else
-            echo "✗ Validation failed"
+            echo "[X] Validation failed"
             exit 1
           fi
 

@@ -560,6 +560,27 @@ def test_validate_samealbedo_wall_requires_match_with_wallreflectivity():
     assert "must equal properties.building_archetype.WallReflectivity (0.345)" in msg
     assert "walls[0]=0.5" in msg
 
+def test_validate_samealbedo_roof_requires_match_with_roofreflectivity():
+    """
+    When samealbedo_roof is ON, all roofs have same alb but it differs
+    from building_archetype.RoofReflectivity, we should get an error.
+    """
+    cfg = make_cfg(samealbedo_roof=1)
+
+    roofs = [
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+    ]
+    vl = SimpleNamespace(roofs=roofs)
+    ba = SimpleNamespace(RoofReflectivity=SimpleNamespace(value=0.345))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteRefMismatch")
+
+    msgs = SUEWSConfig._validate_samealbedo_roof(cfg, site, 0)
+    assert len(msgs) == 1
+    msg = msgs[0]
+    assert "must equal properties.building_archetype.RoofReflectivity (0.345)" in msg
+    assert "roofs[0]=0.5" in msg
 
 # From test_validation_topdown.py
 class TestTopDownValidation:

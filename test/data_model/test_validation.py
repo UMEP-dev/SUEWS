@@ -582,6 +582,39 @@ def test_validate_samealbedo_roof_requires_match_with_roofreflectivity():
     assert "must equal properties.building_archetype.RoofReflectivity (0.345)" in msg
     assert "roofs[0]=0.5" in msg
 
+def test_validate_samealbedo_roof_requires_identical_roof_albedos():
+    """
+    When samealbedo_roof is ON but roofs have different albedos,
+    we should get an error about them needing to be identical.
+    """
+    cfg = make_cfg(samealbedo_roof=1)
+
+    roofs = [
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+        SimpleNamespace(alb=SimpleNamespace(value=0.6)),  # mismatch
+    ]
+    vl = SimpleNamespace(roofs=roofs)
+    ba = SimpleNamespace(RoofReflectivity=SimpleNamespace(value=0.5))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteRoofMismatch")
+
+    msgs = SUEWSConfig._validate_samealbedo_roof(cfg, site, 0)
+    assert len(msgs) == 1
+    assert "so all roofs albedoes must be identical;" in msgs[0]
+    assert "SiteRoofMismatch" in msgs[0]
+
+def test_needs_samealbedo_roof_validation_true_and_false():
+    cfg = make_cfg(samealbedo_roof=1)
+    assert cfg._needs_samealbedo_roof_validation() is True
+    cfg2 = make_cfg(samealbedo_roof=0)
+    assert cfg2._needs_samealbedo_roof_validation() is False
+
+def test_needs_samealbedo_wall_validation_true_and_false():
+    cfg = make_cfg(samealbedo_wall=1)
+    assert cfg._needs_samealbedo_wall_validation() is True
+    cfg2 = make_cfg(samealbedo_wall=0)
+    assert cfg2._needs_samealbedo_wall_validation() is False
+    
 # From test_validation_topdown.py
 class TestTopDownValidation:
     """Test the new top-down validation approach."""

@@ -25,7 +25,7 @@ from supy.suews_sim import SUEWSSimulation
 class TestPublicAPIFunctionality:
     """Test that deprecated public API functions still work correctly."""
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_load_sample_data_works(self):
         """Test load_sample_data returns correct data structures."""
         # Use the saved deprecated version from conftest.py
@@ -146,8 +146,9 @@ class TestPublicAPIEquivalence:
 
         # Run using OOP API
         sim = SUEWSSimulation.from_sample_data()
-        df_output_oop = sim.run(end_date=sim.forcing.index[23])
-        df_state_final_oop = sim.state_final
+        output_oop = sim.run(end_date=sim.forcing.index[23])
+        df_output_oop = output_oop.df  # Extract DataFrame from SUEWSOutput
+        df_state_final_oop = output_oop.state_final
 
         # Compare results - should be nearly identical
         # Use pd.testing for robust comparison allowing small numerical differences

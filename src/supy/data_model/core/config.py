@@ -34,7 +34,7 @@ from pathlib import Path
 import warnings
 
 from .model import Model, OutputConfig
-from .site import Site, SiteProperties, InitialStates, LandCover
+from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams
 from .type import SurfaceType
 
 from datetime import datetime
@@ -56,6 +56,7 @@ except ImportError:
         )
         logger_supy.addHandler(handler)
         logger_supy.setLevel(logging.INFO)
+
 from ..validation.pipeline.yaml_annotator import YAMLAnnotator
 
 _validation_available = False
@@ -168,8 +169,7 @@ class SUEWSConfig(BaseModel):
         "MetabolicRate",
         "LatentSensibleRatio",
         "ApplianceRating",
-        "TotalNumberofAppliances",
-        "ApplianceUsageFactor",
+        "ApplianceProfile",
         "HeatingSystemEfficiency",
         "MaxCoolingPower",
         "CoolingSystemCOP",
@@ -186,7 +186,7 @@ class SUEWSConfig(BaseModel):
         "DHWWaterVolume",
         "DHWSurfaceArea",
         "HotWaterFlowRate",
-        "DHWDrainFlowRate",
+        "HotWaterFlowProfile",
         "DHWSpecificHeatCapacity",
         "HotWaterTankSpecificHeatCapacity",
         "DHWVesselSpecificHeatCapacity",
@@ -204,6 +204,7 @@ class SUEWSConfig(BaseModel):
         "DHWVesselWallEmissivity",
         "HotWaterHeatingEfficiency",
         "MinimumVolumeOfDHWinUse",
+        "MaximumVolumeOfDHWinUse",
     ]
 
     ARCHETYPE_REQUIRED_PARAMS: ClassVar[List[str]] = [
@@ -211,6 +212,7 @@ class SUEWSConfig(BaseModel):
         "BuildingName",
         "BuildingCount",
         "Occupants",
+        "OccupantsProfile",
         "stebbs_Height",
         "FootprintArea",
         "WallExternalArea",
@@ -534,6 +536,115 @@ class SUEWSConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def set_default_vegetation_albedo(self) -> "SUEWSConfig":
+        """Auto-calculate initial vegetation albedo from LAI state when missing.
+
+        The relationship between canopy albedo and LAI differs between vegetation
+        types. As stated in Omidvar et al. (2022) Section 4.1: "For evergreen and
+        deciduous trees, alpha_LAI,min (alpha_LAI,max) in Eq. (6) typically
+        corresponds to alpha_min (alpha_max), while for grassland a reverse
+        relation holds (i.e. alpha_LAI,min corresponds to alpha_max and vice versa)."
+
+        **Trees (evetr, dectr) - Direct relationship (higher LAI -> higher albedo):**
+
+        Tree canopies have dark bark and branches as the background surface.
+        At low LAI (sparse canopy), dark woody elements are visible through gaps,
+        reducing overall albedo. At high LAI (dense foliage), leaves with higher
+        reflectance dominate the surface.
+
+        Formula: alb_id = alb_min + (alb_max - alb_min) * lai_ratio
+
+        **Grass - Reversed relationship (higher LAI -> lower albedo):**
+
+        Grass surfaces have bright soil or litter as the background. At low LAI
+        (sparse grass), exposed soil with higher reflectance increases overall
+        albedo. At high LAI (dense grass), green blades with lower reflectance
+        dominate. Empirical evidence from Mu et al. (2024) shows a significant
+        negative correlation (r = -0.462, P < 0.01) between EVI and albedo in
+        East Asian grasslands.
+
+        Formula: alb_id = alb_max - (alb_max - alb_min) * lai_ratio
+
+        References:
+            - Omidvar et al. (2022). Geosci. Model Dev., 15, 3041-3078.
+              https://doi.org/10.5194/gmd-15-3041-2022
+            - Mu et al. (2024). Ecological Processes.
+              https://doi.org/10.1186/s13717-024-00493-w
+            - Cescatti et al. (2012). Remote Sens. Environ., 121, 323-334.
+              https://doi.org/10.1016/j.rse.2012.02.019
+            - Song (1999). Int. J. Biometeorol., 42(3), 153-157.
+              https://doi.org/10.1007/s004840050099
+        """
+        for site in self.sites:
+            if (
+                not site.initial_states
+                or not site.properties
+                or not site.properties.land_cover
+            ):
+                continue
+
+            land_cover = site.properties.land_cover
+            initial_states = site.initial_states
+
+            vegetated_surfaces = [
+                (land_cover.evetr, initial_states.evetr, False),
+                (land_cover.dectr, initial_states.dectr, False),
+                (land_cover.grass, initial_states.grass, True),
+            ]
+
+            for surface_props, surface_state, is_grass in vegetated_surfaces:
+                if surface_props is None or surface_state is None:
+                    continue
+
+                alb_val = _unwrap_value(getattr(surface_state, "alb_id", None))
+                if alb_val is not None:
+                    continue
+
+                lai_val = _unwrap_value(getattr(surface_state, "lai_id", None))
+                if lai_val is None:
+                    continue
+
+                lai_params = getattr(surface_props, "lai", None)
+                if lai_params is None:
+                    continue
+
+                lai_min_val = _unwrap_value(getattr(lai_params, "laimin", None))
+                lai_max_val = _unwrap_value(getattr(lai_params, "laimax", None))
+                # Fallback: LAIParams.laimin defaults to 0.1; LAIParams.laimax
+                # defaults to None (the DataFrame serialisation path in
+                # LAIParams.to_df_state uses 10.0 as its fallback).
+                if lai_min_val is None:
+                    lai_min_val = LAIParams.model_fields["laimin"].default
+                if lai_max_val is None:
+                    lai_max_val = LAIParams.LAIMAX_DF_DEFAULT
+
+                lai_range = lai_max_val - lai_min_val
+                if lai_range <= 0:
+                    lai_ratio = 0.0
+                else:
+                    lai_ratio = (lai_val - lai_min_val) / lai_range
+                    lai_ratio = min(max(lai_ratio, 0.0), 1.0)
+
+                alb_min_val = _unwrap_value(surface_props.alb_min)
+                alb_max_val = _unwrap_value(surface_props.alb_max)
+                if alb_min_val is None or alb_max_val is None:
+                    continue
+
+                alb_range = alb_max_val - alb_min_val
+                if is_grass:
+                    alb_calc = alb_max_val - alb_range * lai_ratio
+                else:
+                    alb_calc = alb_min_val + alb_range * lai_ratio
+
+                # Intentional in-place mutation of the Pydantic model instance.
+                # model_validator(mode='after') receives the fully-constructed
+                # object, so attribute assignment is safe here. This runs before
+                # validate_albedo_ranges (validators execute in definition order).
+                surface_state.alb_id = alb_calc
+
+        return self
+
+    @model_validator(mode="after")
     def validate_albedo_ranges(self) -> "SUEWSConfig":
         """
         Validate albedo ranges for vegetated surfaces in all sites.
@@ -543,6 +654,10 @@ class SUEWSConfig(BaseModel):
         - alb_min <= alb_max for all vegetated surfaces (evetr, dectr, grass)
 
         This ensures proper albedo parameter ranges for vegetation modeling.
+
+        NOTE: This validator depends on set_default_vegetation_albedo running
+        first (Pydantic v2 executes model_validators in definition order).
+        Do not reorder these validators.
         """
         from .type import RefValue  # Import here to avoid circular import
 
@@ -585,6 +700,22 @@ class SUEWSConfig(BaseModel):
                     errors.append(
                         f"{site_name} {surface_description}: alb_min ({alb_min_val}) must be less than or equal to alb_max ({alb_max_val})"
                     )
+
+                # Only validate alb_id range when alb_min <= alb_max
+                # (the inverted case is already reported above)
+                if (
+                    site.initial_states
+                    and hasattr(site.initial_states, surface_name)
+                    and alb_min_val <= alb_max_val
+                ):
+                    surface_state = getattr(site.initial_states, surface_name)
+                    if surface_state and hasattr(surface_state, "alb_id"):
+                        alb_id_val = _unwrap_value(surface_state.alb_id)
+                        if alb_id_val is not None:
+                            if not (alb_min_val <= alb_id_val <= alb_max_val):
+                                errors.append(
+                                    f"{site_name} {surface_description}: alb_id ({alb_id_val}) must be in range [{alb_min_val}, {alb_max_val}]"
+                                )
 
         if errors:
             raise ValueError("; ".join(errors))
@@ -748,11 +879,6 @@ class SUEWSConfig(BaseModel):
         # Validate LAI range parameters
         if hasattr(site.properties, "land_cover") and site.properties.land_cover:
             if self._check_lai_ranges(site.properties.land_cover, site_name):
-                site_has_issues = True
-
-        # Validate land cover fractions sum to 1.0
-        if hasattr(site.properties, "land_cover") and site.properties.land_cover:
-            if self._check_land_cover_fractions(site.properties.land_cover, site_name):
                 site_has_issues = True
 
         # Track sites with issues
@@ -1085,63 +1211,6 @@ class SUEWSConfig(BaseModel):
         if site_name not in self._validation_summary["sites_with_issues"]:
             self._validation_summary["sites_with_issues"].append(site_name)
         return True
-
-    def _check_land_cover_fractions(self, land_cover, site_name: str) -> bool:
-        """Check that land cover fractions sum to 1.0. Returns True if issues found."""
-        has_issues = False
-
-        # Initialize validation summary if it doesn't exist (for testing)
-        if not hasattr(self, "_validation_summary"):
-            self._validation_summary = {
-                "total_warnings": 0,
-                "sites_with_issues": [],
-                "issue_types": set(),
-                "yaml_path": getattr(self, "_yaml_path", None),
-                "detailed_messages": [],
-                "info_messages": [],
-            }
-
-        # Return early if no land cover
-        if land_cover is None:
-            return False
-
-        # Get all surface types and their fractions
-        surface_types = ["bldgs", "grass", "dectr", "evetr", "bsoil", "paved", "water"]
-        fractions = {}
-
-        for surface_type in surface_types:
-            if hasattr(land_cover, surface_type):
-                surface = getattr(land_cover, surface_type)
-                if surface and hasattr(surface, "sfr") and surface.sfr is not None:
-                    # Extract fraction value (handle RefValue)
-                    sfr_value = getattr(surface.sfr, "value", surface.sfr)
-                    fractions[surface_type] = (
-                        float(sfr_value) if sfr_value is not None else 0.0
-                    )
-                else:
-                    fractions[surface_type] = 0.0
-            else:
-                fractions[surface_type] = 0.0
-
-        # Check if fractions sum to exactly 1.0 (with tolerance for floating-point errors)
-        total_fraction = sum(fractions.values())
-        tolerance = 1e-6
-
-        if abs(total_fraction - 1.0) > tolerance:
-            self._validation_summary["total_warnings"] += 1
-            self._validation_summary["issue_types"].add(
-                "Land cover fraction validation"
-            )
-
-            # Create detailed message with breakdown
-            fraction_details = ", ".join([f"{k}={v:.3f}" for k, v in fractions.items()])
-            difference = abs(total_fraction - 1.0)
-            self._validation_summary["detailed_messages"].append(
-                f"{site_name}: Land cover fractions must sum to 1.0 within tolerance {tolerance} (got {total_fraction:.6f}, difference {difference:.2e}): {fraction_details}"
-            )
-            has_issues = True
-
-        return has_issues
 
     def _needs_stebbs_validation(self) -> bool:
         """
@@ -2588,6 +2657,8 @@ class SUEWSConfig(BaseModel):
         # set column names
         df.columns.set_names(["var", "ind_dim"], inplace=True)
         df.index.name = "grid"
+
+
 
         return df
 

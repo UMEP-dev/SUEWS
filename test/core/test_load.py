@@ -8,13 +8,13 @@ including state initialization, forcing data loading, and configuration loading.
 from pathlib import Path
 import tempfile
 from unittest import TestCase
-import warnings
 
 import pandas as pd
 import pytest
 import yaml
 
 import supy as sp
+from conftest import TIMESTEPS_PER_DAY
 from supy.util.converter import convert_table, detect_table_version
 
 
@@ -23,7 +23,6 @@ class TestInitSuPy(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
         # Get the sample config path
         self.sample_config = (
             Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
@@ -32,7 +31,7 @@ class TestInitSuPy(TestCase):
             Path(__file__).parent.parent / "fixtures" / "benchmark1" / "benchmark1.yml"
         )
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_init_supy_sample_config(self):
         """Test initializing with sample configuration."""
         print("\n========================================")
@@ -101,7 +100,6 @@ class TestLoadForcing(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
         self.sample_config = (
             Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
         )
@@ -208,7 +206,6 @@ class TestConfigLoading(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
         self.sample_config = (
             Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
         )
@@ -268,10 +265,6 @@ class TestConfigLoading(TestCase):
 class TestLoadingScenarios(TestCase):
     """Test various loading scenarios and edge cases."""
 
-    def setUp(self):
-        """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
-
     def test_load_modify_reload(self):
         """Test loading, modifying, and reloading state."""
         print("\n========================================")
@@ -282,7 +275,7 @@ class TestLoadingScenarios(TestCase):
 
         # Run simulation with modified state
         df_output, df_state_final = sp.run_supy(
-            df_forcing.iloc[:288],  # One day
+            df_forcing.iloc[:TIMESTEPS_PER_DAY],  # One day
             df_state,
             check_input=False,
         )

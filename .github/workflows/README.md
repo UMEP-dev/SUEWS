@@ -46,11 +46,23 @@ Post-merge formatting workflow that:
 ### 3. Build and Publish (`build-publish_to_pypi.yml`)
 Automated build and publish workflow that:
 - Builds wheels for multiple platforms (Linux, macOS, Windows)
-- Supports Python 3.9-3.13
+- Supports Python 3.9-3.14
 - Runs tests on each platform
-- Publishes to TestPyPI on every push
+- Publishes to TestPyPI on nightly/dev tag builds
 - Publishes to PyPI on tagged releases
 - Skips builds for auto-format commits (via `[skip ci]`)
+
+**Manual Dispatch Options:**
+
+When triggering via Actions tab → "Run workflow", you can configure:
+- **matrix_config**: Choose build matrix
+  - `full` - All platforms, all Python versions (default)
+  - `pr` - Reduced: Linux + macOS ARM + Windows, Python 3.9 + 3.14
+  - `minimal` - Linux only, Python 3.9 + 3.14
+  - `custom` - Use individual platform/Python toggles
+- **deploy_target**: `none` (validation) or `testpypi` (PyPI restricted to tags)
+- **include_umep**: Build UMEP variant (NumPy 1.x compatible)
+- **test_tier**: `smoke`, `core`, `cfg`, `standard`, or `all`
 
 ### 4. GitHub Pages Deploy (`pages-deploy.yml`)
 Deploys static site content to GitHub Pages at suews.io:

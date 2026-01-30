@@ -152,6 +152,7 @@ clean: TARGET := $(strip $(TARGET))$(strip $(suffix))
 # needs to be compiled first)
 # NB: DO KEEP ALL FILE NAMES in lowercase for compatability across platforms
 # utilities
+# Note: suews_ctrl_error.o must come before modules that USE module_ctrl_error
 UTILS = suews_ctrl_const.o \
 	suews_type_stebbs.o \
 	suews_type_surface.o \
@@ -167,20 +168,18 @@ UTILS = suews_ctrl_const.o \
 	suews_type_soil.o \
 	suews_type_landcover.o \
 	suews_ctrl_type.o \
-	suews_util_stringmod.o \
-	suews_util_qsort.o\
+	suews_ctrl_error.o \
 	suews_util_time.o \
 	suews_util_meteo.o \
 	suews_util_datetime.o \
-	suews_util_minpack.o
+	suews_util_profile.o
 
 # SUEWS physics modules
-PHYS =	suews_phys_narp.o \
+PHYS =	\
+	suews_phys_narp.o \
 	suews_phys_spartacus.o \
 	suews_phys_atmmoiststab.o \
 	suews_phys_resist.o \
-	suews_ctrl_error.o  \
-	suews_ctrl_input.o  \
 	suews_phys_bluews.o \
 	suews_phys_waterdist.o \
 	suews_phys_evap.o \

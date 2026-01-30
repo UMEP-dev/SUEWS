@@ -413,19 +413,6 @@ CONTAINS
    END SUBROUTINE SUEWS_cal_weekday_DTS
 
    SUBROUTINE SUEWS_cal_DLS( &
-      id, startDLS, endDLS, & !input
-      DLS) !output
-      IMPLICIT NONE
-
-      INTEGER, INTENT(in) :: id, startDLS, endDLS
-      INTEGER, INTENT(out) :: DLS
-
-      DLS = 0
-      IF (id > startDLS .AND. id < endDLS) dls = 1
-
-   END SUBROUTINE SUEWS_cal_DLS
-
-   SUBROUTINE SUEWS_cal_DLS_DTS( &
       timer, ahemisPrm, & !input
       DLS) !output
 
@@ -446,7 +433,7 @@ CONTAINS
       DLS = 0
       IF (id > startDLS .AND. id < endDLS) dls = 1
 
-   END SUBROUTINE SUEWS_cal_DLS_DTS
+   END SUBROUTINE SUEWS_cal_DLS
 
 END MODULE module_util_time
 

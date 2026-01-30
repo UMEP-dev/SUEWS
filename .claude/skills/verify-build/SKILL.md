@@ -1,51 +1,30 @@
 ---
 name: verify-build
-description: Check SUEWS build configuration consistency (meson, Makefile, pyproject.toml, CI). Use before releases, when modifying build files, adding new source files, or troubleshooting build issues. Validates source file inclusion in meson.build, dependency sync between pyproject.toml and env.yml, Python version matrix consistency, Makefile targets, and dual-build system (standard + UMEP).
+description: Check build config consistency (meson, pyproject.toml, CI).
 ---
 
-# SUEWS Build Configuration Checker
+# Verify Build
 
-Check build configuration consistency across `meson.build`, `Makefile`, `pyproject.toml`, `env.yml`, and CI workflows.
+Check build configuration consistency.
 
-## Checks to Perform
+## Checks
 
-### Critical
+| Priority | Check |
+|----------|-------|
+| Critical | Source files in meson.build |
+| Critical | f90wrap version pinned (==0.2.16) |
+| Warning | Python version matrix alignment |
+| Style | .fprettify.rc, .ruff.toml |
 
-1. **Source inclusion in meson.build**
-   - All `.f95` files in `src/suews/src/` must be in meson.build
-   - All `.py` files in `src/supy/` must be in meson.build
-   
-   ```
-   ISSUE: src/suews/src/suews_phys_new.f95 not in meson.build
-   -> Add to sources in src/suews/meson.build
-   ```
+Details: `references/checks-detail.md`
 
-2. **Version management**
-   - `get_ver_git.py` syntax valid
-   - f90wrap version pinned (`==0.2.16`) consistently
+## Key Files
 
-### Warnings
-
-3. **Dependency sync**: `pyproject.toml` ↔ `env.yml`
-   ```
-   ISSUE: lmfit in pyproject.toml but not in env.yml
-   ISSUE: pandas>=2.0 vs pandas=1.5.3 version mismatch
-   ```
-
-4. **Python version matrix**
-   - pyproject.toml classifiers match CI build matrix
-   - `.github/workflows/build_wheels.yml` matrix alignment
-
-5. **Makefile consistency**
-   - All documented targets exist
-   - Prerequisites are valid
-   - Clean target covers all build artifacts
-
-### Style
-
-6. **Configuration alignment**
-   - `.fprettify.rc` matches documented settings
-   - `.ruff.toml` covers all source directories
+| File | Purpose |
+|------|---------|
+| `meson.build` | Build system |
+| `pyproject.toml` | Python packaging |
+| `.github/workflows/` | CI |
 
 ## Output Format
 
@@ -54,39 +33,20 @@ Check build configuration consistency across `meson.build`, `Makefile`, `pyproje
 
 === Source Inclusion ===
   Fortran: N found, M in meson.build
-    MISSING: <files>
-  Python: N found, M in meson.build
-    MISSING: <files>
+  MISSING: <files>
 
 === Dependencies ===
   Mismatches: <list>
-  pyproject.toml only: <list>
-  env.yml only: <list>
 
-=== CI Matrix ===
-  pyproject.toml: 3.9, 3.10, 3.11, 3.12, 3.13, 3.14
-  CI matrix: 3.9, 3.10, 3.11, 3.12, 3.13
-  MISSING: 3.14
-
-Summary: N critical, M warnings, O style
+Summary: N critical, M warnings
 ```
 
-## Key Files
+## Dual-Build
 
-| File | Purpose |
-|------|---------|
-| `meson.build` | Build system configuration |
-| `pyproject.toml` | Python packaging |
-| `env.yml` | Conda environment |
-| `Makefile` | Convenience targets |
-| `.github/workflows/` | CI configuration |
-| `.fprettify.rc` | Fortran formatting |
-| `.ruff.toml` | Python formatting |
+Each release creates:
+- `YYYY.M.D` (NumPy ≥2.0)
+- `YYYY.M.Drc1` (UMEP, NumPy 1.x)
 
-## Dual-Build System
+## References
 
-SUEWS creates two versions from each tag:
-- `2025.11.27` (standard, NumPy ≥2.0)
-- `2025.11.27rc1` (UMEP, NumPy 1.x)
-
-Verify both `build_wheels` and `build_umep` jobs exist in release workflow.
+- `references/checks-detail.md` - Full check descriptions

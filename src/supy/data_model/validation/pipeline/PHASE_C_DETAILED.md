@@ -238,12 +238,9 @@ def _check_thermal_layers(self, thermal_layers, surface_type: str, site_name: st
 ```python
 def _collect_land_cover_issues(self, land_cover, site_name: str, site_index: int, annotator) -> None:
     """Collect land cover validation issues."""
-
-def _check_land_cover_fractions(self, land_cover, site_name: str) -> bool:
-    """Check that land cover fractions sum to 1.0."""
 ```
 
-- **Functions**: `_collect_land_cover_issues()`, `_check_land_cover_fractions()`
+- **Functions**: `_collect_land_cover_issues()`
 - **Logic**: When surface fraction `> 0`, validates surface-specific parameters and fraction totals
 - **Building-specific**: `bldgs.sfr > 0.05` requires `bldgh`, `faibldg`
 

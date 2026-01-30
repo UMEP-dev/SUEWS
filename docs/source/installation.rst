@@ -19,18 +19,17 @@ Since 2023, SUEWS is available as a command line tool via its Python wrapper pac
 
 Installing Python
 *****************
-These instructions will set you up with `mamba`_, which makes it easy to install and manage Python packages.
+We recommend `uv <https://docs.astral.sh/uv/>`_, a fast Python package and environment manager written in Rust.
 
-To install the ``mamba`` Python distribution follow `the mamba installation instructions <https://mamba.readthedocs.io/en/latest/installation.html>`__.
+To install ``uv``, follow the `official installation instructions <https://docs.astral.sh/uv/getting-started/installation/>`__::
 
-This makes installing ``supy`` and many other packages in the scientific Python ecosystem much easier and quicker.
-It also provides many pre-compiled binaries that are not available on PyPI.
+    # macOS/Linux
+    curl -LsSf https://astral.sh/uv/install.sh | sh
 
-.. tip::
+    # Windows (PowerShell)
+    powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 
-    ``mamba`` is a drop-in replacement for ``conda`` (another widely used Python package manager):
-    ``mamba`` is faster and solves some common problems with ``conda``.
-    More details about ``mamba`` can be found at `mamba`_.
+``uv`` can automatically download and manage Python versions, so a separate Python installation is not required.
 
 
 Installing SuPy
@@ -43,19 +42,11 @@ One can install ``supy`` using ``pip``:
 
   python3 -m pip install supy --upgrade
 
-.. comment out the following section for now as supy is not yet available on conda-forge.
-.. or ``mamba``:
-
-.. .. code-block:: bash
-
-..     mamba install -c conda-forge supy
-
 
 
 
 
 .. _PyPI: https://pypi.org/project/supy/
-.. _mamba: https://github.com/mamba-org/mamba
 .. _SuPy: :ref:`supy_index`
 
 
@@ -136,38 +127,55 @@ To deactivate when finished::
 Alternative: pip-only Approach
 ******************************
 
-If you cannot use ``uv`` (e.g., in managed Python environments like OSGeo4W/QGIS, or corporate environments), use this two-step pip approach:
-
-1. **Check latest version** at https://test.pypi.org/project/supy/
-
-2. **Download and install** (two steps)::
-
-    # Download supy only (no dependencies) from test.pypi.org
-    # Replace VERSION with the latest from step 1 (e.g., 2025.11.25.dev0)
-    pip download --no-deps -i https://test.pypi.org/simple/ supy==VERSION
-
-    # Install from the downloaded wheel - pip will resolve dependencies from regular PyPI
-    pip install --find-links=. supy==VERSION
-
-3. **Verify installation**::
-
-    python -c "import supy; print(f'SUEWS version: {supy.__version__}')"
+If you cannot use ``uv`` (e.g., in managed Python environments like OSGeo4W/QGIS, or corporate environments), use this two-step approach.
 
 .. note::
 
-   **Why the two-step approach?**
+   **Why two steps?** Using ``pip install --extra-index-url https://test.pypi.org/simple/`` can cause dependency issues where pip pulls source tarballs from test.pypi.org instead of pre-built wheels from PyPI. The two-step approach ensures only ``supy`` comes from test.pypi.org while all dependencies come from regular PyPI.
 
-   Using ``pip install --extra-index-url https://test.pypi.org/simple/`` can cause dependency resolution issues where pip pulls source tarballs from test.pypi.org instead of pre-built wheels from PyPI. The two-step approach ensures only ``supy`` comes from test.pypi.org while all dependencies are fetched from regular PyPI.
+**Steps:**
+
+1. **Check available versions** at https://test.pypi.org/project/supy/#history
+
+   .. warning::
+
+      TestPyPI regularly removes old packages to free up space, so version numbers in examples below may no longer exist. Always use a version currently listed on the page above.
+
+2. **Download the wheel from test.pypi.org** (supy only, no dependencies)::
+
+    # Replace 2025.11.25.dev0 with an available version from step 1
+    pip download --no-deps -i https://test.pypi.org/simple/ supy==2025.11.25.dev0
+
+3. **Install from the downloaded wheel** (dependencies from regular PyPI)::
+
+    pip install --find-links=. supy==2025.11.25.dev0
+
+4. **Verify installation**::
+
+    python -c "import supy; print(f'SUEWS version: {supy.__version__}')"
 
 
 OSGeo4W / UMEP Users
 ********************
 
-If you are using SUEWS via `UMEP <https://umep-docs.readthedocs.io/>`_ in QGIS, use the **pip-only approach** above from the **OSGeo4W Shell** (not PowerShell or CMD).
+If you use SUEWS via `UMEP <https://umep-docs.readthedocs.io/>`_ in QGIS, use the **pip-only approach** above with these UMEP-specific requirements:
 
-.. warning::
+.. important::
 
-   ``uv`` does not work with OSGeo4W because OSGeo4W's Python requires environment variables (``PYTHONHOME``, ``PYTHONPATH``, etc.) that are only set in the OSGeo4W Shell.
+   **Use dev1 versions only.** UMEP users should install versions ending in ``dev1`` (e.g., ``2025.11.25.dev1``), which include UMEP-specific compatibility fixes. Do not use ``dev0`` versions.
+
+.. important::
+
+   **Use the OSGeo4W Shell** (not PowerShell or CMD). OSGeo4W's Python requires environment variables that are only set in this shell. Find it via Start menu → "OSGeo4W Shell".
+
+**UMEP-specific notes:**
+
+- No virtual environment is needed — OSGeo4W manages QGIS's Python environment
+- The development version will replace any existing ``supy`` installation in QGIS
+- After installation, **restart QGIS** before using the new version
+- To verify, open the QGIS Python Console and run::
+
+    import supy; print(supy.__version__)
 
 
 Development build

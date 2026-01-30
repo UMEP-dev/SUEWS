@@ -1,5 +1,6 @@
 module module_type_surface
-
+   USE module_ctrl_const_allocate, ONLY: &
+      nsurf
    implicit none
 
    TYPE, PUBLIC :: LUMPS_PRM
@@ -28,6 +29,8 @@ module module_type_surface
    TYPE, PUBLIC :: OHM_STATE
       REAL(KIND(1D0)) :: qn_av = 0.0D0 ! weighted average of net all-wave radiation [W m-2]
       REAL(KIND(1D0)) :: dqndt = 0.0D0 ! rate of change of net radiation [W m-2 h-1]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: qn_surfs = 0.0D0 ! net all-wave radiation fo each surface[W m-2]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: dqndt_surf = 0.0D0 ! rate of change of net radiation [W m-2 h-1]
       REAL(KIND(1D0)) :: qn_s_av = 0.0D0 ! weighted average of qn over snow [W m-2]
       REAL(KIND(1D0)) :: dqnsdt = 0.0D0 ! Rate of change of net radiation [W m-2 h-1]
       REAL(KIND(1D0)) :: a1 = 0.0D0 !AnOHM coefficients of grid [-]
@@ -37,7 +40,7 @@ module module_type_surface
       REAL(KIND(1D0)) :: t2_prev = 0.0D0 ! previous day midnight air temperature [degC]
       REAL(KIND(1D0)) :: ws_rav = 0.0D0 ! running average of wind speed [m s-1]
       REAL(KIND(1D0)) :: tair_prev = 0.0D0
-      REAL(KIND(1D0)) :: qn_rav = 0.0D0 ! running average of net radiation [W m-2]
+      REAL(KIND(1D0)), DIMENSION(nsurf):: qn_rav = 0.0D0 ! running average of net radiation [W m-2]
       REAL(KIND(1D0)) :: a1_bldg = 0.0D0 ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)) :: a2_bldg = 0.0D0 ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)) :: a3_bldg = 0.0D0 ! Dynamic OHM coefficients of buildings

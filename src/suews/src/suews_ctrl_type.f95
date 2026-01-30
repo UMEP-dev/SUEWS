@@ -140,14 +140,32 @@ MODULE module_ctrl_type
       LOGICAL :: flag_converge = .FALSE. ! flag for convergence of surface temperature
       INTEGER :: i_iter = 0 ! number of iterations for convergence
       INTEGER :: stebbs_bldg_init = 0 ! stebbs flag for building initialization
+      LOGICAL :: snow_warning_shown = .FALSE. ! track if snow warning shown (per grid cell)
 
       ! flag for iteration safety - YES - as we this should be updated every iteration
       LOGICAL :: iter_safe = .TRUE.
 
    END TYPE flag_STATE
 
+   ! Error state for thread-safe error handling (replaces module-level SAVE variables)
+   ! Each grid cell gets its own error state, enabling WRF coupling and parallel execution
+   TYPE, PUBLIC :: error_state
+      LOGICAL :: flag = .FALSE.           ! Error flag: .TRUE. if error occurred (legacy)
+      INTEGER :: code = 0                  ! Error code (legacy)
+      CHARACTER(LEN=512) :: message = ''   ! Error message describing the problem (legacy)
+      LOGICAL :: has_fatal = .FALSE.       ! Any fatal error occurred?
+      TYPE(error_entry), ALLOCATABLE :: log(:)  ! Error/warning log
+      INTEGER :: count = 0                 ! Number of entries in log
+   CONTAINS
+      PROCEDURE :: set => set_error_state
+      PROCEDURE :: reset => reset_error_state
+      PROCEDURE :: has_error => has_error_state
+      PROCEDURE :: report => report_error_impl
+      PROCEDURE :: clear_log => clear_error_log
+   END TYPE error_state
 
    TYPE, PUBLIC :: SUEWS_STATE
+      TYPE(error_state) :: errorState
       TYPE(flag_STATE) :: flagState
       TYPE(anthroEmis_STATE) :: anthroemisState
       TYPE(OHM_STATE) :: ohmState
@@ -215,6 +233,14 @@ MODULE module_ctrl_type
       INTEGER :: new_day = 0 ! flag to indicate a new day !TODO: Should this be bool?
 
    END TYPE SUEWS_TIMER
+
+   ! Single error/warning log entry
+   TYPE, PUBLIC :: error_entry
+      TYPE(SUEWS_TIMER) :: timer           ! When it happened
+      CHARACTER(LEN=256) :: message = ''   ! What went wrong (includes values)
+      CHARACTER(LEN=64) :: location = ''   ! Where (subroutine name)
+      LOGICAL :: is_fatal = .FALSE.        ! Stop execution?
+   END TYPE error_entry
 
    TYPE, PUBLIC :: output_block
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dataOutBlockSUEWS
@@ -287,6 +313,106 @@ MODULE module_ctrl_type
    END TYPE SUEWS_STATE_BLOCK
 
 CONTAINS
+
+   !===========================================================================
+   ! Error state methods
+   !===========================================================================
+
+   SUBROUTINE set_error_state(self, code, message)
+      !> Set error state with code and message
+      CLASS(error_state), INTENT(INOUT) :: self
+      INTEGER, INTENT(IN) :: code
+      CHARACTER(LEN=*), INTENT(IN) :: message
+      INTEGER :: msg_len
+
+      self%flag = .TRUE.
+      self%code = code
+      msg_len = MIN(LEN_TRIM(message), 512)
+      self%message = message(1:msg_len)
+   END SUBROUTINE set_error_state
+
+   SUBROUTINE reset_error_state(self)
+      !> Reset error state to default (no error)
+      CLASS(error_state), INTENT(INOUT) :: self
+
+      self%flag = .FALSE.
+      self%code = 0
+      self%message = ''
+      self%has_fatal = .FALSE.
+      self%count = 0
+   END SUBROUTINE reset_error_state
+
+   FUNCTION has_error_state(self) RESULT(has_err)
+      !> Check if error state indicates an error
+      CLASS(error_state), INTENT(IN) :: self
+      LOGICAL :: has_err
+
+      has_err = self%flag
+   END FUNCTION has_error_state
+
+   SUBROUTINE report_error_impl(self, message, location, is_fatal, timer)
+      !> Report an error/warning to the error log
+      CLASS(error_state), INTENT(INOUT) :: self
+      CHARACTER(LEN=*), INTENT(IN) :: message
+      CHARACTER(LEN=*), INTENT(IN) :: location
+      LOGICAL, INTENT(IN), OPTIONAL :: is_fatal
+      TYPE(SUEWS_TIMER), INTENT(IN), OPTIONAL :: timer
+
+      TYPE(error_entry), ALLOCATABLE :: temp(:)
+      TYPE(SUEWS_TIMER) :: timer_use
+      INTEGER :: new_size
+      LOGICAL :: fatal
+
+      fatal = .FALSE.
+      IF (PRESENT(is_fatal)) fatal = is_fatal
+
+      ! Use provided timer or default to zeros
+      IF (PRESENT(timer)) THEN
+         timer_use = timer
+      ELSE
+         timer_use%iy = 0
+         timer_use%id = 0
+         timer_use%it = 0
+         timer_use%imin = 0
+      END IF
+
+      ! Grow array if needed
+      IF (.NOT. ALLOCATED(self%log)) THEN
+         ALLOCATE (self%log(16))
+      ELSE IF (self%count >= SIZE(self%log)) THEN
+         new_size = SIZE(self%log)*2
+         ALLOCATE (temp(new_size))
+         temp(1:self%count) = self%log(1:self%count)
+         CALL MOVE_ALLOC(temp, self%log)
+      END IF
+
+      ! Append entry
+      self%count = self%count + 1
+      self%log(self%count)%timer = timer_use
+      self%log(self%count)%message = message
+      self%log(self%count)%location = location
+      self%log(self%count)%is_fatal = fatal
+
+      IF (fatal) THEN
+         self%has_fatal = .TRUE.
+         self%flag = .TRUE.
+         self%message = message
+      END IF
+   END SUBROUTINE report_error_impl
+
+   SUBROUTINE clear_error_log(self)
+      !> Clear the error log and reset all error state
+      CLASS(error_state), INTENT(INOUT) :: self
+
+      IF (ALLOCATED(self%log)) DEALLOCATE (self%log)
+      self%count = 0
+      self%has_fatal = .FALSE.
+      self%flag = .FALSE.
+      self%code = 0
+      self%message = ''
+   END SUBROUTINE clear_error_log
+
+   !===========================================================================
 
    SUBROUTINE init_suews_state_block(self, nlayer, ndepth, len_sim)
       CLASS(SUEWS_STATE_BLOCK), INTENT(inout) :: self

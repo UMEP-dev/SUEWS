@@ -11,7 +11,7 @@ module module_type_stebbs
       ! CHARACTER(LEN=50) :: BuildingType !
       ! CHARACTER(LEN=50) :: BuildingName !
       REAL(KIND(1D0)) :: BuildingCount = 0.0D0 ! Number of buildings of this archetype [-]
-      REAL(KIND(1D0)) :: Occupants = 0.0D0 ! Number of occupants present in building [-]
+      REAL(KIND(1D0)) :: Occupants = 0.0D0 ! Maixmum number of occupants in building [-]
       REAL(KIND(1D0)) :: hhs0 = 0.0D0 !
       REAL(KIND(1D0)) :: age_0_4 = 0.0D0 !
       REAL(KIND(1D0)) :: age_5_11 = 0.0D0 !
@@ -70,8 +70,10 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: MaxHeatingPower = 0.0D0 ! Maximum power demand of heating system [W]
       REAL(KIND(1D0)) :: WaterTankWaterVolume = 0.0D0 ! Volume of water in hot water tank [m3]
       REAL(KIND(1D0)) :: MaximumHotWaterHeatingPower = 0.0D0 ! Maximum power demand of water heating system [W]
-      REAL(KIND(1D0)) :: HeatingSetpointTemperature = 0.0D0 ! Heating setpoint temperature [degC]
-      REAL(KIND(1D0)) :: CoolingSetpointTemperature = 0.0D0 ! Cooling setpoint temperature [degC]
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: HeatingSetpointTemperature = 0.0D0 ! Heating setpoint temperature [degC]
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: CoolingSetpointTemperature = 0.0D0 ! Cooling setpoint temperature [degC]
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: OccupantsProfile = 0.0D0 ! diurnal profiles of occupants presence
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: ApplianceProfile = 0.0D0 ! diurnal profiles of appliance energy power
       ! flag for iteration safety - YES - as we this should be updated every iteration
       LOGICAL :: iter_safe = .TRUE.
    END TYPE BUILDING_ARCHETYPE_PRM
@@ -90,17 +92,9 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: ExternalGroundConductivity = 0.0D0
       REAL(KIND(1D0)) :: IndoorAirDensity = 0.0D0 ! Density of indoor air [kg m-3]
       REAL(KIND(1D0)) :: IndoorAirCp = 0.0D0 ! Specific heat capacity of indoor air [J kg-1 K-1]
-      !REAL(KIND(1D0)) :: WallBuildingViewFactor = 0.0D0 ! Building view factor of external walls [-]
-      !REAL(KIND(1D0)) :: WallGroundViewFactor = 0.0D0 ! Ground view factor of external walls [-]
-      !REAL(KIND(1D0)) :: WallSkyViewFactor = 0.0D0 ! Sky view factor of external roofs [-]
-      !REAL(KIND(1D0)) :: RoofBuildingViewFactor = 0.0D0 ! Building view factor of external roofs [-]
-      !REAL(KIND(1D0)) :: RoofGroundViewFactor = 0.0D0 ! Ground view factor of external roofs [-]
-      !REAL(KIND(1D0)) :: RoofSkyViewFactor = 0.0D0 ! Sky view factor of external roofs [-]
       REAL(KIND(1D0)) :: MetabolicRate = 0.0D0 ! Metabolic rate of building occupants [W]
       REAL(KIND(1D0)) :: LatentSensibleRatio = 0.0D0 ! Latent-to-sensible ratio of metabolic energy release of occupants [-]
       REAL(KIND(1D0)) :: ApplianceRating = 0.0D0 ! Power demand of single appliance [W]
-      REAL(KIND(1D0)) :: TotalNumberofAppliances = 0.0D0 ! Number of appliances present in building [-]
-      REAL(KIND(1D0)) :: ApplianceUsageFactor = 0.0D0 ! Number of appliances in use [-]
       REAL(KIND(1D0)) :: HeatingSystemEfficiency = 0.0D0 ! Efficiency of space heating system [-]
       REAL(KIND(1D0)) :: MaxCoolingPower = 0.0D0 ! Maximum power demand of cooling system [W]
       REAL(KIND(1D0)) :: CoolingSystemCOP = 0.0D0 ! Coefficient of performance of cooling system [-]
@@ -113,7 +107,7 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: DHWWaterVolume = 0.0D0 ! Volume of water held in use in building [m3]
       REAL(KIND(1D0)) :: DHWSurfaceArea = 0.0D0 ! Surface area of hot water in vessels in building [m2]
       REAL(KIND(1D0)) :: HotWaterFlowRate = 0.0D0 ! Hot water flow rate from tank to vessel [m3 s-1]
-      REAL(KIND(1D0)) :: DHWDrainFlowRate = 0.0D0 ! Flow rate of hot water held in building to drain [m3 s-1]
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: HotWaterFlowProfile = 0.0D0 ! Diurnal profile of domestic hot water usage [m3 s-1]
       REAL(KIND(1D0)) :: DHWSpecificHeatCapacity = 0.0D0 ! Specific heat capacity of hot water [J kg-1 K-1]
       REAL(KIND(1D0)) :: HotWaterTankSpecificHeatCapacity = 0.0D0 ! Specific heat capacity of hot water tank wal [J kg-1 K-1]
       REAL(KIND(1D0)) :: DHWVesselSpecificHeatCapacity = 0.0D0 ! Specific heat capacity of vessels containing hot water in use in buildings [J kg-1 K-1]
@@ -131,6 +125,7 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: DHWVesselWallEmissivity = 0.0D0 ! Effective external wall emissivity of hot water being used within building [-]
       REAL(KIND(1D0)) :: HotWaterHeatingEfficiency = 0.0D0 ! Efficiency of hot water system [-]
       REAL(KIND(1D0)) :: MinimumVolumeOfDHWinUse = 0.0D0 ! Minimum volume of hot water in use [m3]
+      REAL(KIND(1D0)) :: MaximumVolumeOfDHWinUse = 0.0D0 ! Maximum volume of hot water in use [m3]
       ! flag for iteration safety - YES - as we this should be updated every iteration
       LOGICAL :: iter_safe = .TRUE.
    END TYPE STEBBS_PRM
@@ -211,17 +206,13 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: roofTransmisivity = 0.0D0
       REAL(KIND(1D0)) :: roofAbsorbtivity = 0.0D0
       REAL(KIND(1D0)) :: roofReflectivity = 0.0D0
-      !REAL(KIND(1D0)) :: BVF_extwall = 0.0D0
-      !REAL(KIND(1D0)) :: GVF_extwall = 0.0D0
-      !REAL(KIND(1D0)) :: SVF_extwall = 0.0D0
-      !REAL(KIND(1D0)) :: BVF_extroof = 0.0D0
-      !REAL(KIND(1D0)) :: GVF_extroof = 0.0D0
-      !REAL(KIND(1D0)) :: SVF_extroof = 0.0D0
       REAL(KIND(1D0)) :: occupants = 0.0D0
+      REAL(KIND(1D0)) :: frac_occupants = 0.0D0
       REAL(KIND(1D0)) :: metabolic_rate = 0.0D0
       REAL(KIND(1D0)) :: ratio_metabolic_latent_sensible = 0.0D0
       REAL(KIND(1D0)) :: appliance_power_rating = 0.0D0
-      REAL(KIND(1D0)) :: appliance_usage_factor = 0.0D0
+      REAL(KIND(1D0)) :: frac_appliance = 0.0D0
+      REAL(KIND(1D0)) :: frac_hotwater = 0.0D0
       REAL(KIND(1D0)) :: maxheatingpower_air = 0.0D0
       REAL(KIND(1D0)) :: heating_efficiency_air = 0.0D0
       REAL(KIND(1D0)) :: maxcoolingpower_air = 0.0D0
@@ -265,7 +256,7 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: Awater_vessel = 0.0D0
       REAL(KIND(1D0)) :: Vwall_vessel = 0.0D0
       REAL(KIND(1D0)) :: flowrate_water_supply = 0.0D0
-      REAL(KIND(1D0)) :: flowrate_water_drain = 0.0D0
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: flowrate_water_supply_profile = 0.0D0
       REAL(KIND(1D0)) :: single_flowrate_water_supply = 0.0D0
       REAL(KIND(1D0)) :: single_flowrate_water_drain = 0.0D0
       REAL(KIND(1D0)) :: cp_water = 0.0D0
@@ -287,6 +278,7 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: maxheatingpower_water = 0.0D0
       REAL(KIND(1D0)) :: heating_efficiency_water = 0.0D0
       REAL(KIND(1D0)) :: minVwater_vessel = 0.0D0
+      REAL(KIND(1D0)) :: maxVwater_vessel = 0.0D0  ! Maximum volume of DHW in use [m3]
       REAL(KIND(1D0)) :: minHeatingPower_DHW = 0.0D0
       REAL(KIND(1D0)) :: HeatingPower_DHW = 0.0D0
 

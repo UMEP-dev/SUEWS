@@ -1,280 +1,160 @@
 ---
 name: prep-release
-description: Prepare a SUEWS release with pre-flight checks, CHANGELOG analysis, and tag generation. Use when preparing to release a new version of SUEWS, when asked to create a release, or before tagging. Performs release necessity assessment, pre-flight validation (tests, docs, clean working tree), analyses commits since last release, suggests CHANGELOG entries, generates tag commands, and provides post-release verification checklist.
+description: Prepare SUEWS release with pre-flight checks and tag generation.
 ---
 
-# SUEWS Release Preparation
+# Prep Release
 
-Guide through release process per `dev-ref/RELEASE_MANUAL.md`.
+Guide through release process per the repo's `dev-ref/RELEASE_MANUAL.md`.
 
-## Step 0: Release Necessity Assessment
+## Triggers
 
-Gather data and apply decision criteria to determine if a release is warranted.
+- "Prepare release", "prep release", "release SUEWS"
+- "Is it time to release?", "should we release?"
+- "Create a new version", "tag a release"
 
-### 0a. Gather Release Metrics
+## Workflow
 
-```bash
-# Last release info
-LAST_TAG=$(git describe --tags --abbrev=0)
-LAST_DATE=$(git log -1 --format=%ci "$LAST_TAG")
-DAYS_SINCE=$(( ($(date +%s) - $(git log -1 --format=%ct "$LAST_TAG")) / 86400 ))
+This workflow is **workspace-independent** - run from any worktree.
 
-echo "Last release: $LAST_TAG ($DAYS_SINCE days ago)"
+0. **Assess necessity** - Use assessment criteria, check timing and user needs
+1. **Select dev tag** - Pick a CI-verified dev tag as release base
+2. **Create release branch** - `git checkout -b release/YYYY.M.D origin/master`
+3. **CHANGELOG analysis** - Use log-changes or manual (current format)
+4. **Update docs** - CHANGELOG.md, version history RST (`:pr:` syntax), toctree
+5. **GitHub Release notes** - Create `.github/releases/YYYY.M.D.md` (Markdown)
+6. **Submit PR** - Create PR, wait for CI, merge to master
+7. **Tag release** - Tag the merge commit on master
+8. **Verify** - Monitor Actions, PyPI, GitHub Release, Zenodo
 
-# Commit counts by type (analyse commit messages)
-git log ${LAST_TAG}..HEAD --format="%s" --no-merges | \
-  awk '
-    /^feat/ { features++ }
-    /^fix/ { fixes++ }
-    /^docs/ { docs++ }
-    /^refactor|^perf|^style|^test|^ci|^chore|^build/ { maintenance++ }
-    END {
-      print "Features:", features+0
-      print "Bugfixes:", fixes+0
-      print "Documentation:", docs+0
-      print "Maintenance:", maintenance+0
-      print "Total:", features+fixes+docs+maintenance+0
-    }
-  '
+Details: `references/release-steps.md`
 
-# Check for critical commits
-git log ${LAST_TAG}..HEAD --format="%s" --no-merges | grep -iE "(critical|security|urgent|hotfix)" || echo "No critical commits"
+## Release Decision
 
-# Open PRs ready to merge
-gh pr list --state open --json number,title,mergeable --jq '.[] | select(.mergeable == "MERGEABLE") | "#\(.number): \(.title)"'
-```
+Release when ready. Scoring is guidance only.
 
-### 0b. Decision Criteria
+**RELEASE NOW** (any one):
+- Critical bugfix / security patch
+- External deadline
 
-**RELEASE NOW** (any one triggers):
-- Critical bugfix merged (user-impacting bug)
-- Security vulnerability patched
-- External deadline imminent (conference, teaching, collaborator request)
+**RECOMMENDED** (score ≥5):
+- Features (+3), Bugfixes (+2), User-facing change (+2), User/collaborator request (+2), >30 days (+2), >60 days (+3)
 
-**RELEASE RECOMMENDED** (score ≥5):
-| Factor | Points |
-|--------|--------|
-| ≥1 feature commit | +3 |
-| ≥2 bugfix commits | +2 |
-| ≥1 user-facing change | +2 |
-| >30 days since last release | +2 |
-| >60 days since last release | +3 |
-| User/collaborator request | +2 |
+**WAIT** (any one):
+- <7 days since last, only maintenance, failing tests
 
-**WAIT** (any one triggers):
-- <7 days since last release (unless critical)
-- Only maintenance/docs commits
-- Major feature branch not yet merged
-- Tests failing on master
+## Dev Tag Selection
 
-### 0c. Assessment Report Format
-
-```
-=== RELEASE ASSESSMENT ===
-
-Last release: 2025.11.15 (13 days ago)
-
-Commits since last release:
-  Features:     2
-  Bugfixes:     3
-  Docs:         1
-  Maintenance:  5
-  Total:       11
-
-Critical commits: None
-Pending PRs (ready): #925, #927
-
-Score: 7/10
-  +3  features (2)
-  +2  bugfixes (3)
-  +2  days since release (>30)
-
-Recommendation: RELEASE RECOMMENDED
-Reason: Accumulated features and bugfixes provide user value.
-
-Proceed? [Explain decision or ask user]
-```
-
----
-
-## Step 1: Create Release Tracking Issue
-
-Create a GitHub issue from the release checklist template to track progress:
+Dev tags (`YYYY.M.D.dev`) are CI-verified commits. Release from a known-good dev tag to skip redundant local testing.
 
 ```bash
-gh issue create --template release-checklist.md \
-  --title "Release YYYY.M.D: [Feature Name]" \
-  --label release
+# List recent dev tags with CI status (run from any worktree)
+git fetch --tags origin
+git tag -l "*.dev" --sort=-v:refname | head -5
+gh run list --branch master --limit 10
 ```
 
-Then edit the issue to fill in Version, Title, and Why fields.
+Selection criteria:
+- CI passed (all workflows green)
+- On master lineage
+- Recent enough (includes desired changes)
+- No critical issues reported since
 
----
+## Pre-Release Checklist
 
-## Step 2: Pre-Flight Checks
-
-### 2a. Invoke Related Skills
-
-Before proceeding, run these skills for comprehensive validation:
-
-1. **`verify-build` skill**: Check meson.build, pyproject.toml, CI matrix consistency
-2. **`sync-docs` skill**: Verify documentation matches code
-3. **`lint-code` skill**: Check code style compliance
-
-### 2b. Core Checks
-
-```bash
-# Must pass before release
-git branch --show-current        # Must be master
-git status --porcelain           # Must be clean
-git log origin/master..HEAD      # No unpushed commits
-make test                        # Tests pass
-make docs                        # Docs build
 ```
-
-Report format:
-```
-[PASS] On master branch
-[PASS] No uncommitted changes
-[PASS] verify-build: No issues
-[PASS] sync-docs: Documentation consistent
-[PASS] Tests pass
-[PASS] Docs build
+[PASS/FAIL] No incomplete prior releases (all merged release PRs have tags)
+[PASS/FAIL] Dev tag selected: YYYY.M.D.dev
+[PASS/FAIL] CI status: All workflows passed
+[PASS/FAIL] On master lineage
+[PASS/FAIL] Release branch created
+[PASS/FAIL] Docs updated (CHANGELOG, version-history RST)
+[PASS/FAIL] GitHub Release notes created (.github/releases/)
+[PASS/FAIL] PR submitted and CI passed
+[PASS/FAIL] PR merged to master
+[PASS/FAIL] Git tag created on merge commit
+[PASS/FAIL] GitHub Release published (triggers Zenodo DOI)
 Ready: YES/NO
 ```
 
-## Step 3: CHANGELOG Analysis
+## Common Mistakes
 
-**Invoke the `log-changes` skill** for comprehensive CHANGELOG management, or use these commands for quick analysis:
+### Incomplete release: PR merged but no tag created
+
+The most common release failure is merging the release PR (step 6) and then forgetting steps 7-8 (tag and verify). Without the tag:
+- No wheels are built or published to PyPI
+- No GitHub Release or Zenodo DOI is created
+- The CHANGELOG references a version that does not exist on PyPI
+
+**Recovery:** Complete the release by tagging the merge commit on master:
 
 ```bash
-# Find last release
-git describe --tags --abbrev=0
-
-# Commits since
-git log $(git describe --tags --abbrev=0)..HEAD --format="%h %s" --no-merges
+git fetch origin master
+MERGE_SHA=$(gh pr list --state merged --search "Release YYYY.M.D" \
+  --json mergeCommit --jq '.[0].mergeCommit.oid')
+git tag -a "YYYY.M.D" "$MERGE_SHA" -m "Release YYYY.M.D"
+git push origin "YYYY.M.D"
 ```
 
-Categorise as (see `log-changes` skill for details):
-- `[feature]`: New functionality
-- `[bugfix]`: Bug fixes (link GitHub issue)
-- `[change]`: User-facing changes
-- `[maintenance]`: Internal/dev tooling
-- `[doc]`: Documentation
+### Starting a new release when a previous one is incomplete
 
-## Step 4: Update Documentation
-
-### 4a. Update CHANGELOG.md
-
-Add entry under today's date with categorised changes.
-
-### 4b. Create Version History Page
+Before starting a new release, check for incomplete releases:
 
 ```bash
-VERSION="YYYY.M.D"
-# Create version history page
-cat > docs/source/version-history/v${VERSION}.rst << 'EOF'
-.. _new_latest:
-
-Version YYYY.M.D
-================
-
-.. include:: ../../CHANGELOG.md
-   :parser: myst_parser.sphinx_
-   :start-after: ## YYYY.M.D
-   :end-before: ##
-EOF
+# Compare merged release PRs to existing tags
+gh pr list --state merged --search "Release" --limit 5 --json title,mergeCommit
+git tag -l "[0-9]*.[0-9]*.[0-9]*" --sort=-v:refname | head -5
 ```
 
-Update `docs/source/version-history/version-history.rst`:
-- Add new page to toctree
-- Remove `new_latest` label from previous version file
+If a previous release PR was merged but never tagged, complete that release first. Starting a new release on top of an incomplete one creates confusion in the CHANGELOG and version history.
 
-## Step 5: Version
-
-Format: `YYYY.M.D` (date-based, single digits for month/day)
+## Key Commands
 
 ```bash
+# === Run from any worktree ===
+
+# 1. Select dev tag
+git fetch --tags origin
+DEV_TAG="2026.1.25.dev"
+gh run list --commit $(git rev-parse $DEV_TAG) --json conclusion,name
+
+# 2. Create release branch
 VERSION="$(date +%Y.%-m.%-d)"
-# Check availability
-git tag -l "$VERSION"
-```
+git fetch origin master
+git checkout -b release/$VERSION origin/master
 
-Creates dual versions:
-- `2025.11.27` (standard, NumPy ≥2.0)
-- `2025.11.27rc1` (UMEP, NumPy 1.x)
-
-## Step 6: Commit & Tag
-
-```bash
-VERSION="2025.11.27"
-TITLE="Feature Name"
-
-# Commit documentation updates
-git add CHANGELOG.md docs/source/version-history/
+# 3. Update docs (use :pr:`XXX` in RST, #XXX in Markdown)
+# - CHANGELOG.md
+# - docs/source/version-history/v$VERSION.rst
+# - .github/releases/$VERSION.md (GitHub Release notes)
+git add CHANGELOG.md docs/source/version-history/ .github/releases/
 git commit -m "docs: update changelog and version history for $VERSION"
-git push
 
-# Create annotated tag
-git tag -a "$VERSION" -m "$TITLE
+# 4. Submit PR
+git push -u origin release/$VERSION
+gh pr create --title "Release $VERSION" --body "Release documentation for $VERSION"
 
-Key changes:
-- Feature 1
-- Feature 2
+# 5. After PR merges, tag the merge commit
+git fetch origin master
+gh pr list --state merged --search "Release $VERSION" --json mergeCommit --jq '.[0].mergeCommit.oid'
+# Use the merge commit SHA to tag
+git tag -a "$VERSION" <merge-commit-sha> -m "Release title"
+git push origin "$VERSION"
 
-Full changelog: https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md"
-
-git push origin $VERSION
+# Abort (if needed)
+git tag -d "$VERSION" && git push origin ":refs/tags/$VERSION"
 ```
 
-## Step 7: Post-Release Verification
+## Dual-Build System
 
-Monitor (~20 min):
-```
-[ ] GitHub Actions: https://github.com/UMEP-dev/SUEWS/actions
-    - build_wheels (standard)
-    - build_umep (QGIS)
-    - publish (PyPI)
+Each tag triggers two PyPI uploads via GitHub Actions:
+- `YYYY.M.D` - Standard build (NumPy ≥2.0, modern environments)
+- `YYYY.M.Drc1` - UMEP build (NumPy 1.x compatibility for QGIS plugin)
 
-[ ] PyPI: https://pypi.org/project/supy/
-    - supy YYYY.M.D
-    - supy YYYY.M.Drc1
-
-[ ] Zenodo DOI (~10 min): https://zenodo.org/me/uploads
-
-[ ] Test install: pip install --upgrade supy
-```
-
-24h monitoring:
-```
-[ ] Watch GitHub issues for problems
-```
-
-Announce (optional):
-```
-[ ] https://github.com/UMEP-dev/SUEWS/discussions
-```
-
----
-
-## Abort Release
-
-If needed before CI completes:
-```bash
-git tag -d $VERSION
-git push origin :refs/tags/$VERSION
-```
-
-## RC Release (Major Changes)
-
-For release candidates:
-```bash
-git tag -a "${VERSION}rc1" -m "Release candidate 1 for $VERSION"
-git push origin "${VERSION}rc1"
-```
+The `rc1` variant is created automatically by the `build_umep` workflow - no manual RC tagging required for standard releases.
 
 ## References
 
-- Full guide: `dev-ref/RELEASE_MANUAL.md`
-- Hotfix process: `dev-ref/RELEASE_MANUAL.md#appendix-f-hotfix-and-patch-release-process`
-- Issue template: `.github/ISSUE_TEMPLATE/release-checklist.md`
+- `references/release-steps.md` - Full step-by-step guide
+- `references/assessment-criteria.md` - Decision scoring
+- Repo: `dev-ref/RELEASE_MANUAL.md` - Complete manual (in repository root)

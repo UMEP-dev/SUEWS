@@ -1956,6 +1956,30 @@ def test_stebbsmethod0_nullifies_building_archetype_values():
     assert out["BuildingType"]["value"] is None
     assert out["stebbs_Height"]["value"] is None
 
+def test_stebbsmethod0_nullifies_ten_minute_profiles():
+    heating_schedule = {
+        "working_day": {str(i): 18.0 for i in range(1, 145)},
+        "holiday": {str(i): 18.0 for i in range(1, 145)},
+    }
+    yaml_input = {
+        "model": {"physics": {"stebbsmethod": {"value": 0}}},
+        "sites": [
+            {
+                "properties": {
+                    "stebbs": {
+                        "HeatingSetpointTemperature": deepcopy(heating_schedule)
+                        }
+                    }
+                }
+        ],
+    }
+    result = precheck_model_option_rules(deepcopy(yaml_input))
+
+    profiles = result["sites"][0]["properties"]["stebbs"][
+        "HeatingSetpointTemperature"
+    ]
+    for schedule in profiles.values():
+        assert all(value is None for value in schedule.values())
 
 def _build_site_with_co2(co2_block):
     return {"properties": {"anthropogenic_emissions": {"co2": co2_block}}}

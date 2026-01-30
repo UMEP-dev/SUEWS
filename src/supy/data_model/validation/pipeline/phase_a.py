@@ -4,6 +4,8 @@ import subprocess
 import pandas as pd
 from pathlib import Path
 
+from .report_writer import REPORT_WRITER
+
 RENAMED_PARAMS = {
     "cp": "rho_cp",
     "diagmethod": "rslmethod",
@@ -1618,13 +1620,19 @@ def annotate_missing_parameters(
 
     # Write output files
     if uptodate_file:
-        with open(uptodate_file, "w") as f:
+        with open(uptodate_file, "w", encoding="utf-8", newline="\n") as f:
             f.write(uptodate_content)
         # print(f"\n Clean YAML written to: {uptodate_file}")
 
     if report_file:
-        with open(report_file, "w") as f:
-            f.write(report_content)
+        import sys
+        debug = os.environ.get("SUEWS_DEBUG", "").lower() in ("1", "true", "yes")
+        if debug:
+            print(f"[DEBUG] Phase A: Writing report ({len(report_content)} chars) to {report_file}", file=sys.stderr)
+        REPORT_WRITER.write(report_file, report_content)
+        if debug:
+            actual_size = os.path.getsize(report_file) if os.path.exists(report_file) else -1
+            print(f"[DEBUG] Phase A: After write, file size: {actual_size} bytes", file=sys.stderr)
         # print(f" Analysis report written to: {report_file}")
 
 

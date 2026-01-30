@@ -393,7 +393,7 @@ def read_epw(
     >>> df_epw = sp.util.read_epw(
     ...     Path("weather.epw"),
     ...     target_height=50.0,
-    ...     z0m=0.5  # urban roughness length
+    ...     z0m=0.5,  # urban roughness length
     ... )
     """
     # Input validation
@@ -490,16 +490,16 @@ def gen_epw(
     Basic usage with pre-extracted data:
 
     >>> df_epw, meta, path = sp.util.gen_epw(
-    ...     df_output.loc[grid, 'SUEWS'],
-    ...     lat=51.5, lon=-0.1
+    ...     df_output.loc[grid, "SUEWS"], lat=51.5, lon=-0.1
     ... )
 
     With automatic resampling and grid extraction:
 
     >>> df_epw, meta, path = sp.util.gen_epw(
     ...     df_output,  # Full MultiIndex output from run_supy
-    ...     lat=51.5, lon=-0.1,
-    ...     freq='h'   # Resample to hourly
+    ...     lat=51.5,
+    ...     lon=-0.1,
+    ...     freq="h",  # Resample to hourly
     ... )
 
     See Also

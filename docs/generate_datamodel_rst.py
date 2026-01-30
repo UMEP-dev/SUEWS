@@ -280,6 +280,23 @@ class RSTGenerator:
 
         # Add options if present
         if field_doc.get("options"):
+            # Check if any options are experimental
+            has_experimental = any(
+                "(experimental)" in opt.get("description", "").lower()
+                for opt in field_doc["options"]
+            )
+
+            # Add admonition before options if experimental options exist
+            if has_experimental:
+                lines.append("   .. note::")
+                lines.append("")
+                lines.append(
+                    "      Some options below are marked as **experimental**. "
+                    "While scientifically validated, users should verify results "
+                    "for their specific applications."
+                )
+                lines.append("")
+
             lines.append("   :Options:")
             for opt in field_doc["options"]:
                 opt_str = self._format_option(opt)
@@ -357,8 +374,8 @@ class RSTGenerator:
         # Add index entries
         lines.extend(self._add_field_index_entries(field_name, model_name))
 
-        # Use yaml:option directive for YAML configuration options
-        lines.append(f".. yaml:option:: {field_name}")
+        # Use input:option directive for YAML configuration options
+        lines.append(f".. input:option:: {field_name}")
         lines.append("")
 
         # Add description
@@ -1110,7 +1127,7 @@ class RSTGenerator:
             field_name = field["name"]
             if field_name == "ref":
                 continue
-            lines.append(f"{dropdown_indent}- :yaml:option:`{field_name}`")
+            lines.append(f"{dropdown_indent}- :input:option:`{field_name}`")
         lines.append("")
 
         return lines
@@ -1233,7 +1250,7 @@ class RSTGenerator:
             field_name = field["name"]
             if field_name == "ref":
                 continue
-            lines.append(f"{dropdown_indent}- :yaml:option:`{field_name}`")
+            lines.append(f"{dropdown_indent}- :input:option:`{field_name}`")
         lines.append("")
 
         return lines
@@ -1328,13 +1345,13 @@ class RSTGenerator:
                 field_name = (
                     field.get("name", field) if isinstance(field, dict) else field
                 )
-                lines.append(f"{indent}   * :yaml:option:`{field_name}`")
+                lines.append(f"{indent}   * :input:option:`{field_name}`")
         else:
             for field in filtered_fields:
                 field_name = (
                     field.get("name", field) if isinstance(field, dict) else field
                 )
-                lines.append(f"{indent}* :yaml:option:`{field_name}`")
+                lines.append(f"{indent}* :input:option:`{field_name}`")
 
         return lines
 
@@ -1381,13 +1398,13 @@ class RSTGenerator:
                 field_name = field["name"]
                 if field_name == "ref":
                     continue
-                lines.append(f"{indent}         * :yaml:option:`{field_name}`")
+                lines.append(f"{indent}         * :input:option:`{field_name}`")
         else:
             for field in fields:
                 field_name = field["name"]
                 if field_name == "ref":
                     continue
-                lines.append(f"{indent}      * :yaml:option:`{field_name}`")
+                lines.append(f"{indent}      * :input:option:`{field_name}`")
 
         lines.append("")
         return lines
@@ -1620,13 +1637,13 @@ class RSTGenerator:
                                 for field in tab_content:
                                     if field["name"] != "ref":
                                         lines.append(
-                                            f"{indent}         * :yaml:option:`{field['name']}`"
+                                            f"{indent}         * :input:option:`{field['name']}`"
                                         )
                             else:
                                 for field in tab_content:
                                     if field["name"] != "ref":
                                         lines.append(
-                                            f"{indent}      * :yaml:option:`{field['name']}`"
+                                            f"{indent}      * :input:option:`{field['name']}`"
                                         )
                             lines.append("")
                         else:
@@ -1686,13 +1703,13 @@ class RSTGenerator:
                                             for field in child_fields:
                                                 if field.get("name") != "ref":
                                                     lines.append(
-                                                        f"{indent}{next_level_indent}   - :yaml:option:`{field['name']}`"
+                                                        f"{indent}{next_level_indent}   - :input:option:`{field['name']}`"
                                                     )
                                         else:
                                             for field in child_fields:
                                                 if field.get("name") != "ref":
                                                     lines.append(
-                                                        f"{indent}{next_level_indent}* :yaml:option:`{field['name']}`"
+                                                        f"{indent}{next_level_indent}* :input:option:`{field['name']}`"
                                                     )
                                         lines.append("")
 
@@ -1735,14 +1752,14 @@ class RSTGenerator:
                                             for field in nested_fields:
                                                 if field.get("name") != "ref":
                                                     lines.append(
-                                                        f"{indent}{next_level_indent}     - :yaml:option:`{field['name']}`"
+                                                        f"{indent}{next_level_indent}     - :input:option:`{field['name']}`"
                                                     )
                                             lines.append("")
                                         elif nested_field_count > 0:
                                             for field in nested_fields:
                                                 if field.get("name") != "ref":
                                                     lines.append(
-                                                        f"{indent}{next_level_indent}  - :yaml:option:`{field['name']}`"
+                                                        f"{indent}{next_level_indent}  - :input:option:`{field['name']}`"
                                                     )
                                             lines.append("")
 

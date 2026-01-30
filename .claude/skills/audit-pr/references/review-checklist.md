@@ -140,6 +140,35 @@ Detailed checklist for comprehensive PR review.
 
 ---
 
+## Refactoring Review
+
+When a PR is a refactoring (no intended behavioural change), apply these additional checks:
+
+### Behavioural Preservation
+
+- [ ] Test suite results match pre-refactoring baseline (same pass count, no new failures)
+- [ ] No change in public API signatures (function names, parameters, return types)
+- [ ] No change in output values for identical inputs (compare numerical results)
+- [ ] No new dependencies introduced
+- [ ] No change in error handling behaviour (same exceptions for same invalid inputs)
+
+### Structural Assessment
+
+- [ ] File renames tracked correctly (git detects as rename, not delete+create)
+- [ ] Import paths updated consistently across codebase
+- [ ] If files renamed: `meson.build` updated, documentation cross-references updated
+- [ ] No dead code left behind (unused imports, unreachable branches)
+
+### Red Flags
+
+Flag for closer review if ANY of:
+- Test count changed (tests added is OK, tests removed is a red flag)
+- Numerical output differs even slightly (may indicate unintended logic change)
+- New `# TODO` or `# FIXME` comments introduced
+- Functions moved between modules (may break external imports)
+
+---
+
 ## Merge Criteria
 
 PR can be merged when ALL of:

@@ -38,6 +38,9 @@ MODULE module_phys_narp
    !==============================================================================================
    ! USE module_ctrl_const_allocate
    USE module_util_time, ONLY: day2month, dectime_to_timevec
+   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
+   USE module_ctrl_error, ONLY: ErrorHint
+   USE module_ctrl_type, ONLY: SUEWS_STATE
 
    IMPLICIT NONE
 
@@ -102,18 +105,24 @@ CONTAINS
             NetRadiationMethod_use = NetRadiationMethod
             !If bad NetRadiationMethod value
             IF (MOD(NetRadiationMethod, 10) > 3 .OR. AlbedoChoice == -9) THEN
+#ifdef wrf
                WRITE (*, *) 'NetRadiationMethod=', NetRadiationMethod_use
                WRITE (*, *) 'Value not usable'
-               STOP
+#endif
+               CALL set_supy_error(100, 'NARP: NetRadiationMethod value not usable')
+               RETURN
             END IF
 
          END IF
 
          !If bad NetRadiationMethod value
          IF (MOD(NetRadiationMethod, 10) > 3 .OR. AlbedoChoice == -9) THEN
+#ifdef wrf
             WRITE (*, *) 'NetRadiationMethod=', NetRadiationMethod_use
             WRITE (*, *) 'Value not usable'
-            STOP
+#endif
+            CALL set_supy_error(100, 'NARP: NetRadiationMethod value not usable')
+            RETURN
          END IF
       END IF
 
@@ -1504,26 +1513,6 @@ CONTAINS
       IF (FWC > 1.) FWC = 1.
       IF (FWC < 0.) FWC = 0.
    END FUNCTION WC_fraction
-   !===============================================================================
-   !FUNCTION solar_zenith(lat,lng,timezone,dectime) RESULT(zenith)
-   !  !Stull, 1989
-   !  !returns zenith in radians
-   !  !lat, lng in RADS
-   !  REAL(KIND(1d0)) ::lat,lng,timezone,dectime,zenith, eqtime
-   !  REAL(KIND(1d0)) ::ha, decl,tst, time_offset,gamma
-   !
-   !  gamma=2.*3.141592654/365.25463*dectime
-   !  eqtime=229.18*(7.5e-5+1.868e-3*COS(gamma)-0.032077*SIN(gamma)&
-   !       -0.014615*COS(2.*gamma)-0.040849*SIN(2.*gamma))
-   !  decl=6.918e-3-0.399912*COS(gamma)+0.070257*SIN(gamma)&
-   !       -0.006758*COS(2.*gamma)+9.07e-4*SIN(2.*gamma)-2.697e-3*COS(3.*gamma)&
-   !       +1.48e-3*SIN(3.*gamma)
-   !  time_offset=eqtime-4.*lng*RAD2DEG-60.*timezone
-   !  tst=(dectime-FLOOR(dectime))*1440.+time_offset
-   !  ha=(tst/4.)-180.
-   !  ha=ha*DEG2RAD
-   !  zenith=ACOS(SIN(lat)*SIN(decl)+COS(lat)*COS(decl)*COS(ha))
-   !END FUNCTION solar_zenith
 
    !===============================================================================
    FUNCTION ISURFACE(doy, zenith) RESULT(Isurf)
@@ -1564,7 +1553,7 @@ CONTAINS
    END FUNCTION solar_ESdist
 
    !===============================================================================
-   FUNCTION SmithLambda(lat) RESULT(G)
+   FUNCTION SmithLambda(lat, modState) RESULT(G)
       USE FileName
       USE defaultnotUsed
       !read kriged data based on Smith 1966 (JAM)
@@ -1573,6 +1562,7 @@ CONTAINS
       ! Journal of Applied Meteorology 5.5 (1966): 726-727.
       INTEGER :: lat, ios, ilat
       REAL(KIND(1D0)), DIMENSION(365) :: G
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       !open(99,file="Smith1966.grd",access="direct",action="read",recl=365*4,iostat=ios)
       !read(99,rec=lat+1,iostat=ios) G
@@ -1582,7 +1572,8 @@ CONTAINS
       END DO
       READ (99, *, iostat=ios) ilat, G
       IF (ios /= 0) THEN
-         CALL ErrorHint(11, 'reading Smith1966.grd (ios).', notUsed, notUsed, ios)
+         CALL ErrorHint(11, 'reading Smith1966.grd (ios).', notUsed, notUsed, ios, modState)
+         IF (supy_error_flag) RETURN
       END IF
       CLOSE (99)
    END FUNCTION SmithLambda

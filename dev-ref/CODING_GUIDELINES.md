@@ -471,8 +471,6 @@ SUEWS uses [Ruff](https://docs.astral.sh/ruff/) for Python formatting and lintin
 **Installation:**
 ```bash
 pip install ruff
-# or
-mamba install -c conda-forge ruff
 ```
 
 **Usage:**
@@ -504,8 +502,6 @@ SUEWS uses [fprettify](https://github.com/pseewald/fprettify) for Fortran format
 **Installation:**
 ```bash
 pip install fprettify
-# or
-mamba install -c conda-forge fprettify
 ```
 
 **Usage:**

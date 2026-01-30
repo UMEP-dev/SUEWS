@@ -76,7 +76,7 @@ Options related to disaggregation of input data
 	:Description:
 		Specifies upper limit for each intensity bin to apply MultRainAmongN.
 	:Configuration:
-		Any intensities above the highest specified intensity will use the last MultRainAmongN value and write a warning to `warnings.txt`.
+		Any intensities above the highest specified intensity will use the last MultRainAmongN value and emit a warning.
 		Use with RainDisaggMethod = 102.
 		e.g. MultRainAmongNUpperI(1) = 0.5, MultRainAmongNUpperI(2) = 2.0, MultRainAmongNUpperI(3) = 50.0
 

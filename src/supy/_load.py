@@ -17,8 +17,8 @@ from . import _supy_driver as _sd
 from . import supy_driver as sd
 
 
-from ._env import logger_supy, trv_supy_module
-from ._misc import path_insensitive
+from ._env import logger_supy, trv_supy_module, ISSUES_URL
+from ._misc import path_insensitive 
 
 # choose different second representation to accommodate different pandas versions
 # pandas version <1.5
@@ -247,7 +247,13 @@ def gen_suews_arg_info_df(docstring):
 # note: infer data types for variables to avoid type conversion
 df_info_suews_cal_multitsteps = gen_suews_arg_info_df(
     _sd.f90wrap_suews_driver__suews_cal_multitsteps.__doc__
-).infer_objects(copy=False)
+)
+try:
+    df_info_suews_cal_multitsteps = df_info_suews_cal_multitsteps.infer_objects()
+except TypeError:
+    df_info_suews_cal_multitsteps = df_info_suews_cal_multitsteps.infer_objects(
+        copy=False
+    )
 
 df_var_info = df_info_suews_cal_multitsteps.set_index("name")
 
@@ -424,34 +430,41 @@ def load_SUEWS_SurfaceChar(path_input):
     # dict_x_grid = {}
     # modify some variables to be compliant with SUEWS requirement
     for xgrid in df_gridSurfaceChar.index:
-        # transpoe snowprof:
-        df_gridSurfaceChar.at[xgrid, "snowprof_24hr"] = np.array(
-            df_gridSurfaceChar.at[xgrid, "snowprof_24hr"], order="F"
-        ).T
+        # transpose snowprof (use .copy(order='F') for Pandas 3.0+ CoW compatibility
+        # while preserving Fortran memory layout for f2py):
+        df_gridSurfaceChar.at[xgrid, "snowprof_24hr"] = np.asfortranarray(
+            np.array(df_gridSurfaceChar.at[xgrid, "snowprof_24hr"], order="F").T
+        )
 
-        # transpoe laipower:
-        df_gridSurfaceChar.at[xgrid, "laipower"] = np.array(
-            df_gridSurfaceChar.at[xgrid, "laipower"], order="F"
-        ).T
+        # transpose laipower (use asfortranarray for Pandas 3.0+ CoW compatibility
+        # while preserving Fortran memory layout for f2py):
+        df_gridSurfaceChar.at[xgrid, "laipower"] = np.asfortranarray(
+            np.array(df_gridSurfaceChar.at[xgrid, "laipower"], order="F").T
+        )
 
         # select non-zero values for waterdist of water surface:
-        x = np.array(df_gridSurfaceChar.at[xgrid, "waterdist"][-1])
-        df_gridSurfaceChar.at[xgrid, "waterdist"][-1] = x[np.nonzero(x)]
+        # Copy only the container (shallow copy) to avoid modifying read-only view,
+        # then copy+modify only the last element (Pandas 3.0+ CoW compatibility)
+        waterdist = list(df_gridSurfaceChar.at[xgrid, "waterdist"])
+        x = np.array(waterdist[-1], copy=True)
+        waterdist[-1] = x[np.nonzero(x)]
+        df_gridSurfaceChar.at[xgrid, "waterdist"] = waterdist
 
-        # surf order as F:
-        df_gridSurfaceChar.at[xgrid, "storedrainprm"] = np.array(
-            df_gridSurfaceChar.at[xgrid, "storedrainprm"], order="F"
+        # surf order as F (use asfortranarray for Pandas 3.0+ CoW compatibility
+        # while preserving Fortran memory layout):
+        df_gridSurfaceChar.at[xgrid, "storedrainprm"] = np.asfortranarray(
+            df_gridSurfaceChar.at[xgrid, "storedrainprm"]
         )
 
-        # convert to np.array
+        # convert to np.array (use .copy() for Pandas 3.0+ CoW compatibility):
         df_gridSurfaceChar.at[xgrid, "alb"] = np.array(
             df_gridSurfaceChar.at[xgrid, "alb"]
-        )
+        ).copy()
 
         # convert unit of `surfacearea` from ha to m^2 for table-based inputs
         df_gridSurfaceChar.at[xgrid, "surfacearea"] = np.array(
             df_gridSurfaceChar.at[xgrid, "surfacearea"] * 10000.0
-        )
+        ).copy()
 
         # print type(df_gridSurfaceChar.loc[xgrid, 'alb'])
 
@@ -459,7 +472,8 @@ def load_SUEWS_SurfaceChar(path_input):
         # dict_x = df_gridSurfaceChar.loc[xgrid, :].to_dict()
         # print 'len(dict_x)',len(dict_x['laipower'])
 
-        # profiles:
+        # profiles (use asfortranarray for Pandas 3.0+ CoW compatibility
+        # while preserving Fortran memory layout for f2py):
         list_varTstep = [
             "ahprof_24hr",
             "popprof_24hr",
@@ -467,10 +481,14 @@ def load_SUEWS_SurfaceChar(path_input):
             "humactivity_24hr",
             "wuprofm_24hr",
             "wuprofa_24hr",
+            "heatingsetpointtemperature_24hr",
+            "coolingsetpointtemperature_24hr",
+            "occupantsprofile_24hr",
+            "applianceprofile_24hr",
         ]
         df_gridSurfaceChar.loc[xgrid, list_varTstep] = df_gridSurfaceChar.loc[
             xgrid, list_varTstep
-        ].map(np.transpose)
+        ].map(lambda x: np.asfortranarray(np.transpose(x)))
 
     # convert to DataFrame
     # df_x_grid = pd.DataFrame.from_dict(dict_x_grid).T
@@ -1315,7 +1333,8 @@ def load_SUEWS_SurfaceChar_df(path_input):
     }
 
     # correct the unit for 'surfacearea' from ha to m^2 for table-based inputs
-    dict_gridSurfaceChar["surfacearea"] *= 1e4
+    # Create new array to avoid modifying read-only view (Pandas 3.0+ CoW)
+    dict_gridSurfaceChar["surfacearea"] = dict_gridSurfaceChar["surfacearea"] * 1e4
 
     for var, dim in dict_var_ndim.items():
         # print(var)
@@ -1590,7 +1609,7 @@ def load_SUEWS_InitialCond_df(path_runcontrol):
                 val,
                 type(val),
                 "is not included: this should not happen!",
-                "please report to the developer: https://github.com/UMEP-dev/SuPy/issues/new",
+                f"please report to the developer: {ISSUES_URL}",
             )
 
     # set values according to `list_var_dim_from_dict_ModConfig`
@@ -1876,6 +1895,8 @@ def add_state_init_df(df_init):
         ("tstep_prev", 0, "tstep"),
         ("tair24hr", int(24 * 3600 / df_init["tstep"].values[0, 0]), 273.15),
         ("tair_av", 0, 273.15),
+        ("qn_surfs", 7, 0.0),
+        ("dqndt_surf", 7, 0.0),
     ]
 
     # set values according to `list_var_dim`
@@ -2148,10 +2169,7 @@ def load_InitialCond_grid_df(path_runcontrol, force_reload=True):
     # else:
     # print('localclimatemethod is not in df_init')
 
-    # normalise surface fractions to prevent non-1 sums
-    df_sfr_surf = df_init.sfr_surf.copy()
-    df_sfr_surf = df_sfr_surf.div(df_sfr_surf.sum(axis=1), axis=0)
-    df_init.sfr_surf = df_sfr_surf
+
     return df_init
 
 

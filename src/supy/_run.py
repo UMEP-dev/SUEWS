@@ -1,23 +1,19 @@
-from ast import literal_eval
-from shutil import rmtree
-import tempfile
 import copy
 import multiprocessing
 import os
 import sys
+import tempfile
 import time
-
-# import logging
 import traceback
 from ast import literal_eval
 from pathlib import Path
+from shutil import rmtree
 from typing import Tuple
-import pandas
 
 import numpy as np
+import pandas
 import pandas as pd
 from .supy_driver import suews_driver as sd
-import copy
 
 # these are used in debug mode to save extra outputs
 from .supy_driver import module_ctrl_type as sd_dts
@@ -40,90 +36,186 @@ from ._post import (
 )
 from ._version import __version__ as sp_version
 
-from ._env import logger_supy
+from ._env import logger_supy, ISSUES_URL
+from .util._forcing import convert_observed_soil_moisture
 
 from .util._debug import save_zip_debug
 
 
 ##############################################################################
-# main calculation
-# 1. calculation code for one time step
-# 2. compact wrapper for running a whole simulation
+# Error handling for Fortran kernel errors
+# These replace STOP statements that would otherwise terminate Python
 
 
-# 1. calculation code for one time step
+class SUEWSKernelError(RuntimeError):
+    """Exception raised when SUEWS Fortran kernel encounters a fatal error.
+
+    This exception is raised when the Fortran code sets an error flag instead
+    of calling STOP, allowing Python to handle the error gracefully.
+
+    Attributes
+    ----------
+    code : int
+        Error code from the Fortran kernel (corresponds to ErrorHint codes).
+    message : str
+        Error message describing the problem.
+    """
+
+    def __init__(self, code: int, message: str):
+        self.code = code
+        self.message = message
+        super().__init__(f"SUEWS Error {code}: {message}")
 
 
-# test for performance
-# dict_var_inout = {k: None for k in set_var_inout}
+def _check_supy_error_from_state(state_block, timestep_idx: int = -1):
+    """Check error state from SUEWS_STATE_BLOCK object.
 
+    This is the preferred method for checking errors when state objects
+    are available (debug mode). It reads from per-call state rather than
+    shared module-level variables.
 
-# high-level wrapper: suews_cal_tstep
-def suews_cal_tstep(dict_state_start, dict_met_forcing_tstep):
-    # save_state=False):
-    # use single dict as input for suews_cal_main
-    dict_input = copy.deepcopy(dict_state_start)
-    dict_input.update(dict_met_forcing_tstep)
+    Parameters
+    ----------
+    state_block : SUEWS_STATE_BLOCK
+        The state block object containing error state from the kernel call.
+    timestep_idx : int, optional
+        Index of the timestep to check. Defaults to -1 (last timestep).
 
-    for var in list_var_input:
-        if var in dict_input:
-            pass
-        else:
-            print(f"{var} is not in dict_input")
-            print("\n")
+    Raises
+    ------
+    SUEWSKernelError
+        If the state indicates an error occurred.
+    """
+    if state_block is None:
+        return
 
-    dict_input = {k: dict_input[k] for k in list_var_input}
-
-    # main calculation:
     try:
-        # import pickle
-        # pickle.dump(dict_input, open("dict_input.pkl", "wb"))
-        # print("dict_input.pkl saved")
-        res_suews_tstep = sd.suews_cal_main(**dict_input)
-    except Exception as ex:
-        # show trace info
-        logger_supy.exception(traceback.format_exc())
-        # show SUEWS fatal error details produced by SUEWS kernel
-        with open("problems.txt", "r") as f:
-            logger_supy.critical(f.read())
-        # clean slate
-        # os.remove('problems.txt')
-        # sys.exit()
-        logger_supy.critical("SUEWS kernel error")
-    else:
-        # update state variables
-        # if save_state:  # deep copy states results
-        dict_state_end = copy.deepcopy(dict_state_start)
-        dict_state_end.update({
-            var: copy.copy(dict_input[var]) for var in list_var_inout
-        })
+        # Convert negative index to positive (f90wrap doesn't support negative indexing)
+        block_len = len(state_block.block)
+        if block_len == 0:
+            return  # No states to check
 
-        # update timestep info
-        dict_state_end["tstep_prev"] = dict_state_end["tstep"]
-        dict_state_end["dt_since_start"] += dict_state_end["tstep"]
+        if timestep_idx < 0:
+            timestep_idx = block_len + timestep_idx
 
-        # pack output
-        list_var = [
-            var
-            for var in dir(res_suews_tstep)
-            if not var.startswith("_") and not callable(getattr(res_suews_tstep, var))
-        ]
-        list_arr = [
-            (
-                getattr(res_suews_tstep, var)
-                if "datetime" in var
-                else getattr(res_suews_tstep, var)[5:]
-            )
-            for var in list_var
-        ]
-        dict_output = dict(zip(list_var, list_arr))
-        # dict_output = {k: v for k, v in zip(list_var_output, res_suews_tstep)}
+        # Access the specified state in the block
+        state = state_block.block[timestep_idx]
+        error_state = state.errorstate
 
-        return dict_state_end, dict_output
+        if error_state.flag:
+            code = int(error_state.code)
+            message = str(error_state.message).strip()
+            raise SUEWSKernelError(code, message)
+    except SUEWSKernelError:
+        # Re-raise our own error type
+        raise
+    except (AttributeError, IndexError, RuntimeError):
+        # State object structure not as expected - fall back silently
+        # RuntimeError can occur from f90wrap for unallocated arrays
+        pass
 
 
-# high-level wrapper: suews_cal_tstep
-# def suews_cal_tstep_multi(df_state_start_grid, df_met_forcing_block):
+def _reset_supy_error():
+    """Reset error state before calling Fortran kernel."""
+    from . import _supy_driver as _sd
+
+    _sd.f90wrap_module_ctrl_error_state__reset_supy_error()
+
+
+def _format_timer(timer):
+    """Format a SUEWS_TIMER object for logging output.
+
+    Parameters
+    ----------
+    timer : SUEWS_TIMER
+        Timer object with iy, id, it, imin fields.
+
+    Returns
+    -------
+    str
+        Formatted timestamp string.
+    """
+    try:
+        iy = int(timer.iy)
+        id_ = int(timer.id)
+        it = int(timer.it)
+        imin = int(timer.imin)
+        if iy == 0 and id_ == 0:
+            return "no timestamp"
+        return f"{iy:04d}-{id_:03d} {it:02d}:{imin:02d}"
+    except (AttributeError, ValueError):
+        return "unknown"
+
+
+def _log_warnings_from_state(state_block):
+    """Log warnings from state-based error log.
+
+    This reads from the per-call error_state.log array which contains
+    the full warning history for subroutines that pass modState.
+
+    Parameters
+    ----------
+    state_block : SUEWS_STATE_BLOCK
+        The state block object containing error state from the kernel call.
+    """
+    if state_block is None:
+        return
+
+    try:
+        for state in state_block.block:
+            errstate = state.errorstate
+            count = int(errstate.count)
+            for i in range(count):
+                entry = errstate.log[i]
+                if not entry.is_fatal:
+                    logger_supy.warning(
+                        "[%s] %s: %s",
+                        _format_timer(entry.timer),
+                        str(entry.location).strip(),
+                        str(entry.message).strip(),
+                    )
+    except (AttributeError, IndexError, RuntimeError):
+        # State structure not as expected - silently skip
+        pass
+
+
+def _log_supy_warnings():
+    """Log module-level warnings (fallback for subroutines without state).
+
+    This reads from shared module-level variables which capture warnings
+    from subroutines that don't have access to modState.
+    """
+    from . import _supy_driver as _sd
+
+    try:
+        count = int(_sd.f90wrap_module_ctrl_error_state__get__supy_warning_count())
+        if count > 0:
+            message = str(
+                _sd.f90wrap_module_ctrl_error_state__get__supy_last_warning_message()
+            ).strip()
+            logger_supy.warning("SUEWS kernel warning (count %d): %s", count, message)
+    except (AttributeError, RuntimeError):
+        # Module-level variable not available - silently skip
+        pass
+
+
+def _reset_supy_warnings():
+    """Reset module-level warning state before calling Fortran kernel."""
+    from . import _supy_driver as _sd
+
+    try:
+        _sd.f90wrap_module_ctrl_error_state__set__supy_warning_count(0)
+        _sd.f90wrap_module_ctrl_error_state__set__supy_last_warning_message("")
+    except (AttributeError, RuntimeError):
+        pass
+
+
+##############################################################################
+
+# Note: suews_cal_tstep_multi uses state-based error handling which is thread-safe.
+# Each call has its own block_mod_state for error state isolation.
+
+
 def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
     from ._post import pack_df_output_block
 
@@ -187,37 +279,49 @@ def suews_cal_tstep_multi(dict_state_start, df_forcing_block, debug_mode=False):
         #     dict_input_loaded = pickle.load(f)
         # ```
     # main calculation:
+    # No kernel lock needed - state-based error handling is thread-safe
+    # Each call has its own block_mod_state for error capture
     try:
-        if debug_mode:
-            # initialise the debug objects
-            # they can only be used as input arguments
-            # but not explicitly returned as output arguments
-            # so we need to pass them as keyword arguments to the SUEWS kernel
-            # and then they will be updated by the SUEWS kernel and used later
-            state_debug = sd_dts.SUEWS_DEBUG()
-            block_mod_state = sd_dts.SUEWS_STATE_BLOCK()
-        else:
-            state_debug = None
-            block_mod_state = None
+        # Reset module-level error and warning state before kernel call
+        # GH#1103: Must reset error flag to prevent stale errors from previous runs
+        _reset_supy_error()
+        _reset_supy_warnings()
 
-        # note the extra arguments are passed to the SUEWS kernel as keyword arguments in the debug mode
+        # Create and initialize block_mod_state for state-based error handling
+        # NOTE: Must initialize from Python before kernel call, as f90wrap cannot
+        # reflect Fortran ALLOCATABLE component changes back to Python
+        block_mod_state = sd_dts.SUEWS_STATE_BLOCK()
+        nlayer = int(dict_input["nlayer"])
+        ndepth = 5  # Constant from suews_ctrl_const.f95
+        len_sim = int(dict_input["len_sim"])
+        block_mod_state.init(nlayer, ndepth, len_sim)
+
+        # state_debug is only created in debug mode (for detailed diagnostics)
+        state_debug = sd_dts.SUEWS_DEBUG() if debug_mode else None
+
         res_suews_tstep_multi = sd.suews_cal_multitsteps(
             **dict_input,
             state_debug=state_debug,
             block_mod_state=block_mod_state,
         )
+        # Check for errors using state-based approach (thread-safe)
+        _check_supy_error_from_state(block_mod_state)
 
+        # Log warnings from both state-based (full log) and module-level (fallback)
+        _log_warnings_from_state(block_mod_state)
+        _log_supy_warnings()
+
+    except SUEWSKernelError as e:
+        # Fortran kernel set error flag instead of STOP
+        logger_supy.critical("SUEWS kernel error: %s", e)
+        raise
     except Exception as ex:
-        # show trace info
-        # print(traceback.format_exc())
-        # show SUEWS fatal error details produced by SUEWS kernel
-        with open("problems.txt", "r") as f:
-            logger_supy.critical(f.read())
-        # clean slate
-        # os.remove('problems.txt')
-        # sys.exit()
-        # raise RuntimeError("Something bad happened") from exs
-        logger_supy.critical("SUEWS kernel error")
+        # Include simulation block context for debugging
+        len_sim = dict_input.get("len_sim", "unknown")
+        logger_supy.exception(
+            "Kernel call failed for simulation block of length %s", len_sim
+        )
+        raise RuntimeError(f"SUEWS kernel error (block length {len_sim}): {ex}") from ex
     else:
         # update state variables
         # use deep copy to avoid reference issue; also copy the initial dict_state_start
@@ -392,6 +496,9 @@ def run_supy_ser(
     ]
     df_forcing = df_forcing.loc[:, list_var_forcing]
 
+    # Convert observed soil moisture to deficits (if required)
+    df_forcing = convert_observed_soil_moisture(df_forcing, df_init)
+
     # grid list determined by initial states
     list_grid = df_init.index
 
@@ -411,10 +518,6 @@ def run_supy_ser(
         (tstep_init, grid): pack_grid_dict(ser_state_init)
         for grid, ser_state_init in df_init.iterrows()
     }
-
-    # remove 'problems.txt'
-    if Path("problems.txt").exists():
-        os.remove("problems.txt")
 
     # for multi-year run, reduce the whole df_forcing into {chunk_day}-day chunks for less memory consumption
     idx_start = df_forcing.index.min()
@@ -492,9 +595,10 @@ def run_supy_ser(
             raise RuntimeError(
                 f"\n====================\n"
                 f"SUEWS kernel error!\n"
-                f"A zip file for debugging has been saved as `{path_zip_debug.as_posix()}`:"
-                f"Please report this issue with the above zip file to the developer at"
-                f" https://github.com/UMEP-dev/SuPy/issues/new?assignees=&labels=&template=issue-report.md."
+                f"A zip file for debugging has been saved as:\n"
+                f"  {path_zip_debug.as_posix()}\n"
+                f"Please report this issue with the above zip file to the developer at:\n"
+                f"  {ISSUES_URL}?template=issue-report.md\n"
                 f"\n====================\n"
             )
 
@@ -708,7 +812,7 @@ def pack_var_old(ser_var):
     val = np.array(ser_var.values.reshape(dim), order="F")
     try:
         return val.astype(float)
-    except:
+    except (ValueError, TypeError):
         return val
 
 
@@ -752,12 +856,12 @@ def pack_var(ser_var: pd.Series) -> np.ndarray:
 
         try:
             return res.astype(float)
-        except:
+        except (ValueError, TypeError):
             return res.astype(str)
 
     except (ValueError, AttributeError) as e:
         # Log error and fall back to scalar handling
-        print(f"Error reshaping Series: {e}")
+        logger_supy.warning("Error reshaping Series: %s", e)
         return np.array([ser_var.iloc[0]])
 
 
@@ -794,8 +898,13 @@ def pack_grid_dict(ser_grid):
                     try:
                         dict_var[var] = pack_var(ser_grid[var])
                     except Exception as e2:
-                        # Only log actual errors, not expected metadata
-                        logger_supy.debug(f"Could not pack variable '{var}': {e}")
+                        # Log at WARNING level - dropped variables could cause kernel errors
+                        logger_supy.warning(
+                            "Could not pack variable '%s' (tried both methods): %s / %s",
+                            var,
+                            e,
+                            e2,
+                        )
         else:
             pass
     # dict_var = {

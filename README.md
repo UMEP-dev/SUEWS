@@ -34,11 +34,30 @@ For developers, see the [Developer Note](#developer-note) section below.
 
 #### Claude Code Integration
 
-SUEWS includes Claude Code configuration in the `.claude/` directory:
+SUEWS includes Claude Code configuration in the `.claude/` directory with development skills for environment setup, code linting, build verification, PR review, and release management.
 
+**Install Skills via Marketplace** (recommended for new contributors):
+```
+# In Claude Code, add the SUEWS skills marketplace
+/plugin marketplace add UMEP-dev/SUEWS
+
+# Then install the skills
+/plugin install suews-dev@UMEP-dev/SUEWS
+```
+
+This provides access to:
+* `/setup-dev` - Set up development environment (macOS, Linux, Windows)
+* `/lint-code` - Check code style against SUEWS conventions
+* `/verify-build` - Verify build configuration consistency
+* `/audit-pr` - Review pull requests comprehensively
+* `/examine-issue` - Analyse GitHub issues
+* `/log-changes` - Update CHANGELOG with recent commits
+* `/prep-release` - Prepare releases with pre-flight checks
+* `/sync-docs` - Check doc-code consistency
+
+**Local Configuration** (for contributors with cloned repo):
 * **Setup Guide**: See [`.claude/README.md`](.claude/README.md) for workspace structure
-* **Quick Start**: See [`.claude/reference/quick-start.md`](.claude/reference/quick-start.md) for environment setup
-* **Custom Commands**: `/log-changes` for automatic CHANGELOG updates
+* **Skills Reference**: See [`.claude/skills/`](.claude/skills/) for detailed workflows
 
 #### CLAUDE.md Protection System
 
@@ -66,16 +85,15 @@ Follow these steps to set up local development:
 ##### Prerequisites
 
 **Essential Tools**:
-* **Fortran Compiler**: [gfortran](https://gcc.gnu.org/wiki/GFortran) (≥ 9.3.0) or Intel ifort
+* **Fortran Compiler**: [gfortran](https://gcc.gnu.org/wiki/GFortran) (≥ 9.3.0)
   - macOS: `brew install gcc`
   - Ubuntu/Debian: `sudo apt-get install gfortran`
-  - Windows: Use WSL or MinGW-w64
+  - Windows (MSYS2 UCRT64): `pacman -S mingw-w64-ucrt-x86_64-gcc-fortran`
 * **Version Control**: [git](https://git-scm.com/)
-* **Package Manager**: [mamba](https://mamba.readthedocs.io/en/latest/) (faster than conda)
+* **Package Manager**: [uv](https://docs.astral.sh/uv/) (fast Python package manager)
   ```bash
-  # Install mambaforge (if not already installed)
-  curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
-  bash Miniforge3-$(uname)-$(uname -m).sh
+  # Install uv (if not already installed)
+  curl -LsSf https://astral.sh/uv/install.sh | sh
   ```
 
 **Recommended Tools**:
@@ -100,25 +118,21 @@ Follow these steps to set up local development:
    ```
    *Note: If permission denied, [configure SSH for GitHub](https://docs.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh)*
 
-3. **Create development environment**:
+3. **Create and activate virtual environment**:
    ```bash
-   mamba env create -f env.yml
-   ```
-   This creates `suews-dev` environment with all required packages.
-
-4. **Activate environment**:
-   ```bash
-   mamba activate suews-dev
+   uv venv
+   source .venv/bin/activate   # Linux/macOS/MSYS2
+   # or: .venv\Scripts\activate  # Windows cmd/PowerShell
    ```
 
-5. **Build SUEWS**:
+4. **Build SUEWS**:
    ```bash
    make dev       # Install in editable mode
    make test      # Run tests (optional)
    ```
    *Run `make` to see all available commands and quick start workflows.*
 
-6. **Verify installation**:
+5. **Verify installation**:
    ```bash
    pip show supy
    suews-run --help
@@ -151,7 +165,7 @@ Follow these steps to set up local development:
 
 * **Common issues**:
   - **Build conflicts**: Run `make clean && make dev` (most reliable)
-  - **Import errors**: Ensure you're in the `suews-dev` environment
+  - **Import errors**: Ensure the virtual environment is activated (`source .venv/bin/activate`)
   - **Permission errors on Windows**: Right-click project folder → Properties → Security → Edit → Everyone → Allow
 
 ##### Project Structure
@@ -164,7 +178,6 @@ SUEWS/
 │   └── supy_driver/    # F2Py wrapper
 ├── test/               # Test suite
 ├── docs/               # Documentation source
-├── env.yml             # Development environment
 └── Makefile            # Build commands
 ```
 

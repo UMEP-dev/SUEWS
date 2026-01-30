@@ -1,7 +1,7 @@
-.. _Workflow:
+.. _getting_started:
 
-Getting Started with SUEWS
-===========================
+Getting Started
+===============
 
 SUEWS is a powerful urban climate modelling tool delivered through **SuPy**, a comprehensive Python interface that integrates seamlessly with the scientific Python ecosystem. This guide provides a clear learning path from your first simulation to advanced urban climate research.
 
@@ -208,11 +208,11 @@ Results are stored with MultiIndex columns ``(group, variable)``. Always use ``s
 
 For the full hands-on experience, run the complete tutorial notebook:
 
-📓 **Interactive Notebook**: :doc:`Complete Quick Start Tutorial <tutorials/python/quick-start>`
+**Interactive Tutorial**: :doc:`Complete Quick Start Tutorial </auto_examples/tutorial_01_quick_start>`
 
 This notebook includes:
 - Detailed explanations of each step
-- Additional visualisation examples  
+- Additional visualisation examples
 - Data exploration exercises
 - Troubleshooting tips
 
@@ -310,7 +310,7 @@ Setup Your Site Tutorial
 
 For detailed guidance on configuring SUEWS for your specific site:
 
-📓 **Interactive Tutorial**: :doc:`Setup Your Own Site <tutorials/python/setup-own-site>`
+**Interactive Tutorial**: :doc:`Setup Your Own Site </auto_examples/tutorial_02_setup_own_site>`
 
 This comprehensive notebook covers:
 - Site characterisation and data collection
@@ -463,7 +463,7 @@ Climate Change Impact Studies
        'Storage Heat': rcp85_fluxes['QS'].mean() - baseline_fluxes['QS'].mean()
    }
 
-**Complete Tutorial**: :doc:`Impact Studies <tutorials/python/impact-studies>`
+**Complete Tutorial**: :doc:`Impact Studies </auto_examples/tutorial_03_impact_studies>`
 
 Model Coupling and Integration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -625,7 +625,7 @@ Getting Support and Community
 **SuPy and SUEWS Community:**
 
 - **GitHub Repository**: `SUEWS on GitHub <https://github.com/UMEP-dev/SUEWS>`__ for issues and contributions
-- **Community**: `Join the SUEWS community <https://suews.discourse.group/>`__ for discussions
+- **Community**: `Join the SUEWS community <https://community.suews.io>`__ for discussions
 - **Documentation**: :doc:`Complete API reference <inputs/yaml/index>` and parameter guides
 
 **Essential Reading:**

@@ -201,8 +201,6 @@ sites:
         value: 0.8
       HotWaterFlowRate:
         value: 0.001
-      DHWDrainFlowRate:
-        value: 0.001
       DHWSpecificHeatCapacity:
         value: 5000.0
       HotWaterTankSpecificHeatCapacity:
@@ -237,6 +235,8 @@ sites:
         value: 0.8
       MinimumVolumeOfDHWinUse:
         value: 1.0
+      MaximumVolumeOfDHWinUse:
+        value: 100.0
     building_archetype:
       BuildingType: 2000-2008
       BuildingName: SampleBuilding

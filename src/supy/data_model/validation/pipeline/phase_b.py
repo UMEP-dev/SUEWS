@@ -25,103 +25,23 @@ from datetime import datetime
 from copy import deepcopy
 import pandas as pd
 import numpy as np
-from pydantic import BaseModel
-import pytz
 
-# Use tzfpy instead of timezonefinder for Windows compatibility
-# tzfpy has pre-built Windows wheels and provides similar functionality
-try:
-    from tzfpy import get_tz
+# Import from validation package
+from .. import logger_supy
+from .report_writer import REPORT_WRITER
+from ..core.yaml_helpers import (
+    get_mean_monthly_air_temperature as _get_mean_monthly_air_temperature,
+    get_mean_annual_air_temperature as _get_mean_annual_air_temperature,
+    nullify_co2_block_recursive,
+    collect_nullified_paths,
+    _nullify_biogenic_in_props,
+    DLSCheck,
+    get_value_safe,
+    HAS_TIMEZONE_FINDER,
+)
 
-    HAS_TIMEZONE_FINDER = True
-
-    # Create a compatibility wrapper for timezonefinder API
-    class TimezoneFinder:
-        def timezone_at(self, lat, lng):
-            """Wrapper to match timezonefinder API."""
-            # tzfpy uses (longitude, latitude) order
-            return get_tz(lng, lat)
-
-except ImportError:
-    # Fallback to original timezonefinder if tzfpy not available
-    try:
-        from timezonefinder import TimezoneFinder
-
-        HAS_TIMEZONE_FINDER = True
-    except ImportError:
-        HAS_TIMEZONE_FINDER = False
-        import warnings
-
-        warnings.warn(
-            "Neither tzfpy nor timezonefinder available. DST calculations will be skipped.",
-            UserWarning,
-        )
-
-# Try to import from supy if available, otherwise use standalone mode
-try:
-    from supy._env import logger_supy, trv_supy_module
-    from supy.data_model.validation.core.yaml_helpers import (
-        get_mean_monthly_air_temperature as _get_mean_monthly_air_temperature,
-        get_mean_annual_air_temperature as _get_mean_annual_air_temperature,
-        nullify_co2_block_recursive,
-        collect_nullified_paths,
-        _nullify_biogenic_in_props,
-    )
-
-    HAS_SUPY = True
-except ImportError:
-    # Standalone mode - create minimal dependencies
-    import logging
-    from pathlib import Path
-
-    # Create standalone logger
-    logger_supy = logging.getLogger("supy.data_model")
-    if not logger_supy.handlers:
-        handler = logging.StreamHandler()
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        )
-        logger_supy.addHandler(handler)
-        logger_supy.setLevel(logging.INFO)
-
-    # Create mock traversable for resource access
-    class MockTraversable:
-        """Mock for accessing package resources in standalone mode."""
-
-        def __init__(self):
-            # Try to find the package root
-            current = Path(__file__).parent
-            while current.parent != current:
-                if (current / "ext_data").exists():
-                    self.base = current
-                    break
-                current = current.parent
-            else:
-                self.base = Path(__file__).parent.parent.parent
-
-        def __truediv__(self, other):
-            return self.base / other
-
-        def exists(self):
-            # In standalone mode, CRU data might not be available
-            return False
-
-    trv_supy_module = MockTraversable()
-    HAS_SUPY = False
-
-    # Create stub functions for standalone mode
-    def _get_mean_monthly_air_temperature(
-        lat: float, lon: float, month: int, spatial_res: float = 0.5
-    ) -> float:
-        """Stub function - raises error in standalone mode."""
-        raise FileNotFoundError("CRU data not available in standalone mode")
-
-    def _get_mean_annual_air_temperature(
-        lat: float, lon: float, spatial_res: float = 0.5
-    ) -> float:
-        """Stub function - raises error in standalone mode."""
-        raise FileNotFoundError("CRU data not available in standalone mode")
-
+# Constants 
+SFR_FRACTION_TOL = 1e-4
 
 @dataclass
 class ValidationResult:
@@ -147,81 +67,6 @@ class ScientificAdjustment:
     old_value: Any = None
     new_value: Any = None
     reason: str = ""
-
-
-class DLSCheck(BaseModel):
-    """Calculate daylight saving time transitions and timezone offset from coordinates."""
-
-    lat: float
-    lng: float
-    year: int
-    startdls: Optional[int] = None
-    enddls: Optional[int] = None
-
-    def compute_dst_transitions(self):
-        """Compute DST start/end days and timezone offset for coordinates and year."""
-        if not HAS_TIMEZONE_FINDER:
-            logger_supy.debug(
-                "[DLS] No timezone finder available, skipping DST calculation."
-            )
-            return None, None, None
-
-        tf = TimezoneFinder()
-        tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
-        if not tz_name:
-            logger_supy.debug(
-                f"[DLS] Cannot determine timezone for lat={self.lat}, lng={self.lng}"
-            )
-            return None, None, None
-
-        logger_supy.debug(f"[DLS] Timezone identified as '{tz_name}'")
-        tz = pytz.timezone(tz_name)
-
-        def find_transition(month: int) -> Optional[int]:
-            try:
-                prev_dt = tz.localize(datetime(self.year, month, 1, 12), is_dst=None)
-                prev_offset = prev_dt.utcoffset()
-
-                for day in range(2, 32):
-                    try:
-                        curr_dt = tz.localize(
-                            datetime(self.year, month, day, 12), is_dst=None
-                        )
-                        curr_offset = curr_dt.utcoffset()
-                        if curr_offset != prev_offset:
-                            return curr_dt.timetuple().tm_yday
-                        prev_offset = curr_offset
-                    except Exception:
-                        continue
-                return None
-            except Exception:
-                return None
-
-        try:
-            std_dt = tz.localize(datetime(self.year, 1, 15), is_dst=False)
-            utc_offset_hours = std_dt.utcoffset().total_seconds() / 3600
-            logger_supy.debug(f"[DLS] UTC offset in standard time: {utc_offset_hours}")
-        except Exception as e:
-            logger_supy.debug(f"[DLS] Failed to compute UTC offset: {e}")
-            utc_offset_hours = None
-
-        if self.lat >= 0:  # Northern Hemisphere
-            start = find_transition(3) or find_transition(4)
-            end = find_transition(10) or find_transition(11)
-        else:  # Southern Hemisphere
-            start = find_transition(9) or find_transition(10)
-            end = find_transition(3) or find_transition(4)
-
-        return start, end, utc_offset_hours
-
-
-def get_value_safe(param_dict, param_key, default=None):
-    """Safely extract value from RefValue or plain format."""
-    param = param_dict.get(param_key, default)
-    if isinstance(param, dict) and "value" in param:
-        return param["value"]
-    else:
-        return param
 
 
 def get_site_gridid(site_data: dict) -> int:
@@ -445,6 +290,47 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
             )
         )
 
+    # SMDMethod and soil_observation dependency
+    smdmethod = get_value_safe(physics, "smdmethod")
+    if smdmethod:  # Truthy check: skips None and 0 (modelled), validates 1+ (observed)
+        sites = yaml_data.get("sites", [])
+        sites_missing_soil_obs = []
+        for site in sites:
+            site_name = site.get("name", "Unknown")
+            properties = site.get("properties", {})
+            soil_obs = properties.get("soil_observation")
+            if soil_obs is None:
+                sites_missing_soil_obs.append(site_name)
+
+        if sites_missing_soil_obs:
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="MODEL_OPTIONS",
+                    parameter="smdmethod-soil_observation",
+                    message=(
+                        f"SMDMethod is set to {smdmethod} (observed soil moisture), "
+                        f"but site(s) {sites_missing_soil_obs} are missing the required "
+                        "'soil_observation' configuration block."
+                    ),
+                    suggested_value=(
+                        "Add 'soil_observation' block to site properties with: "
+                        "depth, smcap, soil_not_rocks, and bulk_density"
+                    ),
+                )
+            )
+        else:
+            results.append(
+                ValidationResult(
+                    status="PASS",
+                    category="MODEL_OPTIONS",
+                    parameter="smdmethod-soil_observation",
+                    message="SMDMethod-soil_observation configuration validated",
+                )
+            )
+    # When SMDMethod=0 (modelled), no validation needed - skip adding PASS result
+    # to reduce noise in validation output.
+
     return results
 
 
@@ -483,7 +369,7 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                     sfr_sum += sfr_value
                     surface_types.append((surface_type, sfr_value))
 
-        if abs(sfr_sum - 1.0) > 0.0001:
+        if abs(sfr_sum - 1.0) > SFR_FRACTION_TOL:
             if sfr_sum == 0.0:
                 results.append(
                     ValidationResult(
@@ -498,7 +384,7 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                 )
             else:
                 surface_list = ", ".join([
-                    f"{surf}={val:.3f}" for surf, val in surface_types
+                    f"{surf}={val:.4f}" for surf, val in surface_types
                 ])
                 # Identify the surface with the largest fraction (same as auto-correction logic)
                 surface_dict = dict(surface_types)
@@ -514,8 +400,8 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                         parameter=f"{max_surface}.sfr",
                         site_index=site_idx,
                         site_gridid=site_gridid,
-                        message=f"Surface fractions sum to {sfr_sum:.6f}, should equal 1.0 (auto-correction range: 0.9999-1.0001, current: {surface_list})",
-                        suggested_value=f"Adjust {max_surface}.sfr or other surface fractions so they sum to exactly 1.0",
+                        message=f"Surface fractions sum to {sfr_sum:.4f}, should equal 1.0 (auto-correction range: 1.0 ± {SFR_FRACTION_TOL:.1e}, current: {surface_list}. Validator will auto‑correct small deviations in this range.)",
+                        suggested_value=f"Adjust the max surface {max_surface}.sfr or other surface fractions so they sum to exactly 1.0",
                     )
                 )
 
@@ -959,6 +845,69 @@ def validate_irrigation_parameters(
     return results
 
 
+def check_missing_vegetation_albedo(yaml_data: dict) -> List[ValidationResult]:
+    """Report when vegetated surfaces have null alb_id.
+
+    This is informational: SUEWSConfig will auto-calculate alb_id from
+    LAI state before the model run. Trees use a direct LAI-albedo
+    relationship (higher LAI -> higher albedo); grass uses a reversed
+    relationship (higher LAI -> lower albedo).
+    """
+    results = []
+    sites = yaml_data.get("sites", [])
+
+    surface_labels = {
+        "evetr": "evergreen trees",
+        "dectr": "deciduous trees",
+        "grass": "grass",
+    }
+
+    for site_idx, site in enumerate(sites):
+        props = site.get("properties", {})
+        initial_states = site.get("initial_states", {})
+        land_cover = props.get("land_cover", {})
+        site_gridid = get_site_gridid(site)
+
+        for surf_key, surf_label in surface_labels.items():
+            surf_props = land_cover.get(surf_key, {})
+            surf_state = initial_states.get(surf_key, {})
+            if not surf_props or not surf_state:
+                continue
+
+            # Check if surface has non-zero fraction
+            sfr_entry = surf_props.get("sfr", {})
+            sfr_val = (
+                sfr_entry.get("value") if isinstance(sfr_entry, dict) else sfr_entry
+            )
+            if not sfr_val or sfr_val <= 0:
+                continue
+
+            # Check if alb_id is null
+            alb_entry = surf_state.get("alb_id", {})
+            alb_val = (
+                alb_entry.get("value") if isinstance(alb_entry, dict) else alb_entry
+            )
+            if alb_val is not None:
+                continue
+
+            results.append(
+                ValidationResult(
+                    status="INFO",
+                    category="SEASONAL",
+                    parameter=f"{surf_key}.alb_id",
+                    site_index=site_idx,
+                    site_gridid=site_gridid,
+                    message=(
+                        f"alb_id is null for {surf_label} (sfr={sfr_val}). "
+                        "It will be auto-calculated from LAI state during "
+                        "SUEWSConfig construction"
+                    ),
+                )
+            )
+
+    return results
+
+
 def run_scientific_validation_pipeline(
     yaml_data: dict, start_date: str, model_year: int
 ) -> List[ValidationResult]:
@@ -974,6 +923,8 @@ def run_scientific_validation_pipeline(
     validation_results.extend(validate_geographic_parameters(yaml_data))
 
     validation_results.extend(validate_irrigation_parameters(yaml_data, model_year))
+
+    validation_results.extend(check_missing_vegetation_albedo(yaml_data))
 
     return validation_results
 
@@ -1255,8 +1206,11 @@ def adjust_land_cover_fractions(
 
         correction_applied = False
 
+        lower = 1.0 - SFR_FRACTION_TOL
+        upper = 1.0 + SFR_FRACTION_TOL
+
         # Auto-correct only small floating point errors (same as precheck logic)
-        if 0.9999 <= sfr_sum < 1.0:
+        if lower <= sfr_sum < 1.0:
             max_surface = max(
                 surface_fractions.keys(), key=lambda k: surface_fractions[k]
             )
@@ -1276,7 +1230,7 @@ def adjust_land_cover_fractions(
                         site_gridid=site_gridid,
                         old_value=f"{old_value:.6f}",
                         new_value=f"{new_value:.6f}",
-                        reason=f"Auto-corrected sum from {sfr_sum:.6f} to 1.0 (small floating point error)",
+                        reason=f"Auto-corrected {max_surface}.sfr to have sum from {sfr_sum:.6f} to 1.0 (small floating point error)",
                     )
                 )
             else:  # Tiny correction not visible at display precision
@@ -1291,7 +1245,7 @@ def adjust_land_cover_fractions(
                     )
                 )
 
-        elif 1.0 < sfr_sum <= 1.0001:
+        elif 1.0 < sfr_sum <= upper:
             max_surface = max(
                 surface_fractions.keys(), key=lambda k: surface_fractions[k]
             )
@@ -1311,7 +1265,7 @@ def adjust_land_cover_fractions(
                         site_gridid=site_gridid,
                         old_value=f"{old_value:.6f}",
                         new_value=f"{new_value:.6f}",
-                        reason=f"Auto-corrected sum from {sfr_sum:.6f} to 1.0 (small floating point error)",
+                        reason=f"Auto-corrected {max_surface}.sfr to have sum from {sfr_sum:.6f} to 1.0 (small floating point error)",
                     )
                 )
             else:  # Tiny correction not visible at display precision
@@ -1359,17 +1313,33 @@ def adjust_model_dependent_nullification(
                 def _recursive_nullify(node: Any, path: str):
                     if isinstance(node, dict):
                         if "value" in node:
-                            if node["value"] is not None:
-                                node["value"] = None
-                                nullified_params.append(path)
+                            inner = node.get("value")
+                            if isinstance(inner, list):
+                                if any(item is not None for item in inner):
+                                    node["value"] = [None] * len(inner)
+                                    nullified_params.append(path)
+                            else:
+                                if inner is not None:
+                                    node["value"] = None
+                                    nullified_params.append(path)
                         else:
                             for key, val in node.items():
                                 child_path = f"{path}.{key}" if path else key
-                                _recursive_nullify(val, child_path)
+                                if isinstance(val, (dict, list)):
+                                    _recursive_nullify(val, child_path)
+                                else:
+                                    if val is not None:
+                                        node[key] = None
+                                        nullified_params.append(child_path)
                     elif isinstance(node, list):
                         for idx, item in enumerate(node):
                             child_path = f"{path}[{idx}]" if path else f"[{idx}]"
-                            _recursive_nullify(item, child_path)
+                            if isinstance(item, (dict, list)):
+                                _recursive_nullify(item, child_path)
+                            else:
+                                if item is not None:
+                                    node[idx] = None
+                                    nullified_params.append(child_path)
 
                 _recursive_nullify(block, block_name)
                 if nullified_params:
@@ -1727,8 +1697,7 @@ def create_science_report(
 
     if phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
-            with open(phase_a_report_file, "r") as f:
-                phase_a_content = f.read()
+            phase_a_content = REPORT_WRITER.read(phase_a_report_file)
 
             lines = phase_a_content.split("\n")
             current_section = None
@@ -1802,7 +1771,7 @@ def create_science_report(
                 else ""
             )
             report_lines.append(
-                f"-- {adjustment.parameter}{site_ref}: {adjustment.old_value} → {adjustment.new_value} ({adjustment.reason})"
+                f"-- {adjustment.parameter}{site_ref}: {adjustment.old_value} -> {adjustment.new_value} ({adjustment.reason})"
             )
 
     phase_a_items = []
@@ -1832,6 +1801,8 @@ def create_science_report(
         if warnings or (not adjustments and not errors):
             report_lines.append("")
 
+    infos = [r for r in validation_results if r.status == "INFO"]
+
     if warnings:
         report_lines.append(f"- Revise ({len(warnings)}) warnings:")
         for warning in warnings:
@@ -1850,6 +1821,16 @@ def create_science_report(
                 report_lines.append("- Geographic parameters are valid")
             # Skip generic messages when phase A items exist
         # Skip generic messages when there are no errors
+
+    if infos:
+        report_lines.append(f"- Note ({len(infos)}):")
+        for info in infos:
+            site_ref = (
+                f" at site [{info.site_gridid}]"
+                if info.site_gridid is not None
+                else ""
+            )
+            report_lines.append(f"-- {info.parameter}{site_ref}: {info.message}")
 
     report_lines.append("")
 
@@ -1877,7 +1858,7 @@ def print_critical_halt_message(critical_errors: List[ValidationResult]):
         site_ref = (
             f" at site [{error.site_gridid}]" if error.site_gridid is not None else ""
         )
-        print(f"  ✗ {error.parameter}{site_ref}")
+        print(f"  [X] {error.parameter}{site_ref}")
         print(f"    {error.message}")
         if error.suggested_value is not None:
             print(f"    Suggested: {error.suggested_value}")
@@ -1907,6 +1888,7 @@ def print_science_check_results(
     """
     errors = [r for r in validation_results if r.status == "ERROR"]
     warnings = [r for r in validation_results if r.status == "WARNING"]
+    infos = [r for r in validation_results if r.status == "INFO"]
 
     if errors:
         print("PHASE B -- SCIENTIFIC ERRORS FOUND:")
@@ -1929,6 +1911,15 @@ def print_science_check_results(
         print("PHASE B -- PASSED")
         if adjustments:
             print(f"Applied {len(adjustments)} automatic scientific adjustments")
+
+    if infos:
+        for info in infos:
+            site_ref = (
+                f" at site [{info.site_gridid}]"
+                if info.site_gridid is not None
+                else ""
+            )
+            print(f"  Note: {info.parameter}{site_ref}: {info.message}")
 
 
 def create_science_yaml_header(phase_a_performed: bool = True) -> str:
@@ -2037,8 +2028,7 @@ def run_science_check(
 
         # Write error report file
         if science_report_file:
-            with open(science_report_file, "w") as f:
-                f.write(report_content)
+            REPORT_WRITER.write(science_report_file, report_content)
 
         # Re-raise the exception so orchestrator knows it failed
         raise e
@@ -2065,8 +2055,7 @@ def run_science_check(
     )
 
     if science_report_file:
-        with open(science_report_file, "w") as f:
-            f.write(report_content)
+        REPORT_WRITER.write(science_report_file, report_content)
 
     if critical_errors:
         print_critical_halt_message(critical_errors)
@@ -2076,7 +2065,7 @@ def run_science_check(
 
     if science_yaml_file and not critical_errors:
         header = create_science_yaml_header(phase_a_performed)
-        with open(science_yaml_file, "w") as f:
+        with open(science_yaml_file, "w", encoding="utf-8", newline="\n") as f:
             f.write(header)
             yaml.dump(
                 science_checked_data, f, default_flow_style=False, sort_keys=False

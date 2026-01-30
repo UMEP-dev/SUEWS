@@ -141,6 +141,11 @@ Related Documentation
 ---------------------
 
 - :doc:`/sub-tutorials/suews-simulation-tutorial` - Comprehensive tutorial with examples
+
+.. only:: dts_available
+
+   - :doc:`dts` - DTS backend for performance-optimised execution
+
 - :doc:`/inputs/yaml/index` - YAML configuration guide
 - :doc:`/data-structures/df_forcing` - Forcing data format
 - :doc:`/data-structures/df_output` - Output data format

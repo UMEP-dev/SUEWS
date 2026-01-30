@@ -21,6 +21,21 @@ import pytest
 import supy as sp
 from supy._env import trv_supy_module
 from supy.data_model.core import SUEWSConfig
+from supy.data_model.core.site import (
+    LAIParams,
+    DectrProperties,
+    EvetrProperties,
+    GrassProperties,
+    LandCover,
+    Site,
+    SiteProperties,
+)
+from supy.data_model.core.state import (
+    InitialStateDectr,
+    InitialStateEvetr,
+    InitialStateGrass,
+    InitialStates,
+)
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
 
@@ -267,153 +282,237 @@ def test_validate_lai_ranges_none_values():
     assert has_issues is False
 
 
-# Land cover fraction test data: (description, land_cover, expected_has_issues, expected_sum_str, check_details)
-LAND_COVER_TEST_CASES = [
-    # No land cover
-    ("no_land_cover", None, False, None, False),
-    # Sum to exactly 1.0
-    (
-        "sum_to_one",
-        SimpleNamespace(
-            paved=SimpleNamespace(sfr=SimpleNamespace(value=0.4)),
-            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
-            grass=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
-            dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-            evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        ),
-        False,
-        None,
-        False,
-    ),
-    # Sum > 1.0
-    (
-        "sum_too_high",
-        SimpleNamespace(
-            paved=SimpleNamespace(sfr=SimpleNamespace(value=0.6)),
-            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
-            grass=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
-            dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-            evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        ),
-        True,
-        "1.400000",
-        False,
-    ),
-    # Sum < 1.0
-    (
-        "sum_too_low",
-        SimpleNamespace(
-            paved=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
-            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
-            grass=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-            dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        ),
-        True,
-        "0.600000",
-        False,
-    ),
-    # Missing surfaces (defaults to 0.0, sum = 1.0)
-    (
-        "missing_surfaces",
-        SimpleNamespace(
-            paved=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
-            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
-        ),
-        False,
-        None,
-        False,
-    ),
-    # None sfr values (treated as 0.0, sum = 1.0)
-    (
-        "none_values",
-        SimpleNamespace(
-            paved=SimpleNamespace(sfr=None),
-            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=1.0)),
-            grass=SimpleNamespace(),  # No sfr attribute
-            dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        ),
-        False,
-        None,
-        False,
-    ),
-    # Direct values (not RefValue, sum = 1.0)
-    (
-        "direct_values",
-        SimpleNamespace(
-            paved=SimpleNamespace(sfr=0.4),
-            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
-            grass=SimpleNamespace(sfr=0.2),
-            dectr=SimpleNamespace(sfr=0.1),
-            evetr=SimpleNamespace(sfr=0.0),
-            bsoil=SimpleNamespace(sfr=0.0),
-            water=SimpleNamespace(sfr=0.0),
-        ),
-        False,
-        None,
-        False,
-    ),
-    # Detailed message check (sum = 0.95)
-    (
-        "detailed_message",
-        SimpleNamespace(
-            paved=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
-            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
-            grass=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-            dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-            evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-            bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-            water=SimpleNamespace(sfr=SimpleNamespace(value=0.05)),
-        ),
-        True,
-        "0.950000",
-        True,
-    ),
-]
+def test_auto_albedo_trees_follow_lai_relation():
+    """Test tree albedo follows the direct LAI-albedo relationship.
+
+    Physical basis: Trees have dark bark/branches as background surface.
+    - Low LAI (sparse canopy) -> more bark visible -> lower albedo
+    - High LAI (dense foliage) -> leaves dominate -> higher albedo
+    Leaf albedo (0.20-0.30) typically exceeds bark albedo (0.10-0.15).
+
+    Test verifies boundary conditions:
+    - evetr at LAI=laimin (ratio=0) -> alb_id = alb_min = 0.1
+    - dectr at LAI=laimax (ratio=1) -> alb_id = alb_max = 0.4
+    """
+    evetr_props = EvetrProperties(
+        alb_min=0.1,
+        alb_max=0.3,
+        lai=LAIParams(laimin=1.0, laimax=3.0),
+    )
+    dectr_props = DectrProperties(
+        alb_min=0.2,
+        alb_max=0.4,
+        lai=LAIParams(laimin=2.0, laimax=4.0),
+    )
+    land_cover = LandCover(evetr=evetr_props, dectr=dectr_props)
+    site_props = SiteProperties(land_cover=land_cover)
+
+    evetr_state = InitialStateEvetr(alb_id=None, lai_id=1.0)
+    dectr_state = InitialStateDectr(alb_id=None, lai_id=4.0)
+    initial_states = InitialStates(evetr=evetr_state, dectr=dectr_state)
+
+    site = Site(properties=site_props, initial_states=initial_states)
+    config = SUEWSConfig(sites=[site])
+
+    assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.1)
+    assert config.sites[0].initial_states.dectr.alb_id == pytest.approx(0.4)
 
 
-@pytest.mark.parametrize(
-    "case_name,land_cover,expected_has_issues,expected_sum_str,check_details",
-    LAND_COVER_TEST_CASES,
-    ids=[case[0] for case in LAND_COVER_TEST_CASES],
-)
-def test_validate_land_cover_fractions(
-    case_name, land_cover, expected_has_issues, expected_sum_str, check_details
-):
-    """Test land cover fraction validation across all scenarios."""
-    cfg = SUEWSConfig.model_construct()
-    has_issues = cfg._check_land_cover_fractions(land_cover, "TestSite")
-    assert has_issues is expected_has_issues
+def test_auto_albedo_grass_reversed_relation():
+    """Test grass albedo follows the reversed LAI-albedo relationship.
 
-    if expected_has_issues:
-        assert cfg._validation_summary["total_warnings"] >= 1
-        assert (
-            "Land cover fraction validation" in cfg._validation_summary["issue_types"]
-        )
-        if expected_sum_str:
-            assert any(
-                "must sum to 1.0 within tolerance" in msg and expected_sum_str in msg
-                for msg in cfg._validation_summary["detailed_messages"]
-            )
-        if check_details:
-            messages = cfg._validation_summary["detailed_messages"]
-            assert len(messages) >= 1
-            message = messages[0]
-            assert "TestSite" in message
-            assert "paved=0.300" in message
-            assert "bldgs=0.200" in message
-            assert "grass=0.100" in message
-    elif case_name == "sum_to_one":
-        assert cfg._validation_summary["total_warnings"] == 0
+    Physical basis: Grass has bright soil/litter as background surface.
+    - Low LAI (sparse grass) -> more soil visible -> higher albedo
+    - High LAI (dense grass) -> green blades dominate -> lower albedo
+    Dry soil albedo (0.25-0.45) typically exceeds grass blade albedo (0.18-0.25).
+
+    Test verifies boundary conditions:
+    - grass at LAI=laimin (ratio=0) -> alb_id = alb_max = 0.4 (bright soil)
+    - grass at LAI=laimax (ratio=1) -> alb_id = alb_min = 0.2 (dense grass)
+    """
+    grass_props = GrassProperties(
+        alb_min=0.2,
+        alb_max=0.4,
+        lai=LAIParams(laimin=0.5, laimax=2.5),
+    )
+    land_cover = LandCover(grass=grass_props)
+    site_props = SiteProperties(land_cover=land_cover)
+
+    grass_state_low = InitialStateGrass(alb_id=None, lai_id=0.5)
+    grass_state_high = InitialStateGrass(alb_id=None, lai_id=2.5)
+
+    site_low = Site(
+        properties=site_props,
+        initial_states=InitialStates(grass=grass_state_low),
+    )
+    site_high = Site(
+        properties=site_props,
+        initial_states=InitialStates(grass=grass_state_high),
+    )
+
+    config = SUEWSConfig(sites=[site_low, site_high])
+
+    assert config.sites[0].initial_states.grass.alb_id == pytest.approx(0.4)
+    assert config.sites[1].initial_states.grass.alb_id == pytest.approx(0.2)
+
+
+def test_auto_albedo_preserves_user_value():
+    """Test user-provided albedo is preserved."""
+    evetr_props = EvetrProperties(
+        alb_min=0.1,
+        alb_max=0.3,
+        lai=LAIParams(laimin=1.0, laimax=3.0),
+    )
+    site_props = SiteProperties(land_cover=LandCover(evetr=evetr_props))
+    evetr_state = InitialStateEvetr(alb_id=0.28, lai_id=2.0)
+    site = Site(
+        properties=site_props,
+        initial_states=InitialStates(evetr=evetr_state),
+    )
+
+    config = SUEWSConfig(sites=[site])
+
+    assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.28)
+
+
+def test_validate_albedo_id_within_range():
+    """Test initial albedo validation against vegetation limits."""
+    evetr_props = EvetrProperties(
+        alb_min=0.1,
+        alb_max=0.2,
+        lai=LAIParams(laimin=1.0, laimax=3.0),
+    )
+    site_props = SiteProperties(land_cover=LandCover(evetr=evetr_props))
+    evetr_state = InitialStateEvetr(alb_id=0.5, lai_id=2.0)
+    site = Site(
+        properties=site_props,
+        initial_states=InitialStates(evetr=evetr_state),
+    )
+
+    with pytest.raises(ValueError, match="alb_id"):
+        SUEWSConfig(sites=[site])
+
+
+def test_auto_albedo_midrange_interpolation():
+    """Test linear interpolation at mid-range LAI produces expected intermediate albedo.
+
+    For trees (direct relationship):
+        lai_ratio = (2.0 - 1.0) / (3.0 - 1.0) = 0.5
+        alb_id = 0.1 + (0.3 - 0.1) * 0.5 = 0.2
+
+    For grass (reversed relationship):
+        lai_ratio = (1.5 - 0.5) / (2.5 - 0.5) = 0.5
+        alb_id = 0.4 - (0.4 - 0.2) * 0.5 = 0.3
+    """
+    evetr_props = EvetrProperties(
+        alb_min=0.1,
+        alb_max=0.3,
+        lai=LAIParams(laimin=1.0, laimax=3.0),
+    )
+    grass_props = GrassProperties(
+        alb_min=0.2,
+        alb_max=0.4,
+        lai=LAIParams(laimin=0.5, laimax=2.5),
+    )
+    land_cover = LandCover(evetr=evetr_props, grass=grass_props)
+    site_props = SiteProperties(land_cover=land_cover)
+
+    evetr_state = InitialStateEvetr(alb_id=None, lai_id=2.0)
+    grass_state = InitialStateGrass(alb_id=None, lai_id=1.5)
+    initial_states = InitialStates(evetr=evetr_state, grass=grass_state)
+
+    site = Site(properties=site_props, initial_states=initial_states)
+    config = SUEWSConfig(sites=[site])
+
+    assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.2)
+    assert config.sites[0].initial_states.grass.alb_id == pytest.approx(0.3)
+
+
+def test_auto_albedo_clamps_lai_outside_range():
+    """Test LAI values outside [laimin, laimax] are clamped to [0, 1] ratio.
+
+    lai_id below laimin -> ratio clamped to 0 -> boundary albedo
+    lai_id above laimax -> ratio clamped to 1 -> boundary albedo
+    """
+    evetr_props = EvetrProperties(
+        alb_min=0.1,
+        alb_max=0.3,
+        lai=LAIParams(laimin=2.0, laimax=4.0),
+    )
+    land_cover = LandCover(evetr=evetr_props)
+    site_props = SiteProperties(land_cover=land_cover)
+
+    # LAI below laimin -> clamped to ratio=0 -> alb_min
+    evetr_below = InitialStateEvetr(alb_id=None, lai_id=0.5)
+    site_below = Site(
+        properties=site_props,
+        initial_states=InitialStates(evetr=evetr_below),
+    )
+
+    # LAI above laimax -> clamped to ratio=1 -> alb_max
+    evetr_above = InitialStateEvetr(alb_id=None, lai_id=6.0)
+    site_above = Site(
+        properties=site_props,
+        initial_states=InitialStates(evetr=evetr_above),
+    )
+
+    config = SUEWSConfig(sites=[site_below, site_above])
+
+    assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.1)
+    assert config.sites[1].initial_states.evetr.alb_id == pytest.approx(0.3)
+
+
+def test_auto_albedo_zero_lai_range():
+    """Test auto-albedo when laimin equals laimax (zero range).
+
+    When lai_range <= 0, lai_ratio should be set to 0.0.
+    For trees: alb_id = alb_min + (alb_max - alb_min) * 0.0 = alb_min
+    For grass: alb_id = alb_max - (alb_max - alb_min) * 0.0 = alb_max
+    """
+    evetr_props = EvetrProperties(
+        alb_min=0.1,
+        alb_max=0.3,
+        lai=LAIParams(laimin=2.0, laimax=2.0),
+    )
+    grass_props = GrassProperties(
+        alb_min=0.2,
+        alb_max=0.4,
+        lai=LAIParams(laimin=1.5, laimax=1.5),
+    )
+    land_cover = LandCover(evetr=evetr_props, grass=grass_props)
+    site_props = SiteProperties(land_cover=land_cover)
+
+    evetr_state = InitialStateEvetr(alb_id=None, lai_id=2.0)
+    grass_state = InitialStateGrass(alb_id=None, lai_id=1.5)
+    initial_states = InitialStates(evetr=evetr_state, grass=grass_state)
+
+    site = Site(properties=site_props, initial_states=initial_states)
+    config = SUEWSConfig(sites=[site])
+
+    assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.1)
+    assert config.sites[0].initial_states.grass.alb_id == pytest.approx(0.4)
+
+
+def test_auto_albedo_with_refvalue_inputs():
+    """Test auto-albedo with RefValue-wrapped inputs exercises _unwrap_value."""
+    evetr_props = EvetrProperties(
+        alb_min=RefValue(value=0.1),
+        alb_max=RefValue(value=0.3),
+        lai=LAIParams(laimin=1.0, laimax=3.0),
+    )
+    land_cover = LandCover(evetr=evetr_props)
+    site_props = SiteProperties(land_cover=land_cover)
+
+    evetr_state = InitialStateEvetr(alb_id=None, lai_id=RefValue(value=2.0))
+    site = Site(
+        properties=site_props,
+        initial_states=InitialStates(evetr=evetr_state),
+    )
+
+    config = SUEWSConfig(sites=[site])
+    # lai_ratio = (2.0 - 1.0) / (3.0 - 1.0) = 0.5
+    # alb_id = 0.1 + (0.3 - 0.1) * 0.5 = 0.2
+    assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.2)
 
 
 # From test_validation_topdown.py

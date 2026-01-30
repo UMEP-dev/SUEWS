@@ -18,8 +18,21 @@ The Python interface provides the complete API for SUEWS with comprehensive func
    api/io-data-structures
    api/converter
 
+.. only:: dts_available
+
+   .. toctree::
+      :maxdepth: 2
+      :hidden:
+
+      api/dts
+
 **Object-Oriented Interface**
     The :class:`~supy.SUEWSSimulation` class provides a modern interface for running simulations. See :doc:`api/simulation`.
+
+.. only:: dts_available
+
+   **DTS Interface**
+       Performance-optimised direct Pydantic-to-Fortran execution path. See :doc:`api/dts`.
 
 **Core Functions**
     Functional API for SUEWS simulations (init, run, save). See :doc:`api/core-functions`.

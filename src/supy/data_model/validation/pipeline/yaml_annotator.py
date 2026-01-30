@@ -159,7 +159,7 @@ class JsonYamlAnnotator:
         if output_path is None:
             output_path = input_path.parent / f"{input_path.stem}_annotated.yml"
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8", newline="\n") as f:
             f.write(final_content)
 
         return output_path

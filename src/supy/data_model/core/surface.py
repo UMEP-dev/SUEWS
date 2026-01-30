@@ -10,10 +10,9 @@ from pydantic import (
 from typing import Optional, Literal, List, Union
 import pandas as pd
 import warnings
-from .type import RefValue, Reference, FlexibleRefValue
+from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
 from ..validation.core.utils import warn_missing_params, validate_only_when_complete
-
-from .type import init_df_state
+from ..._env import logger_supy
 
 from .ohm import OHM_Coefficient_season_wetness
 
@@ -75,8 +74,6 @@ class ThermalLayers(BaseModel):
         Returns:
             pd.DataFrame: DataFrame containing thermal layer parameters
         """
-        df_state = init_df_state(grid_id)
-
         if surf_type == "roof":
             suffix = "roof"
         elif surf_type == "wall":
@@ -85,20 +82,21 @@ class ThermalLayers(BaseModel):
             suffix = "surf"
 
         # Add thermal layer parameters
+        cols = {("gridiv", "0"): grid_id}
         for i in range(5):
             if self.dz is not None:
                 dz_val = self.dz.value if isinstance(self.dz, RefValue) else self.dz
-                df_state[(f"dz_{suffix}", f"({idx}, {i})")] = dz_val[i]
+                cols[(f"dz_{suffix}", f"({idx}, {i})")] = dz_val[i]
             else:
-                df_state[(f"dz_{suffix}", f"({idx}, {i})")] = 0.1 * (
+                cols[(f"dz_{suffix}", f"({idx}, {i})")] = 0.1 * (
                     i + 1
                 )  # Default layer thickness
 
             if self.k is not None:
                 k_val = self.k.value if isinstance(self.k, RefValue) else self.k
-                df_state[(f"k_{suffix}", f"({idx}, {i})")] = k_val[i]
+                cols[(f"k_{suffix}", f"({idx}, {i})")] = k_val[i]
             else:
-                df_state[(f"k_{suffix}", f"({idx}, {i})")] = (
+                cols[(f"k_{suffix}", f"({idx}, {i})")] = (
                     1.0  # Default thermal conductivity
                 )
 
@@ -108,14 +106,14 @@ class ThermalLayers(BaseModel):
                     if isinstance(self.rho_cp, RefValue)
                     else self.rho_cp
                 )
-                df_state[(f"cp_{suffix}", f"({idx}, {i})")] = rho_cp_val[i]
+                cols[(f"cp_{suffix}", f"({idx}, {i})")] = rho_cp_val[i]
             else:
-                df_state[(f"cp_{suffix}", f"({idx}, {i})")] = (
+                cols[(f"cp_{suffix}", f"({idx}, {i})")] = (
                     1000.0  # Default heat capacity
                 )
             # TODO: Change df_state to use rho_cp instead of cp
 
-        return df_state
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(
@@ -254,6 +252,14 @@ class SurfaceProperties(BaseModel):
             "display_name": "Saturated Hydraulic Conductivity",
         },
     )
+    soildensity: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="Bulk soil density",
+        json_schema_extra={
+            "unit": "g cm^-3",
+            "display_name": "Soil Density",
+        },
+    )
     waterdist: Optional[WaterDistribution] = Field(
         default=None,  # TODO: Can this be None?
         description="Water distribution parameters",
@@ -315,21 +321,13 @@ class SurfaceProperties(BaseModel):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert surface properties to DataFrame state format.
         This is the base implementation that handles common surface properties."""
-        df_state = init_df_state(grid_id)
-
         # Get surface index
         surf_idx = self.get_surface_index()
 
         # Get surface name
         surf_name = self.get_surface_name()
 
-        # Helper function to set values in DataFrame
-        def set_df_value(col_name: str, value: float):
-            idx_str = f"({surf_idx},)"
-            if (col_name, idx_str) not in df_state.columns:
-                # df_state[(col_name, idx_str)] = np.nan
-                df_state[(col_name, idx_str)] = None
-            df_state.loc[grid_id, (col_name, idx_str)] = value
+        cols = {("gridiv", "0"): grid_id}
 
         # Get all properties of this class using introspection
         properties = [
@@ -346,6 +344,7 @@ class SurfaceProperties(BaseModel):
             "statelimit",
             "wetthresh",
             "sathydraulicconduct",
+            "soildensity",
             "waterdist",
             "storedrainprm",
             "snowpacklimit",
@@ -358,7 +357,7 @@ class SurfaceProperties(BaseModel):
         ]
 
         # Process each property
-        dfs = [df_state]  # List to collect all DataFrames
+        dfs = []
 
         for property in properties:
             # Handle nested properties with their own to_df_state methods
@@ -380,7 +379,7 @@ class SurfaceProperties(BaseModel):
             elif property == "irrfrac":
                 value = getattr(self, property)
                 value = value.value if isinstance(value, RefValue) else value
-                df_state.loc[grid_id, (f"{property}{surf_name}", "0")] = value
+                cols[(f"{property}{surf_name}", "0")] = value
             elif property in ["sfr", "soilstorecap", "statelimit", "wetthresh"]:
                 value = getattr(self, property)
                 if value is not None:
@@ -391,19 +390,19 @@ class SurfaceProperties(BaseModel):
                         "soilstorecap": 150.0,
                     }
                     value = defaults.get(property, 0.0)
-                set_df_value(f"{property}_surf", value)
+                cols[(f"{property}_surf", f"({surf_idx},)")] = value
             elif property == "rho_cp_anohm":  # Moved to cp in df_state
                 value = getattr(self, property)
                 value = value.value if isinstance(value, RefValue) else value
-                set_df_value("cpanohm", value)
+                cols[("cpanohm", f"({surf_idx},)")] = value
             elif property == "ch_anohm":  # Moved to ch in df_state
                 value = getattr(self, property)
                 value = value.value if isinstance(value, RefValue) else value
-                set_df_value("chanohm", value)
+                cols[("chanohm", f"({surf_idx},)")] = value
             elif property == "k_anohm":  # Moved to k in df_state
                 value = getattr(self, property)
                 value = value.value if isinstance(value, RefValue) else value
-                set_df_value("kkanohm", value)
+                cols[("kkanohm", f"({surf_idx},)")] = value
             else:
                 value = getattr(self, property)
                 if value is not None:
@@ -413,9 +412,10 @@ class SurfaceProperties(BaseModel):
                     defaults = {
                         "soildepth": 150.0,
                         "sathydraulicconduct": 0.0001,
+                        "soildensity": -999.0,
                     }
                     value = defaults.get(property, 0.0)
-                set_df_value(property, value)
+                cols[(property, f"({surf_idx},)")] = value
             # except Exception as e:
             #     print(f"Warning: Could not set property {property}: {str(e)}")
             #     continue
@@ -426,10 +426,11 @@ class SurfaceProperties(BaseModel):
             "ohm_threshwd",
         ]
         for col in list_cols:
-            df_state[(col, "(7,)")] = 0
+            cols[(col, "(7,)")] = 0
 
         # Merge all DataFrames
-        df_final = pd.concat(dfs, axis=1).sort_index(axis=1)
+        df_base = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+        df_final = pd.concat([df_base, *dfs], axis=1).sort_index(axis=1)
         return df_final
 
     @classmethod
@@ -464,6 +465,7 @@ class SurfaceProperties(BaseModel):
             "statelimit",
             "wetthresh",
             "sathydraulicconduct",
+            "soildensity",
             "waterdist",
             "storedrainprm",
             "snowpacklimit",
@@ -521,8 +523,21 @@ class SurfaceProperties(BaseModel):
                 value = df.loc[grid_id, ("kkanohm", f"({surf_idx},)")]
                 property_values["k_anohm"] = RefValue(value)
             else:
-                value = df.loc[grid_id, (property, f"({surf_idx},)")]
-                property_values[property] = RefValue(value)
+                # Check if column exists (for backwards compatibility with old tables)
+                col_key = (property, f"({surf_idx},)")
+                if col_key in df.columns:
+                    value = df.loc[grid_id, col_key]
+                    property_values[property] = RefValue(value)
+                else:
+                    # Column doesn't exist - skip if optional, raise if required
+                    field_info = cls.model_fields.get(property)
+                    if field_info and not field_info.is_required():
+                        logger_supy.debug(
+                            f"Column {col_key} not found for surface {surf_idx}, "
+                            "using None (backwards compatibility)"
+                        )
+                        property_values[property] = None
+                    # If required, let Pydantic validation catch it later
 
         return cls(**property_values)
 
@@ -544,17 +559,20 @@ class NonVegetatedSurfaceProperties(SurfaceProperties):
 
         surf_idx = self.get_surface_index()
 
+        frames = [df_base]
+
         if self.waterdist is not None:
             df_waterdist = self.waterdist.to_df_state(grid_id, surf_idx)
-            df_base = pd.concat([df_base, df_waterdist], axis=1).sort_index(axis=1)
+            frames.append(df_waterdist)
 
-        for attr in ["alb"]:
-            field_val = getattr(self, attr)
-            val = field_val.value if isinstance(field_val, RefValue) else field_val
-            df_base.loc[grid_id, (attr, f"({surf_idx},)")] = val
-            df_base = df_base.sort_index(axis=1)
+        field_val = self.alb
+        val = field_val.value if isinstance(field_val, RefValue) else field_val
+        df_alb = df_from_cols(
+            {("alb", f"({surf_idx},)"): val}, index=df_base.index
+        )
+        frames.append(df_alb)
 
-        return df_base
+        return pd.concat(frames, axis=1).sort_index(axis=1)
 
     @classmethod
     def from_df_state(
@@ -727,45 +745,46 @@ class BuildingLayer(
         Returns:
             pd.DataFrame: DataFrame containing building layer parameters
         """
-        df_state = init_df_state(grid_id)
-
         # Add basic parameters
-        df_state[(f"alb_{facet_type}", f"({layer_idx},)")] = (
-            self.alb.value if isinstance(self.alb, RefValue) else self.alb
-        )
-        df_state[(f"emis_{facet_type}", f"({layer_idx},)")] = (
-            self.emis.value if isinstance(self.emis, RefValue) else self.emis
-        )
-        df_state[(f"statelimit_{facet_type}", f"({layer_idx},)")] = (
-            self.statelimit.value
-            if isinstance(self.statelimit, RefValue)
-            else self.statelimit
-        )
-        df_state[(f"soilstorecap_{facet_type}", f"({layer_idx},)")] = (
-            self.soilstorecap.value
-            if isinstance(self.soilstorecap, RefValue)
-            else self.soilstorecap
-            if self.soilstorecap is not None
-            else 150.0
-        )
-        df_state[(f"wetthresh_{facet_type}", f"({layer_idx},)")] = (
-            self.wetthresh.value
-            if isinstance(self.wetthresh, RefValue)
-            else self.wetthresh
-        )
+        cols = {
+            ("gridiv", "0"): grid_id,
+            (f"alb_{facet_type}", f"({layer_idx},)"): (
+                self.alb.value if isinstance(self.alb, RefValue) else self.alb
+            ),
+            (f"emis_{facet_type}", f"({layer_idx},)"): (
+                self.emis.value if isinstance(self.emis, RefValue) else self.emis
+            ),
+            (f"statelimit_{facet_type}", f"({layer_idx},)"): (
+                self.statelimit.value
+                if isinstance(self.statelimit, RefValue)
+                else self.statelimit
+            ),
+            (f"soilstorecap_{facet_type}", f"({layer_idx},)"): (
+                self.soilstorecap.value
+                if isinstance(self.soilstorecap, RefValue)
+                else self.soilstorecap
+                if self.soilstorecap is not None
+                else 150.0
+            ),
+            (f"wetthresh_{facet_type}", f"({layer_idx},)"): (
+                self.wetthresh.value
+                if isinstance(self.wetthresh, RefValue)
+                else self.wetthresh
+            ),
+        }
 
         # Determine prefix based on layer type
         prefix = facet_type
 
         # Add layer-specific parameters
         if facet_type == "roof" and self.roof_albedo_dir_mult_fact is not None:
-            df_state[(f"{prefix}_albedo_dir_mult_fact", f"(0, {layer_idx})")] = (
+            cols[(f"{prefix}_albedo_dir_mult_fact", f"(0, {layer_idx})")] = (
                 self.roof_albedo_dir_mult_fact.value
                 if isinstance(self.roof_albedo_dir_mult_fact, RefValue)
                 else self.roof_albedo_dir_mult_fact
             )
         elif facet_type == "wall" and self.wall_specular_frac is not None:
-            df_state[(f"{prefix}_specular_frac", f"(0, {layer_idx})")] = (
+            cols[(f"{prefix}_specular_frac", f"(0, {layer_idx})")] = (
                 self.wall_specular_frac.value
                 if isinstance(self.wall_specular_frac, RefValue)
                 else self.wall_specular_frac
@@ -773,6 +792,7 @@ class BuildingLayer(
 
         # Add thermal layers
         df_thermal = self.thermal_layers.to_df_state(grid_id, layer_idx, facet_type)
+        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
         df_state = pd.concat([df_state, df_thermal], axis=1)
 
         return df_state
@@ -908,25 +928,27 @@ class BldgsProperties(
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert building properties to DataFrame state format."""
-        df_state = super().to_df_state(grid_id).sort_index(axis=1)
+        df_state = super().to_df_state(grid_id)
 
-        df_state.loc[grid_id, ("faibldg", "0")] = (
-            self.faibldg.value
-            if isinstance(self.faibldg, RefValue)
-            else self.faibldg
-            if self.faibldg is not None
-            else 0.3
-        )
-        df_state = df_state.sort_index(axis=1)
-        df_state.loc[grid_id, ("bldgh", "0")] = (
-            self.bldgh.value
-            if isinstance(self.bldgh, RefValue)
-            else self.bldgh
-            if self.bldgh is not None
-            else 10.0
-        )
+        cols = {
+            ("faibldg", "0"): (
+                self.faibldg.value
+                if isinstance(self.faibldg, RefValue)
+                else self.faibldg
+                if self.faibldg is not None
+                else 0.3
+            ),
+            ("bldgh", "0"): (
+                self.bldgh.value
+                if isinstance(self.bldgh, RefValue)
+                else self.bldgh
+                if self.bldgh is not None
+                else 10.0
+            ),
+        }
+        df_bldgs = df_from_cols(cols, index=df_state.index)
 
-        return df_state
+        return pd.concat([df_state, df_bldgs], axis=1).sort_index(axis=1)
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "BldgsProperties":
@@ -989,26 +1011,18 @@ class WaterProperties(NonVegetatedSurfaceProperties):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert water surface properties to DataFrame state format."""
         df_state = super().to_df_state(grid_id)
-        surf_idx = self.get_surface_index()
-
-        # Helper function to set values in DataFrame
-        def set_df_value(col_name: str, value: float):
-            idx_str = f"({surf_idx},)"
-            if (col_name, idx_str) not in df_state.columns:
-                # df_state[(col_name, idx_str)] = np.nan
-                df_state[(col_name, idx_str)] = None
-            df_state.loc[grid_id, (col_name, idx_str)] = value
-
-        list_attr = ["flowchange"]
-
-        # Add all non-inherited properties
-        df_state.loc[grid_id, ("flowchange", "0")] = (
-            self.flowchange.value
-            if isinstance(self.flowchange, RefValue)
-            else self.flowchange
+        df_flow = df_from_cols(
+            {
+                ("flowchange", "0"): (
+                    self.flowchange.value
+                    if isinstance(self.flowchange, RefValue)
+                    else self.flowchange
+                )
+            },
+            index=df_state.index,
         )
 
-        return df_state
+        return pd.concat([df_state, df_flow], axis=1)
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "WaterProperties":
@@ -1083,21 +1097,21 @@ class VerticalLayers(BaseModel):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert vertical layers to DataFrame state format."""
-        # Initialize empty DataFrame with grid_id index
-        df_state = init_df_state(grid_id)
-
         # Set number of vertical layers
         nlayer_val = (
             self.nlayer.value if isinstance(self.nlayer, RefValue) else self.nlayer
         )
-        df_state[(f"nlayer", "0")] = nlayer_val
+        cols = {
+            ("gridiv", "0"): grid_id,
+            ("nlayer", "0"): nlayer_val,
+        }
 
         # Set heights for each layer boundary (nlayer + 1 heights needed)
         height_val = (
             self.height.value if isinstance(self.height, RefValue) else self.height
         )
         for i in range(nlayer_val + 1):
-            df_state[("height", f"({i},)")] = height_val[i]
+            cols[("height", f"({i},)")] = height_val[i]
 
         # Set vegetation and building parameters for each layer
         for var in ["veg_frac", "veg_scale", "building_frac", "building_scale"]:
@@ -1106,22 +1120,17 @@ class VerticalLayers(BaseModel):
                 field_val.value if isinstance(field_val, RefValue) else field_val
             )
             for i in range(nlayer_val):
-                df_state[(f"{var}", f"({i},)")] = var_values[i]
+                cols[(f"{var}", f"({i},)")] = var_values[i]
+
+        frames = [df_from_cols(cols, index=pd.Index([grid_id], name="grid"))]
 
         # Convert roof and wall properties to DataFrame format for each layer
-        df_roofs = pd.concat(
-            [self.roofs[i].to_df_state(grid_id, i, "roof") for i in range(nlayer_val)],
-            axis=1,
-        )
-        df_walls = pd.concat(
-            [self.walls[i].to_df_state(grid_id, i, "wall") for i in range(nlayer_val)],
-            axis=1,
-        )
+        for i in range(nlayer_val):
+            frames.append(self.roofs[i].to_df_state(grid_id, i, "roof"))
+            frames.append(self.walls[i].to_df_state(grid_id, i, "wall"))
 
         # Combine all DataFrames
-        df_state = pd.concat([df_state, df_roofs, df_walls], axis=1)
-
-        return df_state
+        return pd.concat(frames, axis=1)
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "VerticalLayers":

@@ -62,13 +62,34 @@ def check_range(ser_to_check: pd.Series, rule_var: dict) -> Tuple:
         is_accepted_flag = False
         ind = ser_flag.index[ser_flag]
         ind = [ser_flag.index.get_loc(x) for x in ind]
+
+        # NOTE: `pres` is in kPa in forcing files, converted to hPa in _load.py,
+        # so all checks here operate on hPa. Error messages must make units explicit.
+
         # Special message for wind speed
         if var == "u":
-            description = f"Wind speed (`U`) must be >= {min_v} m/s to avoid division by zero errors in atmospheric calculations. {n_flag} values below {min_v} m/s found at:\n {ind}"
-            suggestion = f"Set all wind speed values < {min_v} m/s to {min_v} m/s. This is required for numerical stability in SUEWS."
+            description = (
+                f"Wind speed (`U`) must be >= {min_v} m/s to avoid division by zero "
+                f"errors in atmospheric calculations. {n_flag} values below {min_v} m/s "
+                f"found at:\n {ind}"
+            )
+            suggestion = (
+                f"Set all wind speed values < {min_v} m/s to {min_v} m/s. "
+                f"This is required for numerical stability in SUEWS."
+            )
+        elif var == "pres":
+            # min_v and max_v here are in hPa (after conversion in _load.py)
+            min_hpa, max_hpa = min_v, max_v
+            min_kpa, max_kpa = min_hpa / 10, max_hpa / 10
+            description = (
+                f"`pres` should be between [{min_kpa:.1f}, {max_kpa:.1f}] kPa; "
+                f"{n_flag} outliers are found at:\n {ind}"
+            )
         else:
-            description = f"`{var}` should be between [{min_v}, {max_v}] but {n_flag} outliers are found at:\n {ind}"
-
+            description = (
+                f"`{var}` should be between [{min_v}, {max_v}] but {n_flag} "
+                f"outliers are found at:\n {ind}"
+            )
     if not is_accepted_flag:
         is_accepted = is_accepted_flag
         if var != "u":
@@ -478,9 +499,10 @@ def upgrade_df_state(df_state: pd.DataFrame) -> pd.DataFrame:
         # remove columns
         for c in set_col_deprecated_use:
             if c in list_col_remove:
-                print(c)
-                print(df_state_upgrade[c])
-                logger_supy.info(f"Column `{c}` is removed")
+                logger_supy.debug(
+                    "Removing deprecated column: %s\n%s", c, df_state_upgrade[c]
+                )
+                logger_supy.info("Column `%s` is removed", c)
                 df_state_upgrade = df_state_upgrade.drop(columns=c, level=0)
 
         # expand df_state_init to match df_state_init_test

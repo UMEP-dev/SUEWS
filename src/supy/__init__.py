@@ -55,6 +55,10 @@ __all__ = [
     "ValidationResult",
     # Modern interface
     "SUEWSSimulation",
+    "SUEWSForcing",
+    "SUEWSOutput",
+    # Exceptions
+    "SUEWSKernelError",
     # Version
     "show_version",
     "__version__",
@@ -109,14 +113,16 @@ def __getattr__(name):
 
     # Submodules
     if name == "util":
-        from . import util
+        import importlib
 
+        util = importlib.import_module(".util", __name__)
         _lazy_cache[name] = util
         return _lazy_cache[name]
 
     if name == "data_model":
-        from . import data_model
+        import importlib
 
+        data_model = importlib.import_module(".data_model", __name__)
         _lazy_cache[name] = data_model
         return _lazy_cache[name]
 
@@ -153,6 +159,24 @@ def __getattr__(name):
         except ImportError:
             return None
 
+    if name == "SUEWSForcing":
+        try:
+            from .suews_forcing import SUEWSForcing
+
+            _lazy_cache[name] = SUEWSForcing
+            return _lazy_cache[name]
+        except ImportError:
+            return None
+
+    if name == "SUEWSOutput":
+        try:
+            from .suews_output import SUEWSOutput
+
+            _lazy_cache[name] = SUEWSOutput
+            return _lazy_cache[name]
+        except ImportError:
+            return None
+
     # Version info
     if name == "show_version":
         from ._version import show_version
@@ -165,6 +189,13 @@ def __getattr__(name):
         from .cmd import SUEWS
 
         _lazy_cache[name] = SUEWS
+        return _lazy_cache[name]
+
+    # Exception for Fortran kernel errors
+    if name == "SUEWSKernelError":
+        from ._run import SUEWSKernelError
+
+        _lazy_cache[name] = SUEWSKernelError
         return _lazy_cache[name]
 
     raise AttributeError(f"module 'supy' has no attribute {name!r}")

@@ -263,6 +263,8 @@ instance/
 # Sphinx documentation
 docs/_build/
 doc/_build/
+docs/source/auto_examples/
+docs/source/sg_execution_times.rst
 
 # PyBuilder
 target/
@@ -595,6 +597,7 @@ docs/source/tutorials/python/df_state.csv
 
 # Auto-generated Sphinx API documentation
 docs/source/_autosummary/
+docs/source/api/generated/
 
 # Auto-generated RST files from data model
 docs/source/inputs/yaml/config-reference/*.rst
@@ -648,3 +651,6 @@ test/fixtures/gh846/*.zip
 
 # Conductor worktree workspaces
 .conductor/
+
+# Conductor agent collaboration directory
+.context/

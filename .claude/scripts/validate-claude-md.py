@@ -10,17 +10,14 @@ import hashlib
 import json
 from datetime import datetime
 
-# Critical sections that must be preserved (updated for rules-based structure)
+# Critical sections that must be preserved (slim CLAUDE.md structure)
 CRITICAL_SECTIONS = [
     "## Quick Start",
-    "## Style Guidelines",
-    "## Testing",
+    "## Essential Rules",
     "## Project Structure",
-    "## Documentation Building",
-    "## Git",
-    "## Development Reminders",
-    "## Claude Code Workspace",
-    "## Rules (Auto-Loaded)",
+    "## Skills",
+    "## Auto-Loaded Rules",
+    "## References",
 ]
 
 # Required skill files that contain detailed content
@@ -126,10 +123,10 @@ def check_file_integrity(filepath: Path) -> dict:
         "timestamp": datetime.now().isoformat(),
     }
 
-    # Check minimum content thresholds (updated for rules-based structure)
-    # CLAUDE.md is now a brief overview (~75 lines) with references to rules/
-    MIN_LINES = 60  # CLAUDE.md should have at least this many lines
-    MIN_CHARS = 2400  # And this many characters (reduced for slimmer file)
+    # Check minimum content thresholds (slim CLAUDE.md structure)
+    # CLAUDE.md is now a brief index (~50 lines) with references to skills/rules
+    MIN_LINES = 45  # CLAUDE.md should have at least this many lines
+    MIN_CHARS = 1200  # And this many characters (reduced for slimmer file)
 
     if stats["lines"] < MIN_LINES:
         warnings.append(

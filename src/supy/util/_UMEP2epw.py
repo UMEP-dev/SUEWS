@@ -8,7 +8,7 @@ Author: Csilla V Gal
 
 import pandas as pd
 import numpy as np
-import supy
+from ._tmy import gen_epw
 from metpy.units import units
 from metpy.calc import (
     mixing_ratio_from_relative_humidity,
@@ -18,13 +18,23 @@ from metpy.calc import (
 from pathlib import Path
 
 
-def convert_UMEPf2epw(path_txt, lat, lon, tz, alt=None, path_epw=None):
+def convert_UMEPf2epw(
+    path_txt,
+    lat,
+    lon,
+    tz,
+    alt=None,
+    path_epw=None,
+    wind_height_input=None,
+    wind_height_output=10.0,
+    z0m=0.1,
+):
     """
     Converts and saves a UMEP-generated, year-long forcing file (.txt)
     with hourly resolution to .epw
 
     NOTE: A small function is added now at the end to
-    clear up .epw file formatting and it's header.
+    clear up .epw file formatting and its header.
     It can be removed or some aspects integrated into supy.util.gen_epw.
 
     Parameters
@@ -39,8 +49,18 @@ def convert_UMEPf2epw(path_txt, lat, lon, tz, alt=None, path_epw=None):
         Time zone expressed as a difference from UTC+0, such as -8 for UTC-8.
     alt : float, optional
         Altitude of the site.
-    path_epw : path,optional
+    path_epw : path, optional
         Path to the new .epw file.
+    wind_height_input : float, optional
+        Height [m] at which input UMEP wind speed was measured/modelled, by default None.
+        If None, no height correction is applied to input data.
+        If specified, wind speed will be corrected from this height to wind_height_output.
+    wind_height_output : float, optional
+        Target height [m] for output EPW wind speed, by default 10.0 (EPW standard).
+        EPW standard is 10 m above ground level.
+    z0m : float, optional
+        Roughness length for momentum [m], by default 0.1.
+        Only used if wind_height_input is specified.
 
     Returns
     -------
@@ -48,6 +68,16 @@ def convert_UMEPf2epw(path_txt, lat, lon, tz, alt=None, path_epw=None):
         - df_epw: uTMY result
         - text_meta: meta-info text
         - path_epw: path to generated `epw` file
+
+    Notes
+    -----
+    EPW files follow standard meteorological measurement heights:
+    - Wind speed: 10 m above ground level
+    - Temperature, relative humidity, dew point: 2 m above ground level
+
+    UMEP forcing files may have wind speed at different heights depending on
+    the source data and processing. Use wind_height_input to specify the
+    actual height of UMEP wind data for proper conversion to EPW standard.
     """
     # Dictionary for parameter naming conversion (UMEP to SUEWS)
     # NOTE: To be used with with 1.A column naming option, otherwise redundant.
@@ -185,8 +215,19 @@ def convert_UMEPf2epw(path_txt, lat, lon, tz, alt=None, path_epw=None):
     spec_hum = specific_humidity_from_mixing_ratio(mixing_ratio) * units("kg/kg")
     df_data["Q2"] = spec_hum.to("g/kg")
 
-    # (6) Save data with supy.util.gen_epw
-    data_epw, header_epw, path_2epw = supy.util.gen_epw(df_data, lat, lon, tz, path_epw)
+    # (5.5) Apply wind speed height correction if needed
+    if wind_height_input is not None:
+        from supy.util._atm import correct_wind_height
+
+        df_data["U10"] = correct_wind_height(
+            df_data["U10"],
+            z_meas=wind_height_input,
+            z_target=wind_height_output,
+            z0m=z0m,
+        )
+
+    # (6) Save data with gen_epw
+    data_epw, header_epw, path_2epw = gen_epw(df_data, lat, lon, tz, path_epw)
 
     # (7) Patch up the generated .epw.
     # NOTE: This can be turned off/removed.

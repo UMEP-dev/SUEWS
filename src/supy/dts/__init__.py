@@ -75,7 +75,7 @@ if _DTS_AVAILABLE:
         populate_storedrainprm,
         populate_timer_from_datetime,
     )
-    from ._runner import run_dts
+    from ._runner import run_dts, run_dts_multi
 
 else:
     # Fast build - provide stub functions that raise clear errors
@@ -160,6 +160,10 @@ else:
         """Stub: DTS not available."""
         _check_dts_available()
 
+    def run_dts_multi(*args, **kwargs):
+        """Stub: DTS not available."""
+        _check_dts_available()
+
 
 __all__ = [
     "build_full_output_dataframe",
@@ -182,6 +186,7 @@ __all__ = [
     "populate_storedrainprm",
     "populate_timer_from_datetime",
     "run_dts",
+    "run_dts_multi",
     # Utility for checking availability
     "_DTS_AVAILABLE",
     "_check_dts_available",

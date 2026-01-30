@@ -147,7 +147,7 @@ def run_dts(
     """
     # Get components from config
     model = config.model
-    site = config.sites[site_index] if hasattr(config, "sites") else config.site
+    site = config.sites[site_index]
     initial_states = site.initial_states
 
     # Determine timestep from forcing index
@@ -276,3 +276,68 @@ def run_dts(
     }
 
     return df_output, final_state
+
+
+def run_dts_multi(
+    df_forcing: pd.DataFrame,
+    config: SUEWSConfig,
+    nlayer: int | None = None,
+    ndepth: int | None = None,
+) -> tuple[pd.DataFrame, dict]:
+    """Run SUEWS DTS simulation for all sites in a configuration.
+
+    Iterates over ``config.sites``, calls :func:`run_dts` for each site,
+    and aggregates the results into a single DataFrame with a grid-level
+    MultiIndex matching the traditional backend output format.
+
+    Parameters
+    ----------
+    df_forcing : pd.DataFrame
+        Forcing data with datetime index and meteorological variables.
+    config : SUEWSConfig
+        Pydantic configuration object containing Model and one or more Sites.
+    nlayer : int, optional
+        Number of vertical layers (passed to each ``run_dts`` call).
+    ndepth : int, optional
+        Number of substrate depth levels (passed to each ``run_dts`` call).
+
+    Returns
+    -------
+    df_output : pd.DataFrame
+        Output DataFrame with MultiIndex rows ``(grid, datetime)`` and
+        MultiIndex columns ``(group, var)``.  For multi-grid configs the
+        grid level contains one entry per site.
+    dict_final_states : dict
+        Final states keyed by grid id, each value being the ``final_state``
+        dict returned by :func:`run_dts`.
+
+    See Also
+    --------
+    run_dts : Single-grid DTS runner (called internally per site).
+    """
+    sites = config.sites
+
+    # Validate unique grid IDs to avoid silent overwrites in state dict
+    gridivs = [s.gridiv for s in sites]
+    dupes = [g for g in gridivs if gridivs.count(g) > 1]
+    if dupes:
+        raise ValueError(f"Duplicate gridiv values in config.sites: {set(dupes)}")
+
+    list_df_output = []
+    dict_final_states = {}
+
+    for idx, site in enumerate(sites):
+        df_output, final_state = run_dts(
+            df_forcing=df_forcing,
+            config=config,
+            site_index=idx,
+            nlayer=nlayer,
+            ndepth=ndepth,
+        )
+        list_df_output.append(df_output)
+        dict_final_states[site.gridiv] = final_state
+
+    # Concatenate all grids — each df already has (grid, datetime) index
+    df_output_all = pd.concat(list_df_output).sort_index()
+
+    return df_output_all, dict_final_states

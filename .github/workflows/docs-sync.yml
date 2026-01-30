@@ -1,7 +1,8 @@
 name: Sync rtd branch from master
 
-# Merges master into the `rtd` branch, rebuilds sphinx-gallery when tutorials
-# change, and propagates CalVer tags as rtd/* tags for RTD versioned builds.
+# Merges master into the `rtd` branch, builds full HTML when docs-related
+# files change, and propagates CalVer tags as rtd/* tags for RTD versioned builds.
+# RTD serves the pre-built HTML directly — no source compilation needed.
 # Branch is named `rtd` (not `docs`) to avoid ref conflict with existing docs/* branches.
 
 on:
@@ -11,11 +12,11 @@ on:
       - "[0-9]*"           # CalVer releases, e.g. 2026.1.28
     # No `paths` filter: tag pushes have no file diff, so a paths filter
     # would silently prevent CalVer tags from triggering this workflow.
-    # Step 4 already detects whether tutorials actually changed.
+    # Step 4 already detects whether docs-related files actually changed.
   workflow_dispatch:
     inputs:
-      force_gallery_rebuild:
-        description: "Force gallery rebuild (ignore change detection)"
+      force_docs_rebuild:
+        description: "Force docs rebuild (ignore change detection)"
         type: boolean
         default: false
 
@@ -133,14 +134,14 @@ jobs:
         run: exit 1
 
       # ------------------------------------------------------------------
-      # 4. Detect whether tutorials changed since last sync
+      # 4. Detect whether docs-related files changed since last sync
       # ------------------------------------------------------------------
-      - name: Detect tutorial changes
+      - name: Detect docs changes
         id: detect
         run: |
-          FORCE="${{ github.event.inputs.force_gallery_rebuild || 'false' }}"
+          FORCE="${{ github.event.inputs.force_docs_rebuild || 'false' }}"
           if [ "$FORCE" = "true" ]; then
-            echo "gallery_changed=true" >> "$GITHUB_OUTPUT"
+            echo "docs_changed=true" >> "$GITHUB_OUTPUT"
             echo "Forced rebuild requested"
             exit 0
           fi
@@ -156,59 +157,61 @@ jobs:
           fi
 
           if [ -z "$LAST_COMMIT" ]; then
-            echo "gallery_changed=true" >> "$GITHUB_OUTPUT"
-            echo "No previous sync commit found -- rebuilding"
+            echo "docs_changed=true" >> "$GITHUB_OUTPUT"
+            echo "No previous sync commit found -- full rebuild"
             exit 0
           fi
 
-          # Check if tutorial sources changed between last sync and current master
+          # Check if docs-related files changed between last sync and current master.
+          # Broad filter: any change under docs/, src/supy/, or src/suews/src/
+          # triggers a full rebuild (including sphinx-gallery). If CI cost becomes
+          # a concern, consider splitting into fast (RST-only) vs full (source) rebuilds.
           MASTER_SHA=$(git rev-parse origin/master)
           CHANGED=$(git diff --name-only "$LAST_COMMIT" "$MASTER_SHA" -- \
-            docs/source/tutorials/ \
-            docs/source/conf.py \
+            docs/ \
             src/supy/ \
             src/suews/src/ || echo "error")
 
           if [ "$CHANGED" = "error" ] || [ -n "$CHANGED" ]; then
-            echo "gallery_changed=true" >> "$GITHUB_OUTPUT"
+            echo "docs_changed=true" >> "$GITHUB_OUTPUT"
             echo "Changes detected:"
             echo "$CHANGED"
           else
-            echo "gallery_changed=false" >> "$GITHUB_OUTPUT"
-            echo "No tutorial/source changes since last sync"
+            echo "docs_changed=false" >> "$GITHUB_OUTPUT"
+            echo "No docs-related changes since last sync"
           fi
 
       # ------------------------------------------------------------------
-      # 5. Build gallery (only when tutorials changed)
+      # 5. Build docs (only when docs-related files changed)
       # ------------------------------------------------------------------
       - name: Install system dependencies
-        if: steps.detect.outputs.gallery_changed == 'true'
+        if: steps.detect.outputs.docs_changed == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y gfortran
 
       - name: Install uv
-        if: steps.detect.outputs.gallery_changed == 'true'
+        if: steps.detect.outputs.docs_changed == 'true'
         uses: astral-sh/setup-uv@v4
 
       - name: Set up Python
-        if: steps.detect.outputs.gallery_changed == 'true'
+        if: steps.detect.outputs.docs_changed == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
-      - name: Install supy from source and build gallery
-        if: steps.detect.outputs.gallery_changed == 'true'
+      - name: Install supy and build docs
+        if: steps.detect.outputs.docs_changed == 'true'
         run: |
           uv pip install --system ".[dev]"
           cd docs
           # Generate data-model RST files first
           make generate-rst
-          # Build HTML (executes tutorials via sphinx-gallery)
+          # Build full HTML (executes tutorials via sphinx-gallery)
           sphinx-build -M html source build
 
-      - name: Commit gallery artefacts
-        if: steps.detect.outputs.gallery_changed == 'true'
+      - name: Commit docs build artefacts
+        if: steps.detect.outputs.docs_changed == 'true'
         env:
           CURRENT_MASTER: ${{ github.sha }}
           SOURCE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
@@ -216,9 +219,15 @@ jobs:
           # Create marker file
           touch docs/source/auto_examples/.prebuilt
 
-          # Stage gallery output (force-add since gitignored on master)
+          # Stage gallery source output (retained for provenance/inspection;
+          # not required by RTD, which serves pre-built HTML directly)
           git add -f docs/source/auto_examples/
           git add -f docs/source/sg_execution_times.rst
+
+          # Remove stale HTML before re-staging to avoid accumulating
+          # files from renamed/deleted pages across rebuilds
+          git rm -r --cached --quiet docs/build/html/ 2>/dev/null || true
+          git add -f docs/build/html/
 
           # Update provenance metadata
           python3 -c "
@@ -227,7 +236,7 @@ jobs:
               'source_branch': 'master',
               'source_commit': os.environ['CURRENT_MASTER'],
               'source_tag': os.environ.get('SOURCE_TAG', ''),
-              'gallery_built': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              'docs_built': datetime.datetime.now(datetime.timezone.utc).isoformat(),
               'builder': 'github-actions',
           }
           with open('docs/.docs-source.json', 'w') as f:
@@ -237,16 +246,16 @@ jobs:
           git add docs/.docs-source.json
 
           SHORT_SHA="${CURRENT_MASTER::8}"
-          git commit -m "Update pre-built gallery artefacts
+          git commit -m "Update pre-built docs artefacts
 
           Source: master @ ${SHORT_SHA}
-          Builder: github-actions" || echo "No gallery changes to commit"
+          Builder: github-actions" || echo "No docs changes to commit"
 
       # ------------------------------------------------------------------
-      # 6. Update provenance even when gallery not rebuilt
+      # 6. Update provenance even when docs not rebuilt
       # ------------------------------------------------------------------
-      - name: Update provenance (no gallery rebuild)
-        if: steps.detect.outputs.gallery_changed != 'true'
+      - name: Update provenance (no docs rebuild)
+        if: steps.detect.outputs.docs_changed != 'true'
         env:
           CURRENT_MASTER: ${{ github.sha }}
           SOURCE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
@@ -260,7 +269,7 @@ jobs:
               # First run: create initial provenance
               data = {
                   'source_branch': 'master',
-                  'gallery_built': '',
+                  'docs_built': '',
                   'builder': 'github-actions',
               }
           data['source_commit'] = os.environ['CURRENT_MASTER']

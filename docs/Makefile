@@ -15,11 +15,6 @@ OUTPUT_RST_STAMP  = $(OUTPUT_RST_OUTDIR)/.generated.stamp
 # Data model sources that affect generated RST
 DM_SRC        = $(shell find ../src/supy/data_model -type f -name '*.py' 2>/dev/null)
 
-# Tutorial notebooks generated from percent-format .py sources
-TUTORIAL_DIR  = $(SOURCEDIR)/tutorials/python
-TUTORIAL_PY   = $(wildcard $(TUTORIAL_DIR)/*_tutorial.py)
-TUTORIAL_IPYNB = $(TUTORIAL_PY:_tutorial.py=-tutorial.ipynb)
-
 .PHONY: help html clean livehtml
 
 # Default target
@@ -27,7 +22,7 @@ help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
 
 # Build HTML documentation (most common use case)
-html: $(RST_STAMP) $(OUTPUT_RST_STAMP) $(TUTORIAL_IPYNB)
+html: $(RST_STAMP) $(OUTPUT_RST_STAMP)
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
 
 # Clean build artifacts
@@ -35,7 +30,7 @@ clean:
 	@$(SPHINXBUILD) -M clean "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
 
 # Live-reloading server with incremental builds
-livehtml: $(RST_STAMP) $(OUTPUT_RST_STAMP) $(TUTORIAL_IPYNB)
+livehtml: $(RST_STAMP) $(OUTPUT_RST_STAMP)
 	@echo "Starting live-reload server with incremental builds..."
 	@echo "Tip: Edit .rst files and see changes instantly (2-5s rebuilds)"
 	@echo "     Data model RST auto-regenerates when Python sources change"
@@ -65,12 +60,6 @@ $(OUTPUT_RST_STAMP): generate_output_variable_rst.py $(DM_SRC)
 # "%:" rule (which would try to call sphinx with a non-existent builder).
 generate-rst: $(RST_STAMP) $(OUTPUT_RST_STAMP)
 	@:
-
-# Generate tutorial notebooks from percent-format .py sources
-# Pattern: foo_tutorial.py -> foo-tutorial.ipynb (underscore to hyphen)
-$(TUTORIAL_DIR)/%-tutorial.ipynb: $(TUTORIAL_DIR)/%_tutorial.py
-	@echo "Generating $@ from $<..."
-	@jupytext --to ipynb "$<" -o "$@"
 
 # Catch remaining sphinx targets without auto-generation
 %:

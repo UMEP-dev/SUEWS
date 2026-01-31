@@ -5,7 +5,3 @@ source/inputs/yaml/config-reference/.generated.stamp
 source/inputs/yaml/config-reference/
 source/outputs/variables/.generated.stamp
 source/outputs/variables/*.rst
-
-# Generated notebooks from percent-format .py sources (see #1029)
-# These are built by `make html` from corresponding .py files
-source/tutorials/python/attribution-tutorial.ipynb

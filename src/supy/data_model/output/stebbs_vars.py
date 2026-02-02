@@ -26,28 +26,28 @@ STEBBS_VARIABLE_DEFS = [
     ("Lroof_in", "W m-2", "Incoming longwave radiation on roof per surface area", 0),
     ("Kwall_in", "W m-2", "Incoming shortwave radiation on wall per surface area", 0),
     ("Lwall_in", "W m-2", "Incoming longwave radiation on wall per surface area", 0),
-    #Energy balnace fluxes (6)
+    #Energy balance fluxes (6)
     ("QN_bldg_FA", "W m-2", "Net all-wave radiation per building footprint area", 0),
     ("QEC_bldg_FA", "W m-2", "Total energy consumption and metabolism per building footprint area", 0),
     ("QS_total_FA", "W m-2", "Total Storage heat flux per building footprint area", 0),
     ("QH_bldg_FA", "W m-2", "Total convective heat transfer at external building surface per building footprint area", 0),
     ("QBAE_bldg_FA", "W m-2", "Total heat transfer by air exchange per building footprint area", 0),
     ("QWaste_bldg_FA", "W m-2", "Total waste heat from HVAC system to outdoor air per building footprint area", 0),
-    # components of stoeage heat flux and enegry consumption (6)
+    # components of storage heat flux and enegry consumption (6)
     ("QS_bldg_FA", "W m-2", "Storage heat flux for building components", 0),
     ("QS_dhw_FA", "W m-2", "Storage heat flux in hot water going to drainage system", 0),
     ("QS_ground_FA", "W m-2", "Storage heat flux in the soil beneath building", 0),
     ("QEC_heating_FA", "W m-2", "Energy consumption by space heating", 0),
-    ("QEC_cooling_FA", "W m-2", "Energy consumption by sapce cooling", 0),
+    ("QEC_cooling_FA", "W m-2", "Energy consumption by space cooling", 0),
     ("QEC_dhw_FA", "W m-2", "Energy consumption by dhw system", 0),
     # Indoor air and surface temperatures (10)
     ("Tair_ind", "K", "Indoor air temperature", 0),
     ("Tindoormass", "K", "Indoor mass temperature", 0),
     ("Tintwall", "K", "Internal surface temperature of wall", 0),
-    ("Tintroof", "K", "Internal surfac etemperature of roof", 0),
-    ("Textwall", "K", "External surface temperature fo wall", 0),
-    ("Textroof", "K", "External surface temperature fo roof", 0),
-    ("Tintwindow", "K", "Internal surface temperature of window ", 0),
+    ("Tintroof", "K", "Internal surface etemperature of roof", 0),
+    ("Textwall", "K", "External surface temperature of wall", 0),
+    ("Textroof", "K", "External surface temperature of roof", 0),
+    ("Tintwindow", "K", "Internal surface temperature of window", 0),
     ("Textwindow", "K", "External surface temperature of window", 0),
     ("Tintgrndflr", "K", "Internal surface temperature of ground floor", 0),
     ("Textgrndflr", "K", "External surface temperature of ground floor", 0),
@@ -59,15 +59,15 @@ STEBBS_VARIABLE_DEFS = [
     ("Qsw_abs_wall_FA", "W m-2", "Shortwave radiation absorbed by wall", 0),
     ("Qsw_abs_roof_FA", "W m-2", "Shortwave radiation absorbed by roof", 0),
     # Net longwave radiation (5)
-    ("Qlw_net_wall_FA", "W m-2", "Net longwave radiation  radiation from external surface of wall", 0),
-    ("Qlw_net_roof_FA", "W m-2", "Net longwave radiation  radiation from external surface of roof", 0),
-    ("Qlw_net_window_FA", "W m-2", "Net longwave radiation f radiation from external surface of window", 0),
-    ("Qlw_net_tank_FA", "W m-2", "Net longwave radiation  radiation from external surface of tank to internal mass", 0),
-    ("Qlw_net_vessel_FA", "W m-2", "Net longwave radiation  radiation from external surface of vessel to internal mass", 0),    
+    ("Qlw_net_wall_FA", "W m-2", "Net longwave radiation from external surface of wall", 0),
+    ("Qlw_net_roof_FA", "W m-2", "Net longwave radiation from external surface of roof", 0),
+    ("Qlw_net_window_FA", "W m-2", "Net longwave radiation from external surface of window", 0),
+    ("Qlw_net_tank_FA", "W m-2", "Net longwave radiation from external surface of tank to internal mass", 0),
+    ("Qlw_net_vessel_FA", "W m-2", "Net longwave radiation from external surface of vessel to internal mass", 0),    
     # Convection (12)
-    ("QHconv_extwall_FA", "W m-2", "Convective heat between external wall and indoor air", 0),
-    ("QHconv_extroof_FA", "W m-2", "Convective heat between  external roof and indoor air", 0),
-    ("QHconv_extwin_FA", "W", "Convective heat between external window and indoor air", 0),
+    ("QHconv_extwall_FA", "W m-2", "Convective heat between external wall and outdoor air", 0),
+    ("QHconv_extroof_FA", "W m-2", "Convective heat between external roof and outdoor air", 0),
+    ("QHconv_extwin_FA", "W m-2", "Convective heat between external window and outdoor air", 0),
     ("QHconv_intwall_FA", "W m-2", "Convective heat between internal surface of wall and indoor air", 0),
     ("QHconv_introof_FA", "W m-2", "Convective heat between internal surface of roof and indoor air", 0),
     ("QHconv_intwindow_FA", "W m-2", "Convective heat between internal surface of window and indoor air", 0),
@@ -87,16 +87,16 @@ STEBBS_VARIABLE_DEFS = [
     ("QHcond_vessel_FA", "W m-2", "Conductive heat through water vessel",0),    
     # Other heat gain/loss to indoor air (5)
     ("QH_appliance_FA", "W m-2", "Sensible appliance heat gain",0),
-    ("QH_metabolism_FA", "W m-2", "Sensible metabolic  heat gain", 0),
+    ("QH_metabolism_FA", "W m-2", "Sensible metabolic heat gain", 0),
     ("QHwaste_heating_FA", "W m-2", "Sensible heat gain from waste heat due to space heating", 0),
     ("QHwaste_dhw_FA", "W m-2", "Sensible heat gain from waste heat due to hot water", 0),
     ("QH_ventilation_FA", "W m-2", "Heat gain/loss through ventilation", 0),
-    # Heating/cooling Load （3)
+    # Heating/cooling Load (3)
     ("QHload_heating_FA", "W m-2", "Sensible heating load", 0),
     ("QHload_cooling_FA", "W m-2", "Sensible cooling load", 0),
-    ("QHload_dhw_FA", "W m-2", "Sensibel heat supply to hot water tank", 0),
-    # Other heat emission pathway （2）
-    ("QHwaste_cooling_FA", "W", "Waste heat rejection from cooling system to outdoor air", 0),
+    ("QHload_dhw_FA", "W m-2", "Sensible heat supply to hot water tank", 0),
+    # Other heat emission pathway (2)
+    ("QHwaste_cooling_FA", "W m-2", "Waste heat rejection from cooling system to outdoor air", 0),
     ("Qloss_drain_FA", "W m-2", "Heat loss from hot water to drainage system", 0),
     # components of building storage heat flux (6)
     ("QS_wall_FA", "W m-2", "Storage heat flux in wall", 0),

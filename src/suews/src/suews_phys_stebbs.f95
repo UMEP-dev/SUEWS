@@ -1043,8 +1043,6 @@ SUBROUTINE suewsstebbscouple(self, datetimeLine, &
    REAL(KIND(1D0)), INTENT(OUT) :: Vwater_tank
 
    ! Other declarations
-   !REAL(KIND(1D0)), DIMENSION(6) :: bem_qf_1
-   !REAL(KIND(1D0)), DIMENSION(25) :: energyEx
    CHARACTER(len=256) :: CASE
    CHARACTER(len=256), DIMENSION(4) :: fout
    REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
@@ -1240,10 +1238,6 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
                       Qlw_dn_extwall, Qlw_dn_extroof
    REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
    TYPE(STEBBS_BLDG) :: self
-   !self%QHload_heating_tstepFA = 0.0
-   !self%QHload_cooling_tstepFA = 0.0
-   !self%QHload_dhw_tstepFA = 0.0
-   !self%Qloss_drain_tstepFA = 0.0
    CALL tstep( &
       ! flginit,
       datetimeLine, Tair_out, Tair_out_bh, Tair_out_hbh, Tground_deep, Tsurf, &

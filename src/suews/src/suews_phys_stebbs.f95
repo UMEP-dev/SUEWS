@@ -916,7 +916,7 @@ CONTAINS
                                 QHwaste_dhw_tstepFA, QH_ventilation_tstepFA, QHload_heating_tstepFA, QHload_cooling_tstepFA, &
                                 QHload_dhw_tstepFA, QHwaste_cooling_tstepFA, Qloss_drain_tstepFA, QS_wall_tstepFA, QS_roof_tstepFA, &
                                 QS_groundfloor_tstepFA, QS_window_tstepFA, QS_indoormass_tstepFA, QS_air_tstepFA, &
-                                TWater_tank, TWater_vessel, Vwater_vessel, Vwater_tank &
+                                TWater_tank, TWater_vessel, Vwater_tank, Vwater_vessel &
                                 ]
             RETURN
          END ASSOCIATE

@@ -143,8 +143,8 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: QHload_cooling_tstepFA = 0.0D0
       REAL(KIND(1D0)) :: QH_metabolism = 0.0D0
       REAL(KIND(1D0)) :: QE_metabolism = 0.0D0
-      REAL(KIND(1D0)) :: Qtotal_water_tank = 0.0D0
-      REAL(KIND(1D0)) :: qhwtDrain = 0.0D0
+      REAL(KIND(1D0)) :: QHload_dhw_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: Qloss_drain_tstepFA = 0.0D0
       REAL(KIND(1D0)) :: ratio_window_wall = 0.0D0
       REAL(KIND(1D0)) :: Afootprint = 0.0D0
       REAL(KIND(1D0)) :: height_building = 0.0D0
@@ -288,12 +288,18 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: qfb_hw_dom = 0.0D0  ! Hot water
       REAL(KIND(1D0)) :: qfb_dom_air = 0.0D0  ! Sensible heat to air [W]
       REAL(KIND(1D0)) :: dom_temp = 0.0D0  ! Domain temperature   [W]
-      REAL(KIND(1D0)) :: QStar = 0.0D0  ! Net radiation        [W m-2]
-      REAL(KIND(1D0)) :: QEC = 0.0D0  ! Energy use           [W m-2]
-      REAL(KIND(1D0)) :: QH = 0.0D0  ! Sensible heat flux   [W m-2]
-      REAL(KIND(1D0)) :: QS = 0.0D0  ! Storage heat flux    [W m-2]
-      REAL(KIND(1D0)) :: QBAE = 0.0D0  ! Building exchange    [W m-2]
-      REAL(KIND(1D0)) :: QWaste = 0.0D0  ! Waste heating        [W m-2]
+      REAL(KIND(1D0)) :: QN_bldg_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QEC_bldg_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QS_total_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QH_bldg_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QBAE_bldg_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QWaste_bldg_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QS_bldg_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QS_dhw_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QS_ground_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QEC_heating_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QEC_cooling_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QEC_dhw_tstepFA = 0.0D0
 
       REAL(KIND(1D0)), DIMENSION(2) :: Ts, initTs = 0.0D0
       REAL(KIND(1D0)), DIMENSION(5) :: h_i, k_eff = 0.0D0
@@ -306,7 +312,7 @@ module module_type_stebbs
       REAL(KIND(1D0)), DIMENSION(3) :: occupantData = 0.0D0
       REAL(KIND(1D0)), DIMENSION(3) :: HTsAverage, HWTsAverage = 0.0D0
       REAL(KIND(1D0)), DIMENSION(3) :: HWPowerAverage = 0.0D0
-      REAL(KIND(1D0)), DIMENSION(40) :: EnergyExchanges = 0.0D0
+      REAL(KIND(1D0)), DIMENSION(44) :: EnergyExchanges = 0.0D0
 
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Textwall_C  ! Wall external surface temperature from STEBBS[K]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Textroof_C ! Roof external surface temperature from STEBBS[K]

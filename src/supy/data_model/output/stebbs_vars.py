@@ -33,7 +33,7 @@ STEBBS_VARIABLE_DEFS = [
     ("QH_bldg_FA", "W m-2", "Total convective heat transfer at external building surface per building footprint area", 0),
     ("QBAE_bldg_FA", "W m-2", "Total heat transfer by air exchange per building footprint area", 0),
     ("QWaste_bldg_FA", "W m-2", "Total waste heat from HVAC system to outdoor air per building footprint area", 0),
-    # components of storage heat flux and enegry consumption (6)
+    # components of storage heat flux and energy consumption (6)
     ("QS_bldg_FA", "W m-2", "Storage heat flux for building components", 0),
     ("QS_dhw_FA", "W m-2", "Storage heat flux in hot water going to drainage system", 0),
     ("QS_ground_FA", "W m-2", "Storage heat flux in the soil beneath building", 0),
@@ -44,7 +44,7 @@ STEBBS_VARIABLE_DEFS = [
     ("Tair_ind", "K", "Indoor air temperature", 0),
     ("Tindoormass", "K", "Indoor mass temperature", 0),
     ("Tintwall", "K", "Internal surface temperature of wall", 0),
-    ("Tintroof", "K", "Internal surface etemperature of roof", 0),
+    ("Tintroof", "K", "Internal surface temperature of roof", 0),
     ("Textwall", "K", "External surface temperature of wall", 0),
     ("Textroof", "K", "External surface temperature of roof", 0),
     ("Tintwindow", "K", "Internal surface temperature of window", 0),

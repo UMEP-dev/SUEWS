@@ -1,10 +1,10 @@
 # .readthedocs.yaml
-# Read the Docs configuration file for the `rtd` branch
+# Read the Docs configuration file
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
 #
-# This branch contains pre-built sphinx-gallery artefacts, so RTD only needs
-# to render Sphinx (no tutorial execution, no gfortran compilation).
-# Gallery is rebuilt in CI (docs-sync.yml) and committed to this branch.
+# Build strategy: HTML is pre-built by CI (docs-sync workflow) and committed
+# to the rtd branch. RTD just copies the pre-built output — no source builds,
+# no Fortran compiler, no pip install needed.
 
 # Required
 version: 2
@@ -12,58 +12,17 @@ version: 2
 build:
   os: ubuntu-24.04
   tools:
-    python: "3.13"
-  # No apt_packages needed (no gfortran -- gallery is pre-built)
-  jobs:
-    pre_install:
-      # Fetch all tags for proper version detection
-      - git fetch --unshallow || true
-      - git fetch --tags || true
-      - git update-index --assume-unchanged docs/source/conf.py
-    post_create_environment:
-      # Pre-install Sphinx with upper bound (Sphinx 9.0 breaks sphinx_click)
-      - python -m pip install "sphinx>=4.0,<8.2"
-      # Install latest supy wheel (PyPI first, TestPyPI fallback for dev builds)
-      - |
-        SUPY_VERSION=$(python get_ver_git.py 2>/dev/null || echo "unknown")
-        echo "Detected SuPy version: $SUPY_VERSION"
-        INSTALLED=0
+    python: "3.13"  # Required by RTD v2 schema; not used for build
+  commands:
+    # Copy pre-built HTML to RTD output directory
+    - |
+      if [ ! -d docs/build/html ]; then
+        echo "ERROR: Pre-built HTML not found. The docs-sync CI workflow must run first."
+        exit 1
+      fi
+    - mkdir -p $READTHEDOCS_OUTPUT/html
+    - cp -r docs/build/html/* $READTHEDOCS_OUTPUT/html/
 
-        case "$SUPY_VERSION" in
-          *".dev"*|"unknown")
-            # Dev version: normalise to .dev0 and try Test PyPI first
-            PYPI_VERSION=$(echo "$SUPY_VERSION" | sed 's/\.dev[0-9]*/\.dev0/')
-            echo "Trying Test PyPI wheel: $PYPI_VERSION"
-            if python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "supy[dev]==$PYPI_VERSION"; then
-              INSTALLED=1
-            fi
-            ;;
-          *)
-            # Release version: try PyPI
-            echo "Trying PyPI wheel: $SUPY_VERSION"
-            if python -m pip install "supy[dev]==$SUPY_VERSION"; then
-              INSTALLED=1
-            fi
-            ;;
-        esac
-
-        # Fallback: install latest from PyPI
-        if [ "$INSTALLED" -eq 0 ]; then
-          echo "Exact version not found, installing latest supy from PyPI"
-          python -m pip install "supy[dev]"
-        fi
-    post_install:
-      # Re-pin Sphinx after RTD's own install step (which may upgrade beyond 8.2)
-      - python -m pip install "sphinx>=4.0,<8.2"
-      # Generate RST files after package is installed (data model docs)
-      - cd docs && make generate-rst
-
-# Build documentation in the docs/ directory with Sphinx
-sphinx:
-  configuration: docs/source/conf.py
-  builder: html
-  fail_on_warning: false
-
-# Build documentation formats
-# Only HTML format (no PDF or ePub to avoid compatibility issues)
+# No Sphinx config needed — HTML is pre-built by CI
+# No PDF or ePub
 formats: []

@@ -291,6 +291,7 @@ jobs:
           INPUT_PY313: ${{ inputs.py313 }}
           INPUT_PY314: ${{ inputs.py314 }}
           INPUT_TEST_TIER: ${{ inputs.test_tier }}
+          GITHUB_REF: ${{ github.ref }}
         run: bash .github/scripts/determine-matrix.sh
 
   post-ci-summary:
@@ -341,8 +342,7 @@ jobs:
             await script({ github, context });
 
   build_wheels:
-    name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
-    runs-on: ${{ matrix.buildplat[0] }}
+    name: Build standard wheels
     needs: [determine_matrix, create_nightly_tag, detect-changes, verify-release-tag]
     if: |
       always() &&
@@ -350,34 +350,18 @@ jobs:
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true')
-    strategy:
-      matrix:
-        buildplat: ${{ fromJson(needs.determine_matrix.outputs.buildplat) }}
-        python: ${{ fromJson(needs.determine_matrix.outputs.python) }}
-      fail-fast: false
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: recursive
-
-      - name: Build SUEWS wheels (standard variant)
-        uses: ./.github/actions/build-suews
-        with:
-          buildplat: ${{ matrix.buildplat[0] }}
-          buildplat_name: ${{ matrix.buildplat[1] }}
-          buildplat_arch: ${{ matrix.buildplat[2] }}
-          python: ${{ matrix.python }}
-          is_umep_variant: 'false'
-          wheel_name_suffix: ''
-          test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
-          is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
-          enable_dts: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/') }}
+    uses: ./.github/workflows/build-wheels-reusable.yml
+    with:
+      buildplat_json: ${{ needs.determine_matrix.outputs.buildplat }}
+      python_json: ${{ needs.determine_matrix.outputs.python }}
+      test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
+      is_umep_variant: 'false'
+      wheel_name_suffix: ''
+      is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
+      enable_dts: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/') }}
 
   build_umep:
-    name: Build UMEP wheel (rc1/dev1) for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
-    runs-on: ${{ matrix.buildplat[0] }}
+    name: Build UMEP wheels
     needs: [determine_matrix, create_nightly_tag, detect-changes, verify-release-tag]
     # PRs skip UMEP unless compiled extension ABI may differ (fortran/build-system)
     if: |
@@ -387,31 +371,15 @@ jobs:
       (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-umep-build == 'true') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true') &&
       (github.event_name != 'workflow_dispatch' || inputs.include_umep == true)
-    strategy:
-      matrix:
-        # Full platforms for production tags only; limited (win cp312) otherwise
-        buildplat: ${{ (startsWith(github.ref, 'refs/tags/') && !contains(github.ref, 'dev')) && fromJson(needs.determine_matrix.outputs.buildplat) || fromJson(needs.determine_matrix.outputs.umep_buildplat) }}
-        python: ${{ fromJson(needs.determine_matrix.outputs.umep_python) }}
-      fail-fast: false
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: recursive
-
-      - name: Build SUEWS wheels (UMEP variant)
-        uses: ./.github/actions/build-suews
-        with:
-          buildplat: ${{ matrix.buildplat[0] }}
-          buildplat_name: ${{ matrix.buildplat[1] }}
-          buildplat_arch: ${{ matrix.buildplat[2] }}
-          python: ${{ matrix.python }}
-          is_umep_variant: 'true'
-          wheel_name_suffix: '-umep'
-          test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
-          is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
-          enable_dts: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/') }}
+    uses: ./.github/workflows/build-wheels-reusable.yml
+    with:
+      buildplat_json: ${{ needs.determine_matrix.outputs.umep_buildplat }}
+      python_json: ${{ needs.determine_matrix.outputs.umep_python }}
+      test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
+      is_umep_variant: 'true'
+      wheel_name_suffix: '-umep'
+      is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
+      enable_dts: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/') }}
 
   # Single consolidated check for branch protection (always runs for PRs/merge queue)
   pr-gate:

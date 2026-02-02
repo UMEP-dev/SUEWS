@@ -1,0 +1,1011 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <meta property="article:modified_time" content="2025-08-16T22:03:02+00:00" />
+    <title>3. References &#8212; SUEWS 2026.2.2.dev29 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="_static/theme_overrides.css?v=0c24fe83" />
+    <link rel="stylesheet" type="text/css" href="_static/brand.css?v=6ff74816" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="_static/documentation_options.js?v=375a89c4"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script src="_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'references';</script>
+    <link rel="icon" href="_static/suews-logo.svg"/>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="1. Community Publications" href="community_publications.html" />
+    <link rel="prev" title="2. SUEWS-related Publications" href="related_publications.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+    <meta name="docbuild:last-update" content="2025-08-16"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+<aside class="bd-header-announcement" aria-label="Announcement">
+  <div class="bd-header-announcement__content">
+    <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
+        <strong>⚠️ Development Version:</strong> This documentation was built from a development version
+        (2026.2.2.dev29, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8cec288d1e4ab0af6e5c3839b0f18f2bbf5685b8" style="color: #31708f;">8cec288</a>).
+        Features described here may be unstable or subject to change. For stable documentation, please visit the
+        <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
+    </div>
+    </div>
+</aside>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.2.dev29 documentation - Home"/>
+    <script>document.write(`<img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.2.dev29 documentation - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">For users</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">1. Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workflow.html">2. Getting Started</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="auto_examples/index.html">3. Tutorials</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/tutorial_01_quick_start.html">3.1. SUEWS Quick Start Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/tutorial_02_setup_own_site.html">3.2. Set Up SUEWS for Your Own Site</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/tutorial_03_initial_conditions.html">3.3. Preparing Initial Conditions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/tutorial_04_impact_studies.html">3.4. Impact Studies Using SuPy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/tutorial_05_results_analysis.html">3.5. Analysing Simulation Results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/tutorial_06_external_coupling.html">3.6. External Model Coupling</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="inputs/index.html">4. Input Files</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="inputs/yaml/index.html">4.1. YAML Configuration Format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="inputs/forcing-data.html">4.2. Meteorological Forcing Data</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="inputs/yaml/config-reference/index.html">4.3. YAML Configuration Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/anthropogenicemissions.html">4.3.1. Anthropogenic Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/anthropogenicheat.html">4.3.2. Anthropogenic Heat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/archetypeproperties.html">4.3.3. Archetype Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/bldgsproperties.html">4.3.4. Buildings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/bsoilproperties.html">4.3.5. Bare Soil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/buildinglayer.html">4.3.6. Building Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/co2params.html">4.3.7. CO2 Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/conductance.html">4.3.8. Conductance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/dayprofile.html">4.3.9. Daily Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/dectrproperties.html">4.3.10. Deciduous Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/evetrproperties.html">4.3.11. Evergreen Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/grassproperties.html">4.3.12. Grass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/hourlyprofile.html">4.3.13. Hourly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstatebldgs.html">4.3.14. Buildings Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstatebsoil.html">4.3.15. Bare Soil Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstatedectr.html">4.3.16. Deciduous Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstateevetr.html">4.3.17. Evergreen Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstategrass.html">4.3.18. Grass Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstatepaved.html">4.3.19. Paved Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstateveg.html">4.3.20. Vegetation Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstatewater.html">4.3.21. Water Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstates.html">4.3.22. Initial States</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/irrigationparams.html">4.3.23. Irrigation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/laiparams.html">4.3.24. LAI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/laipowercoefficients.html">4.3.25. LAI Power Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/lumpsparams.html">4.3.26. LUMPS Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/landcover.html">4.3.27. Land Cover</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/model.html">4.3.28. Model Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/modelcontrol.html">4.3.29. Model Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/modelphysics.html">4.3.30. Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/nonvegetatedsurfaceproperties.html">4.3.31. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/ohmcoefficients.html">4.3.32. OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/ohm_coefficient_season_wetness.html">4.3.33. Seasonal/Wetness OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/outputconfig.html">4.3.34. Output Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/pavedproperties.html">4.3.35. Paved Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/rooflayer.html">4.3.36. Roof Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/spartacusparams.html">4.3.37. SPARTACUS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/suewsconfig.html">4.3.38. SUEWS Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/site.html">4.3.39. Site Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/siteproperties.html">4.3.40. Site Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/snowparams.html">4.3.41. Snow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/soilobservationconfig.html">4.3.42. Soil Observation Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/stebbsproperties.html">4.3.43. STEBBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/storagedrainparams.html">4.3.44. Drainage Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/surfaceinitialstate.html">4.3.45. Generic Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/surfaceproperties.html">4.3.46. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/tenminuteprofile.html">4.3.47. Ten Minute Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/thermallayers.html">4.3.48. Thermal Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/vegetatedsurfaceproperties.html">4.3.49. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/vegetationparams.html">4.3.50. Vegetation Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/verticallayers.html">4.3.51. Vertical Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/walllayer.html">4.3.52. Wall Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/waterdistribution.html">4.3.53. Water Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/waterproperties.html">4.3.54. Water Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/weeklyprofile.html">4.3.55. Weekly Profile</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="inputs/converter.html">4.4. SUEWS Format Converter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="inputs/transition_guide.html">4.5. Transitioning to YAML-based Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="inputs/yaml/validation.html">4.6. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="inputs/tables/index.html">4.7. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="inputs/tables/met_input.html">4.7.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="inputs/tables/RunControl/RunControl.html">4.7.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/RunControl/scheme_options.html">4.7.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/RunControl/Time_related_options.html">4.7.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/RunControl/File_related_options.html">4.7.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.7.3.2.4. Options related to disaggregation of input data</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.7.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="inputs/tables/Initial_Conditions/Initial_Conditions.html">4.7.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/Initial_Conditions/Soil_moisture_states.html">4.7.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/Initial_Conditions/Vegetation_parameters.html">4.7.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/Initial_Conditions/Recent_meteorology.html">4.7.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/Initial_Conditions/Above_ground_state.html">4.7.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/Initial_Conditions/Snow_related_parameters.html">4.7.3.4.5. Snow related parameters</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="outputs/index.html">5. Output Files</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="outputs/text_format.html">5.1. Text Format Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="outputs/parquet_format.html">5.2. Parquet Format Output</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="outputs/variables/index.html">5.3. Output Variable Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="outputs/variables/datetime.html">5.3.1. datetime Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="outputs/variables/suews.html">5.3.2. SUEWS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="outputs/variables/snow.html">5.3.3. snow Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="outputs/variables/estm.html">5.3.4. ESTM Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="outputs/variables/ehc.html">5.3.5. EHC Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="outputs/variables/rsl.html">5.3.6. RSL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="outputs/variables/bl.html">5.3.7. BL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="outputs/variables/debug.html">5.3.8. debug Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="outputs/variables/beers.html">5.3.9. BEERS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="outputs/variables/dailystate.html">5.3.10. DailyState Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="outputs/variables/spartacus.html">5.3.11. SPARTACUS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="outputs/variables/stebbs.html">5.3.12. STEBBS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="api/core-functions.html">6.2. Core Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.init_supy.html">6.2.1.1. supy.init_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.run_supy.html">6.2.1.2. supy.run_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.save_supy.html">6.2.1.3. supy.save_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.load_forcing_grid.html">6.2.1.4. supy.load_forcing_grid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.load_sample_data.html">6.2.1.5. supy.load_sample_data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.show_version.html">6.2.1.6. supy.show_version</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.util.gen_forcing_era5.html">6.3.1.1. supy.util.gen_forcing_era5</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.util.gen_epw.html">6.3.2.1. supy.util.gen_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.util.read_epw.html">6.3.2.2. supy.util.read_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.util.fill_gap_all.html">6.3.2.3. supy.util.fill_gap_all</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.util.derive_ohm_coef.html">6.3.3.1. supy.util.derive_ohm_coef</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.util.sim_ohm.html">6.3.3.2. supy.util.sim_ohm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.util.cal_gs_suews.html">6.3.4.1. supy.util.cal_gs_suews</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.util.cal_gs_obs.html">6.3.4.2. supy.util.cal_gs_obs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.util.calib_g.html">6.3.4.3. supy.util.calib_g</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.util.plot_comp.html">6.3.5.1. supy.util.plot_comp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.util.plot_day_clm.html">6.3.5.2. supy.util.plot_day_clm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.util.plot_rsl.html">6.3.5.3. supy.util.plot_rsl</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.util.cal_z0zd.html">6.3.6.1. supy.util.cal_z0zd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/supy.util.cal_neutral.html">6.3.6.2. supy.util.cal_neutral</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="api/command-line.html">6.4. Command-Line Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/python-cli-equivalents.html">6.5. Python API for CLI Users</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/data-structures.html">6.6. Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/io-data-structures.html">6.7. Key IO Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/converter.html">6.8. Configuration Converter API</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="integration/index.html">7. Integration and Complementary Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="integration/model-coupling.html">7.1. Model Coupling and External Interaction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="integration/wrf-suews.html">7.1.1.1. Coupling with WRF</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="integration/complementary-tools.html">7.2. Complementary Interfaces and Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="related-softwares/umep.html">7.2.1.1. UMEP Interface</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="troubleshooting.html">8. Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="benchmark/benchmark_report.html">9. Benchmark Report</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notation.html">10. Notation</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="version-history/version-history.html">11. Version History</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2026.1.28.html">11.1. Version 2026.1.28 (released on 28 January 2026)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2025.11.20.html">11.2. Version 2025.11.20 (released on 20 November 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2025.10.15.html">11.3. Version 2025.10.15 (released on 15 October 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2020a.html">11.4. Version 2020a (released on 14 May 2020)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2019a.html">11.5. Version 2019a (released on 15 November 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2018c.html">11.6. Version 2018c (released on 21 February 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2018b.html">11.7. Version 2018b (released on 17 December 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2018a.html">11.8. Version 2018a (released on 2 August 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2017b.html">11.9. Version 2017b (released on 2 August 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2017a.html">11.10. Version 2017a (released on 1 Feb 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2016a.html">11.11. Version 2016a (released on 21 June 2016)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2014b.html">11.12. Version 2014b (released on 8 October 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2014a.1.html">11.13. Version 2014a.1 (released 26 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2014a.html">11.14. Version 2014a (released on 21 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2013a.html">11.15. Version 2013a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2012b.html">11.16. Version 2012b</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2012a.html">11.17. Version 2012a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="version-history/v2011b.html">11.18. Version 2011b</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">For developers/contributors</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="contributing/contributing.html">1. Contributing Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="acknowledgement.html">2. Acknowledgements</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/UMEP-dev/SUEWS">GitHub repository</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Scientific background</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="parameterisations-and-sub-models.html">1. Parameterisations and sub-models within SUEWS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="related_publications.html">2. SUEWS-related Publications</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">3. References</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Community</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="community_publications.html">1. Community Publications</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://community.suews.io">Community</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS/edit/master/docs/source/references.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS/issues/new?title=Issue%20on%20page%20%2Freferences.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="_sources/references.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>References</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<ol class="arabic simple">
+<li><p>Need help? Please let us know in the <a class="reference external" href="https://community.suews.io">SUEWS Community</a>.</p></li>
+<li><p>Please report issues with the manual on <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues">GitHub Issues</a> (or use <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues/new?assignees=&amp;labels=docs&amp;template=docs-issue-report.md&amp;body=%23%23+Issue%0A%3C%21--+Please+describe+the+issue+below+this+line+--%3E%0A%0A%23%23+Links%0A%5Bsource+doc%5D%28https%3A%2F%2Fgithub.com%2FUMEP-dev%2FSUEWS%2Fblob%2Fmaster%2Fdocs%2Fsource%2Freferences.rst%29%0A%5BRTD+page%5D%28https%3A%2F%2Fsuews.readthedocs.org%2Fen%2Flatest%2Freferences.html%29%0A&amp;title=[Docs]references">Report Issue for This Page</a> for page-specific feedback).</p></li>
+<li><p>Please cite SUEWS with proper information from our <a class="reference external" href="https://doi.org/10.5281/zenodo.5723970">Zenodo page</a>.</p></li>
+</ol>
+</div>
+<section id="references">
+<span id="refs"></span><h1><span class="section-number">3. </span>References<a class="headerlink" href="#references" title="Link to this heading">#</a></h1>
+<div class="docutils container" id="id1">
+<div role="list" class="citation-list">
+<div class="citation" id="id16" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Allen et al. 2010<span class="fn-bracket">]</span></span>
+<p>Allen, L., Lindberg, F., and Grimmond, C. S. B. Global to city scale urban anthropogenic heat flux: Model and variability. <em>Int. J. Climatol.</em>, 31(13):1990–2005, September 2010. <a class="reference external" href="https://doi.org/10.1002/joc.2210">doi:10.1002/joc.2210</a>.</p>
+</div>
+<div class="citation" id="id81" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Anandakumar 1999<span class="fn-bracket">]</span></span>
+<p>Anandakumar, K. A study on the partition of net radiation into heat fluxes on a dry asphalt surface. <em>Atmos. Environ.</em>, 33(24-25):3911–3918, October 1999. <a class="reference external" href="https://doi.org/10.1016/s1352-2310(99)00133-8">doi:10.1016/s1352-2310(99)00133-8</a>.</p>
+</div>
+<div class="citation" id="id82" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Asaeda and Ca 1993<span class="fn-bracket">]</span></span>
+<p>Asaeda, Takashi and Ca, Vu Thanh. The subsurface transport of heat and moisture and its effect on the environment: A numerical model. <em>Boundary-Layer Meteorol</em>, 65(1-2):159–179, July 1993. <a class="reference external" href="https://doi.org/10.1007/bf00708822">doi:10.1007/bf00708822</a>.</p>
+</div>
+<div class="citation" id="id55" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Auer 1974<span class="fn-bracket">]</span></span>
+<p>Auer, August H. The rain versus snow threshold temperatures. <em>Weatherwise</em>, 27(2):67–67, April 1974. <a class="reference external" href="https://doi.org/10.1080/00431672.1974.9931684">doi:10.1080/00431672.1974.9931684</a>.</p>
+</div>
+<div class="citation" id="id40" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Bellucco et al. 2017<span class="fn-bracket">]</span></span>
+<p>Bellucco, Veronica, Marras, Serena, Grimmond, C. Susan B., Järvi, Leena, Sirca, Costantino, and Spano, Donatella. Modelling the biogenic CO 2 exchange in urban and non-urban ecosystems through the assessment of light-response curve parameters. <em>Agr. Forest Meteorol.</em>, 236:113–122, April 2017. <a class="reference external" href="https://doi.org/10.1016/j.agrformet.2016.12.011">doi:10.1016/j.agrformet.2016.12.011</a>.</p>
+</div>
+<div class="citation" id="id97" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Berrizbeitia et al. 2020<span class="fn-bracket">]</span></span>
+<p>Berrizbeitia, Saioa Etxebarria, Jadraque Gago, Eulalia, and Muneer, Tariq. Empirical Models for the Estimation of Solar Sky-Diffuse Radiation. A Review and Experimental Analysis. <em>Energies</em>, 13(3):701, Feb 2020. <a class="reference external" href="https://doi.org/10.3390/en13030701">doi:10.3390/en13030701</a>.</p>
+</div>
+<div class="citation" id="id53" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Breuer et al. 2003<span class="fn-bracket">]</span></span>
+<p>Breuer, Lutz, Eckhardt, Klaus, and Frede, Hans-Georg. Plant parameter values for models in temperate climates. <em>Ecol. Model.</em>, 169(2-3):237–293, November 2003. <a class="reference external" href="https://doi.org/10.1016/s0304-3800(03)00274-6">doi:10.1016/s0304-3800(03)00274-6</a>.</p>
+</div>
+<div class="citation" id="id65" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Businger et al. 1971<span class="fn-bracket">]</span></span>
+<p>Businger, J. A., Wyngaard, J. C., Izumi, Y., and Bradley, E. F. Flux-profile relationships in the atmospheric surface layer. <em>J. Atmos. Sci.</em>, 28(2):181–189, March 1971. <a class="reference external" href="https://doi.org/10.1175/1520-0469(1971)028&lt;0181:fprita&gt;2.0.co;2">doi:10.1175/1520-0469(1971)028&lt;0181:fprita&gt;2.0.co;2</a>.</p>
+</div>
+<div class="citation" id="id51" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Calder and Wright 1986<span class="fn-bracket">]</span></span>
+<p>Calder, I. R. and Wright, I. R. Gamma ray attenuation studies of interception from sitka spruce: Some evidence for an additional transport mechanism. <em>Water Resour. Res.</em>, 22(3):409–417, March 1986. <a class="reference external" href="https://doi.org/10.1029/wr022i003p00409">doi:10.1029/wr022i003p00409</a>.</p>
+</div>
+<div class="citation" id="id64" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Campbell and Norman 1998<span class="fn-bracket">]</span></span>
+<p>Campbell, Gaylon S. and Norman, John M. <em>Wind</em>, chapter Wind, pages 63–75. Springer New York, New York, NY, 1998. <a class="reference external" href="https://doi.org/10.1007/978-1-4612-1626-1_5">doi:10.1007/978-1-4612-1626-1_5</a>.</p>
+</div>
+<div class="citation" id="id67" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Cleugh and Grimmond 2001<span class="fn-bracket">]</span></span>
+<p>Cleugh, H. A. and Grimmond, C. S. B. Modelling regional scale surface energy exchanges and cbl growth in a heterogeneous, urban-rural landscape. <em>Bound.-Layer Meteorol.</em>, 98(1):1–31, January 2001. <a class="reference external" href="https://doi.org/10.1023/a:1018798928158">doi:10.1023/a:1018798928158</a>.</p>
+</div>
+<div class="citation" id="id95" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Davies and Hollis 1981<span class="fn-bracket">]</span></span>
+<p>Davies, Hilary and Hollis, T. Measurements of rainfall-runoff volume relationships and water balance for roofs and roads. In <em>Second International Conference on Urban Storm Drainage</em>, volume 434, 441. 1981.</p>
+</div>
+<div class="citation" id="id83" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Doll et al. 1985<span class="fn-bracket">]</span></span>
+<p>Doll, Dennis, Ching, J. K. S., and Kaneshiro, Jack. Parameterization of subsurface heating for soil and concrete using net radiation data. <em>Boundary-Layer Meteorol</em>, 32(4):351–372, August 1985. <a class="reference external" href="https://doi.org/10.1007/bf00122000">doi:10.1007/bf00122000</a>.</p>
+</div>
+<div class="citation" id="id61" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Dyer 1974<span class="fn-bracket">]</span></span>
+<p>Dyer, A. J. A review of flux-profile relationships. <em>Boundary-Layer Meteorol</em>, 7(3):363–372, November 1974. <a class="reference external" href="https://doi.org/10.1007/bf00240838">doi:10.1007/bf00240838</a>.</p>
+</div>
+<div class="citation" id="id96" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Falk and Niemczynowicz 1978<span class="fn-bracket">]</span></span>
+<p>Falk, J. and Niemczynowicz, J. Characteristics of the above ground runoff in sewered catchments. In <em>Proc. Internat. Conf. on Urban Storm Drainage</em>, 159–171. John Wiley and Sons, New York, 1978.</p>
+</div>
+<div class="citation" id="id39" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Flanagan et al. 2002<span class="fn-bracket">]</span></span>
+<p>Flanagan, Lawrence B., Wever, Linda A., and Carlson, Peter J. Seasonal and interannual variation in carbon dioxide exchange and carbon balance in a northern temperate grassland. <em>Global Change Biol.</em>, 8(7):599–615, June 2002. <a class="reference external" href="https://doi.org/10.1046/j.1365-2486.2002.00491.x">doi:10.1046/j.1365-2486.2002.00491.x</a>.</p>
+</div>
+<div class="citation" id="id90" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Fuchs and Hadas 1972<span class="fn-bracket">]</span></span>
+<p>Fuchs, Marcel and Hadas, Amos. The heat flux density in a non-homogeneous bare loessial soil. <em>Boundary-Layer Meteorol</em>, 3(2):191–200, December 1972. <a class="reference external" href="https://doi.org/10.1007/bf02033918">doi:10.1007/bf02033918</a>.</p>
+</div>
+<div class="citation" id="id93" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Grimmond 1992<span class="fn-bracket">]</span></span>
+<p>Grimmond, C. S. B. The suburban energy balance: Methodological considerations and results for a mid-latitude west coast city under winter and spring conditions. <em>Int. J. Climatol.</em>, 12(5):481–497, July 1992. <a class="reference external" href="https://doi.org/10.1002/joc.3370120506">doi:10.1002/joc.3370120506</a>.</p>
+</div>
+<div class="citation" id="id19" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Grimmond and Oke 1991<span class="fn-bracket">]</span></span>
+<p>Grimmond, C. S. B. and Oke, T. R. An evapotranspiration-interception model for urban areas. <em>Water Resour. Res.</em>, 27(7):1739–1755, July 1991. <a class="reference external" href="https://doi.org/10.1029/91wr00557">doi:10.1029/91wr00557</a>.</p>
+</div>
+<div class="citation" id="id11" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Grimmond and Oke 1999<span class="fn-bracket">]</span></span>
+<p>Grimmond, C. S. B. and Oke, T. R. Heat storage in urban areas: Local-scale observations and evaluation of a simple model. <em>J. Appl. Meteor.</em>, 38(7):922–940, July 1999. <a class="reference external" href="https://doi.org/10.1175/1520-0450(1999)038&lt;0922:hsiual&gt;2.0.co;2">doi:10.1175/1520-0450(1999)038&lt;0922:hsiual&gt;2.0.co;2</a>.</p>
+</div>
+<div class="citation" id="id14" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Grimmond and Oke 2002<span class="fn-bracket">]</span></span>
+<p>Grimmond, C. S. B. and Oke, T. R. Turbulent heat fluxes in urban areas: Observations and a local-scale urban meteorological parameterization scheme (LUMPS). <em>J. Appl. Meteor.</em>, 41(7):792–810, July 2002. <a class="reference external" href="https://doi.org/10.1175/1520-0450(2002)041&lt;0792:thfiua&gt;2.0.co;2">doi:10.1175/1520-0450(2002)041&lt;0792:thfiua&gt;2.0.co;2</a>.</p>
+</div>
+<div class="citation" id="id10" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Grimmond et al. 1986<span class="fn-bracket">]</span></span>
+<p>Grimmond, C. S. B., Oke, T. R., and Steyn, D. G. Urban water balance: 1. a model for daily totals. <em>Water Resour. Res.</em>, 22(10):1397–1403, September 1986. <a class="reference external" href="https://doi.org/10.1029/wr022i010p01397">doi:10.1029/wr022i010p01397</a>.</p>
+</div>
+<div class="citation" id="id9" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Grimmond et al. 1991<span class="fn-bracket">]</span></span>
+<p>Grimmond, C.S.B., Cleugh, H.A., and Oke, T.R. An objective urban heat storage model and its comparison with other schemes. <em>Atmospheric Environment. Part B. Urban Atmosphere</em>, 25(3):311–326, January 1991. <a class="reference external" href="https://doi.org/10.1016/0957-1272(91)90003-w">doi:10.1016/0957-1272(91)90003-w</a>.</p>
+</div>
+<div class="citation" id="id50" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Halldin et al. 1979<span class="fn-bracket">]</span></span>
+<p>Halldin, S., Grip, H., and Perttu, K. Model for energy exchange of a pine forest canopy. In <em>Comparison of Forest Water and Energy Exchange Models</em>, pages 59–75. Elsevier, 1979. <a class="reference external" href="https://doi.org/10.1016/b978-0-444-41844-9.50012-3">doi:10.1016/b978-0-444-41844-9.50012-3</a>.</p>
+</div>
+<div class="citation" id="id36" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Harman and Finnigan 2007<span class="fn-bracket">]</span></span>
+<p>Harman, Ian N. and Finnigan, John J. A simple unified theory for flow in the canopy and roughness sublayer. <em>Boundary-Layer Meteorol</em>, 123(2):339–363, March 2007. <a class="reference external" href="https://doi.org/10.1007/s10546-006-9145-6">doi:10.1007/s10546-006-9145-6</a>.</p>
+</div>
+<div class="citation" id="id35" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Harman and Finnigan 2008<span class="fn-bracket">]</span></span>
+<p>Harman, Ian N. and Finnigan, John J. Scalar concentration profiles in the canopy and roughness sublayer. <em>Boundary-Layer Meteorol</em>, 129(3):323–351, October 2008. <a class="reference external" href="https://doi.org/10.1007/s10546-008-9328-4">doi:10.1007/s10546-008-9328-4</a>.</p>
+</div>
+<div class="citation" id="id33" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Havu et al. 2022<span class="fn-bracket">]</span></span>
+<p>Havu, M., Kulmala, L., Kolari, P., Vesala, T., Riikonen, A., and Järvi, L. Carbon sequestration potential of street tree plantings in Helsinki. <em>Biogeosciences</em>, 19(8):2121–2143, April 2022. <a class="reference external" href="https://doi.org/10.5194/bg-19-2121-2022">doi:10.5194/bg-19-2121-2022</a>.</p>
+</div>
+<div class="citation" id="id100" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Hogan 2019<span class="fn-bracket">]</span></span>
+<p>Hogan, Robin J. Flexible Treatment of Radiative Transfer in Complex Urban Canopies for Use in Weather and Climate Models. <em>Boundary-Layer Meteorol.</em>, 173(1):53–78, Oct 2019. <a class="reference external" href="https://doi.org/10.1007/s10546-019-00457-0">doi:10.1007/s10546-019-00457-0</a>.</p>
+</div>
+<div class="citation" id="id101" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Hogan and Matricardi 2020<span class="fn-bracket">]</span></span>
+<p>Hogan, Robin J. and Matricardi, Marco. Evaluating and improving the treatment of gases in radiation schemes: the Correlated K-Distribution Model Intercomparison Project (CKDMIP). <em>Geosci. Model Dev.</em>, 13(12):6501–6521, Dec 2020. <a class="reference external" href="https://doi.org/10.5194/gmd-13-6501-2020">doi:10.5194/gmd-13-6501-2020</a>.</p>
+</div>
+<div class="citation" id="id98" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Hogan et al. 2018<span class="fn-bracket">]</span></span>
+<p>Hogan, Robin J., Quaife, Tristan, and Braghiere, Renato. Fast matrix treatment of 3-D radiative transfer in vegetation canopies: SPARTACUS-Vegetation 1.1. <em>Geosci. Model Dev.</em>, 11(1):339–350, Jan 2018. <a class="reference external" href="https://doi.org/10.5194/gmd-11-339-2018">doi:10.5194/gmd-11-339-2018</a>.</p>
+</div>
+<div class="citation" id="id47" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Högström 1988<span class="fn-bracket">]</span></span>
+<p>Högström, Ulf. Non-dimensional wind and temperature profiles in the atmospheric surface layer: A re-evaluation. <em>Boundary-Layer Meteorol</em>, 42(1-2):55–78, January 1988. <a class="reference external" href="https://doi.org/10.1007/bf00119875">doi:10.1007/bf00119875</a>.</p>
+</div>
+<div class="citation" id="id17" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Iamarino et al. 2011<span class="fn-bracket">]</span></span>
+<p>Iamarino, Mario, Beevers, Sean, and Grimmond, C. S. B. High-resolution (space, time) anthropogenic heat emissions: London 1970-2025. <em>Int. J. Climatol.</em>, 32(11):1754–1767, July 2011. <a class="reference external" href="https://doi.org/10.1002/joc.2390">doi:10.1002/joc.2390</a>.</p>
+</div>
+<div class="citation" id="id54" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Jarvis 1976<span class="fn-bracket">]</span></span>
+<p>Jarvis, P. G. The interpretation of the variations in leaf water potential and stomatal conductance found in canopies in the field. <em>Phil. Trans. R. Soc. Lond. B</em>, 273(927):593–610, February 1976. <a class="reference external" href="https://doi.org/10.1098/rstb.1976.0035">doi:10.1098/rstb.1976.0035</a>.</p>
+</div>
+<div class="citation" id="id5" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Järvi et al. 2014<span class="fn-bracket">]</span></span>
+<p>Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. <em>Geosci. Model Dev.</em>, 7(4):1691–1711, August 2014. <a class="reference external" href="https://doi.org/10.5194/gmd-7-1691-2014">doi:10.5194/gmd-7-1691-2014</a>.</p>
+</div>
+<div class="citation" id="id21" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Järvi et al. 2011<span class="fn-bracket">]</span></span>
+<p>Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. <em>J. Hydrol.</em>, 411(3-4):219–237, December 2011. <a class="reference external" href="https://doi.org/10.1016/j.jhydrol.2011.10.001">doi:10.1016/j.jhydrol.2011.10.001</a>.</p>
+</div>
+<div class="citation" id="id28" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Järvi et al. 2019<span class="fn-bracket">]</span></span>
+<p>Järvi, Leena, Havu, Minttu, Ward, Helen C., Bellucco, Veronica, McFadden, Joseph P., Toivonen, Tuuli, Heikinheimo, Vuokko, Kolari, Pasi, Riikonen, Anu, and Grimmond, C. Sue B. Spatial modeling of Local-Scale biogenic and anthropogenic carbon dioxide emissions in Helsinki. <em>J. Geophys. Res. Atmos.</em>, 124(15):8363–8384, August 2019. <a class="reference external" href="https://doi.org/10.1029/2018jd029576">doi:10.1029/2018jd029576</a>.</p>
+</div>
+<div class="citation" id="id57" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Kanda et al. 2007<span class="fn-bracket">]</span></span>
+<p>Kanda, M., Kanega, M., Kawai, T., Moriwaki, R., and Sugawara, H. Roughness lengths for momentum and heat derived from outdoor urban scale models. <em>J. Appl. Meteorol. Clim.</em>, 46(7):1067–1079, July 2007. <a class="reference external" href="https://doi.org/10.1175/jam2500.1">doi:10.1175/jam2500.1</a>.</p>
+</div>
+<div class="citation" id="id66" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Kawai et al. 2009<span class="fn-bracket">]</span></span>
+<p>Kawai, Toru, Ridwan, Mohammad Kholid, and Kanda, Manabu. Evaluation of the simple urban energy balance model using selected data from 1-yr flux observations at two cities. <em>J. Appl. Meteorol. Clim.</em>, 48(4):693–715, April 2009. <a class="reference external" href="https://doi.org/10.1175/2008jamc1891.1">doi:10.1175/2008jamc1891.1</a>.</p>
+</div>
+<div class="citation" id="id45" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Kent et al. 2017a<span class="fn-bracket">]</span></span>
+<p>Kent, Christoph W., Grimmond, Sue, Barlow, Janet, Gatey, David, Kotthaus, Simone, Lindberg, Fredrik, and Halios, Christos H. Evaluation of urban local-scale aerodynamic parameters: Implications for the vertical profile of wind speed and for source areas. <em>Boundary-Layer Meteorol</em>, 164(2):183–213, April 2017. <a class="reference external" href="https://doi.org/10.1007/s10546-017-0248-z">doi:10.1007/s10546-017-0248-z</a>.</p>
+</div>
+<div class="citation" id="id44" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Kent et al. 2017b<span class="fn-bracket">]</span></span>
+<p>Kent, Christoph W., Grimmond, Sue, and Gatey, David. Aerodynamic roughness parameters in cities: Inclusion of vegetation. <em>J. Wind Eng. Ind. Aerod.</em>, 169:168–176, October 2017. <a class="reference external" href="https://doi.org/10.1016/j.jweia.2017.07.016">doi:10.1016/j.jweia.2017.07.016</a>.</p>
+</div>
+<div class="citation" id="id23" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Kokkonen et al. 2018<span class="fn-bracket">]</span></span>
+<p>Kokkonen, T.V., Grimmond, C.S.B., Räty, O., Ward, H.C., Christen, A., Oke, T.R., Kotthaus, S., and Järvi, L. Sensitivity of surface urban energy and water balance scheme (SUEWS) to downscaling of reanalysis forcing data. <em>Urban Clim.</em>, 23:36–52, March 2018. ICUC9: The 9th International Conference on Urban Climate. <a class="reference external" href="https://doi.org/10.1016/j.uclim.2017.05.001">doi:10.1016/j.uclim.2017.05.001</a>.</p>
+</div>
+<div class="citation" id="id52" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Konarska et al. 2013<span class="fn-bracket">]</span></span>
+<p>Konarska, Janina, Lindberg, Fredrik, Larsson, Annika, Thorsson, Sofia, and Holmer, Björn. Transmissivity of solar radiation through crowns of single urban trees—application for outdoor thermal comfort modelling. <em>Theor Appl Climatol</em>, 117(3-4):363–376, September 2013. <a class="reference external" href="https://doi.org/10.1007/s00704-013-1000-3">doi:10.1007/s00704-013-1000-3</a>.</p>
+</div>
+<div class="citation" id="id102" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Kotthaus et al. 2014<span class="fn-bracket">]</span></span>
+<p>Kotthaus, Simone, Smith, Thomas E. L., Wooster, Martin J., and Grimmond, C. S. B. Derivation of an urban materials spectral library through emittance and reflectance spectroscopy. <em>ISPRS J. Photogramm. Remote Sens.</em>, 94:194–212, Aug 2014. <a class="reference external" href="https://doi.org/10.1016/j.isprsjprs.2014.05.005">doi:10.1016/j.isprsjprs.2014.05.005</a>.</p>
+</div>
+<div class="citation" id="id15" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Lindberg et al. 2013<span class="fn-bracket">]</span></span>
+<p>Lindberg, F., Grimmond, C.S.B., Yogeswaran, N., Kotthaus, S., and Allen, L. Impact of city changes and weather on anthropogenic heat flux in Europe 1995–2015. <em>Urban Clim.</em>, 4:1–15, July 2013. <a class="reference external" href="https://doi.org/10.1016/j.uclim.2013.03.002">doi:10.1016/j.uclim.2013.03.002</a>.</p>
+</div>
+<div class="citation" id="id8" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Lindberg and Grimmond 2011<span class="fn-bracket">]</span></span>
+<p>Lindberg, Fredrik and Grimmond, C. S. B. The influence of vegetation and building morphology on shadow patterns and mean radiant temperatures in urban areas: Model development and evaluation. <em>Theor Appl Climatol</em>, 105(3-4):311–323, January 2011. <a class="reference external" href="https://doi.org/10.1007/s00704-010-0382-8">doi:10.1007/s00704-010-0382-8</a>.</p>
+</div>
+<div class="citation" id="id7" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Lindberg et al. 2008<span class="fn-bracket">]</span></span>
+<p>Lindberg, Fredrik, Holmer, Björn, and Thorsson, Sofia. SOLWEIG 1.0 – modelling spatial variations of 3D radiant fluxes and mean radiant temperature in complex urban settings. <em>Int J Biometeorol</em>, 52(7):697–713, June 2008. <a class="reference external" href="https://doi.org/10.1007/s00484-008-0162-7">doi:10.1007/s00484-008-0162-7</a>.</p>
+</div>
+<div class="citation" id="id4" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Loridan and Grimmond 2012<span class="fn-bracket">]</span></span>
+<p>Loridan, Thomas and Grimmond, C. S. B. Characterization of energy flux partitioning in urban environments: Links with surface seasonal properties. <em>J. Appl. Meteorol. Clim.</em>, 51(2):219–241, February 2012. <a class="reference external" href="https://doi.org/10.1175/jamc-d-11-038.1">doi:10.1175/jamc-d-11-038.1</a>.</p>
+</div>
+<div class="citation" id="id18" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Loridan et al. 2011<span class="fn-bracket">]</span></span>
+<p>Loridan, Thomas, Grimmond, C. S. B., Offerle, Brian D., Young, Duick T., Smith, Thomas E. L., Järvi, Leena, and Lindberg, Fredrik. Local-scale urban meteorological parameterization scheme (LUMPS): Longwave radiation parameterization and seasonality-related developments. <em>J. Appl. Meteorol. Clim.</em>, 50(1):185–202, January 2011. <a class="reference external" href="https://doi.org/10.1175/2010jamc2474.1">doi:10.1175/2010jamc2474.1</a>.</p>
+</div>
+<div class="citation" id="id49" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Macdonald et al. 1998<span class="fn-bracket">]</span></span>
+<p>Macdonald, R.W., Griffiths, R.F., and Hall, D.J. An improved method for the estimation of surface roughness of obstacle arrays. <em>Atmos. Environ.</em>, 32(11):1857–1864, June 1998. <a class="reference external" href="https://doi.org/10.1016/s1352-2310(97)00403-2">doi:10.1016/s1352-2310(97)00403-2</a>.</p>
+</div>
+<div class="citation" id="id88" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>McCaughey 1985<span class="fn-bracket">]</span></span>
+<p>McCaughey, J. H. Energy balance storage terms in a mature mixed forest at petawawa, Ontario ? a case study. <em>Boundary-Layer Meteorol</em>, 31(1):89–101, January 1985. <a class="reference external" href="https://doi.org/10.1007/bf00120036">doi:10.1007/bf00120036</a>.</p>
+</div>
+<div class="citation" id="id84" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Meyn and Oke 2009<span class="fn-bracket">]</span></span>
+<p>Meyn, Stephanie K. and Oke, T.R. Heat fluxes through roofs and their relevance to estimates of urban heat storage. <em>Energ. Buildings</em>, 41(7):745–752, July 2009. <a class="reference external" href="https://doi.org/10.1016/j.enbuild.2009.02.005">doi:10.1016/j.enbuild.2009.02.005</a>.</p>
+</div>
+<div class="citation" id="id94" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>NARITA et al. 1984<span class="fn-bracket">]</span></span>
+<p>NARITA, Ken-ichi, SEKINE, Takeshi, and TOKUOKA, Toshikazu. Thermal properties of urban surface materials. <em>Geogr. Rev. Jpn, Ser. A, Chirigaku Hyoron</em>, 57(9):639–651, September 1984. <a class="reference external" href="https://doi.org/10.4157/grj1984a.57.9_639">doi:10.4157/grj1984a.57.9_639</a>.</p>
+</div>
+<div class="citation" id="id89" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Novak 1981<span class="fn-bracket">]</span></span>
+<p>Novak, Michael David. <em>The moisture and thermal regimes of a bare soil in the lower Fraser Valley during spring</em>. PhD thesis, University of British Columbia, 1981. <a class="reference external" href="https://doi.org/10.14288/1.0095282">doi:10.14288/1.0095282</a>.</p>
+</div>
+<div class="citation" id="id87" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Nunez and Oke 1977<span class="fn-bracket">]</span></span>
+<p>Nunez, M. and Oke, T. R. The energy balance of an urban canyon. <em>J. Appl. Meteor.</em>, 16(1):11–19, January 1977. <a class="reference external" href="https://doi.org/10.1175/1520-0450(1977)016&lt;0011:teboau&gt;2.0.co;2">doi:10.1175/1520-0450(1977)016&lt;0011:teboau&gt;2.0.co;2</a>.</p>
+</div>
+<div class="citation" id="id12" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Offerle et al. 2005<span class="fn-bracket">]</span></span>
+<p>Offerle, B., Grimmond, C. S. B., and Fortuniak, K. Heat storage and anthropogenic heat flux in relation to the energy balance of a central European city centre. <em>Int. J. Climatol.</em>, 25(10):1405–1419, August 2005. <a class="reference external" href="https://doi.org/10.1002/joc.1198">doi:10.1002/joc.1198</a>.</p>
+</div>
+<div class="citation" id="id20" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Offerle et al. 2003<span class="fn-bracket">]</span></span>
+<p>Offerle, B., Grimmond, C. S. B., and Oke, T. R. Parameterization of net all-wave radiation for urban areas. <em>J. Appl. Meteor.</em>, 42(8):1157–1173, August 2003. <a class="reference external" href="https://doi.org/10.1175/1520-0450(2003)042&lt;1157:ponarf&gt;2.0.co;2">doi:10.1175/1520-0450(2003)042&lt;1157:ponarf&gt;2.0.co;2</a>.</p>
+</div>
+<div class="citation" id="id75" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Oke 2002<span class="fn-bracket">]</span></span>
+<p>Oke, T. R. <em>Boundary Layer Climates</em>. Routledge, September 2002. ISBN 9781134951345. <a class="reference external" href="https://doi.org/10.4324/9780203407219">doi:10.4324/9780203407219</a>.</p>
+</div>
+<div class="citation" id="id6" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Onomura et al. 2015<span class="fn-bracket">]</span></span>
+<p>Onomura, S., Grimmond, C.S.B., Lindberg, F., Holmer, B., and Thorsson, S. Meteorological forcing data for urban outdoor thermal comfort models from a coupled convective boundary layer and surface energy balance scheme. <em>Urban Clim.</em>, 11:1–23, March 2015. <a class="reference external" href="https://doi.org/10.1016/j.uclim.2014.11.001">doi:10.1016/j.uclim.2014.11.001</a>.</p>
+</div>
+<div class="citation" id="id46" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Reindl et al. 1990<span class="fn-bracket">]</span></span>
+<p>Reindl, D.T., Beckman, W.A., and Duffie, J.A. Diffuse fraction correlations. <em>Sol. Energy</em>, 45(1):1–7, 1990. <a class="reference external" href="https://doi.org/10.1016/0038-092x(90)90060-p">doi:10.1016/0038-092x(90)90060-p</a>.</p>
+</div>
+<div class="citation" id="id42" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Ruimy et al. 1995<span class="fn-bracket">]</span></span>
+<p>Ruimy, A., Jarvis, P.G., Baldocchi, D.D., and Saugier, B. CO2 fluxes over plant canopies and solar radiation: A review. In <em>Advances in Ecological Research</em>, pages 1–68. Elsevier, 1995. <a class="reference external" href="https://doi.org/10.1016/s0065-2504(08)60063-x">doi:10.1016/s0065-2504(08)60063-x</a>.</p>
+</div>
+<div class="citation" id="id41" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Sailor and Lu 2004<span class="fn-bracket">]</span></span>
+<p>Sailor, David J. and Lu, Lu. A top–down methodology for developing diurnal and seasonal anthropogenic heating profiles for urban areas. <em>Atmos. Environ.</em>, 38(17):2737–2748, June 2004. <a class="reference external" href="https://doi.org/10.1016/j.atmosenv.2004.01.034">doi:10.1016/j.atmosenv.2004.01.034</a>.</p>
+</div>
+<div class="citation" id="id56" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Sailor and Vasireddy 2006<span class="fn-bracket">]</span></span>
+<p>Sailor, David J. and Vasireddy, Chittaranjan. Correcting aggregate energy consumption data to account for variability in local weather. <em>Environ. Modell. Softw.</em>, 21(5):733–738, May 2006. <a class="reference external" href="https://doi.org/10.1016/j.envsoft.2005.08.001">doi:10.1016/j.envsoft.2005.08.001</a>.</p>
+</div>
+<div class="citation" id="id43" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Schmid 2000<span class="fn-bracket">]</span></span>
+<p>Schmid, H. Measurements of CO2 and energy fluxes over a mixed hardwood forest in the mid-western united states. <em>Agr. Forest Meteorol.</em>, 103(4):357–374, July 2000. <a class="reference external" href="https://doi.org/10.1016/s0168-1923(00)00140-4">doi:10.1016/s0168-1923(00)00140-4</a>.</p>
+</div>
+<div class="citation" id="id92" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>South et al. 1998<span class="fn-bracket">]</span></span>
+<p>South, Catherine, Susan, C., Grimmond, B., and Wolfe, Charlotte P. Evapotranspiration rates from wetlands with different disturbance histories: Indiana dunes national lakeshore. <em>Wetlands</em>, 18(2):216–229, June 1998. <a class="reference external" href="https://doi.org/10.1007/bf03161657">doi:10.1007/bf03161657</a>.</p>
+</div>
+<div class="citation" id="id27" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Sun and Grimmond 2019<span class="fn-bracket">]</span></span>
+<p>Sun, Ting and Grimmond, Sue. A python-enhanced urban land surface model SuPy (SUEWS in python, v2019.2): Development, deployment and demonstration. <em>Geosci. Model Dev.</em>, 12(7):2781–2795, July 2019. <a class="reference external" href="https://doi.org/10.5194/gmd-12-2781-2019">doi:10.5194/gmd-12-2781-2019</a>.</p>
+</div>
+<div class="citation" id="id13" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Sun et al. 2017<span class="fn-bracket">]</span></span>
+<p>Sun, Ting, Wang, Zhi-Hua, Oechel, Walter C., and Grimmond, Sue. The analytical objective hysteresis model (AnOHM v1.0): Methodology to determine bulk storage heat flux coefficients. <em>Geosci. Model Dev.</em>, 10(7):2875–2890, July 2017. <a class="reference external" href="https://doi.org/10.5194/gmd-10-2875-2017">doi:10.5194/gmd-10-2875-2017</a>.</p>
+</div>
+<div class="citation" id="id86" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Taesler 1980<span class="fn-bracket">]</span></span>
+<p>Taesler, Roger. <em>Studies of the development and thermal structure of the urban boundary layer in uppsala. Part 1: Experimental program and Part 2: Data analysis and results. Rep. 61</em>. Uppsala, Sweden : Uppsala Universitetet. Uppsala, Sweden : Uppsala Universitetet, 1980. ISBN 221015643.</p>
+</div>
+<div class="citation" id="id32" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Tang et al. 2021<span class="fn-bracket">]</span></span>
+<p>Tang, Yihao, Sun, Ting, Luo, Zhiwen, Omidvar, Hamidreza, Theeuwes, Natalie, Xie, Xiaoxiong, Xiong, Jie, Yao, Runming, and Grimmond, Sue. Urban meteorological forcing data for building energy simulations. <em>Building and Environment</em>, 204:108088, October 2021. <a class="reference external" href="https://doi.org/10.1016/j.buildenv.2021.108088">doi:10.1016/j.buildenv.2021.108088</a>.</p>
+</div>
+<div class="citation" id="id3" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Theeuwes et al. 2019<span class="fn-bracket">]</span></span>
+<p>Theeuwes, Natalie E., Ronda, Reinder J., Harman, Ian N., Christen, Andreas, and Grimmond, C. Sue B. Parametrizing horizontally-averaged wind and temperature profiles in the urban roughness sublayer. <em>Boundary-Layer Meteorol</em>, 173(3):321–348, September 2019. <a class="reference external" href="https://doi.org/10.1007/s10546-019-00472-1">doi:10.1007/s10546-019-00472-1</a>.</p>
+</div>
+<div class="citation" id="id80" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Van Ulden and Holtslag 1985<span class="fn-bracket">]</span></span>
+<p>Van Ulden, A. P. and Holtslag, A. A. M. Estimation of atmospheric boundary layer parameters for diffusion applications. <em>J. Climate Appl. Meteor.</em>, 24(11):1196–1207, November 1985. <a class="reference external" href="https://doi.org/10.1175/1520-0450(1985)024&lt;1196:eoablp&gt;2.0.co;2">doi:10.1175/1520-0450(1985)024&lt;1196:eoablp&gt;2.0.co;2</a>.</p>
+</div>
+<div class="citation" id="id59" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Voogt and Grimmond 2000<span class="fn-bracket">]</span></span>
+<p>Voogt, J. A. and Grimmond, C. S. B. Modeling surface sensible heat flux using surface radiative temperatures in a simple urban area. <em>J. Appl. Meteorol.</em>, 39(10):1679–1699, October 2000. <a class="reference external" href="https://doi.org/10.1175/1520-0450-39.10.1679">doi:10.1175/1520-0450-39.10.1679</a>.</p>
+</div>
+<div class="citation" id="id26" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Ward et al. 2016<span class="fn-bracket">]</span></span>
+<p>Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. <em>Urban Clim.</em>, 18:1–32, December 2016. <a class="reference external" href="https://doi.org/10.1016/j.uclim.2016.05.001">doi:10.1016/j.uclim.2016.05.001</a>.</p>
+</div>
+<div class="citation" id="id104" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Yang et al. 2020<span class="fn-bracket">]</span></span>
+<p>Yang, Bin, He, Yuhao, and Chen, Wei. A simple method for estimation of leaf dry matter content in fresh leaves using leaf scattering albedo. <em>Global Ecol. Conserv.</em>, 23:e01201, Sep 2020. <a class="reference external" href="https://doi.org/10.1016/j.gecco.2020.e01201">doi:10.1016/j.gecco.2020.e01201</a>.</p>
+</div>
+<div class="citation" id="id91" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Yap 1973<span class="fn-bracket">]</span></span>
+<p>Yap, David Hamilton. <em>Sensible heat fluxes measured in and near Vancouver, B.C.</em> PhD thesis, University of British Columbia, 1973. <a class="reference external" href="https://doi.org/10.14288/1.0101037">doi:10.14288/1.0101037</a>.</p>
+</div>
+<div class="citation" id="id85" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Yoshida et al. 1990<span class="fn-bracket">]</span></span>
+<p>Yoshida, Atsumasa, Tominaga, Kazuhide, and Watatani, Shigeru. Field measurements on energy balance of an urban canyon in the summer season. <em>Energ. Buildings</em>, 15(3-4):417–423, January 1990. <a class="reference external" href="https://doi.org/10.1016/0378-7788(90)90016-c">doi:10.1016/0378-7788(90)90016-c</a>.</p>
+</div>
+<div class="citation" id="id34" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Zheng et al. 2023<span class="fn-bracket">]</span></span>
+<p>Zheng, Y., Havu, M., Liu, H., Cheng, X., Wen, Y., Lee, H. S., Ahongshangbam, J., and Järvi, L. Simulating heat and CO$_2$ fluxes in Beijing using SUEWS V2020b: sensitivity to vegetation phenology and maximum conductance. <em>Geoscientific Model Development</em>, 16(15):4551–4579, August 2023. <a class="reference external" href="https://doi.org/10.5194/gmd-16-4551-2023">doi:10.5194/gmd-16-4551-2023</a>.</p>
+</div>
+</div>
+</div>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="related_publications.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title"><span class="section-number">2. </span>SUEWS-related Publications</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="community_publications.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title"><span class="section-number">1. </span>Community Publications</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By SUEWS dev team led by Prof Sue Grimmond
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2018 – 2026.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    <p class="last-updated">
+  Last updated on 2025-08-16.
+  <br/>
+</p>
+  </div>
+  
+  <div class="footer-item">
+    
+<div class="extra_footer">
+  <p>Version: 2026.2.2.dev29 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8cec288d1e4ab0af6e5c3839b0f18f2bbf5685b8">8cec288</a> |
+    <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
+</div>
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

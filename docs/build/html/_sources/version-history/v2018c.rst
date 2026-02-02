@@ -1,0 +1,31 @@
+
+.. _new_2018c:
+
+Version 2018c (released on 21 February 2019)
+----------------------------------------------------
+
+`Download page (under assets) <https://github.com/Urban-Meteorology-Reading/SUEWS/releases/tag/2018c>`_
+
+- **Improvement**
+
+  #. SuPy (SUEWS in Python): a Python-enhanced wrapper of SUEWS, which can facilitate a more fluent workflow of SUEWS-centred urban climate research. More details refer to `SuPy documentation site <https://supy.readthedocs.io>`_.
+  #. Improved benchmark report: More testing sites are added thanks to an automated benchmark report system.
+
+
+
+- **Changes**
+
+  None.
+
+
+- **Fix**
+
+  #. Fixed a bug in LAI calculation for longterm runs.
+  #. Fixed a bug in net all-wave radiation differential calculation for OHM.
+  #. Fixed water redistribution bug in snow module.
+
+- **Known issues**
+
+  #. BLUEWS is disabled
+  #. Observed soil moisture can not be used as an input
+  #. Wind direction is not currently downscaled so non -999 values will cause an error.

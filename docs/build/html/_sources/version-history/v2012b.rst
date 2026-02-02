@@ -1,0 +1,22 @@
+
+Version 2012b
+--------------------------
+
+#. Error message generated if all the data are not available for the
+   surface resistance calculations
+#. Error message generated if wind data are below zero plane
+   displacement height.
+#. All error messages now written to ‘Problem.txt’ rather than embedded
+   in an ErrorFile. Note some errors will be written and the program
+   will continue others will stop the program.
+#. Default variables removed (see below). Model will stop if any data
+   are problematic. File should be checked to ensure that reasonable
+   data are being used. If an error occurs when there should not be one
+   let us know as it may mean we have made the limits too restrictive.
+
+Contents no longer used File defaultFcld=0.1 defaultPres=1013
+defaultRH=50 defaultT=10 defaultU=3 RunControl.nml
+
+-  Just delete lines from file
+-  Values you had were likely different from these example value shown
+   here

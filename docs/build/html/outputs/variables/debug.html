@@ -1,0 +1,2497 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta content="SUEWS debug output variables" name="description" />
+<meta content="SUEWS, output, debug, variables" name="keywords" />
+
+    <title>5.3.8. debug Output Variables &#8212; SUEWS 2026.2.2.dev29 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../../_static/theme_overrides.css?v=0c24fe83" />
+    <link rel="stylesheet" type="text/css" href="../../_static/brand.css?v=6ff74816" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../../_static/documentation_options.js?v=375a89c4"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'outputs/variables/debug';</script>
+    <link rel="icon" href="../../_static/suews-logo.svg"/>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="5.3.9. BEERS Output Variables" href="beers.html" />
+    <link rel="prev" title="5.3.7. BL Output Variables" href="bl.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+<aside class="bd-header-announcement" aria-label="Announcement">
+  <div class="bd-header-announcement__content">
+    <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
+        <strong>⚠️ Development Version:</strong> This documentation was built from a development version
+        (2026.2.2.dev29, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8cec288d1e4ab0af6e5c3839b0f18f2bbf5685b8" style="color: #31708f;">8cec288</a>).
+        Features described here may be unstable or subject to change. For stable documentation, please visit the
+        <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
+    </div>
+    </div>
+</aside>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.2.dev29 documentation - Home"/>
+    <script>document.write(`<img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.2.dev29 documentation - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">For users</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">1. Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workflow.html">2. Getting Started</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../auto_examples/index.html">3. Tutorials</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/tutorial_01_quick_start.html">3.1. SUEWS Quick Start Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/tutorial_02_setup_own_site.html">3.2. Set Up SUEWS for Your Own Site</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/tutorial_03_initial_conditions.html">3.3. Preparing Initial Conditions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/tutorial_04_impact_studies.html">3.4. Impact Studies Using SuPy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/tutorial_05_results_analysis.html">3.5. Analysing Simulation Results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/tutorial_06_external_coupling.html">3.6. External Model Coupling</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../inputs/index.html">4. Input Files</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../inputs/yaml/index.html">4.1. YAML Configuration Format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../inputs/forcing-data.html">4.2. Meteorological Forcing Data</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../inputs/yaml/config-reference/index.html">4.3. YAML Configuration Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/anthropogenicemissions.html">4.3.1. Anthropogenic Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/anthropogenicheat.html">4.3.2. Anthropogenic Heat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/archetypeproperties.html">4.3.3. Archetype Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/bldgsproperties.html">4.3.4. Buildings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/bsoilproperties.html">4.3.5. Bare Soil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/buildinglayer.html">4.3.6. Building Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/co2params.html">4.3.7. CO2 Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/conductance.html">4.3.8. Conductance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/dayprofile.html">4.3.9. Daily Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/dectrproperties.html">4.3.10. Deciduous Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/evetrproperties.html">4.3.11. Evergreen Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/grassproperties.html">4.3.12. Grass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/hourlyprofile.html">4.3.13. Hourly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstatebldgs.html">4.3.14. Buildings Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstatebsoil.html">4.3.15. Bare Soil Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstatedectr.html">4.3.16. Deciduous Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstateevetr.html">4.3.17. Evergreen Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstategrass.html">4.3.18. Grass Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstatepaved.html">4.3.19. Paved Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstateveg.html">4.3.20. Vegetation Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstatewater.html">4.3.21. Water Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstates.html">4.3.22. Initial States</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/irrigationparams.html">4.3.23. Irrigation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/laiparams.html">4.3.24. LAI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/laipowercoefficients.html">4.3.25. LAI Power Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/lumpsparams.html">4.3.26. LUMPS Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/landcover.html">4.3.27. Land Cover</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/model.html">4.3.28. Model Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/modelcontrol.html">4.3.29. Model Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/modelphysics.html">4.3.30. Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/nonvegetatedsurfaceproperties.html">4.3.31. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/ohmcoefficients.html">4.3.32. OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/ohm_coefficient_season_wetness.html">4.3.33. Seasonal/Wetness OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/outputconfig.html">4.3.34. Output Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/pavedproperties.html">4.3.35. Paved Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/rooflayer.html">4.3.36. Roof Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/spartacusparams.html">4.3.37. SPARTACUS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/suewsconfig.html">4.3.38. SUEWS Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/site.html">4.3.39. Site Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/siteproperties.html">4.3.40. Site Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/snowparams.html">4.3.41. Snow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/soilobservationconfig.html">4.3.42. Soil Observation Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/stebbsproperties.html">4.3.43. STEBBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/storagedrainparams.html">4.3.44. Drainage Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/surfaceinitialstate.html">4.3.45. Generic Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/surfaceproperties.html">4.3.46. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/tenminuteprofile.html">4.3.47. Ten Minute Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/thermallayers.html">4.3.48. Thermal Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/vegetatedsurfaceproperties.html">4.3.49. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/vegetationparams.html">4.3.50. Vegetation Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/verticallayers.html">4.3.51. Vertical Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/walllayer.html">4.3.52. Wall Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/waterdistribution.html">4.3.53. Water Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/waterproperties.html">4.3.54. Water Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/weeklyprofile.html">4.3.55. Weekly Profile</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../inputs/converter.html">4.4. SUEWS Format Converter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../inputs/transition_guide.html">4.5. Transitioning to YAML-based Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../inputs/yaml/validation.html">4.6. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../inputs/tables/index.html">4.7. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/tables/met_input.html">4.7.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../inputs/tables/RunControl/RunControl.html">4.7.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/scheme_options.html">4.7.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/Time_related_options.html">4.7.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/File_related_options.html">4.7.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.7.3.2.4. Options related to disaggregation of input data</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.7.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Initial_Conditions.html">4.7.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Soil_moisture_states.html">4.7.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Vegetation_parameters.html">4.7.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Recent_meteorology.html">4.7.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Above_ground_state.html">4.7.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Snow_related_parameters.html">4.7.3.4.5. Snow related parameters</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../index.html">5. Output Files</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../text_format.html">5.1. Text Format Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../parquet_format.html">5.2. Parquet Format Output</a></li>
+<li class="toctree-l2 current active has-children"><a class="reference internal" href="index.html">5.3. Output Variable Reference</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="datetime.html">5.3.1. datetime Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="suews.html">5.3.2. SUEWS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="snow.html">5.3.3. snow Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="estm.html">5.3.4. ESTM Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ehc.html">5.3.5. EHC Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rsl.html">5.3.6. RSL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="bl.html">5.3.7. BL Output Variables</a></li>
+<li class="toctree-l3 current active"><a class="current reference internal" href="#">5.3.8. debug Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="beers.html">5.3.9. BEERS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="dailystate.html">5.3.10. DailyState Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="spartacus.html">5.3.11. SPARTACUS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="stebbs.html">5.3.12. STEBBS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="nhood.html">5.3.13. NHood Output Variables</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/core-functions.html">6.2. Core Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.init_supy.html">6.2.1.1. supy.init_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.run_supy.html">6.2.1.2. supy.run_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.save_supy.html">6.2.1.3. supy.save_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.load_forcing_grid.html">6.2.1.4. supy.load_forcing_grid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.load_sample_data.html">6.2.1.5. supy.load_sample_data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.show_version.html">6.2.1.6. supy.show_version</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.gen_forcing_era5.html">6.3.1.1. supy.util.gen_forcing_era5</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.gen_epw.html">6.3.2.1. supy.util.gen_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.read_epw.html">6.3.2.2. supy.util.read_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.fill_gap_all.html">6.3.2.3. supy.util.fill_gap_all</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.derive_ohm_coef.html">6.3.3.1. supy.util.derive_ohm_coef</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.sim_ohm.html">6.3.3.2. supy.util.sim_ohm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.cal_gs_suews.html">6.3.4.1. supy.util.cal_gs_suews</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.cal_gs_obs.html">6.3.4.2. supy.util.cal_gs_obs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.calib_g.html">6.3.4.3. supy.util.calib_g</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.plot_comp.html">6.3.5.1. supy.util.plot_comp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.plot_day_clm.html">6.3.5.2. supy.util.plot_day_clm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.plot_rsl.html">6.3.5.3. supy.util.plot_rsl</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.cal_z0zd.html">6.3.6.1. supy.util.cal_z0zd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.cal_neutral.html">6.3.6.2. supy.util.cal_neutral</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/command-line.html">6.4. Command-Line Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/python-cli-equivalents.html">6.5. Python API for CLI Users</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/data-structures.html">6.6. Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/io-data-structures.html">6.7. Key IO Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/converter.html">6.8. Configuration Converter API</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../integration/index.html">7. Integration and Complementary Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../integration/model-coupling.html">7.1. Model Coupling and External Interaction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../integration/wrf-suews.html">7.1.1.1. Coupling with WRF</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../integration/complementary-tools.html">7.2. Complementary Interfaces and Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../related-softwares/umep.html">7.2.1.1. UMEP Interface</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../troubleshooting.html">8. Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../benchmark/benchmark_report.html">9. Benchmark Report</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notation.html">10. Notation</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../version-history/version-history.html">11. Version History</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2026.1.28.html">11.1. Version 2026.1.28 (released on 28 January 2026)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2025.11.20.html">11.2. Version 2025.11.20 (released on 20 November 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2025.10.15.html">11.3. Version 2025.10.15 (released on 15 October 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2020a.html">11.4. Version 2020a (released on 14 May 2020)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2019a.html">11.5. Version 2019a (released on 15 November 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2018c.html">11.6. Version 2018c (released on 21 February 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2018b.html">11.7. Version 2018b (released on 17 December 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2018a.html">11.8. Version 2018a (released on 2 August 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2017b.html">11.9. Version 2017b (released on 2 August 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2017a.html">11.10. Version 2017a (released on 1 Feb 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2016a.html">11.11. Version 2016a (released on 21 June 2016)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2014b.html">11.12. Version 2014b (released on 8 October 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2014a.1.html">11.13. Version 2014a.1 (released 26 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2014a.html">11.14. Version 2014a (released on 21 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2013a.html">11.15. Version 2013a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2012b.html">11.16. Version 2012b</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2012a.html">11.17. Version 2012a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2011b.html">11.18. Version 2011b</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">For developers/contributors</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../contributing/contributing.html">1. Contributing Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../acknowledgement.html">2. Acknowledgements</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/UMEP-dev/SUEWS">GitHub repository</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Scientific background</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../parameterisations-and-sub-models.html">1. Parameterisations and sub-models within SUEWS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../related_publications.html">2. SUEWS-related Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references.html">3. References</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Community</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../community_publications.html">1. Community Publications</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://community.suews.io">Community</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS/issues/new?title=Issue%20on%20page%20%2Foutputs/variables/debug.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>debug Output Variables</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<ol class="arabic simple">
+<li><p>Need help? Please let us know in the <a class="reference external" href="https://community.suews.io">SUEWS Community</a>.</p></li>
+<li><p>Please report issues with the manual on <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues">GitHub Issues</a> (or use <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues/new?assignees=&amp;labels=docs&amp;template=docs-issue-report.md&amp;body=%23%23+Issue%0A%3C%21--+Please+describe+the+issue+below+this+line+--%3E%0A%0A%23%23+Links%0A%5Bsource+doc%5D%28https%3A%2F%2Fgithub.com%2FUMEP-dev%2FSUEWS%2Fblob%2Fmaster%2Fdocs%2Fsource%2Foutputs%2Fvariables%2Fdebug.rst%29%0A%5BRTD+page%5D%28https%3A%2F%2Fsuews.readthedocs.org%2Fen%2Flatest%2Foutputs%2Fvariables%2Fdebug.html%29%0A&amp;title=[Docs]outputs/variables/debug">Report Issue for This Page</a> for page-specific feedback).</p></li>
+<li><p>Please cite SUEWS with proper information from our <a class="reference external" href="https://doi.org/10.5281/zenodo.5723970">Zenodo page</a>.</p></li>
+</ol>
+</div>
+<section id="debug-output-variables">
+<span id="index-0"></span><span id="debug-output"></span><h1><span class="section-number">5.3.8. </span>debug Output Variables<a class="headerlink" href="#debug-output-variables" title="Link to this heading">#</a></h1>
+<p>Debug and diagnostic outputs for model development.</p>
+<p>This group contains 131 output variables.</p>
+<dl class="output variable" id="index-1">
+<dt class="sig sig-object output" id="output-variable-FAI">
+<span class="sig-name descname"><span class="pre">FAI</span></span><a class="headerlink" href="#output-variable-FAI" title="Link to this definition">#</a></dt>
+<dd><p>Total frontal area index</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-2">
+<dt class="sig sig-object output" id="output-variable-FAIBldg_use">
+<span class="sig-name descname"><span class="pre">FAIBldg_use</span></span><a class="headerlink" href="#output-variable-FAIBldg_use" title="Link to this definition">#</a></dt>
+<dd><p>Frontal area index - buildings used</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-3">
+<dt class="sig sig-object output" id="output-variable-FAIDecTree_use">
+<span class="sig-name descname"><span class="pre">FAIDecTree_use</span></span><a class="headerlink" href="#output-variable-FAIDecTree_use" title="Link to this definition">#</a></dt>
+<dd><p>Frontal area index - deciduous trees used</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-4">
+<dt class="sig sig-object output" id="output-variable-FAIEveTree_use">
+<span class="sig-name descname"><span class="pre">FAIEveTree_use</span></span><a class="headerlink" href="#output-variable-FAIEveTree_use" title="Link to this definition">#</a></dt>
+<dd><p>Frontal area index - evergreen trees used</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-5">
+<dt class="sig sig-object output" id="output-variable-G_sm">
+<span class="sig-name descname"><span class="pre">G_sm</span></span><a class="headerlink" href="#output-variable-G_sm" title="Link to this definition">#</a></dt>
+<dd><p>Soil moisture conductance factor</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-6">
+<dt class="sig sig-object output" id="output-variable-QE0_BSoil">
+<span class="sig-name descname"><span class="pre">QE0_BSoil</span></span><a class="headerlink" href="#output-variable-QE0_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Initial latent heat flux - bare soil</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-7">
+<dt class="sig sig-object output" id="output-variable-QE0_Bldgs">
+<span class="sig-name descname"><span class="pre">QE0_Bldgs</span></span><a class="headerlink" href="#output-variable-QE0_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Initial latent heat flux - buildings</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-8">
+<dt class="sig sig-object output" id="output-variable-QE0_DecTr">
+<span class="sig-name descname"><span class="pre">QE0_DecTr</span></span><a class="headerlink" href="#output-variable-QE0_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Initial latent heat flux - deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-9">
+<dt class="sig sig-object output" id="output-variable-QE0_EveTr">
+<span class="sig-name descname"><span class="pre">QE0_EveTr</span></span><a class="headerlink" href="#output-variable-QE0_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Initial latent heat flux - evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-10">
+<dt class="sig sig-object output" id="output-variable-QE0_Grass">
+<span class="sig-name descname"><span class="pre">QE0_Grass</span></span><a class="headerlink" href="#output-variable-QE0_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Initial latent heat flux - grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-11">
+<dt class="sig sig-object output" id="output-variable-QE0_Paved">
+<span class="sig-name descname"><span class="pre">QE0_Paved</span></span><a class="headerlink" href="#output-variable-QE0_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Initial latent heat flux - paved</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-12">
+<dt class="sig sig-object output" id="output-variable-QE0_Water">
+<span class="sig-name descname"><span class="pre">QE0_Water</span></span><a class="headerlink" href="#output-variable-QE0_Water" title="Link to this definition">#</a></dt>
+<dd><p>Initial latent heat flux - water</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-13">
+<dt class="sig sig-object output" id="output-variable-QE_BSoil">
+<span class="sig-name descname"><span class="pre">QE_BSoil</span></span><a class="headerlink" href="#output-variable-QE_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Latent heat flux - bare soil</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-14">
+<dt class="sig sig-object output" id="output-variable-QE_Bldgs">
+<span class="sig-name descname"><span class="pre">QE_Bldgs</span></span><a class="headerlink" href="#output-variable-QE_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Latent heat flux - buildings</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-15">
+<dt class="sig sig-object output" id="output-variable-QE_DecTr">
+<span class="sig-name descname"><span class="pre">QE_DecTr</span></span><a class="headerlink" href="#output-variable-QE_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Latent heat flux - deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-16">
+<dt class="sig sig-object output" id="output-variable-QE_EveTr">
+<span class="sig-name descname"><span class="pre">QE_EveTr</span></span><a class="headerlink" href="#output-variable-QE_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Latent heat flux - evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-17">
+<dt class="sig sig-object output" id="output-variable-QE_Grass">
+<span class="sig-name descname"><span class="pre">QE_Grass</span></span><a class="headerlink" href="#output-variable-QE_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Latent heat flux - grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-18">
+<dt class="sig sig-object output" id="output-variable-QE_Paved">
+<span class="sig-name descname"><span class="pre">QE_Paved</span></span><a class="headerlink" href="#output-variable-QE_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Latent heat flux - paved</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-19">
+<dt class="sig sig-object output" id="output-variable-QE_Water">
+<span class="sig-name descname"><span class="pre">QE_Water</span></span><a class="headerlink" href="#output-variable-QE_Water" title="Link to this definition">#</a></dt>
+<dd><p>Latent heat flux - water</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-20">
+<dt class="sig sig-object output" id="output-variable-QH_BSoil">
+<span class="sig-name descname"><span class="pre">QH_BSoil</span></span><a class="headerlink" href="#output-variable-QH_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Sensible heat flux - bare soil</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-21">
+<dt class="sig sig-object output" id="output-variable-QH_Bldgs">
+<span class="sig-name descname"><span class="pre">QH_Bldgs</span></span><a class="headerlink" href="#output-variable-QH_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Sensible heat flux - buildings</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-22">
+<dt class="sig sig-object output" id="output-variable-QH_DecTr">
+<span class="sig-name descname"><span class="pre">QH_DecTr</span></span><a class="headerlink" href="#output-variable-QH_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Sensible heat flux - deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-23">
+<dt class="sig sig-object output" id="output-variable-QH_EveTr">
+<span class="sig-name descname"><span class="pre">QH_EveTr</span></span><a class="headerlink" href="#output-variable-QH_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Sensible heat flux - evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-24">
+<dt class="sig sig-object output" id="output-variable-QH_Grass">
+<span class="sig-name descname"><span class="pre">QH_Grass</span></span><a class="headerlink" href="#output-variable-QH_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Sensible heat flux - grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-25">
+<dt class="sig sig-object output" id="output-variable-QH_Paved">
+<span class="sig-name descname"><span class="pre">QH_Paved</span></span><a class="headerlink" href="#output-variable-QH_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Sensible heat flux - paved</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-26">
+<dt class="sig sig-object output" id="output-variable-QH_Water">
+<span class="sig-name descname"><span class="pre">QH_Water</span></span><a class="headerlink" href="#output-variable-QH_Water" title="Link to this definition">#</a></dt>
+<dd><p>Sensible heat flux - water</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-27">
+<dt class="sig sig-object output" id="output-variable-QN_BSoil">
+<span class="sig-name descname"><span class="pre">QN_BSoil</span></span><a class="headerlink" href="#output-variable-QN_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Net radiation - bare soil</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-28">
+<dt class="sig sig-object output" id="output-variable-QN_Bldgs">
+<span class="sig-name descname"><span class="pre">QN_Bldgs</span></span><a class="headerlink" href="#output-variable-QN_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Net radiation - buildings</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-29">
+<dt class="sig sig-object output" id="output-variable-QN_DecTr">
+<span class="sig-name descname"><span class="pre">QN_DecTr</span></span><a class="headerlink" href="#output-variable-QN_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Net radiation - deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-30">
+<dt class="sig sig-object output" id="output-variable-QN_EveTr">
+<span class="sig-name descname"><span class="pre">QN_EveTr</span></span><a class="headerlink" href="#output-variable-QN_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Net radiation - evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-31">
+<dt class="sig sig-object output" id="output-variable-QN_Grass">
+<span class="sig-name descname"><span class="pre">QN_Grass</span></span><a class="headerlink" href="#output-variable-QN_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Net radiation - grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-32">
+<dt class="sig sig-object output" id="output-variable-QN_Paved">
+<span class="sig-name descname"><span class="pre">QN_Paved</span></span><a class="headerlink" href="#output-variable-QN_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Net radiation - paved</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-33">
+<dt class="sig sig-object output" id="output-variable-QN_Water">
+<span class="sig-name descname"><span class="pre">QN_Water</span></span><a class="headerlink" href="#output-variable-QN_Water" title="Link to this definition">#</a></dt>
+<dd><p>Net radiation - water</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-34">
+<dt class="sig sig-object output" id="output-variable-QS_BSoil">
+<span class="sig-name descname"><span class="pre">QS_BSoil</span></span><a class="headerlink" href="#output-variable-QS_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux - bare soil</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-35">
+<dt class="sig sig-object output" id="output-variable-QS_Bldgs">
+<span class="sig-name descname"><span class="pre">QS_Bldgs</span></span><a class="headerlink" href="#output-variable-QS_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux - buildings</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-36">
+<dt class="sig sig-object output" id="output-variable-QS_DecTr">
+<span class="sig-name descname"><span class="pre">QS_DecTr</span></span><a class="headerlink" href="#output-variable-QS_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux - deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-37">
+<dt class="sig sig-object output" id="output-variable-QS_EveTr">
+<span class="sig-name descname"><span class="pre">QS_EveTr</span></span><a class="headerlink" href="#output-variable-QS_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux - evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-38">
+<dt class="sig sig-object output" id="output-variable-QS_Grass">
+<span class="sig-name descname"><span class="pre">QS_Grass</span></span><a class="headerlink" href="#output-variable-QS_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux - grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-39">
+<dt class="sig sig-object output" id="output-variable-QS_Paved">
+<span class="sig-name descname"><span class="pre">QS_Paved</span></span><a class="headerlink" href="#output-variable-QS_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux - paved</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-40">
+<dt class="sig sig-object output" id="output-variable-QS_Water">
+<span class="sig-name descname"><span class="pre">QS_Water</span></span><a class="headerlink" href="#output-variable-QS_Water" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux - water</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-41">
+<dt class="sig sig-object output" id="output-variable-RA">
+<span class="sig-name descname"><span class="pre">RA</span></span><a class="headerlink" href="#output-variable-RA" title="Link to this definition">#</a></dt>
+<dd><p>Aerodynamic resistance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>s m<sup>-1</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-42">
+<dt class="sig sig-object output" id="output-variable-RAsnow">
+<span class="sig-name descname"><span class="pre">RAsnow</span></span><a class="headerlink" href="#output-variable-RAsnow" title="Link to this definition">#</a></dt>
+<dd><p>Aerodynamic resistance for snow</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>s m<sup>-1</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-43">
+<dt class="sig sig-object output" id="output-variable-RB">
+<span class="sig-name descname"><span class="pre">RB</span></span><a class="headerlink" href="#output-variable-RB" title="Link to this definition">#</a></dt>
+<dd><p>Boundary layer resistance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>s m<sup>-1</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-44">
+<dt class="sig sig-object output" id="output-variable-RS">
+<span class="sig-name descname"><span class="pre">RS</span></span><a class="headerlink" href="#output-variable-RS" title="Link to this definition">#</a></dt>
+<dd><p>Surface resistance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>s m<sup>-1</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-45">
+<dt class="sig sig-object output" id="output-variable-RSS_BSoil">
+<span class="sig-name descname"><span class="pre">RSS_BSoil</span></span><a class="headerlink" href="#output-variable-RSS_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Surface resistance - bare soil</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>s m<sup>-1</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-46">
+<dt class="sig sig-object output" id="output-variable-RSS_Bldgs">
+<span class="sig-name descname"><span class="pre">RSS_Bldgs</span></span><a class="headerlink" href="#output-variable-RSS_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Surface resistance - buildings</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>s m<sup>-1</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-47">
+<dt class="sig sig-object output" id="output-variable-RSS_DecTr">
+<span class="sig-name descname"><span class="pre">RSS_DecTr</span></span><a class="headerlink" href="#output-variable-RSS_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Surface resistance - deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>s m<sup>-1</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-48">
+<dt class="sig sig-object output" id="output-variable-RSS_EveTr">
+<span class="sig-name descname"><span class="pre">RSS_EveTr</span></span><a class="headerlink" href="#output-variable-RSS_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Surface resistance - evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>s m<sup>-1</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-49">
+<dt class="sig sig-object output" id="output-variable-RSS_Grass">
+<span class="sig-name descname"><span class="pre">RSS_Grass</span></span><a class="headerlink" href="#output-variable-RSS_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Surface resistance - grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>s m<sup>-1</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-50">
+<dt class="sig sig-object output" id="output-variable-RSS_Paved">
+<span class="sig-name descname"><span class="pre">RSS_Paved</span></span><a class="headerlink" href="#output-variable-RSS_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Surface resistance - paved</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>s m<sup>-1</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-51">
+<dt class="sig sig-object output" id="output-variable-RSS_Water">
+<span class="sig-name descname"><span class="pre">RSS_Water</span></span><a class="headerlink" href="#output-variable-RSS_Water" title="Link to this definition">#</a></dt>
+<dd><p>Surface resistance - water</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>s m<sup>-1</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-52">
+<dt class="sig sig-object output" id="output-variable-Ts_BSoil">
+<span class="sig-name descname"><span class="pre">Ts_BSoil</span></span><a class="headerlink" href="#output-variable-Ts_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Surface temperature - bare soil</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-53">
+<dt class="sig sig-object output" id="output-variable-Ts_Bldgs">
+<span class="sig-name descname"><span class="pre">Ts_Bldgs</span></span><a class="headerlink" href="#output-variable-Ts_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Surface temperature - buildings</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-54">
+<dt class="sig sig-object output" id="output-variable-Ts_DecTr">
+<span class="sig-name descname"><span class="pre">Ts_DecTr</span></span><a class="headerlink" href="#output-variable-Ts_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Surface temperature - deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-55">
+<dt class="sig sig-object output" id="output-variable-Ts_EveTr">
+<span class="sig-name descname"><span class="pre">Ts_EveTr</span></span><a class="headerlink" href="#output-variable-Ts_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Surface temperature - evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-56">
+<dt class="sig sig-object output" id="output-variable-Ts_Grass">
+<span class="sig-name descname"><span class="pre">Ts_Grass</span></span><a class="headerlink" href="#output-variable-Ts_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Surface temperature - grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-57">
+<dt class="sig sig-object output" id="output-variable-Ts_Paved">
+<span class="sig-name descname"><span class="pre">Ts_Paved</span></span><a class="headerlink" href="#output-variable-Ts_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Surface temperature - paved</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-58">
+<dt class="sig sig-object output" id="output-variable-Ts_Water">
+<span class="sig-name descname"><span class="pre">Ts_Water</span></span><a class="headerlink" href="#output-variable-Ts_Water" title="Link to this definition">#</a></dt>
+<dd><p>Surface temperature - water</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>degC</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-59">
+<dt class="sig sig-object output" id="output-variable-avcp">
+<span class="sig-name descname"><span class="pre">avcp</span></span><a class="headerlink" href="#output-variable-avcp" title="Link to this definition">#</a></dt>
+<dd><p>Specific heat of air</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>J kg<sup>-1</sup> K<sup>-1</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-60">
+<dt class="sig sig-object output" id="output-variable-avdens">
+<span class="sig-name descname"><span class="pre">avdens</span></span><a class="headerlink" href="#output-variable-avdens" title="Link to this definition">#</a></dt>
+<dd><p>Air density</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>kg m<sup>-3</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-61">
+<dt class="sig sig-object output" id="output-variable-dqndt">
+<span class="sig-name descname"><span class="pre">dqndt</span></span><a class="headerlink" href="#output-variable-dqndt" title="Link to this definition">#</a></dt>
+<dd><p>Rate of change of net radiation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-62">
+<dt class="sig sig-object output" id="output-variable-drain_BSoil">
+<span class="sig-name descname"><span class="pre">drain_BSoil</span></span><a class="headerlink" href="#output-variable-drain_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Drainage - bare soil</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-63">
+<dt class="sig sig-object output" id="output-variable-drain_Bldgs">
+<span class="sig-name descname"><span class="pre">drain_Bldgs</span></span><a class="headerlink" href="#output-variable-drain_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Drainage - buildings</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-64">
+<dt class="sig sig-object output" id="output-variable-drain_DecTr">
+<span class="sig-name descname"><span class="pre">drain_DecTr</span></span><a class="headerlink" href="#output-variable-drain_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Drainage - deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-65">
+<dt class="sig sig-object output" id="output-variable-drain_EveTr">
+<span class="sig-name descname"><span class="pre">drain_EveTr</span></span><a class="headerlink" href="#output-variable-drain_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Drainage - evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-66">
+<dt class="sig sig-object output" id="output-variable-drain_Grass">
+<span class="sig-name descname"><span class="pre">drain_Grass</span></span><a class="headerlink" href="#output-variable-drain_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Drainage - grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-67">
+<dt class="sig sig-object output" id="output-variable-drain_Paved">
+<span class="sig-name descname"><span class="pre">drain_Paved</span></span><a class="headerlink" href="#output-variable-drain_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Drainage - paved</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-68">
+<dt class="sig sig-object output" id="output-variable-drain_Water">
+<span class="sig-name descname"><span class="pre">drain_Water</span></span><a class="headerlink" href="#output-variable-drain_Water" title="Link to this definition">#</a></dt>
+<dd><p>Drainage - water</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-69">
+<dt class="sig sig-object output" id="output-variable-dsp">
+<span class="sig-name descname"><span class="pre">dsp</span></span><a class="headerlink" href="#output-variable-dsp" title="Link to this definition">#</a></dt>
+<dd><p>Depression storage ponding</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-70">
+<dt class="sig sig-object output" id="output-variable-ev0_BSoil">
+<span class="sig-name descname"><span class="pre">ev0_BSoil</span></span><a class="headerlink" href="#output-variable-ev0_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Initial evaporation - bare soil</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-71">
+<dt class="sig sig-object output" id="output-variable-ev0_Bldgs">
+<span class="sig-name descname"><span class="pre">ev0_Bldgs</span></span><a class="headerlink" href="#output-variable-ev0_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Initial evaporation - buildings</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-72">
+<dt class="sig sig-object output" id="output-variable-ev0_DecTr">
+<span class="sig-name descname"><span class="pre">ev0_DecTr</span></span><a class="headerlink" href="#output-variable-ev0_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Initial evaporation - deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-73">
+<dt class="sig sig-object output" id="output-variable-ev0_EveTr">
+<span class="sig-name descname"><span class="pre">ev0_EveTr</span></span><a class="headerlink" href="#output-variable-ev0_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Initial evaporation - evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-74">
+<dt class="sig sig-object output" id="output-variable-ev0_Grass">
+<span class="sig-name descname"><span class="pre">ev0_Grass</span></span><a class="headerlink" href="#output-variable-ev0_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Initial evaporation - grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-75">
+<dt class="sig sig-object output" id="output-variable-ev0_Paved">
+<span class="sig-name descname"><span class="pre">ev0_Paved</span></span><a class="headerlink" href="#output-variable-ev0_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Initial evaporation - paved</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-76">
+<dt class="sig sig-object output" id="output-variable-ev0_Water">
+<span class="sig-name descname"><span class="pre">ev0_Water</span></span><a class="headerlink" href="#output-variable-ev0_Water" title="Link to this definition">#</a></dt>
+<dd><p>Initial evaporation - water</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-77">
+<dt class="sig sig-object output" id="output-variable-ev_BSoil">
+<span class="sig-name descname"><span class="pre">ev_BSoil</span></span><a class="headerlink" href="#output-variable-ev_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Evaporation - bare soil</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-78">
+<dt class="sig sig-object output" id="output-variable-ev_Bldgs">
+<span class="sig-name descname"><span class="pre">ev_Bldgs</span></span><a class="headerlink" href="#output-variable-ev_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Evaporation - buildings</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-79">
+<dt class="sig sig-object output" id="output-variable-ev_DecTr">
+<span class="sig-name descname"><span class="pre">ev_DecTr</span></span><a class="headerlink" href="#output-variable-ev_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Evaporation - deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-80">
+<dt class="sig sig-object output" id="output-variable-ev_EveTr">
+<span class="sig-name descname"><span class="pre">ev_EveTr</span></span><a class="headerlink" href="#output-variable-ev_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Evaporation - evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-81">
+<dt class="sig sig-object output" id="output-variable-ev_Grass">
+<span class="sig-name descname"><span class="pre">ev_Grass</span></span><a class="headerlink" href="#output-variable-ev_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Evaporation - grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-82">
+<dt class="sig sig-object output" id="output-variable-ev_Paved">
+<span class="sig-name descname"><span class="pre">ev_Paved</span></span><a class="headerlink" href="#output-variable-ev_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Evaporation - paved</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-83">
+<dt class="sig sig-object output" id="output-variable-ev_Water">
+<span class="sig-name descname"><span class="pre">ev_Water</span></span><a class="headerlink" href="#output-variable-ev_Water" title="Link to this definition">#</a></dt>
+<dd><p>Evaporation - water</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-84">
+<dt class="sig sig-object output" id="output-variable-flag_test">
+<span class="sig-name descname"><span class="pre">flag_test</span></span><a class="headerlink" href="#output-variable-flag_test" title="Link to this definition">#</a></dt>
+<dd><p>Debug test flag</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-85">
+<dt class="sig sig-object output" id="output-variable-g_dq">
+<span class="sig-name descname"><span class="pre">g_dq</span></span><a class="headerlink" href="#output-variable-g_dq" title="Link to this definition">#</a></dt>
+<dd><p>Conductance factor - humidity deficit</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-86">
+<dt class="sig sig-object output" id="output-variable-g_kdown">
+<span class="sig-name descname"><span class="pre">g_kdown</span></span><a class="headerlink" href="#output-variable-g_kdown" title="Link to this definition">#</a></dt>
+<dd><p>Conductance factor - downward radiation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-87">
+<dt class="sig sig-object output" id="output-variable-g_lai">
+<span class="sig-name descname"><span class="pre">g_lai</span></span><a class="headerlink" href="#output-variable-g_lai" title="Link to this definition">#</a></dt>
+<dd><p>Conductance factor - LAI</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-88">
+<dt class="sig sig-object output" id="output-variable-g_smd">
+<span class="sig-name descname"><span class="pre">g_smd</span></span><a class="headerlink" href="#output-variable-g_smd" title="Link to this definition">#</a></dt>
+<dd><p>Conductance factor - soil moisture deficit</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-89">
+<dt class="sig sig-object output" id="output-variable-g_ta">
+<span class="sig-name descname"><span class="pre">g_ta</span></span><a class="headerlink" href="#output-variable-g_ta" title="Link to this definition">#</a></dt>
+<dd><p>Conductance factor - air temperature</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-90">
+<dt class="sig sig-object output" id="output-variable-iter">
+<span class="sig-name descname"><span class="pre">iter</span></span><a class="headerlink" href="#output-variable-iter" title="Link to this definition">#</a></dt>
+<dd><p>Iteration counter</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Sum (cumulative over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-91">
+<dt class="sig sig-object output" id="output-variable-lv_J_kg">
+<span class="sig-name descname"><span class="pre">lv_J_kg</span></span><a class="headerlink" href="#output-variable-lv_J_kg" title="Link to this definition">#</a></dt>
+<dd><p>Latent heat of vaporisation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>J kg<sup>-1</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-92">
+<dt class="sig sig-object output" id="output-variable-psyc_hPa">
+<span class="sig-name descname"><span class="pre">psyc_hPa</span></span><a class="headerlink" href="#output-variable-psyc_hPa" title="Link to this definition">#</a></dt>
+<dd><p>Psychrometric constant</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>hPa K<sup>-1</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-93">
+<dt class="sig sig-object output" id="output-variable-s_hPa">
+<span class="sig-name descname"><span class="pre">s_hPa</span></span><a class="headerlink" href="#output-variable-s_hPa" title="Link to this definition">#</a></dt>
+<dd><p>Slope of saturation vapour pressure</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>hPa K<sup>-1</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-94">
+<dt class="sig sig-object output" id="output-variable-ss_BSoil_next">
+<span class="sig-name descname"><span class="pre">ss_BSoil_next</span></span><a class="headerlink" href="#output-variable-ss_BSoil_next" title="Link to this definition">#</a></dt>
+<dd><p>Next soil state - bare soil</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-95">
+<dt class="sig sig-object output" id="output-variable-ss_BSoil_prev">
+<span class="sig-name descname"><span class="pre">ss_BSoil_prev</span></span><a class="headerlink" href="#output-variable-ss_BSoil_prev" title="Link to this definition">#</a></dt>
+<dd><p>Previous soil state - bare soil</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-96">
+<dt class="sig sig-object output" id="output-variable-ss_Bldgs_next">
+<span class="sig-name descname"><span class="pre">ss_Bldgs_next</span></span><a class="headerlink" href="#output-variable-ss_Bldgs_next" title="Link to this definition">#</a></dt>
+<dd><p>Next soil state - buildings</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-97">
+<dt class="sig sig-object output" id="output-variable-ss_Bldgs_prev">
+<span class="sig-name descname"><span class="pre">ss_Bldgs_prev</span></span><a class="headerlink" href="#output-variable-ss_Bldgs_prev" title="Link to this definition">#</a></dt>
+<dd><p>Previous soil state - buildings</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-98">
+<dt class="sig sig-object output" id="output-variable-ss_DecTr_next">
+<span class="sig-name descname"><span class="pre">ss_DecTr_next</span></span><a class="headerlink" href="#output-variable-ss_DecTr_next" title="Link to this definition">#</a></dt>
+<dd><p>Next soil state - deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-99">
+<dt class="sig sig-object output" id="output-variable-ss_DecTr_prev">
+<span class="sig-name descname"><span class="pre">ss_DecTr_prev</span></span><a class="headerlink" href="#output-variable-ss_DecTr_prev" title="Link to this definition">#</a></dt>
+<dd><p>Previous soil state - deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-100">
+<dt class="sig sig-object output" id="output-variable-ss_EveTr_next">
+<span class="sig-name descname"><span class="pre">ss_EveTr_next</span></span><a class="headerlink" href="#output-variable-ss_EveTr_next" title="Link to this definition">#</a></dt>
+<dd><p>Next soil state - evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-101">
+<dt class="sig sig-object output" id="output-variable-ss_EveTr_prev">
+<span class="sig-name descname"><span class="pre">ss_EveTr_prev</span></span><a class="headerlink" href="#output-variable-ss_EveTr_prev" title="Link to this definition">#</a></dt>
+<dd><p>Previous soil state - evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-102">
+<dt class="sig sig-object output" id="output-variable-ss_Grass_next">
+<span class="sig-name descname"><span class="pre">ss_Grass_next</span></span><a class="headerlink" href="#output-variable-ss_Grass_next" title="Link to this definition">#</a></dt>
+<dd><p>Next soil state - grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-103">
+<dt class="sig sig-object output" id="output-variable-ss_Grass_prev">
+<span class="sig-name descname"><span class="pre">ss_Grass_prev</span></span><a class="headerlink" href="#output-variable-ss_Grass_prev" title="Link to this definition">#</a></dt>
+<dd><p>Previous soil state - grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-104">
+<dt class="sig sig-object output" id="output-variable-ss_Paved_next">
+<span class="sig-name descname"><span class="pre">ss_Paved_next</span></span><a class="headerlink" href="#output-variable-ss_Paved_next" title="Link to this definition">#</a></dt>
+<dd><p>Next soil state - paved</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-105">
+<dt class="sig sig-object output" id="output-variable-ss_Paved_prev">
+<span class="sig-name descname"><span class="pre">ss_Paved_prev</span></span><a class="headerlink" href="#output-variable-ss_Paved_prev" title="Link to this definition">#</a></dt>
+<dd><p>Previous soil state - paved</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-106">
+<dt class="sig sig-object output" id="output-variable-ss_Water_next">
+<span class="sig-name descname"><span class="pre">ss_Water_next</span></span><a class="headerlink" href="#output-variable-ss_Water_next" title="Link to this definition">#</a></dt>
+<dd><p>Next soil state - water</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-107">
+<dt class="sig sig-object output" id="output-variable-ss_Water_prev">
+<span class="sig-name descname"><span class="pre">ss_Water_prev</span></span><a class="headerlink" href="#output-variable-ss_Water_prev" title="Link to this definition">#</a></dt>
+<dd><p>Previous soil state - water</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-108">
+<dt class="sig sig-object output" id="output-variable-st_BSoil_next">
+<span class="sig-name descname"><span class="pre">st_BSoil_next</span></span><a class="headerlink" href="#output-variable-st_BSoil_next" title="Link to this definition">#</a></dt>
+<dd><p>Next surface state - bare soil</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-109">
+<dt class="sig sig-object output" id="output-variable-st_BSoil_prev">
+<span class="sig-name descname"><span class="pre">st_BSoil_prev</span></span><a class="headerlink" href="#output-variable-st_BSoil_prev" title="Link to this definition">#</a></dt>
+<dd><p>Previous surface state - bare soil</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-110">
+<dt class="sig sig-object output" id="output-variable-st_Bldgs_next">
+<span class="sig-name descname"><span class="pre">st_Bldgs_next</span></span><a class="headerlink" href="#output-variable-st_Bldgs_next" title="Link to this definition">#</a></dt>
+<dd><p>Next surface state - buildings</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-111">
+<dt class="sig sig-object output" id="output-variable-st_Bldgs_prev">
+<span class="sig-name descname"><span class="pre">st_Bldgs_prev</span></span><a class="headerlink" href="#output-variable-st_Bldgs_prev" title="Link to this definition">#</a></dt>
+<dd><p>Previous surface state - buildings</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-112">
+<dt class="sig sig-object output" id="output-variable-st_DecTr_next">
+<span class="sig-name descname"><span class="pre">st_DecTr_next</span></span><a class="headerlink" href="#output-variable-st_DecTr_next" title="Link to this definition">#</a></dt>
+<dd><p>Next surface state - deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-113">
+<dt class="sig sig-object output" id="output-variable-st_DecTr_prev">
+<span class="sig-name descname"><span class="pre">st_DecTr_prev</span></span><a class="headerlink" href="#output-variable-st_DecTr_prev" title="Link to this definition">#</a></dt>
+<dd><p>Previous surface state - deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-114">
+<dt class="sig sig-object output" id="output-variable-st_EveTr_next">
+<span class="sig-name descname"><span class="pre">st_EveTr_next</span></span><a class="headerlink" href="#output-variable-st_EveTr_next" title="Link to this definition">#</a></dt>
+<dd><p>Next surface state - evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-115">
+<dt class="sig sig-object output" id="output-variable-st_EveTr_prev">
+<span class="sig-name descname"><span class="pre">st_EveTr_prev</span></span><a class="headerlink" href="#output-variable-st_EveTr_prev" title="Link to this definition">#</a></dt>
+<dd><p>Previous surface state - evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-116">
+<dt class="sig sig-object output" id="output-variable-st_Grass_next">
+<span class="sig-name descname"><span class="pre">st_Grass_next</span></span><a class="headerlink" href="#output-variable-st_Grass_next" title="Link to this definition">#</a></dt>
+<dd><p>Next surface state - grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-117">
+<dt class="sig sig-object output" id="output-variable-st_Grass_prev">
+<span class="sig-name descname"><span class="pre">st_Grass_prev</span></span><a class="headerlink" href="#output-variable-st_Grass_prev" title="Link to this definition">#</a></dt>
+<dd><p>Previous surface state - grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-118">
+<dt class="sig sig-object output" id="output-variable-st_Paved_next">
+<span class="sig-name descname"><span class="pre">st_Paved_next</span></span><a class="headerlink" href="#output-variable-st_Paved_next" title="Link to this definition">#</a></dt>
+<dd><p>Next surface state - paved</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-119">
+<dt class="sig sig-object output" id="output-variable-st_Paved_prev">
+<span class="sig-name descname"><span class="pre">st_Paved_prev</span></span><a class="headerlink" href="#output-variable-st_Paved_prev" title="Link to this definition">#</a></dt>
+<dd><p>Previous surface state - paved</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-120">
+<dt class="sig sig-object output" id="output-variable-st_Water_next">
+<span class="sig-name descname"><span class="pre">st_Water_next</span></span><a class="headerlink" href="#output-variable-st_Water_next" title="Link to this definition">#</a></dt>
+<dd><p>Next surface state - water</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-121">
+<dt class="sig sig-object output" id="output-variable-st_Water_prev">
+<span class="sig-name descname"><span class="pre">st_Water_prev</span></span><a class="headerlink" href="#output-variable-st_Water_prev" title="Link to this definition">#</a></dt>
+<dd><p>Previous surface state - water</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-122">
+<dt class="sig sig-object output" id="output-variable-vpd_hPa">
+<span class="sig-name descname"><span class="pre">vpd_hPa</span></span><a class="headerlink" href="#output-variable-vpd_hPa" title="Link to this definition">#</a></dt>
+<dd><p>Vapour pressure deficit</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>hPa</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-123">
+<dt class="sig sig-object output" id="output-variable-vsmd">
+<span class="sig-name descname"><span class="pre">vsmd</span></span><a class="headerlink" href="#output-variable-vsmd" title="Link to this definition">#</a></dt>
+<dd><p>Volumetric soil moisture deficit</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-124">
+<dt class="sig sig-object output" id="output-variable-wu_BSoil">
+<span class="sig-name descname"><span class="pre">wu_BSoil</span></span><a class="headerlink" href="#output-variable-wu_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Water use - bare soil</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-125">
+<dt class="sig sig-object output" id="output-variable-wu_Bldgs">
+<span class="sig-name descname"><span class="pre">wu_Bldgs</span></span><a class="headerlink" href="#output-variable-wu_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Water use - buildings</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-126">
+<dt class="sig sig-object output" id="output-variable-wu_DecTr">
+<span class="sig-name descname"><span class="pre">wu_DecTr</span></span><a class="headerlink" href="#output-variable-wu_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Water use - deciduous trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-127">
+<dt class="sig sig-object output" id="output-variable-wu_EveTr">
+<span class="sig-name descname"><span class="pre">wu_EveTr</span></span><a class="headerlink" href="#output-variable-wu_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Water use - evergreen trees</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-128">
+<dt class="sig sig-object output" id="output-variable-wu_Grass">
+<span class="sig-name descname"><span class="pre">wu_Grass</span></span><a class="headerlink" href="#output-variable-wu_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Water use - grass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-129">
+<dt class="sig sig-object output" id="output-variable-wu_Paved">
+<span class="sig-name descname"><span class="pre">wu_Paved</span></span><a class="headerlink" href="#output-variable-wu_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Water use - paved</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-130">
+<dt class="sig sig-object output" id="output-variable-wu_Water">
+<span class="sig-name descname"><span class="pre">wu_Water</span></span><a class="headerlink" href="#output-variable-wu_Water" title="Link to this definition">#</a></dt>
+<dd><p>Water use - water</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>mm</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-131">
+<dt class="sig sig-object output" id="output-variable-x_exp">
+<span class="sig-name descname"><span class="pre">x_exp</span></span><a class="headerlink" href="#output-variable-x_exp" title="Link to this definition">#</a></dt>
+<dd><p>Exponential factor</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li></li>
+</ul>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="bl.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title"><span class="section-number">5.3.7. </span>BL Output Variables</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="beers.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title"><span class="section-number">5.3.9. </span>BEERS Output Variables</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By SUEWS dev team led by Prof Sue Grimmond
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2018 – 2026.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+<div class="extra_footer">
+  <p>Version: 2026.2.2.dev29 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8cec288d1e4ab0af6e5c3839b0f18f2bbf5685b8">8cec288</a> |
+    <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
+</div>
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

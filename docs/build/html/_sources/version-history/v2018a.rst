@@ -1,0 +1,40 @@
+.. _new_2018a:
+
+Version 2018a (released on 2 August 2018)
+----------------------------------------------------
+- **New**
+
+  #. Many under-the-hood improvements:
+
+
+     * Added explicit interface intent for confusion-less coupling between SUEWS modules
+
+     * Restructured layout of physics schemes for better modularity
+
+     * Improved the alignment in output txt files
+
+
+  #. New ``readthedocs.org``-based documentation system
+  #. Added :doc:`../inputs/converter` for conversion of input files between versions
+  #. Added `benchmark_report` for recent releases.
+
+- **Improvement**
+
+  #. Improved the near surface diagnostics scheme (T2, Q2, U10)
+  #. Improved skin temperature calculation (Ts)
+
+- **Changes**
+
+  #. `StabilityMethod`: recommended option is change from 2 to 3 as options other than 3 have been noticed with numerical issues under several scenarios, which will be fixed in the next release.
+  #. Model run - changes in selections moved from `SUEWS_SiteSelect.txt` to ``SUEWS_AnthropogenicHeat.txt``: `EnergyUseProfWD`, `EnergyUseProfWE`, `ActivityProfWD`, `ActivityProfWE`.
+  #. `BiogenCO2Code` is added to `SUEWS_Veg.txt` for looking up biogenic characteristics in the new `SUEWS_BiogenCO2.txt` file.
+  #. :code:`TraifficRate` and :code:`BuildEnergyUse` in `SUEWS_SiteSelect.txt` are expanded to allow weekday and weekend values: `TrafficRate_WD`, `TrafficRate_WE`, `QF0_BEU_WD`, `QF0_BEU_WE`.
+  #. :code:`AnthropCO2Method` is removed from `RunControl.nml`.
+  #. :code:`AnthropHeatMethod` is renamed to `EmissionsMethod`.
+  #. :code:`AHMin`, :code:`AHSlope` and :code:`TCritic` are expanded to allow weekday and weekend values by adding :code:`_WD` and :code:`_WE` as suffix, of which :code:`AHSlope` and :code:`TCritic` are also expanded to allow cooling and heating settings.
+
+- **Known issues**
+
+  #. BLUEWS is disabled
+  #. Observed soil moisture can not be used as an input
+  #. Wind direction is not currently downscaled so non -999 values will cause an error.

@@ -1,0 +1,1073 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <meta property="article:modified_time" content="2026-02-02T14:19:29+00:00" />
+    <title>3.6. External Model Coupling &#8212; SUEWS 2026.2.2.dev29 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../_static/theme_overrides.css?v=0c24fe83" />
+    <link rel="stylesheet" type="text/css" href="../_static/brand.css?v=6ff74816" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../_static/documentation_options.js?v=375a89c4"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'auto_examples/tutorial_06_external_coupling';</script>
+    <link rel="icon" href="../_static/suews-logo.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="4. Input Files" href="../inputs/index.html" />
+    <link rel="prev" title="3.5. Analysing Simulation Results" href="tutorial_05_results_analysis.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+    <meta name="docbuild:last-update" content="2026-02-02"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+<aside class="bd-header-announcement" aria-label="Announcement">
+  <div class="bd-header-announcement__content">
+    <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
+        <strong>⚠️ Development Version:</strong> This documentation was built from a development version
+        (2026.2.2.dev29, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8cec288d1e4ab0af6e5c3839b0f18f2bbf5685b8" style="color: #31708f;">8cec288</a>).
+        Features described here may be unstable or subject to change. For stable documentation, please visit the
+        <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
+    </div>
+    </div>
+</aside>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.2.dev29 documentation - Home"/>
+    <script>document.write(`<img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.2.dev29 documentation - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">For users</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">1. Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../workflow.html">2. Getting Started</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">3. Tutorials</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="tutorial_01_quick_start.html">3.1. SUEWS Quick Start Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial_02_setup_own_site.html">3.2. Set Up SUEWS for Your Own Site</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial_03_initial_conditions.html">3.3. Preparing Initial Conditions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial_04_impact_studies.html">3.4. Impact Studies Using SuPy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial_05_results_analysis.html">3.5. Analysing Simulation Results</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">3.6. External Model Coupling</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../inputs/index.html">4. Input Files</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../inputs/yaml/index.html">4.1. YAML Configuration Format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../inputs/forcing-data.html">4.2. Meteorological Forcing Data</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../inputs/yaml/config-reference/index.html">4.3. YAML Configuration Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/anthropogenicemissions.html">4.3.1. Anthropogenic Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/anthropogenicheat.html">4.3.2. Anthropogenic Heat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/archetypeproperties.html">4.3.3. Archetype Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/bldgsproperties.html">4.3.4. Buildings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/bsoilproperties.html">4.3.5. Bare Soil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/buildinglayer.html">4.3.6. Building Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/co2params.html">4.3.7. CO2 Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/conductance.html">4.3.8. Conductance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/dayprofile.html">4.3.9. Daily Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/dectrproperties.html">4.3.10. Deciduous Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/evetrproperties.html">4.3.11. Evergreen Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/grassproperties.html">4.3.12. Grass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/hourlyprofile.html">4.3.13. Hourly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatebldgs.html">4.3.14. Buildings Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatebsoil.html">4.3.15. Bare Soil Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatedectr.html">4.3.16. Deciduous Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstateevetr.html">4.3.17. Evergreen Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstategrass.html">4.3.18. Grass Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatepaved.html">4.3.19. Paved Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstateveg.html">4.3.20. Vegetation Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatewater.html">4.3.21. Water Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstates.html">4.3.22. Initial States</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/irrigationparams.html">4.3.23. Irrigation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/laiparams.html">4.3.24. LAI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/laipowercoefficients.html">4.3.25. LAI Power Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/lumpsparams.html">4.3.26. LUMPS Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/landcover.html">4.3.27. Land Cover</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/model.html">4.3.28. Model Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/modelcontrol.html">4.3.29. Model Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/modelphysics.html">4.3.30. Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/nonvegetatedsurfaceproperties.html">4.3.31. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/ohmcoefficients.html">4.3.32. OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/ohm_coefficient_season_wetness.html">4.3.33. Seasonal/Wetness OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/outputconfig.html">4.3.34. Output Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/pavedproperties.html">4.3.35. Paved Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/rooflayer.html">4.3.36. Roof Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/spartacusparams.html">4.3.37. SPARTACUS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/suewsconfig.html">4.3.38. SUEWS Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/site.html">4.3.39. Site Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/siteproperties.html">4.3.40. Site Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/snowparams.html">4.3.41. Snow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/soilobservationconfig.html">4.3.42. Soil Observation Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/stebbsproperties.html">4.3.43. STEBBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/storagedrainparams.html">4.3.44. Drainage Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/surfaceinitialstate.html">4.3.45. Generic Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/surfaceproperties.html">4.3.46. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/tenminuteprofile.html">4.3.47. Ten Minute Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/thermallayers.html">4.3.48. Thermal Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/vegetatedsurfaceproperties.html">4.3.49. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/vegetationparams.html">4.3.50. Vegetation Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/verticallayers.html">4.3.51. Vertical Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/walllayer.html">4.3.52. Wall Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/waterdistribution.html">4.3.53. Water Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/waterproperties.html">4.3.54. Water Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/weeklyprofile.html">4.3.55. Weekly Profile</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../inputs/converter.html">4.4. SUEWS Format Converter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../inputs/transition_guide.html">4.5. Transitioning to YAML-based Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../inputs/yaml/validation.html">4.6. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../inputs/tables/index.html">4.7. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/tables/met_input.html">4.7.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../inputs/tables/RunControl/RunControl.html">4.7.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/RunControl/scheme_options.html">4.7.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/RunControl/Time_related_options.html">4.7.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/RunControl/File_related_options.html">4.7.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.7.3.2.4. Options related to disaggregation of input data</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.7.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Initial_Conditions.html">4.7.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Soil_moisture_states.html">4.7.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Vegetation_parameters.html">4.7.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Recent_meteorology.html">4.7.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Above_ground_state.html">4.7.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Snow_related_parameters.html">4.7.3.4.5. Snow related parameters</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../outputs/index.html">5. Output Files</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../outputs/text_format.html">5.1. Text Format Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../outputs/parquet_format.html">5.2. Parquet Format Output</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../outputs/variables/index.html">5.3. Output Variable Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/datetime.html">5.3.1. datetime Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/suews.html">5.3.2. SUEWS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/snow.html">5.3.3. snow Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/estm.html">5.3.4. ESTM Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/ehc.html">5.3.5. EHC Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/rsl.html">5.3.6. RSL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/bl.html">5.3.7. BL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/debug.html">5.3.8. debug Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/beers.html">5.3.9. BEERS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/dailystate.html">5.3.10. DailyState Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/spartacus.html">5.3.11. SPARTACUS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/stebbs.html">5.3.12. STEBBS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/core-functions.html">6.2. Core Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.init_supy.html">6.2.1.1. supy.init_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.run_supy.html">6.2.1.2. supy.run_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.save_supy.html">6.2.1.3. supy.save_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.load_forcing_grid.html">6.2.1.4. supy.load_forcing_grid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.load_sample_data.html">6.2.1.5. supy.load_sample_data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.show_version.html">6.2.1.6. supy.show_version</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.gen_forcing_era5.html">6.3.1.1. supy.util.gen_forcing_era5</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.gen_epw.html">6.3.2.1. supy.util.gen_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.read_epw.html">6.3.2.2. supy.util.read_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.fill_gap_all.html">6.3.2.3. supy.util.fill_gap_all</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.derive_ohm_coef.html">6.3.3.1. supy.util.derive_ohm_coef</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.sim_ohm.html">6.3.3.2. supy.util.sim_ohm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.cal_gs_suews.html">6.3.4.1. supy.util.cal_gs_suews</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.cal_gs_obs.html">6.3.4.2. supy.util.cal_gs_obs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.calib_g.html">6.3.4.3. supy.util.calib_g</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.plot_comp.html">6.3.5.1. supy.util.plot_comp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.plot_day_clm.html">6.3.5.2. supy.util.plot_day_clm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.plot_rsl.html">6.3.5.3. supy.util.plot_rsl</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.cal_z0zd.html">6.3.6.1. supy.util.cal_z0zd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.cal_neutral.html">6.3.6.2. supy.util.cal_neutral</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/command-line.html">6.4. Command-Line Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/python-cli-equivalents.html">6.5. Python API for CLI Users</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/data-structures.html">6.6. Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/io-data-structures.html">6.7. Key IO Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/converter.html">6.8. Configuration Converter API</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../integration/index.html">7. Integration and Complementary Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../integration/model-coupling.html">7.1. Model Coupling and External Interaction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../integration/wrf-suews.html">7.1.1.1. Coupling with WRF</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../integration/complementary-tools.html">7.2. Complementary Interfaces and Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../related-softwares/umep.html">7.2.1.1. UMEP Interface</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../troubleshooting.html">8. Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../benchmark/benchmark_report.html">9. Benchmark Report</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notation.html">10. Notation</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../version-history/version-history.html">11. Version History</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2026.1.28.html">11.1. Version 2026.1.28 (released on 28 January 2026)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2025.11.20.html">11.2. Version 2025.11.20 (released on 20 November 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2025.10.15.html">11.3. Version 2025.10.15 (released on 15 October 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2020a.html">11.4. Version 2020a (released on 14 May 2020)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2019a.html">11.5. Version 2019a (released on 15 November 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2018c.html">11.6. Version 2018c (released on 21 February 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2018b.html">11.7. Version 2018b (released on 17 December 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2018a.html">11.8. Version 2018a (released on 2 August 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2017b.html">11.9. Version 2017b (released on 2 August 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2017a.html">11.10. Version 2017a (released on 1 Feb 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2016a.html">11.11. Version 2016a (released on 21 June 2016)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2014b.html">11.12. Version 2014b (released on 8 October 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2014a.1.html">11.13. Version 2014a.1 (released 26 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2014a.html">11.14. Version 2014a (released on 21 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2013a.html">11.15. Version 2013a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2012b.html">11.16. Version 2012b</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2012a.html">11.17. Version 2012a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2011b.html">11.18. Version 2011b</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">For developers/contributors</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../contributing/contributing.html">1. Contributing Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../acknowledgement.html">2. Acknowledgements</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/UMEP-dev/SUEWS">GitHub repository</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Scientific background</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../parameterisations-and-sub-models.html">1. Parameterisations and sub-models within SUEWS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../related_publications.html">2. SUEWS-related Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references.html">3. References</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Community</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../community_publications.html">1. Community Publications</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://community.suews.io">Community</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS/edit/master/docs/source/auto_examples/tutorial_06_external_coupling.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS/issues/new?title=Issue%20on%20page%20%2Fauto_examples/tutorial_06_external_coupling.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/auto_examples/tutorial_06_external_coupling.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>External Model Coupling</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simple-anthropogenic-heat-model">3.6.1. Simple Anthropogenic Heat Model</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#visualise-the-q-f-model">3.6.2. Visualise the <span class="math notranslate nohighlight">\(Q_F\)</span> Model</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#load-sample-data">3.6.3. Load Sample Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#calculate-external-q-f-from-forcing-data">3.6.4. Calculate External <span class="math notranslate nohighlight">\(Q_F\)</span> from Forcing Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-baseline-simulation-q-f-0">3.6.5. Run Baseline Simulation (<span class="math notranslate nohighlight">\(Q_F\)</span> = 0)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-simulation-with-external-q-f">3.6.6. Run Simulation with External <span class="math notranslate nohighlight">\(Q_F\)</span></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#compare-q-f-values">3.6.7. Compare <span class="math notranslate nohighlight">\(Q_F\)</span> Values</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#temperature-feedback">3.6.8. Temperature Feedback</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#q-f-vs-temperature-response">3.6.9. <span class="math notranslate nohighlight">\(Q_F\)</span> vs Temperature Response</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#summary">3.6.10. Summary</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<ol class="arabic simple">
+<li><p>Need help? Please let us know in the <a class="reference external" href="https://community.suews.io">SUEWS Community</a>.</p></li>
+<li><p>Please report issues with the manual on <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues">GitHub Issues</a> (or use <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues/new?assignees=&amp;labels=docs&amp;template=docs-issue-report.md&amp;body=%23%23+Issue%0A%3C%21--+Please+describe+the+issue+below+this+line+--%3E%0A%0A%23%23+Links%0A%5Bsource+doc%5D%28https%3A%2F%2Fgithub.com%2FUMEP-dev%2FSUEWS%2Fblob%2Fmaster%2Fdocs%2Fsource%2Fauto_examples%2Ftutorial_06_external_coupling.rst%29%0A%5BRTD+page%5D%28https%3A%2F%2Fsuews.readthedocs.org%2Fen%2Flatest%2Fauto_examples%2Ftutorial_06_external_coupling.html%29%0A&amp;title=[Docs]auto_examples/tutorial_06_external_coupling">Report Issue for This Page</a> for page-specific feedback).</p></li>
+<li><p>Please cite SUEWS with proper information from our <a class="reference external" href="https://doi.org/10.5281/zenodo.5723970">Zenodo page</a>.</p></li>
+</ol>
+</div>
+<div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-examples-tutorial-06-external-coupling-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="external-model-coupling">
+<span id="sphx-glr-auto-examples-tutorial-06-external-coupling-py"></span><h1><span class="section-number">3.6. </span>External Model Coupling<a class="headerlink" href="#external-model-coupling" title="Link to this heading">#</a></h1>
+<p>Coupling SUEWS with external models for anthropogenic heat flux.</p>
+<p>This example demonstrates how SUEWS can be coupled to external models that
+provide forcing data. We use a simple anthropogenic heat flux (<span class="math notranslate nohighlight">\(Q_F\)</span>) model
+driven by outdoor air temperature to show the coupling approach.</p>
+<p><strong>Key concepts:</strong></p>
+<ul class="simple">
+<li><p>Anthropogenic heat flux depends on outdoor temperature</p></li>
+<li><p>SUEWS can receive external <span class="math notranslate nohighlight">\(Q_F\)</span> as forcing input</p></li>
+<li><p>One-way coupling: external model provides forcing to SUEWS</p></li>
+<li><p>Temperature feedback affects urban energy balance</p></li>
+</ul>
+<p><strong>API approach</strong>: This tutorial uses the <a class="reference internal" href="../api/simulation.html#supy.SUEWSSimulation" title="supy.SUEWSSimulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code></a> OOP interface but
+extracts DataFrames for forcing modification. This hybrid pattern is required
+for external model coupling where forcing variables must be modified at runtime.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
+</pre></div>
+</div>
+<section id="simple-anthropogenic-heat-model">
+<h2><span class="section-number">3.6.1. </span>Simple Anthropogenic Heat Model<a class="headerlink" href="#simple-anthropogenic-heat-model" title="Link to this heading">#</a></h2>
+<p>We define a simple <span class="math notranslate nohighlight">\(Q_F\)</span> model based on building heating and cooling:</p>
+<ul class="simple">
+<li><p>Heating activates when T &lt; 10 <span class="math notranslate nohighlight">\(^{\circ}C\)</span></p></li>
+<li><p>Cooling activates when T &gt; 20 <span class="math notranslate nohighlight">\(^{\circ}C\)</span></p></li>
+<li><p>Between 10-20 <span class="math notranslate nohighlight">\(^{\circ}C\)</span>: baseline <span class="math notranslate nohighlight">\(Q_F\)</span> = 0</p></li>
+</ul>
+<p>This simplified model captures the temperature-dependent nature of
+building energy use without requiring detailed building simulation.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">QF_simple</span><span class="p">(</span><span class="n">T2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate anthropogenic heat flux from air temperature.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    T2 : float</span>
+<span class="sd">        2-metre air temperature (:math:`^{\circ}C`)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        Anthropogenic heat flux (W m\ :sup:`-2`)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">T_cool</span> <span class="o">=</span> <span class="mi">20</span>  <span class="c1"># Cooling threshold (degC)</span>
+    <span class="n">T_heat</span> <span class="o">=</span> <span class="mi">10</span>  <span class="c1"># Heating threshold (degC)</span>
+    <span class="n">C_B</span> <span class="o">=</span> <span class="mi">5</span>  <span class="c1"># Cooling rate (W m^-2 K^-1)</span>
+    <span class="n">H_B</span> <span class="o">=</span> <span class="mi">10</span>  <span class="c1"># Heating rate (W m^-2 K^-1)</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="mf">0.3</span>  <span class="c1"># Scaling factor</span>
+
+    <span class="k">if</span> <span class="n">T2</span> <span class="o">&gt;</span> <span class="n">T_cool</span><span class="p">:</span>  <span class="c1"># noqa: SIM300</span>
+        <span class="n">qf</span> <span class="o">=</span> <span class="p">(</span><span class="n">T2</span> <span class="o">-</span> <span class="n">T_cool</span><span class="p">)</span> <span class="o">*</span> <span class="n">C_B</span>
+    <span class="k">elif</span> <span class="n">T2</span> <span class="o">&lt;</span> <span class="n">T_heat</span><span class="p">:</span>  <span class="c1"># noqa: SIM300</span>
+        <span class="n">qf</span> <span class="o">=</span> <span class="p">(</span><span class="n">T_heat</span> <span class="o">-</span> <span class="n">T2</span><span class="p">)</span> <span class="o">*</span> <span class="n">H_B</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">qf</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">return</span> <span class="n">qf</span> <span class="o">*</span> <span class="n">scale</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>/private/tmp/claude/-Users-tingsun-conductor-workspaces-suews-havana-v1/41d4ccd2-265e-4416-b3db-fa0bcb209699/scratchpad/docs-worktree/docs/source/tutorials/tutorial_06_external_coupling.py:44: SyntaxWarning: invalid escape sequence &#39;\c&#39;
+  &quot;&quot;&quot;Calculate anthropogenic heat flux from air temperature.
+</pre></div>
+</div>
+</section>
+<section id="visualise-the-q-f-model">
+<h2><span class="section-number">3.6.2. </span>Visualise the <span class="math notranslate nohighlight">\(Q_F\)</span> Model<a class="headerlink" href="#visualise-the-q-f-model" title="Link to this heading">#</a></h2>
+<p>Plot the <span class="math notranslate nohighlight">\(Q_F\)</span> response to temperature to understand the model behaviour.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">temp_range</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="mi">5</span><span class="p">,</span> <span class="mi">45</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+<span class="n">qf_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">QF_simple</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">temp_range</span><span class="p">]</span>
+
+<span class="c1"># Create DataFrames for plotting by region</span>
+<span class="n">df_qf</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;Temperature&quot;</span><span class="p">:</span> <span class="n">temp_range</span><span class="p">,</span> <span class="s2">&quot;QF&quot;</span><span class="p">:</span> <span class="n">qf_values</span><span class="p">})</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+
+<span class="c1"># Heating region (T &lt; 10 degC)</span>
+<span class="n">mask_heat</span> <span class="o">=</span> <span class="n">temp_range</span> <span class="o">&lt;</span> <span class="mi">10</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">temp_range</span><span class="p">[</span><span class="n">mask_heat</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">qf_values</span><span class="p">)[</span><span class="n">mask_heat</span><span class="p">],</span> <span class="s2">&quot;C1-&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Heating&quot;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="c1"># Neutral region (10 &lt;= T &lt;= 20 degC)</span>
+<span class="n">mask_neutral</span> <span class="o">=</span> <span class="p">(</span><span class="n">temp_range</span> <span class="o">&gt;=</span> <span class="mi">10</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">temp_range</span> <span class="o">&lt;=</span> <span class="mi">20</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
+    <span class="n">temp_range</span><span class="p">[</span><span class="n">mask_neutral</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">qf_values</span><span class="p">)[</span><span class="n">mask_neutral</span><span class="p">],</span> <span class="s2">&quot;C2-&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Baseline&quot;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span>
+<span class="p">)</span>
+
+<span class="c1"># Cooling region (T &gt; 20 degC)</span>
+<span class="n">mask_cool</span> <span class="o">=</span> <span class="n">temp_range</span> <span class="o">&gt;</span> <span class="mi">20</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">temp_range</span><span class="p">[</span><span class="n">mask_cool</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">qf_values</span><span class="p">)[</span><span class="n">mask_cool</span><span class="p">],</span> <span class="s2">&quot;C0-&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Cooling&quot;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="c1"># Annotations</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;grey&quot;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;grey&quot;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">annotate</span><span class="p">(</span><span class="s2">&quot;$T_H$ = 10$^{</span><span class="se">\\</span><span class="s2">circ}$C&quot;</span><span class="p">,</span> <span class="n">xy</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">annotate</span><span class="p">(</span><span class="s2">&quot;$T_C$ = 20$^{</span><span class="se">\\</span><span class="s2">circ}$C&quot;</span><span class="p">,</span> <span class="n">xy</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Air Temperature ($^</span><span class="se">\\</span><span class="s2">circ$C)&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;$Q_F$ (W m$^{-2}$)&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Simple Anthropogenic Heat Flux Model&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../_images/sphx_glr_tutorial_06_external_coupling_001.png" srcset="../_images/sphx_glr_tutorial_06_external_coupling_001.png" alt="Simple Anthropogenic Heat Flux Model" class = "sphx-glr-single-img"/></section>
+<section id="load-sample-data">
+<h2><span class="section-number">3.6.3. </span>Load Sample Data<a class="headerlink" href="#load-sample-data" title="Link to this heading">#</a></h2>
+<p>Load the sample dataset and prepare for coupled simulation.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_sample_data</span><span class="p">()</span>
+<span class="n">df_state_init</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">state_init</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+<span class="c1"># Disable snow module (not needed for this site)</span>
+<span class="n">df_state_init</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;snowuse&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="c1"># Slice forcing by time (returns SUEWSForcing object)</span>
+<span class="c1"># Use shorter period for faster tutorial execution</span>
+<span class="n">forcing_sliced</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="p">[</span><span class="s2">&quot;2012-01&quot;</span><span class="p">:</span><span class="s2">&quot;2012-02&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+</pre></div>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p><strong>External coupling requires DataFrame extraction</strong>: When injecting
+variables from external models (here: <span class="math notranslate nohighlight">\(Q_F\)</span>), you must extract the
+DataFrame with <code class="docutils literal notranslate"><span class="pre">.df</span></code>, add the new column, then pass it to the
+simulation. This is the expected pattern for model coupling.</p>
+</div>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get DataFrame for modification (adding external :math:`Q_F`)</span>
+<span class="n">df_forcing</span> <span class="o">=</span> <span class="n">forcing_sliced</span><span class="o">.</span><span class="n">df</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Simulation period: </span><span class="si">{</span><span class="n">df_forcing</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">df_forcing</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Time steps: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">df_forcing</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Simulation period: 2012-01-01 00:10:00 to 2012-02-29 23:55:00
+Time steps: 17278
+</pre></div>
+</div>
+</section>
+<section id="calculate-external-q-f-from-forcing-data">
+<h2><span class="section-number">3.6.4. </span>Calculate External <span class="math notranslate nohighlight">\(Q_F\)</span> from Forcing Data<a class="headerlink" href="#calculate-external-q-f-from-forcing-data" title="Link to this heading">#</a></h2>
+<p>Apply the simple <span class="math notranslate nohighlight">\(Q_F\)</span> model to the air temperature from the forcing data.
+This is a one-way coupling: the external model uses prescribed temperatures.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Calculate :math:`Q_F` for each timestep</span>
+<span class="n">qf_external</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="p">[</span><span class="s2">&quot;Tair&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">QF_simple</span><span class="p">)</span>
+
+<span class="c1"># Create modified forcing with external :math:`Q_F`</span>
+<span class="n">df_forcing_with_qf</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">df_forcing_with_qf</span><span class="p">[</span><span class="s2">&quot;qf&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">qf_external</span>
+
+<span class="c1"># Configure SUEWS to use external :math:`Q_F`</span>
+<span class="n">df_state_qf</span> <span class="o">=</span> <span class="n">df_state_init</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">df_state_qf</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;emissionsmethod&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># Use prescribed Q_F</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Q_F statistics:&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Mean: </span><span class="si">{</span><span class="n">qf_external</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> W/m^2&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Max:  </span><span class="si">{</span><span class="n">qf_external</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> W/m^2&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Min:  </span><span class="si">{</span><span class="n">qf_external</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> W/m^2&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Q_F statistics:
+  Mean: 15.49 W/m^2
+  Max:  47.10 W/m^2
+  Min:  0.00 W/m^2
+</pre></div>
+</div>
+</section>
+<section id="run-baseline-simulation-q-f-0">
+<h2><span class="section-number">3.6.5. </span>Run Baseline Simulation (<span class="math notranslate nohighlight">\(Q_F\)</span> = 0)<a class="headerlink" href="#run-baseline-simulation-q-f-0" title="Link to this heading">#</a></h2>
+<p>First, run a simulation without anthropogenic heat for comparison.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">df_forcing_baseline</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">df_forcing_baseline</span><span class="p">[</span><span class="s2">&quot;qf&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="n">df_state_baseline</span> <span class="o">=</span> <span class="n">df_state_init</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">df_state_baseline</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;emissionsmethod&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="n">sim_baseline</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_state</span><span class="p">(</span><span class="n">df_state_baseline</span><span class="p">)</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="n">df_forcing_baseline</span><span class="p">)</span>
+<span class="n">output_baseline</span> <span class="o">=</span> <span class="n">sim_baseline</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">logging_level</span><span class="o">=</span><span class="mi">90</span><span class="p">)</span>
+
+<span class="n">grid</span> <span class="o">=</span> <span class="n">df_state_init</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">df_suews_baseline</span> <span class="o">=</span> <span class="n">output_baseline</span><span class="o">.</span><span class="n">SUEWS</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">grid</span><span class="p">]</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Baseline simulation complete (Q_F = 0)&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Baseline simulation complete (Q_F = 0)
+</pre></div>
+</div>
+</section>
+<section id="run-simulation-with-external-q-f">
+<h2><span class="section-number">3.6.6. </span>Run Simulation with External <span class="math notranslate nohighlight">\(Q_F\)</span><a class="headerlink" href="#run-simulation-with-external-q-f" title="Link to this heading">#</a></h2>
+<p>Now run with the temperature-dependent <span class="math notranslate nohighlight">\(Q_F\)</span> from our simple model.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">sim_with_qf</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_state</span><span class="p">(</span><span class="n">df_state_qf</span><span class="p">)</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="n">df_forcing_with_qf</span><span class="p">)</span>
+<span class="n">output_qf</span> <span class="o">=</span> <span class="n">sim_with_qf</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">logging_level</span><span class="o">=</span><span class="mi">90</span><span class="p">)</span>
+
+<span class="n">df_suews_qf</span> <span class="o">=</span> <span class="n">output_qf</span><span class="o">.</span><span class="n">SUEWS</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">grid</span><span class="p">]</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Coupled simulation complete (with external Q_F)&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Coupled simulation complete (with external Q_F)
+</pre></div>
+</div>
+</section>
+<section id="compare-q-f-values">
+<h2><span class="section-number">3.6.7. </span>Compare <span class="math notranslate nohighlight">\(Q_F\)</span> Values<a class="headerlink" href="#compare-q-f-values" title="Link to this heading">#</a></h2>
+<p>Compare the prescribed <span class="math notranslate nohighlight">\(Q_F\)</span> with the baseline (zero) case.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="n">sharex</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># Plot Q_F time series</span>
+<span class="n">df_suews_qf</span><span class="p">[</span><span class="s2">&quot;QF&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;1h&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;With external $Q_F$&quot;</span><span class="p">)</span>
+<span class="n">df_suews_baseline</span><span class="p">[</span><span class="s2">&quot;QF&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;1h&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Baseline ($Q_F$=0)&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;$Q_F$ (W m$^{-2}$)&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Anthropogenic Heat Flux&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+
+<span class="c1"># Plot difference</span>
+<span class="n">diff_qf</span> <span class="o">=</span> <span class="p">(</span><span class="n">df_suews_qf</span><span class="p">[</span><span class="s2">&quot;QF&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">df_suews_baseline</span><span class="p">[</span><span class="s2">&quot;QF&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;1h&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+<span class="n">diff_qf</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;C2&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;$</span><span class="se">\\</span><span class="s2">Delta Q_F$ (W m$^{-2}$)&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Date&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;$Q_F$ Difference (Coupled - Baseline)&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;grey&quot;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../_images/sphx_glr_tutorial_06_external_coupling_002.png" srcset="../_images/sphx_glr_tutorial_06_external_coupling_002.png" alt="Anthropogenic Heat Flux, $Q_F$ Difference (Coupled - Baseline)" class = "sphx-glr-single-img"/></section>
+<section id="temperature-feedback">
+<h2><span class="section-number">3.6.8. </span>Temperature Feedback<a class="headerlink" href="#temperature-feedback" title="Link to this heading">#</a></h2>
+<p>Examine how the external <span class="math notranslate nohighlight">\(Q_F\)</span> affects the simulated 2-metre temperature.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="n">sharex</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># Plot T2 time series</span>
+<span class="n">df_suews_qf</span><span class="p">[</span><span class="s2">&quot;T2&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;1h&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;With external $Q_F$&quot;</span><span class="p">)</span>
+<span class="n">df_suews_baseline</span><span class="p">[</span><span class="s2">&quot;T2&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;1h&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Baseline&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;$T_2$ ($^</span><span class="se">\\</span><span class="s2">circ$C)&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;2-Metre Air Temperature&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+
+<span class="c1"># Plot temperature difference</span>
+<span class="n">diff_t2</span> <span class="o">=</span> <span class="p">(</span><span class="n">df_suews_qf</span><span class="p">[</span><span class="s2">&quot;T2&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">df_suews_baseline</span><span class="p">[</span><span class="s2">&quot;T2&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;1h&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+<span class="n">diff_t2</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;C3&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;$</span><span class="se">\\</span><span class="s2">Delta T_2$ ($^</span><span class="se">\\</span><span class="s2">circ$C)&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Date&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Temperature Difference (Coupled - Baseline)&quot;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;grey&quot;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../_images/sphx_glr_tutorial_06_external_coupling_003.png" srcset="../_images/sphx_glr_tutorial_06_external_coupling_003.png" alt="2-Metre Air Temperature, Temperature Difference (Coupled - Baseline)" class = "sphx-glr-single-img"/></section>
+<section id="q-f-vs-temperature-response">
+<h2><span class="section-number">3.6.9. </span><span class="math notranslate nohighlight">\(Q_F\)</span> vs Temperature Response<a class="headerlink" href="#q-f-vs-temperature-response" title="Link to this heading">#</a></h2>
+<p>Analyse the relationship between <span class="math notranslate nohighlight">\(Q_F\)</span> change and temperature change.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Daily statistics</span>
+<span class="n">df_daily_qf</span> <span class="o">=</span> <span class="n">df_suews_qf</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;1D&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+<span class="n">df_daily_baseline</span> <span class="o">=</span> <span class="n">df_suews_baseline</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">&quot;1D&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+
+<span class="n">diff_qf_daily</span> <span class="o">=</span> <span class="n">df_daily_qf</span><span class="p">[</span><span class="s2">&quot;QF&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">df_daily_baseline</span><span class="p">[</span><span class="s2">&quot;QF&quot;</span><span class="p">]</span>
+<span class="n">diff_t2_daily</span> <span class="o">=</span> <span class="n">df_daily_qf</span><span class="p">[</span><span class="s2">&quot;T2&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">df_daily_baseline</span><span class="p">[</span><span class="s2">&quot;T2&quot;</span><span class="p">]</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">diff_qf_daily</span><span class="p">,</span> <span class="n">diff_t2_daily</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;$</span><span class="se">\\</span><span class="s2">Delta Q_F$ (W m$^{-2}$)&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;$</span><span class="se">\\</span><span class="s2">Delta T_2$ ($^</span><span class="se">\\</span><span class="s2">circ$C)&quot;</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;$Q_F$ - Temperature Feedback (Daily Means)&quot;</span><span class="p">)</span>
+
+<span class="c1"># Add trend line</span>
+<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">diff_qf_daily</span><span class="o">.</span><span class="n">dropna</span><span class="p">())</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="n">diff_qf_daily</span><span class="o">.</span><span class="n">dropna</span><span class="p">(),</span> <span class="n">diff_t2_daily</span><span class="o">.</span><span class="n">dropna</span><span class="p">(),</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">poly1d</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+    <span class="n">x_line</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">diff_qf_daily</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">diff_qf_daily</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="mi">100</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x_line</span><span class="p">,</span> <span class="n">p</span><span class="p">(</span><span class="n">x_line</span><span class="p">),</span> <span class="s2">&quot;r--&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Slope: </span><span class="si">{</span><span class="n">z</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> $^</span><span class="se">{{\\</span><span class="s2">circ</span><span class="se">}}</span><span class="s2">$C/(W/m$^2$)&quot;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+
+<span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../_images/sphx_glr_tutorial_06_external_coupling_004.png" srcset="../_images/sphx_glr_tutorial_06_external_coupling_004.png" alt="$Q_F$ - Temperature Feedback (Daily Means)" class = "sphx-glr-single-img"/></section>
+<section id="summary">
+<h2><span class="section-number">3.6.10. </span>Summary<a class="headerlink" href="#summary" title="Link to this heading">#</a></h2>
+<p>This example demonstrated one-way coupling between SUEWS and an external
+anthropogenic heat flux model:</p>
+<ol class="arabic simple">
+<li><p>Simple <span class="math notranslate nohighlight">\(Q_F\)</span> model: Temperature-dependent heating/cooling emissions</p></li>
+<li><p>One-way coupling: External <span class="math notranslate nohighlight">\(Q_F\)</span> prescribed from air temperature</p></li>
+<li><p>Temperature feedback: <span class="math notranslate nohighlight">\(Q_F\)</span> affects simulated air temperature</p></li>
+</ol>
+<p><strong>Key findings:</strong></p>
+<ul class="simple">
+<li><p>Anthropogenic heat adds energy to the urban surface</p></li>
+<li><p>Higher <span class="math notranslate nohighlight">\(Q_F\)</span> leads to elevated air temperatures</p></li>
+<li><p>The feedback magnitude depends on atmospheric conditions</p></li>
+</ul>
+<p><strong>Extensions:</strong></p>
+<ul class="simple">
+<li><p>Two-way coupling: SUEWS T2 drives external model, which provides <span class="math notranslate nohighlight">\(Q_F\)</span></p></li>
+<li><p>Building energy models for detailed <span class="math notranslate nohighlight">\(Q_F\)</span> estimation</p></li>
+<li><p>Traffic and metabolic heat contributions</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For tight two-way coupling (timestep-by-timestep interaction),
+low-level SUEWS functions are required. See the source notebook
+for implementation details.</p>
+</div>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 7.260 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-tutorial-06-external-coupling-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/8c1194c80ec5247ad871d7b4916020da/tutorial_06_external_coupling.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">tutorial_06_external_coupling.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/7676422db55bcf4328fdcf5e5626d91e/tutorial_06_external_coupling.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">tutorial_06_external_coupling.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/d79ed93e922cec3ec765b28339446b7a/tutorial_06_external_coupling.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">tutorial_06_external_coupling.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="tutorial_05_results_analysis.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title"><span class="section-number">3.5. </span>Analysing Simulation Results</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="../inputs/index.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title"><span class="section-number">4. </span>Input Files</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simple-anthropogenic-heat-model">3.6.1. Simple Anthropogenic Heat Model</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#visualise-the-q-f-model">3.6.2. Visualise the <span class="math notranslate nohighlight">\(Q_F\)</span> Model</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#load-sample-data">3.6.3. Load Sample Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#calculate-external-q-f-from-forcing-data">3.6.4. Calculate External <span class="math notranslate nohighlight">\(Q_F\)</span> from Forcing Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-baseline-simulation-q-f-0">3.6.5. Run Baseline Simulation (<span class="math notranslate nohighlight">\(Q_F\)</span> = 0)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#run-simulation-with-external-q-f">3.6.6. Run Simulation with External <span class="math notranslate nohighlight">\(Q_F\)</span></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#compare-q-f-values">3.6.7. Compare <span class="math notranslate nohighlight">\(Q_F\)</span> Values</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#temperature-feedback">3.6.8. Temperature Feedback</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#q-f-vs-temperature-response">3.6.9. <span class="math notranslate nohighlight">\(Q_F\)</span> vs Temperature Response</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#summary">3.6.10. Summary</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By SUEWS dev team led by Prof Sue Grimmond
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2018 – 2026.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    <p class="last-updated">
+  Last updated on 2026-02-02.
+  <br/>
+</p>
+  </div>
+  
+  <div class="footer-item">
+    
+<div class="extra_footer">
+  <p>Version: 2026.2.2.dev29 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8cec288d1e4ab0af6e5c3839b0f18f2bbf5685b8">8cec288</a> |
+    <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
+</div>
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

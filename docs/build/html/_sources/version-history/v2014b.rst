@@ -1,0 +1,34 @@
+
+Version 2014b (released on 8 October 2014)
+----------------------------------------------------
+
+`PDF Manual for v2014b <https://zenodo.org/records/17739547/files/SUEWS_V2014b_Manual.pdf?download=1>`_ (archived on `Zenodo <https://doi.org/10.5281/zenodo.17739547>`_)
+
+These affect the run configuration if previously run with older versions
+of the model:
+
+#. New input of three additional columns in the Meteorological input
+   file (diffusive and direct solar radiation, and wind direction)
+#. Change of input variables in InitialConditions.nml file. Note we now
+   refer to CT as ET (ie. Evergreen trees rather than coniferous trees)
+#. In GridConnectionsYYYY.txt, the site names should now be without the
+   underscore (e.g ``Sm`` and not ``Sm_``)
+
+Other issues:
+
+#. Number of grid areas that can be modelled (for one grid, one year
+   120; for one grid two years 80)
+#. Comment about Time interval of input data
+#. Bug fix: Column headers corrected in 5 min file
+#. Bug fix: Surface state 60 min file - corrected to give the last 5 min
+   of the hour (rather than cumulating through the hour)
+#. Bug fix: units in the Horizontal soil water transfer
+#. ErrorHints: More have been added to the problems.txt file.
+#. Manual: new section on running the model appropriately
+#. Manual: notation table updated
+#. Possibility to add snow accumulation and melt: new paper
+
+Järvi L, Grimmond CSB, Taka M, Nordbo A, Setälä H, and Strachan IB Version 2014:
+Development of the Surface Urban Energy and Water balance Scheme (SUEWS)
+for cold climate cities, Geosci. Model Dev. 7, 1691-1711,
+doi:10.5194/gmd-7-1691-Version 2014.

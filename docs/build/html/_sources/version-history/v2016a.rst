@@ -1,0 +1,33 @@
+
+Version 2016a (released on 21 June 2016)
+--------------------------------------------------
+
+`PDF Manual for v2016a <https://zenodo.org/records/17739547/files/SUEWS_V2016a_Manual.pdf?download=1>`_ (archived on `Zenodo <https://doi.org/10.5281/zenodo.17739547>`_)
+
+#. Major changes to the input file formats to facilitate the running of
+   multiple grids and multiple years. Surface characteristics are
+   provided in `SUEWS_SiteSelect.txt` and other input files are cross-referenced
+   via codes or profile types.
+#. The surface types have been altered:
+
+   -  Previously, grass surfaces were entered separately as irrigated
+      grass and unirrigated grass surfaces, whilst the ‘unmanaged’ land
+      cover fraction was assumed by the model to behave as unirrigated
+      grass. There is now a single surface type for grass (total for
+      irrigated plus unirrigated) and a new bare soil surface type.
+   -  The proportion of irrigated vegetation must now be specified for
+      grass, evergreen trees and deciduous trees individually.
+
+#. The entire model now runs at a time step specified by the user. Note
+   that 5 min is strongly recommended. (Previously only the water
+   balance calculations were done at 5 min with the energy balance
+   calculations at 60 min).
+#. Surface conductance now depends on the soil moisture under the
+   vegetated surfaces only (rather than the total soil moisture for the
+   whole study area as previously).
+#. Albedo of evergreen trees and grass surfaces can now change with leaf
+   area index as was previously possible for deciduous trees only.
+#. New suggestions in Troubleshooting section.
+#. Edits to the manual.
+#. CBL model included.
+#. SUEWS has been incorporated into `UMEP <http://umep-docs.readthedocs.io/>`_

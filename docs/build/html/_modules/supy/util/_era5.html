@@ -1,0 +1,1333 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>supy.util._era5 &#8212; SUEWS 2026.2.2.dev29 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../../../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/theme_overrides.css?v=0c24fe83" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/brand.css?v=6ff74816" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../../../_static/documentation_options.js?v=375a89c4"></script>
+    <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/supy/util/_era5';</script>
+    <link rel="icon" href="../../../_static/suews-logo.svg"/>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+<aside class="bd-header-announcement" aria-label="Announcement">
+  <div class="bd-header-announcement__content">
+    <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
+        <strong>⚠️ Development Version:</strong> This documentation was built from a development version
+        (2026.2.2.dev29, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8cec288d1e4ab0af6e5c3839b0f18f2bbf5685b8" style="color: #31708f;">8cec288</a>).
+        Features described here may be unstable or subject to change. For stable documentation, please visit the
+        <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
+    </div>
+    </div>
+</aside>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.2.dev29 documentation - Home"/>
+    <script>document.write(`<img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.2.dev29 documentation - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">For users</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">1. Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../workflow.html">2. Getting Started</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../auto_examples/index.html">3. Tutorials</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../auto_examples/tutorial_01_quick_start.html">3.1. SUEWS Quick Start Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../auto_examples/tutorial_02_setup_own_site.html">3.2. Set Up SUEWS for Your Own Site</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../auto_examples/tutorial_03_initial_conditions.html">3.3. Preparing Initial Conditions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../auto_examples/tutorial_04_impact_studies.html">3.4. Impact Studies Using SuPy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../auto_examples/tutorial_05_results_analysis.html">3.5. Analysing Simulation Results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../auto_examples/tutorial_06_external_coupling.html">3.6. External Model Coupling</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../inputs/index.html">4. Input Files</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../inputs/yaml/index.html">4.1. YAML Configuration Format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../inputs/forcing-data.html">4.2. Meteorological Forcing Data</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../inputs/yaml/config-reference/index.html">4.3. YAML Configuration Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/anthropogenicemissions.html">4.3.1. Anthropogenic Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/anthropogenicheat.html">4.3.2. Anthropogenic Heat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/archetypeproperties.html">4.3.3. Archetype Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/bldgsproperties.html">4.3.4. Buildings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/bsoilproperties.html">4.3.5. Bare Soil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/buildinglayer.html">4.3.6. Building Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/co2params.html">4.3.7. CO2 Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/conductance.html">4.3.8. Conductance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/dayprofile.html">4.3.9. Daily Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/dectrproperties.html">4.3.10. Deciduous Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/evetrproperties.html">4.3.11. Evergreen Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/grassproperties.html">4.3.12. Grass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/hourlyprofile.html">4.3.13. Hourly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/initialstatebldgs.html">4.3.14. Buildings Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/initialstatebsoil.html">4.3.15. Bare Soil Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/initialstatedectr.html">4.3.16. Deciduous Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/initialstateevetr.html">4.3.17. Evergreen Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/initialstategrass.html">4.3.18. Grass Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/initialstatepaved.html">4.3.19. Paved Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/initialstateveg.html">4.3.20. Vegetation Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/initialstatewater.html">4.3.21. Water Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/initialstates.html">4.3.22. Initial States</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/irrigationparams.html">4.3.23. Irrigation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/laiparams.html">4.3.24. LAI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/laipowercoefficients.html">4.3.25. LAI Power Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/lumpsparams.html">4.3.26. LUMPS Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/landcover.html">4.3.27. Land Cover</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/model.html">4.3.28. Model Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/modelcontrol.html">4.3.29. Model Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/modelphysics.html">4.3.30. Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/nonvegetatedsurfaceproperties.html">4.3.31. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/ohmcoefficients.html">4.3.32. OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/ohm_coefficient_season_wetness.html">4.3.33. Seasonal/Wetness OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/outputconfig.html">4.3.34. Output Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/pavedproperties.html">4.3.35. Paved Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/rooflayer.html">4.3.36. Roof Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/spartacusparams.html">4.3.37. SPARTACUS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/suewsconfig.html">4.3.38. SUEWS Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/site.html">4.3.39. Site Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/siteproperties.html">4.3.40. Site Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/snowparams.html">4.3.41. Snow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/soilobservationconfig.html">4.3.42. Soil Observation Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/stebbsproperties.html">4.3.43. STEBBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/storagedrainparams.html">4.3.44. Drainage Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/surfaceinitialstate.html">4.3.45. Generic Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/surfaceproperties.html">4.3.46. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/tenminuteprofile.html">4.3.47. Ten Minute Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/thermallayers.html">4.3.48. Thermal Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/vegetatedsurfaceproperties.html">4.3.49. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/vegetationparams.html">4.3.50. Vegetation Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/verticallayers.html">4.3.51. Vertical Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/walllayer.html">4.3.52. Wall Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/waterdistribution.html">4.3.53. Water Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/waterproperties.html">4.3.54. Water Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/yaml/config-reference/weeklyprofile.html">4.3.55. Weekly Profile</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../inputs/converter.html">4.4. SUEWS Format Converter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../inputs/transition_guide.html">4.5. Transitioning to YAML-based Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../inputs/yaml/validation.html">4.6. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../inputs/tables/index.html">4.7. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/tables/met_input.html">4.7.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../../inputs/tables/RunControl/RunControl.html">4.7.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../inputs/tables/RunControl/scheme_options.html">4.7.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../inputs/tables/RunControl/Time_related_options.html">4.7.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../inputs/tables/RunControl/File_related_options.html">4.7.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../inputs/tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.7.3.2.4. Options related to disaggregation of input data</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.7.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../../inputs/tables/Initial_Conditions/Initial_Conditions.html">4.7.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../inputs/tables/Initial_Conditions/Soil_moisture_states.html">4.7.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../inputs/tables/Initial_Conditions/Vegetation_parameters.html">4.7.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../inputs/tables/Initial_Conditions/Recent_meteorology.html">4.7.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../inputs/tables/Initial_Conditions/Above_ground_state.html">4.7.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../inputs/tables/Initial_Conditions/Snow_related_parameters.html">4.7.3.4.5. Snow related parameters</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../outputs/index.html">5. Output Files</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/text_format.html">5.1. Text Format Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/parquet_format.html">5.2. Parquet Format Output</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../outputs/variables/index.html">5.3. Output Variable Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/datetime.html">5.3.1. datetime Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/suews.html">5.3.2. SUEWS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/snow.html">5.3.3. snow Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/estm.html">5.3.4. ESTM Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/ehc.html">5.3.5. EHC Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/rsl.html">5.3.6. RSL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/bl.html">5.3.7. BL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/debug.html">5.3.8. debug Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/beers.html">5.3.9. BEERS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/dailystate.html">5.3.10. DailyState Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/spartacus.html">5.3.11. SPARTACUS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/stebbs.html">5.3.12. STEBBS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../api/core-functions.html">6.2. Core Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.init_supy.html">6.2.1.1. supy.init_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.run_supy.html">6.2.1.2. supy.run_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.save_supy.html">6.2.1.3. supy.save_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.load_forcing_grid.html">6.2.1.4. supy.load_forcing_grid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.load_sample_data.html">6.2.1.5. supy.load_sample_data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.show_version.html">6.2.1.6. supy.show_version</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.gen_forcing_era5.html">6.3.1.1. supy.util.gen_forcing_era5</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.gen_epw.html">6.3.2.1. supy.util.gen_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.read_epw.html">6.3.2.2. supy.util.read_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.fill_gap_all.html">6.3.2.3. supy.util.fill_gap_all</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.derive_ohm_coef.html">6.3.3.1. supy.util.derive_ohm_coef</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.sim_ohm.html">6.3.3.2. supy.util.sim_ohm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.cal_gs_suews.html">6.3.4.1. supy.util.cal_gs_suews</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.cal_gs_obs.html">6.3.4.2. supy.util.cal_gs_obs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.calib_g.html">6.3.4.3. supy.util.calib_g</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.plot_comp.html">6.3.5.1. supy.util.plot_comp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.plot_day_clm.html">6.3.5.2. supy.util.plot_day_clm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.plot_rsl.html">6.3.5.3. supy.util.plot_rsl</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.cal_z0zd.html">6.3.6.1. supy.util.cal_z0zd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/_autosummary/supy.util.cal_neutral.html">6.3.6.2. supy.util.cal_neutral</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/command-line.html">6.4. Command-Line Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/python-cli-equivalents.html">6.5. Python API for CLI Users</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/data-structures.html">6.6. Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/io-data-structures.html">6.7. Key IO Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/converter.html">6.8. Configuration Converter API</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../integration/index.html">7. Integration and Complementary Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../integration/model-coupling.html">7.1. Model Coupling and External Interaction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../integration/wrf-suews.html">7.1.1.1. Coupling with WRF</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../integration/complementary-tools.html">7.2. Complementary Interfaces and Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../related-softwares/umep.html">7.2.1.1. UMEP Interface</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../troubleshooting.html">8. Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../benchmark/benchmark_report.html">9. Benchmark Report</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notation.html">10. Notation</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../version-history/version-history.html">11. Version History</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2026.1.28.html">11.1. Version 2026.1.28 (released on 28 January 2026)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2025.11.20.html">11.2. Version 2025.11.20 (released on 20 November 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2025.10.15.html">11.3. Version 2025.10.15 (released on 15 October 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2020a.html">11.4. Version 2020a (released on 14 May 2020)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2019a.html">11.5. Version 2019a (released on 15 November 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2018c.html">11.6. Version 2018c (released on 21 February 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2018b.html">11.7. Version 2018b (released on 17 December 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2018a.html">11.8. Version 2018a (released on 2 August 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2017b.html">11.9. Version 2017b (released on 2 August 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2017a.html">11.10. Version 2017a (released on 1 Feb 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2016a.html">11.11. Version 2016a (released on 21 June 2016)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2014b.html">11.12. Version 2014b (released on 8 October 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2014a.1.html">11.13. Version 2014a.1 (released 26 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2014a.html">11.14. Version 2014a (released on 21 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2013a.html">11.15. Version 2013a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2012b.html">11.16. Version 2012b</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2012a.html">11.17. Version 2012a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../version-history/v2011b.html">11.18. Version 2011b</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">For developers/contributors</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/contributing.html">1. Contributing Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../acknowledgement.html">2. Acknowledgements</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/UMEP-dev/SUEWS">GitHub repository</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Scientific background</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../parameterisations-and-sub-models.html">1. Parameterisations and sub-models within SUEWS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../related_publications.html">2. SUEWS-related Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../references.html">3. References</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Community</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../community_publications.html">1. Community Publications</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://community.suews.io">Community</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS/issues/new?title=Issue%20on%20page%20%2F_modules/supy/util/_era5.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1></h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for supy.util._era5</h1><div class="highlight"><pre>
+<span></span><span class="c1"># suppress pandas warnings</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">contextlib</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="kn">import</span> <span class="n">cos</span><span class="p">,</span> <span class="n">deg2rad</span><span class="p">,</span> <span class="n">sin</span><span class="p">,</span> <span class="n">sqrt</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.._env</span><span class="w"> </span><span class="kn">import</span> <span class="n">logger_supy</span>
+
+<span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="n">action</span><span class="o">=</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="ne">FutureWarning</span><span class="p">)</span>
+
+
+<span class="c1">################################################</span>
+<span class="c1"># more ERA-5 related functions</span>
+<span class="c1">################################################</span>
+
+
+<span class="c1"># utility functions</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">roundPartial</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">resolution</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Geopotential Functions on WGS84 Reference Ellipsoid</span>
+
+<span class="sd">    This module contains code for converting Geopotential to Geometric and vice-versa on the WGS84 reference ellipsoid</span>
+
+<span class="sd">    ERA-5 utility functions from Chris Roth # https://pypi.org/project/eratools/</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">round</span><span class="p">(</span><span class="n">value</span> <span class="o">/</span> <span class="n">resolution</span><span class="p">)</span> <span class="o">*</span> <span class="n">resolution</span>
+
+
+<span class="n">Rmax_WGS84</span> <span class="o">=</span> <span class="mi">6378137</span>
+<span class="n">Rmin_WGS84</span> <span class="o">=</span> <span class="n">Rmax_WGS84</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">/</span> <span class="mf">298.257223563</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_geoid_radius</span><span class="p">(</span><span class="n">latitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculates the GEOID radius at a given latitude</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    latitude : float</span>
+<span class="sd">        Latitude (degrees)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    R : float</span>
+<span class="sd">        GEOID Radius (meters)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">lat</span> <span class="o">=</span> <span class="n">deg2rad</span><span class="p">(</span><span class="n">latitude</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="n">cos</span><span class="p">(</span><span class="n">lat</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">Rmax_WGS84</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">sin</span><span class="p">(</span><span class="n">lat</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">Rmin_WGS84</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">geometric2geopotential</span><span class="p">(</span><span class="n">z</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">latitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Converts geometric height to geopotential height</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    z : float</span>
+<span class="sd">        Geometric height (meters)</span>
+<span class="sd">    latitude : float</span>
+<span class="sd">        Latitude (degrees)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    h : float</span>
+<span class="sd">        Geopotential Height (meters) above the reference ellipsoid</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">twolat</span> <span class="o">=</span> <span class="n">deg2rad</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">latitude</span><span class="p">)</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="mf">9.80616</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="mf">0.002637</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">twolat</span><span class="p">)</span> <span class="o">+</span> <span class="mf">0.0000059</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">twolat</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">re</span> <span class="o">=</span> <span class="n">_geoid_radius</span><span class="p">(</span><span class="n">latitude</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">z</span> <span class="o">*</span> <span class="n">g</span> <span class="o">*</span> <span class="n">re</span> <span class="o">/</span> <span class="p">(</span><span class="n">re</span> <span class="o">+</span> <span class="n">z</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">geopotential2geometric</span><span class="p">(</span><span class="n">h</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">latitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Converts geopotential height to geometric height</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    h : float</span>
+<span class="sd">        Geopotential height (meters)</span>
+<span class="sd">    latitude : float</span>
+<span class="sd">        Latitude (degrees)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    z : float</span>
+<span class="sd">        Geometric Height (meters) above the reference ellipsoid</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">twolat</span> <span class="o">=</span> <span class="n">deg2rad</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">latitude</span><span class="p">)</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="mf">9.80616</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="mf">0.002637</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">twolat</span><span class="p">)</span> <span class="o">+</span> <span class="mf">0.0000059</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">twolat</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">re</span> <span class="o">=</span> <span class="n">_geoid_radius</span><span class="p">(</span><span class="n">latitude</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">h</span> <span class="o">*</span> <span class="n">re</span> <span class="o">/</span> <span class="p">(</span><span class="n">g</span> <span class="o">*</span> <span class="n">re</span> <span class="o">-</span> <span class="n">h</span><span class="p">)</span>
+
+
+<span class="c1"># functions to interpolate the atmospheric variables to a specified height/altitude</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_ser_val_alt</span><span class="p">(</span>
+    <span class="n">lat</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">lon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">da_alt_x</span><span class="p">,</span>
+    <span class="n">da_alt</span><span class="p">,</span>
+    <span class="n">da_val</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;interpolate atmospheric variable to a specified altitude</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    lat : float</span>
+<span class="sd">        latitude of specified site</span>
+<span class="sd">    lon : float</span>
+<span class="sd">        longitude of specified site</span>
+<span class="sd">    da_alt_x</span>
+<span class="sd">        desired altitude to interpolate variable at</span>
+<span class="sd">    da_alt</span>
+<span class="sd">        altitude associated with `da_val`: variable array to interpolate</span>
+<span class="sd">    da_val</span>
+<span class="sd">        atmospheric variable to interpolate</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pd.Series</span>
+<span class="sd">        interpolated values at the specified altitude of site positioned by [`lat`, `lon`]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.interpolate</span><span class="w"> </span><span class="kn">import</span> <span class="n">interp1d</span>
+
+    <span class="n">alt_t_1d</span> <span class="o">=</span> <span class="n">da_alt</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span> <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;nearest&quot;</span><span class="p">)</span>
+    <span class="n">val_t_1d</span> <span class="o">=</span> <span class="n">da_val</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span> <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;nearest&quot;</span><span class="p">)</span>
+    <span class="n">alt_x</span> <span class="o">=</span> <span class="n">da_alt_x</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span> <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;nearest&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">val_alt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+        <span class="n">interp1d</span><span class="p">(</span><span class="n">alt_1d</span><span class="p">,</span> <span class="n">val_1d</span><span class="p">)(</span><span class="n">alt_x</span><span class="p">)</span> <span class="k">for</span> <span class="n">alt_1d</span><span class="p">,</span> <span class="n">val_1d</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">alt_t_1d</span><span class="p">,</span> <span class="n">val_t_1d</span><span class="p">)</span>
+    <span class="p">])</span>
+    <span class="n">ser_alt</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span>
+        <span class="n">val_alt</span><span class="p">,</span>
+        <span class="n">index</span><span class="o">=</span><span class="n">da_val</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+        <span class="n">name</span><span class="o">=</span><span class="n">da_val</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">ser_alt</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_df_val_alt</span><span class="p">(</span><span class="n">lat</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">lon</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">da_alt_meas</span><span class="p">,</span> <span class="n">ds_val</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;interpolate atmospheric variables to a specified altitude</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    lat : float</span>
+<span class="sd">        latitude of specified site</span>
+<span class="sd">    lon : float</span>
+<span class="sd">        longitude of specified site</span>
+<span class="sd">    da_alt_meas</span>
+<span class="sd">        altitude associated with `da_val`: variable array to interpolate</span>
+<span class="sd">    ds_val</span>
+<span class="sd">        atmospheric varialble to interpolate</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pd.DataFrame</span>
+<span class="sd">        interpolated values at the specified altitude of site positioned by [`lat`, `lon`]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.interpolate</span><span class="w"> </span><span class="kn">import</span> <span class="n">interp1d</span>
+
+    <span class="n">da_alt</span> <span class="o">=</span> <span class="n">geopotential2geometric</span><span class="p">(</span><span class="n">ds_val</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="n">ds_val</span><span class="o">.</span><span class="n">latitude</span><span class="p">)</span>
+    <span class="c1"># generate pressure series for grid x</span>
+    <span class="n">da_alt_x</span> <span class="o">=</span> <span class="n">da_alt</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span> <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;nearest&quot;</span><span class="p">)</span>
+    <span class="n">alt_meas_x</span> <span class="o">=</span> <span class="n">da_alt_meas</span><span class="o">.</span><span class="n">sel</span><span class="p">(</span><span class="n">latitude</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span> <span class="n">longitude</span><span class="o">=</span><span class="n">lon</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;nearest&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">val_pres</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">interp1d</span><span class="p">(</span><span class="n">alt</span><span class="p">,</span> <span class="n">da_alt_x</span><span class="o">.</span><span class="n">level</span><span class="p">)(</span><span class="n">alt_meas_x</span><span class="p">)</span> <span class="k">for</span> <span class="n">alt</span> <span class="ow">in</span> <span class="n">da_alt_x</span><span class="p">])</span>
+    <span class="n">df_val_alt</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+        <span class="p">[</span>
+            <span class="n">get_ser_val_alt</span><span class="p">(</span><span class="n">lat</span><span class="p">,</span> <span class="n">lon</span><span class="p">,</span> <span class="n">da_alt_meas</span><span class="p">,</span> <span class="n">da_alt</span><span class="p">,</span> <span class="n">ds_val</span><span class="p">[</span><span class="n">var</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">ds_val</span><span class="o">.</span><span class="n">data_vars</span>
+        <span class="p">],</span>
+        <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="c1">#     add pressure</span>
+    <span class="n">df_val_alt</span><span class="p">[</span><span class="s2">&quot;p&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">val_pres</span>
+    <span class="n">df_val_alt</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">df_val_alt</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">set_names</span><span class="p">(</span><span class="s2">&quot;time&quot;</span><span class="p">)</span>
+    <span class="n">df_val_alt</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="n">df_val_alt</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">set_names</span><span class="p">(</span><span class="s2">&quot;var&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">df_val_alt</span>
+
+
+<span class="c1"># cds download related functions</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">gen_dict_dt</span><span class="p">(</span><span class="n">dt_index</span><span class="p">):</span>
+    <span class="n">list_key</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;year&quot;</span><span class="p">,</span> <span class="s2">&quot;month&quot;</span><span class="p">,</span> <span class="s2">&quot;day&quot;</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">]</span>
+    <span class="n">list_fmt</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;%Y&quot;</span><span class="p">,</span> <span class="s2">&quot;%m&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;%H:%M&quot;</span><span class="p">]</span>
+    <span class="n">dict_dt</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">k</span><span class="p">:</span> <span class="n">dt_index</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="n">fmt</span><span class="p">)</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">fmt</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">list_key</span><span class="p">,</span> <span class="n">list_fmt</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">dict_dt</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">gen_dict_dt_sub</span><span class="p">(</span><span class="n">dt_index</span><span class="p">):</span>
+    <span class="c1"># divide by [year, month] for surface level data</span>
+    <span class="n">ser_dict_sub</span> <span class="o">=</span> <span class="n">dt_index</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">dt_index</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y%m&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">gen_dict_dt</span><span class="p">)</span>
+    <span class="n">dict_sub</span> <span class="o">=</span> <span class="n">ser_dict_sub</span><span class="o">.</span><span class="n">unstack</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">dict_sub</span>
+
+
+<span class="c1"># generate filename</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">gen_fn</span><span class="p">(</span><span class="n">dict_x</span><span class="p">):</span>
+    <span class="c1"># centre coordinates</span>
+    <span class="n">ar_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dict_x</span><span class="p">[</span><span class="s2">&quot;area&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">lat_c</span><span class="p">,</span> <span class="n">lon_c</span> <span class="o">=</span> <span class="n">ar_coords</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="c1"># starting year</span>
+    <span class="n">yr_x</span> <span class="o">=</span> <span class="n">dict_x</span><span class="p">[</span><span class="s2">&quot;year&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># starting month</span>
+    <span class="n">mon_x</span> <span class="o">=</span> <span class="n">dict_x</span><span class="p">[</span><span class="s2">&quot;month&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># type of dataset: `sfc` for surface level while `ml` for atmospheric multi-level</span>
+    <span class="n">type_x</span> <span class="o">=</span> <span class="s2">&quot;sfc&quot;</span> <span class="k">if</span> <span class="s2">&quot;2m_temperature&quot;</span> <span class="ow">in</span> <span class="n">dict_x</span><span class="p">[</span><span class="s2">&quot;variable&quot;</span><span class="p">]</span> <span class="k">else</span> <span class="s2">&quot;ml&quot;</span>
+
+    <span class="c1"># format location coordinates in filename</span>
+    <span class="n">lat_c</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">lat_c</span><span class="si">}</span><span class="s2">N&quot;</span> <span class="k">if</span> <span class="n">lat_c</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="o">-</span><span class="n">lat_c</span><span class="si">}</span><span class="s2">S&quot;</span>
+    <span class="n">lon_c</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">lon_c</span><span class="si">}</span><span class="s2">E&quot;</span> <span class="k">if</span> <span class="n">lon_c</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="o">-</span><span class="n">lon_c</span><span class="si">}</span><span class="s2">W&quot;</span>
+
+    <span class="c1"># construct filename</span>
+    <span class="n">fn_x</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">lat_c</span><span class="si">}{</span><span class="n">lon_c</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">yr_x</span><span class="si">}{</span><span class="n">mon_x</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">type_x</span><span class="si">}</span><span class="s2">.nc&quot;</span>
+    <span class="k">return</span> <span class="n">fn_x</span>
+
+
+<span class="c1"># dict_x: a dict describing download elements</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">gen_dict_proc</span><span class="p">(</span><span class="n">dict_x</span><span class="p">):</span>
+    <span class="n">type_x</span> <span class="o">=</span> <span class="s2">&quot;sfc&quot;</span> <span class="k">if</span> <span class="s2">&quot;2m_temperature&quot;</span> <span class="ow">in</span> <span class="n">dict_x</span><span class="p">[</span><span class="s2">&quot;variable&quot;</span><span class="p">]</span> <span class="k">else</span> <span class="s2">&quot;ml&quot;</span>
+    <span class="n">dict_feed</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;sfc&quot;</span><span class="p">:</span> <span class="s2">&quot;reanalysis-era5-single-levels&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;ml&quot;</span><span class="p">:</span> <span class="s2">&quot;reanalysis-era5-pressure-levels&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">feed_x</span> <span class="o">=</span> <span class="n">dict_feed</span><span class="p">[</span><span class="n">type_x</span><span class="p">]</span>
+    <span class="n">dict_proc</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="n">feed_x</span><span class="p">,</span>
+        <span class="n">request</span><span class="o">=</span><span class="n">dict_x</span><span class="p">,</span>
+        <span class="n">target</span><span class="o">=</span><span class="n">gen_fn</span><span class="p">(</span><span class="n">dict_x</span><span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">dict_proc</span>
+
+
+<span class="c1"># generate a dict of reqs kwargs for (lat_x,lon_x) spanning [start, end]</span>
+<span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">chdir</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="n">orig</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">orig</span><span class="p">)</span>
+
+
+<span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">safe_stdout_stderr</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Ensure stdout/stderr are valid file objects for libraries that assume they exist.</span>
+
+<span class="sd">    Some GUI environments (e.g., QGIS Processing toolbox) set stdout/stderr to None,</span>
+<span class="sd">    which causes libraries like tqdm to crash with:</span>
+<span class="sd">        AttributeError: &#39;NoneType&#39; object has no attribute &#39;write&#39;</span>
+
+<span class="sd">    This context manager temporarily replaces None streams with os.devnull, which is</span>
+<span class="sd">    more robust than setting TQDM_DISABLE as it works for any library that writes to</span>
+<span class="sd">    stdout/stderr.</span>
+
+<span class="sd">    See: https://github.com/UMEP-dev/SUEWS/issues/902</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+
+    <span class="n">stdout_was_none</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span> <span class="ow">is</span> <span class="kc">None</span>
+    <span class="n">stderr_was_none</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span> <span class="ow">is</span> <span class="kc">None</span>
+
+    <span class="c1"># Only act if streams are None</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">stdout_was_none</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">stderr_was_none</span><span class="p">:</span>
+        <span class="k">yield</span>
+        <span class="k">return</span>
+
+    <span class="c1"># Replace None streams with devnull</span>
+    <span class="n">devnull</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">devnull</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">stdout_was_none</span><span class="p">:</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span> <span class="o">=</span> <span class="n">devnull</span>
+        <span class="k">if</span> <span class="n">stderr_was_none</span><span class="p">:</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span> <span class="o">=</span> <span class="n">devnull</span>
+        <span class="k">yield</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">stdout_was_none</span><span class="p">:</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">stderr_was_none</span><span class="p">:</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">devnull</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">download_cds</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">dict_req</span><span class="p">):</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">cdsapi</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
+
+    <span class="n">c</span> <span class="o">=</span> <span class="n">cdsapi</span><span class="o">.</span><span class="n">Client</span><span class="p">()</span>
+    <span class="n">path_fn</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">path_fn</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">logger_supy</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s2"> exists!&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;To download: </span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># this will download the file to a secure temporary directory without requirement for extra permission</span>
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">td</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">chdir</span><span class="p">(</span><span class="n">td</span><span class="p">):</span>
+                <span class="c1"># Ensure stdout/stderr exist for tqdm in headless environments</span>
+                <span class="k">with</span> <span class="n">safe_stdout_stderr</span><span class="p">():</span>
+                    <span class="n">c</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span><span class="o">**</span><span class="n">dict_req</span><span class="p">)</span>
+                <span class="c1"># move the downloaded file to desired location</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">path_fn</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">fn</span><span class="p">)</span>
+        <span class="c1"># hold on a bit for the next request</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.0100</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">download_era5_timeseries</span><span class="p">(</span>
+    <span class="n">lat_x</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">lon_x</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">start</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">end</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">dir_save</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">),</span>
+    <span class="n">logging_level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Download ERA5 data using CDS API timeseries dataset.</span>
+
+<span class="sd">    This function uses the ERA5 timeseries dataset which is optimised for</span>
+<span class="sd">    fast retrieval of point location data. Only provides surface-level variables.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    lat_x : float</span>
+<span class="sd">        Latitude of the point of interest.</span>
+<span class="sd">    lon_x : float</span>
+<span class="sd">        Longitude of the point of interest.</span>
+<span class="sd">    start : str</span>
+<span class="sd">        Start date in format &#39;YYYY-MM-DD&#39;.</span>
+<span class="sd">    end : str</span>
+<span class="sd">        End date in format &#39;YYYY-MM-DD&#39;.</span>
+<span class="sd">    dir_save : Path or str, optional</span>
+<span class="sd">        Directory to save downloaded file, by default Path(&quot;.&quot;).</span>
+<span class="sd">    logging_level : int, optional</span>
+<span class="sd">        Logging level, by default logging.INFO.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    str</span>
+<span class="sd">        Path to the downloaded CSV file.</span>
+
+<span class="sd">    Note</span>
+<span class="sd">    ----</span>
+<span class="sd">    1. This method only provides surface-level variables and should be used with simple_mode=True.</span>
+<span class="sd">    2. Uses CDS API timeseries dataset for fast point location downloads.</span>
+<span class="sd">    3. Much faster than traditional gridded ERA5 (~26s for 30 years vs several minutes).</span>
+<span class="sd">    4. Only works for point locations (no spatial grid).</span>
+<span class="sd">    5. Downloads CSV format directly (no netCDF dependencies needed).</span>
+<span class="sd">    6. Requires CDS API credentials configured: https://cds.climate.copernicus.eu/api-how-to</span>
+
+<span class="sd">    Reference</span>
+<span class="sd">    ---------</span>
+<span class="sd">    ERA5 timeseries documentation: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-timeseries</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">cdsapi</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">zipfile</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
+
+    <span class="c1"># adjust logging level</span>
+    <span class="n">logger_supy</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging_level</span><span class="p">)</span>
+
+    <span class="c1"># parse and create (if needed) the saving directory</span>
+    <span class="n">path_dir_save</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">dir_save</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">path_dir_save</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">path_dir_save</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># define variables available in ERA5 timeseries dataset</span>
+    <span class="c1"># NOTE: This dataset only provides basic surface variables (16 total).</span>
+    <span class="c1"># Advanced variables (geopotential, heat fluxes, surface properties) are NOT available.</span>
+    <span class="c1"># These must be obtained from the gridded ERA5 dataset if needed.</span>
+    <span class="n">variables</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;2m_dewpoint_temperature&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;2m_temperature&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;10m_u_component_of_wind&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;10m_v_component_of_wind&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;surface_pressure&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;surface_solar_radiation_downwards&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;surface_thermal_radiation_downwards&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;total_precipitation&quot;</span><span class="p">,</span>
+    <span class="p">]</span>
+
+    <span class="c1"># format location coordinates in filename</span>
+    <span class="n">lat_c</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">lat_x</span><span class="si">}</span><span class="s2">N&quot;</span> <span class="k">if</span> <span class="n">lat_x</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="o">-</span><span class="n">lat_x</span><span class="si">}</span><span class="s2">S&quot;</span>
+    <span class="n">lon_c</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">lon_x</span><span class="si">}</span><span class="s2">E&quot;</span> <span class="k">if</span> <span class="n">lon_x</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="o">-</span><span class="n">lon_x</span><span class="si">}</span><span class="s2">W&quot;</span>
+
+    <span class="c1"># parse dates</span>
+    <span class="n">date_start</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">start</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">date_end</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">end</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">year_start</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">start</span><span class="p">)</span><span class="o">.</span><span class="n">year</span>
+
+    <span class="c1"># construct filename (CSV format)</span>
+    <span class="n">fn</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">lat_c</span><span class="si">}{</span><span class="n">lon_c</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">year_start</span><span class="si">}</span><span class="s2">-sfc.csv&quot;</span>
+    <span class="n">path_fn</span> <span class="o">=</span> <span class="n">path_dir_save</span> <span class="o">/</span> <span class="n">fn</span>
+
+    <span class="k">if</span> <span class="n">path_fn</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">logger_supy</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s2"> exists!&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Downloading ERA5 timeseries data using CDS API...&quot;</span><span class="p">)</span>
+        <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Location: (</span><span class="si">{</span><span class="n">lat_x</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">lon_x</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Period: </span><span class="si">{</span><span class="n">date_start</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">date_end</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># define request parameters (CSV - no netCDF dependencies needed)</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="s2">&quot;reanalysis-era5-single-levels-timeseries&quot;</span>
+        <span class="n">request</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;variable&quot;</span><span class="p">:</span> <span class="n">variables</span><span class="p">,</span>
+            <span class="s2">&quot;location&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;longitude&quot;</span><span class="p">:</span> <span class="n">lon_x</span><span class="p">,</span> <span class="s2">&quot;latitude&quot;</span><span class="p">:</span> <span class="n">lat_x</span><span class="p">},</span>
+            <span class="s2">&quot;date&quot;</span><span class="p">:</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">date_start</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">date_end</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;data_format&quot;</span><span class="p">:</span> <span class="s2">&quot;csv&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="c1"># retrieve data to temporary file (CDS API returns zip archives)</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">client</span> <span class="o">=</span> <span class="n">cdsapi</span><span class="o">.</span><span class="n">Client</span><span class="p">()</span>
+
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">tmp_dir</span><span class="p">:</span>
+            <span class="n">tmp_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">tmp_dir</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;download.zip&quot;</span>
+            <span class="c1"># Ensure stdout/stderr exist for tqdm in headless environments</span>
+            <span class="k">with</span> <span class="n">safe_stdout_stderr</span><span class="p">():</span>
+                <span class="n">client</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">request</span><span class="p">)</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">tmp_path</span><span class="p">))</span>
+
+            <span class="c1"># extract CSV from zip archive</span>
+            <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">tmp_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">zip_ref</span><span class="p">:</span>
+                <span class="c1"># find the CSV file in the archive</span>
+                <span class="n">csv_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">zip_ref</span><span class="o">.</span><span class="n">namelist</span><span class="p">()</span> <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.csv&quot;</span><span class="p">)]</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">csv_files</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No CSV file found in downloaded archive&quot;</span><span class="p">)</span>
+
+                <span class="c1"># extract the first CSV file</span>
+                <span class="n">zip_ref</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">csv_files</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">path_dir_save</span><span class="p">)</span>
+                <span class="n">extracted_path</span> <span class="o">=</span> <span class="n">path_dir_save</span> <span class="o">/</span> <span class="n">csv_files</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+                <span class="c1"># rename to expected filename</span>
+                <span class="n">extracted_path</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">path_fn</span><span class="p">)</span>
+            <span class="c1"># cleanup happens automatically when tmp_dir context exits</span>
+
+        <span class="n">t1</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Download completed in </span><span class="si">{</span><span class="n">t1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">t0</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> seconds&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">path_fn</span><span class="p">)</span>
+
+
+<span class="c1"># generate requests</span>
+<span class="c1"># load downloaded files</span>
+<span class="c1"># generate supy forcing using ERA-5 data</span>
+<div class="viewcode-block" id="gen_forcing_era5">
+<a class="viewcode-back" href="../../../api/_autosummary/supy.util.gen_forcing_era5.html#supy.util.gen_forcing_era5">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">gen_forcing_era5</span><span class="p">(</span>
+    <span class="n">lat_x</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">lon_x</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">start</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">end</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">dir_save</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">),</span>
+    <span class="n">hgt_agl_diag</span><span class="o">=</span><span class="mf">100.0</span><span class="p">,</span>
+    <span class="n">logging_level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate SUEWS forcing files using ERA-5 timeseries data.</span>
+
+<span class="sd">    Downloads ERA5 surface timeseries data from CDS API and converts to SUEWS forcing format.</span>
+<span class="sd">    Uses simple diagnostics: environmental lapse rate (6.5 K/km) for temperature and</span>
+<span class="sd">    neutral MOST for wind speed.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    lat_x : float</span>
+<span class="sd">        Latitude of the location.</span>
+<span class="sd">    lon_x : float</span>
+<span class="sd">        Longitude of the location.</span>
+<span class="sd">    start : str</span>
+<span class="sd">        Start date (e.g., &quot;2020-01-01&quot;).</span>
+<span class="sd">    end : str</span>
+<span class="sd">        End date (e.g., &quot;2020-12-31&quot;).</span>
+<span class="sd">    dir_save : pathlib.Path or str, optional</span>
+<span class="sd">        Directory for saving ERA5 CSV files, by default Path(&quot;.&quot;).</span>
+<span class="sd">    hgt_agl_diag : float, optional</span>
+<span class="sd">        Height above ground level for diagnostics (m), by default 100.</span>
+<span class="sd">    logging_level : int, optional</span>
+<span class="sd">        Logging level [50=CRITICAL, 40=ERROR, 30=WARNING, 20=INFO, 10=DEBUG].</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    list</span>
+<span class="sd">        List of SUEWS forcing file paths.</span>
+
+<span class="sd">    Note</span>
+<span class="sd">    ----</span>
+<span class="sd">    1. Requires CDS API configuration: https://cds.climate.copernicus.eu/api-how-to</span>
+<span class="sd">    2. Uses ERA5 timeseries dataset (surface data, ~26s for 30 years)</span>
+<span class="sd">    3. Point location only (no spatial grids)</span>
+<span class="sd">    4. Use supy.util.read_forcing() to import generated files</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; list_fn = gen_forcing_era5(50.86, 4.35, &quot;2020-01-01&quot;, &quot;2020-01-31&quot;)</span>
+
+<span class="sd">    Reference</span>
+<span class="sd">    ---------</span>
+<span class="sd">    ECMWF, S. P. (2016). In IFS documentation CY41R2 Part IV: Physical Processes.</span>
+<span class="sd">    ECMWF: Reading, UK, 111-113. https://www.ecmwf.int/en/elibrary/16648-part-iv-physical-processes</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># adjust logging level</span>
+    <span class="n">logger_supy</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging_level</span><span class="p">)</span>
+
+    <span class="c1"># download ERA5 timeseries CSV</span>
+    <span class="n">fn_sfc</span> <span class="o">=</span> <span class="n">download_era5_timeseries</span><span class="p">(</span><span class="n">lat_x</span><span class="p">,</span> <span class="n">lon_x</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">dir_save</span><span class="p">,</span> <span class="n">logging_level</span><span class="p">)</span>
+
+    <span class="c1"># generate diagnostics from CSV</span>
+    <span class="n">df_forcing_raw</span> <span class="o">=</span> <span class="n">gen_df_diag_era5_csv</span><span class="p">(</span><span class="n">fn_sfc</span><span class="p">,</span> <span class="n">hgt_agl_diag</span><span class="p">)</span>
+
+    <span class="c1"># extract coordinates</span>
+    <span class="n">lat</span> <span class="o">=</span> <span class="n">df_forcing_raw</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;latitude&quot;</span><span class="p">]</span>
+    <span class="n">lon</span> <span class="o">=</span> <span class="n">df_forcing_raw</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;longitude&quot;</span><span class="p">]</span>
+
+    <span class="c1"># format to SUEWS convention</span>
+    <span class="n">df_forcing</span> <span class="o">=</span> <span class="n">format_df_forcing</span><span class="p">(</span><span class="n">df_forcing_raw</span><span class="p">)</span>
+
+    <span class="c1"># add coordinates to match expected structure</span>
+    <span class="n">df_forcing</span><span class="p">[</span><span class="s2">&quot;latitude&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lat</span>
+    <span class="n">df_forcing</span><span class="p">[</span><span class="s2">&quot;longitude&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lon</span>
+    <span class="n">df_forcing</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span><span class="o">.</span><span class="n">set_index</span><span class="p">([</span><span class="s2">&quot;latitude&quot;</span><span class="p">,</span> <span class="s2">&quot;longitude&quot;</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">])</span>
+
+    <span class="c1"># save results as SUEWS met input files</span>
+    <span class="n">list_fn</span> <span class="o">=</span> <span class="n">save_forcing_era5</span><span class="p">(</span><span class="n">df_forcing</span><span class="p">,</span> <span class="n">dir_save</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">list_fn</span></div>
+
+
+
+<span class="c1"># format dataframe to SUEWS convention</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">format_df_forcing</span><span class="p">(</span><span class="n">df_forcing_raw</span><span class="p">):</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.._load</span><span class="w"> </span><span class="kn">import</span> <span class="n">dict_var_type_forcing</span>
+
+    <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_raw</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="c1"># convert energy fluxes: [J m-2] to [W m-2]</span>
+    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">[</span><span class="s2">&quot;ssrd&quot;</span><span class="p">,</span> <span class="s2">&quot;strd&quot;</span><span class="p">,</span> <span class="s2">&quot;sshf&quot;</span><span class="p">,</span> <span class="s2">&quot;slhf&quot;</span><span class="p">]]</span> <span class="o">/=</span> <span class="mi">3600</span>
+
+    <span class="c1"># reverse the sign of qh and qe</span>
+    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="p">[</span><span class="s2">&quot;sshf&quot;</span><span class="p">,</span> <span class="s2">&quot;slhf&quot;</span><span class="p">]]</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+
+    <span class="c1"># convert rainfall: from [m] to [mm]</span>
+    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;tp&quot;</span><span class="p">]</span> <span class="o">*=</span> <span class="mi">1000</span>
+
+    <span class="c1"># convert bulb temperature from K to degC</span>
+    <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">Tair</span><span class="o">=</span><span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">t_z</span> <span class="o">-</span> <span class="mf">273.15</span><span class="p">)</span>
+
+    <span class="c1"># convert atmospheric pressure: [Pa] to [kPa]</span>
+    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;p_z&quot;</span><span class="p">]</span> <span class="o">/=</span> <span class="mi">1000</span>
+
+    <span class="c1"># renaming for consistency with SUEWS</span>
+    <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;ssrd&quot;</span><span class="p">:</span> <span class="s2">&quot;kdown&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;strd&quot;</span><span class="p">:</span> <span class="s2">&quot;ldown&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;sshf&quot;</span><span class="p">:</span> <span class="s2">&quot;qh&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;slhf&quot;</span><span class="p">:</span> <span class="s2">&quot;qe&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;tp&quot;</span><span class="p">:</span> <span class="s2">&quot;rain&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;uv_z&quot;</span><span class="p">:</span> <span class="s2">&quot;U&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;RH_z&quot;</span><span class="p">:</span> <span class="s2">&quot;RH&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;p_z&quot;</span><span class="p">:</span> <span class="s2">&quot;pres&quot;</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">col_suews</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">dict_var_type_forcing</span><span class="o">.</span><span class="n">keys</span><span class="p">())[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;alt_z&quot;</span><span class="p">]</span>
+
+    <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">col_suews</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span>
+        <span class="n">iy</span><span class="o">=</span><span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">year</span><span class="p">,</span>
+        <span class="nb">id</span><span class="o">=</span><span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">dayofyear</span><span class="p">,</span>
+        <span class="n">it</span><span class="o">=</span><span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">hour</span><span class="p">,</span>
+        <span class="n">imin</span><span class="o">=</span><span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">minute</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># corrections</span>
+    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;RH&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;RH&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+        <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;RH&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">between</span><span class="p">(</span><span class="mf">0.001</span><span class="p">,</span> <span class="mi">105</span><span class="p">),</span> <span class="mi">105</span>
+    <span class="p">)</span>
+    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;kdown&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;kdown&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+        <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s2">&quot;kdown&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span>
+    <span class="p">)</span>
+
+    <span class="c1"># trim decimals</span>
+    <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">4</span><span class="p">:]</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">4</span><span class="p">:]</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="c1"># coerce integer</span>
+    <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">astype</span><span class="p">({</span>
+        <span class="s2">&quot;iy&quot;</span><span class="p">:</span> <span class="s2">&quot;int32&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;int32&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;it&quot;</span><span class="p">:</span> <span class="s2">&quot;int32&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;imin&quot;</span><span class="p">:</span> <span class="s2">&quot;int32&quot;</span><span class="p">,</span>
+    <span class="p">})</span>
+
+    <span class="c1"># replace nan with -999</span>
+    <span class="n">df_forcing_grid</span> <span class="o">=</span> <span class="n">df_forcing_grid</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="o">-</span><span class="mi">999</span><span class="p">)</span><span class="o">.</span><span class="n">asfreq</span><span class="p">(</span><span class="s2">&quot;1h&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">df_forcing_grid</span>
+
+
+<span class="c1"># pandas-only version for CSV timeseries (no xarray dependency)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">gen_df_diag_era5_csv</span><span class="p">(</span><span class="n">fn_csv</span><span class="p">,</span> <span class="n">hgt_agl_diag</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate diagnostics from CSV timeseries data using pandas only.</span>
+
+<span class="sd">    This function avoids xarray dependency for the common timeseries use case.</span>
+<span class="sd">    Only supports simple_mode=True (log law + lapse rate).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">atmosp</span><span class="w"> </span><span class="kn">import</span> <span class="n">calculate</span> <span class="k">as</span> <span class="n">ac</span>
+
+    <span class="c1"># load CSV timeseries data</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">fn_csv</span><span class="p">)</span>
+    <span class="n">df</span><span class="p">[</span><span class="s2">&quot;valid_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;valid_time&quot;</span><span class="p">])</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;valid_time&quot;</span><span class="p">)</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;time&quot;</span>
+
+    <span class="c1"># extract coordinates</span>
+    <span class="n">lat</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;latitude&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">lon</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;longitude&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># extract variables (using abbreviated CSV column names)</span>
+    <span class="n">pres_z0</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;sp&quot;</span><span class="p">]</span>  <span class="c1"># surface pressure [Pa]</span>
+    <span class="n">u10</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;u10&quot;</span><span class="p">]</span>  <span class="c1"># 10m u-wind [m/s]</span>
+    <span class="n">v10</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;v10&quot;</span><span class="p">]</span>  <span class="c1"># 10m v-wind [m/s]</span>
+    <span class="n">t2</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;t2m&quot;</span><span class="p">]</span>  <span class="c1"># 2m temperature [K]</span>
+    <span class="n">d2</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;d2m&quot;</span><span class="p">]</span>  <span class="c1"># 2m dewpoint [K]</span>
+
+    <span class="c1"># computed variables</span>
+    <span class="n">uv10</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">u10</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">v10</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>  <span class="c1"># wind speed</span>
+    <span class="n">q2</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">&quot;qv&quot;</span><span class="p">,</span> <span class="n">Td</span><span class="o">=</span><span class="n">d2</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">t2</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">pres_z0</span><span class="p">)</span>  <span class="c1"># specific humidity</span>
+
+    <span class="c1"># default values for missing variables (timeseries doesn&#39;t provide these)</span>
+    <span class="n">alt_z0</span> <span class="o">=</span> <span class="mf">0.0</span>  <span class="c1"># assume sea level</span>
+    <span class="n">z0m</span> <span class="o">=</span> <span class="mf">0.1</span>  <span class="c1"># default roughness [m]</span>
+
+    <span class="c1"># constants for diagnostics</span>
+    <span class="n">env_lapse</span> <span class="o">=</span> <span class="mf">6.5</span> <span class="o">/</span> <span class="mf">1000.0</span>  <span class="c1"># environmental lapse rate [K m^-1]</span>
+    <span class="n">grav</span> <span class="o">=</span> <span class="mf">9.80616</span>  <span class="c1"># gravity [m s^-2]</span>
+    <span class="n">rd</span> <span class="o">=</span> <span class="mf">287.04</span>  <span class="c1"># gas constant for dry air [J K^-1 kg^-1]</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">hgt_agl_diag</span>  <span class="c1"># diagnostic height [m]</span>
+
+    <span class="c1"># --- Compute diagnostics at height z using simple mode ---</span>
+
+    <span class="c1"># temperature correction using lapse rate</span>
+    <span class="n">t_z</span> <span class="o">=</span> <span class="n">t2</span> <span class="o">-</span> <span class="p">(</span><span class="n">z</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">env_lapse</span>
+
+    <span class="c1"># barometric equation with varying temperature</span>
+    <span class="n">p_z</span> <span class="o">=</span> <span class="n">pres_z0</span> <span class="o">*</span> <span class="p">(</span><span class="n">t_z</span> <span class="o">/</span> <span class="n">t2</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="n">grav</span> <span class="o">/</span> <span class="p">(</span><span class="n">rd</span> <span class="o">*</span> <span class="n">env_lapse</span><span class="p">))</span>
+
+    <span class="c1"># humidity assuming invariable relative humidity</span>
+    <span class="n">RH_z</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">&quot;RH&quot;</span><span class="p">,</span> <span class="n">qv</span><span class="o">=</span><span class="n">q2</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">pres_z0</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">t2</span><span class="p">)</span>
+    <span class="n">q_z</span> <span class="o">=</span> <span class="n">ac</span><span class="p">(</span><span class="s2">&quot;qv&quot;</span><span class="p">,</span> <span class="n">RH</span><span class="o">=</span><span class="n">RH_z</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">p_z</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="n">t_z</span><span class="p">)</span>
+
+    <span class="c1"># wind speed using log law (neutral condition)</span>
+    <span class="n">uv_z</span> <span class="o">=</span> <span class="n">uv10</span> <span class="o">*</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">((</span><span class="n">z</span> <span class="o">+</span> <span class="n">z0m</span><span class="p">)</span> <span class="o">/</span> <span class="n">z0m</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">((</span><span class="mi">10</span> <span class="o">+</span> <span class="n">z0m</span><span class="p">)</span> <span class="o">/</span> <span class="n">z0m</span><span class="p">))</span>
+
+    <span class="c1"># altitude at diagnostic height</span>
+    <span class="n">alt_z</span> <span class="o">=</span> <span class="n">alt_z0</span> <span class="o">+</span> <span class="n">z</span>
+
+    <span class="c1"># create DataFrame with diagnostics</span>
+    <span class="n">df_diag</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;uv_z&quot;</span><span class="p">:</span> <span class="n">uv_z</span><span class="p">,</span>
+            <span class="s2">&quot;t_z&quot;</span><span class="p">:</span> <span class="n">t_z</span><span class="p">,</span>
+            <span class="s2">&quot;q_z&quot;</span><span class="p">:</span> <span class="n">q_z</span><span class="p">,</span>
+            <span class="s2">&quot;RH_z&quot;</span><span class="p">:</span> <span class="n">RH_z</span><span class="p">,</span>
+            <span class="s2">&quot;p_z&quot;</span><span class="p">:</span> <span class="n">p_z</span><span class="p">,</span>
+            <span class="s2">&quot;alt_z&quot;</span><span class="p">:</span> <span class="n">alt_z</span><span class="p">,</span>
+            <span class="c1"># also include surface variables needed downstream</span>
+            <span class="s2">&quot;ssrd&quot;</span><span class="p">:</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;ssrd&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;strd&quot;</span><span class="p">:</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;strd&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;tp&quot;</span><span class="p">:</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;tp&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;sshf&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>  <span class="c1"># not available in timeseries</span>
+            <span class="s2">&quot;slhf&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>  <span class="c1"># not available in timeseries</span>
+        <span class="p">},</span>
+        <span class="n">index</span><span class="o">=</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># add coordinates as attributes (will be used for filename)</span>
+    <span class="n">df_diag</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;latitude&quot;</span><span class="p">:</span> <span class="n">lat</span><span class="p">,</span> <span class="s2">&quot;longitude&quot;</span><span class="p">:</span> <span class="n">lon</span><span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">df_diag</span>
+
+
+<span class="c1"># diagnose ISL variable using MOST</span>
+<span class="c1"># diagnose ISL variable using MOST</span>
+<span class="c1"># save ERA5 forcing dataframe to SUEWS-simulation ready txt files</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">save_forcing_era5</span><span class="p">(</span><span class="n">df_forcing_era5</span><span class="p">,</span> <span class="n">dir_save</span><span class="p">):</span>
+    <span class="n">gpb</span> <span class="o">=</span> <span class="n">df_forcing_era5</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s2">&quot;latitude&quot;</span><span class="p">,</span> <span class="s2">&quot;longitude&quot;</span><span class="p">])</span>
+    <span class="n">list_grid</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">gpb</span><span class="o">.</span><span class="n">groups</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="n">list_fn</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">path_dir_save</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">dir_save</span><span class="p">)</span>
+
+    <span class="c1"># split into grids</span>
+    <span class="k">for</span> <span class="n">lat</span><span class="p">,</span> <span class="n">lon</span> <span class="ow">in</span> <span class="n">list_grid</span><span class="p">:</span>
+        <span class="n">df_grid</span> <span class="o">=</span> <span class="n">df_forcing_era5</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">lat</span><span class="p">,</span> <span class="n">lon</span><span class="p">]</span>
+        <span class="n">s_lat</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">lat</span><span class="si">}</span><span class="s2">N&quot;</span> <span class="k">if</span> <span class="n">lat</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="o">-</span><span class="n">lat</span><span class="si">}</span><span class="s2">S&quot;</span>
+        <span class="n">s_lon</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">lon</span><span class="si">}</span><span class="s2">E&quot;</span> <span class="k">if</span> <span class="n">lon</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="o">-</span><span class="n">lon</span><span class="si">}</span><span class="s2">W&quot;</span>
+        <span class="n">alt_z</span> <span class="o">=</span> <span class="n">df_grid</span><span class="o">.</span><span class="n">alt_z</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">df_grid</span> <span class="o">=</span> <span class="n">df_grid</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s2">&quot;alt_z&quot;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">s_alt</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">alt_z</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">A&quot;</span>
+        <span class="n">idx_grid</span> <span class="o">=</span> <span class="n">df_grid</span><span class="o">.</span><span class="n">index</span>
+
+        <span class="c1"># split into years</span>
+        <span class="n">grp_year</span> <span class="o">=</span> <span class="n">df_grid</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">idx_grid</span><span class="o">.</span><span class="n">year</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">year</span> <span class="ow">in</span> <span class="n">grp_year</span><span class="o">.</span><span class="n">groups</span><span class="p">:</span>
+            <span class="n">df_year</span> <span class="o">=</span> <span class="n">grp_year</span><span class="o">.</span><span class="n">get_group</span><span class="p">(</span><span class="n">year</span><span class="p">)</span>
+            <span class="n">idx_year</span> <span class="o">=</span> <span class="n">df_year</span><span class="o">.</span><span class="n">index</span>
+            <span class="n">s_year</span> <span class="o">=</span> <span class="n">idx_year</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">year</span>
+            <span class="c1"># Calculate frequency from actual time differences (groupby loses freq metadata)</span>
+            <span class="n">time_diff</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="p">(</span><span class="n">idx_year</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">idx_year</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idx_year</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span>
+                <span class="k">else</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="s2">&quot;60min&quot;</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">s_freq</span> <span class="o">=</span> <span class="n">time_diff</span> <span class="o">/</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="s2">&quot;1min&quot;</span><span class="p">)</span>
+            <span class="n">s_fn</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;ERA5_UTC-</span><span class="si">{</span><span class="n">s_lat</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">s_lon</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">s_alt</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">s_year</span><span class="si">}</span><span class="s2">_data_</span><span class="si">{</span><span class="n">s_freq</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">.txt&quot;</span>
+            <span class="n">path_fn</span> <span class="o">=</span> <span class="n">path_dir_save</span> <span class="o">/</span> <span class="n">s_fn</span>
+            <span class="n">df_year</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">path_fn</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+            <span class="c1"># collect file names</span>
+            <span class="n">list_fn</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">path_fn</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">list_fn</span>
+</pre></div>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By SUEWS dev team led by Prof Sue Grimmond
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2018 – 2026.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+<div class="extra_footer">
+  <p>Version: 2026.2.2.dev29 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8cec288d1e4ab0af6e5c3839b0f18f2bbf5685b8">8cec288</a> |
+    <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
+</div>
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

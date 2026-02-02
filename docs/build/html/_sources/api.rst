@@ -1,0 +1,54 @@
+.. _api_reference:
+
+Python API Reference
+=====================
+
+The Python interface provides the complete API for SUEWS with comprehensive functionality for urban climate modelling, data analysis, and integration with the scientific Python ecosystem.
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+
+   api/simulation
+   api/core-functions
+   api/utility-functions
+   api/command-line
+   api/python-cli-equivalents
+   api/data-structures
+   api/io-data-structures
+   api/converter
+
+.. only:: dts_available
+
+   .. toctree::
+      :maxdepth: 2
+      :hidden:
+
+      api/dts
+
+**Object-Oriented Interface**
+    The :class:`~supy.SUEWSSimulation` class provides a modern interface for running simulations. See :doc:`api/simulation`.
+
+.. only:: dts_available
+
+   **DTS Interface**
+       Performance-optimised direct Pydantic-to-Fortran execution path. See :doc:`api/dts`.
+
+**Core Functions**
+    Functional API for SUEWS simulations (init, run, save). See :doc:`api/core-functions`.
+
+**Utility Functions**
+    Data processing, analysis, and visualisation functions. See :doc:`api/utility-functions`.
+
+**Command-Line Tools**
+    CLI tools for running simulations and converting configurations. See :doc:`api/command-line`.
+
+**Python API for CLI Users**
+    Python equivalents for all command-line operations. See :doc:`api/python-cli-equivalents`.
+
+**Data Structures**
+    DataFrame structures for model inputs and outputs. See :doc:`api/data-structures`.
+
+**Configuration Converter**
+    Python functions for converting between SUEWS formats and versions. See :doc:`api/converter`.
+

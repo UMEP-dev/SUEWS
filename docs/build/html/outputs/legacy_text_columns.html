@@ -1,0 +1,3541 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <meta property="article:modified_time" content="2026-01-28T22:04:56+00:00" />
+    <title>5.5. Legacy Text Column Reference &#8212; SUEWS 2026.2.2.dev29 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../_static/theme_overrides.css?v=0c24fe83" />
+    <link rel="stylesheet" type="text/css" href="../_static/brand.css?v=6ff74816" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../_static/documentation_options.js?v=375a89c4"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'outputs/legacy_text_columns';</script>
+    <link rel="icon" href="../_static/suews-logo.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="6. Python API Reference" href="../api.html" />
+    <link rel="prev" title="5.4. Legacy Diagnostics" href="legacy_diagnostics.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+    <meta name="docbuild:last-update" content="2026-01-28"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+<aside class="bd-header-announcement" aria-label="Announcement">
+  <div class="bd-header-announcement__content">
+    <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
+        <strong>⚠️ Development Version:</strong> This documentation was built from a development version
+        (2026.2.2.dev29, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8cec288d1e4ab0af6e5c3839b0f18f2bbf5685b8" style="color: #31708f;">8cec288</a>).
+        Features described here may be unstable or subject to change. For stable documentation, please visit the
+        <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
+    </div>
+    </div>
+</aside>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.2.dev29 documentation - Home"/>
+    <script>document.write(`<img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.2.dev29 documentation - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">For users</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">1. Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../workflow.html">2. Getting Started</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../auto_examples/index.html">3. Tutorials</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/tutorial_01_quick_start.html">3.1. SUEWS Quick Start Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/tutorial_02_setup_own_site.html">3.2. Set Up SUEWS for Your Own Site</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/tutorial_03_initial_conditions.html">3.3. Preparing Initial Conditions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/tutorial_04_impact_studies.html">3.4. Impact Studies Using SuPy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/tutorial_05_results_analysis.html">3.5. Analysing Simulation Results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/tutorial_06_external_coupling.html">3.6. External Model Coupling</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../inputs/index.html">4. Input Files</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../inputs/yaml/index.html">4.1. YAML Configuration Format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../inputs/forcing-data.html">4.2. Meteorological Forcing Data</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../inputs/yaml/config-reference/index.html">4.3. YAML Configuration Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/anthropogenicemissions.html">4.3.1. Anthropogenic Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/anthropogenicheat.html">4.3.2. Anthropogenic Heat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/archetypeproperties.html">4.3.3. Archetype Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/bldgsproperties.html">4.3.4. Buildings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/bsoilproperties.html">4.3.5. Bare Soil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/buildinglayer.html">4.3.6. Building Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/co2params.html">4.3.7. CO2 Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/conductance.html">4.3.8. Conductance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/dayprofile.html">4.3.9. Daily Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/dectrproperties.html">4.3.10. Deciduous Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/evetrproperties.html">4.3.11. Evergreen Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/grassproperties.html">4.3.12. Grass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/hourlyprofile.html">4.3.13. Hourly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatebldgs.html">4.3.14. Buildings Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatebsoil.html">4.3.15. Bare Soil Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatedectr.html">4.3.16. Deciduous Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstateevetr.html">4.3.17. Evergreen Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstategrass.html">4.3.18. Grass Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatepaved.html">4.3.19. Paved Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstateveg.html">4.3.20. Vegetation Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstatewater.html">4.3.21. Water Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/initialstates.html">4.3.22. Initial States</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/irrigationparams.html">4.3.23. Irrigation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/laiparams.html">4.3.24. LAI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/laipowercoefficients.html">4.3.25. LAI Power Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/lumpsparams.html">4.3.26. LUMPS Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/landcover.html">4.3.27. Land Cover</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/model.html">4.3.28. Model Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/modelcontrol.html">4.3.29. Model Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/modelphysics.html">4.3.30. Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/nonvegetatedsurfaceproperties.html">4.3.31. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/ohmcoefficients.html">4.3.32. OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/ohm_coefficient_season_wetness.html">4.3.33. Seasonal/Wetness OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/outputconfig.html">4.3.34. Output Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/pavedproperties.html">4.3.35. Paved Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/rooflayer.html">4.3.36. Roof Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/spartacusparams.html">4.3.37. SPARTACUS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/suewsconfig.html">4.3.38. SUEWS Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/site.html">4.3.39. Site Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/siteproperties.html">4.3.40. Site Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/snowparams.html">4.3.41. Snow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/soilobservationconfig.html">4.3.42. Soil Observation Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/stebbsproperties.html">4.3.43. STEBBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/storagedrainparams.html">4.3.44. Drainage Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/surfaceinitialstate.html">4.3.45. Generic Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/surfaceproperties.html">4.3.46. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/tenminuteprofile.html">4.3.47. Ten Minute Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/thermallayers.html">4.3.48. Thermal Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/vegetatedsurfaceproperties.html">4.3.49. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/vegetationparams.html">4.3.50. Vegetation Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/verticallayers.html">4.3.51. Vertical Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/walllayer.html">4.3.52. Wall Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/waterdistribution.html">4.3.53. Water Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/waterproperties.html">4.3.54. Water Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/yaml/config-reference/weeklyprofile.html">4.3.55. Weekly Profile</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../inputs/converter.html">4.4. SUEWS Format Converter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../inputs/transition_guide.html">4.5. Transitioning to YAML-based Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../inputs/yaml/validation.html">4.6. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../inputs/tables/index.html">4.7. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/tables/met_input.html">4.7.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../inputs/tables/RunControl/RunControl.html">4.7.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/RunControl/scheme_options.html">4.7.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/RunControl/Time_related_options.html">4.7.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/RunControl/File_related_options.html">4.7.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.7.3.2.4. Options related to disaggregation of input data</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="../inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.7.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Initial_Conditions.html">4.7.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Soil_moisture_states.html">4.7.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Vegetation_parameters.html">4.7.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Recent_meteorology.html">4.7.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Above_ground_state.html">4.7.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../inputs/tables/Initial_Conditions/Snow_related_parameters.html">4.7.3.4.5. Snow related parameters</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">5. Output Files</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="text_format.html">5.1. Text Format Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parquet_format.html">5.2. Parquet Format Output</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="variables/index.html">5.3. Output Variable Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="variables/datetime.html">5.3.1. datetime Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="variables/suews.html">5.3.2. SUEWS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="variables/snow.html">5.3.3. snow Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="variables/estm.html">5.3.4. ESTM Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="variables/ehc.html">5.3.5. EHC Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="variables/rsl.html">5.3.6. RSL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="variables/bl.html">5.3.7. BL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="variables/debug.html">5.3.8. debug Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="variables/beers.html">5.3.9. BEERS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="variables/dailystate.html">5.3.10. DailyState Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="variables/spartacus.html">5.3.11. SPARTACUS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="variables/stebbs.html">5.3.12. STEBBS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="variables/nhood.html">5.3.13. NHood Output Variables</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">5.5. Legacy Text Column Reference</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/core-functions.html">6.2. Core Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.init_supy.html">6.2.1.1. supy.init_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.run_supy.html">6.2.1.2. supy.run_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.save_supy.html">6.2.1.3. supy.save_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.load_forcing_grid.html">6.2.1.4. supy.load_forcing_grid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.load_sample_data.html">6.2.1.5. supy.load_sample_data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.show_version.html">6.2.1.6. supy.show_version</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.gen_forcing_era5.html">6.3.1.1. supy.util.gen_forcing_era5</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.gen_epw.html">6.3.2.1. supy.util.gen_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.read_epw.html">6.3.2.2. supy.util.read_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.fill_gap_all.html">6.3.2.3. supy.util.fill_gap_all</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.derive_ohm_coef.html">6.3.3.1. supy.util.derive_ohm_coef</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.sim_ohm.html">6.3.3.2. supy.util.sim_ohm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.cal_gs_suews.html">6.3.4.1. supy.util.cal_gs_suews</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.cal_gs_obs.html">6.3.4.2. supy.util.cal_gs_obs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.calib_g.html">6.3.4.3. supy.util.calib_g</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.plot_comp.html">6.3.5.1. supy.util.plot_comp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.plot_day_clm.html">6.3.5.2. supy.util.plot_day_clm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.plot_rsl.html">6.3.5.3. supy.util.plot_rsl</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.cal_z0zd.html">6.3.6.1. supy.util.cal_z0zd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/supy.util.cal_neutral.html">6.3.6.2. supy.util.cal_neutral</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/command-line.html">6.4. Command-Line Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/python-cli-equivalents.html">6.5. Python API for CLI Users</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/data-structures.html">6.6. Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/io-data-structures.html">6.7. Key IO Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/converter.html">6.8. Configuration Converter API</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../integration/index.html">7. Integration and Complementary Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../integration/model-coupling.html">7.1. Model Coupling and External Interaction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../integration/wrf-suews.html">7.1.1.1. Coupling with WRF</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../integration/complementary-tools.html">7.2. Complementary Interfaces and Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../related-softwares/umep.html">7.2.1.1. UMEP Interface</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../troubleshooting.html">8. Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../benchmark/benchmark_report.html">9. Benchmark Report</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notation.html">10. Notation</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../version-history/version-history.html">11. Version History</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2026.1.28.html">11.1. Version 2026.1.28 (released on 28 January 2026)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2025.11.20.html">11.2. Version 2025.11.20 (released on 20 November 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2025.10.15.html">11.3. Version 2025.10.15 (released on 15 October 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2020a.html">11.4. Version 2020a (released on 14 May 2020)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2019a.html">11.5. Version 2019a (released on 15 November 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2018c.html">11.6. Version 2018c (released on 21 February 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2018b.html">11.7. Version 2018b (released on 17 December 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2018a.html">11.8. Version 2018a (released on 2 August 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2017b.html">11.9. Version 2017b (released on 2 August 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2017a.html">11.10. Version 2017a (released on 1 Feb 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2016a.html">11.11. Version 2016a (released on 21 June 2016)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2014b.html">11.12. Version 2014b (released on 8 October 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2014a.1.html">11.13. Version 2014a.1 (released 26 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2014a.html">11.14. Version 2014a (released on 21 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2013a.html">11.15. Version 2013a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2012b.html">11.16. Version 2012b</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2012a.html">11.17. Version 2012a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../version-history/v2011b.html">11.18. Version 2011b</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">For developers/contributors</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../contributing/contributing.html">1. Contributing Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../acknowledgement.html">2. Acknowledgements</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/UMEP-dev/SUEWS">GitHub repository</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Scientific background</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../parameterisations-and-sub-models.html">1. Parameterisations and sub-models within SUEWS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../related_publications.html">2. SUEWS-related Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../references.html">3. References</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Community</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../community_publications.html">1. Community Publications</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://community.suews.io">Community</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS/edit/master/docs/source/outputs/legacy_text_columns.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS/issues/new?title=Issue%20on%20page%20%2Foutputs/legacy_text_columns.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/outputs/legacy_text_columns.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Legacy Text Column Reference</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#runtime-diagnostic-information">5.5.1. Runtime diagnostic information</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#error-messages-problems-txt">5.5.1.1. Error messages: problems.txt</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#warning-messages-warnings-txt">5.5.1.2. Warning messages: warnings.txt</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#summary-of-model-parameters-ss-filechoices-txt">5.5.1.3. Summary of model parameters: SS_FileChoices.txt</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model-output-files">5.5.2. Model output files</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#output-format-options">5.5.2.1. Output Format Options</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#text-format-output-files">5.5.2.2. Text Format Output Files</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-suews-tt-txt">5.5.2.2.1. SSss_YYYY_SUEWS_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-dailystate-txt">5.5.2.2.2. SSss_DailyState.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#initialconditionsssss-yyyy-nml">5.5.2.2.3. InitialConditionsSSss_YYYY.nml</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-snow-tt-txt">5.5.2.2.4. SSss_YYYY_snow_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-rsl-tt-txt">5.5.2.2.5. SSss_YYYY_RSL_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-bl-tt-txt">5.5.2.2.6. SSss_YYYY_BL_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-estm-tt-txt">5.5.2.2.7. SSss_YYYY_ESTM_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-spartacus-tt-txt">5.5.2.2.8. SSss_YYYY_SPARTACUS_TT.txt</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<ol class="arabic simple">
+<li><p>Need help? Please let us know in the <a class="reference external" href="https://community.suews.io">SUEWS Community</a>.</p></li>
+<li><p>Please report issues with the manual on <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues">GitHub Issues</a> (or use <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues/new?assignees=&amp;labels=docs&amp;template=docs-issue-report.md&amp;body=%23%23+Issue%0A%3C%21--+Please+describe+the+issue+below+this+line+--%3E%0A%0A%23%23+Links%0A%5Bsource+doc%5D%28https%3A%2F%2Fgithub.com%2FUMEP-dev%2FSUEWS%2Fblob%2Fmaster%2Fdocs%2Fsource%2Foutputs%2Flegacy_text_columns.rst%29%0A%5BRTD+page%5D%28https%3A%2F%2Fsuews.readthedocs.org%2Fen%2Flatest%2Foutputs%2Flegacy_text_columns.html%29%0A&amp;title=[Docs]outputs/legacy_text_columns">Report Issue for This Page</a> for page-specific feedback).</p></li>
+<li><p>Please cite SUEWS with proper information from our <a class="reference external" href="https://doi.org/10.5281/zenodo.5723970">Zenodo page</a>.</p></li>
+</ol>
+</div>
+<section id="legacy-text-column-reference">
+<span id="legacy-text-columns"></span><h1><span class="section-number">5.5. </span>Legacy Text Column Reference<a class="headerlink" href="#legacy-text-column-reference" title="Link to this heading">#</a></h1>
+<div class="deprecated">
+<p><span class="versionmodified deprecated">Deprecated since version 2025.10.15: </span>This page is deprecated and retained for reference only.</p>
+<p><strong>Please use the new documentation:</strong></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="index.html"><span class="doc">Output Files</span></a> - Main output documentation</p></li>
+<li><p><a class="reference internal" href="variables/index.html"><span class="doc">Output Variable Reference</span></a> - Auto-generated variable reference (1,100+ variables)</p></li>
+<li><p><a class="reference internal" href="text_format.html"><span class="doc">Text Format Output</span></a> - Text format details</p></li>
+<li><p><a class="reference internal" href="parquet_format.html"><span class="doc">Parquet Format Output</span></a> - Parquet format details</p></li>
+</ul>
+<p>The CSV tables below show the legacy text file column mappings and may be useful
+for users working with older output files or migrating existing workflows.</p>
+</div>
+<hr class="docutils" />
+<section id="runtime-diagnostic-information">
+<h2><span class="section-number">5.5.1. </span>Runtime diagnostic information<a class="headerlink" href="#runtime-diagnostic-information" title="Link to this heading">#</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">problems.txt</span></code> and <code class="docutils literal notranslate"><span class="pre">warnings.txt</span></code> are legacy outputs retained for reference.
+Current versions emit diagnostic messages to stdout/stderr (and SuPy captures these
+via the Python logger when running through Python).</p>
+</div>
+<section id="error-messages-problems-txt">
+<span id="problems-txt"></span><h3><span class="section-number">5.5.1.1. </span>Error messages: problems.txt<a class="headerlink" href="#error-messages-problems-txt" title="Link to this heading">#</a></h3>
+<p>In older versions, if there were problems running the program, serious error messages were written to problems.txt.</p>
+<ul>
+<li><p>Serious problems will usually cause the program to stop after writing the error message. If this is the case, the last line of <a class="reference internal" href="#problems-txt"><span class="std std-ref">Error messages: problems.txt</span></a> will contain a non-zero number (the error code).</p></li>
+<li><p>If the program runs successfully, problems.txt file ends with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Run</span> <span class="n">completed</span><span class="o">.</span>
+<span class="mi">0</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<p>SUEWS has a large number of error messages included to try to capture
+common errors to help the user determine what the problem is. If you
+encounter an error that does not provide an error message please capture
+the details so we can hopefully provide better error messages in future.</p>
+<p>See <a class="reference internal" href="../troubleshooting.html#troubleshooting"><span class="std std-ref">Troubleshooting</span></a> section for help solving
+problems. If the file paths are not correct the program will return an
+error when run (see <a class="reference internal" href="../workflow.html#getting-started"><span class="std std-ref">Getting Started</span></a>).</p>
+</section>
+<section id="warning-messages-warnings-txt">
+<span id="warnings-txt"></span><h3><span class="section-number">5.5.1.2. </span>Warning messages: warnings.txt<a class="headerlink" href="#warning-messages-warnings-txt" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p>If the program encounters a more minor issue it will not stop but a
+warning may be written to warnings.txt. It is advisable to check the
+warnings to ensure there is not a more serious problem.</p></li>
+<li><p>The warnings.txt file can be large (over several GBs) given warning
+messages are written out during a large scale simulation, you can use
+<code class="code docutils literal notranslate"><span class="pre">tail</span></code>/<code class="code docutils literal notranslate"><span class="pre">head</span></code> to view the ending/starting part without opening
+the whole file on Unix-like systems (Linux/mac OS), which may slow
+down your system.</p></li>
+<li><p>In legacy versions, to prevent warnings.txt from being written,
+<a class="reference internal" href="../inputs/tables/RunControl/File_related_options.html#cmdoption-arg-SuppressWarnings"><code class="xref std std-option docutils literal notranslate"><span class="pre">SuppressWarnings</span></code></a> could be set to 1 in <code class="docutils literal notranslate"><span class="pre">RunControl.nml</span></code>.
+In current versions, this option suppresses warning messages from being
+emitted to stdout/stderr.</p></li>
+<li><p>Warning messages are usually written with a grid number, timestamp
+and error count. If the problem occurs in the initial stages (i.e.
+before grid numbers and timestamps are assigned, these are printed as
+00000).</p></li>
+</ul>
+</section>
+<section id="summary-of-model-parameters-ss-filechoices-txt">
+<span id="file-choices"></span><h3><span class="section-number">5.5.1.3. </span>Summary of model parameters: SS_FileChoices.txt<a class="headerlink" href="#summary-of-model-parameters-ss-filechoices-txt" title="Link to this heading">#</a></h3>
+<p>For each run, the model parameters specified in the input files are written out to the file SS_FileChoices.txt.</p>
+</section>
+</section>
+<section id="model-output-files">
+<h2><span class="section-number">5.5.2. </span>Model output files<a class="headerlink" href="#model-output-files" title="Link to this heading">#</a></h2>
+<p>SUEWS will automatically output a df_state_SSss.csv file. This file contains information on the model configuration,
+initial and final states as well as some meta data related to the simulation such as the SUEWS version used
+to run the model.</p>
+<p>Note that the parameters and states included in this file may not match the current schema as are based on the legacy
+configuration.</p>
+<section id="output-format-options">
+<h3><span class="section-number">5.5.2.1. </span>Output Format Options<a class="headerlink" href="#output-format-options" title="Link to this heading">#</a></h3>
+<p>SUEWS supports two output formats:</p>
+<ol class="arabic simple">
+<li><p><strong>Text format</strong> (default): Traditional tab-delimited text files</p>
+<ul class="simple">
+<li><p>One file per year and output group</p></li>
+<li><p>Human-readable format</p></li>
+<li><p>Compatible with spreadsheet software</p></li>
+<li><p>Larger file sizes</p></li>
+</ul>
+</li>
+<li><p><strong>Parquet format</strong>: Modern columnar storage format</p>
+<ul class="simple">
+<li><p>All data in two files (output and state)</p></li>
+<li><p>Typically 70-80% smaller file sizes (2-5x compression)</p></li>
+<li><p>Much faster to read in Python/R/MATLAB</p></li>
+<li><p>Requires specific libraries to read</p></li>
+</ul>
+</li>
+</ol>
+<p>The output format is configured in the YAML file. See <a class="reference internal" href="../inputs/yaml/index.html"><span class="doc">YAML Configuration Format</span></a> for configuration details.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Temporal information in output files (i.e., <code class="docutils literal notranslate"><span class="pre">iy</span></code>, <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">it</span></code> and <code class="docutils literal notranslate"><span class="pre">imin</span></code> if existing) are in <strong>local time</strong> (i.e. consistent with <a class="reference internal" href="../inputs/forcing-data.html#met-forcing"><span class="std std-ref">Meteorological Forcing Data</span></a>) and indicate the ending timestamp of corresponding periods: e.g. for hourly data, <code class="docutils literal notranslate"><span class="pre">2021-09-12</span> <span class="pre">13:00</span></code> indicates a record for the period between <code class="docutils literal notranslate"><span class="pre">2021-09-12</span> <span class="pre">12:00</span></code> (inclusive) and <code class="docutils literal notranslate"><span class="pre">2021-09-12</span> <span class="pre">13:00</span></code> (exclusive).</p>
+</div>
+</section>
+<section id="text-format-output-files">
+<h3><span class="section-number">5.5.2.2. </span>Text Format Output Files<a class="headerlink" href="#text-format-output-files" title="Link to this heading">#</a></h3>
+<p>When using text format (default), SUEWS produces the following output files:</p>
+<section id="ssss-yyyy-suews-tt-txt">
+<h4><span class="section-number">5.5.2.2.1. </span>SSss_YYYY_SUEWS_TT.txt<a class="headerlink" href="#ssss-yyyy-suews-tt-txt" title="Link to this heading">#</a></h4>
+<p>SUEWS produces the main output file (SSss_YYYY_SUEWS_tt.txt) with time resolution (TT min) set by <a class="reference internal" href="../inputs/tables/RunControl/Time_related_options.html#cmdoption-arg-ResolutionFilesOut"><code class="xref std std-option docutils literal notranslate"><span class="pre">ResolutionFilesOut</span></code></a> in <a class="reference internal" href="../inputs/tables/SS_input/SS_input.html#runcontrol-nml"><span class="std std-ref">RunControl.nml</span></a>.</p>
+<p>Before these main data files are written out, SUEWS provides a summary of the column names, units and variables included in the file Ss_YYYY_TT_OutputFormat.txt (one file per run).</p>
+<p>The variables included in the main output file are determined according to <a class="reference internal" href="../inputs/tables/RunControl/File_related_options.html#cmdoption-arg-WriteOutOption"><code class="xref std std-option docutils literal notranslate"><span class="pre">WriteOutOption</span></code></a> set in <a class="reference internal" href="../inputs/tables/SS_input/SS_input.html#runcontrol-nml"><span class="std std-ref">RunControl.nml</span></a>.</p>
+<p><strong>Surface Temperature Variables:</strong></p>
+<ul class="simple">
+<li><p><strong>Ts</strong>: Bulk surface temperature (°C) - area-weighted average temperature of all surface types within the grid, used in energy balance calculations and radiation schemes</p></li>
+<li><p><strong>Ts_[Surface]</strong>: Surface temperatures (°C) for specific surface types (e.g., Ts_Paved, Ts_Bldgs, Ts_Grass) available in both EHC and debug output groups</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>Consistent Naming</strong>: All surface temperature variables now use the <code class="docutils literal notranslate"><span class="pre">Ts</span></code> prefix consistently across all output groups. The same <code class="docutils literal notranslate"><span class="pre">Ts_[Surface]</span></code> variables appear in both EHC and debug output. For detailed surface temperatures by urban facet (walls, roofs, ground layers), see the <a class="reference internal" href="#ssss-yyyy-estm-tt-txt"><span class="std std-ref">ESTM output file</span></a> which provides 5-layer temperature profiles for different surface elements.</p>
+</div>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Column</p></th>
+<th class="head"><p>Name</p></th>
+<th class="head"><p>WriteOutOption</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Year</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Year [YYYY]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>DOY</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Day of year [DOY]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Hour</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Hour [H]</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Min</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Minute [M]</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Dectime</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Decimal time [-]</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>Kdown</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Incoming shortwave radiation [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>Kup</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Outgoing shortwave radiation [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>Ldown</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Incoming longwave radiation [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>9</p></td>
+<td><p>Lup</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Outgoing longwave radiation [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>10</p></td>
+<td><p>Ts</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Bulk surface temperature [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>11</p></td>
+<td><p>QN</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Net all-wave radiation [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>12</p></td>
+<td><p>QF</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Anthropogenic heat flux [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>13</p></td>
+<td><p>QS</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Storage heat flux [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>14</p></td>
+<td><p>QH</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Sensible heat flux (calculated using SUEWS) [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>15</p></td>
+<td><p>QE</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Latent heat flux (calculated using SUEWS) [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>16</p></td>
+<td><p>QHlumps</p></td>
+<td><p>0,1</p></td>
+<td><p>Sensible heat flux (calculated using LUMPS) [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>17</p></td>
+<td><p>QElumps</p></td>
+<td><p>0,1</p></td>
+<td><p>Latent heat flux (calculated using LUMPS) [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>18</p></td>
+<td><p>QHresis</p></td>
+<td><p>0,1</p></td>
+<td><p>Sensible heat flux (calculated using resistance method) [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>19</p></td>
+<td><p>Rain</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Rain [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>20</p></td>
+<td><p>Irr</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Irrigation [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>21</p></td>
+<td><p>Evap</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Evaporation [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>22</p></td>
+<td><p>RO</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Runoff [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>23</p></td>
+<td><p>TotCh</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Change in surface and soil moisture stores [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>24</p></td>
+<td><p>SurfCh</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Change in surface moisture store [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>25</p></td>
+<td><p>State</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Surface wetness state [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>26</p></td>
+<td><p>NWtrState</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Surface wetness state (for non-water surfaces) [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>27</p></td>
+<td><p>Drainage</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Drainage [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>28</p></td>
+<td><p>SMD</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Soil moisture deficit [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>29</p></td>
+<td><p>FlowCh</p></td>
+<td><p>0,1</p></td>
+<td><p>Additional flow into water body [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>30</p></td>
+<td><p>AddWater</p></td>
+<td><p>0,1</p></td>
+<td><p>Additional water flow received from other grids [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>31</p></td>
+<td><p>ROSoil</p></td>
+<td><p>0,1</p></td>
+<td><p>Runoff to soil (sub-surface) [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>32</p></td>
+<td><p>ROPipe</p></td>
+<td><p>0,1</p></td>
+<td><p>Runoff to pipes [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>33</p></td>
+<td><p>ROImp</p></td>
+<td><p>0,1</p></td>
+<td><p>Above ground runoff over impervious surfaces [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>34</p></td>
+<td><p>ROVeg</p></td>
+<td><p>0,1</p></td>
+<td><p>Above ground runoff over vegetated surfaces [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>35</p></td>
+<td><p>ROWater</p></td>
+<td><p>0,1</p></td>
+<td><p>Runoff for water body [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>36</p></td>
+<td><p>WUInt</p></td>
+<td><p>0,1</p></td>
+<td><p>Internal water use [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>37</p></td>
+<td><p>WUEveTr</p></td>
+<td><p>0,1</p></td>
+<td><p>Water use for irrigation of evergreen trees [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>38</p></td>
+<td><p>WUDecTr</p></td>
+<td><p>0,1</p></td>
+<td><p>Water use for irrigation of deciduous trees [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>39</p></td>
+<td><p>WUGrass</p></td>
+<td><p>0,1</p></td>
+<td><p>Water use for irrigation of grass [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>40</p></td>
+<td><p>SMDPaved</p></td>
+<td><p>0,1</p></td>
+<td><p>Soil moisture deficit for paved surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>41</p></td>
+<td><p>SMDBldgs</p></td>
+<td><p>0,1</p></td>
+<td><p>Soil moisture deficit for building surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>42</p></td>
+<td><p>SMDEveTr</p></td>
+<td><p>0,1</p></td>
+<td><p>Soil moisture deficit for evergreen surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>43</p></td>
+<td><p>SMDDecTr</p></td>
+<td><p>0,1</p></td>
+<td><p>Soil moisture deficit for deciduous surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>44</p></td>
+<td><p>SMDGrass</p></td>
+<td><p>0,1</p></td>
+<td><p>Soil moisture deficit for grass surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>45</p></td>
+<td><p>SMDBSoil</p></td>
+<td><p>0,1</p></td>
+<td><p>Soil moisture deficit for bare soil surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>46</p></td>
+<td><p>StPaved</p></td>
+<td><p>0,1</p></td>
+<td><p>Surface wetness state for paved surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>47</p></td>
+<td><p>StBldgs</p></td>
+<td><p>0,1</p></td>
+<td><p>Surface wetness state for building surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>48</p></td>
+<td><p>StEveTr</p></td>
+<td><p>0,1</p></td>
+<td><p>Surface wetness state for evergreen tree surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>49</p></td>
+<td><p>StDecTr</p></td>
+<td><p>0,1</p></td>
+<td><p>Surface wetness state for deciduous tree surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>50</p></td>
+<td><p>StGrass</p></td>
+<td><p>0,1</p></td>
+<td><p>Surface wetness state for grass surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>51</p></td>
+<td><p>StBSoil</p></td>
+<td><p>0,1</p></td>
+<td><p>Surface wetness state for bare soil surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>52</p></td>
+<td><p>StWater</p></td>
+<td><p>0,1</p></td>
+<td><p>Surface wetness state for water surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>53</p></td>
+<td><p>Zenith</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Solar zenith angle [°]</p></td>
+</tr>
+<tr class="row-odd"><td><p>54</p></td>
+<td><p>Azimuth</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Solar azimuth angle [°]</p></td>
+</tr>
+<tr class="row-even"><td><p>55</p></td>
+<td><p>AlbBulk</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Bulk albedo [-]</p></td>
+</tr>
+<tr class="row-odd"><td><p>56</p></td>
+<td><p>Fcld</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Cloud fraction [-]</p></td>
+</tr>
+<tr class="row-even"><td><p>57</p></td>
+<td><p>LAI</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Leaf area index [m<sup>2</sup> m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>58</p></td>
+<td><p>z0m</p></td>
+<td><p>0,1</p></td>
+<td><p>Roughness length for momentum [m]</p></td>
+</tr>
+<tr class="row-even"><td><p>59</p></td>
+<td><p>zdm</p></td>
+<td><p>0,1</p></td>
+<td><p>Zero-plane displacement height [m]</p></td>
+</tr>
+<tr class="row-odd"><td><p>60</p></td>
+<td><p>ustar</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Friction velocity [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>61</p></td>
+<td><p>Lob</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Obukhov length [m]</p></td>
+</tr>
+<tr class="row-odd"><td><p>62</p></td>
+<td><p>RA</p></td>
+<td><p>0,1</p></td>
+<td><p>Aerodynamic resistance [s m<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>63</p></td>
+<td><p>RS</p></td>
+<td><p>0,1</p></td>
+<td><p>Surface resistance [s m<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>64</p></td>
+<td><p>Fc</p></td>
+<td><p>0,1,2</p></td>
+<td><p>CO2 flux [umol m<sup>-2</sup> s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>65</p></td>
+<td><p>FcPhoto</p></td>
+<td><p>0,1</p></td>
+<td><p>CO2 flux from photosynthesis [umol m<sup>-2</sup> s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>66</p></td>
+<td><p>FcRespi</p></td>
+<td><p>0,1</p></td>
+<td><p>CO2 flux from respiration [umol m<sup>-2</sup> s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>67</p></td>
+<td><p>FcMetab</p></td>
+<td><p>0,1</p></td>
+<td><p>CO2 flux from metabolism [umol m<sup>-2</sup> s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>68</p></td>
+<td><p>FcTraff</p></td>
+<td><p>0,1</p></td>
+<td><p>CO2 flux from traffic [umol m<sup>-2</sup> s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>69</p></td>
+<td><p>FcBuild</p></td>
+<td><p>0,1</p></td>
+<td><p>CO2 flux from buildings [umol m<sup>-2</sup> s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>70</p></td>
+<td><p>FcPoint</p></td>
+<td><p>0,1</p></td>
+<td><p>CO2 flux from point source [umol m<sup>-2</sup> s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>71</p></td>
+<td><p>QNSnowFr</p></td>
+<td><p>1</p></td>
+<td><p>Net all-wave radiation for snow-free area [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>72</p></td>
+<td><p>QNSnow</p></td>
+<td><p>1</p></td>
+<td><p>Net all-wave radiation for snow area [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>73</p></td>
+<td><p>AlbSnow</p></td>
+<td><p>1</p></td>
+<td><p>Snow albedo [-]</p></td>
+</tr>
+<tr class="row-odd"><td><p>74</p></td>
+<td><p>QM</p></td>
+<td><p>1</p></td>
+<td><p>Snow-related heat exchange [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>75</p></td>
+<td><p>QMFreeze</p></td>
+<td><p>1</p></td>
+<td><p>Internal energy change [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>76</p></td>
+<td><p>QMRain</p></td>
+<td><p>1</p></td>
+<td><p>Heat released by rain on snow [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>77</p></td>
+<td><p>SWE</p></td>
+<td><p>1</p></td>
+<td><p>Snow water equivalent [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>78</p></td>
+<td><p>MeltWater</p></td>
+<td><p>1</p></td>
+<td><p>Meltwater [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>79</p></td>
+<td><p>MeltWStore</p></td>
+<td><p>1</p></td>
+<td><p>Meltwater store [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>80</p></td>
+<td><p>SnowCh</p></td>
+<td><p>1</p></td>
+<td><p>Change in snow pack [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>81</p></td>
+<td><p>SnowRPaved</p></td>
+<td><p>1</p></td>
+<td><p>Snow removed from paved surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>82</p></td>
+<td><p>SnowRBldgs</p></td>
+<td><p>1</p></td>
+<td><p>Snow removed from building surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>83</p></td>
+<td><p>Ts</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Skin temperature [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>84</p></td>
+<td><p>T2</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Air temperature at 2 m agl [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>85</p></td>
+<td><p>Q2</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Air specific humidity at 2 m agl [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>86</p></td>
+<td><p>U10</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Wind speed at 10 m agl [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>87</p></td>
+<td><p>RH2</p></td>
+<td><p>0,1,2</p></td>
+<td><p>Relative humidity at 2 m agl [%]</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="ssss-dailystate-txt">
+<h4><span class="section-number">5.5.2.2.2. </span>SSss_DailyState.txt<a class="headerlink" href="#ssss-dailystate-txt" title="Link to this heading">#</a></h4>
+<p>Contains information about the state of the surface and soil and
+vegetation parameters at a time resolution of one day. One file is
+written for each grid so it may contain multiple years.</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Column</p></th>
+<th class="head"><p>Name</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Year</p></td>
+<td><p>Year [YYYY]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>DOY</p></td>
+<td><p>Day of year [DOY]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Hour</p></td>
+<td><p>Hour of the last timestep of a day [HH]</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Min</p></td>
+<td><p>Minute of the last timestep of a day [MM]</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>HDD1_h</p></td>
+<td><p>Heating degree days [°C d]</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>HDD2_c</p></td>
+<td><p>Cooling degree days [°C d]</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>HDD3_Tmean</p></td>
+<td><p>Average daily air temperature in forcing data [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>HDD4_T5d</p></td>
+<td><p>5-day running-mean air temperature in forcing data [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>9</p></td>
+<td><p>P_day</p></td>
+<td><p>Daily total precipitation [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>10</p></td>
+<td><p>DaysSR</p></td>
+<td><p>Days since rain [days]</p></td>
+</tr>
+<tr class="row-even"><td><p>11</p></td>
+<td><p>GDD_EveTr</p></td>
+<td><p>Growing degree days for evergreen tree [°C d]</p></td>
+</tr>
+<tr class="row-odd"><td><p>12</p></td>
+<td><p>GDD_DecTr</p></td>
+<td><p>Growing degree days for deciduous tree [°C d]</p></td>
+</tr>
+<tr class="row-even"><td><p>13</p></td>
+<td><p>GDD_Grass</p></td>
+<td><p>Growing degree days for grass [°C d]</p></td>
+</tr>
+<tr class="row-odd"><td><p>14</p></td>
+<td><p>SDD_EveTr</p></td>
+<td><p>Senescence degree days for evergreen tree  [°C d]</p></td>
+</tr>
+<tr class="row-even"><td><p>15</p></td>
+<td><p>SDD_DecTr</p></td>
+<td><p>Senescence degree days for deciduous tree [°C d]</p></td>
+</tr>
+<tr class="row-odd"><td><p>16</p></td>
+<td><p>SDD_Grass</p></td>
+<td><p>Senescence degree days for grass [°C d]</p></td>
+</tr>
+<tr class="row-even"><td><p>17</p></td>
+<td><p>Tmin</p></td>
+<td><p>Daily minimum temperature in forcing data [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>18</p></td>
+<td><p>Tmax</p></td>
+<td><p>Daily maximum temperature in forcing data [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>19</p></td>
+<td><p>DLHrs</p></td>
+<td><p>Day length [h]</p></td>
+</tr>
+<tr class="row-odd"><td><p>20</p></td>
+<td><p>LAI_EveTr</p></td>
+<td><p>Leaf area index of evergreen trees [m<sup>-2</sup> m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>21</p></td>
+<td><p>LAI_DecTr</p></td>
+<td><p>Leaf area index of deciduous trees [m<sup>-2</sup> m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>22</p></td>
+<td><p>LAI_Grass</p></td>
+<td><p>Leaf area index of grass [m<sup>-2</sup> m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>23</p></td>
+<td><p>DecidCap</p></td>
+<td><p>Moisture storage capacity of deciduous trees [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>24</p></td>
+<td><p>Porosity</p></td>
+<td><p>Porosity of deciduous trees [-]</p></td>
+</tr>
+<tr class="row-even"><td><p>25</p></td>
+<td><p>AlbEveTr</p></td>
+<td><p>Albedo of evergreen trees [-]</p></td>
+</tr>
+<tr class="row-odd"><td><p>26</p></td>
+<td><p>AlbDecTr</p></td>
+<td><p>Albedo of deciduous trees [-]</p></td>
+</tr>
+<tr class="row-even"><td><p>27</p></td>
+<td><p>AlbGrass</p></td>
+<td><p>Albedo of grass [-]</p></td>
+</tr>
+<tr class="row-odd"><td><p>28</p></td>
+<td><p>WU_EveTr1</p></td>
+<td><p>Total water use for evergreen trees [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>29</p></td>
+<td><p>WU_EveTr2</p></td>
+<td><p>Automatic water use for evergreen trees [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>30</p></td>
+<td><p>WU_EveTr3</p></td>
+<td><p>Manual water use for evergreen trees [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>31</p></td>
+<td><p>WU_DecTr1</p></td>
+<td><p>Total water use for deciduous trees [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>32</p></td>
+<td><p>WU_DecTr2</p></td>
+<td><p>Automatic water use for deciduous trees [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>33</p></td>
+<td><p>WU_DecTr3</p></td>
+<td><p>Manual water use for deciduous trees [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>34</p></td>
+<td><p>WU_Grass1</p></td>
+<td><p>Total water use for grass [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>35</p></td>
+<td><p>WU_Grass2</p></td>
+<td><p>Automatic water use for grass [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>36</p></td>
+<td><p>WU_Grass3</p></td>
+<td><p>Manual water use for grass [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>37</p></td>
+<td><p>LAIlumps</p></td>
+<td><p>Leaf area index used in LUMPS (normalised 0-1) [-]</p></td>
+</tr>
+<tr class="row-odd"><td><p>38</p></td>
+<td><p>AlbSnow</p></td>
+<td><p>Snow albedo [-]</p></td>
+</tr>
+<tr class="row-even"><td><p>39</p></td>
+<td><p>DensSnow_Paved</p></td>
+<td><p>Snow density - paved surface [kg m<sup>-3</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>40</p></td>
+<td><p>DensSnow_Bldgs</p></td>
+<td><p>Snow density - building surface [kg m<sup>-3</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>41</p></td>
+<td><p>DensSnow_EveTr</p></td>
+<td><p>Snow density - evergreen surface [kg m<sup>-3</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>42</p></td>
+<td><p>DensSnow_DecTr</p></td>
+<td><p>Snow density - deciduous surface [kg m<sup>-3</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>43</p></td>
+<td><p>DensSnow_Grass</p></td>
+<td><p>Snow density - grass surface [kg m<sup>-3</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>44</p></td>
+<td><p>DensSnow_BSoil</p></td>
+<td><p>Snow density - bare soil surface [kg m<sup>-3</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>45</p></td>
+<td><p>DensSnow_Water</p></td>
+<td><p>Snow density - water surface [kg m<sup>-3</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>46</p></td>
+<td><p>a1</p></td>
+<td><p>OHM cofficient a1 - [-]</p></td>
+</tr>
+<tr class="row-even"><td><p>47</p></td>
+<td><p>a2</p></td>
+<td><p>OHM cofficient a2 [W m<sup>-2</sup> h<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>48</p></td>
+<td><p>a3</p></td>
+<td><p>OHM cofficient a3 - [W m<sup>-2</sup>]</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="initialconditionsssss-yyyy-nml">
+<h4><span class="section-number">5.5.2.2.3. </span>InitialConditionsSSss_YYYY.nml<a class="headerlink" href="#initialconditionsssss-yyyy-nml" title="Link to this heading">#</a></h4>
+<p>At the end of the model run (or the end of each year in the model run) a new InitialConditions file is written out (to the input folder) for each grid, see <a class="reference internal" href="../inputs/tables/Initial_Conditions/Initial_Conditions.html#initial-conditions"><span class="std std-ref">Initial Conditions file</span></a></p>
+</section>
+<section id="ssss-yyyy-snow-tt-txt">
+<h4><span class="section-number">5.5.2.2.4. </span>SSss_YYYY_snow_TT.txt<a class="headerlink" href="#ssss-yyyy-snow-tt-txt" title="Link to this heading">#</a></h4>
+<p>SUEWS produces a separate output file for snow (when <a class="reference internal" href="../inputs/tables/RunControl/scheme_options.html#cmdoption-arg-SnowUse"><code class="xref std std-option docutils literal notranslate"><span class="pre">SnowUse</span></code></a> = 1 in <a class="reference internal" href="../inputs/tables/SS_input/SS_input.html#runcontrol-nml"><span class="std std-ref">RunControl.nml</span></a>) with details for each surface type.</p>
+<p>File format of SSss_YYYY_snow_TT.txt</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Column</p></th>
+<th class="head"><p>Name</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>iy</p></td>
+<td><p>Year [YYYY]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>id</p></td>
+<td><p>Day of year [DOY]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>it</p></td>
+<td><p>Hour [H]</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>imin</p></td>
+<td><p>Minute [M]</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>dectime</p></td>
+<td><p>Decimal time [-]</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>SWE_Paved</p></td>
+<td><p>Snow water equivalent – paved surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>SWE_Bldgs</p></td>
+<td><p>Snow water equivalent – building surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>SWE_EveTr</p></td>
+<td><p>Snow water equivalent – evergreen surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>9</p></td>
+<td><p>SWE_DecTr</p></td>
+<td><p>Snow water equivalent – deciduous surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>10</p></td>
+<td><p>SWE_Grass</p></td>
+<td><p>Snow water equivalent – grass surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>11</p></td>
+<td><p>SWE_BSoil</p></td>
+<td><p>Snow water equivalent – bare soil surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>12</p></td>
+<td><p>SWE_Water</p></td>
+<td><p>Snow water equivalent – water surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>13</p></td>
+<td><p>Mw_Paved</p></td>
+<td><p>Meltwater – paved surface [mm h<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>14</p></td>
+<td><p>Mw_Bldgs</p></td>
+<td><p>Meltwater – building surface [mm h<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>15</p></td>
+<td><p>Mw_EveTr</p></td>
+<td><p>Meltwater – evergreen surface [mm h<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>16</p></td>
+<td><p>Mw_DecTr</p></td>
+<td><p>Meltwater – deciduous surface [mm h<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>17</p></td>
+<td><p>Mw_Grass</p></td>
+<td><p>Meltwater – grass surface [mm h<sup>-1</sup> 1]</p></td>
+</tr>
+<tr class="row-odd"><td><p>18</p></td>
+<td><p>Mw_BSoil</p></td>
+<td><p>Meltwater – bare soil surface [mm h<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>19</p></td>
+<td><p>Mw_Water</p></td>
+<td><p>Meltwater – water surface [mm h<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>20</p></td>
+<td><p>Qm_Paved</p></td>
+<td><p>Snowmelt-related heat – paved surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>21</p></td>
+<td><p>Qm_Bldgs</p></td>
+<td><p>Snowmelt-related heat – building surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>22</p></td>
+<td><p>Qm_EveTr</p></td>
+<td><p>Snowmelt-related heat – evergreen surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>23</p></td>
+<td><p>Qm_DecTr</p></td>
+<td><p>Snowmelt-related heat – deciduous surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>24</p></td>
+<td><p>Qm_Grass</p></td>
+<td><p>Snowmelt-related heat – grass surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>25</p></td>
+<td><p>Qm_BSoil</p></td>
+<td><p>Snowmelt-related heat – bare soil surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>26</p></td>
+<td><p>Qm_Water</p></td>
+<td><p>Snowmelt-related heat – water surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>27</p></td>
+<td><p>Qa_Paved</p></td>
+<td><p>Advective heat – paved surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>28</p></td>
+<td><p>Qa_Bldgs</p></td>
+<td><p>Advective heat – building surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>29</p></td>
+<td><p>Qa_EveTr</p></td>
+<td><p>Advective heat – evergreen surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>30</p></td>
+<td><p>Qa_DecTr</p></td>
+<td><p>Advective heat – deciduous surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>31</p></td>
+<td><p>Qa_Grass</p></td>
+<td><p>Advective heat – grass surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>32</p></td>
+<td><p>Qa_BSoil</p></td>
+<td><p>Advective heat – bare soil surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>33</p></td>
+<td><p>Qa_Water</p></td>
+<td><p>Advective heat – water surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>34</p></td>
+<td><p>QmFr_Paved</p></td>
+<td><p>Heat related to freezing of surface store – paved surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>35</p></td>
+<td><p>QmFr_Bldgs</p></td>
+<td><p>Heat related to freezing of surface store – building surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>36</p></td>
+<td><p>QmFr_EveTr</p></td>
+<td><p>Heat related to freezing of surface store – evergreen surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>37</p></td>
+<td><p>QmFr_DecTr</p></td>
+<td><p>Heat related to freezing of surface store – deciduous surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>38</p></td>
+<td><p>QmFr_Grass</p></td>
+<td><p>Heat related to freezing of surface store – grass surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>39</p></td>
+<td><p>QmFr_BSoil</p></td>
+<td><p>Heat related to freezing of surface store – bare soil surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>40</p></td>
+<td><p>QmFr_Water</p></td>
+<td><p>Heat related to freezing of surface store – water [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>41</p></td>
+<td><p>fr_Paved</p></td>
+<td><p>Fraction of snow – paved surface [-]</p></td>
+</tr>
+<tr class="row-odd"><td><p>42</p></td>
+<td><p>fr_Bldgs</p></td>
+<td><p>Fraction of snow – building surface [-]</p></td>
+</tr>
+<tr class="row-even"><td><p>43</p></td>
+<td><p>fr_EveTr</p></td>
+<td><p>Fraction of snow – evergreen surface [-]</p></td>
+</tr>
+<tr class="row-odd"><td><p>44</p></td>
+<td><p>fr_DecTr</p></td>
+<td><p>Fraction of snow – deciduous surface [-]</p></td>
+</tr>
+<tr class="row-even"><td><p>45</p></td>
+<td><p>fr_Grass</p></td>
+<td><p>Fraction of snow – grass surface [-]</p></td>
+</tr>
+<tr class="row-odd"><td><p>46</p></td>
+<td><p>Fr_BSoil</p></td>
+<td><p>Fraction of snow – bare soil surface [-]</p></td>
+</tr>
+<tr class="row-even"><td><p>47</p></td>
+<td><p>RainSn_Paved</p></td>
+<td><p>Rain on snow – paved surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>48</p></td>
+<td><p>RainSn_Bldgs</p></td>
+<td><p>Rain on snow – building surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>49</p></td>
+<td><p>RainSn_EveTr</p></td>
+<td><p>Rain on snow – evergreen surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>50</p></td>
+<td><p>RainSn_DecTr</p></td>
+<td><p>Rain on snow – deciduous surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>51</p></td>
+<td><p>RainSn_Grass</p></td>
+<td><p>Rain on snow – grass surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>52</p></td>
+<td><p>RainSn_BSoil</p></td>
+<td><p>Rain on snow – bare soil surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>53</p></td>
+<td><p>RainSn_Water</p></td>
+<td><p>Rain on snow – water surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>54</p></td>
+<td><p>qn_PavedSnow</p></td>
+<td><p>Net all-wave radiation – paved surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>55</p></td>
+<td><p>qn_BldgsSnow</p></td>
+<td><p>Net all-wave radiation – building surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>56</p></td>
+<td><p>qn_EveTrSnow</p></td>
+<td><p>Net all-wave radiation – evergreen surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>57</p></td>
+<td><p>qn_DecTrSnow</p></td>
+<td><p>Net all-wave radiation – deciduous surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>58</p></td>
+<td><p>qn_GrassSnow</p></td>
+<td><p>Net all-wave radiation – grass surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>59</p></td>
+<td><p>qn_BSoilSnow</p></td>
+<td><p>Net all-wave radiation – bare soil surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>60</p></td>
+<td><p>qn_WaterSnow</p></td>
+<td><p>Net all-wave radiation – water surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>61</p></td>
+<td><p>kup_PavedSnow</p></td>
+<td><p>Reflected shortwave radiation – paved surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>62</p></td>
+<td><p>kup_BldgsSnow</p></td>
+<td><p>Reflected shortwave radiation – building surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>63</p></td>
+<td><p>kup_EveTrSnow</p></td>
+<td><p>Reflected shortwave radiation – evergreen surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>64</p></td>
+<td><p>kup_DecTrSnow</p></td>
+<td><p>Reflected shortwave radiation – deciduous surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>65</p></td>
+<td><p>kup_GrassSnow</p></td>
+<td><p>Reflected shortwave radiation – grass surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>66</p></td>
+<td><p>kup_BSoilSnow</p></td>
+<td><p>Reflected shortwave radiation – bare soil surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>67</p></td>
+<td><p>kup_WaterSnow</p></td>
+<td><p>Reflected shortwave radiation – water surface [W m<sup>-2</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>68</p></td>
+<td><p>frMelt_Paved</p></td>
+<td><p>Amount of freezing melt water – paved surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>69</p></td>
+<td><p>frMelt_Bldgs</p></td>
+<td><p>Amount of freezing melt water – building surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>70</p></td>
+<td><p>frMelt_EveTr</p></td>
+<td><p>Amount of freezing melt water – evergreen surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>71</p></td>
+<td><p>frMelt_DecTr</p></td>
+<td><p>Amount of freezing melt water – deciduous surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>72</p></td>
+<td><p>frMelt_Grass</p></td>
+<td><p>Amount of freezing melt water – grass surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>73</p></td>
+<td><p>frMelt_BSoil</p></td>
+<td><p>Amount of freezing melt water – bare soil surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>74</p></td>
+<td><p>frMelt_Water</p></td>
+<td><p>Amount of freezing melt water – water surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>75</p></td>
+<td><p>MwStore_Paved</p></td>
+<td><p>Melt water store – paved surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>76</p></td>
+<td><p>MwStore_Bldgs</p></td>
+<td><p>Melt water store – building surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>77</p></td>
+<td><p>MwStore_EveTr</p></td>
+<td><p>Melt water store – evergreen surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>78</p></td>
+<td><p>MwStore_DecTr</p></td>
+<td><p>Melt water store – deciduous surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>79</p></td>
+<td><p>MwStore_Grass</p></td>
+<td><p>Melt water store – grass surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>80</p></td>
+<td><p>MwStore_BSoil</p></td>
+<td><p>Melt water store – bare soil surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>81</p></td>
+<td><p>MwStore_Water</p></td>
+<td><p>Melt water store – water surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>82</p></td>
+<td><p>DensSnow_Paved</p></td>
+<td><p>Snow density – paved surface [kg m<sup>-3</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>83</p></td>
+<td><p>DensSnow_Bldgs</p></td>
+<td><p>Snow density – building surface [kg m<sup>-3</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>84</p></td>
+<td><p>DensSnow_EveTr</p></td>
+<td><p>Snow density – evergreen surface [kg m<sup>-3</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>85</p></td>
+<td><p>DensSnow_DecTr</p></td>
+<td><p>Snow density – deciduous surface [kg m<sup>-3</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>86</p></td>
+<td><p>DensSnow_Grass</p></td>
+<td><p>Snow density – grass surface [kg m<sup>-3</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>87</p></td>
+<td><p>DensSnow_BSoil</p></td>
+<td><p>Snow density – bare soil surface [kg m<sup>-3</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>88</p></td>
+<td><p>DensSnow_Water</p></td>
+<td><p>Snow density – water surface [kg m<sup>-3</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>89</p></td>
+<td><p>Sd_Paved</p></td>
+<td><p>Snow depth – paved surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>90</p></td>
+<td><p>Sd_Bldgs</p></td>
+<td><p>Snow depth – building surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>91</p></td>
+<td><p>Sd_EveTr</p></td>
+<td><p>Snow depth – evergreen surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>92</p></td>
+<td><p>Sd_DecTr</p></td>
+<td><p>Snow depth – deciduous surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>93</p></td>
+<td><p>Sd_Grass</p></td>
+<td><p>Snow depth – grass surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>94</p></td>
+<td><p>Sd_BSoil</p></td>
+<td><p>Snow depth – bare soil surface [mm]</p></td>
+</tr>
+<tr class="row-even"><td><p>95</p></td>
+<td><p>Sd_Water</p></td>
+<td><p>Snow depth – water surface [mm]</p></td>
+</tr>
+<tr class="row-odd"><td><p>96</p></td>
+<td><p>Tsnow_Paved</p></td>
+<td><p>Snow surface temperature – paved surface [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>97</p></td>
+<td><p>Tsnow_Bldgs</p></td>
+<td><p>Snow surface temperature – building surface [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>98</p></td>
+<td><p>Tsnow_EveTr</p></td>
+<td><p>Snow surface temperature – evergreen surface [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>99</p></td>
+<td><p>Tsnow_DecTr</p></td>
+<td><p>Snow surface temperature – deciduous surface [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>100</p></td>
+<td><p>Tsnow_Grass</p></td>
+<td><p>Snow surface temperature – grass surface [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>101</p></td>
+<td><p>Tsnow_BSoil</p></td>
+<td><p>Snow surface temperature – bare soil surface [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>102</p></td>
+<td><p>Tsnow_Water</p></td>
+<td><p>Snow surface temperature – water surface [°C]</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="ssss-yyyy-rsl-tt-txt">
+<h4><span class="section-number">5.5.2.2.5. </span>SSss_YYYY_RSL_TT.txt<a class="headerlink" href="#ssss-yyyy-rsl-tt-txt" title="Link to this heading">#</a></h4>
+<p>SUEWS produces a separate output file for wind, temperature and humidity profiles in the roughness sublayer at 30 levels (see <a class="reference internal" href="../parameterisations-and-sub-models.html#rsl-mod"><span class="std std-ref">Wind, Temperature and Humidity Profiles in the Roughness Sublayer</span></a> level details).</p>
+<p>File format of SSss_YYYY_RSL_TT.txt:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Column</p></th>
+<th class="head"><p>Name</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Year</p></td>
+<td><p>Year [YYYY]</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>DOY</p></td>
+<td><p>Day of year [DOY]</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Hour</p></td>
+<td><p>Hour [H]</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Min</p></td>
+<td><p>Minute [M]</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Dectime</p></td>
+<td><p>Decimal time [-]</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>z_1</p></td>
+<td><p>Height at level 1 [m]</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>z_2</p></td>
+<td><p>Height at level 2 [m]</p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>z_3</p></td>
+<td><p>Height at level 3 [m]</p></td>
+</tr>
+<tr class="row-even"><td><p>9</p></td>
+<td><p>z_4</p></td>
+<td><p>Height at level 4 [m]</p></td>
+</tr>
+<tr class="row-odd"><td><p>10</p></td>
+<td><p>z_5</p></td>
+<td><p>Height at level 5 [m]</p></td>
+</tr>
+<tr class="row-even"><td><p>11</p></td>
+<td><p>z_6</p></td>
+<td><p>Height at level 6 [m]</p></td>
+</tr>
+<tr class="row-odd"><td><p>12</p></td>
+<td><p>z_7</p></td>
+<td><p>Height at level 7 [m]</p></td>
+</tr>
+<tr class="row-even"><td><p>13</p></td>
+<td><p>z_8</p></td>
+<td><p>Height at level 8 [m]</p></td>
+</tr>
+<tr class="row-odd"><td><p>14</p></td>
+<td><p>z_9</p></td>
+<td><p>Height at level 9 [m]</p></td>
+</tr>
+<tr class="row-even"><td><p>15</p></td>
+<td><p>z_10</p></td>
+<td><p>Height at level 10 [m]</p></td>
+</tr>
+<tr class="row-odd"><td><p>16</p></td>
+<td><p>z_11</p></td>
+<td><p>Height at level 11 [m]</p></td>
+</tr>
+<tr class="row-even"><td><p>17</p></td>
+<td><p>z_12</p></td>
+<td><p>Height at level 12 [m]</p></td>
+</tr>
+<tr class="row-odd"><td><p>18</p></td>
+<td><p>z_13</p></td>
+<td><p>Height at level 13 [m]</p></td>
+</tr>
+<tr class="row-even"><td><p>19</p></td>
+<td><p>z_14</p></td>
+<td><p>Height at level 14 [m]</p></td>
+</tr>
+<tr class="row-odd"><td><p>20</p></td>
+<td><p>z_15</p></td>
+<td><p>Height at level 15 [m]</p></td>
+</tr>
+<tr class="row-even"><td><p>21</p></td>
+<td><p>z_16</p></td>
+<td><p>Height at level 16 [m]</p></td>
+</tr>
+<tr class="row-odd"><td><p>22</p></td>
+<td><p>z_17</p></td>
+<td><p>Height at level 17 [m]</p></td>
+</tr>
+<tr class="row-even"><td><p>23</p></td>
+<td><p>z_18</p></td>
+<td><p>Height at level 18 [m]</p></td>
+</tr>
+<tr class="row-odd"><td><p>24</p></td>
+<td><p>z_19</p></td>
+<td><p>Height at level 19 [m]</p></td>
+</tr>
+<tr class="row-even"><td><p>25</p></td>
+<td><p>z_20</p></td>
+<td><p>Height at level 20 [m]</p></td>
+</tr>
+<tr class="row-odd"><td><p>26</p></td>
+<td><p>z_21</p></td>
+<td><p>Height at level 21 [m]</p></td>
+</tr>
+<tr class="row-even"><td><p>27</p></td>
+<td><p>z_22</p></td>
+<td><p>Height at level 22 [m]</p></td>
+</tr>
+<tr class="row-odd"><td><p>28</p></td>
+<td><p>z_23</p></td>
+<td><p>Height at level 23 [m]</p></td>
+</tr>
+<tr class="row-even"><td><p>29</p></td>
+<td><p>z_24</p></td>
+<td><p>Height at level 24 [m]</p></td>
+</tr>
+<tr class="row-odd"><td><p>30</p></td>
+<td><p>z_25</p></td>
+<td><p>Height at level 25 [m]</p></td>
+</tr>
+<tr class="row-even"><td><p>31</p></td>
+<td><p>z_26</p></td>
+<td><p>Height at level 26 [m]</p></td>
+</tr>
+<tr class="row-odd"><td><p>32</p></td>
+<td><p>z_27</p></td>
+<td><p>Height at level 27 [m]</p></td>
+</tr>
+<tr class="row-even"><td><p>33</p></td>
+<td><p>z_28</p></td>
+<td><p>Height at level 28 [m]</p></td>
+</tr>
+<tr class="row-odd"><td><p>34</p></td>
+<td><p>z_29</p></td>
+<td><p>Height at level 29 [m]</p></td>
+</tr>
+<tr class="row-even"><td><p>35</p></td>
+<td><p>z_30</p></td>
+<td><p>Height at level 30 [m]</p></td>
+</tr>
+<tr class="row-odd"><td><p>36</p></td>
+<td><p>U_1</p></td>
+<td><p>Wind speed at level 1 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>37</p></td>
+<td><p>U_2</p></td>
+<td><p>Wind speed at level 2 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>38</p></td>
+<td><p>U_3</p></td>
+<td><p>Wind speed at level 3 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>39</p></td>
+<td><p>U_4</p></td>
+<td><p>Wind speed at level 4 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>40</p></td>
+<td><p>U_5</p></td>
+<td><p>Wind speed at level 5 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>41</p></td>
+<td><p>U_6</p></td>
+<td><p>Wind speed at level 6 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>42</p></td>
+<td><p>U_7</p></td>
+<td><p>Wind speed at level 7 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>43</p></td>
+<td><p>U_8</p></td>
+<td><p>Wind speed at level 8 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>44</p></td>
+<td><p>U_9</p></td>
+<td><p>Wind speed at level 9 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>45</p></td>
+<td><p>U_10</p></td>
+<td><p>Wind speed at level 10 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>46</p></td>
+<td><p>U_11</p></td>
+<td><p>Wind speed at level 11 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>47</p></td>
+<td><p>U_12</p></td>
+<td><p>Wind speed at level 12 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>48</p></td>
+<td><p>U_13</p></td>
+<td><p>Wind speed at level 13 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>49</p></td>
+<td><p>U_14</p></td>
+<td><p>Wind speed at level 14 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>50</p></td>
+<td><p>U_15</p></td>
+<td><p>Wind speed at level 15 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>51</p></td>
+<td><p>U_16</p></td>
+<td><p>Wind speed at level 16 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>52</p></td>
+<td><p>U_17</p></td>
+<td><p>Wind speed at level 17 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>53</p></td>
+<td><p>U_18</p></td>
+<td><p>Wind speed at level 18 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>54</p></td>
+<td><p>U_19</p></td>
+<td><p>Wind speed at level 19 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>55</p></td>
+<td><p>U_20</p></td>
+<td><p>Wind speed at level 20 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>56</p></td>
+<td><p>U_21</p></td>
+<td><p>Wind speed at level 21 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>57</p></td>
+<td><p>U_22</p></td>
+<td><p>Wind speed at level 22 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>58</p></td>
+<td><p>U_23</p></td>
+<td><p>Wind speed at level 23 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>59</p></td>
+<td><p>U_24</p></td>
+<td><p>Wind speed at level 24 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>60</p></td>
+<td><p>U_25</p></td>
+<td><p>Wind speed at level 25 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>61</p></td>
+<td><p>U_26</p></td>
+<td><p>Wind speed at level 26 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>62</p></td>
+<td><p>U_27</p></td>
+<td><p>Wind speed at level 27 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>63</p></td>
+<td><p>U_28</p></td>
+<td><p>Wind speed at level 28 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>64</p></td>
+<td><p>U_29</p></td>
+<td><p>Wind speed at level 29 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>65</p></td>
+<td><p>U_30</p></td>
+<td><p>Wind speed at level 30 [m s<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>66</p></td>
+<td><p>T_1</p></td>
+<td><p>Air temperature at level 1 [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>67</p></td>
+<td><p>T_2</p></td>
+<td><p>Air temperature at level 2 [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>68</p></td>
+<td><p>T_3</p></td>
+<td><p>Air temperature at level 3 [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>69</p></td>
+<td><p>T_4</p></td>
+<td><p>Air temperature at level 4 [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>70</p></td>
+<td><p>T_5</p></td>
+<td><p>Air temperature at level 5 [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>71</p></td>
+<td><p>T_6</p></td>
+<td><p>Air temperature at level 6 [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>72</p></td>
+<td><p>T_7</p></td>
+<td><p>Air temperature at level 7 [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>73</p></td>
+<td><p>T_8</p></td>
+<td><p>Air temperature at level 8 [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>74</p></td>
+<td><p>T_9</p></td>
+<td><p>Air temperature at level 9 [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>75</p></td>
+<td><p>T_10</p></td>
+<td><p>Air temperature at level 10 [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>76</p></td>
+<td><p>T_11</p></td>
+<td><p>Air temperature at level 11 [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>77</p></td>
+<td><p>T_12</p></td>
+<td><p>Air temperature at level 12 [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>78</p></td>
+<td><p>T_13</p></td>
+<td><p>Air temperature at level 13 [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>79</p></td>
+<td><p>T_14</p></td>
+<td><p>Air temperature at level 14 [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>80</p></td>
+<td><p>T_15</p></td>
+<td><p>Air temperature at level 15 [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>81</p></td>
+<td><p>T_16</p></td>
+<td><p>Air temperature at level 16 [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>82</p></td>
+<td><p>T_17</p></td>
+<td><p>Air temperature at level 17 [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>83</p></td>
+<td><p>T_18</p></td>
+<td><p>Air temperature at level 18 [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>84</p></td>
+<td><p>T_19</p></td>
+<td><p>Air temperature at level 19 [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>85</p></td>
+<td><p>T_20</p></td>
+<td><p>Air temperature at level 20 [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>86</p></td>
+<td><p>T_21</p></td>
+<td><p>Air temperature at level 21 [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>87</p></td>
+<td><p>T_22</p></td>
+<td><p>Air temperature at level 22 [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>88</p></td>
+<td><p>T_23</p></td>
+<td><p>Air temperature at level 23 [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>89</p></td>
+<td><p>T_24</p></td>
+<td><p>Air temperature at level 24 [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>90</p></td>
+<td><p>T_25</p></td>
+<td><p>Air temperature at level 25 [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>91</p></td>
+<td><p>T_26</p></td>
+<td><p>Air temperature at level 26 [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>92</p></td>
+<td><p>T_27</p></td>
+<td><p>Air temperature at level 27 [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>93</p></td>
+<td><p>T_28</p></td>
+<td><p>Air temperature at level 28 [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>94</p></td>
+<td><p>T_29</p></td>
+<td><p>Air temperature at level 29 [°C]</p></td>
+</tr>
+<tr class="row-even"><td><p>95</p></td>
+<td><p>T_30</p></td>
+<td><p>Air temperature at level 30 [°C]</p></td>
+</tr>
+<tr class="row-odd"><td><p>96</p></td>
+<td><p>q_1</p></td>
+<td><p>Specific humidity at level 1 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>97</p></td>
+<td><p>q_2</p></td>
+<td><p>Specific humidity at level 2 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>98</p></td>
+<td><p>q_3</p></td>
+<td><p>Specific humidity at level 3 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>99</p></td>
+<td><p>q_4</p></td>
+<td><p>Specific humidity at level 4 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>100</p></td>
+<td><p>q_5</p></td>
+<td><p>Specific humidity at level 5 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>101</p></td>
+<td><p>q_6</p></td>
+<td><p>Specific humidity at level 6 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>102</p></td>
+<td><p>q_7</p></td>
+<td><p>Specific humidity at level 7 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>103</p></td>
+<td><p>q_8</p></td>
+<td><p>Specific humidity at level 8 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>104</p></td>
+<td><p>q_9</p></td>
+<td><p>Specific humidity at level 9 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>105</p></td>
+<td><p>q_10</p></td>
+<td><p>Specific humidity at level 10 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>106</p></td>
+<td><p>q_11</p></td>
+<td><p>Specific humidity at level 11 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>107</p></td>
+<td><p>q_12</p></td>
+<td><p>Specific humidity at level 12 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>108</p></td>
+<td><p>q_13</p></td>
+<td><p>Specific humidity at level 13 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>109</p></td>
+<td><p>q_14</p></td>
+<td><p>Specific humidity at level 14 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>110</p></td>
+<td><p>q_15</p></td>
+<td><p>Specific humidity at level 15 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>111</p></td>
+<td><p>q_16</p></td>
+<td><p>Specific humidity at level 16 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>112</p></td>
+<td><p>q_17</p></td>
+<td><p>Specific humidity at level 17 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>113</p></td>
+<td><p>q_18</p></td>
+<td><p>Specific humidity at level 18 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>114</p></td>
+<td><p>q_19</p></td>
+<td><p>Specific humidity at level 19 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>115</p></td>
+<td><p>q_20</p></td>
+<td><p>Specific humidity at level 20 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>116</p></td>
+<td><p>q_21</p></td>
+<td><p>Specific humidity at level 21 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>117</p></td>
+<td><p>q_22</p></td>
+<td><p>Specific humidity at level 22 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>118</p></td>
+<td><p>q_23</p></td>
+<td><p>Specific humidity at level 23 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>119</p></td>
+<td><p>q_24</p></td>
+<td><p>Specific humidity at level 24 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>120</p></td>
+<td><p>q_25</p></td>
+<td><p>Specific humidity at level 25 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>121</p></td>
+<td><p>q_26</p></td>
+<td><p>Specific humidity at level 26 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>122</p></td>
+<td><p>q_27</p></td>
+<td><p>Specific humidity at level 27 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>123</p></td>
+<td><p>q_28</p></td>
+<td><p>Specific humidity at level 28 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-odd"><td><p>124</p></td>
+<td><p>q_29</p></td>
+<td><p>Specific humidity at level 29 [g kg<sup>-1</sup>]</p></td>
+</tr>
+<tr class="row-even"><td><p>125</p></td>
+<td><p>q_30</p></td>
+<td><p>Specific humidity at level 30 [g kg<sup>-1</sup>]</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="ssss-yyyy-bl-tt-txt">
+<h4><span class="section-number">5.5.2.2.6. </span>SSss_YYYY_BL_TT.txt<a class="headerlink" href="#ssss-yyyy-bl-tt-txt" title="Link to this heading">#</a></h4>
+<p>Meteorological variables modelled by CBL portion of the model are output in to this file created for each day with time step (see <a class="reference internal" href="../inputs/tables/CBL_input/CBL_input.html#cbl-input-files"><span class="std std-ref">CBL input files</span></a>).</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Column</p></th>
+<th class="head"><p>Name</p></th>
+<th class="head"><p>Description</p></th>
+<th class="head"><p>Units</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>iy</p></td>
+<td><p>Year [YYYY]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>id</p></td>
+<td><p>Day of year [DoY]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>it</p></td>
+<td><p>Hour [H]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>imin</p></td>
+<td><p>Minute [M]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>dectime</p></td>
+<td><p>Decimal time [-]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>zi</p></td>
+<td><p>Convectibe boundary layer height</p></td>
+<td><p>m</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>Theta</p></td>
+<td><p>Potential temperature in the inertial sublayer</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>Q</p></td>
+<td><p>Specific humidity in the inertial sublayer</p></td>
+<td><p>g kg<sup>-1</sup></p></td>
+</tr>
+<tr class="row-even"><td><p>9</p></td>
+<td><p>theta+</p></td>
+<td><p>Potential temperature just above the CBL</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-odd"><td><p>10</p></td>
+<td><p>q+</p></td>
+<td><p>Specific humidity just above the CBL</p></td>
+<td><p>g kg<sup>-1</sup></p></td>
+</tr>
+<tr class="row-even"><td><p>11</p></td>
+<td><p>Temp_C</p></td>
+<td><p>Air temperature</p></td>
+<td><p>°C</p></td>
+</tr>
+<tr class="row-odd"><td><p>12</p></td>
+<td><p>RH</p></td>
+<td><p>Relative humidity</p></td>
+<td><p>%</p></td>
+</tr>
+<tr class="row-even"><td><p>13</p></td>
+<td><p>QH_use</p></td>
+<td><p>Sensible heat flux used for calculation</p></td>
+<td><p>W m<sup>-2</sup></p></td>
+</tr>
+<tr class="row-odd"><td><p>14</p></td>
+<td><p>QE_use</p></td>
+<td><p>Latent heat flux used for calculation</p></td>
+<td><p>W m<sup>-2</sup></p></td>
+</tr>
+<tr class="row-even"><td><p>15</p></td>
+<td><p>Press_hPa</p></td>
+<td><p>Pressure used for calculation</p></td>
+<td><p>hPa</p></td>
+</tr>
+<tr class="row-odd"><td><p>16</p></td>
+<td><p>avu1</p></td>
+<td><p>Wind speed used for calculation</p></td>
+<td><p>m s<sup>-1</sup></p></td>
+</tr>
+<tr class="row-even"><td><p>17</p></td>
+<td><p>ustar</p></td>
+<td><p>Friction velocity used for calculation</p></td>
+<td><p>m s<sup>-1</sup></p></td>
+</tr>
+<tr class="row-odd"><td><p>18</p></td>
+<td><p>avdens</p></td>
+<td><p>Air density used for calculation</p></td>
+<td><p>kg m<sup>-3</sup></p></td>
+</tr>
+<tr class="row-even"><td><p>19</p></td>
+<td><p>lv_J_kg</p></td>
+<td><p>Latent heat of vaporization used for calculation</p></td>
+<td><p>J kg<sup>-1</sup></p></td>
+</tr>
+<tr class="row-odd"><td><p>20</p></td>
+<td><p>avcp</p></td>
+<td><p>Specific heat capacity used for calculation</p></td>
+<td><p>J kg<sup>-1</sup> K<sup>-1</sup></p></td>
+</tr>
+<tr class="row-even"><td><p>21</p></td>
+<td><p>gamt</p></td>
+<td><p>Vertical gradient of potential temperature</p></td>
+<td><p>K m<sup>-1</sup></p></td>
+</tr>
+<tr class="row-odd"><td><p>22</p></td>
+<td><p>gamq</p></td>
+<td><p>Vertical gradient of specific humidity</p></td>
+<td><p>kg kg<sup>-1</sup> m<sup>-1</sup></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="ssss-yyyy-estm-tt-txt">
+<h4><span class="section-number">5.5.2.2.7. </span>SSss_YYYY_ESTM_TT.txt<a class="headerlink" href="#ssss-yyyy-estm-tt-txt" title="Link to this heading">#</a></h4>
+<p>If the ESTM model option is run, the following output file is created.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>First time steps of storage output could give NaN values during the initial converging phase.</p>
+</div>
+<p><strong>ESTM Surface Temperature Variables</strong></p>
+<p>The ESTM model calculates detailed surface temperatures for different urban facets:</p>
+<dl class="simple">
+<dt><strong>Temperature Layers (5 layers each):</strong></dt><dd><ul class="simple">
+<li><p><strong>Twall1-5</strong>: Wall temperatures from outer-most (1) to inner-most (5) layer</p></li>
+<li><p><strong>Troof1-5</strong>: Roof temperatures from outer-most (1) to inner-most (5) layer</p></li>
+<li><p><strong>Tground1-5</strong>: Ground temperatures from outer-most (1) to inner-most (5) layer</p></li>
+<li><p><strong>Tibld1-5</strong>: Internal building element temperatures</p></li>
+</ul>
+</dd>
+<dt><strong>Key Temperature Variables:</strong></dt><dd><ul class="simple">
+<li><p><strong>Tabld</strong>: Indoor air temperature within buildings</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>Surface Temperature Convention</strong>: ESTM uses detailed layer-specific temperatures (Twall1-5, Troof1-5, etc.) rather than the bulk <a class="reference internal" href="../data-structures/df_output.html#cmdoption-arg-Tsurf"><code class="xref any std std-option docutils literal notranslate"><span class="pre">Tsurf</span></code></a> variable found in main SUEWS output. The layer temperatures provide much more detailed thermal analysis of urban facets.</p>
+</div>
+<dl class="simple">
+<dt><strong>Storage Heat Fluxes:</strong></dt><dd><ul class="simple">
+<li><p><strong>QSnet</strong>: Net storage heat flux (sum of all components)</p></li>
+<li><p><strong>QSwall/QSroof/QSground</strong>: Component-specific storage fluxes</p></li>
+<li><p><strong>QSair</strong>: Storage heat flux into air</p></li>
+<li><p><strong>QSibld</strong>: Storage heat flux into internal building elements</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>These detailed temperature profiles enable analysis of heat transfer through urban facets and are particularly valuable for:</p>
+<ul class="simple">
+<li><p>Building energy assessment</p></li>
+<li><p>Urban heat island analysis</p></li>
+<li><p>Validation against thermal imaging data</p></li>
+<li><p>Surface temperature pattern studies</p></li>
+</ul>
+</div>
+<p>ESTM output file format</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Column</p></th>
+<th class="head"><p>Name</p></th>
+<th class="head"><p>Description</p></th>
+<th class="head"><p>Units</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>iy</p></td>
+<td><p>Year</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>id</p></td>
+<td><p>Day of year</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>it</p></td>
+<td><p>Hour</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>imin</p></td>
+<td><p>Minute</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>dectime</p></td>
+<td><p>Decimal time</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>QSnet</p></td>
+<td><p>Net storage heat flux (QSwall+QSground+QS)</p></td>
+<td><p>W m<sup>-2</sup></p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>QSair</p></td>
+<td><p>Storage heat flux into air</p></td>
+<td><p>W m<sup>-2</sup></p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>QSwall</p></td>
+<td><p>Storage heat flux into wall</p></td>
+<td><p>W m<sup>-2</sup></p></td>
+</tr>
+<tr class="row-even"><td><p>9</p></td>
+<td><p>QSroof</p></td>
+<td><p>Storage heat flux into roof</p></td>
+<td><p>W m<sup>-2</sup></p></td>
+</tr>
+<tr class="row-odd"><td><p>10</p></td>
+<td><p>QSground</p></td>
+<td><p>Storage heat flux into ground</p></td>
+<td><p>W m<sup>-2</sup></p></td>
+</tr>
+<tr class="row-even"><td><p>11</p></td>
+<td><p>QSibld</p></td>
+<td><p>Storage heat flux into internal elements in buildling</p></td>
+<td><p>W m<sup>-2</sup></p></td>
+</tr>
+<tr class="row-odd"><td><p>12</p></td>
+<td><p>Twall1</p></td>
+<td><p>Temperature in the first layer of wall (outer-most)</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-even"><td><p>13</p></td>
+<td><p>Twall2</p></td>
+<td><p>Temperature in the first layer of wall</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-odd"><td><p>14</p></td>
+<td><p>Twall3</p></td>
+<td><p>Temperature in the first layer of wall</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-even"><td><p>15</p></td>
+<td><p>Twall4</p></td>
+<td><p>Temperature in the first layer of wall</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-odd"><td><p>16</p></td>
+<td><p>Twall5</p></td>
+<td><p>Temperature in the first layer of wall (inner-most)</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-even"><td><p>17</p></td>
+<td><p>Troof1</p></td>
+<td><p>Temperature in the first layer of roof (outer-most)</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-odd"><td><p>18</p></td>
+<td><p>Troof2</p></td>
+<td><p>Temperature in the first layer of roof</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-even"><td><p>19</p></td>
+<td><p>Troof3</p></td>
+<td><p>Temperature in the first layer of roof</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-odd"><td><p>20</p></td>
+<td><p>Troof4</p></td>
+<td><p>Temperature in the first layer of roof</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-even"><td><p>21</p></td>
+<td><p>Troof5</p></td>
+<td><p>Temperature in the first layer of ground (inner-most)</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-odd"><td><p>22</p></td>
+<td><p>Tground1</p></td>
+<td><p>Temperature in the first layer of ground (outer-most)</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-even"><td><p>23</p></td>
+<td><p>Tground2</p></td>
+<td><p>Temperature in the first layer of ground</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-odd"><td><p>24</p></td>
+<td><p>Tground3</p></td>
+<td><p>Temperature in the first layer of ground</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-even"><td><p>25</p></td>
+<td><p>Tground4</p></td>
+<td><p>Temperature in the first layer of ground</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-odd"><td><p>26</p></td>
+<td><p>Tground5</p></td>
+<td><p>Temperature in the first layer of ground (inner-most)</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-even"><td><p>27</p></td>
+<td><p>Tibld1</p></td>
+<td><p>Temperature in the first layer of internal elements</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-odd"><td><p>28</p></td>
+<td><p>Tibld2</p></td>
+<td><p>Temperature in the first layer of internal elements</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-even"><td><p>29</p></td>
+<td><p>Tibld3</p></td>
+<td><p>Temperature in the first layer of internal elements</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-odd"><td><p>30</p></td>
+<td><p>Tibld4</p></td>
+<td><p>Temperature in the first layer of internal elements</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-even"><td><p>31</p></td>
+<td><p>Tibld5</p></td>
+<td><p>Temperature in the first layer of internal elements</p></td>
+<td><p>K</p></td>
+</tr>
+<tr class="row-odd"><td><p>32</p></td>
+<td><p>Tabld</p></td>
+<td><p>Air temperature in buildings</p></td>
+<td><p>K</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="ssss-yyyy-spartacus-tt-txt">
+<h4><span class="section-number">5.5.2.2.8. </span>SSss_YYYY_SPARTACUS_TT.txt<a class="headerlink" href="#ssss-yyyy-spartacus-tt-txt" title="Link to this heading">#</a></h4>
+<p>If the SPARTACUS model option is run, the following output file is created.</p>
+<p>SPARTACUS output file format</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Column</p></th>
+<th class="head"><p>Name</p></th>
+<th class="head"><p>Description</p></th>
+<th class="head"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Year</p></td>
+<td><p>Year [YYYY]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>DOY</p></td>
+<td><p>Day of year [DOY]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Hour</p></td>
+<td><p>Hour [H]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>Min</p></td>
+<td><p>Minute [M]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>Dectime</p></td>
+<td><p>Decimal time [-]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>alb</p></td>
+<td><p>Albedo at top-of-canopy. Average of diffuse and direct albedos weighted by the amount of diffuse and direct shortwave radiation.</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>emis</p></td>
+<td><p>Emissivity at top-of-canopy</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>Lemission</p></td>
+<td><p>Longwave upward emission at top-of-canopy [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>9</p></td>
+<td><p>Lup</p></td>
+<td><p>Longwave upward (emission+reflected) at top-of-canopy [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>10</p></td>
+<td><p>Kup</p></td>
+<td><p>Shortwave upward (reflected) at top-of-canopy [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>11</p></td>
+<td><p>Qn</p></td>
+<td><p>Net all-wave radiation at top-of-canopy [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>12</p></td>
+<td><p>LCAAbs1</p></td>
+<td><p>Longwave absorption rate in clear-air part of layer 1 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>13</p></td>
+<td><p>LCAAbs2</p></td>
+<td><p>Longwave absorption rate in clear-air part of layer 2 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>14</p></td>
+<td><p>LCAAbs3</p></td>
+<td><p>Longwave absorption rate in clear-air part of layer 3 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>15</p></td>
+<td><p>LCAAbs4</p></td>
+<td><p>Longwave absorption rate in clear-air part of layer 4 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>16</p></td>
+<td><p>LCAAbs5</p></td>
+<td><p>Longwave absorption rate in clear-air part of layer 5 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>17</p></td>
+<td><p>LCAAbs6</p></td>
+<td><p>Longwave absorption rate in clear-air part of layer 6 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>18</p></td>
+<td><p>LCAAbs7</p></td>
+<td><p>Longwave absorption rate in clear-air part of layer 7 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>19</p></td>
+<td><p>LCAAbs8</p></td>
+<td><p>Longwave absorption rate in clear-air part of layer 8 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>20</p></td>
+<td><p>LCAAbs9</p></td>
+<td><p>Longwave absorption rate in clear-air part of layer 9 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>21</p></td>
+<td><p>LCAAbs10</p></td>
+<td><p>Longwave absorption rate in clear-air part of layer 10 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>22</p></td>
+<td><p>LCAAbs11</p></td>
+<td><p>Longwave absorption rate in clear-air part of layer 11 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>23</p></td>
+<td><p>LCAAbs12</p></td>
+<td><p>Longwave absorption rate in clear-air part of layer 12 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>24</p></td>
+<td><p>LCAAbs13</p></td>
+<td><p>Longwave absorption rate in clear-air part of layer 13 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>25</p></td>
+<td><p>LCAAbs14</p></td>
+<td><p>Longwave absorption rate in clear-air part of layer 14 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>26</p></td>
+<td><p>LCAAbs15</p></td>
+<td><p>Longwave absorption rate in clear-air part of layer 15 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>27</p></td>
+<td><p>LWallNet1</p></td>
+<td><p>Net longwave flux into walls in layer 1 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>28</p></td>
+<td><p>LWallNet2</p></td>
+<td><p>Net longwave flux into walls in layer 2 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>29</p></td>
+<td><p>LWallNet3</p></td>
+<td><p>Net longwave flux into walls in layer 3 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>30</p></td>
+<td><p>LWallNet4</p></td>
+<td><p>Net longwave flux into walls in layer 4 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>31</p></td>
+<td><p>LWallNet5</p></td>
+<td><p>Net longwave flux into walls in layer 5 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>32</p></td>
+<td><p>LWallNet6</p></td>
+<td><p>Net longwave flux into walls in layer 6 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>33</p></td>
+<td><p>LWallNet7</p></td>
+<td><p>Net longwave flux into walls in layer 7 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>34</p></td>
+<td><p>LWallNet8</p></td>
+<td><p>Net longwave flux into walls in layer 8 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>35</p></td>
+<td><p>LWallNet9</p></td>
+<td><p>Net longwave flux into walls in layer 9 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>36</p></td>
+<td><p>LWallNet10</p></td>
+<td><p>Net longwave flux into walls in layer 10 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>37</p></td>
+<td><p>LWallNet11</p></td>
+<td><p>Net longwave flux into walls in layer 11 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>38</p></td>
+<td><p>LWallNet12</p></td>
+<td><p>Net longwave flux into walls in layer 12 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>39</p></td>
+<td><p>LWallNet13</p></td>
+<td><p>Net longwave flux into walls in layer 13 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>40</p></td>
+<td><p>LWallNet14</p></td>
+<td><p>Net longwave flux into walls in layer 14 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>41</p></td>
+<td><p>LWallNet15</p></td>
+<td><p>Net longwave flux into walls in layer 15 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>42</p></td>
+<td><p>LRfNet1</p></td>
+<td><p>Net longwave flux into roofs in layer 1 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>43</p></td>
+<td><p>LRfNet2</p></td>
+<td><p>Net longwave flux into roofs in layer 2 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>44</p></td>
+<td><p>LRfNet3</p></td>
+<td><p>Net longwave flux into roofs in layer 3 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>45</p></td>
+<td><p>LRfNet4</p></td>
+<td><p>Net longwave flux into roofs in layer 4 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>46</p></td>
+<td><p>LRfNet5</p></td>
+<td><p>Net longwave flux into roofs in layer 5 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>47</p></td>
+<td><p>LRfNet6</p></td>
+<td><p>Net longwave flux into roofs in layer 6 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>48</p></td>
+<td><p>LRfNet7</p></td>
+<td><p>Net longwave flux into roofs in layer 7 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>49</p></td>
+<td><p>LRfNet8</p></td>
+<td><p>Net longwave flux into roofs in layer 8 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>50</p></td>
+<td><p>LRfNet9</p></td>
+<td><p>Net longwave flux into roofs in layer 9 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>51</p></td>
+<td><p>LRfNet10</p></td>
+<td><p>Net longwave flux into roofs in layer 10 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>52</p></td>
+<td><p>LRfNet11</p></td>
+<td><p>Net longwave flux into roofs in layer 11 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>53</p></td>
+<td><p>LRfNet12</p></td>
+<td><p>Net longwave flux into roofs in layer 12 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>54</p></td>
+<td><p>LRfNet13</p></td>
+<td><p>Net longwave flux into roofs in layer 13 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>55</p></td>
+<td><p>LRfNet14</p></td>
+<td><p>Net longwave flux into roofs in layer 14 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>56</p></td>
+<td><p>LRfNet15</p></td>
+<td><p>Net longwave flux into roofs in layer 15 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>57</p></td>
+<td><p>LRfIn1</p></td>
+<td><p>Longwave flux into roofs in layer 1 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>58</p></td>
+<td><p>LRfIn2</p></td>
+<td><p>Longwave flux into roofs in layer 2 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>59</p></td>
+<td><p>LRfIn3</p></td>
+<td><p>Longwave flux into roofs in layer 3 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>60</p></td>
+<td><p>LRfIn4</p></td>
+<td><p>Longwave flux into roofs in layer 4 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>61</p></td>
+<td><p>LRfIn5</p></td>
+<td><p>Longwave flux into roofs in layer 5 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>62</p></td>
+<td><p>LRfIn6</p></td>
+<td><p>Longwave flux into roofs in layer 6 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>63</p></td>
+<td><p>LRfIn7</p></td>
+<td><p>Longwave flux into roofs in layer 7 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>64</p></td>
+<td><p>LRfIn8</p></td>
+<td><p>Longwave flux into roofs in layer 8 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>65</p></td>
+<td><p>LRfIn9</p></td>
+<td><p>Longwave flux into roofs in layer 9 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>66</p></td>
+<td><p>LRfIn10</p></td>
+<td><p>Longwave flux into roofs in layer 10 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>67</p></td>
+<td><p>LRfIn11</p></td>
+<td><p>Longwave flux into roofs in layer 11 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>68</p></td>
+<td><p>LRfIn12</p></td>
+<td><p>Longwave flux into roofs in layer 12 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>69</p></td>
+<td><p>LRfIn13</p></td>
+<td><p>Longwave flux into roofs in layer 13 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>70</p></td>
+<td><p>LRfIn14</p></td>
+<td><p>Longwave flux into roofs in layer 14 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>71</p></td>
+<td><p>LRfIn15</p></td>
+<td><p>Longwave flux into roofs in layer 15 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>72</p></td>
+<td><p>LTopNet</p></td>
+<td><p>Top-of-canopy net longwave flux [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>73</p></td>
+<td><p>LGrndNet</p></td>
+<td><p>Net longwave flux into the ground [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>74</p></td>
+<td><p>LTopDn</p></td>
+<td><p>Top-of-canopy downwelling longwave flux [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>75</p></td>
+<td><p>KCAAbs1</p></td>
+<td><p>Shortwave absorption rate in clear-air part of layer 1 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>76</p></td>
+<td><p>KCAAbs2</p></td>
+<td><p>Shortwave absorption rate in clear-air part of layer 2 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>77</p></td>
+<td><p>KCAAbs3</p></td>
+<td><p>Shortwave absorption rate in clear-air part of layer 3 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>78</p></td>
+<td><p>KCAAbs4</p></td>
+<td><p>Shortwave absorption rate in clear-air part of layer 4 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>79</p></td>
+<td><p>KCAAbs5</p></td>
+<td><p>Shortwave absorption rate in clear-air part of layer 5 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>80</p></td>
+<td><p>KCAAbs6</p></td>
+<td><p>Shortwave absorption rate in clear-air part of layer 6 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>81</p></td>
+<td><p>KCAAbs7</p></td>
+<td><p>Shortwave absorption rate in clear-air part of layer 7 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>82</p></td>
+<td><p>KCAAbs8</p></td>
+<td><p>Shortwave absorption rate in clear-air part of layer 8 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>83</p></td>
+<td><p>KCAAbs9</p></td>
+<td><p>Shortwave absorption rate in clear-air part of layer 9 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>84</p></td>
+<td><p>KCAAbs10</p></td>
+<td><p>Shortwave absorption rate in clear-air part of layer 10 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>85</p></td>
+<td><p>KCAAbs11</p></td>
+<td><p>Shortwave absorption rate in clear-air part of layer 11 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>86</p></td>
+<td><p>KCAAbs12</p></td>
+<td><p>Shortwave absorption rate in clear-air part of layer 12 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>87</p></td>
+<td><p>KCAAbs13</p></td>
+<td><p>Shortwave absorption rate in clear-air part of layer 13 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>88</p></td>
+<td><p>KCAAbs14</p></td>
+<td><p>Shortwave absorption rate in clear-air part of layer 14 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>89</p></td>
+<td><p>KCAAbs15</p></td>
+<td><p>Shortwave absorption rate in clear-air part of layer 15 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>90</p></td>
+<td><p>KWallNet1</p></td>
+<td><p>Net shortwave flux into walls in layer 1 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>91</p></td>
+<td><p>KWallNet2</p></td>
+<td><p>Net shortwave flux into walls in layer 2 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>92</p></td>
+<td><p>KWallNet3</p></td>
+<td><p>Net shortwave flux into walls in layer 3 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>93</p></td>
+<td><p>KWallNet4</p></td>
+<td><p>Net shortwave flux into walls in layer 4 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>94</p></td>
+<td><p>KWallNet5</p></td>
+<td><p>Net shortwave flux into walls in layer 5 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>95</p></td>
+<td><p>KWallNet6</p></td>
+<td><p>Net shortwave flux into walls in layer 6 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>96</p></td>
+<td><p>KWallNet7</p></td>
+<td><p>Net shortwave flux into walls in layer 7 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>97</p></td>
+<td><p>KWallNet8</p></td>
+<td><p>Net shortwave flux into walls in layer 8 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>98</p></td>
+<td><p>KWallNet9</p></td>
+<td><p>Net shortwave flux into walls in layer 9 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>99</p></td>
+<td><p>KWallNet10</p></td>
+<td><p>Net shortwave flux into walls in layer 10 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>100</p></td>
+<td><p>KWallNet11</p></td>
+<td><p>Net shortwave flux into walls in layer 11 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>101</p></td>
+<td><p>KWallNet12</p></td>
+<td><p>Net shortwave flux into walls in layer 12 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>102</p></td>
+<td><p>KWallNet13</p></td>
+<td><p>Net shortwave flux into walls in layer 13 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>103</p></td>
+<td><p>KWallNet14</p></td>
+<td><p>Net shortwave flux into walls in layer 14 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>104</p></td>
+<td><p>KWallNet15</p></td>
+<td><p>Net shortwave flux into walls in layer 15 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>105</p></td>
+<td><p>KRfNet1</p></td>
+<td><p>Net shortwave flux into roofs in layer 1 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>106</p></td>
+<td><p>KRfNet2</p></td>
+<td><p>Net shortwave flux into roofs in layer 2 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>107</p></td>
+<td><p>KRfNet3</p></td>
+<td><p>Net shortwave flux into roofs in layer 3 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>108</p></td>
+<td><p>KRfNet4</p></td>
+<td><p>Net shortwave flux into roofs in layer 4 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>109</p></td>
+<td><p>KRfNet5</p></td>
+<td><p>Net shortwave flux into roofs in layer 5 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>110</p></td>
+<td><p>KRfNet6</p></td>
+<td><p>Net shortwave flux into roofs in layer 6 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>111</p></td>
+<td><p>KRfNet7</p></td>
+<td><p>Net shortwave flux into roofs in layer 7 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>112</p></td>
+<td><p>KRfNet8</p></td>
+<td><p>Net shortwave flux into roofs in layer 8 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>113</p></td>
+<td><p>KRfNet9</p></td>
+<td><p>Net shortwave flux into roofs in layer 9 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>114</p></td>
+<td><p>KRfNet10</p></td>
+<td><p>Net shortwave flux into roofs in layer 10 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>115</p></td>
+<td><p>KRfNet11</p></td>
+<td><p>Net shortwave flux into roofs in layer 11 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>116</p></td>
+<td><p>KRfNet12</p></td>
+<td><p>Net shortwave flux into roofs in layer 12 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>117</p></td>
+<td><p>KRfNet13</p></td>
+<td><p>Net shortwave flux into roofs in layer 13 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>118</p></td>
+<td><p>KRfNet14</p></td>
+<td><p>Net shortwave flux into roofs in layer 14 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>119</p></td>
+<td><p>KRfNet15</p></td>
+<td><p>Net shortwave flux into roofs in layer 15 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>120</p></td>
+<td><p>KRfIn1</p></td>
+<td><p>Shortwave flux into roofs in layer 1 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>121</p></td>
+<td><p>KRfIn2</p></td>
+<td><p>Shortwave flux into roofs in layer 2 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>122</p></td>
+<td><p>KRfIn3</p></td>
+<td><p>Shortwave flux into roofs in layer 3 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>123</p></td>
+<td><p>KRfIn4</p></td>
+<td><p>Shortwave flux into roofs in layer 4 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>124</p></td>
+<td><p>KRfIn5</p></td>
+<td><p>Shortwave flux into roofs in layer 5 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>125</p></td>
+<td><p>KRfIn6</p></td>
+<td><p>Shortwave flux into roofs in layer 6 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>126</p></td>
+<td><p>KRfIn7</p></td>
+<td><p>Shortwave flux into roofs in layer 7 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>127</p></td>
+<td><p>KRfIn8</p></td>
+<td><p>Shortwave flux into roofs in layer 8 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>128</p></td>
+<td><p>KRfIn9</p></td>
+<td><p>Shortwave flux into roofs in layer 9 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>129</p></td>
+<td><p>KRfIn10</p></td>
+<td><p>Shortwave flux into roofs in layer 10 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>130</p></td>
+<td><p>KRfIn11</p></td>
+<td><p>Shortwave flux into roofs in layer 11 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>131</p></td>
+<td><p>KRfIn12</p></td>
+<td><p>Shortwave flux into roofs in layer 12 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>132</p></td>
+<td><p>KRfIn13</p></td>
+<td><p>Shortwave flux into roofs in layer 13 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>133</p></td>
+<td><p>KRfIn14</p></td>
+<td><p>Shortwave flux into roofs in layer 14 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>134</p></td>
+<td><p>KRfIn15</p></td>
+<td><p>Shortwave flux into roofs in layer 15 [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>135</p></td>
+<td><p>KTopDnDir</p></td>
+<td><p>Direct shortwave flux into roofs [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>136</p></td>
+<td><p>KTopNet</p></td>
+<td><p>Top-of-canopy net shortwave flux [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>137</p></td>
+<td><p>KGrndDnDir</p></td>
+<td><p>Direct downwelling shortwave flux into the ground [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>138</p></td>
+<td><p>KGrndNet</p></td>
+<td><p>Net shortwave flux into the ground [W m<sup>-2</sup>]</p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="legacy_diagnostics.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title"><span class="section-number">5.4. </span>Legacy Diagnostics</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="../api.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title"><span class="section-number">6. </span>Python API Reference</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#runtime-diagnostic-information">5.5.1. Runtime diagnostic information</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#error-messages-problems-txt">5.5.1.1. Error messages: problems.txt</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#warning-messages-warnings-txt">5.5.1.2. Warning messages: warnings.txt</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#summary-of-model-parameters-ss-filechoices-txt">5.5.1.3. Summary of model parameters: SS_FileChoices.txt</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model-output-files">5.5.2. Model output files</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#output-format-options">5.5.2.1. Output Format Options</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#text-format-output-files">5.5.2.2. Text Format Output Files</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-suews-tt-txt">5.5.2.2.1. SSss_YYYY_SUEWS_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-dailystate-txt">5.5.2.2.2. SSss_DailyState.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#initialconditionsssss-yyyy-nml">5.5.2.2.3. InitialConditionsSSss_YYYY.nml</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-snow-tt-txt">5.5.2.2.4. SSss_YYYY_snow_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-rsl-tt-txt">5.5.2.2.5. SSss_YYYY_RSL_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-bl-tt-txt">5.5.2.2.6. SSss_YYYY_BL_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-estm-tt-txt">5.5.2.2.7. SSss_YYYY_ESTM_TT.txt</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ssss-yyyy-spartacus-tt-txt">5.5.2.2.8. SSss_YYYY_SPARTACUS_TT.txt</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By SUEWS dev team led by Prof Sue Grimmond
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2018 – 2026.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    <p class="last-updated">
+  Last updated on 2026-01-28.
+  <br/>
+</p>
+  </div>
+  
+  <div class="footer-item">
+    
+<div class="extra_footer">
+  <p>Version: 2026.2.2.dev29 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8cec288d1e4ab0af6e5c3839b0f18f2bbf5685b8">8cec288</a> |
+    <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
+</div>
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

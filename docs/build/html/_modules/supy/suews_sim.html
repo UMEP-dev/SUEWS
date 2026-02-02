@@ -1,0 +1,1992 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>supy.suews_sim &#8212; SUEWS 2026.2.2.dev29 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../../_static/theme_overrides.css?v=0c24fe83" />
+    <link rel="stylesheet" type="text/css" href="../../_static/brand.css?v=6ff74816" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../../_static/documentation_options.js?v=375a89c4"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/supy/suews_sim';</script>
+    <link rel="icon" href="../../_static/suews-logo.svg"/>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+<aside class="bd-header-announcement" aria-label="Announcement">
+  <div class="bd-header-announcement__content">
+    <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
+        <strong>⚠️ Development Version:</strong> This documentation was built from a development version
+        (2026.2.2.dev29, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8cec288d1e4ab0af6e5c3839b0f18f2bbf5685b8" style="color: #31708f;">8cec288</a>).
+        Features described here may be unstable or subject to change. For stable documentation, please visit the
+        <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
+    </div>
+    </div>
+</aside>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.2.dev29 documentation - Home"/>
+    <script>document.write(`<img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.2.dev29 documentation - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">For users</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">1. Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workflow.html">2. Getting Started</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../auto_examples/index.html">3. Tutorials</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/tutorial_01_quick_start.html">3.1. SUEWS Quick Start Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/tutorial_02_setup_own_site.html">3.2. Set Up SUEWS for Your Own Site</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/tutorial_03_initial_conditions.html">3.3. Preparing Initial Conditions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/tutorial_04_impact_studies.html">3.4. Impact Studies Using SuPy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/tutorial_05_results_analysis.html">3.5. Analysing Simulation Results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/tutorial_06_external_coupling.html">3.6. External Model Coupling</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../inputs/index.html">4. Input Files</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../inputs/yaml/index.html">4.1. YAML Configuration Format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../inputs/forcing-data.html">4.2. Meteorological Forcing Data</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../inputs/yaml/config-reference/index.html">4.3. YAML Configuration Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/anthropogenicemissions.html">4.3.1. Anthropogenic Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/anthropogenicheat.html">4.3.2. Anthropogenic Heat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/archetypeproperties.html">4.3.3. Archetype Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/bldgsproperties.html">4.3.4. Buildings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/bsoilproperties.html">4.3.5. Bare Soil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/buildinglayer.html">4.3.6. Building Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/co2params.html">4.3.7. CO2 Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/conductance.html">4.3.8. Conductance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/dayprofile.html">4.3.9. Daily Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/dectrproperties.html">4.3.10. Deciduous Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/evetrproperties.html">4.3.11. Evergreen Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/grassproperties.html">4.3.12. Grass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/hourlyprofile.html">4.3.13. Hourly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstatebldgs.html">4.3.14. Buildings Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstatebsoil.html">4.3.15. Bare Soil Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstatedectr.html">4.3.16. Deciduous Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstateevetr.html">4.3.17. Evergreen Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstategrass.html">4.3.18. Grass Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstatepaved.html">4.3.19. Paved Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstateveg.html">4.3.20. Vegetation Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstatewater.html">4.3.21. Water Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/initialstates.html">4.3.22. Initial States</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/irrigationparams.html">4.3.23. Irrigation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/laiparams.html">4.3.24. LAI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/laipowercoefficients.html">4.3.25. LAI Power Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/lumpsparams.html">4.3.26. LUMPS Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/landcover.html">4.3.27. Land Cover</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/model.html">4.3.28. Model Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/modelcontrol.html">4.3.29. Model Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/modelphysics.html">4.3.30. Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/nonvegetatedsurfaceproperties.html">4.3.31. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/ohmcoefficients.html">4.3.32. OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/ohm_coefficient_season_wetness.html">4.3.33. Seasonal/Wetness OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/outputconfig.html">4.3.34. Output Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/pavedproperties.html">4.3.35. Paved Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/rooflayer.html">4.3.36. Roof Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/spartacusparams.html">4.3.37. SPARTACUS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/suewsconfig.html">4.3.38. SUEWS Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/site.html">4.3.39. Site Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/siteproperties.html">4.3.40. Site Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/snowparams.html">4.3.41. Snow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/soilobservationconfig.html">4.3.42. Soil Observation Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/stebbsproperties.html">4.3.43. STEBBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/storagedrainparams.html">4.3.44. Drainage Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/surfaceinitialstate.html">4.3.45. Generic Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/surfaceproperties.html">4.3.46. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/tenminuteprofile.html">4.3.47. Ten Minute Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/thermallayers.html">4.3.48. Thermal Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/vegetatedsurfaceproperties.html">4.3.49. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/vegetationparams.html">4.3.50. Vegetation Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/verticallayers.html">4.3.51. Vertical Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/walllayer.html">4.3.52. Wall Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/waterdistribution.html">4.3.53. Water Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/waterproperties.html">4.3.54. Water Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/yaml/config-reference/weeklyprofile.html">4.3.55. Weekly Profile</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../inputs/converter.html">4.4. SUEWS Format Converter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../inputs/transition_guide.html">4.5. Transitioning to YAML-based Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../inputs/yaml/validation.html">4.6. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../inputs/tables/index.html">4.7. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/tables/met_input.html">4.7.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../inputs/tables/RunControl/RunControl.html">4.7.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/scheme_options.html">4.7.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/Time_related_options.html">4.7.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/File_related_options.html">4.7.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.7.3.2.4. Options related to disaggregation of input data</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="../../inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.7.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Initial_Conditions.html">4.7.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Soil_moisture_states.html">4.7.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Vegetation_parameters.html">4.7.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Recent_meteorology.html">4.7.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Above_ground_state.html">4.7.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../inputs/tables/Initial_Conditions/Snow_related_parameters.html">4.7.3.4.5. Snow related parameters</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../outputs/index.html">5. Output Files</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../outputs/text_format.html">5.1. Text Format Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../outputs/parquet_format.html">5.2. Parquet Format Output</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../outputs/variables/index.html">5.3. Output Variable Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../outputs/variables/datetime.html">5.3.1. datetime Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../outputs/variables/suews.html">5.3.2. SUEWS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../outputs/variables/snow.html">5.3.3. snow Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../outputs/variables/estm.html">5.3.4. ESTM Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../outputs/variables/ehc.html">5.3.5. EHC Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../outputs/variables/rsl.html">5.3.6. RSL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../outputs/variables/bl.html">5.3.7. BL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../outputs/variables/debug.html">5.3.8. debug Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../outputs/variables/beers.html">5.3.9. BEERS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../outputs/variables/dailystate.html">5.3.10. DailyState Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../outputs/variables/spartacus.html">5.3.11. SPARTACUS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../outputs/variables/stebbs.html">5.3.12. STEBBS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/core-functions.html">6.2. Core Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.init_supy.html">6.2.1.1. supy.init_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.run_supy.html">6.2.1.2. supy.run_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.save_supy.html">6.2.1.3. supy.save_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.load_forcing_grid.html">6.2.1.4. supy.load_forcing_grid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.load_sample_data.html">6.2.1.5. supy.load_sample_data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.show_version.html">6.2.1.6. supy.show_version</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.gen_forcing_era5.html">6.3.1.1. supy.util.gen_forcing_era5</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.gen_epw.html">6.3.2.1. supy.util.gen_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.read_epw.html">6.3.2.2. supy.util.read_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.fill_gap_all.html">6.3.2.3. supy.util.fill_gap_all</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.derive_ohm_coef.html">6.3.3.1. supy.util.derive_ohm_coef</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.sim_ohm.html">6.3.3.2. supy.util.sim_ohm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.cal_gs_suews.html">6.3.4.1. supy.util.cal_gs_suews</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.cal_gs_obs.html">6.3.4.2. supy.util.cal_gs_obs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.calib_g.html">6.3.4.3. supy.util.calib_g</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.plot_comp.html">6.3.5.1. supy.util.plot_comp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.plot_day_clm.html">6.3.5.2. supy.util.plot_day_clm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.plot_rsl.html">6.3.5.3. supy.util.plot_rsl</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.cal_z0zd.html">6.3.6.1. supy.util.cal_z0zd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/_autosummary/supy.util.cal_neutral.html">6.3.6.2. supy.util.cal_neutral</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/command-line.html">6.4. Command-Line Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/python-cli-equivalents.html">6.5. Python API for CLI Users</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/data-structures.html">6.6. Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/io-data-structures.html">6.7. Key IO Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/converter.html">6.8. Configuration Converter API</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../integration/index.html">7. Integration and Complementary Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../integration/model-coupling.html">7.1. Model Coupling and External Interaction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../integration/wrf-suews.html">7.1.1.1. Coupling with WRF</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../integration/complementary-tools.html">7.2. Complementary Interfaces and Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../related-softwares/umep.html">7.2.1.1. UMEP Interface</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../troubleshooting.html">8. Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../benchmark/benchmark_report.html">9. Benchmark Report</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../notation.html">10. Notation</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../version-history/version-history.html">11. Version History</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2026.1.28.html">11.1. Version 2026.1.28 (released on 28 January 2026)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2025.11.20.html">11.2. Version 2025.11.20 (released on 20 November 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2025.10.15.html">11.3. Version 2025.10.15 (released on 15 October 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2020a.html">11.4. Version 2020a (released on 14 May 2020)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2019a.html">11.5. Version 2019a (released on 15 November 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2018c.html">11.6. Version 2018c (released on 21 February 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2018b.html">11.7. Version 2018b (released on 17 December 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2018a.html">11.8. Version 2018a (released on 2 August 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2017b.html">11.9. Version 2017b (released on 2 August 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2017a.html">11.10. Version 2017a (released on 1 Feb 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2016a.html">11.11. Version 2016a (released on 21 June 2016)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2014b.html">11.12. Version 2014b (released on 8 October 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2014a.1.html">11.13. Version 2014a.1 (released 26 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2014a.html">11.14. Version 2014a (released on 21 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2013a.html">11.15. Version 2013a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2012b.html">11.16. Version 2012b</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2012a.html">11.17. Version 2012a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../version-history/v2011b.html">11.18. Version 2011b</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">For developers/contributors</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../contributing/contributing.html">1. Contributing Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../acknowledgement.html">2. Acknowledgements</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/UMEP-dev/SUEWS">GitHub repository</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Scientific background</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../parameterisations-and-sub-models.html">1. Parameterisations and sub-models within SUEWS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../related_publications.html">2. SUEWS-related Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../references.html">3. References</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Community</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../community_publications.html">1. Community Publications</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://community.suews.io">Community</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS/issues/new?title=Issue%20on%20page%20%2F_modules/supy/suews_sim.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1></h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for supy.suews_sim</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">SUEWS Simulation Class.</span>
+
+<span class="sd">Modern, object-oriented interface for SUEWS urban climate model simulations.</span>
+<span class="sd">Provides a user-friendly wrapper around the existing SuPy infrastructure.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">copy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PurePosixPath</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">._check</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_forcing</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._env</span><span class="w"> </span><span class="kn">import</span> <span class="n">logger_supy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._run</span><span class="w"> </span><span class="kn">import</span> <span class="n">run_supy_ser</span>
+
+<span class="c1"># Import SuPy components directly</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._supy_module</span><span class="w"> </span><span class="kn">import</span> <span class="n">_save_supy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.data_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">RefValue</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.data_model.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSConfig</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.dts</span><span class="w"> </span><span class="kn">import</span> <span class="n">_check_dts_available</span><span class="p">,</span> <span class="n">run_dts_multi</span>
+
+<span class="c1"># Import new OOP classes</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.suews_forcing</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSForcing</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.suews_output</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSOutput</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.util._io</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_forcing</span>
+
+<span class="c1"># Constants</span>
+<span class="n">DEFAULT_OUTPUT_FREQ_SECONDS</span> <span class="o">=</span> <span class="mi">3600</span>  <span class="c1"># Default hourly output frequency</span>
+<span class="n">DEFAULT_FORCING_FILE_PATTERNS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;*.txt&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;*.csv&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;*.met&quot;</span><span class="p">,</span>
+<span class="p">]</span>  <span class="c1"># Valid forcing file extensions</span>
+
+
+<div class="viewcode-block" id="SUEWSSimulation">
+<a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SUEWSSimulation</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Simplified SUEWS simulation class for urban climate modelling.</span>
+
+<span class="sd">    This class provides a clean interface for:</span>
+<span class="sd">    - Loading and updating configuration</span>
+<span class="sd">    - Managing forcing data</span>
+<span class="sd">    - Running simulations</span>
+<span class="sd">    - Saving results</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    Basic usage:</span>
+
+<span class="sd">    &gt;&gt;&gt; sim = SUEWSSimulation(&quot;config.yaml&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; sim.update_forcing(&quot;forcing.txt&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; sim.run()</span>
+<span class="sd">    &gt;&gt;&gt; sim.save(&quot;output_dir/&quot;)</span>
+
+<span class="sd">    Updating configuration:</span>
+
+<span class="sd">    &gt;&gt;&gt; sim.update_config({&quot;model&quot;: {&quot;control&quot;: {&quot;tstep&quot;: 600}}})</span>
+<span class="sd">    &gt;&gt;&gt; sim.reset()</span>
+<span class="sd">    &gt;&gt;&gt; sim.run()</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize SUEWS simulation.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        config : str, Path, dict, or SUEWSConfig, optional</span>
+<span class="sd">            Initial configuration source:</span>
+<span class="sd">            - Path to YAML configuration file</span>
+<span class="sd">            - Dictionary with configuration parameters</span>
+<span class="sd">            - SUEWSConfig object</span>
+<span class="sd">            - None to create empty simulation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config_path</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initial_states_final</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Pydantic state for DTS backend</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dict_final_states</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Per-grid final states for DTS backend</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_config</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SUEWSSimulation.update_config">
+<a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.update_config">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update_config</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">SUEWSConfig</span><span class="p">],</span>
+        <span class="n">auto_load_forcing</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SUEWSSimulation&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update simulation configuration.</span>
+
+<span class="sd">        Can accept full or partial configuration updates.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        config : str, Path, dict, or SUEWSConfig</span>
+<span class="sd">            Configuration source:</span>
+<span class="sd">            - Path to YAML file</span>
+<span class="sd">            - Dictionary with parameters (can be partial)</span>
+<span class="sd">            - SUEWSConfig object</span>
+<span class="sd">        auto_load_forcing : bool, optional</span>
+<span class="sd">            If True (default), automatically load forcing data specified in the</span>
+<span class="sd">            config file. If False, forcing must be loaded explicitly using</span>
+<span class="sd">            ``update_forcing()``.</span>
+
+<span class="sd">            Set to False when:</span>
+<span class="sd">            - You want explicit control over forcing data loading</span>
+<span class="sd">            - Forcing file paths in config are placeholders</span>
+<span class="sd">            - You plan to provide forcing data programmatically</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        SUEWSSimulation</span>
+<span class="sd">            Self, for method chaining.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; sim.update_config(&quot;new_config.yaml&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; sim.update_config({&quot;model&quot;: {&quot;control&quot;: {&quot;tstep&quot;: 300}}})</span>
+<span class="sd">        &gt;&gt;&gt; sim.update_config(&quot;config.yaml&quot;).update_forcing(&quot;forcing.txt&quot;)</span>
+
+<span class="sd">        Explicit forcing control:</span>
+
+<span class="sd">        &gt;&gt;&gt; sim.update_config(&quot;config.yaml&quot;, auto_load_forcing=False)</span>
+<span class="sd">        &gt;&gt;&gt; sim.update_forcing(&quot;custom_forcing.txt&quot;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">)):</span>
+            <span class="c1"># Load from YAML file</span>
+            <span class="n">config_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">config_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Configuration file not found: </span><span class="si">{</span><span class="n">config_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Load YAML</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">SUEWSConfig</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">config_path</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_config_path</span> <span class="o">=</span> <span class="n">config_path</span>
+
+            <span class="c1"># Convert to initial state DataFrame</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">to_df_state</span><span class="p">()</span>
+
+            <span class="c1"># Optionally try to load forcing from config</span>
+            <span class="k">if</span> <span class="n">auto_load_forcing</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_try_load_forcing_from_config</span><span class="p">()</span>
+
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="c1"># Update existing config with dictionary</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">SUEWSConfig</span><span class="p">()</span>
+
+            <span class="c1"># Deep update the configuration</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_config_from_dict</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+            <span class="c1"># Regenerate state DataFrame</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">to_df_state</span><span class="p">()</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Assume it&#39;s a SUEWSConfig object</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">config</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">to_df_state</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_update_config_from_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">updates</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply dictionary updates to configuration.&quot;&quot;&quot;</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">recursive_update</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">upd</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">upd</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+                    <span class="n">attr</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="s2">&quot;__dict__&quot;</span><span class="p">):</span>
+                        <span class="c1"># Recursive to read nested dictionaries</span>
+                        <span class="n">recursive_update</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+                    <span class="c1"># Check whether site index or site name is provided</span>
+                    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                        <span class="n">site_key</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="n">site_value</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="n">site_key</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site_key</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                            <span class="c1"># Select site on index</span>
+                            <span class="n">attr</span> <span class="o">=</span> <span class="n">attr</span><span class="p">[</span><span class="n">site_key</span><span class="p">]</span>
+                            <span class="n">recursive_update</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="n">site_value</span><span class="p">)</span>
+                        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site_key</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                            <span class="c1"># Select site on name</span>
+                            <span class="n">attr_site</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+                                <span class="p">(</span><span class="n">item</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">attr</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">site_key</span><span class="p">),</span>
+                                <span class="kc">None</span><span class="p">,</span>
+                            <span class="p">)</span>
+                            <span class="k">if</span> <span class="n">attr_site</span><span class="p">:</span>
+                                <span class="n">recursive_update</span><span class="p">(</span><span class="n">attr_site</span><span class="p">,</span> <span class="n">site_value</span><span class="p">)</span>
+                            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                                <span class="c1"># Without name or index and only one site</span>
+                                <span class="n">attr_site</span> <span class="o">=</span> <span class="n">attr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                                <span class="c1"># Distinguish site name pattern from shorthand</span>
+                                <span class="c1"># If site_key is an attribute on the site object, it&#39;s shorthand</span>
+                                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">attr_site</span><span class="p">,</span> <span class="n">site_key</span><span class="p">):</span>
+                                    <span class="c1"># Shorthand pattern: {&#39;name&#39;: &#39;test&#39;} or {&#39;properties&#39;: {...}}</span>
+                                    <span class="n">recursive_update</span><span class="p">(</span><span class="n">attr_site</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+                                <span class="k">else</span><span class="p">:</span>
+                                    <span class="c1"># Site name pattern: {&#39;NonExistent&#39;: {&#39;gridiv&#39;: 99}}</span>
+                                    <span class="n">recursive_update</span><span class="p">(</span><span class="n">attr_site</span><span class="p">,</span> <span class="n">site_value</span><span class="p">)</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="c1"># Otherwise skip these parameters</span>
+                                <span class="k">continue</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="nb">setattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+        <span class="n">recursive_update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="n">updates</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SUEWSSimulation.update_forcing">
+<a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.update_forcing">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update_forcing</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">forcing_data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">list</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">SUEWSForcing</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SUEWSSimulation&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update meteorological forcing data.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        forcing_data : str, Path, list of paths, pandas.DataFrame, or SUEWSForcing</span>
+<span class="sd">            Forcing data source:</span>
+<span class="sd">            - Path to a single forcing file</span>
+<span class="sd">            - List of paths to forcing files (concatenated in order)</span>
+<span class="sd">            - Path to directory containing forcing files (deprecated)</span>
+<span class="sd">            - DataFrame with forcing data</span>
+<span class="sd">            - SUEWSForcing object</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        SUEWSSimulation</span>
+<span class="sd">            Self, for method chaining.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        When loading from file paths, forcing data is resampled to match the</span>
+<span class="sd">        model timestep from ``model.control.tstep`` in the configuration.</span>
+<span class="sd">        If no configuration is loaded, defaults to 300 seconds (5 minutes).</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; sim.update_forcing(&quot;forcing_2023.txt&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; sim.update_forcing([&quot;forcing_2023.txt&quot;, &quot;forcing_2024.txt&quot;])</span>
+<span class="sd">        &gt;&gt;&gt; sim.update_forcing(df_forcing)</span>
+<span class="sd">        &gt;&gt;&gt; sim.update_forcing(SUEWSForcing.from_file(&quot;forcing.txt&quot;))</span>
+<span class="sd">        &gt;&gt;&gt; sim.update_config(cfg).update_forcing(forcing).run()</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Get tstep from config if available, otherwise default to 300s</span>
+        <span class="n">tstep_mod</span> <span class="o">=</span> <span class="mi">300</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">tstep_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">tstep</span>
+                <span class="n">tstep_mod</span> <span class="o">=</span> <span class="n">tstep_val</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">tstep_val</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">tstep_val</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                <span class="n">logger_supy</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                    <span class="s2">&quot;Could not extract tstep from config; using default </span><span class="si">%d</span><span class="s2">s&quot;</span><span class="p">,</span>
+                    <span class="n">tstep_mod</span><span class="p">,</span>
+                <span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">,</span> <span class="n">RefValue</span><span class="p">):</span>
+            <span class="n">forcing_data</span> <span class="o">=</span> <span class="n">forcing_data</span><span class="o">.</span><span class="n">value</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">,</span> <span class="n">SUEWSForcing</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="n">forcing_data</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="n">forcing_data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="c1"># Handle list of files</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">_load_forcing_from_list</span><span class="p">(</span>
+                <span class="n">forcing_data</span><span class="p">,</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">)):</span>
+            <span class="n">forcing_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">forcing_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Forcing path not found: </span><span class="si">{</span><span class="n">forcing_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">_load_forcing_file</span><span class="p">(</span>
+                <span class="n">forcing_path</span><span class="p">,</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported forcing data type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_try_load_forcing_from_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Try to load forcing data from configuration if not explicitly provided.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;control&quot;</span>
+            <span class="p">):</span>
+                <span class="n">forcing_file_obj</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="p">,</span> <span class="s2">&quot;forcing_file&quot;</span><span class="p">,</span> <span class="kc">None</span>
+                <span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">forcing_file_obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="c1"># Handle RefValue wrapper</span>
+                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">forcing_file_obj</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">):</span>
+                        <span class="n">forcing_value</span> <span class="o">=</span> <span class="n">forcing_file_obj</span><span class="o">.</span><span class="n">value</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">forcing_value</span> <span class="o">=</span> <span class="n">forcing_file_obj</span>
+
+                    <span class="c1"># Skip default placeholder value</span>
+                    <span class="k">if</span> <span class="n">forcing_value</span> <span class="ow">and</span> <span class="n">forcing_value</span> <span class="o">!=</span> <span class="s2">&quot;forcing.txt&quot;</span><span class="p">:</span>
+                        <span class="c1"># Resolve paths relative to config file if needed</span>
+                        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config_path</span><span class="p">:</span>
+                            <span class="n">forcing_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_forcing_paths</span><span class="p">(</span><span class="n">forcing_value</span><span class="p">)</span>
+
+                        <span class="bp">self</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="n">forcing_value</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not load forcing from config: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_resolve_forcing_paths</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">paths</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve forcing paths relative to config file location.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        paths : str or list of str</span>
+<span class="sd">            Path(s) to resolve. Relative paths are resolved relative to config file.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str or list of str</span>
+<span class="sd">            Resolved path(s). Absolute paths are returned unchanged.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">paths</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_resolve_single_path</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_single_path</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_resolve_single_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve a single path relative to config file if it&#39;s relative.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        path : str</span>
+<span class="sd">            Path to resolve</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str</span>
+<span class="sd">            Resolved path. Absolute paths are returned unchanged.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        Relative paths can use &#39;..&#39; to reference parent directories. This is</span>
+<span class="sd">        intentional to allow flexible file organization. Path traversal restrictions</span>
+<span class="sd">        are not enforced since:</span>
+<span class="sd">        1. Config files are created by the user themselves</span>
+<span class="sd">        2. Code runs on the user&#39;s own machine</span>
+<span class="sd">        3. No untrusted external input is involved</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="c1"># Treat platform-native absolute paths as literal</span>
+        <span class="k">if</span> <span class="n">Path</span><span class="p">(</span><span class="n">path_str</span><span class="p">)</span><span class="o">.</span><span class="n">is_absolute</span><span class="p">()</span> <span class="ow">or</span> <span class="n">PurePosixPath</span><span class="p">(</span><span class="n">path_str</span><span class="p">)</span><span class="o">.</span><span class="n">is_absolute</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">path_str</span>
+
+        <span class="c1"># Relative path - resolve relative to config file location</span>
+        <span class="c1"># Using resolve() handles &#39;..&#39; and normalizes the path</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_config_path</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="n">Path</span><span class="p">(</span><span class="n">path_str</span><span class="p">))</span><span class="o">.</span><span class="n">resolve</span><span class="p">())</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_load_forcing_from_list</span><span class="p">(</span>
+        <span class="n">forcing_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]],</span> <span class="n">tstep_mod</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load and concatenate forcing data from a list of files.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">forcing_list</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Empty forcing file list provided&quot;</span><span class="p">)</span>
+
+        <span class="n">dfs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">forcing_list</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">item</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Forcing file not found: </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Directory &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39; found in forcing file list. &quot;</span>
+                    <span class="s2">&quot;Directories are not allowed in lists.&quot;</span>
+                <span class="p">)</span>
+
+            <span class="n">df</span> <span class="o">=</span> <span class="n">read_forcing</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span><span class="p">)</span>
+            <span class="n">dfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">dfs</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sort_index</span><span class="p">()</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">freq</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">infer_freq</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_load_forcing_file</span><span class="p">(</span><span class="n">forcing_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">tstep_mod</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load forcing data from file or directory.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">forcing_path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+            <span class="c1"># Issue deprecation warning for directory usage</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Loading forcing data from directory &#39;</span><span class="si">{</span><span class="n">forcing_path</span><span class="si">}</span><span class="s2">&#39; is deprecated. &quot;</span>
+                <span class="s2">&quot;Please specify individual files or use a list of files instead.&quot;</span><span class="p">,</span>
+                <span class="ne">DeprecationWarning</span><span class="p">,</span>
+                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Find forcing files in directory</span>
+            <span class="n">forcing_files</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">pattern</span> <span class="ow">in</span> <span class="n">DEFAULT_FORCING_FILE_PATTERNS</span><span class="p">:</span>
+                <span class="n">forcing_files</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">forcing_path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">pattern</span><span class="p">)))</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">forcing_files</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;No forcing files found in directory: </span><span class="si">{</span><span class="n">forcing_path</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+
+            <span class="c1"># Concatenate all files</span>
+            <span class="n">dfs</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">forcing_files</span><span class="p">:</span>
+                <span class="n">dfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">read_forcing</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">file</span><span class="p">),</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span><span class="p">))</span>
+
+            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">dfs</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sort_index</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">read_forcing</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">forcing_path</span><span class="p">),</span> <span class="n">tstep_mod</span><span class="o">=</span><span class="n">tstep_mod</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SUEWSSimulation.run">
+<a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.run">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">start_date</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">end_date</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">backend</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;traditional&quot;</span><span class="p">,</span>
+        <span class="n">chunk_day</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3660</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">run_kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SUEWSOutput</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run SUEWS simulation.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        start_date : str, optional</span>
+<span class="sd">            Start date for simulation (inclusive).</span>
+<span class="sd">        end_date : str, optional</span>
+<span class="sd">            End date for simulation (inclusive).</span>
+<span class="sd">        backend : str, optional</span>
+<span class="sd">            Execution backend to use. Options:</span>
+
+<span class="sd">            - ``&#39;traditional&#39;`` (default): Uses DataFrame-based run_supy_ser.</span>
+<span class="sd">              Established interface with comprehensive state tracking.</span>
+<span class="sd">            - ``&#39;dts&#39;``: Uses DTS (Derived Type Structure) interface.</span>
+<span class="sd">              Direct Pydantic-to-Fortran execution path, bypassing intermediate</span>
+<span class="sd">              DataFrame conversion. May be faster for short simulations.</span>
+
+<span class="sd">        chunk_day : int, optional</span>
+<span class="sd">            Chunk size in days for splitting long simulations, by default 3660</span>
+<span class="sd">            (~10 years). Smaller values reduce peak memory at a small overhead</span>
+<span class="sd">            cost. Applied to both ``traditional`` and ``dts`` backends.</span>
+<span class="sd">        run_kwargs : dict</span>
+<span class="sd">            **Note**: Additional keyword arguments are currently not supported</span>
+<span class="sd">            due to underlying function signature constraints. This parameter</span>
+<span class="sd">            is reserved for future use.</span>
+
+<span class="sd">            In a future version, the following options may be supported:</span>
+<span class="sd">            - save_state: bool - Save state at each timestep (planned)</span>
+
+<span class="sd">            For now, simulations use default settings:</span>
+<span class="sd">            - save_state=False (states not saved at each step)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        SUEWSOutput</span>
+<span class="sd">            Simulation results wrapped in an OOP interface with analysis</span>
+<span class="sd">            and plotting convenience methods. Access raw DataFrame via</span>
+<span class="sd">            ``.to_dataframe()`` or ``.df``.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        RuntimeError</span>
+<span class="sd">            If configuration or forcing data is missing.</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If an invalid backend is specified.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        The simulation runs with fixed internal settings. For advanced control</span>
+<span class="sd">        over simulation parameters, consider using the lower-level functional</span>
+<span class="sd">        API (though it is deprecated).</span>
+
+<span class="sd">        The DTS backend requires a valid SUEWSConfig object loaded via</span>
+<span class="sd">        ``update_config()``. It provides a more direct execution path</span>
+<span class="sd">        but may have different state tracking characteristics.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
+<span class="sd">        &gt;&gt;&gt; output = sim.run()</span>
+<span class="sd">        &gt;&gt;&gt; output.QH  # Access sensible heat flux</span>
+<span class="sd">        &gt;&gt;&gt; output.diurnal_average(&quot;QH&quot;)  # Get diurnal pattern</span>
+<span class="sd">        &gt;&gt;&gt; output.to_dataframe()  # Get raw DataFrame</span>
+
+<span class="sd">        Using the DTS backend:</span>
+
+<span class="sd">        &gt;&gt;&gt; output = sim.run(backend=&quot;dts&quot;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Validate backend</span>
+        <span class="n">valid_backends</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;traditional&quot;</span><span class="p">,</span> <span class="s2">&quot;dts&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">backend</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">valid_backends</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Invalid backend &#39;</span><span class="si">{</span><span class="n">backend</span><span class="si">}</span><span class="s2">&#39;. Must be one of: </span><span class="si">{</span><span class="n">valid_backends</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Check DTS availability early (before other validation)</span>
+        <span class="k">if</span> <span class="n">backend</span> <span class="o">==</span> <span class="s2">&quot;dts&quot;</span><span class="p">:</span>
+            <span class="n">_check_dts_available</span><span class="p">()</span>
+
+        <span class="c1"># Validate inputs</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No configuration loaded. Use update_config() first.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No forcing data loaded. Use update_forcing() first.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># DTS backend requires config object</span>
+        <span class="k">if</span> <span class="n">backend</span> <span class="o">==</span> <span class="s2">&quot;dts&quot;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;DTS backend requires a SUEWSConfig object. &quot;</span>
+                <span class="s2">&quot;Use update_config() with a YAML config file.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Fall back to config values if start_date/end_date not provided</span>
+        <span class="k">if</span> <span class="n">start_date</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;control&quot;</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="p">,</span> <span class="s2">&quot;start_time&quot;</span><span class="p">)</span>
+            <span class="p">):</span>
+                <span class="n">start_date</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">start_time</span>
+
+        <span class="k">if</span> <span class="n">end_date</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;control&quot;</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="p">,</span> <span class="s2">&quot;end_time&quot;</span><span class="p">)</span>
+            <span class="p">):</span>
+                <span class="n">end_date</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">end_time</span>
+
+        <span class="c1"># Slice forcing data</span>
+        <span class="n">df_forcing_slice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">start_date</span><span class="p">:</span><span class="n">end_date</span><span class="p">]</span>
+
+        <span class="c1"># Validate forcing data (shared by both backends)</span>
+        <span class="n">list_issues</span> <span class="o">=</span> <span class="n">check_forcing</span><span class="p">(</span><span class="n">df_forcing_slice</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">list_issues</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">issues_summary</span> <span class="o">=</span> <span class="n">list_issues</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="k">else</span> <span class="n">list_issues</span>
+            <span class="n">suffix</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot; (and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">3</span><span class="si">}</span><span class="s2"> more)&quot;</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid forcing data: </span><span class="si">{</span><span class="n">issues_summary</span><span class="si">}{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Run simulation with selected backend</span>
+        <span class="k">if</span> <span class="n">backend</span> <span class="o">==</span> <span class="s2">&quot;dts&quot;</span><span class="p">:</span>
+            <span class="c1"># DTS backend: direct Pydantic-to-Fortran execution</span>
+            <span class="n">df_output</span><span class="p">,</span> <span class="n">dict_final_states</span> <span class="o">=</span> <span class="n">run_dts_multi</span><span class="p">(</span>
+                <span class="n">df_forcing</span><span class="o">=</span><span class="n">df_forcing_slice</span><span class="p">,</span>
+                <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span>
+                <span class="n">chunk_day</span><span class="o">=</span><span class="n">chunk_day</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="n">df_output</span>
+            <span class="c1"># DTS extracts state to Pydantic InitialStates (not DataFrame)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="c1"># Store per-grid final states; expose first site&#39;s initial_states</span>
+            <span class="c1"># for single-grid backward compatibility</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dict_final_states</span> <span class="o">=</span> <span class="n">dict_final_states</span>
+            <span class="n">first_grid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">gridiv</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_initial_states_final</span> <span class="o">=</span> <span class="n">dict_final_states</span><span class="p">[</span><span class="n">first_grid</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="s2">&quot;initial_states&quot;</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Traditional backend: DataFrame-based execution</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">run_supy_ser</span><span class="p">(</span>
+                <span class="n">df_forcing_slice</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="p">,</span>
+                <span class="n">chunk_day</span><span class="o">=</span><span class="n">chunk_day</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Wrap results in SUEWSOutput</span>
+        <span class="k">return</span> <span class="n">SUEWSOutput</span><span class="p">(</span>
+            <span class="n">df_output</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="p">,</span>
+            <span class="n">df_state_final</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span><span class="p">,</span>
+            <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SUEWSSimulation.save">
+<a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.save">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">output_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">save_kwargs</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save simulation results according to OutputConfig settings.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        output_path : str or Path, optional</span>
+<span class="sd">            Output directory path. If None, uses current directory.</span>
+<span class="sd">        save_kwargs : dict</span>
+<span class="sd">            Additional keyword arguments for customising output.</span>
+
+<span class="sd">            **Currently supported kwargs:**</span>
+
+<span class="sd">            - **format** : str</span>
+<span class="sd">                Output format: &#39;txt&#39; (default) or &#39;parquet&#39;.</span>
+<span class="sd">                Note: This overrides config file settings.</span>
+
+<span class="sd">            **Not currently supported** (due to internal constraints):</span>
+
+<span class="sd">            - freq_s: Controlled by config.model.control.output_file.freq</span>
+<span class="sd">            - site: Derived from config.sites[0].name</span>
+<span class="sd">            - save_tstep: Not configurable via OOP interface</span>
+<span class="sd">            - output_level: Not configurable via OOP interface</span>
+
+<span class="sd">            These parameters are determined by the configuration object.</span>
+<span class="sd">            To change them, update your configuration file or use</span>
+<span class="sd">            ``update_config()`` before running the simulation.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list</span>
+<span class="sd">            List of paths to saved files.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        RuntimeError</span>
+<span class="sd">            If no simulation results are available.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Save with default settings from config:</span>
+
+<span class="sd">        &gt;&gt;&gt; sim.run()</span>
+<span class="sd">        &gt;&gt;&gt; paths = sim.save()</span>
+
+<span class="sd">        Save to specific directory with custom format:</span>
+
+<span class="sd">        &gt;&gt;&gt; sim.run()</span>
+<span class="sd">        &gt;&gt;&gt; paths = sim.save(&quot;output/&quot;, format=&quot;parquet&quot;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No simulation results available. Run simulation first.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># DTS backend does not yet support save() - state is in Fortran DTS objects</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                <span class="s2">&quot;DTS backend does not yet support save(). &quot;</span>
+                <span class="s2">&quot;Access results directly via sim.output.df_output&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Set default path with priority: parameter &gt; config &gt; current directory</span>
+        <span class="k">if</span> <span class="n">output_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Check if path is specified in config</span>
+            <span class="n">config_path</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">output_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">output_file</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output_file</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">output_file</span><span class="o">.</span><span class="n">path</span><span class="p">:</span>
+                    <span class="n">config_path</span> <span class="o">=</span> <span class="n">output_file</span><span class="o">.</span><span class="n">path</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                <span class="k">pass</span>
+
+            <span class="n">output_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">config_path</span><span class="p">)</span> <span class="k">if</span> <span class="n">config_path</span> <span class="k">else</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">output_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span>
+
+        <span class="c1"># Extract parameters from config</span>
+        <span class="n">output_format</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">output_config</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">freq_s</span> <span class="o">=</span> <span class="n">DEFAULT_OUTPUT_FREQ_SECONDS</span>
+        <span class="n">site</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">:</span>
+            <span class="c1"># Get output frequency from OutputConfig if available</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;control&quot;</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="p">,</span> <span class="s2">&quot;output_file&quot;</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">output_file</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+            <span class="p">):</span>
+                <span class="n">output_config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">output_file</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">output_config</span><span class="p">,</span> <span class="s2">&quot;freq&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">output_config</span><span class="o">.</span><span class="n">freq</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">freq_s</span> <span class="o">=</span> <span class="n">output_config</span><span class="o">.</span><span class="n">freq</span>
+                <span class="c1"># Removed for now - can&#39;t update from YAML (TODO)</span>
+                <span class="c1"># if hasattr(output_config, &#39;format&#39;) and output_config.format is not None:</span>
+                <span class="c1">#     output_format = output_config.format</span>
+
+            <span class="c1"># Get site name from first site</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">&quot;sites&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">sites</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">site</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">name</span>
+        <span class="k">if</span> <span class="s2">&quot;format&quot;</span> <span class="ow">in</span> <span class="n">save_kwargs</span><span class="p">:</span>  <span class="c1"># TODO: When yaml format working, make elif</span>
+            <span class="n">output_format</span> <span class="o">=</span> <span class="n">save_kwargs</span><span class="p">[</span><span class="s2">&quot;format&quot;</span><span class="p">]</span>
+
+        <span class="c1"># Use internal save helper for all formats</span>
+        <span class="n">list_path_save</span> <span class="o">=</span> <span class="n">_save_supy</span><span class="p">(</span>
+            <span class="n">df_output</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="p">,</span>
+            <span class="n">df_state_final</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span><span class="p">,</span>
+            <span class="n">freq_s</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">freq_s</span><span class="p">),</span>
+            <span class="n">site</span><span class="o">=</span><span class="n">site</span><span class="p">,</span>
+            <span class="n">path_dir_save</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">output_path</span><span class="p">),</span>
+            <span class="c1"># **save_kwargs # Problematic, save_supy expects explicit arguments</span>
+            <span class="n">output_config</span><span class="o">=</span><span class="n">output_config</span><span class="p">,</span>
+            <span class="n">output_format</span><span class="o">=</span><span class="n">output_format</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">list_path_save</span></div>
+
+
+<div class="viewcode-block" id="SUEWSSimulation.reset">
+<a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.reset">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SUEWSSimulation&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reset simulation to initial state, clearing results.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        SUEWSSimulation</span>
+<span class="sd">            Self, for method chaining.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; sim.run()</span>
+<span class="sd">        &gt;&gt;&gt; sim.reset().run()  # Re-run with same configuration</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="SUEWSSimulation.from_sample_data">
+<a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.from_sample_data">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_sample_data</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create SUEWSSimulation instance with built-in sample data.</span>
+
+<span class="sd">        This factory method provides a quick way to create a simulation object</span>
+<span class="sd">        pre-loaded with sample configuration and forcing data, ideal for tutorials,</span>
+<span class="sd">        testing, and learning the SUEWS workflow.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        SUEWSSimulation</span>
+<span class="sd">            Simulation instance ready to run with sample data loaded.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Quick start with sample data:</span>
+
+<span class="sd">        &gt;&gt;&gt; from supy import SUEWSSimulation</span>
+<span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
+<span class="sd">        &gt;&gt;&gt; sim.run()</span>
+<span class="sd">        &gt;&gt;&gt; results = sim.results</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">._env</span><span class="w"> </span><span class="kn">import</span> <span class="n">trv_supy_module</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">._supy_module</span><span class="w"> </span><span class="kn">import</span> <span class="n">_load_sample_data</span>
+
+        <span class="c1"># Load core simulation data (state and forcing)</span>
+        <span class="n">df_state_init</span><span class="p">,</span> <span class="n">df_forcing</span> <span class="o">=</span> <span class="n">_load_sample_data</span><span class="p">()</span>
+        <span class="n">sample_config_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">trv_supy_module</span> <span class="o">/</span> <span class="s2">&quot;sample_data&quot;</span> <span class="o">/</span> <span class="s2">&quot;sample_config.yml&quot;</span><span class="p">)</span>
+
+        <span class="n">sim</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
+
+        <span class="c1"># Try to load config for metadata (non-critical)</span>
+        <span class="c1"># The actual state is set from df_state_init below, so config is optional</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">sim</span><span class="o">.</span><span class="n">update_config</span><span class="p">(</span><span class="n">sample_config_path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">FileNotFoundError</span><span class="p">,</span> <span class="ne">IOError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="c1"># File access issues - warn but continue</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Could not load sample configuration file: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot;Simulation will use data from df_state_init instead.&quot;</span><span class="p">,</span>
+                <span class="ne">UserWarning</span><span class="p">,</span>
+                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="c1"># Other unexpected errors - warn but continue</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Unexpected error loading sample configuration: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="s2">&quot;Simulation will use data from df_state_init instead.&quot;</span><span class="p">,</span>
+                <span class="ne">UserWarning</span><span class="p">,</span>
+                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Set core simulation data (overrides any config-derived state)</span>
+        <span class="n">sim</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="o">=</span> <span class="n">df_state_init</span>
+        <span class="n">sim</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="n">df_forcing</span>
+        <span class="k">return</span> <span class="n">sim</span></div>
+
+
+<div class="viewcode-block" id="SUEWSSimulation.from_state">
+<a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.from_state">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_state</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create SUEWSSimulation from saved state for continuation runs.</span>
+
+<span class="sd">        Load a previously saved model state to continue simulation from where</span>
+<span class="sd">        it left off. Useful for multi-period runs or scenario testing with</span>
+<span class="sd">        different forcing data.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        state : str, Path, or pandas.DataFrame</span>
+<span class="sd">            State to load for continuation. Can be:</span>
+
+<span class="sd">            - Path to CSV file: `df_state.csv` or `df_state_{site}.csv`</span>
+<span class="sd">            - Path to Parquet file: `{site}_SUEWS_state_final.parquet`</span>
+<span class="sd">            - DataFrame: `df_state_final` from previous simulation</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        SUEWSSimulation</span>
+<span class="sd">            Simulation instance initialised with loaded state, ready for</span>
+<span class="sd">            new forcing data and run.</span>
+
+<span class="sd">        Warnings</span>
+<span class="sd">        --------</span>
+<span class="sd">        If the saved state was created with a different SUEWS version,</span>
+<span class="sd">        a warning is issued about potential compatibility issues.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Continue from saved file:</span>
+
+<span class="sd">        &gt;&gt;&gt; # Period 1</span>
+<span class="sd">        &gt;&gt;&gt; sim1 = SUEWSSimulation(&quot;config.yaml&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; sim1.update_forcing(&quot;forcing_2023.txt&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; sim1.run()</span>
+<span class="sd">        &gt;&gt;&gt; paths = sim1.save(&quot;output/&quot;)</span>
+
+<span class="sd">        &gt;&gt;&gt; # Period 2 - continue from saved state</span>
+<span class="sd">        &gt;&gt;&gt; sim2 = SUEWSSimulation.from_state(&quot;output/df_state.csv&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; sim2.update_forcing(&quot;forcing_2024.txt&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; sim2.run()</span>
+
+<span class="sd">        Continue from DataFrame directly:</span>
+
+<span class="sd">        &gt;&gt;&gt; # In-memory continuation without saving to file</span>
+<span class="sd">        &gt;&gt;&gt; sim1 = SUEWSSimulation.from_sample_data()</span>
+<span class="sd">        &gt;&gt;&gt; sim1.run()</span>
+<span class="sd">        &gt;&gt;&gt; df_state_final = sim1.state_final</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; # Continue with new forcing</span>
+<span class="sd">        &gt;&gt;&gt; sim2 = SUEWSSimulation.from_state(df_state_final)</span>
+<span class="sd">        &gt;&gt;&gt; sim2.update_forcing(&quot;forcing_2024.txt&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; sim2.run()</span>
+
+<span class="sd">        Load from Parquet format:</span>
+
+<span class="sd">        &gt;&gt;&gt; sim2 = SUEWSSimulation.from_state(</span>
+<span class="sd">        ...     &quot;output/TestSite_SUEWS_state_final.parquet&quot;</span>
+<span class="sd">        ... )</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        save : Save simulation results and state</span>
+<span class="sd">        reset : Clear results and reset to initial state</span>
+<span class="sd">        state_final : Access final state from completed simulation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">._version</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span> <span class="k">as</span> <span class="n">current_version</span>
+
+        <span class="c1"># Load state from file or use DataFrame directly</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+            <span class="n">df_state_saved</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">)):</span>
+            <span class="n">state_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">state</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">state_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;State file not found: </span><span class="si">{</span><span class="n">state_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Load based on file extension</span>
+            <span class="k">if</span> <span class="n">state_path</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">&quot;.csv&quot;</span><span class="p">:</span>
+                <span class="n">df_state_saved</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span>
+                    <span class="n">state_path</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">index_col</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">parse_dates</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">state_path</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">&quot;.parquet&quot;</span><span class="p">:</span>
+                <span class="n">df_state_saved</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">state_path</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Unsupported state file format: </span><span class="si">{</span><span class="n">state_path</span><span class="o">.</span><span class="n">suffix</span><span class="si">}</span><span class="s2">. &quot;</span>
+                    <span class="s2">&quot;Expected .csv or .parquet&quot;</span>
+                <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;state must be str, Path, or DataFrame, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">state</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Extract last timestep as initial state for continuation</span>
+        <span class="n">idx_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">df_state_saved</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">names</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;datetime&quot;</span> <span class="ow">in</span> <span class="n">idx_names</span><span class="p">:</span>
+            <span class="n">datetime_level</span> <span class="o">=</span> <span class="n">idx_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;datetime&quot;</span><span class="p">)</span>
+            <span class="n">last_datetime</span> <span class="o">=</span> <span class="n">df_state_saved</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="n">datetime_level</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">df_state_saved</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="p">):</span>
+                <span class="n">df_state_init</span> <span class="o">=</span> <span class="n">df_state_saved</span><span class="o">.</span><span class="n">xs</span><span class="p">(</span>
+                    <span class="n">last_datetime</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s2">&quot;datetime&quot;</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">df_state_init</span> <span class="o">=</span> <span class="n">df_state_saved</span><span class="o">.</span><span class="n">loc</span><span class="p">[[</span><span class="n">last_datetime</span><span class="p">]]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Already single-timestep state</span>
+            <span class="n">df_state_init</span> <span class="o">=</span> <span class="n">df_state_saved</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1"># Check version compatibility</span>
+        <span class="k">if</span> <span class="p">(</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">)</span> <span class="ow">in</span> <span class="n">df_state_saved</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">saved_version</span> <span class="o">=</span> <span class="n">df_state_saved</span><span class="p">[(</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">)]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">saved_version</span> <span class="o">!=</span> <span class="n">current_version</span><span class="p">:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;State was saved with SUEWS version </span><span class="si">{</span><span class="n">saved_version</span><span class="si">}</span><span class="s2">, &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;but current version is </span><span class="si">{</span><span class="n">current_version</span><span class="si">}</span><span class="s2">. &quot;</span>
+                    <span class="s2">&quot;This may cause compatibility issues.&quot;</span><span class="p">,</span>
+                    <span class="ne">UserWarning</span><span class="p">,</span>
+                    <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                <span class="p">)</span>
+
+        <span class="c1"># Create simulation instance with loaded state</span>
+        <span class="n">sim</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
+        <span class="n">sim</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="o">=</span> <span class="n">df_state_init</span>
+
+        <span class="k">return</span> <span class="n">sim</span></div>
+
+
+<div class="viewcode-block" id="SUEWSSimulation.from_output">
+<a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.from_output">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_output</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">output</span><span class="p">:</span> <span class="n">SUEWSOutput</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SUEWSSimulation&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create SUEWSSimulation from previous output for continuation runs.</span>
+
+<span class="sd">        Convenience method that extracts the final state from a SUEWSOutput</span>
+<span class="sd">        object and creates a new simulation ready for continuation.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        output : SUEWSOutput</span>
+<span class="sd">            Output object from a previous simulation run.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        SUEWSSimulation</span>
+<span class="sd">            Simulation instance initialised with final state from output,</span>
+<span class="sd">            ready for new forcing data and run.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Seamless continuation from previous run:</span>
+
+<span class="sd">        &gt;&gt;&gt; # Run first period</span>
+<span class="sd">        &gt;&gt;&gt; sim1 = SUEWSSimulation(&quot;config.yaml&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; sim1.update_forcing(&quot;forcing_2023.txt&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; output1 = sim1.run()</span>
+
+<span class="sd">        &gt;&gt;&gt; # Continue from output state</span>
+<span class="sd">        &gt;&gt;&gt; sim2 = SUEWSSimulation.from_output(output1)</span>
+<span class="sd">        &gt;&gt;&gt; sim2.update_forcing(&quot;forcing_2024.txt&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; output2 = sim2.run()</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        from_state : Create from saved state file or DataFrame</span>
+<span class="sd">        SUEWSOutput.state_final : Final state property for restart</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">df_state_init</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">state_final</span>
+        <span class="n">sim</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
+        <span class="n">sim</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="o">=</span> <span class="n">df_state_init</span>
+        <span class="c1"># Deep copy config to avoid shared state issues</span>
+        <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sim</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">sim</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Concise representation showing simulation status.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        str</span>
+<span class="sd">            Status indicator: Complete, Ready, or Not configured</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation()</span>
+<span class="sd">        &gt;&gt;&gt; sim</span>
+<span class="sd">        SUEWSSimulation(Not configured)</span>
+
+<span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
+<span class="sd">        &gt;&gt;&gt; sim</span>
+<span class="sd">        SUEWSSimulation(Ready: 1 site, 105408 timesteps)</span>
+
+<span class="sd">        &gt;&gt;&gt; sim.run()</span>
+<span class="sd">        &gt;&gt;&gt; sim</span>
+<span class="sd">        SUEWSSimulation(Complete: 105408 results)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span><span class="p">:</span>
+            <span class="n">n_results</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;SUEWSSimulation(Complete: </span><span class="si">{</span><span class="n">n_results</span><span class="si">}</span><span class="s2"> results)&quot;</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">n_sites</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="p">)</span>
+            <span class="n">n_timesteps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span><span class="p">)</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;SUEWSSimulation(Ready: </span><span class="si">{</span><span class="n">n_sites</span><span class="si">}</span><span class="s2"> site(s), </span><span class="si">{</span><span class="n">n_timesteps</span><span class="si">}</span><span class="s2"> timesteps)&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">missing</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">missing</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;config&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">missing</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;forcing&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;SUEWSSimulation(Not configured: missing </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">missing</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span>
+
+<div class="viewcode-block" id="SUEWSSimulation.is_ready">
+<a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.is_ready">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_ready</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if simulation is configured and ready to run.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            True if both configuration and forcing data are loaded.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation()</span>
+<span class="sd">        &gt;&gt;&gt; sim.is_ready()</span>
+<span class="sd">        False</span>
+
+<span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
+<span class="sd">        &gt;&gt;&gt; sim.is_ready()</span>
+<span class="sd">        True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="SUEWSSimulation.is_complete">
+<a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.is_complete">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_complete</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if simulation has been run successfully.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        bool</span>
+<span class="sd">            True if simulation has completed and results are available.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
+<span class="sd">        &gt;&gt;&gt; sim.is_complete()</span>
+<span class="sd">        False</span>
+
+<span class="sd">        &gt;&gt;&gt; sim.run()</span>
+<span class="sd">        &gt;&gt;&gt; sim.is_complete()</span>
+<span class="sd">        True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span></div>
+
+
+<div class="viewcode-block" id="SUEWSSimulation.get_variable">
+<a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.get_variable">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_variable</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">var_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">group</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">site</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract specific variable from simulation results.</span>
+
+<span class="sd">        Convenience method to extract variables from the MultiIndex column structure</span>
+<span class="sd">        without needing to understand the internal data layout.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        var_name : str</span>
+<span class="sd">            Variable name to extract (e.g., &#39;QH&#39;, &#39;QE&#39;, &#39;Tair&#39;).</span>
+<span class="sd">        group : str, optional</span>
+<span class="sd">            Output group name if variable appears in multiple groups.</span>
+<span class="sd">            If None and variable is in multiple groups, raises ValueError.</span>
+<span class="sd">        site : int or str, optional</span>
+<span class="sd">            Site index or name. If None, returns all sites.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pandas.DataFrame</span>
+<span class="sd">            DataFrame with selected variable(s), indexed by time.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        RuntimeError</span>
+<span class="sd">            If simulation hasn&#39;t been run yet.</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If variable name not found in results, or if variable is ambiguous</span>
+<span class="sd">            (appears in multiple groups) and no group specified.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Extract sensible heat flux:</span>
+
+<span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
+<span class="sd">        &gt;&gt;&gt; sim.run()</span>
+<span class="sd">        &gt;&gt;&gt; qh = sim.get_variable(&quot;QH&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; qh.plot()  # Quick visualisation</span>
+
+<span class="sd">        Handle variables in multiple groups:</span>
+
+<span class="sd">        &gt;&gt;&gt; # If &#39;Tair&#39; appears in both &#39;forcing&#39; and &#39;output&#39; groups:</span>
+<span class="sd">        &gt;&gt;&gt; tair = sim.get_variable(&quot;Tair&quot;, group=&quot;output&quot;)</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        results : Full simulation output DataFrame</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No results available. Run simulation first.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Results DataFrame is None&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Check if variable exists in results</span>
+        <span class="n">all_vars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">&quot;var&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">var_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">all_vars</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Variable &#39;</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">&#39; not found. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Available variables: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">all_vars</span><span class="p">[:</span><span class="mi">10</span><span class="p">])</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="o">+</span> <span class="p">(</span><span class="s2">&quot;...&quot;</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_vars</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">10</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Check if variable appears in multiple groups</span>
+        <span class="n">matching_groups</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">grp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">&quot;group&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">unique</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># Check if this group contains the variable</span>
+                <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="o">.</span><span class="n">xs</span><span class="p">((</span><span class="n">grp</span><span class="p">,</span> <span class="n">var_name</span><span class="p">),</span> <span class="n">level</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;group&quot;</span><span class="p">,</span> <span class="s2">&quot;var&quot;</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">matching_groups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">grp</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">matching_groups</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Should not happen if var_name was found above</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Variable &#39;</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">&#39; not found in any group&quot;</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">matching_groups</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># Variable is ambiguous - need group specification</span>
+            <span class="k">if</span> <span class="n">group</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Variable &#39;</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">&#39; appears in multiple groups: &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">matching_groups</span><span class="p">)</span><span class="si">}</span><span class="s2">. &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;Specify group parameter (e.g., group=&#39;</span><span class="si">{</span><span class="n">matching_groups</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39;)&quot;</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">group</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">matching_groups</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Variable &#39;</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">&#39; not found in group &#39;</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2">&#39;. &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;Available groups for this variable: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">matching_groups</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+            <span class="c1"># Extract from specified group</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="o">.</span><span class="n">xs</span><span class="p">(</span>
+                <span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="n">var_name</span><span class="p">),</span> <span class="n">level</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;group&quot;</span><span class="p">,</span> <span class="s2">&quot;var&quot;</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span>
+            <span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Variable is in only one group</span>
+            <span class="k">if</span> <span class="n">group</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">group</span> <span class="o">!=</span> <span class="n">matching_groups</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Variable &#39;</span><span class="si">{</span><span class="n">var_name</span><span class="si">}</span><span class="s2">&#39; only exists in group &#39;</span><span class="si">{</span><span class="n">matching_groups</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39;, &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;not in &#39;</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
+                <span class="p">)</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="o">.</span><span class="n">xs</span><span class="p">(</span><span class="n">var_name</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="s2">&quot;var&quot;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Filter by site if requested</span>
+        <span class="k">if</span> <span class="n">site</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="n">site</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="n">site</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">config</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SUEWSConfig</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Access to simulation configuration.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        SUEWSConfig or None</span>
+<span class="sd">            Complete SUEWS configuration object.</span>
+<span class="sd">            None if no configuration loaded.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        update_config : Load or update configuration</span>
+<span class="sd">        state_init : Access initial state derived from configuration</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forcing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SUEWSForcing</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Access to forcing data as SUEWSForcing object.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        SUEWSForcing or None</span>
+<span class="sd">            Meteorological forcing data wrapped in OOP interface with</span>
+<span class="sd">            validation and analysis methods. None if no forcing loaded.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        :ref:`df_forcing_var` : Complete forcing data structure and variable descriptions</span>
+<span class="sd">        update_forcing : Load forcing data from files or DataFrames</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
+<span class="sd">        &gt;&gt;&gt; sim.forcing.summary()  # Get forcing statistics</span>
+<span class="sd">        &gt;&gt;&gt; sim.forcing.Tair  # Access air temperature</span>
+<span class="sd">        &gt;&gt;&gt; sim.forcing.df  # Access raw DataFrame</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">SUEWSForcing</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">results</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Access to simulation results DataFrame (raw).</span>
+
+<span class="sd">        .. deprecated:: 2025.1</span>
+<span class="sd">            Use ``output = sim.run()`` to get a ``SUEWSOutput`` object,</span>
+<span class="sd">            then ``output.df`` for the raw DataFrame if needed.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pandas.DataFrame or None</span>
+<span class="sd">            Complete simulation output with all variable groups.</span>
+<span class="sd">            None if simulation hasn&#39;t been run yet.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        output : Access results as SUEWSOutput object with analysis methods</span>
+<span class="sd">        :ref:`df_output_var` : Complete output data structure and variable descriptions</span>
+<span class="sd">        get_variable : Extract specific variables from output groups</span>
+<span class="sd">        save : Save results to files</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;sim.results is deprecated and will be removed in version 2026.1. &quot;</span>
+            <span class="s2">&quot;Use &#39;output = sim.run()&#39; to get a SUEWSOutput &quot;</span>
+            <span class="s2">&quot;object, then &#39;output.df&#39; for the raw DataFrame if needed.&quot;</span><span class="p">,</span>
+            <span class="ne">DeprecationWarning</span><span class="p">,</span>
+            <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">output</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SUEWSOutput</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Access to simulation results as SUEWSOutput object.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            Preferred pattern is ``output = sim.run()`` which returns the</span>
+<span class="sd">            same ``SUEWSOutput`` object. This property is provided for</span>
+<span class="sd">            convenience when re-accessing results after simulation.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        SUEWSOutput or None</span>
+<span class="sd">            Simulation results wrapped in OOP interface with analysis</span>
+<span class="sd">            and plotting convenience methods. None if simulation hasn&#39;t</span>
+<span class="sd">            been run yet.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        run : Run simulation and return SUEWSOutput (preferred)</span>
+<span class="sd">        :ref:`df_output_var` : Complete output data structure</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        Preferred pattern - capture return value:</span>
+
+<span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
+<span class="sd">        &gt;&gt;&gt; output = sim.run()  # Capture output</span>
+<span class="sd">        &gt;&gt;&gt; output.QH  # Access sensible heat flux</span>
+
+<span class="sd">        Alternative - use property after run:</span>
+
+<span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
+<span class="sd">        &gt;&gt;&gt; sim.run()</span>
+<span class="sd">        &gt;&gt;&gt; sim.output.QH  # Re-access via property</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">SUEWSOutput</span><span class="p">(</span>
+            <span class="n">df_output</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="p">,</span>
+            <span class="n">df_state_final</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span><span class="p">,</span>
+            <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state_init</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initial state DataFrame for simulation.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pandas.DataFrame or None</span>
+<span class="sd">            Initial state with surface characteristics and parameters.</span>
+<span class="sd">            None if no configuration loaded.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        :ref:`df_state_var` : Complete state data structure and variable descriptions</span>
+<span class="sd">        state_final : Final state after simulation</span>
+<span class="sd">        from_state : Create simulation from existing state</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
+<span class="sd">        &gt;&gt;&gt; sim.state_init.shape</span>
+<span class="sd">        (1, 1403)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state_final</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Final state DataFrame after simulation.</span>
+
+<span class="sd">        Available only after running simulation. Contains evolved</span>
+<span class="sd">        state variables that can be used to continue simulation.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pandas.DataFrame or None</span>
+<span class="sd">            Final state after simulation run.</span>
+<span class="sd">            None if simulation hasn&#39;t been run yet.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        :ref:`df_state_var` : Complete state data structure and variable descriptions</span>
+<span class="sd">        state_init : Initial state before simulation</span>
+<span class="sd">        reset : Clear results and reset to initial state</span>
+<span class="sd">        from_state : Create new simulation from this final state</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
+<span class="sd">        &gt;&gt;&gt; sim.run()</span>
+<span class="sd">        &gt;&gt;&gt; sim.state_final is not None</span>
+<span class="sd">        True</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">initial_states_final</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Final state as Pydantic InitialStates after DTS simulation.</span>
+
+<span class="sd">        Available only after running simulation with ``backend=&#39;dts&#39;``.</span>
+<span class="sd">        Contains the evolved state variables as a Pydantic model that can</span>
+<span class="sd">        be used for continuation runs or YAML persistence.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        InitialStates or None</span>
+<span class="sd">            Pydantic InitialStates model after DTS simulation.</span>
+<span class="sd">            None if simulation hasn&#39;t been run or used traditional backend.</span>
+
+<span class="sd">        See Also</span>
+<span class="sd">        --------</span>
+<span class="sd">        state_final : DataFrame state for traditional backend</span>
+<span class="sd">        run : Run simulation with backend parameter</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
+<span class="sd">        &gt;&gt;&gt; sim.run(backend=&quot;dts&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; sim.initial_states_final is not None</span>
+<span class="sd">        True</span>
+<span class="sd">        &gt;&gt;&gt; # Save state to YAML</span>
+<span class="sd">        &gt;&gt;&gt; sim.initial_states_final.to_yaml(&quot;final_state.yaml&quot;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initial_states_final</span></div>
+
+</pre></div>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By SUEWS dev team led by Prof Sue Grimmond
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2018 – 2026.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+<div class="extra_footer">
+  <p>Version: 2026.2.2.dev29 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8cec288d1e4ab0af6e5c3839b0f18f2bbf5685b8">8cec288</a> |
+    <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
+</div>
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

@@ -1,0 +1,33 @@
+
+Version 2012a
+--------------------------
+
+#. Improved error messages when an error is encountered. Error message
+   will generally be written to the screen and to the file
+   ‘problems.txt’
+#. Format of all input files have changed.
+#. New excel spreadsheet and R programme to help prepare required data
+   files. (Not required)
+#. Format of coef flux (OHM) input files have changed.
+
+   -  This allows for clearer identification for users of the
+      coefficients that are actually to be used
+   -  This requires an additional file with coefficients. These do not
+      need to be adjusted but new coefficients can be added. We would
+      appreciate receiving additional coefficients so they can be
+      included in future releases – Please email Sue.
+
+#. Storage heat flux (OHM) coefficients can be changed by
+
+   -  time of year (summer, winter)
+   -  surface wetness state
+
+#. New files are written: DailyState.txt
+
+   -  Provides the status of variables that are updated on a daily or
+      basis or a snapshot at the end of each day.
+
+#. Surface Types
+
+   -  Clarification of surface types has been made. See GIS and OHM
+      related files

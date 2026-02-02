@@ -1,0 +1,38 @@
+Version 2014a (released on 21 February 2014)
+------------------------------------------------------
+
+#. Bug fix: External irrigation is calculated as combined from automatic
+   and manual irrigation and during precipitation events the manual
+   irrigation is reduced to 60% of the calculated values. In previous
+   version of the model, the irrigation was in all cases taken 60% of
+   the calculated value, but now this has been fixed.
+#. In previous versions of the model, irrigation was only allowed on the
+   irrigated grass surface type. Now, irrigation is also allowed on
+   evergreen and deciduous trees/shrubs surfaces. These are not however
+   treated as separate surfaces, but the amount of irrigation is evenly
+   distributed to the whole surface type in the modelled area. The
+   amount of water is calculated using same equation as for grass
+   surface (equation 5 in Järvi et al. Version 2011), and the fraction of
+   irrigated trees/shrubs (relative to the area of tree/shrubs surface)
+   is set in the gis file (See Table 4.11: SSss_YYYY.gis)
+#. In the current version of the model, the user is able to adjust the
+   leaf-on and leaf-off lengths in the FunctionalTypes. nml file. In
+   addition, user can choose whether to use temperature dependent
+   functions or combination of temperature and day length (advised to be
+   used at high-latitudes)
+#. In the gis-file, there is a new variable Alt that is the area
+   altitude above sea level. If not known exactly use an approximate
+   value.
+#. Snow removal profile has been added to the
+   HourlyProfileSSss_YYYY.txt. Not yet used!
+#. Model time interval has been changed from minutes to seconds.
+   Preferred interval is 3600 seconds (1 hour)
+#. Manual correction: input variable Soil moisture said soil moisture
+   deficit in the manual – word removed
+#. Multiple compiled versions of SUEWS released. There are now users in
+   Apple, Linux and Windows environments. So we will now release
+   compiled versions for more operating systems (section 3).
+#. There are some changes in the output file columns so please, check
+   the respective table of each used output file.
+#. Bug fix: with very small amount of vegetation in an area – impacted
+   Phenology for LUMPS

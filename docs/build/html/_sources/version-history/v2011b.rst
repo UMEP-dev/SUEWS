@@ -1,0 +1,33 @@
+
+
+Version 2011b
+-------------------------
+
+#. Storage heat flux (ΔQs) and anthropogenic heat flux (QF) can be set
+   to be 0 W |m^-2|
+#. Calculation of hydraulic conductivity in soil has been improved and
+   HydraulicConduct in SUEWSInput.nml is replaced with name
+   SatHydraulicConduct
+#. Following removed from HeaderInput.nml
+
+   -  HydraulicConduct
+   -  GrassFractionIrrigated
+   -  PavedFractionIrrigated
+   -  TreeFractionIrrigated
+
+The lower three are now determined from the water use behaviour used in
+SUEWS
+
+#. Following added to HeaderInput.nml
+
+   -  SatHydraulicConduct
+   -  defaultQf
+   -  defaultQs
+
+#. If ΔQs and QF are not calculated in the model but are given as an
+   input, the missing data is replaced with the default values.
+#. Added to SAHP input file
+
+   -  AHDIUPRF – diurnal profile used if EmissionsMethod = 1
+
+Version 2012a this became obsolete OHM file (SSss_YYYY.ohm)

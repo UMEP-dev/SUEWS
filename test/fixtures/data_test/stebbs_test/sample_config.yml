@@ -455,7 +455,7 @@ sites:
       DHWVesselWallThickness:
         value: 0.01
       DHWWaterVolume:
-        value: 15.0
+        value: 0.3
       DHWSurfaceArea:
         value: 1.5
       HotWaterFlowRate:
@@ -784,7 +784,7 @@ sites:
       HotWaterHeatingEfficiency:
         value: 0.8
       MinimumVolumeOfDHWinUse:
-        value: 1.0
+        value: 0.1
       MaximumVolumeOfDHWinUse:
         value: 100.0
     building_archetype:

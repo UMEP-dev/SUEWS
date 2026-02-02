@@ -10,7 +10,7 @@
 <meta content="SUEWS STEBBS output variables" name="description" />
 <meta content="SUEWS, output, stebbs, variables" name="keywords" />
 
-    <title>5.3.12. STEBBS Output Variables &#8212; SUEWS 2026.2.2.dev32 documentation</title>
+    <title>5.3.12. STEBBS Output Variables &#8212; SUEWS 2026.2.2.dev35 documentation</title>
   
   
   
@@ -42,7 +42,7 @@
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
   <script src="../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
 
-    <script src="../../_static/documentation_options.js?v=9c209ad6"></script>
+    <script src="../../_static/documentation_options.js?v=09351807"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
@@ -108,7 +108,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.2.2.dev32, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/1120f368da8259620c5a3645b8ed1466c52f0041" style="color: #31708f;">1120f36</a>).
+        (2026.2.2.dev35, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/dcc8fa517288258f58b5214fb828062f5072ea00" style="color: #31708f;">dcc8fa5</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -154,8 +154,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.2.dev32 documentation - Home"/>
-    <script>document.write(`<img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.2.dev32 documentation - Home"/>`);</script>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.2.dev35 documentation - Home"/>
+    <script>document.write(`<img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.2.dev35 documentation - Home"/>`);</script>
   
   
 </a></div>
@@ -541,14 +541,14 @@ document.write(`
 <section id="stebbs-output-variables">
 <span id="index-0"></span><span id="stebbs-output"></span><h1><span class="section-number">5.3.12. </span>STEBBS Output Variables<a class="headerlink" href="#stebbs-output-variables" title="Link to this heading">#</a></h1>
 <p>STEBBS model outputs (experimental).</p>
-<p>This group contains 78 output variables.</p>
+<p>This group contains 80 output variables.</p>
 <dl class="output variable" id="index-1">
-<dt class="sig sig-object output" id="output-variable-Awater_vessel">
-<span class="sig-name descname"><span class="pre">Awater_vessel</span></span><a class="headerlink" href="#output-variable-Awater_vessel" title="Link to this definition">#</a></dt>
-<dd><p>Area of water in vessel</p>
+<dt class="sig sig-object output" id="output-variable-Kroof_in">
+<span class="sig-name descname"><span class="pre">Kroof_in</span></span><a class="headerlink" href="#output-variable-Kroof_in" title="Link to this definition">#</a></dt>
+<dd><p>Incoming shortwave radiation on roof per surface area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>m<sup>2</sup></p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -557,9 +557,9 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-2">
-<dt class="sig sig-object output" id="output-variable-Kroof_sout">
-<span class="sig-name descname"><span class="pre">Kroof_sout</span></span><a class="headerlink" href="#output-variable-Kroof_sout" title="Link to this definition">#</a></dt>
-<dd><p>Shortwave radiation on roof</p>
+<dt class="sig sig-object output" id="output-variable-Kwall_in">
+<span class="sig-name descname"><span class="pre">Kwall_in</span></span><a class="headerlink" href="#output-variable-Kwall_in" title="Link to this definition">#</a></dt>
+<dd><p>Incoming shortwave radiation on wall per surface area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -571,9 +571,9 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-3">
-<dt class="sig sig-object output" id="output-variable-Kwall_sout">
-<span class="sig-name descname"><span class="pre">Kwall_sout</span></span><a class="headerlink" href="#output-variable-Kwall_sout" title="Link to this definition">#</a></dt>
-<dd><p>Shortwave radiation on wall</p>
+<dt class="sig sig-object output" id="output-variable-Lroof_in">
+<span class="sig-name descname"><span class="pre">Lroof_in</span></span><a class="headerlink" href="#output-variable-Lroof_in" title="Link to this definition">#</a></dt>
+<dd><p>Incoming longwave radiation on roof per surface area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -585,9 +585,9 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-4">
-<dt class="sig sig-object output" id="output-variable-Lroof_sout">
-<span class="sig-name descname"><span class="pre">Lroof_sout</span></span><a class="headerlink" href="#output-variable-Lroof_sout" title="Link to this definition">#</a></dt>
-<dd><p>Longwave radiation on roof</p>
+<dt class="sig sig-object output" id="output-variable-Lwall_in">
+<span class="sig-name descname"><span class="pre">Lwall_in</span></span><a class="headerlink" href="#output-variable-Lwall_in" title="Link to this definition">#</a></dt>
+<dd><p>Incoming longwave radiation on wall per surface area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -599,9 +599,9 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-5">
-<dt class="sig sig-object output" id="output-variable-Lwall_sout">
-<span class="sig-name descname"><span class="pre">Lwall_sout</span></span><a class="headerlink" href="#output-variable-Lwall_sout" title="Link to this definition">#</a></dt>
-<dd><p>Longwave radiation on wall</p>
+<dt class="sig sig-object output" id="output-variable-QBAE_bldg_FA">
+<span class="sig-name descname"><span class="pre">QBAE_bldg_FA</span></span><a class="headerlink" href="#output-variable-QBAE_bldg_FA" title="Link to this definition">#</a></dt>
+<dd><p>Total heat transfer by air exchange per building footprint area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>W m<sup>-2</sup></p>
@@ -613,12 +613,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-6">
-<dt class="sig sig-object output" id="output-variable-QE_metabolism_F">
-<span class="sig-name descname"><span class="pre">QE_metabolism_F</span></span><a class="headerlink" href="#output-variable-QE_metabolism_F" title="Link to this definition">#</a></dt>
-<dd><p>Metabolic latent heat</p>
+<dt class="sig sig-object output" id="output-variable-QEC_bldg_FA">
+<span class="sig-name descname"><span class="pre">QEC_bldg_FA</span></span><a class="headerlink" href="#output-variable-QEC_bldg_FA" title="Link to this definition">#</a></dt>
+<dd><p>Total energy consumption and metabolism per building footprint area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -627,12 +627,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-7">
-<dt class="sig sig-object output" id="output-variable-QH_appliance_FA">
-<span class="sig-name descname"><span class="pre">QH_appliance_FA</span></span><a class="headerlink" href="#output-variable-QH_appliance_FA" title="Link to this definition">#</a></dt>
-<dd><p>Appliance heat (FA)</p>
+<dt class="sig sig-object output" id="output-variable-QEC_cooling_FA">
+<span class="sig-name descname"><span class="pre">QEC_cooling_FA</span></span><a class="headerlink" href="#output-variable-QEC_cooling_FA" title="Link to this definition">#</a></dt>
+<dd><p>Energy consumption by space cooling</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -641,12 +641,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-8">
-<dt class="sig sig-object output" id="output-variable-QH_metabolism_F">
-<span class="sig-name descname"><span class="pre">QH_metabolism_F</span></span><a class="headerlink" href="#output-variable-QH_metabolism_F" title="Link to this definition">#</a></dt>
-<dd><p>Metabolic sensible heat</p>
+<dt class="sig sig-object output" id="output-variable-QEC_dhw_FA">
+<span class="sig-name descname"><span class="pre">QEC_dhw_FA</span></span><a class="headerlink" href="#output-variable-QEC_dhw_FA" title="Link to this definition">#</a></dt>
+<dd><p>Energy consumption by dhw system</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -655,12 +655,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-9">
-<dt class="sig sig-object output" id="output-variable-QH_ventilation_">
-<span class="sig-name descname"><span class="pre">QH_ventilation_</span></span><a class="headerlink" href="#output-variable-QH_ventilation_" title="Link to this definition">#</a></dt>
-<dd><p>Ventilation heat</p>
+<dt class="sig sig-object output" id="output-variable-QEC_heating_FA">
+<span class="sig-name descname"><span class="pre">QEC_heating_FA</span></span><a class="headerlink" href="#output-variable-QEC_heating_FA" title="Link to this definition">#</a></dt>
+<dd><p>Energy consumption by space heating</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -669,12 +669,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-10">
-<dt class="sig sig-object output" id="output-variable-QHcond_grndflr_">
-<span class="sig-name descname"><span class="pre">QHcond_grndflr_</span></span><a class="headerlink" href="#output-variable-QHcond_grndflr_" title="Link to this definition">#</a></dt>
-<dd><p>Conductive heat through ground floor</p>
+<dt class="sig sig-object output" id="output-variable-QH_appliance_FA">
+<span class="sig-name descname"><span class="pre">QH_appliance_FA</span></span><a class="headerlink" href="#output-variable-QH_appliance_FA" title="Link to this definition">#</a></dt>
+<dd><p>Sensible appliance heat gain</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -683,12 +683,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-11">
-<dt class="sig sig-object output" id="output-variable-QHcond_ground_F">
-<span class="sig-name descname"><span class="pre">QHcond_ground_F</span></span><a class="headerlink" href="#output-variable-QHcond_ground_F" title="Link to this definition">#</a></dt>
-<dd><p>Conductive heat through ground</p>
+<dt class="sig sig-object output" id="output-variable-QH_bldg_FA">
+<span class="sig-name descname"><span class="pre">QH_bldg_FA</span></span><a class="headerlink" href="#output-variable-QH_bldg_FA" title="Link to this definition">#</a></dt>
+<dd><p>Total convective heat transfer at external building surface per building footprint area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -697,12 +697,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-12">
-<dt class="sig sig-object output" id="output-variable-QHcond_roof_FA">
-<span class="sig-name descname"><span class="pre">QHcond_roof_FA</span></span><a class="headerlink" href="#output-variable-QHcond_roof_FA" title="Link to this definition">#</a></dt>
-<dd><p>Conductive heat through roof (FA)</p>
+<dt class="sig sig-object output" id="output-variable-QH_metabolism_FA">
+<span class="sig-name descname"><span class="pre">QH_metabolism_FA</span></span><a class="headerlink" href="#output-variable-QH_metabolism_FA" title="Link to this definition">#</a></dt>
+<dd><p>Sensible metabolic heat gain</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -711,12 +711,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-13">
-<dt class="sig sig-object output" id="output-variable-QHcond_wall_FA">
-<span class="sig-name descname"><span class="pre">QHcond_wall_FA</span></span><a class="headerlink" href="#output-variable-QHcond_wall_FA" title="Link to this definition">#</a></dt>
-<dd><p>Conductive heat through wall (FA)</p>
+<dt class="sig sig-object output" id="output-variable-QH_ventilation_FA">
+<span class="sig-name descname"><span class="pre">QH_ventilation_FA</span></span><a class="headerlink" href="#output-variable-QH_ventilation_FA" title="Link to this definition">#</a></dt>
+<dd><p>Heat gain/loss through ventilation</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -725,12 +725,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-14">
-<dt class="sig sig-object output" id="output-variable-QHcond_window_F">
-<span class="sig-name descname"><span class="pre">QHcond_window_F</span></span><a class="headerlink" href="#output-variable-QHcond_window_F" title="Link to this definition">#</a></dt>
-<dd><p>Conductive heat through window</p>
+<dt class="sig sig-object output" id="output-variable-QHcond_ground_FA">
+<span class="sig-name descname"><span class="pre">QHcond_ground_FA</span></span><a class="headerlink" href="#output-variable-QHcond_ground_FA" title="Link to this definition">#</a></dt>
+<dd><p>Conductive heat through ground beneath building</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -739,12 +739,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-15">
-<dt class="sig sig-object output" id="output-variable-QHconv_extroof_">
-<span class="sig-name descname"><span class="pre">QHconv_extroof_</span></span><a class="headerlink" href="#output-variable-QHconv_extroof_" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat from external roof</p>
+<dt class="sig sig-object output" id="output-variable-QHcond_groundflr_FA">
+<span class="sig-name descname"><span class="pre">QHcond_groundflr_FA</span></span><a class="headerlink" href="#output-variable-QHcond_groundflr_FA" title="Link to this definition">#</a></dt>
+<dd><p>Conductive heat through floor</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -753,12 +753,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-16">
-<dt class="sig sig-object output" id="output-variable-QHconv_extwall_">
-<span class="sig-name descname"><span class="pre">QHconv_extwall_</span></span><a class="headerlink" href="#output-variable-QHconv_extwall_" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat from external wall</p>
+<dt class="sig sig-object output" id="output-variable-QHcond_roof_FA">
+<span class="sig-name descname"><span class="pre">QHcond_roof_FA</span></span><a class="headerlink" href="#output-variable-QHcond_roof_FA" title="Link to this definition">#</a></dt>
+<dd><p>Conductive heat through roof</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -767,12 +767,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-17">
-<dt class="sig sig-object output" id="output-variable-QHconv_extwin_F">
-<span class="sig-name descname"><span class="pre">QHconv_extwin_F</span></span><a class="headerlink" href="#output-variable-QHconv_extwin_F" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat from external window</p>
+<dt class="sig sig-object output" id="output-variable-QHcond_tank_FA">
+<span class="sig-name descname"><span class="pre">QHcond_tank_FA</span></span><a class="headerlink" href="#output-variable-QHcond_tank_FA" title="Link to this definition">#</a></dt>
+<dd><p>Conductive heat through water tank</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -781,12 +781,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-18">
-<dt class="sig sig-object output" id="output-variable-QHconv_indgrnd_">
-<span class="sig-name descname"><span class="pre">QHconv_indgrnd_</span></span><a class="headerlink" href="#output-variable-QHconv_indgrnd_" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat to internal ground floor</p>
+<dt class="sig sig-object output" id="output-variable-QHcond_vessel_FA">
+<span class="sig-name descname"><span class="pre">QHcond_vessel_FA</span></span><a class="headerlink" href="#output-variable-QHcond_vessel_FA" title="Link to this definition">#</a></dt>
+<dd><p>Conductive heat through water vessel</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -795,12 +795,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-19">
-<dt class="sig sig-object output" id="output-variable-QHconv_indroof_">
-<span class="sig-name descname"><span class="pre">QHconv_indroof_</span></span><a class="headerlink" href="#output-variable-QHconv_indroof_" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat to internal roof</p>
+<dt class="sig sig-object output" id="output-variable-QHcond_wall_FA">
+<span class="sig-name descname"><span class="pre">QHcond_wall_FA</span></span><a class="headerlink" href="#output-variable-QHcond_wall_FA" title="Link to this definition">#</a></dt>
+<dd><p>Conductive heat through wall</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -809,12 +809,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-20">
-<dt class="sig sig-object output" id="output-variable-QHconv_indwall_">
-<span class="sig-name descname"><span class="pre">QHconv_indwall_</span></span><a class="headerlink" href="#output-variable-QHconv_indwall_" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat to internal wall</p>
+<dt class="sig sig-object output" id="output-variable-QHcond_window_FA">
+<span class="sig-name descname"><span class="pre">QHcond_window_FA</span></span><a class="headerlink" href="#output-variable-QHcond_window_FA" title="Link to this definition">#</a></dt>
+<dd><p>Conductive heat through window</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -823,12 +823,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-21">
-<dt class="sig sig-object output" id="output-variable-QHconv_indwin_F">
-<span class="sig-name descname"><span class="pre">QHconv_indwin_F</span></span><a class="headerlink" href="#output-variable-QHconv_indwin_F" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat to internal window</p>
+<dt class="sig sig-object output" id="output-variable-QHconv_extroof_FA">
+<span class="sig-name descname"><span class="pre">QHconv_extroof_FA</span></span><a class="headerlink" href="#output-variable-QHconv_extroof_FA" title="Link to this definition">#</a></dt>
+<dd><p>Convective heat between external roof and outdoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -837,12 +837,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-22">
-<dt class="sig sig-object output" id="output-variable-QHrejection_coo">
-<span class="sig-name descname"><span class="pre">QHrejection_coo</span></span><a class="headerlink" href="#output-variable-QHrejection_coo" title="Link to this definition">#</a></dt>
-<dd><p>Heat rejection from cooling system</p>
+<dt class="sig sig-object output" id="output-variable-QHconv_exttankwall_FA">
+<span class="sig-name descname"><span class="pre">QHconv_exttankwall_FA</span></span><a class="headerlink" href="#output-variable-QHconv_exttankwall_FA" title="Link to this definition">#</a></dt>
+<dd><p>Convective heat between external surface of tank and indoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -851,12 +851,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-23">
-<dt class="sig sig-object output" id="output-variable-QHrejection_hea">
-<span class="sig-name descname"><span class="pre">QHrejection_hea</span></span><a class="headerlink" href="#output-variable-QHrejection_hea" title="Link to this definition">#</a></dt>
-<dd><p>Heat rejection from heating system</p>
+<dt class="sig sig-object output" id="output-variable-QHconv_extvesselwall_FA">
+<span class="sig-name descname"><span class="pre">QHconv_extvesselwall_FA</span></span><a class="headerlink" href="#output-variable-QHconv_extvesselwall_FA" title="Link to this definition">#</a></dt>
+<dd><p>Convective heat between external surface of vessel and indoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -865,12 +865,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-24">
-<dt class="sig sig-object output" id="output-variable-QS_air_FA">
-<span class="sig-name descname"><span class="pre">QS_air_FA</span></span><a class="headerlink" href="#output-variable-QS_air_FA" title="Link to this definition">#</a></dt>
-<dd><p>Storage heat flux in air (FA)</p>
+<dt class="sig sig-object output" id="output-variable-QHconv_extwall_FA">
+<span class="sig-name descname"><span class="pre">QHconv_extwall_FA</span></span><a class="headerlink" href="#output-variable-QHconv_extwall_FA" title="Link to this definition">#</a></dt>
+<dd><p>Convective heat between external wall and outdoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -879,12 +879,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-25">
-<dt class="sig sig-object output" id="output-variable-QS_roof_FA">
-<span class="sig-name descname"><span class="pre">QS_roof_FA</span></span><a class="headerlink" href="#output-variable-QS_roof_FA" title="Link to this definition">#</a></dt>
-<dd><p>Storage heat flux in roof (FA)</p>
+<dt class="sig sig-object output" id="output-variable-QHconv_extwin_FA">
+<span class="sig-name descname"><span class="pre">QHconv_extwin_FA</span></span><a class="headerlink" href="#output-variable-QHconv_extwin_FA" title="Link to this definition">#</a></dt>
+<dd><p>Convective heat between external window and outdoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -893,12 +893,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-26">
-<dt class="sig sig-object output" id="output-variable-QS_total_FA">
-<span class="sig-name descname"><span class="pre">QS_total_FA</span></span><a class="headerlink" href="#output-variable-QS_total_FA" title="Link to this definition">#</a></dt>
-<dd><p>Total storage heat flux (FA)</p>
+<dt class="sig sig-object output" id="output-variable-QHconv_indoormass_FA">
+<span class="sig-name descname"><span class="pre">QHconv_indoormass_FA</span></span><a class="headerlink" href="#output-variable-QHconv_indoormass_FA" title="Link to this definition">#</a></dt>
+<dd><p>Convective heat between internal mass and indoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -907,12 +907,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-27">
-<dt class="sig sig-object output" id="output-variable-QS_wall_FA">
-<span class="sig-name descname"><span class="pre">QS_wall_FA</span></span><a class="headerlink" href="#output-variable-QS_wall_FA" title="Link to this definition">#</a></dt>
-<dd><p>Storage heat flux in wall (FA)</p>
+<dt class="sig sig-object output" id="output-variable-QHconv_intgroundflr_FA">
+<span class="sig-name descname"><span class="pre">QHconv_intgroundflr_FA</span></span><a class="headerlink" href="#output-variable-QHconv_intgroundflr_FA" title="Link to this definition">#</a></dt>
+<dd><p>Convective heat between internal surface of floor and indoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -921,12 +921,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-28">
-<dt class="sig sig-object output" id="output-variable-Qconv_indair_FA">
-<span class="sig-name descname"><span class="pre">Qconv_indair_FA</span></span><a class="headerlink" href="#output-variable-Qconv_indair_FA" title="Link to this definition">#</a></dt>
-<dd><p>Convective heat from indoor air to indoor mass (FA)</p>
+<dt class="sig sig-object output" id="output-variable-QHconv_introof_FA">
+<span class="sig-name descname"><span class="pre">QHconv_introof_FA</span></span><a class="headerlink" href="#output-variable-QHconv_introof_FA" title="Link to this definition">#</a></dt>
+<dd><p>Convective heat between internal surface of roof and indoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -935,12 +935,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-29">
-<dt class="sig sig-object output" id="output-variable-Qload_cooling_F">
-<span class="sig-name descname"><span class="pre">Qload_cooling_F</span></span><a class="headerlink" href="#output-variable-Qload_cooling_F" title="Link to this definition">#</a></dt>
-<dd><p>Cooling load (FA)</p>
+<dt class="sig sig-object output" id="output-variable-QHconv_inttankwall_FA">
+<span class="sig-name descname"><span class="pre">QHconv_inttankwall_FA</span></span><a class="headerlink" href="#output-variable-QHconv_inttankwall_FA" title="Link to this definition">#</a></dt>
+<dd><p>Convective heat between internal surface of tank and indoor water</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -949,12 +949,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-30">
-<dt class="sig sig-object output" id="output-variable-Qload_heating_F">
-<span class="sig-name descname"><span class="pre">Qload_heating_F</span></span><a class="headerlink" href="#output-variable-Qload_heating_F" title="Link to this definition">#</a></dt>
-<dd><p>Heating load (FA)</p>
+<dt class="sig sig-object output" id="output-variable-QHconv_intvesselwall_FA">
+<span class="sig-name descname"><span class="pre">QHconv_intvesselwall_FA</span></span><a class="headerlink" href="#output-variable-QHconv_intvesselwall_FA" title="Link to this definition">#</a></dt>
+<dd><p>Convective heat between internal surface of vessel and water</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -963,12 +963,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-31">
-<dt class="sig sig-object output" id="output-variable-Qloss_drain">
-<span class="sig-name descname"><span class="pre">Qloss_drain</span></span><a class="headerlink" href="#output-variable-Qloss_drain" title="Link to this definition">#</a></dt>
-<dd><p>Drain heat loss</p>
+<dt class="sig sig-object output" id="output-variable-QHconv_intwall_FA">
+<span class="sig-name descname"><span class="pre">QHconv_intwall_FA</span></span><a class="headerlink" href="#output-variable-QHconv_intwall_FA" title="Link to this definition">#</a></dt>
+<dd><p>Convective heat between internal surface of wall and indoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -977,12 +977,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-32">
-<dt class="sig sig-object output" id="output-variable-Qlw_net_intgrnd">
-<span class="sig-name descname"><span class="pre">Qlw_net_intgrnd</span></span><a class="headerlink" href="#output-variable-Qlw_net_intgrnd" title="Link to this definition">#</a></dt>
-<dd><p>Net longwave from internal ground floor</p>
+<dt class="sig sig-object output" id="output-variable-QHconv_intwindow_FA">
+<span class="sig-name descname"><span class="pre">QHconv_intwindow_FA</span></span><a class="headerlink" href="#output-variable-QHconv_intwindow_FA" title="Link to this definition">#</a></dt>
+<dd><p>Convective heat between internal surface of window and indoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -991,12 +991,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-33">
-<dt class="sig sig-object output" id="output-variable-Qlw_net_introof">
-<span class="sig-name descname"><span class="pre">Qlw_net_introof</span></span><a class="headerlink" href="#output-variable-Qlw_net_introof" title="Link to this definition">#</a></dt>
-<dd><p>Net longwave from internal roof</p>
+<dt class="sig sig-object output" id="output-variable-QHload_cooling_FA">
+<span class="sig-name descname"><span class="pre">QHload_cooling_FA</span></span><a class="headerlink" href="#output-variable-QHload_cooling_FA" title="Link to this definition">#</a></dt>
+<dd><p>Sensible cooling load</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1005,12 +1005,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-34">
-<dt class="sig sig-object output" id="output-variable-Qlw_net_intwall">
-<span class="sig-name descname"><span class="pre">Qlw_net_intwall</span></span><a class="headerlink" href="#output-variable-Qlw_net_intwall" title="Link to this definition">#</a></dt>
-<dd><p>Net longwave from internal wall</p>
+<dt class="sig sig-object output" id="output-variable-QHload_dhw_FA">
+<span class="sig-name descname"><span class="pre">QHload_dhw_FA</span></span><a class="headerlink" href="#output-variable-QHload_dhw_FA" title="Link to this definition">#</a></dt>
+<dd><p>Sensible heat supply to hot water tank</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1019,12 +1019,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-35">
-<dt class="sig sig-object output" id="output-variable-Qlw_net_intwin_">
-<span class="sig-name descname"><span class="pre">Qlw_net_intwin_</span></span><a class="headerlink" href="#output-variable-Qlw_net_intwin_" title="Link to this definition">#</a></dt>
-<dd><p>Net longwave from internal window</p>
+<dt class="sig sig-object output" id="output-variable-QHload_heating_FA">
+<span class="sig-name descname"><span class="pre">QHload_heating_FA</span></span><a class="headerlink" href="#output-variable-QHload_heating_FA" title="Link to this definition">#</a></dt>
+<dd><p>Sensible heating load</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1033,12 +1033,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-36">
-<dt class="sig sig-object output" id="output-variable-Qlw_net_roof_FA">
-<span class="sig-name descname"><span class="pre">Qlw_net_roof_FA</span></span><a class="headerlink" href="#output-variable-Qlw_net_roof_FA" title="Link to this definition">#</a></dt>
-<dd><p>Net longwave from roof (FA)</p>
+<dt class="sig sig-object output" id="output-variable-QHwaste_cooling_FA">
+<span class="sig-name descname"><span class="pre">QHwaste_cooling_FA</span></span><a class="headerlink" href="#output-variable-QHwaste_cooling_FA" title="Link to this definition">#</a></dt>
+<dd><p>Waste heat rejection from cooling system to outdoor air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1047,12 +1047,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-37">
-<dt class="sig sig-object output" id="output-variable-Qlw_net_roof_SA">
-<span class="sig-name descname"><span class="pre">Qlw_net_roof_SA</span></span><a class="headerlink" href="#output-variable-Qlw_net_roof_SA" title="Link to this definition">#</a></dt>
-<dd><p>Net longwave roof (SPARTACUS)</p>
+<dt class="sig sig-object output" id="output-variable-QHwaste_dhw_FA">
+<span class="sig-name descname"><span class="pre">QHwaste_dhw_FA</span></span><a class="headerlink" href="#output-variable-QHwaste_dhw_FA" title="Link to this definition">#</a></dt>
+<dd><p>Sensible heat gain from waste heat due to hot water</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1061,12 +1061,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-38">
-<dt class="sig sig-object output" id="output-variable-Qlw_net_wall_FA">
-<span class="sig-name descname"><span class="pre">Qlw_net_wall_FA</span></span><a class="headerlink" href="#output-variable-Qlw_net_wall_FA" title="Link to this definition">#</a></dt>
-<dd><p>Net longwave from wall (FA)</p>
+<dt class="sig sig-object output" id="output-variable-QHwaste_heating_FA">
+<span class="sig-name descname"><span class="pre">QHwaste_heating_FA</span></span><a class="headerlink" href="#output-variable-QHwaste_heating_FA" title="Link to this definition">#</a></dt>
+<dd><p>Sensible heat gain from waste heat due to space heating</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1075,12 +1075,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-39">
-<dt class="sig sig-object output" id="output-variable-Qlw_net_wall_SA">
-<span class="sig-name descname"><span class="pre">Qlw_net_wall_SA</span></span><a class="headerlink" href="#output-variable-Qlw_net_wall_SA" title="Link to this definition">#</a></dt>
-<dd><p>Net longwave wall (SPARTACUS)</p>
+<dt class="sig sig-object output" id="output-variable-QN_bldg_FA">
+<span class="sig-name descname"><span class="pre">QN_bldg_FA</span></span><a class="headerlink" href="#output-variable-QN_bldg_FA" title="Link to this definition">#</a></dt>
+<dd><p>Net all-wave radiation per building footprint area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1089,12 +1089,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-40">
-<dt class="sig sig-object output" id="output-variable-Qlw_net_window_">
-<span class="sig-name descname"><span class="pre">Qlw_net_window_</span></span><a class="headerlink" href="#output-variable-Qlw_net_window_" title="Link to this definition">#</a></dt>
-<dd><p>Net longwave from window</p>
+<dt class="sig sig-object output" id="output-variable-QS_air_FA">
+<span class="sig-name descname"><span class="pre">QS_air_FA</span></span><a class="headerlink" href="#output-variable-QS_air_FA" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux in air</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1103,12 +1103,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-41">
-<dt class="sig sig-object output" id="output-variable-Qlw_up_roof_SA">
-<span class="sig-name descname"><span class="pre">Qlw_up_roof_SA</span></span><a class="headerlink" href="#output-variable-Qlw_up_roof_SA" title="Link to this definition">#</a></dt>
-<dd><p>Upward longwave roof (SPARTACUS)</p>
+<dt class="sig sig-object output" id="output-variable-QS_bldg_FA">
+<span class="sig-name descname"><span class="pre">QS_bldg_FA</span></span><a class="headerlink" href="#output-variable-QS_bldg_FA" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux for building components</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1117,12 +1117,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-42">
-<dt class="sig sig-object output" id="output-variable-Qlw_up_wall_SA">
-<span class="sig-name descname"><span class="pre">Qlw_up_wall_SA</span></span><a class="headerlink" href="#output-variable-Qlw_up_wall_SA" title="Link to this definition">#</a></dt>
-<dd><p>Upward longwave wall (SPARTACUS)</p>
+<dt class="sig sig-object output" id="output-variable-QS_dhw_FA">
+<span class="sig-name descname"><span class="pre">QS_dhw_FA</span></span><a class="headerlink" href="#output-variable-QS_dhw_FA" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux in hot water going to drainage system</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1131,12 +1131,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-43">
-<dt class="sig sig-object output" id="output-variable-Qsw_abs_roof_FA">
-<span class="sig-name descname"><span class="pre">Qsw_abs_roof_FA</span></span><a class="headerlink" href="#output-variable-Qsw_abs_roof_FA" title="Link to this definition">#</a></dt>
-<dd><p>Shortwave absorbed by roof (FA)</p>
+<dt class="sig sig-object output" id="output-variable-QS_ground_FA">
+<span class="sig-name descname"><span class="pre">QS_ground_FA</span></span><a class="headerlink" href="#output-variable-QS_ground_FA" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux in the soil beneath building</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1145,12 +1145,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-44">
-<dt class="sig sig-object output" id="output-variable-Qsw_abs_roof_SA">
-<span class="sig-name descname"><span class="pre">Qsw_abs_roof_SA</span></span><a class="headerlink" href="#output-variable-Qsw_abs_roof_SA" title="Link to this definition">#</a></dt>
-<dd><p>Shortwave absorbed by roof (SPARTACUS)</p>
+<dt class="sig sig-object output" id="output-variable-QS_groundfloor_FA">
+<span class="sig-name descname"><span class="pre">QS_groundfloor_FA</span></span><a class="headerlink" href="#output-variable-QS_groundfloor_FA" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux ground floor</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1159,12 +1159,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-45">
-<dt class="sig sig-object output" id="output-variable-Qsw_abs_wall_FA">
-<span class="sig-name descname"><span class="pre">Qsw_abs_wall_FA</span></span><a class="headerlink" href="#output-variable-Qsw_abs_wall_FA" title="Link to this definition">#</a></dt>
-<dd><p>Shortwave absorbed by wall (FA)</p>
+<dt class="sig sig-object output" id="output-variable-QS_indoormass_FA">
+<span class="sig-name descname"><span class="pre">QS_indoormass_FA</span></span><a class="headerlink" href="#output-variable-QS_indoormass_FA" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux in indoormass</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1173,12 +1173,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-46">
-<dt class="sig sig-object output" id="output-variable-Qsw_abs_wall_SA">
-<span class="sig-name descname"><span class="pre">Qsw_abs_wall_SA</span></span><a class="headerlink" href="#output-variable-Qsw_abs_wall_SA" title="Link to this definition">#</a></dt>
-<dd><p>Shortwave absorbed by wall (SPARTACUS)</p>
+<dt class="sig sig-object output" id="output-variable-QS_roof_FA">
+<span class="sig-name descname"><span class="pre">QS_roof_FA</span></span><a class="headerlink" href="#output-variable-QS_roof_FA" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux in roof</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1187,12 +1187,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-47">
-<dt class="sig sig-object output" id="output-variable-Qsw_abs_win_FA">
-<span class="sig-name descname"><span class="pre">Qsw_abs_win_FA</span></span><a class="headerlink" href="#output-variable-Qsw_abs_win_FA" title="Link to this definition">#</a></dt>
-<dd><p>Shortwave absorbed by window (FA)</p>
+<dt class="sig sig-object output" id="output-variable-QS_total_FA">
+<span class="sig-name descname"><span class="pre">QS_total_FA</span></span><a class="headerlink" href="#output-variable-QS_total_FA" title="Link to this definition">#</a></dt>
+<dd><p>Total Storage heat flux per building footprint area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1201,12 +1201,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-48">
-<dt class="sig sig-object output" id="output-variable-Qsw_trans_win_F">
-<span class="sig-name descname"><span class="pre">Qsw_trans_win_F</span></span><a class="headerlink" href="#output-variable-Qsw_trans_win_F" title="Link to this definition">#</a></dt>
-<dd><p>Shortwave transmitted through window (FA)</p>
+<dt class="sig sig-object output" id="output-variable-QS_wall_FA">
+<span class="sig-name descname"><span class="pre">QS_wall_FA</span></span><a class="headerlink" href="#output-variable-QS_wall_FA" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux in wall</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1215,12 +1215,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-49">
-<dt class="sig sig-object output" id="output-variable-Qsw_up_roof_SA">
-<span class="sig-name descname"><span class="pre">Qsw_up_roof_SA</span></span><a class="headerlink" href="#output-variable-Qsw_up_roof_SA" title="Link to this definition">#</a></dt>
-<dd><p>Shortwave reflected by roof (SPARTACUS)</p>
+<dt class="sig sig-object output" id="output-variable-QS_window_FA">
+<span class="sig-name descname"><span class="pre">QS_window_FA</span></span><a class="headerlink" href="#output-variable-QS_window_FA" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux in window</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1229,12 +1229,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-50">
-<dt class="sig sig-object output" id="output-variable-Qsw_up_wall_SA">
-<span class="sig-name descname"><span class="pre">Qsw_up_wall_SA</span></span><a class="headerlink" href="#output-variable-Qsw_up_wall_SA" title="Link to this definition">#</a></dt>
-<dd><p>Shortwave reflected by wall (SPARTACUS)</p>
+<dt class="sig sig-object output" id="output-variable-QWaste_bldg_FA">
+<span class="sig-name descname"><span class="pre">QWaste_bldg_FA</span></span><a class="headerlink" href="#output-variable-QWaste_bldg_FA" title="Link to this definition">#</a></dt>
+<dd><p>Total waste heat from HVAC system to outdoor air per building footprint area</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1243,12 +1243,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-51">
-<dt class="sig sig-object output" id="output-variable-Qtotal_water">
-<span class="sig-name descname"><span class="pre">Qtotal_water</span></span><a class="headerlink" href="#output-variable-Qtotal_water" title="Link to this definition">#</a></dt>
-<dd><p>Total water heat</p>
+<dt class="sig sig-object output" id="output-variable-Qloss_drain_FA">
+<span class="sig-name descname"><span class="pre">Qloss_drain_FA</span></span><a class="headerlink" href="#output-variable-Qloss_drain_FA" title="Link to this definition">#</a></dt>
+<dd><p>Heat loss from hot water to drainage system</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>W</p>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1257,6 +1257,132 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-52">
+<dt class="sig sig-object output" id="output-variable-Qlw_net_roof_FA">
+<span class="sig-name descname"><span class="pre">Qlw_net_roof_FA</span></span><a class="headerlink" href="#output-variable-Qlw_net_roof_FA" title="Link to this definition">#</a></dt>
+<dd><p>Net longwave radiation from external surface of roof</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-53">
+<dt class="sig sig-object output" id="output-variable-Qlw_net_tank_FA">
+<span class="sig-name descname"><span class="pre">Qlw_net_tank_FA</span></span><a class="headerlink" href="#output-variable-Qlw_net_tank_FA" title="Link to this definition">#</a></dt>
+<dd><p>Net longwave radiation from external surface of tank to internal mass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-54">
+<dt class="sig sig-object output" id="output-variable-Qlw_net_vessel_FA">
+<span class="sig-name descname"><span class="pre">Qlw_net_vessel_FA</span></span><a class="headerlink" href="#output-variable-Qlw_net_vessel_FA" title="Link to this definition">#</a></dt>
+<dd><p>Net longwave radiation from external surface of vessel to internal mass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-55">
+<dt class="sig sig-object output" id="output-variable-Qlw_net_wall_FA">
+<span class="sig-name descname"><span class="pre">Qlw_net_wall_FA</span></span><a class="headerlink" href="#output-variable-Qlw_net_wall_FA" title="Link to this definition">#</a></dt>
+<dd><p>Net longwave radiation from external surface of wall</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-56">
+<dt class="sig sig-object output" id="output-variable-Qlw_net_window_FA">
+<span class="sig-name descname"><span class="pre">Qlw_net_window_FA</span></span><a class="headerlink" href="#output-variable-Qlw_net_window_FA" title="Link to this definition">#</a></dt>
+<dd><p>Net longwave radiation from external surface of window</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-57">
+<dt class="sig sig-object output" id="output-variable-Qsw_abs_roof_FA">
+<span class="sig-name descname"><span class="pre">Qsw_abs_roof_FA</span></span><a class="headerlink" href="#output-variable-Qsw_abs_roof_FA" title="Link to this definition">#</a></dt>
+<dd><p>Shortwave radiation absorbed by roof</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-58">
+<dt class="sig sig-object output" id="output-variable-Qsw_abs_wall_FA">
+<span class="sig-name descname"><span class="pre">Qsw_abs_wall_FA</span></span><a class="headerlink" href="#output-variable-Qsw_abs_wall_FA" title="Link to this definition">#</a></dt>
+<dd><p>Shortwave radiation absorbed by wall</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-59">
+<dt class="sig sig-object output" id="output-variable-Qsw_abs_win_FA">
+<span class="sig-name descname"><span class="pre">Qsw_abs_win_FA</span></span><a class="headerlink" href="#output-variable-Qsw_abs_win_FA" title="Link to this definition">#</a></dt>
+<dd><p>Shortwave radiation absorbed by window</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-60">
+<dt class="sig sig-object output" id="output-variable-Qsw_trans_win_FA">
+<span class="sig-name descname"><span class="pre">Qsw_trans_win_FA</span></span><a class="headerlink" href="#output-variable-Qsw_trans_win_FA" title="Link to this definition">#</a></dt>
+<dd><p>Shortwave radiation transmitted through window</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-61">
 <dt class="sig sig-object output" id="output-variable-Tair_2">
 <span class="sig-name descname"><span class="pre">Tair_2</span></span><a class="headerlink" href="#output-variable-Tair_2" title="Link to this definition">#</a></dt>
 <dd><p>Air temperature at 2m</p>
@@ -1270,7 +1396,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-53">
+<dl class="output variable" id="index-62">
 <dt class="sig sig-object output" id="output-variable-Tair_bh">
 <span class="sig-name descname"><span class="pre">Tair_bh</span></span><a class="headerlink" href="#output-variable-Tair_bh" title="Link to this definition">#</a></dt>
 <dd><p>Air temperature at building height</p>
@@ -1284,7 +1410,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-54">
+<dl class="output variable" id="index-63">
 <dt class="sig sig-object output" id="output-variable-Tair_hbh">
 <span class="sig-name descname"><span class="pre">Tair_hbh</span></span><a class="headerlink" href="#output-variable-Tair_hbh" title="Link to this definition">#</a></dt>
 <dd><p>Air temperature at half building height</p>
@@ -1298,139 +1424,13 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-55">
+<dl class="output variable" id="index-64">
 <dt class="sig sig-object output" id="output-variable-Tair_ind">
 <span class="sig-name descname"><span class="pre">Tair_ind</span></span><a class="headerlink" href="#output-variable-Tair_ind" title="Link to this definition">#</a></dt>
 <dd><p>Indoor air temperature</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-56">
-<dt class="sig sig-object output" id="output-variable-Textgrndflr">
-<span class="sig-name descname"><span class="pre">Textgrndflr</span></span><a class="headerlink" href="#output-variable-Textgrndflr" title="Link to this definition">#</a></dt>
-<dd><p>External ground floor temperature</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-57">
-<dt class="sig sig-object output" id="output-variable-Textroof">
-<span class="sig-name descname"><span class="pre">Textroof</span></span><a class="headerlink" href="#output-variable-Textroof" title="Link to this definition">#</a></dt>
-<dd><p>External roof temperature</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-58">
-<dt class="sig sig-object output" id="output-variable-Textwall">
-<span class="sig-name descname"><span class="pre">Textwall</span></span><a class="headerlink" href="#output-variable-Textwall" title="Link to this definition">#</a></dt>
-<dd><p>External wall temperature</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-59">
-<dt class="sig sig-object output" id="output-variable-Textwall_tank">
-<span class="sig-name descname"><span class="pre">Textwall_tank</span></span><a class="headerlink" href="#output-variable-Textwall_tank" title="Link to this definition">#</a></dt>
-<dd><p>External wall temperature of tank</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-60">
-<dt class="sig sig-object output" id="output-variable-Textwall_vessel">
-<span class="sig-name descname"><span class="pre">Textwall_vessel</span></span><a class="headerlink" href="#output-variable-Textwall_vessel" title="Link to this definition">#</a></dt>
-<dd><p>External wall temperature of vessel</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-61">
-<dt class="sig sig-object output" id="output-variable-Textwindow">
-<span class="sig-name descname"><span class="pre">Textwindow</span></span><a class="headerlink" href="#output-variable-Textwindow" title="Link to this definition">#</a></dt>
-<dd><p>External window temperature</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-62">
-<dt class="sig sig-object output" id="output-variable-Tindoormass">
-<span class="sig-name descname"><span class="pre">Tindoormass</span></span><a class="headerlink" href="#output-variable-Tindoormass" title="Link to this definition">#</a></dt>
-<dd><p>Indoor mass temperature</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-63">
-<dt class="sig sig-object output" id="output-variable-Tintgrndflr">
-<span class="sig-name descname"><span class="pre">Tintgrndflr</span></span><a class="headerlink" href="#output-variable-Tintgrndflr" title="Link to this definition">#</a></dt>
-<dd><p>Internal ground floor temperature</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
-</dd>
-<dt class="field-even">Aggregation<span class="colon">:</span></dt>
-<dd class="field-even"><p>Average (mean over period)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="output variable" id="index-64">
-<dt class="sig sig-object output" id="output-variable-Tintroof">
-<span class="sig-name descname"><span class="pre">Tintroof</span></span><a class="headerlink" href="#output-variable-Tintroof" title="Link to this definition">#</a></dt>
-<dd><p>Internal roof temperature</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
+<dd class="field-odd"><p>K</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1439,12 +1439,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-65">
-<dt class="sig sig-object output" id="output-variable-Tintwall">
-<span class="sig-name descname"><span class="pre">Tintwall</span></span><a class="headerlink" href="#output-variable-Tintwall" title="Link to this definition">#</a></dt>
-<dd><p>Internal wall temperature</p>
+<dt class="sig sig-object output" id="output-variable-Textgrndflr">
+<span class="sig-name descname"><span class="pre">Textgrndflr</span></span><a class="headerlink" href="#output-variable-Textgrndflr" title="Link to this definition">#</a></dt>
+<dd><p>External surface temperature of ground floor</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
+<dd class="field-odd"><p>K</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1453,12 +1453,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-66">
-<dt class="sig sig-object output" id="output-variable-Tintwall_tank">
-<span class="sig-name descname"><span class="pre">Tintwall_tank</span></span><a class="headerlink" href="#output-variable-Tintwall_tank" title="Link to this definition">#</a></dt>
-<dd><p>Internal wall temperature of tank</p>
+<dt class="sig sig-object output" id="output-variable-Textroof">
+<span class="sig-name descname"><span class="pre">Textroof</span></span><a class="headerlink" href="#output-variable-Textroof" title="Link to this definition">#</a></dt>
+<dd><p>External surface temperature of roof</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
+<dd class="field-odd"><p>K</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1467,12 +1467,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-67">
-<dt class="sig sig-object output" id="output-variable-Tintwall_vessel">
-<span class="sig-name descname"><span class="pre">Tintwall_vessel</span></span><a class="headerlink" href="#output-variable-Tintwall_vessel" title="Link to this definition">#</a></dt>
-<dd><p>Internal wall temperature of vessel</p>
+<dt class="sig sig-object output" id="output-variable-Textwall">
+<span class="sig-name descname"><span class="pre">Textwall</span></span><a class="headerlink" href="#output-variable-Textwall" title="Link to this definition">#</a></dt>
+<dd><p>External surface temperature of wall</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
+<dd class="field-odd"><p>K</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1481,12 +1481,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-68">
-<dt class="sig sig-object output" id="output-variable-Tintwindow">
-<span class="sig-name descname"><span class="pre">Tintwindow</span></span><a class="headerlink" href="#output-variable-Tintwindow" title="Link to this definition">#</a></dt>
-<dd><p>Internal window temperature</p>
+<dt class="sig sig-object output" id="output-variable-Textwindow">
+<span class="sig-name descname"><span class="pre">Textwindow</span></span><a class="headerlink" href="#output-variable-Textwindow" title="Link to this definition">#</a></dt>
+<dd><p>External surface temperature of window</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
+<dd class="field-odd"><p>K</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1495,12 +1495,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-69">
-<dt class="sig sig-object output" id="output-variable-Tsurf_sout">
-<span class="sig-name descname"><span class="pre">Tsurf_sout</span></span><a class="headerlink" href="#output-variable-Tsurf_sout" title="Link to this definition">#</a></dt>
-<dd><p>Surface temperature</p>
+<dt class="sig sig-object output" id="output-variable-Tindoormass">
+<span class="sig-name descname"><span class="pre">Tindoormass</span></span><a class="headerlink" href="#output-variable-Tindoormass" title="Link to this definition">#</a></dt>
+<dd><p>Indoor mass temperature</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
+<dd class="field-odd"><p>K</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1509,12 +1509,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-70">
-<dt class="sig sig-object output" id="output-variable-Twater_tank">
-<span class="sig-name descname"><span class="pre">Twater_tank</span></span><a class="headerlink" href="#output-variable-Twater_tank" title="Link to this definition">#</a></dt>
-<dd><p>Water tank temperature</p>
+<dt class="sig sig-object output" id="output-variable-Tintgrndflr">
+<span class="sig-name descname"><span class="pre">Tintgrndflr</span></span><a class="headerlink" href="#output-variable-Tintgrndflr" title="Link to this definition">#</a></dt>
+<dd><p>Internal surface temperature of ground floor</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
+<dd class="field-odd"><p>K</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1523,12 +1523,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-71">
-<dt class="sig sig-object output" id="output-variable-Twater_vessel">
-<span class="sig-name descname"><span class="pre">Twater_vessel</span></span><a class="headerlink" href="#output-variable-Twater_vessel" title="Link to this definition">#</a></dt>
-<dd><p>Water vessel temperature</p>
+<dt class="sig sig-object output" id="output-variable-Tintroof">
+<span class="sig-name descname"><span class="pre">Tintroof</span></span><a class="headerlink" href="#output-variable-Tintroof" title="Link to this definition">#</a></dt>
+<dd><p>Internal surface temperature of roof</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>degC</p>
+<dd class="field-odd"><p>K</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1537,12 +1537,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-72">
-<dt class="sig sig-object output" id="output-variable-Vwall_tank">
-<span class="sig-name descname"><span class="pre">Vwall_tank</span></span><a class="headerlink" href="#output-variable-Vwall_tank" title="Link to this definition">#</a></dt>
-<dd><p>Volume of wall in tank</p>
+<dt class="sig sig-object output" id="output-variable-Tintwall">
+<span class="sig-name descname"><span class="pre">Tintwall</span></span><a class="headerlink" href="#output-variable-Tintwall" title="Link to this definition">#</a></dt>
+<dd><p>Internal surface temperature of wall</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>m<sup>3</sup></p>
+<dd class="field-odd"><p>K</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1551,12 +1551,12 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-73">
-<dt class="sig sig-object output" id="output-variable-Vwall_vessel">
-<span class="sig-name descname"><span class="pre">Vwall_vessel</span></span><a class="headerlink" href="#output-variable-Vwall_vessel" title="Link to this definition">#</a></dt>
-<dd><p>Volume of wall in vessel</p>
+<dt class="sig sig-object output" id="output-variable-Tintwindow">
+<span class="sig-name descname"><span class="pre">Tintwindow</span></span><a class="headerlink" href="#output-variable-Tintwindow" title="Link to this definition">#</a></dt>
+<dd><p>Internal surface temperature of window</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>m<sup>3</sup></p>
+<dd class="field-odd"><p>K</p>
 </dd>
 <dt class="field-even">Aggregation<span class="colon">:</span></dt>
 <dd class="field-even"><p>Average (mean over period)</p>
@@ -1565,6 +1565,34 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-74">
+<dt class="sig sig-object output" id="output-variable-Twater_tank">
+<span class="sig-name descname"><span class="pre">Twater_tank</span></span><a class="headerlink" href="#output-variable-Twater_tank" title="Link to this definition">#</a></dt>
+<dd><p>Water temperature in tank</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>K</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-75">
+<dt class="sig sig-object output" id="output-variable-Twater_vessel">
+<span class="sig-name descname"><span class="pre">Twater_vessel</span></span><a class="headerlink" href="#output-variable-Twater_vessel" title="Link to this definition">#</a></dt>
+<dd><p>Water temperature in vessel</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>K</p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-76">
 <dt class="sig sig-object output" id="output-variable-Vwater_tank">
 <span class="sig-name descname"><span class="pre">Vwater_tank</span></span><a class="headerlink" href="#output-variable-Vwater_tank" title="Link to this definition">#</a></dt>
 <dd><p>Volume of water in tank</p>
@@ -1578,7 +1606,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-75">
+<dl class="output variable" id="index-77">
 <dt class="sig sig-object output" id="output-variable-Vwater_vessel">
 <span class="sig-name descname"><span class="pre">Vwater_vessel</span></span><a class="headerlink" href="#output-variable-Vwater_vessel" title="Link to this definition">#</a></dt>
 <dd><p>Volume of water in vessel</p>
@@ -1592,7 +1620,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-76">
+<dl class="output variable" id="index-78">
 <dt class="sig sig-object output" id="output-variable-ws_10">
 <span class="sig-name descname"><span class="pre">ws_10</span></span><a class="headerlink" href="#output-variable-ws_10" title="Link to this definition">#</a></dt>
 <dd><p>Wind speed at 10m</p>
@@ -1606,7 +1634,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-77">
+<dl class="output variable" id="index-79">
 <dt class="sig sig-object output" id="output-variable-ws_bh">
 <span class="sig-name descname"><span class="pre">ws_bh</span></span><a class="headerlink" href="#output-variable-ws_bh" title="Link to this definition">#</a></dt>
 <dd><p>Wind speed at building height</p>
@@ -1620,7 +1648,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-78">
+<dl class="output variable" id="index-80">
 <dt class="sig sig-object output" id="output-variable-ws_hbh">
 <span class="sig-name descname"><span class="pre">ws_hbh</span></span><a class="headerlink" href="#output-variable-ws_hbh" title="Link to this definition">#</a></dt>
 <dd><p>Wind speed at half building height</p>
@@ -1705,8 +1733,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.2.2.dev32 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/1120f368da8259620c5a3645b8ed1466c52f0041">1120f36</a> |
+  <p>Version: 2026.2.2.dev35 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/dcc8fa517288258f58b5214fb828062f5072ea00">dcc8fa5</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import copy
 import logging
-from typing import TYPE_CHECKING
+import multiprocessing
+import os
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -43,6 +45,41 @@ from ._populate import (
     populate_storedrainprm,
     populate_timer_from_datetime,
 )
+
+_WORKER_DF_FORCING: pd.DataFrame | None = None
+_WORKER_CONFIG: SUEWSConfig | None = None
+_WORKER_NLAYER: int | None = None
+_WORKER_NDEPTH: int | None = None
+
+
+def _init_dts_worker(
+    df_forcing: pd.DataFrame,
+    config: SUEWSConfig,
+    nlayer: int | None,
+    ndepth: int | None,
+) -> None:
+    """Initialise process-local state for DTS workers."""
+    global _WORKER_DF_FORCING, _WORKER_CONFIG, _WORKER_NLAYER, _WORKER_NDEPTH
+    _WORKER_DF_FORCING = df_forcing
+    _WORKER_CONFIG = config
+    _WORKER_NLAYER = nlayer
+    _WORKER_NDEPTH = ndepth
+
+
+def _run_dts_worker(site_index: int) -> tuple[int, pd.DataFrame, Any]:
+    """Run a single DTS site simulation inside a worker process."""
+    if _WORKER_DF_FORCING is None or _WORKER_CONFIG is None:
+        raise RuntimeError("DTS worker not initialised")
+
+    df_output, final_state = run_dts(
+        df_forcing=_WORKER_DF_FORCING,
+        config=_WORKER_CONFIG,
+        site_index=site_index,
+        nlayer=_WORKER_NLAYER,
+        ndepth=_WORKER_NDEPTH,
+    )
+
+    return site_index, df_output, final_state.get("initial_states")
 
 
 def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
@@ -382,6 +419,7 @@ def run_dts_multi(
     config: SUEWSConfig,
     nlayer: int | None = None,
     ndepth: int | None = None,
+    n_jobs: int = 1,
 ) -> tuple[pd.DataFrame, dict]:
     """Run SUEWS DTS simulation for all sites in a configuration.
 
@@ -399,6 +437,10 @@ def run_dts_multi(
         Number of vertical layers (passed to each ``run_dts`` call).
     ndepth : int, optional
         Number of substrate depth levels (passed to each ``run_dts`` call).
+    n_jobs : int, optional
+        Number of worker processes for multi-grid execution. Use 1 for
+        serial execution. Parallel execution is not supported on Windows.
+        The multiprocessing context is set via ``SUPY_MP_CONTEXT`` (default: spawn).
 
     Returns
     -------
@@ -407,8 +449,9 @@ def run_dts_multi(
         MultiIndex columns ``(group, var)``. For multi-grid configs the
         grid level contains one entry per site.
     dict_final_states : dict
-        Final states keyed by grid id, each value being the ``final_state``
-        dict returned by :func:`run_dts`.
+        Final states keyed by grid id.  Each value is a dict containing
+        ``"initial_states"`` (a Pydantic InitialStates object suitable
+        for continuation runs or YAML persistence).
 
     See Also
     --------
@@ -422,19 +465,62 @@ def run_dts_multi(
     if dupes:
         raise ValueError(f"Duplicate gridiv values in config.sites: {set(dupes)}")
 
+    if n_jobs < 1:
+        raise ValueError("n_jobs must be >= 1")
+
+    if n_jobs == 1 or len(sites) == 1:
+        list_df_output = []
+        dict_final_states = {}
+
+        for idx, site in enumerate(sites):
+            df_output, final_state = run_dts(
+                df_forcing=df_forcing,
+                config=config,
+                site_index=idx,
+                nlayer=nlayer,
+                ndepth=ndepth,
+            )
+            list_df_output.append(df_output)
+            dict_final_states[site.gridiv] = {
+                "initial_states": final_state.get("initial_states"),
+            }
+
+        # Concatenate all grids — each df already has (grid, datetime) index
+        df_output_all = pd.concat(list_df_output).sort_index()
+
+        return df_output_all, dict_final_states
+
+    if os.name == "nt":
+        raise RuntimeError("Parallel DTS execution is not supported on Windows")
+
+    n_jobs = min(n_jobs, len(sites))
+    mp_context = os.environ.get("SUPY_MP_CONTEXT", "spawn")
+    # WARNING: 'fork' context inherits parent Fortran SAVE-variable state,
+    # which can cause silent corruption when workers mutate module globals
+    # during DTS simulation. Default 'spawn' avoids this.
+    ctx = multiprocessing.get_context(mp_context)
+
+    try:
+        with ctx.Pool(
+            processes=n_jobs,
+            initializer=_init_dts_worker,
+            initargs=(df_forcing, config, nlayer, ndepth),
+        ) as pool:
+            results = pool.map(_run_dts_worker, range(len(sites)))
+    except Exception as exc:
+        raise RuntimeError(
+            f"Parallel DTS execution failed ({type(exc).__name__}: {exc}). "
+            "Re-run with n_jobs=1 for serial execution."
+        ) from exc
+
     list_df_output = []
     dict_final_states = {}
-
-    for idx, site in enumerate(sites):
-        df_output, final_state = run_dts(
-            df_forcing=df_forcing,
-            config=config,
-            site_index=idx,
-            nlayer=nlayer,
-            ndepth=ndepth,
-        )
+    for site_index, df_output, initial_states in results:
+        site = sites[site_index]
         list_df_output.append(df_output)
-        dict_final_states[site.gridiv] = final_state
+        dict_final_states[site.gridiv] = {
+            "initial_states": initial_states,
+        }
 
     # Concatenate all grids - each df already has (grid, datetime) index
     df_output_all = pd.concat(list_df_output).sort_index()

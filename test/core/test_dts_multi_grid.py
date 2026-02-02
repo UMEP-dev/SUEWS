@@ -9,6 +9,7 @@ Note: These tests require a full build with DTS type wrappers (make dev-dts).
 """
 
 import copy
+import os
 
 import pandas as pd
 import pytest
@@ -117,6 +118,38 @@ class TestRunDtsMultiMultiGrid:
         for site in config.sites:
             assert site.gridiv in dict_states
             assert "initial_states" in dict_states[site.gridiv]
+
+    @pytest.mark.core
+    @pytest.mark.skipif(
+        os.name == "nt", reason="Parallel DTS execution is not supported on Windows"
+    )
+    def test_multi_grid_parallel_matches_serial(self, multi_site_config):
+        """Parallel run matches serial output for multi-site configs."""
+        config, df_forcing = multi_site_config
+
+        df_serial, _ = run_dts_multi(df_forcing, config, n_jobs=1)
+        df_parallel, dict_states = run_dts_multi(df_forcing, config, n_jobs=2)
+
+        pd.testing.assert_frame_equal(df_parallel, df_serial)
+
+        for site in config.sites:
+            assert site.gridiv in dict_states
+            assert "initial_states" in dict_states[site.gridiv]
+
+    @pytest.mark.core
+    @pytest.mark.skipif(
+        os.name == "nt", reason="Parallel DTS execution is not supported on Windows"
+    )
+    def test_multi_grid_parallel_njobs_clamped(self, multi_site_config):
+        """n_jobs larger than site count is clamped without error."""
+        config, df_forcing = multi_site_config
+
+        df_output, dict_states = run_dts_multi(df_forcing, config, n_jobs=8)
+
+        n_grids = len(config.sites)
+        assert len(df_output) == N_TIMESTEPS * n_grids
+        for site in config.sites:
+            assert site.gridiv in dict_states
 
 
 class TestSimulationDtsMultiGrid:

@@ -18,6 +18,19 @@ from conftest import (
 class TestResampleOutput:
     """Test suite for resample_output functionality."""
 
+    def test_resample_accepts_suewsoutput(self):
+        """Test that resample_output accepts SUEWSOutput instances."""
+        df_state_init, df_forcing = sp.load_SampleData()
+        df_output, df_state_final = sp.run_supy(df_forcing.iloc[:48], df_state_init)
+
+        output = sp.SUEWSOutput(df_output, df_state_final)
+        assert output.index.equals(df_output.index)
+
+        df_resampled = resample_output(output, freq="h")
+        assert isinstance(df_resampled, pd.DataFrame)
+        assert isinstance(df_resampled.index, pd.MultiIndex)
+        assert "grid" in df_resampled.index.names
+
     @analyze_dailystate_nan  # Add NaN analysis even when test passes
     @debug_on_ci
     @capture_test_artifacts("dailystate_resample")

@@ -105,6 +105,11 @@ class SUEWSOutput:
         return self._df_output.columns
 
     @property
+    def index(self) -> pd.Index:
+        """Row index of output DataFrame (pandas-compatible)."""
+        return self._df_output.index
+
+    @property
     def state_final(self) -> pd.DataFrame:
         """
         Final model state for restart runs.

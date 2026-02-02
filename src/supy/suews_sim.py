@@ -455,9 +455,13 @@ class SUEWSSimulation:
             (~10 years). Smaller values reduce peak memory at a small overhead
             cost. Applied to both ``traditional`` and ``dts`` backends.
         run_kwargs : dict
-            **Note**: Additional keyword arguments are currently not supported
-            due to underlying function signature constraints. This parameter
-            is reserved for future use.
+            Additional keyword arguments. Currently supported:
+
+            - **n_jobs** : int
+              Number of worker processes for DTS multi-grid execution
+              (used only when ``backend='dts'``).
+
+            Other keyword arguments are reserved for future use and ignored.
 
             In a future version, the following options may be supported:
             - save_state: bool - Save state at each timestep (planned)
@@ -506,6 +510,14 @@ class SUEWSSimulation:
         if backend not in valid_backends:
             raise ValueError(
                 f"Invalid backend '{backend}'. Must be one of: {valid_backends}"
+            )
+
+        n_jobs = run_kwargs.pop("n_jobs", 1)
+        if n_jobs > 1 and backend != "dts":
+            warnings.warn(
+                "n_jobs > 1 is only supported with backend='dts'; "
+                f"ignoring n_jobs={n_jobs} for backend='{backend}'.",
+                stacklevel=2,
             )
 
         # Check DTS availability early (before other validation)
@@ -561,6 +573,7 @@ class SUEWSSimulation:
                 df_forcing=df_forcing_slice,
                 config=self._config,
                 chunk_day=chunk_day,
+                n_jobs=n_jobs,
             )
             self._df_output = df_output
             # DTS extracts state to Pydantic InitialStates (not DataFrame)

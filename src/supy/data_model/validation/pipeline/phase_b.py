@@ -608,7 +608,7 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                     parameter="timezone",
                     site_index=site_idx,
                     site_gridid=site_gridid,
-                    message="Timezone parameter is missing - will be calculated automatically from latitude and longitude",
+                    message="Timezone parameter is missing - will be calculated automatically from latitude and longitude (see updated parameters)",
                     suggested_value="Timezone will be set based on your coordinates. You can also manually set the timezone value if you prefer a specific UTC offset",
                 )
             )
@@ -626,7 +626,7 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                         parameter="anthropogenic_emissions.startdls,enddls",
                         site_index=site_idx,
                         site_gridid=site_gridid,
-                        message="Daylight saving parameters (startdls, enddls) are missing - will be calculated automatically from geographic coordinates",
+                        message="Daylight saving parameters (startdls, enddls) are missing - will be calculated automatically from geographic coordinates (see updated parameters)",
                         suggested_value="Parameters will be set based on your location. You can also manually set startdls and enddls if you prefer specific values",
                     )
                 )

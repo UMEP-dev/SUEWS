@@ -95,7 +95,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'open',
-              labels: 'docs',
+              labels: '1-maintenance,2-doc:user',
               per_page: 10,
             });
             const duplicate = existing.data.find(i => i.title === title);
@@ -126,7 +126,7 @@ jobs:
                 'git push origin rtd',
                 '```',
               ].join('\n'),
-              labels: ['docs'],
+              labels: ['1-maintenance', '2-doc:user', '3-P1'],
             });
 
       - name: Abort on merge conflict

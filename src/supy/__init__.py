@@ -41,7 +41,7 @@ __all__ = [
     "check_state",
     "init_config",
     "run_supy_sample",
-    "resample_output",
+    "resample_output",  # Deprecated - use SUEWSOutput.resample() instead
     # Debug utilities
     "pack_dts_state_selective",
     "inspect_dts_structure",
@@ -97,10 +97,18 @@ def __getattr__(name):
         _lazy_cache[name] = getattr(_supy_module, name)
         return _lazy_cache[name]
 
-    # resample_output can come from either module
+    # resample_output - deprecated, use SUEWSOutput.resample() instead
     if name == "resample_output":
+        import warnings
+
         from ._supy_module import resample_output
 
+        warnings.warn(
+            "supy.resample_output is deprecated. "
+            "Use SUEWSOutput.resample() instead: output.resample(freq='h')",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _lazy_cache[name] = resample_output
         return _lazy_cache[name]
 

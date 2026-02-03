@@ -99,16 +99,9 @@ def __getattr__(name):
 
     # resample_output - deprecated, use SUEWSOutput.resample() instead
     if name == "resample_output":
-        import warnings
+        from ._supy_module import _warn_functional_deprecation, resample_output
 
-        from ._supy_module import resample_output
-
-        warnings.warn(
-            "supy.resample_output is deprecated. "
-            "Use SUEWSOutput.resample() instead: output.resample(freq='h')",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+        _warn_functional_deprecation("resample_output")
         _lazy_cache[name] = resample_output
         return _lazy_cache[name]
 

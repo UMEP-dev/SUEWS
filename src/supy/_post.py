@@ -268,20 +268,15 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, _internal=
     supy.util.gen_epw : Generate EPW files (supports freq parameter)
     supy.data_model.output.OUTPUT_REGISTRY : Aggregation rules source
     """
-    import warnings
-
     # Unwrap SUEWSOutput to raw DataFrame if needed
     if hasattr(df_output, "_df_output"):
         df_output = df_output._df_output
 
     # Issue deprecation warning for direct external calls
     if not _internal:
-        warnings.warn(
-            "Direct use of resample_output() is deprecated. "
-            "Use SUEWSOutput.resample() instead: output.resample(freq='h')",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+        from ._supy_module import _warn_functional_deprecation
+
+        _warn_functional_deprecation("resample_output")
 
     # Helper function to resample a group with specified parameters
     def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None):

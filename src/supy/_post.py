@@ -262,6 +262,10 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
     supy.data_model.output.OUTPUT_REGISTRY : Aggregation rules source
     """
 
+    # Unwrap SUEWSOutput to raw DataFrame if needed
+    if hasattr(df_output, "_df_output"):
+        df_output = df_output._df_output
+
     # Helper function to resample a group with specified parameters
     def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None):
         """Resample a dataframe group with specified aggregation rules.

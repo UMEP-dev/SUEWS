@@ -31,6 +31,11 @@ class TestResampleOutput:
         assert isinstance(df_resampled.index, pd.MultiIndex)
         assert "grid" in df_resampled.index.names
 
+        # Also test the OOP API (SUEWSOutput.resample method)
+        output_resampled = output.resample(freq="h")
+        assert isinstance(output_resampled, sp.SUEWSOutput)
+        assert not output_resampled.df.empty
+
     @analyze_dailystate_nan  # Add NaN analysis even when test passes
     @debug_on_ci
     @capture_test_artifacts("dailystate_resample")

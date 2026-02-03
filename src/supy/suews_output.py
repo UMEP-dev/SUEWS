@@ -395,7 +395,7 @@ class SUEWSOutput:
         """
         from ._post import resample_output
 
-        resampled = resample_output(self._df_output, freq)
+        resampled = resample_output(self, freq)
         return SUEWSOutput(
             resampled,
             self._df_state_final,

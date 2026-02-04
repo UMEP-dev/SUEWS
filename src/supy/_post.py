@@ -171,8 +171,15 @@ def pack_df_output_block(dict_output_block, df_forcing_block):
 
 
 # resample supy output
-def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
+def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, _internal=False):
     """Resample SUEWS simulation output to a different temporal frequency.
+
+    .. deprecated:: 2026.2
+        Direct use of this function is deprecated. Use :meth:`SUEWSOutput.resample`
+        instead for the recommended object-oriented interface::
+
+            output = sim.run()
+            resampled = output.resample(freq="h")
 
     This function resamples time series data using variable-appropriate
     aggregation methods. Different variable types are handled correctly:
@@ -183,9 +190,9 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
 
     Parameters
     ----------
-    df_output : pandas.DataFrame
+    df_output : pandas.DataFrame or SUEWSOutput
         Output DataFrame from `run_supy`, with MultiIndex (grid, datetime)
-        and MultiIndex columns (group, var).
+        and MultiIndex columns (group, var). Also accepts SUEWSOutput objects.
     freq : str, optional
         Target frequency using pandas offset aliases.
         Common values: '30min', '60min' or 'h', '3h', 'D'.
@@ -201,6 +208,14 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
 
     Notes
     -----
+    **Recommended Usage**
+
+    For new code, use the object-oriented interface::
+
+        sim = SUEWSSimulation('config.yml')
+        output = sim.run()
+        resampled = output.resample(freq="h")  # Returns SUEWSOutput
+
     **Timestamp Convention**
 
     The SUEWS convention uses right-closed intervals with right labels,
@@ -235,32 +250,33 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
 
     Examples
     --------
-    Basic usage - resample to hourly:
+    **Recommended** - Use the OOP interface:
 
-    >>> import supy as sp
+    >>> sim = sp.SUEWSSimulation.from_sample_data()
+    >>> output = sim.run()
+    >>> resampled = output.resample(freq="h")  # Returns SUEWSOutput
+
+    Legacy usage (deprecated):
+
     >>> df_state_init, df_forcing = sp.load_SampleData()
     >>> df_output, df_state_final = sp.run_supy(df_forcing, df_state_init)
     >>> df_hourly = sp.resample_output(df_output, freq="h")
 
-    Resample for EPW generation:
-
-    >>> df_hourly = sp.resample_output(df_output, freq="h")
-    >>> grid = df_hourly.index.get_level_values("grid")[0]
-    >>> df_epw, meta, path = sp.util.gen_epw(
-    ...     df_hourly.loc[grid, "SUEWS"], lat=51.5, lon=-0.1
-    ... )
-
-    Or use the convenience freq parameter in gen_epw:
-
-    >>> df_epw, meta, path = sp.util.gen_epw(
-    ...     df_output, lat=51.5, lon=-0.1, freq="h"
-    ... )
-
     See Also
     --------
+    SUEWSOutput.resample : Recommended OOP interface for resampling
     supy.util.gen_epw : Generate EPW files (supports freq parameter)
     supy.data_model.output.OUTPUT_REGISTRY : Aggregation rules source
     """
+    # Unwrap SUEWSOutput to raw DataFrame if needed
+    if hasattr(df_output, "_df_output"):
+        df_output = df_output._df_output
+
+    # Issue deprecation warning for direct external calls
+    if not _internal:
+        from ._supy_module import _warn_functional_deprecation
+
+        _warn_functional_deprecation("resample_output")
 
     # Helper function to resample a group with specified parameters
     def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None):

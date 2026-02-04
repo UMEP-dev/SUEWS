@@ -264,7 +264,7 @@ def save_df_output(
         df_save_no_daily = df_save
 
     # resample `df_output` at `freq_save` (excluding DailyState)
-    df_rsmp = resample_output(df_save_no_daily, freq_save)
+    df_rsmp = resample_output(df_save_no_daily, freq_save, _internal=True)
 
     # dataframes to save
     if save_tstep:
@@ -634,7 +634,7 @@ def save_df_output_parquet(
 
     if not save_tstep:
         # Resample output
-        df_rsmp = resample_output(df_save, freq_save)
+        df_rsmp = resample_output(df_save, freq_save, _internal=True)
 
         # MP: TODO: This causes duplicate entries for DailyState. Why keep the original resolution?
         # Keep DailyState at original resolution

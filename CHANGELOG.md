@@ -1,9 +1,28 @@
-<!-- Each entry should fall into one of the following categories: -->
-<!-- [feature]: New feature -->
-<!-- [bugfix]: Bug fixes; also, create a related GitHub issue -->
-<!-- [maintenance]: Codebase maintenance (including Claude Code/dev tooling) -->
-<!-- [doc]: Documentation updates -->
-<!-- [change]: Changes exposed to users -->
+<!-- CHANGELOG ENTRY GUIDELINES -->
+<!--
+CATEGORIES (required):
+  [feature]     - New functionality
+  [bugfix]      - Bug fixes (link related GitHub issue)
+  [change]      - Breaking changes or user-facing API changes
+  [maintenance] - Internal/dev tooling, CI, CLAUDE.md updates
+  [doc]         - User documentation updates
+
+STATUS TAGS (for [feature] and [change] only):
+  [experimental] - Under development, not for public announcement
+  [stable]       - Reviewed and approved for public release notes
+  [internal]     - Internal tooling, never announced publicly
+
+DEFAULTS:
+  - New [feature] entries default to [experimental]
+  - Only governance-approved features get [stable] tag
+  - [bugfix], [maintenance], [doc] don't need status tags
+
+EXAMPLES:
+  - [feature][experimental] Added new radiation scheme (#123)
+  - [feature][stable] Added OOP interface for output data (#456)
+  - [change][experimental] Refactored land cover fraction API (#789)
+  - [bugfix] Fixed temperature calculation (#124)
+-->
 
 ## Table of Contents
 

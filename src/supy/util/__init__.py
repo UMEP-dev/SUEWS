@@ -57,6 +57,13 @@ from ._debug import diag_rsl, diag_rsl_prm, save_zip_debug
 
 from ._spinup import get_spinup_state
 
-# resample_output removed - use SUEWSOutput.resample() instead
+
+def resample_output(*args, **kwargs):
+    """Deprecated wrapper for resample_output via supy.util."""
+    from .._supy_module import _warn_functional_deprecation
+    from .._post import resample_output as _resample_output
+
+    _warn_functional_deprecation("resample_output")
+    return _resample_output(*args, **kwargs)
 
 # from ._config import SUEWSConfig, init_config_from_yaml

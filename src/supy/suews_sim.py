@@ -572,7 +572,6 @@ class SUEWSSimulation:
             df_output, dict_final_states = run_dts_multi(
                 df_forcing=df_forcing_slice,
                 config=self._config,
-                chunk_day=chunk_day,
                 n_jobs=n_jobs,
             )
             self._df_output = df_output

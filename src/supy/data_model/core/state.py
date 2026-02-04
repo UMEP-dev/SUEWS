@@ -1081,7 +1081,7 @@ class InitialStates(BaseModel):
             "internal_only": True,
         },
     )
-    qn_surfs: List[float] = Field(
+    qn_surfs: List[Optional[float]] = Field(
         default_factory=lambda: [0.0] * 7,
         json_schema_extra={
             "display_name": "Initial QN for each surface",
@@ -1089,7 +1089,7 @@ class InitialStates(BaseModel):
         },
         description="Initial QN for each surface (internal use only)",
     )
-    dqndt_surf: List[float] = Field(
+    dqndt_surf: List[Optional[float]] = Field(
         default_factory=lambda: [0.0] * 7,
         json_schema_extra={
             "display_name": "Initial dQN/dt for each surface",

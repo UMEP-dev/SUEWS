@@ -119,10 +119,10 @@ def _init_dts_check():
         from . import supy_driver as _supy_driver
 
         # Check if DTS type classes exist (only present in full build with wrap_dts_types=true)
-        # The module_type_heat module exists in both builds, but the HEATSTATE class
+        # The module_type_heat module exists in both builds, but the HEAT_STATE class
         # is only generated when DTS type wrappers are enabled
         return hasattr(_supy_driver, "module_type_heat") and hasattr(
-            _supy_driver.module_type_heat, "HEATSTATE"
+            _supy_driver.module_type_heat, "HEAT_STATE"
         )
     except ImportError:
         return False

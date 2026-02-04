@@ -639,6 +639,12 @@ def create_uptodate_yaml_header():
 def create_clean_missing_param_annotation(param_name, standard_value):
     """Create missing parameter annotation without inline comments for clean YAML."""
     lines = []
+
+    if param_name in ["qn_surfs", "dqndt_surf"]:
+        null_array = ["null"] * 7
+        lines.append(f"{param_name}: [{', '.join(null_array)}]")
+        return lines
+
     if isinstance(standard_value, dict):
         lines.append(f"{param_name}:")
         for key, value in standard_value.items():

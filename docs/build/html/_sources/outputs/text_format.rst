@@ -137,9 +137,9 @@ Group Details
       This means the row labelled "2012-01-15" in DailyState contains the model
       state at the end of January 15th, making the output more intuitive to read.
 
-      When combining DailyState with other groups (e.g., in SuPy's
-      ``resample_output``), the date ranges may differ by one day at the
-      boundaries. See :py:func:`supy.resample_output` for details.
+      When combining DailyState with other groups (e.g., using
+      :meth:`SUEWSOutput.resample() <supy.SUEWSOutput.resample>`), the date
+      ranges may differ by one day at the boundaries.
 
 .. _output-snow:
 

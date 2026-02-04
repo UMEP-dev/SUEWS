@@ -3475,6 +3475,8 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
+            "samealbedo_wall",
+            "samealbedo_roof",
         }
 
         valid_yaml = {

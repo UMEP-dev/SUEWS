@@ -178,6 +178,8 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
         "snowuse",
         "stebbsmethod",
         "rcmethod",
+        "samealbedo_wall",
+        "samealbedo_roof",
     ]
 
     missing_params = [

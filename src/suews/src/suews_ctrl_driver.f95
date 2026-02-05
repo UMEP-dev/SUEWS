@@ -3889,7 +3889,7 @@ CONTAINS
       WindowDensity, WindowCp, WindowExternalEmissivity, WindowInternalEmissivity, WindowTransmissivity, &
       WindowAbsorbtivity, WindowReflectivity, InternalMassDensity, InternalMassCp, InternalMassEmissivity, &
       MaxHeatingPower, WaterTankWaterVolume, MaximumHotWaterHeatingPower, HeatingSetpointTemperature, &
-      CoolingSetpointTemperature, OccupantsProfile, &
+      CoolingSetpointTemperature, MetabolismProfile, &
       WallInternalConvectionCoefficient, RoofInternalConvectionCoefficient, InternalMassConvectionCoefficient, & ! stebbs general input
       FloorInternalConvectionCoefficient, WindowInternalConvectionCoefficient, &
       WallExternalConvectionCoefficient, RoofExternalConvectionCoefficient, WindowExternalConvectionCoefficient, &
@@ -4415,7 +4415,7 @@ CONTAINS
       REAL(KIND(1D0)) :: MaximumHotWaterHeatingPower
       REAL(KIND(1D0)), DIMENSION(0:143, 2) :: HeatingSetpointTemperature ! Heating setpoint diurnal profiles for weekday and weekend
       REAL(KIND(1D0)), DIMENSION(0:143, 2) :: CoolingSetpointTemperature ! Cooling setpoint diurnal profiles for weekday and weekend
-      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: OccupantsProfile
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: MetabolismProfile
       REAL(KIND(1D0)), DIMENSION(0:143, 2) ::ApplianceProfile
       TYPE(STEBBS_PRM) :: stebbsPrm
 
@@ -5324,7 +5324,7 @@ CONTAINS
       building_archtype%MaximumHotWaterHeatingPower = MaximumHotWaterHeatingPower
       building_archtype%HeatingSetpointTemperature = HeatingSetpointTemperature
       building_archtype%CoolingSetpointTemperature = CoolingSetpointTemperature
-      building_archtype%OccupantsProfile = OccupantsProfile
+      building_archtype%MetabolismProfile = MetabolismProfile
       building_archtype%ApplianceProfile = ApplianceProfile
       siteInfo%building_archtype = building_archtype
 

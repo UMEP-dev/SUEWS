@@ -798,7 +798,7 @@ sites:
         value: 1.0
       Occupants:
         value: 3.0
-      OccupantsProfile:
+      MetabolismProfile:
         working_day:
           '1': 1
           '2': 1

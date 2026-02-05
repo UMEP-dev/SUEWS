@@ -820,7 +820,7 @@ sites:
         value: 1
       Occupants:
         value: 0
-      OccupantsProfile:
+      MetabolismProfile:
         working_day:
           '1': 1
           '2': 1

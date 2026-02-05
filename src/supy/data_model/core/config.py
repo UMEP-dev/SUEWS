@@ -213,7 +213,7 @@ class SUEWSConfig(BaseModel):
         "BuildingName",
         "BuildingCount",
         "Occupants",
-        "OccupantsProfile",
+        "MetabolismProfile",
         "stebbs_Height",
         "FootprintArea",
         "WallExternalArea",

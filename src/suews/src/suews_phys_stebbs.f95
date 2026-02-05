@@ -344,14 +344,15 @@ CONTAINS
    ! Returns:
    !   qSL - latent heat and sensible heat from all occupants [W]
    !-------------------------------------------------------------------
-   FUNCTION internalOccupancyGains(Occupants, metRate, LSR) RESULT(qSL)
+   FUNCTION internalOccupancyGains(metRate, LSR) RESULT(qSL)
+      !2026.02.05 The metabolism profile is used, which already accounts for number of occupants
       USE module_phys_stebbs_precision
       IMPLICIT NONE
-      REAL(KIND(1D0)), INTENT(in) :: Occupants, metRate, LSR
+      REAL(KIND(1D0)), INTENT(in) :: metRate, LSR
       REAL(KIND(1D0)) :: qSen, qLat
       REAL(KIND(1D0)), DIMENSION(2) :: qSL
-      qSL(1) = (metRate*Occupants)/(1.0 + LSR)
-      qSL(2) = (metRate*Occupants)*LSR/(1.0 + LSR)
+      qSL(1) = (metRate)/(1.0 + LSR)
+      qSL(2) = (metRate)*LSR/(1.0 + LSR)
    END FUNCTION internalOccupancyGains
    !-------------------------------------------------------------------
    ! Function: internalApplianceGains
@@ -853,7 +854,6 @@ CONTAINS
             idx = imin / 10 !for 10 minutes resolution
             buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature(idx, iu) + 273.15
             buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature(idx, iu) + 273.15
-            buildings(1)%frac_occupants = building_archtype%OccupantsProfile(idx, iu)
             buildings(1)%frac_appliance = building_archtype%ApplianceProfile(idx, iu)
             buildings(1)%frac_hotwater = stebbsPrm%HotWaterFlowProfile(idx, iu)
             CALL setdatetime(datetimeLine)
@@ -1262,7 +1262,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%windowTransmissivity, self%windowAbsorbtivity, self%windowReflectivity, &
       self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity, &
       self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity, &
-      self%occupants, self%frac_occupants, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
+      self%occupants, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
       self%appliance_power_rating, self%frac_appliance, &
       self%maxheatingpower_air, self%heating_efficiency_air, &
       self%maxcoolingpower_air, self%coeff_performance_cooling, &
@@ -1372,7 +1372,7 @@ SUBROUTINE tstep( &
    windowTransmissivity, windowAbsorbtivity, windowReflectivity, &
    wallTransmisivity, wallAbsorbtivity, wallReflectivity, &
    roofTransmisivity, roofAbsorbtivity, roofReflectivity, &
-   occupants, frac_occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
+   occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
    appliance_power_rating, frac_appliance, &
    maxheatingpower_air, heating_efficiency_air, &
    maxcoolingpower_air, coeff_performance_cooling, &
@@ -1537,7 +1537,7 @@ SUBROUTINE tstep( &
                       windowTransmissivity, windowAbsorbtivity, windowReflectivity, & ! [-], [-], [-]
                       wallTransmisivity, wallAbsorbtivity, wallReflectivity, & ! [-], [-], [-]
                  roofTransmisivity, roofAbsorbtivity, roofReflectivity ! [-], [-], [-]
-   REAL(KIND(1D0)) :: occupants, frac_occupants ! Number of occupants [-]
+   REAL(KIND(1D0)) :: occupants! Number of occupants [-]
    REAL(KIND(1D0)) :: metabolic_rate, ratio_metabolic_latent_sensible, & ! [W], [-]
                       appliance_power_rating, frac_appliance ! [W]
    REAL(KIND(1D0)) :: maxheatingpower_air, heating_efficiency_air, & ! [W], [-]
@@ -1779,7 +1779,7 @@ SUBROUTINE tstep( &
          QHload_cooling_timestep = cooling(Ts(2), Tair_ind, coeff_performance_cooling, maxcoolingpower_air)
 
          !internalOccupancyGains(occupants, metabolic_rate, ratio_metabolic_latent_sensible, Qmetabolic_sensible, Qmetabolic_latent)
-         Qm = internalOccupancyGains(occupants*frac_occupants, metabolic_rate, ratio_metabolic_latent_sensible)
+         Qm = internalOccupancyGains(metabolic_rate, ratio_metabolic_latent_sensible)
          QH_metabolism = Qm(1)
          QE_metabolism = Qm(2)
          QHwaste_heating = &

@@ -1737,12 +1737,12 @@ class ArchetypeProperties(BaseModel):
         },
     )
 
-    OccupantsProfile: Optional[TenMinuteProfile] = Field(
+    MetabolismProfile: Optional[TenMinuteProfile] = Field(
         default_factory=TenMinuteProfile,
-        description="Profile of number of occupants in building [-]",
+        description="Profile of occupants metabolism in building [-]",
         json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Occupants Profile",
+            "unit": "W",
+            "display_name": "Metabolism Profile",
         },
     )
 
@@ -1753,7 +1753,7 @@ class ArchetypeProperties(BaseModel):
         ten_minute_profile_fields = {
             "HeatingSetpointTemperature",
             "CoolingSetpointTemperature",
-            "OccupantsProfile",
+            "MetabolismProfile",
         }
         excluded_fields = string_fields | ten_minute_profile_fields | {"ref"}
 
@@ -1783,7 +1783,7 @@ class ArchetypeProperties(BaseModel):
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ArchetypeProperties":
         string_fields = {"BuildingType", "BuildingName"}
-        ten_minute_profile_fields = {"HeatingSetpointTemperature", "CoolingSetpointTemperature", "OccupantsProfile"}
+        ten_minute_profile_fields = {"HeatingSetpointTemperature", "CoolingSetpointTemperature", "MetabolismProfile"}
 
         default_instance = cls()
         params: Dict[str, object] = {}

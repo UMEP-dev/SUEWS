@@ -145,8 +145,6 @@ sites:
         value: null
       LatentSensibleRatio:
         value: null
-      ApplianceRating:
-        value: null
       TotalNumberofAppliances:
         value: null
       ApplianceUsageFactor:

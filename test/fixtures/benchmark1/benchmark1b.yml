@@ -137,8 +137,6 @@ sites:
         value: 74.3
       LatentSensibleRatio:
         value: 0.5
-      ApplianceRating:
-        value: 150.0
       ApplianceProfile:
         working_day:
           '1': 1.0

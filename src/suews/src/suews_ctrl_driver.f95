@@ -3895,7 +3895,7 @@ CONTAINS
       WallExternalConvectionCoefficient, RoofExternalConvectionCoefficient, WindowExternalConvectionCoefficient, &
       GroundDepth, ExternalGroundConductivity, &
       MetabolismThreshold, LatentSensibleRatio, &
-      ApplianceRating, ApplianceProfile, &
+      ApplianceProfile, &
       HeatingSystemEfficiency, &
       MaxCoolingPower, CoolingSystemCOP, VentilationRate, DeepSoilTemperature, InitialOutdoorTemperature, InitialIndoorTemperature, &
       WaterTankWallThickness, MainsWaterTemperature, WaterTankSurfaceArea, &
@@ -4309,7 +4309,6 @@ CONTAINS
       REAL(KIND(1D0)) :: ExternalGroundConductivity
       REAL(KIND(1D0)) :: MetabolismThreshold
       REAL(KIND(1D0)) :: LatentSensibleRatio
-      REAL(KIND(1D0)) :: ApplianceRating
       REAL(KIND(1D0)) :: HeatingSystemEfficiency
       REAL(KIND(1D0)) :: MaxCoolingPower
       REAL(KIND(1D0)) :: CoolingSystemCOP
@@ -5180,7 +5179,6 @@ CONTAINS
       stebbsPrm%ExternalGroundConductivity = ExternalGroundConductivity
       stebbsPrm%MetabolismThreshold = MetabolismThreshold
       stebbsPrm%LatentSensibleRatio = LatentSensibleRatio
-      stebbsPrm%ApplianceRating = ApplianceRating
       stebbsPrm%HeatingSystemEfficiency = HeatingSystemEfficiency
       stebbsPrm%MaxCoolingPower = MaxCoolingPower
       stebbsPrm%CoolingSystemCOP = CoolingSystemCOP

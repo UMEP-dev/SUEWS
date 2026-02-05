@@ -1941,12 +1941,6 @@ class StebbsProperties(BaseModel):
         },
         ge=0.0,
     )
-    ApplianceRating: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Power demand of single appliance [W]",
-        json_schema_extra={"unit": "W", "display_name": "Appliance Rating"},
-        ge=0.0,
-    )
     HeatingSystemEfficiency: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Efficiency of space heating system [-]",

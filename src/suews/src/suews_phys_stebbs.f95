@@ -853,7 +853,7 @@ CONTAINS
             !select heating/cooling setpoint from prescribed schedules
             idx = imin / 10 !for 10 minutes resolution
             buildings(1)%metabolic_rate = building_archtype%MetabolismProfile(idx, iu)
-            buildings(1)%frac_appliance = building_archtype%ApplianceProfile(idx, iu)
+            buildings(1)%appliance_power_rating = building_archtype%ApplianceProfile(idx, iu)
             buildings(1)%frac_hotwater = stebbsPrm%HotWaterFlowProfile(idx, iu)
             ! determine the occupancy status, active and inactive (sleep, not control heating, cooling, lighting)
             IF (buildings(1)%metabolic_rate >= buildings(1)%metabolism_threshold * buildings(1)%occupants) THEN
@@ -1272,7 +1272,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity, &
       self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity, &
       self%occupants, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
-      self%appliance_power_rating, self%frac_appliance, &
+      self%appliance_power_rating, &
       self%maxheatingpower_air, self%heating_efficiency_air, &
       self%maxcoolingpower_air, self%coeff_performance_cooling, &
       self%Vair_ind, self%ventilation_rate, self%Awall, self%Aroof, &
@@ -1382,7 +1382,7 @@ SUBROUTINE tstep( &
    wallTransmisivity, wallAbsorbtivity, wallReflectivity, &
    roofTransmisivity, roofAbsorbtivity, roofReflectivity, &
    occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
-   appliance_power_rating, frac_appliance, &
+   appliance_power_rating, &
    maxheatingpower_air, heating_efficiency_air, &
    maxcoolingpower_air, coeff_performance_cooling, &
    Vair_ind, ventilation_rate, Awall, Aroof, &
@@ -1548,7 +1548,7 @@ SUBROUTINE tstep( &
                  roofTransmisivity, roofAbsorbtivity, roofReflectivity ! [-], [-], [-]
    REAL(KIND(1D0)) :: occupants! Number of occupants [-]
    REAL(KIND(1D0)) :: metabolic_rate, ratio_metabolic_latent_sensible, & ! [W], [-]
-                      appliance_power_rating, frac_appliance ! [W]
+                      appliance_power_rating ! [W]
    REAL(KIND(1D0)) :: maxheatingpower_air, heating_efficiency_air, & ! [W], [-]
                       maxcoolingpower_air, coeff_performance_cooling, & ! [W], [-]
                       Vair_ind, ventilation_rate, & ! Fixed at begining to have no natural ventilation.
@@ -1769,8 +1769,7 @@ SUBROUTINE tstep( &
          Qlw_net_introof_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for roof internal radiative exchange
          Qlw_net_intwindow_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for window internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
          Qlw_net_intgroundfloor_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for ground floor internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
-         QH_appliance = &
-            internalApplianceGains(appliance_power_rating, frac_appliance)
+         QH_appliance = appliance_power_rating
          QH_ventilation = &
             ventilationHeatTransfer(density_air_ind, cp_air_ind, ventilation_rate, Tair_out_hbh, Tair_ind)
          QHconv_indair_to_intwall = &
@@ -2206,7 +2205,7 @@ SUBROUTINE tstep( &
       QEC_heating_tstepFA = QHload_heating_tstepFA / heating_efficiency_air
       QEC_cooling_tstepFA = QHload_cooling_tstepFA / coeff_performance_cooling
       QEC_dhw_tstepFA = QHload_dhw_tstepFA / heating_efficiency_air
-      QEC_bldg_tstepFA = QEC_heating_tstepFA + QEC_cooling_tstepFA + QEC_dhw_tstepFA + QH_metabolism_tstepFA
+      QEC_bldg_tstepFA = QEC_heating_tstepFA + QEC_cooling_tstepFA + QEC_dhw_tstepFA + QH_metabolism_tstepFA + QH_appliance_tstepFA
       !Convection
       QH_bldg_tstepFA = QHconv_extwall_to_outair_tstepFA + QHconv_extroof_to_outair_tstepFA + QHconv_extwindow_to_outair_tstepFA
       !Building air exchange (ventilation)
@@ -2322,7 +2321,6 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%occupants = building_archtype%Occupants
    self%metabolism_threshold = stebbsPrm%MetabolismThreshold
    self%ratio_metabolic_latent_sensible = stebbsPrm%LatentSensibleRatio
-   self%appliance_power_rating = stebbsPrm%ApplianceRating
    self%maxheatingpower_air = building_archtype%MaxHeatingPower
    self%heating_efficiency_air = stebbsPrm%HeatingSystemEfficiency
    self%maxcoolingpower_air = stebbsPrm%MaxCoolingPower
@@ -2529,7 +2527,6 @@ SUBROUTINE create_building(CASE, self, icase)
    self%occupants = 15
    self%metabolic_rate = 250
    self%ratio_metabolic_latent_sensible = 0.8
-   self%appliance_power_rating = 100
    self%maxheatingpower_air = 45000
    self%heating_efficiency_air = 0.9
    self%maxcoolingpower_air = 3000

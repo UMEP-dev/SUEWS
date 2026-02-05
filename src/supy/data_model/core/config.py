@@ -169,7 +169,6 @@ class SUEWSConfig(BaseModel):
         "ExternalGroundConductivity",
         "MetabolismThreshold",
         "LatentSensibleRatio",
-        "ApplianceRating",
         "ApplianceProfile",
         "HeatingSystemEfficiency",
         "MaxCoolingPower",

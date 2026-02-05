@@ -1751,8 +1751,6 @@ class ArchetypeProperties(BaseModel):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         string_fields = {"BuildingType", "BuildingName"}
         ten_minute_profile_fields = {
-            "HeatingSetpointTemperature",
-            "CoolingSetpointTemperature",
             "MetabolismProfile",
         }
         excluded_fields = string_fields | ten_minute_profile_fields | {"ref"}

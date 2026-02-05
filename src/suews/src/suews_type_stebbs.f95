@@ -72,7 +72,7 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: MaximumHotWaterHeatingPower = 0.0D0 ! Maximum power demand of water heating system [W]
       REAL(KIND(1D0)) :: HeatingSetpointTemperature = 0.0D0 ! Heating setpoint temperature [degC]
       REAL(KIND(1D0)) :: CoolingSetpointTemperature = 0.0D0 ! Cooling setpoint temperature [degC]
-      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: MetabolismProfile = 0.0D0 ! diurnal profiles of occupant metyabolic rate [W]
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: MetabolismProfile = 0.0D0 ! diurnal profiles of occupant metabolic rate [W]
       REAL(KIND(1D0)), DIMENSION(0:143, 2) :: ApplianceProfile = 0.0D0 ! diurnal profiles of appliance energy power [W]
       ! flag for iteration safety - YES - as we this should be updated every iteration
       LOGICAL :: iter_safe = .TRUE.
@@ -210,7 +210,6 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: metabolism_threshold = 0.0D0
       REAL(KIND(1D0)) :: ratio_metabolic_latent_sensible = 0.0D0
       REAL(KIND(1D0)) :: appliance_power_rating = 0.0D0
-      REAL(KIND(1D0)) :: frac_appliance = 0.0D0
       REAL(KIND(1D0)) :: frac_hotwater = 0.0D0
       REAL(KIND(1D0)) :: maxheatingpower_air = 0.0D0
       REAL(KIND(1D0)) :: heating_efficiency_air = 0.0D0

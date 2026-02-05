@@ -355,23 +355,6 @@ CONTAINS
       qSL(2) = (metRate)*LSR/(1.0 + LSR)
    END FUNCTION internalOccupancyGains
    !-------------------------------------------------------------------
-   ! Function: internalApplianceGains
-   ! Description:
-   ! Parameters:
-   !   P - power rating of appliances [W]
-   !   f - usage factor of appliance [-]
-   !   n - vnumber of appliances [-]
-   ! Returns:
-   !   qapp - total energy of appliances - assume all goes to heat (sensible) [W]
-   !-------------------------------------------------------------------
-   FUNCTION internalApplianceGains(P, f) RESULT(qapp)
-      USE module_phys_stebbs_precision
-      IMPLICIT NONE
-      REAL(KIND(1D0)), INTENT(in) :: P, f
-      REAL(KIND(1D0)) :: qapp
-      qapp = P*f
-   END FUNCTION internalApplianceGains
-   !-------------------------------------------------------------------
    ! Function: ext_conv_coeff
    ! Description: Calculates the external convection coefficient using Eq. 11 Cole & Sturrock (1977)
    ! Parameters:

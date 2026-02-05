@@ -4415,7 +4415,7 @@ CONTAINS
       REAL(KIND(1D0)) :: HeatingSetpointTemperature 
       REAL(KIND(1D0)) :: CoolingSetpointTemperature
       REAL(KIND(1D0)), DIMENSION(0:143, 2) :: MetabolismProfile
-      REAL(KIND(1D0)), DIMENSION(0:143, 2) ::ApplianceProfile
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: ApplianceProfile
       TYPE(STEBBS_PRM) :: stebbsPrm
 
       ! lumped states

@@ -858,8 +858,8 @@ CONTAINS
             ! determine the occupancy status, active and inactive (sleep, not control heating, cooling, lighting)
             IF (buildings(1)%metabolic_rate >= buildings(1)%metabolism_threshold * buildings(1)%occupants) THEN
                !active: valid heating cooling setpoint.
-               buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature(idx, iu) + 273.15
-               buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature(idx, iu) + 273.15
+               buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature + 273.15
+               buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature + 273.15
             ELSE
                buildings(1)%Ts(1) = 15 + 273.15
                buildings(1)%Ts(2) = 100 + 273.15

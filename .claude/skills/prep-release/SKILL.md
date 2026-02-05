@@ -26,6 +26,7 @@ This workflow is **workspace-independent** - run from any worktree.
 6. **Submit PR** - Create PR, wait for CI, merge to master
 7. **Tag release** - Tag the merge commit on master
 8. **Verify** - Monitor Actions, PyPI, GitHub Release, Zenodo
+9. **Update umep-reqs** - PR to update supy version in UMEP-dev/umep-reqs
 
 Details: `references/release-steps.md`
 
@@ -60,7 +61,7 @@ Selection criteria:
 - Recent enough (includes desired changes)
 - No critical issues reported since
 
-## Pre-Release Checklist
+## Release Checklist
 
 ```
 [PASS/FAIL] No incomplete prior releases (all merged release PRs have tags)
@@ -74,6 +75,7 @@ Selection criteria:
 [PASS/FAIL] PR merged to master
 [PASS/FAIL] Git tag created on merge commit
 [PASS/FAIL] GitHub Release published (triggers Zenodo DOI)
+[PASS/FAIL] umep-reqs PR created (UMEP-dev/umep-reqs)
 Ready: YES/NO
 ```
 

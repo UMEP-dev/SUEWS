@@ -714,7 +714,7 @@ class SUEWSConfig(BaseModel):
                         if alb_id_val is not None:
                             if not (alb_min_val <= alb_id_val <= alb_max_val):
                                 errors.append(
-                                    f"{site_name} {surface_description}: alb_id ({alb_id_val}) must be in range [{alb_min_val}, {alb_max_val}]"
+                                    f"{site_name} {surface_description}: alb_id ({alb_id_val}) must be in range [alb_min, alb_max] ([{alb_min_val}, {alb_max_val}] provided)"
                                 )
 
         if errors:

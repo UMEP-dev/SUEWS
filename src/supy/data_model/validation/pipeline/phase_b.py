@@ -178,6 +178,8 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
         "snowuse",
         "stebbsmethod",
         "rcmethod",
+        "samealbedo_wall",
+        "samealbedo_roof",
     ]
 
     missing_params = [
@@ -472,10 +474,37 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                     )
                 )
 
+        # Determine if biogenic CO2 parameters should be required
+        physics = yaml_data.get("model", {}).get("physics", {})
+        emissionsmethod = get_value_safe(physics, "emissionsmethod")
+        biogenic_params = {
+            "alpha_bioco2",
+            "alpha_enh_bioco2",
+            "beta_bioco2",
+            "beta_enh_bioco2",
+            "min_res_bioco2",
+            "theta_bioco2",
+            "resp_a",
+            "resp_b",
+        }
+        biogenic_surfaces = {"dectr", "evetr", "grass"}
+
         for surface_type, sfr_value in surface_types:
             if sfr_value > 0:
                 surface_props = land_cover[surface_type]
                 missing_params = _check_surface_parameters(surface_props, surface_type)
+
+                # If emissionsmethod disables CO2, skip biogenic params for relevant surfaces
+                if (
+                    emissionsmethod is not None
+                    and emissionsmethod in [0, 1, 2, 3, 4]
+                    and surface_type in biogenic_surfaces
+                ):
+                    missing_params = [
+                        p
+                        for p in missing_params
+                        if p.split(".")[-1] not in biogenic_params
+                    ]
 
                 for param_name in missing_params:
                     readable_message = (

@@ -5526,13 +5526,13 @@
           },
           "description": "Sky view factor of external walls [-]"
         },
-        "MetabolicRate": {
+        "MetabolismThreshold": {
           "$ref": "#/$defs/ValueWithDOI_float_",
           "default": {
             "value": 0.0,
             "ref": null
           },
-          "description": "Metabolic rate of building occupants [W]"
+          "description": "Threshold of occupants metabolic rate to determine if they are active or inactive [W]"
         },
         "LatentSensibleRatio": {
           "$ref": "#/$defs/ValueWithDOI_float_",
@@ -7860,7 +7860,7 @@
                 "ref": null,
                 "value": 0.0
               },
-              "MetabolicRate": {
+              "MetabolismThreshold": {
                 "ref": null,
                 "value": 0.0
               },

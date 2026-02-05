@@ -1373,10 +1373,9 @@ class SUEWSConfig(BaseModel):
         except (TypeError, ValueError):
             pass
 
-        # Only validate if method == 6 AND it was explicitly set
-        if shm == 6:
+        # Only validate if method == 6 or 7 AND it was explicitly set
+        if shm == 6 or shm == 7:
             return self._is_physics_explicitly_configured()
-
         return False
     
     def _needs_samealbedo_wall_validation(self) -> bool:
@@ -1421,17 +1420,19 @@ class SUEWSConfig(BaseModel):
 
     def _validate_storage(self, site: Site, site_index: int) -> List[str]:
         issues: List[str] = []
-        # prendi sempre il nome
+
         site_name = getattr(site, "name", f"Site {site_index}")
         props = getattr(site, "properties", None)
+        states = getattr(site, "initial_states", None)
         if not props:
             return issues
 
         vl = getattr(props, "vertical_layers", None)
         walls = getattr(vl, "walls", None) if vl else None
+
         if not walls or len(walls) == 0:
             issues.append(
-                f"{site_name}: storageheatmethod=6 → missing vertical_layers.walls"
+                f"{site_name}: storageheatmethod 6 or 7 (DyOHM) selected → missing vertical_layers.walls"
             )
             return issues
 
@@ -1446,14 +1447,32 @@ class SUEWSConfig(BaseModel):
                 or any(not isinstance(v, (int, float)) for v in vals)
             ):
                 issues.append(
-                    f"{site_name}: storageheatmethod=6 → "
+                    f"{site_name}: storageheatmethod 6 or 7 (DyOHM) selected → "
                     f"thermal_layers.{arr} must be a non‐empty list of numeric values (no nulls)"
+                )
+
+        for arr in ("qn_surfs", "dqndt_surf"):
+            field = getattr(states, arr, None) if states else None
+            # Handle both RefValue with .value and plain list
+            if hasattr(field, "value"):
+                vals = field.value
+            else:
+                vals = field
+            if (
+                not isinstance(vals, list)
+                or len(vals) == 0
+                or any(v is None for v in vals)
+                or any(not isinstance(v, (int, float)) for v in vals)
+            ):
+                issues.append(
+                    f"{site_name}: storageheatmethod 6 or 7 (DyOHM) selected → "
+                    f"initial_states.{arr} must be a non‐empty list of numeric values (no nulls)"
                 )
 
         lam = getattr(getattr(props, "lambda_c", None), "value", None)
         if lam in (None, ""):
             issues.append(
-                f"{site_name}: storageheatmethod=6 → properties.lambda_c must be set and non-null"
+                f"{site_name}: storageheatmethod 6 or 7 (DyOHM) selected → properties.lambda_c must be set and non-null"
             )
 
         return issues

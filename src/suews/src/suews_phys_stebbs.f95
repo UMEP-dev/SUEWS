@@ -852,10 +852,19 @@ CONTAINS
             IF (DayofWeek_id(1) == 1 .OR. DayofWeek_id(1) == 7) iu = 2 !Set to 2=weekend
             !select heating/cooling setpoint from prescribed schedules
             idx = imin / 10 !for 10 minutes resolution
-            buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature(idx, iu) + 273.15
-            buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature(idx, iu) + 273.15
+            buildings(1)%metabolic_rate = building_archtype%MetabolismProfile(idx, iu)
             buildings(1)%frac_appliance = building_archtype%ApplianceProfile(idx, iu)
             buildings(1)%frac_hotwater = stebbsPrm%HotWaterFlowProfile(idx, iu)
+            ! determine the occupancy status, active and inactive (sleep, not control heating, cooling, lighting)
+            IF (buildings(1)%metabolic_rate >= buildings(1)%metabolism_threshold * buildings(1)%occupants) THEN
+               !active: valid heating cooling setpoint.
+               buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature(idx, iu) + 273.15
+               buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature(idx, iu) + 273.15
+            ELSE
+               buildings(1)%Ts(1) = 15 + 273.15
+               buildings(1)%Ts(2) = 100 + 273.15
+            END IF
+
             CALL setdatetime(datetimeLine)
 
             CALL suewsstebbscouple( &
@@ -2311,7 +2320,7 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%roofAbsorbtivity = building_archtype%RoofAbsorbtivity
    self%roofReflectivity = building_archtype%RoofReflectivity
    self%occupants = building_archtype%Occupants
-   self%metabolic_rate = stebbsPrm%MetabolicRate
+   self%metabolism_threshold = stebbsPrm%MetabolismThreshold
    self%ratio_metabolic_latent_sensible = stebbsPrm%LatentSensibleRatio
    self%appliance_power_rating = stebbsPrm%ApplianceRating
    self%maxheatingpower_air = building_archtype%MaxHeatingPower
@@ -2349,8 +2358,7 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%wiTAR = (/self%windowTransmissivity, self%windowAbsorbtivity, self%windowReflectivity/)
    self%waTAR = (/self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity/)
    self%roofTAR = (/self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity/)
-   self%occupantData = (/self%occupants, self%metabolic_rate, &
-                         self%ratio_metabolic_latent_sensible/)
+
 
    self%Tair_ind = stebbsState%IndoorAirStartTemperature + 273.15 ! # Indoor air temperature (K)
    self%Tindoormass = stebbsState%IndoorMassStartTemperature + 273.15 ! # Indoor mass temperature (K)
@@ -2557,8 +2565,6 @@ SUBROUTINE create_building(CASE, self, icase)
    self%wiTAR = (/self%windowTransmissivity, self%windowAbsorbtivity, self%windowReflectivity/)
    self%waTAR = (/self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity/)
    self%roofTAR = (/self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity/)
-   self%occupantData = (/self%occupants, self%metabolic_rate, &
-                         self%ratio_metabolic_latent_sensible/)
 
    self%Tair_ind = 20 + 273.15 ! # Indoor air temperature (K)
    self%Tindoormass = 20 + 273.15 ! # Indoor mass temperature (K)

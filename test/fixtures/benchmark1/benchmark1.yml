@@ -137,8 +137,8 @@ sites:
         value: 0.2
       WallSkyViewFactor:
         value: 0.3
-      MetabolicRate:
-        value: 50.0
+      MetabolismThreshold:
+        value: 74.3
       LatentSensibleRatio:
         value: 0.5
       ApplianceRating:

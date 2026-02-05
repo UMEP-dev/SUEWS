@@ -142,8 +142,8 @@ sites:
         value: 2.0
       ExternalGroundConductivity:
         value: 0.193
-      MetabolicRate:
-        value: 100.0
+      MetabolismThreshold:
+        value: 74.3
       LatentSensibleRatio:
         value: 0
       ApplianceRating:

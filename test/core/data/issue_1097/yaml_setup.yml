@@ -141,7 +141,7 @@ sites:
         value: null
       ExternalGroundConductivity:
         value: null
-      MetabolicRate:
+      MetabolismThreshold:
         value: null
       LatentSensibleRatio:
         value: null

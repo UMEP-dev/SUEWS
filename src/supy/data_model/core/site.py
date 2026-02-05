@@ -1928,10 +1928,10 @@ class StebbsProperties(BaseModel):
             "display_name": "External Ground Conductivity",
         },
     )
-    MetabolicRate: Optional[FlexibleRefValue(float)] = Field(
+    MetabolismThreshold: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
-        description="Metabolic rate of building occupants [W]",
-        json_schema_extra={"unit": "W", "display_name": "Metabolic Rate"},
+        description="threshold of metabolic rate to determine occupancy active or inactive [W]",
+        json_schema_extra={"unit": "W", "display_name": "Metabolic Rate Threshold"},
         ge=0.0,
     )
     LatentSensibleRatio: Optional[FlexibleRefValue(float)] = Field(

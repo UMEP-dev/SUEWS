@@ -40,7 +40,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 64 | 78 | 24 | 79 | 38 | 283 |
+| 2026 | 64 | 78 | 25 | 79 | 38 | 284 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -52,6 +52,10 @@ EXAMPLES:
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 5 Feb 2026
+
+- [change] Refactor error message in validate_albedo_ranges to explicitly declare that range comes from alb_min and alb_max (PR #1193)
 
 ### 4 Feb 2026
 

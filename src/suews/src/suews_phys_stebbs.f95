@@ -850,7 +850,6 @@ CONTAINS
               
             iu = 1 !Set to 1=weekday
             IF (DayofWeek_id(1) == 1 .OR. DayofWeek_id(1) == 7) iu = 2 !Set to 2=weekend
-            !select heating/cooling setpoint from prescribed schedules
             idx = imin / 10 !for 10 minutes resolution
             buildings(1)%metabolic_rate = building_archtype%MetabolismProfile(idx, iu)
             buildings(1)%appliance_power_rating = building_archtype%ApplianceProfile(idx, iu)
@@ -861,7 +860,7 @@ CONTAINS
                buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature + 273.15
                buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature + 273.15
             ELSE
-               buildings(1)%Ts(1) = 15 + 273.15
+               buildings(1)%Ts(1) = 10 + 273.15
                buildings(1)%Ts(2) = 100 + 273.15
             END IF
 
@@ -1740,6 +1739,9 @@ SUBROUTINE tstep( &
    QHwaste_dhw_tstepTotal = 0.0
    QH_metabolism_tstepTotal = 0.0
    QE_metabolism_tstepTotal = 0.0
+   QHload_heating_tstepTotal = 0.0
+   QHload_cooling_tstepTotal = 0.0
+   QHload_dhw_tstepTotal = 0.0
    QS_bldg_tstepTotal = 0.0
    QS_wall_tstepTotal = 0.0
    QS_roof_tstepTotal = 0.0
@@ -1785,7 +1787,6 @@ SUBROUTINE tstep( &
 
          QHload_heating_timestep = heating(Ts(1), Tair_ind, heating_efficiency_air, maxheatingpower_air)
          QHload_cooling_timestep = cooling(Ts(2), Tair_ind, coeff_performance_cooling, maxcoolingpower_air)
-
          !internalOccupancyGains(occupants, metabolic_rate, ratio_metabolic_latent_sensible, Qmetabolic_sensible, Qmetabolic_latent)
          Qm = internalOccupancyGains(metabolic_rate, ratio_metabolic_latent_sensible)
          QH_metabolism = Qm(1)

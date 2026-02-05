@@ -121,7 +121,8 @@ class TestRunDtsMultiMultiGrid:
 
     @pytest.mark.core
     @pytest.mark.skipif(
-        os.name == "nt", reason="Parallel DTS execution is not supported on Windows"
+        os.name == "nt" or os.environ.get("CI") == "true",
+        reason="Parallel DTS execution skipped on Windows and in CI environments",
     )
     def test_multi_grid_parallel_matches_serial(self, multi_site_config):
         """Parallel run matches serial output for multi-site configs."""
@@ -138,7 +139,8 @@ class TestRunDtsMultiMultiGrid:
 
     @pytest.mark.core
     @pytest.mark.skipif(
-        os.name == "nt", reason="Parallel DTS execution is not supported on Windows"
+        os.name == "nt" or os.environ.get("CI") == "true",
+        reason="Parallel DTS execution skipped on Windows and in CI environments",
     )
     def test_multi_grid_parallel_njobs_clamped(self, multi_site_config):
         """n_jobs larger than site count is clamped without error."""

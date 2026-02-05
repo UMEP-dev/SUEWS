@@ -1720,17 +1720,17 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    HeatingSetpointTemperature: Optional[TenMinuteProfile] = Field(
-        default_factory=TenMinuteProfile,  
-        description="Heating setpoint temperature [degC] profile.",
+    HeatingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
+        default=0.0,
+        description="Heating setpoint temperature [degC]",
         json_schema_extra={
             "unit": "degC",
             "display_name": "Heating Setpoint Temperature",
         },
     )
-    CoolingSetpointTemperature: Optional[TenMinuteProfile] = Field(
-        default_factory=TenMinuteProfile, 
-        description="Cooling setpoint temperature [degC] profile.",
+    CoolingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
+        default=0.0,
+        description="Cooling setpoint temperature [degC]",
         json_schema_extra={
             "unit": "degC",
             "display_name": "Cooling Setpoint Temperature",
@@ -1783,7 +1783,7 @@ class ArchetypeProperties(BaseModel):
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ArchetypeProperties":
         string_fields = {"BuildingType", "BuildingName"}
-        ten_minute_profile_fields = {"HeatingSetpointTemperature", "CoolingSetpointTemperature", "MetabolismProfile"}
+        ten_minute_profile_fields = {"MetabolismProfile"}
 
         default_instance = cls()
         params: Dict[str, object] = {}

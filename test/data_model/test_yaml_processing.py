@@ -1967,7 +1967,7 @@ def test_stebbsmethod0_nullifies_ten_minute_profiles():
             {
                 "properties": {
                     "stebbs": {
-                        "HeatingSetpointTemperature": deepcopy(heating_schedule)
+                        "MetabolismProfile": deepcopy(heating_schedule)
                         }
                     }
                 }
@@ -1976,7 +1976,7 @@ def test_stebbsmethod0_nullifies_ten_minute_profiles():
     result = precheck_model_option_rules(deepcopy(yaml_input))
 
     profiles = result["sites"][0]["properties"]["stebbs"][
-        "HeatingSetpointTemperature"
+        "MetabolismProfile"
     ]
     for schedule in profiles.values():
         assert all(value is None for value in schedule.values())

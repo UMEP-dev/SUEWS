@@ -55,6 +55,7 @@ EXAMPLES:
 
 ### 5 Feb 2026
 
+- [change][experimental] Replace OccupantsProfile with MetabolismProfile and add metabolism threshold for occupancy activity classification in STEBBS; fix missing appliance energy in QEC_bldg and uninitialised heating/cooling load accumulators (PR #1194)
 - [change] Refactor error message in validate_albedo_ranges to explicitly declare that range comes from alb_min and alb_max (PR #1193)
 
 ### 4 Feb 2026

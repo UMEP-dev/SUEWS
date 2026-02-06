@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for archetype properties parameters" name="description" />
 <meta content="SUEWS, YAML, archetypeproperties, parameters, configuration" name="keywords" />
 
-    <title>4.3.3. Archetype Properties &#8212; SUEWS 2026.2.5.dev49 documentation</title>
+    <title>4.3.3. Archetype Properties &#8212; SUEWS 2026.2.5.dev52 documentation</title>
   
   
   
@@ -42,7 +42,7 @@
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
   <script src="../../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
 
-    <script src="../../../_static/documentation_options.js?v=2bfd1f91"></script>
+    <script src="../../../_static/documentation_options.js?v=80870c83"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
@@ -108,7 +108,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.2.5.dev49, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/16c5d7553512029027bdb3606fc10c8f5139a8b4" style="color: #31708f;">16c5d75</a>).
+        (2026.2.5.dev52, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d1eac13731c31324ad5657d9e473681555b2b9e6" style="color: #31708f;">d1eac13</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -154,8 +154,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.5.dev49 documentation - Home"/>
-    <script>document.write(`<img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.5.dev49 documentation - Home"/>`);</script>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.5.dev52 documentation - Home"/>
+    <script>document.write(`<img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.5.dev52 documentation - Home"/>`);</script>
   
   
 </a></div>
@@ -1317,37 +1317,41 @@ document.write(`
 <dl class="input option" id="index-57">
 <dt class="sig sig-object input" id="input-option-HeatingSetpointTemperature">
 <span class="sig-name descname"><span class="pre">HeatingSetpointTemperature</span></span><a class="headerlink" href="#input-option-HeatingSetpointTemperature" title="Link to this definition">#</a></dt>
-<dd><p>Heating setpoint temperature [degC] profile.</p>
+<dd><p>Heating setpoint temperature [degC]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
 </dd>
+<dt class="field-even">Example<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
+</dd>
 </dl>
-<p>The <code class="docutils literal notranslate"><span class="pre">HeatingSetpointTemperature</span></code> parameter group is defined by the <a class="reference internal" href="tenminuteprofile.html"><span class="doc">Ten Minute Profile</span></a> structure.</p>
 </dd></dl>
 
 <dl class="input option" id="index-58">
 <dt class="sig sig-object input" id="input-option-CoolingSetpointTemperature">
 <span class="sig-name descname"><span class="pre">CoolingSetpointTemperature</span></span><a class="headerlink" href="#input-option-CoolingSetpointTemperature" title="Link to this definition">#</a></dt>
-<dd><p>Cooling setpoint temperature [degC] profile.</p>
+<dd><p>Cooling setpoint temperature [degC]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
 </dd>
+<dt class="field-even">Example<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
+</dd>
 </dl>
-<p>The <code class="docutils literal notranslate"><span class="pre">CoolingSetpointTemperature</span></code> parameter group is defined by the <a class="reference internal" href="tenminuteprofile.html"><span class="doc">Ten Minute Profile</span></a> structure.</p>
 </dd></dl>
 
 <dl class="input option" id="index-59">
-<dt class="sig sig-object input" id="input-option-OccupantsProfile">
-<span class="sig-name descname"><span class="pre">OccupantsProfile</span></span><a class="headerlink" href="#input-option-OccupantsProfile" title="Link to this definition">#</a></dt>
-<dd><p>Profile of number of occupants in building [-]</p>
+<dt class="sig sig-object input" id="input-option-MetabolismProfile">
+<span class="sig-name descname"><span class="pre">MetabolismProfile</span></span><a class="headerlink" href="#input-option-MetabolismProfile" title="Link to this definition">#</a></dt>
+<dd><p>Profile of occupants metabolism in building [-]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>dimensionless</p>
+<dd class="field-odd"><p>W</p>
 </dd>
 </dl>
-<p>The <code class="docutils literal notranslate"><span class="pre">OccupantsProfile</span></code> parameter group is defined by the <a class="reference internal" href="tenminuteprofile.html"><span class="doc">Ten Minute Profile</span></a> structure.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">MetabolismProfile</span></code> parameter group is defined by the <a class="reference internal" href="tenminuteprofile.html"><span class="doc">Ten Minute Profile</span></a> structure.</p>
 </dd></dl>
 
 <dl class="input option" id="index-60">
@@ -1427,8 +1431,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.2.5.dev49 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/16c5d7553512029027bdb3606fc10c8f5139a8b4">16c5d75</a> |
+  <p>Version: 2026.2.5.dev52 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/d1eac13731c31324ad5657d9e473681555b2b9e6">d1eac13</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

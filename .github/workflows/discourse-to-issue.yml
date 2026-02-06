@@ -136,6 +136,7 @@ jobs:
             "${DISCOURSE_HOST}/posts.json"
 
       - name: Update Discourse topic tags
+        continue-on-error: true
         env:
           DISCOURSE_API_KEY: ${{ secrets.DISCOURSE_SUEWS_ADMIN_KEY }}
         run: |
@@ -148,11 +149,16 @@ jobs:
             "${DISCOURSE_HOST}/t/${TOPIC_ID}.json" \
             | jq '[.tags[]? | select(. != "github-issue")] + ["github-issue-created"] | unique')
 
-          curl -s -f -X PUT \
+          HTTP_CODE=$(curl -s -o /tmp/tag-response.json -w '%{http_code}' -X PUT \
             -H "Api-Key: ${DISCOURSE_API_KEY}" \
             -H "Api-Username: ${DISCOURSE_USERNAME}" \
             -H "Content-Type: application/json" \
             -d "{\"tags\": ${UPDATED_TAGS}}" \
-            "${DISCOURSE_HOST}/t/-/${TOPIC_ID}.json"
+            "${DISCOURSE_HOST}/t/-/${TOPIC_ID}.json")
 
-          echo "Updated topic ${TOPIC_ID}: removed github-issue, added github-issue-created"
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "Updated topic ${TOPIC_ID}: removed github-issue, added github-issue-created"
+          else
+            echo "::warning::Failed to update Discourse tags (HTTP ${HTTP_CODE})"
+            cat /tmp/tag-response.json
+          fi

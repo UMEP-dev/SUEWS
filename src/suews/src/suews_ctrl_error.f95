@@ -9,6 +9,7 @@
 !   101: OHM  - Invalid input parameters (d, C, k, lambda_c, WS must be positive)
 !   102: STEBBS - Invalid thermal parameters (d, cp, rho must be positive; x1 in [0,1])
 !   103: RSL - Interpolation bounds error in interp_z
+!   104: Build/ABI mismatch - output array size disagreement across compilation units
 !
 ! Note: Error state uses SAVE variables, so is NOT thread-safe.
 !       Do not call SUEWS from multiple threads simultaneously.

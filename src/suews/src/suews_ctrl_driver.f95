@@ -127,6 +127,11 @@ CONTAINS
       ! these local variables are used in iteration
       INTEGER, PARAMETER :: max_iter = 60 ! maximum number of iteration
 
+      ! Catch stale/mixed build artefacts early with a clear error instead of
+      ! allowing downstream out-of-bounds writes.
+      CALL validate_outputline_layout(outputLine)
+      IF (supy_error_flag) RETURN
+
       ! ####################################################################################
       ASSOCIATE ( &
          Diagnose => config%Diagnose, &
@@ -3368,6 +3373,7 @@ CONTAINS
       REAL(KIND(1D0)) :: wu_DecTr !water use for deciduous tree and shrubs [mm]
       REAL(KIND(1D0)) :: wu_EveTr !water use of evergreen tree and shrubs [mm]
       REAL(KIND(1D0)) :: wu_Grass !water use for grass [mm]
+      INTEGER :: out_idx
 
       !=====================================================================
       !====================== Prepare data for output ======================
@@ -3497,34 +3503,152 @@ CONTAINS
             datetimeLine = [ &
                            REAL(iy, KIND(1D0)), REAL(id, KIND(1D0)), &
                            REAL(it, KIND(1D0)), REAL(imin, KIND(1D0)), timer%dectime]
-            !Define the overall output matrix to be printed out step by step
-            dataOutLineSUEWS = [ &
-                               kdown, kup, ldown, lup, tsurf, &
-                               qn, qf, qs, qh, qe, &
-                               QH_LUMPS, QE_LUMPS, QH_init, qh_resist, &
-                               rain, wu_ext, ev_per_tstep, runoff_per_tstep, tot_chang_per_tstep, &
-                               surf_chang_per_tstep_x, state_per_tstep, NWstate_per_tstep, drain_per_tstep, smd, &
-                               FlowChange/nsh_real, AdditionalWater, &
-                               runoffSoil_per_tstep, runoffPipes, runoffAGimpervious, runoffAGveg, runoffWaterBody, &
-                               wu_int, wu_EveTr, wu_DecTr, wu_Grass, &
-                               smd_surf_x(1:nsurf - 1), &
-                               state_x(1:nsurf), &
-                               zenith_deg, azimuth, bulkalbedo, Fcld, &
-                               LAI_wt, z0m, zdm, zL, &
-                               UStar, TStar, l_mod, RA, RS, &
-                               Fc, &
-                               Fc_photo, Fc_respi, Fc_metab, Fc_traff, Fc_build, Fc_point, &
-                               qn_snowfree, qn_snow, SnowAlb, &
-                               Qm, QmFreez, QmRain, swe, mwh, MwStore, chSnow_per_interval, &
-                               SnowRemoval(1:2), &
-                               tsfc_C, t2_C, q2_gkg, avU10_ms, RH2_pct, Tsfc_surf, Tsfc_surf_dyohm, & ! surface-level diagonostics
-                               qn_surf, qs_surf]
+            ! Define output values with explicit bounds checks so column
+            ! mismatches raise a controlled error instead of memory corruption.
+            dataOutLineSUEWS = NAN
+            out_idx = 1
+            CALL push_scalar(kdown)
+            CALL push_scalar(kup)
+            CALL push_scalar(ldown)
+            CALL push_scalar(lup)
+            CALL push_scalar(tsurf)
+            CALL push_scalar(qn)
+            CALL push_scalar(qf)
+            CALL push_scalar(qs)
+            CALL push_scalar(qh)
+            CALL push_scalar(qe)
+            CALL push_scalar(QH_LUMPS)
+            CALL push_scalar(QE_LUMPS)
+            CALL push_scalar(QH_init)
+            CALL push_scalar(qh_resist)
+            CALL push_scalar(rain)
+            CALL push_scalar(wu_ext)
+            CALL push_scalar(ev_per_tstep)
+            CALL push_scalar(runoff_per_tstep)
+            CALL push_scalar(tot_chang_per_tstep)
+            CALL push_scalar(surf_chang_per_tstep_x)
+            CALL push_scalar(state_per_tstep)
+            CALL push_scalar(NWstate_per_tstep)
+            CALL push_scalar(drain_per_tstep)
+            CALL push_scalar(smd)
+            CALL push_scalar(FlowChange/nsh_real)
+            CALL push_scalar(AdditionalWater)
+            CALL push_scalar(runoffSoil_per_tstep)
+            CALL push_scalar(runoffPipes)
+            CALL push_scalar(runoffAGimpervious)
+            CALL push_scalar(runoffAGveg)
+            CALL push_scalar(runoffWaterBody)
+            CALL push_scalar(wu_int)
+            CALL push_scalar(wu_EveTr)
+            CALL push_scalar(wu_DecTr)
+            CALL push_scalar(wu_Grass)
+            CALL push_vec(smd_surf_x(1:nsurf - 1))
+            CALL push_vec(state_x(1:nsurf))
+            CALL push_scalar(zenith_deg)
+            CALL push_scalar(azimuth)
+            CALL push_scalar(bulkalbedo)
+            CALL push_scalar(Fcld)
+            CALL push_scalar(LAI_wt)
+            CALL push_scalar(z0m)
+            CALL push_scalar(zdm)
+            CALL push_scalar(zL)
+            CALL push_scalar(UStar)
+            CALL push_scalar(TStar)
+            CALL push_scalar(l_mod)
+            CALL push_scalar(RA)
+            CALL push_scalar(RS)
+            CALL push_scalar(Fc)
+            CALL push_scalar(Fc_photo)
+            CALL push_scalar(Fc_respi)
+            CALL push_scalar(Fc_metab)
+            CALL push_scalar(Fc_traff)
+            CALL push_scalar(Fc_build)
+            CALL push_scalar(Fc_point)
+            CALL push_scalar(qn_snowfree)
+            CALL push_scalar(qn_snow)
+            CALL push_scalar(SnowAlb)
+            CALL push_scalar(Qm)
+            CALL push_scalar(QmFreez)
+            CALL push_scalar(QmRain)
+            CALL push_scalar(swe)
+            CALL push_scalar(mwh)
+            CALL push_scalar(MwStore)
+            CALL push_scalar(chSnow_per_interval)
+            CALL push_vec(SnowRemoval(1:2))
+            CALL push_scalar(tsfc_C)
+            CALL push_scalar(t2_C)
+            CALL push_scalar(q2_gkg)
+            CALL push_scalar(avU10_ms)
+            CALL push_scalar(RH2_pct)
+            CALL push_vec(Tsfc_surf)
+            CALL push_vec(Tsfc_surf_dyohm)
+            CALL push_vec(qn_surf)
+            CALL push_vec(qs_surf)
+            CALL check_packed_size()
+            IF (supy_error_flag) RETURN
             ! set invalid values to NAN
             ! dataOutLineSUEWS = set_nan(dataOutLineSUEWS)
 
             !====================update output line end==============================
          END ASSOCIATE
       END ASSOCIATE
+   CONTAINS
+
+      SUBROUTINE push_scalar(val)
+         IMPLICIT NONE
+         REAL(KIND(1D0)), INTENT(IN) :: val
+
+         IF (supy_error_flag) RETURN
+         IF (out_idx > SIZE(dataOutLineSUEWS)) THEN
+            CALL raise_pack_overflow(1)
+            RETURN
+         END IF
+         dataOutLineSUEWS(out_idx) = val
+         out_idx = out_idx + 1
+      END SUBROUTINE push_scalar
+
+      SUBROUTINE push_vec(vals)
+         IMPLICIT NONE
+         REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: vals
+         INTEGER :: nvals
+
+         IF (supy_error_flag) RETURN
+         nvals = SIZE(vals)
+         IF (out_idx + nvals - 1 > SIZE(dataOutLineSUEWS)) THEN
+            CALL raise_pack_overflow(nvals)
+            RETURN
+         END IF
+         dataOutLineSUEWS(out_idx:out_idx + nvals - 1) = vals
+         out_idx = out_idx + nvals
+      END SUBROUTINE push_vec
+
+      SUBROUTINE check_packed_size()
+         IMPLICIT NONE
+         CHARACTER(LEN=512) :: msg
+
+         IF (supy_error_flag) RETURN
+         IF (out_idx - 1 /= SIZE(dataOutLineSUEWS)) THEN
+            WRITE (msg, '(A,I0,A,I0,A)') &
+               'SUEWS output packing size mismatch in SUEWS_update_outputLine: packed=', &
+               out_idx - 1, ', capacity=', SIZE(dataOutLineSUEWS), &
+               '. Check ncolumnsDataOutSUEWS and output field list.'
+            CALL set_supy_error(104, TRIM(msg))
+         END IF
+      END SUBROUTINE check_packed_size
+
+      SUBROUTINE raise_pack_overflow(nvals)
+         IMPLICIT NONE
+         INTEGER, INTENT(IN) :: nvals
+         CHARACTER(LEN=512) :: msg
+
+         IF (supy_error_flag) RETURN
+         WRITE (msg, '(A,I0,A,I0,A,I0,A)') &
+            'SUEWS output packing overflow in SUEWS_update_outputLine: next_index=', &
+            out_idx, ', adding=', nvals, ', capacity=', SIZE(dataOutLineSUEWS), &
+            '. Check ncolumnsDataOutSUEWS and output field list.'
+         CALL set_supy_error(104, TRIM(msg))
+      END SUBROUTINE raise_pack_overflow
+
    END SUBROUTINE SUEWS_update_outputLine
 !========================================================================
 
@@ -3792,6 +3916,53 @@ CONTAINS
 
    END FUNCTION set_nan
 !========================================================================
+
+   SUBROUTINE validate_outputline_layout(outputLine)
+      ! Validate output_line storage against compile-time column constants.
+      ! This detects stale/mixed compilation units (e.g., partial rebuilds)
+      ! before any output assignment can corrupt memory.
+      IMPLICIT NONE
+      TYPE(output_line), INTENT(IN) :: outputLine
+      CHARACTER(LEN=512) :: msg
+
+      CALL check_size('outputLine%dataOutLineSUEWS', SIZE(outputLine%dataOutLineSUEWS), ncolumnsDataOutSUEWS)
+      IF (supy_error_flag) RETURN
+      CALL check_size('outputLine%dataOutLineSnow', SIZE(outputLine%dataOutLineSnow), ncolumnsDataOutSnow)
+      IF (supy_error_flag) RETURN
+      CALL check_size('outputLine%dataOutLineESTM', SIZE(outputLine%dataOutLineESTM), ncolumnsDataOutESTM)
+      IF (supy_error_flag) RETURN
+      CALL check_size('outputLine%dataOutLineEHC', SIZE(outputLine%dataOutLineEHC), ncolumnsDataOutEHC)
+      IF (supy_error_flag) RETURN
+      CALL check_size('outputLine%dataOutLineRSL', SIZE(outputLine%dataOutLineRSL), ncolumnsDataOutRSL)
+      IF (supy_error_flag) RETURN
+      CALL check_size('outputLine%dataOutLineBEERS', SIZE(outputLine%dataOutLineBEERS), ncolumnsDataOutBEERS)
+      IF (supy_error_flag) RETURN
+      CALL check_size('outputLine%dataOutLineDebug', SIZE(outputLine%dataOutLineDebug), ncolumnsDataOutDebug)
+      IF (supy_error_flag) RETURN
+      CALL check_size('outputLine%dataOutLineSPARTACUS', SIZE(outputLine%dataOutLineSPARTACUS), ncolumnsDataOutSPARTACUS)
+      IF (supy_error_flag) RETURN
+      CALL check_size('outputLine%dataOutLineDailyState', SIZE(outputLine%dataOutLineDailyState), ncolumnsDataOutDailyState)
+      IF (supy_error_flag) RETURN
+      CALL check_size('outputLine%dataOutLineSTEBBS', SIZE(outputLine%dataOutLineSTEBBS), ncolumnsDataOutSTEBBS)
+      IF (supy_error_flag) RETURN
+      CALL check_size('outputLine%dataOutLineNHood', SIZE(outputLine%dataOutLineNHood), ncolumnsDataOutNHood)
+
+   CONTAINS
+
+      SUBROUTINE check_size(name, actual, expected)
+         IMPLICIT NONE
+         CHARACTER(LEN=*), INTENT(IN) :: name
+         INTEGER, INTENT(IN) :: actual, expected
+
+         IF (actual /= expected) THEN
+            WRITE (msg, '(A,A,A,I0,A,I0,A)') &
+               'Build mismatch detected: ', TRIM(name), ' size=', actual, &
+               ' expected=', expected, '. Run a full clean rebuild.'
+            CALL set_supy_error(104, TRIM(msg))
+         END IF
+      END SUBROUTINE check_size
+
+   END SUBROUTINE validate_outputline_layout
 
    SUBROUTINE output_ncolumns(group_name, ncols)
       ! Returns the number of data columns (excluding datetime) for a given output group.

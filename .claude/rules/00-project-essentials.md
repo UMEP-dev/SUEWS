@@ -52,6 +52,14 @@ uv venv && source .venv/bin/activate && make dev && make test-smoke
 
 For full setup options, use `/setup-dev` command.
 
+## Build System Notes
+
+- `FCFLAGS` env var is NOT forwarded through `make dev` -> meson-python pipeline
+  - Compiler flags are hard-coded in `meson.build` (`fast_build` vs full flag sets)
+  - To add debug flags like `-fcheck=bounds`, modify `meson.build` directly
+- `make clean` removes `build/` but meson-python may cache compiled extensions elsewhere
+  - For a truly clean rebuild: `make clean && pip cache purge && make dev`
+
 ## Environment Reminders
 
 - After conversation compaction, re-activate: `source .venv/bin/activate`

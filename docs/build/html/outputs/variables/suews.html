@@ -10,7 +10,7 @@
 <meta content="SUEWS SUEWS output variables" name="description" />
 <meta content="SUEWS, output, suews, variables" name="keywords" />
 
-    <title>5.3.2. SUEWS Output Variables &#8212; SUEWS 2026.2.7.dev55 documentation</title>
+    <title>5.3.2. SUEWS Output Variables &#8212; SUEWS 2026.2.7.dev58 documentation</title>
   
   
   
@@ -42,7 +42,7 @@
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
   <script src="../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
 
-    <script src="../../_static/documentation_options.js?v=f6381ae0"></script>
+    <script src="../../_static/documentation_options.js?v=10169965"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
@@ -108,7 +108,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.2.7.dev55, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c7fe14b3873ad2e81f5944b7dffee34958972d7d" style="color: #31708f;">c7fe14b</a>).
+        (2026.2.7.dev58, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/409edbab620a2b6f9567ac6c3b52c2c66fa6396a" style="color: #31708f;">409edba</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -154,8 +154,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.7.dev55 documentation - Home"/>
-    <script>document.write(`<img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.7.dev55 documentation - Home"/>`);</script>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.7.dev58 documentation - Home"/>
+    <script>document.write(`<img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.7.dev58 documentation - Home"/>`);</script>
   
   
 </a></div>
@@ -541,7 +541,7 @@ document.write(`
 <section id="suews-output-variables">
 <span id="index-0"></span><span id="suews-output"></span><h1><span class="section-number">5.3.2. </span>SUEWS Output Variables<a class="headerlink" href="#suews-output-variables" title="Link to this heading">#</a></h1>
 <p>Core SUEWS energy balance, water balance, and meteorological outputs.</p>
-<p>This group contains 99 output variables.</p>
+<p>This group contains 113 output variables.</p>
 <dl class="output variable" id="index-1">
 <dt class="sig sig-object output" id="output-variable-AddWater">
 <span class="sig-name descname"><span class="pre">AddWater</span></span><a class="headerlink" href="#output-variable-AddWater" title="Link to this definition">#</a></dt>
@@ -1095,6 +1095,104 @@ document.write(`
 </dd></dl>
 
 <dl class="output variable" id="index-40">
+<dt class="sig sig-object output" id="output-variable-QN_BSoil">
+<span class="sig-name descname"><span class="pre">QN_BSoil</span></span><a class="headerlink" href="#output-variable-QN_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Net all-wave radiation for bare soil surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-41">
+<dt class="sig sig-object output" id="output-variable-QN_Bldgs">
+<span class="sig-name descname"><span class="pre">QN_Bldgs</span></span><a class="headerlink" href="#output-variable-QN_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Net all-wave radiation for building surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-42">
+<dt class="sig sig-object output" id="output-variable-QN_DecTr">
+<span class="sig-name descname"><span class="pre">QN_DecTr</span></span><a class="headerlink" href="#output-variable-QN_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Net all-wave radiation for deciduous tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-43">
+<dt class="sig sig-object output" id="output-variable-QN_EveTr">
+<span class="sig-name descname"><span class="pre">QN_EveTr</span></span><a class="headerlink" href="#output-variable-QN_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Net all-wave radiation for evergreen tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-44">
+<dt class="sig sig-object output" id="output-variable-QN_Grass">
+<span class="sig-name descname"><span class="pre">QN_Grass</span></span><a class="headerlink" href="#output-variable-QN_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Net all-wave radiation for grass surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-45">
+<dt class="sig sig-object output" id="output-variable-QN_Paved">
+<span class="sig-name descname"><span class="pre">QN_Paved</span></span><a class="headerlink" href="#output-variable-QN_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Net all-wave radiation for paved surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-46">
+<dt class="sig sig-object output" id="output-variable-QN_Water">
+<span class="sig-name descname"><span class="pre">QN_Water</span></span><a class="headerlink" href="#output-variable-QN_Water" title="Link to this definition">#</a></dt>
+<dd><p>Net all-wave radiation for water surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-47">
 <dt class="sig sig-object output" id="output-variable-QS">
 <span class="sig-name descname"><span class="pre">QS</span></span><a class="headerlink" href="#output-variable-QS" title="Link to this definition">#</a></dt>
 <dd><p>Net storage heat flux (positive into storage)</p>
@@ -1108,7 +1206,105 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-41">
+<dl class="output variable" id="index-48">
+<dt class="sig sig-object output" id="output-variable-QS_BSoil">
+<span class="sig-name descname"><span class="pre">QS_BSoil</span></span><a class="headerlink" href="#output-variable-QS_BSoil" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux for bare soil surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-49">
+<dt class="sig sig-object output" id="output-variable-QS_Bldgs">
+<span class="sig-name descname"><span class="pre">QS_Bldgs</span></span><a class="headerlink" href="#output-variable-QS_Bldgs" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux for building surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-50">
+<dt class="sig sig-object output" id="output-variable-QS_DecTr">
+<span class="sig-name descname"><span class="pre">QS_DecTr</span></span><a class="headerlink" href="#output-variable-QS_DecTr" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux for deciduous tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-51">
+<dt class="sig sig-object output" id="output-variable-QS_EveTr">
+<span class="sig-name descname"><span class="pre">QS_EveTr</span></span><a class="headerlink" href="#output-variable-QS_EveTr" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux for evergreen tree surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-52">
+<dt class="sig sig-object output" id="output-variable-QS_Grass">
+<span class="sig-name descname"><span class="pre">QS_Grass</span></span><a class="headerlink" href="#output-variable-QS_Grass" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux for grass surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-53">
+<dt class="sig sig-object output" id="output-variable-QS_Paved">
+<span class="sig-name descname"><span class="pre">QS_Paved</span></span><a class="headerlink" href="#output-variable-QS_Paved" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux for paved surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-54">
+<dt class="sig sig-object output" id="output-variable-QS_Water">
+<span class="sig-name descname"><span class="pre">QS_Water</span></span><a class="headerlink" href="#output-variable-QS_Water" title="Link to this definition">#</a></dt>
+<dd><p>Storage heat flux for water surface</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W m<sup>-2</sup></p>
+</dd>
+<dt class="field-even">Aggregation<span class="colon">:</span></dt>
+<dd class="field-even"><p>Average (mean over period)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="output variable" id="index-55">
 <dt class="sig sig-object output" id="output-variable-RA">
 <span class="sig-name descname"><span class="pre">RA</span></span><a class="headerlink" href="#output-variable-RA" title="Link to this definition">#</a></dt>
 <dd><p>Aerodynamic resistance</p>
@@ -1122,7 +1318,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-42">
+<dl class="output variable" id="index-56">
 <dt class="sig sig-object output" id="output-variable-RH2">
 <span class="sig-name descname"><span class="pre">RH2</span></span><a class="headerlink" href="#output-variable-RH2" title="Link to this definition">#</a></dt>
 <dd><p>Relative humidity at 2 m</p>
@@ -1136,7 +1332,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-43">
+<dl class="output variable" id="index-57">
 <dt class="sig sig-object output" id="output-variable-RO">
 <span class="sig-name descname"><span class="pre">RO</span></span><a class="headerlink" href="#output-variable-RO" title="Link to this definition">#</a></dt>
 <dd><p>Total surface runoff leaving the grid</p>
@@ -1150,7 +1346,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-44">
+<dl class="output variable" id="index-58">
 <dt class="sig sig-object output" id="output-variable-ROImp">
 <span class="sig-name descname"><span class="pre">ROImp</span></span><a class="headerlink" href="#output-variable-ROImp" title="Link to this definition">#</a></dt>
 <dd><p>Runoff over impervious surfaces</p>
@@ -1164,7 +1360,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-45">
+<dl class="output variable" id="index-59">
 <dt class="sig sig-object output" id="output-variable-ROPipe">
 <span class="sig-name descname"><span class="pre">ROPipe</span></span><a class="headerlink" href="#output-variable-ROPipe" title="Link to this definition">#</a></dt>
 <dd><p>Runoff to pipes</p>
@@ -1178,7 +1374,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-46">
+<dl class="output variable" id="index-60">
 <dt class="sig sig-object output" id="output-variable-ROSoil">
 <span class="sig-name descname"><span class="pre">ROSoil</span></span><a class="headerlink" href="#output-variable-ROSoil" title="Link to this definition">#</a></dt>
 <dd><p>Runoff to soil</p>
@@ -1192,7 +1388,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-47">
+<dl class="output variable" id="index-61">
 <dt class="sig sig-object output" id="output-variable-ROVeg">
 <span class="sig-name descname"><span class="pre">ROVeg</span></span><a class="headerlink" href="#output-variable-ROVeg" title="Link to this definition">#</a></dt>
 <dd><p>Runoff over vegetated surfaces</p>
@@ -1206,7 +1402,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-48">
+<dl class="output variable" id="index-62">
 <dt class="sig sig-object output" id="output-variable-ROWater">
 <span class="sig-name descname"><span class="pre">ROWater</span></span><a class="headerlink" href="#output-variable-ROWater" title="Link to this definition">#</a></dt>
 <dd><p>Runoff for water surface</p>
@@ -1220,7 +1416,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-49">
+<dl class="output variable" id="index-63">
 <dt class="sig sig-object output" id="output-variable-RS">
 <span class="sig-name descname"><span class="pre">RS</span></span><a class="headerlink" href="#output-variable-RS" title="Link to this definition">#</a></dt>
 <dd><p>Surface resistance</p>
@@ -1234,7 +1430,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-50">
+<dl class="output variable" id="index-64">
 <dt class="sig sig-object output" id="output-variable-Rain">
 <span class="sig-name descname"><span class="pre">Rain</span></span><a class="headerlink" href="#output-variable-Rain" title="Link to this definition">#</a></dt>
 <dd><p>Precipitation input to the surface water balance</p>
@@ -1248,7 +1444,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-51">
+<dl class="output variable" id="index-65">
 <dt class="sig sig-object output" id="output-variable-SMD">
 <span class="sig-name descname"><span class="pre">SMD</span></span><a class="headerlink" href="#output-variable-SMD" title="Link to this definition">#</a></dt>
 <dd><p>Soil Moisture Deficit</p>
@@ -1262,7 +1458,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-52">
+<dl class="output variable" id="index-66">
 <dt class="sig sig-object output" id="output-variable-SMDBSoil">
 <span class="sig-name descname"><span class="pre">SMDBSoil</span></span><a class="headerlink" href="#output-variable-SMDBSoil" title="Link to this definition">#</a></dt>
 <dd><p>Soil moisture deficit for bare soil surface</p>
@@ -1276,7 +1472,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-53">
+<dl class="output variable" id="index-67">
 <dt class="sig sig-object output" id="output-variable-SMDBldgs">
 <span class="sig-name descname"><span class="pre">SMDBldgs</span></span><a class="headerlink" href="#output-variable-SMDBldgs" title="Link to this definition">#</a></dt>
 <dd><p>Soil moisture deficit for building surface</p>
@@ -1290,7 +1486,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-54">
+<dl class="output variable" id="index-68">
 <dt class="sig sig-object output" id="output-variable-SMDDecTr">
 <span class="sig-name descname"><span class="pre">SMDDecTr</span></span><a class="headerlink" href="#output-variable-SMDDecTr" title="Link to this definition">#</a></dt>
 <dd><p>Soil moisture deficit for deciduous tree surface</p>
@@ -1304,7 +1500,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-55">
+<dl class="output variable" id="index-69">
 <dt class="sig sig-object output" id="output-variable-SMDEveTr">
 <span class="sig-name descname"><span class="pre">SMDEveTr</span></span><a class="headerlink" href="#output-variable-SMDEveTr" title="Link to this definition">#</a></dt>
 <dd><p>Soil moisture deficit for evergreen tree surface</p>
@@ -1318,7 +1514,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-56">
+<dl class="output variable" id="index-70">
 <dt class="sig sig-object output" id="output-variable-SMDGrass">
 <span class="sig-name descname"><span class="pre">SMDGrass</span></span><a class="headerlink" href="#output-variable-SMDGrass" title="Link to this definition">#</a></dt>
 <dd><p>Soil moisture deficit for grass surface</p>
@@ -1332,7 +1528,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-57">
+<dl class="output variable" id="index-71">
 <dt class="sig sig-object output" id="output-variable-SMDPaved">
 <span class="sig-name descname"><span class="pre">SMDPaved</span></span><a class="headerlink" href="#output-variable-SMDPaved" title="Link to this definition">#</a></dt>
 <dd><p>Soil moisture deficit for paved surface</p>
@@ -1346,7 +1542,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-58">
+<dl class="output variable" id="index-72">
 <dt class="sig sig-object output" id="output-variable-SWE">
 <span class="sig-name descname"><span class="pre">SWE</span></span><a class="headerlink" href="#output-variable-SWE" title="Link to this definition">#</a></dt>
 <dd><p>Snow water equivalent</p>
@@ -1360,7 +1556,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-59">
+<dl class="output variable" id="index-73">
 <dt class="sig sig-object output" id="output-variable-SnowCh">
 <span class="sig-name descname"><span class="pre">SnowCh</span></span><a class="headerlink" href="#output-variable-SnowCh" title="Link to this definition">#</a></dt>
 <dd><p>Change in snow pack</p>
@@ -1374,7 +1570,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-60">
+<dl class="output variable" id="index-74">
 <dt class="sig sig-object output" id="output-variable-SnowRBldgs">
 <span class="sig-name descname"><span class="pre">SnowRBldgs</span></span><a class="headerlink" href="#output-variable-SnowRBldgs" title="Link to this definition">#</a></dt>
 <dd><p>Snow removed from building surface</p>
@@ -1388,7 +1584,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-61">
+<dl class="output variable" id="index-75">
 <dt class="sig sig-object output" id="output-variable-SnowRPaved">
 <span class="sig-name descname"><span class="pre">SnowRPaved</span></span><a class="headerlink" href="#output-variable-SnowRPaved" title="Link to this definition">#</a></dt>
 <dd><p>Snow removed from paved surface</p>
@@ -1402,7 +1598,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-62">
+<dl class="output variable" id="index-76">
 <dt class="sig sig-object output" id="output-variable-StBSoil">
 <span class="sig-name descname"><span class="pre">StBSoil</span></span><a class="headerlink" href="#output-variable-StBSoil" title="Link to this definition">#</a></dt>
 <dd><p>Surface wetness state for bare soil surface</p>
@@ -1416,7 +1612,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-63">
+<dl class="output variable" id="index-77">
 <dt class="sig sig-object output" id="output-variable-StBldgs">
 <span class="sig-name descname"><span class="pre">StBldgs</span></span><a class="headerlink" href="#output-variable-StBldgs" title="Link to this definition">#</a></dt>
 <dd><p>Surface wetness state for building surface</p>
@@ -1430,7 +1626,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-64">
+<dl class="output variable" id="index-78">
 <dt class="sig sig-object output" id="output-variable-StDecTr">
 <span class="sig-name descname"><span class="pre">StDecTr</span></span><a class="headerlink" href="#output-variable-StDecTr" title="Link to this definition">#</a></dt>
 <dd><p>Surface wetness state for deciduous tree surface</p>
@@ -1444,7 +1640,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-65">
+<dl class="output variable" id="index-79">
 <dt class="sig sig-object output" id="output-variable-StEveTr">
 <span class="sig-name descname"><span class="pre">StEveTr</span></span><a class="headerlink" href="#output-variable-StEveTr" title="Link to this definition">#</a></dt>
 <dd><p>Surface wetness state for evergreen tree surface</p>
@@ -1458,7 +1654,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-66">
+<dl class="output variable" id="index-80">
 <dt class="sig sig-object output" id="output-variable-StGrass">
 <span class="sig-name descname"><span class="pre">StGrass</span></span><a class="headerlink" href="#output-variable-StGrass" title="Link to this definition">#</a></dt>
 <dd><p>Surface wetness state for grass surface</p>
@@ -1472,7 +1668,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-67">
+<dl class="output variable" id="index-81">
 <dt class="sig sig-object output" id="output-variable-StPaved">
 <span class="sig-name descname"><span class="pre">StPaved</span></span><a class="headerlink" href="#output-variable-StPaved" title="Link to this definition">#</a></dt>
 <dd><p>Surface wetness state for paved surface</p>
@@ -1486,7 +1682,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-68">
+<dl class="output variable" id="index-82">
 <dt class="sig sig-object output" id="output-variable-StWater">
 <span class="sig-name descname"><span class="pre">StWater</span></span><a class="headerlink" href="#output-variable-StWater" title="Link to this definition">#</a></dt>
 <dd><p>Surface wetness state for water surface</p>
@@ -1500,7 +1696,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-69">
+<dl class="output variable" id="index-83">
 <dt class="sig sig-object output" id="output-variable-State">
 <span class="sig-name descname"><span class="pre">State</span></span><a class="headerlink" href="#output-variable-State" title="Link to this definition">#</a></dt>
 <dd><p>Surface Wetness State</p>
@@ -1514,7 +1710,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-70">
+<dl class="output variable" id="index-84">
 <dt class="sig sig-object output" id="output-variable-SurfCh">
 <span class="sig-name descname"><span class="pre">SurfCh</span></span><a class="headerlink" href="#output-variable-SurfCh" title="Link to this definition">#</a></dt>
 <dd><p>Surface moisture change</p>
@@ -1528,7 +1724,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-71">
+<dl class="output variable" id="index-85">
 <dt class="sig sig-object output" id="output-variable-T2">
 <span class="sig-name descname"><span class="pre">T2</span></span><a class="headerlink" href="#output-variable-T2" title="Link to this definition">#</a></dt>
 <dd><p>Air temperature at 2 m</p>
@@ -1542,7 +1738,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-72">
+<dl class="output variable" id="index-86">
 <dt class="sig sig-object output" id="output-variable-TStar">
 <span class="sig-name descname"><span class="pre">TStar</span></span><a class="headerlink" href="#output-variable-TStar" title="Link to this definition">#</a></dt>
 <dd><p>Temperature scale</p>
@@ -1556,7 +1752,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-73">
+<dl class="output variable" id="index-87">
 <dt class="sig sig-object output" id="output-variable-TotCh">
 <span class="sig-name descname"><span class="pre">TotCh</span></span><a class="headerlink" href="#output-variable-TotCh" title="Link to this definition">#</a></dt>
 <dd><p>Surface and soil moisture change</p>
@@ -1570,7 +1766,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-74">
+<dl class="output variable" id="index-88">
 <dt class="sig sig-object output" id="output-variable-Ts">
 <span class="sig-name descname"><span class="pre">Ts</span></span><a class="headerlink" href="#output-variable-Ts" title="Link to this definition">#</a></dt>
 <dd><p>Skin temperature</p>
@@ -1584,7 +1780,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-75">
+<dl class="output variable" id="index-89">
 <dt class="sig sig-object output" id="output-variable-Ts_BSoil">
 <span class="sig-name descname"><span class="pre">Ts_BSoil</span></span><a class="headerlink" href="#output-variable-Ts_BSoil" title="Link to this definition">#</a></dt>
 <dd><p>Surface temperature for bare soil surface</p>
@@ -1598,7 +1794,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-76">
+<dl class="output variable" id="index-90">
 <dt class="sig sig-object output" id="output-variable-Ts_BSoil_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_BSoil_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_BSoil_dyohm" title="Link to this definition">#</a></dt>
 <dd><p>Surface temperature (dynamic OHM) for bare soil surface</p>
@@ -1612,7 +1808,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-77">
+<dl class="output variable" id="index-91">
 <dt class="sig sig-object output" id="output-variable-Ts_Bldgs">
 <span class="sig-name descname"><span class="pre">Ts_Bldgs</span></span><a class="headerlink" href="#output-variable-Ts_Bldgs" title="Link to this definition">#</a></dt>
 <dd><p>Surface temperature for building surface</p>
@@ -1626,7 +1822,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-78">
+<dl class="output variable" id="index-92">
 <dt class="sig sig-object output" id="output-variable-Ts_Bldgs_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_Bldgs_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_Bldgs_dyohm" title="Link to this definition">#</a></dt>
 <dd><p>Surface temperature (dynamic OHM) for building surface</p>
@@ -1640,7 +1836,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-79">
+<dl class="output variable" id="index-93">
 <dt class="sig sig-object output" id="output-variable-Ts_DecTr">
 <span class="sig-name descname"><span class="pre">Ts_DecTr</span></span><a class="headerlink" href="#output-variable-Ts_DecTr" title="Link to this definition">#</a></dt>
 <dd><p>Surface temperature for deciduous tree surface</p>
@@ -1654,7 +1850,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-80">
+<dl class="output variable" id="index-94">
 <dt class="sig sig-object output" id="output-variable-Ts_DecTr_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_DecTr_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_DecTr_dyohm" title="Link to this definition">#</a></dt>
 <dd><p>Surface temperature (dynamic OHM) for deciduous tree surface</p>
@@ -1668,7 +1864,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-81">
+<dl class="output variable" id="index-95">
 <dt class="sig sig-object output" id="output-variable-Ts_EveTr">
 <span class="sig-name descname"><span class="pre">Ts_EveTr</span></span><a class="headerlink" href="#output-variable-Ts_EveTr" title="Link to this definition">#</a></dt>
 <dd><p>Surface temperature for evergreen tree surface</p>
@@ -1682,7 +1878,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-82">
+<dl class="output variable" id="index-96">
 <dt class="sig sig-object output" id="output-variable-Ts_EveTr_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_EveTr_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_EveTr_dyohm" title="Link to this definition">#</a></dt>
 <dd><p>Surface temperature (dynamic OHM) for evergreen tree surface</p>
@@ -1696,7 +1892,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-83">
+<dl class="output variable" id="index-97">
 <dt class="sig sig-object output" id="output-variable-Ts_Grass">
 <span class="sig-name descname"><span class="pre">Ts_Grass</span></span><a class="headerlink" href="#output-variable-Ts_Grass" title="Link to this definition">#</a></dt>
 <dd><p>Surface temperature for grass surface</p>
@@ -1710,7 +1906,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-84">
+<dl class="output variable" id="index-98">
 <dt class="sig sig-object output" id="output-variable-Ts_Grass_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_Grass_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_Grass_dyohm" title="Link to this definition">#</a></dt>
 <dd><p>Surface temperature (dynamic OHM) for grass surface</p>
@@ -1724,7 +1920,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-85">
+<dl class="output variable" id="index-99">
 <dt class="sig sig-object output" id="output-variable-Ts_Paved">
 <span class="sig-name descname"><span class="pre">Ts_Paved</span></span><a class="headerlink" href="#output-variable-Ts_Paved" title="Link to this definition">#</a></dt>
 <dd><p>Surface temperature for paved surface</p>
@@ -1738,7 +1934,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-86">
+<dl class="output variable" id="index-100">
 <dt class="sig sig-object output" id="output-variable-Ts_Paved_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_Paved_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_Paved_dyohm" title="Link to this definition">#</a></dt>
 <dd><p>Surface temperature (dynamic OHM) for paved surface</p>
@@ -1752,7 +1948,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-87">
+<dl class="output variable" id="index-101">
 <dt class="sig sig-object output" id="output-variable-Ts_Water">
 <span class="sig-name descname"><span class="pre">Ts_Water</span></span><a class="headerlink" href="#output-variable-Ts_Water" title="Link to this definition">#</a></dt>
 <dd><p>Surface temperature for water surface</p>
@@ -1766,7 +1962,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-88">
+<dl class="output variable" id="index-102">
 <dt class="sig sig-object output" id="output-variable-Ts_Water_dyohm">
 <span class="sig-name descname"><span class="pre">Ts_Water_dyohm</span></span><a class="headerlink" href="#output-variable-Ts_Water_dyohm" title="Link to this definition">#</a></dt>
 <dd><p>Surface temperature (dynamic OHM) for water surface</p>
@@ -1780,7 +1976,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-89">
+<dl class="output variable" id="index-103">
 <dt class="sig sig-object output" id="output-variable-Tsurf">
 <span class="sig-name descname"><span class="pre">Tsurf</span></span><a class="headerlink" href="#output-variable-Tsurf" title="Link to this definition">#</a></dt>
 <dd><p>Bulk surface temperature</p>
@@ -1794,7 +1990,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-90">
+<dl class="output variable" id="index-104">
 <dt class="sig sig-object output" id="output-variable-U10">
 <span class="sig-name descname"><span class="pre">U10</span></span><a class="headerlink" href="#output-variable-U10" title="Link to this definition">#</a></dt>
 <dd><p>Wind speed at 10 m</p>
@@ -1808,7 +2004,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-91">
+<dl class="output variable" id="index-105">
 <dt class="sig sig-object output" id="output-variable-UStar">
 <span class="sig-name descname"><span class="pre">UStar</span></span><a class="headerlink" href="#output-variable-UStar" title="Link to this definition">#</a></dt>
 <dd><p>Friction velocity</p>
@@ -1822,7 +2018,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-92">
+<dl class="output variable" id="index-106">
 <dt class="sig sig-object output" id="output-variable-WUDecTr">
 <span class="sig-name descname"><span class="pre">WUDecTr</span></span><a class="headerlink" href="#output-variable-WUDecTr" title="Link to this definition">#</a></dt>
 <dd><p>Water use for deciduous trees</p>
@@ -1836,7 +2032,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-93">
+<dl class="output variable" id="index-107">
 <dt class="sig sig-object output" id="output-variable-WUEveTr">
 <span class="sig-name descname"><span class="pre">WUEveTr</span></span><a class="headerlink" href="#output-variable-WUEveTr" title="Link to this definition">#</a></dt>
 <dd><p>Water use for evergreen trees</p>
@@ -1850,7 +2046,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-94">
+<dl class="output variable" id="index-108">
 <dt class="sig sig-object output" id="output-variable-WUGrass">
 <span class="sig-name descname"><span class="pre">WUGrass</span></span><a class="headerlink" href="#output-variable-WUGrass" title="Link to this definition">#</a></dt>
 <dd><p>Water use for grass</p>
@@ -1864,7 +2060,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-95">
+<dl class="output variable" id="index-109">
 <dt class="sig sig-object output" id="output-variable-WUInt">
 <span class="sig-name descname"><span class="pre">WUInt</span></span><a class="headerlink" href="#output-variable-WUInt" title="Link to this definition">#</a></dt>
 <dd><p>Internal water use</p>
@@ -1878,7 +2074,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-96">
+<dl class="output variable" id="index-110">
 <dt class="sig sig-object output" id="output-variable-Zenith">
 <span class="sig-name descname"><span class="pre">Zenith</span></span><a class="headerlink" href="#output-variable-Zenith" title="Link to this definition">#</a></dt>
 <dd><p>Solar zenith angle</p>
@@ -1892,7 +2088,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-97">
+<dl class="output variable" id="index-111">
 <dt class="sig sig-object output" id="output-variable-z0m">
 <span class="sig-name descname"><span class="pre">z0m</span></span><a class="headerlink" href="#output-variable-z0m" title="Link to this definition">#</a></dt>
 <dd><p>Roughness length for momentum</p>
@@ -1906,7 +2102,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-98">
+<dl class="output variable" id="index-112">
 <dt class="sig sig-object output" id="output-variable-zL">
 <span class="sig-name descname"><span class="pre">zL</span></span><a class="headerlink" href="#output-variable-zL" title="Link to this definition">#</a></dt>
 <dd><p>Stability parameter z/L (height over Obukhov length)</p>
@@ -1922,7 +2118,7 @@ document.write(`
 </dl>
 </dd></dl>
 
-<dl class="output variable" id="index-99">
+<dl class="output variable" id="index-113">
 <dt class="sig sig-object output" id="output-variable-zdm">
 <span class="sig-name descname"><span class="pre">zdm</span></span><a class="headerlink" href="#output-variable-zdm" title="Link to this definition">#</a></dt>
 <dd><p>Zero-plane displacement height</p>
@@ -2007,8 +2203,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.2.7.dev55 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c7fe14b3873ad2e81f5944b7dffee34958972d7d">c7fe14b</a> |
+  <p>Version: 2026.2.7.dev58 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/409edbab620a2b6f9567ac6c3b52c2c66fa6396a">409edba</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

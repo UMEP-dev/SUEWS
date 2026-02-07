@@ -47,7 +47,7 @@ from output.nhood_vars import NHOOD_VARIABLES
 # Formula: ncolumnsDataOut* - 5 (subtract datetime columns)
 EXPECTED_COUNTS = {
     OutputGroup.DATETIME: 5,  # Year, DOY, Hour, Min, Dectime
-    OutputGroup.SUEWS: 99,  # Core SUEWS variables including Ts_* surface temps
+    OutputGroup.SUEWS: 113,  # Core SUEWS variables incl. Ts_* and surface-specific QN/QS
     OutputGroup.SNOW: 98,  # Snow variables (7 surface types × 14 vars)
     OutputGroup.ESTM: 27,  # ESTM variables
     OutputGroup.RSL: 135,  # RSL profile variables (30 levels × 4 vars + 15)

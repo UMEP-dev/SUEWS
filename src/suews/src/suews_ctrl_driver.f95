@@ -3582,6 +3582,8 @@ CONTAINS
             CALL push_scalar(RH2_pct)
             CALL push_vec(Tsfc_surf)
             CALL push_vec(Tsfc_surf_dyohm)
+            CALL push_vec(qn_surf)
+            CALL push_vec(qs_surf)
             CALL check_packed_size()
             IF (supy_error_flag) RETURN
             ! set invalid values to NAN

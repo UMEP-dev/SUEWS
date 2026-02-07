@@ -54,19 +54,21 @@ _WORKER_NDEPTH: int | None = None
 
 def _init_dts_worker(
     df_forcing: pd.DataFrame,
-    config: SUEWSConfig,
+    config_payload: dict[str, Any],
     nlayer: int | None,
     ndepth: int | None,
 ) -> None:
     """Initialise process-local state for DTS workers."""
+    from ..data_model import SUEWSConfig
+
     global _WORKER_DF_FORCING, _WORKER_CONFIG, _WORKER_NLAYER, _WORKER_NDEPTH
     _WORKER_DF_FORCING = df_forcing
-    _WORKER_CONFIG = config
+    _WORKER_CONFIG = SUEWSConfig.model_validate(config_payload)
     _WORKER_NLAYER = nlayer
     _WORKER_NDEPTH = ndepth
 
 
-def _run_dts_worker(site_index: int) -> tuple[int, pd.DataFrame, Any]:
+def _run_dts_worker(site_index: int) -> tuple[int, pd.DataFrame, dict[str, Any] | None]:
     """Run a single DTS site simulation inside a worker process."""
     if _WORKER_DF_FORCING is None or _WORKER_CONFIG is None:
         raise RuntimeError("DTS worker not initialised")
@@ -79,7 +81,14 @@ def _run_dts_worker(site_index: int) -> tuple[int, pd.DataFrame, Any]:
         ndepth=_WORKER_NDEPTH,
     )
 
-    return site_index, df_output, final_state.get("initial_states")
+    initial_states = final_state.get("initial_states")
+    initial_states_payload = (
+        initial_states.model_dump(mode="python")
+        if hasattr(initial_states, "model_dump")
+        else initial_states
+    )
+
+    return site_index, df_output, initial_states_payload
 
 
 def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
@@ -500,11 +509,13 @@ def run_dts_multi(
     # during DTS simulation. Default 'spawn' avoids this.
     ctx = multiprocessing.get_context(mp_context)
 
+    config_payload = config.model_dump(mode="python")
+
     try:
         with ctx.Pool(
             processes=n_jobs,
             initializer=_init_dts_worker,
-            initargs=(df_forcing, config, nlayer, ndepth),
+            initargs=(df_forcing, config_payload, nlayer, ndepth),
         ) as pool:
             results = pool.map(_run_dts_worker, range(len(sites)))
     except Exception as exc:
@@ -515,9 +526,19 @@ def run_dts_multi(
 
     list_df_output = []
     dict_final_states = {}
-    for site_index, df_output, initial_states in results:
+    for site_index, df_output, initial_states_payload in results:
         site = sites[site_index]
         list_df_output.append(df_output)
+
+        if initial_states_payload is None:
+            initial_states = None
+        elif isinstance(initial_states_payload, dict):
+            initial_states = site.initial_states.__class__.model_validate(
+                initial_states_payload
+            )
+        else:
+            initial_states = initial_states_payload
+
         dict_final_states[site.gridiv] = {
             "initial_states": initial_states,
         }

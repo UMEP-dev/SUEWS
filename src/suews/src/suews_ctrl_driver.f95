@@ -197,6 +197,11 @@ CONTAINS
          END IF
       END IF
 
+      ! Catch stale/mixed build artefacts early with a clear error instead of
+      ! allowing downstream out-of-bounds writes.
+      CALL validate_outputline_layout(outputLine)
+      IF (supy_error_flag) RETURN
+
       ! ####################################################################################
       ASSOCIATE ( &
          Diagnose => config%Diagnose, &

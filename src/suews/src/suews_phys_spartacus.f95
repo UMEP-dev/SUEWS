@@ -176,6 +176,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_roof_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_wall_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: veg_abs_lw_spc ! LW vegetation absorption per layer
       ! --------------------------------------------------------------------------------
 
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS - 5), INTENT(OUT) :: dataOutLineSPARTACUS
@@ -517,6 +518,17 @@ CONTAINS
          END IF
       END DO
 
+      !-----------------------------------------------------------------
+      ! Longwave vegetation absorption per layer (W m-2), from lw_internal
+      !-----------------------------------------------------------------
+      veg_abs_lw_spc = -999.0D0
+      ! SUEWS uses a single column (ncol=1); its layers start at istartlay(1)
+      ilay = canopy_props%istartlay(1)
+      DO jlay = 1, MIN(canopy_props%nlay(1), 15)
+         ! nspec=1, so use first spectral index
+         veg_abs_lw_spc(jlay) = lw_internal%veg_abs(1, ilay + jlay - 1)
+      END DO
+
       ! albedo
       IF (top_flux_dn_diffuse_sw + top_flux_dn_direct_sw(nspec, ncol) > 0.1) THEN
          alb_spc = ((top_flux_dn_diffuse_sw + 10.**(-10))*(bc_out%sw_albedo(nspec, ncol)) & ! the 10.**-10 stops the equation blowing up when kdwn=0
@@ -675,7 +687,8 @@ CONTAINS
           wall_net_lw_spc, &
           sfr_roof_spc, &
           sfr_wall_spc, &
-          clear_air_abs_lw_spc &
+          clear_air_abs_lw_spc, &
+          veg_abs_lw_spc &
           ]
 
       !!!!!!!!!!!!!! Clear from memory !!!!!!!!!!!!!

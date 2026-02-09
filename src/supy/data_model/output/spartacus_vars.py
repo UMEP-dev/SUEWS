@@ -202,6 +202,21 @@ LEGACY_SPARTACUS_DEFS = [
     ("LCAAbs_13", "W m-2", "lw clear air absorption - SPARTACUS level 13", 0),
     ("LCAAbs_14", "W m-2", "lw clear air absorption - SPARTACUS level 14", 0),
     ("LCAAbs_15", "W m-2", "lw clear air absorption - SPARTACUS level 15", 0),
+    ("LVegAbs_1", "W m-2", "lw vegetation absorption - SPARTACUS level 1", 0),
+    ("LVegAbs_2", "W m-2", "lw vegetation absorption - SPARTACUS level 2", 0),
+    ("LVegAbs_3", "W m-2", "lw vegetation absorption - SPARTACUS level 3", 0),
+    ("LVegAbs_4", "W m-2", "lw vegetation absorption - SPARTACUS level 4", 0),
+    ("LVegAbs_5", "W m-2", "lw vegetation absorption - SPARTACUS level 5", 0),
+    ("LVegAbs_6", "W m-2", "lw vegetation absorption - SPARTACUS level 6", 0),
+    ("LVegAbs_7", "W m-2", "lw vegetation absorption - SPARTACUS level 7", 0),
+    ("LVegAbs_8", "W m-2", "lw vegetation absorption - SPARTACUS level 8", 0),
+    ("LVegAbs_9", "W m-2", "lw vegetation absorption - SPARTACUS level 9", 0),
+    ("LVegAbs_10", "W m-2", "lw vegetation absorption - SPARTACUS level 10", 0),
+    ("LVegAbs_11", "W m-2", "lw vegetation absorption - SPARTACUS level 11", 0),
+    ("LVegAbs_12", "W m-2", "lw vegetation absorption - SPARTACUS level 12", 0),
+    ("LVegAbs_13", "W m-2", "lw vegetation absorption - SPARTACUS level 13", 0),
+    ("LVegAbs_14", "W m-2", "lw vegetation absorption - SPARTACUS level 14", 0),
+    ("LVegAbs_15", "W m-2", "lw vegetation absorption - SPARTACUS level 15", 0),
 ]
 
 SPARTACUS_VARIABLES = [

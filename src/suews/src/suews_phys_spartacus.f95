@@ -177,6 +177,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_roof_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_wall_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: veg_abs_sw_spc ! SW vegetation absorption per layer
       REAL(KIND(1D0)), DIMENSION(15) :: veg_abs_lw_spc ! LW vegetation absorption per layer
       ! --------------------------------------------------------------------------------
 
@@ -518,18 +519,19 @@ CONTAINS
             CALL lw_flux%SUM(lw_internal, lw_norm)
          END IF
       END DO
-      !-----------------------------------------------------------------
-      ! Longwave vegetation absorption per layer (W m-2), from lw_internal
-      !-----------------------------------------------------------------
-      veg_abs_lw_spc = -999.0D0
 
-      ! Only attempt extraction when LW is active and there is at least one SPARTACUS layer
-      IF (config%do_lw .AND. canopy_props%nlay(1) > 0) THEN
-         ! Some configurations do not allocate lw_internal%veg_abs at all:
+      !-----------------------------------------------------------------
+      ! Shortwave vegetation absorption per layer (W m-2), from sw_flux
+      !-----------------------------------------------------------------
+      veg_abs_sw_spc = -999.0D0
+
+      ! Only attempt extraction when SW is active and there is at least one SPARTACUS layer
+      IF (config%do_sw .AND. canopy_props%nlay(1) > 0) THEN
+         ! Some configurations do not allocate sw_flux%veg_abs at all:
          ! in that case, skip extraction and keep fill values.
-         IF (ALLOCATED(lw_internal%veg_abs)) THEN
+         IF (ALLOCATED(sw_flux%veg_abs)) THEN
             ! Number of available layers in veg_abs (second dimension)
-            nlay_veg = SIZE(lw_internal%veg_abs, 2)
+            nlay_veg = SIZE(sw_flux%veg_abs, 2)
 
             ! Required maximum index in veg_abs for this column
             max_idx = canopy_props%istartlay(1) + MIN(canopy_props%nlay(1), 15) - 1
@@ -538,7 +540,33 @@ CONTAINS
                ilay = canopy_props%istartlay(1)
                DO jlay = 1, MIN(canopy_props%nlay(1), 15)
                   ! nspec=1, so use first spectral index
-                  veg_abs_lw_spc(jlay) = lw_internal%veg_abs(1, ilay + jlay - 1)
+                  veg_abs_sw_spc(jlay) = sw_flux%veg_abs(1, ilay + jlay - 1)
+               END DO
+            END IF
+         END IF
+      END IF
+
+      !-----------------------------------------------------------------
+      ! Longwave vegetation absorption per layer (W m-2), from lw_flux
+      !-----------------------------------------------------------------
+      veg_abs_lw_spc = -999.0D0
+
+      ! Only attempt extraction when LW is active and there is at least one SPARTACUS layer
+      IF (config%do_lw .AND. canopy_props%nlay(1) > 0) THEN
+         ! Some configurations do not allocate lw_flux%veg_abs at all:
+         ! in that case, skip extraction and keep fill values.
+         IF (ALLOCATED(lw_flux%veg_abs)) THEN
+            ! Number of available layers in veg_abs (second dimension)
+            nlay_veg = SIZE(lw_flux%veg_abs, 2)
+
+            ! Required maximum index in veg_abs for this column
+            max_idx = canopy_props%istartlay(1) + MIN(canopy_props%nlay(1), 15) - 1
+
+            IF (nlay_veg >= max_idx) THEN
+               ilay = canopy_props%istartlay(1)
+               DO jlay = 1, MIN(canopy_props%nlay(1), 15)
+                  ! nspec=1, so use first spectral index
+                  veg_abs_lw_spc(jlay) = lw_flux%veg_abs(1, ilay + jlay - 1)
                END DO
             END IF
          END IF
@@ -703,6 +731,7 @@ CONTAINS
           sfr_roof_spc, &
           sfr_wall_spc, &
           clear_air_abs_lw_spc, &
+          veg_abs_sw_spc, &
           veg_abs_lw_spc &
           ]
 

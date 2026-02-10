@@ -444,7 +444,7 @@ rst_prolog = rf"""
       2. Please report issues with the manual on `GitHub Issues`_ (or use `Report Issue for This Page`_ for page-specific feedback).
       3. Please cite SUEWS with proper information from our `Zenodo page`_.
 
-.. _SUEWS Community: https://community.suews.io
+.. _SUEWS Community: https://community.suews.io/invites/bKjzoboyVV
 .. _GitHub Issues: https://github.com/UMEP-dev/SUEWS/issues
 .. _SUEWS download page: https://forms.office.com/r/4qGfYu8LaR
 

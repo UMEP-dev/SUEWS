@@ -582,8 +582,13 @@ CONTAINS
       ! Loop through vegetation types (iv)
       DO iv = 1, NVegSurf
          ! Calculate GDD for each day from the minimum and maximum air temperature
-         delta_GDD = ((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_GDD(iv)) !Leaf on
-         delta_SDD = ((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_SDD(iv)) !Leaf off
+         IF (LAItype(iv) < 1.5) THEN
+            delta_GDD = ((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_GDD(iv)) !Leaf on
+            delta_SDD = ((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_SDD(iv)) !Leaf off
+         ELSE
+            delta_GDD = -((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_GDD(iv)) !Leaf on
+            delta_SDD = -((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_SDD(iv)) !Leaf off
+         END IF
 
          indHelp = 0 !Help switch to allow GDD to go to zero in sprint-time !! QUESTION: What does this mean? HCW
 
@@ -603,28 +608,54 @@ CONTAINS
             GDD_id(iv) = 0
          END IF
 
-         IF (GDD_id(iv) >= GDDFull(iv)) THEN !Start senescence
-            GDD_id(iv) = GDDFull(iv) !Leaves should not grow so delete yes from earlier
-            IF (SDD_id(iv) < -critDays) GDD_id(iv) = 0
-         END IF
+         IF (LAItype(iv) < 1.5) THEN
+            IF (GDD_id(iv) >= GDDFull(iv)) THEN !Start senescence
+               GDD_id(iv) = GDDFull(iv) !Leaves should not grow so delete yes from earlier
+               IF (SDD_id(iv) < -critDays) GDD_id(iv) = 0
+            END IF
 
-         IF (SDD_id(iv) <= SDDFull(iv)) THEN !After senescence now start growing leaves
-            SDD_id(iv) = SDDFull(iv) !Leaves off so add back earlier
-            IF (GDD_id(iv) > critDays) SDD_id(iv) = 0
+            IF (SDD_id(iv) <= SDDFull(iv)) THEN !After senescence now start growing leaves
+               SDD_id(iv) = SDDFull(iv) !Leaves off so add back earlier
+               IF (GDD_id(iv) > critDays) SDD_id(iv) = 0
+            END IF
+         ELSE
+            IF (SDD_id(iv) <= SDDFull(iv)) THEN !After senescence now start growing leaves
+               SDD_id(iv) = SDDFull(iv) !Leaves off so add back earlier
+               IF (GDD_id(iv) > critDays) SDD_id(iv) = 0
+            END IF
+
+            IF (GDD_id(iv) >= GDDFull(iv)) THEN !Start senescence
+               GDD_id(iv) = GDDFull(iv) !Leaves should not grow so delete yes from earlier
+               IF (SDD_id(iv) < -critDays) GDD_id(iv) = 0
+            END IF
          END IF
 
          ! With these limits SDD, GDD is set to zero
-         IF (SDD_id(iv) < -critDays .AND. SDD_id(iv) > SDDFull(iv)) GDD_id(iv) = 0
-         IF (GDD_id(iv) > critDays .AND. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
+         IF (LAItype(iv) < 1.5) THEN
+            IF (SDD_id(iv) < -critDays .AND. SDD_id(iv) > SDDFull(iv)) GDD_id(iv) = 0
+            IF (GDD_id(iv) > critDays .AND. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
+         ELSE
+            IF (GDD_id(iv) > critDays .AND. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
+            IF (SDD_id(iv) < -critDays .AND. SDD_id(iv) > SDDFull(iv)) GDD_id(iv) = 0
+         END IF
 
          ! Now calculate LAI itself
          IF (lat >= 0) THEN !Northern hemispere
-            !If SDD is not zero by mid May, this is forced
-            IF (id == 140 .AND. SDD_id(iv) /= 0) SDD_id(iv) = 0
-            ! Set SDD to zero in summer time
-            IF (GDD_id(iv) > critDays .AND. id < 170) SDD_id(iv) = 0
-            ! Set GDD zero in winter time
-            IF (SDD_id(iv) < -critDays .AND. id > 170) GDD_id(iv) = 0
+            IF (LAItype(iv) < 1.5) THEN
+               !If SDD is not zero by mid May, this is forced
+               IF (id == 140 .AND. SDD_id(iv) /= 0) SDD_id(iv) = 0
+               ! Set SDD to zero in summer time
+               IF (GDD_id(iv) > critDays .AND. id < 170) SDD_id(iv) = 0
+               ! Set GDD zero in winter time
+               IF (SDD_id(iv) < -critDays .AND. id > 170) GDD_id(iv) = 0
+            ELSE ! Inverted LAI behaviour (for evergreen trees)
+               !If GDD is not zero by mid May, this is forced
+               IF (id == 140 .AND. GDD_id(iv) /= 0) GDD_id(iv) = 0
+               ! Set GDD to zero in summer time
+               IF (SDD_id(iv) < -critDays .AND. id < 170) GDD_id(iv) = 0
+               ! Set SDD zero in winter time
+               IF (GDD_id(iv) > critDays .AND. id > 170) SDD_id(iv) = 0
+            END IF
 
             IF (LAItype(iv) < 0.5) THEN !Original LAI type
                IF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN !Leaves can still grow
@@ -634,12 +665,21 @@ CONTAINS
                ELSE
                   LAI_id_next(iv) = LAI_id_prev(iv)
                END IF
-            ELSEIF (LAItype(iv) >= 0.5) THEN
+            ELSEIF (1.5 > LAItype(iv)) THEN
                IF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN !Leaves can still grow
                   LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
                   !! Use day length to start senescence at high latitudes (N hemisphere)
                ELSEIF (lenDay_id_prev <= 12 .AND. SDD_id(iv) > SDDFull(iv)) THEN !Start senescence
                   LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
+               ELSE
+                  LAI_id_next(iv) = LAI_id_prev(iv)
+               END IF
+            ELSEIF (LAItype(iv) >= 1.5) THEN
+               IF (SDD_id(iv) < 0 .AND. SDD_id(iv) > SDDFull(iv)) THEN !Leaves can still fall
+                  LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
+                  !! Use day length to start senescence at high latitudes (N hemisphere)
+               ELSEIF (lenDay_id_prev <= 12 .AND. GDD_id(iv) < GDDFull(iv)) THEN !Start growth
+                  LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
                ELSE
                   LAI_id_next(iv) = LAI_id_prev(iv)
                END IF

@@ -393,7 +393,7 @@ class LAIParams(BaseModel):
     )
     laitype: FlexibleRefValue(int) = Field(
         default=0,
-        description="LAI calculation choice (0: original, 1: new high latitude)",
+        description="LAI calculation choice (0: original, 1: new high latitude, 2: new inverted behaviour)",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "LAI Calculation Method",

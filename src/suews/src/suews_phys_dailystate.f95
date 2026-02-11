@@ -635,39 +635,61 @@ CONTAINS
          )
 
          ! With these limits SDD, GDD is set to zero
-         if (SDD_id(iv) < -critDays .AND. SDD_id(iv) > SDDFull(iv)) GDD_id(iv) = 0
-         if (GDD_id(iv) > critDays .AND. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
+         if (LAItype(iv) < 1.5) then
+            if (SDD_id(iv) < -critDays .and. SDD_id(iv) > SDDFull(iv)) GDD_id(iv) = 0
+            if (GDD_id(iv) > critDays .and. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
+         else
+            if (GDD_id(iv) > critDays .and. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
+            if (SDD_id(iv) < -critDays .and. SDD_id(iv) > SDDFull(iv)) GDD_id(iv) = 0
+         end if
 
          ! Now calculate LAI itself
          if (lat >= 0) THEN !Northern hemispere
-            call reset_degree_day_states( &
-               id=id, &
-               sdd_reset_day=140, &
-               crit_days=critDays, &
-               summer_day=170, &
-               winter_day=170, &
-               southern_hemisphere=.false., &
-               sdd_id=SDD_id(iv), &
-               gdd_id=GDD_id(iv) &
-            )
-            
-            if (LAICalcYes /= 0) then
-               call calculate_lai( &
-                  senescence_mode=SEN_DAYLENGTH, &
+            if (LAItype(iv) < 1.5) then
+               call reset_degree_day_states( &
                   id=id, &
-                  SDD_id=SDD_id(iv), &
-                  GDD_id=GDD_id(iv), &
-                  critDays=critDays, &
-                  LAItype=LAItype(iv), &
-                  LAIPower=LAIPower(:, iv), &
-                  GDDFull=GDDFull(iv), &
-                  SDDFull=SDDFull(iv), &
-                  lenDay_id_prev=lenDay_id_prev, &
-                  laimax=laimax(iv), &
-                  laimin=laimin(iv), &
-                  LAI_id_prev=LAI_id_prev(iv), &
-                  LAI_id_next=LAI_id_next(iv) &
+                  sdd_reset_day=140, &
+                  crit_days=critDays, &
+                  summer_day=170, &
+                  winter_day=170, &
+                  southern_hemisphere=.false., &
+                  sdd_id=SDD_id(iv), &
+                  gdd_id=GDD_id(iv) &
                )
+               if (LAICalcYes /= 0) then
+                  call calculate_lai( &
+                     senescence_mode=SEN_DAYLENGTH, &
+                     id=id, &
+                     SDD_id=SDD_id(iv), &
+                     GDD_id=GDD_id(iv), &
+                     critDays=critDays, &
+                     LAItype=LAItype(iv), &
+                     LAIPower=LAIPower(:, iv), &
+                     GDDFull=GDDFull(iv), &
+                     SDDFull=SDDFull(iv), &
+                     lenDay_id_prev=lenDay_id_prev, &
+                     laimax=laimax(iv), &
+                     laimin=laimin(iv), &
+                     LAI_id_prev=LAI_id_prev(iv), &
+                     LAI_id_next=LAI_id_next(iv) &
+                  )
+               end if
+            else ! Inverted LAI behaviour (for evergreen trees)
+               !If GDD is not zero by mid May, this is forced
+               if (id == 140 .and. GDD_id(iv) /= 0) GDD_id(iv) = 0
+               ! Set GDD to zero in summer time
+               if (SDD_id(iv) < -critDays .and. id < 170) GDD_id(iv) = 0
+               ! Set SDD zero in winter time
+               if (GDD_id(iv) > critDays .and. id > 170) SDD_id(iv) = 0
+               
+               if (SDD_id(iv) < 0 .and. SDD_id(iv) > SDDFull(iv)) then !Leaves can still fall
+                  LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
+                  !! Use day length to start senescence at high latitudes (N hemisphere)
+               else if (lenDay_id_prev <= 12 .and. GDD_id(iv) < GDDFull(iv)) then !Start growth
+                  LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
+               else
+                  LAI_id_next(iv) = LAI_id_prev(iv)
+               end if
             end if
          else !Southern hemisphere !! N.B. not identical to N hemisphere - return to later
             call reset_degree_day_states( &

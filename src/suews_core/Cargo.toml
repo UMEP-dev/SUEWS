@@ -1,0 +1,29 @@
+[package]
+name = "suews_core"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+license = "GPL-3.0-or-later"
+description = "Rust bridge MVP for SUEWS OHM Fortran C API"
+
+[lib]
+name = "suews_core"
+crate-type = ["rlib", "cdylib"]
+
+[[bin]]
+name = "suews"
+path = "src/main.rs"
+
+[features]
+default = []
+python = ["dep:pyo3"]
+python-extension = ["python", "pyo3/extension-module"]
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+thiserror = "2.0"
+
+[dependencies.pyo3]
+version = "0.22"
+optional = true
+features = ["abi3-py39"]

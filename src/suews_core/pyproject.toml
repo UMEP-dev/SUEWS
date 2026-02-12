@@ -1,0 +1,13 @@
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "suews-core"
+version = "0.1.0"
+description = "Rust bridge MVP for SUEWS OHM Fortran C API"
+requires-python = ">=3.9"
+
+[tool.maturin]
+features = ["python-extension"]
+module-name = "suews_core"

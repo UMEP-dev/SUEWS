@@ -102,6 +102,13 @@ fn parse_state_values_json(text: &str) -> Result<OhmStateValuesPayload, String> 
                 ohm_state_schema_version()
             };
 
+            if schema_version != ohm_state_schema_version() {
+                return Err(format!(
+                    "schema_version mismatch: got {schema_version}, expected {}",
+                    ohm_state_schema_version()
+                ));
+            }
+
             Ok(OhmStateValuesPayload {
                 schema_version,
                 values,
@@ -495,6 +502,18 @@ mod tests {
         .expect("bad values json should render");
         let err = parse_state_values_json(&text).expect_err("length mismatch should fail");
         assert!(err.contains("values length mismatch"));
+    }
+
+    #[test]
+    fn parse_state_values_rejects_schema_mismatch() {
+        let bad_version = ohm_state_schema_version() + 1;
+        let text = serde_json::to_string(&json!({
+            "schema_version": bad_version,
+            "values": vec![0.0_f64; OHM_STATE_FLAT_LEN],
+        }))
+        .expect("bad schema json should render");
+        let err = parse_state_values_json(&text).expect_err("schema mismatch should fail");
+        assert!(err.contains("schema_version mismatch"));
     }
 
     #[test]

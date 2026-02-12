@@ -64,3 +64,25 @@ additional derived type while preserving build speed and codebase clarity.
 2. One new derived type reachable from Python without f90wrap.
 3. Mapping logic documented and tested.
 4. No changes to core physics behaviour.
+
+## Likely objections and responses
+
+1. Objection: "This adds an extra layer and therefore extra complexity."
+   Response: Yes, the bridge adds one layer, but it removes repeated ad-hoc
+   conversion logic spread across Python and Fortran call sites. Complexity is
+   centralised and testable instead of duplicated and hidden.
+2. Objection: "Why not just use f90wrap for derived types directly?"
+   Response: For this workflow, f90wrap iteration cost is high when interfaces
+   change frequently. The Rust layer keeps development loops shorter while still
+   preserving explicit contracts at the Fortran boundary.
+3. Objection: "Does this pollute or fragment SUEWS core source?"
+   Response: The adapter is kept in `src/suews_core/fortran/`, not inside
+   `src/suews/src/`, and delegates all science logic to existing modules. This
+   keeps core ownership and scientific integrity intact.
+4. Objection: "How do we prevent schema drift between languages?"
+   Response: Schema version and runtime schema checks are enforced in bridge
+   APIs, and payload length/field-order contracts are validated by tests.
+5. Objection: "Could this become a maintenance burden?"
+   Response: Scope is intentionally phased by derived type, with push-on-green
+   incremental commits. Each phase must pass Rust tests, Python bridge tests and
+   repository smoke tests before extension.

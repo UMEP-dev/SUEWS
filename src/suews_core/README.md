@@ -52,6 +52,8 @@ python src/suews_core/examples/ohm_state_python_demo.py
 
 - Adapter rationale and architecture notes:
   `src/suews_core/docs-bridge-rationale.md`
+- Phase 2 extension roadmap:
+  `src/suews_core/docs-phase2-roadmap.md`
 
 ## Current scope
 

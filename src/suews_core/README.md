@@ -23,6 +23,8 @@ cargo run -- qs --qn1 250 --dqndt 12.5 --a1 0.3 --a2 0.1 --a3 5
 cargo run -- state-step --dt 300 --dt-since-start 0 --qn1 200 --a1 0.3 --a2 0.1 --a3 5
 cargo run -- state-schema
 cargo run -- state-schema-json
+cargo run -- state-default-json
+cargo run -- state-default-values-json
 cargo run -- state-step-json --dt 300 --dt-since-start 0 --qn1 200 --a1 0.3 --a2 0.1 --a3 5
 # state-step-json also accepts wrapped payload with schema_version + state object
 cargo run -- state-step-values-json --dt 300 --dt-since-start 0 --qn1 200 --a1 0.3 --a2 0.1 --a3 5

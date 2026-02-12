@@ -188,6 +188,10 @@ enum Commands {
     StateSchema,
     /// Print OHM_STATE schema as JSON for programmatic tooling.
     StateSchemaJson,
+    /// Print default OHM_STATE as JSON map payload.
+    StateDefaultJson,
+    /// Print default OHM_STATE as JSON ordered values payload.
+    StateDefaultValuesJson,
     /// Step OHM_STATE using JSON input/output.
     StateStepJson {
         #[arg(long)]
@@ -331,6 +335,29 @@ fn run(cli: Cli) -> Result<(), String> {
 
             let text = serde_json::to_string_pretty(&payload)
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::StateDefaultJson => {
+            let state = ohm_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": ohm_state_schema_version(),
+                "schema_version_runtime": ohm_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "state": ohm_state_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::StateDefaultValuesJson => {
+            let state = ohm_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = ohm_state_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": ohm_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
         Commands::StateStepJson {

@@ -496,4 +496,20 @@ mod tests {
         let err = parse_state_values_json(&text).expect_err("length mismatch should fail");
         assert!(err.contains("values length mismatch"));
     }
+
+    #[test]
+    fn run_state_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::StateDefaultJson,
+        };
+        run(cli).expect("state-default-json should succeed");
+    }
+
+    #[test]
+    fn run_state_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::StateDefaultValuesJson,
+        };
+        run(cli).expect("state-default-values-json should succeed");
+    }
 }

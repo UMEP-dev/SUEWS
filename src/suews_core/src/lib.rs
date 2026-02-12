@@ -86,6 +86,37 @@ mod python_bindings {
             self.state.to_flat()
         }
 
+        fn flat_pairs(&self) -> Vec<(String, f64)> {
+            let names = ohm_state_field_names();
+            let values = self.state.to_flat();
+            names.into_iter().zip(values).collect()
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            ohm_state_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let names = ohm_state_field_names();
+            let idx = names.iter().position(|n| n == name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown OHM_STATE field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let names = ohm_state_field_names();
+            let idx = names.iter().position(|n| n == name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown OHM_STATE field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = OhmState::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+
         #[getter]
         fn qn_av(&self) -> f64 {
             self.state.qn_av
@@ -104,6 +135,96 @@ mod python_bindings {
         #[setter]
         fn set_dqndt(&mut self, value: f64) {
             self.state.dqndt = value;
+        }
+
+        #[getter]
+        fn qn_s_av(&self) -> f64 {
+            self.state.qn_s_av
+        }
+
+        #[setter]
+        fn set_qn_s_av(&mut self, value: f64) {
+            self.state.qn_s_av = value;
+        }
+
+        #[getter]
+        fn dqnsdt(&self) -> f64 {
+            self.state.dqnsdt
+        }
+
+        #[setter]
+        fn set_dqnsdt(&mut self, value: f64) {
+            self.state.dqnsdt = value;
+        }
+
+        #[getter]
+        fn a1(&self) -> f64 {
+            self.state.a1
+        }
+
+        #[setter]
+        fn set_a1(&mut self, value: f64) {
+            self.state.a1 = value;
+        }
+
+        #[getter]
+        fn a2(&self) -> f64 {
+            self.state.a2
+        }
+
+        #[setter]
+        fn set_a2(&mut self, value: f64) {
+            self.state.a2 = value;
+        }
+
+        #[getter]
+        fn a3(&self) -> f64 {
+            self.state.a3
+        }
+
+        #[setter]
+        fn set_a3(&mut self, value: f64) {
+            self.state.a3 = value;
+        }
+
+        #[getter]
+        fn t2_prev(&self) -> f64 {
+            self.state.t2_prev
+        }
+
+        #[setter]
+        fn set_t2_prev(&mut self, value: f64) {
+            self.state.t2_prev = value;
+        }
+
+        #[getter]
+        fn ws_rav(&self) -> f64 {
+            self.state.ws_rav
+        }
+
+        #[setter]
+        fn set_ws_rav(&mut self, value: f64) {
+            self.state.ws_rav = value;
+        }
+
+        #[getter]
+        fn tair_prev(&self) -> f64 {
+            self.state.tair_prev
+        }
+
+        #[setter]
+        fn set_tair_prev(&mut self, value: f64) {
+            self.state.tair_prev = value;
+        }
+
+        #[getter]
+        fn iter_safe(&self) -> bool {
+            self.state.iter_safe
+        }
+
+        #[setter]
+        fn set_iter_safe(&mut self, value: bool) {
+            self.state.iter_safe = value;
         }
 
         fn qn_surfs(&self) -> Vec<f64> {
@@ -133,6 +254,66 @@ mod python_bindings {
                 )));
             }
             self.state.dqndt_surf.copy_from_slice(&values);
+            Ok(())
+        }
+
+        fn qn_rav(&self) -> Vec<f64> {
+            self.state.qn_rav.to_vec()
+        }
+
+        fn set_qn_rav(&mut self, values: Vec<f64>) -> PyResult<()> {
+            if values.len() != NSURF {
+                return Err(PyValueError::new_err(format!(
+                    "qn_rav requires length {NSURF}, got {}",
+                    values.len()
+                )));
+            }
+            self.state.qn_rav.copy_from_slice(&values);
+            Ok(())
+        }
+
+        fn dyn_a1(&self) -> Vec<f64> {
+            self.state.dyn_a1.to_vec()
+        }
+
+        fn set_dyn_a1(&mut self, values: Vec<f64>) -> PyResult<()> {
+            if values.len() != NSURF {
+                return Err(PyValueError::new_err(format!(
+                    "dyn_a1 requires length {NSURF}, got {}",
+                    values.len()
+                )));
+            }
+            self.state.dyn_a1.copy_from_slice(&values);
+            Ok(())
+        }
+
+        fn dyn_a2(&self) -> Vec<f64> {
+            self.state.dyn_a2.to_vec()
+        }
+
+        fn set_dyn_a2(&mut self, values: Vec<f64>) -> PyResult<()> {
+            if values.len() != NSURF {
+                return Err(PyValueError::new_err(format!(
+                    "dyn_a2 requires length {NSURF}, got {}",
+                    values.len()
+                )));
+            }
+            self.state.dyn_a2.copy_from_slice(&values);
+            Ok(())
+        }
+
+        fn dyn_a3(&self) -> Vec<f64> {
+            self.state.dyn_a3.to_vec()
+        }
+
+        fn set_dyn_a3(&mut self, values: Vec<f64>) -> PyResult<()> {
+            if values.len() != NSURF {
+                return Err(PyValueError::new_err(format!(
+                    "dyn_a3 requires length {NSURF}, got {}",
+                    values.len()
+                )));
+            }
+            self.state.dyn_a3.copy_from_slice(&values);
             Ok(())
         }
 

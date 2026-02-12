@@ -103,16 +103,18 @@ mod python_bindings {
                 schema_version,
                 values,
             };
-            let state = ohm_state_from_values_payload(&payload)
-                .map_err(|_| PyValueError::new_err("invalid OHM_STATE values payload"))?;
+            let state = ohm_state_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid OHM_STATE values payload: {err}"))
+            })?;
             Ok(Self { state })
         }
 
         #[staticmethod]
         fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
             let mapped: BTreeMap<String, f64> = values.into_iter().collect();
-            let state = ohm_state_from_map(&mapped)
-                .map_err(|_| PyValueError::new_err("invalid OHM_STATE field mapping"))?;
+            let state = ohm_state_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid OHM_STATE field mapping: {err}"))
+            })?;
             Ok(Self { state })
         }
 
@@ -145,8 +147,9 @@ mod python_bindings {
                 mapped.insert(name, value);
             }
 
-            self.state = ohm_state_from_map(&mapped)
-                .map_err(|_| PyValueError::new_err("invalid OHM_STATE field mapping"))?;
+            self.state = ohm_state_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid OHM_STATE field mapping: {err}"))
+            })?;
             Ok(())
         }
 

@@ -23,6 +23,7 @@ cargo run -- qs --qn1 250 --dqndt 12.5 --a1 0.3 --a2 0.1 --a3 5
 cargo run -- state-step --dt 300 --dt-since-start 0 --qn1 200 --a1 0.3 --a2 0.1 --a3 5
 cargo run -- state-schema
 cargo run -- state-schema-json
+cargo run -- state-step-json --dt 300 --dt-since-start 0 --qn1 200 --a1 0.3 --a2 0.1 --a3 5
 ```
 
 ## Build Python extension
@@ -35,6 +36,7 @@ python -c "import suews_core as sc; s=sc.OhmState.default(); print(sc.ohm_state_
 python -c "import suews_core as sc; print(sc.ohm_state_fields()[:10])"
 python -c "import suews_core as sc; print(sc.ohm_surface_names())"
 python -c "import suews_core as sc; s=sc.OhmState.default(); s.set_field_value('qn_surfs.paved', 120.0); print(s.field_value('qn_surfs.paved'))"
+python -c "import suews_core as sc; s=sc.OhmState.from_dict({'qn_surfs.paved': 42.0}); print(s.to_dict()['qn_surfs.paved'])"
 ```
 
 ## Design notes

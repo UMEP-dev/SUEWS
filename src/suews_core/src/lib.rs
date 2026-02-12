@@ -17,6 +17,7 @@ mod python_bindings {
     };
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
     use pyo3::prelude::*;
+    use std::collections::{BTreeMap, HashMap};
 
     fn map_bridge_error(err: BridgeError) -> PyErr {
         PyRuntimeError::new_err(err.to_string())
@@ -82,6 +83,23 @@ mod python_bindings {
             Ok(Self { state })
         }
 
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mut state = ohm_state_default_from_fortran().map_err(map_bridge_error)?;
+            let names = ohm_state_field_names();
+            let mut flat = state.to_flat();
+
+            for (name, value) in values {
+                let idx = names.iter().position(|n| n == &name).ok_or_else(|| {
+                    PyValueError::new_err(format!("unknown OHM_STATE field name: {name}"))
+                })?;
+                flat[idx] = value;
+            }
+
+            state = OhmState::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
         fn to_flat(&self) -> Vec<f64> {
             self.state.to_flat()
         }
@@ -90,6 +108,27 @@ mod python_bindings {
             let names = ohm_state_field_names();
             let values = self.state.to_flat();
             names.into_iter().zip(values).collect()
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            let names = ohm_state_field_names();
+            let values = self.state.to_flat();
+            names.into_iter().zip(values).collect()
+        }
+
+        fn update_from_dict(&mut self, values: HashMap<String, f64>) -> PyResult<()> {
+            let names = ohm_state_field_names();
+            let mut flat = self.state.to_flat();
+
+            for (name, value) in values {
+                let idx = names.iter().position(|n| n == &name).ok_or_else(|| {
+                    PyValueError::new_err(format!("unknown OHM_STATE field name: {name}"))
+                })?;
+                flat[idx] = value;
+            }
+
+            self.state = OhmState::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
         }
 
         #[staticmethod]

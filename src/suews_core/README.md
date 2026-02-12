@@ -56,6 +56,8 @@ python src/suews_core/examples/ohm_state_python_demo.py
   `src/suews_core/docs-bridge-rationale.md`
 - Phase 2 extension roadmap:
   `src/suews_core/docs-phase2-roadmap.md`
+- Epic issue draft text:
+  `src/suews_core/docs-epic-issue-draft.md`
 
 ## Current scope
 

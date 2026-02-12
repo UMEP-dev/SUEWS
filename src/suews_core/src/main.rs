@@ -3,9 +3,10 @@ use serde_json::json;
 use serde_json::Value;
 use std::fs;
 use suews_core::{
-    ohm_state_default_from_fortran, ohm_state_field_names, ohm_state_from_map, ohm_state_schema,
-    ohm_state_schema_version, ohm_state_step, ohm_state_to_map, ohm_step, ohm_surface_names,
-    qs_calc, OhmModel,
+    ohm_state_default_from_fortran, ohm_state_field_names, ohm_state_from_map,
+    ohm_state_from_values_payload, ohm_state_schema, ohm_state_schema_info,
+    ohm_state_schema_version, ohm_state_step, ohm_state_to_map, ohm_state_to_values_payload,
+    ohm_step, qs_calc, OhmModel, OhmStateValuesPayload,
 };
 
 fn parse_state_map_json(text: &str) -> Result<std::collections::BTreeMap<String, f64>, String> {
@@ -43,6 +44,53 @@ fn parse_state_map_json(text: &str) -> Result<std::collections::BTreeMap<String,
         parse_field_object(state_value)
     } else {
         parse_field_object(Value::Object(root))
+    }
+}
+
+fn parse_state_values_json(text: &str) -> Result<OhmStateValuesPayload, String> {
+    fn parse_values_array(value: Value) -> Result<Vec<f64>, String> {
+        let items = value
+            .as_array()
+            .ok_or_else(|| "values payload must be a JSON array".to_string())?;
+
+        let mut out = Vec::with_capacity(items.len());
+        for (idx, item) in items.iter().enumerate() {
+            let num = item
+                .as_f64()
+                .ok_or_else(|| format!("values[{idx}] must be numeric"))?;
+            out.push(num);
+        }
+        Ok(out)
+    }
+
+    let value: Value = serde_json::from_str(text)
+        .map_err(|e| format!("failed to parse JSON values payload: {e}"))?;
+
+    match value {
+        Value::Array(_) => Ok(OhmStateValuesPayload {
+            schema_version: ohm_state_schema_version(),
+            values: parse_values_array(value)?,
+        }),
+        Value::Object(mut obj) => {
+            let values_value = obj
+                .remove("values")
+                .ok_or_else(|| "values payload object must contain `values`".to_string())?;
+            let values = parse_values_array(values_value)?;
+
+            let schema_version = if let Some(v) = obj.remove("schema_version") {
+                v.as_u64().ok_or_else(|| {
+                    "`schema_version` must be an unsigned integer when provided".to_string()
+                })? as u32
+            } else {
+                ohm_state_schema_version()
+            };
+
+            Ok(OhmStateValuesPayload {
+                schema_version,
+                values,
+            })
+        }
+        _ => Err("values payload must be a JSON array or object".to_string()),
     }
 }
 
@@ -141,6 +189,24 @@ enum Commands {
         #[arg(long)]
         state_json: Option<String>,
     },
+    /// Step OHM_STATE using ordered values JSON input/output.
+    StateStepValuesJson {
+        #[arg(long)]
+        dt: i32,
+        #[arg(long)]
+        dt_since_start: i32,
+        #[arg(long)]
+        qn1: f64,
+        #[arg(long)]
+        a1: f64,
+        #[arg(long)]
+        a2: f64,
+        #[arg(long)]
+        a3: f64,
+        /// Optional JSON file with values array or {schema_version, values}.
+        #[arg(long)]
+        state_values_json: Option<String>,
+    },
 }
 
 fn main() {
@@ -235,16 +301,14 @@ fn run(cli: Cli) -> Result<(), String> {
             }
         }
         Commands::StateSchemaJson => {
-            let (flat_len, nsurf) = ohm_state_schema().map_err(|e| e.to_string())?;
-            let fields = ohm_state_field_names();
-            let surfaces = ohm_surface_names();
+            let schema = ohm_state_schema_info().map_err(|e| e.to_string())?;
 
             let payload = json!({
-                "schema_version": ohm_state_schema_version(),
-                "flat_len": flat_len,
-                "nsurf": nsurf,
-                "surface_names": surfaces,
-                "fields": fields,
+                "schema_version": schema.schema_version,
+                "flat_len": schema.flat_len,
+                "nsurf": schema.nsurf,
+                "surface_names": schema.surface_names,
+                "fields": schema.field_names,
             });
 
             let text = serde_json::to_string_pretty(&payload)
@@ -281,6 +345,39 @@ fn run(cli: Cli) -> Result<(), String> {
 
             let text = serde_json::to_string_pretty(&payload)
                 .map_err(|e| format!("failed to render step json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::StateStepValuesJson {
+            dt,
+            dt_since_start,
+            qn1,
+            a1,
+            a2,
+            a3,
+            state_values_json,
+        } => {
+            let mut state = if let Some(path) = state_values_json {
+                let text = fs::read_to_string(&path)
+                    .map_err(|e| format!("failed to read state_values_json file {path}: {e}"))?;
+                let payload = parse_state_values_json(&text)
+                    .map_err(|e| format!("failed to parse state_values_json file {path}: {e}"))?;
+                ohm_state_from_values_payload(&payload).map_err(|e| e.to_string())?
+            } else {
+                ohm_state_default_from_fortran().map_err(|e| e.to_string())?
+            };
+
+            let qs = ohm_state_step(&mut state, dt, dt_since_start, qn1, a1, a2, a3)
+                .map_err(|e| e.to_string())?;
+
+            let payload = ohm_state_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "qs": qs,
+                "values": payload.values,
+            });
+
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render values json: {e}"))?;
             println!("{text}");
         }
     }

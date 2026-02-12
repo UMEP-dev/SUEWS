@@ -8,6 +8,21 @@ pub const OHM_STATE_SCHEMA_VERSION: u32 = 1;
 pub const SURFACE_NAMES: [&str; NSURF] =
     ["paved", "bldg", "evetr", "dectr", "grass", "bsoil", "water"];
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OhmStateSchema {
+    pub schema_version: u32,
+    pub flat_len: usize,
+    pub nsurf: usize,
+    pub surface_names: Vec<String>,
+    pub field_names: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct OhmStateValuesPayload {
+    pub schema_version: u32,
+    pub values: Vec<f64>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct OhmStepResult {
     pub qn1_av_next: f64,
@@ -324,6 +339,24 @@ pub fn ohm_state_schema() -> Result<(usize, usize), BridgeError> {
     Ok((n_flat as usize, nsurf_out as usize))
 }
 
+pub fn ohm_state_schema_info() -> Result<OhmStateSchema, BridgeError> {
+    let (flat_len, nsurf) = ohm_state_schema()?;
+    let surface_names = ohm_surface_names();
+    let field_names = ohm_state_field_names();
+
+    if flat_len != field_names.len() || nsurf != surface_names.len() {
+        return Err(BridgeError::BadState);
+    }
+
+    Ok(OhmStateSchema {
+        schema_version: OHM_STATE_SCHEMA_VERSION,
+        flat_len,
+        nsurf,
+        surface_names,
+        field_names,
+    })
+}
+
 pub fn ohm_state_field_names() -> Vec<String> {
     fn push_surface_fields(names: &mut Vec<String>, prefix: &str) {
         for surface in SURFACE_NAMES {
@@ -377,6 +410,30 @@ pub fn ohm_state_to_map(state: &OhmState) -> BTreeMap<String, f64> {
     let names = ohm_state_field_names();
     let values = state.to_flat();
     names.into_iter().zip(values).collect()
+}
+
+pub fn ohm_state_to_ordered_values(state: &OhmState) -> Vec<f64> {
+    state.to_flat()
+}
+
+pub fn ohm_state_from_ordered_values(values: &[f64]) -> Result<OhmState, BridgeError> {
+    OhmState::from_flat(values)
+}
+
+pub fn ohm_state_to_values_payload(state: &OhmState) -> OhmStateValuesPayload {
+    OhmStateValuesPayload {
+        schema_version: OHM_STATE_SCHEMA_VERSION,
+        values: ohm_state_to_ordered_values(state),
+    }
+}
+
+pub fn ohm_state_from_values_payload(
+    payload: &OhmStateValuesPayload,
+) -> Result<OhmState, BridgeError> {
+    if payload.schema_version != OHM_STATE_SCHEMA_VERSION {
+        return Err(BridgeError::BadState);
+    }
+    ohm_state_from_ordered_values(&payload.values)
 }
 
 pub fn ohm_state_from_map(values: &BTreeMap<String, f64>) -> Result<OhmState, BridgeError> {
@@ -545,6 +602,33 @@ mod tests {
         mapped.insert("not_a_real_field".to_string(), 1.0);
 
         let err = ohm_state_from_map(&mapped).expect_err("unknown field should fail");
+        assert_eq!(err, BridgeError::BadState);
+    }
+
+    #[test]
+    fn state_schema_info_is_consistent() {
+        let schema = ohm_state_schema_info().expect("schema info should be available");
+        assert_eq!(schema.schema_version, OHM_STATE_SCHEMA_VERSION);
+        assert_eq!(schema.flat_len, OHM_STATE_FLAT_LEN);
+        assert_eq!(schema.nsurf, NSURF);
+        assert_eq!(schema.field_names.len(), OHM_STATE_FLAT_LEN);
+        assert_eq!(schema.surface_names.len(), NSURF);
+    }
+
+    #[test]
+    fn values_payload_roundtrip_and_version_guard() {
+        let state = ohm_state_default_from_fortran().expect("default state should be available");
+        let payload = ohm_state_to_values_payload(&state);
+        let recovered =
+            ohm_state_from_values_payload(&payload).expect("payload decode should work");
+        assert_eq!(state, recovered);
+
+        let bad_payload = OhmStateValuesPayload {
+            schema_version: OHM_STATE_SCHEMA_VERSION + 1,
+            values: payload.values,
+        };
+        let err = ohm_state_from_values_payload(&bad_payload)
+            .expect_err("payload with schema mismatch should fail");
         assert_eq!(err, BridgeError::BadState);
     }
 }

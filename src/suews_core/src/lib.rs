@@ -4,9 +4,12 @@ mod ffi;
 
 pub use core::{
     dqndt_step, ohm_state_default_from_fortran, ohm_state_field_index, ohm_state_field_names,
-    ohm_state_from_map, ohm_state_schema, ohm_state_schema_version, ohm_state_step,
-    ohm_state_to_map, ohm_step, ohm_surface_names, qs_calc, OhmModel, OhmModelState, OhmState,
-    OhmStepResult, NSURF, OHM_STATE_FLAT_LEN, OHM_STATE_SCHEMA_VERSION, SURFACE_NAMES,
+    ohm_state_from_map, ohm_state_from_ordered_values, ohm_state_from_values_payload,
+    ohm_state_schema, ohm_state_schema_info, ohm_state_schema_version, ohm_state_step,
+    ohm_state_to_map, ohm_state_to_ordered_values, ohm_state_to_values_payload, ohm_step,
+    ohm_surface_names, qs_calc, OhmModel, OhmModelState, OhmState, OhmStateSchema,
+    OhmStateValuesPayload, OhmStepResult, NSURF, OHM_STATE_FLAT_LEN, OHM_STATE_SCHEMA_VERSION,
+    SURFACE_NAMES,
 };
 pub use error::BridgeError;
 
@@ -14,8 +17,10 @@ pub use error::BridgeError;
 mod python_bindings {
     use crate::{
         ohm_state_default_from_fortran, ohm_state_field_index, ohm_state_field_names,
-        ohm_state_from_map, ohm_state_schema, ohm_state_schema_version, ohm_state_step,
-        ohm_state_to_map, ohm_step, ohm_surface_names, BridgeError, OhmModel, OhmState, NSURF,
+        ohm_state_from_map, ohm_state_from_ordered_values, ohm_state_from_values_payload,
+        ohm_state_schema, ohm_state_schema_info, ohm_state_schema_version, ohm_state_step,
+        ohm_state_to_map, ohm_state_to_ordered_values, ohm_state_to_values_payload, ohm_step,
+        ohm_surface_names, BridgeError, OhmModel, OhmState, OhmStateValuesPayload, NSURF,
     };
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
     use pyo3::prelude::*;
@@ -86,6 +91,23 @@ mod python_bindings {
         }
 
         #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state = ohm_state_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = OhmStateValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = ohm_state_from_values_payload(&payload)
+                .map_err(|_| PyValueError::new_err("invalid OHM_STATE values payload"))?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
         fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
             let mapped: BTreeMap<String, f64> = values.into_iter().collect();
             let state = ohm_state_from_map(&mapped)
@@ -95,6 +117,15 @@ mod python_bindings {
 
         fn to_flat(&self) -> Vec<f64> {
             self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            ohm_state_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = ohm_state_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
         }
 
         fn flat_pairs(&self) -> Vec<(String, f64)> {
@@ -382,6 +413,18 @@ mod python_bindings {
         ohm_state_schema_version()
     }
 
+    #[pyfunction(name = "ohm_state_schema_meta")]
+    fn ohm_state_schema_meta_py() -> PyResult<(u32, usize, usize, Vec<String>, Vec<String>)> {
+        let meta = ohm_state_schema_info().map_err(map_bridge_error)?;
+        Ok((
+            meta.schema_version,
+            meta.flat_len,
+            meta.nsurf,
+            meta.field_names,
+            meta.surface_names,
+        ))
+    }
+
     #[pyfunction(name = "ohm_state_fields")]
     fn ohm_state_fields_py() -> Vec<String> {
         ohm_state_field_names()
@@ -399,6 +442,7 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(ohm_step_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(ohm_state_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_surface_names_py, m)?)?;
         Ok(())

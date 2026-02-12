@@ -5,11 +5,11 @@ mod ffi;
 pub use core::{
     dqndt_step, ohm_state_default_from_fortran, ohm_state_field_index, ohm_state_field_names,
     ohm_state_from_map, ohm_state_from_ordered_values, ohm_state_from_values_payload,
-    ohm_state_schema, ohm_state_schema_info, ohm_state_schema_version, ohm_state_step,
-    ohm_state_to_map, ohm_state_to_ordered_values, ohm_state_to_values_payload, ohm_step,
-    ohm_surface_names, qs_calc, OhmModel, OhmModelState, OhmState, OhmStateSchema,
-    OhmStateValuesPayload, OhmStepResult, NSURF, OHM_STATE_FLAT_LEN, OHM_STATE_SCHEMA_VERSION,
-    SURFACE_NAMES,
+    ohm_state_schema, ohm_state_schema_info, ohm_state_schema_version,
+    ohm_state_schema_version_runtime, ohm_state_step, ohm_state_to_map,
+    ohm_state_to_ordered_values, ohm_state_to_values_payload, ohm_step, ohm_surface_names, qs_calc,
+    OhmModel, OhmModelState, OhmState, OhmStateSchema, OhmStateValuesPayload, OhmStepResult, NSURF,
+    OHM_STATE_FLAT_LEN, OHM_STATE_SCHEMA_VERSION, SURFACE_NAMES,
 };
 pub use error::BridgeError;
 
@@ -18,9 +18,10 @@ mod python_bindings {
     use crate::{
         ohm_state_default_from_fortran, ohm_state_field_index, ohm_state_field_names,
         ohm_state_from_map, ohm_state_from_ordered_values, ohm_state_from_values_payload,
-        ohm_state_schema, ohm_state_schema_info, ohm_state_schema_version, ohm_state_step,
-        ohm_state_to_map, ohm_state_to_ordered_values, ohm_state_to_values_payload, ohm_step,
-        ohm_surface_names, BridgeError, OhmModel, OhmState, OhmStateValuesPayload, NSURF,
+        ohm_state_schema, ohm_state_schema_info, ohm_state_schema_version,
+        ohm_state_schema_version_runtime, ohm_state_step, ohm_state_to_map,
+        ohm_state_to_ordered_values, ohm_state_to_values_payload, ohm_step, ohm_surface_names,
+        BridgeError, OhmModel, OhmState, OhmStateValuesPayload, NSURF,
     };
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
     use pyo3::prelude::*;
@@ -413,6 +414,11 @@ mod python_bindings {
         ohm_state_schema_version()
     }
 
+    #[pyfunction(name = "ohm_state_schema_version_runtime")]
+    fn ohm_state_schema_version_runtime_py() -> PyResult<u32> {
+        ohm_state_schema_version_runtime().map_err(map_bridge_error)
+    }
+
     #[pyfunction(name = "ohm_state_schema_meta")]
     fn ohm_state_schema_meta_py() -> PyResult<(u32, usize, usize, Vec<String>, Vec<String>)> {
         let meta = ohm_state_schema_info().map_err(map_bridge_error)?;
@@ -442,6 +448,7 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(ohm_step_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(ohm_state_schema_version_runtime_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_surface_names_py, m)?)?;

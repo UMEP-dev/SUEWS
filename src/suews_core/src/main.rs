@@ -5,8 +5,8 @@ use std::fs;
 use suews_core::{
     ohm_state_default_from_fortran, ohm_state_field_names, ohm_state_from_map,
     ohm_state_from_values_payload, ohm_state_schema, ohm_state_schema_info,
-    ohm_state_schema_version, ohm_state_step, ohm_state_to_map, ohm_state_to_values_payload,
-    ohm_step, qs_calc, OhmModel, OhmStateValuesPayload,
+    ohm_state_schema_version, ohm_state_schema_version_runtime, ohm_state_step, ohm_state_to_map,
+    ohm_state_to_values_payload, ohm_step, qs_calc, OhmModel, OhmStateValuesPayload,
 };
 
 fn parse_state_map_json(text: &str) -> Result<std::collections::BTreeMap<String, f64>, String> {
@@ -305,6 +305,7 @@ fn run(cli: Cli) -> Result<(), String> {
 
             let payload = json!({
                 "schema_version": schema.schema_version,
+                "schema_version_runtime": ohm_state_schema_version_runtime().map_err(|e| e.to_string())?,
                 "flat_len": schema.flat_len,
                 "nsurf": schema.nsurf,
                 "surface_names": schema.surface_names,
@@ -339,6 +340,7 @@ fn run(cli: Cli) -> Result<(), String> {
 
             let payload = json!({
                 "schema_version": ohm_state_schema_version(),
+                "schema_version_runtime": ohm_state_schema_version_runtime().map_err(|e| e.to_string())?,
                 "qs": qs,
                 "state": ohm_state_to_map(&state),
             });
@@ -372,6 +374,7 @@ fn run(cli: Cli) -> Result<(), String> {
             let payload = ohm_state_to_values_payload(&state);
             let out = json!({
                 "schema_version": payload.schema_version,
+                "schema_version_runtime": ohm_state_schema_version_runtime().map_err(|e| e.to_string())?,
                 "qs": qs,
                 "values": payload.values,
             });

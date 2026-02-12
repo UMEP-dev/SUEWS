@@ -43,11 +43,13 @@ MODULE module_c_api_ohm
    ! + 7 (dyn_a3, same order)
    ! + 1 (iter_safe as 0/1)
    INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_OHM_STATE_LEN = 53_c_int
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_OHM_STATE_SCHEMA_VERSION = 1_c_int
 
    PUBLIC :: suews_ohm_qs_calc
    PUBLIC :: suews_ohm_dqndt_step
    PUBLIC :: suews_ohm_step
    PUBLIC :: suews_ohm_state_len
+   PUBLIC :: suews_ohm_state_schema_version
    PUBLIC :: suews_ohm_state_default
    PUBLIC :: suews_ohm_state_step
    PUBLIC :: suews_ohm_error_message
@@ -157,6 +159,18 @@ CONTAINS
       err = SUEWS_CAPI_OK
 
    END SUBROUTINE suews_ohm_state_len
+
+
+   SUBROUTINE suews_ohm_state_schema_version(schema_version, err) BIND(C, name='suews_ohm_state_schema_version')
+      IMPLICIT NONE
+
+      INTEGER(c_int), INTENT(out) :: schema_version
+      INTEGER(c_int), INTENT(out) :: err
+
+      schema_version = SUEWS_CAPI_OHM_STATE_SCHEMA_VERSION
+      err = SUEWS_CAPI_OK
+
+   END SUBROUTINE suews_ohm_state_schema_version
 
 
    SUBROUTINE suews_ohm_state_default(flat, n_flat, err) BIND(C, name='suews_ohm_state_default')

@@ -341,10 +341,14 @@ pub fn ohm_state_schema() -> Result<(usize, usize), BridgeError> {
 
 pub fn ohm_state_schema_info() -> Result<OhmStateSchema, BridgeError> {
     let (flat_len, nsurf) = ohm_state_schema()?;
+    let schema_version_runtime = ohm_state_schema_version_runtime()?;
     let surface_names = ohm_surface_names();
     let field_names = ohm_state_field_names();
 
-    if flat_len != field_names.len() || nsurf != surface_names.len() {
+    if schema_version_runtime != OHM_STATE_SCHEMA_VERSION
+        || flat_len != field_names.len()
+        || nsurf != surface_names.len()
+    {
         return Err(BridgeError::BadState);
     }
 
@@ -393,6 +397,21 @@ pub fn ohm_state_field_names() -> Vec<String> {
 
 pub fn ohm_state_schema_version() -> u32 {
     OHM_STATE_SCHEMA_VERSION
+}
+
+pub fn ohm_state_schema_version_runtime() -> Result<u32, BridgeError> {
+    let mut schema_version = -1_i32;
+    let mut err = -1_i32;
+
+    unsafe {
+        ffi::suews_ohm_state_schema_version(&mut schema_version as *mut i32, &mut err as *mut i32);
+    }
+
+    if err != ffi::SUEWS_CAPI_OK || schema_version < 0 {
+        return Err(BridgeError::from_code(err));
+    }
+
+    Ok(schema_version as u32)
 }
 
 pub fn ohm_state_field_index(name: &str) -> Option<usize> {
@@ -613,6 +632,13 @@ mod tests {
         assert_eq!(schema.nsurf, NSURF);
         assert_eq!(schema.field_names.len(), OHM_STATE_FLAT_LEN);
         assert_eq!(schema.surface_names.len(), NSURF);
+    }
+
+    #[test]
+    fn runtime_schema_version_matches_static() {
+        let runtime =
+            ohm_state_schema_version_runtime().expect("runtime schema version should work");
+        assert_eq!(runtime, OHM_STATE_SCHEMA_VERSION);
     }
 
     #[test]

@@ -24,6 +24,7 @@ cargo run -- state-step --dt 300 --dt-since-start 0 --qn1 200 --a1 0.3 --a2 0.1 
 cargo run -- state-schema
 cargo run -- state-schema-json
 cargo run -- state-step-json --dt 300 --dt-since-start 0 --qn1 200 --a1 0.3 --a2 0.1 --a3 5
+# state-step-json also accepts wrapped payload with schema_version + state object
 ```
 
 ## Build Python extension

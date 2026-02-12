@@ -3,17 +3,19 @@ mod error;
 mod ffi;
 
 pub use core::{
-    dqndt_step, ohm_state_default_from_fortran, ohm_state_field_names, ohm_state_schema,
-    ohm_state_step, ohm_step, ohm_surface_names, qs_calc, OhmModel, OhmModelState, OhmState,
-    OhmStepResult, NSURF, OHM_STATE_FLAT_LEN, SURFACE_NAMES,
+    dqndt_step, ohm_state_default_from_fortran, ohm_state_field_index, ohm_state_field_names,
+    ohm_state_from_map, ohm_state_schema, ohm_state_schema_version, ohm_state_step,
+    ohm_state_to_map, ohm_step, ohm_surface_names, qs_calc, OhmModel, OhmModelState, OhmState,
+    OhmStepResult, NSURF, OHM_STATE_FLAT_LEN, OHM_STATE_SCHEMA_VERSION, SURFACE_NAMES,
 };
 pub use error::BridgeError;
 
 #[cfg(feature = "python")]
 mod python_bindings {
     use crate::{
-        ohm_state_default_from_fortran, ohm_state_field_names, ohm_state_schema, ohm_state_step,
-        ohm_step, ohm_surface_names, BridgeError, OhmModel, OhmState, NSURF,
+        ohm_state_default_from_fortran, ohm_state_field_index, ohm_state_field_names,
+        ohm_state_from_map, ohm_state_schema, ohm_state_schema_version, ohm_state_step,
+        ohm_state_to_map, ohm_step, ohm_surface_names, BridgeError, OhmModel, OhmState, NSURF,
     };
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
     use pyo3::prelude::*;
@@ -85,18 +87,9 @@ mod python_bindings {
 
         #[staticmethod]
         fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
-            let mut state = ohm_state_default_from_fortran().map_err(map_bridge_error)?;
-            let names = ohm_state_field_names();
-            let mut flat = state.to_flat();
-
-            for (name, value) in values {
-                let idx = names.iter().position(|n| n == &name).ok_or_else(|| {
-                    PyValueError::new_err(format!("unknown OHM_STATE field name: {name}"))
-                })?;
-                flat[idx] = value;
-            }
-
-            state = OhmState::from_flat(&flat).map_err(map_bridge_error)?;
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = ohm_state_from_map(&mapped)
+                .map_err(|_| PyValueError::new_err("invalid OHM_STATE field mapping"))?;
             Ok(Self { state })
         }
 
@@ -111,23 +104,17 @@ mod python_bindings {
         }
 
         fn to_dict(&self) -> BTreeMap<String, f64> {
-            let names = ohm_state_field_names();
-            let values = self.state.to_flat();
-            names.into_iter().zip(values).collect()
+            ohm_state_to_map(&self.state)
         }
 
         fn update_from_dict(&mut self, values: HashMap<String, f64>) -> PyResult<()> {
-            let names = ohm_state_field_names();
-            let mut flat = self.state.to_flat();
-
+            let mut mapped = ohm_state_to_map(&self.state);
             for (name, value) in values {
-                let idx = names.iter().position(|n| n == &name).ok_or_else(|| {
-                    PyValueError::new_err(format!("unknown OHM_STATE field name: {name}"))
-                })?;
-                flat[idx] = value;
+                mapped.insert(name, value);
             }
 
-            self.state = OhmState::from_flat(&flat).map_err(map_bridge_error)?;
+            self.state = ohm_state_from_map(&mapped)
+                .map_err(|_| PyValueError::new_err("invalid OHM_STATE field mapping"))?;
             Ok(())
         }
 
@@ -137,16 +124,14 @@ mod python_bindings {
         }
 
         fn field_value(&self, name: &str) -> PyResult<f64> {
-            let names = ohm_state_field_names();
-            let idx = names.iter().position(|n| n == name).ok_or_else(|| {
+            let idx = ohm_state_field_index(name).ok_or_else(|| {
                 PyValueError::new_err(format!("unknown OHM_STATE field name: {name}"))
             })?;
             Ok(self.state.to_flat()[idx])
         }
 
         fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
-            let names = ohm_state_field_names();
-            let idx = names.iter().position(|n| n == name).ok_or_else(|| {
+            let idx = ohm_state_field_index(name).ok_or_else(|| {
                 PyValueError::new_err(format!("unknown OHM_STATE field name: {name}"))
             })?;
 
@@ -392,6 +377,11 @@ mod python_bindings {
         ohm_state_schema().map_err(map_bridge_error)
     }
 
+    #[pyfunction(name = "ohm_state_schema_version")]
+    fn ohm_state_schema_version_py() -> u32 {
+        ohm_state_schema_version()
+    }
+
     #[pyfunction(name = "ohm_state_fields")]
     fn ohm_state_fields_py() -> Vec<String> {
         ohm_state_field_names()
@@ -408,6 +398,7 @@ mod python_bindings {
         m.add_class::<PyOhmState>()?;
         m.add_function(wrap_pyfunction!(ohm_step_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(ohm_state_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_surface_names_py, m)?)?;
         Ok(())

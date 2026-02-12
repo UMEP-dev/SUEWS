@@ -33,6 +33,7 @@ cd src/suews_core
 maturin develop --features python-extension
 python -c "import suews_core; print(suews_core.ohm_step(300,0,0.0,0.0,200.0,0.3,0.1,5.0))"
 python -c "import suews_core as sc; s=sc.OhmState.default(); print(sc.ohm_state_schema(), s.step(300,0,200.0,0.3,0.1,5.0), s.qn_av)"
+python -c "import suews_core as sc; print(sc.ohm_state_schema_version())"
 python -c "import suews_core as sc; print(sc.ohm_state_fields()[:10])"
 python -c "import suews_core as sc; print(sc.ohm_surface_names())"
 python -c "import suews_core as sc; s=sc.OhmState.default(); s.set_field_value('qn_surfs.paved', 120.0); print(s.field_value('qn_surfs.paved'))"

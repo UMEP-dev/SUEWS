@@ -1,8 +1,10 @@
 use crate::error::BridgeError;
 use crate::ffi;
+use std::collections::BTreeMap;
 
 pub const NSURF: usize = 7;
 pub const OHM_STATE_FLAT_LEN: usize = 53;
+pub const OHM_STATE_SCHEMA_VERSION: u32 = 1;
 pub const SURFACE_NAMES: [&str; NSURF] =
     ["paved", "bldg", "evetr", "dectr", "grass", "bsoil", "water"];
 
@@ -356,11 +358,38 @@ pub fn ohm_state_field_names() -> Vec<String> {
     names
 }
 
+pub fn ohm_state_schema_version() -> u32 {
+    OHM_STATE_SCHEMA_VERSION
+}
+
+pub fn ohm_state_field_index(name: &str) -> Option<usize> {
+    ohm_state_field_names().iter().position(|n| n == name)
+}
+
 pub fn ohm_surface_names() -> Vec<String> {
     SURFACE_NAMES
         .iter()
         .map(|name| (*name).to_string())
         .collect()
+}
+
+pub fn ohm_state_to_map(state: &OhmState) -> BTreeMap<String, f64> {
+    let names = ohm_state_field_names();
+    let values = state.to_flat();
+    names.into_iter().zip(values).collect()
+}
+
+pub fn ohm_state_from_map(values: &BTreeMap<String, f64>) -> Result<OhmState, BridgeError> {
+    let mut state = ohm_state_default_from_fortran()?;
+    let mut flat = state.to_flat();
+
+    for (name, value) in values {
+        let idx = ohm_state_field_index(name).ok_or(BridgeError::BadState)?;
+        flat[idx] = *value;
+    }
+
+    state = OhmState::from_flat(&flat)?;
+    Ok(state)
 }
 
 pub fn ohm_state_default_from_fortran() -> Result<OhmState, BridgeError> {
@@ -425,6 +454,7 @@ pub fn ohm_state_step(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeMap;
 
     #[test]
     fn qs_calc_matches_formula() {
@@ -497,5 +527,24 @@ mod tests {
         let flat = state.to_flat();
         let state2 = OhmState::from_flat(&flat).expect("flat roundtrip should succeed");
         assert_eq!(state, state2);
+    }
+
+    #[test]
+    fn state_map_roundtrip() {
+        let state = ohm_state_default_from_fortran().expect("default state should be available");
+        let mut mapped = ohm_state_to_map(&state);
+        mapped.insert("qn_surfs.paved".to_string(), 123.0);
+
+        let updated = ohm_state_from_map(&mapped).expect("map to state should succeed");
+        assert!((updated.qn_surfs[0] - 123.0).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn state_map_rejects_unknown_keys() {
+        let mut mapped = BTreeMap::new();
+        mapped.insert("not_a_real_field".to_string(), 1.0);
+
+        let err = ohm_state_from_map(&mapped).expect_err("unknown field should fail");
+        assert_eq!(err, BridgeError::BadState);
     }
 }

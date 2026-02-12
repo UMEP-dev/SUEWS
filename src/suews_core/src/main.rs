@@ -1,10 +1,10 @@
 use clap::{Parser, Subcommand};
 use serde_json::json;
-use std::collections::BTreeMap;
 use std::fs;
 use suews_core::{
-    ohm_state_default_from_fortran, ohm_state_field_names, ohm_state_schema, ohm_state_step,
-    ohm_step, ohm_surface_names, qs_calc, OhmModel, OhmState,
+    ohm_state_default_from_fortran, ohm_state_field_names, ohm_state_from_map, ohm_state_schema,
+    ohm_state_schema_version, ohm_state_step, ohm_state_to_map, ohm_step, ohm_surface_names,
+    qs_calc, OhmModel,
 };
 
 #[derive(Debug, Parser)]
@@ -104,29 +104,6 @@ enum Commands {
     },
 }
 
-fn state_to_map(state: &OhmState) -> BTreeMap<String, f64> {
-    let names = ohm_state_field_names();
-    let values = state.to_flat();
-    names.into_iter().zip(values).collect()
-}
-
-fn state_from_map(values: &BTreeMap<String, f64>) -> Result<OhmState, String> {
-    let names = ohm_state_field_names();
-    let mut state = ohm_state_default_from_fortran().map_err(|e| e.to_string())?;
-    let mut flat = state.to_flat();
-
-    for (name, value) in values {
-        let idx = names
-            .iter()
-            .position(|n| n == name)
-            .ok_or_else(|| format!("unknown OHM_STATE field name: {name}"))?;
-        flat[idx] = *value;
-    }
-
-    state = OhmState::from_flat(&flat).map_err(|e| e.to_string())?;
-    Ok(state)
-}
-
 fn main() {
     let cli = Cli::parse();
 
@@ -224,6 +201,7 @@ fn run(cli: Cli) -> Result<(), String> {
             let surfaces = ohm_surface_names();
 
             let payload = json!({
+                "schema_version": ohm_state_schema_version(),
                 "flat_len": flat_len,
                 "nsurf": nsurf,
                 "surface_names": surfaces,
@@ -246,9 +224,10 @@ fn run(cli: Cli) -> Result<(), String> {
             let mut state = if let Some(path) = state_json {
                 let text = fs::read_to_string(&path)
                     .map_err(|e| format!("failed to read state_json file {path}: {e}"))?;
-                let values: BTreeMap<String, f64> = serde_json::from_str(&text)
-                    .map_err(|e| format!("failed to parse state_json file {path}: {e}"))?;
-                state_from_map(&values)?
+                let values: std::collections::BTreeMap<String, f64> =
+                    serde_json::from_str(&text)
+                        .map_err(|e| format!("failed to parse state_json file {path}: {e}"))?;
+                ohm_state_from_map(&values).map_err(|e| e.to_string())?
             } else {
                 ohm_state_default_from_fortran().map_err(|e| e.to_string())?
             };
@@ -257,8 +236,9 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| e.to_string())?;
 
             let payload = json!({
+                "schema_version": ohm_state_schema_version(),
                 "qs": qs,
-                "state": state_to_map(&state),
+                "state": ohm_state_to_map(&state),
             });
 
             let text = serde_json::to_string_pretty(&payload)

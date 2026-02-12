@@ -37,6 +37,8 @@ python -c "import suews_core as sc; print(sc.ohm_state_fields()[:10])"
 python -c "import suews_core as sc; print(sc.ohm_surface_names())"
 python -c "import suews_core as sc; s=sc.OhmState.default(); s.set_field_value('qn_surfs.paved', 120.0); print(s.field_value('qn_surfs.paved'))"
 python -c "import suews_core as sc; s=sc.OhmState.from_dict({'qn_surfs.paved': 42.0}); print(s.to_dict()['qn_surfs.paved'])"
+# after installing the extension in your environment:
+python src/suews_core/examples/ohm_state_python_demo.py
 ```
 
 ## Design notes

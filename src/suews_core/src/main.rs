@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use suews_core::{
-    ohm_state_default_from_fortran, ohm_state_schema, ohm_state_step, ohm_step, qs_calc, OhmModel,
+    ohm_state_default_from_fortran, ohm_state_field_names, ohm_state_schema, ohm_state_step,
+    ohm_step, qs_calc, OhmModel,
 };
 
 #[derive(Debug, Parser)]
@@ -76,6 +77,8 @@ enum Commands {
         #[arg(long)]
         a3: f64,
     },
+    /// Print OHM_STATE flat schema with index and field name.
+    StateSchema,
 }
 
 fn main() {
@@ -158,6 +161,16 @@ fn run(cli: Cli) -> Result<(), String> {
             println!("dqndt_next={:.10}", state.dqndt);
             println!("iter_safe={}", state.iter_safe);
             println!("qs={:.10}", qs);
+        }
+        Commands::StateSchema => {
+            let (flat_len, nsurf) = ohm_state_schema().map_err(|e| e.to_string())?;
+            let fields = ohm_state_field_names();
+
+            println!("schema_flat_len={flat_len}");
+            println!("schema_nsurf={nsurf}");
+            for (idx, name) in fields.iter().enumerate() {
+                println!("{idx:02} {name}");
+            }
         }
     }
 

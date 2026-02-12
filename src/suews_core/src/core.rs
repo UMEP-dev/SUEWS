@@ -3,6 +3,8 @@ use crate::ffi;
 
 pub const NSURF: usize = 7;
 pub const OHM_STATE_FLAT_LEN: usize = 53;
+pub const SURFACE_NAMES: [&str; NSURF] =
+    ["paved", "bldg", "evetr", "dectr", "grass", "bsoil", "water"];
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct OhmStepResult {
@@ -320,6 +322,40 @@ pub fn ohm_state_schema() -> Result<(usize, usize), BridgeError> {
     Ok((n_flat as usize, nsurf_out as usize))
 }
 
+pub fn ohm_state_field_names() -> Vec<String> {
+    fn push_surface_fields(names: &mut Vec<String>, prefix: &str) {
+        for surface in SURFACE_NAMES {
+            names.push(format!("{prefix}.{surface}"));
+        }
+    }
+
+    let mut names = Vec::with_capacity(OHM_STATE_FLAT_LEN);
+
+    names.push("qn_av".to_string());
+    names.push("dqndt".to_string());
+    push_surface_fields(&mut names, "qn_surfs");
+    push_surface_fields(&mut names, "dqndt_surf");
+
+    names.push("qn_s_av".to_string());
+    names.push("dqnsdt".to_string());
+    names.push("a1".to_string());
+    names.push("a2".to_string());
+    names.push("a3".to_string());
+    names.push("t2_prev".to_string());
+    names.push("ws_rav".to_string());
+    names.push("tair_prev".to_string());
+
+    push_surface_fields(&mut names, "qn_rav");
+    push_surface_fields(&mut names, "dyn_a1");
+    push_surface_fields(&mut names, "dyn_a2");
+    push_surface_fields(&mut names, "dyn_a3");
+
+    names.push("iter_safe".to_string());
+
+    debug_assert_eq!(names.len(), OHM_STATE_FLAT_LEN);
+    names
+}
+
 pub fn ohm_state_default_from_fortran() -> Result<OhmState, BridgeError> {
     let (n_flat, nsurf_out) = ohm_state_schema()?;
     if n_flat != OHM_STATE_FLAT_LEN || nsurf_out != NSURF {
@@ -422,6 +458,20 @@ mod tests {
         let (n_flat, nsurf_out) = ohm_state_schema().expect("schema call should succeed");
         assert_eq!(n_flat, OHM_STATE_FLAT_LEN);
         assert_eq!(nsurf_out, NSURF);
+    }
+
+    #[test]
+    fn state_field_names_match_flat_schema() {
+        let names = ohm_state_field_names();
+        assert_eq!(names.len(), OHM_STATE_FLAT_LEN);
+        assert_eq!(
+            names.first().expect("field list should not be empty"),
+            "qn_av"
+        );
+        assert_eq!(
+            names.last().expect("field list should not be empty"),
+            "iter_safe"
+        );
     }
 
     #[test]

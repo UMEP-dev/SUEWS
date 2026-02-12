@@ -3,16 +3,17 @@ mod error;
 mod ffi;
 
 pub use core::{
-    dqndt_step, ohm_state_default_from_fortran, ohm_state_schema, ohm_state_step, ohm_step,
-    qs_calc, OhmModel, OhmModelState, OhmState, OhmStepResult, NSURF, OHM_STATE_FLAT_LEN,
+    dqndt_step, ohm_state_default_from_fortran, ohm_state_field_names, ohm_state_schema,
+    ohm_state_step, ohm_step, qs_calc, OhmModel, OhmModelState, OhmState, OhmStepResult, NSURF,
+    OHM_STATE_FLAT_LEN, SURFACE_NAMES,
 };
 pub use error::BridgeError;
 
 #[cfg(feature = "python")]
 mod python_bindings {
     use crate::{
-        ohm_state_default_from_fortran, ohm_state_schema, ohm_state_step, ohm_step, BridgeError,
-        OhmModel, OhmState, NSURF,
+        ohm_state_default_from_fortran, ohm_state_field_names, ohm_state_schema, ohm_state_step,
+        ohm_step, BridgeError, OhmModel, OhmState, NSURF,
     };
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
     use pyo3::prelude::*;
@@ -171,12 +172,18 @@ mod python_bindings {
         ohm_state_schema().map_err(map_bridge_error)
     }
 
+    #[pyfunction(name = "ohm_state_fields")]
+    fn ohm_state_fields_py() -> Vec<String> {
+        ohm_state_field_names()
+    }
+
     #[pymodule]
     fn suews_core(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         m.add_class::<PyOhmModel>()?;
         m.add_class::<PyOhmState>()?;
         m.add_function(wrap_pyfunction!(ohm_step_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(ohm_state_fields_py, m)?)?;
         Ok(())
     }
 }

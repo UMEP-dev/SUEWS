@@ -356,6 +356,13 @@ pub fn ohm_state_field_names() -> Vec<String> {
     names
 }
 
+pub fn ohm_surface_names() -> Vec<String> {
+    SURFACE_NAMES
+        .iter()
+        .map(|name| (*name).to_string())
+        .collect()
+}
+
 pub fn ohm_state_default_from_fortran() -> Result<OhmState, BridgeError> {
     let (n_flat, nsurf_out) = ohm_state_schema()?;
     if n_flat != OHM_STATE_FLAT_LEN || nsurf_out != NSURF {

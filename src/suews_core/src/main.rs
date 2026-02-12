@@ -1,7 +1,8 @@
 use clap::{Parser, Subcommand};
+use serde_json::json;
 use suews_core::{
     ohm_state_default_from_fortran, ohm_state_field_names, ohm_state_schema, ohm_state_step,
-    ohm_step, qs_calc, OhmModel,
+    ohm_step, ohm_surface_names, qs_calc, OhmModel,
 };
 
 #[derive(Debug, Parser)]
@@ -79,6 +80,8 @@ enum Commands {
     },
     /// Print OHM_STATE flat schema with index and field name.
     StateSchema,
+    /// Print OHM_STATE schema as JSON for programmatic tooling.
+    StateSchemaJson,
 }
 
 fn main() {
@@ -171,6 +174,22 @@ fn run(cli: Cli) -> Result<(), String> {
             for (idx, name) in fields.iter().enumerate() {
                 println!("{idx:02} {name}");
             }
+        }
+        Commands::StateSchemaJson => {
+            let (flat_len, nsurf) = ohm_state_schema().map_err(|e| e.to_string())?;
+            let fields = ohm_state_field_names();
+            let surfaces = ohm_surface_names();
+
+            let payload = json!({
+                "flat_len": flat_len,
+                "nsurf": nsurf,
+                "surface_names": surfaces,
+                "fields": fields,
+            });
+
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
         }
     }
 

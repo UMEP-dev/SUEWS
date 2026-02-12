@@ -384,3 +384,58 @@ fn run(cli: Cli) -> Result<(), String> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_state_map_accepts_wrapped_form() {
+        let text = r#"{
+            "schema_version": 1,
+            "state": {
+                "qn_surfs.paved": 12.5,
+                "qn_rav.bldg": 3.0
+            }
+        }"#;
+        let out = parse_state_map_json(text).expect("wrapped map should parse");
+        assert_eq!(out.get("qn_surfs.paved"), Some(&12.5));
+        assert_eq!(out.get("qn_rav.bldg"), Some(&3.0));
+    }
+
+    #[test]
+    fn parse_state_map_rejects_schema_mismatch() {
+        let bad_version = ohm_state_schema_version() + 1;
+        let text =
+            format!("{{\"schema_version\":{bad_version},\"state\":{{\"qn_surfs.paved\":1.0}}}}");
+        let err = parse_state_map_json(&text).expect_err("schema mismatch should fail");
+        assert!(err.contains("schema_version mismatch"));
+    }
+
+    #[test]
+    fn parse_state_values_accepts_array_form() {
+        let values = vec![0.0_f64; 53];
+        let text = serde_json::to_string(&values).expect("array json should render");
+        let payload = parse_state_values_json(&text).expect("array values should parse");
+        assert_eq!(payload.schema_version, ohm_state_schema_version());
+        assert_eq!(payload.values.len(), 53);
+    }
+
+    #[test]
+    fn parse_state_values_accepts_wrapped_form() {
+        let text = r#"{
+            "schema_version": 1,
+            "values": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+        }"#;
+        let payload = parse_state_values_json(text).expect("wrapped values should parse");
+        assert_eq!(payload.schema_version, 1);
+        assert_eq!(payload.values.len(), 53);
+    }
+
+    #[test]
+    fn parse_state_values_rejects_non_numeric_values() {
+        let text = r#"{"values":[0,1,"x"]}"#;
+        let err = parse_state_values_json(text).expect_err("non-numeric values should fail");
+        assert!(err.contains("must be numeric"));
+    }
+}

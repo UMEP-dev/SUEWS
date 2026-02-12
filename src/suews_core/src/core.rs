@@ -78,7 +78,7 @@ impl Default for OhmState {
 
 impl OhmState {
     pub fn from_flat(flat: &[f64]) -> Result<Self, BridgeError> {
-        if flat.len() < OHM_STATE_FLAT_LEN {
+        if flat.len() != OHM_STATE_FLAT_LEN {
             return Err(BridgeError::BadBuffer);
         }
 
@@ -656,5 +656,19 @@ mod tests {
         let err = ohm_state_from_values_payload(&bad_payload)
             .expect_err("payload with schema mismatch should fail");
         assert_eq!(err, BridgeError::BadState);
+    }
+
+    #[test]
+    fn from_flat_requires_exact_length() {
+        let good = vec![0.0_f64; OHM_STATE_FLAT_LEN];
+        assert!(OhmState::from_flat(&good).is_ok());
+
+        let short = vec![0.0_f64; OHM_STATE_FLAT_LEN - 1];
+        let err = OhmState::from_flat(&short).expect_err("short payload should fail");
+        assert_eq!(err, BridgeError::BadBuffer);
+
+        let long = vec![0.0_f64; OHM_STATE_FLAT_LEN + 1];
+        let err = OhmState::from_flat(&long).expect_err("long payload should fail");
+        assert_eq!(err, BridgeError::BadBuffer);
     }
 }

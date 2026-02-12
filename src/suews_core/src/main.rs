@@ -7,6 +7,7 @@ use suews_core::{
     ohm_state_from_values_payload, ohm_state_schema, ohm_state_schema_info,
     ohm_state_schema_version, ohm_state_schema_version_runtime, ohm_state_step, ohm_state_to_map,
     ohm_state_to_values_payload, ohm_step, qs_calc, OhmModel, OhmStateValuesPayload,
+    OHM_STATE_FLAT_LEN,
 };
 
 fn parse_state_map_json(text: &str) -> Result<std::collections::BTreeMap<String, f64>, String> {
@@ -48,6 +49,17 @@ fn parse_state_map_json(text: &str) -> Result<std::collections::BTreeMap<String,
 }
 
 fn parse_state_values_json(text: &str) -> Result<OhmStateValuesPayload, String> {
+    fn validate_values_len(values: &[f64]) -> Result<(), String> {
+        if values.len() != OHM_STATE_FLAT_LEN {
+            return Err(format!(
+                "values length mismatch: got {}, expected {}",
+                values.len(),
+                OHM_STATE_FLAT_LEN
+            ));
+        }
+        Ok(())
+    }
+
     fn parse_values_array(value: Value) -> Result<Vec<f64>, String> {
         let items = value
             .as_array()
@@ -67,15 +79,20 @@ fn parse_state_values_json(text: &str) -> Result<OhmStateValuesPayload, String> 
         .map_err(|e| format!("failed to parse JSON values payload: {e}"))?;
 
     match value {
-        Value::Array(_) => Ok(OhmStateValuesPayload {
-            schema_version: ohm_state_schema_version(),
-            values: parse_values_array(value)?,
-        }),
+        Value::Array(_) => {
+            let values = parse_values_array(value)?;
+            validate_values_len(&values)?;
+            Ok(OhmStateValuesPayload {
+                schema_version: ohm_state_schema_version(),
+                values,
+            })
+        }
         Value::Object(mut obj) => {
             let values_value = obj
                 .remove("values")
                 .ok_or_else(|| "values payload object must contain `values`".to_string())?;
             let values = parse_values_array(values_value)?;
+            validate_values_len(&values)?;
 
             let schema_version = if let Some(v) = obj.remove("schema_version") {
                 v.as_u64().ok_or_else(|| {
@@ -417,22 +434,23 @@ mod tests {
 
     #[test]
     fn parse_state_values_accepts_array_form() {
-        let values = vec![0.0_f64; 53];
+        let values = vec![0.0_f64; OHM_STATE_FLAT_LEN];
         let text = serde_json::to_string(&values).expect("array json should render");
         let payload = parse_state_values_json(&text).expect("array values should parse");
         assert_eq!(payload.schema_version, ohm_state_schema_version());
-        assert_eq!(payload.values.len(), 53);
+        assert_eq!(payload.values.len(), OHM_STATE_FLAT_LEN);
     }
 
     #[test]
     fn parse_state_values_accepts_wrapped_form() {
-        let text = r#"{
-            "schema_version": 1,
-            "values": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
-        }"#;
-        let payload = parse_state_values_json(text).expect("wrapped values should parse");
-        assert_eq!(payload.schema_version, 1);
-        assert_eq!(payload.values.len(), 53);
+        let text = serde_json::to_string(&json!({
+            "schema_version": ohm_state_schema_version(),
+            "values": vec![0.0_f64; OHM_STATE_FLAT_LEN],
+        }))
+        .expect("wrapped values json should render");
+        let payload = parse_state_values_json(&text).expect("wrapped values should parse");
+        assert_eq!(payload.schema_version, ohm_state_schema_version());
+        assert_eq!(payload.values.len(), OHM_STATE_FLAT_LEN);
     }
 
     #[test]
@@ -440,5 +458,15 @@ mod tests {
         let text = r#"{"values":[0,1,"x"]}"#;
         let err = parse_state_values_json(text).expect_err("non-numeric values should fail");
         assert!(err.contains("must be numeric"));
+    }
+
+    #[test]
+    fn parse_state_values_rejects_length_mismatch() {
+        let text = serde_json::to_string(&json!({
+            "values": vec![0.0_f64; OHM_STATE_FLAT_LEN - 1],
+        }))
+        .expect("bad values json should render");
+        let err = parse_state_values_json(&text).expect_err("length mismatch should fail");
+        assert!(err.contains("values length mismatch"));
     }
 }

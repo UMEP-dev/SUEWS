@@ -302,6 +302,27 @@ def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
 - **Required Parameters**: Defined in `STEBBS_REQUIRED_PARAMS` constant
 - **Convection Coefficient Constraints**: Validates that STEBBS convection coefficients are greater than 0 (physically sensible)
 
+### 4. SPARTACUS Building Height Validation
+
+```python
+def _needs_spartacus_validation(self) -> bool:
+    """Return True if SPARTACUS is enabled (netradiationmethod == 1001, 1002, or 1003)."""
+    # Checks if SPARTACUS is selected as the radiation method (public or dev mode)
+    # Triggers additional building height validation when activated
+
+def _validate_spartacus_building_height(self, site: Site, site_index: int) -> List[str]:
+    """
+    If SPARTACUS is enabled, enforce that bldgh does not exceed the domain top (height[nlayer+1]).
+    Returns a list of issue messages.
+    """
+```
+
+**Logic**:  
+- When `netradiationmethod` is set to a SPARTACUS method (1001, 1002, or 1003), for every site in the configuration:
+  - The main building height (`bldgh`) from `land_cover.bldgs.bldgh` **must not exceed** the domain top height (`vertical_layers.height[nlayer+1]`).
+  - If `bldgh` exceeds the simulation domain top, an ACTION NEEDED report message is generated, and validation fails.
+
+
 ### Orchestration Pattern
 
 ```python

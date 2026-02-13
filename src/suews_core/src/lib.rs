@@ -71,7 +71,11 @@ pub use bioco2::{
     bioco2_prm_to_values_payload, BioCo2Prm, BioCo2PrmSchema, BioCo2PrmValuesPayload,
     BIOCO2_PRM_FLAT_LEN, BIOCO2_PRM_SCHEMA_VERSION,
 };
-pub use codec::{CompositeCodec, StateCodec, TypeSchema, ValuesPayload};
+pub use codec::{
+    dims_element_count, field_dims, from_values_payload_with_dims, require_field_dims,
+    to_values_payload_with_dims, CompositeCodec, PayloadDims, StateCodec, TypeSchema,
+    ValuesPayload, ValuesPayloadWithDims,
+};
 pub use conductance::{
     conductance_prm_default_from_fortran, conductance_prm_field_index, conductance_prm_field_names,
     conductance_prm_from_map, conductance_prm_from_ordered_values,

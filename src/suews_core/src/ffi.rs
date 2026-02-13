@@ -118,4 +118,10 @@ unsafe extern "C" {
     pub fn suews_soil_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
 
     pub fn suews_soil_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
+    pub fn suews_lumps_prm_len(n_flat: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lumps_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lumps_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
 }

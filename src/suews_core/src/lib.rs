@@ -5,6 +5,7 @@ mod core;
 mod error;
 mod ffi;
 mod flag;
+mod lumps;
 mod nhood;
 mod phenology;
 mod roughness;
@@ -48,6 +49,14 @@ pub use flag::{
     flag_state_schema_version_runtime, flag_state_to_map, flag_state_to_ordered_values,
     flag_state_to_values_payload, FlagState, FlagStateSchema, FlagStateValuesPayload,
     FLAG_STATE_FLAT_LEN, FLAG_STATE_SCHEMA_VERSION,
+};
+pub use lumps::{
+    lumps_prm_default_from_fortran, lumps_prm_field_index, lumps_prm_field_names,
+    lumps_prm_from_map, lumps_prm_from_ordered_values, lumps_prm_from_values_payload,
+    lumps_prm_schema, lumps_prm_schema_info, lumps_prm_schema_version,
+    lumps_prm_schema_version_runtime, lumps_prm_to_map, lumps_prm_to_ordered_values,
+    lumps_prm_to_values_payload, LumpsPrm, LumpsPrmSchema, LumpsPrmValuesPayload,
+    LUMPS_PRM_FLAT_LEN, LUMPS_PRM_SCHEMA_VERSION,
 };
 pub use nhood::{
     nhood_state_default_from_fortran, nhood_state_field_index, nhood_state_field_names,
@@ -116,7 +125,11 @@ mod python_bindings {
         flag_state_field_names, flag_state_from_map, flag_state_from_ordered_values,
         flag_state_from_values_payload, flag_state_schema, flag_state_schema_info,
         flag_state_schema_version, flag_state_schema_version_runtime, flag_state_to_map,
-        flag_state_to_ordered_values, flag_state_to_values_payload,
+        flag_state_to_ordered_values, flag_state_to_values_payload, lumps_prm_default_from_fortran,
+        lumps_prm_field_index, lumps_prm_field_names, lumps_prm_from_map,
+        lumps_prm_from_ordered_values, lumps_prm_from_values_payload, lumps_prm_schema,
+        lumps_prm_schema_info, lumps_prm_schema_version, lumps_prm_schema_version_runtime,
+        lumps_prm_to_map, lumps_prm_to_ordered_values, lumps_prm_to_values_payload,
         nhood_state_default_from_fortran, nhood_state_field_index, nhood_state_field_names,
         nhood_state_from_map, nhood_state_from_ordered_values, nhood_state_from_values_payload,
         nhood_state_schema, nhood_state_schema_info, nhood_state_schema_version,
@@ -151,10 +164,11 @@ mod python_bindings {
         solar_state_schema_info, solar_state_schema_version, solar_state_schema_version_runtime,
         solar_state_to_map, solar_state_to_ordered_values, solar_state_to_values_payload,
         AnthroEmisState, AnthroEmisStateValuesPayload, AtmState, AtmStateValuesPayload,
-        BridgeError, FlagState, FlagStateValuesPayload, NhoodState, NhoodStateValuesPayload,
-        OhmModel, OhmState, OhmStateValuesPayload, PhenologyState, PhenologyStateValuesPayload,
-        RoughnessState, RoughnessStateValuesPayload, SnowState, SnowStateValuesPayload, SoilPrm,
-        SoilPrmValuesPayload, SolarState, SolarStateValuesPayload, NSURF,
+        BridgeError, FlagState, FlagStateValuesPayload, LumpsPrm, LumpsPrmValuesPayload,
+        NhoodState, NhoodStateValuesPayload, OhmModel, OhmState, OhmStateValuesPayload,
+        PhenologyState, PhenologyStateValuesPayload, RoughnessState, RoughnessStateValuesPayload,
+        SnowState, SnowStateValuesPayload, SoilPrm, SoilPrmValuesPayload, SolarState,
+        SolarStateValuesPayload, NSURF,
     };
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
     use pyo3::prelude::*;
@@ -1194,6 +1208,93 @@ mod python_bindings {
         }
     }
 
+    #[pyclass(name = "LumpsPrm")]
+    pub struct PyLumpsPrm {
+        state: LumpsPrm,
+    }
+
+    #[pymethods]
+    impl PyLumpsPrm {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = lumps_prm_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = LumpsPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state = lumps_prm_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = LumpsPrmValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = lumps_prm_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid LUMPS_PRM values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = lumps_prm_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid LUMPS_PRM field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            lumps_prm_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = lumps_prm_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            lumps_prm_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            lumps_prm_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = lumps_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown LUMPS_PRM field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = lumps_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown LUMPS_PRM field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = LumpsPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
     #[pyclass(name = "RoughnessState")]
     pub struct PyRoughnessState {
         state: RoughnessState,
@@ -1578,6 +1679,32 @@ mod python_bindings {
         soil_prm_field_names()
     }
 
+    #[pyfunction(name = "lumps_prm_schema")]
+    fn lumps_prm_schema_py() -> PyResult<usize> {
+        lumps_prm_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "lumps_prm_schema_version")]
+    fn lumps_prm_schema_version_py() -> u32 {
+        lumps_prm_schema_version()
+    }
+
+    #[pyfunction(name = "lumps_prm_schema_version_runtime")]
+    fn lumps_prm_schema_version_runtime_py() -> PyResult<u32> {
+        lumps_prm_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "lumps_prm_schema_meta")]
+    fn lumps_prm_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = lumps_prm_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "lumps_prm_fields")]
+    fn lumps_prm_fields_py() -> Vec<String> {
+        lumps_prm_field_names()
+    }
+
     #[pyfunction(name = "solar_state_schema")]
     fn solar_state_schema_py() -> PyResult<usize> {
         solar_state_schema().map_err(map_bridge_error)
@@ -1666,6 +1793,7 @@ mod python_bindings {
         m.add_class::<PyPhenologyState>()?;
         m.add_class::<PySnowState>()?;
         m.add_class::<PySoilPrm>()?;
+        m.add_class::<PyLumpsPrm>()?;
         m.add_class::<PySolarState>()?;
         m.add_class::<PyRoughnessState>()?;
         m.add_class::<PyNhoodState>()?;
@@ -1712,6 +1840,11 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(soil_prm_schema_version_runtime_py, m)?)?;
         m.add_function(wrap_pyfunction!(soil_prm_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(soil_prm_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lumps_prm_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lumps_prm_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lumps_prm_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lumps_prm_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lumps_prm_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_version_runtime_py, m)?)?;

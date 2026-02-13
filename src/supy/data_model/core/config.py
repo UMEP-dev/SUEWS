@@ -1601,12 +1601,12 @@ class SUEWSConfig(BaseModel):
             pass
         return netrad_method in spartacus_methods
 
-    def _validate_spartacus_building_height(self, site: Site, site_index: int) -> list:
+    def _validate_spartacus_building_height(self, site: Site, site_index: int) -> List[str]:
         """
         If SPARTACUS is enabled, enforce that bldgh does not exceed the domain top (height[nlayer+1]).
         Returns a list of issue messages.
         """
-        issues = []
+        issues: List[str] = []
         site_name = getattr(site, "name", f"Site {site_index}")
         props = getattr(site, "properties", None)
         if not props or not hasattr(props, "land_cover") or not props.land_cover:

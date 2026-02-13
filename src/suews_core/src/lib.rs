@@ -7,6 +7,7 @@ mod core;
 mod error;
 mod ffi;
 mod flag;
+mod irrig_daywater;
 mod lumps;
 mod nhood;
 mod ohm_coef_lc;
@@ -71,6 +72,15 @@ pub use flag::{
     flag_state_schema_version_runtime, flag_state_to_map, flag_state_to_ordered_values,
     flag_state_to_values_payload, FlagState, FlagStateSchema, FlagStateValuesPayload,
     FLAG_STATE_FLAT_LEN, FLAG_STATE_SCHEMA_VERSION,
+};
+pub use irrig_daywater::{
+    irrig_daywater_default_from_fortran, irrig_daywater_field_index, irrig_daywater_field_names,
+    irrig_daywater_from_map, irrig_daywater_from_ordered_values,
+    irrig_daywater_from_values_payload, irrig_daywater_schema, irrig_daywater_schema_info,
+    irrig_daywater_schema_version, irrig_daywater_schema_version_runtime, irrig_daywater_to_map,
+    irrig_daywater_to_ordered_values, irrig_daywater_to_values_payload, IrrigDaywater,
+    IrrigDaywaterSchema, IrrigDaywaterValuesPayload, IRRIG_DAYWATER_FLAT_LEN,
+    IRRIG_DAYWATER_SCHEMA_VERSION,
 };
 pub use lumps::{
     lumps_prm_default_from_fortran, lumps_prm_field_index, lumps_prm_field_names,
@@ -183,26 +193,31 @@ mod python_bindings {
         flag_state_field_names, flag_state_from_map, flag_state_from_ordered_values,
         flag_state_from_values_payload, flag_state_schema, flag_state_schema_info,
         flag_state_schema_version, flag_state_schema_version_runtime, flag_state_to_map,
-        flag_state_to_ordered_values, flag_state_to_values_payload, lumps_prm_default_from_fortran,
-        lumps_prm_field_index, lumps_prm_field_names, lumps_prm_from_map,
-        lumps_prm_from_ordered_values, lumps_prm_from_values_payload, lumps_prm_schema,
-        lumps_prm_schema_info, lumps_prm_schema_version, lumps_prm_schema_version_runtime,
-        lumps_prm_to_map, lumps_prm_to_ordered_values, lumps_prm_to_values_payload,
-        nhood_state_default_from_fortran, nhood_state_field_index, nhood_state_field_names,
-        nhood_state_from_map, nhood_state_from_ordered_values, nhood_state_from_values_payload,
-        nhood_state_schema, nhood_state_schema_info, nhood_state_schema_version,
-        nhood_state_schema_version_runtime, nhood_state_to_map, nhood_state_to_ordered_values,
-        nhood_state_to_values_payload, ohm_coef_lc_default_from_fortran, ohm_coef_lc_field_index,
-        ohm_coef_lc_field_names, ohm_coef_lc_from_map, ohm_coef_lc_from_ordered_values,
-        ohm_coef_lc_from_values_payload, ohm_coef_lc_schema, ohm_coef_lc_schema_info,
-        ohm_coef_lc_schema_version, ohm_coef_lc_schema_version_runtime, ohm_coef_lc_to_map,
-        ohm_coef_lc_to_ordered_values, ohm_coef_lc_to_values_payload,
-        ohm_state_default_from_fortran, ohm_state_field_index, ohm_state_field_names,
-        ohm_state_from_map, ohm_state_from_ordered_values, ohm_state_from_values_payload,
-        ohm_state_schema, ohm_state_schema_info, ohm_state_schema_version,
-        ohm_state_schema_version_runtime, ohm_state_step, ohm_state_to_map,
-        ohm_state_to_ordered_values, ohm_state_to_values_payload, ohm_step, ohm_surface_names,
-        phenology_state_default_from_fortran, phenology_state_field_index,
+        flag_state_to_ordered_values, flag_state_to_values_payload,
+        irrig_daywater_default_from_fortran, irrig_daywater_field_index,
+        irrig_daywater_field_names, irrig_daywater_from_map, irrig_daywater_from_ordered_values,
+        irrig_daywater_from_values_payload, irrig_daywater_schema, irrig_daywater_schema_info,
+        irrig_daywater_schema_version, irrig_daywater_schema_version_runtime,
+        irrig_daywater_to_map, irrig_daywater_to_ordered_values, irrig_daywater_to_values_payload,
+        lumps_prm_default_from_fortran, lumps_prm_field_index, lumps_prm_field_names,
+        lumps_prm_from_map, lumps_prm_from_ordered_values, lumps_prm_from_values_payload,
+        lumps_prm_schema, lumps_prm_schema_info, lumps_prm_schema_version,
+        lumps_prm_schema_version_runtime, lumps_prm_to_map, lumps_prm_to_ordered_values,
+        lumps_prm_to_values_payload, nhood_state_default_from_fortran, nhood_state_field_index,
+        nhood_state_field_names, nhood_state_from_map, nhood_state_from_ordered_values,
+        nhood_state_from_values_payload, nhood_state_schema, nhood_state_schema_info,
+        nhood_state_schema_version, nhood_state_schema_version_runtime, nhood_state_to_map,
+        nhood_state_to_ordered_values, nhood_state_to_values_payload,
+        ohm_coef_lc_default_from_fortran, ohm_coef_lc_field_index, ohm_coef_lc_field_names,
+        ohm_coef_lc_from_map, ohm_coef_lc_from_ordered_values, ohm_coef_lc_from_values_payload,
+        ohm_coef_lc_schema, ohm_coef_lc_schema_info, ohm_coef_lc_schema_version,
+        ohm_coef_lc_schema_version_runtime, ohm_coef_lc_to_map, ohm_coef_lc_to_ordered_values,
+        ohm_coef_lc_to_values_payload, ohm_state_default_from_fortran, ohm_state_field_index,
+        ohm_state_field_names, ohm_state_from_map, ohm_state_from_ordered_values,
+        ohm_state_from_values_payload, ohm_state_schema, ohm_state_schema_info,
+        ohm_state_schema_version, ohm_state_schema_version_runtime, ohm_state_step,
+        ohm_state_to_map, ohm_state_to_ordered_values, ohm_state_to_values_payload, ohm_step,
+        ohm_surface_names, phenology_state_default_from_fortran, phenology_state_field_index,
         phenology_state_field_names, phenology_state_from_map, phenology_state_from_ordered_values,
         phenology_state_from_values_payload, phenology_state_schema, phenology_state_schema_info,
         phenology_state_schema_version, phenology_state_schema_version_runtime,
@@ -238,12 +253,12 @@ mod python_bindings {
         water_dist_prm_to_map, water_dist_prm_to_ordered_values, water_dist_prm_to_values_payload,
         AnthroEmisState, AnthroEmisStateValuesPayload, AtmState, AtmStateValuesPayload, BioCo2Prm,
         BioCo2PrmValuesPayload, BridgeError, ConductancePrm, ConductancePrmValuesPayload,
-        FlagState, FlagStateValuesPayload, LumpsPrm, LumpsPrmValuesPayload, NhoodState,
-        NhoodStateValuesPayload, OhmCoefLc, OhmCoefLcValuesPayload, OhmModel, OhmState,
-        OhmStateValuesPayload, PhenologyState, PhenologyStateValuesPayload, RoughnessState,
-        RoughnessStateValuesPayload, SnowState, SnowStateValuesPayload, SoilPrm,
-        SoilPrmValuesPayload, SolarState, SolarStateValuesPayload, SurfStorePrm,
-        SurfStorePrmValuesPayload, WaterDistPrm, WaterDistPrmValuesPayload, NSURF,
+        FlagState, FlagStateValuesPayload, IrrigDaywater, IrrigDaywaterValuesPayload, LumpsPrm,
+        LumpsPrmValuesPayload, NhoodState, NhoodStateValuesPayload, OhmCoefLc,
+        OhmCoefLcValuesPayload, OhmModel, OhmState, OhmStateValuesPayload, PhenologyState,
+        PhenologyStateValuesPayload, RoughnessState, RoughnessStateValuesPayload, SnowState,
+        SnowStateValuesPayload, SoilPrm, SoilPrmValuesPayload, SolarState, SolarStateValuesPayload,
+        SurfStorePrm, SurfStorePrmValuesPayload, WaterDistPrm, WaterDistPrmValuesPayload, NSURF,
     };
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
     use pyo3::prelude::*;
@@ -1718,6 +1733,93 @@ mod python_bindings {
         }
     }
 
+    #[pyclass(name = "IrrigDaywater")]
+    pub struct PyIrrigDaywater {
+        state: IrrigDaywater,
+    }
+
+    #[pymethods]
+    impl PyIrrigDaywater {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = irrig_daywater_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = IrrigDaywater::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state = irrig_daywater_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = IrrigDaywaterValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = irrig_daywater_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid IRRIG_daywater values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = irrig_daywater_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid IRRIG_daywater field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            irrig_daywater_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = irrig_daywater_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            irrig_daywater_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            irrig_daywater_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = irrig_daywater_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown IRRIG_daywater field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = irrig_daywater_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown IRRIG_daywater field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = IrrigDaywater::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
     #[pyclass(name = "OhmCoefLc")]
     pub struct PyOhmCoefLc {
         state: OhmCoefLc,
@@ -2241,6 +2343,32 @@ mod python_bindings {
         water_dist_prm_field_names()
     }
 
+    #[pyfunction(name = "irrig_daywater_schema")]
+    fn irrig_daywater_schema_py() -> PyResult<usize> {
+        irrig_daywater_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "irrig_daywater_schema_version")]
+    fn irrig_daywater_schema_version_py() -> u32 {
+        irrig_daywater_schema_version()
+    }
+
+    #[pyfunction(name = "irrig_daywater_schema_version_runtime")]
+    fn irrig_daywater_schema_version_runtime_py() -> PyResult<u32> {
+        irrig_daywater_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "irrig_daywater_schema_meta")]
+    fn irrig_daywater_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = irrig_daywater_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "irrig_daywater_fields")]
+    fn irrig_daywater_fields_py() -> Vec<String> {
+        irrig_daywater_field_names()
+    }
+
     #[pyfunction(name = "bioco2_prm_schema")]
     fn bioco2_prm_schema_py() -> PyResult<usize> {
         bioco2_prm_schema().map_err(map_bridge_error)
@@ -2438,6 +2566,7 @@ mod python_bindings {
         m.add_class::<PyConductancePrm>()?;
         m.add_class::<PySurfStorePrm>()?;
         m.add_class::<PyWaterDistPrm>()?;
+        m.add_class::<PyIrrigDaywater>()?;
         m.add_class::<PyOhmCoefLc>()?;
         m.add_class::<PySolarState>()?;
         m.add_class::<PyRoughnessState>()?;
@@ -2501,6 +2630,14 @@ mod python_bindings {
         )?)?;
         m.add_function(wrap_pyfunction!(water_dist_prm_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(water_dist_prm_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(irrig_daywater_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(irrig_daywater_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(
+            irrig_daywater_schema_version_runtime_py,
+            m
+        )?)?;
+        m.add_function(wrap_pyfunction!(irrig_daywater_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(irrig_daywater_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(bioco2_prm_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(bioco2_prm_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(bioco2_prm_schema_version_runtime_py, m)?)?;

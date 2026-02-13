@@ -1594,12 +1594,7 @@ class SUEWSConfig(BaseModel):
         Return True if SPARTACUS is enabled (netradiationmethod 1001, 1002, or 1003).
         """
         spartacus_methods = {1001, 1002, 1003}
-        netrad = getattr(self.model.physics, "netradiationmethod", None)
-        # Unwrap .value if present
-        if hasattr(netrad, "value"):
-            netrad_method = netrad.value
-        else:
-            netrad_method = netrad
+        netrad_method = _unwrap_value(getattr(self.model.physics, "netradiationmethod", None))
         try:
             netrad_method = int(netrad_method)
         except (TypeError, ValueError):

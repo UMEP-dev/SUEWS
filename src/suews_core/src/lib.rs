@@ -1,3 +1,4 @@
+mod anthro_heat_prm;
 mod anthroemis;
 mod atm;
 mod bioco2;
@@ -25,6 +26,15 @@ mod surf_store;
 mod timer;
 mod water_dist;
 
+pub use anthro_heat_prm::{
+    anthro_heat_prm_default_from_fortran, anthro_heat_prm_field_index, anthro_heat_prm_field_names,
+    anthro_heat_prm_from_map, anthro_heat_prm_from_ordered_values,
+    anthro_heat_prm_from_values_payload, anthro_heat_prm_schema, anthro_heat_prm_schema_info,
+    anthro_heat_prm_schema_version, anthro_heat_prm_schema_version_runtime, anthro_heat_prm_to_map,
+    anthro_heat_prm_to_ordered_values, anthro_heat_prm_to_values_payload, AnthroHeatPrm,
+    AnthroHeatPrmSchema, AnthroHeatPrmValuesPayload, ANTHRO_HEAT_PRM_FLAT_LEN,
+    ANTHRO_HEAT_PRM_SCHEMA_VERSION,
+};
 pub use anthroemis::{
     anthroemis_state_default_from_fortran, anthroemis_state_field_index,
     anthroemis_state_field_names, anthroemis_state_from_map, anthroemis_state_from_ordered_values,
@@ -221,8 +231,13 @@ pub use water_dist::{
 #[cfg(feature = "python")]
 mod python_bindings {
     use crate::{
-        anthroemis_state_default_from_fortran, anthroemis_state_field_index,
-        anthroemis_state_field_names, anthroemis_state_from_map,
+        anthro_heat_prm_default_from_fortran, anthro_heat_prm_field_index,
+        anthro_heat_prm_field_names, anthro_heat_prm_from_map, anthro_heat_prm_from_ordered_values,
+        anthro_heat_prm_from_values_payload, anthro_heat_prm_schema, anthro_heat_prm_schema_info,
+        anthro_heat_prm_schema_version, anthro_heat_prm_schema_version_runtime,
+        anthro_heat_prm_to_map, anthro_heat_prm_to_ordered_values,
+        anthro_heat_prm_to_values_payload, anthroemis_state_default_from_fortran,
+        anthroemis_state_field_index, anthroemis_state_field_names, anthroemis_state_from_map,
         anthroemis_state_from_ordered_values, anthroemis_state_from_values_payload,
         anthroemis_state_schema, anthroemis_state_schema_info, anthroemis_state_schema_version,
         anthroemis_state_schema_version_runtime, anthroemis_state_to_map,
@@ -330,17 +345,18 @@ mod python_bindings {
         water_dist_prm_from_values_payload, water_dist_prm_schema, water_dist_prm_schema_info,
         water_dist_prm_schema_version, water_dist_prm_schema_version_runtime,
         water_dist_prm_to_map, water_dist_prm_to_ordered_values, water_dist_prm_to_values_payload,
-        AnthroEmisState, AnthroEmisStateValuesPayload, AtmState, AtmStateValuesPayload, BioCo2Prm,
-        BioCo2PrmValuesPayload, BridgeError, ConductancePrm, ConductancePrmValuesPayload,
-        FlagState, FlagStateValuesPayload, IrrigDaywater, IrrigDaywaterValuesPayload,
-        IrrigationPrm, IrrigationPrmValuesPayload, LaiPrm, LaiPrmValuesPayload, LumpsPrm,
-        LumpsPrmValuesPayload, NhoodState, NhoodStateValuesPayload, OhmCoefLc,
-        OhmCoefLcValuesPayload, OhmModel, OhmPrm, OhmPrmValuesPayload, OhmState,
-        OhmStateValuesPayload, PhenologyState, PhenologyStateValuesPayload, RoughnessState,
-        RoughnessStateValuesPayload, SnowPrm, SnowPrmValuesPayload, SnowState,
-        SnowStateValuesPayload, SoilPrm, SoilPrmValuesPayload, SolarState, SolarStateValuesPayload,
-        SuewsConfig, SuewsConfigValuesPayload, SuewsTimer, SuewsTimerValuesPayload, SurfStorePrm,
-        SurfStorePrmValuesPayload, WaterDistPrm, WaterDistPrmValuesPayload, NSURF,
+        AnthroEmisState, AnthroEmisStateValuesPayload, AnthroHeatPrm, AnthroHeatPrmValuesPayload,
+        AtmState, AtmStateValuesPayload, BioCo2Prm, BioCo2PrmValuesPayload, BridgeError,
+        ConductancePrm, ConductancePrmValuesPayload, FlagState, FlagStateValuesPayload,
+        IrrigDaywater, IrrigDaywaterValuesPayload, IrrigationPrm, IrrigationPrmValuesPayload,
+        LaiPrm, LaiPrmValuesPayload, LumpsPrm, LumpsPrmValuesPayload, NhoodState,
+        NhoodStateValuesPayload, OhmCoefLc, OhmCoefLcValuesPayload, OhmModel, OhmPrm,
+        OhmPrmValuesPayload, OhmState, OhmStateValuesPayload, PhenologyState,
+        PhenologyStateValuesPayload, RoughnessState, RoughnessStateValuesPayload, SnowPrm,
+        SnowPrmValuesPayload, SnowState, SnowStateValuesPayload, SoilPrm, SoilPrmValuesPayload,
+        SolarState, SolarStateValuesPayload, SuewsConfig, SuewsConfigValuesPayload, SuewsTimer,
+        SuewsTimerValuesPayload, SurfStorePrm, SurfStorePrmValuesPayload, WaterDistPrm,
+        WaterDistPrmValuesPayload, NSURF,
     };
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
     use pyo3::prelude::*;
@@ -1115,6 +1131,93 @@ mod python_bindings {
             let mut flat = self.state.to_flat();
             flat[idx] = value;
             self.state = AnthroEmisState::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
+    #[pyclass(name = "AnthroHeatPrm")]
+    pub struct PyAnthroHeatPrm {
+        state: AnthroHeatPrm,
+    }
+
+    #[pymethods]
+    impl PyAnthroHeatPrm {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = anthro_heat_prm_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = AnthroHeatPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state = anthro_heat_prm_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = AnthroHeatPrmValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = anthro_heat_prm_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid anthroHEAT_PRM values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = anthro_heat_prm_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid anthroHEAT_PRM field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            anthro_heat_prm_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = anthro_heat_prm_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            anthro_heat_prm_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            anthro_heat_prm_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = anthro_heat_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown anthroHEAT_PRM field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = anthro_heat_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown anthroHEAT_PRM field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = AnthroHeatPrm::from_flat(&flat).map_err(map_bridge_error)?;
             Ok(())
         }
     }
@@ -2843,6 +2946,32 @@ mod python_bindings {
         anthroemis_state_field_names()
     }
 
+    #[pyfunction(name = "anthro_heat_prm_schema")]
+    fn anthro_heat_prm_schema_py() -> PyResult<usize> {
+        anthro_heat_prm_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "anthro_heat_prm_schema_version")]
+    fn anthro_heat_prm_schema_version_py() -> u32 {
+        anthro_heat_prm_schema_version()
+    }
+
+    #[pyfunction(name = "anthro_heat_prm_schema_version_runtime")]
+    fn anthro_heat_prm_schema_version_runtime_py() -> PyResult<u32> {
+        anthro_heat_prm_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "anthro_heat_prm_schema_meta")]
+    fn anthro_heat_prm_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = anthro_heat_prm_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "anthro_heat_prm_fields")]
+    fn anthro_heat_prm_fields_py() -> Vec<String> {
+        anthro_heat_prm_field_names()
+    }
+
     #[pyfunction(name = "atm_state_schema")]
     fn atm_state_schema_py() -> PyResult<usize> {
         atm_state_schema().map_err(map_bridge_error)
@@ -3319,6 +3448,7 @@ mod python_bindings {
         m.add_class::<PySuewsTimer>()?;
         m.add_class::<PyFlagState>()?;
         m.add_class::<PyAnthroEmisState>()?;
+        m.add_class::<PyAnthroHeatPrm>()?;
         m.add_class::<PyAtmState>()?;
         m.add_class::<PyPhenologyState>()?;
         m.add_class::<PySnowState>()?;
@@ -3367,6 +3497,14 @@ mod python_bindings {
         )?)?;
         m.add_function(wrap_pyfunction!(anthroemis_state_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(anthroemis_state_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(anthro_heat_prm_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(anthro_heat_prm_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(
+            anthro_heat_prm_schema_version_runtime_py,
+            m
+        )?)?;
+        m.add_function(wrap_pyfunction!(anthro_heat_prm_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(anthro_heat_prm_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(atm_state_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(atm_state_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(atm_state_schema_version_runtime_py, m)?)?;

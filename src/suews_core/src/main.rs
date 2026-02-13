@@ -3,16 +3,18 @@ use serde_json::json;
 use serde_json::Value;
 use std::fs;
 use suews_bridge::{
-    anthroemis_state_default_from_fortran, anthroemis_state_schema, anthroemis_state_schema_info,
-    anthroemis_state_schema_version, anthroemis_state_schema_version_runtime,
-    anthroemis_state_to_map, anthroemis_state_to_values_payload, atm_state_default_from_fortran,
-    atm_state_schema, atm_state_schema_info, atm_state_schema_version,
-    atm_state_schema_version_runtime, atm_state_to_map, atm_state_to_values_payload,
-    bioco2_prm_default_from_fortran, bioco2_prm_schema, bioco2_prm_schema_info,
-    bioco2_prm_schema_version, bioco2_prm_schema_version_runtime, bioco2_prm_to_map,
-    bioco2_prm_to_values_payload, conductance_prm_default_from_fortran, conductance_prm_schema,
-    conductance_prm_schema_info, conductance_prm_schema_version,
-    conductance_prm_schema_version_runtime, conductance_prm_to_map,
+    anthro_heat_prm_default_from_fortran, anthro_heat_prm_schema, anthro_heat_prm_schema_info,
+    anthro_heat_prm_schema_version, anthro_heat_prm_schema_version_runtime, anthro_heat_prm_to_map,
+    anthro_heat_prm_to_values_payload, anthroemis_state_default_from_fortran,
+    anthroemis_state_schema, anthroemis_state_schema_info, anthroemis_state_schema_version,
+    anthroemis_state_schema_version_runtime, anthroemis_state_to_map,
+    anthroemis_state_to_values_payload, atm_state_default_from_fortran, atm_state_schema,
+    atm_state_schema_info, atm_state_schema_version, atm_state_schema_version_runtime,
+    atm_state_to_map, atm_state_to_values_payload, bioco2_prm_default_from_fortran,
+    bioco2_prm_schema, bioco2_prm_schema_info, bioco2_prm_schema_version,
+    bioco2_prm_schema_version_runtime, bioco2_prm_to_map, bioco2_prm_to_values_payload,
+    conductance_prm_default_from_fortran, conductance_prm_schema, conductance_prm_schema_info,
+    conductance_prm_schema_version, conductance_prm_schema_version_runtime, conductance_prm_to_map,
     conductance_prm_to_values_payload, flag_state_default_from_fortran, flag_state_schema,
     flag_state_schema_info, flag_state_schema_version, flag_state_schema_version_runtime,
     flag_state_to_map, flag_state_to_values_payload, irrig_daywater_default_from_fortran,
@@ -307,6 +309,12 @@ enum Commands {
     AnthroemisStateDefaultJson,
     /// Print default anthroEmis_STATE as JSON ordered values payload.
     AnthroemisStateDefaultValuesJson,
+    /// Print anthroHEAT_PRM schema as JSON for programmatic tooling.
+    AnthroHeatPrmSchemaJson,
+    /// Print default anthroHEAT_PRM as JSON map payload.
+    AnthroHeatPrmDefaultJson,
+    /// Print default anthroHEAT_PRM as JSON ordered values payload.
+    AnthroHeatPrmDefaultValuesJson,
     /// Print atm_state schema as JSON for programmatic tooling.
     AtmStateSchemaJson,
     /// Print default atm_state as JSON map payload.
@@ -758,6 +766,43 @@ fn run(cli: Cli) -> Result<(), String> {
             let out = json!({
                 "schema_version": payload.schema_version,
                 "schema_version_runtime": anthroemis_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::AnthroHeatPrmSchemaJson => {
+            let schema = anthro_heat_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": anthro_heat_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::AnthroHeatPrmDefaultJson => {
+            let flat_len = anthro_heat_prm_schema().map_err(|e| e.to_string())?;
+            let state = anthro_heat_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": anthro_heat_prm_schema_version(),
+                "schema_version_runtime": anthro_heat_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": anthro_heat_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::AnthroHeatPrmDefaultValuesJson => {
+            let state = anthro_heat_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = anthro_heat_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": anthro_heat_prm_schema_version_runtime().map_err(|e| e.to_string())?,
                 "values": payload.values,
             });
             let text = serde_json::to_string_pretty(&out)
@@ -1590,6 +1635,22 @@ mod tests {
             command: Commands::AnthroemisStateDefaultValuesJson,
         };
         run(cli).expect("anthroemis-state-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_anthro_heat_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::AnthroHeatPrmDefaultJson,
+        };
+        run(cli).expect("anthro-heat-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_anthro_heat_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::AnthroHeatPrmDefaultValuesJson,
+        };
+        run(cli).expect("anthro-heat-prm-default-values-json should succeed");
     }
 
     #[test]

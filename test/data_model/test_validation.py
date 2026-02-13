@@ -648,7 +648,7 @@ def test_phase_b_validate_model_option_samealbedo_disabled():
 
 def test_needs_spartacus_validation_true_and_false():
     cfg = make_cfg()
-    cfg.model.physics.netradiationmethod = 1001  # Set the attribute as int
+    cfg.model.physics.netradiationmethod = 1001  
     assert cfg._needs_spartacus_validation() is True
 
     cfg2 = make_cfg()

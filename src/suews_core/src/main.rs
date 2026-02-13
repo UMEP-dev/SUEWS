@@ -18,19 +18,21 @@ use suews_bridge::{
     flag_state_to_map, flag_state_to_values_payload, irrig_daywater_default_from_fortran,
     irrig_daywater_schema, irrig_daywater_schema_info, irrig_daywater_schema_version,
     irrig_daywater_schema_version_runtime, irrig_daywater_to_map, irrig_daywater_to_values_payload,
-    lai_prm_default_from_fortran, lai_prm_schema, lai_prm_schema_info, lai_prm_schema_version,
-    lai_prm_schema_version_runtime, lai_prm_to_map, lai_prm_to_values_payload,
-    lumps_prm_default_from_fortran, lumps_prm_schema, lumps_prm_schema_info,
-    lumps_prm_schema_version, lumps_prm_schema_version_runtime, lumps_prm_to_map,
-    lumps_prm_to_values_payload, nhood_state_default_from_fortran, nhood_state_schema,
-    nhood_state_schema_info, nhood_state_schema_version, nhood_state_schema_version_runtime,
-    nhood_state_to_map, nhood_state_to_values_payload, ohm_coef_lc_default_from_fortran,
-    ohm_coef_lc_schema, ohm_coef_lc_schema_info, ohm_coef_lc_schema_version,
-    ohm_coef_lc_schema_version_runtime, ohm_coef_lc_to_map, ohm_coef_lc_to_values_payload,
-    ohm_prm_default_from_fortran, ohm_prm_schema, ohm_prm_schema_info, ohm_prm_schema_version,
-    ohm_prm_schema_version_runtime, ohm_prm_to_map, ohm_prm_to_values_payload,
-    ohm_state_default_from_fortran, ohm_state_field_names, ohm_state_from_map,
-    ohm_state_from_values_payload, ohm_state_schema, ohm_state_schema_info,
+    irrigation_prm_default_from_fortran, irrigation_prm_schema, irrigation_prm_schema_info,
+    irrigation_prm_schema_version, irrigation_prm_schema_version_runtime, irrigation_prm_to_map,
+    irrigation_prm_to_values_payload, lai_prm_default_from_fortran, lai_prm_schema,
+    lai_prm_schema_info, lai_prm_schema_version, lai_prm_schema_version_runtime, lai_prm_to_map,
+    lai_prm_to_values_payload, lumps_prm_default_from_fortran, lumps_prm_schema,
+    lumps_prm_schema_info, lumps_prm_schema_version, lumps_prm_schema_version_runtime,
+    lumps_prm_to_map, lumps_prm_to_values_payload, nhood_state_default_from_fortran,
+    nhood_state_schema, nhood_state_schema_info, nhood_state_schema_version,
+    nhood_state_schema_version_runtime, nhood_state_to_map, nhood_state_to_values_payload,
+    ohm_coef_lc_default_from_fortran, ohm_coef_lc_schema, ohm_coef_lc_schema_info,
+    ohm_coef_lc_schema_version, ohm_coef_lc_schema_version_runtime, ohm_coef_lc_to_map,
+    ohm_coef_lc_to_values_payload, ohm_prm_default_from_fortran, ohm_prm_schema,
+    ohm_prm_schema_info, ohm_prm_schema_version, ohm_prm_schema_version_runtime, ohm_prm_to_map,
+    ohm_prm_to_values_payload, ohm_state_default_from_fortran, ohm_state_field_names,
+    ohm_state_from_map, ohm_state_from_values_payload, ohm_state_schema, ohm_state_schema_info,
     ohm_state_schema_version, ohm_state_schema_version_runtime, ohm_state_step, ohm_state_to_map,
     ohm_state_to_values_payload, ohm_step, phenology_state_default_from_fortran,
     phenology_state_schema, phenology_state_schema_info, phenology_state_schema_version,
@@ -363,6 +365,12 @@ enum Commands {
     IrrigDaywaterDefaultJson,
     /// Print default IRRIG_daywater as JSON ordered values payload.
     IrrigDaywaterDefaultValuesJson,
+    /// Print IRRIGATION_PRM schema as JSON for programmatic tooling.
+    IrrigationPrmSchemaJson,
+    /// Print default IRRIGATION_PRM as JSON map payload.
+    IrrigationPrmDefaultJson,
+    /// Print default IRRIGATION_PRM as JSON ordered values payload.
+    IrrigationPrmDefaultValuesJson,
     /// Print LUMPS_PRM schema as JSON for programmatic tooling.
     LumpsPrmSchemaJson,
     /// Print default LUMPS_PRM as JSON map payload.
@@ -1118,6 +1126,43 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
+        Commands::IrrigationPrmSchemaJson => {
+            let schema = irrigation_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": irrigation_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::IrrigationPrmDefaultJson => {
+            let flat_len = irrigation_prm_schema().map_err(|e| e.to_string())?;
+            let state = irrigation_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": irrigation_prm_schema_version(),
+                "schema_version_runtime": irrigation_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": irrigation_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::IrrigationPrmDefaultValuesJson => {
+            let state = irrigation_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = irrigation_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": irrigation_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
         Commands::LumpsPrmSchemaJson => {
             let schema = lumps_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1660,6 +1705,22 @@ mod tests {
             command: Commands::IrrigDaywaterDefaultValuesJson,
         };
         run(cli).expect("irrig-daywater-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_irrigation_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::IrrigationPrmDefaultJson,
+        };
+        run(cli).expect("irrigation-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_irrigation_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::IrrigationPrmDefaultValuesJson,
+        };
+        run(cli).expect("irrigation-prm-default-values-json should succeed");
     }
 
     #[test]

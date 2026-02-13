@@ -9,6 +9,7 @@ mod error;
 mod ffi;
 mod flag;
 mod irrig_daywater;
+mod irrigation_prm;
 mod lai;
 mod lumps;
 mod nhood;
@@ -93,6 +94,15 @@ pub use irrig_daywater::{
     irrig_daywater_to_ordered_values, irrig_daywater_to_values_payload, IrrigDaywater,
     IrrigDaywaterSchema, IrrigDaywaterValuesPayload, IRRIG_DAYWATER_FLAT_LEN,
     IRRIG_DAYWATER_SCHEMA_VERSION,
+};
+pub use irrigation_prm::{
+    irrigation_prm_default_from_fortran, irrigation_prm_field_index, irrigation_prm_field_names,
+    irrigation_prm_from_map, irrigation_prm_from_ordered_values,
+    irrigation_prm_from_values_payload, irrigation_prm_schema, irrigation_prm_schema_info,
+    irrigation_prm_schema_version, irrigation_prm_schema_version_runtime, irrigation_prm_to_map,
+    irrigation_prm_to_ordered_values, irrigation_prm_to_values_payload, IrrigationPrm,
+    IrrigationPrmSchema, IrrigationPrmValuesPayload, IRRIGATION_PRM_FLAT_LEN,
+    IRRIGATION_PRM_SCHEMA_VERSION,
 };
 pub use lai::{
     lai_prm_default_from_fortran, lai_prm_field_index, lai_prm_field_names, lai_prm_from_map,
@@ -233,6 +243,11 @@ mod python_bindings {
         irrig_daywater_from_values_payload, irrig_daywater_schema, irrig_daywater_schema_info,
         irrig_daywater_schema_version, irrig_daywater_schema_version_runtime,
         irrig_daywater_to_map, irrig_daywater_to_ordered_values, irrig_daywater_to_values_payload,
+        irrigation_prm_default_from_fortran, irrigation_prm_field_index,
+        irrigation_prm_field_names, irrigation_prm_from_map, irrigation_prm_from_ordered_values,
+        irrigation_prm_from_values_payload, irrigation_prm_schema, irrigation_prm_schema_info,
+        irrigation_prm_schema_version, irrigation_prm_schema_version_runtime,
+        irrigation_prm_to_map, irrigation_prm_to_ordered_values, irrigation_prm_to_values_payload,
         lai_prm_default_from_fortran, lai_prm_field_index, lai_prm_field_names, lai_prm_from_map,
         lai_prm_from_ordered_values, lai_prm_from_values_payload, lai_prm_schema,
         lai_prm_schema_info, lai_prm_schema_version, lai_prm_schema_version_runtime,
@@ -304,9 +319,10 @@ mod python_bindings {
         water_dist_prm_to_map, water_dist_prm_to_ordered_values, water_dist_prm_to_values_payload,
         AnthroEmisState, AnthroEmisStateValuesPayload, AtmState, AtmStateValuesPayload, BioCo2Prm,
         BioCo2PrmValuesPayload, BridgeError, ConductancePrm, ConductancePrmValuesPayload,
-        FlagState, FlagStateValuesPayload, IrrigDaywater, IrrigDaywaterValuesPayload, LaiPrm,
-        LaiPrmValuesPayload, LumpsPrm, LumpsPrmValuesPayload, NhoodState, NhoodStateValuesPayload,
-        OhmCoefLc, OhmCoefLcValuesPayload, OhmModel, OhmPrm, OhmPrmValuesPayload, OhmState,
+        FlagState, FlagStateValuesPayload, IrrigDaywater, IrrigDaywaterValuesPayload,
+        IrrigationPrm, IrrigationPrmValuesPayload, LaiPrm, LaiPrmValuesPayload, LumpsPrm,
+        LumpsPrmValuesPayload, NhoodState, NhoodStateValuesPayload, OhmCoefLc,
+        OhmCoefLcValuesPayload, OhmModel, OhmPrm, OhmPrmValuesPayload, OhmState,
         OhmStateValuesPayload, PhenologyState, PhenologyStateValuesPayload, RoughnessState,
         RoughnessStateValuesPayload, SnowState, SnowStateValuesPayload, SoilPrm,
         SoilPrmValuesPayload, SolarState, SolarStateValuesPayload, SuewsConfig,
@@ -2134,6 +2150,93 @@ mod python_bindings {
         }
     }
 
+    #[pyclass(name = "IrrigationPrm")]
+    pub struct PyIrrigationPrm {
+        state: IrrigationPrm,
+    }
+
+    #[pymethods]
+    impl PyIrrigationPrm {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = irrigation_prm_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = IrrigationPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state = irrigation_prm_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = IrrigationPrmValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = irrigation_prm_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid IRRIGATION_PRM values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = irrigation_prm_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid IRRIGATION_PRM field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            irrigation_prm_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = irrigation_prm_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            irrigation_prm_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            irrigation_prm_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = irrigation_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown IRRIGATION_PRM field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = irrigation_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown IRRIGATION_PRM field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = IrrigationPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
     #[pyclass(name = "OhmCoefLc")]
     pub struct PyOhmCoefLc {
         state: OhmCoefLc,
@@ -2822,6 +2925,32 @@ mod python_bindings {
         irrig_daywater_field_names()
     }
 
+    #[pyfunction(name = "irrigation_prm_schema")]
+    fn irrigation_prm_schema_py() -> PyResult<usize> {
+        irrigation_prm_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "irrigation_prm_schema_version")]
+    fn irrigation_prm_schema_version_py() -> u32 {
+        irrigation_prm_schema_version()
+    }
+
+    #[pyfunction(name = "irrigation_prm_schema_version_runtime")]
+    fn irrigation_prm_schema_version_runtime_py() -> PyResult<u32> {
+        irrigation_prm_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "irrigation_prm_schema_meta")]
+    fn irrigation_prm_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = irrigation_prm_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "irrigation_prm_fields")]
+    fn irrigation_prm_fields_py() -> Vec<String> {
+        irrigation_prm_field_names()
+    }
+
     #[pyfunction(name = "bioco2_prm_schema")]
     fn bioco2_prm_schema_py() -> PyResult<usize> {
         bioco2_prm_schema().map_err(map_bridge_error)
@@ -3075,6 +3204,7 @@ mod python_bindings {
         m.add_class::<PySurfStorePrm>()?;
         m.add_class::<PyWaterDistPrm>()?;
         m.add_class::<PyIrrigDaywater>()?;
+        m.add_class::<PyIrrigationPrm>()?;
         m.add_class::<PyOhmCoefLc>()?;
         m.add_class::<PyOhmPrm>()?;
         m.add_class::<PySolarState>()?;
@@ -3157,6 +3287,14 @@ mod python_bindings {
         )?)?;
         m.add_function(wrap_pyfunction!(irrig_daywater_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(irrig_daywater_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(irrigation_prm_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(irrigation_prm_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(
+            irrigation_prm_schema_version_runtime_py,
+            m
+        )?)?;
+        m.add_function(wrap_pyfunction!(irrigation_prm_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(irrigation_prm_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(bioco2_prm_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(bioco2_prm_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(bioco2_prm_schema_version_runtime_py, m)?)?;

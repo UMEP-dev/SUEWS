@@ -45,6 +45,7 @@ fn main() {
         manifest_dir.join("fortran/suews_c_api_surf_store.f95"),
         manifest_dir.join("fortran/suews_c_api_water_dist.f95"),
         manifest_dir.join("fortran/suews_c_api_irrig_daywater.f95"),
+        manifest_dir.join("fortran/suews_c_api_irrigation_prm.f95"),
     ];
     for src in &fortran_sources {
         println!("cargo:rerun-if-changed={}", src.display());

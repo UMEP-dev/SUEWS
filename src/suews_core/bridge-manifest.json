@@ -40,7 +40,7 @@
     {
       "name": "CONDUCTANCE_PRM",
       "source": "src/suews/src/suews_type_surface.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "EHC_PRM",

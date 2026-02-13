@@ -8,21 +8,23 @@ use suews_bridge::{
     anthroemis_state_to_map, anthroemis_state_to_values_payload, atm_state_default_from_fortran,
     atm_state_schema, atm_state_schema_info, atm_state_schema_version,
     atm_state_schema_version_runtime, atm_state_to_map, atm_state_to_values_payload,
-    flag_state_default_from_fortran, flag_state_schema, flag_state_schema_info,
-    flag_state_schema_version, flag_state_schema_version_runtime, flag_state_to_map,
-    flag_state_to_values_payload, lumps_prm_default_from_fortran, lumps_prm_schema,
-    lumps_prm_schema_info, lumps_prm_schema_version, lumps_prm_schema_version_runtime,
-    lumps_prm_to_map, lumps_prm_to_values_payload, nhood_state_default_from_fortran,
-    nhood_state_schema, nhood_state_schema_info, nhood_state_schema_version,
-    nhood_state_schema_version_runtime, nhood_state_to_map, nhood_state_to_values_payload,
-    ohm_coef_lc_default_from_fortran, ohm_coef_lc_schema, ohm_coef_lc_schema_info,
-    ohm_coef_lc_schema_version, ohm_coef_lc_schema_version_runtime, ohm_coef_lc_to_map,
-    ohm_coef_lc_to_values_payload, ohm_state_default_from_fortran, ohm_state_field_names,
-    ohm_state_from_map, ohm_state_from_values_payload, ohm_state_schema, ohm_state_schema_info,
-    ohm_state_schema_version, ohm_state_schema_version_runtime, ohm_state_step, ohm_state_to_map,
-    ohm_state_to_values_payload, ohm_step, phenology_state_default_from_fortran,
-    phenology_state_schema, phenology_state_schema_info, phenology_state_schema_version,
-    phenology_state_schema_version_runtime, phenology_state_to_map,
+    conductance_prm_default_from_fortran, conductance_prm_schema, conductance_prm_schema_info,
+    conductance_prm_schema_version, conductance_prm_schema_version_runtime, conductance_prm_to_map,
+    conductance_prm_to_values_payload, flag_state_default_from_fortran, flag_state_schema,
+    flag_state_schema_info, flag_state_schema_version, flag_state_schema_version_runtime,
+    flag_state_to_map, flag_state_to_values_payload, lumps_prm_default_from_fortran,
+    lumps_prm_schema, lumps_prm_schema_info, lumps_prm_schema_version,
+    lumps_prm_schema_version_runtime, lumps_prm_to_map, lumps_prm_to_values_payload,
+    nhood_state_default_from_fortran, nhood_state_schema, nhood_state_schema_info,
+    nhood_state_schema_version, nhood_state_schema_version_runtime, nhood_state_to_map,
+    nhood_state_to_values_payload, ohm_coef_lc_default_from_fortran, ohm_coef_lc_schema,
+    ohm_coef_lc_schema_info, ohm_coef_lc_schema_version, ohm_coef_lc_schema_version_runtime,
+    ohm_coef_lc_to_map, ohm_coef_lc_to_values_payload, ohm_state_default_from_fortran,
+    ohm_state_field_names, ohm_state_from_map, ohm_state_from_values_payload, ohm_state_schema,
+    ohm_state_schema_info, ohm_state_schema_version, ohm_state_schema_version_runtime,
+    ohm_state_step, ohm_state_to_map, ohm_state_to_values_payload, ohm_step,
+    phenology_state_default_from_fortran, phenology_state_schema, phenology_state_schema_info,
+    phenology_state_schema_version, phenology_state_schema_version_runtime, phenology_state_to_map,
     phenology_state_to_values_payload, qs_calc, roughness_state_default_from_fortran,
     roughness_state_schema, roughness_state_schema_info, roughness_state_schema_version,
     roughness_state_schema_version_runtime, roughness_state_to_map,
@@ -275,6 +277,12 @@ enum Commands {
     AtmStateDefaultJson,
     /// Print default atm_state as JSON ordered values payload.
     AtmStateDefaultValuesJson,
+    /// Print CONDUCTANCE_PRM schema as JSON for programmatic tooling.
+    ConductancePrmSchemaJson,
+    /// Print default CONDUCTANCE_PRM as JSON map payload.
+    ConductancePrmDefaultJson,
+    /// Print default CONDUCTANCE_PRM as JSON ordered values payload.
+    ConductancePrmDefaultValuesJson,
     /// Print PHENOLOGY_STATE schema as JSON for programmatic tooling.
     PhenologyStateSchemaJson,
     /// Print default PHENOLOGY_STATE as JSON map payload.
@@ -629,6 +637,43 @@ fn run(cli: Cli) -> Result<(), String> {
             let out = json!({
                 "schema_version": payload.schema_version,
                 "schema_version_runtime": atm_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::ConductancePrmSchemaJson => {
+            let schema = conductance_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": conductance_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::ConductancePrmDefaultJson => {
+            let flat_len = conductance_prm_schema().map_err(|e| e.to_string())?;
+            let state = conductance_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": conductance_prm_schema_version(),
+                "schema_version_runtime": conductance_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": conductance_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::ConductancePrmDefaultValuesJson => {
+            let state = conductance_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = conductance_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": conductance_prm_schema_version_runtime().map_err(|e| e.to_string())?,
                 "values": payload.values,
             });
             let text = serde_json::to_string_pretty(&out)
@@ -1075,6 +1120,22 @@ mod tests {
             command: Commands::AtmStateDefaultValuesJson,
         };
         run(cli).expect("atm-state-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_conductance_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::ConductancePrmDefaultJson,
+        };
+        run(cli).expect("conductance-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_conductance_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::ConductancePrmDefaultValuesJson,
+        };
+        run(cli).expect("conductance-prm-default-values-json should succeed");
     }
 
     #[test]

@@ -43,8 +43,10 @@ use suews_bridge::{
     soil_prm_schema_version_runtime, soil_prm_to_map, soil_prm_to_values_payload,
     solar_state_default_from_fortran, solar_state_schema, solar_state_schema_info,
     solar_state_schema_version, solar_state_schema_version_runtime, solar_state_to_map,
-    solar_state_to_values_payload, surf_store_prm_default_from_fortran, surf_store_prm_schema,
-    surf_store_prm_schema_info, surf_store_prm_schema_version,
+    solar_state_to_values_payload, suews_config_default_from_fortran, suews_config_schema,
+    suews_config_schema_info, suews_config_schema_version, suews_config_schema_version_runtime,
+    suews_config_to_map, suews_config_to_values_payload, surf_store_prm_default_from_fortran,
+    surf_store_prm_schema, surf_store_prm_schema_info, surf_store_prm_schema_version,
     surf_store_prm_schema_version_runtime, surf_store_prm_to_map, surf_store_prm_to_values_payload,
     water_dist_prm_default_from_fortran, water_dist_prm_schema, water_dist_prm_schema_info,
     water_dist_prm_schema_version, water_dist_prm_schema_version_runtime, water_dist_prm_to_map,
@@ -236,6 +238,12 @@ enum Commands {
     StateDefaultJson,
     /// Print default OHM_STATE as JSON ordered values payload.
     StateDefaultValuesJson,
+    /// Print SUEWS_CONFIG schema as JSON for programmatic tooling.
+    SuewsConfigSchemaJson,
+    /// Print default SUEWS_CONFIG as JSON map payload.
+    SuewsConfigDefaultJson,
+    /// Print default SUEWS_CONFIG as JSON ordered values payload.
+    SuewsConfigDefaultValuesJson,
     /// Step OHM_STATE using JSON input/output.
     StateStepJson {
         #[arg(long)]
@@ -500,6 +508,43 @@ fn run(cli: Cli) -> Result<(), String> {
             let out = json!({
                 "schema_version": payload.schema_version,
                 "schema_version_runtime": ohm_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SuewsConfigSchemaJson => {
+            let schema = suews_config_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": suews_config_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SuewsConfigDefaultJson => {
+            let flat_len = suews_config_schema().map_err(|e| e.to_string())?;
+            let state = suews_config_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": suews_config_schema_version(),
+                "schema_version_runtime": suews_config_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": suews_config_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SuewsConfigDefaultValuesJson => {
+            let state = suews_config_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = suews_config_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": suews_config_schema_version_runtime().map_err(|e| e.to_string())?,
                 "values": payload.values,
             });
             let text = serde_json::to_string_pretty(&out)
@@ -1300,6 +1345,22 @@ mod tests {
             command: Commands::StateDefaultValuesJson,
         };
         run(cli).expect("state-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_suews_config_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SuewsConfigDefaultJson,
+        };
+        run(cli).expect("suews-config-default-json should succeed");
+    }
+
+    #[test]
+    fn run_suews_config_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SuewsConfigDefaultValuesJson,
+        };
+        run(cli).expect("suews-config-default-values-json should succeed");
     }
 
     #[test]

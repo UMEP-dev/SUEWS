@@ -1589,6 +1589,47 @@ class SUEWSConfig(BaseModel):
             site, site_index, "roof", "roofs", "RoofReflectivity", "samealbedo_roof"
         )
 
+    def _needs_spartacus_validation(self) -> bool:
+        """
+        Return True if SPARTACUS is enabled (netradiationmethod 1001, 1002, or 1003).
+        """
+        spartacus_methods = {1001, 1002, 1003}
+        netrad_method = _unwrap_value(getattr(self.model.physics, "netradiationmethod", None))
+        try:
+            netrad_method = int(netrad_method)
+        except (TypeError, ValueError):
+            pass
+        return netrad_method in spartacus_methods
+
+    def _validate_spartacus_building_height(self, site: Site, site_index: int) -> List[str]:
+        """
+        If SPARTACUS is enabled, enforce that bldgh does not exceed the domain top (height[nlayer+1]).
+        Returns a list of issue messages.
+        """
+        issues: List[str] = []
+        site_name = getattr(site, "name", f"Site {site_index}")
+        props = getattr(site, "properties", None)
+        if not props or not hasattr(props, "land_cover") or not props.land_cover:
+            return issues
+        bldgs = getattr(props.land_cover, "bldgs", None)
+        bldgh = _unwrap_value(getattr(bldgs, "bldgh", None)) if bldgs else None
+        vertical_layers = getattr(props, "vertical_layers", None)
+        height_arr = _unwrap_value(getattr(vertical_layers, "height", None)) if vertical_layers else None
+        nlayer = _unwrap_value(getattr(vertical_layers, "nlayer", None)) if vertical_layers else None
+        if (
+            bldgh is not None and
+            height_arr is not None and
+            nlayer is not None and
+            isinstance(height_arr, (list, tuple)) and
+            len(height_arr) > nlayer
+        ):
+            spartacus_top = height_arr[nlayer]
+            if bldgh > spartacus_top:
+                issues.append(
+                    f"ACTION NEEDED: Site '{site_name}' has bldgh={bldgh} exceeding SPARTACUS domain top (height[{nlayer+1}]={spartacus_top})."
+                )
+        return issues
+
     def _validate_conditional_parameters(self) -> List[str]:
         """
         Run any method‐specific validations (STEBBS, RSL, StorageHeat) in one
@@ -1602,9 +1643,10 @@ class SUEWSConfig(BaseModel):
         needs_storage = self._needs_storage_validation()
         needs_samealbedo_wall = self._needs_samealbedo_wall_validation()
         needs_samealbedo_roof = self._needs_samealbedo_roof_validation()
+        needs_spartacus = self._needs_spartacus_validation()
 
         # Nothing to do?
-        if not (needs_stebbs or needs_rsl or needs_storage or needs_samealbedo_wall or needs_samealbedo_roof):
+        if not (needs_stebbs or needs_rsl or needs_storage or needs_samealbedo_wall or needs_samealbedo_roof or needs_spartacus):
             return all_issues
 
         for idx, site in enumerate(self.sites):
@@ -1660,6 +1702,15 @@ class SUEWSConfig(BaseModel):
                     if site_name not in self._validation_summary["sites_with_issues"]:
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(samealbedo_roof_issues)
+
+            # SPARTACUS building height
+            if needs_spartacus:
+                spartacus_issues = self._validate_spartacus_building_height(site, idx)
+                if spartacus_issues:
+                    self._validation_summary["issue_types"].add("SPARTACUS building height")
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(spartacus_issues)
         return all_issues
 
     def _check_critical_null_physics_params(self) -> List[str]:

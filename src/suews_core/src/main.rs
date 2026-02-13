@@ -27,6 +27,8 @@ use suews_bridge::{
     nhood_state_to_map, nhood_state_to_values_payload, ohm_coef_lc_default_from_fortran,
     ohm_coef_lc_schema, ohm_coef_lc_schema_info, ohm_coef_lc_schema_version,
     ohm_coef_lc_schema_version_runtime, ohm_coef_lc_to_map, ohm_coef_lc_to_values_payload,
+    ohm_prm_default_from_fortran, ohm_prm_schema, ohm_prm_schema_info, ohm_prm_schema_version,
+    ohm_prm_schema_version_runtime, ohm_prm_to_map, ohm_prm_to_values_payload,
     ohm_state_default_from_fortran, ohm_state_field_names, ohm_state_from_map,
     ohm_state_from_values_payload, ohm_state_schema, ohm_state_schema_info,
     ohm_state_schema_version, ohm_state_schema_version_runtime, ohm_state_step, ohm_state_to_map,
@@ -373,6 +375,12 @@ enum Commands {
     OhmCoefLcDefaultJson,
     /// Print default OHM_COEF_LC as JSON ordered values payload.
     OhmCoefLcDefaultValuesJson,
+    /// Print OHM_PRM schema as JSON for programmatic tooling.
+    OhmPrmSchemaJson,
+    /// Print default OHM_PRM as JSON map payload.
+    OhmPrmDefaultJson,
+    /// Print default OHM_PRM as JSON ordered values payload.
+    OhmPrmDefaultValuesJson,
     /// Print solar_State schema as JSON for programmatic tooling.
     SolarStateSchemaJson,
     /// Print default solar_State as JSON map payload.
@@ -1184,6 +1192,43 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
+        Commands::OhmPrmSchemaJson => {
+            let schema = ohm_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": ohm_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::OhmPrmDefaultJson => {
+            let flat_len = ohm_prm_schema().map_err(|e| e.to_string())?;
+            let state = ohm_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": ohm_prm_schema_version(),
+                "schema_version_runtime": ohm_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": ohm_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::OhmPrmDefaultValuesJson => {
+            let state = ohm_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = ohm_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": ohm_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
         Commands::SolarStateSchemaJson => {
             let schema = solar_state_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1647,6 +1692,22 @@ mod tests {
             command: Commands::OhmCoefLcDefaultValuesJson,
         };
         run(cli).expect("ohm-coef-lc-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_ohm_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::OhmPrmDefaultJson,
+        };
+        run(cli).expect("ohm-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_ohm_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::OhmPrmDefaultValuesJson,
+        };
+        run(cli).expect("ohm-prm-default-values-json should succeed");
     }
 
     #[test]

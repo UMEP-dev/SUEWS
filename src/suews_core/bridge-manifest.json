@@ -135,7 +135,7 @@
     {
       "name": "OHM_COEF_LC",
       "source": "src/suews/src/suews_type_surface.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "OHM_PRM",

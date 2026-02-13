@@ -483,7 +483,6 @@ def test_auto_albedo_zero_lai_range():
     )
     land_cover = LandCover(evetr=evetr_props, grass=grass_props)
     site_props = SiteProperties(land_cover=land_cover)
-
     evetr_state = InitialStateEvetr(alb_id=None, lai_id=2.0)
     grass_state = InitialStateGrass(alb_id=None, lai_id=1.5)
     initial_states = InitialStates(evetr=evetr_state, grass=grass_state)
@@ -646,6 +645,38 @@ def test_phase_b_validate_model_option_samealbedo_disabled():
     assert results_roof[0].status == "WARNING"
     assert "no check of consistency" in results_roof[0].message.lower()
     assert "samealbedo_roof == 0" in results_roof[0].message.lower()
+
+# Minimal tests for SPARTACUS building height validation
+def test_needs_spartacus_validation_true_and_false():
+    cfg = make_cfg(netradiationmethod=1001)
+    assert cfg._needs_spartacus_validation() is True
+    cfg2 = make_cfg(netradiationmethod=1)
+    assert cfg2._needs_spartacus_validation() is False
+
+
+def test_validate_spartacus_building_height_error():
+    cfg = make_cfg(netradiationmethod=1001)
+    # bldgh exceeds height[nlayer+1]
+    bldgs = SimpleNamespace(bldgh=15.0)
+    vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
+    props = SimpleNamespace(land_cover=SimpleNamespace(bldgs=bldgs), vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_building_height(site, 0)
+    assert msgs and "ACTION NEEDED" in msgs[0]
+    assert "bldgh=15.0" in msgs[0]
+    assert "height[nlayer+1]=10.0" in msgs[0]
+    assert "TestSite" in msgs[0]
+
+
+def test_validate_spartacus_building_height_no_error():
+    cfg = make_cfg(netradiationmethod=1001)
+    # bldgh does not exceed height[nlayer+1]
+    bldgs = SimpleNamespace(bldgh=8.0)
+    vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
+    props = SimpleNamespace(land_cover=SimpleNamespace(bldgs=bldgs), vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_building_height(site, 0)
+    assert msgs == []
 
 # From test_validation_topdown.py
 class TestTopDownValidation:

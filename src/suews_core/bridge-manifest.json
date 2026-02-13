@@ -245,7 +245,7 @@
     {
       "name": "SURF_STORE_PRM",
       "source": "src/suews/src/suews_type_waterdist.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "WATER_DIST_PRM",

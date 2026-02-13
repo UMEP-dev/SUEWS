@@ -38,7 +38,10 @@ use suews_bridge::{
     soil_prm_schema_version_runtime, soil_prm_to_map, soil_prm_to_values_payload,
     solar_state_default_from_fortran, solar_state_schema, solar_state_schema_info,
     solar_state_schema_version, solar_state_schema_version_runtime, solar_state_to_map,
-    solar_state_to_values_payload, OhmModel, OhmStateValuesPayload, OHM_STATE_FLAT_LEN,
+    solar_state_to_values_payload, surf_store_prm_default_from_fortran, surf_store_prm_schema,
+    surf_store_prm_schema_info, surf_store_prm_schema_version,
+    surf_store_prm_schema_version_runtime, surf_store_prm_to_map, surf_store_prm_to_values_payload,
+    OhmModel, OhmStateValuesPayload, OHM_STATE_FLAT_LEN,
 };
 
 fn parse_state_map_json(text: &str) -> Result<std::collections::BTreeMap<String, f64>, String> {
@@ -310,6 +313,12 @@ enum Commands {
     SoilPrmDefaultJson,
     /// Print default SOIL_PRM as JSON ordered values payload.
     SoilPrmDefaultValuesJson,
+    /// Print SURF_STORE_PRM schema as JSON for programmatic tooling.
+    SurfStorePrmSchemaJson,
+    /// Print default SURF_STORE_PRM as JSON map payload.
+    SurfStorePrmDefaultJson,
+    /// Print default SURF_STORE_PRM as JSON ordered values payload.
+    SurfStorePrmDefaultValuesJson,
     /// Print LUMPS_PRM schema as JSON for programmatic tooling.
     LumpsPrmSchemaJson,
     /// Print default LUMPS_PRM as JSON map payload.
@@ -837,6 +846,43 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
+        Commands::SurfStorePrmSchemaJson => {
+            let schema = surf_store_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": surf_store_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SurfStorePrmDefaultJson => {
+            let flat_len = surf_store_prm_schema().map_err(|e| e.to_string())?;
+            let state = surf_store_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": surf_store_prm_schema_version(),
+                "schema_version_runtime": surf_store_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": surf_store_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SurfStorePrmDefaultValuesJson => {
+            let state = surf_store_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = surf_store_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": surf_store_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
         Commands::LumpsPrmSchemaJson => {
             let schema = lumps_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1246,6 +1292,22 @@ mod tests {
             command: Commands::SoilPrmDefaultValuesJson,
         };
         run(cli).expect("soil-prm-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_surf_store_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SurfStorePrmDefaultJson,
+        };
+        run(cli).expect("surf-store-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_surf_store_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SurfStorePrmDefaultValuesJson,
+        };
+        run(cli).expect("surf-store-prm-default-values-json should succeed");
     }
 
     #[test]

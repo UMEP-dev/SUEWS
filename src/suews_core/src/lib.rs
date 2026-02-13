@@ -15,6 +15,7 @@ mod roughness;
 mod snow;
 mod soil;
 mod solar;
+mod surf_store;
 
 pub use anthroemis::{
     anthroemis_state_default_from_fortran, anthroemis_state_field_index,
@@ -135,6 +136,15 @@ pub use solar::{
     solar_state_to_values_payload, SolarState, SolarStateSchema, SolarStateValuesPayload,
     SOLAR_STATE_FLAT_LEN, SOLAR_STATE_SCHEMA_VERSION,
 };
+pub use surf_store::{
+    surf_store_prm_default_from_fortran, surf_store_prm_field_index, surf_store_prm_field_names,
+    surf_store_prm_from_map, surf_store_prm_from_ordered_values,
+    surf_store_prm_from_values_payload, surf_store_prm_schema, surf_store_prm_schema_info,
+    surf_store_prm_schema_version, surf_store_prm_schema_version_runtime, surf_store_prm_to_map,
+    surf_store_prm_to_ordered_values, surf_store_prm_to_values_payload, SurfStorePrm,
+    SurfStorePrmSchema, SurfStorePrmValuesPayload, SURF_STORE_PRM_FLAT_LEN,
+    SURF_STORE_PRM_SCHEMA_VERSION,
+};
 
 #[cfg(feature = "python")]
 mod python_bindings {
@@ -206,13 +216,19 @@ mod python_bindings {
         solar_state_from_ordered_values, solar_state_from_values_payload, solar_state_schema,
         solar_state_schema_info, solar_state_schema_version, solar_state_schema_version_runtime,
         solar_state_to_map, solar_state_to_ordered_values, solar_state_to_values_payload,
+        surf_store_prm_default_from_fortran, surf_store_prm_field_index,
+        surf_store_prm_field_names, surf_store_prm_from_map, surf_store_prm_from_ordered_values,
+        surf_store_prm_from_values_payload, surf_store_prm_schema, surf_store_prm_schema_info,
+        surf_store_prm_schema_version, surf_store_prm_schema_version_runtime,
+        surf_store_prm_to_map, surf_store_prm_to_ordered_values, surf_store_prm_to_values_payload,
         AnthroEmisState, AnthroEmisStateValuesPayload, AtmState, AtmStateValuesPayload, BioCo2Prm,
         BioCo2PrmValuesPayload, BridgeError, ConductancePrm, ConductancePrmValuesPayload,
         FlagState, FlagStateValuesPayload, LumpsPrm, LumpsPrmValuesPayload, NhoodState,
         NhoodStateValuesPayload, OhmCoefLc, OhmCoefLcValuesPayload, OhmModel, OhmState,
         OhmStateValuesPayload, PhenologyState, PhenologyStateValuesPayload, RoughnessState,
         RoughnessStateValuesPayload, SnowState, SnowStateValuesPayload, SoilPrm,
-        SoilPrmValuesPayload, SolarState, SolarStateValuesPayload, NSURF,
+        SoilPrmValuesPayload, SolarState, SolarStateValuesPayload, SurfStorePrm,
+        SurfStorePrmValuesPayload, NSURF,
     };
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
     use pyo3::prelude::*;
@@ -1513,6 +1529,93 @@ mod python_bindings {
         }
     }
 
+    #[pyclass(name = "SurfStorePrm")]
+    pub struct PySurfStorePrm {
+        state: SurfStorePrm,
+    }
+
+    #[pymethods]
+    impl PySurfStorePrm {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = surf_store_prm_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = SurfStorePrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state = surf_store_prm_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = SurfStorePrmValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = surf_store_prm_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid SURF_STORE_PRM values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = surf_store_prm_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid SURF_STORE_PRM field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            surf_store_prm_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = surf_store_prm_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            surf_store_prm_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            surf_store_prm_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = surf_store_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown SURF_STORE_PRM field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = surf_store_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown SURF_STORE_PRM field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = SurfStorePrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
     #[pyclass(name = "OhmCoefLc")]
     pub struct PyOhmCoefLc {
         state: OhmCoefLc,
@@ -1984,6 +2087,32 @@ mod python_bindings {
         soil_prm_field_names()
     }
 
+    #[pyfunction(name = "surf_store_prm_schema")]
+    fn surf_store_prm_schema_py() -> PyResult<usize> {
+        surf_store_prm_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "surf_store_prm_schema_version")]
+    fn surf_store_prm_schema_version_py() -> u32 {
+        surf_store_prm_schema_version()
+    }
+
+    #[pyfunction(name = "surf_store_prm_schema_version_runtime")]
+    fn surf_store_prm_schema_version_runtime_py() -> PyResult<u32> {
+        surf_store_prm_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "surf_store_prm_schema_meta")]
+    fn surf_store_prm_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = surf_store_prm_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "surf_store_prm_fields")]
+    fn surf_store_prm_fields_py() -> Vec<String> {
+        surf_store_prm_field_names()
+    }
+
     #[pyfunction(name = "bioco2_prm_schema")]
     fn bioco2_prm_schema_py() -> PyResult<usize> {
         bioco2_prm_schema().map_err(map_bridge_error)
@@ -2179,6 +2308,7 @@ mod python_bindings {
         m.add_class::<PyLumpsPrm>()?;
         m.add_class::<PyBioCo2Prm>()?;
         m.add_class::<PyConductancePrm>()?;
+        m.add_class::<PySurfStorePrm>()?;
         m.add_class::<PyOhmCoefLc>()?;
         m.add_class::<PySolarState>()?;
         m.add_class::<PyRoughnessState>()?;
@@ -2226,6 +2356,14 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(soil_prm_schema_version_runtime_py, m)?)?;
         m.add_function(wrap_pyfunction!(soil_prm_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(soil_prm_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(surf_store_prm_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(surf_store_prm_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(
+            surf_store_prm_schema_version_runtime_py,
+            m
+        )?)?;
+        m.add_function(wrap_pyfunction!(surf_store_prm_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(surf_store_prm_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(bioco2_prm_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(bioco2_prm_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(bioco2_prm_schema_version_runtime_py, m)?)?;

@@ -32,6 +32,7 @@ mod snow;
 mod snow_prm;
 mod soil;
 mod solar;
+mod stebbs_prm;
 mod surf_store;
 mod timer;
 mod water_dist;
@@ -301,6 +302,15 @@ pub use solar::{
     solar_state_to_values_payload, SolarState, SolarStateSchema, SolarStateValuesPayload,
     SOLAR_STATE_FLAT_LEN, SOLAR_STATE_SCHEMA_VERSION,
 };
+pub use stebbs_prm::{
+    stebbs_prm_default_from_fortran, stebbs_prm_field_index, stebbs_prm_field_names,
+    stebbs_prm_from_map, stebbs_prm_from_ordered_values, stebbs_prm_from_values_payload,
+    stebbs_prm_schema, stebbs_prm_schema_info, stebbs_prm_schema_version,
+    stebbs_prm_schema_version_runtime, stebbs_prm_to_map, stebbs_prm_to_ordered_values,
+    stebbs_prm_to_values_payload, StebbsPrm, StebbsPrmSchema, StebbsPrmValuesPayload,
+    STEBBS_PRM_FLAT_LEN, STEBBS_PRM_PROFILE_GROUPS, STEBBS_PRM_PROFILE_STEPS,
+    STEBBS_PRM_SCHEMA_VERSION,
+};
 pub use surf_store::{
     surf_store_prm_default_from_fortran, surf_store_prm_field_index, surf_store_prm_field_names,
     surf_store_prm_from_map, surf_store_prm_from_ordered_values,
@@ -438,15 +448,19 @@ mod python_bindings {
         solar_state_from_map, solar_state_from_ordered_values, solar_state_from_values_payload,
         solar_state_schema, solar_state_schema_info, solar_state_schema_version,
         solar_state_schema_version_runtime, solar_state_to_map, solar_state_to_ordered_values,
-        solar_state_to_values_payload, suews_config_default_from_fortran, suews_config_field_index,
-        suews_config_field_names, suews_config_from_map, suews_config_from_ordered_values,
-        suews_config_from_values_payload, suews_config_schema, suews_config_schema_info,
-        suews_config_schema_version, suews_config_schema_version_runtime, suews_config_to_map,
-        suews_config_to_ordered_values, suews_config_to_values_payload,
-        suews_forcing_default_from_fortran, suews_forcing_field_names, suews_forcing_from_map,
-        suews_forcing_from_ordered_values, suews_forcing_from_values_payload, suews_forcing_schema,
-        suews_forcing_schema_info, suews_forcing_schema_version,
-        suews_forcing_schema_version_runtime, suews_forcing_to_map,
+        solar_state_to_values_payload, stebbs_prm_default_from_fortran, stebbs_prm_field_index,
+        stebbs_prm_field_names, stebbs_prm_from_map, stebbs_prm_from_ordered_values,
+        stebbs_prm_from_values_payload, stebbs_prm_schema, stebbs_prm_schema_info,
+        stebbs_prm_schema_version, stebbs_prm_schema_version_runtime, stebbs_prm_to_map,
+        stebbs_prm_to_ordered_values, stebbs_prm_to_values_payload,
+        suews_config_default_from_fortran, suews_config_field_index, suews_config_field_names,
+        suews_config_from_map, suews_config_from_ordered_values, suews_config_from_values_payload,
+        suews_config_schema, suews_config_schema_info, suews_config_schema_version,
+        suews_config_schema_version_runtime, suews_config_to_map, suews_config_to_ordered_values,
+        suews_config_to_values_payload, suews_forcing_default_from_fortran,
+        suews_forcing_field_names, suews_forcing_from_map, suews_forcing_from_ordered_values,
+        suews_forcing_from_values_payload, suews_forcing_schema, suews_forcing_schema_info,
+        suews_forcing_schema_version, suews_forcing_schema_version_runtime, suews_forcing_to_map,
         suews_forcing_to_ordered_values, suews_forcing_to_values_payload,
         suews_timer_default_from_fortran, suews_timer_field_index, suews_timer_field_names,
         suews_timer_from_map, suews_timer_from_ordered_values, suews_timer_from_values_payload,
@@ -473,9 +487,10 @@ mod python_bindings {
         OhmPrmValuesPayload, OhmState, OhmStateValuesPayload, PhenologyState,
         PhenologyStateValuesPayload, RoughnessState, RoughnessStateValuesPayload, SnowPrm,
         SnowPrmValuesPayload, SnowState, SnowStateValuesPayload, SoilPrm, SoilPrmValuesPayload,
-        SolarState, SolarStateValuesPayload, SuewsConfig, SuewsConfigValuesPayload, SuewsForcing,
-        SuewsForcingValuesPayload, SuewsTimer, SuewsTimerValuesPayload, SurfStorePrm,
-        SurfStorePrmValuesPayload, WaterDistPrm, WaterDistPrmValuesPayload, NSURF,
+        SolarState, SolarStateValuesPayload, StebbsPrm, StebbsPrmValuesPayload, SuewsConfig,
+        SuewsConfigValuesPayload, SuewsForcing, SuewsForcingValuesPayload, SuewsTimer,
+        SuewsTimerValuesPayload, SurfStorePrm, SurfStorePrmValuesPayload, WaterDistPrm,
+        WaterDistPrmValuesPayload, NSURF,
     };
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
     use pyo3::prelude::*;
@@ -3644,6 +3659,93 @@ mod python_bindings {
         }
     }
 
+    #[pyclass(name = "StebbsPrm")]
+    pub struct PyStebbsPrm {
+        state: StebbsPrm,
+    }
+
+    #[pymethods]
+    impl PyStebbsPrm {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = stebbs_prm_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = StebbsPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state = stebbs_prm_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = StebbsPrmValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = stebbs_prm_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid STEBBS_PRM values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = stebbs_prm_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid STEBBS_PRM field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            stebbs_prm_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = stebbs_prm_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            stebbs_prm_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            stebbs_prm_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = stebbs_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown STEBBS_PRM field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = stebbs_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown STEBBS_PRM field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = StebbsPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
     #[pyclass(name = "RoughnessState")]
     pub struct PyRoughnessState {
         state: RoughnessState,
@@ -4663,6 +4765,32 @@ mod python_bindings {
         building_archetype_prm_field_names()
     }
 
+    #[pyfunction(name = "stebbs_prm_schema")]
+    fn stebbs_prm_schema_py() -> PyResult<usize> {
+        stebbs_prm_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "stebbs_prm_schema_version")]
+    fn stebbs_prm_schema_version_py() -> u32 {
+        stebbs_prm_schema_version()
+    }
+
+    #[pyfunction(name = "stebbs_prm_schema_version_runtime")]
+    fn stebbs_prm_schema_version_runtime_py() -> PyResult<u32> {
+        stebbs_prm_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "stebbs_prm_schema_meta")]
+    fn stebbs_prm_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = stebbs_prm_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "stebbs_prm_fields")]
+    fn stebbs_prm_fields_py() -> Vec<String> {
+        stebbs_prm_field_names()
+    }
+
     #[pyfunction(name = "solar_state_schema")]
     fn solar_state_schema_py() -> PyResult<usize> {
         solar_state_schema().map_err(map_bridge_error)
@@ -4754,6 +4882,7 @@ mod python_bindings {
         m.add_class::<PyAnthroEmisPrm>()?;
         m.add_class::<PyAtmState>()?;
         m.add_class::<PyBuildingArchetypePrm>()?;
+        m.add_class::<PyStebbsPrm>()?;
         m.add_class::<PyPhenologyState>()?;
         m.add_class::<PySnowState>()?;
         m.add_class::<PySnowPrm>()?;
@@ -4971,6 +5100,11 @@ mod python_bindings {
         )?)?;
         m.add_function(wrap_pyfunction!(building_archetype_prm_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(building_archetype_prm_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(stebbs_prm_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(stebbs_prm_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(stebbs_prm_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(stebbs_prm_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(stebbs_prm_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_version_runtime_py, m)?)?;

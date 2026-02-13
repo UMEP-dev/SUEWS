@@ -248,6 +248,12 @@ unsafe extern "C" {
 
     pub fn suews_lc_water_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
 
+    pub fn suews_stebbs_prm_len(n_flat: *mut c_int, err: *mut c_int);
+
+    pub fn suews_stebbs_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_stebbs_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
     pub fn suews_surf_store_prm_len(n_flat: *mut c_int, err: *mut c_int);
 
     pub fn suews_surf_store_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);

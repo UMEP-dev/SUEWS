@@ -54,6 +54,7 @@ fn main() {
         manifest_dir.join("fortran/suews_c_api_lc_evetr_prm.f95"),
         manifest_dir.join("fortran/suews_c_api_lc_grass_prm.f95"),
         manifest_dir.join("fortran/suews_c_api_lc_water_prm.f95"),
+        manifest_dir.join("fortran/suews_c_api_stebbs_prm.f95"),
         manifest_dir.join("fortran/suews_c_api_surf_store.f95"),
         manifest_dir.join("fortran/suews_c_api_water_dist.f95"),
         manifest_dir.join("fortran/suews_c_api_irrig_daywater.f95"),

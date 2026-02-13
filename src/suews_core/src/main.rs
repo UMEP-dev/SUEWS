@@ -74,15 +74,17 @@ use suews_bridge::{
     soil_prm_schema_version_runtime, soil_prm_to_map, soil_prm_to_values_payload,
     solar_state_default_from_fortran, solar_state_schema, solar_state_schema_info,
     solar_state_schema_version, solar_state_schema_version_runtime, solar_state_to_map,
-    solar_state_to_values_payload, suews_config_default_from_fortran, suews_config_schema,
-    suews_config_schema_info, suews_config_schema_version, suews_config_schema_version_runtime,
-    suews_config_to_map, suews_config_to_values_payload, suews_forcing_default_from_fortran,
-    suews_forcing_schema, suews_forcing_schema_info, suews_forcing_schema_version,
-    suews_forcing_schema_version_runtime, suews_forcing_to_map, suews_forcing_to_values_payload,
-    suews_timer_default_from_fortran, suews_timer_schema, suews_timer_schema_info,
-    suews_timer_schema_version, suews_timer_schema_version_runtime, suews_timer_to_map,
-    suews_timer_to_values_payload, surf_store_prm_default_from_fortran, surf_store_prm_schema,
-    surf_store_prm_schema_info, surf_store_prm_schema_version,
+    solar_state_to_values_payload, stebbs_prm_default_from_fortran, stebbs_prm_schema,
+    stebbs_prm_schema_info, stebbs_prm_schema_version, stebbs_prm_schema_version_runtime,
+    stebbs_prm_to_map, stebbs_prm_to_values_payload, suews_config_default_from_fortran,
+    suews_config_schema, suews_config_schema_info, suews_config_schema_version,
+    suews_config_schema_version_runtime, suews_config_to_map, suews_config_to_values_payload,
+    suews_forcing_default_from_fortran, suews_forcing_schema, suews_forcing_schema_info,
+    suews_forcing_schema_version, suews_forcing_schema_version_runtime, suews_forcing_to_map,
+    suews_forcing_to_values_payload, suews_timer_default_from_fortran, suews_timer_schema,
+    suews_timer_schema_info, suews_timer_schema_version, suews_timer_schema_version_runtime,
+    suews_timer_to_map, suews_timer_to_values_payload, surf_store_prm_default_from_fortran,
+    surf_store_prm_schema, surf_store_prm_schema_info, surf_store_prm_schema_version,
     surf_store_prm_schema_version_runtime, surf_store_prm_to_map, surf_store_prm_to_values_payload,
     water_dist_prm_default_from_fortran, water_dist_prm_schema, water_dist_prm_schema_info,
     water_dist_prm_schema_version, water_dist_prm_schema_version_runtime, water_dist_prm_to_map,
@@ -364,6 +366,12 @@ enum Commands {
     BuildingArchetypePrmDefaultJson,
     /// Print default BUILDING_ARCHETYPE_PRM as JSON ordered values payload.
     BuildingArchetypePrmDefaultValuesJson,
+    /// Print STEBBS_PRM schema as JSON for programmatic tooling.
+    StebbsPrmSchemaJson,
+    /// Print default STEBBS_PRM as JSON map payload.
+    StebbsPrmDefaultJson,
+    /// Print default STEBBS_PRM as JSON ordered values payload.
+    StebbsPrmDefaultValuesJson,
     /// Print CONDUCTANCE_PRM schema as JSON for programmatic tooling.
     ConductancePrmSchemaJson,
     /// Print default CONDUCTANCE_PRM as JSON map payload.
@@ -1042,6 +1050,43 @@ fn run(cli: Cli) -> Result<(), String> {
             let out = json!({
                 "schema_version": payload.schema_version,
                 "schema_version_runtime": building_archetype_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::StebbsPrmSchemaJson => {
+            let schema = stebbs_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": stebbs_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::StebbsPrmDefaultJson => {
+            let flat_len = stebbs_prm_schema().map_err(|e| e.to_string())?;
+            let state = stebbs_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": stebbs_prm_schema_version(),
+                "schema_version_runtime": stebbs_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": stebbs_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::StebbsPrmDefaultValuesJson => {
+            let state = stebbs_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = stebbs_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": stebbs_prm_schema_version_runtime().map_err(|e| e.to_string())?,
                 "values": payload.values,
             });
             let text = serde_json::to_string_pretty(&out)
@@ -2184,6 +2229,22 @@ mod tests {
             command: Commands::BuildingArchetypePrmDefaultValuesJson,
         };
         run(cli).expect("building-archetype-prm-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_stebbs_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::StebbsPrmDefaultJson,
+        };
+        run(cli).expect("stebbs-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_stebbs_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::StebbsPrmDefaultValuesJson,
+        };
+        run(cli).expect("stebbs-prm-default-values-json should succeed");
     }
 
     #[test]

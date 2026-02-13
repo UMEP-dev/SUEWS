@@ -175,7 +175,7 @@
     {
       "name": "SNOW_STATE",
       "source": "src/suews/src/suews_type_snow.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "SOIL_PRM",

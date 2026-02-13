@@ -8,6 +8,7 @@ mod flag;
 mod nhood;
 mod phenology;
 mod roughness;
+mod snow;
 mod solar;
 
 pub use anthroemis::{
@@ -73,6 +74,14 @@ pub use roughness::{
     RoughnessStateSchema, RoughnessStateValuesPayload, ROUGHNESS_STATE_FLAT_LEN,
     ROUGHNESS_STATE_SCHEMA_VERSION,
 };
+pub use snow::{
+    snow_state_default_from_fortran, snow_state_field_index, snow_state_field_names,
+    snow_state_from_map, snow_state_from_ordered_values, snow_state_from_values_payload,
+    snow_state_schema, snow_state_schema_info, snow_state_schema_version,
+    snow_state_schema_version_runtime, snow_state_to_map, snow_state_to_ordered_values,
+    snow_state_to_values_payload, SnowState, SnowStateSchema, SnowStateValuesPayload,
+    SNOW_STATE_FLAT_LEN, SNOW_STATE_REMOVAL_LEN, SNOW_STATE_SCHEMA_VERSION,
+};
 pub use solar::{
     solar_state_default_from_fortran, solar_state_field_index, solar_state_field_names,
     solar_state_from_map, solar_state_from_ordered_values, solar_state_from_values_payload,
@@ -120,14 +129,19 @@ mod python_bindings {
         roughness_state_schema, roughness_state_schema_info, roughness_state_schema_version,
         roughness_state_schema_version_runtime, roughness_state_to_map,
         roughness_state_to_ordered_values, roughness_state_to_values_payload,
-        solar_state_default_from_fortran, solar_state_field_index, solar_state_field_names,
-        solar_state_from_map, solar_state_from_ordered_values, solar_state_from_values_payload,
-        solar_state_schema, solar_state_schema_info, solar_state_schema_version,
-        solar_state_schema_version_runtime, solar_state_to_map, solar_state_to_ordered_values,
-        solar_state_to_values_payload, AnthroEmisState, AnthroEmisStateValuesPayload, AtmState,
-        AtmStateValuesPayload, BridgeError, FlagState, FlagStateValuesPayload, NhoodState,
-        NhoodStateValuesPayload, OhmModel, OhmState, OhmStateValuesPayload, PhenologyState,
-        PhenologyStateValuesPayload, RoughnessState, RoughnessStateValuesPayload, SolarState,
+        snow_state_default_from_fortran, snow_state_field_index, snow_state_field_names,
+        snow_state_from_map, snow_state_from_ordered_values, snow_state_from_values_payload,
+        snow_state_schema, snow_state_schema_info, snow_state_schema_version,
+        snow_state_schema_version_runtime, snow_state_to_map, snow_state_to_ordered_values,
+        snow_state_to_values_payload, solar_state_default_from_fortran, solar_state_field_index,
+        solar_state_field_names, solar_state_from_map, solar_state_from_ordered_values,
+        solar_state_from_values_payload, solar_state_schema, solar_state_schema_info,
+        solar_state_schema_version, solar_state_schema_version_runtime, solar_state_to_map,
+        solar_state_to_ordered_values, solar_state_to_values_payload, AnthroEmisState,
+        AnthroEmisStateValuesPayload, AtmState, AtmStateValuesPayload, BridgeError, FlagState,
+        FlagStateValuesPayload, NhoodState, NhoodStateValuesPayload, OhmModel, OhmState,
+        OhmStateValuesPayload, PhenologyState, PhenologyStateValuesPayload, RoughnessState,
+        RoughnessStateValuesPayload, SnowState, SnowStateValuesPayload, SolarState,
         SolarStateValuesPayload, NSURF,
     };
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
@@ -994,6 +1008,93 @@ mod python_bindings {
         }
     }
 
+    #[pyclass(name = "SnowState")]
+    pub struct PySnowState {
+        state: SnowState,
+    }
+
+    #[pymethods]
+    impl PySnowState {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = snow_state_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = SnowState::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state = snow_state_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = SnowStateValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = snow_state_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid SNOW_STATE values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = snow_state_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid SNOW_STATE field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            snow_state_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = snow_state_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            snow_state_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            snow_state_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = snow_state_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown SNOW_STATE field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = snow_state_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown SNOW_STATE field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = SnowState::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
     #[pyclass(name = "RoughnessState")]
     pub struct PyRoughnessState {
         state: RoughnessState,
@@ -1326,6 +1427,32 @@ mod python_bindings {
         phenology_state_field_names()
     }
 
+    #[pyfunction(name = "snow_state_schema")]
+    fn snow_state_schema_py() -> PyResult<usize> {
+        snow_state_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "snow_state_schema_version")]
+    fn snow_state_schema_version_py() -> u32 {
+        snow_state_schema_version()
+    }
+
+    #[pyfunction(name = "snow_state_schema_version_runtime")]
+    fn snow_state_schema_version_runtime_py() -> PyResult<u32> {
+        snow_state_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "snow_state_schema_meta")]
+    fn snow_state_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = snow_state_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "snow_state_fields")]
+    fn snow_state_fields_py() -> Vec<String> {
+        snow_state_field_names()
+    }
+
     #[pyfunction(name = "solar_state_schema")]
     fn solar_state_schema_py() -> PyResult<usize> {
         solar_state_schema().map_err(map_bridge_error)
@@ -1412,6 +1539,7 @@ mod python_bindings {
         m.add_class::<PyAnthroEmisState>()?;
         m.add_class::<PyAtmState>()?;
         m.add_class::<PyPhenologyState>()?;
+        m.add_class::<PySnowState>()?;
         m.add_class::<PySolarState>()?;
         m.add_class::<PyRoughnessState>()?;
         m.add_class::<PyNhoodState>()?;
@@ -1448,6 +1576,11 @@ mod python_bindings {
         )?)?;
         m.add_function(wrap_pyfunction!(phenology_state_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(phenology_state_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(snow_state_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(snow_state_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(snow_state_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(snow_state_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(snow_state_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_version_runtime_py, m)?)?;

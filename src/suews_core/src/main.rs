@@ -21,10 +21,12 @@ use suews_core::{
     phenology_state_to_values_payload, qs_calc, roughness_state_default_from_fortran,
     roughness_state_schema, roughness_state_schema_info, roughness_state_schema_version,
     roughness_state_schema_version_runtime, roughness_state_to_map,
-    roughness_state_to_values_payload, solar_state_default_from_fortran, solar_state_schema,
-    solar_state_schema_info, solar_state_schema_version, solar_state_schema_version_runtime,
-    solar_state_to_map, solar_state_to_values_payload, OhmModel, OhmStateValuesPayload,
-    OHM_STATE_FLAT_LEN,
+    roughness_state_to_values_payload, snow_state_default_from_fortran, snow_state_schema,
+    snow_state_schema_info, snow_state_schema_version, snow_state_schema_version_runtime,
+    snow_state_to_map, snow_state_to_values_payload, solar_state_default_from_fortran,
+    solar_state_schema, solar_state_schema_info, solar_state_schema_version,
+    solar_state_schema_version_runtime, solar_state_to_map, solar_state_to_values_payload,
+    OhmModel, OhmStateValuesPayload, OHM_STATE_FLAT_LEN,
 };
 
 fn parse_state_map_json(text: &str) -> Result<std::collections::BTreeMap<String, f64>, String> {
@@ -272,6 +274,12 @@ enum Commands {
     PhenologyStateDefaultJson,
     /// Print default PHENOLOGY_STATE as JSON ordered values payload.
     PhenologyStateDefaultValuesJson,
+    /// Print SNOW_STATE schema as JSON for programmatic tooling.
+    SnowStateSchemaJson,
+    /// Print default SNOW_STATE as JSON map payload.
+    SnowStateDefaultJson,
+    /// Print default SNOW_STATE as JSON ordered values payload.
+    SnowStateDefaultValuesJson,
     /// Print solar_State schema as JSON for programmatic tooling.
     SolarStateSchemaJson,
     /// Print default solar_State as JSON map payload.
@@ -639,6 +647,43 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
+        Commands::SnowStateSchemaJson => {
+            let schema = snow_state_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": snow_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SnowStateDefaultJson => {
+            let flat_len = snow_state_schema().map_err(|e| e.to_string())?;
+            let state = snow_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": snow_state_schema_version(),
+                "schema_version_runtime": snow_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": snow_state_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SnowStateDefaultValuesJson => {
+            let state = snow_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = snow_state_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": snow_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
         Commands::SolarStateSchemaJson => {
             let schema = solar_state_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -910,6 +955,22 @@ mod tests {
             command: Commands::PhenologyStateDefaultValuesJson,
         };
         run(cli).expect("phenology-state-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_snow_state_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SnowStateDefaultJson,
+        };
+        run(cli).expect("snow-state-default-json should succeed");
+    }
+
+    #[test]
+    fn run_snow_state_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SnowStateDefaultValuesJson,
+        };
+        run(cli).expect("snow-state-default-values-json should succeed");
     }
 
     #[test]

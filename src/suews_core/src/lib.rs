@@ -1532,7 +1532,7 @@ mod python_bindings {
     }
 
     #[pymodule]
-    fn suews_core(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
+    fn suews_bridge(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         m.add_class::<PyOhmModel>()?;
         m.add_class::<PyOhmState>()?;
         m.add_class::<PyFlagState>()?;

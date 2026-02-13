@@ -1,5 +1,5 @@
 [package]
-name = "suews_core"
+name = "suews_bridge"
 version = "0.1.0"
 edition = "2021"
 build = "build.rs"
@@ -7,7 +7,7 @@ license = "GPL-3.0-or-later"
 description = "Rust bridge MVP for SUEWS OHM Fortran C API"
 
 [lib]
-name = "suews_core"
+name = "suews_bridge"
 crate-type = ["rlib", "cdylib"]
 
 [[bin]]

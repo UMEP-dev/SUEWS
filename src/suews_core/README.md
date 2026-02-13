@@ -36,16 +36,16 @@ cargo run -- state-step-values-json --dt 300 --dt-since-start 0 --qn1 200 --a1 0
 ```bash
 cd src/suews_core
 maturin develop --features python-extension
-python -c "import suews_core; print(suews_core.ohm_step(300,0,0.0,0.0,200.0,0.3,0.1,5.0))"
-python -c "import suews_core as sc; s=sc.OhmState.default(); print(sc.ohm_state_schema(), s.step(300,0,200.0,0.3,0.1,5.0), s.qn_av)"
-python -c "import suews_core as sc; print(sc.ohm_state_schema_version())"
-python -c "import suews_core as sc; print(sc.ohm_state_schema_version_runtime())"
-python -c "import suews_core as sc; print(sc.ohm_state_schema_meta())"
-python -c "import suews_core as sc; print(sc.ohm_state_fields()[:10])"
-python -c "import suews_core as sc; print(sc.ohm_surface_names())"
-python -c "import suews_core as sc; s=sc.OhmState.default(); s.set_field_value('qn_surfs.paved', 120.0); print(s.field_value('qn_surfs.paved'))"
-python -c "import suews_core as sc; s=sc.OhmState.from_dict({'qn_surfs.paved': 42.0}); print(s.to_dict()['qn_surfs.paved'])"
-python -c "import suews_core as sc; s=sc.OhmState.default(); ver, vals=s.to_values_payload(); s2=sc.OhmState.from_values_payload(ver, vals); print(s2.qn_av)"
+python -c "import suews_bridge; print(suews_bridge.ohm_step(300,0,0.0,0.0,200.0,0.3,0.1,5.0))"
+python -c "import suews_bridge as sc; s=sc.OhmState.default(); print(sc.ohm_state_schema(), s.step(300,0,200.0,0.3,0.1,5.0), s.qn_av)"
+python -c "import suews_bridge as sc; print(sc.ohm_state_schema_version())"
+python -c "import suews_bridge as sc; print(sc.ohm_state_schema_version_runtime())"
+python -c "import suews_bridge as sc; print(sc.ohm_state_schema_meta())"
+python -c "import suews_bridge as sc; print(sc.ohm_state_fields()[:10])"
+python -c "import suews_bridge as sc; print(sc.ohm_surface_names())"
+python -c "import suews_bridge as sc; s=sc.OhmState.default(); s.set_field_value('qn_surfs.paved', 120.0); print(s.field_value('qn_surfs.paved'))"
+python -c "import suews_bridge as sc; s=sc.OhmState.from_dict({'qn_surfs.paved': 42.0}); print(s.to_dict()['qn_surfs.paved'])"
+python -c "import suews_bridge as sc; s=sc.OhmState.default(); ver, vals=s.to_values_payload(); s2=sc.OhmState.from_values_payload(ver, vals); print(s2.qn_av)"
 # after installing the extension in your environment:
 python src/suews_core/examples/ohm_state_python_demo.py
 ```

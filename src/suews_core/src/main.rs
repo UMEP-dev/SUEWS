@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 use serde_json::json;
 use serde_json::Value;
 use std::fs;
-use suews_core::{
+use suews_bridge::{
     anthroemis_state_default_from_fortran, anthroemis_state_schema, anthroemis_state_schema_info,
     anthroemis_state_schema_version, anthroemis_state_schema_version_runtime,
     anthroemis_state_to_map, anthroemis_state_to_values_payload, atm_state_default_from_fortran,

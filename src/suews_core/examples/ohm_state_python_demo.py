@@ -9,7 +9,7 @@ This script demonstrates a class-like workflow:
 5. inspect updated state.
 """
 
-import suews_core as sc
+import suews_bridge as sc
 
 
 def main() -> None:

@@ -224,6 +224,24 @@ unsafe extern "C" {
 
     pub fn suews_lc_bsoil_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
 
+    pub fn suews_lc_dectr_prm_len(n_flat: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lc_dectr_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lc_dectr_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
+    pub fn suews_lc_evetr_prm_len(n_flat: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lc_evetr_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lc_evetr_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
+    pub fn suews_lc_grass_prm_len(n_flat: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lc_grass_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lc_grass_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
     pub fn suews_lc_water_prm_len(n_flat: *mut c_int, err: *mut c_int);
 
     pub fn suews_lc_water_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);

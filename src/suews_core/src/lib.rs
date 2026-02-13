@@ -17,6 +17,9 @@ mod irrigation_prm;
 mod lai;
 mod lc_bldg_prm;
 mod lc_bsoil_prm;
+mod lc_dectr_prm;
+mod lc_evetr_prm;
+mod lc_grass_prm;
 mod lc_paved_prm;
 mod lc_water_prm;
 mod lumps;
@@ -178,6 +181,30 @@ pub use lc_bsoil_prm::{
     lc_bsoil_prm_schema_version_runtime, lc_bsoil_prm_to_map, lc_bsoil_prm_to_ordered_values,
     lc_bsoil_prm_to_values_payload, LcBsoilPrm, LcBsoilPrmSchema, LcBsoilPrmValuesPayload,
     LC_BSOIL_PRM_FLAT_LEN, LC_BSOIL_PRM_SCHEMA_VERSION,
+};
+pub use lc_dectr_prm::{
+    lc_dectr_prm_default_from_fortran, lc_dectr_prm_field_index, lc_dectr_prm_field_names,
+    lc_dectr_prm_from_map, lc_dectr_prm_from_ordered_values, lc_dectr_prm_from_values_payload,
+    lc_dectr_prm_schema, lc_dectr_prm_schema_info, lc_dectr_prm_schema_version,
+    lc_dectr_prm_schema_version_runtime, lc_dectr_prm_to_map, lc_dectr_prm_to_ordered_values,
+    lc_dectr_prm_to_values_payload, LcDectrPrm, LcDectrPrmSchema, LcDectrPrmValuesPayload,
+    LC_DECTR_PRM_FLAT_LEN, LC_DECTR_PRM_SCHEMA_VERSION,
+};
+pub use lc_evetr_prm::{
+    lc_evetr_prm_default_from_fortran, lc_evetr_prm_field_index, lc_evetr_prm_field_names,
+    lc_evetr_prm_from_map, lc_evetr_prm_from_ordered_values, lc_evetr_prm_from_values_payload,
+    lc_evetr_prm_schema, lc_evetr_prm_schema_info, lc_evetr_prm_schema_version,
+    lc_evetr_prm_schema_version_runtime, lc_evetr_prm_to_map, lc_evetr_prm_to_ordered_values,
+    lc_evetr_prm_to_values_payload, LcEvetrPrm, LcEvetrPrmSchema, LcEvetrPrmValuesPayload,
+    LC_EVETR_PRM_FLAT_LEN, LC_EVETR_PRM_SCHEMA_VERSION,
+};
+pub use lc_grass_prm::{
+    lc_grass_prm_default_from_fortran, lc_grass_prm_field_index, lc_grass_prm_field_names,
+    lc_grass_prm_from_map, lc_grass_prm_from_ordered_values, lc_grass_prm_from_values_payload,
+    lc_grass_prm_schema, lc_grass_prm_schema_info, lc_grass_prm_schema_version,
+    lc_grass_prm_schema_version_runtime, lc_grass_prm_to_map, lc_grass_prm_to_ordered_values,
+    lc_grass_prm_to_values_payload, LcGrassPrm, LcGrassPrmSchema, LcGrassPrmValuesPayload,
+    LC_GRASS_PRM_FLAT_LEN, LC_GRASS_PRM_SCHEMA_VERSION,
 };
 pub use lc_paved_prm::{
     lc_paved_prm_default_from_fortran, lc_paved_prm_field_index, lc_paved_prm_field_names,
@@ -2913,6 +2940,270 @@ mod python_bindings {
         }
     }
 
+    #[pyclass(name = "LcDectrPrm")]
+    pub struct PyLcDectrPrm {
+        state: crate::LcDectrPrm,
+    }
+
+    #[pymethods]
+    impl PyLcDectrPrm {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = crate::lc_dectr_prm_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = crate::LcDectrPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state =
+                crate::lc_dectr_prm_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = crate::LcDectrPrmValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = crate::lc_dectr_prm_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid LC_DECTR_PRM values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = crate::lc_dectr_prm_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid LC_DECTR_PRM field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            crate::lc_dectr_prm_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = crate::lc_dectr_prm_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            crate::lc_dectr_prm_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            crate::lc_dectr_prm_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = crate::lc_dectr_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown LC_DECTR_PRM field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = crate::lc_dectr_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown LC_DECTR_PRM field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = crate::LcDectrPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
+    #[pyclass(name = "LcEvetrPrm")]
+    pub struct PyLcEvetrPrm {
+        state: crate::LcEvetrPrm,
+    }
+
+    #[pymethods]
+    impl PyLcEvetrPrm {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = crate::lc_evetr_prm_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = crate::LcEvetrPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state =
+                crate::lc_evetr_prm_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = crate::LcEvetrPrmValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = crate::lc_evetr_prm_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid LC_EVETR_PRM values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = crate::lc_evetr_prm_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid LC_EVETR_PRM field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            crate::lc_evetr_prm_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = crate::lc_evetr_prm_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            crate::lc_evetr_prm_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            crate::lc_evetr_prm_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = crate::lc_evetr_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown LC_EVETR_PRM field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = crate::lc_evetr_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown LC_EVETR_PRM field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = crate::LcEvetrPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
+    #[pyclass(name = "LcGrassPrm")]
+    pub struct PyLcGrassPrm {
+        state: crate::LcGrassPrm,
+    }
+
+    #[pymethods]
+    impl PyLcGrassPrm {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = crate::lc_grass_prm_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = crate::LcGrassPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state =
+                crate::lc_grass_prm_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = crate::LcGrassPrmValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = crate::lc_grass_prm_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid LC_GRASS_PRM values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = crate::lc_grass_prm_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid LC_GRASS_PRM field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            crate::lc_grass_prm_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = crate::lc_grass_prm_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            crate::lc_grass_prm_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            crate::lc_grass_prm_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = crate::lc_grass_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown LC_GRASS_PRM field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = crate::lc_grass_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown LC_GRASS_PRM field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = crate::LcGrassPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
     #[pyclass(name = "IrrigDaywater")]
     pub struct PyIrrigDaywater {
         state: IrrigDaywater,
@@ -4008,6 +4299,84 @@ mod python_bindings {
         crate::lc_water_prm_field_names()
     }
 
+    #[pyfunction(name = "lc_dectr_prm_schema")]
+    fn lc_dectr_prm_schema_py() -> PyResult<usize> {
+        crate::lc_dectr_prm_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "lc_dectr_prm_schema_version")]
+    fn lc_dectr_prm_schema_version_py() -> u32 {
+        crate::lc_dectr_prm_schema_version()
+    }
+
+    #[pyfunction(name = "lc_dectr_prm_schema_version_runtime")]
+    fn lc_dectr_prm_schema_version_runtime_py() -> PyResult<u32> {
+        crate::lc_dectr_prm_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "lc_dectr_prm_schema_meta")]
+    fn lc_dectr_prm_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = crate::lc_dectr_prm_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "lc_dectr_prm_fields")]
+    fn lc_dectr_prm_fields_py() -> Vec<String> {
+        crate::lc_dectr_prm_field_names()
+    }
+
+    #[pyfunction(name = "lc_evetr_prm_schema")]
+    fn lc_evetr_prm_schema_py() -> PyResult<usize> {
+        crate::lc_evetr_prm_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "lc_evetr_prm_schema_version")]
+    fn lc_evetr_prm_schema_version_py() -> u32 {
+        crate::lc_evetr_prm_schema_version()
+    }
+
+    #[pyfunction(name = "lc_evetr_prm_schema_version_runtime")]
+    fn lc_evetr_prm_schema_version_runtime_py() -> PyResult<u32> {
+        crate::lc_evetr_prm_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "lc_evetr_prm_schema_meta")]
+    fn lc_evetr_prm_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = crate::lc_evetr_prm_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "lc_evetr_prm_fields")]
+    fn lc_evetr_prm_fields_py() -> Vec<String> {
+        crate::lc_evetr_prm_field_names()
+    }
+
+    #[pyfunction(name = "lc_grass_prm_schema")]
+    fn lc_grass_prm_schema_py() -> PyResult<usize> {
+        crate::lc_grass_prm_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "lc_grass_prm_schema_version")]
+    fn lc_grass_prm_schema_version_py() -> u32 {
+        crate::lc_grass_prm_schema_version()
+    }
+
+    #[pyfunction(name = "lc_grass_prm_schema_version_runtime")]
+    fn lc_grass_prm_schema_version_runtime_py() -> PyResult<u32> {
+        crate::lc_grass_prm_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "lc_grass_prm_schema_meta")]
+    fn lc_grass_prm_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = crate::lc_grass_prm_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "lc_grass_prm_fields")]
+    fn lc_grass_prm_fields_py() -> Vec<String> {
+        crate::lc_grass_prm_field_names()
+    }
+
     #[pyfunction(name = "surf_store_prm_schema")]
     fn surf_store_prm_schema_py() -> PyResult<usize> {
         surf_store_prm_schema().map_err(map_bridge_error)
@@ -4393,6 +4762,9 @@ mod python_bindings {
         m.add_class::<PyLcBldgPrm>()?;
         m.add_class::<PyLcBsoilPrm>()?;
         m.add_class::<PyLcWaterPrm>()?;
+        m.add_class::<PyLcDectrPrm>()?;
+        m.add_class::<PyLcEvetrPrm>()?;
+        m.add_class::<PyLcGrassPrm>()?;
         m.add_class::<PyLumpsPrm>()?;
         m.add_class::<PyBioCo2Prm>()?;
         m.add_class::<PyLaiPrm>()?;
@@ -4508,6 +4880,21 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(lc_water_prm_schema_version_runtime_py, m)?)?;
         m.add_function(wrap_pyfunction!(lc_water_prm_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(lc_water_prm_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_dectr_prm_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_dectr_prm_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_dectr_prm_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_dectr_prm_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_dectr_prm_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_evetr_prm_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_evetr_prm_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_evetr_prm_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_evetr_prm_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_evetr_prm_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_grass_prm_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_grass_prm_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_grass_prm_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_grass_prm_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_grass_prm_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(surf_store_prm_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(surf_store_prm_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(

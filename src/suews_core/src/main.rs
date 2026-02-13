@@ -36,6 +36,13 @@ use suews_bridge::{
     lc_bldg_prm_to_map, lc_bldg_prm_to_values_payload, lc_bsoil_prm_default_from_fortran,
     lc_bsoil_prm_schema, lc_bsoil_prm_schema_info, lc_bsoil_prm_schema_version,
     lc_bsoil_prm_schema_version_runtime, lc_bsoil_prm_to_map, lc_bsoil_prm_to_values_payload,
+    lc_dectr_prm_default_from_fortran, lc_dectr_prm_schema, lc_dectr_prm_schema_info,
+    lc_dectr_prm_schema_version, lc_dectr_prm_schema_version_runtime, lc_dectr_prm_to_map,
+    lc_dectr_prm_to_values_payload, lc_evetr_prm_default_from_fortran, lc_evetr_prm_schema,
+    lc_evetr_prm_schema_info, lc_evetr_prm_schema_version, lc_evetr_prm_schema_version_runtime,
+    lc_evetr_prm_to_map, lc_evetr_prm_to_values_payload, lc_grass_prm_default_from_fortran,
+    lc_grass_prm_schema, lc_grass_prm_schema_info, lc_grass_prm_schema_version,
+    lc_grass_prm_schema_version_runtime, lc_grass_prm_to_map, lc_grass_prm_to_values_payload,
     lc_paved_prm_default_from_fortran, lc_paved_prm_schema, lc_paved_prm_schema_info,
     lc_paved_prm_schema_version, lc_paved_prm_schema_version_runtime, lc_paved_prm_to_map,
     lc_paved_prm_to_values_payload, lc_water_prm_default_from_fortran, lc_water_prm_schema,
@@ -423,6 +430,24 @@ enum Commands {
     LcWaterPrmDefaultJson,
     /// Print default LC_WATER_PRM as JSON ordered values payload.
     LcWaterPrmDefaultValuesJson,
+    /// Print LC_DECTR_PRM schema as JSON for programmatic tooling.
+    LcDectrPrmSchemaJson,
+    /// Print default LC_DECTR_PRM as JSON map payload.
+    LcDectrPrmDefaultJson,
+    /// Print default LC_DECTR_PRM as JSON ordered values payload.
+    LcDectrPrmDefaultValuesJson,
+    /// Print LC_EVETR_PRM schema as JSON for programmatic tooling.
+    LcEvetrPrmSchemaJson,
+    /// Print default LC_EVETR_PRM as JSON map payload.
+    LcEvetrPrmDefaultJson,
+    /// Print default LC_EVETR_PRM as JSON ordered values payload.
+    LcEvetrPrmDefaultValuesJson,
+    /// Print LC_GRASS_PRM schema as JSON for programmatic tooling.
+    LcGrassPrmSchemaJson,
+    /// Print default LC_GRASS_PRM as JSON map payload.
+    LcGrassPrmDefaultJson,
+    /// Print default LC_GRASS_PRM as JSON ordered values payload.
+    LcGrassPrmDefaultValuesJson,
     /// Print SURF_STORE_PRM schema as JSON for programmatic tooling.
     SurfStorePrmSchemaJson,
     /// Print default SURF_STORE_PRM as JSON map payload.
@@ -1430,6 +1455,117 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
+        Commands::LcDectrPrmSchemaJson => {
+            let schema = lc_dectr_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": lc_dectr_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcDectrPrmDefaultJson => {
+            let flat_len = lc_dectr_prm_schema().map_err(|e| e.to_string())?;
+            let state = lc_dectr_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": lc_dectr_prm_schema_version(),
+                "schema_version_runtime": lc_dectr_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": lc_dectr_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcDectrPrmDefaultValuesJson => {
+            let state = lc_dectr_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = lc_dectr_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": lc_dectr_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcEvetrPrmSchemaJson => {
+            let schema = lc_evetr_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": lc_evetr_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcEvetrPrmDefaultJson => {
+            let flat_len = lc_evetr_prm_schema().map_err(|e| e.to_string())?;
+            let state = lc_evetr_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": lc_evetr_prm_schema_version(),
+                "schema_version_runtime": lc_evetr_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": lc_evetr_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcEvetrPrmDefaultValuesJson => {
+            let state = lc_evetr_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = lc_evetr_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": lc_evetr_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcGrassPrmSchemaJson => {
+            let schema = lc_grass_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": lc_grass_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcGrassPrmDefaultJson => {
+            let flat_len = lc_grass_prm_schema().map_err(|e| e.to_string())?;
+            let state = lc_grass_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": lc_grass_prm_schema_version(),
+                "schema_version_runtime": lc_grass_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": lc_grass_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcGrassPrmDefaultValuesJson => {
+            let state = lc_grass_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = lc_grass_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": lc_grass_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
         Commands::SurfStorePrmSchemaJson => {
             let schema = surf_store_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2224,6 +2360,54 @@ mod tests {
             command: Commands::LcWaterPrmDefaultValuesJson,
         };
         run(cli).expect("lc-water-prm-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_lc_dectr_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::LcDectrPrmDefaultJson,
+        };
+        run(cli).expect("lc-dectr-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_lc_dectr_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::LcDectrPrmDefaultValuesJson,
+        };
+        run(cli).expect("lc-dectr-prm-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_lc_evetr_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::LcEvetrPrmDefaultJson,
+        };
+        run(cli).expect("lc-evetr-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_lc_evetr_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::LcEvetrPrmDefaultValuesJson,
+        };
+        run(cli).expect("lc-evetr-prm-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_lc_grass_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::LcGrassPrmDefaultJson,
+        };
+        run(cli).expect("lc-grass-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_lc_grass_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::LcGrassPrmDefaultValuesJson,
+        };
+        run(cli).expect("lc-grass-prm-default-values-json should succeed");
     }
 
     #[test]

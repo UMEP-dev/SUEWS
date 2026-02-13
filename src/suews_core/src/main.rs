@@ -3,8 +3,11 @@ use serde_json::json;
 use serde_json::Value;
 use std::fs;
 use suews_bridge::{
-    anthro_heat_prm_default_from_fortran, anthro_heat_prm_schema, anthro_heat_prm_schema_info,
-    anthro_heat_prm_schema_version, anthro_heat_prm_schema_version_runtime, anthro_heat_prm_to_map,
+    anthro_emis_prm_default_from_fortran, anthro_emis_prm_schema, anthro_emis_prm_schema_info,
+    anthro_emis_prm_schema_version, anthro_emis_prm_schema_version_runtime, anthro_emis_prm_to_map,
+    anthro_emis_prm_to_values_payload, anthro_heat_prm_default_from_fortran,
+    anthro_heat_prm_schema, anthro_heat_prm_schema_info, anthro_heat_prm_schema_version,
+    anthro_heat_prm_schema_version_runtime, anthro_heat_prm_to_map,
     anthro_heat_prm_to_values_payload, anthroemis_state_default_from_fortran,
     anthroemis_state_schema, anthroemis_state_schema_info, anthroemis_state_schema_version,
     anthroemis_state_schema_version_runtime, anthroemis_state_to_map,
@@ -315,6 +318,12 @@ enum Commands {
     AnthroHeatPrmDefaultJson,
     /// Print default anthroHEAT_PRM as JSON ordered values payload.
     AnthroHeatPrmDefaultValuesJson,
+    /// Print anthroEMIS_PRM schema as JSON for programmatic tooling.
+    AnthroEmisPrmSchemaJson,
+    /// Print default anthroEMIS_PRM as JSON map payload.
+    AnthroEmisPrmDefaultJson,
+    /// Print default anthroEMIS_PRM as JSON ordered values payload.
+    AnthroEmisPrmDefaultValuesJson,
     /// Print atm_state schema as JSON for programmatic tooling.
     AtmStateSchemaJson,
     /// Print default atm_state as JSON map payload.
@@ -803,6 +812,43 @@ fn run(cli: Cli) -> Result<(), String> {
             let out = json!({
                 "schema_version": payload.schema_version,
                 "schema_version_runtime": anthro_heat_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::AnthroEmisPrmSchemaJson => {
+            let schema = anthro_emis_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": anthro_emis_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::AnthroEmisPrmDefaultJson => {
+            let flat_len = anthro_emis_prm_schema().map_err(|e| e.to_string())?;
+            let state = anthro_emis_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": anthro_emis_prm_schema_version(),
+                "schema_version_runtime": anthro_emis_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": anthro_emis_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::AnthroEmisPrmDefaultValuesJson => {
+            let state = anthro_emis_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = anthro_emis_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": anthro_emis_prm_schema_version_runtime().map_err(|e| e.to_string())?,
                 "values": payload.values,
             });
             let text = serde_json::to_string_pretty(&out)
@@ -1651,6 +1697,22 @@ mod tests {
             command: Commands::AnthroHeatPrmDefaultValuesJson,
         };
         run(cli).expect("anthro-heat-prm-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_anthro_emis_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::AnthroEmisPrmDefaultJson,
+        };
+        run(cli).expect("anthro-emis-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_anthro_emis_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::AnthroEmisPrmDefaultValuesJson,
+        };
+        run(cli).expect("anthro-emis-prm-default-values-json should succeed");
     }
 
     #[test]

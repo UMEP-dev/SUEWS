@@ -16,6 +16,7 @@ mod snow;
 mod soil;
 mod solar;
 mod surf_store;
+mod water_dist;
 
 pub use anthroemis::{
     anthroemis_state_default_from_fortran, anthroemis_state_field_index,
@@ -145,6 +146,15 @@ pub use surf_store::{
     SurfStorePrmSchema, SurfStorePrmValuesPayload, SURF_STORE_PRM_FLAT_LEN,
     SURF_STORE_PRM_SCHEMA_VERSION,
 };
+pub use water_dist::{
+    water_dist_prm_default_from_fortran, water_dist_prm_field_index, water_dist_prm_field_names,
+    water_dist_prm_from_map, water_dist_prm_from_ordered_values,
+    water_dist_prm_from_values_payload, water_dist_prm_schema, water_dist_prm_schema_info,
+    water_dist_prm_schema_version, water_dist_prm_schema_version_runtime, water_dist_prm_to_map,
+    water_dist_prm_to_ordered_values, water_dist_prm_to_values_payload, WaterDistPrm,
+    WaterDistPrmSchema, WaterDistPrmValuesPayload, WATER_DIST_PRM_FLAT_LEN,
+    WATER_DIST_PRM_SCHEMA_VERSION,
+};
 
 #[cfg(feature = "python")]
 mod python_bindings {
@@ -221,6 +231,11 @@ mod python_bindings {
         surf_store_prm_from_values_payload, surf_store_prm_schema, surf_store_prm_schema_info,
         surf_store_prm_schema_version, surf_store_prm_schema_version_runtime,
         surf_store_prm_to_map, surf_store_prm_to_ordered_values, surf_store_prm_to_values_payload,
+        water_dist_prm_default_from_fortran, water_dist_prm_field_index,
+        water_dist_prm_field_names, water_dist_prm_from_map, water_dist_prm_from_ordered_values,
+        water_dist_prm_from_values_payload, water_dist_prm_schema, water_dist_prm_schema_info,
+        water_dist_prm_schema_version, water_dist_prm_schema_version_runtime,
+        water_dist_prm_to_map, water_dist_prm_to_ordered_values, water_dist_prm_to_values_payload,
         AnthroEmisState, AnthroEmisStateValuesPayload, AtmState, AtmStateValuesPayload, BioCo2Prm,
         BioCo2PrmValuesPayload, BridgeError, ConductancePrm, ConductancePrmValuesPayload,
         FlagState, FlagStateValuesPayload, LumpsPrm, LumpsPrmValuesPayload, NhoodState,
@@ -228,7 +243,7 @@ mod python_bindings {
         OhmStateValuesPayload, PhenologyState, PhenologyStateValuesPayload, RoughnessState,
         RoughnessStateValuesPayload, SnowState, SnowStateValuesPayload, SoilPrm,
         SoilPrmValuesPayload, SolarState, SolarStateValuesPayload, SurfStorePrm,
-        SurfStorePrmValuesPayload, NSURF,
+        SurfStorePrmValuesPayload, WaterDistPrm, WaterDistPrmValuesPayload, NSURF,
     };
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
     use pyo3::prelude::*;
@@ -1616,6 +1631,93 @@ mod python_bindings {
         }
     }
 
+    #[pyclass(name = "WaterDistPrm")]
+    pub struct PyWaterDistPrm {
+        state: WaterDistPrm,
+    }
+
+    #[pymethods]
+    impl PyWaterDistPrm {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = water_dist_prm_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = WaterDistPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state = water_dist_prm_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = WaterDistPrmValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = water_dist_prm_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid WATER_DIST_PRM values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = water_dist_prm_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid WATER_DIST_PRM field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            water_dist_prm_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = water_dist_prm_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            water_dist_prm_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            water_dist_prm_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = water_dist_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown WATER_DIST_PRM field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = water_dist_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown WATER_DIST_PRM field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = WaterDistPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
     #[pyclass(name = "OhmCoefLc")]
     pub struct PyOhmCoefLc {
         state: OhmCoefLc,
@@ -2113,6 +2215,32 @@ mod python_bindings {
         surf_store_prm_field_names()
     }
 
+    #[pyfunction(name = "water_dist_prm_schema")]
+    fn water_dist_prm_schema_py() -> PyResult<usize> {
+        water_dist_prm_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "water_dist_prm_schema_version")]
+    fn water_dist_prm_schema_version_py() -> u32 {
+        water_dist_prm_schema_version()
+    }
+
+    #[pyfunction(name = "water_dist_prm_schema_version_runtime")]
+    fn water_dist_prm_schema_version_runtime_py() -> PyResult<u32> {
+        water_dist_prm_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "water_dist_prm_schema_meta")]
+    fn water_dist_prm_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = water_dist_prm_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "water_dist_prm_fields")]
+    fn water_dist_prm_fields_py() -> Vec<String> {
+        water_dist_prm_field_names()
+    }
+
     #[pyfunction(name = "bioco2_prm_schema")]
     fn bioco2_prm_schema_py() -> PyResult<usize> {
         bioco2_prm_schema().map_err(map_bridge_error)
@@ -2309,6 +2437,7 @@ mod python_bindings {
         m.add_class::<PyBioCo2Prm>()?;
         m.add_class::<PyConductancePrm>()?;
         m.add_class::<PySurfStorePrm>()?;
+        m.add_class::<PyWaterDistPrm>()?;
         m.add_class::<PyOhmCoefLc>()?;
         m.add_class::<PySolarState>()?;
         m.add_class::<PyRoughnessState>()?;
@@ -2364,6 +2493,14 @@ mod python_bindings {
         )?)?;
         m.add_function(wrap_pyfunction!(surf_store_prm_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(surf_store_prm_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(water_dist_prm_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(water_dist_prm_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(
+            water_dist_prm_schema_version_runtime_py,
+            m
+        )?)?;
+        m.add_function(wrap_pyfunction!(water_dist_prm_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(water_dist_prm_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(bioco2_prm_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(bioco2_prm_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(bioco2_prm_schema_version_runtime_py, m)?)?;

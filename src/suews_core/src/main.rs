@@ -41,7 +41,9 @@ use suews_bridge::{
     solar_state_to_values_payload, surf_store_prm_default_from_fortran, surf_store_prm_schema,
     surf_store_prm_schema_info, surf_store_prm_schema_version,
     surf_store_prm_schema_version_runtime, surf_store_prm_to_map, surf_store_prm_to_values_payload,
-    OhmModel, OhmStateValuesPayload, OHM_STATE_FLAT_LEN,
+    water_dist_prm_default_from_fortran, water_dist_prm_schema, water_dist_prm_schema_info,
+    water_dist_prm_schema_version, water_dist_prm_schema_version_runtime, water_dist_prm_to_map,
+    water_dist_prm_to_values_payload, OhmModel, OhmStateValuesPayload, OHM_STATE_FLAT_LEN,
 };
 
 fn parse_state_map_json(text: &str) -> Result<std::collections::BTreeMap<String, f64>, String> {
@@ -319,6 +321,12 @@ enum Commands {
     SurfStorePrmDefaultJson,
     /// Print default SURF_STORE_PRM as JSON ordered values payload.
     SurfStorePrmDefaultValuesJson,
+    /// Print WATER_DIST_PRM schema as JSON for programmatic tooling.
+    WaterDistPrmSchemaJson,
+    /// Print default WATER_DIST_PRM as JSON map payload.
+    WaterDistPrmDefaultJson,
+    /// Print default WATER_DIST_PRM as JSON ordered values payload.
+    WaterDistPrmDefaultValuesJson,
     /// Print LUMPS_PRM schema as JSON for programmatic tooling.
     LumpsPrmSchemaJson,
     /// Print default LUMPS_PRM as JSON map payload.
@@ -883,6 +891,43 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
+        Commands::WaterDistPrmSchemaJson => {
+            let schema = water_dist_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": water_dist_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::WaterDistPrmDefaultJson => {
+            let flat_len = water_dist_prm_schema().map_err(|e| e.to_string())?;
+            let state = water_dist_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": water_dist_prm_schema_version(),
+                "schema_version_runtime": water_dist_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": water_dist_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::WaterDistPrmDefaultValuesJson => {
+            let state = water_dist_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = water_dist_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": water_dist_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
         Commands::LumpsPrmSchemaJson => {
             let schema = lumps_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1308,6 +1353,22 @@ mod tests {
             command: Commands::SurfStorePrmDefaultValuesJson,
         };
         run(cli).expect("surf-store-prm-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_water_dist_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::WaterDistPrmDefaultJson,
+        };
+        run(cli).expect("water-dist-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_water_dist_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::WaterDistPrmDefaultValuesJson,
+        };
+        run(cli).expect("water-dist-prm-default-values-json should succeed");
     }
 
     #[test]

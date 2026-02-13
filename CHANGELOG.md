@@ -55,7 +55,7 @@ EXAMPLES:
 
 ### 13 Feb 2026
 
-- [feature] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS bldgh and SPARTACUS height entries (PR #1205).
+- [feature][experimental] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS bldgh and SPARTACUS height entries (PR #1205).
 - [docs] Updated PHASE_C_DETAILED.md with new conditional validation logic for SPARTACUS (PR #1205).
 
 ### 5 Feb 2026

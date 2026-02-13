@@ -23,10 +23,12 @@ use suews_bridge::{
     roughness_state_schema_version_runtime, roughness_state_to_map,
     roughness_state_to_values_payload, snow_state_default_from_fortran, snow_state_schema,
     snow_state_schema_info, snow_state_schema_version, snow_state_schema_version_runtime,
-    snow_state_to_map, snow_state_to_values_payload, solar_state_default_from_fortran,
-    solar_state_schema, solar_state_schema_info, solar_state_schema_version,
-    solar_state_schema_version_runtime, solar_state_to_map, solar_state_to_values_payload,
-    OhmModel, OhmStateValuesPayload, OHM_STATE_FLAT_LEN,
+    snow_state_to_map, snow_state_to_values_payload, soil_prm_default_from_fortran,
+    soil_prm_schema, soil_prm_schema_info, soil_prm_schema_version,
+    soil_prm_schema_version_runtime, soil_prm_to_map, soil_prm_to_values_payload,
+    solar_state_default_from_fortran, solar_state_schema, solar_state_schema_info,
+    solar_state_schema_version, solar_state_schema_version_runtime, solar_state_to_map,
+    solar_state_to_values_payload, OhmModel, OhmStateValuesPayload, OHM_STATE_FLAT_LEN,
 };
 
 fn parse_state_map_json(text: &str) -> Result<std::collections::BTreeMap<String, f64>, String> {
@@ -280,6 +282,12 @@ enum Commands {
     SnowStateDefaultJson,
     /// Print default SNOW_STATE as JSON ordered values payload.
     SnowStateDefaultValuesJson,
+    /// Print SOIL_PRM schema as JSON for programmatic tooling.
+    SoilPrmSchemaJson,
+    /// Print default SOIL_PRM as JSON map payload.
+    SoilPrmDefaultJson,
+    /// Print default SOIL_PRM as JSON ordered values payload.
+    SoilPrmDefaultValuesJson,
     /// Print solar_State schema as JSON for programmatic tooling.
     SolarStateSchemaJson,
     /// Print default solar_State as JSON map payload.
@@ -684,6 +692,43 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
+        Commands::SoilPrmSchemaJson => {
+            let schema = soil_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": soil_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SoilPrmDefaultJson => {
+            let flat_len = soil_prm_schema().map_err(|e| e.to_string())?;
+            let state = soil_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": soil_prm_schema_version(),
+                "schema_version_runtime": soil_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": soil_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SoilPrmDefaultValuesJson => {
+            let state = soil_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = soil_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": soil_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
         Commands::SolarStateSchemaJson => {
             let schema = solar_state_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -971,6 +1016,22 @@ mod tests {
             command: Commands::SnowStateDefaultValuesJson,
         };
         run(cli).expect("snow-state-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_soil_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SoilPrmDefaultJson,
+        };
+        run(cli).expect("soil-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_soil_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SoilPrmDefaultValuesJson,
+        };
+        run(cli).expect("soil-prm-default-values-json should succeed");
     }
 
     #[test]

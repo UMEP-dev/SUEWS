@@ -180,7 +180,7 @@
     {
       "name": "SOIL_PRM",
       "source": "src/suews/src/suews_type_soil.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "solar_State",

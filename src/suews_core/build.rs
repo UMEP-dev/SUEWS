@@ -30,6 +30,7 @@ fn main() {
         manifest_dir.join("fortran/suews_c_api_roughness.f95"),
         manifest_dir.join("fortran/suews_c_api_nhood.f95"),
         manifest_dir.join("fortran/suews_c_api_anthro_emis_state.f95"),
+        manifest_dir.join("fortran/suews_c_api_atm.f95"),
     ];
     for src in &fortran_sources {
         println!("cargo:rerun-if-changed={}", src.display());

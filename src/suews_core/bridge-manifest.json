@@ -25,7 +25,7 @@
     {
       "name": "atm_state",
       "source": "src/suews/src/suews_type_atmosphere.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "bioCO2_PRM",

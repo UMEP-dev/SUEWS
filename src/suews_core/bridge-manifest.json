@@ -1,0 +1,256 @@
+{
+  "manifest_version": 1,
+  "description": "Public derived-type bridge transition manifest for SUEWS Rust bridge",
+  "statuses": [
+    "bridged",
+    "planned",
+    "excluded"
+  ],
+  "types": [
+    {
+      "name": "anthroEMIS_PRM",
+      "source": "src/suews/src/suews_type_anthro.f95",
+      "status": "planned"
+    },
+    {
+      "name": "anthroEmis_STATE",
+      "source": "src/suews/src/suews_type_anthro.f95",
+      "status": "planned"
+    },
+    {
+      "name": "anthroHEAT_PRM",
+      "source": "src/suews/src/suews_type_anthro.f95",
+      "status": "planned"
+    },
+    {
+      "name": "atm_state",
+      "source": "src/suews/src/suews_type_atmosphere.f95",
+      "status": "planned"
+    },
+    {
+      "name": "bioCO2_PRM",
+      "source": "src/suews/src/suews_type_vegetation.f95",
+      "status": "planned"
+    },
+    {
+      "name": "BUILDING_ARCHETYPE_PRM",
+      "source": "src/suews/src/suews_type_stebbs.f95",
+      "status": "planned"
+    },
+    {
+      "name": "CONDUCTANCE_PRM",
+      "source": "src/suews/src/suews_type_surface.f95",
+      "status": "planned"
+    },
+    {
+      "name": "EHC_PRM",
+      "source": "src/suews/src/suews_type_ehc.f95",
+      "status": "planned"
+    },
+    {
+      "name": "error_entry",
+      "source": "src/suews/src/suews_ctrl_type.f95",
+      "status": "planned"
+    },
+    {
+      "name": "error_state",
+      "source": "src/suews/src/suews_ctrl_type.f95",
+      "status": "planned"
+    },
+    {
+      "name": "flag_STATE",
+      "source": "src/suews/src/suews_ctrl_type.f95",
+      "status": "bridged"
+    },
+    {
+      "name": "HEAT_STATE",
+      "source": "src/suews/src/suews_type_heat.f95",
+      "status": "planned"
+    },
+    {
+      "name": "HYDRO_STATE",
+      "source": "src/suews/src/suews_type_hydro.f95",
+      "status": "planned"
+    },
+    {
+      "name": "IRRIG_daywater",
+      "source": "src/suews/src/suews_type_waterdist.f95",
+      "status": "planned"
+    },
+    {
+      "name": "IRRIGATION_PRM",
+      "source": "src/suews/src/suews_type_waterdist.f95",
+      "status": "planned"
+    },
+    {
+      "name": "LAI_PRM",
+      "source": "src/suews/src/suews_type_vegetation.f95",
+      "status": "planned"
+    },
+    {
+      "name": "LC_BLDG_PRM",
+      "source": "src/suews/src/suews_type_landcover.f95",
+      "status": "planned"
+    },
+    {
+      "name": "LC_BSOIL_PRM",
+      "source": "src/suews/src/suews_type_landcover.f95",
+      "status": "planned"
+    },
+    {
+      "name": "LC_DECTR_PRM",
+      "source": "src/suews/src/suews_type_landcover.f95",
+      "status": "planned"
+    },
+    {
+      "name": "LC_EVETR_PRM",
+      "source": "src/suews/src/suews_type_landcover.f95",
+      "status": "planned"
+    },
+    {
+      "name": "LC_GRASS_PRM",
+      "source": "src/suews/src/suews_type_landcover.f95",
+      "status": "planned"
+    },
+    {
+      "name": "LC_PAVED_PRM",
+      "source": "src/suews/src/suews_type_landcover.f95",
+      "status": "planned"
+    },
+    {
+      "name": "LC_WATER_PRM",
+      "source": "src/suews/src/suews_type_landcover.f95",
+      "status": "planned"
+    },
+    {
+      "name": "LUMPS_PRM",
+      "source": "src/suews/src/suews_type_surface.f95",
+      "status": "planned"
+    },
+    {
+      "name": "NHOOD_STATE",
+      "source": "src/suews/src/suews_type_stebbs.f95",
+      "status": "planned"
+    },
+    {
+      "name": "OHM_COEF_LC",
+      "source": "src/suews/src/suews_type_surface.f95",
+      "status": "planned"
+    },
+    {
+      "name": "OHM_PRM",
+      "source": "src/suews/src/suews_type_surface.f95",
+      "status": "planned"
+    },
+    {
+      "name": "OHM_STATE",
+      "source": "src/suews/src/suews_type_surface.f95",
+      "status": "bridged"
+    },
+    {
+      "name": "output_block",
+      "source": "src/suews/src/suews_ctrl_type.f95",
+      "status": "planned"
+    },
+    {
+      "name": "output_line",
+      "source": "src/suews/src/suews_ctrl_type.f95",
+      "status": "planned"
+    },
+    {
+      "name": "PHENOLOGY_STATE",
+      "source": "src/suews/src/suews_type_vegetation.f95",
+      "status": "planned"
+    },
+    {
+      "name": "ROUGHNESS_STATE",
+      "source": "src/suews/src/suews_type_surface.f95",
+      "status": "planned"
+    },
+    {
+      "name": "SNOW_PRM",
+      "source": "src/suews/src/suews_type_snow.f95",
+      "status": "planned"
+    },
+    {
+      "name": "SNOW_STATE",
+      "source": "src/suews/src/suews_type_snow.f95",
+      "status": "planned"
+    },
+    {
+      "name": "SOIL_PRM",
+      "source": "src/suews/src/suews_type_soil.f95",
+      "status": "planned"
+    },
+    {
+      "name": "solar_State",
+      "source": "src/suews/src/suews_type_atmosphere.f95",
+      "status": "planned"
+    },
+    {
+      "name": "SPARTACUS_LAYER_PRM",
+      "source": "src/suews/src/suews_type_spartacus.f95",
+      "status": "planned"
+    },
+    {
+      "name": "SPARTACUS_PRM",
+      "source": "src/suews/src/suews_type_spartacus.f95",
+      "status": "planned"
+    },
+    {
+      "name": "STEBBS_PRM",
+      "source": "src/suews/src/suews_type_stebbs.f95",
+      "status": "planned"
+    },
+    {
+      "name": "STEBBS_STATE",
+      "source": "src/suews/src/suews_type_stebbs.f95",
+      "status": "planned"
+    },
+    {
+      "name": "SUEWS_CONFIG",
+      "source": "src/suews/src/suews_ctrl_type.f95",
+      "status": "planned"
+    },
+    {
+      "name": "SUEWS_DEBUG",
+      "source": "src/suews/src/suews_ctrl_type.f95",
+      "status": "planned"
+    },
+    {
+      "name": "SUEWS_FORCING",
+      "source": "src/suews/src/suews_ctrl_type.f95",
+      "status": "planned"
+    },
+    {
+      "name": "SUEWS_SITE",
+      "source": "src/suews/src/suews_ctrl_type.f95",
+      "status": "planned"
+    },
+    {
+      "name": "SUEWS_STATE",
+      "source": "src/suews/src/suews_ctrl_type.f95",
+      "status": "planned"
+    },
+    {
+      "name": "SUEWS_STATE_BLOCK",
+      "source": "src/suews/src/suews_ctrl_type.f95",
+      "status": "planned"
+    },
+    {
+      "name": "SUEWS_TIMER",
+      "source": "src/suews/src/suews_ctrl_type.f95",
+      "status": "planned"
+    },
+    {
+      "name": "SURF_STORE_PRM",
+      "source": "src/suews/src/suews_type_waterdist.f95",
+      "status": "planned"
+    },
+    {
+      "name": "WATER_DIST_PRM",
+      "source": "src/suews/src/suews_type_waterdist.f95",
+      "status": "planned"
+    }
+  ]
+}

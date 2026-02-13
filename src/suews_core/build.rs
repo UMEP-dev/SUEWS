@@ -11,7 +11,9 @@ fn main() {
     let fortran_sources = vec![
         manifest_dir.join("../suews/src/suews_ctrl_const.f95"),
         manifest_dir.join("../suews/src/suews_type_surface.f95"),
+        manifest_dir.join("fortran/suews_c_api_common.f95"),
         manifest_dir.join("fortran/suews_c_api_ohm.f95"),
+        manifest_dir.join("fortran/suews_c_api_flag.f95"),
     ];
     for src in &fortran_sources {
         println!("cargo:rerun-if-changed={}", src.display());
@@ -53,7 +55,7 @@ fn main() {
         object_files.push(object_file);
     }
 
-    let archive_file = out_dir.join("libsuews_ohm.a");
+    let archive_file = out_dir.join("libsuews_bridge.a");
 
     let mut ar_cmd = Command::new("ar");
     ar_cmd.arg("crus").arg(&archive_file);
@@ -69,7 +71,7 @@ fn main() {
     }
 
     println!("cargo:rustc-link-search=native={}", out_dir.display());
-    println!("cargo:rustc-link-lib=static=suews_ohm");
+    println!("cargo:rustc-link-lib=static=suews_bridge");
 
     if target_os == "macos" && env::var_os("CARGO_FEATURE_PYTHON_EXTENSION").is_some() {
         println!("cargo:rustc-link-arg=-undefined");

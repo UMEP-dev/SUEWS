@@ -1,3 +1,7 @@
+use crate::codec::{
+    field_index, from_map, from_values_payload, to_map, to_values_payload, validate_flat_len,
+    StateCodec, TypeSchema, ValuesPayload,
+};
 use crate::error::BridgeError;
 use crate::ffi;
 use std::collections::BTreeMap;
@@ -17,11 +21,7 @@ pub struct OhmStateSchema {
     pub field_names: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct OhmStateValuesPayload {
-    pub schema_version: u32,
-    pub values: Vec<f64>,
-}
+pub type OhmStateValuesPayload = ValuesPayload;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct OhmStepResult {
@@ -78,9 +78,7 @@ impl Default for OhmState {
 
 impl OhmState {
     pub fn from_flat(flat: &[f64]) -> Result<Self, BridgeError> {
-        if flat.len() != OHM_STATE_FLAT_LEN {
-            return Err(BridgeError::BadBuffer);
-        }
+        validate_flat_len(flat, OHM_STATE_FLAT_LEN)?;
 
         let mut idx = 0_usize;
         let mut next = || {
@@ -153,6 +151,25 @@ impl OhmState {
         flat.push(if self.iter_safe { 1.0 } else { 0.0 });
 
         flat
+    }
+}
+
+impl StateCodec for OhmState {
+    fn schema() -> TypeSchema {
+        TypeSchema {
+            type_name: "OHM_STATE".to_string(),
+            schema_version: OHM_STATE_SCHEMA_VERSION,
+            flat_len: OHM_STATE_FLAT_LEN,
+            field_names: ohm_state_field_names(),
+        }
+    }
+
+    fn from_flat(flat: &[f64]) -> Result<Self, BridgeError> {
+        OhmState::from_flat(flat)
+    }
+
+    fn to_flat(&self) -> Vec<f64> {
+        OhmState::to_flat(self)
     }
 }
 
@@ -415,7 +432,8 @@ pub fn ohm_state_schema_version_runtime() -> Result<u32, BridgeError> {
 }
 
 pub fn ohm_state_field_index(name: &str) -> Option<usize> {
-    ohm_state_field_names().iter().position(|n| n == name)
+    let names = ohm_state_field_names();
+    field_index(&names, name)
 }
 
 pub fn ohm_surface_names() -> Vec<String> {
@@ -426,9 +444,7 @@ pub fn ohm_surface_names() -> Vec<String> {
 }
 
 pub fn ohm_state_to_map(state: &OhmState) -> BTreeMap<String, f64> {
-    let names = ohm_state_field_names();
-    let values = state.to_flat();
-    names.into_iter().zip(values).collect()
+    to_map(state)
 }
 
 pub fn ohm_state_to_ordered_values(state: &OhmState) -> Vec<f64> {
@@ -440,32 +456,18 @@ pub fn ohm_state_from_ordered_values(values: &[f64]) -> Result<OhmState, BridgeE
 }
 
 pub fn ohm_state_to_values_payload(state: &OhmState) -> OhmStateValuesPayload {
-    OhmStateValuesPayload {
-        schema_version: OHM_STATE_SCHEMA_VERSION,
-        values: ohm_state_to_ordered_values(state),
-    }
+    to_values_payload(state)
 }
 
 pub fn ohm_state_from_values_payload(
     payload: &OhmStateValuesPayload,
 ) -> Result<OhmState, BridgeError> {
-    if payload.schema_version != OHM_STATE_SCHEMA_VERSION {
-        return Err(BridgeError::BadState);
-    }
-    ohm_state_from_ordered_values(&payload.values)
+    from_values_payload(payload)
 }
 
 pub fn ohm_state_from_map(values: &BTreeMap<String, f64>) -> Result<OhmState, BridgeError> {
-    let mut state = ohm_state_default_from_fortran()?;
-    let mut flat = state.to_flat();
-
-    for (name, value) in values {
-        let idx = ohm_state_field_index(name).ok_or(BridgeError::BadState)?;
-        flat[idx] = *value;
-    }
-
-    state = OhmState::from_flat(&flat)?;
-    Ok(state)
+    let default_state = ohm_state_default_from_fortran()?;
+    from_map(values, &default_state)
 }
 
 pub fn ohm_state_default_from_fortran() -> Result<OhmState, BridgeError> {

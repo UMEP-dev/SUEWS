@@ -3,8 +3,10 @@ use serde_json::json;
 use serde_json::Value;
 use std::fs;
 use suews_core::{
-    ohm_state_default_from_fortran, ohm_state_field_names, ohm_state_from_map,
-    ohm_state_from_values_payload, ohm_state_schema, ohm_state_schema_info,
+    flag_state_default_from_fortran, flag_state_schema, flag_state_schema_info,
+    flag_state_schema_version, flag_state_schema_version_runtime, flag_state_to_map,
+    flag_state_to_values_payload, ohm_state_default_from_fortran, ohm_state_field_names,
+    ohm_state_from_map, ohm_state_from_values_payload, ohm_state_schema, ohm_state_schema_info,
     ohm_state_schema_version, ohm_state_schema_version_runtime, ohm_state_step, ohm_state_to_map,
     ohm_state_to_values_payload, ohm_step, qs_calc, OhmModel, OhmStateValuesPayload,
     OHM_STATE_FLAT_LEN,
@@ -119,11 +121,7 @@ fn parse_state_values_json(text: &str) -> Result<OhmStateValuesPayload, String> 
 }
 
 #[derive(Debug, Parser)]
-#[command(
-    name = "suews",
-    version,
-    about = "SUEWS Rust bridge MVP CLI (OHM C API)"
-)]
+#[command(name = "suews", version, about = "SUEWS Rust bridge CLI")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -235,6 +233,12 @@ enum Commands {
         #[arg(long)]
         state_values_json: Option<String>,
     },
+    /// Print flag_STATE schema as JSON for programmatic tooling.
+    FlagStateSchemaJson,
+    /// Print default flag_STATE as JSON map payload.
+    FlagStateDefaultJson,
+    /// Print default flag_STATE as JSON ordered values payload.
+    FlagStateDefaultValuesJson,
 }
 
 fn main() {
@@ -434,6 +438,45 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render values json: {e}"))?;
             println!("{text}");
         }
+        Commands::FlagStateSchemaJson => {
+            let schema = flag_state_schema_info().map_err(|e| e.to_string())?;
+
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": flag_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::FlagStateDefaultJson => {
+            let flat_len = flag_state_schema().map_err(|e| e.to_string())?;
+            let state = flag_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": flag_state_schema_version(),
+                "schema_version_runtime": flag_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": flag_state_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::FlagStateDefaultValuesJson => {
+            let state = flag_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = flag_state_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": flag_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
     }
 
     Ok(())
@@ -530,5 +573,21 @@ mod tests {
             command: Commands::StateDefaultValuesJson,
         };
         run(cli).expect("state-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_flag_state_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::FlagStateDefaultJson,
+        };
+        run(cli).expect("flag-state-default-json should succeed");
+    }
+
+    #[test]
+    fn run_flag_state_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::FlagStateDefaultValuesJson,
+        };
+        run(cli).expect("flag-state-default-values-json should succeed");
     }
 }

@@ -6,7 +6,7 @@ pub const SUEWS_CAPI_BAD_TIME: c_int = 2;
 pub const SUEWS_CAPI_BAD_BUFFER: c_int = 3;
 pub const SUEWS_CAPI_BAD_STATE: c_int = 4;
 
-#[link(name = "suews_ohm", kind = "static")]
+#[link(name = "suews_bridge", kind = "static")]
 unsafe extern "C" {
     pub fn suews_ohm_qs_calc(
         qn1: c_double,
@@ -64,4 +64,10 @@ unsafe extern "C" {
         qs: *mut c_double,
         err: *mut c_int,
     );
+
+    pub fn suews_flag_state_len(n_flat: *mut c_int, err: *mut c_int);
+
+    pub fn suews_flag_state_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_flag_state_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
 }

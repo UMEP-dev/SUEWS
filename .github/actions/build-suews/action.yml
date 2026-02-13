@@ -203,6 +203,7 @@ runs:
               inputs.test_tier == 'cfg' && '-m "smoke or cfg"' ||
               inputs.test_tier == 'standard' && '-m "not slow"' ||
               '' }}
+          && python {project}/scripts/check_bridge_manifest.py
         MACOSX_DEPLOYMENT_TARGET: '15.0'
 
     - name: Upload wheels

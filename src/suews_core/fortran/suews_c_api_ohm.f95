@@ -15,7 +15,11 @@
 ! - Add flatten/unflatten for `OHM_STATE` so Rust/Python can handle class-like state.
 ! -----------------------------------------------------------------------------
 MODULE module_c_api_ohm
-   USE, INTRINSIC :: iso_c_binding, ONLY: c_int, c_double, c_char, c_null_char
+   USE, INTRINSIC :: iso_c_binding, ONLY: c_int, c_double, c_char
+   USE module_c_api_common, ONLY: &
+      SUEWS_CAPI_OK, SUEWS_CAPI_BAD_DT, SUEWS_CAPI_BAD_TIME, &
+      SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
+      copy_to_c_buffer, suews_capi_error_text
    USE module_ctrl_const_allocate, ONLY: nsurf
    USE module_type_surface, ONLY: OHM_STATE
 
@@ -23,11 +27,11 @@ MODULE module_c_api_ohm
 
    PRIVATE
 
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_OK = 0_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_BAD_DT = 1_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_BAD_TIME = 2_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_BAD_BUFFER = 3_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_BAD_STATE = 4_c_int
+   PUBLIC :: SUEWS_CAPI_OK
+   PUBLIC :: SUEWS_CAPI_BAD_DT
+   PUBLIC :: SUEWS_CAPI_BAD_TIME
+   PUBLIC :: SUEWS_CAPI_BAD_BUFFER
+   PUBLIC :: SUEWS_CAPI_BAD_STATE
 
    INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_NSURF = nsurf
    ! Flat layout length for OHM_STATE bridge payload:
@@ -384,53 +388,11 @@ CONTAINS
 
       CHARACTER(LEN=128) :: msg
 
-      SELECT CASE (code)
-      CASE (SUEWS_CAPI_OK)
-         msg = 'ok'
-      CASE (SUEWS_CAPI_BAD_DT)
-         msg = 'invalid timestep: dt must be positive'
-      CASE (SUEWS_CAPI_BAD_TIME)
-         msg = 'invalid time: dt_since_start must be non-negative'
-      CASE (SUEWS_CAPI_BAD_BUFFER)
-         msg = 'invalid buffer'
-      CASE (SUEWS_CAPI_BAD_STATE)
-         msg = 'invalid state payload'
-      CASE DEFAULT
-         msg = 'unknown SUEWS C API error code'
-      END SELECT
+      CALL suews_capi_error_text(code, msg)
 
       CALL copy_to_c_buffer(msg, buffer, buffer_len)
 
    END SUBROUTINE suews_ohm_error_message
-
-
-   SUBROUTINE copy_to_c_buffer(text, buffer, buffer_len)
-      IMPLICIT NONE
-
-      CHARACTER(LEN=*), INTENT(in) :: text
-      CHARACTER(c_char), INTENT(out) :: buffer(*)
-      INTEGER(c_int), INTENT(in) :: buffer_len
-
-      INTEGER :: i
-      INTEGER :: ncopy
-      INTEGER :: len_buf
-
-      len_buf = INT(buffer_len)
-      IF (len_buf <= 0) RETURN
-
-      ncopy = MIN(LEN_TRIM(text), len_buf - 1)
-
-      DO i = 1, ncopy
-         buffer(i) = text(i:i)
-      END DO
-
-      buffer(ncopy + 1) = c_null_char
-
-      DO i = ncopy + 2, len_buf
-         buffer(i) = c_null_char
-      END DO
-
-   END SUBROUTINE copy_to_c_buffer
 
 END MODULE module_c_api_ohm
 

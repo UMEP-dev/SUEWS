@@ -9,7 +9,7 @@ pub enum BridgeError {
     BadTime,
     #[error("invalid C buffer")]
     BadBuffer,
-    #[error("invalid OHM state payload")]
+    #[error("invalid state payload")]
     BadState,
     #[error("unknown Fortran bridge error code: {0}")]
     Unknown(i32),

@@ -1,7 +1,10 @@
+mod codec;
 mod core;
 mod error;
 mod ffi;
+mod flag;
 
+pub use codec::{CompositeCodec, StateCodec, TypeSchema, ValuesPayload};
 pub use core::{
     dqndt_step, ohm_state_default_from_fortran, ohm_state_field_index, ohm_state_field_names,
     ohm_state_from_map, ohm_state_from_ordered_values, ohm_state_from_values_payload,
@@ -12,16 +15,29 @@ pub use core::{
     OHM_STATE_FLAT_LEN, OHM_STATE_SCHEMA_VERSION, SURFACE_NAMES,
 };
 pub use error::BridgeError;
+pub use flag::{
+    flag_state_default_from_fortran, flag_state_field_index, flag_state_field_names,
+    flag_state_from_map, flag_state_from_ordered_values, flag_state_from_values_payload,
+    flag_state_schema, flag_state_schema_info, flag_state_schema_version,
+    flag_state_schema_version_runtime, flag_state_to_map, flag_state_to_ordered_values,
+    flag_state_to_values_payload, FlagState, FlagStateSchema, FlagStateValuesPayload,
+    FLAG_STATE_FLAT_LEN, FLAG_STATE_SCHEMA_VERSION,
+};
 
 #[cfg(feature = "python")]
 mod python_bindings {
     use crate::{
-        ohm_state_default_from_fortran, ohm_state_field_index, ohm_state_field_names,
-        ohm_state_from_map, ohm_state_from_ordered_values, ohm_state_from_values_payload,
-        ohm_state_schema, ohm_state_schema_info, ohm_state_schema_version,
-        ohm_state_schema_version_runtime, ohm_state_step, ohm_state_to_map,
-        ohm_state_to_ordered_values, ohm_state_to_values_payload, ohm_step, ohm_surface_names,
-        BridgeError, OhmModel, OhmState, OhmStateValuesPayload, NSURF,
+        flag_state_default_from_fortran, flag_state_field_index, flag_state_field_names,
+        flag_state_from_map, flag_state_from_ordered_values, flag_state_from_values_payload,
+        flag_state_schema, flag_state_schema_info, flag_state_schema_version,
+        flag_state_schema_version_runtime, flag_state_to_map, flag_state_to_ordered_values,
+        flag_state_to_values_payload, ohm_state_default_from_fortran, ohm_state_field_index,
+        ohm_state_field_names, ohm_state_from_map, ohm_state_from_ordered_values,
+        ohm_state_from_values_payload, ohm_state_schema, ohm_state_schema_info,
+        ohm_state_schema_version, ohm_state_schema_version_runtime, ohm_state_step,
+        ohm_state_to_map, ohm_state_to_ordered_values, ohm_state_to_values_payload, ohm_step,
+        ohm_surface_names, BridgeError, FlagState, FlagStateValuesPayload, OhmModel, OhmState,
+        OhmStateValuesPayload, NSURF,
     };
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
     use pyo3::prelude::*;
@@ -390,6 +406,155 @@ mod python_bindings {
         }
     }
 
+    #[pyclass(name = "FlagState")]
+    pub struct PyFlagState {
+        state: FlagState,
+    }
+
+    #[pymethods]
+    impl PyFlagState {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = flag_state_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = FlagState::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state = flag_state_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = FlagStateValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = flag_state_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid FLAG_STATE values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = flag_state_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid flag_STATE field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            flag_state_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = flag_state_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            flag_state_to_map(&self.state)
+        }
+
+        fn update_from_dict(&mut self, values: HashMap<String, f64>) -> PyResult<()> {
+            let mut mapped = flag_state_to_map(&self.state);
+            for (name, value) in values {
+                mapped.insert(name, value);
+            }
+
+            self.state = flag_state_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid flag_STATE field mapping: {err}"))
+            })?;
+            Ok(())
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            flag_state_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = flag_state_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown flag_STATE field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = flag_state_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown flag_STATE field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = FlagState::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+
+        #[getter]
+        fn flag_converge(&self) -> bool {
+            self.state.flag_converge
+        }
+
+        #[setter]
+        fn set_flag_converge(&mut self, value: bool) {
+            self.state.flag_converge = value;
+        }
+
+        #[getter]
+        fn i_iter(&self) -> i32 {
+            self.state.i_iter
+        }
+
+        #[setter]
+        fn set_i_iter(&mut self, value: i32) {
+            self.state.i_iter = value;
+        }
+
+        #[getter]
+        fn stebbs_bldg_init(&self) -> i32 {
+            self.state.stebbs_bldg_init
+        }
+
+        #[setter]
+        fn set_stebbs_bldg_init(&mut self, value: i32) {
+            self.state.stebbs_bldg_init = value;
+        }
+
+        #[getter]
+        fn snow_warning_shown(&self) -> bool {
+            self.state.snow_warning_shown
+        }
+
+        #[setter]
+        fn set_snow_warning_shown(&mut self, value: bool) {
+            self.state.snow_warning_shown = value;
+        }
+
+        #[getter]
+        fn iter_safe(&self) -> bool {
+            self.state.iter_safe
+        }
+
+        #[setter]
+        fn set_iter_safe(&mut self, value: bool) {
+            self.state.iter_safe = value;
+        }
+    }
+
     #[pyfunction(name = "ohm_step")]
     fn ohm_step_py(
         dt: i32,
@@ -444,10 +609,37 @@ mod python_bindings {
         ohm_surface_names()
     }
 
+    #[pyfunction(name = "flag_state_schema")]
+    fn flag_state_schema_py() -> PyResult<usize> {
+        flag_state_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "flag_state_schema_version")]
+    fn flag_state_schema_version_py() -> u32 {
+        flag_state_schema_version()
+    }
+
+    #[pyfunction(name = "flag_state_schema_version_runtime")]
+    fn flag_state_schema_version_runtime_py() -> PyResult<u32> {
+        flag_state_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "flag_state_schema_meta")]
+    fn flag_state_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = flag_state_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "flag_state_fields")]
+    fn flag_state_fields_py() -> Vec<String> {
+        flag_state_field_names()
+    }
+
     #[pymodule]
     fn suews_core(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
         m.add_class::<PyOhmModel>()?;
         m.add_class::<PyOhmState>()?;
+        m.add_class::<PyFlagState>()?;
         m.add_function(wrap_pyfunction!(ohm_step_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_version_py, m)?)?;
@@ -455,6 +647,11 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(ohm_state_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_surface_names_py, m)?)?;
+        m.add_function(wrap_pyfunction!(flag_state_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(flag_state_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(flag_state_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(flag_state_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(flag_state_fields_py, m)?)?;
         Ok(())
     }
 }

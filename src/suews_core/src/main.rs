@@ -5,10 +5,17 @@ use std::fs;
 use suews_core::{
     flag_state_default_from_fortran, flag_state_schema, flag_state_schema_info,
     flag_state_schema_version, flag_state_schema_version_runtime, flag_state_to_map,
-    flag_state_to_values_payload, ohm_state_default_from_fortran, ohm_state_field_names,
-    ohm_state_from_map, ohm_state_from_values_payload, ohm_state_schema, ohm_state_schema_info,
-    ohm_state_schema_version, ohm_state_schema_version_runtime, ohm_state_step, ohm_state_to_map,
-    ohm_state_to_values_payload, ohm_step, qs_calc, OhmModel, OhmStateValuesPayload,
+    flag_state_to_values_payload, nhood_state_default_from_fortran, nhood_state_schema,
+    nhood_state_schema_info, nhood_state_schema_version, nhood_state_schema_version_runtime,
+    nhood_state_to_map, nhood_state_to_values_payload, ohm_state_default_from_fortran,
+    ohm_state_field_names, ohm_state_from_map, ohm_state_from_values_payload, ohm_state_schema,
+    ohm_state_schema_info, ohm_state_schema_version, ohm_state_schema_version_runtime,
+    ohm_state_step, ohm_state_to_map, ohm_state_to_values_payload, ohm_step, qs_calc,
+    roughness_state_default_from_fortran, roughness_state_schema, roughness_state_schema_info,
+    roughness_state_schema_version, roughness_state_schema_version_runtime, roughness_state_to_map,
+    roughness_state_to_values_payload, solar_state_default_from_fortran, solar_state_schema,
+    solar_state_schema_info, solar_state_schema_version, solar_state_schema_version_runtime,
+    solar_state_to_map, solar_state_to_values_payload, OhmModel, OhmStateValuesPayload,
     OHM_STATE_FLAT_LEN,
 };
 
@@ -239,6 +246,24 @@ enum Commands {
     FlagStateDefaultJson,
     /// Print default flag_STATE as JSON ordered values payload.
     FlagStateDefaultValuesJson,
+    /// Print solar_State schema as JSON for programmatic tooling.
+    SolarStateSchemaJson,
+    /// Print default solar_State as JSON map payload.
+    SolarStateDefaultJson,
+    /// Print default solar_State as JSON ordered values payload.
+    SolarStateDefaultValuesJson,
+    /// Print ROUGHNESS_STATE schema as JSON for programmatic tooling.
+    RoughnessStateSchemaJson,
+    /// Print default ROUGHNESS_STATE as JSON map payload.
+    RoughnessStateDefaultJson,
+    /// Print default ROUGHNESS_STATE as JSON ordered values payload.
+    RoughnessStateDefaultValuesJson,
+    /// Print NHOOD_STATE schema as JSON for programmatic tooling.
+    NhoodStateSchemaJson,
+    /// Print default NHOOD_STATE as JSON map payload.
+    NhoodStateDefaultJson,
+    /// Print default NHOOD_STATE as JSON ordered values payload.
+    NhoodStateDefaultValuesJson,
 }
 
 fn main() {
@@ -477,6 +502,117 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
+        Commands::SolarStateSchemaJson => {
+            let schema = solar_state_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": solar_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SolarStateDefaultJson => {
+            let flat_len = solar_state_schema().map_err(|e| e.to_string())?;
+            let state = solar_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": solar_state_schema_version(),
+                "schema_version_runtime": solar_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": solar_state_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SolarStateDefaultValuesJson => {
+            let state = solar_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = solar_state_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": solar_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::RoughnessStateSchemaJson => {
+            let schema = roughness_state_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": roughness_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::RoughnessStateDefaultJson => {
+            let flat_len = roughness_state_schema().map_err(|e| e.to_string())?;
+            let state = roughness_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": roughness_state_schema_version(),
+                "schema_version_runtime": roughness_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": roughness_state_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::RoughnessStateDefaultValuesJson => {
+            let state = roughness_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = roughness_state_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": roughness_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::NhoodStateSchemaJson => {
+            let schema = nhood_state_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": nhood_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::NhoodStateDefaultJson => {
+            let flat_len = nhood_state_schema().map_err(|e| e.to_string())?;
+            let state = nhood_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": nhood_state_schema_version(),
+                "schema_version_runtime": nhood_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": nhood_state_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::NhoodStateDefaultValuesJson => {
+            let state = nhood_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = nhood_state_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": nhood_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
     }
 
     Ok(())
@@ -589,5 +725,53 @@ mod tests {
             command: Commands::FlagStateDefaultValuesJson,
         };
         run(cli).expect("flag-state-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_solar_state_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SolarStateDefaultJson,
+        };
+        run(cli).expect("solar-state-default-json should succeed");
+    }
+
+    #[test]
+    fn run_solar_state_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SolarStateDefaultValuesJson,
+        };
+        run(cli).expect("solar-state-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_roughness_state_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::RoughnessStateDefaultJson,
+        };
+        run(cli).expect("roughness-state-default-json should succeed");
+    }
+
+    #[test]
+    fn run_roughness_state_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::RoughnessStateDefaultValuesJson,
+        };
+        run(cli).expect("roughness-state-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_nhood_state_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::NhoodStateDefaultJson,
+        };
+        run(cli).expect("nhood-state-default-json should succeed");
+    }
+
+    #[test]
+    fn run_nhood_state_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::NhoodStateDefaultValuesJson,
+        };
+        run(cli).expect("nhood-state-default-values-json should succeed");
     }
 }

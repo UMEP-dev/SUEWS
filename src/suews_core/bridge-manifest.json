@@ -130,7 +130,7 @@
     {
       "name": "NHOOD_STATE",
       "source": "src/suews/src/suews_type_stebbs.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "OHM_COEF_LC",
@@ -165,7 +165,7 @@
     {
       "name": "ROUGHNESS_STATE",
       "source": "src/suews/src/suews_type_surface.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "SNOW_PRM",
@@ -185,7 +185,7 @@
     {
       "name": "solar_State",
       "source": "src/suews/src/suews_type_atmosphere.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "SPARTACUS_LAYER_PRM",

@@ -7,6 +7,18 @@ fn main() {
         PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is not set"));
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR is not set"));
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+
+    let gfortran_bin = if target_os == "macos" {
+        let homebrew_gfortran = PathBuf::from("/opt/homebrew/bin/gfortran");
+        if homebrew_gfortran.exists() {
+            homebrew_gfortran
+        } else {
+            PathBuf::from("gfortran")
+        }
+    } else {
+        PathBuf::from("gfortran")
+    };
 
     let fortran_sources = vec![
         manifest_dir.join("../suews/src/suews_ctrl_const.f95"),
@@ -14,6 +26,9 @@ fn main() {
         manifest_dir.join("fortran/suews_c_api_common.f95"),
         manifest_dir.join("fortran/suews_c_api_ohm.f95"),
         manifest_dir.join("fortran/suews_c_api_flag.f95"),
+        manifest_dir.join("fortran/suews_c_api_solar.f95"),
+        manifest_dir.join("fortran/suews_c_api_roughness.f95"),
+        manifest_dir.join("fortran/suews_c_api_nhood.f95"),
     ];
     for src in &fortran_sources {
         println!("cargo:rerun-if-changed={}", src.display());
@@ -27,7 +42,7 @@ fn main() {
             .to_string_lossy();
         let object_file = out_dir.join(format!("{stem}.o"));
 
-        let mut gfortran_cmd = Command::new("gfortran");
+        let mut gfortran_cmd = Command::new(&gfortran_bin);
         gfortran_cmd.args([
             "-c",
             "-O2",
@@ -38,6 +53,11 @@ fn main() {
         ]);
         if target_os == "macos" {
             gfortran_cmd.arg("-mmacosx-version-min=11.0");
+            if target_arch == "aarch64" {
+                gfortran_cmd.args(["-arch", "arm64"]);
+            } else if target_arch == "x86_64" {
+                gfortran_cmd.args(["-arch", "x86_64"]);
+            }
         }
         let compile_status = gfortran_cmd
             .arg(src)

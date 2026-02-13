@@ -3,16 +3,19 @@ use serde_json::json;
 use serde_json::Value;
 use std::fs;
 use suews_core::{
-    flag_state_default_from_fortran, flag_state_schema, flag_state_schema_info,
-    flag_state_schema_version, flag_state_schema_version_runtime, flag_state_to_map,
-    flag_state_to_values_payload, nhood_state_default_from_fortran, nhood_state_schema,
-    nhood_state_schema_info, nhood_state_schema_version, nhood_state_schema_version_runtime,
-    nhood_state_to_map, nhood_state_to_values_payload, ohm_state_default_from_fortran,
-    ohm_state_field_names, ohm_state_from_map, ohm_state_from_values_payload, ohm_state_schema,
-    ohm_state_schema_info, ohm_state_schema_version, ohm_state_schema_version_runtime,
-    ohm_state_step, ohm_state_to_map, ohm_state_to_values_payload, ohm_step, qs_calc,
-    roughness_state_default_from_fortran, roughness_state_schema, roughness_state_schema_info,
-    roughness_state_schema_version, roughness_state_schema_version_runtime, roughness_state_to_map,
+    anthroemis_state_default_from_fortran, anthroemis_state_schema, anthroemis_state_schema_info,
+    anthroemis_state_schema_version, anthroemis_state_schema_version_runtime,
+    anthroemis_state_to_map, anthroemis_state_to_values_payload, flag_state_default_from_fortran,
+    flag_state_schema, flag_state_schema_info, flag_state_schema_version,
+    flag_state_schema_version_runtime, flag_state_to_map, flag_state_to_values_payload,
+    nhood_state_default_from_fortran, nhood_state_schema, nhood_state_schema_info,
+    nhood_state_schema_version, nhood_state_schema_version_runtime, nhood_state_to_map,
+    nhood_state_to_values_payload, ohm_state_default_from_fortran, ohm_state_field_names,
+    ohm_state_from_map, ohm_state_from_values_payload, ohm_state_schema, ohm_state_schema_info,
+    ohm_state_schema_version, ohm_state_schema_version_runtime, ohm_state_step, ohm_state_to_map,
+    ohm_state_to_values_payload, ohm_step, qs_calc, roughness_state_default_from_fortran,
+    roughness_state_schema, roughness_state_schema_info, roughness_state_schema_version,
+    roughness_state_schema_version_runtime, roughness_state_to_map,
     roughness_state_to_values_payload, solar_state_default_from_fortran, solar_state_schema,
     solar_state_schema_info, solar_state_schema_version, solar_state_schema_version_runtime,
     solar_state_to_map, solar_state_to_values_payload, OhmModel, OhmStateValuesPayload,
@@ -246,6 +249,12 @@ enum Commands {
     FlagStateDefaultJson,
     /// Print default flag_STATE as JSON ordered values payload.
     FlagStateDefaultValuesJson,
+    /// Print anthroEmis_STATE schema as JSON for programmatic tooling.
+    AnthroemisStateSchemaJson,
+    /// Print default anthroEmis_STATE as JSON map payload.
+    AnthroemisStateDefaultJson,
+    /// Print default anthroEmis_STATE as JSON ordered values payload.
+    AnthroemisStateDefaultValuesJson,
     /// Print solar_State schema as JSON for programmatic tooling.
     SolarStateSchemaJson,
     /// Print default solar_State as JSON map payload.
@@ -502,6 +511,43 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
+        Commands::AnthroemisStateSchemaJson => {
+            let schema = anthroemis_state_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": anthroemis_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::AnthroemisStateDefaultJson => {
+            let flat_len = anthroemis_state_schema().map_err(|e| e.to_string())?;
+            let state = anthroemis_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": anthroemis_state_schema_version(),
+                "schema_version_runtime": anthroemis_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": anthroemis_state_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::AnthroemisStateDefaultValuesJson => {
+            let state = anthroemis_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = anthroemis_state_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": anthroemis_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
         Commands::SolarStateSchemaJson => {
             let schema = solar_state_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -725,6 +771,22 @@ mod tests {
             command: Commands::FlagStateDefaultValuesJson,
         };
         run(cli).expect("flag-state-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_anthroemis_state_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::AnthroemisStateDefaultJson,
+        };
+        run(cli).expect("anthroemis-state-default-json should succeed");
+    }
+
+    #[test]
+    fn run_anthroemis_state_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::AnthroemisStateDefaultValuesJson,
+        };
+        run(cli).expect("anthroemis-state-default-values-json should succeed");
     }
 
     #[test]

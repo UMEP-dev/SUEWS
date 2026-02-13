@@ -88,4 +88,10 @@ unsafe extern "C" {
     pub fn suews_nhood_state_schema_version(schema_version: *mut c_int, err: *mut c_int);
 
     pub fn suews_nhood_state_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
+    pub fn suews_anthroemis_state_len(n_flat: *mut c_int, err: *mut c_int);
+
+    pub fn suews_anthroemis_state_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_anthroemis_state_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
 }

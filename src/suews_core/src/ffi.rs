@@ -71,6 +71,17 @@ unsafe extern "C" {
 
     pub fn suews_config_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
 
+    pub fn suews_forcing_len(n_flat: *mut c_int, ts5mindata_ir_len: *mut c_int, err: *mut c_int);
+
+    pub fn suews_forcing_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_forcing_default(
+        flat: *mut c_double,
+        n_flat: c_int,
+        ts5mindata_ir_len: *mut c_int,
+        err: *mut c_int,
+    );
+
     pub fn suews_timer_len(n_flat: *mut c_int, err: *mut c_int);
 
     pub fn suews_timer_schema_version(schema_version: *mut c_int, err: *mut c_int);
@@ -124,6 +135,16 @@ unsafe extern "C" {
     pub fn suews_atm_state_schema_version(schema_version: *mut c_int, err: *mut c_int);
 
     pub fn suews_atm_state_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
+    pub fn suews_building_archetype_prm_len(n_flat: *mut c_int, err: *mut c_int);
+
+    pub fn suews_building_archetype_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_building_archetype_prm_default(
+        flat: *mut c_double,
+        n_flat: c_int,
+        err: *mut c_int,
+    );
 
     pub fn suews_phenology_state_len(n_flat: *mut c_int, err: *mut c_int);
 
@@ -184,6 +205,30 @@ unsafe extern "C" {
     pub fn suews_lai_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
 
     pub fn suews_lai_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
+    pub fn suews_lc_paved_prm_len(n_flat: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lc_paved_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lc_paved_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
+    pub fn suews_lc_bldg_prm_len(n_flat: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lc_bldg_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lc_bldg_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
+    pub fn suews_lc_bsoil_prm_len(n_flat: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lc_bsoil_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lc_bsoil_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
+    pub fn suews_lc_water_prm_len(n_flat: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lc_water_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lc_water_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
 
     pub fn suews_surf_store_prm_len(n_flat: *mut c_int, err: *mut c_int);
 

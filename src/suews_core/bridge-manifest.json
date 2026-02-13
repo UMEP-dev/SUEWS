@@ -35,7 +35,7 @@
     {
       "name": "BUILDING_ARCHETYPE_PRM",
       "source": "src/suews/src/suews_type_stebbs.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "CONDUCTANCE_PRM",
@@ -90,12 +90,12 @@
     {
       "name": "LC_BLDG_PRM",
       "source": "src/suews/src/suews_type_landcover.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "LC_BSOIL_PRM",
       "source": "src/suews/src/suews_type_landcover.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "LC_DECTR_PRM",
@@ -115,12 +115,12 @@
     {
       "name": "LC_PAVED_PRM",
       "source": "src/suews/src/suews_type_landcover.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "LC_WATER_PRM",
       "source": "src/suews/src/suews_type_landcover.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "LUMPS_PRM",
@@ -220,7 +220,7 @@
     {
       "name": "SUEWS_FORCING",
       "source": "src/suews/src/suews_ctrl_type.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "SUEWS_SITE",

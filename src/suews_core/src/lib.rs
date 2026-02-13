@@ -3,6 +3,7 @@ mod anthro_heat_prm;
 mod anthroemis;
 mod atm;
 mod bioco2;
+mod building_archetype_prm;
 mod codec;
 mod conductance;
 mod config;
@@ -10,9 +11,14 @@ mod core;
 mod error;
 mod ffi;
 mod flag;
+mod forcing;
 mod irrig_daywater;
 mod irrigation_prm;
 mod lai;
+mod lc_bldg_prm;
+mod lc_bsoil_prm;
+mod lc_paved_prm;
+mod lc_water_prm;
 mod lumps;
 mod nhood;
 mod ohm_coef_lc;
@@ -71,6 +77,18 @@ pub use bioco2::{
     bioco2_prm_to_values_payload, BioCo2Prm, BioCo2PrmSchema, BioCo2PrmValuesPayload,
     BIOCO2_PRM_FLAT_LEN, BIOCO2_PRM_SCHEMA_VERSION,
 };
+pub use building_archetype_prm::{
+    building_archetype_prm_default_from_fortran, building_archetype_prm_field_index,
+    building_archetype_prm_field_names, building_archetype_prm_from_map,
+    building_archetype_prm_from_ordered_values, building_archetype_prm_from_values_payload,
+    building_archetype_prm_schema, building_archetype_prm_schema_info,
+    building_archetype_prm_schema_version, building_archetype_prm_schema_version_runtime,
+    building_archetype_prm_to_map, building_archetype_prm_to_ordered_values,
+    building_archetype_prm_to_values_payload, BuildingArchetypePrm, BuildingArchetypePrmSchema,
+    BuildingArchetypePrmValuesPayload, BUILDING_ARCHETYPE_PRM_FLAT_LEN,
+    BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS, BUILDING_ARCHETYPE_PRM_PROFILE_STEPS,
+    BUILDING_ARCHETYPE_PRM_SCHEMA_VERSION,
+};
 pub use codec::{
     dims_element_count, field_dims, from_values_payload_with_dims, require_field_dims,
     to_values_payload_with_dims, CompositeCodec, PayloadDims, StateCodec, TypeSchema,
@@ -111,6 +129,15 @@ pub use flag::{
     flag_state_to_values_payload, FlagState, FlagStateSchema, FlagStateValuesPayload,
     FLAG_STATE_FLAT_LEN, FLAG_STATE_SCHEMA_VERSION,
 };
+pub use forcing::{
+    suews_forcing_base_field_names, suews_forcing_default_from_fortran, suews_forcing_field_names,
+    suews_forcing_field_names_with_ts_len, suews_forcing_from_map,
+    suews_forcing_from_ordered_values, suews_forcing_from_values_payload, suews_forcing_schema,
+    suews_forcing_schema_info, suews_forcing_schema_version, suews_forcing_schema_version_runtime,
+    suews_forcing_to_map, suews_forcing_to_ordered_values, suews_forcing_to_values_payload,
+    SuewsForcing, SuewsForcingSchema, SuewsForcingValuesPayload, SUEWS_FORCING_BASE_FLAT_LEN,
+    SUEWS_FORCING_SCHEMA_VERSION, SUEWS_FORCING_TS5_FIELD,
+};
 pub use irrig_daywater::{
     irrig_daywater_default_from_fortran, irrig_daywater_field_index, irrig_daywater_field_names,
     irrig_daywater_from_map, irrig_daywater_from_ordered_values,
@@ -135,6 +162,38 @@ pub use lai::{
     lai_prm_schema_version, lai_prm_schema_version_runtime, lai_prm_to_map,
     lai_prm_to_ordered_values, lai_prm_to_values_payload, LaiPrm, LaiPrmSchema,
     LaiPrmValuesPayload, LAI_PRM_FLAT_LEN, LAI_PRM_SCHEMA_VERSION,
+};
+pub use lc_bldg_prm::{
+    lc_bldg_prm_default_from_fortran, lc_bldg_prm_field_index, lc_bldg_prm_field_names,
+    lc_bldg_prm_from_map, lc_bldg_prm_from_ordered_values, lc_bldg_prm_from_values_payload,
+    lc_bldg_prm_schema, lc_bldg_prm_schema_info, lc_bldg_prm_schema_version,
+    lc_bldg_prm_schema_version_runtime, lc_bldg_prm_to_map, lc_bldg_prm_to_ordered_values,
+    lc_bldg_prm_to_values_payload, LcBldgPrm, LcBldgPrmSchema, LcBldgPrmValuesPayload,
+    LC_BLDG_PRM_FLAT_LEN, LC_BLDG_PRM_SCHEMA_VERSION,
+};
+pub use lc_bsoil_prm::{
+    lc_bsoil_prm_default_from_fortran, lc_bsoil_prm_field_index, lc_bsoil_prm_field_names,
+    lc_bsoil_prm_from_map, lc_bsoil_prm_from_ordered_values, lc_bsoil_prm_from_values_payload,
+    lc_bsoil_prm_schema, lc_bsoil_prm_schema_info, lc_bsoil_prm_schema_version,
+    lc_bsoil_prm_schema_version_runtime, lc_bsoil_prm_to_map, lc_bsoil_prm_to_ordered_values,
+    lc_bsoil_prm_to_values_payload, LcBsoilPrm, LcBsoilPrmSchema, LcBsoilPrmValuesPayload,
+    LC_BSOIL_PRM_FLAT_LEN, LC_BSOIL_PRM_SCHEMA_VERSION,
+};
+pub use lc_paved_prm::{
+    lc_paved_prm_default_from_fortran, lc_paved_prm_field_index, lc_paved_prm_field_names,
+    lc_paved_prm_from_map, lc_paved_prm_from_ordered_values, lc_paved_prm_from_values_payload,
+    lc_paved_prm_schema, lc_paved_prm_schema_info, lc_paved_prm_schema_version,
+    lc_paved_prm_schema_version_runtime, lc_paved_prm_to_map, lc_paved_prm_to_ordered_values,
+    lc_paved_prm_to_values_payload, LcPavedPrm, LcPavedPrmSchema, LcPavedPrmValuesPayload,
+    LC_PAVED_PRM_FLAT_LEN, LC_PAVED_PRM_SCHEMA_VERSION,
+};
+pub use lc_water_prm::{
+    lc_water_prm_default_from_fortran, lc_water_prm_field_index, lc_water_prm_field_names,
+    lc_water_prm_from_map, lc_water_prm_from_ordered_values, lc_water_prm_from_values_payload,
+    lc_water_prm_schema, lc_water_prm_schema_info, lc_water_prm_schema_version,
+    lc_water_prm_schema_version_runtime, lc_water_prm_to_map, lc_water_prm_to_ordered_values,
+    lc_water_prm_to_values_payload, LcWaterPrm, LcWaterPrmSchema, LcWaterPrmValuesPayload,
+    LC_WATER_PRM_FLAT_LEN, LC_WATER_PRM_SCHEMA_VERSION,
 };
 pub use lumps::{
     lumps_prm_default_from_fortran, lumps_prm_field_index, lumps_prm_field_names,
@@ -271,21 +330,28 @@ mod python_bindings {
         bioco2_prm_from_values_payload, bioco2_prm_schema, bioco2_prm_schema_info,
         bioco2_prm_schema_version, bioco2_prm_schema_version_runtime, bioco2_prm_to_map,
         bioco2_prm_to_ordered_values, bioco2_prm_to_values_payload,
-        conductance_prm_default_from_fortran, conductance_prm_field_index,
-        conductance_prm_field_names, conductance_prm_from_map, conductance_prm_from_ordered_values,
-        conductance_prm_from_values_payload, conductance_prm_schema, conductance_prm_schema_info,
-        conductance_prm_schema_version, conductance_prm_schema_version_runtime,
-        conductance_prm_to_map, conductance_prm_to_ordered_values,
-        conductance_prm_to_values_payload, flag_state_default_from_fortran, flag_state_field_index,
-        flag_state_field_names, flag_state_from_map, flag_state_from_ordered_values,
-        flag_state_from_values_payload, flag_state_schema, flag_state_schema_info,
-        flag_state_schema_version, flag_state_schema_version_runtime, flag_state_to_map,
-        flag_state_to_ordered_values, flag_state_to_values_payload,
-        irrig_daywater_default_from_fortran, irrig_daywater_field_index,
-        irrig_daywater_field_names, irrig_daywater_from_map, irrig_daywater_from_ordered_values,
-        irrig_daywater_from_values_payload, irrig_daywater_schema, irrig_daywater_schema_info,
-        irrig_daywater_schema_version, irrig_daywater_schema_version_runtime,
-        irrig_daywater_to_map, irrig_daywater_to_ordered_values, irrig_daywater_to_values_payload,
+        building_archetype_prm_default_from_fortran, building_archetype_prm_field_index,
+        building_archetype_prm_field_names, building_archetype_prm_from_map,
+        building_archetype_prm_from_ordered_values, building_archetype_prm_from_values_payload,
+        building_archetype_prm_schema, building_archetype_prm_schema_info,
+        building_archetype_prm_schema_version, building_archetype_prm_schema_version_runtime,
+        building_archetype_prm_to_map, building_archetype_prm_to_ordered_values,
+        building_archetype_prm_to_values_payload, conductance_prm_default_from_fortran,
+        conductance_prm_field_index, conductance_prm_field_names, conductance_prm_from_map,
+        conductance_prm_from_ordered_values, conductance_prm_from_values_payload,
+        conductance_prm_schema, conductance_prm_schema_info, conductance_prm_schema_version,
+        conductance_prm_schema_version_runtime, conductance_prm_to_map,
+        conductance_prm_to_ordered_values, conductance_prm_to_values_payload,
+        flag_state_default_from_fortran, flag_state_field_index, flag_state_field_names,
+        flag_state_from_map, flag_state_from_ordered_values, flag_state_from_values_payload,
+        flag_state_schema, flag_state_schema_info, flag_state_schema_version,
+        flag_state_schema_version_runtime, flag_state_to_map, flag_state_to_ordered_values,
+        flag_state_to_values_payload, irrig_daywater_default_from_fortran,
+        irrig_daywater_field_index, irrig_daywater_field_names, irrig_daywater_from_map,
+        irrig_daywater_from_ordered_values, irrig_daywater_from_values_payload,
+        irrig_daywater_schema, irrig_daywater_schema_info, irrig_daywater_schema_version,
+        irrig_daywater_schema_version_runtime, irrig_daywater_to_map,
+        irrig_daywater_to_ordered_values, irrig_daywater_to_values_payload,
         irrigation_prm_default_from_fortran, irrigation_prm_field_index,
         irrigation_prm_field_names, irrigation_prm_from_map, irrigation_prm_from_ordered_values,
         irrigation_prm_from_values_payload, irrigation_prm_schema, irrigation_prm_schema_info,
@@ -350,6 +416,11 @@ mod python_bindings {
         suews_config_from_values_payload, suews_config_schema, suews_config_schema_info,
         suews_config_schema_version, suews_config_schema_version_runtime, suews_config_to_map,
         suews_config_to_ordered_values, suews_config_to_values_payload,
+        suews_forcing_default_from_fortran, suews_forcing_field_names, suews_forcing_from_map,
+        suews_forcing_from_ordered_values, suews_forcing_from_values_payload, suews_forcing_schema,
+        suews_forcing_schema_info, suews_forcing_schema_version,
+        suews_forcing_schema_version_runtime, suews_forcing_to_map,
+        suews_forcing_to_ordered_values, suews_forcing_to_values_payload,
         suews_timer_default_from_fortran, suews_timer_field_index, suews_timer_field_names,
         suews_timer_from_map, suews_timer_from_ordered_values, suews_timer_from_values_payload,
         suews_timer_schema, suews_timer_schema_info, suews_timer_schema_version,
@@ -367,15 +438,16 @@ mod python_bindings {
         water_dist_prm_to_map, water_dist_prm_to_ordered_values, water_dist_prm_to_values_payload,
         AnthroEmisPrm, AnthroEmisPrmValuesPayload, AnthroEmisState, AnthroEmisStateValuesPayload,
         AnthroHeatPrm, AnthroHeatPrmValuesPayload, AtmState, AtmStateValuesPayload, BioCo2Prm,
-        BioCo2PrmValuesPayload, BridgeError, ConductancePrm, ConductancePrmValuesPayload,
-        FlagState, FlagStateValuesPayload, IrrigDaywater, IrrigDaywaterValuesPayload,
-        IrrigationPrm, IrrigationPrmValuesPayload, LaiPrm, LaiPrmValuesPayload, LumpsPrm,
-        LumpsPrmValuesPayload, NhoodState, NhoodStateValuesPayload, OhmCoefLc,
-        OhmCoefLcValuesPayload, OhmModel, OhmPrm, OhmPrmValuesPayload, OhmState,
-        OhmStateValuesPayload, PhenologyState, PhenologyStateValuesPayload, RoughnessState,
-        RoughnessStateValuesPayload, SnowPrm, SnowPrmValuesPayload, SnowState,
-        SnowStateValuesPayload, SoilPrm, SoilPrmValuesPayload, SolarState, SolarStateValuesPayload,
-        SuewsConfig, SuewsConfigValuesPayload, SuewsTimer, SuewsTimerValuesPayload, SurfStorePrm,
+        BioCo2PrmValuesPayload, BridgeError, BuildingArchetypePrm,
+        BuildingArchetypePrmValuesPayload, ConductancePrm, ConductancePrmValuesPayload, FlagState,
+        FlagStateValuesPayload, IrrigDaywater, IrrigDaywaterValuesPayload, IrrigationPrm,
+        IrrigationPrmValuesPayload, LaiPrm, LaiPrmValuesPayload, LumpsPrm, LumpsPrmValuesPayload,
+        NhoodState, NhoodStateValuesPayload, OhmCoefLc, OhmCoefLcValuesPayload, OhmModel, OhmPrm,
+        OhmPrmValuesPayload, OhmState, OhmStateValuesPayload, PhenologyState,
+        PhenologyStateValuesPayload, RoughnessState, RoughnessStateValuesPayload, SnowPrm,
+        SnowPrmValuesPayload, SnowState, SnowStateValuesPayload, SoilPrm, SoilPrmValuesPayload,
+        SolarState, SolarStateValuesPayload, SuewsConfig, SuewsConfigValuesPayload, SuewsForcing,
+        SuewsForcingValuesPayload, SuewsTimer, SuewsTimerValuesPayload, SurfStorePrm,
         SurfStorePrmValuesPayload, WaterDistPrm, WaterDistPrmValuesPayload, NSURF,
     };
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
@@ -829,6 +901,122 @@ mod python_bindings {
             flat[idx] = value;
             self.state = SuewsConfig::from_flat(&flat).map_err(map_bridge_error)?;
             Ok(())
+        }
+    }
+
+    #[pyclass(name = "SuewsForcing")]
+    pub struct PySuewsForcing {
+        state: SuewsForcing,
+    }
+
+    #[pymethods]
+    impl PySuewsForcing {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = suews_forcing_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = suews_forcing_from_ordered_values(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state = suews_forcing_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(
+            schema_version: u32,
+            values: Vec<f64>,
+            dims: HashMap<String, Vec<usize>>,
+        ) -> PyResult<Self> {
+            let payload = SuewsForcingValuesPayload {
+                schema_version,
+                values,
+                dims: dims.into_iter().collect(),
+            };
+            let state = suews_forcing_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid SUEWS_FORCING values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = suews_forcing_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid SUEWS_FORCING field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            suews_forcing_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>, HashMap<String, Vec<usize>>) {
+            let payload = suews_forcing_to_values_payload(&self.state);
+            (
+                payload.schema_version,
+                payload.values,
+                payload.dims.into_iter().collect(),
+            )
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            suews_forcing_to_map(&self.state)
+        }
+
+        fn update_from_dict(&mut self, values: HashMap<String, f64>) -> PyResult<()> {
+            let mut mapped = suews_forcing_to_map(&self.state);
+            for (name, value) in values {
+                mapped.insert(name, value);
+            }
+
+            self.state = suews_forcing_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid SUEWS_FORCING field mapping: {err}"))
+            })?;
+            Ok(())
+        }
+
+        #[staticmethod]
+        fn field_names() -> PyResult<Vec<String>> {
+            suews_forcing_field_names().map_err(map_bridge_error)
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            suews_forcing_to_map(&self.state)
+                .get(name)
+                .copied()
+                .ok_or_else(|| {
+                    PyValueError::new_err(format!("unknown SUEWS_FORCING field name: {name}"))
+                })
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let mut mapped = suews_forcing_to_map(&self.state);
+            mapped.insert(name.to_string(), value);
+            self.state = suews_forcing_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid SUEWS_FORCING field mapping: {err}"))
+            })?;
+            Ok(())
+        }
+
+        fn ts5mindata_ir(&self) -> Vec<f64> {
+            self.state.ts5mindata_ir.clone()
+        }
+
+        fn set_ts5mindata_ir(&mut self, values: Vec<f64>) {
+            self.state.ts5mindata_ir = values;
         }
     }
 
@@ -2373,6 +2561,358 @@ mod python_bindings {
         }
     }
 
+    #[pyclass(name = "LcPavedPrm")]
+    pub struct PyLcPavedPrm {
+        state: crate::LcPavedPrm,
+    }
+
+    #[pymethods]
+    impl PyLcPavedPrm {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = crate::lc_paved_prm_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = crate::LcPavedPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state =
+                crate::lc_paved_prm_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = crate::LcPavedPrmValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = crate::lc_paved_prm_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid LC_PAVED_PRM values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = crate::lc_paved_prm_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid LC_PAVED_PRM field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            crate::lc_paved_prm_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = crate::lc_paved_prm_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            crate::lc_paved_prm_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            crate::lc_paved_prm_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = crate::lc_paved_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown LC_PAVED_PRM field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = crate::lc_paved_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown LC_PAVED_PRM field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = crate::LcPavedPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
+    #[pyclass(name = "LcBldgPrm")]
+    pub struct PyLcBldgPrm {
+        state: crate::LcBldgPrm,
+    }
+
+    #[pymethods]
+    impl PyLcBldgPrm {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = crate::lc_bldg_prm_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = crate::LcBldgPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state =
+                crate::lc_bldg_prm_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = crate::LcBldgPrmValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = crate::lc_bldg_prm_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid LC_BLDG_PRM values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = crate::lc_bldg_prm_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid LC_BLDG_PRM field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            crate::lc_bldg_prm_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = crate::lc_bldg_prm_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            crate::lc_bldg_prm_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            crate::lc_bldg_prm_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = crate::lc_bldg_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown LC_BLDG_PRM field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = crate::lc_bldg_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown LC_BLDG_PRM field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = crate::LcBldgPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
+    #[pyclass(name = "LcBsoilPrm")]
+    pub struct PyLcBsoilPrm {
+        state: crate::LcBsoilPrm,
+    }
+
+    #[pymethods]
+    impl PyLcBsoilPrm {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = crate::lc_bsoil_prm_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = crate::LcBsoilPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state =
+                crate::lc_bsoil_prm_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = crate::LcBsoilPrmValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = crate::lc_bsoil_prm_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid LC_BSOIL_PRM values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = crate::lc_bsoil_prm_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid LC_BSOIL_PRM field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            crate::lc_bsoil_prm_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = crate::lc_bsoil_prm_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            crate::lc_bsoil_prm_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            crate::lc_bsoil_prm_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = crate::lc_bsoil_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown LC_BSOIL_PRM field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = crate::lc_bsoil_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown LC_BSOIL_PRM field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = crate::LcBsoilPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
+    #[pyclass(name = "LcWaterPrm")]
+    pub struct PyLcWaterPrm {
+        state: crate::LcWaterPrm,
+    }
+
+    #[pymethods]
+    impl PyLcWaterPrm {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = crate::lc_water_prm_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = crate::LcWaterPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state =
+                crate::lc_water_prm_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = crate::LcWaterPrmValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = crate::lc_water_prm_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid LC_WATER_PRM values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = crate::lc_water_prm_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid LC_WATER_PRM field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            crate::lc_water_prm_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = crate::lc_water_prm_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            crate::lc_water_prm_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            crate::lc_water_prm_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = crate::lc_water_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown LC_WATER_PRM field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = crate::lc_water_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown LC_WATER_PRM field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = crate::LcWaterPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
     #[pyclass(name = "IrrigDaywater")]
     pub struct PyIrrigDaywater {
         state: IrrigDaywater,
@@ -2721,6 +3261,98 @@ mod python_bindings {
         }
     }
 
+    #[pyclass(name = "BuildingArchetypePrm")]
+    pub struct PyBuildingArchetypePrm {
+        state: BuildingArchetypePrm,
+    }
+
+    #[pymethods]
+    impl PyBuildingArchetypePrm {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = building_archetype_prm_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = BuildingArchetypePrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state =
+                building_archetype_prm_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = BuildingArchetypePrmValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = building_archetype_prm_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!(
+                    "invalid BUILDING_ARCHETYPE_PRM values payload: {err}"
+                ))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = building_archetype_prm_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!(
+                    "invalid BUILDING_ARCHETYPE_PRM field mapping: {err}"
+                ))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            building_archetype_prm_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = building_archetype_prm_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            building_archetype_prm_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            building_archetype_prm_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = building_archetype_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown BUILDING_ARCHETYPE_PRM field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = building_archetype_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown BUILDING_ARCHETYPE_PRM field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = BuildingArchetypePrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
     #[pyclass(name = "RoughnessState")]
     pub struct PyRoughnessState {
         state: RoughnessState,
@@ -2973,6 +3605,43 @@ mod python_bindings {
     #[pyfunction(name = "suews_config_fields")]
     fn suews_config_fields_py() -> Vec<String> {
         suews_config_field_names()
+    }
+
+    #[pyfunction(name = "suews_forcing_schema")]
+    fn suews_forcing_schema_py() -> PyResult<(usize, usize)> {
+        suews_forcing_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "suews_forcing_schema_version")]
+    fn suews_forcing_schema_version_py() -> u32 {
+        suews_forcing_schema_version()
+    }
+
+    #[pyfunction(name = "suews_forcing_schema_version_runtime")]
+    fn suews_forcing_schema_version_runtime_py() -> PyResult<u32> {
+        suews_forcing_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "suews_forcing_schema_meta")]
+    fn suews_forcing_schema_meta_py() -> PyResult<(u32, usize, usize, Vec<String>, Vec<usize>)> {
+        let meta = suews_forcing_schema_info().map_err(map_bridge_error)?;
+        let ts5mindata_ir_dims = meta
+            .allocatable_dims
+            .get("ts5mindata_ir")
+            .cloned()
+            .unwrap_or_default();
+        Ok((
+            meta.schema_version,
+            meta.flat_len,
+            meta.base_flat_len,
+            meta.field_names,
+            ts5mindata_ir_dims,
+        ))
+    }
+
+    #[pyfunction(name = "suews_forcing_fields")]
+    fn suews_forcing_fields_py() -> PyResult<Vec<String>> {
+        suews_forcing_field_names().map_err(map_bridge_error)
     }
 
     #[pyfunction(name = "suews_timer_schema")]
@@ -3235,6 +3904,110 @@ mod python_bindings {
         soil_prm_field_names()
     }
 
+    #[pyfunction(name = "lc_paved_prm_schema")]
+    fn lc_paved_prm_schema_py() -> PyResult<usize> {
+        crate::lc_paved_prm_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "lc_paved_prm_schema_version")]
+    fn lc_paved_prm_schema_version_py() -> u32 {
+        crate::lc_paved_prm_schema_version()
+    }
+
+    #[pyfunction(name = "lc_paved_prm_schema_version_runtime")]
+    fn lc_paved_prm_schema_version_runtime_py() -> PyResult<u32> {
+        crate::lc_paved_prm_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "lc_paved_prm_schema_meta")]
+    fn lc_paved_prm_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = crate::lc_paved_prm_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "lc_paved_prm_fields")]
+    fn lc_paved_prm_fields_py() -> Vec<String> {
+        crate::lc_paved_prm_field_names()
+    }
+
+    #[pyfunction(name = "lc_bldg_prm_schema")]
+    fn lc_bldg_prm_schema_py() -> PyResult<usize> {
+        crate::lc_bldg_prm_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "lc_bldg_prm_schema_version")]
+    fn lc_bldg_prm_schema_version_py() -> u32 {
+        crate::lc_bldg_prm_schema_version()
+    }
+
+    #[pyfunction(name = "lc_bldg_prm_schema_version_runtime")]
+    fn lc_bldg_prm_schema_version_runtime_py() -> PyResult<u32> {
+        crate::lc_bldg_prm_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "lc_bldg_prm_schema_meta")]
+    fn lc_bldg_prm_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = crate::lc_bldg_prm_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "lc_bldg_prm_fields")]
+    fn lc_bldg_prm_fields_py() -> Vec<String> {
+        crate::lc_bldg_prm_field_names()
+    }
+
+    #[pyfunction(name = "lc_bsoil_prm_schema")]
+    fn lc_bsoil_prm_schema_py() -> PyResult<usize> {
+        crate::lc_bsoil_prm_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "lc_bsoil_prm_schema_version")]
+    fn lc_bsoil_prm_schema_version_py() -> u32 {
+        crate::lc_bsoil_prm_schema_version()
+    }
+
+    #[pyfunction(name = "lc_bsoil_prm_schema_version_runtime")]
+    fn lc_bsoil_prm_schema_version_runtime_py() -> PyResult<u32> {
+        crate::lc_bsoil_prm_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "lc_bsoil_prm_schema_meta")]
+    fn lc_bsoil_prm_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = crate::lc_bsoil_prm_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "lc_bsoil_prm_fields")]
+    fn lc_bsoil_prm_fields_py() -> Vec<String> {
+        crate::lc_bsoil_prm_field_names()
+    }
+
+    #[pyfunction(name = "lc_water_prm_schema")]
+    fn lc_water_prm_schema_py() -> PyResult<usize> {
+        crate::lc_water_prm_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "lc_water_prm_schema_version")]
+    fn lc_water_prm_schema_version_py() -> u32 {
+        crate::lc_water_prm_schema_version()
+    }
+
+    #[pyfunction(name = "lc_water_prm_schema_version_runtime")]
+    fn lc_water_prm_schema_version_runtime_py() -> PyResult<u32> {
+        crate::lc_water_prm_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "lc_water_prm_schema_meta")]
+    fn lc_water_prm_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = crate::lc_water_prm_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "lc_water_prm_fields")]
+    fn lc_water_prm_fields_py() -> Vec<String> {
+        crate::lc_water_prm_field_names()
+    }
+
     #[pyfunction(name = "surf_store_prm_schema")]
     fn surf_store_prm_schema_py() -> PyResult<usize> {
         surf_store_prm_schema().map_err(map_bridge_error)
@@ -3495,6 +4268,32 @@ mod python_bindings {
         ohm_prm_field_names()
     }
 
+    #[pyfunction(name = "building_archetype_prm_schema")]
+    fn building_archetype_prm_schema_py() -> PyResult<usize> {
+        building_archetype_prm_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "building_archetype_prm_schema_version")]
+    fn building_archetype_prm_schema_version_py() -> u32 {
+        building_archetype_prm_schema_version()
+    }
+
+    #[pyfunction(name = "building_archetype_prm_schema_version_runtime")]
+    fn building_archetype_prm_schema_version_runtime_py() -> PyResult<u32> {
+        building_archetype_prm_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "building_archetype_prm_schema_meta")]
+    fn building_archetype_prm_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = building_archetype_prm_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "building_archetype_prm_fields")]
+    fn building_archetype_prm_fields_py() -> Vec<String> {
+        building_archetype_prm_field_names()
+    }
+
     #[pyfunction(name = "solar_state_schema")]
     fn solar_state_schema_py() -> PyResult<usize> {
         solar_state_schema().map_err(map_bridge_error)
@@ -3578,16 +4377,22 @@ mod python_bindings {
         m.add_class::<PyOhmModel>()?;
         m.add_class::<PyOhmState>()?;
         m.add_class::<PySuewsConfig>()?;
+        m.add_class::<PySuewsForcing>()?;
         m.add_class::<PySuewsTimer>()?;
         m.add_class::<PyFlagState>()?;
         m.add_class::<PyAnthroEmisState>()?;
         m.add_class::<PyAnthroHeatPrm>()?;
         m.add_class::<PyAnthroEmisPrm>()?;
         m.add_class::<PyAtmState>()?;
+        m.add_class::<PyBuildingArchetypePrm>()?;
         m.add_class::<PyPhenologyState>()?;
         m.add_class::<PySnowState>()?;
         m.add_class::<PySnowPrm>()?;
         m.add_class::<PySoilPrm>()?;
+        m.add_class::<PyLcPavedPrm>()?;
+        m.add_class::<PyLcBldgPrm>()?;
+        m.add_class::<PyLcBsoilPrm>()?;
+        m.add_class::<PyLcWaterPrm>()?;
         m.add_class::<PyLumpsPrm>()?;
         m.add_class::<PyBioCo2Prm>()?;
         m.add_class::<PyLaiPrm>()?;
@@ -3613,6 +4418,14 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(suews_config_schema_version_runtime_py, m)?)?;
         m.add_function(wrap_pyfunction!(suews_config_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(suews_config_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(suews_forcing_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(suews_forcing_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(
+            suews_forcing_schema_version_runtime_py,
+            m
+        )?)?;
+        m.add_function(wrap_pyfunction!(suews_forcing_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(suews_forcing_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(suews_timer_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(suews_timer_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(suews_timer_schema_version_runtime_py, m)?)?;
@@ -3675,6 +4488,26 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(soil_prm_schema_version_runtime_py, m)?)?;
         m.add_function(wrap_pyfunction!(soil_prm_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(soil_prm_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_paved_prm_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_paved_prm_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_paved_prm_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_paved_prm_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_paved_prm_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_bldg_prm_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_bldg_prm_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_bldg_prm_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_bldg_prm_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_bldg_prm_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_bsoil_prm_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_bsoil_prm_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_bsoil_prm_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_bsoil_prm_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_bsoil_prm_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_water_prm_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_water_prm_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_water_prm_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_water_prm_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(lc_water_prm_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(surf_store_prm_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(surf_store_prm_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(
@@ -3740,6 +4573,17 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(ohm_prm_schema_version_runtime_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_prm_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_prm_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(building_archetype_prm_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(
+            building_archetype_prm_schema_version_py,
+            m
+        )?)?;
+        m.add_function(wrap_pyfunction!(
+            building_archetype_prm_schema_version_runtime_py,
+            m
+        )?)?;
+        m.add_function(wrap_pyfunction!(building_archetype_prm_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(building_archetype_prm_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_version_runtime_py, m)?)?;

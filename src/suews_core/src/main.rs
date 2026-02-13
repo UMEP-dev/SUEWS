@@ -16,8 +16,12 @@ use suews_bridge::{
     atm_state_to_map, atm_state_to_values_payload, bioco2_prm_default_from_fortran,
     bioco2_prm_schema, bioco2_prm_schema_info, bioco2_prm_schema_version,
     bioco2_prm_schema_version_runtime, bioco2_prm_to_map, bioco2_prm_to_values_payload,
-    conductance_prm_default_from_fortran, conductance_prm_schema, conductance_prm_schema_info,
-    conductance_prm_schema_version, conductance_prm_schema_version_runtime, conductance_prm_to_map,
+    building_archetype_prm_default_from_fortran, building_archetype_prm_schema,
+    building_archetype_prm_schema_info, building_archetype_prm_schema_version,
+    building_archetype_prm_schema_version_runtime, building_archetype_prm_to_map,
+    building_archetype_prm_to_values_payload, conductance_prm_default_from_fortran,
+    conductance_prm_schema, conductance_prm_schema_info, conductance_prm_schema_version,
+    conductance_prm_schema_version_runtime, conductance_prm_to_map,
     conductance_prm_to_values_payload, flag_state_default_from_fortran, flag_state_schema,
     flag_state_schema_info, flag_state_schema_version, flag_state_schema_version_runtime,
     flag_state_to_map, flag_state_to_values_payload, irrig_daywater_default_from_fortran,
@@ -27,21 +31,30 @@ use suews_bridge::{
     irrigation_prm_schema_version, irrigation_prm_schema_version_runtime, irrigation_prm_to_map,
     irrigation_prm_to_values_payload, lai_prm_default_from_fortran, lai_prm_schema,
     lai_prm_schema_info, lai_prm_schema_version, lai_prm_schema_version_runtime, lai_prm_to_map,
-    lai_prm_to_values_payload, lumps_prm_default_from_fortran, lumps_prm_schema,
-    lumps_prm_schema_info, lumps_prm_schema_version, lumps_prm_schema_version_runtime,
-    lumps_prm_to_map, lumps_prm_to_values_payload, nhood_state_default_from_fortran,
-    nhood_state_schema, nhood_state_schema_info, nhood_state_schema_version,
-    nhood_state_schema_version_runtime, nhood_state_to_map, nhood_state_to_values_payload,
-    ohm_coef_lc_default_from_fortran, ohm_coef_lc_schema, ohm_coef_lc_schema_info,
-    ohm_coef_lc_schema_version, ohm_coef_lc_schema_version_runtime, ohm_coef_lc_to_map,
-    ohm_coef_lc_to_values_payload, ohm_prm_default_from_fortran, ohm_prm_schema,
-    ohm_prm_schema_info, ohm_prm_schema_version, ohm_prm_schema_version_runtime, ohm_prm_to_map,
-    ohm_prm_to_values_payload, ohm_state_default_from_fortran, ohm_state_field_names,
-    ohm_state_from_map, ohm_state_from_values_payload, ohm_state_schema, ohm_state_schema_info,
-    ohm_state_schema_version, ohm_state_schema_version_runtime, ohm_state_step, ohm_state_to_map,
-    ohm_state_to_values_payload, ohm_step, phenology_state_default_from_fortran,
-    phenology_state_schema, phenology_state_schema_info, phenology_state_schema_version,
-    phenology_state_schema_version_runtime, phenology_state_to_map,
+    lai_prm_to_values_payload, lc_bldg_prm_default_from_fortran, lc_bldg_prm_schema,
+    lc_bldg_prm_schema_info, lc_bldg_prm_schema_version, lc_bldg_prm_schema_version_runtime,
+    lc_bldg_prm_to_map, lc_bldg_prm_to_values_payload, lc_bsoil_prm_default_from_fortran,
+    lc_bsoil_prm_schema, lc_bsoil_prm_schema_info, lc_bsoil_prm_schema_version,
+    lc_bsoil_prm_schema_version_runtime, lc_bsoil_prm_to_map, lc_bsoil_prm_to_values_payload,
+    lc_paved_prm_default_from_fortran, lc_paved_prm_schema, lc_paved_prm_schema_info,
+    lc_paved_prm_schema_version, lc_paved_prm_schema_version_runtime, lc_paved_prm_to_map,
+    lc_paved_prm_to_values_payload, lc_water_prm_default_from_fortran, lc_water_prm_schema,
+    lc_water_prm_schema_info, lc_water_prm_schema_version, lc_water_prm_schema_version_runtime,
+    lc_water_prm_to_map, lc_water_prm_to_values_payload, lumps_prm_default_from_fortran,
+    lumps_prm_schema, lumps_prm_schema_info, lumps_prm_schema_version,
+    lumps_prm_schema_version_runtime, lumps_prm_to_map, lumps_prm_to_values_payload,
+    nhood_state_default_from_fortran, nhood_state_schema, nhood_state_schema_info,
+    nhood_state_schema_version, nhood_state_schema_version_runtime, nhood_state_to_map,
+    nhood_state_to_values_payload, ohm_coef_lc_default_from_fortran, ohm_coef_lc_schema,
+    ohm_coef_lc_schema_info, ohm_coef_lc_schema_version, ohm_coef_lc_schema_version_runtime,
+    ohm_coef_lc_to_map, ohm_coef_lc_to_values_payload, ohm_prm_default_from_fortran,
+    ohm_prm_schema, ohm_prm_schema_info, ohm_prm_schema_version, ohm_prm_schema_version_runtime,
+    ohm_prm_to_map, ohm_prm_to_values_payload, ohm_state_default_from_fortran,
+    ohm_state_field_names, ohm_state_from_map, ohm_state_from_values_payload, ohm_state_schema,
+    ohm_state_schema_info, ohm_state_schema_version, ohm_state_schema_version_runtime,
+    ohm_state_step, ohm_state_to_map, ohm_state_to_values_payload, ohm_step,
+    phenology_state_default_from_fortran, phenology_state_schema, phenology_state_schema_info,
+    phenology_state_schema_version, phenology_state_schema_version_runtime, phenology_state_to_map,
     phenology_state_to_values_payload, qs_calc, roughness_state_default_from_fortran,
     roughness_state_schema, roughness_state_schema_info, roughness_state_schema_version,
     roughness_state_schema_version_runtime, roughness_state_to_map,
@@ -56,15 +69,17 @@ use suews_bridge::{
     solar_state_schema_version, solar_state_schema_version_runtime, solar_state_to_map,
     solar_state_to_values_payload, suews_config_default_from_fortran, suews_config_schema,
     suews_config_schema_info, suews_config_schema_version, suews_config_schema_version_runtime,
-    suews_config_to_map, suews_config_to_values_payload, suews_timer_default_from_fortran,
-    suews_timer_schema, suews_timer_schema_info, suews_timer_schema_version,
-    suews_timer_schema_version_runtime, suews_timer_to_map, suews_timer_to_values_payload,
-    surf_store_prm_default_from_fortran, surf_store_prm_schema, surf_store_prm_schema_info,
-    surf_store_prm_schema_version, surf_store_prm_schema_version_runtime, surf_store_prm_to_map,
-    surf_store_prm_to_values_payload, water_dist_prm_default_from_fortran, water_dist_prm_schema,
-    water_dist_prm_schema_info, water_dist_prm_schema_version,
-    water_dist_prm_schema_version_runtime, water_dist_prm_to_map, water_dist_prm_to_values_payload,
-    OhmModel, OhmStateValuesPayload, OHM_STATE_FLAT_LEN,
+    suews_config_to_map, suews_config_to_values_payload, suews_forcing_default_from_fortran,
+    suews_forcing_schema, suews_forcing_schema_info, suews_forcing_schema_version,
+    suews_forcing_schema_version_runtime, suews_forcing_to_map, suews_forcing_to_values_payload,
+    suews_timer_default_from_fortran, suews_timer_schema, suews_timer_schema_info,
+    suews_timer_schema_version, suews_timer_schema_version_runtime, suews_timer_to_map,
+    suews_timer_to_values_payload, surf_store_prm_default_from_fortran, surf_store_prm_schema,
+    surf_store_prm_schema_info, surf_store_prm_schema_version,
+    surf_store_prm_schema_version_runtime, surf_store_prm_to_map, surf_store_prm_to_values_payload,
+    water_dist_prm_default_from_fortran, water_dist_prm_schema, water_dist_prm_schema_info,
+    water_dist_prm_schema_version, water_dist_prm_schema_version_runtime, water_dist_prm_to_map,
+    water_dist_prm_to_values_payload, OhmModel, OhmStateValuesPayload, OHM_STATE_FLAT_LEN,
 };
 
 fn parse_state_map_json(text: &str) -> Result<std::collections::BTreeMap<String, f64>, String> {
@@ -258,6 +273,12 @@ enum Commands {
     SuewsConfigDefaultJson,
     /// Print default SUEWS_CONFIG as JSON ordered values payload.
     SuewsConfigDefaultValuesJson,
+    /// Print SUEWS_FORCING schema as JSON for programmatic tooling.
+    SuewsForcingSchemaJson,
+    /// Print default SUEWS_FORCING as JSON map payload.
+    SuewsForcingDefaultJson,
+    /// Print default SUEWS_FORCING as JSON ordered values payload.
+    SuewsForcingDefaultValuesJson,
     /// Print SUEWS_TIMER schema as JSON for programmatic tooling.
     SuewsTimerSchemaJson,
     /// Print default SUEWS_TIMER as JSON map payload.
@@ -330,6 +351,12 @@ enum Commands {
     AtmStateDefaultJson,
     /// Print default atm_state as JSON ordered values payload.
     AtmStateDefaultValuesJson,
+    /// Print BUILDING_ARCHETYPE_PRM schema as JSON for programmatic tooling.
+    BuildingArchetypePrmSchemaJson,
+    /// Print default BUILDING_ARCHETYPE_PRM as JSON map payload.
+    BuildingArchetypePrmDefaultJson,
+    /// Print default BUILDING_ARCHETYPE_PRM as JSON ordered values payload.
+    BuildingArchetypePrmDefaultValuesJson,
     /// Print CONDUCTANCE_PRM schema as JSON for programmatic tooling.
     ConductancePrmSchemaJson,
     /// Print default CONDUCTANCE_PRM as JSON map payload.
@@ -372,6 +399,30 @@ enum Commands {
     SoilPrmDefaultJson,
     /// Print default SOIL_PRM as JSON ordered values payload.
     SoilPrmDefaultValuesJson,
+    /// Print LC_PAVED_PRM schema as JSON for programmatic tooling.
+    LcPavedPrmSchemaJson,
+    /// Print default LC_PAVED_PRM as JSON map payload.
+    LcPavedPrmDefaultJson,
+    /// Print default LC_PAVED_PRM as JSON ordered values payload.
+    LcPavedPrmDefaultValuesJson,
+    /// Print LC_BLDG_PRM schema as JSON for programmatic tooling.
+    LcBldgPrmSchemaJson,
+    /// Print default LC_BLDG_PRM as JSON map payload.
+    LcBldgPrmDefaultJson,
+    /// Print default LC_BLDG_PRM as JSON ordered values payload.
+    LcBldgPrmDefaultValuesJson,
+    /// Print LC_BSOIL_PRM schema as JSON for programmatic tooling.
+    LcBsoilPrmSchemaJson,
+    /// Print default LC_BSOIL_PRM as JSON map payload.
+    LcBsoilPrmDefaultJson,
+    /// Print default LC_BSOIL_PRM as JSON ordered values payload.
+    LcBsoilPrmDefaultValuesJson,
+    /// Print LC_WATER_PRM schema as JSON for programmatic tooling.
+    LcWaterPrmSchemaJson,
+    /// Print default LC_WATER_PRM as JSON map payload.
+    LcWaterPrmDefaultJson,
+    /// Print default LC_WATER_PRM as JSON ordered values payload.
+    LcWaterPrmDefaultValuesJson,
     /// Print SURF_STORE_PRM schema as JSON for programmatic tooling.
     SurfStorePrmSchemaJson,
     /// Print default SURF_STORE_PRM as JSON map payload.
@@ -596,6 +647,49 @@ fn run(cli: Cli) -> Result<(), String> {
                 "schema_version": payload.schema_version,
                 "schema_version_runtime": suews_config_schema_version_runtime().map_err(|e| e.to_string())?,
                 "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SuewsForcingSchemaJson => {
+            let schema = suews_forcing_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": suews_forcing_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "base_flat_len": schema.base_flat_len,
+                "ts5mindata_ir_len": schema.ts5mindata_ir_len,
+                "allocatable_dims": schema.allocatable_dims,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SuewsForcingDefaultJson => {
+            let (flat_len, ts5mindata_ir_len) =
+                suews_forcing_schema().map_err(|e| e.to_string())?;
+            let state = suews_forcing_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": suews_forcing_schema_version(),
+                "schema_version_runtime": suews_forcing_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "ts5mindata_ir_len": ts5mindata_ir_len,
+                "state": suews_forcing_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SuewsForcingDefaultValuesJson => {
+            let state = suews_forcing_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = suews_forcing_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": suews_forcing_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+                "dims": payload.dims,
             });
             let text = serde_json::to_string_pretty(&out)
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
@@ -892,6 +986,43 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
+        Commands::BuildingArchetypePrmSchemaJson => {
+            let schema = building_archetype_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": building_archetype_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::BuildingArchetypePrmDefaultJson => {
+            let flat_len = building_archetype_prm_schema().map_err(|e| e.to_string())?;
+            let state = building_archetype_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": building_archetype_prm_schema_version(),
+                "schema_version_runtime": building_archetype_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": building_archetype_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::BuildingArchetypePrmDefaultValuesJson => {
+            let state = building_archetype_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = building_archetype_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": building_archetype_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
         Commands::ConductancePrmSchemaJson => {
             let schema = conductance_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1145,6 +1276,154 @@ fn run(cli: Cli) -> Result<(), String> {
             let out = json!({
                 "schema_version": payload.schema_version,
                 "schema_version_runtime": soil_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcPavedPrmSchemaJson => {
+            let schema = lc_paved_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": lc_paved_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcPavedPrmDefaultJson => {
+            let flat_len = lc_paved_prm_schema().map_err(|e| e.to_string())?;
+            let state = lc_paved_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": lc_paved_prm_schema_version(),
+                "schema_version_runtime": lc_paved_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": lc_paved_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcPavedPrmDefaultValuesJson => {
+            let state = lc_paved_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = lc_paved_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": lc_paved_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcBldgPrmSchemaJson => {
+            let schema = lc_bldg_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": lc_bldg_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcBldgPrmDefaultJson => {
+            let flat_len = lc_bldg_prm_schema().map_err(|e| e.to_string())?;
+            let state = lc_bldg_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": lc_bldg_prm_schema_version(),
+                "schema_version_runtime": lc_bldg_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": lc_bldg_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcBldgPrmDefaultValuesJson => {
+            let state = lc_bldg_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = lc_bldg_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": lc_bldg_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcBsoilPrmSchemaJson => {
+            let schema = lc_bsoil_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": lc_bsoil_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcBsoilPrmDefaultJson => {
+            let flat_len = lc_bsoil_prm_schema().map_err(|e| e.to_string())?;
+            let state = lc_bsoil_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": lc_bsoil_prm_schema_version(),
+                "schema_version_runtime": lc_bsoil_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": lc_bsoil_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcBsoilPrmDefaultValuesJson => {
+            let state = lc_bsoil_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = lc_bsoil_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": lc_bsoil_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcWaterPrmSchemaJson => {
+            let schema = lc_water_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": lc_water_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcWaterPrmDefaultJson => {
+            let flat_len = lc_water_prm_schema().map_err(|e| e.to_string())?;
+            let state = lc_water_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": lc_water_prm_schema_version(),
+                "schema_version_runtime": lc_water_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": lc_water_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LcWaterPrmDefaultValuesJson => {
+            let state = lc_water_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = lc_water_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": lc_water_prm_schema_version_runtime().map_err(|e| e.to_string())?,
                 "values": payload.values,
             });
             let text = serde_json::to_string_pretty(&out)
@@ -1636,6 +1915,30 @@ mod tests {
     }
 
     #[test]
+    fn run_suews_forcing_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SuewsForcingDefaultJson,
+        };
+        run(cli).expect("suews-forcing-default-json should succeed");
+    }
+
+    #[test]
+    fn run_suews_forcing_schema_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SuewsForcingSchemaJson,
+        };
+        run(cli).expect("suews-forcing-schema-json should succeed");
+    }
+
+    #[test]
+    fn run_suews_forcing_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SuewsForcingDefaultValuesJson,
+        };
+        run(cli).expect("suews-forcing-default-values-json should succeed");
+    }
+
+    #[test]
     fn run_suews_timer_default_json_succeeds() {
         let cli = Cli {
             command: Commands::SuewsTimerDefaultJson,
@@ -1729,6 +2032,22 @@ mod tests {
             command: Commands::AtmStateDefaultValuesJson,
         };
         run(cli).expect("atm-state-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_building_archetype_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::BuildingArchetypePrmDefaultJson,
+        };
+        run(cli).expect("building-archetype-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_building_archetype_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::BuildingArchetypePrmDefaultValuesJson,
+        };
+        run(cli).expect("building-archetype-prm-default-values-json should succeed");
     }
 
     #[test]
@@ -1841,6 +2160,70 @@ mod tests {
             command: Commands::SoilPrmDefaultValuesJson,
         };
         run(cli).expect("soil-prm-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_lc_paved_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::LcPavedPrmDefaultJson,
+        };
+        run(cli).expect("lc-paved-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_lc_paved_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::LcPavedPrmDefaultValuesJson,
+        };
+        run(cli).expect("lc-paved-prm-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_lc_bldg_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::LcBldgPrmDefaultJson,
+        };
+        run(cli).expect("lc-bldg-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_lc_bldg_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::LcBldgPrmDefaultValuesJson,
+        };
+        run(cli).expect("lc-bldg-prm-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_lc_bsoil_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::LcBsoilPrmDefaultJson,
+        };
+        run(cli).expect("lc-bsoil-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_lc_bsoil_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::LcBsoilPrmDefaultValuesJson,
+        };
+        run(cli).expect("lc-bsoil-prm-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_lc_water_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::LcWaterPrmDefaultJson,
+        };
+        run(cli).expect("lc-water-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_lc_water_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::LcWaterPrmDefaultValuesJson,
+        };
+        run(cli).expect("lc-water-prm-default-values-json should succeed");
     }
 
     #[test]

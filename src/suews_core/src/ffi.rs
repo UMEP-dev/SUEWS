@@ -143,6 +143,12 @@ unsafe extern "C" {
 
     pub fn suews_bioco2_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
 
+    pub fn suews_lai_prm_len(n_flat: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lai_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_lai_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
     pub fn suews_surf_store_prm_len(n_flat: *mut c_int, err: *mut c_int);
 
     pub fn suews_surf_store_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);

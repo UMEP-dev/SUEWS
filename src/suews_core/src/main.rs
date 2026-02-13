@@ -18,6 +18,8 @@ use suews_bridge::{
     flag_state_to_map, flag_state_to_values_payload, irrig_daywater_default_from_fortran,
     irrig_daywater_schema, irrig_daywater_schema_info, irrig_daywater_schema_version,
     irrig_daywater_schema_version_runtime, irrig_daywater_to_map, irrig_daywater_to_values_payload,
+    lai_prm_default_from_fortran, lai_prm_schema, lai_prm_schema_info, lai_prm_schema_version,
+    lai_prm_schema_version_runtime, lai_prm_to_map, lai_prm_to_values_payload,
     lumps_prm_default_from_fortran, lumps_prm_schema, lumps_prm_schema_info,
     lumps_prm_schema_version, lumps_prm_schema_version_runtime, lumps_prm_to_map,
     lumps_prm_to_values_payload, nhood_state_default_from_fortran, nhood_state_schema,
@@ -300,6 +302,12 @@ enum Commands {
     Bioco2PrmDefaultJson,
     /// Print default bioCO2_PRM as JSON ordered values payload.
     Bioco2PrmDefaultValuesJson,
+    /// Print LAI_PRM schema as JSON for programmatic tooling.
+    LaiPrmSchemaJson,
+    /// Print default LAI_PRM as JSON map payload.
+    LaiPrmDefaultJson,
+    /// Print default LAI_PRM as JSON ordered values payload.
+    LaiPrmDefaultValuesJson,
     /// Print PHENOLOGY_STATE schema as JSON for programmatic tooling.
     PhenologyStateSchemaJson,
     /// Print default PHENOLOGY_STATE as JSON map payload.
@@ -746,6 +754,43 @@ fn run(cli: Cli) -> Result<(), String> {
             let out = json!({
                 "schema_version": payload.schema_version,
                 "schema_version_runtime": bioco2_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LaiPrmSchemaJson => {
+            let schema = lai_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": lai_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LaiPrmDefaultJson => {
+            let flat_len = lai_prm_schema().map_err(|e| e.to_string())?;
+            let state = lai_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": lai_prm_schema_version(),
+                "schema_version_runtime": lai_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": lai_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::LaiPrmDefaultValuesJson => {
+            let state = lai_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = lai_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": lai_prm_schema_version_runtime().map_err(|e| e.to_string())?,
                 "values": payload.values,
             });
             let text = serde_json::to_string_pretty(&out)
@@ -1335,6 +1380,22 @@ mod tests {
             command: Commands::Bioco2PrmDefaultValuesJson,
         };
         run(cli).expect("bioco2-prm-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_lai_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::LaiPrmDefaultJson,
+        };
+        run(cli).expect("lai-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_lai_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::LaiPrmDefaultValuesJson,
+        };
+        run(cli).expect("lai-prm-default-values-json should succeed");
     }
 
     #[test]

@@ -38,6 +38,7 @@ fn main() {
         manifest_dir.join("fortran/suews_c_api_ohm_coef_lc.f95"),
         manifest_dir.join("fortran/suews_c_api_conductance.f95"),
         manifest_dir.join("fortran/suews_c_api_bioco2.f95"),
+        manifest_dir.join("fortran/suews_c_api_lai.f95"),
         manifest_dir.join("fortran/suews_c_api_surf_store.f95"),
         manifest_dir.join("fortran/suews_c_api_water_dist.f95"),
         manifest_dir.join("fortran/suews_c_api_irrig_daywater.f95"),

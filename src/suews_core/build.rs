@@ -35,6 +35,7 @@ fn main() {
         manifest_dir.join("fortran/suews_c_api_atm.f95"),
         manifest_dir.join("fortran/suews_c_api_phenology.f95"),
         manifest_dir.join("fortran/suews_c_api_snow.f95"),
+        manifest_dir.join("fortran/suews_c_api_snow_prm.f95"),
         manifest_dir.join("fortran/suews_c_api_soil.f95"),
         manifest_dir.join("fortran/suews_c_api_lumps.f95"),
         manifest_dir.join("fortran/suews_c_api_ohm_coef_lc.f95"),

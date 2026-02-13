@@ -18,6 +18,7 @@ mod ohm_prm;
 mod phenology;
 mod roughness;
 mod snow;
+mod snow_prm;
 mod soil;
 mod solar;
 mod surf_store;
@@ -168,6 +169,13 @@ pub use snow::{
     snow_state_to_values_payload, SnowState, SnowStateSchema, SnowStateValuesPayload,
     SNOW_STATE_FLAT_LEN, SNOW_STATE_REMOVAL_LEN, SNOW_STATE_SCHEMA_VERSION,
 };
+pub use snow_prm::{
+    snow_prm_default_from_fortran, snow_prm_field_index, snow_prm_field_names, snow_prm_from_map,
+    snow_prm_from_ordered_values, snow_prm_from_values_payload, snow_prm_schema,
+    snow_prm_schema_info, snow_prm_schema_version, snow_prm_schema_version_runtime,
+    snow_prm_to_map, snow_prm_to_ordered_values, snow_prm_to_values_payload, SnowPrm,
+    SnowPrmSchema, SnowPrmValuesPayload, SNOW_PRM_FLAT_LEN, SNOW_PRM_SCHEMA_VERSION,
+};
 pub use soil::{
     soil_prm_default_from_fortran, soil_prm_field_index, soil_prm_field_names, soil_prm_from_map,
     soil_prm_from_ordered_values, soil_prm_from_values_payload, soil_prm_schema,
@@ -285,33 +293,38 @@ mod python_bindings {
         roughness_state_schema, roughness_state_schema_info, roughness_state_schema_version,
         roughness_state_schema_version_runtime, roughness_state_to_map,
         roughness_state_to_ordered_values, roughness_state_to_values_payload,
-        snow_state_default_from_fortran, snow_state_field_index, snow_state_field_names,
-        snow_state_from_map, snow_state_from_ordered_values, snow_state_from_values_payload,
-        snow_state_schema, snow_state_schema_info, snow_state_schema_version,
-        snow_state_schema_version_runtime, snow_state_to_map, snow_state_to_ordered_values,
-        snow_state_to_values_payload, soil_prm_default_from_fortran, soil_prm_field_index,
-        soil_prm_field_names, soil_prm_from_map, soil_prm_from_ordered_values,
-        soil_prm_from_values_payload, soil_prm_schema, soil_prm_schema_info,
-        soil_prm_schema_version, soil_prm_schema_version_runtime, soil_prm_to_map,
-        soil_prm_to_ordered_values, soil_prm_to_values_payload, solar_state_default_from_fortran,
-        solar_state_field_index, solar_state_field_names, solar_state_from_map,
-        solar_state_from_ordered_values, solar_state_from_values_payload, solar_state_schema,
-        solar_state_schema_info, solar_state_schema_version, solar_state_schema_version_runtime,
-        solar_state_to_map, solar_state_to_ordered_values, solar_state_to_values_payload,
-        suews_config_default_from_fortran, suews_config_field_index, suews_config_field_names,
-        suews_config_from_map, suews_config_from_ordered_values, suews_config_from_values_payload,
-        suews_config_schema, suews_config_schema_info, suews_config_schema_version,
-        suews_config_schema_version_runtime, suews_config_to_map, suews_config_to_ordered_values,
-        suews_config_to_values_payload, suews_timer_default_from_fortran, suews_timer_field_index,
-        suews_timer_field_names, suews_timer_from_map, suews_timer_from_ordered_values,
-        suews_timer_from_values_payload, suews_timer_schema, suews_timer_schema_info,
-        suews_timer_schema_version, suews_timer_schema_version_runtime, suews_timer_to_map,
-        suews_timer_to_ordered_values, suews_timer_to_values_payload,
-        surf_store_prm_default_from_fortran, surf_store_prm_field_index,
-        surf_store_prm_field_names, surf_store_prm_from_map, surf_store_prm_from_ordered_values,
-        surf_store_prm_from_values_payload, surf_store_prm_schema, surf_store_prm_schema_info,
-        surf_store_prm_schema_version, surf_store_prm_schema_version_runtime,
-        surf_store_prm_to_map, surf_store_prm_to_ordered_values, surf_store_prm_to_values_payload,
+        snow_prm_default_from_fortran, snow_prm_field_index, snow_prm_field_names,
+        snow_prm_from_map, snow_prm_from_ordered_values, snow_prm_from_values_payload,
+        snow_prm_schema, snow_prm_schema_info, snow_prm_schema_version,
+        snow_prm_schema_version_runtime, snow_prm_to_map, snow_prm_to_ordered_values,
+        snow_prm_to_values_payload, snow_state_default_from_fortran, snow_state_field_index,
+        snow_state_field_names, snow_state_from_map, snow_state_from_ordered_values,
+        snow_state_from_values_payload, snow_state_schema, snow_state_schema_info,
+        snow_state_schema_version, snow_state_schema_version_runtime, snow_state_to_map,
+        snow_state_to_ordered_values, snow_state_to_values_payload, soil_prm_default_from_fortran,
+        soil_prm_field_index, soil_prm_field_names, soil_prm_from_map,
+        soil_prm_from_ordered_values, soil_prm_from_values_payload, soil_prm_schema,
+        soil_prm_schema_info, soil_prm_schema_version, soil_prm_schema_version_runtime,
+        soil_prm_to_map, soil_prm_to_ordered_values, soil_prm_to_values_payload,
+        solar_state_default_from_fortran, solar_state_field_index, solar_state_field_names,
+        solar_state_from_map, solar_state_from_ordered_values, solar_state_from_values_payload,
+        solar_state_schema, solar_state_schema_info, solar_state_schema_version,
+        solar_state_schema_version_runtime, solar_state_to_map, solar_state_to_ordered_values,
+        solar_state_to_values_payload, suews_config_default_from_fortran, suews_config_field_index,
+        suews_config_field_names, suews_config_from_map, suews_config_from_ordered_values,
+        suews_config_from_values_payload, suews_config_schema, suews_config_schema_info,
+        suews_config_schema_version, suews_config_schema_version_runtime, suews_config_to_map,
+        suews_config_to_ordered_values, suews_config_to_values_payload,
+        suews_timer_default_from_fortran, suews_timer_field_index, suews_timer_field_names,
+        suews_timer_from_map, suews_timer_from_ordered_values, suews_timer_from_values_payload,
+        suews_timer_schema, suews_timer_schema_info, suews_timer_schema_version,
+        suews_timer_schema_version_runtime, suews_timer_to_map, suews_timer_to_ordered_values,
+        suews_timer_to_values_payload, surf_store_prm_default_from_fortran,
+        surf_store_prm_field_index, surf_store_prm_field_names, surf_store_prm_from_map,
+        surf_store_prm_from_ordered_values, surf_store_prm_from_values_payload,
+        surf_store_prm_schema, surf_store_prm_schema_info, surf_store_prm_schema_version,
+        surf_store_prm_schema_version_runtime, surf_store_prm_to_map,
+        surf_store_prm_to_ordered_values, surf_store_prm_to_values_payload,
         water_dist_prm_default_from_fortran, water_dist_prm_field_index,
         water_dist_prm_field_names, water_dist_prm_from_map, water_dist_prm_from_ordered_values,
         water_dist_prm_from_values_payload, water_dist_prm_schema, water_dist_prm_schema_info,
@@ -324,9 +337,9 @@ mod python_bindings {
         LumpsPrmValuesPayload, NhoodState, NhoodStateValuesPayload, OhmCoefLc,
         OhmCoefLcValuesPayload, OhmModel, OhmPrm, OhmPrmValuesPayload, OhmState,
         OhmStateValuesPayload, PhenologyState, PhenologyStateValuesPayload, RoughnessState,
-        RoughnessStateValuesPayload, SnowState, SnowStateValuesPayload, SoilPrm,
-        SoilPrmValuesPayload, SolarState, SolarStateValuesPayload, SuewsConfig,
-        SuewsConfigValuesPayload, SuewsTimer, SuewsTimerValuesPayload, SurfStorePrm,
+        RoughnessStateValuesPayload, SnowPrm, SnowPrmValuesPayload, SnowState,
+        SnowStateValuesPayload, SoilPrm, SoilPrmValuesPayload, SolarState, SolarStateValuesPayload,
+        SuewsConfig, SuewsConfigValuesPayload, SuewsTimer, SuewsTimerValuesPayload, SurfStorePrm,
         SurfStorePrmValuesPayload, WaterDistPrm, WaterDistPrmValuesPayload, NSURF,
     };
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
@@ -1450,6 +1463,93 @@ mod python_bindings {
             let mut flat = self.state.to_flat();
             flat[idx] = value;
             self.state = SnowState::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
+    #[pyclass(name = "SnowPrm")]
+    pub struct PySnowPrm {
+        state: SnowPrm,
+    }
+
+    #[pymethods]
+    impl PySnowPrm {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = snow_prm_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = SnowPrm::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state = snow_prm_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = SnowPrmValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = snow_prm_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid SNOW_PRM values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = snow_prm_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid SNOW_PRM field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            snow_prm_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = snow_prm_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            snow_prm_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            snow_prm_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = snow_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown SNOW_PRM field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = snow_prm_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown SNOW_PRM field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = SnowPrm::from_flat(&flat).map_err(map_bridge_error)?;
             Ok(())
         }
     }
@@ -2821,6 +2921,32 @@ mod python_bindings {
         snow_state_field_names()
     }
 
+    #[pyfunction(name = "snow_prm_schema")]
+    fn snow_prm_schema_py() -> PyResult<usize> {
+        snow_prm_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "snow_prm_schema_version")]
+    fn snow_prm_schema_version_py() -> u32 {
+        snow_prm_schema_version()
+    }
+
+    #[pyfunction(name = "snow_prm_schema_version_runtime")]
+    fn snow_prm_schema_version_runtime_py() -> PyResult<u32> {
+        snow_prm_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "snow_prm_schema_meta")]
+    fn snow_prm_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = snow_prm_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "snow_prm_fields")]
+    fn snow_prm_fields_py() -> Vec<String> {
+        snow_prm_field_names()
+    }
+
     #[pyfunction(name = "soil_prm_schema")]
     fn soil_prm_schema_py() -> PyResult<usize> {
         soil_prm_schema().map_err(map_bridge_error)
@@ -3196,6 +3322,7 @@ mod python_bindings {
         m.add_class::<PyAtmState>()?;
         m.add_class::<PyPhenologyState>()?;
         m.add_class::<PySnowState>()?;
+        m.add_class::<PySnowPrm>()?;
         m.add_class::<PySoilPrm>()?;
         m.add_class::<PyLumpsPrm>()?;
         m.add_class::<PyBioCo2Prm>()?;
@@ -3258,6 +3385,11 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(snow_state_schema_version_runtime_py, m)?)?;
         m.add_function(wrap_pyfunction!(snow_state_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(snow_state_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(snow_prm_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(snow_prm_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(snow_prm_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(snow_prm_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(snow_prm_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(soil_prm_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(soil_prm_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(soil_prm_schema_version_runtime_py, m)?)?;

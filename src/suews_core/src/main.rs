@@ -40,10 +40,12 @@ use suews_bridge::{
     phenology_state_to_values_payload, qs_calc, roughness_state_default_from_fortran,
     roughness_state_schema, roughness_state_schema_info, roughness_state_schema_version,
     roughness_state_schema_version_runtime, roughness_state_to_map,
-    roughness_state_to_values_payload, snow_state_default_from_fortran, snow_state_schema,
-    snow_state_schema_info, snow_state_schema_version, snow_state_schema_version_runtime,
-    snow_state_to_map, snow_state_to_values_payload, soil_prm_default_from_fortran,
-    soil_prm_schema, soil_prm_schema_info, soil_prm_schema_version,
+    roughness_state_to_values_payload, snow_prm_default_from_fortran, snow_prm_schema,
+    snow_prm_schema_info, snow_prm_schema_version, snow_prm_schema_version_runtime,
+    snow_prm_to_map, snow_prm_to_values_payload, snow_state_default_from_fortran,
+    snow_state_schema, snow_state_schema_info, snow_state_schema_version,
+    snow_state_schema_version_runtime, snow_state_to_map, snow_state_to_values_payload,
+    soil_prm_default_from_fortran, soil_prm_schema, soil_prm_schema_info, soil_prm_schema_version,
     soil_prm_schema_version_runtime, soil_prm_to_map, soil_prm_to_values_payload,
     solar_state_default_from_fortran, solar_state_schema, solar_state_schema_info,
     solar_state_schema_version, solar_state_schema_version_runtime, solar_state_to_map,
@@ -341,6 +343,12 @@ enum Commands {
     SnowStateDefaultJson,
     /// Print default SNOW_STATE as JSON ordered values payload.
     SnowStateDefaultValuesJson,
+    /// Print SNOW_PRM schema as JSON for programmatic tooling.
+    SnowPrmSchemaJson,
+    /// Print default SNOW_PRM as JSON map payload.
+    SnowPrmDefaultJson,
+    /// Print default SNOW_PRM as JSON ordered values payload.
+    SnowPrmDefaultValuesJson,
     /// Print SOIL_PRM schema as JSON for programmatic tooling.
     SoilPrmSchemaJson,
     /// Print default SOIL_PRM as JSON map payload.
@@ -972,6 +980,43 @@ fn run(cli: Cli) -> Result<(), String> {
             let out = json!({
                 "schema_version": payload.schema_version,
                 "schema_version_runtime": snow_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SnowPrmSchemaJson => {
+            let schema = snow_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": snow_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SnowPrmDefaultJson => {
+            let flat_len = snow_prm_schema().map_err(|e| e.to_string())?;
+            let state = snow_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": snow_prm_schema_version(),
+                "schema_version_runtime": snow_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": snow_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SnowPrmDefaultValuesJson => {
+            let state = snow_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = snow_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": snow_prm_schema_version_runtime().map_err(|e| e.to_string())?,
                 "values": payload.values,
             });
             let text = serde_json::to_string_pretty(&out)
@@ -1641,6 +1686,22 @@ mod tests {
             command: Commands::SnowStateDefaultValuesJson,
         };
         run(cli).expect("snow-state-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_snow_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SnowPrmDefaultJson,
+        };
+        run(cli).expect("snow-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_snow_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SnowPrmDefaultValuesJson,
+        };
+        run(cli).expect("snow-prm-default-values-json should succeed");
     }
 
     #[test]

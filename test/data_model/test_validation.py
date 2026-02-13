@@ -646,20 +646,24 @@ def test_phase_b_validate_model_option_samealbedo_disabled():
     assert "no check of consistency" in results_roof[0].message.lower()
     assert "samealbedo_roof == 0" in results_roof[0].message.lower()
 
-# Minimal tests for SPARTACUS building height validation
 def test_needs_spartacus_validation_true_and_false():
-    cfg = make_cfg(netradiationmethod=1001)
+    cfg = make_cfg()
+    cfg.model.physics.netradiationmethod = 1001  # Set the attribute as int
     assert cfg._needs_spartacus_validation() is True
-    cfg2 = make_cfg(netradiationmethod=1)
-    assert cfg2._needs_spartacus_validation() is False
 
+    cfg2 = make_cfg()
+    cfg2.model.physics.netradiationmethod = 1
+    assert cfg2._needs_spartacus_validation() is False
 
 def test_validate_spartacus_building_height_error():
     cfg = make_cfg(netradiationmethod=1001)
     # bldgh exceeds height[nlayer+1]
     bldgs = SimpleNamespace(bldgh=15.0)
     vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
-    props = SimpleNamespace(land_cover=SimpleNamespace(bldgs=bldgs), vertical_layers=vertical_layers)
+    props = SimpleNamespace(
+        land_cover=SimpleNamespace(bldgs=bldgs),
+        vertical_layers=vertical_layers
+    )
     site = DummySite(properties=props, name="TestSite")
     msgs = cfg._validate_spartacus_building_height(site, 0)
     assert msgs and "ACTION NEEDED" in msgs[0]
@@ -667,13 +671,15 @@ def test_validate_spartacus_building_height_error():
     assert "height[2]=10.0" in msgs[0]
     assert "TestSite" in msgs[0]
 
-
 def test_validate_spartacus_building_height_no_error():
     cfg = make_cfg(netradiationmethod=1001)
     # bldgh does not exceed height[nlayer+1]
     bldgs = SimpleNamespace(bldgh=8.0)
     vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
-    props = SimpleNamespace(land_cover=SimpleNamespace(bldgs=bldgs), vertical_layers=vertical_layers)
+    props = SimpleNamespace(
+        land_cover=SimpleNamespace(bldgs=bldgs),
+        vertical_layers=vertical_layers
+    )
     site = DummySite(properties=props, name="TestSite")
     msgs = cfg._validate_spartacus_building_height(site, 0)
     assert msgs == []

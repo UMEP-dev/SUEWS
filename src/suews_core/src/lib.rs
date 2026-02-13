@@ -26,6 +26,7 @@ mod lumps;
 mod nhood;
 mod ohm_coef_lc;
 mod ohm_prm;
+mod output_line;
 mod phenology;
 mod roughness;
 mod snow;
@@ -254,6 +255,17 @@ pub use ohm_prm::{
     ohm_prm_to_ordered_values, ohm_prm_to_values_payload, OhmPrm, OhmPrmSchema,
     OhmPrmValuesPayload, OHM_PRM_FLAT_LEN, OHM_PRM_SCHEMA_VERSION,
 };
+pub use output_line::{
+    output_line_default_from_fortran, output_line_field_index, output_line_field_names,
+    output_line_from_map, output_line_from_ordered_values, output_line_from_values_payload,
+    output_line_schema, output_line_schema_info, output_line_schema_version,
+    output_line_schema_version_runtime, output_line_to_map, output_line_to_ordered_values,
+    output_line_to_values_payload, OutputLine, OutputLineSchema, OutputLineValuesPayload,
+    OUTPUT_LINE_BEERS_LEN, OUTPUT_LINE_DAILYSTATE_LEN, OUTPUT_LINE_DATETIME_LEN,
+    OUTPUT_LINE_DEBUG_LEN, OUTPUT_LINE_EHC_LEN, OUTPUT_LINE_ESTM_LEN, OUTPUT_LINE_FLAT_LEN,
+    OUTPUT_LINE_NHOOD_LEN, OUTPUT_LINE_RSL_LEN, OUTPUT_LINE_SCHEMA_VERSION, OUTPUT_LINE_SNOW_LEN,
+    OUTPUT_LINE_SPARTACUS_LEN, OUTPUT_LINE_STEBBS_LEN, OUTPUT_LINE_SUEWS_LEN,
+};
 pub use phenology::{
     phenology_state_default_from_fortran, phenology_state_field_index, phenology_state_field_names,
     phenology_state_from_map, phenology_state_from_ordered_values,
@@ -420,7 +432,12 @@ mod python_bindings {
         ohm_state_from_values_payload, ohm_state_schema, ohm_state_schema_info,
         ohm_state_schema_version, ohm_state_schema_version_runtime, ohm_state_step,
         ohm_state_to_map, ohm_state_to_ordered_values, ohm_state_to_values_payload, ohm_step,
-        ohm_surface_names, phenology_state_default_from_fortran, phenology_state_field_index,
+        ohm_surface_names, output_line_default_from_fortran, output_line_field_index,
+        output_line_field_names, output_line_from_map, output_line_from_ordered_values,
+        output_line_from_values_payload, output_line_schema, output_line_schema_info,
+        output_line_schema_version, output_line_schema_version_runtime, output_line_to_map,
+        output_line_to_ordered_values, output_line_to_values_payload,
+        phenology_state_default_from_fortran, phenology_state_field_index,
         phenology_state_field_names, phenology_state_from_map, phenology_state_from_ordered_values,
         phenology_state_from_values_payload, phenology_state_schema, phenology_state_schema_info,
         phenology_state_schema_version, phenology_state_schema_version_runtime,
@@ -484,13 +501,13 @@ mod python_bindings {
         FlagStateValuesPayload, IrrigDaywater, IrrigDaywaterValuesPayload, IrrigationPrm,
         IrrigationPrmValuesPayload, LaiPrm, LaiPrmValuesPayload, LumpsPrm, LumpsPrmValuesPayload,
         NhoodState, NhoodStateValuesPayload, OhmCoefLc, OhmCoefLcValuesPayload, OhmModel, OhmPrm,
-        OhmPrmValuesPayload, OhmState, OhmStateValuesPayload, PhenologyState,
-        PhenologyStateValuesPayload, RoughnessState, RoughnessStateValuesPayload, SnowPrm,
-        SnowPrmValuesPayload, SnowState, SnowStateValuesPayload, SoilPrm, SoilPrmValuesPayload,
-        SolarState, SolarStateValuesPayload, StebbsPrm, StebbsPrmValuesPayload, SuewsConfig,
-        SuewsConfigValuesPayload, SuewsForcing, SuewsForcingValuesPayload, SuewsTimer,
-        SuewsTimerValuesPayload, SurfStorePrm, SurfStorePrmValuesPayload, WaterDistPrm,
-        WaterDistPrmValuesPayload, NSURF,
+        OhmPrmValuesPayload, OhmState, OhmStateValuesPayload, OutputLine, OutputLineValuesPayload,
+        PhenologyState, PhenologyStateValuesPayload, RoughnessState, RoughnessStateValuesPayload,
+        SnowPrm, SnowPrmValuesPayload, SnowState, SnowStateValuesPayload, SoilPrm,
+        SoilPrmValuesPayload, SolarState, SolarStateValuesPayload, StebbsPrm,
+        StebbsPrmValuesPayload, SuewsConfig, SuewsConfigValuesPayload, SuewsForcing,
+        SuewsForcingValuesPayload, SuewsTimer, SuewsTimerValuesPayload, SurfStorePrm,
+        SurfStorePrmValuesPayload, WaterDistPrm, WaterDistPrmValuesPayload, NSURF,
     };
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
     use pyo3::prelude::*;
@@ -3746,6 +3763,93 @@ mod python_bindings {
         }
     }
 
+    #[pyclass(name = "OutputLine")]
+    pub struct PyOutputLine {
+        state: OutputLine,
+    }
+
+    #[pymethods]
+    impl PyOutputLine {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = output_line_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = OutputLine::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state = output_line_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = OutputLineValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = output_line_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid output_line values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = output_line_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid output_line field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            output_line_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = output_line_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            output_line_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            output_line_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = output_line_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown output_line field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = output_line_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown output_line field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = OutputLine::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
     #[pyclass(name = "RoughnessState")]
     pub struct PyRoughnessState {
         state: RoughnessState,
@@ -4791,6 +4895,32 @@ mod python_bindings {
         stebbs_prm_field_names()
     }
 
+    #[pyfunction(name = "output_line_schema")]
+    fn output_line_schema_py() -> PyResult<usize> {
+        output_line_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "output_line_schema_version")]
+    fn output_line_schema_version_py() -> u32 {
+        output_line_schema_version()
+    }
+
+    #[pyfunction(name = "output_line_schema_version_runtime")]
+    fn output_line_schema_version_runtime_py() -> PyResult<u32> {
+        output_line_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "output_line_schema_meta")]
+    fn output_line_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = output_line_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "output_line_fields")]
+    fn output_line_fields_py() -> Vec<String> {
+        output_line_field_names()
+    }
+
     #[pyfunction(name = "solar_state_schema")]
     fn solar_state_schema_py() -> PyResult<usize> {
         solar_state_schema().map_err(map_bridge_error)
@@ -4883,6 +5013,7 @@ mod python_bindings {
         m.add_class::<PyAtmState>()?;
         m.add_class::<PyBuildingArchetypePrm>()?;
         m.add_class::<PyStebbsPrm>()?;
+        m.add_class::<PyOutputLine>()?;
         m.add_class::<PyPhenologyState>()?;
         m.add_class::<PySnowState>()?;
         m.add_class::<PySnowPrm>()?;
@@ -5105,6 +5236,11 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(stebbs_prm_schema_version_runtime_py, m)?)?;
         m.add_function(wrap_pyfunction!(stebbs_prm_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(stebbs_prm_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(output_line_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(output_line_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(output_line_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(output_line_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(output_line_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_version_runtime_py, m)?)?;

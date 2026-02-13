@@ -155,7 +155,7 @@
     {
       "name": "output_line",
       "source": "src/suews/src/suews_ctrl_type.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "PHENOLOGY_STATE",

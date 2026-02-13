@@ -60,8 +60,11 @@ use suews_bridge::{
     ohm_state_field_names, ohm_state_from_map, ohm_state_from_values_payload, ohm_state_schema,
     ohm_state_schema_info, ohm_state_schema_version, ohm_state_schema_version_runtime,
     ohm_state_step, ohm_state_to_map, ohm_state_to_values_payload, ohm_step,
-    phenology_state_default_from_fortran, phenology_state_schema, phenology_state_schema_info,
-    phenology_state_schema_version, phenology_state_schema_version_runtime, phenology_state_to_map,
+    output_line_default_from_fortran, output_line_schema, output_line_schema_info,
+    output_line_schema_version, output_line_schema_version_runtime, output_line_to_map,
+    output_line_to_values_payload, phenology_state_default_from_fortran, phenology_state_schema,
+    phenology_state_schema_info, phenology_state_schema_version,
+    phenology_state_schema_version_runtime, phenology_state_to_map,
     phenology_state_to_values_payload, qs_calc, roughness_state_default_from_fortran,
     roughness_state_schema, roughness_state_schema_info, roughness_state_schema_version,
     roughness_state_schema_version_runtime, roughness_state_to_map,
@@ -372,6 +375,12 @@ enum Commands {
     StebbsPrmDefaultJson,
     /// Print default STEBBS_PRM as JSON ordered values payload.
     StebbsPrmDefaultValuesJson,
+    /// Print output_line schema as JSON for programmatic tooling.
+    OutputLineSchemaJson,
+    /// Print default output_line as JSON map payload.
+    OutputLineDefaultJson,
+    /// Print default output_line as JSON ordered values payload.
+    OutputLineDefaultValuesJson,
     /// Print CONDUCTANCE_PRM schema as JSON for programmatic tooling.
     ConductancePrmSchemaJson,
     /// Print default CONDUCTANCE_PRM as JSON map payload.
@@ -1087,6 +1096,43 @@ fn run(cli: Cli) -> Result<(), String> {
             let out = json!({
                 "schema_version": payload.schema_version,
                 "schema_version_runtime": stebbs_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::OutputLineSchemaJson => {
+            let schema = output_line_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": output_line_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::OutputLineDefaultJson => {
+            let flat_len = output_line_schema().map_err(|e| e.to_string())?;
+            let state = output_line_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": output_line_schema_version(),
+                "schema_version_runtime": output_line_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": output_line_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::OutputLineDefaultValuesJson => {
+            let state = output_line_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = output_line_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": output_line_schema_version_runtime().map_err(|e| e.to_string())?,
                 "values": payload.values,
             });
             let text = serde_json::to_string_pretty(&out)
@@ -2245,6 +2291,22 @@ mod tests {
             command: Commands::StebbsPrmDefaultValuesJson,
         };
         run(cli).expect("stebbs-prm-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_output_line_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::OutputLineDefaultJson,
+        };
+        run(cli).expect("output-line-default-json should succeed");
+    }
+
+    #[test]
+    fn run_output_line_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::OutputLineDefaultValuesJson,
+        };
+        run(cli).expect("output-line-default-values-json should succeed");
     }
 
     #[test]

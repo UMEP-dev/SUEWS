@@ -664,7 +664,7 @@ def test_validate_spartacus_building_height_error():
     msgs = cfg._validate_spartacus_building_height(site, 0)
     assert msgs and "ACTION NEEDED" in msgs[0]
     assert "bldgh=15.0" in msgs[0]
-    assert "height[nlayer+1]=10.0" in msgs[0]
+    assert "height[2]=10.0" in msgs[0]
     assert "TestSite" in msgs[0]
 
 

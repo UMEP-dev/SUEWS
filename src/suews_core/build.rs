@@ -25,6 +25,7 @@ fn main() {
         manifest_dir.join("../suews/src/suews_type_surface.f95"),
         manifest_dir.join("fortran/suews_c_api_common.f95"),
         manifest_dir.join("fortran/suews_c_api_config.f95"),
+        manifest_dir.join("fortran/suews_c_api_timer.f95"),
         manifest_dir.join("fortran/suews_c_api_ohm.f95"),
         manifest_dir.join("fortran/suews_c_api_flag.f95"),
         manifest_dir.join("fortran/suews_c_api_solar.f95"),

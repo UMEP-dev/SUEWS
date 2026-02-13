@@ -71,6 +71,12 @@ unsafe extern "C" {
 
     pub fn suews_config_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
 
+    pub fn suews_timer_len(n_flat: *mut c_int, err: *mut c_int);
+
+    pub fn suews_timer_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_timer_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
     pub fn suews_flag_state_len(n_flat: *mut c_int, err: *mut c_int);
 
     pub fn suews_flag_state_schema_version(schema_version: *mut c_int, err: *mut c_int);

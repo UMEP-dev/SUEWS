@@ -45,12 +45,15 @@ use suews_bridge::{
     solar_state_schema_version, solar_state_schema_version_runtime, solar_state_to_map,
     solar_state_to_values_payload, suews_config_default_from_fortran, suews_config_schema,
     suews_config_schema_info, suews_config_schema_version, suews_config_schema_version_runtime,
-    suews_config_to_map, suews_config_to_values_payload, surf_store_prm_default_from_fortran,
-    surf_store_prm_schema, surf_store_prm_schema_info, surf_store_prm_schema_version,
-    surf_store_prm_schema_version_runtime, surf_store_prm_to_map, surf_store_prm_to_values_payload,
-    water_dist_prm_default_from_fortran, water_dist_prm_schema, water_dist_prm_schema_info,
-    water_dist_prm_schema_version, water_dist_prm_schema_version_runtime, water_dist_prm_to_map,
-    water_dist_prm_to_values_payload, OhmModel, OhmStateValuesPayload, OHM_STATE_FLAT_LEN,
+    suews_config_to_map, suews_config_to_values_payload, suews_timer_default_from_fortran,
+    suews_timer_schema, suews_timer_schema_info, suews_timer_schema_version,
+    suews_timer_schema_version_runtime, suews_timer_to_map, suews_timer_to_values_payload,
+    surf_store_prm_default_from_fortran, surf_store_prm_schema, surf_store_prm_schema_info,
+    surf_store_prm_schema_version, surf_store_prm_schema_version_runtime, surf_store_prm_to_map,
+    surf_store_prm_to_values_payload, water_dist_prm_default_from_fortran, water_dist_prm_schema,
+    water_dist_prm_schema_info, water_dist_prm_schema_version,
+    water_dist_prm_schema_version_runtime, water_dist_prm_to_map, water_dist_prm_to_values_payload,
+    OhmModel, OhmStateValuesPayload, OHM_STATE_FLAT_LEN,
 };
 
 fn parse_state_map_json(text: &str) -> Result<std::collections::BTreeMap<String, f64>, String> {
@@ -244,6 +247,12 @@ enum Commands {
     SuewsConfigDefaultJson,
     /// Print default SUEWS_CONFIG as JSON ordered values payload.
     SuewsConfigDefaultValuesJson,
+    /// Print SUEWS_TIMER schema as JSON for programmatic tooling.
+    SuewsTimerSchemaJson,
+    /// Print default SUEWS_TIMER as JSON map payload.
+    SuewsTimerDefaultJson,
+    /// Print default SUEWS_TIMER as JSON ordered values payload.
+    SuewsTimerDefaultValuesJson,
     /// Step OHM_STATE using JSON input/output.
     StateStepJson {
         #[arg(long)]
@@ -545,6 +554,43 @@ fn run(cli: Cli) -> Result<(), String> {
             let out = json!({
                 "schema_version": payload.schema_version,
                 "schema_version_runtime": suews_config_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SuewsTimerSchemaJson => {
+            let schema = suews_timer_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": suews_timer_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SuewsTimerDefaultJson => {
+            let flat_len = suews_timer_schema().map_err(|e| e.to_string())?;
+            let state = suews_timer_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": suews_timer_schema_version(),
+                "schema_version_runtime": suews_timer_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": suews_timer_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SuewsTimerDefaultValuesJson => {
+            let state = suews_timer_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = suews_timer_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": suews_timer_schema_version_runtime().map_err(|e| e.to_string())?,
                 "values": payload.values,
             });
             let text = serde_json::to_string_pretty(&out)
@@ -1361,6 +1407,22 @@ mod tests {
             command: Commands::SuewsConfigDefaultValuesJson,
         };
         run(cli).expect("suews-config-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_suews_timer_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SuewsTimerDefaultJson,
+        };
+        run(cli).expect("suews-timer-default-json should succeed");
+    }
+
+    #[test]
+    fn run_suews_timer_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SuewsTimerDefaultValuesJson,
+        };
+        run(cli).expect("suews-timer-default-values-json should succeed");
     }
 
     #[test]

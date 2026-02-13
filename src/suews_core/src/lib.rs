@@ -19,6 +19,7 @@ mod snow;
 mod soil;
 mod solar;
 mod surf_store;
+mod timer;
 mod water_dist;
 
 pub use anthroemis::{
@@ -173,6 +174,14 @@ pub use surf_store::{
     SurfStorePrmSchema, SurfStorePrmValuesPayload, SURF_STORE_PRM_FLAT_LEN,
     SURF_STORE_PRM_SCHEMA_VERSION,
 };
+pub use timer::{
+    suews_timer_default_from_fortran, suews_timer_field_index, suews_timer_field_names,
+    suews_timer_from_map, suews_timer_from_ordered_values, suews_timer_from_values_payload,
+    suews_timer_schema, suews_timer_schema_info, suews_timer_schema_version,
+    suews_timer_schema_version_runtime, suews_timer_to_map, suews_timer_to_ordered_values,
+    suews_timer_to_values_payload, SuewsTimer, SuewsTimerSchema, SuewsTimerValuesPayload,
+    SUEWS_TIMER_FLAT_LEN, SUEWS_TIMER_SCHEMA_VERSION,
+};
 pub use water_dist::{
     water_dist_prm_default_from_fortran, water_dist_prm_field_index, water_dist_prm_field_names,
     water_dist_prm_from_map, water_dist_prm_from_ordered_values,
@@ -266,12 +275,16 @@ mod python_bindings {
         suews_config_from_map, suews_config_from_ordered_values, suews_config_from_values_payload,
         suews_config_schema, suews_config_schema_info, suews_config_schema_version,
         suews_config_schema_version_runtime, suews_config_to_map, suews_config_to_ordered_values,
-        suews_config_to_values_payload, surf_store_prm_default_from_fortran,
-        surf_store_prm_field_index, surf_store_prm_field_names, surf_store_prm_from_map,
-        surf_store_prm_from_ordered_values, surf_store_prm_from_values_payload,
-        surf_store_prm_schema, surf_store_prm_schema_info, surf_store_prm_schema_version,
-        surf_store_prm_schema_version_runtime, surf_store_prm_to_map,
-        surf_store_prm_to_ordered_values, surf_store_prm_to_values_payload,
+        suews_config_to_values_payload, suews_timer_default_from_fortran, suews_timer_field_index,
+        suews_timer_field_names, suews_timer_from_map, suews_timer_from_ordered_values,
+        suews_timer_from_values_payload, suews_timer_schema, suews_timer_schema_info,
+        suews_timer_schema_version, suews_timer_schema_version_runtime, suews_timer_to_map,
+        suews_timer_to_ordered_values, suews_timer_to_values_payload,
+        surf_store_prm_default_from_fortran, surf_store_prm_field_index,
+        surf_store_prm_field_names, surf_store_prm_from_map, surf_store_prm_from_ordered_values,
+        surf_store_prm_from_values_payload, surf_store_prm_schema, surf_store_prm_schema_info,
+        surf_store_prm_schema_version, surf_store_prm_schema_version_runtime,
+        surf_store_prm_to_map, surf_store_prm_to_ordered_values, surf_store_prm_to_values_payload,
         water_dist_prm_default_from_fortran, water_dist_prm_field_index,
         water_dist_prm_field_names, water_dist_prm_from_map, water_dist_prm_from_ordered_values,
         water_dist_prm_from_values_payload, water_dist_prm_schema, water_dist_prm_schema_info,
@@ -284,8 +297,9 @@ mod python_bindings {
         OhmCoefLc, OhmCoefLcValuesPayload, OhmModel, OhmState, OhmStateValuesPayload,
         PhenologyState, PhenologyStateValuesPayload, RoughnessState, RoughnessStateValuesPayload,
         SnowState, SnowStateValuesPayload, SoilPrm, SoilPrmValuesPayload, SolarState,
-        SolarStateValuesPayload, SuewsConfig, SuewsConfigValuesPayload, SurfStorePrm,
-        SurfStorePrmValuesPayload, WaterDistPrm, WaterDistPrmValuesPayload, NSURF,
+        SolarStateValuesPayload, SuewsConfig, SuewsConfigValuesPayload, SuewsTimer,
+        SuewsTimerValuesPayload, SurfStorePrm, SurfStorePrmValuesPayload, WaterDistPrm,
+        WaterDistPrmValuesPayload, NSURF,
     };
     use pyo3::exceptions::{PyRuntimeError, PyValueError};
     use pyo3::prelude::*;
@@ -737,6 +751,93 @@ mod python_bindings {
             let mut flat = self.state.to_flat();
             flat[idx] = value;
             self.state = SuewsConfig::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(())
+        }
+    }
+
+    #[pyclass(name = "SuewsTimer")]
+    pub struct PySuewsTimer {
+        state: SuewsTimer,
+    }
+
+    #[pymethods]
+    impl PySuewsTimer {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = suews_timer_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = SuewsTimer::from_flat(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state = suews_timer_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(schema_version: u32, values: Vec<f64>) -> PyResult<Self> {
+            let payload = SuewsTimerValuesPayload {
+                schema_version,
+                values,
+            };
+            let state = suews_timer_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid SUEWS_TIMER values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = suews_timer_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid SUEWS_TIMER field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            suews_timer_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>) {
+            let payload = suews_timer_to_values_payload(&self.state);
+            (payload.schema_version, payload.values)
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            suews_timer_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            suews_timer_field_names()
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            let idx = suews_timer_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown SUEWS_TIMER field name: {name}"))
+            })?;
+            Ok(self.state.to_flat()[idx])
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let idx = suews_timer_field_index(name).ok_or_else(|| {
+                PyValueError::new_err(format!("unknown SUEWS_TIMER field name: {name}"))
+            })?;
+
+            let mut flat = self.state.to_flat();
+            flat[idx] = value;
+            self.state = SuewsTimer::from_flat(&flat).map_err(map_bridge_error)?;
             Ok(())
         }
     }
@@ -2362,6 +2463,32 @@ mod python_bindings {
         suews_config_field_names()
     }
 
+    #[pyfunction(name = "suews_timer_schema")]
+    fn suews_timer_schema_py() -> PyResult<usize> {
+        suews_timer_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "suews_timer_schema_version")]
+    fn suews_timer_schema_version_py() -> u32 {
+        suews_timer_schema_version()
+    }
+
+    #[pyfunction(name = "suews_timer_schema_version_runtime")]
+    fn suews_timer_schema_version_runtime_py() -> PyResult<u32> {
+        suews_timer_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "suews_timer_schema_meta")]
+    fn suews_timer_schema_meta_py() -> PyResult<(u32, usize, Vec<String>)> {
+        let meta = suews_timer_schema_info().map_err(map_bridge_error)?;
+        Ok((meta.schema_version, meta.flat_len, meta.field_names))
+    }
+
+    #[pyfunction(name = "suews_timer_fields")]
+    fn suews_timer_fields_py() -> Vec<String> {
+        suews_timer_field_names()
+    }
+
     #[pyfunction(name = "flag_state_schema")]
     fn flag_state_schema_py() -> PyResult<usize> {
         flag_state_schema().map_err(map_bridge_error)
@@ -2809,6 +2936,7 @@ mod python_bindings {
         m.add_class::<PyOhmModel>()?;
         m.add_class::<PyOhmState>()?;
         m.add_class::<PySuewsConfig>()?;
+        m.add_class::<PySuewsTimer>()?;
         m.add_class::<PyFlagState>()?;
         m.add_class::<PyAnthroEmisState>()?;
         m.add_class::<PyAtmState>()?;
@@ -2838,6 +2966,11 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(suews_config_schema_version_runtime_py, m)?)?;
         m.add_function(wrap_pyfunction!(suews_config_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(suews_config_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(suews_timer_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(suews_timer_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(suews_timer_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(suews_timer_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(suews_timer_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(flag_state_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(flag_state_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(flag_state_schema_version_runtime_py, m)?)?;

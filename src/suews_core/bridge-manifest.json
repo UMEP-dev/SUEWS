@@ -160,7 +160,7 @@
     {
       "name": "PHENOLOGY_STATE",
       "source": "src/suews/src/suews_type_vegetation.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "ROUGHNESS_STATE",

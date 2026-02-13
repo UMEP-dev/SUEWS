@@ -15,9 +15,12 @@ use suews_core::{
     nhood_state_to_map, nhood_state_to_values_payload, ohm_state_default_from_fortran,
     ohm_state_field_names, ohm_state_from_map, ohm_state_from_values_payload, ohm_state_schema,
     ohm_state_schema_info, ohm_state_schema_version, ohm_state_schema_version_runtime,
-    ohm_state_step, ohm_state_to_map, ohm_state_to_values_payload, ohm_step, qs_calc,
-    roughness_state_default_from_fortran, roughness_state_schema, roughness_state_schema_info,
-    roughness_state_schema_version, roughness_state_schema_version_runtime, roughness_state_to_map,
+    ohm_state_step, ohm_state_to_map, ohm_state_to_values_payload, ohm_step,
+    phenology_state_default_from_fortran, phenology_state_schema, phenology_state_schema_info,
+    phenology_state_schema_version, phenology_state_schema_version_runtime, phenology_state_to_map,
+    phenology_state_to_values_payload, qs_calc, roughness_state_default_from_fortran,
+    roughness_state_schema, roughness_state_schema_info, roughness_state_schema_version,
+    roughness_state_schema_version_runtime, roughness_state_to_map,
     roughness_state_to_values_payload, solar_state_default_from_fortran, solar_state_schema,
     solar_state_schema_info, solar_state_schema_version, solar_state_schema_version_runtime,
     solar_state_to_map, solar_state_to_values_payload, OhmModel, OhmStateValuesPayload,
@@ -263,6 +266,12 @@ enum Commands {
     AtmStateDefaultJson,
     /// Print default atm_state as JSON ordered values payload.
     AtmStateDefaultValuesJson,
+    /// Print PHENOLOGY_STATE schema as JSON for programmatic tooling.
+    PhenologyStateSchemaJson,
+    /// Print default PHENOLOGY_STATE as JSON map payload.
+    PhenologyStateDefaultJson,
+    /// Print default PHENOLOGY_STATE as JSON ordered values payload.
+    PhenologyStateDefaultValuesJson,
     /// Print solar_State schema as JSON for programmatic tooling.
     SolarStateSchemaJson,
     /// Print default solar_State as JSON map payload.
@@ -593,6 +602,43 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
+        Commands::PhenologyStateSchemaJson => {
+            let schema = phenology_state_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": phenology_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::PhenologyStateDefaultJson => {
+            let flat_len = phenology_state_schema().map_err(|e| e.to_string())?;
+            let state = phenology_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": phenology_state_schema_version(),
+                "schema_version_runtime": phenology_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": phenology_state_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::PhenologyStateDefaultValuesJson => {
+            let state = phenology_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = phenology_state_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": phenology_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
         Commands::SolarStateSchemaJson => {
             let schema = solar_state_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -848,6 +894,22 @@ mod tests {
             command: Commands::AtmStateDefaultValuesJson,
         };
         run(cli).expect("atm-state-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_phenology_state_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::PhenologyStateDefaultJson,
+        };
+        run(cli).expect("phenology-state-default-json should succeed");
+    }
+
+    #[test]
+    fn run_phenology_state_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::PhenologyStateDefaultValuesJson,
+        };
+        run(cli).expect("phenology-state-default-values-json should succeed");
     }
 
     #[test]

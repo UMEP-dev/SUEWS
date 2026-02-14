@@ -225,7 +225,7 @@
     {
       "name": "SUEWS_SITE",
       "source": "src/suews/src/suews_ctrl_type.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "SUEWS_STATE",

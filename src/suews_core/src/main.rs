@@ -100,6 +100,10 @@ use suews_bridge::{
     spartacus_prm_to_values_payload, stebbs_prm_default_from_fortran, stebbs_prm_schema,
     stebbs_prm_schema_info, stebbs_prm_schema_version, stebbs_prm_schema_version_runtime,
     stebbs_prm_to_map, stebbs_prm_to_values_payload, suews_config_default_from_fortran,
+    suews_site_default_from_fortran, suews_site_field_names, suews_site_schema_info,
+    suews_site_schema_version, suews_site_schema_version_runtime, suews_site_to_map,
+    suews_site_to_nested_payload, suews_site_to_values_payload,
+    suews_site_member_names,
     suews_config_schema, suews_config_schema_info, suews_config_schema_version,
     suews_config_schema_version_runtime, suews_config_to_map, suews_config_to_values_payload,
     suews_forcing_default_from_fortran, suews_forcing_schema, suews_forcing_schema_info,
@@ -453,6 +457,14 @@ enum Commands {
     SpartacusLayerPrmDefaultJson,
     /// Print default SPARTACUS_LAYER_PRM as JSON ordered values payload.
     SpartacusLayerPrmDefaultValuesJson,
+    /// Print SUEWS_SITE schema as JSON for programmatic tooling.
+    SuewsSiteSchemaJson,
+    /// Print default SUEWS_SITE as flattened member.field JSON map payload.
+    SuewsSiteDefaultJson,
+    /// Print default SUEWS_SITE as structured JSON values payload.
+    SuewsSiteDefaultValuesJson,
+    /// Print default SUEWS_SITE as nested composite payload JSON.
+    SuewsSiteDefaultNestedJson,
     /// Print default EHC_PRM as JSON ordered values payload.
     EhcPrmDefaultValuesJson,
     /// Print bioCO2_PRM schema as JSON for programmatic tooling.
@@ -1624,6 +1636,56 @@ fn run(cli: Cli) -> Result<(), String> {
             });
             let text = serde_json::to_string_pretty(&out)
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SuewsSiteSchemaJson => {
+            let schema = suews_site_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": suews_site_schema_version_runtime().map_err(|e| e.to_string())?,
+                "members": suews_site_member_names(),
+                "field_count": schema.field_names.len(),
+                "fields": schema.field_names,
+                "member_field_counts": schema.member_field_counts,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SuewsSiteDefaultJson => {
+            let state = suews_site_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": suews_site_schema_version(),
+                "schema_version_runtime": suews_site_schema_version_runtime().map_err(|e| e.to_string())?,
+                "fields": suews_site_field_names().map_err(|e| e.to_string())?,
+                "state": suews_site_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SuewsSiteDefaultValuesJson => {
+            let state = suews_site_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = suews_site_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": suews_site_schema_version_runtime().map_err(|e| e.to_string())?,
+                "members": payload.members,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SuewsSiteDefaultNestedJson => {
+            let state = suews_site_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = suews_site_to_nested_payload(&state);
+            let out = json!({
+                "schema_version": suews_site_schema_version(),
+                "schema_version_runtime": suews_site_schema_version_runtime().map_err(|e| e.to_string())?,
+                "nested_payload": payload,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default nested json: {e}"))?;
             println!("{text}");
         }
         Commands::EhcPrmDefaultValuesJson => {
@@ -2930,6 +2992,30 @@ mod tests {
             command: Commands::SpartacusLayerPrmDefaultValuesJson,
         };
         run(cli).expect("spartacus-layer-prm-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_suews_site_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SuewsSiteDefaultJson,
+        };
+        run(cli).expect("suews-site-default-json should succeed");
+    }
+
+    #[test]
+    fn run_suews_site_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SuewsSiteDefaultValuesJson,
+        };
+        run(cli).expect("suews-site-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_suews_site_default_nested_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SuewsSiteDefaultNestedJson,
+        };
+        run(cli).expect("suews-site-default-nested-json should succeed");
     }
 
     #[test]

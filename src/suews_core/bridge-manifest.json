@@ -190,12 +190,12 @@
     {
       "name": "SPARTACUS_LAYER_PRM",
       "source": "src/suews/src/suews_type_spartacus.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "SPARTACUS_PRM",
       "source": "src/suews/src/suews_type_spartacus.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "STEBBS_PRM",

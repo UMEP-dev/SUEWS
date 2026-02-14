@@ -91,7 +91,13 @@ use suews_bridge::{
     soil_prm_schema_version_runtime, soil_prm_to_map, soil_prm_to_values_payload,
     solar_state_default_from_fortran, solar_state_schema, solar_state_schema_info,
     solar_state_schema_version, solar_state_schema_version_runtime, solar_state_to_map,
-    solar_state_to_values_payload, stebbs_prm_default_from_fortran, stebbs_prm_schema,
+    solar_state_to_values_payload, spartacus_layer_prm_default_from_fortran,
+    spartacus_layer_prm_schema, spartacus_layer_prm_schema_info,
+    spartacus_layer_prm_schema_version, spartacus_layer_prm_schema_version_runtime,
+    spartacus_layer_prm_to_map, spartacus_layer_prm_to_values_payload,
+    spartacus_prm_default_from_fortran, spartacus_prm_schema, spartacus_prm_schema_info,
+    spartacus_prm_schema_version, spartacus_prm_schema_version_runtime, spartacus_prm_to_map,
+    spartacus_prm_to_values_payload, stebbs_prm_default_from_fortran, stebbs_prm_schema,
     stebbs_prm_schema_info, stebbs_prm_schema_version, stebbs_prm_schema_version_runtime,
     stebbs_prm_to_map, stebbs_prm_to_values_payload, suews_config_default_from_fortran,
     suews_config_schema, suews_config_schema_info, suews_config_schema_version,
@@ -435,6 +441,18 @@ enum Commands {
     EhcPrmSchemaJson,
     /// Print default EHC_PRM as JSON map payload.
     EhcPrmDefaultJson,
+    /// Print SPARTACUS_PRM schema as JSON for programmatic tooling.
+    SpartacusPrmSchemaJson,
+    /// Print default SPARTACUS_PRM as JSON map payload.
+    SpartacusPrmDefaultJson,
+    /// Print default SPARTACUS_PRM as JSON ordered values payload.
+    SpartacusPrmDefaultValuesJson,
+    /// Print SPARTACUS_LAYER_PRM schema as JSON for programmatic tooling.
+    SpartacusLayerPrmSchemaJson,
+    /// Print default SPARTACUS_LAYER_PRM as JSON map payload.
+    SpartacusLayerPrmDefaultJson,
+    /// Print default SPARTACUS_LAYER_PRM as JSON ordered values payload.
+    SpartacusLayerPrmDefaultValuesJson,
     /// Print default EHC_PRM as JSON ordered values payload.
     EhcPrmDefaultValuesJson,
     /// Print bioCO2_PRM schema as JSON for programmatic tooling.
@@ -1519,6 +1537,93 @@ fn run(cli: Cli) -> Result<(), String> {
             });
             let text = serde_json::to_string_pretty(&payload)
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SpartacusPrmSchemaJson => {
+            let schema = spartacus_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": spartacus_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "base_flat_len": schema.base_flat_len,
+                "height_len": schema.height_len,
+                "nlayer": schema.nlayer,
+                "allocatable_dims": schema.allocatable_dims,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SpartacusPrmDefaultJson => {
+            let (flat_len, height_len, nlayer) = spartacus_prm_schema().map_err(|e| e.to_string())?;
+            let state = spartacus_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": spartacus_prm_schema_version(),
+                "schema_version_runtime": spartacus_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "height_len": height_len,
+                "nlayer": nlayer,
+                "state": spartacus_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SpartacusPrmDefaultValuesJson => {
+            let state = spartacus_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = spartacus_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": spartacus_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+                "dims": payload.dims,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SpartacusLayerPrmSchemaJson => {
+            let schema = spartacus_layer_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": spartacus_layer_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "nlayer": schema.nlayer,
+                "nspec": schema.nspec,
+                "allocatable_dims": schema.allocatable_dims,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SpartacusLayerPrmDefaultJson => {
+            let (flat_len, nlayer, nspec) = spartacus_layer_prm_schema().map_err(|e| e.to_string())?;
+            let state = spartacus_layer_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": spartacus_layer_prm_schema_version(),
+                "schema_version_runtime": spartacus_layer_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "nlayer": nlayer,
+                "nspec": nspec,
+                "state": spartacus_layer_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::SpartacusLayerPrmDefaultValuesJson => {
+            let state = spartacus_layer_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = spartacus_layer_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": spartacus_layer_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+                "dims": payload.dims,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
         Commands::EhcPrmDefaultValuesJson => {
@@ -2793,6 +2898,38 @@ mod tests {
             command: Commands::EhcPrmDefaultValuesJson,
         };
         run(cli).expect("ehc-prm-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_spartacus_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SpartacusPrmDefaultJson,
+        };
+        run(cli).expect("spartacus-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_spartacus_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SpartacusPrmDefaultValuesJson,
+        };
+        run(cli).expect("spartacus-prm-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_spartacus_layer_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SpartacusLayerPrmDefaultJson,
+        };
+        run(cli).expect("spartacus-layer-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_spartacus_layer_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::SpartacusLayerPrmDefaultValuesJson,
+        };
+        run(cli).expect("spartacus-layer-prm-default-values-json should succeed");
     }
 
     #[test]

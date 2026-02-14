@@ -41,6 +41,8 @@ mod soil;
 mod solar;
 mod stebbs_prm;
 mod stebbs_state;
+mod spartacus_layer_prm;
+mod spartacus_prm;
 mod surf_store;
 mod timer;
 mod water_dist;
@@ -370,6 +372,27 @@ pub use solar::{
     solar_state_schema_version_runtime, solar_state_to_map, solar_state_to_ordered_values,
     solar_state_to_values_payload, SolarState, SolarStateSchema, SolarStateValuesPayload,
     SOLAR_STATE_FLAT_LEN, SOLAR_STATE_SCHEMA_VERSION,
+};
+pub use spartacus_layer_prm::{
+    spartacus_layer_prm_default_from_fortran, spartacus_layer_prm_expected_flat_len,
+    spartacus_layer_prm_field_index, spartacus_layer_prm_field_names,
+    spartacus_layer_prm_field_names_with_dims, spartacus_layer_prm_from_map,
+    spartacus_layer_prm_from_ordered_values, spartacus_layer_prm_from_values_payload,
+    spartacus_layer_prm_schema, spartacus_layer_prm_schema_info,
+    spartacus_layer_prm_schema_version, spartacus_layer_prm_schema_version_runtime,
+    spartacus_layer_prm_to_map, spartacus_layer_prm_to_ordered_values,
+    spartacus_layer_prm_to_values_payload, SpartacusLayerPrm, SpartacusLayerPrmSchema,
+    SpartacusLayerPrmValuesPayload, SPARTACUS_LAYER_PRM_SCHEMA_VERSION,
+};
+pub use spartacus_prm::{
+    spartacus_prm_default_from_fortran, spartacus_prm_expected_flat_len, spartacus_prm_field_index,
+    spartacus_prm_field_names, spartacus_prm_field_names_with_height_len, spartacus_prm_from_map,
+    spartacus_prm_from_ordered_values, spartacus_prm_from_values_payload,
+    spartacus_prm_nlayer_from_height_len, spartacus_prm_schema, spartacus_prm_schema_info,
+    spartacus_prm_schema_version, spartacus_prm_schema_version_runtime, spartacus_prm_to_map,
+    spartacus_prm_to_ordered_values, spartacus_prm_to_values_payload, SpartacusPrm,
+    SpartacusPrmSchema, SpartacusPrmValuesPayload, SPARTACUS_PRM_BASE_FLAT_LEN,
+    SPARTACUS_PRM_HEIGHT_FIELD, SPARTACUS_PRM_SCHEMA_VERSION,
 };
 pub use stebbs_prm::{
     stebbs_prm_default_from_fortran, stebbs_prm_field_index, stebbs_prm_field_names,

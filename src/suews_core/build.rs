@@ -38,6 +38,8 @@ fn main() {
         manifest_dir.join("fortran/suews_c_api_anthro_heat_prm.f95"),
         manifest_dir.join("fortran/suews_c_api_anthro_emis_prm.f95"),
         manifest_dir.join("fortran/suews_c_api_ehc_prm.f95"),
+        manifest_dir.join("fortran/suews_c_api_spartacus_prm.f95"),
+        manifest_dir.join("fortran/suews_c_api_spartacus_layer_prm.f95"),
         manifest_dir.join("fortran/suews_c_api_atm.f95"),
         manifest_dir.join("fortran/suews_c_api_building_archetype_prm.f95"),
         manifest_dir.join("fortran/suews_c_api_phenology.f95"),

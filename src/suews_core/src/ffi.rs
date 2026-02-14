@@ -189,6 +189,40 @@ unsafe extern "C" {
         err: *mut c_int,
     );
 
+    pub fn suews_spartacus_prm_len(
+        n_flat: *mut c_int,
+        height_len: *mut c_int,
+        nlayer: *mut c_int,
+        err: *mut c_int,
+    );
+
+    pub fn suews_spartacus_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_spartacus_prm_default(
+        flat: *mut c_double,
+        n_flat: c_int,
+        height_len: *mut c_int,
+        nlayer: *mut c_int,
+        err: *mut c_int,
+    );
+
+    pub fn suews_spartacus_layer_prm_len(
+        n_flat: *mut c_int,
+        nlayer: *mut c_int,
+        nspec: *mut c_int,
+        err: *mut c_int,
+    );
+
+    pub fn suews_spartacus_layer_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_spartacus_layer_prm_default(
+        flat: *mut c_double,
+        n_flat: c_int,
+        nlayer: *mut c_int,
+        nspec: *mut c_int,
+        err: *mut c_int,
+    );
+
     pub fn suews_atm_state_len(n_flat: *mut c_int, err: *mut c_int);
 
     pub fn suews_atm_state_schema_version(schema_version: *mut c_int, err: *mut c_int);

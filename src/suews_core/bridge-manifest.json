@@ -205,7 +205,7 @@
     {
       "name": "STEBBS_STATE",
       "source": "src/suews/src/suews_type_stebbs.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "SUEWS_CONFIG",

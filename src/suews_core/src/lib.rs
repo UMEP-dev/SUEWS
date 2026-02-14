@@ -34,6 +34,7 @@ mod snow_prm;
 mod soil;
 mod solar;
 mod stebbs_prm;
+mod stebbs_state;
 mod surf_store;
 mod timer;
 mod water_dist;
@@ -322,6 +323,14 @@ pub use stebbs_prm::{
     stebbs_prm_to_values_payload, StebbsPrm, StebbsPrmSchema, StebbsPrmValuesPayload,
     STEBBS_PRM_FLAT_LEN, STEBBS_PRM_PROFILE_GROUPS, STEBBS_PRM_PROFILE_STEPS,
     STEBBS_PRM_SCHEMA_VERSION,
+};
+pub use stebbs_state::{
+    stebbs_state_default_from_fortran, stebbs_state_field_index, stebbs_state_field_names,
+    stebbs_state_from_map, stebbs_state_from_ordered_values, stebbs_state_from_values_payload,
+    stebbs_state_schema, stebbs_state_schema_info, stebbs_state_schema_version,
+    stebbs_state_schema_version_runtime, stebbs_state_to_map, stebbs_state_to_ordered_values,
+    stebbs_state_to_values_payload, StebbsState, StebbsStateSchema, StebbsStateValuesPayload,
+    STEBBS_STATE_FLAT_LEN, STEBBS_STATE_RSL_LEN, STEBBS_STATE_SCHEMA_VERSION,
 };
 pub use surf_store::{
     surf_store_prm_default_from_fortran, surf_store_prm_field_index, surf_store_prm_field_names,

@@ -43,6 +43,9 @@ mod stebbs_prm;
 mod stebbs_state;
 mod spartacus_layer_prm;
 mod spartacus_prm;
+mod suews_debug;
+mod suews_state;
+mod suews_state_block;
 mod surf_store;
 mod suews_site;
 mod timer;
@@ -411,6 +414,28 @@ pub use stebbs_state::{
     stebbs_state_schema_version_runtime, stebbs_state_to_map, stebbs_state_to_ordered_values,
     stebbs_state_to_values_payload, StebbsState, StebbsStateSchema, StebbsStateValuesPayload,
     STEBBS_STATE_FLAT_LEN, STEBBS_STATE_RSL_LEN, STEBBS_STATE_SCHEMA_VERSION,
+};
+pub use suews_debug::{
+    suews_debug_default_from_fortran, suews_debug_from_nested_payload,
+    suews_debug_from_values_payload, suews_debug_member_names, suews_debug_schema_info,
+    suews_debug_schema_version, suews_debug_schema_version_runtime, suews_debug_to_nested_payload,
+    suews_debug_to_values_payload, SuewsDebug, SuewsDebugSchema, SuewsDebugValuesPayload,
+    SUEWS_DEBUG_SCHEMA_VERSION,
+};
+pub use suews_state::{
+    suews_state_default_from_fortran, suews_state_from_nested_payload,
+    suews_state_from_values_payload, suews_state_member_names, suews_state_schema_info,
+    suews_state_schema_version, suews_state_schema_version_runtime, suews_state_to_nested_payload,
+    suews_state_to_values_payload, SuewsState, SuewsStateSchema, SuewsStateValuesPayload,
+    SUEWS_STATE_SCHEMA_VERSION,
+};
+pub use suews_state_block::{
+    suews_state_block_default_from_fortran, suews_state_block_field_names,
+    suews_state_block_from_nested_payload, suews_state_block_from_values_payload,
+    suews_state_block_schema_info, suews_state_block_schema_version,
+    suews_state_block_schema_version_runtime, suews_state_block_to_nested_payload,
+    suews_state_block_to_values_payload, SuewsStateBlock, SuewsStateBlockSchema,
+    SuewsStateBlockValuesPayload, SUEWS_STATE_BLOCK_FIELD_BLOCK, SUEWS_STATE_BLOCK_SCHEMA_VERSION,
 };
 pub use surf_store::{
     surf_store_prm_default_from_fortran, surf_store_prm_field_index, surf_store_prm_field_names,
@@ -1196,7 +1221,8 @@ mod python_bindings {
 
         #[staticmethod]
         fn from_values(values: Vec<f64>) -> PyResult<Self> {
-            let state = crate::hydro_state_from_ordered_values(&values).map_err(map_bridge_error)?;
+            let state =
+                crate::hydro_state_from_ordered_values(&values).map_err(map_bridge_error)?;
             Ok(Self { state })
         }
 
@@ -4677,8 +4703,15 @@ mod python_bindings {
     }
 
     #[pyfunction(name = "heat_state_schema_meta")]
-    fn heat_state_schema_meta_py(
-    ) -> PyResult<(u32, usize, usize, usize, usize, Vec<String>, HashMap<String, Vec<usize>>)> {
+    fn heat_state_schema_meta_py() -> PyResult<(
+        u32,
+        usize,
+        usize,
+        usize,
+        usize,
+        Vec<String>,
+        HashMap<String, Vec<usize>>,
+    )> {
         let meta = crate::heat_state_schema_info().map_err(map_bridge_error)?;
         Ok((
             meta.schema_version,

@@ -130,6 +130,23 @@ unsafe extern "C" {
 
     pub fn suews_anthro_emis_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
 
+    pub fn suews_ehc_prm_len(
+        n_flat: *mut c_int,
+        nlayer: *mut c_int,
+        ndepth: *mut c_int,
+        err: *mut c_int,
+    );
+
+    pub fn suews_ehc_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_ehc_prm_default(
+        flat: *mut c_double,
+        n_flat: c_int,
+        nlayer: *mut c_int,
+        ndepth: *mut c_int,
+        err: *mut c_int,
+    );
+
     pub fn suews_atm_state_len(n_flat: *mut c_int, err: *mut c_int);
 
     pub fn suews_atm_state_schema_version(schema_version: *mut c_int, err: *mut c_int);

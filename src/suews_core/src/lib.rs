@@ -8,6 +8,7 @@ mod codec;
 mod conductance;
 mod config;
 mod core;
+mod ehc_prm;
 mod error;
 mod ffi;
 mod flag;
@@ -125,6 +126,14 @@ pub use core::{
     ohm_state_to_ordered_values, ohm_state_to_values_payload, ohm_step, ohm_surface_names, qs_calc,
     OhmModel, OhmModelState, OhmState, OhmStateSchema, OhmStateValuesPayload, OhmStepResult, NSURF,
     OHM_STATE_FLAT_LEN, OHM_STATE_SCHEMA_VERSION, SURFACE_NAMES,
+};
+pub use ehc_prm::{
+    ehc_prm_default_from_fortran, ehc_prm_expected_flat_len, ehc_prm_field_index,
+    ehc_prm_field_names, ehc_prm_field_names_with_dims, ehc_prm_from_map,
+    ehc_prm_from_ordered_values, ehc_prm_from_values_payload, ehc_prm_schema, ehc_prm_schema_info,
+    ehc_prm_schema_version, ehc_prm_schema_version_runtime, ehc_prm_to_map,
+    ehc_prm_to_ordered_values, ehc_prm_to_values_payload, EhcPrm, EhcPrmSchema,
+    EhcPrmValuesPayload, EHC_PRM_SCHEMA_VERSION,
 };
 pub use error::BridgeError;
 pub use flag::{

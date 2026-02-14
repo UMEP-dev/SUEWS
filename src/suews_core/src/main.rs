@@ -22,7 +22,9 @@ use suews_bridge::{
     building_archetype_prm_to_values_payload, conductance_prm_default_from_fortran,
     conductance_prm_schema, conductance_prm_schema_info, conductance_prm_schema_version,
     conductance_prm_schema_version_runtime, conductance_prm_to_map,
-    conductance_prm_to_values_payload, flag_state_default_from_fortran, flag_state_schema,
+    conductance_prm_to_values_payload, ehc_prm_default_from_fortran, ehc_prm_schema,
+    ehc_prm_schema_info, ehc_prm_schema_version, ehc_prm_schema_version_runtime, ehc_prm_to_map,
+    ehc_prm_to_values_payload, flag_state_default_from_fortran, flag_state_schema,
     flag_state_schema_info, flag_state_schema_version, flag_state_schema_version_runtime,
     flag_state_to_map, flag_state_to_values_payload, irrig_daywater_default_from_fortran,
     irrig_daywater_schema, irrig_daywater_schema_info, irrig_daywater_schema_version,
@@ -387,6 +389,12 @@ enum Commands {
     ConductancePrmDefaultJson,
     /// Print default CONDUCTANCE_PRM as JSON ordered values payload.
     ConductancePrmDefaultValuesJson,
+    /// Print EHC_PRM schema as JSON for programmatic tooling.
+    EhcPrmSchemaJson,
+    /// Print default EHC_PRM as JSON map payload.
+    EhcPrmDefaultJson,
+    /// Print default EHC_PRM as JSON ordered values payload.
+    EhcPrmDefaultValuesJson,
     /// Print bioCO2_PRM schema as JSON for programmatic tooling.
     Bioco2PrmSchemaJson,
     /// Print default bioCO2_PRM as JSON map payload.
@@ -1171,6 +1179,49 @@ fn run(cli: Cli) -> Result<(), String> {
                 "schema_version": payload.schema_version,
                 "schema_version_runtime": conductance_prm_schema_version_runtime().map_err(|e| e.to_string())?,
                 "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::EhcPrmSchemaJson => {
+            let schema = ehc_prm_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": ehc_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "nlayer": schema.nlayer,
+                "ndepth": schema.ndepth,
+                "allocatable_dims": schema.allocatable_dims,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::EhcPrmDefaultJson => {
+            let (flat_len, nlayer, ndepth) = ehc_prm_schema().map_err(|e| e.to_string())?;
+            let state = ehc_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": ehc_prm_schema_version(),
+                "schema_version_runtime": ehc_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "nlayer": nlayer,
+                "ndepth": ndepth,
+                "state": ehc_prm_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::EhcPrmDefaultValuesJson => {
+            let state = ehc_prm_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = ehc_prm_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": ehc_prm_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+                "dims": payload.dims,
             });
             let text = serde_json::to_string_pretty(&out)
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
@@ -2323,6 +2374,22 @@ mod tests {
             command: Commands::ConductancePrmDefaultValuesJson,
         };
         run(cli).expect("conductance-prm-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_ehc_prm_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::EhcPrmDefaultJson,
+        };
+        run(cli).expect("ehc-prm-default-json should succeed");
+    }
+
+    #[test]
+    fn run_ehc_prm_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::EhcPrmDefaultValuesJson,
+        };
+        run(cli).expect("ehc-prm-default-values-json should succeed");
     }
 
     #[test]

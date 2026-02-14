@@ -24,7 +24,12 @@ use suews_bridge::{
     conductance_prm_schema_version_runtime, conductance_prm_to_map,
     conductance_prm_to_values_payload, ehc_prm_default_from_fortran, ehc_prm_schema,
     ehc_prm_schema_info, ehc_prm_schema_version, ehc_prm_schema_version_runtime, ehc_prm_to_map,
-    ehc_prm_to_values_payload, flag_state_default_from_fortran, flag_state_schema,
+    ehc_prm_to_values_payload, error_entry_default_from_fortran, error_entry_field_names,
+    error_entry_schema, error_entry_schema_info, error_entry_schema_version,
+    error_entry_schema_version_runtime, error_entry_to_values_payload,
+    error_state_default_from_fortran, error_state_field_names, error_state_schema,
+    error_state_schema_info, error_state_schema_version, error_state_schema_version_runtime,
+    error_state_to_values_payload, flag_state_default_from_fortran, flag_state_schema,
     flag_state_schema_info, flag_state_schema_version, flag_state_schema_version_runtime,
     flag_state_to_map, flag_state_to_values_payload, heat_state_default_from_fortran,
     heat_state_schema, heat_state_schema_info, heat_state_schema_version,
@@ -408,6 +413,18 @@ enum Commands {
     OutputBlockDefaultJson,
     /// Print default output_block as JSON ordered values payload with dims.
     OutputBlockDefaultValuesJson,
+    /// Print error_entry schema as JSON for programmatic tooling.
+    ErrorEntrySchemaJson,
+    /// Print default error_entry as JSON state payload.
+    ErrorEntryDefaultJson,
+    /// Print default error_entry as JSON structured values payload.
+    ErrorEntryDefaultValuesJson,
+    /// Print error_state schema as JSON for programmatic tooling.
+    ErrorStateSchemaJson,
+    /// Print default error_state as JSON state payload.
+    ErrorStateDefaultJson,
+    /// Print default error_state as JSON structured values payload.
+    ErrorStateDefaultValuesJson,
     /// Print CONDUCTANCE_PRM schema as JSON for programmatic tooling.
     ConductancePrmSchemaJson,
     /// Print default CONDUCTANCE_PRM as JSON map payload.
@@ -1294,6 +1311,143 @@ fn run(cli: Cli) -> Result<(), String> {
                 "schema_version": payload.schema_version,
                 "schema_version_runtime": output_block_schema_version_runtime().map_err(|e| e.to_string())?,
                 "values": payload.values,
+                "dims": payload.dims,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::ErrorEntrySchemaJson => {
+            let schema = error_entry_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": error_entry_schema_version_runtime().map_err(|e| e.to_string())?,
+                "timer_flat_len": schema.timer_flat_len,
+                "message_len": schema.message_len,
+                "location_len": schema.location_len,
+                "fields": schema.field_names,
+                "timer_fields": schema.timer_field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::ErrorEntryDefaultJson => {
+            let (timer_flat_len, message_len, location_len) =
+                error_entry_schema().map_err(|e| e.to_string())?;
+            let state = error_entry_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": error_entry_schema_version(),
+                "schema_version_runtime": error_entry_schema_version_runtime().map_err(|e| e.to_string())?,
+                "timer_flat_len": timer_flat_len,
+                "message_len": message_len,
+                "location_len": location_len,
+                "fields": error_entry_field_names(),
+                "state": {
+                    "timer": suews_timer_to_map(&state.timer),
+                    "message": state.message,
+                    "location": state.location,
+                    "is_fatal": state.is_fatal,
+                },
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::ErrorEntryDefaultValuesJson => {
+            let state = error_entry_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = error_entry_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": error_entry_schema_version_runtime().map_err(|e| e.to_string())?,
+                "timer_values": payload.timer_values,
+                "message": payload.message,
+                "location": payload.location,
+                "is_fatal": payload.is_fatal,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::ErrorStateSchemaJson => {
+            let schema = error_state_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": error_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "message_len": schema.message_len,
+                "fields": schema.field_names,
+                "allocatable_dims": schema.allocatable_dims,
+                "entry_schema_version": schema.entry_schema.schema_version,
+                "entry_timer_flat_len": schema.entry_schema.timer_flat_len,
+                "entry_message_len": schema.entry_schema.message_len,
+                "entry_location_len": schema.entry_schema.location_len,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::ErrorStateDefaultJson => {
+            let message_len = error_state_schema().map_err(|e| e.to_string())?;
+            let state = error_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload_values = error_state_to_values_payload(&state);
+            let log = state
+                .log
+                .iter()
+                .map(|entry| {
+                    json!({
+                        "timer": suews_timer_to_map(&entry.timer),
+                        "message": entry.message,
+                        "location": entry.location,
+                        "is_fatal": entry.is_fatal,
+                    })
+                })
+                .collect::<Vec<_>>();
+
+            let payload = json!({
+                "schema_version": error_state_schema_version(),
+                "schema_version_runtime": error_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "message_len": message_len,
+                "fields": error_state_field_names(),
+                "state": {
+                    "flag": state.flag,
+                    "code": state.code,
+                    "message": state.message,
+                    "has_fatal": state.has_fatal,
+                    "count": state.count,
+                    "log": log,
+                },
+                "dims": payload_values.dims,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::ErrorStateDefaultValuesJson => {
+            let state = error_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = error_state_to_values_payload(&state);
+            let log = payload
+                .log
+                .iter()
+                .map(|entry| {
+                    json!({
+                        "schema_version": entry.schema_version,
+                        "timer_values": entry.timer_values,
+                        "message": entry.message,
+                        "location": entry.location,
+                        "is_fatal": entry.is_fatal,
+                    })
+                })
+                .collect::<Vec<_>>();
+
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": error_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flag": payload.flag,
+                "code": payload.code,
+                "message": payload.message,
+                "has_fatal": payload.has_fatal,
+                "count": payload.count,
+                "log": log,
                 "dims": payload.dims,
             });
             let text = serde_json::to_string_pretty(&out)
@@ -2575,6 +2729,38 @@ mod tests {
             command: Commands::OutputBlockDefaultValuesJson,
         };
         run(cli).expect("output-block-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_error_entry_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::ErrorEntryDefaultJson,
+        };
+        run(cli).expect("error-entry-default-json should succeed");
+    }
+
+    #[test]
+    fn run_error_entry_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::ErrorEntryDefaultValuesJson,
+        };
+        run(cli).expect("error-entry-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_error_state_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::ErrorStateDefaultJson,
+        };
+        run(cli).expect("error-state-default-json should succeed");
+    }
+
+    #[test]
+    fn run_error_state_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::ErrorStateDefaultValuesJson,
+        };
+        run(cli).expect("error-state-default-values-json should succeed");
     }
 
     #[test]

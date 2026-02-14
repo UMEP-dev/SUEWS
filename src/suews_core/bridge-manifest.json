@@ -50,12 +50,12 @@
     {
       "name": "error_entry",
       "source": "src/suews/src/suews_ctrl_type.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "error_state",
       "source": "src/suews/src/suews_ctrl_type.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "flag_STATE",

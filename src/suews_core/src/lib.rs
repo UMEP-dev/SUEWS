@@ -4156,6 +4156,156 @@ mod python_bindings {
         }
     }
 
+    #[pyclass(name = "ErrorEntry")]
+    pub struct PyErrorEntry {
+        state: crate::ErrorEntry,
+    }
+
+    #[pymethods]
+    impl PyErrorEntry {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = crate::error_entry_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(
+            schema_version: u32,
+            timer_values: Vec<f64>,
+            message: String,
+            location: String,
+            is_fatal: bool,
+        ) -> PyResult<Self> {
+            let payload = crate::ErrorEntryValuesPayload {
+                schema_version,
+                timer_values,
+                message,
+                location,
+                is_fatal,
+            };
+            let state = crate::error_entry_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid error_entry values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>, String, String, bool) {
+            let payload = crate::error_entry_to_values_payload(&self.state);
+            (
+                payload.schema_version,
+                payload.timer_values,
+                payload.message,
+                payload.location,
+                payload.is_fatal,
+            )
+        }
+
+        fn timer_dict(&self) -> BTreeMap<String, f64> {
+            crate::suews_timer_to_map(&self.state.timer)
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            crate::error_entry_field_names()
+        }
+    }
+
+    #[pyclass(name = "ErrorState")]
+    pub struct PyErrorState {
+        state: crate::ErrorState,
+    }
+
+    #[pymethods]
+    impl PyErrorState {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = crate::error_state_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(
+            schema_version: u32,
+            flag: bool,
+            code: i32,
+            message: String,
+            has_fatal: bool,
+            count: usize,
+            log: Vec<(Vec<f64>, String, String, bool)>,
+            dims: HashMap<String, Vec<usize>>,
+        ) -> PyResult<Self> {
+            let log_payload = log
+                .into_iter()
+                .map(|(timer_values, message, location, is_fatal)| crate::ErrorEntryValuesPayload {
+                    schema_version: crate::error_entry_schema_version(),
+                    timer_values,
+                    message,
+                    location,
+                    is_fatal,
+                })
+                .collect();
+
+            let payload = crate::ErrorStateValuesPayload {
+                schema_version,
+                flag,
+                code,
+                message,
+                has_fatal,
+                count,
+                log: log_payload,
+                dims: dims.into_iter().collect(),
+            };
+            let state = crate::error_state_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid error_state values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_values_payload(
+            &self,
+        ) -> (
+            u32,
+            bool,
+            i32,
+            String,
+            bool,
+            usize,
+            Vec<(Vec<f64>, String, String, bool)>,
+            HashMap<String, Vec<usize>>,
+        ) {
+            let payload = crate::error_state_to_values_payload(&self.state);
+            let log = payload
+                .log
+                .into_iter()
+                .map(|entry| {
+                    (
+                        entry.timer_values,
+                        entry.message,
+                        entry.location,
+                        entry.is_fatal,
+                    )
+                })
+                .collect();
+
+            (
+                payload.schema_version,
+                payload.flag,
+                payload.code,
+                payload.message,
+                payload.has_fatal,
+                payload.count,
+                log,
+                payload.dims.into_iter().collect(),
+            )
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            crate::error_state_field_names()
+        }
+    }
+
     #[pyclass(name = "RoughnessState")]
     pub struct PyRoughnessState {
         state: RoughnessState,
@@ -5327,6 +5477,70 @@ mod python_bindings {
         crate::output_block_field_names()
     }
 
+    #[pyfunction(name = "error_entry_schema")]
+    fn error_entry_schema_py() -> PyResult<(usize, usize, usize)> {
+        crate::error_entry_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "error_entry_schema_version")]
+    fn error_entry_schema_version_py() -> u32 {
+        crate::error_entry_schema_version()
+    }
+
+    #[pyfunction(name = "error_entry_schema_version_runtime")]
+    fn error_entry_schema_version_runtime_py() -> PyResult<u32> {
+        crate::error_entry_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "error_entry_schema_meta")]
+    fn error_entry_schema_meta_py() -> PyResult<(u32, usize, usize, Vec<String>, Vec<String>)> {
+        let meta = crate::error_entry_schema_info().map_err(map_bridge_error)?;
+        Ok((
+            meta.schema_version,
+            meta.message_len,
+            meta.location_len,
+            meta.field_names,
+            meta.timer_field_names,
+        ))
+    }
+
+    #[pyfunction(name = "error_entry_fields")]
+    fn error_entry_fields_py() -> Vec<String> {
+        crate::error_entry_field_names()
+    }
+
+    #[pyfunction(name = "error_state_schema")]
+    fn error_state_schema_py() -> PyResult<usize> {
+        crate::error_state_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "error_state_schema_version")]
+    fn error_state_schema_version_py() -> u32 {
+        crate::error_state_schema_version()
+    }
+
+    #[pyfunction(name = "error_state_schema_version_runtime")]
+    fn error_state_schema_version_runtime_py() -> PyResult<u32> {
+        crate::error_state_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "error_state_schema_meta")]
+    fn error_state_schema_meta_py(
+    ) -> PyResult<(u32, usize, Vec<String>, HashMap<String, Vec<usize>>)> {
+        let meta = crate::error_state_schema_info().map_err(map_bridge_error)?;
+        Ok((
+            meta.schema_version,
+            meta.message_len,
+            meta.field_names,
+            meta.allocatable_dims.into_iter().collect(),
+        ))
+    }
+
+    #[pyfunction(name = "error_state_fields")]
+    fn error_state_fields_py() -> Vec<String> {
+        crate::error_state_field_names()
+    }
+
     #[pyfunction(name = "solar_state_schema")]
     fn solar_state_schema_py() -> PyResult<usize> {
         solar_state_schema().map_err(map_bridge_error)
@@ -5423,6 +5637,8 @@ mod python_bindings {
         m.add_class::<PyStebbsPrm>()?;
         m.add_class::<PyOutputLine>()?;
         m.add_class::<PyOutputBlock>()?;
+        m.add_class::<PyErrorEntry>()?;
+        m.add_class::<PyErrorState>()?;
         m.add_class::<PyPhenologyState>()?;
         m.add_class::<PySnowState>()?;
         m.add_class::<PySnowPrm>()?;
@@ -5665,6 +5881,16 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(output_block_schema_version_runtime_py, m)?)?;
         m.add_function(wrap_pyfunction!(output_block_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(output_block_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(error_entry_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(error_entry_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(error_entry_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(error_entry_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(error_entry_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(error_state_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(error_state_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(error_state_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(error_state_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(error_state_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_version_runtime_py, m)?)?;

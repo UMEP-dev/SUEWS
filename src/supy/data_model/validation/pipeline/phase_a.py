@@ -942,6 +942,39 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
 
     return user_data, dimension_errors
 
+def validate_nlayer_limit(user_data: dict) -> list:
+    """
+    Validate that nlayer is less than 15 for each site.
+
+    Returns a list of (path, nlayer_value, error_message) tuples for each site where nlayer >= 15.
+    """
+    errors = []
+    if not user_data or "sites" not in user_data:
+        return errors
+
+    sites = user_data.get("sites", [])
+    if not isinstance(sites, list):
+        return errors
+
+    for site_idx, site in enumerate(sites):
+        nlayer = None
+        try:
+            nlayer = site.get("properties", {}).get("vertical_layers", {}).get("nlayer", None)
+            # Handle RefValue wrapper
+            if isinstance(nlayer, dict) and "value" in nlayer:
+                nlayer = nlayer["value"]
+        except Exception:
+            pass
+        if nlayer is not None:
+            try:
+                nlayer_int = int(nlayer)
+                if nlayer_int > 15:
+                    path = f"sites[{site_idx}].properties.vertical_layers.nlayer"
+                    errors.append((path, nlayer_int, "You have entered a nlayer > 15."))
+            except Exception:
+                path = f"sites[{site_idx}].properties.vertical_layers.nlayer"
+                errors.append((path, nlayer, "Could not interpret nlayer value for limit check."))
+    return errors
 
 def _validate_single_forcing_file(
     forcing_path: Path, yaml_dir: Path, physics: dict = None
@@ -1228,6 +1261,7 @@ def create_analysis_report(
     phase="A",
     dimension_errors=None,
     forcing_errors=None,
+    nlayer_limit_errors=None,
 ):
     """Create analysis report with summary of changes."""
     report_lines = []
@@ -1251,6 +1285,7 @@ def create_analysis_report(
     extra_count = len(extra_params) if extra_params else 0
     dimension_errors_count = len(dimension_errors) if dimension_errors else 0
     forcing_errors_count = len(forcing_errors) if forcing_errors else 0
+    nlayer_limit_errors_count = len(nlayer_limit_errors) if nlayer_limit_errors else 0
 
     # ACTION NEEDED section - critical/urgent parameters, dimension errors, forcing errors, AND forbidden extra parameters
     # Categorise extra parameters to find forbidden ones
@@ -1352,6 +1387,7 @@ def create_analysis_report(
             )
             report_lines.append("")
 
+
         # Critical missing parameters
         if urgent_count > 0:
             report_lines.append(
@@ -1429,7 +1465,10 @@ def create_analysis_report(
         )
 
     has_no_action_items = (
-        optional_count > 0 or allowed_extras_count > 0 or renamed_count > 0
+        optional_count > 0
+        or allowed_extras_count > 0
+        or renamed_count > 0
+        or nlayer_limit_errors_count > 0
     )
 
     if has_no_action_items:
@@ -1470,11 +1509,18 @@ def create_analysis_report(
                 for param_path in no_action_extras:
                     param_name = param_path.split(".")[-1]
                     report_lines.append(f"-- {param_name} at level {param_path}")
-                report_lines.append("")
 
-                # Show forbidden location extra parameters as ACTION NEEDED
-                # (These will be moved to the ACTION NEEDED section below)
-                # We'll handle this below when updating that section
+        if nlayer_limit_errors_count > 0:
+            report_lines.append(
+                f"- Detected ({nlayer_limit_errors_count}) nlayer warning(s):"
+            )
+            for path, nlayer_value, message in nlayer_limit_errors:
+                value_display = f" (value={nlayer_value})" if nlayer_value is not None else ""
+                report_lines.append(f"-- {path}{value_display}: {message}")
+                report_lines.append(
+                    "Note: If you need nlayer>15 for your run, consider to change SPARTACUS Fortran code and Pydantic nlayer Field constraints to allow more layers."
+                )
+            report_lines.append("")
 
     # If neither ACTION NEEDED nor NO ACTION NEEDED sections were added,
     # indicate that Phase A passed without issues
@@ -1523,6 +1569,9 @@ def annotate_missing_parameters(
         user_data, dimension_errors = validate_nlayer_dimensions(user_data, nlayer)
         # user_data now contains padded arrays with nulls - we'll write this back
 
+    # Validate nlayer limit regardless of CLI nlayer flag
+    nlayer_limit_errors = validate_nlayer_limit(user_data)
+
     # Validate forcing data if enabled
     forcing_errors = []
     if forcing == "on":
@@ -1542,6 +1591,7 @@ def annotate_missing_parameters(
         or extra_params
         or dimension_errors
         or forcing_errors
+        or nlayer_limit_errors
     ):
         # If dimension errors occurred, serialize the modified user_data with padded nulls
         if dimension_errors:
@@ -1574,6 +1624,7 @@ def annotate_missing_parameters(
             phase,
             dimension_errors,
             forcing_errors,
+            nlayer_limit_errors,
         )
     else:
         print("No missing in standard or renamed in standard parameters found!")
@@ -1581,7 +1632,7 @@ def annotate_missing_parameters(
         uptodate_content = create_uptodate_yaml_header() + original_yaml_content
         uptodate_filename = os.path.basename(uptodate_file) if uptodate_file else None
         report_content = create_analysis_report(
-            [], [], [], uptodate_filename, mode, phase, [], forcing_errors
+            [], [], [], uptodate_filename, mode, phase, [], forcing_errors, []
         )
 
     # Print clean terminal output based on critical parameters, dimension errors, and forcing errors
@@ -1589,14 +1640,15 @@ def annotate_missing_parameters(
         (path, val, is_phys) for path, val, is_phys in missing_params if is_phys
     ]
 
-    if critical_params or dimension_errors or forcing_errors:
+    has_action_needed = bool(critical_params or dimension_errors or forcing_errors)
+    if has_action_needed:
         if critical_params:
-            print(f"Action needed: CRITICAL parameters missing:")
+            print("Action needed: CRITICAL parameters missing:")
             for param_path, standard_value, _ in critical_params:
                 param_name = param_path.split(".")[-1]
                 print(f"  - {param_name}")
         if dimension_errors:
-            print(f"Action needed: DIMENSION MISMATCH errors:")
+            print("Action needed: DIMENSION MISMATCH errors:")
             for path, expected, actual, nulls_added in dimension_errors:
                 array_name = path.split(".")[-1]
                 if nulls_added > 0:
@@ -1608,7 +1660,7 @@ def annotate_missing_parameters(
                         f"  - {array_name}: has {actual} elements, expected {expected}"
                     )
         if forcing_errors:
-            print(f"Action needed: FORCING DATA validation errors:")
+            print("Action needed: FORCING DATA validation errors:")
             for error_msg in forcing_errors[:3]:  # Show first 3 errors
                 print(f"  - {error_msg}")
             if len(forcing_errors) > 3:
@@ -1625,6 +1677,13 @@ def annotate_missing_parameters(
         )
     else:
         print("PHASE A -- PASSED")
+
+    if nlayer_limit_errors:
+        print("Warning: NLAYERS exceeding recommended limit:")
+        for path, nlayer_value, message in nlayer_limit_errors:
+            value_display = f" (value={nlayer_value})" if nlayer_value is not None else ""
+            print(f"  - {path}{value_display}: {message}")
+        print("")
 
     # Write output files
     if uptodate_file:

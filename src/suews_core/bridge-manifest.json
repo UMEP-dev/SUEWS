@@ -215,7 +215,7 @@
     {
       "name": "SUEWS_DEBUG",
       "source": "src/suews/src/suews_ctrl_type.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "SUEWS_FORCING",
@@ -230,12 +230,12 @@
     {
       "name": "SUEWS_STATE",
       "source": "src/suews/src/suews_ctrl_type.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "SUEWS_STATE_BLOCK",
       "source": "src/suews/src/suews_ctrl_type.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "SUEWS_TIMER",

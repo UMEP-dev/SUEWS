@@ -27,6 +27,7 @@ mod lumps;
 mod nhood;
 mod ohm_coef_lc;
 mod ohm_prm;
+mod output_block;
 mod output_line;
 mod phenology;
 mod roughness;
@@ -264,6 +265,14 @@ pub use ohm_prm::{
     ohm_prm_schema_version, ohm_prm_schema_version_runtime, ohm_prm_to_map,
     ohm_prm_to_ordered_values, ohm_prm_to_values_payload, OhmPrm, OhmPrmSchema,
     OhmPrmValuesPayload, OHM_PRM_FLAT_LEN, OHM_PRM_SCHEMA_VERSION,
+};
+pub use output_block::{
+    output_block_default_from_fortran, output_block_field_names, output_block_from_ordered_values,
+    output_block_from_values_payload, output_block_schema, output_block_schema_info,
+    output_block_schema_version, output_block_schema_version_runtime,
+    output_block_to_ordered_values, output_block_to_rows_map, output_block_to_values_payload,
+    OutputBlock, OutputBlockMatrix, OutputBlockSchema, OutputBlockValuesPayload,
+    OUTPUT_BLOCK_BASE_FLAT_LEN, OUTPUT_BLOCK_FIELD_COUNT, OUTPUT_BLOCK_SCHEMA_VERSION,
 };
 pub use output_line::{
     output_line_default_from_fortran, output_line_field_index, output_line_field_names,
@@ -3868,6 +3877,55 @@ mod python_bindings {
         }
     }
 
+    #[pyclass(name = "OutputBlock")]
+    pub struct PyOutputBlock {
+        state: crate::OutputBlock,
+    }
+
+    #[pymethods]
+    impl PyOutputBlock {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = crate::output_block_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(
+            schema_version: u32,
+            values: Vec<f64>,
+            dims: HashMap<String, Vec<usize>>,
+        ) -> PyResult<Self> {
+            let payload = crate::OutputBlockValuesPayload {
+                schema_version,
+                values,
+                dims: dims.into_iter().collect(),
+            };
+            let state = crate::output_block_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid output_block values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>, HashMap<String, Vec<usize>>) {
+            let payload = crate::output_block_to_values_payload(&self.state);
+            (
+                payload.schema_version,
+                payload.values,
+                payload.dims.into_iter().collect(),
+            )
+        }
+
+        #[staticmethod]
+        fn field_names() -> Vec<String> {
+            crate::output_block_field_names()
+        }
+
+        fn to_rows_dict(&self) -> PyResult<BTreeMap<String, Vec<Vec<f64>>>> {
+            crate::output_block_to_rows_map(&self.state).map_err(map_bridge_error)
+        }
+    }
+
     #[pyclass(name = "RoughnessState")]
     pub struct PyRoughnessState {
         state: RoughnessState,
@@ -4939,6 +4997,38 @@ mod python_bindings {
         output_line_field_names()
     }
 
+    #[pyfunction(name = "output_block_schema")]
+    fn output_block_schema_py() -> PyResult<usize> {
+        crate::output_block_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "output_block_schema_version")]
+    fn output_block_schema_version_py() -> u32 {
+        crate::output_block_schema_version()
+    }
+
+    #[pyfunction(name = "output_block_schema_version_runtime")]
+    fn output_block_schema_version_runtime_py() -> PyResult<u32> {
+        crate::output_block_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "output_block_schema_meta")]
+    fn output_block_schema_meta_py(
+    ) -> PyResult<(u32, usize, Vec<String>, HashMap<String, Vec<usize>>)> {
+        let meta = crate::output_block_schema_info().map_err(map_bridge_error)?;
+        Ok((
+            meta.schema_version,
+            meta.flat_len,
+            meta.field_names,
+            meta.allocatable_dims.into_iter().collect(),
+        ))
+    }
+
+    #[pyfunction(name = "output_block_fields")]
+    fn output_block_fields_py() -> Vec<String> {
+        crate::output_block_field_names()
+    }
+
     #[pyfunction(name = "solar_state_schema")]
     fn solar_state_schema_py() -> PyResult<usize> {
         solar_state_schema().map_err(map_bridge_error)
@@ -5032,6 +5122,7 @@ mod python_bindings {
         m.add_class::<PyBuildingArchetypePrm>()?;
         m.add_class::<PyStebbsPrm>()?;
         m.add_class::<PyOutputLine>()?;
+        m.add_class::<PyOutputBlock>()?;
         m.add_class::<PyPhenologyState>()?;
         m.add_class::<PySnowState>()?;
         m.add_class::<PySnowPrm>()?;
@@ -5259,6 +5350,11 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(output_line_schema_version_runtime_py, m)?)?;
         m.add_function(wrap_pyfunction!(output_line_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(output_line_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(output_block_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(output_block_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(output_block_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(output_block_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(output_block_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(solar_state_schema_version_runtime_py, m)?)?;

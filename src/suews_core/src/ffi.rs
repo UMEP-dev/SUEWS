@@ -283,6 +283,14 @@ unsafe extern "C" {
 
     pub fn suews_output_line_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
 
+    pub fn suews_output_block_len(n_flat: *mut c_int, err: *mut c_int);
+
+    pub fn suews_output_block_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_output_block_columns(cols: *mut c_int, n_cols: c_int, err: *mut c_int);
+
+    pub fn suews_output_block_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
     pub fn suews_surf_store_prm_len(n_flat: *mut c_int, err: *mut c_int);
 
     pub fn suews_surf_store_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);

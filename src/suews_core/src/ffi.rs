@@ -1,4 +1,4 @@
-use std::os::raw::{c_double, c_int};
+use std::os::raw::{c_char, c_double, c_int};
 
 pub const SUEWS_CAPI_OK: c_int = 0;
 pub const SUEWS_CAPI_BAD_DT: c_int = 1;
@@ -332,6 +332,40 @@ unsafe extern "C" {
     pub fn suews_output_block_columns(cols: *mut c_int, n_cols: c_int, err: *mut c_int);
 
     pub fn suews_output_block_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
+    pub fn suews_error_entry_len(
+        timer_flat_len: *mut c_int,
+        message_len: *mut c_int,
+        location_len: *mut c_int,
+        err: *mut c_int,
+    );
+
+    pub fn suews_error_entry_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_error_entry_default(
+        timer_flat: *mut c_double,
+        n_timer_flat: c_int,
+        message: *mut c_char,
+        message_len: c_int,
+        location: *mut c_char,
+        location_len: c_int,
+        is_fatal: *mut c_int,
+        err: *mut c_int,
+    );
+
+    pub fn suews_error_state_len(message_len: *mut c_int, err: *mut c_int);
+
+    pub fn suews_error_state_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_error_state_default(
+        flag: *mut c_int,
+        code: *mut c_int,
+        message: *mut c_char,
+        message_len: c_int,
+        has_fatal: *mut c_int,
+        count: *mut c_int,
+        err: *mut c_int,
+    );
 
     pub fn suews_surf_store_prm_len(n_flat: *mut c_int, err: *mut c_int);
 

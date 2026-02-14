@@ -10,6 +10,8 @@ mod config;
 mod core;
 mod ehc_prm;
 mod error;
+mod error_entry;
+mod error_state;
 mod ffi;
 mod flag;
 mod forcing;
@@ -139,6 +141,20 @@ pub use ehc_prm::{
     EhcPrmValuesPayload, EHC_PRM_SCHEMA_VERSION,
 };
 pub use error::BridgeError;
+pub use error_entry::{
+    error_entry_default_from_fortran, error_entry_field_names, error_entry_from_values_payload,
+    error_entry_schema, error_entry_schema_info, error_entry_schema_version,
+    error_entry_schema_version_runtime, error_entry_to_values_payload, ErrorEntry,
+    ErrorEntrySchema, ErrorEntryValuesPayload, ERROR_ENTRY_LOCATION_LEN, ERROR_ENTRY_MESSAGE_LEN,
+    ERROR_ENTRY_SCHEMA_VERSION,
+};
+pub use error_state::{
+    error_state_default_from_fortran, error_state_field_names, error_state_from_values_payload,
+    error_state_schema, error_state_schema_info, error_state_schema_version,
+    error_state_schema_version_runtime, error_state_to_values_payload, ErrorState,
+    ErrorStateSchema, ErrorStateValuesPayload, ERROR_STATE_LOG_FIELD, ERROR_STATE_MESSAGE_LEN,
+    ERROR_STATE_SCHEMA_VERSION,
+};
 pub use flag::{
     flag_state_default_from_fortran, flag_state_field_index, flag_state_field_names,
     flag_state_from_map, flag_state_from_ordered_values, flag_state_from_values_payload,

@@ -61,6 +61,8 @@ fn main() {
         manifest_dir.join("fortran/suews_c_api_stebbs_state.f95"),
         manifest_dir.join("fortran/suews_c_api_output_line.f95"),
         manifest_dir.join("fortran/suews_c_api_output_block.f95"),
+        manifest_dir.join("fortran/suews_c_api_error_entry.f95"),
+        manifest_dir.join("fortran/suews_c_api_error_state.f95"),
         manifest_dir.join("fortran/suews_c_api_surf_store.f95"),
         manifest_dir.join("fortran/suews_c_api_water_dist.f95"),
         manifest_dir.join("fortran/suews_c_api_irrig_daywater.f95"),
@@ -128,9 +130,36 @@ fn main() {
 
     println!("cargo:rustc-link-search=native={}", out_dir.display());
     println!("cargo:rustc-link-lib=static=suews_bridge");
+    link_fortran_runtime(&gfortran_bin);
 
     if target_os == "macos" && env::var_os("CARGO_FEATURE_PYTHON_EXTENSION").is_some() {
         println!("cargo:rustc-link-arg=-undefined");
         println!("cargo:rustc-link-arg=dynamic_lookup");
     }
+}
+
+fn link_fortran_runtime(gfortran_bin: &PathBuf) {
+    let output = Command::new(gfortran_bin)
+        .arg("-print-file-name=libgfortran.dylib")
+        .output()
+        .expect("failed to query gfortran runtime library path");
+
+    if !output.status.success() {
+        panic!("gfortran could not provide libgfortran path");
+    }
+
+    let lib_path = String::from_utf8(output.stdout)
+        .expect("gfortran libgfortran path should be UTF-8")
+        .trim()
+        .to_string();
+
+    if lib_path.is_empty() {
+        panic!("gfortran reported an empty libgfortran path");
+    }
+
+    let lib_path = PathBuf::from(lib_path);
+    if let Some(parent) = lib_path.parent() {
+        println!("cargo:rustc-link-search=native={}", parent.display());
+    }
+    println!("cargo:rustc-link-lib=dylib=gfortran");
 }

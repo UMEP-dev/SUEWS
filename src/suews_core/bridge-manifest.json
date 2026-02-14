@@ -65,12 +65,12 @@
     {
       "name": "HEAT_STATE",
       "source": "src/suews/src/suews_type_heat.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "HYDRO_STATE",
       "source": "src/suews/src/suews_type_hydro.f95",
-      "status": "planned"
+      "status": "bridged"
     },
     {
       "name": "IRRIG_daywater",

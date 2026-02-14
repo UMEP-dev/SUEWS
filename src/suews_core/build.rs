@@ -28,6 +28,8 @@ fn main() {
         manifest_dir.join("fortran/suews_c_api_timer.f95"),
         manifest_dir.join("fortran/suews_c_api_ohm.f95"),
         manifest_dir.join("fortran/suews_c_api_forcing.f95"),
+        manifest_dir.join("fortran/suews_c_api_hydro_state.f95"),
+        manifest_dir.join("fortran/suews_c_api_heat_state.f95"),
         manifest_dir.join("fortran/suews_c_api_flag.f95"),
         manifest_dir.join("fortran/suews_c_api_solar.f95"),
         manifest_dir.join("fortran/suews_c_api_roughness.f95"),

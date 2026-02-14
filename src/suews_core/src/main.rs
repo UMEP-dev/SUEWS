@@ -26,7 +26,12 @@ use suews_bridge::{
     ehc_prm_schema_info, ehc_prm_schema_version, ehc_prm_schema_version_runtime, ehc_prm_to_map,
     ehc_prm_to_values_payload, flag_state_default_from_fortran, flag_state_schema,
     flag_state_schema_info, flag_state_schema_version, flag_state_schema_version_runtime,
-    flag_state_to_map, flag_state_to_values_payload, irrig_daywater_default_from_fortran,
+    flag_state_to_map, flag_state_to_values_payload, heat_state_default_from_fortran,
+    heat_state_schema, heat_state_schema_info, heat_state_schema_version,
+    heat_state_schema_version_runtime, heat_state_to_map, heat_state_to_values_payload,
+    hydro_state_default_from_fortran, hydro_state_schema, hydro_state_schema_info,
+    hydro_state_schema_version, hydro_state_schema_version_runtime, hydro_state_to_map,
+    hydro_state_to_values_payload, irrig_daywater_default_from_fortran,
     irrig_daywater_schema, irrig_daywater_schema_info, irrig_daywater_schema_version,
     irrig_daywater_schema_version_runtime, irrig_daywater_to_map, irrig_daywater_to_values_payload,
     irrigation_prm_default_from_fortran, irrigation_prm_schema, irrigation_prm_schema_info,
@@ -295,6 +300,18 @@ enum Commands {
     SuewsForcingDefaultJson,
     /// Print default SUEWS_FORCING as JSON ordered values payload.
     SuewsForcingDefaultValuesJson,
+    /// Print HYDRO_STATE schema as JSON for programmatic tooling.
+    HydroStateSchemaJson,
+    /// Print default HYDRO_STATE as JSON map payload.
+    HydroStateDefaultJson,
+    /// Print default HYDRO_STATE as JSON ordered values payload.
+    HydroStateDefaultValuesJson,
+    /// Print HEAT_STATE schema as JSON for programmatic tooling.
+    HeatStateSchemaJson,
+    /// Print default HEAT_STATE as JSON map payload.
+    HeatStateDefaultJson,
+    /// Print default HEAT_STATE as JSON ordered values payload.
+    HeatStateDefaultValuesJson,
     /// Print SUEWS_TIMER schema as JSON for programmatic tooling.
     SuewsTimerSchemaJson,
     /// Print default SUEWS_TIMER as JSON map payload.
@@ -746,6 +763,91 @@ fn run(cli: Cli) -> Result<(), String> {
             let out = json!({
                 "schema_version": payload.schema_version,
                 "schema_version_runtime": suews_forcing_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+                "dims": payload.dims,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::HydroStateSchemaJson => {
+            let schema = hydro_state_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": hydro_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "base_flat_len": schema.base_flat_len,
+                "allocatable_dims": schema.allocatable_dims,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::HydroStateDefaultJson => {
+            let (flat_len, alloc_lens) = hydro_state_schema().map_err(|e| e.to_string())?;
+            let state = hydro_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": hydro_state_schema_version(),
+                "schema_version_runtime": hydro_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "alloc_lens": alloc_lens,
+                "state": hydro_state_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::HydroStateDefaultValuesJson => {
+            let state = hydro_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = hydro_state_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": hydro_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "values": payload.values,
+                "dims": payload.dims,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::HeatStateSchemaJson => {
+            let schema = heat_state_schema_info().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": heat_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "base_flat_len": schema.base_flat_len,
+                "nlayer": schema.nlayer,
+                "ndepth": schema.ndepth,
+                "allocatable_dims": schema.allocatable_dims,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::HeatStateDefaultJson => {
+            let (flat_len, nlayer, ndepth) = heat_state_schema().map_err(|e| e.to_string())?;
+            let state = heat_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": heat_state_schema_version(),
+                "schema_version_runtime": heat_state_schema_version_runtime().map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "nlayer": nlayer,
+                "ndepth": ndepth,
+                "state": heat_state_to_map(&state),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }
+        Commands::HeatStateDefaultValuesJson => {
+            let state = heat_state_default_from_fortran().map_err(|e| e.to_string())?;
+            let payload = heat_state_to_values_payload(&state);
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": heat_state_schema_version_runtime().map_err(|e| e.to_string())?,
                 "values": payload.values,
                 "dims": payload.dims,
             });
@@ -2265,6 +2367,54 @@ mod tests {
             command: Commands::SuewsForcingDefaultValuesJson,
         };
         run(cli).expect("suews-forcing-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_hydro_state_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::HydroStateDefaultJson,
+        };
+        run(cli).expect("hydro-state-default-json should succeed");
+    }
+
+    #[test]
+    fn run_hydro_state_schema_json_succeeds() {
+        let cli = Cli {
+            command: Commands::HydroStateSchemaJson,
+        };
+        run(cli).expect("hydro-state-schema-json should succeed");
+    }
+
+    #[test]
+    fn run_hydro_state_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::HydroStateDefaultValuesJson,
+        };
+        run(cli).expect("hydro-state-default-values-json should succeed");
+    }
+
+    #[test]
+    fn run_heat_state_default_json_succeeds() {
+        let cli = Cli {
+            command: Commands::HeatStateDefaultJson,
+        };
+        run(cli).expect("heat-state-default-json should succeed");
+    }
+
+    #[test]
+    fn run_heat_state_schema_json_succeeds() {
+        let cli = Cli {
+            command: Commands::HeatStateSchemaJson,
+        };
+        run(cli).expect("heat-state-schema-json should succeed");
+    }
+
+    #[test]
+    fn run_heat_state_default_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::HeatStateDefaultValuesJson,
+        };
+        run(cli).expect("heat-state-default-values-json should succeed");
     }
 
     #[test]

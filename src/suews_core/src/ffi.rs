@@ -82,6 +82,48 @@ unsafe extern "C" {
         err: *mut c_int,
     );
 
+    pub fn suews_hydro_state_len(
+        n_flat: *mut c_int,
+        soilstore_roof_len: *mut c_int,
+        state_roof_len: *mut c_int,
+        soilstore_wall_len: *mut c_int,
+        state_wall_len: *mut c_int,
+        ev_roof_len: *mut c_int,
+        ev_wall_len: *mut c_int,
+        err: *mut c_int,
+    );
+
+    pub fn suews_hydro_state_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_hydro_state_default(
+        flat: *mut c_double,
+        n_flat: c_int,
+        soilstore_roof_len: *mut c_int,
+        state_roof_len: *mut c_int,
+        soilstore_wall_len: *mut c_int,
+        state_wall_len: *mut c_int,
+        ev_roof_len: *mut c_int,
+        ev_wall_len: *mut c_int,
+        err: *mut c_int,
+    );
+
+    pub fn suews_heat_state_len(
+        n_flat: *mut c_int,
+        nlayer: *mut c_int,
+        ndepth: *mut c_int,
+        err: *mut c_int,
+    );
+
+    pub fn suews_heat_state_schema_version(schema_version: *mut c_int, err: *mut c_int);
+
+    pub fn suews_heat_state_default(
+        flat: *mut c_double,
+        n_flat: c_int,
+        nlayer: *mut c_int,
+        ndepth: *mut c_int,
+        err: *mut c_int,
+    );
+
     pub fn suews_timer_len(n_flat: *mut c_int, err: *mut c_int);
 
     pub fn suews_timer_schema_version(schema_version: *mut c_int, err: *mut c_int);

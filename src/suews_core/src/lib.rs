@@ -13,6 +13,8 @@ mod error;
 mod ffi;
 mod flag;
 mod forcing;
+mod heat_state;
+mod hydro_state;
 mod irrig_daywater;
 mod irrigation_prm;
 mod lai;
@@ -153,6 +155,26 @@ pub use forcing::{
     suews_forcing_to_map, suews_forcing_to_ordered_values, suews_forcing_to_values_payload,
     SuewsForcing, SuewsForcingSchema, SuewsForcingValuesPayload, SUEWS_FORCING_BASE_FLAT_LEN,
     SUEWS_FORCING_SCHEMA_VERSION, SUEWS_FORCING_TS5_FIELD,
+};
+pub use heat_state::{
+    heat_state_base_field_names, heat_state_default_from_fortran, heat_state_expected_flat_len,
+    heat_state_field_index, heat_state_field_names, heat_state_field_names_with_dims,
+    heat_state_from_map, heat_state_from_ordered_values, heat_state_from_values_payload,
+    heat_state_schema, heat_state_schema_info, heat_state_schema_version,
+    heat_state_schema_version_runtime, heat_state_to_map, heat_state_to_ordered_values,
+    heat_state_to_values_payload, HeatState, HeatStateSchema, HeatStateValuesPayload,
+    HEAT_STATE_BASE_FLAT_LEN, HEAT_STATE_SCHEMA_VERSION, HEAT_STATE_TEMP_ROOF_FIELD,
+};
+pub use hydro_state::{
+    hydro_state_base_field_names, hydro_state_default_from_fortran, hydro_state_field_index,
+    hydro_state_field_names, hydro_state_field_names_with_lens, hydro_state_from_map,
+    hydro_state_from_ordered_values, hydro_state_from_values_payload, hydro_state_schema,
+    hydro_state_schema_info, hydro_state_schema_version, hydro_state_schema_version_runtime,
+    hydro_state_to_map, hydro_state_to_ordered_values, hydro_state_to_values_payload, HydroState,
+    HydroStateSchema, HydroStateValuesPayload, HYDRO_STATE_BASE_FLAT_LEN,
+    HYDRO_STATE_EV_ROOF_FIELD, HYDRO_STATE_EV_WALL_FIELD, HYDRO_STATE_SCHEMA_VERSION,
+    HYDRO_STATE_SOILSTORE_ROOF_FIELD, HYDRO_STATE_SOILSTORE_WALL_FIELD,
+    HYDRO_STATE_STATE_ROOF_FIELD, HYDRO_STATE_STATE_WALL_FIELD,
 };
 pub use irrig_daywater::{
     irrig_daywater_default_from_fortran, irrig_daywater_field_index, irrig_daywater_field_names,
@@ -1103,6 +1125,198 @@ mod python_bindings {
 
         fn set_ts5mindata_ir(&mut self, values: Vec<f64>) {
             self.state.ts5mindata_ir = values;
+        }
+    }
+
+    #[pyclass(name = "HydroState")]
+    pub struct PyHydroState {
+        state: crate::HydroState,
+    }
+
+    #[pymethods]
+    impl PyHydroState {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = crate::hydro_state_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = crate::hydro_state_from_ordered_values(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state = crate::hydro_state_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(
+            schema_version: u32,
+            values: Vec<f64>,
+            dims: HashMap<String, Vec<usize>>,
+        ) -> PyResult<Self> {
+            let payload = crate::HydroStateValuesPayload {
+                schema_version,
+                values,
+                dims: dims.into_iter().collect(),
+            };
+            let state = crate::hydro_state_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid HYDRO_STATE values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = crate::hydro_state_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid HYDRO_STATE field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            crate::hydro_state_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>, HashMap<String, Vec<usize>>) {
+            let payload = crate::hydro_state_to_values_payload(&self.state);
+            (
+                payload.schema_version,
+                payload.values,
+                payload.dims.into_iter().collect(),
+            )
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            crate::hydro_state_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> PyResult<Vec<String>> {
+            crate::hydro_state_field_names().map_err(map_bridge_error)
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            crate::hydro_state_to_map(&self.state)
+                .get(name)
+                .copied()
+                .ok_or_else(|| {
+                    PyValueError::new_err(format!("unknown HYDRO_STATE field name: {name}"))
+                })
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let mut mapped = crate::hydro_state_to_map(&self.state);
+            mapped.insert(name.to_string(), value);
+            self.state = crate::hydro_state_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid HYDRO_STATE field mapping: {err}"))
+            })?;
+            Ok(())
+        }
+    }
+
+    #[pyclass(name = "HeatState")]
+    pub struct PyHeatState {
+        state: crate::HeatState,
+    }
+
+    #[pymethods]
+    impl PyHeatState {
+        #[staticmethod]
+        fn default() -> PyResult<Self> {
+            let state = crate::heat_state_default_from_fortran().map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_flat(flat: Vec<f64>) -> PyResult<Self> {
+            let state = crate::heat_state_from_ordered_values(&flat).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values(values: Vec<f64>) -> PyResult<Self> {
+            let state = crate::heat_state_from_ordered_values(&values).map_err(map_bridge_error)?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_values_payload(
+            schema_version: u32,
+            values: Vec<f64>,
+            dims: HashMap<String, Vec<usize>>,
+        ) -> PyResult<Self> {
+            let payload = crate::HeatStateValuesPayload {
+                schema_version,
+                values,
+                dims: dims.into_iter().collect(),
+            };
+            let state = crate::heat_state_from_values_payload(&payload).map_err(|err| {
+                PyValueError::new_err(format!("invalid HEAT_STATE values payload: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        #[staticmethod]
+        fn from_dict(values: HashMap<String, f64>) -> PyResult<Self> {
+            let mapped: BTreeMap<String, f64> = values.into_iter().collect();
+            let state = crate::heat_state_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid HEAT_STATE field mapping: {err}"))
+            })?;
+            Ok(Self { state })
+        }
+
+        fn to_flat(&self) -> Vec<f64> {
+            self.state.to_flat()
+        }
+
+        fn to_values(&self) -> Vec<f64> {
+            crate::heat_state_to_ordered_values(&self.state)
+        }
+
+        fn to_values_payload(&self) -> (u32, Vec<f64>, HashMap<String, Vec<usize>>) {
+            let payload = crate::heat_state_to_values_payload(&self.state);
+            (
+                payload.schema_version,
+                payload.values,
+                payload.dims.into_iter().collect(),
+            )
+        }
+
+        fn to_dict(&self) -> BTreeMap<String, f64> {
+            crate::heat_state_to_map(&self.state)
+        }
+
+        #[staticmethod]
+        fn field_names() -> PyResult<Vec<String>> {
+            crate::heat_state_field_names().map_err(map_bridge_error)
+        }
+
+        fn field_value(&self, name: &str) -> PyResult<f64> {
+            crate::heat_state_to_map(&self.state)
+                .get(name)
+                .copied()
+                .ok_or_else(|| {
+                    PyValueError::new_err(format!("unknown HEAT_STATE field name: {name}"))
+                })
+        }
+
+        fn set_field_value(&mut self, name: &str, value: f64) -> PyResult<()> {
+            let mut mapped = crate::heat_state_to_map(&self.state);
+            mapped.insert(name.to_string(), value);
+            self.state = crate::heat_state_from_map(&mapped).map_err(|err| {
+                PyValueError::new_err(format!("invalid HEAT_STATE field mapping: {err}"))
+            })?;
+            Ok(())
         }
     }
 
@@ -4217,6 +4431,74 @@ mod python_bindings {
         suews_forcing_field_names().map_err(map_bridge_error)
     }
 
+    #[pyfunction(name = "hydro_state_schema")]
+    fn hydro_state_schema_py() -> PyResult<(usize, [usize; 6])> {
+        crate::hydro_state_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "hydro_state_schema_version")]
+    fn hydro_state_schema_version_py() -> u32 {
+        crate::hydro_state_schema_version()
+    }
+
+    #[pyfunction(name = "hydro_state_schema_version_runtime")]
+    fn hydro_state_schema_version_runtime_py() -> PyResult<u32> {
+        crate::hydro_state_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "hydro_state_schema_meta")]
+    fn hydro_state_schema_meta_py(
+    ) -> PyResult<(u32, usize, usize, Vec<String>, HashMap<String, Vec<usize>>)> {
+        let meta = crate::hydro_state_schema_info().map_err(map_bridge_error)?;
+        Ok((
+            meta.schema_version,
+            meta.flat_len,
+            meta.base_flat_len,
+            meta.field_names,
+            meta.allocatable_dims.into_iter().collect(),
+        ))
+    }
+
+    #[pyfunction(name = "hydro_state_fields")]
+    fn hydro_state_fields_py() -> PyResult<Vec<String>> {
+        crate::hydro_state_field_names().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "heat_state_schema")]
+    fn heat_state_schema_py() -> PyResult<(usize, usize, usize)> {
+        crate::heat_state_schema().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "heat_state_schema_version")]
+    fn heat_state_schema_version_py() -> u32 {
+        crate::heat_state_schema_version()
+    }
+
+    #[pyfunction(name = "heat_state_schema_version_runtime")]
+    fn heat_state_schema_version_runtime_py() -> PyResult<u32> {
+        crate::heat_state_schema_version_runtime().map_err(map_bridge_error)
+    }
+
+    #[pyfunction(name = "heat_state_schema_meta")]
+    fn heat_state_schema_meta_py(
+    ) -> PyResult<(u32, usize, usize, usize, usize, Vec<String>, HashMap<String, Vec<usize>>)> {
+        let meta = crate::heat_state_schema_info().map_err(map_bridge_error)?;
+        Ok((
+            meta.schema_version,
+            meta.flat_len,
+            meta.base_flat_len,
+            meta.nlayer,
+            meta.ndepth,
+            meta.field_names,
+            meta.allocatable_dims.into_iter().collect(),
+        ))
+    }
+
+    #[pyfunction(name = "heat_state_fields")]
+    fn heat_state_fields_py() -> PyResult<Vec<String>> {
+        crate::heat_state_field_names().map_err(map_bridge_error)
+    }
+
     #[pyfunction(name = "suews_timer_schema")]
     fn suews_timer_schema_py() -> PyResult<usize> {
         suews_timer_schema().map_err(map_bridge_error)
@@ -5113,6 +5395,8 @@ mod python_bindings {
         m.add_class::<PyOhmState>()?;
         m.add_class::<PySuewsConfig>()?;
         m.add_class::<PySuewsForcing>()?;
+        m.add_class::<PyHydroState>()?;
+        m.add_class::<PyHeatState>()?;
         m.add_class::<PySuewsTimer>()?;
         m.add_class::<PyFlagState>()?;
         m.add_class::<PyAnthroEmisState>()?;
@@ -5167,6 +5451,16 @@ mod python_bindings {
         )?)?;
         m.add_function(wrap_pyfunction!(suews_forcing_schema_meta_py, m)?)?;
         m.add_function(wrap_pyfunction!(suews_forcing_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(hydro_state_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(hydro_state_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(hydro_state_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(hydro_state_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(hydro_state_fields_py, m)?)?;
+        m.add_function(wrap_pyfunction!(heat_state_schema_py, m)?)?;
+        m.add_function(wrap_pyfunction!(heat_state_schema_version_py, m)?)?;
+        m.add_function(wrap_pyfunction!(heat_state_schema_version_runtime_py, m)?)?;
+        m.add_function(wrap_pyfunction!(heat_state_schema_meta_py, m)?)?;
+        m.add_function(wrap_pyfunction!(heat_state_fields_py, m)?)?;
         m.add_function(wrap_pyfunction!(suews_timer_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(suews_timer_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(suews_timer_schema_version_runtime_py, m)?)?;

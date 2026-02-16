@@ -23,7 +23,9 @@ from .hydro import (
     WaterDistribution,
 )
 from .state import InitialStates
+from .model import _enum_description
 
+from enum import Enum
 import pandas as pd
 from typing import ClassVar, List, Literal, Union, Dict, Tuple
 
@@ -32,6 +34,36 @@ from pytz import timezone
 from pytz.exceptions import AmbiguousTimeError, NonExistentTimeError
 import pytz
 import warnings
+
+
+class LAIType(Enum):
+    """
+    LAI calculation choice
+    0: original
+    1: new high latitude,
+    2: new inverted behaviour
+    """
+    # TODO: Give proper names
+    ORIGINAL = 0
+    HIGH_LAT = 1
+    INVERSTED = 2
+    MANAGED = 3
+
+    def __new__(cls, value):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        # Mark internal options (not recommended)
+        if value in [3, 4]:  # ANOHM and ESTM
+            obj._internal = True
+        else:
+            obj._internal = False
+        return obj
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
 
 
 class VegetationParams(BaseModel):
@@ -391,9 +423,9 @@ class LAIParams(BaseModel):
         default_factory=LAIPowerCoefficients,
         description="LAI calculation power parameters for growth and senescence",
     )
-    laitype: FlexibleRefValue(int) = Field(
-        default=0,
-        description="LAI calculation choice (0: original, 1: new high latitude, 2: new inverted behaviour)",
+    laitype: FlexibleRefValue(LAIType) = Field(
+        default=LAIType.ORIGINAL,
+        description=_enum_description(LAIType),
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "LAI Calculation Method",

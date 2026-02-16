@@ -600,12 +600,13 @@ CONTAINS
       ! Loop through vegetation types (iv)
       DO iv = 1, NVegSurf
          ! Calculate GDD for each day from the minimum and maximum air temperature
-         IF (LAItype(iv) == 2) THEN ! Invert response to temperature (grow when cold)
-            delta_GDD = -calc_delta_DD(BaseT_GDD(iv), mean_temp) !Leaf on
-            delta_SDD = -calc_delta_DD(BaseT_SDD(iv), mean_temp) !Leaf off
-         ELSE
-            delta_GDD = ((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_GDD(iv)) !Leaf on
-            delta_SDD = ((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_SDD(iv)) !Leaf off
+         delta_GDD = calc_delta_DD(BaseT_GDD(iv), mean_temp) !Leaf on
+         delta_SDD = calc_delta_DD(BaseT_SDD(iv), mean_temp) !Leaf off
+
+         ! Invert LAI response to temperature (grow in colder weather) MP 02-2026
+         IF (LAItype(iv) == 2) THEN
+            delta_GDD = -delta_GDD
+            delta_SDD = -delta_SDD
          END IF
 
          indHelp = 0 !Help switch to allow GDD to go to zero in sprint-time !! QUESTION: What does this mean? HCW
@@ -616,8 +617,7 @@ CONTAINS
             delta_GDD = 0
          END IF
 
-         ! Replaced by MIN/MAX, MP 02-2026
-         ! IF (delta_SDD > 0) delta_SDD = 0 !SDD cannot be positive
+         ! Replaced IF statement by MIN/MAX, MP 02-2026
          delta_SDD = MIN(delta_SDD, 0.0)
 
          ! Calculate cumulative growing and senescence degree days
@@ -629,22 +629,14 @@ CONTAINS
             GDD_id(iv) = 0
          END IF
 
-         IF (LAItype(iv) == 1 .OR. LAItype(iv) == 0) THEN
-            IF (GDD_id(iv) >= GDDFull(iv)) THEN !Start senescence
-               GDD_id(iv) = GDDFull(iv) !Leaves should not grow so delete yes from earlier
-               IF (SDD_id(iv) < -critDays) GDD_id(iv) = 0
-            END IF
-            IF (SDD_id(iv) <= SDDFull(iv)) THEN !After senescence now start growing leaves
+         IF (LAItype(iv) == 2) THEN ! When growing in cold weather, prioritise GDD over SDD
+            IF (SDD_id(iv) <= SDDFull(iv)) THEN ! Start growth 
+               !After senescence now start growing leaves
                SDD_id(iv) = SDDFull(iv) !Leaves off so add back earlier
                IF (GDD_id(iv) > critDays) SDD_id(iv) = 0
             END IF
-         ELSEIF (LAItype(iv) == 2) THEN
-            IF (SDD_id(iv) <= SDDFull(iv)) THEN !After senescence now start growing leaves
-               SDD_id(iv) = SDDFull(iv) !Leaves off so add back earlier
-               IF (GDD_id(iv) > critDays) SDD_id(iv) = 0
-            END IF
-            IF (GDD_id(iv) >= GDDFull(iv)) THEN !Start senescence
-               GDD_id(iv) = GDDFull(iv) !Leaves should not grow so delete yes from earlier
+            IF (GDD_id(iv) >= GDDFull(iv)) THEN ! After growth, start senescence
+               GDD_id(iv) = GDDFull(iv) ! Leaves should not grow so delete yes from earlier
                IF (SDD_id(iv) < -critDays) GDD_id(iv) = 0
             END IF
          ELSE

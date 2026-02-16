@@ -555,6 +555,16 @@ CONTAINS
       lai = (lai_prev**lai_power1*gdd_id*lai_power2) + lai_prev
    END FUNCTION
 
+   FUNCTION calc_LAI_SDD(lai_prev, lai_power1, lai_power2, sdd_id) RESULT (lai)
+      IMPLICIT NONE
+      REAL(KIND(1D0)), INTENT(IN) :: lai_prev
+      REAL(KIND(1D0)), INTENT(IN) :: lai_power1
+      REAL(KIND(1D0)), INTENT(IN) :: lai_power2
+      REAL(KIND(1D0)), INTENT(IN) :: sdd_id
+      REAL(KIND(1D0)) :: lai
+      lai = (lai_prev*lai_power1*(1 - sdd_id)*lai_power2) + lai_prev
+   END FUNCTION
+
    SUBROUTINE update_GDDLAI( &
       id, LAICalcYes, & !input
       lat, LAI_obs, &

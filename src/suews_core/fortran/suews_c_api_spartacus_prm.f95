@@ -1,184 +1,236 @@
 ! -----------------------------------------------------------------------------
 ! SUEWS Rust bridge C API facade for SPARTACUS_PRM.
 ! -----------------------------------------------------------------------------
-MODULE module_c_api_spartacus_prm
-   USE, INTRINSIC :: iso_c_binding, ONLY: c_int, c_double, c_char
-   USE module_c_api_common, ONLY: &
-      SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
-      copy_to_c_buffer, suews_capi_error_text
+module module_c_api_spartacus_prm
+use, intrinsic :: iso_c_binding, only: c_int, c_double, c_char
+use module_c_api_common, only: &
+   SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
+   copy_to_c_buffer, suews_capi_error_text
+use module_type_spartacus, only: SPARTACUS_PRM
 
-   IMPLICIT NONE
+implicit none
 
-   PRIVATE
+private
 
-   PUBLIC :: SUEWS_CAPI_OK
-   PUBLIC :: SUEWS_CAPI_BAD_BUFFER
-   PUBLIC :: SUEWS_CAPI_BAD_STATE
+public :: SUEWS_CAPI_OK
+public :: SUEWS_CAPI_BAD_BUFFER
+public :: SUEWS_CAPI_BAD_STATE
 
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_SPARTACUS_PRM_BASE_LEN = 14_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_SPARTACUS_PRM_SCHEMA_VERSION = 1_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_SPARTACUS_PRM_BASE_LEN = 14_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_SPARTACUS_PRM_SCHEMA_VERSION = 1_c_int
 
-   TYPE :: spartacus_prm_shadow
-      REAL(c_double) :: air_ext_lw = 0.0_c_double
-      REAL(c_double) :: air_ext_sw = 0.0_c_double
-      REAL(c_double) :: air_ssa_lw = 0.0_c_double
-      REAL(c_double) :: air_ssa_sw = 0.0_c_double
-      REAL(c_double), DIMENSION(:), ALLOCATABLE :: height
-      REAL(c_double) :: ground_albedo_dir_mult_fact = 0.0_c_double
-      INTEGER(c_int) :: n_stream_lw_urban = 0_c_int
-      INTEGER(c_int) :: n_stream_sw_urban = 0_c_int
-      INTEGER(c_int) :: n_vegetation_region_urban = 0_c_int
-      REAL(c_double) :: sw_dn_direct_frac = 0.0_c_double
-      REAL(c_double) :: use_sw_direct_albedo = 0.0_c_double
-      REAL(c_double) :: veg_contact_fraction_const = 0.0_c_double
-      REAL(c_double) :: veg_fsd_const = 0.0_c_double
-      REAL(c_double) :: veg_ssa_lw = 0.0_c_double
-      REAL(c_double) :: veg_ssa_sw = 0.0_c_double
-   END TYPE spartacus_prm_shadow
+type :: spartacus_prm_shadow
+   real(c_double) :: air_ext_lw = 0.0_c_double
+   real(c_double) :: air_ext_sw = 0.0_c_double
+   real(c_double) :: air_ssa_lw = 0.0_c_double
+   real(c_double) :: air_ssa_sw = 0.0_c_double
+   real(c_double), dimension(:), allocatable :: height
+   real(c_double) :: ground_albedo_dir_mult_fact = 0.0_c_double
+   integer(c_int) :: n_stream_lw_urban = 0_c_int
+   integer(c_int) :: n_stream_sw_urban = 0_c_int
+   integer(c_int) :: n_vegetation_region_urban = 0_c_int
+   real(c_double) :: sw_dn_direct_frac = 0.0_c_double
+   real(c_double) :: use_sw_direct_albedo = 0.0_c_double
+   real(c_double) :: veg_contact_fraction_const = 0.0_c_double
+   real(c_double) :: veg_fsd_const = 0.0_c_double
+   real(c_double) :: veg_ssa_lw = 0.0_c_double
+   real(c_double) :: veg_ssa_sw = 0.0_c_double
+end type spartacus_prm_shadow
 
-   PUBLIC :: suews_spartacus_prm_len
-   PUBLIC :: suews_spartacus_prm_schema_version
-   PUBLIC :: suews_spartacus_prm_default
-   PUBLIC :: suews_spartacus_prm_error_message
+public :: suews_spartacus_prm_len
+public :: suews_spartacus_prm_schema_version
+public :: suews_spartacus_prm_default
+public :: suews_spartacus_prm_error_message
+public :: spartacus_prm_unpack
 
-CONTAINS
+contains
 
-   SUBROUTINE suews_spartacus_prm_len(n_flat, height_len, nlayer, err) BIND(C, name='suews_spartacus_prm_len')
-      IMPLICIT NONE
+subroutine suews_spartacus_prm_len(n_flat, height_len, nlayer, err) bind(C, name='suews_spartacus_prm_len')
+   implicit none
 
-      INTEGER(c_int), INTENT(out) :: n_flat
-      INTEGER(c_int), INTENT(out) :: height_len
-      INTEGER(c_int), INTENT(out) :: nlayer
-      INTEGER(c_int), INTENT(out) :: err
+   integer(c_int), intent(out) :: n_flat
+   integer(c_int), intent(out) :: height_len
+   integer(c_int), intent(out) :: nlayer
+   integer(c_int), intent(out) :: err
 
-      TYPE(spartacus_prm_shadow) :: state
+   type(spartacus_prm_shadow) :: state
 
-      CALL spartacus_prm_layout(state, n_flat, height_len, nlayer, err)
+   call spartacus_prm_layout(state, n_flat, height_len, nlayer, err)
 
-   END SUBROUTINE suews_spartacus_prm_len
+end subroutine suews_spartacus_prm_len
 
+subroutine suews_spartacus_prm_schema_version(schema_version, err) bind(C, name='suews_spartacus_prm_schema_version')
+   implicit none
 
-   SUBROUTINE suews_spartacus_prm_schema_version(schema_version, err) BIND(C, name='suews_spartacus_prm_schema_version')
-      IMPLICIT NONE
+   integer(c_int), intent(out) :: schema_version
+   integer(c_int), intent(out) :: err
 
-      INTEGER(c_int), INTENT(out) :: schema_version
-      INTEGER(c_int), INTENT(out) :: err
+   schema_version = SUEWS_CAPI_SPARTACUS_PRM_SCHEMA_VERSION
+   err = SUEWS_CAPI_OK
 
-      schema_version = SUEWS_CAPI_SPARTACUS_PRM_SCHEMA_VERSION
-      err = SUEWS_CAPI_OK
+end subroutine suews_spartacus_prm_schema_version
 
-   END SUBROUTINE suews_spartacus_prm_schema_version
+subroutine suews_spartacus_prm_default(flat, n_flat, height_len, nlayer, err) bind(C, name='suews_spartacus_prm_default')
+   implicit none
 
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), value, intent(in) :: n_flat
+   integer(c_int), intent(out) :: height_len
+   integer(c_int), intent(out) :: nlayer
+   integer(c_int), intent(out) :: err
 
-   SUBROUTINE suews_spartacus_prm_default(flat, n_flat, height_len, nlayer, err) BIND(C, name='suews_spartacus_prm_default')
-      IMPLICIT NONE
+   type(spartacus_prm_shadow) :: state
 
-      REAL(c_double), INTENT(out) :: flat(*)
-      INTEGER(c_int), VALUE, INTENT(in) :: n_flat
-      INTEGER(c_int), INTENT(out) :: height_len
-      INTEGER(c_int), INTENT(out) :: nlayer
-      INTEGER(c_int), INTENT(out) :: err
+   call spartacus_prm_pack(state, flat, n_flat, height_len, nlayer, err)
 
-      TYPE(spartacus_prm_shadow) :: state
+end subroutine suews_spartacus_prm_default
 
-      CALL spartacus_prm_pack(state, flat, n_flat, height_len, nlayer, err)
+subroutine spartacus_prm_layout(state, n_flat, height_len, nlayer, err)
+   implicit none
 
-   END SUBROUTINE suews_spartacus_prm_default
+   type(spartacus_prm_shadow), intent(in) :: state
+   integer(c_int), intent(out) :: n_flat
+   integer(c_int), intent(out) :: height_len
+   integer(c_int), intent(out) :: nlayer
+   integer(c_int), intent(out) :: err
 
+   height_len = 0_c_int
+   if (allocated(state%height)) then
+      height_len = int(size(state%height), c_int)
+   end if
 
-   SUBROUTINE spartacus_prm_layout(state, n_flat, height_len, nlayer, err)
-      IMPLICIT NONE
+   if (height_len>0_c_int) then
+      nlayer = height_len - 1_c_int
+   else
+      nlayer = 0_c_int
+   end if
 
-      TYPE(spartacus_prm_shadow), INTENT(in) :: state
-      INTEGER(c_int), INTENT(out) :: n_flat
-      INTEGER(c_int), INTENT(out) :: height_len
-      INTEGER(c_int), INTENT(out) :: nlayer
-      INTEGER(c_int), INTENT(out) :: err
+   n_flat = SUEWS_CAPI_SPARTACUS_PRM_BASE_LEN + height_len
+   err = SUEWS_CAPI_OK
 
-      height_len = 0_c_int
-      IF (ALLOCATED(state%height)) THEN
-         height_len = INT(SIZE(state%height), c_int)
-      END IF
+end subroutine spartacus_prm_layout
 
-      IF (height_len > 0_c_int) THEN
-         nlayer = height_len - 1_c_int
-      ELSE
-         nlayer = 0_c_int
-      END IF
+subroutine spartacus_prm_pack(state, flat, n_flat, height_len, nlayer, err)
+   implicit none
 
-      n_flat = SUEWS_CAPI_SPARTACUS_PRM_BASE_LEN + height_len
-      err = SUEWS_CAPI_OK
+   type(spartacus_prm_shadow), intent(in) :: state
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: height_len
+   integer(c_int), intent(out) :: nlayer
+   integer(c_int), intent(out) :: err
 
-   END SUBROUTINE spartacus_prm_layout
+   integer(c_int) :: n_expected
+   integer(c_int) :: idx
+   integer(c_int) :: i
 
+   call spartacus_prm_layout(state, n_expected, height_len, nlayer, err)
+   if (err/=SUEWS_CAPI_OK) return
 
-   SUBROUTINE spartacus_prm_pack(state, flat, n_flat, height_len, nlayer, err)
-      IMPLICIT NONE
+   if (n_flat<n_expected) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
 
-      TYPE(spartacus_prm_shadow), INTENT(in) :: state
-      REAL(c_double), INTENT(out) :: flat(*)
-      INTEGER(c_int), INTENT(in) :: n_flat
-      INTEGER(c_int), INTENT(out) :: height_len
-      INTEGER(c_int), INTENT(out) :: nlayer
-      INTEGER(c_int), INTENT(out) :: err
+   idx = 1_c_int
+   flat(idx) = state%air_ext_lw; idx = idx + 1_c_int
+   flat(idx) = state%air_ext_sw; idx = idx + 1_c_int
+   flat(idx) = state%air_ssa_lw; idx = idx + 1_c_int
+   flat(idx) = state%air_ssa_sw; idx = idx + 1_c_int
 
-      INTEGER(c_int) :: n_expected
-      INTEGER(c_int) :: idx
-      INTEGER(c_int) :: i
+   if (height_len>0_c_int) then
+      do i = 1_c_int, height_len
+         flat(idx) = state%height(i)
+         idx = idx + 1_c_int
+      end do
+   end if
 
-      CALL spartacus_prm_layout(state, n_expected, height_len, nlayer, err)
-      IF (err /= SUEWS_CAPI_OK) RETURN
+   flat(idx) = state%ground_albedo_dir_mult_fact; idx = idx + 1_c_int
+   flat(idx) = real(state%n_stream_lw_urban, c_double); idx = idx + 1_c_int
+   flat(idx) = real(state%n_stream_sw_urban, c_double); idx = idx + 1_c_int
+   flat(idx) = real(state%n_vegetation_region_urban, c_double); idx = idx + 1_c_int
+   flat(idx) = state%sw_dn_direct_frac; idx = idx + 1_c_int
+   flat(idx) = state%use_sw_direct_albedo; idx = idx + 1_c_int
+   flat(idx) = state%veg_contact_fraction_const; idx = idx + 1_c_int
+   flat(idx) = state%veg_fsd_const; idx = idx + 1_c_int
+   flat(idx) = state%veg_ssa_lw; idx = idx + 1_c_int
+   flat(idx) = state%veg_ssa_sw
 
-      IF (n_flat < n_expected) THEN
-         err = SUEWS_CAPI_BAD_BUFFER
-         RETURN
-      END IF
+   err = SUEWS_CAPI_OK
 
-      idx = 1_c_int
-      flat(idx) = state%air_ext_lw; idx = idx + 1_c_int
-      flat(idx) = state%air_ext_sw; idx = idx + 1_c_int
-      flat(idx) = state%air_ssa_lw; idx = idx + 1_c_int
-      flat(idx) = state%air_ssa_sw; idx = idx + 1_c_int
+end subroutine spartacus_prm_pack
 
-      IF (height_len > 0_c_int) THEN
-         DO i = 1_c_int, height_len
-            flat(idx) = state%height(i)
-            idx = idx + 1_c_int
-         END DO
-      END IF
+subroutine spartacus_prm_unpack(flat, n_flat, nlayer, state, err)
+   implicit none
 
-      flat(idx) = state%ground_albedo_dir_mult_fact; idx = idx + 1_c_int
-      flat(idx) = REAL(state%n_stream_lw_urban, c_double); idx = idx + 1_c_int
-      flat(idx) = REAL(state%n_stream_sw_urban, c_double); idx = idx + 1_c_int
-      flat(idx) = REAL(state%n_vegetation_region_urban, c_double); idx = idx + 1_c_int
-      flat(idx) = state%sw_dn_direct_frac; idx = idx + 1_c_int
-      flat(idx) = state%use_sw_direct_albedo; idx = idx + 1_c_int
-      flat(idx) = state%veg_contact_fraction_const; idx = idx + 1_c_int
-      flat(idx) = state%veg_fsd_const; idx = idx + 1_c_int
-      flat(idx) = state%veg_ssa_lw; idx = idx + 1_c_int
-      flat(idx) = state%veg_ssa_sw
+   real(c_double), intent(in) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(in) :: nlayer
+   type(SPARTACUS_PRM), intent(out) :: state
+   integer(c_int), intent(out) :: err
 
-      err = SUEWS_CAPI_OK
+   integer(c_int) :: height_len
+   integer(c_int) :: n_expected
+   integer(c_int) :: idx
+   integer(c_int) :: i
 
-   END SUBROUTINE spartacus_prm_pack
+   if (nlayer<0_c_int) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
 
+   height_len = nlayer + 1_c_int
+   n_expected = SUEWS_CAPI_SPARTACUS_PRM_BASE_LEN + height_len
+   if (n_flat<n_expected) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
 
-   SUBROUTINE suews_spartacus_prm_error_message(code, buffer, buffer_len) BIND(C, name='suews_spartacus_prm_error_message')
-      IMPLICIT NONE
+   if (allocated(state%height)) deallocate (state%height)
+   allocate (state%height(int(height_len)))
 
-      INTEGER(c_int), VALUE, INTENT(in) :: code
-      CHARACTER(c_char), INTENT(out) :: buffer(*)
-      INTEGER(c_int), VALUE, INTENT(in) :: buffer_len
+   idx = 1_c_int
+   state%air_ext_lw = flat(idx); idx = idx + 1_c_int
+   state%air_ext_sw = flat(idx); idx = idx + 1_c_int
+   state%air_ssa_lw = flat(idx); idx = idx + 1_c_int
+   state%air_ssa_sw = flat(idx); idx = idx + 1_c_int
 
-      CHARACTER(LEN=128) :: msg
+   do i = 1_c_int, height_len
+      state%height(int(i)) = flat(idx)
+      idx = idx + 1_c_int
+   end do
 
-      CALL suews_capi_error_text(code, msg)
-      CALL copy_to_c_buffer(msg, buffer, buffer_len)
+   state%ground_albedo_dir_mult_fact = flat(idx); idx = idx + 1_c_int
+   state%n_stream_lw_urban = int(nint(flat(idx))); idx = idx + 1_c_int
+   state%n_stream_sw_urban = int(nint(flat(idx))); idx = idx + 1_c_int
+   state%n_vegetation_region_urban = int(nint(flat(idx))); idx = idx + 1_c_int
+   state%sw_dn_direct_frac = flat(idx); idx = idx + 1_c_int
+   state%use_sw_direct_albedo = flat(idx); idx = idx + 1_c_int
+   state%veg_contact_fraction_const = flat(idx); idx = idx + 1_c_int
+   state%veg_fsd_const = flat(idx); idx = idx + 1_c_int
+   state%veg_ssa_lw = flat(idx); idx = idx + 1_c_int
+   state%veg_ssa_sw = flat(idx)
 
-   END SUBROUTINE suews_spartacus_prm_error_message
+   err = SUEWS_CAPI_OK
 
-END MODULE module_c_api_spartacus_prm
+end subroutine spartacus_prm_unpack
 
-MODULE c_api_spartacus_prm_module
-   USE module_c_api_spartacus_prm
-END MODULE c_api_spartacus_prm_module
+subroutine suews_spartacus_prm_error_message(code, buffer, buffer_len) bind(C, name='suews_spartacus_prm_error_message')
+   implicit none
+
+   integer(c_int), value, intent(in) :: code
+   character(c_char), intent(out) :: buffer(*)
+   integer(c_int), value, intent(in) :: buffer_len
+
+   character(LEN=128) :: msg
+
+   call suews_capi_error_text(code, msg)
+   call copy_to_c_buffer(msg, buffer, buffer_len)
+
+end subroutine suews_spartacus_prm_error_message
+
+end module module_c_api_spartacus_prm
+
+module c_api_spartacus_prm_module
+use module_c_api_spartacus_prm
+end module c_api_spartacus_prm_module

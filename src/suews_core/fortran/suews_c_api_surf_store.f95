@@ -1,118 +1,140 @@
 ! -----------------------------------------------------------------------------
 ! SUEWS Rust bridge C API facade for SURF_STORE_PRM.
 ! -----------------------------------------------------------------------------
-MODULE module_c_api_surf_store
-   USE, INTRINSIC :: iso_c_binding, ONLY: c_int, c_double, c_char
-   USE module_c_api_common, ONLY: &
-      SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
-      copy_to_c_buffer, suews_capi_error_text
+module module_c_api_surf_store
+use, intrinsic :: iso_c_binding, only: c_int, c_double, c_char
+use module_c_api_common, only: &
+   SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
+   copy_to_c_buffer, suews_capi_error_text
+use module_type_waterdist, only: SURF_STORE_PRM
 
-   IMPLICIT NONE
+implicit none
 
-   PRIVATE
+private
 
-   PUBLIC :: SUEWS_CAPI_OK
-   PUBLIC :: SUEWS_CAPI_BAD_BUFFER
-   PUBLIC :: SUEWS_CAPI_BAD_STATE
+public :: SUEWS_CAPI_OK
+public :: SUEWS_CAPI_BAD_BUFFER
+public :: SUEWS_CAPI_BAD_STATE
 
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_SURF_STORE_PRM_LEN = 6_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_SURF_STORE_PRM_SCHEMA_VERSION = 1_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_SURF_STORE_PRM_LEN = 6_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_SURF_STORE_PRM_SCHEMA_VERSION = 1_c_int
 
-   TYPE :: surf_store_prm_shadow
-      REAL(c_double) :: store_min = 0.0_c_double
-      REAL(c_double) :: store_max = 0.0_c_double
-      REAL(c_double) :: store_cap = 0.0_c_double
-      INTEGER(c_int) :: drain_eq = 0_c_int
-      REAL(c_double) :: drain_coef_1 = 0.0_c_double
-      REAL(c_double) :: drain_coef_2 = 0.0_c_double
-   END TYPE surf_store_prm_shadow
+type :: surf_store_prm_shadow
+   real(c_double) :: store_min = 0.0_c_double
+   real(c_double) :: store_max = 0.0_c_double
+   real(c_double) :: store_cap = 0.0_c_double
+   integer(c_int) :: drain_eq = 0_c_int
+   real(c_double) :: drain_coef_1 = 0.0_c_double
+   real(c_double) :: drain_coef_2 = 0.0_c_double
+end type surf_store_prm_shadow
 
-   PUBLIC :: suews_surf_store_prm_len
-   PUBLIC :: suews_surf_store_prm_schema_version
-   PUBLIC :: suews_surf_store_prm_default
-   PUBLIC :: suews_surf_store_error_message
+public :: suews_surf_store_prm_len
+public :: suews_surf_store_prm_schema_version
+public :: suews_surf_store_prm_default
+public :: suews_surf_store_error_message
+public :: surf_store_prm_unpack
 
-CONTAINS
+contains
 
-   SUBROUTINE suews_surf_store_prm_len(n_flat, err) BIND(C, name='suews_surf_store_prm_len')
-      IMPLICIT NONE
+subroutine suews_surf_store_prm_len(n_flat, err) bind(C, name='suews_surf_store_prm_len')
+   implicit none
 
-      INTEGER(c_int), INTENT(out) :: n_flat
-      INTEGER(c_int), INTENT(out) :: err
+   integer(c_int), intent(out) :: n_flat
+   integer(c_int), intent(out) :: err
 
-      n_flat = SUEWS_CAPI_SURF_STORE_PRM_LEN
-      err = SUEWS_CAPI_OK
+   n_flat = SUEWS_CAPI_SURF_STORE_PRM_LEN
+   err = SUEWS_CAPI_OK
 
-   END SUBROUTINE suews_surf_store_prm_len
+end subroutine suews_surf_store_prm_len
 
+subroutine suews_surf_store_prm_schema_version(schema_version, err) bind(C, name='suews_surf_store_prm_schema_version')
+   implicit none
 
-   SUBROUTINE suews_surf_store_prm_schema_version(schema_version, err) BIND(C, name='suews_surf_store_prm_schema_version')
-      IMPLICIT NONE
+   integer(c_int), intent(out) :: schema_version
+   integer(c_int), intent(out) :: err
 
-      INTEGER(c_int), INTENT(out) :: schema_version
-      INTEGER(c_int), INTENT(out) :: err
+   schema_version = SUEWS_CAPI_SURF_STORE_PRM_SCHEMA_VERSION
+   err = SUEWS_CAPI_OK
 
-      schema_version = SUEWS_CAPI_SURF_STORE_PRM_SCHEMA_VERSION
-      err = SUEWS_CAPI_OK
+end subroutine suews_surf_store_prm_schema_version
 
-   END SUBROUTINE suews_surf_store_prm_schema_version
+subroutine suews_surf_store_prm_default(flat, n_flat, err) bind(C, name='suews_surf_store_prm_default')
+   implicit none
 
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), value, intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
 
-   SUBROUTINE suews_surf_store_prm_default(flat, n_flat, err) BIND(C, name='suews_surf_store_prm_default')
-      IMPLICIT NONE
+   type(surf_store_prm_shadow) :: state
 
-      REAL(c_double), INTENT(out) :: flat(*)
-      INTEGER(c_int), VALUE, INTENT(in) :: n_flat
-      INTEGER(c_int), INTENT(out) :: err
+   call surf_store_prm_pack(state, flat, n_flat, err)
 
-      TYPE(surf_store_prm_shadow) :: state
+end subroutine suews_surf_store_prm_default
 
-      CALL surf_store_prm_pack(state, flat, n_flat, err)
+subroutine surf_store_prm_pack(state, flat, n_flat, err)
+   implicit none
 
-   END SUBROUTINE suews_surf_store_prm_default
+   type(surf_store_prm_shadow), intent(in) :: state
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
 
+   if (n_flat<SUEWS_CAPI_SURF_STORE_PRM_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
 
-   SUBROUTINE surf_store_prm_pack(state, flat, n_flat, err)
-      IMPLICIT NONE
+   flat(1) = state%store_min
+   flat(2) = state%store_max
+   flat(3) = state%store_cap
+   flat(4) = real(state%drain_eq, c_double)
+   flat(5) = state%drain_coef_1
+   flat(6) = state%drain_coef_2
 
-      TYPE(surf_store_prm_shadow), INTENT(in) :: state
-      REAL(c_double), INTENT(out) :: flat(*)
-      INTEGER(c_int), INTENT(in) :: n_flat
-      INTEGER(c_int), INTENT(out) :: err
+   err = SUEWS_CAPI_OK
 
-      IF (n_flat < SUEWS_CAPI_SURF_STORE_PRM_LEN) THEN
-         err = SUEWS_CAPI_BAD_BUFFER
-         RETURN
-      END IF
+end subroutine surf_store_prm_pack
 
-      flat(1) = state%store_min
-      flat(2) = state%store_max
-      flat(3) = state%store_cap
-      flat(4) = REAL(state%drain_eq, c_double)
-      flat(5) = state%drain_coef_1
-      flat(6) = state%drain_coef_2
+subroutine surf_store_prm_unpack(flat, n_flat, state, err)
+   implicit none
 
-      err = SUEWS_CAPI_OK
+   real(c_double), intent(in) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   type(SURF_STORE_PRM), intent(out) :: state
+   integer(c_int), intent(out) :: err
 
-   END SUBROUTINE surf_store_prm_pack
+   if (n_flat<SUEWS_CAPI_SURF_STORE_PRM_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
 
+   state%store_min = flat(1)
+   state%store_max = flat(2)
+   state%store_cap = flat(3)
+   state%drain_eq = int(nint(flat(4)))
+   state%drain_coef_1 = flat(5)
+   state%drain_coef_2 = flat(6)
 
-   SUBROUTINE suews_surf_store_error_message(code, buffer, buffer_len) BIND(C, name='suews_surf_store_error_message')
-      IMPLICIT NONE
+   err = SUEWS_CAPI_OK
 
-      INTEGER(c_int), VALUE, INTENT(in) :: code
-      CHARACTER(c_char), INTENT(out) :: buffer(*)
-      INTEGER(c_int), VALUE, INTENT(in) :: buffer_len
+end subroutine surf_store_prm_unpack
 
-      CHARACTER(LEN=128) :: msg
+subroutine suews_surf_store_error_message(code, buffer, buffer_len) bind(C, name='suews_surf_store_error_message')
+   implicit none
 
-      CALL suews_capi_error_text(code, msg)
-      CALL copy_to_c_buffer(msg, buffer, buffer_len)
+   integer(c_int), value, intent(in) :: code
+   character(c_char), intent(out) :: buffer(*)
+   integer(c_int), value, intent(in) :: buffer_len
 
-   END SUBROUTINE suews_surf_store_error_message
+   character(LEN=128) :: msg
 
-END MODULE module_c_api_surf_store
+   call suews_capi_error_text(code, msg)
+   call copy_to_c_buffer(msg, buffer, buffer_len)
 
-MODULE c_api_surf_store_module
-   USE module_c_api_surf_store
-END MODULE c_api_surf_store_module
+end subroutine suews_surf_store_error_message
+
+end module module_c_api_surf_store
+
+module c_api_surf_store_module
+use module_c_api_surf_store
+end module c_api_surf_store_module

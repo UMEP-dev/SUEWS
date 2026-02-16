@@ -1,240 +1,343 @@
 ! -----------------------------------------------------------------------------
 ! SUEWS Rust bridge C API facade for anthroEMIS_PRM.
 ! -----------------------------------------------------------------------------
-MODULE module_c_api_anthro_emis_prm
-   USE, INTRINSIC :: iso_c_binding, ONLY: c_int, c_double, c_char
-   USE module_c_api_common, ONLY: &
-      SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
-      copy_to_c_buffer, suews_capi_error_text
+module module_c_api_anthro_emis_prm
+use, intrinsic :: iso_c_binding, only: c_int, c_double, c_char
+use module_c_api_common, only: &
+   SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
+   copy_to_c_buffer, suews_capi_error_text
+use module_type_anthro, only: anthroEMIS_PRM
 
-   IMPLICIT NONE
+implicit none
 
-   PRIVATE
+private
 
-   PUBLIC :: SUEWS_CAPI_OK
-   PUBLIC :: SUEWS_CAPI_BAD_BUFFER
-   PUBLIC :: SUEWS_CAPI_BAD_STATE
+public :: SUEWS_CAPI_OK
+public :: SUEWS_CAPI_BAD_BUFFER
+public :: SUEWS_CAPI_BAD_STATE
 
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_ANTHRO_EMIS_PRM_LEN = 228_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_ANTHRO_EMIS_PRM_SCHEMA_VERSION = 1_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_ANTHRO_EMIS_PRM_LEN = 228_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_ANTHRO_EMIS_PRM_SCHEMA_VERSION = 1_c_int
 
-   TYPE :: anthro_heat_prm_shadow
-      REAL(c_double) :: qf0_beu_working = 0.0_c_double
-      REAL(c_double) :: qf0_beu_holiday = 0.0_c_double
-      REAL(c_double) :: qf_a_working = 0.0_c_double
-      REAL(c_double) :: qf_a_holiday = 0.0_c_double
-      REAL(c_double) :: qf_b_working = 0.0_c_double
-      REAL(c_double) :: qf_b_holiday = 0.0_c_double
-      REAL(c_double) :: qf_c_working = 0.0_c_double
-      REAL(c_double) :: qf_c_holiday = 0.0_c_double
-      REAL(c_double) :: baset_cooling_working = 0.0_c_double
-      REAL(c_double) :: baset_cooling_holiday = 0.0_c_double
-      REAL(c_double) :: baset_heating_working = 0.0_c_double
-      REAL(c_double) :: baset_heating_holiday = 0.0_c_double
-      REAL(c_double) :: ah_min_working = 0.0_c_double
-      REAL(c_double) :: ah_min_holiday = 0.0_c_double
-      REAL(c_double) :: ah_slope_cooling_working = 0.0_c_double
-      REAL(c_double) :: ah_slope_cooling_holiday = 0.0_c_double
-      REAL(c_double) :: ah_slope_heating_working = 0.0_c_double
-      REAL(c_double) :: ah_slope_heating_holiday = 0.0_c_double
-      REAL(c_double), DIMENSION(24) :: ahprof_24hr_working = 0.0_c_double
-      REAL(c_double), DIMENSION(24) :: ahprof_24hr_holiday = 0.0_c_double
-      REAL(c_double) :: popdensdaytime_working = 0.0_c_double
-      REAL(c_double) :: popdensdaytime_holiday = 0.0_c_double
-      REAL(c_double) :: popdensnighttime = 0.0_c_double
-      REAL(c_double), DIMENSION(24) :: popprof_24hr_working = 0.0_c_double
-      REAL(c_double), DIMENSION(24) :: popprof_24hr_holiday = 0.0_c_double
-   END TYPE anthro_heat_prm_shadow
+type :: anthro_heat_prm_shadow
+   real(c_double) :: qf0_beu_working = 0.0_c_double
+   real(c_double) :: qf0_beu_holiday = 0.0_c_double
+   real(c_double) :: qf_a_working = 0.0_c_double
+   real(c_double) :: qf_a_holiday = 0.0_c_double
+   real(c_double) :: qf_b_working = 0.0_c_double
+   real(c_double) :: qf_b_holiday = 0.0_c_double
+   real(c_double) :: qf_c_working = 0.0_c_double
+   real(c_double) :: qf_c_holiday = 0.0_c_double
+   real(c_double) :: baset_cooling_working = 0.0_c_double
+   real(c_double) :: baset_cooling_holiday = 0.0_c_double
+   real(c_double) :: baset_heating_working = 0.0_c_double
+   real(c_double) :: baset_heating_holiday = 0.0_c_double
+   real(c_double) :: ah_min_working = 0.0_c_double
+   real(c_double) :: ah_min_holiday = 0.0_c_double
+   real(c_double) :: ah_slope_cooling_working = 0.0_c_double
+   real(c_double) :: ah_slope_cooling_holiday = 0.0_c_double
+   real(c_double) :: ah_slope_heating_working = 0.0_c_double
+   real(c_double) :: ah_slope_heating_holiday = 0.0_c_double
+   real(c_double), dimension(24) :: ahprof_24hr_working = 0.0_c_double
+   real(c_double), dimension(24) :: ahprof_24hr_holiday = 0.0_c_double
+   real(c_double) :: popdensdaytime_working = 0.0_c_double
+   real(c_double) :: popdensdaytime_holiday = 0.0_c_double
+   real(c_double) :: popdensnighttime = 0.0_c_double
+   real(c_double), dimension(24) :: popprof_24hr_working = 0.0_c_double
+   real(c_double), dimension(24) :: popprof_24hr_holiday = 0.0_c_double
+end type anthro_heat_prm_shadow
 
-   TYPE :: anthro_emis_prm_shadow
-      INTEGER(c_int) :: startdls = 0_c_int
-      INTEGER(c_int) :: enddls = 0_c_int
-      TYPE(anthro_heat_prm_shadow) :: anthroheat
-      REAL(c_double) :: ef_umolco2perj = 0.0_c_double
-      REAL(c_double) :: enef_v_jkm = 0.0_c_double
-      REAL(c_double) :: frfossilfuel_heat = 0.0_c_double
-      REAL(c_double) :: frfossilfuel_nonheat = 0.0_c_double
-      REAL(c_double), DIMENSION(2) :: fcef_v_kgkm = 0.0_c_double
-      REAL(c_double), DIMENSION(24) :: humactivity_24hr_working = 0.0_c_double
-      REAL(c_double), DIMENSION(24) :: humactivity_24hr_holiday = 0.0_c_double
-      REAL(c_double) :: maxfcmetab = 0.0_c_double
-      REAL(c_double) :: maxqfmetab = 0.0_c_double
-      REAL(c_double) :: minfcmetab = 0.0_c_double
-      REAL(c_double) :: minqfmetab = 0.0_c_double
-      REAL(c_double) :: trafficrate_working = 0.0_c_double
-      REAL(c_double) :: trafficrate_holiday = 0.0_c_double
-      REAL(c_double) :: trafficunits = 0.0_c_double
-      REAL(c_double), DIMENSION(24) :: traffprof_24hr_working = 0.0_c_double
-      REAL(c_double), DIMENSION(24) :: traffprof_24hr_holiday = 0.0_c_double
-   END TYPE anthro_emis_prm_shadow
+type :: anthro_emis_prm_shadow
+   integer(c_int) :: startdls = 0_c_int
+   integer(c_int) :: enddls = 0_c_int
+   type(anthro_heat_prm_shadow) :: anthroheat
+   real(c_double) :: ef_umolco2perj = 0.0_c_double
+   real(c_double) :: enef_v_jkm = 0.0_c_double
+   real(c_double) :: frfossilfuel_heat = 0.0_c_double
+   real(c_double) :: frfossilfuel_nonheat = 0.0_c_double
+   real(c_double), dimension(2) :: fcef_v_kgkm = 0.0_c_double
+   real(c_double), dimension(24) :: humactivity_24hr_working = 0.0_c_double
+   real(c_double), dimension(24) :: humactivity_24hr_holiday = 0.0_c_double
+   real(c_double) :: maxfcmetab = 0.0_c_double
+   real(c_double) :: maxqfmetab = 0.0_c_double
+   real(c_double) :: minfcmetab = 0.0_c_double
+   real(c_double) :: minqfmetab = 0.0_c_double
+   real(c_double) :: trafficrate_working = 0.0_c_double
+   real(c_double) :: trafficrate_holiday = 0.0_c_double
+   real(c_double) :: trafficunits = 0.0_c_double
+   real(c_double), dimension(24) :: traffprof_24hr_working = 0.0_c_double
+   real(c_double), dimension(24) :: traffprof_24hr_holiday = 0.0_c_double
+end type anthro_emis_prm_shadow
 
-   PUBLIC :: suews_anthro_emis_prm_len
-   PUBLIC :: suews_anthro_emis_prm_schema_version
-   PUBLIC :: suews_anthro_emis_prm_default
-   PUBLIC :: suews_anthro_emis_prm_error_message
+public :: suews_anthro_emis_prm_len
+public :: suews_anthro_emis_prm_schema_version
+public :: suews_anthro_emis_prm_default
+public :: suews_anthro_emis_prm_error_message
+public :: anthro_emis_prm_unpack
 
-CONTAINS
+contains
 
-   SUBROUTINE suews_anthro_emis_prm_len(n_flat, err) BIND(C, name='suews_anthro_emis_prm_len')
-      IMPLICIT NONE
+subroutine suews_anthro_emis_prm_len(n_flat, err) bind(C, name='suews_anthro_emis_prm_len')
+   implicit none
 
-      INTEGER(c_int), INTENT(out) :: n_flat
-      INTEGER(c_int), INTENT(out) :: err
+   integer(c_int), intent(out) :: n_flat
+   integer(c_int), intent(out) :: err
 
-      n_flat = SUEWS_CAPI_ANTHRO_EMIS_PRM_LEN
-      err = SUEWS_CAPI_OK
+   n_flat = SUEWS_CAPI_ANTHRO_EMIS_PRM_LEN
+   err = SUEWS_CAPI_OK
 
-   END SUBROUTINE suews_anthro_emis_prm_len
+end subroutine suews_anthro_emis_prm_len
 
+subroutine suews_anthro_emis_prm_schema_version(schema_version, err) bind(C, name='suews_anthro_emis_prm_schema_version')
+   implicit none
 
-   SUBROUTINE suews_anthro_emis_prm_schema_version(schema_version, err) BIND(C, name='suews_anthro_emis_prm_schema_version')
-      IMPLICIT NONE
+   integer(c_int), intent(out) :: schema_version
+   integer(c_int), intent(out) :: err
 
-      INTEGER(c_int), INTENT(out) :: schema_version
-      INTEGER(c_int), INTENT(out) :: err
+   schema_version = SUEWS_CAPI_ANTHRO_EMIS_PRM_SCHEMA_VERSION
+   err = SUEWS_CAPI_OK
 
-      schema_version = SUEWS_CAPI_ANTHRO_EMIS_PRM_SCHEMA_VERSION
-      err = SUEWS_CAPI_OK
+end subroutine suews_anthro_emis_prm_schema_version
 
-   END SUBROUTINE suews_anthro_emis_prm_schema_version
+subroutine suews_anthro_emis_prm_default(flat, n_flat, err) bind(C, name='suews_anthro_emis_prm_default')
+   implicit none
 
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), value, intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
 
-   SUBROUTINE suews_anthro_emis_prm_default(flat, n_flat, err) BIND(C, name='suews_anthro_emis_prm_default')
-      IMPLICIT NONE
+   type(anthro_emis_prm_shadow) :: state
 
-      REAL(c_double), INTENT(out) :: flat(*)
-      INTEGER(c_int), VALUE, INTENT(in) :: n_flat
-      INTEGER(c_int), INTENT(out) :: err
+   call anthro_emis_prm_pack(state, flat, n_flat, err)
 
-      TYPE(anthro_emis_prm_shadow) :: state
+end subroutine suews_anthro_emis_prm_default
 
-      CALL anthro_emis_prm_pack(state, flat, n_flat, err)
+subroutine anthro_emis_prm_pack(state, flat, n_flat, err)
+   implicit none
 
-   END SUBROUTINE suews_anthro_emis_prm_default
+   type(anthro_emis_prm_shadow), intent(in) :: state
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
 
+   integer(c_int) :: idx
+   integer :: i
 
-   SUBROUTINE anthro_emis_prm_pack(state, flat, n_flat, err)
-      IMPLICIT NONE
+   if (n_flat<SUEWS_CAPI_ANTHRO_EMIS_PRM_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
 
-      TYPE(anthro_emis_prm_shadow), INTENT(in) :: state
-      REAL(c_double), INTENT(out) :: flat(*)
-      INTEGER(c_int), INTENT(in) :: n_flat
-      INTEGER(c_int), INTENT(out) :: err
+   idx = 1
+   flat(idx) = real(state%startdls, c_double); idx = idx + 1
+   flat(idx) = real(state%enddls, c_double); idx = idx + 1
 
-      INTEGER(c_int) :: idx
-      INTEGER :: i
+   flat(idx) = state%anthroheat%qf0_beu_working; idx = idx + 1
+   flat(idx) = state%anthroheat%qf0_beu_holiday; idx = idx + 1
+   flat(idx) = state%anthroheat%qf_a_working; idx = idx + 1
+   flat(idx) = state%anthroheat%qf_a_holiday; idx = idx + 1
+   flat(idx) = state%anthroheat%qf_b_working; idx = idx + 1
+   flat(idx) = state%anthroheat%qf_b_holiday; idx = idx + 1
+   flat(idx) = state%anthroheat%qf_c_working; idx = idx + 1
+   flat(idx) = state%anthroheat%qf_c_holiday; idx = idx + 1
+   flat(idx) = state%anthroheat%baset_cooling_working; idx = idx + 1
+   flat(idx) = state%anthroheat%baset_cooling_holiday; idx = idx + 1
+   flat(idx) = state%anthroheat%baset_heating_working; idx = idx + 1
+   flat(idx) = state%anthroheat%baset_heating_holiday; idx = idx + 1
+   flat(idx) = state%anthroheat%ah_min_working; idx = idx + 1
+   flat(idx) = state%anthroheat%ah_min_holiday; idx = idx + 1
+   flat(idx) = state%anthroheat%ah_slope_cooling_working; idx = idx + 1
+   flat(idx) = state%anthroheat%ah_slope_cooling_holiday; idx = idx + 1
+   flat(idx) = state%anthroheat%ah_slope_heating_working; idx = idx + 1
+   flat(idx) = state%anthroheat%ah_slope_heating_holiday; idx = idx + 1
 
-      IF (n_flat < SUEWS_CAPI_ANTHRO_EMIS_PRM_LEN) THEN
-         err = SUEWS_CAPI_BAD_BUFFER
-         RETURN
-      END IF
+   do i = 1, 24
+      flat(idx) = state%anthroheat%ahprof_24hr_working(i)
+      idx = idx + 1
+   end do
 
-      idx = 1
-      flat(idx) = REAL(state%startdls, c_double); idx = idx + 1
-      flat(idx) = REAL(state%enddls, c_double); idx = idx + 1
+   do i = 1, 24
+      flat(idx) = state%anthroheat%ahprof_24hr_holiday(i)
+      idx = idx + 1
+   end do
 
-      flat(idx) = state%anthroheat%qf0_beu_working; idx = idx + 1
-      flat(idx) = state%anthroheat%qf0_beu_holiday; idx = idx + 1
-      flat(idx) = state%anthroheat%qf_a_working; idx = idx + 1
-      flat(idx) = state%anthroheat%qf_a_holiday; idx = idx + 1
-      flat(idx) = state%anthroheat%qf_b_working; idx = idx + 1
-      flat(idx) = state%anthroheat%qf_b_holiday; idx = idx + 1
-      flat(idx) = state%anthroheat%qf_c_working; idx = idx + 1
-      flat(idx) = state%anthroheat%qf_c_holiday; idx = idx + 1
-      flat(idx) = state%anthroheat%baset_cooling_working; idx = idx + 1
-      flat(idx) = state%anthroheat%baset_cooling_holiday; idx = idx + 1
-      flat(idx) = state%anthroheat%baset_heating_working; idx = idx + 1
-      flat(idx) = state%anthroheat%baset_heating_holiday; idx = idx + 1
-      flat(idx) = state%anthroheat%ah_min_working; idx = idx + 1
-      flat(idx) = state%anthroheat%ah_min_holiday; idx = idx + 1
-      flat(idx) = state%anthroheat%ah_slope_cooling_working; idx = idx + 1
-      flat(idx) = state%anthroheat%ah_slope_cooling_holiday; idx = idx + 1
-      flat(idx) = state%anthroheat%ah_slope_heating_working; idx = idx + 1
-      flat(idx) = state%anthroheat%ah_slope_heating_holiday; idx = idx + 1
+   flat(idx) = state%anthroheat%popdensdaytime_working; idx = idx + 1
+   flat(idx) = state%anthroheat%popdensdaytime_holiday; idx = idx + 1
+   flat(idx) = state%anthroheat%popdensnighttime; idx = idx + 1
 
-      DO i = 1, 24
-         flat(idx) = state%anthroheat%ahprof_24hr_working(i)
-         idx = idx + 1
-      END DO
+   do i = 1, 24
+      flat(idx) = state%anthroheat%popprof_24hr_working(i)
+      idx = idx + 1
+   end do
 
-      DO i = 1, 24
-         flat(idx) = state%anthroheat%ahprof_24hr_holiday(i)
-         idx = idx + 1
-      END DO
+   do i = 1, 24
+      flat(idx) = state%anthroheat%popprof_24hr_holiday(i)
+      idx = idx + 1
+   end do
 
-      flat(idx) = state%anthroheat%popdensdaytime_working; idx = idx + 1
-      flat(idx) = state%anthroheat%popdensdaytime_holiday; idx = idx + 1
-      flat(idx) = state%anthroheat%popdensnighttime; idx = idx + 1
+   flat(idx) = state%ef_umolco2perj; idx = idx + 1
+   flat(idx) = state%enef_v_jkm; idx = idx + 1
+   flat(idx) = state%frfossilfuel_heat; idx = idx + 1
+   flat(idx) = state%frfossilfuel_nonheat; idx = idx + 1
 
-      DO i = 1, 24
-         flat(idx) = state%anthroheat%popprof_24hr_working(i)
-         idx = idx + 1
-      END DO
+   do i = 1, 2
+      flat(idx) = state%fcef_v_kgkm(i)
+      idx = idx + 1
+   end do
 
-      DO i = 1, 24
-         flat(idx) = state%anthroheat%popprof_24hr_holiday(i)
-         idx = idx + 1
-      END DO
+   do i = 1, 24
+      flat(idx) = state%humactivity_24hr_working(i)
+      idx = idx + 1
+   end do
 
-      flat(idx) = state%ef_umolco2perj; idx = idx + 1
-      flat(idx) = state%enef_v_jkm; idx = idx + 1
-      flat(idx) = state%frfossilfuel_heat; idx = idx + 1
-      flat(idx) = state%frfossilfuel_nonheat; idx = idx + 1
+   do i = 1, 24
+      flat(idx) = state%humactivity_24hr_holiday(i)
+      idx = idx + 1
+   end do
 
-      DO i = 1, 2
-         flat(idx) = state%fcef_v_kgkm(i)
-         idx = idx + 1
-      END DO
+   flat(idx) = state%maxfcmetab; idx = idx + 1
+   flat(idx) = state%maxqfmetab; idx = idx + 1
+   flat(idx) = state%minfcmetab; idx = idx + 1
+   flat(idx) = state%minqfmetab; idx = idx + 1
+   flat(idx) = state%trafficrate_working; idx = idx + 1
+   flat(idx) = state%trafficrate_holiday; idx = idx + 1
+   flat(idx) = state%trafficunits; idx = idx + 1
 
-      DO i = 1, 24
-         flat(idx) = state%humactivity_24hr_working(i)
-         idx = idx + 1
-      END DO
+   do i = 1, 24
+      flat(idx) = state%traffprof_24hr_working(i)
+      idx = idx + 1
+   end do
 
-      DO i = 1, 24
-         flat(idx) = state%humactivity_24hr_holiday(i)
-         idx = idx + 1
-      END DO
+   do i = 1, 24
+      flat(idx) = state%traffprof_24hr_holiday(i)
+      idx = idx + 1
+   end do
 
-      flat(idx) = state%maxfcmetab; idx = idx + 1
-      flat(idx) = state%maxqfmetab; idx = idx + 1
-      flat(idx) = state%minfcmetab; idx = idx + 1
-      flat(idx) = state%minqfmetab; idx = idx + 1
-      flat(idx) = state%trafficrate_working; idx = idx + 1
-      flat(idx) = state%trafficrate_holiday; idx = idx + 1
-      flat(idx) = state%trafficunits; idx = idx + 1
+   err = SUEWS_CAPI_OK
 
-      DO i = 1, 24
-         flat(idx) = state%traffprof_24hr_working(i)
-         idx = idx + 1
-      END DO
+end subroutine anthro_emis_prm_pack
 
-      DO i = 1, 24
-         flat(idx) = state%traffprof_24hr_holiday(i)
-         idx = idx + 1
-      END DO
+subroutine anthro_emis_prm_unpack(flat, n_flat, state, err)
+   implicit none
 
-      err = SUEWS_CAPI_OK
+   real(c_double), intent(in) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   type(anthroEMIS_PRM), intent(out) :: state
+   integer(c_int), intent(out) :: err
 
-   END SUBROUTINE anthro_emis_prm_pack
+   integer(c_int) :: idx
+   integer(c_int) :: i
 
+   if (n_flat<SUEWS_CAPI_ANTHRO_EMIS_PRM_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
 
-   SUBROUTINE suews_anthro_emis_prm_error_message(code, buffer, buffer_len) BIND(C, name='suews_anthro_emis_prm_error_message')
-      IMPLICIT NONE
+   idx = 1_c_int
+   state%startdls = int(nint(flat(idx))); idx = idx + 1_c_int
+   state%enddls = int(nint(flat(idx))); idx = idx + 1_c_int
 
-      INTEGER(c_int), VALUE, INTENT(in) :: code
-      CHARACTER(c_char), INTENT(out) :: buffer(*)
-      INTEGER(c_int), VALUE, INTENT(in) :: buffer_len
+   state%anthroheat%qf0_beu_working = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%qf0_beu_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%qf_a_working = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%qf_a_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%qf_b_working = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%qf_b_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%qf_c_working = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%qf_c_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%baset_cooling_working = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%baset_cooling_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%baset_heating_working = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%baset_heating_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%ah_min_working = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%ah_min_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%ah_slope_cooling_working = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%ah_slope_cooling_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%ah_slope_heating_working = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%ah_slope_heating_holiday = flat(idx); idx = idx + 1_c_int
 
-      CHARACTER(LEN=128) :: msg
+   do i = 0_c_int, 23_c_int
+      state%anthroheat%ahprof_24hr_working(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
 
-      CALL suews_capi_error_text(code, msg)
-      CALL copy_to_c_buffer(msg, buffer, buffer_len)
+   do i = 0_c_int, 23_c_int
+      state%anthroheat%ahprof_24hr_holiday(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
 
-   END SUBROUTINE suews_anthro_emis_prm_error_message
+   state%anthroheat%popdensdaytime_working = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%popdensdaytime_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthroheat%popdensnighttime = flat(idx); idx = idx + 1_c_int
 
-END MODULE module_c_api_anthro_emis_prm
+   do i = 0_c_int, 23_c_int
+      state%anthroheat%popprof_24hr_working(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
 
-MODULE c_api_anthro_emis_prm_module
-   USE module_c_api_anthro_emis_prm
-END MODULE c_api_anthro_emis_prm_module
+   do i = 0_c_int, 23_c_int
+      state%anthroheat%popprof_24hr_holiday(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
+
+   state%EF_umolCO2perJ = flat(idx); idx = idx + 1_c_int
+   state%EnEF_v_Jkm = flat(idx); idx = idx + 1_c_int
+   state%FrFossilFuel_Heat = flat(idx); idx = idx + 1_c_int
+   state%FrFossilFuel_NonHeat = flat(idx); idx = idx + 1_c_int
+
+   do i = 1_c_int, 2_c_int
+      state%FcEF_v_kgkm(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
+
+   do i = 0_c_int, 23_c_int
+      state%HumActivity_24hr_working(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
+
+   do i = 0_c_int, 23_c_int
+      state%HumActivity_24hr_holiday(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
+
+   state%MaxFCMetab = flat(idx); idx = idx + 1_c_int
+   state%MaxQFMetab = flat(idx); idx = idx + 1_c_int
+   state%MinFCMetab = flat(idx); idx = idx + 1_c_int
+   state%MinQFMetab = flat(idx); idx = idx + 1_c_int
+   state%TrafficRate_working = flat(idx); idx = idx + 1_c_int
+   state%TrafficRate_holiday = flat(idx); idx = idx + 1_c_int
+   state%TrafficUnits = flat(idx); idx = idx + 1_c_int
+
+   do i = 0_c_int, 23_c_int
+      state%TraffProf_24hr_working(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
+
+   do i = 0_c_int, 23_c_int
+      state%TraffProf_24hr_holiday(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
+
+   err = SUEWS_CAPI_OK
+
+end subroutine anthro_emis_prm_unpack
+
+subroutine suews_anthro_emis_prm_error_message(code, buffer, buffer_len) bind(C, name='suews_anthro_emis_prm_error_message')
+   implicit none
+
+   integer(c_int), value, intent(in) :: code
+   character(c_char), intent(out) :: buffer(*)
+   integer(c_int), value, intent(in) :: buffer_len
+
+   character(LEN=128) :: msg
+
+   call suews_capi_error_text(code, msg)
+   call copy_to_c_buffer(msg, buffer, buffer_len)
+
+end subroutine suews_anthro_emis_prm_error_message
+
+end module module_c_api_anthro_emis_prm
+
+module c_api_anthro_emis_prm_module
+use module_c_api_anthro_emis_prm
+end module c_api_anthro_emis_prm_module

@@ -4,112 +4,130 @@
 ! This adapter uses a local shadow type to avoid importing full physics/control
 ! modules into the bridge build.
 ! -----------------------------------------------------------------------------
-MODULE module_c_api_solar
-   USE, INTRINSIC :: iso_c_binding, ONLY: c_int, c_double, c_char
-   USE module_c_api_common, ONLY: &
-      SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
-      copy_to_c_buffer, suews_capi_error_text
+module module_c_api_solar
+use, intrinsic :: iso_c_binding, only: c_int, c_double, c_char
+use module_c_api_common, only: &
+   SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
+   copy_to_c_buffer, suews_capi_error_text
+use module_type_atmosphere, only: solar_State
 
-   IMPLICIT NONE
+implicit none
 
-   PRIVATE
+private
 
-   PUBLIC :: SUEWS_CAPI_OK
-   PUBLIC :: SUEWS_CAPI_BAD_BUFFER
-   PUBLIC :: SUEWS_CAPI_BAD_STATE
+public :: SUEWS_CAPI_OK
+public :: SUEWS_CAPI_BAD_BUFFER
+public :: SUEWS_CAPI_BAD_STATE
 
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_SOLAR_STATE_LEN = 3_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_SOLAR_STATE_SCHEMA_VERSION = 1_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_SOLAR_STATE_LEN = 3_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_SOLAR_STATE_SCHEMA_VERSION = 1_c_int
 
-   TYPE :: solar_state_shadow
-      REAL(c_double) :: azimuth_deg = 0.0_c_double
-      REAL(c_double) :: zenith_deg = 0.0_c_double
-      LOGICAL :: iter_safe = .TRUE.
-   END TYPE solar_state_shadow
+type :: solar_state_shadow
+   real(c_double) :: azimuth_deg = 0.0_c_double
+   real(c_double) :: zenith_deg = 0.0_c_double
+   logical :: iter_safe = .true.
+end type solar_state_shadow
 
-   PUBLIC :: suews_solar_state_len
-   PUBLIC :: suews_solar_state_schema_version
-   PUBLIC :: suews_solar_state_default
-   PUBLIC :: suews_solar_error_message
+public :: suews_solar_state_len
+public :: suews_solar_state_schema_version
+public :: suews_solar_state_default
+public :: suews_solar_error_message
+public :: solar_state_unpack
 
-CONTAINS
+contains
 
-   SUBROUTINE suews_solar_state_len(n_flat, err) BIND(C, name='suews_solar_state_len')
-      IMPLICIT NONE
+subroutine suews_solar_state_len(n_flat, err) bind(C, name='suews_solar_state_len')
+   implicit none
 
-      INTEGER(c_int), INTENT(out) :: n_flat
-      INTEGER(c_int), INTENT(out) :: err
+   integer(c_int), intent(out) :: n_flat
+   integer(c_int), intent(out) :: err
 
-      n_flat = SUEWS_CAPI_SOLAR_STATE_LEN
-      err = SUEWS_CAPI_OK
+   n_flat = SUEWS_CAPI_SOLAR_STATE_LEN
+   err = SUEWS_CAPI_OK
 
-   END SUBROUTINE suews_solar_state_len
+end subroutine suews_solar_state_len
 
+subroutine suews_solar_state_schema_version(schema_version, err) bind(C, name='suews_solar_state_schema_version')
+   implicit none
 
-   SUBROUTINE suews_solar_state_schema_version(schema_version, err) BIND(C, name='suews_solar_state_schema_version')
-      IMPLICIT NONE
+   integer(c_int), intent(out) :: schema_version
+   integer(c_int), intent(out) :: err
 
-      INTEGER(c_int), INTENT(out) :: schema_version
-      INTEGER(c_int), INTENT(out) :: err
+   schema_version = SUEWS_CAPI_SOLAR_STATE_SCHEMA_VERSION
+   err = SUEWS_CAPI_OK
 
-      schema_version = SUEWS_CAPI_SOLAR_STATE_SCHEMA_VERSION
-      err = SUEWS_CAPI_OK
+end subroutine suews_solar_state_schema_version
 
-   END SUBROUTINE suews_solar_state_schema_version
+subroutine suews_solar_state_default(flat, n_flat, err) bind(C, name='suews_solar_state_default')
+   implicit none
 
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), value, intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
 
-   SUBROUTINE suews_solar_state_default(flat, n_flat, err) BIND(C, name='suews_solar_state_default')
-      IMPLICIT NONE
+   type(solar_state_shadow) :: state
 
-      REAL(c_double), INTENT(out) :: flat(*)
-      INTEGER(c_int), VALUE, INTENT(in) :: n_flat
-      INTEGER(c_int), INTENT(out) :: err
+   call solar_state_pack(state, flat, n_flat, err)
 
-      TYPE(solar_state_shadow) :: state
+end subroutine suews_solar_state_default
 
-      CALL solar_state_pack(state, flat, n_flat, err)
+subroutine solar_state_pack(state, flat, n_flat, err)
+   implicit none
 
-   END SUBROUTINE suews_solar_state_default
+   type(solar_state_shadow), intent(in) :: state
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
 
+   if (n_flat<SUEWS_CAPI_SOLAR_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
 
-   SUBROUTINE solar_state_pack(state, flat, n_flat, err)
-      IMPLICIT NONE
+   flat(1) = state%azimuth_deg
+   flat(2) = state%zenith_deg
+   flat(3) = merge(1.0_c_double, 0.0_c_double, state%iter_safe)
 
-      TYPE(solar_state_shadow), INTENT(in) :: state
-      REAL(c_double), INTENT(out) :: flat(*)
-      INTEGER(c_int), INTENT(in) :: n_flat
-      INTEGER(c_int), INTENT(out) :: err
+   err = SUEWS_CAPI_OK
 
-      IF (n_flat < SUEWS_CAPI_SOLAR_STATE_LEN) THEN
-         err = SUEWS_CAPI_BAD_BUFFER
-         RETURN
-      END IF
+end subroutine solar_state_pack
 
-      flat(1) = state%azimuth_deg
-      flat(2) = state%zenith_deg
-      flat(3) = MERGE(1.0_c_double, 0.0_c_double, state%iter_safe)
+subroutine solar_state_unpack(flat, n_flat, state, err)
+   implicit none
 
-      err = SUEWS_CAPI_OK
+   real(c_double), intent(in) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   type(solar_State), intent(out) :: state
+   integer(c_int), intent(out) :: err
 
-   END SUBROUTINE solar_state_pack
+   if (n_flat<SUEWS_CAPI_SOLAR_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
 
+   state%azimuth_deg = flat(1)
+   state%zenith_deg = flat(2)
+   state%iter_safe = flat(3)>=0.5_c_double
+   err = SUEWS_CAPI_OK
 
-   SUBROUTINE suews_solar_error_message(code, buffer, buffer_len) BIND(C, name='suews_solar_error_message')
-      IMPLICIT NONE
+end subroutine solar_state_unpack
 
-      INTEGER(c_int), VALUE, INTENT(in) :: code
-      CHARACTER(c_char), INTENT(out) :: buffer(*)
-      INTEGER(c_int), VALUE, INTENT(in) :: buffer_len
+subroutine suews_solar_error_message(code, buffer, buffer_len) bind(C, name='suews_solar_error_message')
+   implicit none
 
-      CHARACTER(LEN=128) :: msg
+   integer(c_int), value, intent(in) :: code
+   character(c_char), intent(out) :: buffer(*)
+   integer(c_int), value, intent(in) :: buffer_len
 
-      CALL suews_capi_error_text(code, msg)
-      CALL copy_to_c_buffer(msg, buffer, buffer_len)
+   character(LEN=128) :: msg
 
-   END SUBROUTINE suews_solar_error_message
+   call suews_capi_error_text(code, msg)
+   call copy_to_c_buffer(msg, buffer, buffer_len)
 
-END MODULE module_c_api_solar
+end subroutine suews_solar_error_message
 
-MODULE c_api_solar_module
-   USE module_c_api_solar
-END MODULE c_api_solar_module
+end module module_c_api_solar
+
+module c_api_solar_module
+use module_c_api_solar
+end module c_api_solar_module

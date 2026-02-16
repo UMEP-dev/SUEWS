@@ -1,201 +1,277 @@
 ! -----------------------------------------------------------------------------
 ! SUEWS Rust bridge C API facade for SNOW_STATE.
 ! -----------------------------------------------------------------------------
-MODULE module_c_api_snow
-   USE, INTRINSIC :: iso_c_binding, ONLY: c_int, c_double, c_char
-   USE module_c_api_common, ONLY: &
-      SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
-      copy_to_c_buffer, suews_capi_error_text
-   USE module_ctrl_const_allocate, ONLY: nsurf
+module module_c_api_snow
+use, intrinsic :: iso_c_binding, only: c_int, c_double, c_char
+use module_c_api_common, only: &
+   SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
+   copy_to_c_buffer, suews_capi_error_text
+use module_ctrl_const_allocate, only: nsurf
+use module_type_snow, only: SNOW_STATE
 
-   IMPLICIT NONE
+implicit none
 
-   PRIVATE
+private
 
-   PUBLIC :: SUEWS_CAPI_OK
-   PUBLIC :: SUEWS_CAPI_BAD_BUFFER
-   PUBLIC :: SUEWS_CAPI_BAD_STATE
+public :: SUEWS_CAPI_OK
+public :: SUEWS_CAPI_BAD_BUFFER
+public :: SUEWS_CAPI_BAD_STATE
 
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_SNOW_STATE_LEN = 79_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_SNOW_STATE_SCHEMA_VERSION = 1_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_SNOW_STATE_LEN = 79_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_SNOW_STATE_SCHEMA_VERSION = 1_c_int
 
-   TYPE :: snow_state_shadow
-      REAL(c_double) :: snowfallcum = 0.0_c_double
-      REAL(c_double) :: snowalb = 0.0_c_double
-      REAL(c_double) :: chsnow_per_interval = 0.0_c_double
-      REAL(c_double) :: mwh = 0.0_c_double
-      REAL(c_double) :: mwstore = 0.0_c_double
-      REAL(c_double) :: qn_snow = 0.0_c_double
-      REAL(c_double) :: qm = 0.0_c_double
-      REAL(c_double) :: qmfreez = 0.0_c_double
-      REAL(c_double) :: qmrain = 0.0_c_double
-      REAL(c_double) :: swe = 0.0_c_double
-      REAL(c_double) :: z0vsnow = 0.0_c_double
-      REAL(c_double) :: rasnow = 0.0_c_double
-      REAL(c_double) :: sice_hpa = 0.0_c_double
-      REAL(c_double), DIMENSION(2) :: snowremoval = 0.0_c_double
-      REAL(c_double), DIMENSION(nsurf) :: icefrac = 0.0_c_double
-      REAL(c_double), DIMENSION(nsurf) :: snowdens = 0.0_c_double
-      REAL(c_double), DIMENSION(nsurf) :: snowfrac = 0.0_c_double
-      REAL(c_double), DIMENSION(nsurf) :: snowpack = 0.0_c_double
-      REAL(c_double), DIMENSION(nsurf) :: snowwater = 0.0_c_double
-      REAL(c_double), DIMENSION(nsurf) :: kup_ind_snow = 0.0_c_double
-      REAL(c_double), DIMENSION(nsurf) :: qn_ind_snow = 0.0_c_double
-      REAL(c_double), DIMENSION(nsurf) :: deltaqi = 0.0_c_double
-      REAL(c_double), DIMENSION(nsurf) :: tsurf_ind_snow = 0.0_c_double
-      LOGICAL :: iter_safe = .FALSE.
-   END TYPE snow_state_shadow
+type :: snow_state_shadow
+   real(c_double) :: snowfallcum = 0.0_c_double
+   real(c_double) :: snowalb = 0.0_c_double
+   real(c_double) :: chsnow_per_interval = 0.0_c_double
+   real(c_double) :: mwh = 0.0_c_double
+   real(c_double) :: mwstore = 0.0_c_double
+   real(c_double) :: qn_snow = 0.0_c_double
+   real(c_double) :: qm = 0.0_c_double
+   real(c_double) :: qmfreez = 0.0_c_double
+   real(c_double) :: qmrain = 0.0_c_double
+   real(c_double) :: swe = 0.0_c_double
+   real(c_double) :: z0vsnow = 0.0_c_double
+   real(c_double) :: rasnow = 0.0_c_double
+   real(c_double) :: sice_hpa = 0.0_c_double
+   real(c_double), dimension(2) :: snowremoval = 0.0_c_double
+   real(c_double), dimension(nsurf) :: icefrac = 0.0_c_double
+   real(c_double), dimension(nsurf) :: snowdens = 0.0_c_double
+   real(c_double), dimension(nsurf) :: snowfrac = 0.0_c_double
+   real(c_double), dimension(nsurf) :: snowpack = 0.0_c_double
+   real(c_double), dimension(nsurf) :: snowwater = 0.0_c_double
+   real(c_double), dimension(nsurf) :: kup_ind_snow = 0.0_c_double
+   real(c_double), dimension(nsurf) :: qn_ind_snow = 0.0_c_double
+   real(c_double), dimension(nsurf) :: deltaqi = 0.0_c_double
+   real(c_double), dimension(nsurf) :: tsurf_ind_snow = 0.0_c_double
+   logical :: iter_safe = .false.
+end type snow_state_shadow
 
-   PUBLIC :: suews_snow_state_len
-   PUBLIC :: suews_snow_state_schema_version
-   PUBLIC :: suews_snow_state_default
-   PUBLIC :: suews_snow_error_message
+public :: suews_snow_state_len
+public :: suews_snow_state_schema_version
+public :: suews_snow_state_default
+public :: suews_snow_error_message
+public :: snow_state_unpack
 
-CONTAINS
+contains
 
-   SUBROUTINE suews_snow_state_len(n_flat, err) BIND(C, name='suews_snow_state_len')
-      IMPLICIT NONE
+subroutine suews_snow_state_len(n_flat, err) bind(C, name='suews_snow_state_len')
+   implicit none
 
-      INTEGER(c_int), INTENT(out) :: n_flat
-      INTEGER(c_int), INTENT(out) :: err
+   integer(c_int), intent(out) :: n_flat
+   integer(c_int), intent(out) :: err
 
-      n_flat = SUEWS_CAPI_SNOW_STATE_LEN
-      err = SUEWS_CAPI_OK
+   n_flat = SUEWS_CAPI_SNOW_STATE_LEN
+   err = SUEWS_CAPI_OK
 
-   END SUBROUTINE suews_snow_state_len
+end subroutine suews_snow_state_len
 
+subroutine suews_snow_state_schema_version(schema_version, err) bind(C, name='suews_snow_state_schema_version')
+   implicit none
 
-   SUBROUTINE suews_snow_state_schema_version(schema_version, err) BIND(C, name='suews_snow_state_schema_version')
-      IMPLICIT NONE
+   integer(c_int), intent(out) :: schema_version
+   integer(c_int), intent(out) :: err
 
-      INTEGER(c_int), INTENT(out) :: schema_version
-      INTEGER(c_int), INTENT(out) :: err
+   schema_version = SUEWS_CAPI_SNOW_STATE_SCHEMA_VERSION
+   err = SUEWS_CAPI_OK
 
-      schema_version = SUEWS_CAPI_SNOW_STATE_SCHEMA_VERSION
-      err = SUEWS_CAPI_OK
+end subroutine suews_snow_state_schema_version
 
-   END SUBROUTINE suews_snow_state_schema_version
+subroutine suews_snow_state_default(flat, n_flat, err) bind(C, name='suews_snow_state_default')
+   implicit none
 
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), value, intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
 
-   SUBROUTINE suews_snow_state_default(flat, n_flat, err) BIND(C, name='suews_snow_state_default')
-      IMPLICIT NONE
+   type(snow_state_shadow) :: state
 
-      REAL(c_double), INTENT(out) :: flat(*)
-      INTEGER(c_int), VALUE, INTENT(in) :: n_flat
-      INTEGER(c_int), INTENT(out) :: err
+   call snow_state_pack(state, flat, n_flat, err)
 
-      TYPE(snow_state_shadow) :: state
+end subroutine suews_snow_state_default
 
-      CALL snow_state_pack(state, flat, n_flat, err)
+subroutine snow_state_pack(state, flat, n_flat, err)
+   implicit none
 
-   END SUBROUTINE suews_snow_state_default
+   type(snow_state_shadow), intent(in) :: state
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
 
+   integer :: idx
+   integer :: i
 
-   SUBROUTINE snow_state_pack(state, flat, n_flat, err)
-      IMPLICIT NONE
+   if (n_flat<SUEWS_CAPI_SNOW_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
 
-      TYPE(snow_state_shadow), INTENT(in) :: state
-      REAL(c_double), INTENT(out) :: flat(*)
-      INTEGER(c_int), INTENT(in) :: n_flat
-      INTEGER(c_int), INTENT(out) :: err
+   idx = 1
 
-      INTEGER :: idx
-      INTEGER :: i
+   flat(idx) = state%snowfallcum; idx = idx + 1
+   flat(idx) = state%snowalb; idx = idx + 1
+   flat(idx) = state%chsnow_per_interval; idx = idx + 1
+   flat(idx) = state%mwh; idx = idx + 1
+   flat(idx) = state%mwstore; idx = idx + 1
+   flat(idx) = state%qn_snow; idx = idx + 1
+   flat(idx) = state%qm; idx = idx + 1
+   flat(idx) = state%qmfreez; idx = idx + 1
+   flat(idx) = state%qmrain; idx = idx + 1
+   flat(idx) = state%swe; idx = idx + 1
+   flat(idx) = state%z0vsnow; idx = idx + 1
+   flat(idx) = state%rasnow; idx = idx + 1
+   flat(idx) = state%sice_hpa; idx = idx + 1
 
-      IF (n_flat < SUEWS_CAPI_SNOW_STATE_LEN) THEN
-         err = SUEWS_CAPI_BAD_BUFFER
-         RETURN
-      END IF
+   do i = 1, 2
+      flat(idx) = state%snowremoval(i)
+      idx = idx + 1
+   end do
 
-      idx = 1
+   do i = 1, nsurf
+      flat(idx) = state%icefrac(i)
+      idx = idx + 1
+   end do
 
-      flat(idx) = state%snowfallcum; idx = idx + 1
-      flat(idx) = state%snowalb; idx = idx + 1
-      flat(idx) = state%chsnow_per_interval; idx = idx + 1
-      flat(idx) = state%mwh; idx = idx + 1
-      flat(idx) = state%mwstore; idx = idx + 1
-      flat(idx) = state%qn_snow; idx = idx + 1
-      flat(idx) = state%qm; idx = idx + 1
-      flat(idx) = state%qmfreez; idx = idx + 1
-      flat(idx) = state%qmrain; idx = idx + 1
-      flat(idx) = state%swe; idx = idx + 1
-      flat(idx) = state%z0vsnow; idx = idx + 1
-      flat(idx) = state%rasnow; idx = idx + 1
-      flat(idx) = state%sice_hpa; idx = idx + 1
+   do i = 1, nsurf
+      flat(idx) = state%snowdens(i)
+      idx = idx + 1
+   end do
 
-      DO i = 1, 2
-         flat(idx) = state%snowremoval(i)
-         idx = idx + 1
-      END DO
+   do i = 1, nsurf
+      flat(idx) = state%snowfrac(i)
+      idx = idx + 1
+   end do
 
-      DO i = 1, nsurf
-         flat(idx) = state%icefrac(i)
-         idx = idx + 1
-      END DO
+   do i = 1, nsurf
+      flat(idx) = state%snowpack(i)
+      idx = idx + 1
+   end do
 
-      DO i = 1, nsurf
-         flat(idx) = state%snowdens(i)
-         idx = idx + 1
-      END DO
+   do i = 1, nsurf
+      flat(idx) = state%snowwater(i)
+      idx = idx + 1
+   end do
 
-      DO i = 1, nsurf
-         flat(idx) = state%snowfrac(i)
-         idx = idx + 1
-      END DO
+   do i = 1, nsurf
+      flat(idx) = state%kup_ind_snow(i)
+      idx = idx + 1
+   end do
 
-      DO i = 1, nsurf
-         flat(idx) = state%snowpack(i)
-         idx = idx + 1
-      END DO
+   do i = 1, nsurf
+      flat(idx) = state%qn_ind_snow(i)
+      idx = idx + 1
+   end do
 
-      DO i = 1, nsurf
-         flat(idx) = state%snowwater(i)
-         idx = idx + 1
-      END DO
+   do i = 1, nsurf
+      flat(idx) = state%deltaqi(i)
+      idx = idx + 1
+   end do
 
-      DO i = 1, nsurf
-         flat(idx) = state%kup_ind_snow(i)
-         idx = idx + 1
-      END DO
+   do i = 1, nsurf
+      flat(idx) = state%tsurf_ind_snow(i)
+      idx = idx + 1
+   end do
 
-      DO i = 1, nsurf
-         flat(idx) = state%qn_ind_snow(i)
-         idx = idx + 1
-      END DO
+   flat(idx) = merge(1.0_c_double, 0.0_c_double, state%iter_safe)
 
-      DO i = 1, nsurf
-         flat(idx) = state%deltaqi(i)
-         idx = idx + 1
-      END DO
+   err = SUEWS_CAPI_OK
 
-      DO i = 1, nsurf
-         flat(idx) = state%tsurf_ind_snow(i)
-         idx = idx + 1
-      END DO
+end subroutine snow_state_pack
 
-      flat(idx) = MERGE(1.0_c_double, 0.0_c_double, state%iter_safe)
+subroutine snow_state_unpack(flat, n_flat, state, err)
+   implicit none
 
-      err = SUEWS_CAPI_OK
+   real(c_double), intent(in) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   type(SNOW_STATE), intent(out) :: state
+   integer(c_int), intent(out) :: err
 
-   END SUBROUTINE snow_state_pack
+   integer(c_int) :: idx
+   integer(c_int) :: i
 
+   if (n_flat<SUEWS_CAPI_SNOW_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
 
-   SUBROUTINE suews_snow_error_message(code, buffer, buffer_len) BIND(C, name='suews_snow_error_message')
-      IMPLICIT NONE
+   idx = 1_c_int
+   state%snowfallcum = flat(idx); idx = idx + 1_c_int
+   state%snowalb = flat(idx); idx = idx + 1_c_int
+   state%chsnow_per_interval = flat(idx); idx = idx + 1_c_int
+   state%mwh = flat(idx); idx = idx + 1_c_int
+   state%mwstore = flat(idx); idx = idx + 1_c_int
+   state%qn_snow = flat(idx); idx = idx + 1_c_int
+   state%qm = flat(idx); idx = idx + 1_c_int
+   state%qmfreez = flat(idx); idx = idx + 1_c_int
+   state%qmrain = flat(idx); idx = idx + 1_c_int
+   state%swe = flat(idx); idx = idx + 1_c_int
+   state%z0vsnow = flat(idx); idx = idx + 1_c_int
+   state%rasnow = flat(idx); idx = idx + 1_c_int
+   state%sice_hpa = flat(idx); idx = idx + 1_c_int
 
-      INTEGER(c_int), VALUE, INTENT(in) :: code
-      CHARACTER(c_char), INTENT(out) :: buffer(*)
-      INTEGER(c_int), VALUE, INTENT(in) :: buffer_len
+   do i = 1_c_int, 2_c_int
+      state%snowremoval(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
 
-      CHARACTER(LEN=128) :: msg
+   do i = 1_c_int, int(nsurf, c_int)
+      state%icefrac(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      state%snowdens(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      state%snowfrac(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      state%snowpack(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      state%snowwater(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      state%kup_ind_snow(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      state%qn_ind_snow(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      state%deltaqi(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      state%tsurf_ind_snow(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
 
-      CALL suews_capi_error_text(code, msg)
-      CALL copy_to_c_buffer(msg, buffer, buffer_len)
+   state%iter_safe = flat(idx)>=0.5_c_double
+   err = SUEWS_CAPI_OK
 
-   END SUBROUTINE suews_snow_error_message
+end subroutine snow_state_unpack
 
-END MODULE module_c_api_snow
+subroutine suews_snow_error_message(code, buffer, buffer_len) bind(C, name='suews_snow_error_message')
+   implicit none
 
-MODULE c_api_snow_module
-   USE module_c_api_snow
-END MODULE c_api_snow_module
+   integer(c_int), value, intent(in) :: code
+   character(c_char), intent(out) :: buffer(*)
+   integer(c_int), value, intent(in) :: buffer_len
+
+   character(LEN=128) :: msg
+
+   call suews_capi_error_text(code, msg)
+   call copy_to_c_buffer(msg, buffer, buffer_len)
+
+end subroutine suews_snow_error_message
+
+end module module_c_api_snow
+
+module c_api_snow_module
+use module_c_api_snow
+end module c_api_snow_module

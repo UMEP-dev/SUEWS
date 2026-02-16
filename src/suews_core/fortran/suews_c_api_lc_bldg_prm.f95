@@ -1,188 +1,242 @@
 ! -----------------------------------------------------------------------------
 ! SUEWS Rust bridge C API facade for LC_BLDG_PRM.
 ! -----------------------------------------------------------------------------
-MODULE module_c_api_lc_bldg_prm
-   USE, INTRINSIC :: iso_c_binding, ONLY: c_int, c_double, c_char
-   USE module_c_api_common, ONLY: &
-      SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
-      copy_to_c_buffer, suews_capi_error_text
+module module_c_api_lc_bldg_prm
+use, intrinsic :: iso_c_binding, only: c_int, c_double, c_char
+use module_c_api_common, only: &
+   SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
+   copy_to_c_buffer, suews_capi_error_text
+use module_type_landcover, only: LC_BLDG_PRM
 
-   IMPLICIT NONE
+implicit none
 
-   PRIVATE
+private
 
-   PUBLIC :: SUEWS_CAPI_OK
-   PUBLIC :: SUEWS_CAPI_BAD_BUFFER
-   PUBLIC :: SUEWS_CAPI_BAD_STATE
+public :: SUEWS_CAPI_OK
+public :: SUEWS_CAPI_BAD_BUFFER
+public :: SUEWS_CAPI_BAD_STATE
 
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_LC_BLDG_PRM_LEN = 36_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_LC_BLDG_PRM_SCHEMA_VERSION = 1_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_LC_BLDG_PRM_LEN = 36_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_LC_BLDG_PRM_SCHEMA_VERSION = 1_c_int
 
-   TYPE :: ohm_coef_lc_shadow
-      REAL(c_double) :: summer_dry = 0.0_c_double
-      REAL(c_double) :: summer_wet = 0.0_c_double
-      REAL(c_double) :: winter_dry = 0.0_c_double
-      REAL(c_double) :: winter_wet = 0.0_c_double
-   END TYPE ohm_coef_lc_shadow
+type :: ohm_coef_lc_shadow
+   real(c_double) :: summer_dry = 0.0_c_double
+   real(c_double) :: summer_wet = 0.0_c_double
+   real(c_double) :: winter_dry = 0.0_c_double
+   real(c_double) :: winter_wet = 0.0_c_double
+end type ohm_coef_lc_shadow
 
-   TYPE :: ohm_prm_shadow
-      REAL(c_double) :: chanohm = 0.0_c_double
-      REAL(c_double) :: cpanohm = 0.0_c_double
-      REAL(c_double) :: kkanohm = 0.0_c_double
-      REAL(c_double) :: ohm_threshsw = 0.0_c_double
-      REAL(c_double) :: ohm_threshwd = 0.0_c_double
-      TYPE(ohm_coef_lc_shadow), DIMENSION(3) :: ohm_coef_lc
-   END TYPE ohm_prm_shadow
+type :: ohm_prm_shadow
+   real(c_double) :: chanohm = 0.0_c_double
+   real(c_double) :: cpanohm = 0.0_c_double
+   real(c_double) :: kkanohm = 0.0_c_double
+   real(c_double) :: ohm_threshsw = 0.0_c_double
+   real(c_double) :: ohm_threshwd = 0.0_c_double
+   type(ohm_coef_lc_shadow), dimension(3) :: ohm_coef_lc
+end type ohm_prm_shadow
 
-   TYPE :: soil_prm_shadow
-      REAL(c_double) :: soildepth = 0.0_c_double
-      REAL(c_double) :: soilstorecap = 0.0_c_double
-      REAL(c_double) :: sathydraulicconduct = 0.0_c_double
-   END TYPE soil_prm_shadow
+type :: soil_prm_shadow
+   real(c_double) :: soildepth = 0.0_c_double
+   real(c_double) :: soilstorecap = 0.0_c_double
+   real(c_double) :: sathydraulicconduct = 0.0_c_double
+end type soil_prm_shadow
 
-   TYPE :: water_dist_prm_shadow
-      REAL(c_double) :: to_paved = 0.0_c_double
-      REAL(c_double) :: to_bldg = 0.0_c_double
-      REAL(c_double) :: to_evetr = 0.0_c_double
-      REAL(c_double) :: to_dectr = 0.0_c_double
-      REAL(c_double) :: to_grass = 0.0_c_double
-      REAL(c_double) :: to_bsoil = 0.0_c_double
-      REAL(c_double) :: to_water = 0.0_c_double
-      REAL(c_double) :: to_soilstore = 0.0_c_double
-   END TYPE water_dist_prm_shadow
+type :: water_dist_prm_shadow
+   real(c_double) :: to_paved = 0.0_c_double
+   real(c_double) :: to_bldg = 0.0_c_double
+   real(c_double) :: to_evetr = 0.0_c_double
+   real(c_double) :: to_dectr = 0.0_c_double
+   real(c_double) :: to_grass = 0.0_c_double
+   real(c_double) :: to_bsoil = 0.0_c_double
+   real(c_double) :: to_water = 0.0_c_double
+   real(c_double) :: to_soilstore = 0.0_c_double
+end type water_dist_prm_shadow
 
-   TYPE :: lc_bldg_prm_shadow
-      REAL(c_double) :: sfr = 0.0_c_double
-      REAL(c_double) :: faibldg = 0.0_c_double
-      REAL(c_double) :: bldgh = 0.0_c_double
-      REAL(c_double) :: emis = 0.0_c_double
-      TYPE(ohm_prm_shadow) :: ohm
-      TYPE(soil_prm_shadow) :: soil
-      REAL(c_double) :: state = 0.0_c_double
-      REAL(c_double) :: statelimit = 0.0_c_double
-      REAL(c_double) :: irrfracbldgs = 0.0_c_double
-      REAL(c_double) :: wetthresh = 0.0_c_double
-      TYPE(water_dist_prm_shadow) :: waterdist
-   END TYPE lc_bldg_prm_shadow
+type :: lc_bldg_prm_shadow
+   real(c_double) :: sfr = 0.0_c_double
+   real(c_double) :: faibldg = 0.0_c_double
+   real(c_double) :: bldgh = 0.0_c_double
+   real(c_double) :: emis = 0.0_c_double
+   type(ohm_prm_shadow) :: ohm
+   type(soil_prm_shadow) :: soil
+   real(c_double) :: state = 0.0_c_double
+   real(c_double) :: statelimit = 0.0_c_double
+   real(c_double) :: irrfracbldgs = 0.0_c_double
+   real(c_double) :: wetthresh = 0.0_c_double
+   type(water_dist_prm_shadow) :: waterdist
+end type lc_bldg_prm_shadow
 
-   PUBLIC :: suews_lc_bldg_prm_len
-   PUBLIC :: suews_lc_bldg_prm_schema_version
-   PUBLIC :: suews_lc_bldg_prm_default
-   PUBLIC :: suews_lc_bldg_prm_error_message
+public :: suews_lc_bldg_prm_len
+public :: suews_lc_bldg_prm_schema_version
+public :: suews_lc_bldg_prm_default
+public :: suews_lc_bldg_prm_error_message
+public :: lc_bldg_prm_unpack
 
-CONTAINS
+contains
 
-   SUBROUTINE suews_lc_bldg_prm_len(n_flat, err) BIND(C, name='suews_lc_bldg_prm_len')
-      IMPLICIT NONE
+subroutine suews_lc_bldg_prm_len(n_flat, err) bind(C, name='suews_lc_bldg_prm_len')
+   implicit none
 
-      INTEGER(c_int), INTENT(out) :: n_flat
-      INTEGER(c_int), INTENT(out) :: err
+   integer(c_int), intent(out) :: n_flat
+   integer(c_int), intent(out) :: err
 
-      n_flat = SUEWS_CAPI_LC_BLDG_PRM_LEN
-      err = SUEWS_CAPI_OK
+   n_flat = SUEWS_CAPI_LC_BLDG_PRM_LEN
+   err = SUEWS_CAPI_OK
 
-   END SUBROUTINE suews_lc_bldg_prm_len
+end subroutine suews_lc_bldg_prm_len
 
+subroutine suews_lc_bldg_prm_schema_version(schema_version, err) bind(C, name='suews_lc_bldg_prm_schema_version')
+   implicit none
 
-   SUBROUTINE suews_lc_bldg_prm_schema_version(schema_version, err) BIND(C, name='suews_lc_bldg_prm_schema_version')
-      IMPLICIT NONE
+   integer(c_int), intent(out) :: schema_version
+   integer(c_int), intent(out) :: err
 
-      INTEGER(c_int), INTENT(out) :: schema_version
-      INTEGER(c_int), INTENT(out) :: err
+   schema_version = SUEWS_CAPI_LC_BLDG_PRM_SCHEMA_VERSION
+   err = SUEWS_CAPI_OK
 
-      schema_version = SUEWS_CAPI_LC_BLDG_PRM_SCHEMA_VERSION
-      err = SUEWS_CAPI_OK
+end subroutine suews_lc_bldg_prm_schema_version
 
-   END SUBROUTINE suews_lc_bldg_prm_schema_version
+subroutine suews_lc_bldg_prm_default(flat, n_flat, err) bind(C, name='suews_lc_bldg_prm_default')
+   implicit none
 
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), value, intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
 
-   SUBROUTINE suews_lc_bldg_prm_default(flat, n_flat, err) BIND(C, name='suews_lc_bldg_prm_default')
-      IMPLICIT NONE
+   type(lc_bldg_prm_shadow) :: state
 
-      REAL(c_double), INTENT(out) :: flat(*)
-      INTEGER(c_int), VALUE, INTENT(in) :: n_flat
-      INTEGER(c_int), INTENT(out) :: err
+   call lc_bldg_prm_pack(state, flat, n_flat, err)
 
-      TYPE(lc_bldg_prm_shadow) :: state
+end subroutine suews_lc_bldg_prm_default
 
-      CALL lc_bldg_prm_pack(state, flat, n_flat, err)
+subroutine lc_bldg_prm_pack(state, flat, n_flat, err)
+   implicit none
 
-   END SUBROUTINE suews_lc_bldg_prm_default
+   type(lc_bldg_prm_shadow), intent(in) :: state
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
 
+   integer(c_int) :: idx
+   integer :: i
 
-   SUBROUTINE lc_bldg_prm_pack(state, flat, n_flat, err)
-      IMPLICIT NONE
+   if (n_flat<SUEWS_CAPI_LC_BLDG_PRM_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
 
-      TYPE(lc_bldg_prm_shadow), INTENT(in) :: state
-      REAL(c_double), INTENT(out) :: flat(*)
-      INTEGER(c_int), INTENT(in) :: n_flat
-      INTEGER(c_int), INTENT(out) :: err
+   idx = 1
+   flat(idx) = state%sfr; idx = idx + 1
+   flat(idx) = state%faibldg; idx = idx + 1
+   flat(idx) = state%bldgh; idx = idx + 1
+   flat(idx) = state%emis; idx = idx + 1
 
-      INTEGER(c_int) :: idx
-      INTEGER :: i
+   flat(idx) = state%ohm%chanohm; idx = idx + 1
+   flat(idx) = state%ohm%cpanohm; idx = idx + 1
+   flat(idx) = state%ohm%kkanohm; idx = idx + 1
+   flat(idx) = state%ohm%ohm_threshsw; idx = idx + 1
+   flat(idx) = state%ohm%ohm_threshwd; idx = idx + 1
+   do i = 1, 3
+      flat(idx) = state%ohm%ohm_coef_lc(i)%summer_dry; idx = idx + 1
+      flat(idx) = state%ohm%ohm_coef_lc(i)%summer_wet; idx = idx + 1
+      flat(idx) = state%ohm%ohm_coef_lc(i)%winter_dry; idx = idx + 1
+      flat(idx) = state%ohm%ohm_coef_lc(i)%winter_wet; idx = idx + 1
+   end do
 
-      IF (n_flat < SUEWS_CAPI_LC_BLDG_PRM_LEN) THEN
-         err = SUEWS_CAPI_BAD_BUFFER
-         RETURN
-      END IF
+   flat(idx) = state%soil%soildepth; idx = idx + 1
+   flat(idx) = state%soil%soilstorecap; idx = idx + 1
+   flat(idx) = state%soil%sathydraulicconduct; idx = idx + 1
 
-      idx = 1
-      flat(idx) = state%sfr; idx = idx + 1
-      flat(idx) = state%faibldg; idx = idx + 1
-      flat(idx) = state%bldgh; idx = idx + 1
-      flat(idx) = state%emis; idx = idx + 1
+   flat(idx) = state%state; idx = idx + 1
+   flat(idx) = state%statelimit; idx = idx + 1
+   flat(idx) = state%irrfracbldgs; idx = idx + 1
+   flat(idx) = state%wetthresh; idx = idx + 1
 
-      flat(idx) = state%ohm%chanohm; idx = idx + 1
-      flat(idx) = state%ohm%cpanohm; idx = idx + 1
-      flat(idx) = state%ohm%kkanohm; idx = idx + 1
-      flat(idx) = state%ohm%ohm_threshsw; idx = idx + 1
-      flat(idx) = state%ohm%ohm_threshwd; idx = idx + 1
-      DO i = 1, 3
-         flat(idx) = state%ohm%ohm_coef_lc(i)%summer_dry; idx = idx + 1
-         flat(idx) = state%ohm%ohm_coef_lc(i)%summer_wet; idx = idx + 1
-         flat(idx) = state%ohm%ohm_coef_lc(i)%winter_dry; idx = idx + 1
-         flat(idx) = state%ohm%ohm_coef_lc(i)%winter_wet; idx = idx + 1
-      END DO
+   flat(idx) = state%waterdist%to_paved; idx = idx + 1
+   flat(idx) = state%waterdist%to_bldg; idx = idx + 1
+   flat(idx) = state%waterdist%to_evetr; idx = idx + 1
+   flat(idx) = state%waterdist%to_dectr; idx = idx + 1
+   flat(idx) = state%waterdist%to_grass; idx = idx + 1
+   flat(idx) = state%waterdist%to_bsoil; idx = idx + 1
+   flat(idx) = state%waterdist%to_water; idx = idx + 1
+   flat(idx) = state%waterdist%to_soilstore; idx = idx + 1
 
-      flat(idx) = state%soil%soildepth; idx = idx + 1
-      flat(idx) = state%soil%soilstorecap; idx = idx + 1
-      flat(idx) = state%soil%sathydraulicconduct; idx = idx + 1
+   err = SUEWS_CAPI_OK
 
-      flat(idx) = state%state; idx = idx + 1
-      flat(idx) = state%statelimit; idx = idx + 1
-      flat(idx) = state%irrfracbldgs; idx = idx + 1
-      flat(idx) = state%wetthresh; idx = idx + 1
+end subroutine lc_bldg_prm_pack
 
-      flat(idx) = state%waterdist%to_paved; idx = idx + 1
-      flat(idx) = state%waterdist%to_bldg; idx = idx + 1
-      flat(idx) = state%waterdist%to_evetr; idx = idx + 1
-      flat(idx) = state%waterdist%to_dectr; idx = idx + 1
-      flat(idx) = state%waterdist%to_grass; idx = idx + 1
-      flat(idx) = state%waterdist%to_bsoil; idx = idx + 1
-      flat(idx) = state%waterdist%to_water; idx = idx + 1
-      flat(idx) = state%waterdist%to_soilstore; idx = idx + 1
+subroutine lc_bldg_prm_unpack(flat, n_flat, state, err)
+   implicit none
 
-      err = SUEWS_CAPI_OK
+   real(c_double), intent(in) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   type(LC_BLDG_PRM), intent(out) :: state
+   integer(c_int), intent(out) :: err
 
-   END SUBROUTINE lc_bldg_prm_pack
+   integer(c_int) :: idx
+   integer(c_int) :: i
 
+   if (n_flat<SUEWS_CAPI_LC_BLDG_PRM_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
 
-   SUBROUTINE suews_lc_bldg_prm_error_message(code, buffer, buffer_len) BIND(C, name='suews_lc_bldg_prm_error_message')
-      IMPLICIT NONE
+   idx = 1_c_int
+   state%sfr = flat(idx); idx = idx + 1_c_int
+   state%faibldg = flat(idx); idx = idx + 1_c_int
+   state%bldgh = flat(idx); idx = idx + 1_c_int
+   state%emis = flat(idx); idx = idx + 1_c_int
 
-      INTEGER(c_int), VALUE, INTENT(in) :: code
-      CHARACTER(c_char), INTENT(out) :: buffer(*)
-      INTEGER(c_int), VALUE, INTENT(in) :: buffer_len
+   state%ohm%chanohm = flat(idx); idx = idx + 1_c_int
+   state%ohm%cpanohm = flat(idx); idx = idx + 1_c_int
+   state%ohm%kkanohm = flat(idx); idx = idx + 1_c_int
+   state%ohm%ohm_threshsw = flat(idx); idx = idx + 1_c_int
+   state%ohm%ohm_threshwd = flat(idx); idx = idx + 1_c_int
+   do i = 1_c_int, 3_c_int
+      state%ohm%ohm_coef_lc(i)%summer_dry = flat(idx); idx = idx + 1_c_int
+      state%ohm%ohm_coef_lc(i)%summer_wet = flat(idx); idx = idx + 1_c_int
+      state%ohm%ohm_coef_lc(i)%winter_dry = flat(idx); idx = idx + 1_c_int
+      state%ohm%ohm_coef_lc(i)%winter_wet = flat(idx); idx = idx + 1_c_int
+   end do
 
-      CHARACTER(LEN=128) :: msg
+   state%soil%soildepth = flat(idx); idx = idx + 1_c_int
+   state%soil%soilstorecap = flat(idx); idx = idx + 1_c_int
+   state%soil%sathydraulicconduct = flat(idx); idx = idx + 1_c_int
 
-      CALL suews_capi_error_text(code, msg)
-      CALL copy_to_c_buffer(msg, buffer, buffer_len)
+   state%state = flat(idx); idx = idx + 1_c_int
+   state%statelimit = flat(idx); idx = idx + 1_c_int
+   state%irrfracbldgs = flat(idx); idx = idx + 1_c_int
+   state%wetthresh = flat(idx); idx = idx + 1_c_int
 
-   END SUBROUTINE suews_lc_bldg_prm_error_message
+   state%waterdist%to_paved = flat(idx); idx = idx + 1_c_int
+   state%waterdist%to_bldg = flat(idx); idx = idx + 1_c_int
+   state%waterdist%to_evetr = flat(idx); idx = idx + 1_c_int
+   state%waterdist%to_dectr = flat(idx); idx = idx + 1_c_int
+   state%waterdist%to_grass = flat(idx); idx = idx + 1_c_int
+   state%waterdist%to_bsoil = flat(idx); idx = idx + 1_c_int
+   state%waterdist%to_water = flat(idx); idx = idx + 1_c_int
+   state%waterdist%to_soilstore = flat(idx)
 
-END MODULE module_c_api_lc_bldg_prm
+   err = SUEWS_CAPI_OK
 
-MODULE c_api_lc_bldg_prm_module
-   USE module_c_api_lc_bldg_prm
-END MODULE c_api_lc_bldg_prm_module
+end subroutine lc_bldg_prm_unpack
+
+subroutine suews_lc_bldg_prm_error_message(code, buffer, buffer_len) bind(C, name='suews_lc_bldg_prm_error_message')
+   implicit none
+
+   integer(c_int), value, intent(in) :: code
+   character(c_char), intent(out) :: buffer(*)
+   integer(c_int), value, intent(in) :: buffer_len
+
+   character(LEN=128) :: msg
+
+   call suews_capi_error_text(code, msg)
+   call copy_to_c_buffer(msg, buffer, buffer_len)
+
+end subroutine suews_lc_bldg_prm_error_message
+
+end module module_c_api_lc_bldg_prm
+
+module c_api_lc_bldg_prm_module
+use module_c_api_lc_bldg_prm
+end module c_api_lc_bldg_prm_module

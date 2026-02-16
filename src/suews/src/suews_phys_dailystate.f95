@@ -529,7 +529,7 @@ CONTAINS
 
    END SUBROUTINE update_Veg
 
-   subroutine update_GDDLAI( &
+   SUBROUTINE update_GDDLAI( &
       id, LAICalcYes, & !input
       lat, LAI_obs, &
       Tmin_id_prev, Tmax_id_prev, lenDay_id_prev, &
@@ -573,6 +573,7 @@ CONTAINS
       real(kind(1D0)), dimension(nvegsurf), intent(out) :: LAI_id_next !LAI for each veg surface [m2 m-2]
       real(kind(1D0)), dimension(nvegsurf), intent(in) :: LAI_id_prev ! LAI of previous day
 
+      real(kind(1D0)) :: mean_temp ! Mean temperature of previous day
       real(kind(1D0)) :: delta_SDD !Switches and checks for GDD
       real(kind(1D0)) :: delta_GDD !Switches and checks for GDD
       real(kind(1D0)) :: indHelp !Switches and checks for GDD
@@ -598,6 +599,8 @@ CONTAINS
          call observed_lai(valid_observed_lai)
          if (.not. valid_observed_lai) return
       end if
+
+      mean_temp = calc_mean_temp(Tmin_id_prev, Tmax_id_prev)
       
       ! Loop through vegetation types (iv)
       do iv = 1, NVegSurf
@@ -810,6 +813,17 @@ CONTAINS
          valid = .true.
 
       end subroutine observed_lai
+
+      function calc_mean_temp(temp1, temp2) result(mean_temp)
+         implicit none
+
+         real(kind(1D0)), intent(in) :: temp1
+         real(kind(1D0)), intent(in) :: temp2
+         real(kind(1D0)) :: mean_temp
+
+         mean_temp = (temp1 + temp2)/2
+      
+      END FUNCTION calc_mean_temp
 
       subroutine calc_delta_gdd_sdd( &
             tmin_prev, tmax_prev, base_t_gdd, base_t_sdd, &

@@ -323,6 +323,28 @@ def _validate_spartacus_building_height(self, site: Site, site_index: int) -> Li
   - If `bldgh` exceeds the simulation domain top, an ACTION NEEDED report message is generated, and validation fails.
 
 
+### 5. SPARTACUS Surface Fraction Validation
+
+```python
+def _validate_spartacus_sfr(self, site: Site, site_index: int) -> List[str]:
+    """
+    If SPARTACUS is enabled, check that:
+    - bldgs.sfr == building_frac[0]
+    - (evetr.sfr + dectr.sfr) == veg_frac[0]
+    Returns a list of issue messages.
+    """
+```
+
+**Logic**
+
+When SPARTACUS is enabled (same condition as in `_needs_spartacus_validation`):
+
+For each site, Phase C:
+
+1. Reads land-cover surface fractions
+2. Reads SPARTACUS vertical-layer fractions from `vertical_layers`
+3. Performs consistency checks (only if arrays exist and have at least one element) 
+
 ### Orchestration Pattern
 
 ```python

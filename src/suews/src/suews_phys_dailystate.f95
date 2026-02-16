@@ -633,24 +633,13 @@ CONTAINS
             GDD_id(iv) = 0
          END IF
 
-         if (laitype(iv) /= 2) then
-            call limit_gdd_sdd( &
-               GDD_id=GDD_id(iv), &
-               SDD_id=SDD_id(iv), &
-               GDDFull=GDDFull(iv), &
-               SDDFull=SDDFull(iv), &
-               critDays=critDays &
-            )
-         else
-            if (SDD_id(iv) <= SDDFull(iv)) then !After senescence now start growing leaves
-               SDD_id(iv) = SDDFull(iv) !Leaves off so add back earlier
-               if (GDD_id(iv) > critDays) SDD_id(iv) = 0
-            end if
-            if (GDD_id(iv) >= GDDFull(iv)) then !Start senescence
-               GDD_id(iv) = GDDFull(iv) !Leaves should not grow so delete yes from earlier
-               if (SDD_id(iv) < -critDays) GDD_id(iv) = 0
-            end if
-         end if
+         call limit_gdd_sdd( &
+            GDD_id=GDD_id(iv), &
+            SDD_id=SDD_id(iv), &
+            GDDFull=GDDFull(iv), &
+            SDDFull=SDDFull(iv), &
+            critDays=critDays &
+         )
 
          ! With these limits SDD, GDD is set to zero
          if (LAItype(iv) /= 2) then

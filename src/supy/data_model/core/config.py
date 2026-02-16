@@ -1599,7 +1599,9 @@ class SUEWSConfig(BaseModel):
             netrad_method = int(netrad_method)
         except (TypeError, ValueError):
             pass
-        return netrad_method in spartacus_methods
+        if netrad_method in spartacus_methods:
+            return self._is_physics_explicitly_configured()
+        return False
 
     def _validate_spartacus_building_height(self, site: Site, site_index: int) -> List[str]:
         """

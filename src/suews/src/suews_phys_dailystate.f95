@@ -545,6 +545,16 @@ CONTAINS
       delta_DD = current_temp - base_temp
    END FUNCTION calc_delta_DD
 
+   FUNCTION calc_LAI_GDD(lai_prev, lai_power1, lai_power2, gdd_id) RESULT (lai)
+      IMPLICIT NONE
+      REAL(KIND(1D0)), INTENT(IN) :: lai_prev
+      REAL(KIND(1D0)), INTENT(IN) :: lai_power1
+      REAL(KIND(1D0)), INTENT(IN) :: lai_power2
+      REAL(KIND(1D0)), INTENT(IN) :: gdd_id
+      REAL(KIND(1D0)) :: lai
+      lai = (lai_prev**lai_power1*gdd_id*lai_power2) + lai_prev
+   END FUNCTION
+
    SUBROUTINE update_GDDLAI( &
       id, LAICalcYes, & !input
       lat, LAI_obs, &

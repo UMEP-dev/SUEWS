@@ -48,6 +48,7 @@ class LAIType(Enum):
     HIGH_LAT = 1
     INVERSTED = 2
     MANAGED = 3
+    MANAGED_DEV = 4
 
     def __new__(cls, value):
         obj = object.__new__(cls)

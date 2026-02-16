@@ -649,25 +649,13 @@ CONTAINS
             GDD_id(iv) = 0
          END IF
 
-         IF (LAItype(iv) == 2) THEN ! When growing in cold weather, prioritise GDD over SDD
-            IF (SDD_id(iv) <= SDDFull(iv)) THEN ! Start growth 
-               !After senescence now start growing leaves
-               SDD_id(iv) = SDDFull(iv) !Leaves off so add back earlier
-               IF (GDD_id(iv) > critDays) SDD_id(iv) = 0
-            END IF
-            IF (GDD_id(iv) >= GDDFull(iv)) THEN ! After growth, start senescence
-               GDD_id(iv) = GDDFull(iv) ! Leaves should not grow so delete yes from earlier
-               IF (SDD_id(iv) < -critDays) GDD_id(iv) = 0
-            END IF
-         ELSE
-            IF (GDD_id(iv) >= GDDFull(iv)) THEN !Start senescence
-               GDD_id(iv) = GDDFull(iv) !Leaves should not grow so delete yes from earlier
-               IF (SDD_id(iv) < -critDays) GDD_id(iv) = 0
-            END IF
-            IF (SDD_id(iv) <= SDDFull(iv)) THEN !After senescence now start growing leaves
-               SDD_id(iv) = SDDFull(iv) !Leaves off so add back earlier
-               IF (GDD_id(iv) > critDays) SDD_id(iv) = 0
-            END IF
+         IF (GDD_id(iv) >= GDDFull(iv)) THEN !Start senescence
+            GDD_id(iv) = GDDFull(iv) !Leaves should not grow so delete yes from earlier
+            IF (SDD_id(iv) < -critDays) GDD_id(iv) = 0
+         END IF
+         IF (SDD_id(iv) <= SDDFull(iv)) THEN !After senescence now start growing leaves
+            SDD_id(iv) = SDDFull(iv) !Leaves off so add back earlier
+            IF (GDD_id(iv) > critDays) SDD_id(iv) = 0
          END IF
 
          ! With these limits SDD, GDD is set to zero

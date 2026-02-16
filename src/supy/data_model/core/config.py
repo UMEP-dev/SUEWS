@@ -1630,6 +1630,55 @@ class SUEWSConfig(BaseModel):
                 )
         return issues
 
+    def _validate_spartacus_sfr(self, site: Site, site_index: int) -> list:
+        """
+        If SPARTACUS is enabled, check that:
+        - bldgs.sfr == building_frac[0]
+        - (evetr.sfr + dectr.sfr) == veg_frac[0]
+        Returns a list of issue messages.
+        """
+        issues: list = []
+        site_name = getattr(site, "name", f"Site {site_index}")
+        props = getattr(site, "properties", None)
+        if not props or not hasattr(props, "land_cover") or not props.land_cover:
+            return issues
+        lc = props.land_cover
+        bldgs = getattr(lc, "bldgs", None)
+        evetr = getattr(lc, "evetr", None)
+        dectr = getattr(lc, "dectr", None)
+        vertical_layers = getattr(props, "vertical_layers", None)
+        if not vertical_layers:
+            return issues
+
+        # Unwrap values
+        bldgs_sfr = _unwrap_value(getattr(bldgs, "sfr", None)) if bldgs else None
+        evetr_sfr = _unwrap_value(getattr(evetr, "sfr", None)) if evetr else 0.0
+        dectr_sfr = _unwrap_value(getattr(dectr, "sfr", None)) if dectr else 0.0
+        veg_sfr = (evetr_sfr or 0.0) + (dectr_sfr or 0.0)
+
+        building_frac = _unwrap_value(getattr(vertical_layers, "building_frac", None))
+        veg_frac = _unwrap_value(getattr(vertical_layers, "veg_frac", None))
+
+        # Only check if arrays are present and have at least one element
+        if (
+            isinstance(building_frac, (list, tuple))
+            and len(building_frac) > 0
+            and bldgs_sfr is not None
+        ):
+            if not np.isclose(bldgs_sfr, building_frac[0], atol=1e-6):
+                issues.append(
+                    f"{site_name}: bldgs.sfr ({bldgs_sfr}) does not match vertical_layers.building_frac[0] ({building_frac[0]})"
+                )
+        if (
+            isinstance(veg_frac, (list, tuple))
+            and len(veg_frac) > 0
+        ):
+            if not np.isclose(veg_sfr, veg_frac[0], atol=1e-6):
+                issues.append(
+                    f"{site_name}: evetr.sfr + dectr.sfr ({veg_sfr}) does not match vertical_layers.veg_frac[0] ({veg_frac[0]})"
+                )
+        return issues
+
     def _validate_conditional_parameters(self) -> List[str]:
         """
         Run any method‐specific validations (STEBBS, RSL, StorageHeat) in one
@@ -1711,6 +1760,13 @@ class SUEWSConfig(BaseModel):
                     if site_name not in self._validation_summary["sites_with_issues"]:
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(spartacus_issues)
+
+                spartacus_sfr_issues = self._validate_spartacus_sfr(site, idx)
+                if spartacus_sfr_issues:
+                    self._validation_summary["issue_types"].add("SPARTACUS SFR")
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(spartacus_sfr_issues)
         return all_issues
 
     def _check_critical_null_physics_params(self) -> List[str]:

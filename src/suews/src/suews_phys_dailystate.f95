@@ -529,6 +529,22 @@ CONTAINS
 
    END SUBROUTINE update_Veg
 
+   FUNCTION calc_mean_temp(temp1, temp2) RESULT(mean_temp)
+      IMPLICIT NONE
+      REAL(KIND(1D0)), INTENT(IN) :: temp1
+      REAL(KIND(1D0)), INTENT(IN) :: temp2
+      REAL(KIND(1D0)) :: mean_temp      
+      mean_temp = (temp1 + temp2)/2
+   END FUNCTION calc_mean_temp
+
+   FUNCTION calc_delta_DD(base_temp, current_temp) RESULT (delta_DD)
+      IMPLICIT NONE
+      REAL(KIND(1D0)), INTENT(IN) :: base_temp
+      REAL(KIND(1D0)), INTENT(IN) :: current_temp
+      REAL(KIND(1D0)) :: delta_DD
+      delta_DD = current_temp - base_temp
+   END FUNCTION calc_delta_DD
+
    SUBROUTINE update_GDDLAI( &
       id, LAICalcYes, & !input
       lat, LAI_obs, &

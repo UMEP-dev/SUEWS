@@ -546,6 +546,16 @@ CONTAINS
       lai = (lai_prev**lai_power1*gdd_id*lai_power2) + lai_prev
    END FUNCTION
 
+   FUNCTION calc_LAI_SDD(lai_prev, lai_power1, lai_power2, sdd_id) RESULT (lai)
+      IMPLICIT NONE
+      REAL(KIND(1D0)), INTENT(IN) :: lai_prev
+      REAL(KIND(1D0)), INTENT(IN) :: lai_power1
+      REAL(KIND(1D0)), INTENT(IN) :: lai_power2
+      REAL(KIND(1D0)), INTENT(IN) :: sdd_id
+      REAL(KIND(1D0)) :: lai
+      lai = (lai_prev*lai_power1*(1 - sdd_id)*lai_power2) + lai_prev
+   END FUNCTION
+
    SUBROUTINE update_GDDLAI( &
       id, LAICalcYes, & !input
       lat, LAI_obs, &
@@ -692,7 +702,9 @@ CONTAINS
                IF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN !Leaves can still grow
                   LAI_id_next(iv) = calc_LAI_GDD(LAI_id_prev(iv), LAIPower(1, iv), LAIPower(2, iv), GDD_id(iv))
                ELSEIF (SDD_id(iv) < 0 .AND. SDD_id(iv) > SDDFull(iv)) THEN !Start senescence
-                  LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(3, iv)*SDD_id(iv)*LAIPower(4, iv)) + LAI_id_prev(iv)
+                  ! Uses same equation as GDD, was this intentional? MP 02-2026
+                  LAI_id_next(iv) = calc_LAI_GDD(LAI_id_prev(iv), LAIPower(3, iv), LAIPower(4, iv), SDD_id(iv))
+                  ! (LAI_id_prev(iv)**LAIPower(3, iv)*SDD_id(iv)*LAIPower(4, iv)) + LAI_id_prev(iv)
                ELSE
                   LAI_id_next(iv) = LAI_id_prev(iv)
                END IF
@@ -701,13 +713,14 @@ CONTAINS
                   LAI_id_next(iv) = calc_LAI_GDD(LAI_id_prev(iv), LAIPower(1, iv), LAIPower(2, iv), GDD_id(iv))
                   !! Use day length to start senescence at high latitudes (N hemisphere)
                ELSEIF (lenDay_id_prev <= 12 .AND. SDD_id(iv) > SDDFull(iv)) THEN !Start senescence
-                  LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
+                  LAI_id_next(iv) = calc_LAI_SDD(LAI_id_prev(iv), LAIPower(3, iv), LAIPower(4, iv), SDD_id(iv))
+                  ! LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
                ELSE
                   LAI_id_next(iv) = LAI_id_prev(iv)
                END IF
             ELSEIF (LAItype(iv) == 2) THEN ! Inverted response to temperature
                IF (SDD_id(iv) < 0 .AND. SDD_id(iv) > SDDFull(iv)) THEN !Leaves can still fall
-                  LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
+                  LAI_id_next(iv) = calc_LAI_SDD(LAI_id_prev(iv), LAIPower(3, iv), LAIPower(4, iv), SDD_id(iv))
                   !! Use day length to start senescence at high latitudes (N hemisphere)
                ELSEIF (lenDay_id_prev <= 12 .AND. GDD_id(iv) < GDDFull(iv)) THEN !Start growth
                   LAI_id_next(iv) = calc_LAI_GDD(LAI_id_prev(iv), LAIPower(1, iv), LAIPower(2, iv), GDD_id(iv))
@@ -721,7 +734,7 @@ CONTAINS
                ELSEIF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN !Leaves can still grow
                   LAI_id_next(iv) = calc_LAI_GDD(LAI_id_prev(iv), LAIPower(1, iv), LAIPower(2, iv), GDD_id(iv))
                ELSEIF (lenDay_id_prev <= 12 .AND. SDD_id(iv) > SDDFull(iv)) THEN !Start senescence
-                  LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
+                  LAI_id_next(iv) = calc_LAI_SDD(LAI_id_prev(iv), LAIPower(3, iv), LAIPower(4, iv), SDD_id(iv))
                ELSE
                   LAI_id_next(iv) = LAI_id_prev(iv)
                END IF
@@ -730,7 +743,7 @@ CONTAINS
                   LAI_id_next(iv) = LAIMin(iv)
                   GDD_id(iv) = 0
                ELSEIF (lenDay_id_prev <= 12 .AND. SDD_id(iv) > SDDFull(iv)) THEN !Start senescence
-                     LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
+                  LAI_id_next(iv) = calc_LAI_SDD(LAI_id_prev(iv), LAIPower(3, iv), LAIPower(4, iv), SDD_id(iv))
                ELSEIF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN !Leaves can still grow
                   LAI_id_next(iv) = calc_LAI_GDD(LAI_id_prev(iv), LAIPower(1, iv), LAIPower(2, iv), GDD_id(iv))
                ELSE

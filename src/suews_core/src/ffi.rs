@@ -8,6 +8,41 @@ pub const SUEWS_CAPI_BAD_STATE: c_int = 4;
 
 #[link(name = "suews_bridge", kind = "static")]
 unsafe extern "C" {
+    #[cfg(feature = "physics")]
+    pub fn suews_cal_multitsteps_c(
+        timer_flat: *const c_double,
+        timer_len: c_int,
+        config_flat: *const c_double,
+        config_len: c_int,
+        site_scalars_flat: *const c_double,
+        site_scalars_len: c_int,
+        site_flat: *const c_double,
+        site_flat_len: c_int,
+        site_toc: *const c_int,
+        site_toc_len: c_int,
+        site_member_count: c_int,
+        state_flat: *const c_double,
+        state_flat_len: c_int,
+        state_toc: *const c_int,
+        state_toc_len: c_int,
+        state_member_count: c_int,
+        forcing_flat: *const c_double,
+        len_sim: c_int,
+        forcing_cols: c_int,
+        nlayer: c_int,
+        ndepth: c_int,
+        timer_out: *mut c_double,
+        timer_out_len: c_int,
+        state_out_flat: *mut c_double,
+        state_out_len: c_int,
+        output_flat: *mut c_double,
+        output_len: c_int,
+        sim_err_code: *mut c_int,
+        sim_err_message: *mut c_char,
+        sim_err_message_len: c_int,
+        err: *mut c_int,
+    );
+
     pub fn suews_ohm_qs_calc(
         qn1: c_double,
         dqndt: c_double,

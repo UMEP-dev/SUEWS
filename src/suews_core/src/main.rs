@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use paste::paste;
 use serde_json::json;
 use serde_json::Value;
 use std::fs;
@@ -36,8 +37,8 @@ use suews_bridge::{
     heat_state_schema_version_runtime, heat_state_to_map, heat_state_to_values_payload,
     hydro_state_default_from_fortran, hydro_state_schema, hydro_state_schema_info,
     hydro_state_schema_version, hydro_state_schema_version_runtime, hydro_state_to_map,
-    hydro_state_to_values_payload, irrig_daywater_default_from_fortran,
-    irrig_daywater_schema, irrig_daywater_schema_info, irrig_daywater_schema_version,
+    hydro_state_to_values_payload, irrig_daywater_default_from_fortran, irrig_daywater_schema,
+    irrig_daywater_schema_info, irrig_daywater_schema_version,
     irrig_daywater_schema_version_runtime, irrig_daywater_to_map, irrig_daywater_to_values_payload,
     irrigation_prm_default_from_fortran, irrigation_prm_schema, irrigation_prm_schema_info,
     irrigation_prm_schema_version, irrigation_prm_schema_version_runtime, irrigation_prm_to_map,
@@ -100,15 +101,14 @@ use suews_bridge::{
     spartacus_prm_to_values_payload, stebbs_prm_default_from_fortran, stebbs_prm_schema,
     stebbs_prm_schema_info, stebbs_prm_schema_version, stebbs_prm_schema_version_runtime,
     stebbs_prm_to_map, stebbs_prm_to_values_payload, suews_config_default_from_fortran,
-    suews_site_default_from_fortran, suews_site_field_names, suews_site_schema_info,
-    suews_site_schema_version, suews_site_schema_version_runtime, suews_site_to_map,
-    suews_site_to_nested_payload, suews_site_to_values_payload,
-    suews_site_member_names,
     suews_config_schema, suews_config_schema_info, suews_config_schema_version,
     suews_config_schema_version_runtime, suews_config_to_map, suews_config_to_values_payload,
     suews_forcing_default_from_fortran, suews_forcing_schema, suews_forcing_schema_info,
     suews_forcing_schema_version, suews_forcing_schema_version_runtime, suews_forcing_to_map,
-    suews_forcing_to_values_payload, suews_timer_default_from_fortran, suews_timer_schema,
+    suews_forcing_to_values_payload, suews_site_default_from_fortran, suews_site_field_names,
+    suews_site_member_names, suews_site_schema_info, suews_site_schema_version,
+    suews_site_schema_version_runtime, suews_site_to_map, suews_site_to_nested_payload,
+    suews_site_to_values_payload, suews_timer_default_from_fortran, suews_timer_schema,
     suews_timer_schema_info, suews_timer_schema_version, suews_timer_schema_version_runtime,
     suews_timer_to_map, suews_timer_to_values_payload, surf_store_prm_default_from_fortran,
     surf_store_prm_schema, surf_store_prm_schema_info, surf_store_prm_schema_version,
@@ -117,6 +117,13 @@ use suews_bridge::{
     water_dist_prm_schema_version, water_dist_prm_schema_version_runtime, water_dist_prm_to_map,
     water_dist_prm_to_values_payload, OhmModel, OhmStateValuesPayload, OHM_STATE_FLAT_LEN,
 };
+#[cfg(feature = "physics")]
+use suews_bridge::{
+    interpolate_forcing, load_run_config, read_forcing_block, run_simulation, write_output_csv,
+    SimulationInput,
+};
+#[cfg(all(feature = "physics", feature = "arrow-output"))]
+use suews_bridge::write_output_arrow;
 
 fn parse_state_map_json(text: &str) -> Result<std::collections::BTreeMap<String, f64>, String> {
     fn parse_field_object(value: Value) -> Result<std::collections::BTreeMap<String, f64>, String> {
@@ -235,6 +242,386 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
+    #[cfg(feature = "physics")]
+    /// Run SUEWS batch simulation from YAML config.
+    Run {
+        /// Path to config YAML.
+        config: String,
+        /// Output directory for simulation results.
+        #[arg(long, default_value = "./output")]
+        output_dir: String,
+        /// Output format: csv or arrow (requires arrow-output feature).
+        #[arg(long, default_value = "csv")]
+        format: String,
+    },
+    /// Inspect bridge type schemas and defaults.
+    Schema {
+        #[command(subcommand)]
+        command: SchemaType,
+    },
+}
+
+#[derive(Debug, Subcommand, Clone)]
+enum StandardSchemaAction {
+    /// Print JSON schema.
+    SchemaJson,
+    /// Print default as JSON map payload.
+    DefaultJson,
+    /// Print default as JSON ordered values payload.
+    DefaultValuesJson,
+}
+
+#[derive(Debug, Subcommand, Clone)]
+enum SuewsSiteSchemaAction {
+    /// Print JSON schema.
+    SchemaJson,
+    /// Print default as JSON map payload.
+    DefaultJson,
+    /// Print default as JSON ordered values payload.
+    DefaultValuesJson,
+    /// Print default as nested composite payload.
+    DefaultNestedJson,
+}
+
+#[derive(Debug, Subcommand, Clone)]
+enum OhmStateAction {
+    /// Print JSON schema.
+    SchemaJson,
+    /// Print default as JSON map payload.
+    DefaultJson,
+    /// Print default as JSON ordered values payload.
+    DefaultValuesJson,
+    /// Print flat schema with index and field name.
+    FlatSchema,
+    /// Step using JSON I/O.
+    StepJson {
+        #[arg(long)]
+        dt: i32,
+        #[arg(long)]
+        dt_since_start: i32,
+        #[arg(long)]
+        qn1: f64,
+        #[arg(long)]
+        a1: f64,
+        #[arg(long)]
+        a2: f64,
+        #[arg(long)]
+        a3: f64,
+        /// Optional JSON file with field-value object for initial state.
+        #[arg(long)]
+        state_json: Option<String>,
+    },
+    /// Step using ordered values JSON I/O.
+    StepValuesJson {
+        #[arg(long)]
+        dt: i32,
+        #[arg(long)]
+        dt_since_start: i32,
+        #[arg(long)]
+        qn1: f64,
+        #[arg(long)]
+        a1: f64,
+        #[arg(long)]
+        a2: f64,
+        #[arg(long)]
+        a3: f64,
+        /// Optional JSON file with values array or {schema_version, values}.
+        #[arg(long)]
+        state_values_json: Option<String>,
+    },
+    /// Calculate QS for one step.
+    Qs {
+        #[arg(long)]
+        qn1: f64,
+        #[arg(long)]
+        dqndt: f64,
+        #[arg(long)]
+        a1: f64,
+        #[arg(long)]
+        a2: f64,
+        #[arg(long)]
+        a3: f64,
+    },
+    /// Compute dqndt and QS for one OHM timestep.
+    Step {
+        #[arg(long)]
+        dt: i32,
+        #[arg(long)]
+        dt_since_start: i32,
+        #[arg(long)]
+        qn1_av_prev: f64,
+        #[arg(long)]
+        dqndt_prev: f64,
+        #[arg(long)]
+        qn1: f64,
+        #[arg(long)]
+        a1: f64,
+        #[arg(long)]
+        a2: f64,
+        #[arg(long)]
+        a3: f64,
+    },
+    /// Run a sequence of qn1 values through a stateful model.
+    Series {
+        #[arg(long)]
+        dt: i32,
+        #[arg(long)]
+        a1: f64,
+        #[arg(long)]
+        a2: f64,
+        #[arg(long)]
+        a3: f64,
+        #[arg(long, value_delimiter = ',')]
+        qn: Vec<f64>,
+    },
+    /// Step the bridge payload once (raw output).
+    StateStep {
+        #[arg(long)]
+        dt: i32,
+        #[arg(long)]
+        dt_since_start: i32,
+        #[arg(long)]
+        qn1: f64,
+        #[arg(long)]
+        a1: f64,
+        #[arg(long)]
+        a2: f64,
+        #[arg(long)]
+        a3: f64,
+    },
+}
+
+#[derive(Debug, Subcommand, Clone)]
+enum SchemaType {
+    /// OHM_STATE (schema, defaults, and OHM physics).
+    OhmState {
+        #[command(subcommand)]
+        action: OhmStateAction,
+    },
+    /// SUEWS_CONFIG.
+    SuewsConfig {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// SUEWS_FORCING.
+    SuewsForcing {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// HYDRO_STATE.
+    HydroState {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// HEAT_STATE.
+    HeatState {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// SUEWS_TIMER.
+    SuewsTimer {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// FLAG_STATE.
+    FlagState {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// anthroEmis_STATE.
+    AnthroemisState {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// ATM_STATE.
+    AtmState {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// PHENOLOGY_STATE.
+    PhenologyState {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// SNOW_STATE.
+    SnowState {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// SOLAR_STATE.
+    SolarState {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// ROUGHNESS_STATE.
+    RoughnessState {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// NHOOD_STATE.
+    NhoodState {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// SUEWS_SITE.
+    SuewsSite {
+        #[command(subcommand)]
+        action: SuewsSiteSchemaAction,
+    },
+    /// anthroHEAT_PRM.
+    AnthroHeatPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// anthroEMIS_PRM.
+    AnthroEmisPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// BUILDING_ARCHETYPE_PRM.
+    BuildingArchetypePrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// STEBBS_PRM.
+    StebbsPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// CONDUCTANCE_PRM.
+    ConductancePrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// EHC_PRM.
+    EhcPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// SPARTACUS_PRM.
+    SpartacusPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// SPARTACUS_LAYER_PRM.
+    SpartacusLayerPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// bioCO2_PRM.
+    Bioco2Prm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// LAI_PRM.
+    LaiPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// SNOW_PRM.
+    SnowPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// SOIL_PRM.
+    SoilPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// LUMPS_PRM.
+    LumpsPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// OHM_COEF_LC.
+    OhmCoefLc {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// OHM_PRM.
+    OhmPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// LC_PAVED_PRM.
+    LcPavedPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// LC_BLDG_PRM.
+    LcBldgPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// LC_BSOIL_PRM.
+    LcBsoilPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// LC_WATER_PRM.
+    LcWaterPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// LC_DECTR_PRM.
+    LcDectrPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// LC_EVETR_PRM.
+    LcEvetrPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// LC_GRASS_PRM.
+    LcGrassPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// SURF_STORE_PRM.
+    SurfStorePrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// WATER_DIST_PRM.
+    WaterDistPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// IRRIG_daywater.
+    IrrigDaywater {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// IRRIGATION_PRM.
+    IrrigationPrm {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// output_line.
+    OutputLine {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// output_block.
+    OutputBlock {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// error_entry.
+    ErrorEntry {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+    /// error_state.
+    ErrorState {
+        #[command(subcommand)]
+        action: StandardSchemaAction,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum FlatCommand {
     /// Calculate QS for one step from qn1, dqndt and OHM coefficients.
     Qs {
         #[arg(long)]
@@ -279,6 +666,18 @@ enum Commands {
         a3: f64,
         #[arg(long, value_delimiter = ',')]
         qn: Vec<f64>,
+    },
+    #[cfg(feature = "physics")]
+    /// Run SUEWS batch simulation from YAML config.
+    Run {
+        /// Path to config YAML.
+        config: String,
+        /// Output directory for simulation results.
+        #[arg(long, default_value = "./output")]
+        output_dir: String,
+        /// Output format: csv or arrow (requires arrow-output feature).
+        #[arg(long, default_value = "csv")]
+        format: String,
     },
     /// Step the Fortran OHM_STATE bridge payload once.
     StateStep {
@@ -621,9 +1020,393 @@ fn main() {
     std::process::exit(code);
 }
 
+#[cfg(feature = "physics")]
+fn parse_time_cell(value: f64, label: &str) -> Result<i32, String> {
+    if !value.is_finite() {
+        return Err(format!("forcing `{label}` is not finite"));
+    }
+    let rounded = value.round();
+    if (rounded - value).abs() > 1.0e-9 || rounded < i32::MIN as f64 || rounded > i32::MAX as f64 {
+        return Err(format!(
+            "forcing `{label}` is not an integer-compatible value"
+        ));
+    }
+    Ok(rounded as i32)
+}
+
+#[cfg(feature = "physics")]
+fn is_leap_year(year: i32) -> bool {
+    (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+}
+
+#[cfg(feature = "physics")]
+fn day_of_year_to_month(year: i32, day_of_year: i32) -> Result<i32, String> {
+    if day_of_year <= 0 {
+        return Err(format!("forcing `id` must be positive, got {day_of_year}"));
+    }
+
+    let month_days_common = [31_i32, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let month_days_leap = [31_i32, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let month_days = if is_leap_year(year) {
+        &month_days_leap
+    } else {
+        &month_days_common
+    };
+
+    let mut remaining = day_of_year;
+    for (idx, days) in month_days.iter().enumerate() {
+        if remaining <= *days {
+            return Ok((idx + 1) as i32);
+        }
+        remaining -= *days;
+    }
+
+    Err(format!(
+        "forcing `id`={day_of_year} is out of range for year {year}"
+    ))
+}
+
+#[cfg(feature = "physics")]
+fn fortran_weekday_from_ymd(year: i32, month: i32, day: i32) -> i32 {
+    // Sakamoto algorithm: returns 0=Sunday, 1=Monday, ..., 6=Saturday.
+    let t = [0_i32, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
+    let mut y = year;
+    if month < 3 {
+        y -= 1;
+    }
+    let w = (y + y / 4 - y / 100 + y / 400 + t[(month - 1) as usize] + day) % 7;
+    // Fortran convention: 1=Sunday, ..., 7=Saturday.
+    w + 1
+}
+
+#[cfg(feature = "physics")]
+fn run_physics_command(config_path: &str, output_dir: &str, format: &str) -> Result<(), String> {
+    let supported = if cfg!(feature = "arrow-output") {
+        vec!["csv", "arrow"]
+    } else {
+        vec!["csv"]
+    };
+    if !supported.iter().any(|s| format.eq_ignore_ascii_case(s)) {
+        return Err(format!(
+            "unsupported output format `{format}`; supported: {}",
+            supported.join(", ")
+        ));
+    }
+
+    let config_path = std::path::PathBuf::from(config_path);
+    let mut run_cfg = load_run_config(&config_path)?;
+    let raw_forcing = read_forcing_block(&run_cfg.forcing_path)?;
+    let forcing = interpolate_forcing(&raw_forcing, run_cfg.timer.tstep)?;
+
+    let first_row = &forcing.block[..21];
+    run_cfg.timer.iy = parse_time_cell(first_row[0], "iy")?;
+    run_cfg.timer.id = parse_time_cell(first_row[1], "id")?;
+    run_cfg.timer.it = parse_time_cell(first_row[2], "it")?;
+    run_cfg.timer.imin = parse_time_cell(first_row[3], "imin")?;
+    run_cfg.timer.isec = 0;
+    run_cfg.timer.tstep_prev = run_cfg.timer.tstep;
+    run_cfg.timer.tstep_real = run_cfg.timer.tstep as f64;
+    run_cfg.timer.nsh_real = 3600.0 / run_cfg.timer.tstep as f64;
+    run_cfg.timer.nsh = (3600 / run_cfg.timer.tstep).max(1);
+    run_cfg.timer.dt_since_start = 0;
+    run_cfg.timer.dt_since_start_prev = 0;
+    run_cfg.timer.dectime = (run_cfg.timer.id - 1) as f64
+        + run_cfg.timer.it as f64 / 24.0
+        + run_cfg.timer.imin as f64 / (60.0 * 24.0)
+        + run_cfg.timer.isec as f64 / (3600.0 * 24.0);
+
+    let month = day_of_year_to_month(run_cfg.timer.iy, run_cfg.timer.id)?;
+    let day_of_month = {
+        let month_days_common = [31_i32, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        let month_days_leap = [31_i32, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        let month_days = if is_leap_year(run_cfg.timer.iy) {
+            &month_days_leap
+        } else {
+            &month_days_common
+        };
+        let mut remaining = run_cfg.timer.id;
+        for (idx, days) in month_days.iter().enumerate() {
+            if idx as i32 + 1 == month {
+                break;
+            }
+            remaining -= *days;
+        }
+        remaining
+    };
+    run_cfg.timer.dayofweek_id[0] = fortran_weekday_from_ymd(run_cfg.timer.iy, month, day_of_month);
+    run_cfg.timer.dayofweek_id[1] = month;
+    run_cfg.timer.dayofweek_id[2] = if run_cfg.site_scalars.lat >= 0.0 {
+        if (4..=9).contains(&month) {
+            1
+        } else {
+            2
+        }
+    } else if month >= 10 || month <= 3 {
+        1
+    } else {
+        2
+    };
+
+    // Match old SUEWS_cal_multitsteps state initialisation:
+    // heatState%temp_surf_dyohm = MetForcingBlock(1,12)  [first-row air temp]
+    // heatState%tsfc_surf_dyohm = MetForcingBlock(1,12)
+    // ohmState%ws_rav = 2.0
+    let first_tair = first_row[11]; // column 12 (1-indexed) = Tair
+    for v in run_cfg.state.heat_state.temp_surf_dyohm.iter_mut() {
+        *v = first_tair;
+    }
+    for v in run_cfg.state.heat_state.tsfc_surf_dyohm.iter_mut() {
+        *v = first_tair;
+    }
+    run_cfg.state.ohm_state.ws_rav = 2.0;
+
+    let sim_out = run_simulation(SimulationInput {
+        timer: run_cfg.timer,
+        config: run_cfg.config,
+        site: run_cfg.site,
+        site_scalars: run_cfg.site_scalars,
+        state: run_cfg.state,
+        forcing_block: forcing.block,
+        len_sim: forcing.len_sim,
+        nlayer: run_cfg.nlayer,
+        ndepth: run_cfg.ndepth,
+    })
+    .map_err(|e| e.to_string())?;
+
+    let output_path = if format.eq_ignore_ascii_case("csv") {
+        write_output_csv(
+            std::path::Path::new(output_dir),
+            &sim_out.output_block,
+            forcing.len_sim,
+        )?
+    } else {
+        #[cfg(feature = "arrow-output")]
+        {
+            write_output_arrow(
+                std::path::Path::new(output_dir),
+                &sim_out.output_block,
+                forcing.len_sim,
+            )?
+        }
+        #[cfg(not(feature = "arrow-output"))]
+        {
+            return Err(format!(
+                "output format `{format}` requires the `arrow-output` feature"
+            ));
+        }
+    };
+
+    println!("simulation complete");
+    println!("timesteps_processed={}", forcing.len_sim);
+    println!("timer_dt_since_start={}", sim_out.timer.dt_since_start);
+    println!("output_file={}", output_path.display());
+
+    Ok(())
+}
+
+macro_rules! handle_simple_schema {
+    ($action:expr, $prefix:ident) => {{
+        paste! {
+            match $action {
+                StandardSchemaAction::SchemaJson => {
+                    run_flat(FlatCommand::[<$prefix SchemaJson>])?;
+                }
+                StandardSchemaAction::DefaultJson => {
+                    run_flat(FlatCommand::[<$prefix DefaultJson>])?;
+                }
+                StandardSchemaAction::DefaultValuesJson => {
+                    run_flat(FlatCommand::[<$prefix DefaultValuesJson>])?;
+                }
+            }
+        }
+    }};
+}
+
+fn run_ohm_state_action(action: OhmStateAction) -> Result<(), String> {
+    match action {
+        OhmStateAction::SchemaJson => run_flat(FlatCommand::StateSchemaJson)?,
+        OhmStateAction::DefaultJson => run_flat(FlatCommand::StateDefaultJson)?,
+        OhmStateAction::DefaultValuesJson => run_flat(FlatCommand::StateDefaultValuesJson)?,
+        OhmStateAction::FlatSchema => run_flat(FlatCommand::StateSchema)?,
+        OhmStateAction::StepJson {
+            dt,
+            dt_since_start,
+            qn1,
+            a1,
+            a2,
+            a3,
+            state_json,
+        } => run_flat(FlatCommand::StateStepJson {
+            dt,
+            dt_since_start,
+            qn1,
+            a1,
+            a2,
+            a3,
+            state_json,
+        })?,
+        OhmStateAction::StepValuesJson {
+            dt,
+            dt_since_start,
+            qn1,
+            a1,
+            a2,
+            a3,
+            state_values_json,
+        } => run_flat(FlatCommand::StateStepValuesJson {
+            dt,
+            dt_since_start,
+            qn1,
+            a1,
+            a2,
+            a3,
+            state_values_json,
+        })?,
+        OhmStateAction::Qs {
+            qn1,
+            dqndt,
+            a1,
+            a2,
+            a3,
+        } => run_flat(FlatCommand::Qs {
+            qn1,
+            dqndt,
+            a1,
+            a2,
+            a3,
+        })?,
+        OhmStateAction::Step {
+            dt,
+            dt_since_start,
+            qn1_av_prev,
+            dqndt_prev,
+            qn1,
+            a1,
+            a2,
+            a3,
+        } => run_flat(FlatCommand::Step {
+            dt,
+            dt_since_start,
+            qn1_av_prev,
+            dqndt_prev,
+            qn1,
+            a1,
+            a2,
+            a3,
+        })?,
+        OhmStateAction::Series { dt, a1, a2, a3, qn } => {
+            run_flat(FlatCommand::Series { dt, a1, a2, a3, qn })?
+        }
+        OhmStateAction::StateStep {
+            dt,
+            dt_since_start,
+            qn1,
+            a1,
+            a2,
+            a3,
+        } => run_flat(FlatCommand::StateStep {
+            dt,
+            dt_since_start,
+            qn1,
+            a1,
+            a2,
+            a3,
+        })?,
+    }
+
+    Ok(())
+}
+
+fn run_suews_site_action(action: SuewsSiteSchemaAction) -> Result<(), String> {
+    match action {
+        SuewsSiteSchemaAction::SchemaJson => run_flat(FlatCommand::SuewsSiteSchemaJson)?,
+        SuewsSiteSchemaAction::DefaultJson => run_flat(FlatCommand::SuewsSiteDefaultJson)?,
+        SuewsSiteSchemaAction::DefaultValuesJson => {
+            run_flat(FlatCommand::SuewsSiteDefaultValuesJson)?
+        }
+        SuewsSiteSchemaAction::DefaultNestedJson => {
+            run_flat(FlatCommand::SuewsSiteDefaultNestedJson)?
+        }
+    }
+
+    Ok(())
+}
+
+fn run_schema(schema_type: SchemaType) -> Result<(), String> {
+    match schema_type {
+        SchemaType::OhmState { action } => run_ohm_state_action(action)?,
+        SchemaType::SuewsConfig { action } => handle_simple_schema!(action, SuewsConfig),
+        SchemaType::SuewsForcing { action } => handle_simple_schema!(action, SuewsForcing),
+        SchemaType::HydroState { action } => handle_simple_schema!(action, HydroState),
+        SchemaType::HeatState { action } => handle_simple_schema!(action, HeatState),
+        SchemaType::SuewsTimer { action } => handle_simple_schema!(action, SuewsTimer),
+        SchemaType::FlagState { action } => handle_simple_schema!(action, FlagState),
+        SchemaType::AnthroemisState { action } => handle_simple_schema!(action, AnthroemisState),
+        SchemaType::AtmState { action } => handle_simple_schema!(action, AtmState),
+        SchemaType::PhenologyState { action } => handle_simple_schema!(action, PhenologyState),
+        SchemaType::SnowState { action } => handle_simple_schema!(action, SnowState),
+        SchemaType::SolarState { action } => handle_simple_schema!(action, SolarState),
+        SchemaType::RoughnessState { action } => handle_simple_schema!(action, RoughnessState),
+        SchemaType::NhoodState { action } => handle_simple_schema!(action, NhoodState),
+        SchemaType::SuewsSite { action } => run_suews_site_action(action)?,
+        SchemaType::AnthroHeatPrm { action } => handle_simple_schema!(action, AnthroHeatPrm),
+        SchemaType::AnthroEmisPrm { action } => handle_simple_schema!(action, AnthroEmisPrm),
+        SchemaType::BuildingArchetypePrm { action } => {
+            handle_simple_schema!(action, BuildingArchetypePrm)
+        }
+        SchemaType::StebbsPrm { action } => handle_simple_schema!(action, StebbsPrm),
+        SchemaType::ConductancePrm { action } => handle_simple_schema!(action, ConductancePrm),
+        SchemaType::EhcPrm { action } => handle_simple_schema!(action, EhcPrm),
+        SchemaType::SpartacusPrm { action } => handle_simple_schema!(action, SpartacusPrm),
+        SchemaType::SpartacusLayerPrm { action } => {
+            handle_simple_schema!(action, SpartacusLayerPrm)
+        }
+        SchemaType::Bioco2Prm { action } => handle_simple_schema!(action, Bioco2Prm),
+        SchemaType::LaiPrm { action } => handle_simple_schema!(action, LaiPrm),
+        SchemaType::SnowPrm { action } => handle_simple_schema!(action, SnowPrm),
+        SchemaType::SoilPrm { action } => handle_simple_schema!(action, SoilPrm),
+        SchemaType::LumpsPrm { action } => handle_simple_schema!(action, LumpsPrm),
+        SchemaType::OhmCoefLc { action } => handle_simple_schema!(action, OhmCoefLc),
+        SchemaType::OhmPrm { action } => handle_simple_schema!(action, OhmPrm),
+        SchemaType::LcPavedPrm { action } => handle_simple_schema!(action, LcPavedPrm),
+        SchemaType::LcBldgPrm { action } => handle_simple_schema!(action, LcBldgPrm),
+        SchemaType::LcBsoilPrm { action } => handle_simple_schema!(action, LcBsoilPrm),
+        SchemaType::LcWaterPrm { action } => handle_simple_schema!(action, LcWaterPrm),
+        SchemaType::LcDectrPrm { action } => handle_simple_schema!(action, LcDectrPrm),
+        SchemaType::LcEvetrPrm { action } => handle_simple_schema!(action, LcEvetrPrm),
+        SchemaType::LcGrassPrm { action } => handle_simple_schema!(action, LcGrassPrm),
+        SchemaType::SurfStorePrm { action } => handle_simple_schema!(action, SurfStorePrm),
+        SchemaType::WaterDistPrm { action } => handle_simple_schema!(action, WaterDistPrm),
+        SchemaType::IrrigDaywater { action } => handle_simple_schema!(action, IrrigDaywater),
+        SchemaType::IrrigationPrm { action } => handle_simple_schema!(action, IrrigationPrm),
+        SchemaType::OutputLine { action } => handle_simple_schema!(action, OutputLine),
+        SchemaType::OutputBlock { action } => handle_simple_schema!(action, OutputBlock),
+        SchemaType::ErrorEntry { action } => handle_simple_schema!(action, ErrorEntry),
+        SchemaType::ErrorState { action } => handle_simple_schema!(action, ErrorState),
+    }
+
+    Ok(())
+}
+
 fn run(cli: Cli) -> Result<(), String> {
     match cli.command {
-        Commands::Qs {
+        #[cfg(feature = "physics")]
+        Commands::Run {
+            config,
+            output_dir,
+            format,
+        } => {
+            run_physics_command(&config, &output_dir, &format)?;
+        }
+        Commands::Schema { command } => run_schema(command)?,
+    }
+
+    Ok(())
+}
+
+fn run_flat(command: FlatCommand) -> Result<(), String> {
+    match command {
+        FlatCommand::Qs {
             qn1,
             dqndt,
             a1,
@@ -633,7 +1416,7 @@ fn run(cli: Cli) -> Result<(), String> {
             let qs = qs_calc(qn1, dqndt, a1, a2, a3).map_err(|e| e.to_string())?;
             println!("qs={qs:.10}");
         }
-        Commands::Step {
+        FlatCommand::Step {
             dt,
             dt_since_start,
             qn1_av_prev,
@@ -649,7 +1432,7 @@ fn run(cli: Cli) -> Result<(), String> {
             println!("dqndt_next={:.10}", out.dqndt_next);
             println!("qs={:.10}", out.qs);
         }
-        Commands::Series { dt, a1, a2, a3, qn } => {
+        FlatCommand::Series { dt, a1, a2, a3, qn } => {
             if qn.is_empty() {
                 return Err("`--qn` requires at least one value".to_string());
             }
@@ -668,7 +1451,15 @@ fn run(cli: Cli) -> Result<(), String> {
                 );
             }
         }
-        Commands::StateStep {
+        #[cfg(feature = "physics")]
+        FlatCommand::Run {
+            config,
+            output_dir,
+            format,
+        } => {
+            run_physics_command(&config, &output_dir, &format)?;
+        }
+        FlatCommand::StateStep {
             dt,
             dt_since_start,
             qn1,
@@ -688,7 +1479,7 @@ fn run(cli: Cli) -> Result<(), String> {
             println!("iter_safe={}", state.iter_safe);
             println!("qs={:.10}", qs);
         }
-        Commands::StateSchema => {
+        FlatCommand::StateSchema => {
             let (flat_len, nsurf) = ohm_state_schema().map_err(|e| e.to_string())?;
             let fields = ohm_state_field_names();
 
@@ -698,7 +1489,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 println!("{idx:02} {name}");
             }
         }
-        Commands::StateSchemaJson => {
+        FlatCommand::StateSchemaJson => {
             let schema = ohm_state_schema_info().map_err(|e| e.to_string())?;
 
             let payload = json!({
@@ -714,7 +1505,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::StateDefaultJson => {
+        FlatCommand::StateDefaultJson => {
             let state = ohm_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": ohm_state_schema_version(),
@@ -725,7 +1516,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::StateDefaultValuesJson => {
+        FlatCommand::StateDefaultValuesJson => {
             let state = ohm_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = ohm_state_to_values_payload(&state);
             let out = json!({
@@ -737,7 +1528,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::SuewsConfigSchemaJson => {
+        FlatCommand::SuewsConfigSchemaJson => {
             let schema = suews_config_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -749,7 +1540,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::SuewsConfigDefaultJson => {
+        FlatCommand::SuewsConfigDefaultJson => {
             let flat_len = suews_config_schema().map_err(|e| e.to_string())?;
             let state = suews_config_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -762,7 +1553,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::SuewsConfigDefaultValuesJson => {
+        FlatCommand::SuewsConfigDefaultValuesJson => {
             let state = suews_config_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = suews_config_to_values_payload(&state);
             let out = json!({
@@ -774,7 +1565,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::SuewsForcingSchemaJson => {
+        FlatCommand::SuewsForcingSchemaJson => {
             let schema = suews_forcing_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -789,7 +1580,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::SuewsForcingDefaultJson => {
+        FlatCommand::SuewsForcingDefaultJson => {
             let (flat_len, ts5mindata_ir_len) =
                 suews_forcing_schema().map_err(|e| e.to_string())?;
             let state = suews_forcing_default_from_fortran().map_err(|e| e.to_string())?;
@@ -804,7 +1595,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::SuewsForcingDefaultValuesJson => {
+        FlatCommand::SuewsForcingDefaultValuesJson => {
             let state = suews_forcing_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = suews_forcing_to_values_payload(&state);
             let out = json!({
@@ -817,7 +1608,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::HydroStateSchemaJson => {
+        FlatCommand::HydroStateSchemaJson => {
             let schema = hydro_state_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -831,7 +1622,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::HydroStateDefaultJson => {
+        FlatCommand::HydroStateDefaultJson => {
             let (flat_len, alloc_lens) = hydro_state_schema().map_err(|e| e.to_string())?;
             let state = hydro_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -845,7 +1636,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::HydroStateDefaultValuesJson => {
+        FlatCommand::HydroStateDefaultValuesJson => {
             let state = hydro_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = hydro_state_to_values_payload(&state);
             let out = json!({
@@ -858,7 +1649,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::HeatStateSchemaJson => {
+        FlatCommand::HeatStateSchemaJson => {
             let schema = heat_state_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -874,7 +1665,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::HeatStateDefaultJson => {
+        FlatCommand::HeatStateDefaultJson => {
             let (flat_len, nlayer, ndepth) = heat_state_schema().map_err(|e| e.to_string())?;
             let state = heat_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -889,7 +1680,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::HeatStateDefaultValuesJson => {
+        FlatCommand::HeatStateDefaultValuesJson => {
             let state = heat_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = heat_state_to_values_payload(&state);
             let out = json!({
@@ -902,7 +1693,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::SuewsTimerSchemaJson => {
+        FlatCommand::SuewsTimerSchemaJson => {
             let schema = suews_timer_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -914,7 +1705,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::SuewsTimerDefaultJson => {
+        FlatCommand::SuewsTimerDefaultJson => {
             let flat_len = suews_timer_schema().map_err(|e| e.to_string())?;
             let state = suews_timer_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -927,7 +1718,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::SuewsTimerDefaultValuesJson => {
+        FlatCommand::SuewsTimerDefaultValuesJson => {
             let state = suews_timer_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = suews_timer_to_values_payload(&state);
             let out = json!({
@@ -939,7 +1730,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::StateStepJson {
+        FlatCommand::StateStepJson {
             dt,
             dt_since_start,
             qn1,
@@ -972,7 +1763,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render step json: {e}"))?;
             println!("{text}");
         }
-        Commands::StateStepValuesJson {
+        FlatCommand::StateStepValuesJson {
             dt,
             dt_since_start,
             qn1,
@@ -1006,7 +1797,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render values json: {e}"))?;
             println!("{text}");
         }
-        Commands::FlagStateSchemaJson => {
+        FlatCommand::FlagStateSchemaJson => {
             let schema = flag_state_schema_info().map_err(|e| e.to_string())?;
 
             let payload = json!({
@@ -1020,7 +1811,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::FlagStateDefaultJson => {
+        FlatCommand::FlagStateDefaultJson => {
             let flat_len = flag_state_schema().map_err(|e| e.to_string())?;
             let state = flag_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1033,7 +1824,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::FlagStateDefaultValuesJson => {
+        FlatCommand::FlagStateDefaultValuesJson => {
             let state = flag_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = flag_state_to_values_payload(&state);
             let out = json!({
@@ -1045,7 +1836,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::AnthroemisStateSchemaJson => {
+        FlatCommand::AnthroemisStateSchemaJson => {
             let schema = anthroemis_state_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1057,7 +1848,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::AnthroemisStateDefaultJson => {
+        FlatCommand::AnthroemisStateDefaultJson => {
             let flat_len = anthroemis_state_schema().map_err(|e| e.to_string())?;
             let state = anthroemis_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1070,7 +1861,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::AnthroemisStateDefaultValuesJson => {
+        FlatCommand::AnthroemisStateDefaultValuesJson => {
             let state = anthroemis_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = anthroemis_state_to_values_payload(&state);
             let out = json!({
@@ -1082,7 +1873,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::AnthroHeatPrmSchemaJson => {
+        FlatCommand::AnthroHeatPrmSchemaJson => {
             let schema = anthro_heat_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1094,7 +1885,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::AnthroHeatPrmDefaultJson => {
+        FlatCommand::AnthroHeatPrmDefaultJson => {
             let flat_len = anthro_heat_prm_schema().map_err(|e| e.to_string())?;
             let state = anthro_heat_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1107,7 +1898,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::AnthroHeatPrmDefaultValuesJson => {
+        FlatCommand::AnthroHeatPrmDefaultValuesJson => {
             let state = anthro_heat_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = anthro_heat_prm_to_values_payload(&state);
             let out = json!({
@@ -1119,7 +1910,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::AnthroEmisPrmSchemaJson => {
+        FlatCommand::AnthroEmisPrmSchemaJson => {
             let schema = anthro_emis_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1131,7 +1922,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::AnthroEmisPrmDefaultJson => {
+        FlatCommand::AnthroEmisPrmDefaultJson => {
             let flat_len = anthro_emis_prm_schema().map_err(|e| e.to_string())?;
             let state = anthro_emis_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1144,7 +1935,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::AnthroEmisPrmDefaultValuesJson => {
+        FlatCommand::AnthroEmisPrmDefaultValuesJson => {
             let state = anthro_emis_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = anthro_emis_prm_to_values_payload(&state);
             let out = json!({
@@ -1156,7 +1947,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::AtmStateSchemaJson => {
+        FlatCommand::AtmStateSchemaJson => {
             let schema = atm_state_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1168,7 +1959,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::AtmStateDefaultJson => {
+        FlatCommand::AtmStateDefaultJson => {
             let flat_len = atm_state_schema().map_err(|e| e.to_string())?;
             let state = atm_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1181,7 +1972,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::AtmStateDefaultValuesJson => {
+        FlatCommand::AtmStateDefaultValuesJson => {
             let state = atm_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = atm_state_to_values_payload(&state);
             let out = json!({
@@ -1193,7 +1984,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::BuildingArchetypePrmSchemaJson => {
+        FlatCommand::BuildingArchetypePrmSchemaJson => {
             let schema = building_archetype_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1205,7 +1996,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::BuildingArchetypePrmDefaultJson => {
+        FlatCommand::BuildingArchetypePrmDefaultJson => {
             let flat_len = building_archetype_prm_schema().map_err(|e| e.to_string())?;
             let state = building_archetype_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1218,7 +2009,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::BuildingArchetypePrmDefaultValuesJson => {
+        FlatCommand::BuildingArchetypePrmDefaultValuesJson => {
             let state = building_archetype_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = building_archetype_prm_to_values_payload(&state);
             let out = json!({
@@ -1230,7 +2021,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::StebbsPrmSchemaJson => {
+        FlatCommand::StebbsPrmSchemaJson => {
             let schema = stebbs_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1242,7 +2033,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::StebbsPrmDefaultJson => {
+        FlatCommand::StebbsPrmDefaultJson => {
             let flat_len = stebbs_prm_schema().map_err(|e| e.to_string())?;
             let state = stebbs_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1255,7 +2046,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::StebbsPrmDefaultValuesJson => {
+        FlatCommand::StebbsPrmDefaultValuesJson => {
             let state = stebbs_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = stebbs_prm_to_values_payload(&state);
             let out = json!({
@@ -1267,7 +2058,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::OutputLineSchemaJson => {
+        FlatCommand::OutputLineSchemaJson => {
             let schema = output_line_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1279,7 +2070,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::OutputLineDefaultJson => {
+        FlatCommand::OutputLineDefaultJson => {
             let flat_len = output_line_schema().map_err(|e| e.to_string())?;
             let state = output_line_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1292,7 +2083,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::OutputLineDefaultValuesJson => {
+        FlatCommand::OutputLineDefaultValuesJson => {
             let state = output_line_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = output_line_to_values_payload(&state);
             let out = json!({
@@ -1304,7 +2095,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::OutputBlockSchemaJson => {
+        FlatCommand::OutputBlockSchemaJson => {
             let schema = output_block_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1317,7 +2108,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::OutputBlockDefaultJson => {
+        FlatCommand::OutputBlockDefaultJson => {
             let flat_len = output_block_schema().map_err(|e| e.to_string())?;
             let state = output_block_default_from_fortran().map_err(|e| e.to_string())?;
             let payload_values = output_block_to_values_payload(&state);
@@ -1334,7 +2125,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::OutputBlockDefaultValuesJson => {
+        FlatCommand::OutputBlockDefaultValuesJson => {
             let state = output_block_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = output_block_to_values_payload(&state);
             let out = json!({
@@ -1347,7 +2138,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::ErrorEntrySchemaJson => {
+        FlatCommand::ErrorEntrySchemaJson => {
             let schema = error_entry_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1362,7 +2153,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::ErrorEntryDefaultJson => {
+        FlatCommand::ErrorEntryDefaultJson => {
             let (timer_flat_len, message_len, location_len) =
                 error_entry_schema().map_err(|e| e.to_string())?;
             let state = error_entry_default_from_fortran().map_err(|e| e.to_string())?;
@@ -1384,7 +2175,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::ErrorEntryDefaultValuesJson => {
+        FlatCommand::ErrorEntryDefaultValuesJson => {
             let state = error_entry_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = error_entry_to_values_payload(&state);
             let out = json!({
@@ -1399,7 +2190,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::ErrorStateSchemaJson => {
+        FlatCommand::ErrorStateSchemaJson => {
             let schema = error_state_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1416,7 +2207,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::ErrorStateDefaultJson => {
+        FlatCommand::ErrorStateDefaultJson => {
             let message_len = error_state_schema().map_err(|e| e.to_string())?;
             let state = error_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload_values = error_state_to_values_payload(&state);
@@ -1452,7 +2243,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::ErrorStateDefaultValuesJson => {
+        FlatCommand::ErrorStateDefaultValuesJson => {
             let state = error_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = error_state_to_values_payload(&state);
             let log = payload
@@ -1484,7 +2275,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::ConductancePrmSchemaJson => {
+        FlatCommand::ConductancePrmSchemaJson => {
             let schema = conductance_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1496,7 +2287,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::ConductancePrmDefaultJson => {
+        FlatCommand::ConductancePrmDefaultJson => {
             let flat_len = conductance_prm_schema().map_err(|e| e.to_string())?;
             let state = conductance_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1509,7 +2300,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::ConductancePrmDefaultValuesJson => {
+        FlatCommand::ConductancePrmDefaultValuesJson => {
             let state = conductance_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = conductance_prm_to_values_payload(&state);
             let out = json!({
@@ -1521,7 +2312,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::EhcPrmSchemaJson => {
+        FlatCommand::EhcPrmSchemaJson => {
             let schema = ehc_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1536,7 +2327,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::EhcPrmDefaultJson => {
+        FlatCommand::EhcPrmDefaultJson => {
             let (flat_len, nlayer, ndepth) = ehc_prm_schema().map_err(|e| e.to_string())?;
             let state = ehc_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1551,7 +2342,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::SpartacusPrmSchemaJson => {
+        FlatCommand::SpartacusPrmSchemaJson => {
             let schema = spartacus_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1567,8 +2358,9 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::SpartacusPrmDefaultJson => {
-            let (flat_len, height_len, nlayer) = spartacus_prm_schema().map_err(|e| e.to_string())?;
+        FlatCommand::SpartacusPrmDefaultJson => {
+            let (flat_len, height_len, nlayer) =
+                spartacus_prm_schema().map_err(|e| e.to_string())?;
             let state = spartacus_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": spartacus_prm_schema_version(),
@@ -1582,7 +2374,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::SpartacusPrmDefaultValuesJson => {
+        FlatCommand::SpartacusPrmDefaultValuesJson => {
             let state = spartacus_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = spartacus_prm_to_values_payload(&state);
             let out = json!({
@@ -1595,7 +2387,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::SpartacusLayerPrmSchemaJson => {
+        FlatCommand::SpartacusLayerPrmSchemaJson => {
             let schema = spartacus_layer_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1610,8 +2402,9 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::SpartacusLayerPrmDefaultJson => {
-            let (flat_len, nlayer, nspec) = spartacus_layer_prm_schema().map_err(|e| e.to_string())?;
+        FlatCommand::SpartacusLayerPrmDefaultJson => {
+            let (flat_len, nlayer, nspec) =
+                spartacus_layer_prm_schema().map_err(|e| e.to_string())?;
             let state = spartacus_layer_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": spartacus_layer_prm_schema_version(),
@@ -1625,7 +2418,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::SpartacusLayerPrmDefaultValuesJson => {
+        FlatCommand::SpartacusLayerPrmDefaultValuesJson => {
             let state = spartacus_layer_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = spartacus_layer_prm_to_values_payload(&state);
             let out = json!({
@@ -1638,7 +2431,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::SuewsSiteSchemaJson => {
+        FlatCommand::SuewsSiteSchemaJson => {
             let schema = suews_site_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1652,7 +2445,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::SuewsSiteDefaultJson => {
+        FlatCommand::SuewsSiteDefaultJson => {
             let state = suews_site_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": suews_site_schema_version(),
@@ -1664,7 +2457,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::SuewsSiteDefaultValuesJson => {
+        FlatCommand::SuewsSiteDefaultValuesJson => {
             let state = suews_site_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = suews_site_to_values_payload(&state);
             let out = json!({
@@ -1676,7 +2469,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::SuewsSiteDefaultNestedJson => {
+        FlatCommand::SuewsSiteDefaultNestedJson => {
             let state = suews_site_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = suews_site_to_nested_payload(&state);
             let out = json!({
@@ -1688,7 +2481,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default nested json: {e}"))?;
             println!("{text}");
         }
-        Commands::EhcPrmDefaultValuesJson => {
+        FlatCommand::EhcPrmDefaultValuesJson => {
             let state = ehc_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = ehc_prm_to_values_payload(&state);
             let out = json!({
@@ -1701,7 +2494,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::Bioco2PrmSchemaJson => {
+        FlatCommand::Bioco2PrmSchemaJson => {
             let schema = bioco2_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1713,7 +2506,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::Bioco2PrmDefaultJson => {
+        FlatCommand::Bioco2PrmDefaultJson => {
             let flat_len = bioco2_prm_schema().map_err(|e| e.to_string())?;
             let state = bioco2_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1726,7 +2519,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::Bioco2PrmDefaultValuesJson => {
+        FlatCommand::Bioco2PrmDefaultValuesJson => {
             let state = bioco2_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = bioco2_prm_to_values_payload(&state);
             let out = json!({
@@ -1738,7 +2531,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::LaiPrmSchemaJson => {
+        FlatCommand::LaiPrmSchemaJson => {
             let schema = lai_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1750,7 +2543,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::LaiPrmDefaultJson => {
+        FlatCommand::LaiPrmDefaultJson => {
             let flat_len = lai_prm_schema().map_err(|e| e.to_string())?;
             let state = lai_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1763,7 +2556,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::LaiPrmDefaultValuesJson => {
+        FlatCommand::LaiPrmDefaultValuesJson => {
             let state = lai_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = lai_prm_to_values_payload(&state);
             let out = json!({
@@ -1775,7 +2568,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::PhenologyStateSchemaJson => {
+        FlatCommand::PhenologyStateSchemaJson => {
             let schema = phenology_state_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1787,7 +2580,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::PhenologyStateDefaultJson => {
+        FlatCommand::PhenologyStateDefaultJson => {
             let flat_len = phenology_state_schema().map_err(|e| e.to_string())?;
             let state = phenology_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1800,7 +2593,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::PhenologyStateDefaultValuesJson => {
+        FlatCommand::PhenologyStateDefaultValuesJson => {
             let state = phenology_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = phenology_state_to_values_payload(&state);
             let out = json!({
@@ -1812,7 +2605,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::SnowStateSchemaJson => {
+        FlatCommand::SnowStateSchemaJson => {
             let schema = snow_state_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1824,7 +2617,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::SnowStateDefaultJson => {
+        FlatCommand::SnowStateDefaultJson => {
             let flat_len = snow_state_schema().map_err(|e| e.to_string())?;
             let state = snow_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1837,7 +2630,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::SnowStateDefaultValuesJson => {
+        FlatCommand::SnowStateDefaultValuesJson => {
             let state = snow_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = snow_state_to_values_payload(&state);
             let out = json!({
@@ -1849,7 +2642,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::SnowPrmSchemaJson => {
+        FlatCommand::SnowPrmSchemaJson => {
             let schema = snow_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1861,7 +2654,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::SnowPrmDefaultJson => {
+        FlatCommand::SnowPrmDefaultJson => {
             let flat_len = snow_prm_schema().map_err(|e| e.to_string())?;
             let state = snow_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1874,7 +2667,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::SnowPrmDefaultValuesJson => {
+        FlatCommand::SnowPrmDefaultValuesJson => {
             let state = snow_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = snow_prm_to_values_payload(&state);
             let out = json!({
@@ -1886,7 +2679,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::SoilPrmSchemaJson => {
+        FlatCommand::SoilPrmSchemaJson => {
             let schema = soil_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1898,7 +2691,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::SoilPrmDefaultJson => {
+        FlatCommand::SoilPrmDefaultJson => {
             let flat_len = soil_prm_schema().map_err(|e| e.to_string())?;
             let state = soil_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1911,7 +2704,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::SoilPrmDefaultValuesJson => {
+        FlatCommand::SoilPrmDefaultValuesJson => {
             let state = soil_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = soil_prm_to_values_payload(&state);
             let out = json!({
@@ -1923,7 +2716,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcPavedPrmSchemaJson => {
+        FlatCommand::LcPavedPrmSchemaJson => {
             let schema = lc_paved_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1935,7 +2728,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcPavedPrmDefaultJson => {
+        FlatCommand::LcPavedPrmDefaultJson => {
             let flat_len = lc_paved_prm_schema().map_err(|e| e.to_string())?;
             let state = lc_paved_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1948,7 +2741,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcPavedPrmDefaultValuesJson => {
+        FlatCommand::LcPavedPrmDefaultValuesJson => {
             let state = lc_paved_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = lc_paved_prm_to_values_payload(&state);
             let out = json!({
@@ -1960,7 +2753,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcBldgPrmSchemaJson => {
+        FlatCommand::LcBldgPrmSchemaJson => {
             let schema = lc_bldg_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -1972,7 +2765,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcBldgPrmDefaultJson => {
+        FlatCommand::LcBldgPrmDefaultJson => {
             let flat_len = lc_bldg_prm_schema().map_err(|e| e.to_string())?;
             let state = lc_bldg_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -1985,7 +2778,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcBldgPrmDefaultValuesJson => {
+        FlatCommand::LcBldgPrmDefaultValuesJson => {
             let state = lc_bldg_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = lc_bldg_prm_to_values_payload(&state);
             let out = json!({
@@ -1997,7 +2790,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcBsoilPrmSchemaJson => {
+        FlatCommand::LcBsoilPrmSchemaJson => {
             let schema = lc_bsoil_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -2009,7 +2802,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcBsoilPrmDefaultJson => {
+        FlatCommand::LcBsoilPrmDefaultJson => {
             let flat_len = lc_bsoil_prm_schema().map_err(|e| e.to_string())?;
             let state = lc_bsoil_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2022,7 +2815,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcBsoilPrmDefaultValuesJson => {
+        FlatCommand::LcBsoilPrmDefaultValuesJson => {
             let state = lc_bsoil_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = lc_bsoil_prm_to_values_payload(&state);
             let out = json!({
@@ -2034,7 +2827,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcWaterPrmSchemaJson => {
+        FlatCommand::LcWaterPrmSchemaJson => {
             let schema = lc_water_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -2046,7 +2839,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcWaterPrmDefaultJson => {
+        FlatCommand::LcWaterPrmDefaultJson => {
             let flat_len = lc_water_prm_schema().map_err(|e| e.to_string())?;
             let state = lc_water_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2059,7 +2852,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcWaterPrmDefaultValuesJson => {
+        FlatCommand::LcWaterPrmDefaultValuesJson => {
             let state = lc_water_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = lc_water_prm_to_values_payload(&state);
             let out = json!({
@@ -2071,7 +2864,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcDectrPrmSchemaJson => {
+        FlatCommand::LcDectrPrmSchemaJson => {
             let schema = lc_dectr_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -2083,7 +2876,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcDectrPrmDefaultJson => {
+        FlatCommand::LcDectrPrmDefaultJson => {
             let flat_len = lc_dectr_prm_schema().map_err(|e| e.to_string())?;
             let state = lc_dectr_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2096,7 +2889,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcDectrPrmDefaultValuesJson => {
+        FlatCommand::LcDectrPrmDefaultValuesJson => {
             let state = lc_dectr_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = lc_dectr_prm_to_values_payload(&state);
             let out = json!({
@@ -2108,7 +2901,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcEvetrPrmSchemaJson => {
+        FlatCommand::LcEvetrPrmSchemaJson => {
             let schema = lc_evetr_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -2120,7 +2913,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcEvetrPrmDefaultJson => {
+        FlatCommand::LcEvetrPrmDefaultJson => {
             let flat_len = lc_evetr_prm_schema().map_err(|e| e.to_string())?;
             let state = lc_evetr_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2133,7 +2926,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcEvetrPrmDefaultValuesJson => {
+        FlatCommand::LcEvetrPrmDefaultValuesJson => {
             let state = lc_evetr_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = lc_evetr_prm_to_values_payload(&state);
             let out = json!({
@@ -2145,7 +2938,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcGrassPrmSchemaJson => {
+        FlatCommand::LcGrassPrmSchemaJson => {
             let schema = lc_grass_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -2157,7 +2950,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcGrassPrmDefaultJson => {
+        FlatCommand::LcGrassPrmDefaultJson => {
             let flat_len = lc_grass_prm_schema().map_err(|e| e.to_string())?;
             let state = lc_grass_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2170,7 +2963,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::LcGrassPrmDefaultValuesJson => {
+        FlatCommand::LcGrassPrmDefaultValuesJson => {
             let state = lc_grass_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = lc_grass_prm_to_values_payload(&state);
             let out = json!({
@@ -2182,7 +2975,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::SurfStorePrmSchemaJson => {
+        FlatCommand::SurfStorePrmSchemaJson => {
             let schema = surf_store_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -2194,7 +2987,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::SurfStorePrmDefaultJson => {
+        FlatCommand::SurfStorePrmDefaultJson => {
             let flat_len = surf_store_prm_schema().map_err(|e| e.to_string())?;
             let state = surf_store_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2207,7 +3000,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::SurfStorePrmDefaultValuesJson => {
+        FlatCommand::SurfStorePrmDefaultValuesJson => {
             let state = surf_store_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = surf_store_prm_to_values_payload(&state);
             let out = json!({
@@ -2219,7 +3012,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::WaterDistPrmSchemaJson => {
+        FlatCommand::WaterDistPrmSchemaJson => {
             let schema = water_dist_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -2231,7 +3024,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::WaterDistPrmDefaultJson => {
+        FlatCommand::WaterDistPrmDefaultJson => {
             let flat_len = water_dist_prm_schema().map_err(|e| e.to_string())?;
             let state = water_dist_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2244,7 +3037,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::WaterDistPrmDefaultValuesJson => {
+        FlatCommand::WaterDistPrmDefaultValuesJson => {
             let state = water_dist_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = water_dist_prm_to_values_payload(&state);
             let out = json!({
@@ -2256,7 +3049,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::IrrigDaywaterSchemaJson => {
+        FlatCommand::IrrigDaywaterSchemaJson => {
             let schema = irrig_daywater_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -2268,7 +3061,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::IrrigDaywaterDefaultJson => {
+        FlatCommand::IrrigDaywaterDefaultJson => {
             let flat_len = irrig_daywater_schema().map_err(|e| e.to_string())?;
             let state = irrig_daywater_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2281,7 +3074,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::IrrigDaywaterDefaultValuesJson => {
+        FlatCommand::IrrigDaywaterDefaultValuesJson => {
             let state = irrig_daywater_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = irrig_daywater_to_values_payload(&state);
             let out = json!({
@@ -2293,7 +3086,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::IrrigationPrmSchemaJson => {
+        FlatCommand::IrrigationPrmSchemaJson => {
             let schema = irrigation_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -2305,7 +3098,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::IrrigationPrmDefaultJson => {
+        FlatCommand::IrrigationPrmDefaultJson => {
             let flat_len = irrigation_prm_schema().map_err(|e| e.to_string())?;
             let state = irrigation_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2318,7 +3111,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::IrrigationPrmDefaultValuesJson => {
+        FlatCommand::IrrigationPrmDefaultValuesJson => {
             let state = irrigation_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = irrigation_prm_to_values_payload(&state);
             let out = json!({
@@ -2330,7 +3123,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::LumpsPrmSchemaJson => {
+        FlatCommand::LumpsPrmSchemaJson => {
             let schema = lumps_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -2342,7 +3135,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::LumpsPrmDefaultJson => {
+        FlatCommand::LumpsPrmDefaultJson => {
             let flat_len = lumps_prm_schema().map_err(|e| e.to_string())?;
             let state = lumps_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2355,7 +3148,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::LumpsPrmDefaultValuesJson => {
+        FlatCommand::LumpsPrmDefaultValuesJson => {
             let state = lumps_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = lumps_prm_to_values_payload(&state);
             let out = json!({
@@ -2367,7 +3160,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::OhmCoefLcSchemaJson => {
+        FlatCommand::OhmCoefLcSchemaJson => {
             let schema = ohm_coef_lc_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -2379,7 +3172,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::OhmCoefLcDefaultJson => {
+        FlatCommand::OhmCoefLcDefaultJson => {
             let flat_len = ohm_coef_lc_schema().map_err(|e| e.to_string())?;
             let state = ohm_coef_lc_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2392,7 +3185,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::OhmCoefLcDefaultValuesJson => {
+        FlatCommand::OhmCoefLcDefaultValuesJson => {
             let state = ohm_coef_lc_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = ohm_coef_lc_to_values_payload(&state);
             let out = json!({
@@ -2404,7 +3197,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::OhmPrmSchemaJson => {
+        FlatCommand::OhmPrmSchemaJson => {
             let schema = ohm_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -2416,7 +3209,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::OhmPrmDefaultJson => {
+        FlatCommand::OhmPrmDefaultJson => {
             let flat_len = ohm_prm_schema().map_err(|e| e.to_string())?;
             let state = ohm_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2429,7 +3222,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::OhmPrmDefaultValuesJson => {
+        FlatCommand::OhmPrmDefaultValuesJson => {
             let state = ohm_prm_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = ohm_prm_to_values_payload(&state);
             let out = json!({
@@ -2441,7 +3234,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::SolarStateSchemaJson => {
+        FlatCommand::SolarStateSchemaJson => {
             let schema = solar_state_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -2453,7 +3246,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::SolarStateDefaultJson => {
+        FlatCommand::SolarStateDefaultJson => {
             let flat_len = solar_state_schema().map_err(|e| e.to_string())?;
             let state = solar_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2466,7 +3259,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::SolarStateDefaultValuesJson => {
+        FlatCommand::SolarStateDefaultValuesJson => {
             let state = solar_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = solar_state_to_values_payload(&state);
             let out = json!({
@@ -2478,7 +3271,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::RoughnessStateSchemaJson => {
+        FlatCommand::RoughnessStateSchemaJson => {
             let schema = roughness_state_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -2490,7 +3283,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::RoughnessStateDefaultJson => {
+        FlatCommand::RoughnessStateDefaultJson => {
             let flat_len = roughness_state_schema().map_err(|e| e.to_string())?;
             let state = roughness_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2503,7 +3296,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::RoughnessStateDefaultValuesJson => {
+        FlatCommand::RoughnessStateDefaultValuesJson => {
             let state = roughness_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = roughness_state_to_values_payload(&state);
             let out = json!({
@@ -2515,7 +3308,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        Commands::NhoodStateSchemaJson => {
+        FlatCommand::NhoodStateSchemaJson => {
             let schema = nhood_state_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
                 "schema_version": schema.schema_version,
@@ -2527,7 +3320,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render schema json: {e}"))?;
             println!("{text}");
         }
-        Commands::NhoodStateDefaultJson => {
+        FlatCommand::NhoodStateDefaultJson => {
             let flat_len = nhood_state_schema().map_err(|e| e.to_string())?;
             let state = nhood_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2540,7 +3333,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default state json: {e}"))?;
             println!("{text}");
         }
-        Commands::NhoodStateDefaultValuesJson => {
+        FlatCommand::NhoodStateDefaultValuesJson => {
             let state = nhood_state_default_from_fortran().map_err(|e| e.to_string())?;
             let payload = nhood_state_to_values_payload(&state);
             let out = json!({
@@ -2560,6 +3353,48 @@ fn run(cli: Cli) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use paste::paste;
+
+    macro_rules! test_schema {
+        ($name:ident, $variant:ident, $action_enum:ident, $action:ident) => {
+            #[test]
+            fn $name() {
+                let cli = Cli {
+                    command: Commands::Schema {
+                        command: SchemaType::$variant {
+                            action: $action_enum::$action,
+                        },
+                    },
+                };
+                run(cli).expect(concat!(stringify!($name), " should succeed"));
+            }
+        };
+    }
+
+    macro_rules! test_simple_schema_all {
+        ($prefix:ident, $variant:ident) => {
+            paste! {
+                test_schema!(
+                    [<run_ $prefix _schema_json_succeeds>],
+                    $variant,
+                    StandardSchemaAction,
+                    SchemaJson
+                );
+                test_schema!(
+                    [<run_ $prefix _default_json_succeeds>],
+                    $variant,
+                    StandardSchemaAction,
+                    DefaultJson
+                );
+                test_schema!(
+                    [<run_ $prefix _default_values_json_succeeds>],
+                    $variant,
+                    StandardSchemaAction,
+                    DefaultValuesJson
+                );
+            }
+        };
+    }
 
     #[test]
     fn parse_state_map_accepts_wrapped_form() {
@@ -2634,755 +3469,219 @@ mod tests {
         assert!(err.contains("schema_version mismatch"));
     }
 
-    #[test]
-    fn run_state_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::StateDefaultJson,
-        };
-        run(cli).expect("state-default-json should succeed");
-    }
-
-    #[test]
-    fn run_state_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::StateDefaultValuesJson,
-        };
-        run(cli).expect("state-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_suews_config_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SuewsConfigDefaultJson,
-        };
-        run(cli).expect("suews-config-default-json should succeed");
-    }
-
-    #[test]
-    fn run_suews_config_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SuewsConfigDefaultValuesJson,
-        };
-        run(cli).expect("suews-config-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_suews_forcing_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SuewsForcingDefaultJson,
-        };
-        run(cli).expect("suews-forcing-default-json should succeed");
-    }
-
-    #[test]
-    fn run_suews_forcing_schema_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SuewsForcingSchemaJson,
-        };
-        run(cli).expect("suews-forcing-schema-json should succeed");
-    }
-
-    #[test]
-    fn run_suews_forcing_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SuewsForcingDefaultValuesJson,
-        };
-        run(cli).expect("suews-forcing-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_hydro_state_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::HydroStateDefaultJson,
-        };
-        run(cli).expect("hydro-state-default-json should succeed");
-    }
-
-    #[test]
-    fn run_hydro_state_schema_json_succeeds() {
-        let cli = Cli {
-            command: Commands::HydroStateSchemaJson,
-        };
-        run(cli).expect("hydro-state-schema-json should succeed");
-    }
-
-    #[test]
-    fn run_hydro_state_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::HydroStateDefaultValuesJson,
-        };
-        run(cli).expect("hydro-state-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_heat_state_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::HeatStateDefaultJson,
-        };
-        run(cli).expect("heat-state-default-json should succeed");
-    }
-
-    #[test]
-    fn run_heat_state_schema_json_succeeds() {
-        let cli = Cli {
-            command: Commands::HeatStateSchemaJson,
-        };
-        run(cli).expect("heat-state-schema-json should succeed");
-    }
-
-    #[test]
-    fn run_heat_state_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::HeatStateDefaultValuesJson,
-        };
-        run(cli).expect("heat-state-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_suews_timer_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SuewsTimerDefaultJson,
-        };
-        run(cli).expect("suews-timer-default-json should succeed");
-    }
-
-    #[test]
-    fn run_suews_timer_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SuewsTimerDefaultValuesJson,
-        };
-        run(cli).expect("suews-timer-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_flag_state_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::FlagStateDefaultJson,
-        };
-        run(cli).expect("flag-state-default-json should succeed");
-    }
-
-    #[test]
-    fn run_flag_state_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::FlagStateDefaultValuesJson,
-        };
-        run(cli).expect("flag-state-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_anthroemis_state_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::AnthroemisStateDefaultJson,
-        };
-        run(cli).expect("anthroemis-state-default-json should succeed");
-    }
-
-    #[test]
-    fn run_anthroemis_state_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::AnthroemisStateDefaultValuesJson,
-        };
-        run(cli).expect("anthroemis-state-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_anthro_heat_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::AnthroHeatPrmDefaultJson,
-        };
-        run(cli).expect("anthro-heat-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_anthro_heat_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::AnthroHeatPrmDefaultValuesJson,
-        };
-        run(cli).expect("anthro-heat-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_anthro_emis_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::AnthroEmisPrmDefaultJson,
-        };
-        run(cli).expect("anthro-emis-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_anthro_emis_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::AnthroEmisPrmDefaultValuesJson,
-        };
-        run(cli).expect("anthro-emis-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_atm_state_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::AtmStateDefaultJson,
-        };
-        run(cli).expect("atm-state-default-json should succeed");
-    }
-
-    #[test]
-    fn run_atm_state_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::AtmStateDefaultValuesJson,
-        };
-        run(cli).expect("atm-state-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_building_archetype_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::BuildingArchetypePrmDefaultJson,
-        };
-        run(cli).expect("building-archetype-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_building_archetype_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::BuildingArchetypePrmDefaultValuesJson,
-        };
-        run(cli).expect("building-archetype-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_stebbs_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::StebbsPrmDefaultJson,
-        };
-        run(cli).expect("stebbs-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_stebbs_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::StebbsPrmDefaultValuesJson,
-        };
-        run(cli).expect("stebbs-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_output_line_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::OutputLineDefaultJson,
-        };
-        run(cli).expect("output-line-default-json should succeed");
-    }
-
-    #[test]
-    fn run_output_line_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::OutputLineDefaultValuesJson,
-        };
-        run(cli).expect("output-line-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_output_block_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::OutputBlockDefaultJson,
-        };
-        run(cli).expect("output-block-default-json should succeed");
-    }
-
-    #[test]
-    fn run_output_block_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::OutputBlockDefaultValuesJson,
-        };
-        run(cli).expect("output-block-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_error_entry_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::ErrorEntryDefaultJson,
-        };
-        run(cli).expect("error-entry-default-json should succeed");
-    }
-
-    #[test]
-    fn run_error_entry_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::ErrorEntryDefaultValuesJson,
-        };
-        run(cli).expect("error-entry-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_error_state_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::ErrorStateDefaultJson,
-        };
-        run(cli).expect("error-state-default-json should succeed");
-    }
-
-    #[test]
-    fn run_error_state_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::ErrorStateDefaultValuesJson,
-        };
-        run(cli).expect("error-state-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_conductance_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::ConductancePrmDefaultJson,
-        };
-        run(cli).expect("conductance-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_conductance_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::ConductancePrmDefaultValuesJson,
-        };
-        run(cli).expect("conductance-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_ehc_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::EhcPrmDefaultJson,
-        };
-        run(cli).expect("ehc-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_ehc_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::EhcPrmDefaultValuesJson,
-        };
-        run(cli).expect("ehc-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_spartacus_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SpartacusPrmDefaultJson,
-        };
-        run(cli).expect("spartacus-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_spartacus_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SpartacusPrmDefaultValuesJson,
-        };
-        run(cli).expect("spartacus-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_spartacus_layer_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SpartacusLayerPrmDefaultJson,
-        };
-        run(cli).expect("spartacus-layer-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_spartacus_layer_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SpartacusLayerPrmDefaultValuesJson,
-        };
-        run(cli).expect("spartacus-layer-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_suews_site_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SuewsSiteDefaultJson,
-        };
-        run(cli).expect("suews-site-default-json should succeed");
-    }
-
-    #[test]
-    fn run_suews_site_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SuewsSiteDefaultValuesJson,
-        };
-        run(cli).expect("suews-site-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_suews_site_default_nested_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SuewsSiteDefaultNestedJson,
-        };
-        run(cli).expect("suews-site-default-nested-json should succeed");
-    }
-
-    #[test]
-    fn run_bioco2_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::Bioco2PrmDefaultJson,
-        };
-        run(cli).expect("bioco2-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_bioco2_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::Bioco2PrmDefaultValuesJson,
-        };
-        run(cli).expect("bioco2-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_lai_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LaiPrmDefaultJson,
-        };
-        run(cli).expect("lai-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_lai_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LaiPrmDefaultValuesJson,
-        };
-        run(cli).expect("lai-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_phenology_state_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::PhenologyStateDefaultJson,
-        };
-        run(cli).expect("phenology-state-default-json should succeed");
-    }
-
-    #[test]
-    fn run_phenology_state_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::PhenologyStateDefaultValuesJson,
-        };
-        run(cli).expect("phenology-state-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_snow_state_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SnowStateDefaultJson,
-        };
-        run(cli).expect("snow-state-default-json should succeed");
-    }
-
-    #[test]
-    fn run_snow_state_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SnowStateDefaultValuesJson,
-        };
-        run(cli).expect("snow-state-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_snow_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SnowPrmDefaultJson,
-        };
-        run(cli).expect("snow-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_snow_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SnowPrmDefaultValuesJson,
-        };
-        run(cli).expect("snow-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_soil_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SoilPrmDefaultJson,
-        };
-        run(cli).expect("soil-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_soil_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SoilPrmDefaultValuesJson,
-        };
-        run(cli).expect("soil-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_lc_paved_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LcPavedPrmDefaultJson,
-        };
-        run(cli).expect("lc-paved-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_lc_paved_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LcPavedPrmDefaultValuesJson,
-        };
-        run(cli).expect("lc-paved-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_lc_bldg_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LcBldgPrmDefaultJson,
-        };
-        run(cli).expect("lc-bldg-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_lc_bldg_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LcBldgPrmDefaultValuesJson,
-        };
-        run(cli).expect("lc-bldg-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_lc_bsoil_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LcBsoilPrmDefaultJson,
-        };
-        run(cli).expect("lc-bsoil-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_lc_bsoil_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LcBsoilPrmDefaultValuesJson,
-        };
-        run(cli).expect("lc-bsoil-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_lc_water_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LcWaterPrmDefaultJson,
-        };
-        run(cli).expect("lc-water-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_lc_water_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LcWaterPrmDefaultValuesJson,
-        };
-        run(cli).expect("lc-water-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_lc_dectr_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LcDectrPrmDefaultJson,
-        };
-        run(cli).expect("lc-dectr-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_lc_dectr_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LcDectrPrmDefaultValuesJson,
-        };
-        run(cli).expect("lc-dectr-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_lc_evetr_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LcEvetrPrmDefaultJson,
-        };
-        run(cli).expect("lc-evetr-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_lc_evetr_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LcEvetrPrmDefaultValuesJson,
-        };
-        run(cli).expect("lc-evetr-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_lc_grass_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LcGrassPrmDefaultJson,
-        };
-        run(cli).expect("lc-grass-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_lc_grass_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LcGrassPrmDefaultValuesJson,
-        };
-        run(cli).expect("lc-grass-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_surf_store_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SurfStorePrmDefaultJson,
-        };
-        run(cli).expect("surf-store-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_surf_store_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SurfStorePrmDefaultValuesJson,
-        };
-        run(cli).expect("surf-store-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_water_dist_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::WaterDistPrmDefaultJson,
-        };
-        run(cli).expect("water-dist-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_water_dist_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::WaterDistPrmDefaultValuesJson,
-        };
-        run(cli).expect("water-dist-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_irrig_daywater_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::IrrigDaywaterDefaultJson,
-        };
-        run(cli).expect("irrig-daywater-default-json should succeed");
-    }
-
-    #[test]
-    fn run_irrig_daywater_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::IrrigDaywaterDefaultValuesJson,
-        };
-        run(cli).expect("irrig-daywater-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_irrigation_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::IrrigationPrmDefaultJson,
-        };
-        run(cli).expect("irrigation-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_irrigation_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::IrrigationPrmDefaultValuesJson,
-        };
-        run(cli).expect("irrigation-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_lumps_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LumpsPrmDefaultJson,
-        };
-        run(cli).expect("lumps-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_lumps_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::LumpsPrmDefaultValuesJson,
-        };
-        run(cli).expect("lumps-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_ohm_coef_lc_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::OhmCoefLcDefaultJson,
-        };
-        run(cli).expect("ohm-coef-lc-default-json should succeed");
-    }
-
-    #[test]
-    fn run_ohm_coef_lc_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::OhmCoefLcDefaultValuesJson,
-        };
-        run(cli).expect("ohm-coef-lc-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_ohm_prm_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::OhmPrmDefaultJson,
-        };
-        run(cli).expect("ohm-prm-default-json should succeed");
-    }
-
-    #[test]
-    fn run_ohm_prm_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::OhmPrmDefaultValuesJson,
-        };
-        run(cli).expect("ohm-prm-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_solar_state_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SolarStateDefaultJson,
-        };
-        run(cli).expect("solar-state-default-json should succeed");
-    }
-
-    #[test]
-    fn run_solar_state_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::SolarStateDefaultValuesJson,
-        };
-        run(cli).expect("solar-state-default-values-json should succeed");
-    }
-
-    #[test]
-    fn run_roughness_state_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::RoughnessStateDefaultJson,
-        };
-        run(cli).expect("roughness-state-default-json should succeed");
-    }
-
-    #[test]
-    fn run_roughness_state_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::RoughnessStateDefaultValuesJson,
-        };
-        run(cli).expect("roughness-state-default-values-json should succeed");
-    }
+    test_schema!(
+        run_ohm_state_schema_json_succeeds,
+        OhmState,
+        OhmStateAction,
+        SchemaJson
+    );
+    test_schema!(
+        run_ohm_state_default_json_succeeds,
+        OhmState,
+        OhmStateAction,
+        DefaultJson
+    );
+    test_schema!(
+        run_ohm_state_default_values_json_succeeds,
+        OhmState,
+        OhmStateAction,
+        DefaultValuesJson
+    );
+
+    #[test]
+    fn run_ohm_state_flat_schema_succeeds() {
+        let cli = Cli {
+            command: Commands::Schema {
+                command: SchemaType::OhmState {
+                    action: OhmStateAction::FlatSchema,
+                },
+            },
+        };
+        run(cli).expect("ohm-state flat-schema should succeed");
+    }
 
     #[test]
-    fn run_nhood_state_default_json_succeeds() {
-        let cli = Cli {
-            command: Commands::NhoodStateDefaultJson,
-        };
-        run(cli).expect("nhood-state-default-json should succeed");
-    }
-
-    #[test]
-    fn run_nhood_state_default_values_json_succeeds() {
-        let cli = Cli {
-            command: Commands::NhoodStateDefaultValuesJson,
-        };
-        run(cli).expect("nhood-state-default-values-json should succeed");
-    }
+    fn run_ohm_state_qs_succeeds() {
+        let cli = Cli {
+            command: Commands::Schema {
+                command: SchemaType::OhmState {
+                    action: OhmStateAction::Qs {
+                        qn1: 100.0,
+                        dqndt: 0.0,
+                        a1: 0.5,
+                        a2: 0.3,
+                        a3: -30.0,
+                    },
+                },
+            },
+        };
+        run(cli).expect("ohm-state qs should succeed");
+    }
+
+    #[test]
+    fn run_ohm_state_step_succeeds() {
+        let cli = Cli {
+            command: Commands::Schema {
+                command: SchemaType::OhmState {
+                    action: OhmStateAction::Step {
+                        dt: 3600,
+                        dt_since_start: 3600,
+                        qn1_av_prev: 0.0,
+                        dqndt_prev: 0.0,
+                        qn1: 100.0,
+                        a1: 0.5,
+                        a2: 0.3,
+                        a3: -30.0,
+                    },
+                },
+            },
+        };
+        run(cli).expect("ohm-state step should succeed");
+    }
+
+    #[test]
+    fn run_ohm_state_series_succeeds() {
+        let cli = Cli {
+            command: Commands::Schema {
+                command: SchemaType::OhmState {
+                    action: OhmStateAction::Series {
+                        dt: 3600,
+                        a1: 0.5,
+                        a2: 0.3,
+                        a3: -30.0,
+                        qn: vec![100.0, 110.0, 90.0],
+                    },
+                },
+            },
+        };
+        run(cli).expect("ohm-state series should succeed");
+    }
+
+    #[test]
+    fn run_ohm_state_state_step_succeeds() {
+        let cli = Cli {
+            command: Commands::Schema {
+                command: SchemaType::OhmState {
+                    action: OhmStateAction::StateStep {
+                        dt: 3600,
+                        dt_since_start: 3600,
+                        qn1: 100.0,
+                        a1: 0.5,
+                        a2: 0.3,
+                        a3: -30.0,
+                    },
+                },
+            },
+        };
+        run(cli).expect("ohm-state state-step should succeed");
+    }
+
+    #[test]
+    fn run_ohm_state_step_json_succeeds() {
+        let cli = Cli {
+            command: Commands::Schema {
+                command: SchemaType::OhmState {
+                    action: OhmStateAction::StepJson {
+                        dt: 3600,
+                        dt_since_start: 3600,
+                        qn1: 100.0,
+                        a1: 0.5,
+                        a2: 0.3,
+                        a3: -30.0,
+                        state_json: None,
+                    },
+                },
+            },
+        };
+        run(cli).expect("ohm-state step-json should succeed");
+    }
+
+    #[test]
+    fn run_ohm_state_step_values_json_succeeds() {
+        let cli = Cli {
+            command: Commands::Schema {
+                command: SchemaType::OhmState {
+                    action: OhmStateAction::StepValuesJson {
+                        dt: 3600,
+                        dt_since_start: 3600,
+                        qn1: 100.0,
+                        a1: 0.5,
+                        a2: 0.3,
+                        a3: -30.0,
+                        state_values_json: None,
+                    },
+                },
+            },
+        };
+        run(cli).expect("ohm-state step-values-json should succeed");
+    }
+
+    test_schema!(
+        run_suews_site_schema_json_succeeds,
+        SuewsSite,
+        SuewsSiteSchemaAction,
+        SchemaJson
+    );
+    test_schema!(
+        run_suews_site_default_json_succeeds,
+        SuewsSite,
+        SuewsSiteSchemaAction,
+        DefaultJson
+    );
+    test_schema!(
+        run_suews_site_default_values_json_succeeds,
+        SuewsSite,
+        SuewsSiteSchemaAction,
+        DefaultValuesJson
+    );
+    test_schema!(
+        run_suews_site_default_nested_json_succeeds,
+        SuewsSite,
+        SuewsSiteSchemaAction,
+        DefaultNestedJson
+    );
+
+    test_simple_schema_all!(suews_config, SuewsConfig);
+    test_simple_schema_all!(suews_forcing, SuewsForcing);
+    test_simple_schema_all!(hydro_state, HydroState);
+    test_simple_schema_all!(heat_state, HeatState);
+    test_simple_schema_all!(suews_timer, SuewsTimer);
+    test_simple_schema_all!(flag_state, FlagState);
+    test_simple_schema_all!(anthroemis_state, AnthroemisState);
+    test_simple_schema_all!(atm_state, AtmState);
+    test_simple_schema_all!(phenology_state, PhenologyState);
+    test_simple_schema_all!(snow_state, SnowState);
+    test_simple_schema_all!(solar_state, SolarState);
+    test_simple_schema_all!(roughness_state, RoughnessState);
+    test_simple_schema_all!(nhood_state, NhoodState);
+    test_simple_schema_all!(anthro_heat_prm, AnthroHeatPrm);
+    test_simple_schema_all!(anthro_emis_prm, AnthroEmisPrm);
+    test_simple_schema_all!(building_archetype_prm, BuildingArchetypePrm);
+    test_simple_schema_all!(stebbs_prm, StebbsPrm);
+    test_simple_schema_all!(conductance_prm, ConductancePrm);
+    test_simple_schema_all!(ehc_prm, EhcPrm);
+    test_simple_schema_all!(spartacus_prm, SpartacusPrm);
+    test_simple_schema_all!(spartacus_layer_prm, SpartacusLayerPrm);
+    test_simple_schema_all!(bioco2_prm, Bioco2Prm);
+    test_simple_schema_all!(lai_prm, LaiPrm);
+    test_simple_schema_all!(snow_prm, SnowPrm);
+    test_simple_schema_all!(soil_prm, SoilPrm);
+    test_simple_schema_all!(lumps_prm, LumpsPrm);
+    test_simple_schema_all!(ohm_coef_lc, OhmCoefLc);
+    test_simple_schema_all!(ohm_prm, OhmPrm);
+    test_simple_schema_all!(lc_paved_prm, LcPavedPrm);
+    test_simple_schema_all!(lc_bldg_prm, LcBldgPrm);
+    test_simple_schema_all!(lc_bsoil_prm, LcBsoilPrm);
+    test_simple_schema_all!(lc_water_prm, LcWaterPrm);
+    test_simple_schema_all!(lc_dectr_prm, LcDectrPrm);
+    test_simple_schema_all!(lc_evetr_prm, LcEvetrPrm);
+    test_simple_schema_all!(lc_grass_prm, LcGrassPrm);
+    test_simple_schema_all!(surf_store_prm, SurfStorePrm);
+    test_simple_schema_all!(water_dist_prm, WaterDistPrm);
+    test_simple_schema_all!(irrig_daywater, IrrigDaywater);
+    test_simple_schema_all!(irrigation_prm, IrrigationPrm);
+    test_simple_schema_all!(output_line, OutputLine);
+    test_simple_schema_all!(output_block, OutputBlock);
+    test_simple_schema_all!(error_entry, ErrorEntry);
+    test_simple_schema_all!(error_state, ErrorState);
 }

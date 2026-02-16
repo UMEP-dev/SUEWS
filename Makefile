@@ -1,5 +1,5 @@
 # SUEWS Simplified Makefile - Essential recipes only
-.PHONY: help setup submodules dev dev-dts reinstall test test-smoke test-all docs clean format
+.PHONY: help setup submodules dev dev-dts reinstall test test-smoke test-all docs clean format bridge
 
 # Default Python
 PYTHON := python
@@ -15,6 +15,7 @@ help:
 	@echo "  test-all   - Run ALL tests including slow (~4-5 min)"
 	@echo "  docs       - Build documentation"
 	@echo "  clean      - Smart clean (keeps .venv if active)"
+	@echo "  bridge     - Build the Rust bridge CLI (suews_bridge)"
 	@echo "  format     - Format Python and Fortran code"
 	@echo ""
 	@echo "Quick start:"
@@ -280,6 +281,17 @@ clean:
 	else \
 		echo "✓ Cleaned"; \
 	fi
+
+# Build the Rust bridge CLI binary
+bridge:
+	@if ! command -v cargo >/dev/null 2>&1; then \
+		echo "ERROR: cargo not found. Install Rust: https://rustup.rs"; \
+		exit 1; \
+	fi
+	@echo "Building Rust bridge CLI..."
+	cd src/suews_core && cargo build --release
+	@echo "Binary at: src/suews_core/target/release/suews"
+	@echo "Run: src/suews_core/target/release/suews --help"
 
 # Format code
 format:

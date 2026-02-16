@@ -15,6 +15,8 @@ mod error_state;
 mod ffi;
 mod flag;
 mod forcing;
+#[cfg(feature = "physics")]
+mod forcing_io;
 mod heat_state;
 mod hydro_state;
 mod irrig_daywater;
@@ -32,24 +34,30 @@ mod nhood;
 mod ohm_coef_lc;
 mod ohm_prm;
 mod output_block;
+#[cfg(feature = "physics")]
+mod output_io;
 mod output_line;
 mod phenology;
 mod roughness;
+#[cfg(feature = "physics")]
+mod sim;
 mod snow;
 mod snow_prm;
 mod soil;
 mod solar;
-mod stebbs_prm;
-mod stebbs_state;
 mod spartacus_layer_prm;
 mod spartacus_prm;
+mod stebbs_prm;
+mod stebbs_state;
 mod suews_debug;
+mod suews_site;
 mod suews_state;
 mod suews_state_block;
 mod surf_store;
-mod suews_site;
 mod timer;
 mod water_dist;
+#[cfg(feature = "physics")]
+mod yaml_config;
 
 pub use anthro_emis_prm::{
     anthro_emis_prm_default_from_fortran, anthro_emis_prm_field_index, anthro_emis_prm_field_names,
@@ -178,6 +186,8 @@ pub use forcing::{
     SuewsForcing, SuewsForcingSchema, SuewsForcingValuesPayload, SUEWS_FORCING_BASE_FLAT_LEN,
     SUEWS_FORCING_SCHEMA_VERSION, SUEWS_FORCING_TS5_FIELD,
 };
+#[cfg(feature = "physics")]
+pub use forcing_io::{interpolate_forcing, read_forcing_block, ForcingData, MET_FORCING_COLS};
 pub use heat_state::{
     heat_state_base_field_names, heat_state_default_from_fortran, heat_state_expected_flat_len,
     heat_state_field_index, heat_state_field_names, heat_state_field_names_with_dims,
@@ -318,6 +328,10 @@ pub use output_block::{
     OutputBlock, OutputBlockMatrix, OutputBlockSchema, OutputBlockValuesPayload,
     OUTPUT_BLOCK_BASE_FLAT_LEN, OUTPUT_BLOCK_FIELD_COUNT, OUTPUT_BLOCK_SCHEMA_VERSION,
 };
+#[cfg(feature = "physics")]
+pub use output_io::write_output_csv;
+#[cfg(all(feature = "physics", feature = "arrow-output"))]
+pub use output_io::write_output_arrow;
 pub use output_line::{
     output_line_default_from_fortran, output_line_field_index, output_line_field_names,
     output_line_from_map, output_line_from_ordered_values, output_line_from_values_payload,
@@ -347,6 +361,8 @@ pub use roughness::{
     RoughnessStateSchema, RoughnessStateValuesPayload, ROUGHNESS_STATE_FLAT_LEN,
     ROUGHNESS_STATE_SCHEMA_VERSION,
 };
+#[cfg(feature = "physics")]
+pub use sim::{run_simulation, SimulationInput, SimulationOutput, SiteScalars, OUTPUT_SUEWS_COLS};
 pub use snow::{
     snow_state_default_from_fortran, snow_state_field_index, snow_state_field_names,
     snow_state_from_map, snow_state_from_ordered_values, snow_state_from_values_payload,
@@ -422,6 +438,13 @@ pub use suews_debug::{
     suews_debug_to_values_payload, SuewsDebug, SuewsDebugSchema, SuewsDebugValuesPayload,
     SUEWS_DEBUG_SCHEMA_VERSION,
 };
+pub use suews_site::{
+    suews_site_default_from_fortran, suews_site_field_names, suews_site_from_map,
+    suews_site_from_nested_payload, suews_site_from_values_payload, suews_site_member_names,
+    suews_site_schema_info, suews_site_schema_version, suews_site_schema_version_runtime,
+    suews_site_to_map, suews_site_to_nested_payload, suews_site_to_values_payload, SuewsSite,
+    SuewsSiteSchema, SuewsSiteValuesPayload, SUEWS_SITE_SCHEMA_VERSION,
+};
 pub use suews_state::{
     suews_state_default_from_fortran, suews_state_from_nested_payload,
     suews_state_from_values_payload, suews_state_member_names, suews_state_schema_info,
@@ -446,13 +469,6 @@ pub use surf_store::{
     SurfStorePrmSchema, SurfStorePrmValuesPayload, SURF_STORE_PRM_FLAT_LEN,
     SURF_STORE_PRM_SCHEMA_VERSION,
 };
-pub use suews_site::{
-    suews_site_default_from_fortran, suews_site_field_names, suews_site_from_map,
-    suews_site_from_nested_payload, suews_site_from_values_payload, suews_site_member_names,
-    suews_site_schema_info, suews_site_schema_version, suews_site_schema_version_runtime,
-    suews_site_to_map, suews_site_to_nested_payload, suews_site_to_values_payload, SuewsSite,
-    SuewsSiteSchema, SuewsSiteValuesPayload, SUEWS_SITE_SCHEMA_VERSION,
-};
 pub use timer::{
     suews_timer_default_from_fortran, suews_timer_field_index, suews_timer_field_names,
     suews_timer_from_map, suews_timer_from_ordered_values, suews_timer_from_values_payload,
@@ -470,6 +486,8 @@ pub use water_dist::{
     WaterDistPrmSchema, WaterDistPrmValuesPayload, WATER_DIST_PRM_FLAT_LEN,
     WATER_DIST_PRM_SCHEMA_VERSION,
 };
+#[cfg(feature = "physics")]
+pub use yaml_config::{load_run_config, RunConfig};
 
 #[cfg(feature = "python")]
 mod python_bindings {
@@ -4294,13 +4312,15 @@ mod python_bindings {
         ) -> PyResult<Self> {
             let log_payload = log
                 .into_iter()
-                .map(|(timer_values, message, location, is_fatal)| crate::ErrorEntryValuesPayload {
-                    schema_version: crate::error_entry_schema_version(),
-                    timer_values,
-                    message,
-                    location,
-                    is_fatal,
-                })
+                .map(
+                    |(timer_values, message, location, is_fatal)| crate::ErrorEntryValuesPayload {
+                        schema_version: crate::error_entry_schema_version(),
+                        timer_values,
+                        message,
+                        location,
+                        is_fatal,
+                    },
+                )
                 .collect();
 
             let payload = crate::ErrorStateValuesPayload {

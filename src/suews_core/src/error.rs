@@ -1,7 +1,7 @@
 use crate::ffi;
 use thiserror::Error;
 
-#[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum BridgeError {
     #[error("invalid timestep: dt must be positive")]
     BadDt,
@@ -11,6 +11,8 @@ pub enum BridgeError {
     BadBuffer,
     #[error("invalid state payload")]
     BadState,
+    #[error("simulation failed (code {code}): {message}")]
+    SimulationError { code: i32, message: String },
     #[error("unknown Fortran bridge error code: {0}")]
     Unknown(i32),
 }

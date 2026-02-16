@@ -8,6 +8,7 @@ fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR is not set"));
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+    let physics_enabled = env::var_os("CARGO_FEATURE_PHYSICS").is_some();
 
     let gfortran_bin = if target_os == "macos" {
         let homebrew_gfortran = PathBuf::from("/opt/homebrew/bin/gfortran");
@@ -20,9 +21,13 @@ fn main() {
         PathBuf::from("gfortran")
     };
 
-    let fortran_sources = vec![
-        manifest_dir.join("../suews/src/suews_ctrl_const.f95"),
-        manifest_dir.join("../suews/src/suews_type_surface.f95"),
+    let mut fortran_sources = vec![];
+    if !physics_enabled {
+        fortran_sources.push(manifest_dir.join("../suews/src/suews_ctrl_const.f95"));
+        fortran_sources.push(manifest_dir.join("../suews/src/suews_type_surface.f95"));
+    }
+
+    fortran_sources.extend([
         manifest_dir.join("fortran/suews_c_api_common.f95"),
         manifest_dir.join("fortran/suews_c_api_config.f95"),
         manifest_dir.join("fortran/suews_c_api_timer.f95"),
@@ -69,7 +74,12 @@ fn main() {
         manifest_dir.join("fortran/suews_c_api_water_dist.f95"),
         manifest_dir.join("fortran/suews_c_api_irrig_daywater.f95"),
         manifest_dir.join("fortran/suews_c_api_irrigation_prm.f95"),
-    ];
+    ]);
+
+    if physics_enabled {
+        fortran_sources.push(manifest_dir.join("fortran/suews_c_api_driver.f95"));
+    }
+
     for src in &fortran_sources {
         println!("cargo:rerun-if-changed={}", src.display());
     }
@@ -91,6 +101,13 @@ fn main() {
             "-I",
             out_dir.to_string_lossy().as_ref(),
         ]);
+
+        if physics_enabled {
+            let suews_mod_dir = manifest_dir.join("../suews/mod");
+            let suews_mod_dir_str = suews_mod_dir.to_string_lossy().to_string();
+            gfortran_cmd.args(["-I", suews_mod_dir_str.as_str()]);
+        }
+
         if target_os == "macos" {
             gfortran_cmd.arg("-mmacosx-version-min=11.0");
             if target_arch == "aarch64" {
@@ -99,6 +116,7 @@ fn main() {
                 gfortran_cmd.args(["-arch", "x86_64"]);
             }
         }
+
         let compile_status = gfortran_cmd
             .arg(src)
             .arg("-o")
@@ -132,6 +150,33 @@ fn main() {
 
     println!("cargo:rustc-link-search=native={}", out_dir.display());
     println!("cargo:rustc-link-lib=static=suews_bridge");
+
+    if physics_enabled {
+        let suews_lib_dir = manifest_dir.join("../suews/lib");
+        let required_libs = [
+            "libsuewsdriver.a",
+            "libsuewsphys.a",
+            "libspartacus.a",
+            "libsuewsutil.a",
+        ];
+
+        for lib_name in &required_libs {
+            let lib_path = suews_lib_dir.join(lib_name);
+            if !lib_path.exists() {
+                panic!(
+                    "missing required SUEWS physics library {}. Run `make dev` or `make -C src/suews all` first",
+                    lib_path.display()
+                );
+            }
+        }
+
+        println!("cargo:rustc-link-search=native={}", suews_lib_dir.display());
+        println!("cargo:rustc-link-lib=static=suewsdriver");
+        println!("cargo:rustc-link-lib=static=suewsphys");
+        println!("cargo:rustc-link-lib=static=spartacus");
+        println!("cargo:rustc-link-lib=static=suewsutil");
+    }
+
     link_fortran_runtime(&gfortran_bin);
 
     if target_os == "macos" && env::var_os("CARGO_FEATURE_PYTHON_EXTENSION").is_some() {

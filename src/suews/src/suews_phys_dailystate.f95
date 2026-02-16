@@ -520,6 +520,22 @@ CONTAINS
 
    END SUBROUTINE update_Veg
 
+   FUNCTION calc_mean_temp(temp1, temp2) RESULT(mean_temp)
+      IMPLICIT NONE
+      REAL(KIND(1D0)), INTENT(IN) :: temp1
+      REAL(KIND(1D0)), INTENT(IN) :: temp2
+      REAL(KIND(1D0)) :: mean_temp      
+      mean_temp = (temp1 + temp2)/2
+   END FUNCTION calc_mean_temp
+
+   FUNCTION calc_delta_DD(base_temp, current_temp) RESULT (delta_DD)
+      IMPLICIT NONE
+      REAL(KIND(1D0)), INTENT(IN) :: base_temp
+      REAL(KIND(1D0)), INTENT(IN) :: current_temp
+      REAL(KIND(1D0)) :: delta_DD
+      delta_DD = current_temp - base_temp
+   END FUNCTION calc_delta_DD
+
    SUBROUTINE update_GDDLAI( &
       id, LAICalcYes, & !input
       lat, LAI_obs, &
@@ -563,6 +579,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(OUT) :: LAI_id_next !LAI for each veg surface [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: LAI_id_prev ! LAI of previous day
 
+      REAL(KIND(1D0)) :: mean_temp ! Mean temperature of previous day
       REAL(KIND(1D0)) :: delta_SDD !Switches and checks for GDD
       REAL(KIND(1D0)) :: delta_GDD !Switches and checks for GDD
       REAL(KIND(1D0)) :: indHelp !Switches and checks for GDD
@@ -579,28 +596,29 @@ CONTAINS
 
       critDays = 50 !Critical limit for GDD when GDD or SDD is set to zero
 
+      mean_temp = calc_mean_temp(Tmin_id_prev, Tmax_id_prev)
       ! Loop through vegetation types (iv)
       DO iv = 1, NVegSurf
          ! Calculate GDD for each day from the minimum and maximum air temperature
-         IF (LAItype(iv) == 1) THEN
-            delta_GDD = ((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_GDD(iv)) !Leaf on
-            delta_SDD = ((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_SDD(iv)) !Leaf off
-         ELSEIF (LAItype(iv) == 2) THEN
-            delta_GDD = -((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_GDD(iv)) !Leaf on
-            delta_SDD = -((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_SDD(iv)) !Leaf off
+         IF (LAItype(iv) == 2) THEN ! Invert response to temperature (grow when cold)
+            delta_GDD = -calc_delta_DD(BaseT_GDD(iv), mean_temp) !Leaf on
+            delta_SDD = -calc_delta_DD(BaseT_SDD(iv), mean_temp) !Leaf off
          ELSE
             delta_GDD = ((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_GDD(iv)) !Leaf on
             delta_SDD = ((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_SDD(iv)) !Leaf off
          END IF
 
          indHelp = 0 !Help switch to allow GDD to go to zero in sprint-time !! QUESTION: What does this mean? HCW
+         ! Should this say spring-time? MP 02-2026
 
          IF (delta_GDD < 0) THEN !GDD cannot be negative
             indHelp = delta_GDD !Amount of negative GDD
             delta_GDD = 0
          END IF
 
-         IF (delta_SDD > 0) delta_SDD = 0 !SDD cannot be positive
+         ! Replaced by MIN/MAX, MP 02-2026
+         ! IF (delta_SDD > 0) delta_SDD = 0 !SDD cannot be positive
+         delta_SDD = MIN(delta_SDD, 0.0)
 
          ! Calculate cumulative growing and senescence degree days
          GDD_id(iv) = GDD_id_prev(iv) + delta_GDD
@@ -611,7 +629,7 @@ CONTAINS
             GDD_id(iv) = 0
          END IF
 
-         IF (LAItype(iv) == 1) THEN
+         IF (LAItype(iv) == 1 .OR. LAItype(iv) == 0) THEN
             IF (GDD_id(iv) >= GDDFull(iv)) THEN !Start senescence
                GDD_id(iv) = GDDFull(iv) !Leaves should not grow so delete yes from earlier
                IF (SDD_id(iv) < -critDays) GDD_id(iv) = 0
@@ -641,10 +659,7 @@ CONTAINS
          END IF
 
          ! With these limits SDD, GDD is set to zero
-         IF (LAItype(iv) == 1) THEN
-            IF (SDD_id(iv) < -critDays .AND. SDD_id(iv) > SDDFull(iv)) GDD_id(iv) = 0
-            IF (GDD_id(iv) > critDays .AND. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
-         ELSEIF (LAItype(iv) == 2) THEN
+         IF (LAItype(iv) == 2) THEN
             IF (GDD_id(iv) > critDays .AND. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
             IF (SDD_id(iv) < -critDays .AND. SDD_id(iv) > SDDFull(iv)) GDD_id(iv) = 0
          ELSE
@@ -654,7 +669,7 @@ CONTAINS
 
          ! Now calculate LAI itself
          IF (lat >= 0) THEN !Northern hemispere
-            IF (LAItype(iv) == 1) THEN
+            IF (LAItype(iv) == 1 .OR. LAItype(iv) == 0) THEN
                !If SDD is not zero by mid May, this is forced
                IF (id == 140 .AND. SDD_id(iv) /= 0) SDD_id(iv) = 0
                ! Set SDD to zero in summer time

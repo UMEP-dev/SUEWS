@@ -661,34 +661,28 @@ CONTAINS
 
          ! Now calculate LAI itself
          IF (lat >= 0) THEN !Northern hemispere
-            IF (LAItype(iv) == 1 .OR. LAItype(iv) == 0) THEN
-               !If SDD is not zero by mid May, this is forced
-               IF (id == 140 .AND. SDD_id(iv) /= 0) SDD_id(iv) = 0
-               ! Set SDD to zero in summer time
-               IF (GDD_id(iv) > critDays .AND. id < 170) SDD_id(iv) = 0
-               ! Set GDD zero in winter time
-               IF (SDD_id(iv) < -critDays .AND. id > 170) GDD_id(iv) = 0
-            ELSEIF (LAItype(iv) == 2) THEN ! Inverted LAI behaviour (for evergreen trees)
+
+            IF (LAItype(iv) == 2) THEN ! Invert GDD/SDD temporal limits
                !If GDD is not zero by mid May, this is forced
                IF (id == 140 .AND. GDD_id(iv) /= 0) GDD_id(iv) = 0
                ! Set GDD to zero in summer time
                IF (SDD_id(iv) < -critDays .AND. id < 170) GDD_id(iv) = 0
                ! Set SDD zero in winter time
                IF (GDD_id(iv) > critDays .AND. id > 170) SDD_id(iv) = 0
-            ELSE ! Managed surface (SDD forced to be zero)
+            ELSE
+               !If SDD is not zero by mid May, this is forced
                IF (id == 140 .AND. SDD_id(iv) /= 0) SDD_id(iv) = 0
-               ! Set GDD zero in winter time
-               IF (SDD_id(iv) < -critDays .AND. id > 170) GDD_id(iv) = 0
                ! Set SDD to zero in summer time
                IF (GDD_id(iv) > critDays .AND. id < 170) SDD_id(iv) = 0
+               ! Set GDD zero in winter time
+               IF (SDD_id(iv) < -critDays .AND. id > 170) GDD_id(iv) = 0
             END IF
 
             IF (LAItype(iv) == 0) THEN !Original LAI type
                IF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN !Leaves can still grow
                   LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
                ELSEIF (SDD_id(iv) < 0 .AND. SDD_id(iv) > SDDFull(iv)) THEN !Start senescence
-                  ! LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(3, iv)*SDD_id(iv)*LAIPower(4, iv)) + LAI_id_prev(iv)
-                  LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
+                  LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(3, iv)*SDD_id(iv)*LAIPower(4, iv)) + LAI_id_prev(iv)
                ELSE
                   LAI_id_next(iv) = LAI_id_prev(iv)
                END IF

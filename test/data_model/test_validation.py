@@ -693,31 +693,61 @@ def test_validate_spartacus_building_height_no_error():
     msgs = cfg._validate_spartacus_building_height(site, 0)
     assert msgs == []
 
-# def test_validate_spartacus_sfr_missing_bldgs():
-#     """Test validate_spartacus_sfr returns error if bldgs sfr is missing."""
+def test_validate_spartacus_sfr_mismatch_bldgs_frac():
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    bldgs = SimpleNamespace(sfr=0.6)  
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.3],  
+        veg_frac=[0.0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+    assert msgs  
+    assert any(
+        "bldgs.sfr (0.6) does not match vertical_layers.building_frac[0] (0.3)"
+        in m
+        for m in msgs
+    )
 
-#     # Site with no land_cover.bldgs
-#     site = type("Dummy", (), {})()
-#     site.properties = type("Props", (), {})()
-#     site.properties.land_cover = type("LC", (), {})()
-#     site.properties.land_cover.bldgs = None
+def test_validate_spartacus_sfr_consistent_values():
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    bldgs = SimpleNamespace(sfr=0.3)  
+    evetr = SimpleNamespace(sfr=0.1)
+    dectr = SimpleNamespace(sfr=0.2)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=evetr, dectr=dectr)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.3],
+        veg_frac=[0.3],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+    assert msgs == []
 
-#     msgs = _validate_spartacus_sfr(site, 0)
-#     assert any("Missing land_cover.bldgs" in m for m in msgs)
-
-
-# def test_validate_spartacus_sfr_invalid_sfr_value():
-#     """Test validate_spartacus_sfr returns error if sfr is out of range."""
-
-#     # Site with sfr > 1.0 (invalid)
-#     sfr = type("SFR", (), {"value": 1.5})()
-#     bldgs = type("Bldgs", (), {"sfr": sfr})()
-#     lc = type("LC", (), {"bldgs": bldgs})()
-#     props = type("Props", (), {"land_cover": lc})()
-#     site = type("Dummy", (), {"properties": props})()
-
-#     msgs = _validate_spartacus_sfr(site, 0)
-#     assert any("must be between 0 and 1" in m for m in msgs)
+def test_validate_spartacus_sfr_mismatch_veg_frac():
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    evetr = SimpleNamespace(sfr=0.1)
+    dectr = SimpleNamespace(sfr=0.3)
+    bldgs = SimpleNamespace(sfr=0.2)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=evetr, dectr=dectr)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.2],
+        veg_frac=[0.1],  
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+    assert msgs
+    assert any(
+        "evetr.sfr + dectr.sfr (0.4) does not match vertical_layers.veg_frac[0] (0.1)"
+        in m
+        for m in msgs
+    )
 
 # From test_validation_topdown.py
 class TestTopDownValidation:

@@ -605,19 +605,18 @@ CONTAINS
       ! Loop through vegetation types (iv)
       do iv = 1, NVegSurf
 
-         if (laitype(iv) /= 2) then
-            call calc_delta_gdd_sdd( &
-               tmin_prev=Tmin_id_prev, &
-               tmax_prev=Tmax_id_prev, &
-               base_t_gdd=BaseT_GDD(iv), &
-               base_t_sdd=BaseT_SDD(iv), &
-               delta_gdd=delta_GDD, &
-               delta_sdd=delta_SDD, &
-               ind_help=indHelp &
-            )
-         else
-            delta_GDD = -((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_GDD(iv)) !Leaf on
-            delta_SDD = -((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_SDD(iv)) !Leaf off
+         call calc_delta_gdd_sdd( &
+            tmin_prev=Tmin_id_prev, &
+            tmax_prev=Tmax_id_prev, &
+            base_t_gdd=BaseT_GDD(iv), &
+            base_t_sdd=BaseT_SDD(iv), &
+            delta_gdd=delta_GDD, &
+            delta_sdd=delta_SDD, &
+            ind_help=indHelp &
+         )
+         if (LAItype(iv) == 2) then
+            delta_GDD = -delta_GDD
+            delta_SDD = -delta_SDD
          end if
 
          call apply_delta_gdd_sdd( &

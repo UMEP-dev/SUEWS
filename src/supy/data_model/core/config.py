@@ -1626,7 +1626,7 @@ class SUEWSConfig(BaseModel):
             spartacus_top = height_arr[nlayer]
             if bldgh > spartacus_top:
                 issues.append(
-                    f"ACTION NEEDED: Site '{site_name}' has bldgh={bldgh} exceeding SPARTACUS domain top (height[{nlayer+1}]={spartacus_top})."
+                    f"Site '{site_name}' has bldgh={bldgh} exceeding SPARTACUS domain top (height[{nlayer+1}]={spartacus_top})."
                 )
         return issues
 

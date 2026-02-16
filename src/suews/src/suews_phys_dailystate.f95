@@ -602,16 +602,21 @@ CONTAINS
       ! Loop through vegetation types (iv)
       do iv = 1, NVegSurf
 
-         call calc_delta_gdd_sdd( &
-            tmin_prev=Tmin_id_prev, &
-            tmax_prev=Tmax_id_prev, &
-            base_t_gdd=BaseT_GDD(iv), &
-            base_t_sdd=BaseT_SDD(iv), &
-            delta_gdd=delta_GDD, &
-            delta_sdd=delta_SDD, &
-            ind_help=indHelp &
-         )
-         
+         if (laitype(iv) /= 2) then
+            call calc_delta_gdd_sdd( &
+               tmin_prev=Tmin_id_prev, &
+               tmax_prev=Tmax_id_prev, &
+               base_t_gdd=BaseT_GDD(iv), &
+               base_t_sdd=BaseT_SDD(iv), &
+               delta_gdd=delta_GDD, &
+               delta_sdd=delta_SDD, &
+               ind_help=indHelp &
+            )
+         else
+            delta_GDD = -((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_GDD(iv)) !Leaf on
+            delta_SDD = -((Tmin_id_prev + Tmax_id_prev)/2 - BaseT_SDD(iv)) !Leaf off
+         end if
+
          call apply_delta_gdd_sdd( &
             gdd_prev=GDD_id_prev(iv), &
             sdd_prev=SDD_id_prev(iv), &
@@ -626,16 +631,27 @@ CONTAINS
             GDD_id(iv) = 0
          END IF
 
-         call limit_gdd_sdd( &
-            GDD_id=GDD_id(iv), &
-            SDD_id=SDD_id(iv), &
-            GDDFull=GDDFull(iv), &
-            SDDFull=SDDFull(iv), &
-            critDays=critDays &
-         )
+         if (laitype(iv) /= 2) then
+            call limit_gdd_sdd( &
+               GDD_id=GDD_id(iv), &
+               SDD_id=SDD_id(iv), &
+               GDDFull=GDDFull(iv), &
+               SDDFull=SDDFull(iv), &
+               critDays=critDays &
+            )
+         else
+            if (SDD_id(iv) <= SDDFull(iv)) then !After senescence now start growing leaves
+               SDD_id(iv) = SDDFull(iv) !Leaves off so add back earlier
+               if (GDD_id(iv) > critDays) SDD_id(iv) = 0
+            end if
+            if (GDD_id(iv) >= GDDFull(iv)) then !Start senescence
+               GDD_id(iv) = GDDFull(iv) !Leaves should not grow so delete yes from earlier
+               if (SDD_id(iv) < -critDays) GDD_id(iv) = 0
+            end if
+         end if
 
          ! With these limits SDD, GDD is set to zero
-         if (LAItype(iv) < 1.5) then
+         if (LAItype(iv) /= 2) then
             if (SDD_id(iv) < -critDays .and. SDD_id(iv) > SDDFull(iv)) GDD_id(iv) = 0
             if (GDD_id(iv) > critDays .and. GDD_id(iv) < GDDFull(iv)) SDD_id(iv) = 0
          else
@@ -674,7 +690,7 @@ CONTAINS
                      LAI_id_next=LAI_id_next(iv) &
                   )
                end if
-            else ! Inverted LAI behaviour (for evergreen trees)
+            else if (laitype(iv) == 2) ! Inverted LAI behaviour (for evergreen trees)
                !If GDD is not zero by mid May, this is forced
                if (id == 140 .and. GDD_id(iv) /= 0) GDD_id(iv) = 0
                ! Set GDD to zero in summer time
@@ -686,6 +702,28 @@ CONTAINS
                   LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
                   !! Use day length to start senescence at high latitudes (N hemisphere)
                else if (lenDay_id_prev <= 12 .and. GDD_id(iv) < GDDFull(iv)) then !Start growth
+                  LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
+               else
+                  LAI_id_next(iv) = LAI_id_prev(iv)
+               end if
+            else if (LAItype(iv) == 3) then ! For managed grass - if max LAI set to min
+               if (LAI_id_prev(iv) == LAIMax(iv)) then
+                  LAI_id_next(iv) = LAIMin(iv)
+                  GDD_id(iv) = 0
+               else if (GDD_id(iv) > 0 .and. GDD_id(iv) < GDDFull(iv)) then !Leaves can still grow
+                  LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
+               else if (lenDay_id_prev <= 12 .and. SDD_id(iv) > SDDFull(iv)) then !Start senescence
+                  LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
+               else
+                  LAI_id_next(iv) = LAI_id_prev(iv)
+               end if
+            else if (LAItype(iv) == 4) then ! For managed grass - if MAX GDD set to LAI min
+               if (GDD_id(iv) == GDDFull(iv)) then
+                  LAI_id_next(iv) = LAIMin(iv)
+                  GDD_id(iv) = 0
+               else if (lenDay_id_prev <= 12 .and. SDD_id(iv) > SDDFull(iv)) then !Start senescence
+                     LAI_id_next(iv) = (LAI_id_prev(iv)*LAIPower(3, iv)*(1 - SDD_id(iv))*LAIPower(4, iv)) + LAI_id_prev(iv)
+               else if (GDD_id(iv) > 0 .and. GDD_id(iv) < GDDFull(iv)) then !Leaves can still grow
                   LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
                else
                   LAI_id_next(iv) = LAI_id_prev(iv)

@@ -10,12 +10,7 @@ pub const STEBBS_STATE_RSL_LEN: usize = 30;
 pub const STEBBS_STATE_FLAT_LEN: usize = 154;
 pub const STEBBS_STATE_SCHEMA_VERSION: u32 = 1;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StebbsStateSchema {
-    pub schema_version: u32,
-    pub flat_len: usize,
-    pub field_names: Vec<String>,
-}
+pub type StebbsStateSchema = crate::codec::SimpleSchema;
 
 pub type StebbsStateValuesPayload = ValuesPayload;
 

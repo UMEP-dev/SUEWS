@@ -1,23 +1,14 @@
-use crate::codec::{
-    field_index, from_map, from_values_payload, to_map, to_values_payload, validate_flat_len,
-    StateCodec, TypeSchema, ValuesPayload,
-};
+use crate::codec::{validate_flat_len, StateCodec, TypeSchema, ValuesPayload};
 use crate::error::BridgeError;
 use crate::ffi;
 use crate::ohm_prm::{ohm_prm_field_names, OhmPrm};
 use crate::soil::{soil_prm_field_names, SoilPrm};
 use crate::water_dist::{water_dist_prm_field_names, WaterDistPrm};
-use std::collections::BTreeMap;
 
 pub const LC_PAVED_PRM_FLAT_LEN: usize = 34;
 pub const LC_PAVED_PRM_SCHEMA_VERSION: u32 = 1;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LcPavedPrmSchema {
-    pub schema_version: u32,
-    pub flat_len: usize,
-    pub field_names: Vec<String>,
-}
+pub type LcPavedPrmSchema = crate::codec::SimpleSchema;
 
 pub type LcPavedPrmValuesPayload = ValuesPayload;
 
@@ -99,37 +90,6 @@ impl StateCodec for LcPavedPrm {
     }
 }
 
-pub fn lc_paved_prm_schema() -> Result<usize, BridgeError> {
-    let mut n_flat = -1_i32;
-    let mut err = -1_i32;
-
-    unsafe {
-        ffi::suews_lc_paved_prm_len(&mut n_flat as *mut i32, &mut err as *mut i32);
-    }
-
-    if err != ffi::SUEWS_CAPI_OK {
-        return Err(BridgeError::from_code(err));
-    }
-
-    Ok(n_flat as usize)
-}
-
-pub fn lc_paved_prm_schema_info() -> Result<LcPavedPrmSchema, BridgeError> {
-    let flat_len = lc_paved_prm_schema()?;
-    let schema_version_runtime = lc_paved_prm_schema_version_runtime()?;
-    let field_names = lc_paved_prm_field_names();
-
-    if schema_version_runtime != LC_PAVED_PRM_SCHEMA_VERSION || flat_len != field_names.len() {
-        return Err(BridgeError::BadState);
-    }
-
-    Ok(LcPavedPrmSchema {
-        schema_version: LC_PAVED_PRM_SCHEMA_VERSION,
-        flat_len,
-        field_names,
-    })
-}
-
 pub fn lc_paved_prm_field_names() -> Vec<String> {
     let mut names = vec!["sfr".to_string(), "emis".to_string()];
 
@@ -152,80 +112,17 @@ pub fn lc_paved_prm_field_names() -> Vec<String> {
     names
 }
 
-pub fn lc_paved_prm_schema_version() -> u32 {
-    LC_PAVED_PRM_SCHEMA_VERSION
+crate::codec::impl_state_module_fns! {
+    prefix = lc_paved_prm,
+    state_type = LcPavedPrm,
+    schema_type = LcPavedPrmSchema,
+    payload_type = LcPavedPrmValuesPayload,
+    flat_len_const = LC_PAVED_PRM_FLAT_LEN,
+    schema_version_const = LC_PAVED_PRM_SCHEMA_VERSION,
+    ffi_len_fn = ffi::suews_lc_paved_prm_len,
+    ffi_schema_version_fn = ffi::suews_lc_paved_prm_schema_version,
+    ffi_default_fn = ffi::suews_lc_paved_prm_default,
 }
-
-pub fn lc_paved_prm_schema_version_runtime() -> Result<u32, BridgeError> {
-    let mut schema_version = -1_i32;
-    let mut err = -1_i32;
-
-    unsafe {
-        ffi::suews_lc_paved_prm_schema_version(
-            &mut schema_version as *mut i32,
-            &mut err as *mut i32,
-        );
-    }
-
-    if err != ffi::SUEWS_CAPI_OK || schema_version < 0 {
-        return Err(BridgeError::from_code(err));
-    }
-
-    Ok(schema_version as u32)
-}
-
-pub fn lc_paved_prm_field_index(name: &str) -> Option<usize> {
-    let names = lc_paved_prm_field_names();
-    field_index(&names, name)
-}
-
-pub fn lc_paved_prm_to_map(state: &LcPavedPrm) -> BTreeMap<String, f64> {
-    to_map(state)
-}
-
-pub fn lc_paved_prm_to_ordered_values(state: &LcPavedPrm) -> Vec<f64> {
-    state.to_flat()
-}
-
-pub fn lc_paved_prm_from_ordered_values(values: &[f64]) -> Result<LcPavedPrm, BridgeError> {
-    LcPavedPrm::from_flat(values)
-}
-
-pub fn lc_paved_prm_to_values_payload(state: &LcPavedPrm) -> LcPavedPrmValuesPayload {
-    to_values_payload(state)
-}
-
-pub fn lc_paved_prm_from_values_payload(
-    payload: &LcPavedPrmValuesPayload,
-) -> Result<LcPavedPrm, BridgeError> {
-    from_values_payload(payload)
-}
-
-pub fn lc_paved_prm_from_map(values: &BTreeMap<String, f64>) -> Result<LcPavedPrm, BridgeError> {
-    let default_state = lc_paved_prm_default_from_fortran()?;
-    from_map(values, &default_state)
-}
-
-pub fn lc_paved_prm_default_from_fortran() -> Result<LcPavedPrm, BridgeError> {
-    let n_flat = lc_paved_prm_schema()?;
-    if n_flat != LC_PAVED_PRM_FLAT_LEN {
-        return Err(BridgeError::BadState);
-    }
-
-    let mut flat = vec![0.0_f64; n_flat];
-    let mut err = -1_i32;
-
-    unsafe {
-        ffi::suews_lc_paved_prm_default(flat.as_mut_ptr(), n_flat as i32, &mut err as *mut i32);
-    }
-
-    if err != ffi::SUEWS_CAPI_OK {
-        return Err(BridgeError::from_code(err));
-    }
-
-    LcPavedPrm::from_flat(&flat)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

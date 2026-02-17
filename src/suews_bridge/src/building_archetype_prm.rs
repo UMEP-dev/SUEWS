@@ -11,12 +11,7 @@ pub const BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS: usize = 2;
 pub const BUILDING_ARCHETYPE_PRM_FLAT_LEN: usize = 639;
 pub const BUILDING_ARCHETYPE_PRM_SCHEMA_VERSION: u32 = 1;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BuildingArchetypePrmSchema {
-    pub schema_version: u32,
-    pub flat_len: usize,
-    pub field_names: Vec<String>,
-}
+pub type BuildingArchetypePrmSchema = crate::codec::SimpleSchema;
 
 pub type BuildingArchetypePrmValuesPayload = ValuesPayload;
 

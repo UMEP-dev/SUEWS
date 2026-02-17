@@ -1,20 +1,11 @@
-use crate::codec::{
-    field_index, from_map, from_values_payload, to_map, to_values_payload, validate_flat_len,
-    StateCodec, TypeSchema, ValuesPayload,
-};
+use crate::codec::{validate_flat_len, StateCodec, TypeSchema, ValuesPayload};
 use crate::error::BridgeError;
 use crate::ffi;
-use std::collections::BTreeMap;
 
 pub const NHOOD_STATE_FLAT_LEN: usize = 5;
 pub const NHOOD_STATE_SCHEMA_VERSION: u32 = 1;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NhoodStateSchema {
-    pub schema_version: u32,
-    pub flat_len: usize,
-    pub field_names: Vec<String>,
-}
+pub type NhoodStateSchema = crate::codec::SimpleSchema;
 
 pub type NhoodStateValuesPayload = ValuesPayload;
 
@@ -81,37 +72,6 @@ impl StateCodec for NhoodState {
     }
 }
 
-pub fn nhood_state_schema() -> Result<usize, BridgeError> {
-    let mut n_flat = -1_i32;
-    let mut err = -1_i32;
-
-    unsafe {
-        ffi::suews_nhood_state_len(&mut n_flat as *mut i32, &mut err as *mut i32);
-    }
-
-    if err != ffi::SUEWS_CAPI_OK {
-        return Err(BridgeError::from_code(err));
-    }
-
-    Ok(n_flat as usize)
-}
-
-pub fn nhood_state_schema_info() -> Result<NhoodStateSchema, BridgeError> {
-    let flat_len = nhood_state_schema()?;
-    let schema_version_runtime = nhood_state_schema_version_runtime()?;
-    let field_names = nhood_state_field_names();
-
-    if schema_version_runtime != NHOOD_STATE_SCHEMA_VERSION || flat_len != field_names.len() {
-        return Err(BridgeError::BadState);
-    }
-
-    Ok(NhoodStateSchema {
-        schema_version: NHOOD_STATE_SCHEMA_VERSION,
-        flat_len,
-        field_names,
-    })
-}
-
 pub fn nhood_state_field_names() -> Vec<String> {
     vec![
         "u_hbh_1dravg".to_string(),
@@ -122,80 +82,17 @@ pub fn nhood_state_field_names() -> Vec<String> {
     ]
 }
 
-pub fn nhood_state_schema_version() -> u32 {
-    NHOOD_STATE_SCHEMA_VERSION
+crate::codec::impl_state_module_fns! {
+    prefix = nhood_state,
+    state_type = NhoodState,
+    schema_type = NhoodStateSchema,
+    payload_type = NhoodStateValuesPayload,
+    flat_len_const = NHOOD_STATE_FLAT_LEN,
+    schema_version_const = NHOOD_STATE_SCHEMA_VERSION,
+    ffi_len_fn = ffi::suews_nhood_state_len,
+    ffi_schema_version_fn = ffi::suews_nhood_state_schema_version,
+    ffi_default_fn = ffi::suews_nhood_state_default,
 }
-
-pub fn nhood_state_schema_version_runtime() -> Result<u32, BridgeError> {
-    let mut schema_version = -1_i32;
-    let mut err = -1_i32;
-
-    unsafe {
-        ffi::suews_nhood_state_schema_version(
-            &mut schema_version as *mut i32,
-            &mut err as *mut i32,
-        );
-    }
-
-    if err != ffi::SUEWS_CAPI_OK || schema_version < 0 {
-        return Err(BridgeError::from_code(err));
-    }
-
-    Ok(schema_version as u32)
-}
-
-pub fn nhood_state_field_index(name: &str) -> Option<usize> {
-    let names = nhood_state_field_names();
-    field_index(&names, name)
-}
-
-pub fn nhood_state_to_map(state: &NhoodState) -> BTreeMap<String, f64> {
-    to_map(state)
-}
-
-pub fn nhood_state_to_ordered_values(state: &NhoodState) -> Vec<f64> {
-    state.to_flat()
-}
-
-pub fn nhood_state_from_ordered_values(values: &[f64]) -> Result<NhoodState, BridgeError> {
-    NhoodState::from_flat(values)
-}
-
-pub fn nhood_state_to_values_payload(state: &NhoodState) -> NhoodStateValuesPayload {
-    to_values_payload(state)
-}
-
-pub fn nhood_state_from_values_payload(
-    payload: &NhoodStateValuesPayload,
-) -> Result<NhoodState, BridgeError> {
-    from_values_payload(payload)
-}
-
-pub fn nhood_state_from_map(values: &BTreeMap<String, f64>) -> Result<NhoodState, BridgeError> {
-    let default_state = nhood_state_default_from_fortran()?;
-    from_map(values, &default_state)
-}
-
-pub fn nhood_state_default_from_fortran() -> Result<NhoodState, BridgeError> {
-    let n_flat = nhood_state_schema()?;
-    if n_flat != NHOOD_STATE_FLAT_LEN {
-        return Err(BridgeError::BadState);
-    }
-
-    let mut flat = vec![0.0_f64; n_flat];
-    let mut err = -1_i32;
-
-    unsafe {
-        ffi::suews_nhood_state_default(flat.as_mut_ptr(), n_flat as i32, &mut err as *mut i32);
-    }
-
-    if err != ffi::SUEWS_CAPI_OK {
-        return Err(BridgeError::from_code(err));
-    }
-
-    NhoodState::from_flat(&flat)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

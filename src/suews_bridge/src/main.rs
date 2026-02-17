@@ -3,6 +3,8 @@ use paste::paste;
 use serde_json::json;
 use serde_json::Value;
 use std::fs;
+#[cfg(all(feature = "physics", feature = "arrow-output"))]
+use suews_bridge::write_output_arrow;
 use suews_bridge::{
     anthro_emis_prm_default_from_fortran, anthro_emis_prm_schema, anthro_emis_prm_schema_info,
     anthro_emis_prm_schema_version, anthro_emis_prm_schema_version_runtime, anthro_emis_prm_to_map,
@@ -122,8 +124,6 @@ use suews_bridge::{
     interpolate_forcing, load_run_config, read_forcing_block, run_simulation, write_output_csv,
     SimulationInput,
 };
-#[cfg(all(feature = "physics", feature = "arrow-output"))]
-use suews_bridge::write_output_arrow;
 
 fn parse_state_map_json(text: &str) -> Result<std::collections::BTreeMap<String, f64>, String> {
     fn parse_field_object(value: Value) -> Result<std::collections::BTreeMap<String, f64>, String> {
@@ -1405,6 +1405,54 @@ fn run(cli: Cli) -> Result<(), String> {
 }
 
 fn run_flat(command: FlatCommand) -> Result<(), String> {
+    macro_rules! render_simple_schema_json {
+        ($fn_prefix:ident) => {{
+            let schema = paste!([<$fn_prefix _schema_info>]()).map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": schema.schema_version,
+                "schema_version_runtime": paste!([<$fn_prefix _schema_version_runtime>]()).map_err(|e| e.to_string())?,
+                "flat_len": schema.flat_len,
+                "fields": schema.field_names,
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render schema json: {e}"))?;
+            println!("{text}");
+        }};
+    }
+
+    macro_rules! render_simple_default_json {
+        ($fn_prefix:ident) => {{
+            let flat_len = paste!([<$fn_prefix _schema>]()).map_err(|e| e.to_string())?;
+            let state =
+                paste!([<$fn_prefix _default_from_fortran>]()).map_err(|e| e.to_string())?;
+            let payload = json!({
+                "schema_version": paste!([<$fn_prefix _schema_version>]()),
+                "schema_version_runtime": paste!([<$fn_prefix _schema_version_runtime>]()).map_err(|e| e.to_string())?,
+                "flat_len": flat_len,
+                "state": paste!([<$fn_prefix _to_map>](&state)),
+            });
+            let text = serde_json::to_string_pretty(&payload)
+                .map_err(|e| format!("failed to render default state json: {e}"))?;
+            println!("{text}");
+        }};
+    }
+
+    macro_rules! render_simple_default_values_json {
+        ($fn_prefix:ident) => {{
+            let state =
+                paste!([<$fn_prefix _default_from_fortran>]()).map_err(|e| e.to_string())?;
+            let payload = paste!([<$fn_prefix _to_values_payload>](&state));
+            let out = json!({
+                "schema_version": payload.schema_version,
+                "schema_version_runtime": paste!([<$fn_prefix _schema_version_runtime>]()).map_err(|e| e.to_string())?,
+                "values": payload.values,
+            });
+            let text = serde_json::to_string_pretty(&out)
+                .map_err(|e| format!("failed to render default values json: {e}"))?;
+            println!("{text}");
+        }};
+    }
+
     match command {
         FlatCommand::Qs {
             qn1,
@@ -1693,43 +1741,9 @@ fn run_flat(command: FlatCommand) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        FlatCommand::SuewsTimerSchemaJson => {
-            let schema = suews_timer_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": suews_timer_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::SuewsTimerDefaultJson => {
-            let flat_len = suews_timer_schema().map_err(|e| e.to_string())?;
-            let state = suews_timer_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": suews_timer_schema_version(),
-                "schema_version_runtime": suews_timer_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": suews_timer_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::SuewsTimerDefaultValuesJson => {
-            let state = suews_timer_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = suews_timer_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": suews_timer_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
+        FlatCommand::SuewsTimerSchemaJson => render_simple_schema_json!(suews_timer),
+        FlatCommand::SuewsTimerDefaultJson => render_simple_default_json!(suews_timer),
+        FlatCommand::SuewsTimerDefaultValuesJson => render_simple_default_values_json!(suews_timer),
         FlatCommand::StateStepJson {
             dt,
             dt_since_start,
@@ -1797,193 +1811,21 @@ fn run_flat(command: FlatCommand) -> Result<(), String> {
                 .map_err(|e| format!("failed to render values json: {e}"))?;
             println!("{text}");
         }
-        FlatCommand::FlagStateSchemaJson => {
-            let schema = flag_state_schema_info().map_err(|e| e.to_string())?;
-
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": flag_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::FlagStateDefaultJson => {
-            let flat_len = flag_state_schema().map_err(|e| e.to_string())?;
-            let state = flag_state_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": flag_state_schema_version(),
-                "schema_version_runtime": flag_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": flag_state_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::FlagStateDefaultValuesJson => {
-            let state = flag_state_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = flag_state_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": flag_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::AnthroemisStateSchemaJson => {
-            let schema = anthroemis_state_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": anthroemis_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::AnthroemisStateDefaultJson => {
-            let flat_len = anthroemis_state_schema().map_err(|e| e.to_string())?;
-            let state = anthroemis_state_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": anthroemis_state_schema_version(),
-                "schema_version_runtime": anthroemis_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": anthroemis_state_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::AnthroemisStateDefaultValuesJson => {
-            let state = anthroemis_state_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = anthroemis_state_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": anthroemis_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::AnthroHeatPrmSchemaJson => {
-            let schema = anthro_heat_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": anthro_heat_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::AnthroHeatPrmDefaultJson => {
-            let flat_len = anthro_heat_prm_schema().map_err(|e| e.to_string())?;
-            let state = anthro_heat_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": anthro_heat_prm_schema_version(),
-                "schema_version_runtime": anthro_heat_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": anthro_heat_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::AnthroHeatPrmDefaultValuesJson => {
-            let state = anthro_heat_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = anthro_heat_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": anthro_heat_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::AnthroEmisPrmSchemaJson => {
-            let schema = anthro_emis_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": anthro_emis_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::AnthroEmisPrmDefaultJson => {
-            let flat_len = anthro_emis_prm_schema().map_err(|e| e.to_string())?;
-            let state = anthro_emis_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": anthro_emis_prm_schema_version(),
-                "schema_version_runtime": anthro_emis_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": anthro_emis_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::AnthroEmisPrmDefaultValuesJson => {
-            let state = anthro_emis_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = anthro_emis_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": anthro_emis_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::AtmStateSchemaJson => {
-            let schema = atm_state_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": atm_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::AtmStateDefaultJson => {
-            let flat_len = atm_state_schema().map_err(|e| e.to_string())?;
-            let state = atm_state_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": atm_state_schema_version(),
-                "schema_version_runtime": atm_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": atm_state_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::AtmStateDefaultValuesJson => {
-            let state = atm_state_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = atm_state_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": atm_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
+        FlatCommand::FlagStateSchemaJson => render_simple_schema_json!(flag_state),
+        FlatCommand::FlagStateDefaultJson => render_simple_default_json!(flag_state),
+        FlatCommand::FlagStateDefaultValuesJson => render_simple_default_values_json!(flag_state),
+        FlatCommand::AnthroemisStateSchemaJson => render_simple_schema_json!(anthroemis_state),
+        FlatCommand::AnthroemisStateDefaultJson => render_simple_default_json!(anthroemis_state),
+        FlatCommand::AnthroemisStateDefaultValuesJson => render_simple_default_values_json!(anthroemis_state),
+        FlatCommand::AnthroHeatPrmSchemaJson => render_simple_schema_json!(anthro_heat_prm),
+        FlatCommand::AnthroHeatPrmDefaultJson => render_simple_default_json!(anthro_heat_prm),
+        FlatCommand::AnthroHeatPrmDefaultValuesJson => render_simple_default_values_json!(anthro_heat_prm),
+        FlatCommand::AnthroEmisPrmSchemaJson => render_simple_schema_json!(anthro_emis_prm),
+        FlatCommand::AnthroEmisPrmDefaultJson => render_simple_default_json!(anthro_emis_prm),
+        FlatCommand::AnthroEmisPrmDefaultValuesJson => render_simple_default_values_json!(anthro_emis_prm),
+        FlatCommand::AtmStateSchemaJson => render_simple_schema_json!(atm_state),
+        FlatCommand::AtmStateDefaultJson => render_simple_default_json!(atm_state),
+        FlatCommand::AtmStateDefaultValuesJson => render_simple_default_values_json!(atm_state),
         FlatCommand::BuildingArchetypePrmSchemaJson => {
             let schema = building_archetype_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2021,43 +1863,9 @@ fn run_flat(command: FlatCommand) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        FlatCommand::StebbsPrmSchemaJson => {
-            let schema = stebbs_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": stebbs_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::StebbsPrmDefaultJson => {
-            let flat_len = stebbs_prm_schema().map_err(|e| e.to_string())?;
-            let state = stebbs_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": stebbs_prm_schema_version(),
-                "schema_version_runtime": stebbs_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": stebbs_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::StebbsPrmDefaultValuesJson => {
-            let state = stebbs_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = stebbs_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": stebbs_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
+        FlatCommand::StebbsPrmSchemaJson => render_simple_schema_json!(stebbs_prm),
+        FlatCommand::StebbsPrmDefaultJson => render_simple_default_json!(stebbs_prm),
+        FlatCommand::StebbsPrmDefaultValuesJson => render_simple_default_values_json!(stebbs_prm),
         FlatCommand::OutputLineSchemaJson => {
             let schema = output_line_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2275,43 +2083,9 @@ fn run_flat(command: FlatCommand) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        FlatCommand::ConductancePrmSchemaJson => {
-            let schema = conductance_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": conductance_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::ConductancePrmDefaultJson => {
-            let flat_len = conductance_prm_schema().map_err(|e| e.to_string())?;
-            let state = conductance_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": conductance_prm_schema_version(),
-                "schema_version_runtime": conductance_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": conductance_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::ConductancePrmDefaultValuesJson => {
-            let state = conductance_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = conductance_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": conductance_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
+        FlatCommand::ConductancePrmSchemaJson => render_simple_schema_json!(conductance_prm),
+        FlatCommand::ConductancePrmDefaultJson => render_simple_default_json!(conductance_prm),
+        FlatCommand::ConductancePrmDefaultValuesJson => render_simple_default_values_json!(conductance_prm),
         FlatCommand::EhcPrmSchemaJson => {
             let schema = ehc_prm_schema_info().map_err(|e| e.to_string())?;
             let payload = json!({
@@ -2494,857 +2268,75 @@ fn run_flat(command: FlatCommand) -> Result<(), String> {
                 .map_err(|e| format!("failed to render default values json: {e}"))?;
             println!("{text}");
         }
-        FlatCommand::Bioco2PrmSchemaJson => {
-            let schema = bioco2_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": bioco2_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::Bioco2PrmDefaultJson => {
-            let flat_len = bioco2_prm_schema().map_err(|e| e.to_string())?;
-            let state = bioco2_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": bioco2_prm_schema_version(),
-                "schema_version_runtime": bioco2_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": bioco2_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::Bioco2PrmDefaultValuesJson => {
-            let state = bioco2_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = bioco2_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": bioco2_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LaiPrmSchemaJson => {
-            let schema = lai_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": lai_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LaiPrmDefaultJson => {
-            let flat_len = lai_prm_schema().map_err(|e| e.to_string())?;
-            let state = lai_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": lai_prm_schema_version(),
-                "schema_version_runtime": lai_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": lai_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LaiPrmDefaultValuesJson => {
-            let state = lai_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = lai_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": lai_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::PhenologyStateSchemaJson => {
-            let schema = phenology_state_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": phenology_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::PhenologyStateDefaultJson => {
-            let flat_len = phenology_state_schema().map_err(|e| e.to_string())?;
-            let state = phenology_state_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": phenology_state_schema_version(),
-                "schema_version_runtime": phenology_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": phenology_state_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::PhenologyStateDefaultValuesJson => {
-            let state = phenology_state_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = phenology_state_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": phenology_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::SnowStateSchemaJson => {
-            let schema = snow_state_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": snow_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::SnowStateDefaultJson => {
-            let flat_len = snow_state_schema().map_err(|e| e.to_string())?;
-            let state = snow_state_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": snow_state_schema_version(),
-                "schema_version_runtime": snow_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": snow_state_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::SnowStateDefaultValuesJson => {
-            let state = snow_state_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = snow_state_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": snow_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::SnowPrmSchemaJson => {
-            let schema = snow_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": snow_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::SnowPrmDefaultJson => {
-            let flat_len = snow_prm_schema().map_err(|e| e.to_string())?;
-            let state = snow_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": snow_prm_schema_version(),
-                "schema_version_runtime": snow_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": snow_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::SnowPrmDefaultValuesJson => {
-            let state = snow_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = snow_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": snow_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::SoilPrmSchemaJson => {
-            let schema = soil_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": soil_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::SoilPrmDefaultJson => {
-            let flat_len = soil_prm_schema().map_err(|e| e.to_string())?;
-            let state = soil_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": soil_prm_schema_version(),
-                "schema_version_runtime": soil_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": soil_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::SoilPrmDefaultValuesJson => {
-            let state = soil_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = soil_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": soil_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcPavedPrmSchemaJson => {
-            let schema = lc_paved_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": lc_paved_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcPavedPrmDefaultJson => {
-            let flat_len = lc_paved_prm_schema().map_err(|e| e.to_string())?;
-            let state = lc_paved_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": lc_paved_prm_schema_version(),
-                "schema_version_runtime": lc_paved_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": lc_paved_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcPavedPrmDefaultValuesJson => {
-            let state = lc_paved_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = lc_paved_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": lc_paved_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcBldgPrmSchemaJson => {
-            let schema = lc_bldg_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": lc_bldg_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcBldgPrmDefaultJson => {
-            let flat_len = lc_bldg_prm_schema().map_err(|e| e.to_string())?;
-            let state = lc_bldg_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": lc_bldg_prm_schema_version(),
-                "schema_version_runtime": lc_bldg_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": lc_bldg_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcBldgPrmDefaultValuesJson => {
-            let state = lc_bldg_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = lc_bldg_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": lc_bldg_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcBsoilPrmSchemaJson => {
-            let schema = lc_bsoil_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": lc_bsoil_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcBsoilPrmDefaultJson => {
-            let flat_len = lc_bsoil_prm_schema().map_err(|e| e.to_string())?;
-            let state = lc_bsoil_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": lc_bsoil_prm_schema_version(),
-                "schema_version_runtime": lc_bsoil_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": lc_bsoil_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcBsoilPrmDefaultValuesJson => {
-            let state = lc_bsoil_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = lc_bsoil_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": lc_bsoil_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcWaterPrmSchemaJson => {
-            let schema = lc_water_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": lc_water_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcWaterPrmDefaultJson => {
-            let flat_len = lc_water_prm_schema().map_err(|e| e.to_string())?;
-            let state = lc_water_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": lc_water_prm_schema_version(),
-                "schema_version_runtime": lc_water_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": lc_water_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcWaterPrmDefaultValuesJson => {
-            let state = lc_water_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = lc_water_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": lc_water_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcDectrPrmSchemaJson => {
-            let schema = lc_dectr_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": lc_dectr_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcDectrPrmDefaultJson => {
-            let flat_len = lc_dectr_prm_schema().map_err(|e| e.to_string())?;
-            let state = lc_dectr_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": lc_dectr_prm_schema_version(),
-                "schema_version_runtime": lc_dectr_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": lc_dectr_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcDectrPrmDefaultValuesJson => {
-            let state = lc_dectr_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = lc_dectr_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": lc_dectr_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcEvetrPrmSchemaJson => {
-            let schema = lc_evetr_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": lc_evetr_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcEvetrPrmDefaultJson => {
-            let flat_len = lc_evetr_prm_schema().map_err(|e| e.to_string())?;
-            let state = lc_evetr_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": lc_evetr_prm_schema_version(),
-                "schema_version_runtime": lc_evetr_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": lc_evetr_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcEvetrPrmDefaultValuesJson => {
-            let state = lc_evetr_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = lc_evetr_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": lc_evetr_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcGrassPrmSchemaJson => {
-            let schema = lc_grass_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": lc_grass_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcGrassPrmDefaultJson => {
-            let flat_len = lc_grass_prm_schema().map_err(|e| e.to_string())?;
-            let state = lc_grass_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": lc_grass_prm_schema_version(),
-                "schema_version_runtime": lc_grass_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": lc_grass_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LcGrassPrmDefaultValuesJson => {
-            let state = lc_grass_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = lc_grass_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": lc_grass_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::SurfStorePrmSchemaJson => {
-            let schema = surf_store_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": surf_store_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::SurfStorePrmDefaultJson => {
-            let flat_len = surf_store_prm_schema().map_err(|e| e.to_string())?;
-            let state = surf_store_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": surf_store_prm_schema_version(),
-                "schema_version_runtime": surf_store_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": surf_store_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::SurfStorePrmDefaultValuesJson => {
-            let state = surf_store_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = surf_store_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": surf_store_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::WaterDistPrmSchemaJson => {
-            let schema = water_dist_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": water_dist_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::WaterDistPrmDefaultJson => {
-            let flat_len = water_dist_prm_schema().map_err(|e| e.to_string())?;
-            let state = water_dist_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": water_dist_prm_schema_version(),
-                "schema_version_runtime": water_dist_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": water_dist_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::WaterDistPrmDefaultValuesJson => {
-            let state = water_dist_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = water_dist_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": water_dist_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::IrrigDaywaterSchemaJson => {
-            let schema = irrig_daywater_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": irrig_daywater_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::IrrigDaywaterDefaultJson => {
-            let flat_len = irrig_daywater_schema().map_err(|e| e.to_string())?;
-            let state = irrig_daywater_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": irrig_daywater_schema_version(),
-                "schema_version_runtime": irrig_daywater_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": irrig_daywater_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::IrrigDaywaterDefaultValuesJson => {
-            let state = irrig_daywater_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = irrig_daywater_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": irrig_daywater_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::IrrigationPrmSchemaJson => {
-            let schema = irrigation_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": irrigation_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::IrrigationPrmDefaultJson => {
-            let flat_len = irrigation_prm_schema().map_err(|e| e.to_string())?;
-            let state = irrigation_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": irrigation_prm_schema_version(),
-                "schema_version_runtime": irrigation_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": irrigation_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::IrrigationPrmDefaultValuesJson => {
-            let state = irrigation_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = irrigation_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": irrigation_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LumpsPrmSchemaJson => {
-            let schema = lumps_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": lumps_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LumpsPrmDefaultJson => {
-            let flat_len = lumps_prm_schema().map_err(|e| e.to_string())?;
-            let state = lumps_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": lumps_prm_schema_version(),
-                "schema_version_runtime": lumps_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": lumps_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::LumpsPrmDefaultValuesJson => {
-            let state = lumps_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = lumps_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": lumps_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::OhmCoefLcSchemaJson => {
-            let schema = ohm_coef_lc_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": ohm_coef_lc_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::OhmCoefLcDefaultJson => {
-            let flat_len = ohm_coef_lc_schema().map_err(|e| e.to_string())?;
-            let state = ohm_coef_lc_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": ohm_coef_lc_schema_version(),
-                "schema_version_runtime": ohm_coef_lc_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": ohm_coef_lc_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::OhmCoefLcDefaultValuesJson => {
-            let state = ohm_coef_lc_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = ohm_coef_lc_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": ohm_coef_lc_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::OhmPrmSchemaJson => {
-            let schema = ohm_prm_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": ohm_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::OhmPrmDefaultJson => {
-            let flat_len = ohm_prm_schema().map_err(|e| e.to_string())?;
-            let state = ohm_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": ohm_prm_schema_version(),
-                "schema_version_runtime": ohm_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": ohm_prm_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::OhmPrmDefaultValuesJson => {
-            let state = ohm_prm_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = ohm_prm_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": ohm_prm_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::SolarStateSchemaJson => {
-            let schema = solar_state_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": solar_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::SolarStateDefaultJson => {
-            let flat_len = solar_state_schema().map_err(|e| e.to_string())?;
-            let state = solar_state_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": solar_state_schema_version(),
-                "schema_version_runtime": solar_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": solar_state_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::SolarStateDefaultValuesJson => {
-            let state = solar_state_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = solar_state_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": solar_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::RoughnessStateSchemaJson => {
-            let schema = roughness_state_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": roughness_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::RoughnessStateDefaultJson => {
-            let flat_len = roughness_state_schema().map_err(|e| e.to_string())?;
-            let state = roughness_state_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": roughness_state_schema_version(),
-                "schema_version_runtime": roughness_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": roughness_state_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::RoughnessStateDefaultValuesJson => {
-            let state = roughness_state_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = roughness_state_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": roughness_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::NhoodStateSchemaJson => {
-            let schema = nhood_state_schema_info().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": schema.schema_version,
-                "schema_version_runtime": nhood_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": schema.flat_len,
-                "fields": schema.field_names,
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render schema json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::NhoodStateDefaultJson => {
-            let flat_len = nhood_state_schema().map_err(|e| e.to_string())?;
-            let state = nhood_state_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = json!({
-                "schema_version": nhood_state_schema_version(),
-                "schema_version_runtime": nhood_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "flat_len": flat_len,
-                "state": nhood_state_to_map(&state),
-            });
-            let text = serde_json::to_string_pretty(&payload)
-                .map_err(|e| format!("failed to render default state json: {e}"))?;
-            println!("{text}");
-        }
-        FlatCommand::NhoodStateDefaultValuesJson => {
-            let state = nhood_state_default_from_fortran().map_err(|e| e.to_string())?;
-            let payload = nhood_state_to_values_payload(&state);
-            let out = json!({
-                "schema_version": payload.schema_version,
-                "schema_version_runtime": nhood_state_schema_version_runtime().map_err(|e| e.to_string())?,
-                "values": payload.values,
-            });
-            let text = serde_json::to_string_pretty(&out)
-                .map_err(|e| format!("failed to render default values json: {e}"))?;
-            println!("{text}");
-        }
+        FlatCommand::Bioco2PrmSchemaJson => render_simple_schema_json!(bioco2_prm),
+        FlatCommand::Bioco2PrmDefaultJson => render_simple_default_json!(bioco2_prm),
+        FlatCommand::Bioco2PrmDefaultValuesJson => render_simple_default_values_json!(bioco2_prm),
+        FlatCommand::LaiPrmSchemaJson => render_simple_schema_json!(lai_prm),
+        FlatCommand::LaiPrmDefaultJson => render_simple_default_json!(lai_prm),
+        FlatCommand::LaiPrmDefaultValuesJson => render_simple_default_values_json!(lai_prm),
+        FlatCommand::PhenologyStateSchemaJson => render_simple_schema_json!(phenology_state),
+        FlatCommand::PhenologyStateDefaultJson => render_simple_default_json!(phenology_state),
+        FlatCommand::PhenologyStateDefaultValuesJson => render_simple_default_values_json!(phenology_state),
+        FlatCommand::SnowStateSchemaJson => render_simple_schema_json!(snow_state),
+        FlatCommand::SnowStateDefaultJson => render_simple_default_json!(snow_state),
+        FlatCommand::SnowStateDefaultValuesJson => render_simple_default_values_json!(snow_state),
+        FlatCommand::SnowPrmSchemaJson => render_simple_schema_json!(snow_prm),
+        FlatCommand::SnowPrmDefaultJson => render_simple_default_json!(snow_prm),
+        FlatCommand::SnowPrmDefaultValuesJson => render_simple_default_values_json!(snow_prm),
+        FlatCommand::SoilPrmSchemaJson => render_simple_schema_json!(soil_prm),
+        FlatCommand::SoilPrmDefaultJson => render_simple_default_json!(soil_prm),
+        FlatCommand::SoilPrmDefaultValuesJson => render_simple_default_values_json!(soil_prm),
+        FlatCommand::LcPavedPrmSchemaJson => render_simple_schema_json!(lc_paved_prm),
+        FlatCommand::LcPavedPrmDefaultJson => render_simple_default_json!(lc_paved_prm),
+        FlatCommand::LcPavedPrmDefaultValuesJson => render_simple_default_values_json!(lc_paved_prm),
+        FlatCommand::LcBldgPrmSchemaJson => render_simple_schema_json!(lc_bldg_prm),
+        FlatCommand::LcBldgPrmDefaultJson => render_simple_default_json!(lc_bldg_prm),
+        FlatCommand::LcBldgPrmDefaultValuesJson => render_simple_default_values_json!(lc_bldg_prm),
+        FlatCommand::LcBsoilPrmSchemaJson => render_simple_schema_json!(lc_bsoil_prm),
+        FlatCommand::LcBsoilPrmDefaultJson => render_simple_default_json!(lc_bsoil_prm),
+        FlatCommand::LcBsoilPrmDefaultValuesJson => render_simple_default_values_json!(lc_bsoil_prm),
+        FlatCommand::LcWaterPrmSchemaJson => render_simple_schema_json!(lc_water_prm),
+        FlatCommand::LcWaterPrmDefaultJson => render_simple_default_json!(lc_water_prm),
+        FlatCommand::LcWaterPrmDefaultValuesJson => render_simple_default_values_json!(lc_water_prm),
+        FlatCommand::LcDectrPrmSchemaJson => render_simple_schema_json!(lc_dectr_prm),
+        FlatCommand::LcDectrPrmDefaultJson => render_simple_default_json!(lc_dectr_prm),
+        FlatCommand::LcDectrPrmDefaultValuesJson => render_simple_default_values_json!(lc_dectr_prm),
+        FlatCommand::LcEvetrPrmSchemaJson => render_simple_schema_json!(lc_evetr_prm),
+        FlatCommand::LcEvetrPrmDefaultJson => render_simple_default_json!(lc_evetr_prm),
+        FlatCommand::LcEvetrPrmDefaultValuesJson => render_simple_default_values_json!(lc_evetr_prm),
+        FlatCommand::LcGrassPrmSchemaJson => render_simple_schema_json!(lc_grass_prm),
+        FlatCommand::LcGrassPrmDefaultJson => render_simple_default_json!(lc_grass_prm),
+        FlatCommand::LcGrassPrmDefaultValuesJson => render_simple_default_values_json!(lc_grass_prm),
+        FlatCommand::SurfStorePrmSchemaJson => render_simple_schema_json!(surf_store_prm),
+        FlatCommand::SurfStorePrmDefaultJson => render_simple_default_json!(surf_store_prm),
+        FlatCommand::SurfStorePrmDefaultValuesJson => render_simple_default_values_json!(surf_store_prm),
+        FlatCommand::WaterDistPrmSchemaJson => render_simple_schema_json!(water_dist_prm),
+        FlatCommand::WaterDistPrmDefaultJson => render_simple_default_json!(water_dist_prm),
+        FlatCommand::WaterDistPrmDefaultValuesJson => render_simple_default_values_json!(water_dist_prm),
+        FlatCommand::IrrigDaywaterSchemaJson => render_simple_schema_json!(irrig_daywater),
+        FlatCommand::IrrigDaywaterDefaultJson => render_simple_default_json!(irrig_daywater),
+        FlatCommand::IrrigDaywaterDefaultValuesJson => render_simple_default_values_json!(irrig_daywater),
+        FlatCommand::IrrigationPrmSchemaJson => render_simple_schema_json!(irrigation_prm),
+        FlatCommand::IrrigationPrmDefaultJson => render_simple_default_json!(irrigation_prm),
+        FlatCommand::IrrigationPrmDefaultValuesJson => render_simple_default_values_json!(irrigation_prm),
+        FlatCommand::LumpsPrmSchemaJson => render_simple_schema_json!(lumps_prm),
+        FlatCommand::LumpsPrmDefaultJson => render_simple_default_json!(lumps_prm),
+        FlatCommand::LumpsPrmDefaultValuesJson => render_simple_default_values_json!(lumps_prm),
+        FlatCommand::OhmCoefLcSchemaJson => render_simple_schema_json!(ohm_coef_lc),
+        FlatCommand::OhmCoefLcDefaultJson => render_simple_default_json!(ohm_coef_lc),
+        FlatCommand::OhmCoefLcDefaultValuesJson => render_simple_default_values_json!(ohm_coef_lc),
+        FlatCommand::OhmPrmSchemaJson => render_simple_schema_json!(ohm_prm),
+        FlatCommand::OhmPrmDefaultJson => render_simple_default_json!(ohm_prm),
+        FlatCommand::OhmPrmDefaultValuesJson => render_simple_default_values_json!(ohm_prm),
+        FlatCommand::SolarStateSchemaJson => render_simple_schema_json!(solar_state),
+        FlatCommand::SolarStateDefaultJson => render_simple_default_json!(solar_state),
+        FlatCommand::SolarStateDefaultValuesJson => render_simple_default_values_json!(solar_state),
+        FlatCommand::RoughnessStateSchemaJson => render_simple_schema_json!(roughness_state),
+        FlatCommand::RoughnessStateDefaultJson => render_simple_default_json!(roughness_state),
+        FlatCommand::RoughnessStateDefaultValuesJson => render_simple_default_values_json!(roughness_state),
+        FlatCommand::NhoodStateSchemaJson => render_simple_schema_json!(nhood_state),
+        FlatCommand::NhoodStateDefaultJson => render_simple_default_json!(nhood_state),
+        FlatCommand::NhoodStateDefaultValuesJson => render_simple_default_values_json!(nhood_state),
     }
 
     Ok(())

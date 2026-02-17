@@ -1,20 +1,11 @@
-use crate::codec::{
-    field_index, from_map, from_values_payload, to_map, to_values_payload, validate_flat_len,
-    StateCodec, TypeSchema, ValuesPayload,
-};
+use crate::codec::{validate_flat_len, StateCodec, TypeSchema, ValuesPayload};
 use crate::error::BridgeError;
 use crate::ffi;
-use std::collections::BTreeMap;
 
 pub const IRRIG_DAYWATER_FLAT_LEN: usize = 14;
 pub const IRRIG_DAYWATER_SCHEMA_VERSION: u32 = 1;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IrrigDaywaterSchema {
-    pub schema_version: u32,
-    pub flat_len: usize,
-    pub field_names: Vec<String>,
-}
+pub type IrrigDaywaterSchema = crate::codec::SimpleSchema;
 
 pub type IrrigDaywaterValuesPayload = ValuesPayload;
 
@@ -117,37 +108,6 @@ impl StateCodec for IrrigDaywater {
     }
 }
 
-pub fn irrig_daywater_schema() -> Result<usize, BridgeError> {
-    let mut n_flat = -1_i32;
-    let mut err = -1_i32;
-
-    unsafe {
-        ffi::suews_irrig_daywater_len(&mut n_flat as *mut i32, &mut err as *mut i32);
-    }
-
-    if err != ffi::SUEWS_CAPI_OK {
-        return Err(BridgeError::from_code(err));
-    }
-
-    Ok(n_flat as usize)
-}
-
-pub fn irrig_daywater_schema_info() -> Result<IrrigDaywaterSchema, BridgeError> {
-    let flat_len = irrig_daywater_schema()?;
-    let schema_version_runtime = irrig_daywater_schema_version_runtime()?;
-    let field_names = irrig_daywater_field_names();
-
-    if schema_version_runtime != IRRIG_DAYWATER_SCHEMA_VERSION || flat_len != field_names.len() {
-        return Err(BridgeError::BadState);
-    }
-
-    Ok(IrrigDaywaterSchema {
-        schema_version: IRRIG_DAYWATER_SCHEMA_VERSION,
-        flat_len,
-        field_names,
-    })
-}
-
 pub fn irrig_daywater_field_names() -> Vec<String> {
     vec![
         "monday_flag".to_string(),
@@ -167,82 +127,17 @@ pub fn irrig_daywater_field_names() -> Vec<String> {
     ]
 }
 
-pub fn irrig_daywater_schema_version() -> u32 {
-    IRRIG_DAYWATER_SCHEMA_VERSION
+crate::codec::impl_state_module_fns! {
+    prefix = irrig_daywater,
+    state_type = IrrigDaywater,
+    schema_type = IrrigDaywaterSchema,
+    payload_type = IrrigDaywaterValuesPayload,
+    flat_len_const = IRRIG_DAYWATER_FLAT_LEN,
+    schema_version_const = IRRIG_DAYWATER_SCHEMA_VERSION,
+    ffi_len_fn = ffi::suews_irrig_daywater_len,
+    ffi_schema_version_fn = ffi::suews_irrig_daywater_schema_version,
+    ffi_default_fn = ffi::suews_irrig_daywater_default,
 }
-
-pub fn irrig_daywater_schema_version_runtime() -> Result<u32, BridgeError> {
-    let mut schema_version = -1_i32;
-    let mut err = -1_i32;
-
-    unsafe {
-        ffi::suews_irrig_daywater_schema_version(
-            &mut schema_version as *mut i32,
-            &mut err as *mut i32,
-        );
-    }
-
-    if err != ffi::SUEWS_CAPI_OK || schema_version < 0 {
-        return Err(BridgeError::from_code(err));
-    }
-
-    Ok(schema_version as u32)
-}
-
-pub fn irrig_daywater_field_index(name: &str) -> Option<usize> {
-    let names = irrig_daywater_field_names();
-    field_index(&names, name)
-}
-
-pub fn irrig_daywater_to_map(state: &IrrigDaywater) -> BTreeMap<String, f64> {
-    to_map(state)
-}
-
-pub fn irrig_daywater_to_ordered_values(state: &IrrigDaywater) -> Vec<f64> {
-    state.to_flat()
-}
-
-pub fn irrig_daywater_from_ordered_values(values: &[f64]) -> Result<IrrigDaywater, BridgeError> {
-    IrrigDaywater::from_flat(values)
-}
-
-pub fn irrig_daywater_to_values_payload(state: &IrrigDaywater) -> IrrigDaywaterValuesPayload {
-    to_values_payload(state)
-}
-
-pub fn irrig_daywater_from_values_payload(
-    payload: &IrrigDaywaterValuesPayload,
-) -> Result<IrrigDaywater, BridgeError> {
-    from_values_payload(payload)
-}
-
-pub fn irrig_daywater_from_map(
-    values: &BTreeMap<String, f64>,
-) -> Result<IrrigDaywater, BridgeError> {
-    let default_state = irrig_daywater_default_from_fortran()?;
-    from_map(values, &default_state)
-}
-
-pub fn irrig_daywater_default_from_fortran() -> Result<IrrigDaywater, BridgeError> {
-    let n_flat = irrig_daywater_schema()?;
-    if n_flat != IRRIG_DAYWATER_FLAT_LEN {
-        return Err(BridgeError::BadState);
-    }
-
-    let mut flat = vec![0.0_f64; n_flat];
-    let mut err = -1_i32;
-
-    unsafe {
-        ffi::suews_irrig_daywater_default(flat.as_mut_ptr(), n_flat as i32, &mut err as *mut i32);
-    }
-
-    if err != ffi::SUEWS_CAPI_OK {
-        return Err(BridgeError::from_code(err));
-    }
-
-    IrrigDaywater::from_flat(&flat)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

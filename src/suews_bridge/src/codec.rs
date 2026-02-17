@@ -10,6 +10,13 @@ pub struct TypeSchema {
     pub field_names: Vec<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SimpleSchema {
+    pub schema_version: u32,
+    pub flat_len: usize,
+    pub field_names: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ValuesPayload {
     pub schema_version: u32,
@@ -142,6 +149,128 @@ pub fn dims_element_count(dims: &[usize]) -> Result<usize, BridgeError> {
         .try_fold(1_usize, |acc, dim| acc.checked_mul(*dim))
         .ok_or(BridgeError::BadState)
 }
+
+macro_rules! impl_state_module_fns {
+    (
+        prefix = $prefix:ident,
+        state_type = $StateType:ty,
+        schema_type = $SchemaType:ty,
+        payload_type = $PayloadType:ty,
+        flat_len_const = $flat_len_const:expr,
+        schema_version_const = $schema_version_const:expr,
+        ffi_len_fn = $ffi_len_fn:path,
+        ffi_schema_version_fn = $ffi_schema_version_fn:path,
+        ffi_default_fn = $ffi_default_fn:path,
+    ) => {
+        paste::paste! {
+            pub fn [<$prefix _schema>]() -> Result<usize, crate::error::BridgeError> {
+                let mut n_flat = -1_i32;
+                let mut err = -1_i32;
+
+                unsafe {
+                    $ffi_len_fn(&mut n_flat as *mut i32, &mut err as *mut i32);
+                }
+
+                if err != crate::ffi::SUEWS_CAPI_OK {
+                    return Err(crate::error::BridgeError::from_code(err));
+                }
+
+                Ok(n_flat as usize)
+            }
+
+            pub fn [<$prefix _schema_info>]() -> Result<$SchemaType, crate::error::BridgeError> {
+                let flat_len = [<$prefix _schema>]()?;
+                let schema_version_runtime = [<$prefix _schema_version_runtime>]()?;
+                let field_names = [<$prefix _field_names>]();
+
+                if schema_version_runtime != $schema_version_const || flat_len != field_names.len() {
+                    return Err(crate::error::BridgeError::BadState);
+                }
+
+                Ok($SchemaType {
+                    schema_version: $schema_version_const,
+                    flat_len,
+                    field_names,
+                })
+            }
+
+            pub fn [<$prefix _schema_version>]() -> u32 {
+                $schema_version_const
+            }
+
+            pub fn [<$prefix _schema_version_runtime>]() -> Result<u32, crate::error::BridgeError> {
+                let mut schema_version = -1_i32;
+                let mut err = -1_i32;
+
+                unsafe {
+                    $ffi_schema_version_fn(&mut schema_version as *mut i32, &mut err as *mut i32);
+                }
+
+                if err != crate::ffi::SUEWS_CAPI_OK || schema_version < 0 {
+                    return Err(crate::error::BridgeError::from_code(err));
+                }
+
+                Ok(schema_version as u32)
+            }
+
+            pub fn [<$prefix _field_index>](name: &str) -> Option<usize> {
+                let names = [<$prefix _field_names>]();
+                crate::codec::field_index(&names, name)
+            }
+
+            pub fn [<$prefix _to_map>](state: &$StateType) -> std::collections::BTreeMap<String, f64> {
+                crate::codec::to_map(state)
+            }
+
+            pub fn [<$prefix _to_ordered_values>](state: &$StateType) -> Vec<f64> {
+                state.to_flat()
+            }
+
+            pub fn [<$prefix _from_ordered_values>](values: &[f64]) -> Result<$StateType, crate::error::BridgeError> {
+                <$StateType>::from_flat(values)
+            }
+
+            pub fn [<$prefix _to_values_payload>](state: &$StateType) -> $PayloadType {
+                crate::codec::to_values_payload(state)
+            }
+
+            pub fn [<$prefix _from_values_payload>](
+                payload: &$PayloadType,
+            ) -> Result<$StateType, crate::error::BridgeError> {
+                crate::codec::from_values_payload(payload)
+            }
+
+            pub fn [<$prefix _from_map>](
+                values: &std::collections::BTreeMap<String, f64>,
+            ) -> Result<$StateType, crate::error::BridgeError> {
+                let default_state = [<$prefix _default_from_fortran>]()?;
+                crate::codec::from_map(values, &default_state)
+            }
+
+            pub fn [<$prefix _default_from_fortran>]() -> Result<$StateType, crate::error::BridgeError> {
+                let n_flat = [<$prefix _schema>]()?;
+                if n_flat != $flat_len_const {
+                    return Err(crate::error::BridgeError::BadState);
+                }
+
+                let mut flat = vec![0.0_f64; n_flat];
+                let mut err = -1_i32;
+
+                unsafe {
+                    $ffi_default_fn(flat.as_mut_ptr(), n_flat as i32, &mut err as *mut i32);
+                }
+
+                if err != crate::ffi::SUEWS_CAPI_OK {
+                    return Err(crate::error::BridgeError::from_code(err));
+                }
+
+                <$StateType>::from_flat(&flat)
+            }
+        }
+    };
+}
+
+pub(crate) use impl_state_module_fns;
 
 #[cfg(test)]
 mod tests {

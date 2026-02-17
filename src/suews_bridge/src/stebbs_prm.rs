@@ -1,22 +1,13 @@
-use crate::codec::{
-    field_index, from_map, from_values_payload, to_map, to_values_payload, validate_flat_len,
-    StateCodec, TypeSchema, ValuesPayload,
-};
+use crate::codec::{validate_flat_len, StateCodec, TypeSchema, ValuesPayload};
 use crate::error::BridgeError;
 use crate::ffi;
-use std::collections::BTreeMap;
 
 pub const STEBBS_PRM_PROFILE_STEPS: usize = 144;
 pub const STEBBS_PRM_PROFILE_GROUPS: usize = 2;
 pub const STEBBS_PRM_FLAT_LEN: usize = 333;
 pub const STEBBS_PRM_SCHEMA_VERSION: u32 = 1;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StebbsPrmSchema {
-    pub schema_version: u32,
-    pub flat_len: usize,
-    pub field_names: Vec<String>,
-}
+pub type StebbsPrmSchema = crate::codec::SimpleSchema;
 
 pub type StebbsPrmValuesPayload = ValuesPayload;
 
@@ -315,37 +306,6 @@ impl StateCodec for StebbsPrm {
     }
 }
 
-pub fn stebbs_prm_schema() -> Result<usize, BridgeError> {
-    let mut n_flat = -1_i32;
-    let mut err = -1_i32;
-
-    unsafe {
-        ffi::suews_stebbs_prm_len(&mut n_flat as *mut i32, &mut err as *mut i32);
-    }
-
-    if err != ffi::SUEWS_CAPI_OK {
-        return Err(BridgeError::from_code(err));
-    }
-
-    Ok(n_flat as usize)
-}
-
-pub fn stebbs_prm_schema_info() -> Result<StebbsPrmSchema, BridgeError> {
-    let flat_len = stebbs_prm_schema()?;
-    let schema_version_runtime = stebbs_prm_schema_version_runtime()?;
-    let field_names = stebbs_prm_field_names();
-
-    if schema_version_runtime != STEBBS_PRM_SCHEMA_VERSION || flat_len != field_names.len() {
-        return Err(BridgeError::BadState);
-    }
-
-    Ok(StebbsPrmSchema {
-        schema_version: STEBBS_PRM_SCHEMA_VERSION,
-        flat_len,
-        field_names,
-    })
-}
-
 pub fn stebbs_prm_field_names() -> Vec<String> {
     let mut names = vec![
         "wall_internal_convection_coefficient".to_string(),
@@ -405,77 +365,17 @@ pub fn stebbs_prm_field_names() -> Vec<String> {
     names
 }
 
-pub fn stebbs_prm_schema_version() -> u32 {
-    STEBBS_PRM_SCHEMA_VERSION
+crate::codec::impl_state_module_fns! {
+    prefix = stebbs_prm,
+    state_type = StebbsPrm,
+    schema_type = StebbsPrmSchema,
+    payload_type = StebbsPrmValuesPayload,
+    flat_len_const = STEBBS_PRM_FLAT_LEN,
+    schema_version_const = STEBBS_PRM_SCHEMA_VERSION,
+    ffi_len_fn = ffi::suews_stebbs_prm_len,
+    ffi_schema_version_fn = ffi::suews_stebbs_prm_schema_version,
+    ffi_default_fn = ffi::suews_stebbs_prm_default,
 }
-
-pub fn stebbs_prm_schema_version_runtime() -> Result<u32, BridgeError> {
-    let mut schema_version = -1_i32;
-    let mut err = -1_i32;
-
-    unsafe {
-        ffi::suews_stebbs_prm_schema_version(&mut schema_version as *mut i32, &mut err as *mut i32);
-    }
-
-    if err != ffi::SUEWS_CAPI_OK || schema_version < 0 {
-        return Err(BridgeError::from_code(err));
-    }
-
-    Ok(schema_version as u32)
-}
-
-pub fn stebbs_prm_field_index(name: &str) -> Option<usize> {
-    let names = stebbs_prm_field_names();
-    field_index(&names, name)
-}
-
-pub fn stebbs_prm_to_map(state: &StebbsPrm) -> BTreeMap<String, f64> {
-    to_map(state)
-}
-
-pub fn stebbs_prm_to_ordered_values(state: &StebbsPrm) -> Vec<f64> {
-    state.to_flat()
-}
-
-pub fn stebbs_prm_from_ordered_values(values: &[f64]) -> Result<StebbsPrm, BridgeError> {
-    StebbsPrm::from_flat(values)
-}
-
-pub fn stebbs_prm_to_values_payload(state: &StebbsPrm) -> StebbsPrmValuesPayload {
-    to_values_payload(state)
-}
-
-pub fn stebbs_prm_from_values_payload(
-    payload: &StebbsPrmValuesPayload,
-) -> Result<StebbsPrm, BridgeError> {
-    from_values_payload(payload)
-}
-
-pub fn stebbs_prm_from_map(values: &BTreeMap<String, f64>) -> Result<StebbsPrm, BridgeError> {
-    let default_state = stebbs_prm_default_from_fortran()?;
-    from_map(values, &default_state)
-}
-
-pub fn stebbs_prm_default_from_fortran() -> Result<StebbsPrm, BridgeError> {
-    let n_flat = stebbs_prm_schema()?;
-    if n_flat != STEBBS_PRM_FLAT_LEN {
-        return Err(BridgeError::BadState);
-    }
-
-    let mut flat = vec![0.0_f64; n_flat];
-    let mut err = -1_i32;
-
-    unsafe {
-        ffi::suews_stebbs_prm_default(flat.as_mut_ptr(), n_flat as i32, &mut err as *mut i32);
-    }
-
-    if err != ffi::SUEWS_CAPI_OK {
-        return Err(BridgeError::from_code(err));
-    }
-
-    StebbsPrm::from_flat(&flat)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -9,12 +9,7 @@ use std::collections::BTreeMap;
 pub const SUEWS_CONFIG_FLAT_LEN: usize = 21;
 pub const SUEWS_CONFIG_SCHEMA_VERSION: u32 = 1;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SuewsConfigSchema {
-    pub schema_version: u32,
-    pub flat_len: usize,
-    pub field_names: Vec<String>,
-}
+pub type SuewsConfigSchema = crate::codec::SimpleSchema;
 
 pub type SuewsConfigValuesPayload = ValuesPayload;
 

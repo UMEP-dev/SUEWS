@@ -21,12 +21,7 @@ pub const OUTPUT_LINE_NHOOD_LEN: usize = 6;
 pub const OUTPUT_LINE_FLAT_LEN: usize = 1139;
 pub const OUTPUT_LINE_SCHEMA_VERSION: u32 = 1;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct OutputLineSchema {
-    pub schema_version: u32,
-    pub flat_len: usize,
-    pub field_names: Vec<String>,
-}
+pub type OutputLineSchema = crate::codec::SimpleSchema;
 
 pub type OutputLineValuesPayload = ValuesPayload;
 

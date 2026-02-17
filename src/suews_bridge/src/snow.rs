@@ -1,22 +1,13 @@
-use crate::codec::{
-    field_index, from_map, from_values_payload, to_map, to_values_payload, validate_flat_len,
-    StateCodec, TypeSchema, ValuesPayload,
-};
+use crate::codec::{validate_flat_len, StateCodec, TypeSchema, ValuesPayload};
 use crate::error::BridgeError;
 use crate::ffi;
 use crate::NSURF;
-use std::collections::BTreeMap;
 
 pub const SNOW_STATE_REMOVAL_LEN: usize = 2;
 pub const SNOW_STATE_FLAT_LEN: usize = 79;
 pub const SNOW_STATE_SCHEMA_VERSION: u32 = 1;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SnowStateSchema {
-    pub schema_version: u32,
-    pub flat_len: usize,
-    pub field_names: Vec<String>,
-}
+pub type SnowStateSchema = crate::codec::SimpleSchema;
 
 pub type SnowStateValuesPayload = ValuesPayload;
 
@@ -203,37 +194,6 @@ impl StateCodec for SnowState {
     }
 }
 
-pub fn snow_state_schema() -> Result<usize, BridgeError> {
-    let mut n_flat = -1_i32;
-    let mut err = -1_i32;
-
-    unsafe {
-        ffi::suews_snow_state_len(&mut n_flat as *mut i32, &mut err as *mut i32);
-    }
-
-    if err != ffi::SUEWS_CAPI_OK {
-        return Err(BridgeError::from_code(err));
-    }
-
-    Ok(n_flat as usize)
-}
-
-pub fn snow_state_schema_info() -> Result<SnowStateSchema, BridgeError> {
-    let flat_len = snow_state_schema()?;
-    let schema_version_runtime = snow_state_schema_version_runtime()?;
-    let field_names = snow_state_field_names();
-
-    if schema_version_runtime != SNOW_STATE_SCHEMA_VERSION || flat_len != field_names.len() {
-        return Err(BridgeError::BadState);
-    }
-
-    Ok(SnowStateSchema {
-        schema_version: SNOW_STATE_SCHEMA_VERSION,
-        flat_len,
-        field_names,
-    })
-}
-
 pub fn snow_state_field_names() -> Vec<String> {
     fn push_surface_fields(names: &mut Vec<String>, prefix: &str) {
         let surfaces = ["paved", "bldg", "evetr", "dectr", "grass", "bsoil", "water"];
@@ -275,77 +235,17 @@ pub fn snow_state_field_names() -> Vec<String> {
     names
 }
 
-pub fn snow_state_schema_version() -> u32 {
-    SNOW_STATE_SCHEMA_VERSION
+crate::codec::impl_state_module_fns! {
+    prefix = snow_state,
+    state_type = SnowState,
+    schema_type = SnowStateSchema,
+    payload_type = SnowStateValuesPayload,
+    flat_len_const = SNOW_STATE_FLAT_LEN,
+    schema_version_const = SNOW_STATE_SCHEMA_VERSION,
+    ffi_len_fn = ffi::suews_snow_state_len,
+    ffi_schema_version_fn = ffi::suews_snow_state_schema_version,
+    ffi_default_fn = ffi::suews_snow_state_default,
 }
-
-pub fn snow_state_schema_version_runtime() -> Result<u32, BridgeError> {
-    let mut schema_version = -1_i32;
-    let mut err = -1_i32;
-
-    unsafe {
-        ffi::suews_snow_state_schema_version(&mut schema_version as *mut i32, &mut err as *mut i32);
-    }
-
-    if err != ffi::SUEWS_CAPI_OK || schema_version < 0 {
-        return Err(BridgeError::from_code(err));
-    }
-
-    Ok(schema_version as u32)
-}
-
-pub fn snow_state_field_index(name: &str) -> Option<usize> {
-    let names = snow_state_field_names();
-    field_index(&names, name)
-}
-
-pub fn snow_state_to_map(state: &SnowState) -> BTreeMap<String, f64> {
-    to_map(state)
-}
-
-pub fn snow_state_to_ordered_values(state: &SnowState) -> Vec<f64> {
-    state.to_flat()
-}
-
-pub fn snow_state_from_ordered_values(values: &[f64]) -> Result<SnowState, BridgeError> {
-    SnowState::from_flat(values)
-}
-
-pub fn snow_state_to_values_payload(state: &SnowState) -> SnowStateValuesPayload {
-    to_values_payload(state)
-}
-
-pub fn snow_state_from_values_payload(
-    payload: &SnowStateValuesPayload,
-) -> Result<SnowState, BridgeError> {
-    from_values_payload(payload)
-}
-
-pub fn snow_state_from_map(values: &BTreeMap<String, f64>) -> Result<SnowState, BridgeError> {
-    let default_state = snow_state_default_from_fortran()?;
-    from_map(values, &default_state)
-}
-
-pub fn snow_state_default_from_fortran() -> Result<SnowState, BridgeError> {
-    let n_flat = snow_state_schema()?;
-    if n_flat != SNOW_STATE_FLAT_LEN {
-        return Err(BridgeError::BadState);
-    }
-
-    let mut flat = vec![0.0_f64; n_flat];
-    let mut err = -1_i32;
-
-    unsafe {
-        ffi::suews_snow_state_default(flat.as_mut_ptr(), n_flat as i32, &mut err as *mut i32);
-    }
-
-    if err != ffi::SUEWS_CAPI_OK {
-        return Err(BridgeError::from_code(err));
-    }
-
-    SnowState::from_flat(&flat)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

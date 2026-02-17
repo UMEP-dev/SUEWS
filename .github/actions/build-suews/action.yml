@@ -196,14 +196,15 @@ runs:
         CIBW_TEST_REQUIRES: ${{ inputs.is_umep_variant == 'true' && 'pytest numpy==1.26.*' || 'pytest' }}
         # Test tiers: choose subset based on path detection and trigger
         # Always include --durations=10 to show slowest tests in output
-        CIBW_TEST_COMMAND: >
+        # After pytest, enforce bridge-manifest coverage of public Fortran types.
+        CIBW_TEST_COMMAND: >-
           python -m pytest {project}/test -v --tb=short --durations=10
           ${{ inputs.test_tier == 'smoke' && '-m smoke' ||
               inputs.test_tier == 'core' && '-m "smoke or core"' ||
               inputs.test_tier == 'cfg' && '-m "smoke or cfg"' ||
               inputs.test_tier == 'standard' && '-m "not slow"' ||
-              '' }}
-          && python {project}/scripts/check_bridge_manifest.py
+              '' }} &&
+          python {project}/scripts/check_bridge_manifest.py
         MACOSX_DEPLOYMENT_TARGET: '15.0'
 
     - name: Upload wheels

@@ -310,16 +310,20 @@ pub fn interpolate_forcing(
     }
 
     // --- Instantaneous: linear interpolation between input points ---
-    // Output times before t_in[0] are backfilled; at/after t_in[N-1] use last value.
+    // Output times before t_in[0] are backfilled from the first value.
+    // The last input row is treated as a boundary marker (not a valid data
+    // point): output times after t_in[N-2] are forward-filled from the
+    // second-to-last value.  This matches the Python resample_linear_inst
+    // behaviour which sets t_end to NaN before interpolation.
     let t_in_0 = t_in[0];
-    let t_in_last = t_in[n_in - 1];
+    let t_in_penult = t_in[n_in - 2];
     for &col in &INST_COLS {
         for j in 0..n_out {
             let t = t_out_start + j as i64 * tstep_mod_i64;
             let v = if t <= t_in_0 {
                 row_val(forcing, 0, col)
-            } else if t >= t_in_last {
-                row_val(forcing, n_in - 1, col)
+            } else if t > t_in_penult {
+                row_val(forcing, n_in - 2, col)
             } else {
                 let offset = (t - t_in_0) as f64;
                 let i_float = offset / tstep_in_f64;
@@ -337,7 +341,7 @@ pub fn interpolate_forcing(
     // Shifted times represent period midpoints. Backfill before first, forward-fill after last.
     let half_in = tstep_in_i64 / 2;
     let t_shifted_0 = t_in_0 - half_in;
-    let t_shifted_last = t_in_last - half_in;
+    let t_shifted_last = t_in[n_in - 1] - half_in;
     for &col in &AVG_COLS {
         for j in 0..n_out {
             let t = t_out_start + j as i64 * tstep_mod_i64;

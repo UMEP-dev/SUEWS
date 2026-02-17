@@ -673,11 +673,6 @@ class TestSampleOutput(TestCase):
         output variables against sample_output.csv.gz using the same tolerance
         framework as test_sample_output_validation.
 
-        The last 12 timesteps (1 hour) are excluded from the tolerance check
-        because the Rust CLI's forcing interpolation handles the final hour
-        boundary differently from the Python path. This is tracked as a known
-        issue; the test reports the boundary diffs for visibility.
-
         Skipped if the Rust binary has not been built.
         """
         print("\n" + "=" * 70)
@@ -735,18 +730,10 @@ class TestSampleOutput(TestCase):
             f"Row count mismatch: Rust={n_rust}, reference={n_ref}",
         )
 
-        # Known issue: Rust CLI forcing interpolation diverges in the last
-        # hour (12 five-minute timesteps) because the Python path forward-fills
-        # the final hourly forcing value while the Rust path extrapolates.
-        # TODO: fix Rust forcing interpolation to match Python boundary handling
-        n_boundary_skip = 12
-        n_compare = n_rust - n_boundary_skip
-
-        # Compare the 8 key variables (excluding boundary timesteps)
+        # Compare the 8 key variables (all timesteps)
         variables_to_test = list(TOLERANCE_CONFIG.keys())
         print(f"\nValidating variables: {', '.join(variables_to_test)}")
-        print(f"Comparing first {n_compare} of {n_rust} timesteps")
-        print(f"(last {n_boundary_skip} excluded: forcing interpolation boundary)")
+        print(f"Comparing all {n_rust} timesteps")
         print("=" * 70)
 
         all_passed = True
@@ -770,8 +757,8 @@ class TestSampleOutput(TestCase):
                 failed_variables.append(var)
                 continue
 
-            rust_arr = df_rust[var].values[:n_compare]
-            ref_arr = df_ref[var].values[:n_compare]
+            rust_arr = df_rust[var].values
+            ref_arr = df_ref[var].values
 
             tolerance = get_tolerance_for_variable(var)
             is_valid, report = compare_arrays_with_tolerance(
@@ -789,17 +776,6 @@ class TestSampleOutput(TestCase):
             if not is_valid:
                 all_passed = False
                 failed_variables.append(var)
-
-        # Report boundary diffs for visibility
-        print("\n" + "-" * 70)
-        print(f"Boundary diagnostics (last {n_boundary_skip} timesteps, not checked):")
-        for var in ["QN", "QS", "T2"]:
-            if var in df_rust.columns and var in df_ref.columns:
-                boundary_diff = np.abs(
-                    df_rust[var].values[-n_boundary_skip:]
-                    - df_ref[var].values[-n_boundary_skip:]
-                )
-                print(f"  {var}: max_diff={boundary_diff.max():.4e}")
 
         # Summary
         print("\n" + "=" * 70)

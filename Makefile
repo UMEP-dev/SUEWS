@@ -289,9 +289,9 @@ bridge:
 		exit 1; \
 	fi
 	@echo "Building Rust bridge CLI..."
-	cd src/suews_core && cargo build --release
-	@echo "Binary at: src/suews_core/target/release/suews"
-	@echo "Run: src/suews_core/target/release/suews --help"
+	cd src/suews_bridge && cargo build --release
+	@echo "Binary at: src/suews_bridge/target/release/suews"
+	@echo "Run: src/suews_bridge/target/release/suews --help"
 
 # Format code
 format:

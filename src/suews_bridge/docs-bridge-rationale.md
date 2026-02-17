@@ -2,7 +2,7 @@
 
 ## Why keep the adapter outside `src/suews/src/`
 
-We deliberately place adapter code under `src/suews_core/` rather than inside
+We deliberately place adapter code under `src/suews_bridge/` rather than inside
 SUEWS physics source directories to protect core integrity and reduce confusion:
 
 1. Core physics ownership remains with existing SUEWS modules.
@@ -29,8 +29,8 @@ The Rust middle layer aims to reduce this cost by:
 
 The bridge currently focuses on `OHM_STATE` as a pilot:
 
-1. Fortran side: `bind(c)` wrappers in `src/suews_core/fortran/suews_c_api_ohm.f95`.
-2. Rust side: safe wrappers and state model in `src/suews_core/src/`.
+1. Fortran side: `bind(c)` wrappers in `src/suews_bridge/fortran/suews_c_api_ohm.f95`.
+2. Rust side: safe wrappers and state model in `src/suews_bridge/src/`.
 3. Python side: class-like API via PyO3 with field-level access.
 
 ## Risks and mitigation
@@ -47,6 +47,6 @@ The bridge currently focuses on `OHM_STATE` as a pilot:
 
 ## Decision statement
 
-For the OHM pilot, keeping the adapter isolated in `src/suews_core/` is the
+For the OHM pilot, keeping the adapter isolated in `src/suews_bridge/` is the
 best balance between preserving SUEWS core cleanliness and enabling fast,
 practical iteration on derived-type bridging to Python.

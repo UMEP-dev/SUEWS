@@ -77,7 +77,7 @@ workflow, which slows development and debugging.
 1. Risk: schema drift across language boundaries.
    Mitigation: schema metadata API + strict version/length checks + tests.
 2. Risk: confusion between adapter and core science code.
-   Mitigation: adapter isolation in `src/suews_core/fortran/` + explicit docs.
+   Mitigation: adapter isolation in `src/suews_bridge/fortran/` + explicit docs.
 3. Risk: extra maintenance cost.
    Mitigation: small phased delivery and push-on-green incremental commits.
 

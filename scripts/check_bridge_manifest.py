@@ -125,7 +125,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--manifest",
         type=Path,
-        default=REPO_ROOT / "src/suews_core/bridge-manifest.json",
+        default=REPO_ROOT / "src/suews_bridge/bridge-manifest.json",
         help="Path to bridge-manifest JSON file",
     )
     parser.add_argument(

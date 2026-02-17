@@ -681,11 +681,11 @@ class TestSampleOutput(TestCase):
 
         # Locate the Rust binary
         repo_root = Path(__file__).parent.parent.parent
-        rust_binary = repo_root / "src" / "suews_core" / "target" / "release" / "suews"
+        rust_binary = repo_root / "src" / "suews_bridge" / "target" / "release" / "suews"
         if not rust_binary.exists():
             pytest.skip(
                 f"Rust binary not found at {rust_binary}; "
-                "build with: cd src/suews_core && cargo build --release"
+                "build with: cd src/suews_bridge && cargo build --release"
             )
 
         # Locate the sample YAML config

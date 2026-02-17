@@ -21,7 +21,7 @@ additional derived type while preserving build speed and codebase clarity.
 
 ## Phase 2B: Fortran C API adapter
 
-1. Add a separate adapter file in `src/suews_core/fortran/`.
+1. Add a separate adapter file in `src/suews_bridge/fortran/`.
 2. Expose:
    - schema length,
    - schema version,
@@ -76,7 +76,7 @@ additional derived type while preserving build speed and codebase clarity.
    change frequently. The Rust layer keeps development loops shorter while still
    preserving explicit contracts at the Fortran boundary.
 3. Objection: "Does this pollute or fragment SUEWS core source?"
-   Response: The adapter is kept in `src/suews_core/fortran/`, not inside
+   Response: The adapter is kept in `src/suews_bridge/fortran/`, not inside
    `src/suews/src/`, and delegates all science logic to existing modules. This
    keeps core ownership and scientific integrity intact.
 4. Objection: "How do we prevent schema drift between languages?"

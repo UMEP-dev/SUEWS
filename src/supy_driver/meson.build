@@ -1,12 +1,9 @@
-# This is the `meson.build` file for building `supy_driver`, which relies on SUEWS - a Fortran-dominant project with some C code.
-
-# project('supy_driver', 'fortran', 'c')
-
-# building process:
-# 1. build the SUEWS library using fortran compiler
-# 2. use f90wrap to generate the modified fortran code with support for derived type
-# 3. use f2py-f90wrap to generate the C file for the python interface
-# 4. build the python extension module
+# meson.build for supy_driver — Fortran static library for the Rust bridge.
+#
+# The f90wrap/f2py pipeline has been removed. This file now only:
+# 1. Sets compiler flags
+# 2. Builds the SUEWS Fortran sources into a static library
+# The Rust bridge (src/suews_bridge) links against this library via Cargo.
 
 ##################################################################
 # to fix newer windows (later than 2019) build
@@ -35,8 +32,7 @@ if fortran_compiler.get_id() == 'gcc'
       '-ffree-line-length-none',  # Allow unlimited line length
       '-g',
       '-O1',  # Faster than -O0
-      '-Wno-missing-include-dirs',  # Suppress f2py-generated spurious include path warnings
-      # Remove -fcheck=all for faster compilation
+      '-Wno-missing-include-dirs',
     ]
   else
     f90flags = [
@@ -46,7 +42,7 @@ if fortran_compiler.get_id() == 'gcc'
       '-g',
       '-O0',
       '-fcheck=all',
-      '-Wno-missing-include-dirs',  # Suppress f2py-generated spurious include path warnings
+      '-Wno-missing-include-dirs',
     ]
   endif
   fortran_program = find_program('gfortran')
@@ -56,35 +52,12 @@ elif fortran_compiler.get_id() == 'intel'
 endif
 add_global_arguments(f90flags, language: 'fortran')
 
-c_compiler = meson.get_compiler('c')
-if fast_build
-  cflags = [
-    '-fPIC',
-    '-D_POSIX_C_SOURCE=200809L',
-    '-g',
-    '-O1',  # Faster than -O0
-  ]
-else
-  cflags = [
-    '-fPIC',
-    '-D_POSIX_C_SOURCE=200809L',
-    '-g',
-    '-O0',
-  ]
-endif
-if c_compiler.get_id() == 'clang'
-  cflags += ['-fbracket-depth=1024']
-endif
-add_global_arguments(cflags, language: 'c')
-
 # flags for converting f95 to fpp
 fpp_flags = ['-E', '-x', 'f95-cpp-input', '-fPIC']
 
 # Use UCRT for everything when on Windows
 if host_machine.system() == 'windows'
   # The UCRT64 msys2 environment implicitly handles linking to the UCRT.
-  # Explicitly adding '-mcrtdll=ucrtbase' can fail with older GCC versions.
-  # Note: We don't use -D__USE_MINGW_SETJMP_NON_SEH with UCRT64 as it supports SEH properly
 endif
 ##################################################################
 
@@ -128,67 +101,11 @@ foreach f : src_f95_all
 endforeach
 
 src_f95_files = files(src_f95_files)
-
-# Get wrap_dts_types option - controls whether DTS type definition files are wrapped
-wrap_dts_types = get_option('wrap_dts_types')
-
-# Type definition files - only wrapped when wrap_dts_types=true
-# These enable direct Python access to nested Fortran derived types (e.g. state.heatstate)
-src_f95_types = [
-  'suews_type_anthro.f95',
-  'suews_type_atmosphere.f95',
-  'suews_type_ehc.f95',
-  'suews_type_heat.f95',
-  'suews_type_hydro.f95',
-  'suews_type_landcover.f95',
-  'suews_type_snow.f95',
-  'suews_type_soil.f95',
-  'suews_type_spartacus.f95',
-  'suews_type_stebbs.f95',
-  'suews_type_surface.f95',
-  'suews_type_vegetation.f95',
-  'suews_type_waterdist.f95',
-]
-
-# Core files - always wrapped (required for basic SUEWS functionality)
-src_f95_core = [
-  'suews_ctrl_const.f95',
-  'suews_ctrl_error.f95',  # Needed for error state module (module_ctrl_error_state)
-  'suews_ctrl_type.f95',
-  'suews_ctrl_driver.f95',
-  'suews_phys_anthro.f95',
-  'suews_phys_atmmoiststab.f95',
-  'suews_phys_dailystate.f95',
-  'suews_phys_evap.f95',
-  'suews_phys_narp.f95',
-  'suews_phys_resist.f95',
-  'suews_phys_rslprof.f95',
-  'suews_phys_spartacus.f95',
-  #'suews_phys_stebbs.f95',
-  'suews_phys_waterdist.f95',
-  'suews_util_meteo.f95',
-]
-
-# Conditionally include type files based on wrap_dts_types option
-if wrap_dts_types
-  message('Building with DTS type wrappers (full build - DTS features enabled)')
-  # Type files must come first for f90wrap to properly expose nested types
-  src_to_wrap = src_f95_types + src_f95_core
-else
-  message('Building WITHOUT DTS type wrappers (fast build - traditional interface only)')
-  src_to_wrap = src_f95_core
-endif
-
-src_wrap_files = []
-foreach f : src_to_wrap
-  src_wrap_files += join_paths(dir_src_suews, f)
-endforeach
 ##################################################################
 
 ##################################################################
-# 1. build the SUEWS library using fortran compiler
-# invoke make in the suews directory to build the objects
-# Track Makefile for build config changes
+# Build the SUEWS library using fortran compiler
+# Invoke make in the suews directory to build the objects
 makefile_deps = files(dir_suews / 'Makefile')
 
 build_suews = custom_target(
@@ -204,8 +121,8 @@ build_suews = custom_target(
   output: 'suews_objects',
 )
 
-# build the static library for later use
-build_lib=static_library(
+# Build the static library for the Rust bridge to link against
+build_lib = static_library(
   'src',
   [
     build_suews,
@@ -214,217 +131,4 @@ build_lib=static_library(
   include_directories: include_dir_suews,
   build_by_default: true,
 )
-
-# run_command('bash', '-c', 'sleep 5 && ls -l')
-
 ##################################################################
-# 2. use f90wrap to generate the modified fortran code with support for derived type
-# Use the generator to process each source file
-f95_to_fpp = generator(
-  fortran_program,
-  output: '@BASENAME@.fpp',
-  arguments: [fpp_flags, '@INPUT@', '-o', '@OUTPUT@'],
-)
-gen_fpp_files = f95_to_fpp.process(src_wrap_files)
-
-# construct the list of f95 files to be generated by f90wrap
-out_wrap_f90 = []
-# foreach f : src_f95
-foreach f : src_to_wrap
-  out_wrap_f90 += 'f90wrap_' + f.replace('.f95', '.f90')
-endforeach
-# out_wrap_f90 += 'f90wrap_toplevel.f90'
-
-prog_f90wrap = find_program('f90wrap')
-# file_kind_map = files('kind_map')
-
-gen_f90wrap_f90 = custom_target(
-  command: [
-    py,
-    '@CURRENT_SOURCE_DIR@/run_f90wrap.py', # Path to your Python wrapper script
-    prog_f90wrap, # Assuming this is defined elsewhere as the f2py executable
-    'supy_driver',
-    '@CURRENT_SOURCE_DIR@',
-    '@OUTDIR@',
-    '@INPUT@',
-    '@OUTPUT@',
-  ],
-  input: [gen_fpp_files],
-  output: [out_wrap_f90],
-  depends: build_suews,
-  build_by_default: true,
-)
-
-##################################################################
-# 3. use f2py-f90wrap to generate the C file for the python interface
-# build the driver module c file
-prog_f2py_f90wrap = find_program('f2py-f90wrap')
-gen_module_c = custom_target(
-  command: [
-    py,
-    '@CURRENT_SOURCE_DIR@/run_f2py.py', # Path to your Python wrapper script
-    prog_f2py_f90wrap, # Assuming this is defined elsewhere as the f2py executable
-    '_supy_driver',
-    '@CURRENT_SOURCE_DIR@',
-    '@OUTDIR@',
-    '@INPUT@',
-    '@OUTPUT@',
-  ],
-  input: [gen_f90wrap_f90],
-  output: [
-    '_supy_drivermodule.c',
-    '_supy_driver-f2pywrappers.f',
-  ],
-  depends: [gen_f90wrap_f90],
-  build_by_default: true,
-)
-
-##################################################################
-# 4. build the python extension module
-
-incdir_numpy = run_command(
-
-  py,
-  '-c', 'import os, numpy; print(numpy.get_include())',
-
-  check: true,
-).stdout().strip()
-
-# Create a dependency for numpy includes instead of using include_directories with absolute paths
-numpy_inc = declare_dependency(compile_args: ['-I' + incdir_numpy])
-
-# this is the path to the f2py source code - better compatibility with older numpy versions
-incdir_f2py = incdir_numpy / '..' / '..' / 'f2py' / 'src'
-f2py_inc = declare_dependency(compile_args: ['-I' + incdir_f2py])
-fortranobject_c = incdir_f2py / 'fortranobject.c'
-
-# Combine the dependencies
-inc_np_dep = declare_dependency(compile_args: ['-I' + incdir_numpy, '-I' + incdir_f2py])
-
-# Create compiler arguments for numpy include directories (for backward compatibility)
-numpy_inc_args = ['-I' + incdir_numpy, '-I' + incdir_f2py]
-
-# gh-25000
-dep_quadmath = fortran_compiler.find_library('quadmath', required: false)
-
-# Share this object across multiple modules.
-lib_fortranobject = static_library(
-  '_fortranobject',
-  fortranobject_c,
-  dependencies: [dep_py, inc_np_dep],
-)
-dep_fortranobject = declare_dependency(
-  link_with: lib_fortranobject,
-  dependencies: [inc_np_dep],
-)
-
-dep_lib_src = declare_dependency(
-  link_args: [
-    '-L' + meson.current_build_dir(), # the path is relative to the build directory when running meson
-    '-lsrc',
-  ],
-)
-dep_lib_suews = declare_dependency(
-  link_args: [
-    '-L' + dir_suews / 'lib', # the path is relative to the build directory when running meson
-    '-lsuewsdriver',
-    '-lsuewsphys',
-    '-lsuewsutil',
-    '-lspartacus',
-  ],
-)
-dep_suews = [dep_lib_src, dep_lib_suews]
-
-inc_suews_mod = include_directories('../suews/mod')
-
-link_args_windows = []
-c_args_windows = ['-D__MINGW_USE_VC_SETJMP=1']
-
-if host_machine.system() == 'windows'
-  if host_machine.cpu_family() == 'x86'
-    # 32-bit MSVCRT build – link explicitly for _setjmp
-    link_args_windows = ['-lmsvcrt']
-  else
-    # 64-bit: _setjmp is in the default CRT; add mingwex for safety
-    link_args_windows = ['-lmingwex']
-  endif
-endif
-
-ext_supy_driver = py.extension_module(
-  '_supy_driver',
-  sources: [
-    gen_module_c,
-    gen_f90wrap_f90,
-    fortranobject_c,
-  ],
-  include_directories: [
-    inc_suews_mod, # the path is relative to the current directory where the meson.build file is located
-  ],
-  c_args: c_args_windows + numpy_inc_args,
-  dependencies: [
-    dep_py,
-    dep_fortranobject,
-    dep_quadmath,
-    inc_np_dep,
-    dep_suews,
-  ],
-  link_args: link_args_windows,
-  install: true,
-  subdir: 'supy',
-)
-
-# move the generated `supy_driver.py` to the correct directory
-# this is kind of dummy, but it is necessary to make the installation work
-gen_supy_driver_py = custom_target(
-  command: [
-    py,
-    '@CURRENT_SOURCE_DIR@/patch_supy_driver.py', # Path to your Python wrapper script
-    # meson.current_build_dir() / '@OUTPUT@', # this file is actually generated by gen_f90wrap_f90
-    meson.current_build_dir(),
-    '@OUTPUT@',
-    '@OUTDIR@',
-  ],
-  input: [gen_f90wrap_f90],
-  output: ['supy_driver.py'],
-  depends: ext_supy_driver,
-  build_by_default: true,
-  install: true,
-  install_dir: [py.get_install_dir() / 'supy'], # this is the directory where the python module will be installed
-)
-##################################################################
-# 5. build the vendored f90wrap runtime extensions
-# These are needed at runtime to support derived types in the generated wrapper
-
-# Path to f90wrap sources from submodule
-dir_vendor_f90wrap = meson.current_source_dir() / '../supy/_vendor/f90wrap_src/f90wrap'
-
-# Build sizeof_fortran_t extension from Fortran source
-sizeof_source = custom_target(
-  'sizeof_fortran_t_source',
-  input: dir_vendor_f90wrap / 'sizeoffortran.f90',
-  output: 'sizeof_fortran_tmodule.c',
-  command: [py, '-m', 'numpy.f2py', '@INPUT@', '--build-dir', '@OUTDIR@', '--lower', '-m', 'sizeof_fortran_t'],
-)
-
-ext_sizeof_fortran_t = py.extension_module(
-  'sizeof_fortran_t',
-  sources: [
-    dir_vendor_f90wrap / 'sizeoffortran.f90',
-    sizeof_source,
-  ],
-  dependencies: [dep_py, dep_fortranobject, inc_np_dep],
-  install: true,
-  subdir: 'supy/_vendor/f90wrap',
-)
-
-# Build arraydata extension from C source
-ext_arraydata = py.extension_module(
-  'arraydata',
-  sources: [dir_vendor_f90wrap / 'arraydatamodule.c'],
-  dependencies: [dep_py, dep_fortranobject, inc_np_dep],
-  install: true,
-  subdir: 'supy/_vendor/f90wrap',
-)
-
-##################################################################
-# 6. add the test for the python module

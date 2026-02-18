@@ -1,5 +1,3 @@
 option('fast_build', type: 'boolean', value: false, description: 'Enable fast build with optimized compiler flags')
-option('wrap_dts_types', type: 'boolean', value: false,
-       description: 'Wrap DTS type definition files for direct Python access to nested Fortran types')
 option('with_rust_bridge', type: 'boolean', value: true,
        description: 'Build and install Rust bridge Python extension and CLI binary')

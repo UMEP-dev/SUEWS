@@ -1,7 +1,6 @@
 [build-system]
 requires = [
     "wheel",
-    "f90wrap==0.2.16",
     "numpy>=2.0",
     "meson-python>=0.12.0",
 ]

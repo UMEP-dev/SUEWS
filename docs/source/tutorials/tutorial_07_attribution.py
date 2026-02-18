@@ -7,7 +7,7 @@ Decomposing temperature changes into physically meaningful components.
 When comparing SUEWS simulations, you can easily see that T2 (2m air
 temperature) differs between scenarios. But this doesn't tell you *why*.
 The attribution module answers these questions by decomposing temperature
-differences using **Shapley value analysis** -- a mathematically exact
+differences using **Shapley value analysis** :cite:`S53,O72` -- a mathematically exact
 method that guarantees the sum of contributions equals the total change.
 
 This tutorial demonstrates:
@@ -142,32 +142,45 @@ plt.tight_layout()
 sim_green = SUEWSSimulation.from_sample_data()
 sim_green.update_forcing(df_forcing)
 
+# Access the land cover configuration
+lc = sim_green.config.sites[0].properties.land_cover
+surface_types = ["paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"]
+
 print("Current surface fractions:")
-print(sim_green.state_init.sfr_surf)
+for name in surface_types:
+    print(f"  {name}: {getattr(lc, name).sfr}")
 
 # %%
 # Modify Surface Fractions
 # ~~~~~~~~~~~~~~~~~~~~~~~~
 #
-# Surface order: Paved(0), Bldgs(1), EveTr(2), DecTr(3), Grass(4), BSoil(5), Water(6).
-# Increase grass by 0.15 and decrease paved by 0.15.
+# Use ``update_config`` with a dictionary that mirrors the YAML structure.
+# This is the recommended approach for parameter changes -- it keeps the
+# interaction at the configuration level rather than exposing internal
+# DataFrames.
+#
+# Reduce paved fraction by 0.15 and increase grass by 0.15.
 
-df_state_green = sim_green.state_init.copy()
-
-df_state_green.loc[:, ("sfr_surf", "(0,)")] -= 0.15  # Reduce paved
-df_state_green.loc[:, ("sfr_surf", "(4,)")] += 0.15  # Increase grass
+sim_green.update_config(
+    {
+        "sites": {
+            "properties": {
+                "land_cover": {
+                    "paved": {"sfr": lc.paved.sfr.value - 0.15},
+                    "grass": {"sfr": lc.grass.sfr.value + 0.15},
+                }
+            }
+        }
+    }
+)
 
 print("Modified surface fractions:")
-print(df_state_green.sfr_surf)
+for name in surface_types:
+    print(f"  {name}: {getattr(lc, name).sfr}")
 
 # %%
 # Run Greened Scenario
 # ~~~~~~~~~~~~~~~~~~~~
-#
-# Create a new simulation from the modified state and run it.
-
-sim_green = SUEWSSimulation.from_state(df_state_green)
-sim_green.update_forcing(df_forcing)
 
 df_output_green = sim_green.run()
 

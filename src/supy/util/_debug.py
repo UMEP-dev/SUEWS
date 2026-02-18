@@ -1,12 +1,20 @@
 import zipfile
-from ..supy_driver import module_phys_atmmoiststab as atmmoiststab_module
-from ..supy_driver import module_phys_rslprof as rsl_module
 import pandas as pd
+
+try:
+    from ..supy_driver import module_phys_atmmoiststab as atmmoiststab_module
+    from ..supy_driver import module_phys_rslprof as rsl_module
+
+    _FORTRAN_AVAILABLE = True
+except (ImportError, AttributeError):
+    _FORTRAN_AVAILABLE = False
 
 
 def diag_rsl(df_forcing, df_state, df_output, include_rsl=False):
     """
     Diagnose near-surface meteorological variables using RSL scheme as in `suews_driver`.
+
+    Requires the f90wrap Fortran extension (no longer built by default).
 
     Parameters
     ----------
@@ -25,6 +33,12 @@ def diag_rsl(df_forcing, df_state, df_output, include_rsl=False):
         df_sfc: DataFrame with only near-surface level variables
         df_rsl: DataFrame with only RSL results at all levels
     """
+    if not _FORTRAN_AVAILABLE:
+        raise RuntimeError(
+            "diag_rsl requires the f90wrap Fortran extension which is no longer built.\n"
+            "This diagnostic function is not available with the Rust bridge backend."
+        )
+
     grid = df_state.index[0]
 
     # get SUEWS group from `df_output`
@@ -101,6 +115,8 @@ def diag_rsl_prm(df_state, df_output):
     """
     Calculate parameters used in RSL scheme.
 
+    Requires the f90wrap Fortran extension (no longer built by default).
+
     Parameters
     ----------
     df_state : pandas.Dataframe
@@ -114,6 +130,12 @@ def diag_rsl_prm(df_state, df_output):
         df_sfc: DataFrame with only near-surface level variables
         df_rsl: DataFrame with only RSL results at all levels
     """
+    if not _FORTRAN_AVAILABLE:
+        raise RuntimeError(
+            "diag_rsl_prm requires the f90wrap Fortran extension which is no longer built.\n"
+            "This diagnostic function is not available with the Rust bridge backend."
+        )
+
     grid = df_state.index[0]
 
     # get SUEWS group from `df_output`

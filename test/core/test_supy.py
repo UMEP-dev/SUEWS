@@ -49,11 +49,9 @@ class TestSuPy(TestCase):
         # Run only 1 hour (12 timesteps) instead of 8 hours
         results = sim.run(end_date=sim.forcing.index[11])
 
-        # Verify results and state are populated
+        # Verify results are populated
         self.assertIsNotNone(results)
-        self.assertIsNotNone(sim.state_final)
         self.assertFalse(results.empty)
-        self.assertFalse(sim.state_final.empty)
 
     # test if multi-tstep mode can run
     @pytest.mark.core

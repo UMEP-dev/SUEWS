@@ -1,19 +1,16 @@
 py.install_sources(
     [
         '__init__.py',
-        # Vendored packages (wrapper modules - actual files copied from submodule)
         '_vendor/__init__.py',
-        '_vendor/f90wrap/__init__.py',
         '_check.py',
         '_env.py',
         '_load.py',
         '_misc.py',
         '_post.py',
-        '_run.py',
         '_run_rust.py',
         '_save.py',
-        '_supy_driver_wrapper.py',
         '_supy_module.py',
+        '_var_metadata.py',
         '_version.py',
         '_version_scm.py',
         'suews_forcing.py',
@@ -124,14 +121,6 @@ py.install_sources(
         [
             'ext_data/CRU_TS4.06_1991_2020.parquet',
         ],
-        [
-            # GH-1045: DTS interface for direct Pydantic→Fortran mapping
-            'dts/__init__.py',
-            'dts/_core.py',
-            'dts/_extract.py',
-            'dts/_populate.py',
-            'dts/_runner.py',
-        ],
     ],
     subdir: 'supy',
     preserve_path: true,
@@ -168,26 +157,3 @@ if rust_bridge_enabled
         install_dir: [py.get_install_dir() / 'supy', py.get_install_dir() / 'supy/bin'],
     )
 endif
-
-# Install vendored f90wrap runtime files from submodule
-# These are the only runtime files needed - code generation tools are build-time only
-dir_f90wrap_submodule = meson.current_source_dir() / '_vendor' / 'f90wrap_src' / 'f90wrap'
-dir_f90wrap_vendor = meson.current_source_dir() / '_vendor' / 'f90wrap'
-
-# Patch runtime.py to use relative imports (required for vendoring)
-patched_runtime = custom_target(
-    'patched_runtime',
-    input: dir_f90wrap_submodule / 'runtime.py',
-    output: 'runtime.py',
-    command: [py, dir_f90wrap_vendor / 'patch_runtime.py', '@INPUT@', '@OUTPUT@'],
-    install: true,
-    install_dir: py.get_install_dir() / 'supy/_vendor/f90wrap',
-)
-
-# fortrantype.py has no f90wrap imports, can be installed directly
-py.install_sources(
-    [
-        dir_f90wrap_submodule / 'fortrantype.py',
-    ],
-    subdir: 'supy/_vendor/f90wrap',
-)

@@ -6,10 +6,8 @@ except ImportError:
 
 
 from logging.handlers import TimedRotatingFileHandler
-import functools
 import sys
 import logging
-import inspect
 from pathlib import Path
 import tempfile
 
@@ -91,50 +89,21 @@ else:
 ########################################################################
 # DTS (Derived Type Structure) availability check
 ########################################################################
-# DTS features require a full build with type wrappers (wrap_dts_types=true).
-# Fast builds (make dev) do not include DTS support.
+# DTS and f90wrap backends have been removed.
+# The Rust bridge is now the only execution backend.
 
 DTS_ERROR_MSG = (
-    "DTS features not available in this build.\n"
-    "This build was compiled with 'make dev' (fast build without DTS support).\n"
-    "To use DTS features, rebuild with: make clean && make dev-dts"
+    "DTS features have been removed.\n"
+    "The f90wrap/f2py backends are no longer available.\n"
+    "Use the Rust bridge backend via SUEWSSimulation instead."
 )
 
 
-@functools.cache
 def _init_dts_check():
-    """Check DTS availability after supy_driver is loaded.
-
-    Returns
-    -------
-    bool
-        True if DTS type classes are available in this build.
-
-    Notes
-    -----
-    Result is cached after first call since DTS availability
-    does not change during a session.
-
-    The check probes the C extension (``_supy_driver``) directly for a
-    nested-type accessor that only exists when the full set of type
-    definition files was wrapped (``wrap_dts_types=true``).  The Python
-    wrapper (``supy_driver``) defines stub classes for these types even
-    in fast builds, so checking the wrapper gives false positives.
-    """
-    try:
-        from . import _supy_driver
-
-        # f90wrap_suews_site__get__ehc is generated only when
-        # suews_type_ehc.f95 is included in the wrap list (full build).
-        return hasattr(_supy_driver, "f90wrap_suews_site__get__ehc")
-    except ImportError:
-        return False
-    except Exception as exc:
-        logger_supy.debug("Unexpected error checking DTS availability: %s", exc)
-        return False
+    """DTS is no longer available (f90wrap removed). Always returns False."""
+    return False
 
 
 def check_dts_available():
-    """Raise RuntimeError if DTS features are not available."""
-    if not _init_dts_check():
-        raise RuntimeError(DTS_ERROR_MSG)
+    """Raise RuntimeError — DTS features have been removed."""
+    raise RuntimeError(DTS_ERROR_MSG)

@@ -15,13 +15,11 @@ import pandas as pd
 from ._check import check_forcing
 from ._env import logger_supy
 from ._run_rust import _check_rust_available, run_suews_rust_chunked
-from ._run import run_supy_ser
 
 # Import SuPy components directly
 from ._supy_module import _save_supy
 from .data_model import RefValue
 from .data_model.core import SUEWSConfig
-from .dts import _check_dts_available, run_dts_multi
 
 # Import new OOP classes
 from .suews_forcing import SUEWSForcing
@@ -83,8 +81,6 @@ class SUEWSSimulation:
         self._df_forcing = None
         self._df_output = None
         self._df_state_final = None
-        self._initial_states_final = None  # Pydantic state for DTS backend
-        self._dict_final_states = None  # Per-grid final states for DTS backend
         self._run_completed = False
 
         if config is not None:
@@ -429,12 +425,11 @@ class SUEWSSimulation:
         self,
         start_date=None,
         end_date=None,
-        backend: str = "traditional",
         chunk_day: int = 3660,
         **run_kwargs,
     ) -> SUEWSOutput:
         """
-        Run SUEWS simulation.
+        Run SUEWS simulation using the Rust bridge backend.
 
         Parameters
         ----------
@@ -442,35 +437,10 @@ class SUEWSSimulation:
             Start date for simulation (inclusive).
         end_date : str, optional
             End date for simulation (inclusive).
-        backend : str, optional
-            Execution backend to use. Options:
-
-            - ``'traditional'`` (default): Uses DataFrame-based run_supy_ser.
-              Established interface with comprehensive state tracking.
-            - ``'dts'``: Uses DTS (Derived Type Structure) interface.
-              Direct Pydantic-to-Fortran execution path, bypassing intermediate
-              DataFrame conversion. May be faster for short simulations.
-            - ``'rust'``: Uses Rust bridge library execution.
-              Direct Pydantic-to-Rust pipeline with Fortran C API backend.
-
         chunk_day : int, optional
             Chunk size in days for splitting long simulations, by default 3660
             (~10 years). Smaller values reduce peak memory at a small overhead
-            cost. Applied to both ``traditional`` and ``dts`` backends.
-        run_kwargs : dict
-            Additional keyword arguments. Currently supported:
-
-            - **n_jobs** : int
-              Number of worker processes for DTS multi-grid execution
-              (used only when ``backend='dts'``).
-
-            Other keyword arguments are reserved for future use and ignored.
-
-            In a future version, the following options may be supported:
-            - save_state: bool - Save state at each timestep (planned)
-
-            For now, simulations use default settings:
-            - save_state=False (states not saved at each step)
+            cost.
 
         Returns
         -------
@@ -483,18 +453,6 @@ class SUEWSSimulation:
         ------
         RuntimeError
             If configuration or forcing data is missing.
-        ValueError
-            If an invalid backend is specified.
-
-        Notes
-        -----
-        The simulation runs with fixed internal settings. For advanced control
-        over simulation parameters, consider using the lower-level functional
-        API (though it is deprecated).
-
-        The DTS backend requires a valid SUEWSConfig object loaded via
-        ``update_config()``. It provides a more direct execution path
-        but may have different state tracking characteristics.
 
         Examples
         --------
@@ -503,45 +461,24 @@ class SUEWSSimulation:
         >>> output.QH  # Access sensible heat flux
         >>> output.diurnal_average("QH")  # Get diurnal pattern
         >>> output.to_dataframe()  # Get raw DataFrame
-
-        Using the DTS backend:
-
-        >>> output = sim.run(backend="dts")
         """
-        # Validate backend
-        valid_backends = ("traditional", "dts", "rust")
-        if backend not in valid_backends:
+        # Handle deprecated backend kwarg
+        backend = run_kwargs.pop("backend", None)
+        if backend is not None and backend != "rust":
             raise ValueError(
-                f"Invalid backend '{backend}'. Must be one of: {valid_backends}"
+                f"The '{backend}' backend has been removed. "
+                f"Only the 'rust' backend is available. "
+                f"Remove the backend parameter or use backend='rust'."
             )
 
-        n_jobs = run_kwargs.pop("n_jobs", 1)
-        if n_jobs > 1 and backend != "dts":
-            warnings.warn(
-                "n_jobs > 1 is only supported with backend='dts'; "
-                f"ignoring n_jobs={n_jobs} for backend='{backend}'.",
-                stacklevel=2,
-            )
-
-        # Check DTS availability early (before other validation)
-        if backend == "dts":
-            _check_dts_available()
-        if backend == "rust":
-            _check_rust_available()
+        _check_rust_available()
 
         # Validate inputs
         if self._df_state_init is None:
             raise RuntimeError("No configuration loaded. Use update_config() first.")
         if self._df_forcing is None:
             raise RuntimeError("No forcing data loaded. Use update_forcing() first.")
-
-        # DTS backend requires config object
-        if backend == "dts" and self._config is None:
-            raise RuntimeError(
-                "DTS backend requires a SUEWSConfig object. "
-                "Use update_config() with a YAML config file."
-            )
-        if backend == "rust" and self._config is None:
+        if self._config is None:
             raise RuntimeError(
                 "Rust backend requires a SUEWSConfig object. "
                 "Use update_config() with a YAML config file."
@@ -567,7 +504,7 @@ class SUEWSSimulation:
         # Slice forcing data
         df_forcing_slice = self._df_forcing.loc[start_date:end_date]
 
-        # Validate forcing data (shared by both backends)
+        # Validate forcing data
         list_issues = check_forcing(df_forcing_slice)
         if isinstance(list_issues, list) and len(list_issues) > 0:
             issues_summary = list_issues[:3] if len(list_issues) > 3 else list_issues
@@ -576,52 +513,14 @@ class SUEWSSimulation:
             )
             raise ValueError(f"Invalid forcing data: {issues_summary}{suffix}")
 
-        # Run simulation with selected backend
-        if backend == "dts":
-            # DTS backend: direct Pydantic-to-Fortran execution
-            df_output, dict_final_states = run_dts_multi(
-                df_forcing=df_forcing_slice,
-                config=self._config,
-                n_jobs=n_jobs,
-            )
-            self._df_output = df_output
-            # DTS extracts state to Pydantic InitialStates (not DataFrame)
-            self._df_state_final = None
-            # Store per-grid final states; expose first site's initial_states
-            # for single-grid backward compatibility
-            self._dict_final_states = dict_final_states
-            first_grid = self._config.sites[0].gridiv
-            self._initial_states_final = dict_final_states[first_grid].get(
-                "initial_states"
-            )
-        elif backend == "rust":
-            df_output, _ = run_suews_rust_chunked(
-                config=self._config,
-                df_forcing=df_forcing_slice,
-                chunk_day=chunk_day,
-            )
-            self._df_output = df_output
-            self._df_state_final = None
-            self._dict_final_states = None
-            self._initial_states_final = None
-        else:
-            # Traditional backend: DataFrame-based execution
-            import warnings
-
-            warnings.warn(
-                "The traditional (f2py) backend is deprecated and will be "
-                "removed in a future release. Use backend='rust' or "
-                "backend='dts' instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            result = run_supy_ser(
-                df_forcing_slice,
-                self._df_state_init,
-                chunk_day=chunk_day,
-            )
-            self._df_output = result[0]
-            self._df_state_final = result[1]
+        # Run simulation via Rust bridge
+        df_output, _ = run_suews_rust_chunked(
+            config=self._config,
+            df_forcing=df_forcing_slice,
+            chunk_day=chunk_day,
+        )
+        self._df_output = df_output
+        self._df_state_final = None
 
         self._run_completed = True
 
@@ -687,10 +586,9 @@ class SUEWSSimulation:
         if not self._run_completed:
             raise RuntimeError("No simulation results available. Run simulation first.")
 
-        # DTS backend does not yet support save() - state is in Fortran DTS objects
         if self._df_state_final is None:
             raise NotImplementedError(
-                "DTS and Rust backends do not yet support save(). "
+                "save() is not yet supported for the Rust backend. "
                 "Access results directly via sim.output.df_output"
             )
 
@@ -1362,32 +1260,3 @@ class SUEWSSimulation:
         """
         return self._df_state_final
 
-    @property
-    def initial_states_final(self):
-        """Final state as Pydantic InitialStates after DTS simulation.
-
-        Available only after running simulation with ``backend='dts'``.
-        Contains the evolved state variables as a Pydantic model that can
-        be used for continuation runs or YAML persistence.
-
-        Returns
-        -------
-        InitialStates or None
-            Pydantic InitialStates model after DTS simulation.
-            None if simulation hasn't been run or used traditional backend.
-
-        See Also
-        --------
-        state_final : DataFrame state for traditional backend
-        run : Run simulation with backend parameter
-
-        Examples
-        --------
-        >>> sim = SUEWSSimulation.from_sample_data()
-        >>> sim.run(backend="dts")
-        >>> sim.initial_states_final is not None
-        True
-        >>> # Save state to YAML
-        >>> sim.initial_states_final.to_yaml("final_state.yaml")
-        """
-        return self._initial_states_final

@@ -36,7 +36,6 @@ from ._load import (
     load_SUEWS_Forcing_met_df_yaml,
     resample_forcing_met,
 )
-from ._run import run_supy_par, run_supy_ser
 from ._post import resample_output
 from ._save import (
     get_save_info,
@@ -687,34 +686,12 @@ def _run_supy(
     n_grid = list_grid.size
     logger_supy.info(f"No. of grids: {n_grid}")
 
-    if n_grid > 1 and os.name != "nt" and (not serial_mode):
-        logger_supy.info("SUEWS is running in parallel mode")
-        res_supy = run_supy_par(
-            df_forcing, df_state_init, save_state, chunk_day, debug_mode
-        )
-    else:
-        logger_supy.info("SUEWS is running in serial mode")
-        res_supy = run_supy_ser(
-            df_forcing, df_state_init, save_state, chunk_day, debug_mode
-        )
-        # try:
-        #     res_supy = run_supy_ser(df_forcing, df_state_init, save_state, chunk_day)
-        # except:
-        #     res_supy = run_supy_ser(df_forcing, df_state_init, save_state, chunk_day)
-
-    # show simulation time
-    end = time.time()
-    logger_supy.info(f"Execution time: {(end - start):.1f} s")
-    logger_supy.info("====================\n")
-
-    # unpack results
-    df_output, df_state_final, res_debug, res_state = res_supy
-
-    # return results based on debugging needs
-    if debug_mode:
-        return df_output, df_state_final, res_debug, res_state
-    else:
-        return df_output, df_state_final
+    raise RuntimeError(
+        "The legacy DataFrame-based simulation backend (f2py) has been removed.\n"
+        "Please use the modern SUEWSSimulation interface instead:\n\n"
+        "    sim = supy.SUEWSSimulation('config.yml')\n"
+        "    output = sim.run()\n"
+    )
 
 
 def run_supy(

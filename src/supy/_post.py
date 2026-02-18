@@ -1,13 +1,19 @@
 import numpy as np
 import pandas as pd
 import copy
-from .supy_driver import module_ctrl_type as sd_dts
 from ._env import logger_supy
 from .data_model.output import OUTPUT_REGISTRY
 
-# Check DTS availability now that supy_driver is available (imported above)
+# Check DTS availability — guarded against missing f90wrap extension
 from ._env import _init_dts_check
+
 _DTS_TYPES_AVAILABLE = _init_dts_check()
+sd_dts = None
+if _DTS_TYPES_AVAILABLE:
+    try:
+        from .supy_driver import module_ctrl_type as sd_dts
+    except ImportError:
+        _DTS_TYPES_AVAILABLE = False
 
 
 ##############################################################################

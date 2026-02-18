@@ -59,7 +59,7 @@ def main() -> int:
         str(manifest),
         "--release",
         "--features",
-        "python-extension,physics",
+        "python-extension,physics,arrow-output",
     ]
 
     env = os.environ.copy()

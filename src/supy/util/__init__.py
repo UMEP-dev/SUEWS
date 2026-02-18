@@ -66,4 +66,19 @@ def resample_output(*args, **kwargs):
     _warn_functional_deprecation("resample_output")
     return _resample_output(*args, **kwargs)
 
+from ._attribution import (
+    # Variable-specific functions
+    attribute_t2,
+    attribute_q2,
+    attribute_u10,
+    diagnose_t2,
+    diagnose_q2,
+    diagnose_u10,
+    # Generic dispatchers
+    attribute,
+    diagnose,
+    # Result container
+    AttributionResult,
+)
+
 # from ._config import SUEWSConfig, init_config_from_yaml

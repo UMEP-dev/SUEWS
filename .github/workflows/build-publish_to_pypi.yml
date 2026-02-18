@@ -195,8 +195,6 @@ jobs:
       pyproject-files: ${{ steps.filter.outputs.pyproject_files }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Full history for pyproject.toml content classification
 
       - uses: dorny/paths-filter@v3
         id: filter
@@ -210,7 +208,12 @@ jobs:
         if: steps.filter.outputs.pyproject == 'true'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
-        run: python3 .github/scripts/classify_pyproject.py
+        run: |
+          # Fetch just the base commit for pyproject.toml comparison
+          if [ -n "$BASE_SHA" ]; then
+            git fetch --depth=1 origin "$BASE_SHA" 2>/dev/null || true
+          fi
+          python3 .github/scripts/classify_pyproject.py
 
       - name: Compute build decision
         id: decide

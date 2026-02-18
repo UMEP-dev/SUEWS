@@ -53,6 +53,10 @@ EXAMPLES:
 
 ## 2026
 
+### 18 Feb 2026
+
+- [feature][experimental] Add attribution module for diagnosing T2, q2, and U10 changes by decomposing model output into physical process contributions, with diurnal cycle and heatmap visualisation helpers (#918)
+
 ### 13 Feb 2026
 
 - [feature][experimental] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS bldgh and SPARTACUS height entries (PR #1205).

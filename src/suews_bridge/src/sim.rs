@@ -31,7 +31,7 @@ use crate::spartacus_prm::spartacus_prm_from_ordered_values;
 use crate::stebbs_prm::stebbs_prm_from_ordered_values;
 use crate::stebbs_state::stebbs_state_from_ordered_values;
 use crate::suews_site::SuewsSite;
-use crate::suews_state::SuewsState;
+use crate::suews_state::{suews_state_from_nested_payload, SuewsState};
 use crate::surf_store::surf_store_prm_from_ordered_values;
 use crate::timer::{SuewsTimer, SUEWS_TIMER_FLAT_LEN};
 use crate::yaml_config::load_run_config_from_str;
@@ -39,7 +39,49 @@ use std::ffi::CStr;
 use std::os::raw::c_char;
 
 pub const MET_FORCING_COLS: usize = 21;
+
+// Per-group output column counts (match Fortran ncolumnsDataOut* constants).
+// Each group includes a 5-column datetime prefix.
 pub const OUTPUT_SUEWS_COLS: usize = 118;
+pub const OUTPUT_SNOW_COLS: usize = 103;
+pub const OUTPUT_BEERS_COLS: usize = 34;
+pub const OUTPUT_ESTM_COLS: usize = 32;
+pub const OUTPUT_EHC_COLS: usize = 229;
+pub const OUTPUT_DAILYSTATE_COLS: usize = 52;
+pub const OUTPUT_RSL_COLS: usize = 140;
+pub const OUTPUT_DEBUG_COLS: usize = 136;
+pub const OUTPUT_SPARTACUS_COLS: usize = 199;
+pub const OUTPUT_STEBBS_COLS: usize = 85;
+pub const OUTPUT_NHOOD_COLS: usize = 6;
+
+/// Total columns across all 11 output groups (concatenated flat buffer).
+pub const OUTPUT_ALL_COLS: usize = OUTPUT_SUEWS_COLS
+    + OUTPUT_SNOW_COLS
+    + OUTPUT_BEERS_COLS
+    + OUTPUT_ESTM_COLS
+    + OUTPUT_EHC_COLS
+    + OUTPUT_DAILYSTATE_COLS
+    + OUTPUT_RSL_COLS
+    + OUTPUT_DEBUG_COLS
+    + OUTPUT_SPARTACUS_COLS
+    + OUTPUT_STEBBS_COLS
+    + OUTPUT_NHOOD_COLS;
+
+/// Ordered list of (group_name, column_count) for all output groups.
+/// Order matches the Fortran concatenation layout.
+pub const OUTPUT_GROUP_LAYOUT: &[(&str, usize)] = &[
+    ("SUEWS", OUTPUT_SUEWS_COLS),
+    ("snow", OUTPUT_SNOW_COLS),
+    ("BEERS", OUTPUT_BEERS_COLS),
+    ("ESTM", OUTPUT_ESTM_COLS),
+    ("EHC", OUTPUT_EHC_COLS),
+    ("DailyState", OUTPUT_DAILYSTATE_COLS),
+    ("RSL", OUTPUT_RSL_COLS),
+    ("debug", OUTPUT_DEBUG_COLS),
+    ("SPARTACUS", OUTPUT_SPARTACUS_COLS),
+    ("STEBBS", OUTPUT_STEBBS_COLS),
+    ("NHood", OUTPUT_NHOOD_COLS),
+];
 
 const SITE_MEMBER_COUNT: usize = 18;
 const STATE_MEMBER_COUNT: usize = 13;
@@ -618,6 +660,103 @@ pub fn run_from_config_str_and_forcing(
     Ok((sim_out.output_block, sim_out.state, len_sim))
 }
 
+/// Like [`run_from_config_str_and_forcing`] but replaces the config-derived
+/// initial state with a state decoded from *state_json* (the nested-payload
+/// JSON produced by a previous run).
+pub fn run_from_config_str_and_forcing_with_state(
+    config_yaml: &str,
+    forcing_block: Vec<f64>,
+    len_sim: usize,
+    state_json: &str,
+) -> Result<(Vec<f64>, SuewsState, usize), BridgeError> {
+    let mut run_cfg = load_run_config_from_str(config_yaml).map_err(simulation_error)?;
+
+    if len_sim == 0 {
+        return Err(simulation_error(
+            "forcing block must contain at least one timestep",
+        ));
+    }
+
+    let expected_forcing_len = len_sim
+        .checked_mul(MET_FORCING_COLS)
+        .ok_or_else(|| simulation_error("forcing block length overflow"))?;
+    if forcing_block.len() != expected_forcing_len {
+        return Err(simulation_error(format!(
+            "forcing block length mismatch: got {}, expected {}",
+            forcing_block.len(),
+            expected_forcing_len
+        )));
+    }
+
+    // Decode state from previous chunk's JSON output.
+    let state_value: serde_json::Value = serde_json::from_str(state_json)
+        .map_err(|e| simulation_error(format!("invalid state JSON: {e}")))?;
+    run_cfg.state = suews_state_from_nested_payload(&state_value)?;
+
+    // Set timer fields from the first forcing row.
+    let first_row = &forcing_block[..MET_FORCING_COLS];
+    run_cfg.timer.iy = parse_time_cell(first_row[0], "iy")?;
+    run_cfg.timer.id = parse_time_cell(first_row[1], "id")?;
+    run_cfg.timer.it = parse_time_cell(first_row[2], "it")?;
+    run_cfg.timer.imin = parse_time_cell(first_row[3], "imin")?;
+    run_cfg.timer.isec = 0;
+    run_cfg.timer.tstep_prev = run_cfg.timer.tstep;
+    run_cfg.timer.tstep_real = run_cfg.timer.tstep as f64;
+    run_cfg.timer.nsh_real = 3600.0 / run_cfg.timer.tstep as f64;
+    run_cfg.timer.nsh = (3600 / run_cfg.timer.tstep).max(1);
+    run_cfg.timer.dt_since_start = 0;
+    run_cfg.timer.dt_since_start_prev = 0;
+    run_cfg.timer.dectime = (run_cfg.timer.id - 1) as f64
+        + run_cfg.timer.it as f64 / 24.0
+        + run_cfg.timer.imin as f64 / (60.0 * 24.0)
+        + run_cfg.timer.isec as f64 / (3600.0 * 24.0);
+
+    let month = day_of_year_to_month(run_cfg.timer.iy, run_cfg.timer.id)?;
+    let day_of_month = {
+        let month_days_common = [31_i32, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        let month_days_leap = [31_i32, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        let month_days = if is_leap_year(run_cfg.timer.iy) {
+            &month_days_leap
+        } else {
+            &month_days_common
+        };
+        let mut remaining = run_cfg.timer.id;
+        for (idx, days) in month_days.iter().enumerate() {
+            if idx as i32 + 1 == month {
+                break;
+            }
+            remaining -= *days;
+        }
+        remaining
+    };
+    run_cfg.timer.dayofweek_id[0] = fortran_weekday_from_ymd(run_cfg.timer.iy, month, day_of_month);
+    run_cfg.timer.dayofweek_id[1] = month;
+    run_cfg.timer.dayofweek_id[2] = if run_cfg.site_scalars.lat >= 0.0 {
+        if (4..=9).contains(&month) { 1 } else { 2 }
+    } else if month >= 10 || month <= 3 {
+        1
+    } else {
+        2
+    };
+
+    // NOTE: Do NOT override temp_surf_dyohm / tsfc_surf_dyohm / ws_rav
+    // here — the injected state already carries correct evolved values.
+
+    let sim_out = run_simulation(SimulationInput {
+        timer: run_cfg.timer,
+        config: run_cfg.config,
+        site: run_cfg.site,
+        site_scalars: run_cfg.site_scalars,
+        state: run_cfg.state,
+        forcing_block,
+        len_sim,
+        nlayer: run_cfg.nlayer,
+        ndepth: run_cfg.ndepth,
+    })?;
+
+    Ok((sim_out.output_block, sim_out.state, len_sim))
+}
+
 pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, BridgeError> {
     if input.len_sim == 0 {
         return Err(BridgeError::SimulationError {
@@ -667,7 +806,7 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
     let mut state_out = vec![0.0_f64; state_members.flat.len()];
     let output_len = input
         .len_sim
-        .checked_mul(OUTPUT_SUEWS_COLS)
+        .checked_mul(OUTPUT_ALL_COLS)
         .ok_or_else(|| BridgeError::SimulationError {
             code: -1,
             message: "output block length overflow".to_string(),

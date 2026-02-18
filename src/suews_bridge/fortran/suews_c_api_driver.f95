@@ -12,7 +12,10 @@ use, intrinsic :: iso_c_binding, only: c_int, c_double, c_char
 use module_c_api_common, only: &
    SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
    copy_to_c_buffer
-use module_ctrl_const_allocate, only: ncolumnsDataOutSUEWS, nspec, nsurf, nvegsurf
+use module_ctrl_const_allocate, only: ncolumnsDataOutSUEWS, nspec, nsurf, nvegsurf, &
+   ncolumnsDataOutSnow, ncolumnsDataOutBEERS, ncolumnsDataOutESTM, ncolumnsDataOutEHC, &
+   ncolumnsDataOutDailyState, ncolumnsDataOutRSL, ncolumnsDataOutDebug, &
+   ncolumnsDataOutSPARTACUS, ncolumnsDataOutSTEBBS, ncolumnsDataOutNHood
 use module_ctrl_type, only: SUEWS_TIMER, SUEWS_CONFIG, SUEWS_SITE, SUEWS_STATE, &
                             flag_STATE, anthroEmis_STATE, OHM_STATE, solar_State, atm_state, PHENOLOGY_STATE, &
                             SNOW_STATE, HYDRO_STATE, HEAT_STATE, ROUGHNESS_STATE, STEBBS_STATE, NHOOD_STATE
@@ -180,6 +183,7 @@ subroutine suews_cal_multitsteps_c( &
    integer :: ir
    integer :: ic
    integer :: idx
+   integer :: ncols_all
    integer(c_int) :: local_err
 
    sim_err_code = 0_c_int
@@ -243,7 +247,11 @@ subroutine suews_cal_multitsteps_c( &
       return
    end if
 
-   if (output_len<len_sim * ncolumnsDataOutSUEWS) then
+   ncols_all = ncolumnsDataOutSUEWS + ncolumnsDataOutSnow + ncolumnsDataOutBEERS &
+      + ncolumnsDataOutESTM + ncolumnsDataOutEHC + ncolumnsDataOutDailyState &
+      + ncolumnsDataOutRSL + ncolumnsDataOutDebug + ncolumnsDataOutSPARTACUS &
+      + ncolumnsDataOutSTEBBS + ncolumnsDataOutNHood
+   if (output_len<len_sim * ncols_all) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if
@@ -261,7 +269,7 @@ subroutine suews_cal_multitsteps_c( &
    end if
 
    allocate (metforcing_block(len_sim_i, forcing_cols_i))
-   allocate (dataout_block(len_sim_i, ncolumnsDataOutSUEWS))
+   allocate (dataout_block(len_sim_i, ncols_all))
 
    idx = 1
    do ir = 1, len_sim_i
@@ -293,7 +301,7 @@ subroutine suews_cal_multitsteps_c( &
    call SUEWS_cal_multitsteps_dts( &
       timer_local, metforcing_block, len_sim_i, &
       config_local, site_local, &
-      state_local, dataout_block)
+      state_local, dataout_block, ncols_all)
 
    call pack_timer(timer_local, timer_out, timer_out_len, local_err)
    if (local_err/=SUEWS_CAPI_OK) then
@@ -303,7 +311,7 @@ subroutine suews_cal_multitsteps_c( &
 
    idx = 1
    do ir = 1, len_sim_i
-      do ic = 1, ncolumnsDataOutSUEWS
+      do ic = 1, ncols_all
          output_flat(idx) = dataout_block(ir, ic)
          idx = idx + 1
       end do

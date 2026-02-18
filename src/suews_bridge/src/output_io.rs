@@ -1,4 +1,4 @@
-use crate::sim::OUTPUT_SUEWS_COLS;
+use crate::sim::{OUTPUT_ALL_COLS, OUTPUT_SUEWS_COLS};
 use std::fs::{self, File};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
@@ -68,8 +68,10 @@ pub fn write_output_csv(
     output_block: &[f64],
     len_sim: usize,
 ) -> Result<PathBuf, String> {
+    // The output buffer now contains all 11 groups (OUTPUT_ALL_COLS per row).
+    // The CLI CSV writer extracts only the SUEWS group (first 118 columns).
     let expected_len = len_sim
-        .checked_mul(OUTPUT_SUEWS_COLS)
+        .checked_mul(OUTPUT_ALL_COLS)
         .ok_or_else(|| "output length overflow".to_string())?;
 
     if output_block.len() != expected_len {
@@ -105,7 +107,8 @@ pub fn write_output_csv(
         .map_err(|e| format!("failed to write CSV header: {e}"))?;
 
     for row_idx in 0..len_sim {
-        let base = row_idx * OUTPUT_SUEWS_COLS;
+        // Each row is OUTPUT_ALL_COLS wide; SUEWS is the first group.
+        let base = row_idx * OUTPUT_ALL_COLS;
         let mut row = String::new();
         for col_idx in 0..OUTPUT_SUEWS_COLS {
             if col_idx > 0 {
@@ -130,8 +133,9 @@ pub fn write_output_arrow(
     output_block: &[f64],
     len_sim: usize,
 ) -> Result<PathBuf, String> {
+    // Buffer is OUTPUT_ALL_COLS wide; extract SUEWS group (first 118 cols).
     let expected_len = len_sim
-        .checked_mul(OUTPUT_SUEWS_COLS)
+        .checked_mul(OUTPUT_ALL_COLS)
         .ok_or_else(|| "output length overflow".to_string())?;
 
     if output_block.len() != expected_len {
@@ -149,10 +153,10 @@ pub fn write_output_arrow(
         )
     })?;
 
-    // Transpose row-major output_block into column vectors.
+    // Transpose row-major output_block into column vectors (SUEWS group only).
     let mut columns: Vec<Vec<f64>> = vec![Vec::with_capacity(len_sim); OUTPUT_SUEWS_COLS];
     for row_idx in 0..len_sim {
-        let base = row_idx * OUTPUT_SUEWS_COLS;
+        let base = row_idx * OUTPUT_ALL_COLS;
         for col_idx in 0..OUTPUT_SUEWS_COLS {
             columns[col_idx].push(output_block[base + col_idx]);
         }

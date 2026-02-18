@@ -101,8 +101,9 @@ pub use phenology::*;
 pub use roughness::*;
 #[cfg(feature = "physics")]
 pub use sim::{
-    run_from_config_str_and_forcing, run_simulation, SimulationInput, SimulationOutput,
-    SiteScalars, OUTPUT_SUEWS_COLS,
+    run_from_config_str_and_forcing, run_from_config_str_and_forcing_with_state,
+    run_simulation, SimulationInput, SimulationOutput,
+    SiteScalars, OUTPUT_SUEWS_COLS, OUTPUT_ALL_COLS, OUTPUT_GROUP_LAYOUT,
 };
 pub use snow::*;
 pub use snow_prm::*;
@@ -4065,6 +4066,35 @@ mod python_bindings {
         Ok((output_block, state_json, actual_len))
     }
 
+    #[cfg(feature = "physics")]
+    #[pyfunction(name = "run_suews_with_state")]
+    fn run_suews_with_state_py(
+        config_yaml: &str,
+        forcing_block: Vec<f64>,
+        len_sim: usize,
+        state_json: &str,
+    ) -> PyResult<(Vec<f64>, String, usize)> {
+        let (output_block, state, actual_len) =
+            run_from_config_str_and_forcing_with_state(
+                config_yaml, forcing_block, len_sim, state_json,
+            )
+            .map_err(map_bridge_error)?;
+        let state_json_out = serde_json::to_string(&suews_state_to_nested_payload(&state))
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        Ok((output_block, state_json_out, actual_len))
+    }
+
+    /// Return the output group layout as a list of (name, ncols) tuples.
+    /// Order matches the concatenated flat buffer from Fortran.
+    #[cfg(feature = "physics")]
+    #[pyfunction(name = "output_group_layout")]
+    fn output_group_layout_py() -> Vec<(String, usize)> {
+        OUTPUT_GROUP_LAYOUT
+            .iter()
+            .map(|(name, cols)| (name.to_string(), *cols))
+            .collect()
+    }
+
     #[pyfunction(name = "ohm_state_schema")]
     fn ohm_state_schema_py() -> PyResult<(usize, usize)> {
         ohm_state_schema().map_err(map_bridge_error)
@@ -5240,6 +5270,10 @@ mod python_bindings {
         m.add_class::<PyNhoodState>()?;
         #[cfg(feature = "physics")]
         m.add_function(wrap_pyfunction!(run_suews_py, m)?)?;
+        #[cfg(feature = "physics")]
+        m.add_function(wrap_pyfunction!(run_suews_with_state_py, m)?)?;
+        #[cfg(feature = "physics")]
+        m.add_function(wrap_pyfunction!(output_group_layout_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_step_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_version_py, m)?)?;

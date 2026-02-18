@@ -20,6 +20,26 @@ if TYPE_CHECKING:
 OUTPUT_SUEWS_COLS = 118
 OUTPUT_TIME_COLS = 5
 
+# All 11 output groups concatenated (match Rust/Fortran constants).
+OUTPUT_ALL_COLS = 1134
+
+# Ordered list of (group_name, total_cols_including_datetime) matching
+# the Fortran concatenation layout.  Group names must match the
+# ``dict_var_lower`` keys in ``_post.py`` (lowercased for lookup).
+OUTPUT_GROUP_LAYOUT: list[tuple[str, int]] = [
+    ("SUEWS", 118),
+    ("snow", 103),
+    ("BEERS", 34),
+    ("ESTM", 32),
+    ("EHC", 229),
+    ("DailyState", 52),
+    ("RSL", 140),
+    ("debug", 136),
+    ("SPARTACUS", 199),
+    ("STEBBS", 85),
+    ("NHood", 6),
+]
+
 _RUST_ERROR_MSG = (
     "Rust backend not available in this build.\n"
     "Rebuild/install SuPy with Meson Rust bridge enabled (e.g. make dev or make dev-dts)."
@@ -108,6 +128,49 @@ def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
     return dts_prepare(df_forcing)
 
 
+def _parse_output_block(
+    output_flat: list[float],
+    len_sim: int,
+    grid_id: int,
+) -> pd.DataFrame:
+    """Reshape the flat output buffer into a multi-group DataFrame.
+
+    The flat buffer contains *len_sim* rows of ``OUTPUT_ALL_COLS`` columns.
+    Each of the 11 output groups occupies a contiguous slice and carries its
+    own 5-column datetime prefix.  We extract the datetime from the first
+    group (SUEWS), then for every group strip its datetime prefix and build
+    a ``(group, var)`` MultiIndex column set via :func:`gen_index`.
+    """
+    output_array = np.asarray(output_flat, dtype=np.float64)
+    expected = len_sim * OUTPUT_ALL_COLS
+    if output_array.size != expected:
+        raise RuntimeError(
+            f"Rust backend output shape mismatch: got {output_array.size}, "
+            f"expected {expected}"
+        )
+
+    output_block = output_array.reshape((len_sim, OUTPUT_ALL_COLS), order="C")
+    # Datetime from the first group (SUEWS)
+    datetime_index = _build_datetime_index(output_block)
+
+    list_df_group: list[pd.DataFrame] = []
+    col_offset = 0
+    for group_name, ncols in OUTPUT_GROUP_LAYOUT:
+        group_data = output_block[:, col_offset + OUTPUT_TIME_COLS : col_offset + ncols]
+        idx = gen_index(f"dataoutline{group_name.lower()}")
+        list_df_group.append(
+            pd.DataFrame(group_data, columns=idx, index=datetime_index)
+        )
+        col_offset += ncols
+
+    df_output = pd.concat(list_df_group, axis=1)
+    df_output.index = pd.MultiIndex.from_product(
+        [[_normalise_grid_id(grid_id)], datetime_index],
+        names=["grid", "datetime"],
+    )
+    return df_output
+
+
 def run_suews_rust(
     config: "SUEWSConfig",
     df_forcing: pd.DataFrame,
@@ -142,26 +205,7 @@ def run_suews_rust(
             f"Rust backend length mismatch: forcing={len(df_forcing)}, output={len_sim}"
         )
 
-    output_array = np.asarray(output_flat, dtype=np.float64)
-    expected = len_sim * OUTPUT_SUEWS_COLS
-    if output_array.size != expected:
-        raise RuntimeError(
-            f"Rust backend output shape mismatch: got {output_array.size}, expected {expected}"
-        )
-
-    output_block = output_array.reshape((len_sim, OUTPUT_SUEWS_COLS), order="C")
-    datetime_index = _build_datetime_index(output_block)
-
-    idx_suews = gen_index("dataoutlinesuews")
-    df_output = pd.DataFrame(
-        output_block[:, OUTPUT_TIME_COLS:],
-        columns=idx_suews,
-        index=datetime_index,
-    )
-    df_output.index = pd.MultiIndex.from_product(
-        [[_normalise_grid_id(grid_id)], datetime_index],
-        names=["grid", "datetime"],
-    )
+    df_output = _parse_output_block(output_flat, len_sim, grid_id)
     return df_output, state_json
 
 
@@ -217,4 +261,122 @@ def run_suews_rust_multi(
     # Concatenate all grids -- each df already has (grid, datetime) index
     df_output_all = pd.concat(list_df_output).sort_index()
 
+    return df_output_all, dict_state_json or None
+
+
+def run_suews_rust_with_state(
+    config: "SUEWSConfig",
+    df_forcing: pd.DataFrame,
+    grid_id: int = 1,
+    state_json: str = "",
+) -> tuple[pd.DataFrame, str | None]:
+    """Run SUEWS via Rust bridge with injected state from a previous chunk."""
+    _check_rust_available()
+    if df_forcing.empty:
+        raise ValueError("forcing data is empty")
+
+    rust_module = _load_rust_module()
+    config_yaml = yaml.dump(
+        config.model_dump(exclude_none=True, mode="json"),
+        default_flow_style=False,
+        sort_keys=False,
+    )
+    forcing_block = _prepare_forcing_block(df_forcing)
+    forcing_flat = forcing_block.ravel(order="C").tolist()
+
+    output_flat, new_state_json, len_sim = rust_module.run_suews_with_state(
+        config_yaml,
+        forcing_flat,
+        len(df_forcing),
+        state_json,
+    )
+
+    if len_sim != len(df_forcing):
+        raise RuntimeError(
+            f"Rust backend length mismatch: forcing={len(df_forcing)}, output={len_sim}"
+        )
+
+    df_output = _parse_output_block(output_flat, len_sim, grid_id)
+    return df_output, new_state_json
+
+
+def run_suews_rust_chunked(
+    config: "SUEWSConfig",
+    df_forcing: pd.DataFrame,
+    chunk_day: int = 366,
+) -> tuple[pd.DataFrame, dict[int, str] | None]:
+    """Run SUEWS via Rust bridge with multi-chunk state chaining.
+
+    Splits forcing into chunks of *chunk_day* days, runs each chunk
+    sequentially, and threads the final state of chunk N into chunk N+1
+    for every grid.  Single-chunk forcing delegates without overhead.
+    """
+    # Group forcing into chunks (same logic as traditional backend)
+    idx_start = df_forcing.index.min()
+    idx_all = df_forcing.index
+    grp_forcing_chunk = df_forcing.groupby(
+        (idx_all - idx_start) // pd.Timedelta(chunk_day, "D")
+    )
+
+    n_chunk = len(grp_forcing_chunk)
+    if n_chunk <= 1:
+        return run_suews_rust_multi(config, df_forcing)
+
+    logger_supy.info(
+        "Rust backend: forcing split into %d chunks of <= %d days.",
+        n_chunk,
+        chunk_day,
+    )
+
+    sites = config.sites
+    list_gridiv = [s.gridiv for s in sites]
+    list_dupes = [g for g in list_gridiv if list_gridiv.count(g) > 1]
+    if list_dupes:
+        raise ValueError(
+            f"Duplicate gridiv values in config.sites: {set(list_dupes)}"
+        )
+
+    dict_state_json: dict[int, str] = {}
+    list_df_output: list[pd.DataFrame] = []
+
+    for chunk_idx, grp in enumerate(grp_forcing_chunk.groups):
+        df_forcing_chunk = grp_forcing_chunk.get_group(grp)
+        logger_supy.debug(
+            "Rust backend: chunk %d/%d  (%s -> %s, %d rows)",
+            chunk_idx + 1,
+            n_chunk,
+            df_forcing_chunk.index[0],
+            df_forcing_chunk.index[-1],
+            len(df_forcing_chunk),
+        )
+
+        list_df_chunk: list[pd.DataFrame] = []
+
+        for site in sites:
+            grid_id = _normalise_grid_id(site.gridiv)
+            config_single = config.model_copy(deep=True)
+            config_single.sites = [site.model_copy(deep=True)]
+
+            prev_state = dict_state_json.get(grid_id)
+            if prev_state is not None:
+                df_out, new_state = run_suews_rust_with_state(
+                    config=config_single,
+                    df_forcing=df_forcing_chunk,
+                    grid_id=grid_id,
+                    state_json=prev_state,
+                )
+            else:
+                df_out, new_state = run_suews_rust(
+                    config=config_single,
+                    df_forcing=df_forcing_chunk,
+                    grid_id=grid_id,
+                )
+
+            list_df_chunk.append(df_out)
+            if new_state is not None:
+                dict_state_json[grid_id] = new_state
+
+        list_df_output.append(pd.concat(list_df_chunk))
+
+    df_output_all = pd.concat(list_df_output).sort_index()
     return df_output_all, dict_state_json or None

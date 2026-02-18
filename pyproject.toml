@@ -128,6 +128,7 @@ filterwarnings = [
 markers = [
     "smoke: Minimal wheel validation (~6 tests, ~60s)",
     "core: Core physics & logic tests (Fortran, driver)",
+    "rust: Rust bridge backend tests (requires suews_bridge with physics feature)",
     "util: Utility function tests (non-critical)",
     "cfg: Config/schema validation tests",
     "slow: Tests taking >30s individually",

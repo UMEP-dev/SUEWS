@@ -171,6 +171,23 @@ def _parse_output_block(
     return df_output
 
 
+def _check_smd_method(config: "SUEWSConfig") -> None:
+    """Raise if config uses observed soil moisture (not yet supported via Rust)."""
+    try:
+        smd_val = config.model.options.smdmethod
+        if hasattr(smd_val, "value"):
+            smd_val = smd_val.value
+        smd_int = int(smd_val)
+    except (AttributeError, TypeError, ValueError):
+        return  # cannot determine — assume default (0)
+    if smd_int > 0:
+        raise NotImplementedError(
+            f"Rust backend does not yet support observed soil moisture "
+            f"(smdmethod={smd_int}). Use the traditional backend or set "
+            f"smdmethod to 0 (modelled)."
+        )
+
+
 def run_suews_rust(
     config: "SUEWSConfig",
     df_forcing: pd.DataFrame,
@@ -182,6 +199,7 @@ def run_suews_rust(
     encoding the post-simulation state (or ``None`` if unavailable).
     """
     _check_rust_available()
+    _check_smd_method(config)
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
 

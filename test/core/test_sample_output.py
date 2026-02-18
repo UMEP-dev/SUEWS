@@ -681,6 +681,7 @@ class TestSampleOutput(TestCase):
         )
 
     @pytest.mark.core
+    @pytest.mark.rust
     @pytest.mark.skipif(
         not _rust_library_available(),
         reason="Rust library backend not available (install src/suews_bridge with physics feature)",
@@ -747,6 +748,7 @@ class TestSampleOutput(TestCase):
         )
 
     @pytest.mark.core
+    @pytest.mark.rust
     def test_rust_bridge_sample_output(self):
         """
         Test Rust CLI bridge produces output matching the sample reference.

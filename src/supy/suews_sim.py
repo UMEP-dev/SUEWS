@@ -606,6 +606,15 @@ class SUEWSSimulation:
             self._initial_states_final = None
         else:
             # Traditional backend: DataFrame-based execution
+            import warnings
+
+            warnings.warn(
+                "The traditional (f2py) backend is deprecated and will be "
+                "removed in a future release. Use backend='rust' or "
+                "backend='dts' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             result = run_supy_ser(
                 df_forcing_slice,
                 self._df_state_init,

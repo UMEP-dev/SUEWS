@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2025-11-20T13:50:51+00:00" />
-    <title>6.3. Utility Functions &#8212; SUEWS 2026.2.13.dev62 documentation</title>
+    <meta property="article:modified_time" content="2026-02-18T22:28:15+00:00" />
+    <title>6.3. Utility Functions &#8212; SUEWS 2026.2.18.dev64 documentation</title>
   
   
   
@@ -41,7 +41,7 @@
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
   <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
 
-    <script src="../_static/documentation_options.js?v=61f1da95"></script>
+    <script src="../_static/documentation_options.js?v=e52f5af8"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
@@ -54,7 +54,7 @@
     <link rel="prev" title="6.2.1.6. supy.show_version" href="_autosummary/supy.show_version.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-    <meta name="docbuild:last-update" content="2025-11-20"/>
+    <meta name="docbuild:last-update" content="2026-02-18"/>
   </head>
   
   
@@ -108,7 +108,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.2.13.dev62, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ea386964ee3c8b3c3858c5c3fa2133fa3fde6690" style="color: #31708f;">ea38696</a>).
+        (2026.2.18.dev64, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c2ae6323da700059cf8ae6539c0cc21aa67633fb" style="color: #31708f;">c2ae632</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -154,8 +154,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.13.dev62 documentation - Home"/>
-    <script>document.write(`<img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.13.dev62 documentation - Home"/>`);</script>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.18.dev64 documentation - Home"/>
+    <script>document.write(`<img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.18.dev64 documentation - Home"/>`);</script>
   
   
 </a></div>
@@ -320,6 +320,15 @@
 <li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.util.plot_rsl.html">6.3.5.3. supy.util.plot_rsl</a></li>
 <li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.util.cal_z0zd.html">6.3.6.1. supy.util.cal_z0zd</a></li>
 <li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.util.cal_neutral.html">6.3.6.2. supy.util.cal_neutral</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.util.attribute.html">6.3.7.1. supy.util.attribute</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.util.diagnose.html">6.3.7.2. supy.util.diagnose</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.util.attribute_t2.html">6.3.7.3. supy.util.attribute_t2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.util.attribute_q2.html">6.3.7.4. supy.util.attribute_q2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.util.attribute_u10.html">6.3.7.5. supy.util.attribute_u10</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.util.diagnose_t2.html">6.3.7.6. supy.util.diagnose_t2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.util.diagnose_q2.html">6.3.7.7. supy.util.diagnose_q2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.util.diagnose_u10.html">6.3.7.8. supy.util.diagnose_u10</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.util.AttributionResult.html">6.3.7.9. supy.util.AttributionResult</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2"><a class="reference internal" href="command-line.html">6.4. Command-Line Tools</a></li>
@@ -599,6 +608,7 @@ document.write(`
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#surface-conductance">6.3.4. Surface Conductance</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#plotting-and-visualisation">6.3.5. Plotting and Visualisation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#roughness-calculations">6.3.6. Roughness Calculations</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#attribution-analysis">6.3.7. Attribution Analysis</a></li>
 </ul>
             </nav>
         </div>
@@ -717,6 +727,44 @@ document.write(`
 </table>
 </div>
 </section>
+<section id="attribution-analysis">
+<h2><span class="section-number">6.3.7. </span>Attribution Analysis<a class="headerlink" href="#attribution-analysis" title="Link to this heading">#</a></h2>
+<p>Functions for decomposing near-surface variable changes into physically
+attributable components using Shapley value analysis <span id="id1">[<a class="reference internal" href="../references.html#id106" title="Owen, Guillermo. Multilinear extensions of games. Manage. Sci., 18(5):64-79, January 1972. doi:10.1287/mnsc.18.5.64.">Owen, 1972</a>, <a class="reference internal" href="../references.html#id105" title="Shapley, Lloyd S. A value for n-person games. In Kuhn, Harold W. and Tucker, Albert W., editors, Contributions to the Theory of Games (AM-28), Volume II, pages 307-317. Princeton University Press, 1953. doi:10.1515/9781400881970-018.">Shapley, 1953</a>]</span>.
+See <span class="xref std std-doc">/auto_examples/tutorial_07_attribution</span> for a worked example.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/supy.util.attribute.html#supy.util.attribute" title="supy.util.attribute"><code class="xref py py-obj docutils literal notranslate"><span class="pre">attribute</span></code></a>(df_output_A, df_output_B[, variable])</p></td>
+<td><p>Generic attribution function for near-surface variables.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/supy.util.diagnose.html#supy.util.diagnose" title="supy.util.diagnose"><code class="xref py py-obj docutils literal notranslate"><span class="pre">diagnose</span></code></a>(df_output[, variable])</p></td>
+<td><p>Generic diagnostic function for near-surface variables.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/supy.util.attribute_t2.html#supy.util.attribute_t2" title="supy.util.attribute_t2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">attribute_t2</span></code></a>(df_output_A, df_output_B, ...)</p></td>
+<td><p>Decompose T2 differences between two SUEWS scenarios.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/supy.util.attribute_q2.html#supy.util.attribute_q2" title="supy.util.attribute_q2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">attribute_q2</span></code></a>(df_output_A, df_output_B, ...)</p></td>
+<td><p>Decompose q2 (2m specific humidity) differences between two SUEWS scenarios.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/supy.util.attribute_u10.html#supy.util.attribute_u10" title="supy.util.attribute_u10"><code class="xref py py-obj docutils literal notranslate"><span class="pre">attribute_u10</span></code></a>(df_output_A, df_output_B[, ...])</p></td>
+<td><p>Decompose U10 (10m wind speed) differences between two SUEWS scenarios.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/supy.util.diagnose_t2.html#supy.util.diagnose_t2" title="supy.util.diagnose_t2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">diagnose_t2</span></code></a>(df_output, df_forcing[, method, ...])</p></td>
+<td><p>Automatically identify anomalous T2 values and attribute the causes.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/supy.util.diagnose_q2.html#supy.util.diagnose_q2" title="supy.util.diagnose_q2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">diagnose_q2</span></code></a>(df_output, df_forcing[, method, ...])</p></td>
+<td><p>Automatically identify anomalous q2 values and attribute the causes.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/supy.util.diagnose_u10.html#supy.util.diagnose_u10" title="supy.util.diagnose_u10"><code class="xref py py-obj docutils literal notranslate"><span class="pre">diagnose_u10</span></code></a>(df_output[, method, threshold, ...])</p></td>
+<td><p>Automatically identify anomalous U10 values and attribute the causes.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/supy.util.AttributionResult.html#supy.util.AttributionResult" title="supy.util.AttributionResult"><code class="xref py py-obj docutils literal notranslate"><span class="pre">AttributionResult</span></code></a>(variable, contributions, ...)</p></td>
+<td><p>Container for attribution analysis results.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 </section>
 
 
@@ -770,6 +818,7 @@ document.write(`
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#surface-conductance">6.3.4. Surface Conductance</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#plotting-and-visualisation">6.3.5. Plotting and Visualisation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#roughness-calculations">6.3.6. Roughness Calculations</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#attribution-analysis">6.3.7. Attribution Analysis</a></li>
 </ul>
   </nav></div>
 
@@ -803,7 +852,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2025-11-20.
+  Last updated on 2026-02-18.
   <br/>
 </p>
   </div>
@@ -811,8 +860,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.2.13.dev62 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ea386964ee3c8b3c3858c5c3fa2133fa3fde6690">ea38696</a> |
+  <p>Version: 2026.2.18.dev64 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c2ae6323da700059cf8ae6539c0cc21aa67633fb">c2ae632</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

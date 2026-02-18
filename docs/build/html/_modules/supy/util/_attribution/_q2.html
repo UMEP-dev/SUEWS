@@ -1,0 +1,945 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>supy.util._attribution._q2 &#8212; SUEWS 2026.2.18.dev64 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../../../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../../../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../../../../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/theme_overrides.css?v=0c24fe83" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/brand.css?v=6ff74816" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../../../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../../../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../../../../_static/documentation_options.js?v=e52f5af8"></script>
+    <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script src="../../../../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/supy/util/_attribution/_q2';</script>
+    <link rel="icon" href="../../../../_static/suews-logo.svg"/>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+<aside class="bd-header-announcement" aria-label="Announcement">
+  <div class="bd-header-announcement__content">
+    <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
+        <strong>⚠️ Development Version:</strong> This documentation was built from a development version
+        (2026.2.18.dev64, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c2ae6323da700059cf8ae6539c0cc21aa67633fb" style="color: #31708f;">c2ae632</a>).
+        Features described here may be unstable or subject to change. For stable documentation, please visit the
+        <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
+    </div>
+    </div>
+</aside>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.18.dev64 documentation - Home"/>
+    <script>document.write(`<img src="../../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.18.dev64 documentation - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">For users</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">1. Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../workflow.html">2. Getting Started</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../auto_examples/index.html">3. Tutorials</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../auto_examples/tutorial_01_quick_start.html">3.1. SUEWS Quick Start Tutorial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../auto_examples/tutorial_02_setup_own_site.html">3.2. Set Up SUEWS for Your Own Site</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../auto_examples/tutorial_03_initial_conditions.html">3.3. Preparing Initial Conditions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../auto_examples/tutorial_04_impact_studies.html">3.4. Impact Studies Using SuPy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../auto_examples/tutorial_05_results_analysis.html">3.5. Analysing Simulation Results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../auto_examples/tutorial_06_external_coupling.html">3.6. External Model Coupling</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../inputs/index.html">4. Input Files</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../inputs/yaml/index.html">4.1. YAML Configuration Format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../inputs/forcing-data.html">4.2. Meteorological Forcing Data</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../inputs/yaml/config-reference/index.html">4.3. YAML Configuration Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/anthropogenicemissions.html">4.3.1. Anthropogenic Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/anthropogenicheat.html">4.3.2. Anthropogenic Heat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/archetypeproperties.html">4.3.3. Archetype Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/bldgsproperties.html">4.3.4. Buildings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/bsoilproperties.html">4.3.5. Bare Soil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/buildinglayer.html">4.3.6. Building Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/co2params.html">4.3.7. CO2 Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/conductance.html">4.3.8. Conductance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/dayprofile.html">4.3.9. Daily Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/dectrproperties.html">4.3.10. Deciduous Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/evetrproperties.html">4.3.11. Evergreen Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/grassproperties.html">4.3.12. Grass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/hourlyprofile.html">4.3.13. Hourly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/initialstatebldgs.html">4.3.14. Buildings Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/initialstatebsoil.html">4.3.15. Bare Soil Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/initialstatedectr.html">4.3.16. Deciduous Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/initialstateevetr.html">4.3.17. Evergreen Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/initialstategrass.html">4.3.18. Grass Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/initialstatepaved.html">4.3.19. Paved Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/initialstateveg.html">4.3.20. Vegetation Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/initialstatewater.html">4.3.21. Water Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/initialstates.html">4.3.22. Initial States</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/irrigationparams.html">4.3.23. Irrigation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/laiparams.html">4.3.24. LAI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/laipowercoefficients.html">4.3.25. LAI Power Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/lumpsparams.html">4.3.26. LUMPS Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/landcover.html">4.3.27. Land Cover</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/model.html">4.3.28. Model Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/modelcontrol.html">4.3.29. Model Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/modelphysics.html">4.3.30. Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/nonvegetatedsurfaceproperties.html">4.3.31. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/ohmcoefficients.html">4.3.32. OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/ohm_coefficient_season_wetness.html">4.3.33. Seasonal/Wetness OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/outputconfig.html">4.3.34. Output Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/pavedproperties.html">4.3.35. Paved Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/rooflayer.html">4.3.36. Roof Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/spartacusparams.html">4.3.37. SPARTACUS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/suewsconfig.html">4.3.38. SUEWS Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/site.html">4.3.39. Site Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/siteproperties.html">4.3.40. Site Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/snowparams.html">4.3.41. Snow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/soilobservationconfig.html">4.3.42. Soil Observation Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/stebbsproperties.html">4.3.43. STEBBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/storagedrainparams.html">4.3.44. Drainage Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/surfaceinitialstate.html">4.3.45. Generic Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/surfaceproperties.html">4.3.46. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/tenminuteprofile.html">4.3.47. Ten Minute Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/thermallayers.html">4.3.48. Thermal Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/vegetatedsurfaceproperties.html">4.3.49. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/vegetationparams.html">4.3.50. Vegetation Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/verticallayers.html">4.3.51. Vertical Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/walllayer.html">4.3.52. Wall Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/waterdistribution.html">4.3.53. Water Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/waterproperties.html">4.3.54. Water Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/yaml/config-reference/weeklyprofile.html">4.3.55. Weekly Profile</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../inputs/converter.html">4.4. SUEWS Format Converter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../inputs/transition_guide.html">4.5. Transitioning to YAML-based Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../inputs/yaml/validation.html">4.6. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../inputs/tables/index.html">4.7. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/tables/met_input.html">4.7.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../../../inputs/tables/RunControl/RunControl.html">4.7.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../inputs/tables/RunControl/scheme_options.html">4.7.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../inputs/tables/RunControl/Time_related_options.html">4.7.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../inputs/tables/RunControl/File_related_options.html">4.7.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../inputs/tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.7.3.2.4. Options related to disaggregation of input data</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.7.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../../../inputs/tables/Initial_Conditions/Initial_Conditions.html">4.7.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../../inputs/tables/Initial_Conditions/Soil_moisture_states.html">4.7.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../inputs/tables/Initial_Conditions/Vegetation_parameters.html">4.7.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../inputs/tables/Initial_Conditions/Recent_meteorology.html">4.7.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../inputs/tables/Initial_Conditions/Above_ground_state.html">4.7.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../../inputs/tables/Initial_Conditions/Snow_related_parameters.html">4.7.3.4.5. Snow related parameters</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../outputs/index.html">5. Output Files</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../outputs/text_format.html">5.1. Text Format Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../outputs/parquet_format.html">5.2. Parquet Format Output</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../outputs/variables/index.html">5.3. Output Variable Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../outputs/variables/datetime.html">5.3.1. datetime Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../outputs/variables/suews.html">5.3.2. SUEWS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../outputs/variables/snow.html">5.3.3. snow Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../outputs/variables/estm.html">5.3.4. ESTM Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../outputs/variables/ehc.html">5.3.5. EHC Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../outputs/variables/rsl.html">5.3.6. RSL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../outputs/variables/bl.html">5.3.7. BL Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../outputs/variables/debug.html">5.3.8. debug Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../outputs/variables/beers.html">5.3.9. BEERS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../outputs/variables/dailystate.html">5.3.10. DailyState Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../outputs/variables/spartacus.html">5.3.11. SPARTACUS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../outputs/variables/stebbs.html">5.3.12. STEBBS Output Variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../outputs/variables/nhood.html">5.3.13. NHood Output Variables</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../outputs/legacy_diagnostics.html">5.4. Legacy Diagnostics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../outputs/legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../api.html">6. Python API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../api/simulation.html">6.1. <code class="xref any docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> Class</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../api/core-functions.html">6.2. Core Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.init_supy.html">6.2.1.1. supy.init_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.run_supy.html">6.2.1.2. supy.run_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.save_supy.html">6.2.1.3. supy.save_supy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.load_forcing_grid.html">6.2.1.4. supy.load_forcing_grid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.load_sample_data.html">6.2.1.5. supy.load_sample_data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.show_version.html">6.2.1.6. supy.show_version</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../api/utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.gen_forcing_era5.html">6.3.1.1. supy.util.gen_forcing_era5</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.gen_epw.html">6.3.2.1. supy.util.gen_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.read_epw.html">6.3.2.2. supy.util.read_epw</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.fill_gap_all.html">6.3.2.3. supy.util.fill_gap_all</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.derive_ohm_coef.html">6.3.3.1. supy.util.derive_ohm_coef</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.sim_ohm.html">6.3.3.2. supy.util.sim_ohm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.cal_gs_suews.html">6.3.4.1. supy.util.cal_gs_suews</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.cal_gs_obs.html">6.3.4.2. supy.util.cal_gs_obs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.calib_g.html">6.3.4.3. supy.util.calib_g</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.plot_comp.html">6.3.5.1. supy.util.plot_comp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.plot_day_clm.html">6.3.5.2. supy.util.plot_day_clm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.plot_rsl.html">6.3.5.3. supy.util.plot_rsl</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.cal_z0zd.html">6.3.6.1. supy.util.cal_z0zd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.cal_neutral.html">6.3.6.2. supy.util.cal_neutral</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.attribute.html">6.3.7.1. supy.util.attribute</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.diagnose.html">6.3.7.2. supy.util.diagnose</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.attribute_t2.html">6.3.7.3. supy.util.attribute_t2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.attribute_q2.html">6.3.7.4. supy.util.attribute_q2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.attribute_u10.html">6.3.7.5. supy.util.attribute_u10</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.diagnose_t2.html">6.3.7.6. supy.util.diagnose_t2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.diagnose_q2.html">6.3.7.7. supy.util.diagnose_q2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.diagnose_u10.html">6.3.7.8. supy.util.diagnose_u10</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../../api/_autosummary/supy.util.AttributionResult.html">6.3.7.9. supy.util.AttributionResult</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../api/command-line.html">6.4. Command-Line Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../api/python-cli-equivalents.html">6.5. Python API for CLI Users</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../api/data-structures.html">6.6. Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../api/io-data-structures.html">6.7. Key IO Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../api/converter.html">6.8. Configuration Converter API</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../integration/index.html">7. Integration and Complementary Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../integration/model-coupling.html">7.1. Model Coupling and External Interaction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../integration/wrf-suews.html">7.1.1.1. Coupling with WRF</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../../../integration/complementary-tools.html">7.2. Complementary Interfaces and Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../../related-softwares/umep.html">7.2.1.1. UMEP Interface</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../troubleshooting.html">8. Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../benchmark/benchmark_report.html">9. Benchmark Report</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notation.html">10. Notation</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../../version-history/version-history.html">11. Version History</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2026.1.28.html">11.1. Version 2026.1.28 (released on 28 January 2026)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2025.11.20.html">11.2. Version 2025.11.20 (released on 20 November 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2025.10.15.html">11.3. Version 2025.10.15 (released on 15 October 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2020a.html">11.4. Version 2020a (released on 14 May 2020)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2019a.html">11.5. Version 2019a (released on 15 November 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2018c.html">11.6. Version 2018c (released on 21 February 2019)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2018b.html">11.7. Version 2018b (released on 17 December 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2018a.html">11.8. Version 2018a (released on 2 August 2018)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2017b.html">11.9. Version 2017b (released on 2 August 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2017a.html">11.10. Version 2017a (released on 1 Feb 2017)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2016a.html">11.11. Version 2016a (released on 21 June 2016)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2014b.html">11.12. Version 2014b (released on 8 October 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2014a.1.html">11.13. Version 2014a.1 (released 26 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2014a.html">11.14. Version 2014a (released on 21 February 2014)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2013a.html">11.15. Version 2013a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2012b.html">11.16. Version 2012b</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2012a.html">11.17. Version 2012a</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../version-history/v2011b.html">11.18. Version 2011b</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">For developers/contributors</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/contributing.html">1. Contributing Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../acknowledgement.html">2. Acknowledgements</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/UMEP-dev/SUEWS">GitHub repository</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Scientific background</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../../parameterisations-and-sub-models.html">1. Parameterisations and sub-models within SUEWS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../related_publications.html">2. SUEWS-related Publications</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../references.html">3. References</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Community</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../../../community_publications.html">1. Community Publications</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://community.suews.io/invites/bKjzoboyVV">Community</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/UMEP-dev/SUEWS/issues/new?title=Issue%20on%20page%20%2F_modules/supy/util/_attribution/_q2.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1></h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for supy.util._attribution._q2</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">q2 (2m specific humidity) attribution functions.</span>
+
+<span class="sd">Provides functions to decompose q2 differences between scenarios</span>
+<span class="sd">into physically attributable components.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.._atm</span><span class="w"> </span><span class="kn">import</span> <span class="n">cal_qa</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._core</span><span class="w"> </span><span class="kn">import</span> <span class="n">shapley_triple_product</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._helpers</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">align_scenarios</span><span class="p">,</span>
+    <span class="n">detect_anomalies</span><span class="p">,</span>
+    <span class="n">extract_suews_group</span><span class="p">,</span>
+    <span class="n">_group_means</span><span class="p">,</span>
+    <span class="n">unwrap_forcing</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._physics</span><span class="w"> </span><span class="kn">import</span> <span class="n">cal_gamma_humidity</span><span class="p">,</span> <span class="n">cal_r_eff_humidity</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._result</span><span class="w"> </span><span class="kn">import</span> <span class="n">AttributionResult</span>
+
+
+<div class="viewcode-block" id="attribute_q2">
+<a class="viewcode-back" href="../../../../api/_autosummary/supy.util.attribute_q2.html#supy.util.attribute_q2">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">attribute_q2</span><span class="p">(</span>
+    <span class="n">df_output_A</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">df_output_B</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">df_forcing_A</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">df_forcing_B</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">min_flux</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AttributionResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Decompose q2 (2m specific humidity) differences between two SUEWS scenarios.</span>
+
+<span class="sd">    The difference in 2m specific humidity is attributed to:</span>
+<span class="sd">    - Flux changes (Q_E latent heat flux)</span>
+<span class="sd">    - Resistance changes (turbulent exchange efficiency)</span>
+<span class="sd">    - Air property changes (rho * L_v)</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    df_output_A : pd.DataFrame</span>
+<span class="sd">        SUEWS output DataFrame for scenario A (reference/baseline)</span>
+<span class="sd">    df_output_B : pd.DataFrame</span>
+<span class="sd">        SUEWS output DataFrame for scenario B (modified/test)</span>
+<span class="sd">    df_forcing_A : pd.DataFrame</span>
+<span class="sd">        Forcing DataFrame for scenario A. Must contain &#39;Tair&#39;, &#39;RH&#39;, &#39;pres&#39; columns.</span>
+<span class="sd">    df_forcing_B : pd.DataFrame</span>
+<span class="sd">        Forcing DataFrame for scenario B. Must contain &#39;Tair&#39;, &#39;RH&#39;, &#39;pres&#39; columns.</span>
+<span class="sd">    min_flux : float, optional</span>
+<span class="sd">        Minimum flux threshold (W/m2) for resistance calculation.</span>
+<span class="sd">        Timesteps with |Q_E| &lt; min_flux are flagged. Default 0.1.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    AttributionResult</span>
+<span class="sd">        Container with contributions timeseries, summary statistics, and metadata.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    Compare baseline vs. irrigated scenario:</span>
+
+<span class="sd">    &gt;&gt;&gt; result = attribute_q2(df_output_baseline, df_output_irrigated,</span>
+<span class="sd">    ...                       df_forcing_A=df_forcing, df_forcing_B=df_forcing)</span>
+<span class="sd">    &gt;&gt;&gt; print(result)</span>
+<span class="sd">    q2 Attribution Results</span>
+<span class="sd">    ========================================</span>
+<span class="sd">    Mean delta_q2: +0.0012 g/kg</span>
+
+<span class="sd">    Component Breakdown:</span>
+<span class="sd">    ----------------------------------------</span>
+<span class="sd">      flux_total     : +0.0008 g/kg (66.7%)</span>
+<span class="sd">      resistance     : +0.0003 g/kg (25.0%)</span>
+<span class="sd">      air_props      : +0.0001 g/kg ( 8.3%)</span>
+
+<span class="sd">    &gt;&gt;&gt; result.plot(kind=&quot;bar&quot;)  # Visualise contributions</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Unwrap OOP wrappers to raw DataFrames</span>
+    <span class="n">df_forcing_A</span> <span class="o">=</span> <span class="n">unwrap_forcing</span><span class="p">(</span><span class="n">df_forcing_A</span><span class="p">)</span>
+    <span class="n">df_forcing_B</span> <span class="o">=</span> <span class="n">unwrap_forcing</span><span class="p">(</span><span class="n">df_forcing_B</span><span class="p">)</span>
+
+    <span class="c1"># Extract SUEWS output group with column validation</span>
+    <span class="n">required_cols</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;q2&quot;</span><span class="p">,</span> <span class="s2">&quot;QE&quot;</span><span class="p">}</span>
+    <span class="n">df_A</span> <span class="o">=</span> <span class="n">extract_suews_group</span><span class="p">(</span><span class="n">df_output_A</span><span class="p">,</span> <span class="n">required_cols</span><span class="o">=</span><span class="n">required_cols</span><span class="p">)</span>
+    <span class="n">df_B</span> <span class="o">=</span> <span class="n">extract_suews_group</span><span class="p">(</span><span class="n">df_output_B</span><span class="p">,</span> <span class="n">required_cols</span><span class="o">=</span><span class="n">required_cols</span><span class="p">)</span>
+
+    <span class="c1"># Align indices</span>
+    <span class="n">df_A</span><span class="p">,</span> <span class="n">df_B</span><span class="p">,</span> <span class="n">common_idx</span> <span class="o">=</span> <span class="n">align_scenarios</span><span class="p">(</span><span class="n">df_A</span><span class="p">,</span> <span class="n">df_B</span><span class="p">)</span>
+
+    <span class="c1"># Extract required variables</span>
+    <span class="n">q2_A</span> <span class="o">=</span> <span class="n">df_A</span><span class="p">[</span><span class="s2">&quot;q2&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">q2_B</span> <span class="o">=</span> <span class="n">df_B</span><span class="p">[</span><span class="s2">&quot;q2&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">QE_A</span> <span class="o">=</span> <span class="n">df_A</span><span class="p">[</span><span class="s2">&quot;QE&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">QE_B</span> <span class="o">=</span> <span class="n">df_B</span><span class="p">[</span><span class="s2">&quot;QE&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+
+    <span class="c1"># Extract forcing data for reference humidity and air properties</span>
+    <span class="n">T_ref_A</span> <span class="o">=</span> <span class="n">df_forcing_A</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">&quot;Tair&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">T_ref_B</span> <span class="o">=</span> <span class="n">df_forcing_B</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">&quot;Tair&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">RH_A</span> <span class="o">=</span> <span class="n">df_forcing_A</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">&quot;RH&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">RH_B</span> <span class="o">=</span> <span class="n">df_forcing_B</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">&quot;RH&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">P_A</span> <span class="o">=</span> <span class="n">df_forcing_A</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">&quot;pres&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+    <span class="n">P_B</span> <span class="o">=</span> <span class="n">df_forcing_B</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">common_idx</span><span class="p">,</span> <span class="s2">&quot;pres&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+
+    <span class="c1"># Calculate reference specific humidity</span>
+    <span class="n">theta_A</span> <span class="o">=</span> <span class="n">T_ref_A</span> <span class="o">+</span> <span class="mf">273.15</span>  <span class="c1"># Celsius to Kelvin</span>
+    <span class="n">theta_B</span> <span class="o">=</span> <span class="n">T_ref_B</span> <span class="o">+</span> <span class="mf">273.15</span>
+    <span class="n">q_ref_A</span> <span class="o">=</span> <span class="n">cal_qa</span><span class="p">(</span><span class="n">RH_A</span><span class="p">,</span> <span class="n">theta_A</span><span class="p">,</span> <span class="n">P_A</span><span class="p">)</span>
+    <span class="n">q_ref_B</span> <span class="o">=</span> <span class="n">cal_qa</span><span class="p">(</span><span class="n">RH_B</span><span class="p">,</span> <span class="n">theta_B</span><span class="p">,</span> <span class="n">P_B</span><span class="p">)</span>
+
+    <span class="c1"># Calculate gamma = 1/(rho*Lv)</span>
+    <span class="c1"># Ensure numpy arrays (cal_gamma_humidity may return pandas Series)</span>
+    <span class="n">gamma_A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">cal_gamma_humidity</span><span class="p">(</span><span class="n">T_ref_A</span><span class="p">,</span> <span class="n">RH_A</span><span class="p">,</span> <span class="n">P_A</span><span class="p">))</span>
+    <span class="n">gamma_B</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">cal_gamma_humidity</span><span class="p">(</span><span class="n">T_ref_B</span><span class="p">,</span> <span class="n">RH_B</span><span class="p">,</span> <span class="n">P_B</span><span class="p">))</span>
+
+    <span class="c1"># Back-calculate effective resistance</span>
+    <span class="n">r_A</span> <span class="o">=</span> <span class="n">cal_r_eff_humidity</span><span class="p">(</span><span class="n">q2_A</span><span class="p">,</span> <span class="n">q_ref_A</span><span class="p">,</span> <span class="n">QE_A</span><span class="p">,</span> <span class="n">gamma_A</span><span class="p">,</span> <span class="n">min_flux</span><span class="p">)</span>
+    <span class="n">r_B</span> <span class="o">=</span> <span class="n">cal_r_eff_humidity</span><span class="p">(</span><span class="n">q2_B</span><span class="p">,</span> <span class="n">q_ref_B</span><span class="p">,</span> <span class="n">QE_B</span><span class="p">,</span> <span class="n">gamma_B</span><span class="p">,</span> <span class="n">min_flux</span><span class="p">)</span>
+
+    <span class="c1"># Shapley decomposition: delta(q2 - q_ref) = delta(r * QE * gamma)</span>
+    <span class="n">Phi_r</span><span class="p">,</span> <span class="n">Phi_QE</span><span class="p">,</span> <span class="n">Phi_gamma</span> <span class="o">=</span> <span class="n">shapley_triple_product</span><span class="p">(</span>
+        <span class="n">r_A</span><span class="p">,</span> <span class="n">r_B</span><span class="p">,</span> <span class="n">QE_A</span><span class="p">,</span> <span class="n">QE_B</span><span class="p">,</span> <span class="n">gamma_A</span><span class="p">,</span> <span class="n">gamma_B</span>
+    <span class="p">)</span>
+
+    <span class="c1"># The total q2 change includes reference humidity change:</span>
+    <span class="c1"># delta_q2 = delta_q_ref + delta(r * QE * gamma)</span>
+    <span class="n">Phi_q_ref</span> <span class="o">=</span> <span class="n">q_ref_B</span> <span class="o">-</span> <span class="n">q_ref_A</span>
+
+    <span class="c1"># Build contributions DataFrame</span>
+    <span class="c1"># Convert to g/kg for better readability</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="mf">1000.0</span>  <span class="c1"># kg/kg to g/kg</span>
+    <span class="n">contributions</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;delta_total&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">q2_B</span> <span class="o">-</span> <span class="n">q2_A</span><span class="p">)</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+            <span class="s2">&quot;q_ref&quot;</span><span class="p">:</span> <span class="n">Phi_q_ref</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+            <span class="s2">&quot;flux_total&quot;</span><span class="p">:</span> <span class="n">Phi_QE</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+            <span class="s2">&quot;resistance&quot;</span><span class="p">:</span> <span class="n">Phi_r</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+            <span class="s2">&quot;air_props&quot;</span><span class="p">:</span> <span class="n">Phi_gamma</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="n">index</span><span class="o">=</span><span class="n">common_idx</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Add flags for low-flux timesteps</span>
+    <span class="n">contributions</span><span class="p">[</span><span class="s2">&quot;flag_low_flux&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">QE_A</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">min_flux</span>
+
+    <span class="c1"># Calculate summary statistics</span>
+    <span class="n">summary</span> <span class="o">=</span> <span class="n">contributions</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="p">[[</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;std&quot;</span><span class="p">,</span> <span class="s2">&quot;min&quot;</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">]]</span>
+
+    <span class="c1"># Metadata</span>
+    <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;n_timesteps&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">common_idx</span><span class="p">),</span>
+        <span class="s2">&quot;period_start&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">common_idx</span><span class="o">.</span><span class="n">min</span><span class="p">()),</span>
+        <span class="s2">&quot;period_end&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">common_idx</span><span class="o">.</span><span class="n">max</span><span class="p">()),</span>
+        <span class="s2">&quot;hierarchical&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>  <span class="c1"># q2 has no flux budget decomposition</span>
+        <span class="s2">&quot;min_flux_threshold&quot;</span><span class="p">:</span> <span class="n">min_flux</span><span class="p">,</span>
+        <span class="s2">&quot;n_low_flux_flagged&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">contributions</span><span class="p">[</span><span class="s2">&quot;flag_low_flux&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()),</span>
+        <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;g/kg&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">AttributionResult</span><span class="p">(</span>
+        <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;q2&quot;</span><span class="p">,</span>
+        <span class="n">contributions</span><span class="o">=</span><span class="n">contributions</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="n">summary</span><span class="p">,</span>
+        <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="diagnose_q2">
+<a class="viewcode-back" href="../../../../api/_autosummary/supy.util.diagnose_q2.html#supy.util.diagnose_q2">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">diagnose_q2</span><span class="p">(</span>
+    <span class="n">df_output</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">df_forcing</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">method</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;anomaly&quot;</span><span class="p">,</span> <span class="s2">&quot;extreme&quot;</span><span class="p">,</span> <span class="s2">&quot;diurnal&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;anomaly&quot;</span><span class="p">,</span>
+    <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
+    <span class="n">min_flux</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AttributionResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Automatically identify anomalous q2 values and attribute the causes.</span>
+
+<span class="sd">    This convenience function identifies unusual q2 (2m specific humidity)</span>
+<span class="sd">    behaviour within a single simulation run and diagnoses the driving factors</span>
+<span class="sd">    by comparing aggregate statistics between reference (normal) and target</span>
+<span class="sd">    (anomaly) periods.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    df_output : pd.DataFrame</span>
+<span class="sd">        SUEWS output DataFrame</span>
+<span class="sd">    df_forcing : pd.DataFrame</span>
+<span class="sd">        Forcing DataFrame. Must contain &#39;Tair&#39;, &#39;RH&#39;, &#39;pres&#39; columns.</span>
+<span class="sd">    method : str, optional</span>
+<span class="sd">        Detection method:</span>
+<span class="sd">        - &#39;anomaly&#39;: Compare timesteps &gt; threshold sigma from daily mean</span>
+<span class="sd">        - &#39;extreme&#39;: Compare top/bottom 5% of q2 vs. middle 50%</span>
+<span class="sd">        - &#39;diurnal&#39;: Compare afternoon (12:00-15:00) vs. morning (06:00-10:00)</span>
+<span class="sd">        Default &#39;anomaly&#39;.</span>
+<span class="sd">    threshold : float, optional</span>
+<span class="sd">        Standard deviation threshold for anomaly detection. Default 2.0.</span>
+<span class="sd">    min_flux : float, optional</span>
+<span class="sd">        Minimum flux threshold (W/m2) for resistance calculation.</span>
+<span class="sd">        Timesteps with |Q_E| &lt; min_flux are excluded. Default 0.1.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    AttributionResult</span>
+<span class="sd">        Attribution decomposition with diagnostic interpretation.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    Quick anomaly diagnosis:</span>
+
+<span class="sd">    &gt;&gt;&gt; result = diagnose_q2(df_output, df_forcing, method=&quot;anomaly&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; print(result)</span>
+<span class="sd">    q2 Attribution Results</span>
+<span class="sd">    ========================================</span>
+<span class="sd">    Mean delta_q2: +0.80 g/kg</span>
+
+<span class="sd">    Component Breakdown:</span>
+<span class="sd">    ----------------------------------------</span>
+<span class="sd">      q_ref          : +0.55 g/kg (68.8%)</span>
+<span class="sd">      flux_total     : +0.18 g/kg (22.5%)</span>
+<span class="sd">      resistance     : +0.06 g/kg ( 7.5%)</span>
+<span class="sd">      air_props      : +0.01 g/kg ( 1.2%)</span>
+
+<span class="sd">    Closure residual: 1.23e-15 g/kg</span>
+
+<span class="sd">    &gt;&gt;&gt; result.plot()  # Visualise decomposition</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Unwrap OOP wrappers to raw DataFrames</span>
+    <span class="n">df_forcing</span> <span class="o">=</span> <span class="n">unwrap_forcing</span><span class="p">(</span><span class="n">df_forcing</span><span class="p">)</span>
+
+    <span class="c1"># Extract SUEWS output</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">extract_suews_group</span><span class="p">(</span><span class="n">df_output</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="s2">&quot;q2&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;q2 not found in SUEWS output. &quot;</span>
+            <span class="s2">&quot;Ensure SUEWS is configured to output near-surface humidity.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="n">q2</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;q2&quot;</span><span class="p">]</span>
+
+    <span class="n">anomaly_mask</span><span class="p">,</span> <span class="n">normal_mask</span> <span class="o">=</span> <span class="n">detect_anomalies</span><span class="p">(</span>
+        <span class="n">q2</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Store group sizes for metadata</span>
+    <span class="n">n_anomaly</span> <span class="o">=</span> <span class="n">anomaly_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="n">n_normal</span> <span class="o">=</span> <span class="n">normal_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+    <span class="c1"># Extract data for each group</span>
+    <span class="n">df_normal</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">normal_mask</span><span class="p">]</span>
+    <span class="n">df_anomaly</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">anomaly_mask</span><span class="p">]</span>
+
+    <span class="c1"># Get mean values for each group</span>
+    <span class="n">output_means</span> <span class="o">=</span> <span class="n">_group_means</span><span class="p">(</span><span class="n">df_normal</span><span class="p">,</span> <span class="n">df_anomaly</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;q2&quot;</span><span class="p">,</span> <span class="s2">&quot;QE&quot;</span><span class="p">])</span>
+    <span class="n">q2_A</span><span class="p">,</span> <span class="n">q2_B</span> <span class="o">=</span> <span class="n">output_means</span><span class="p">[</span><span class="s2">&quot;q2&quot;</span><span class="p">]</span>
+    <span class="n">QE_A</span><span class="p">,</span> <span class="n">QE_B</span> <span class="o">=</span> <span class="n">output_means</span><span class="p">[</span><span class="s2">&quot;QE&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Extract forcing data for each group</span>
+    <span class="n">df_forcing_normal</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">normal_mask</span><span class="p">]</span>
+    <span class="n">df_forcing_anomaly</span> <span class="o">=</span> <span class="n">df_forcing</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">anomaly_mask</span><span class="p">]</span>
+    <span class="n">forcing_means</span> <span class="o">=</span> <span class="n">_group_means</span><span class="p">(</span>
+        <span class="n">df_forcing_normal</span><span class="p">,</span> <span class="n">df_forcing_anomaly</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;Tair&quot;</span><span class="p">,</span> <span class="s2">&quot;RH&quot;</span><span class="p">,</span> <span class="s2">&quot;pres&quot;</span><span class="p">]</span>
+    <span class="p">)</span>
+    <span class="n">T_ref_A</span><span class="p">,</span> <span class="n">T_ref_B</span> <span class="o">=</span> <span class="n">forcing_means</span><span class="p">[</span><span class="s2">&quot;Tair&quot;</span><span class="p">]</span>
+    <span class="n">RH_A</span><span class="p">,</span> <span class="n">RH_B</span> <span class="o">=</span> <span class="n">forcing_means</span><span class="p">[</span><span class="s2">&quot;RH&quot;</span><span class="p">]</span>
+    <span class="n">P_A</span><span class="p">,</span> <span class="n">P_B</span> <span class="o">=</span> <span class="n">forcing_means</span><span class="p">[</span><span class="s2">&quot;pres&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Calculate reference specific humidity</span>
+    <span class="n">theta_A</span> <span class="o">=</span> <span class="n">T_ref_A</span> <span class="o">+</span> <span class="mf">273.15</span>
+    <span class="n">theta_B</span> <span class="o">=</span> <span class="n">T_ref_B</span> <span class="o">+</span> <span class="mf">273.15</span>
+    <span class="n">q_ref_A</span> <span class="o">=</span> <span class="n">cal_qa</span><span class="p">(</span><span class="n">RH_A</span><span class="p">,</span> <span class="n">theta_A</span><span class="p">,</span> <span class="n">P_A</span><span class="p">)</span>
+    <span class="n">q_ref_B</span> <span class="o">=</span> <span class="n">cal_qa</span><span class="p">(</span><span class="n">RH_B</span><span class="p">,</span> <span class="n">theta_B</span><span class="p">,</span> <span class="n">P_B</span><span class="p">)</span>
+
+    <span class="c1"># Calculate gamma = 1/(rho*Lv)</span>
+    <span class="c1"># Ensure numpy arrays (cal_gamma_humidity may return pandas Series)</span>
+    <span class="n">gamma_A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">cal_gamma_humidity</span><span class="p">(</span><span class="n">T_ref_A</span><span class="p">,</span> <span class="n">RH_A</span><span class="p">,</span> <span class="n">P_A</span><span class="p">))</span>
+    <span class="n">gamma_B</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">cal_gamma_humidity</span><span class="p">(</span><span class="n">T_ref_B</span><span class="p">,</span> <span class="n">RH_B</span><span class="p">,</span> <span class="n">P_B</span><span class="p">))</span>
+
+    <span class="c1"># Back-calculate effective resistance from mean values</span>
+    <span class="n">r_A</span> <span class="o">=</span> <span class="n">cal_r_eff_humidity</span><span class="p">(</span><span class="n">q2_A</span><span class="p">,</span> <span class="n">q_ref_A</span><span class="p">,</span> <span class="n">QE_A</span><span class="p">,</span> <span class="n">gamma_A</span><span class="p">,</span> <span class="n">min_flux</span><span class="p">)</span>
+    <span class="n">r_B</span> <span class="o">=</span> <span class="n">cal_r_eff_humidity</span><span class="p">(</span><span class="n">q2_B</span><span class="p">,</span> <span class="n">q_ref_B</span><span class="p">,</span> <span class="n">QE_B</span><span class="p">,</span> <span class="n">gamma_B</span><span class="p">,</span> <span class="n">min_flux</span><span class="p">)</span>
+
+    <span class="c1"># Shapley decomposition: delta(q2 - q_ref) = delta(r * QE * gamma)</span>
+    <span class="n">Phi_r</span><span class="p">,</span> <span class="n">Phi_QE</span><span class="p">,</span> <span class="n">Phi_gamma</span> <span class="o">=</span> <span class="n">shapley_triple_product</span><span class="p">(</span>
+        <span class="n">r_A</span><span class="p">,</span> <span class="n">r_B</span><span class="p">,</span> <span class="n">QE_A</span><span class="p">,</span> <span class="n">QE_B</span><span class="p">,</span> <span class="n">gamma_A</span><span class="p">,</span> <span class="n">gamma_B</span>
+    <span class="p">)</span>
+
+    <span class="c1"># The total q2 change includes reference humidity change:</span>
+    <span class="c1"># delta_q2 = delta_q_ref + delta(r * QE * gamma)</span>
+    <span class="n">Phi_q_ref</span> <span class="o">=</span> <span class="n">q_ref_B</span> <span class="o">-</span> <span class="n">q_ref_A</span>
+
+    <span class="c1"># Build single-row contributions DataFrame</span>
+    <span class="c1"># Convert to g/kg for better readability</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="mf">1000.0</span>  <span class="c1"># kg/kg to g/kg</span>
+    <span class="n">contributions</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;delta_total&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">q2_B</span> <span class="o">-</span> <span class="n">q2_A</span><span class="p">)</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+            <span class="s2">&quot;q_ref&quot;</span><span class="p">:</span> <span class="n">Phi_q_ref</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>  <span class="c1"># Reference humidity contribution</span>
+            <span class="s2">&quot;flux_total&quot;</span><span class="p">:</span> <span class="n">Phi_QE</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+            <span class="s2">&quot;resistance&quot;</span><span class="p">:</span> <span class="n">Phi_r</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+            <span class="s2">&quot;air_props&quot;</span><span class="p">:</span> <span class="n">Phi_gamma</span> <span class="o">*</span> <span class="n">scale</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="n">index</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">Index</span><span class="p">([</span><span class="s2">&quot;aggregate&quot;</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;type&quot;</span><span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Calculate summary (same as contributions for single-row)</span>
+    <span class="n">summary</span> <span class="o">=</span> <span class="n">contributions</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="p">[[</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;std&quot;</span><span class="p">,</span> <span class="s2">&quot;min&quot;</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">]]</span>
+
+    <span class="c1"># Metadata</span>
+    <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;n_timesteps&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>  <span class="c1"># Aggregate comparison</span>
+        <span class="s2">&quot;method&quot;</span><span class="p">:</span> <span class="n">method</span><span class="p">,</span>
+        <span class="s2">&quot;threshold&quot;</span><span class="p">:</span> <span class="n">threshold</span> <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;anomaly&quot;</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">&quot;n_anomaly&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_anomaly</span><span class="p">),</span>
+        <span class="s2">&quot;n_reference&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_normal</span><span class="p">),</span>
+        <span class="s2">&quot;pct_anomaly&quot;</span><span class="p">:</span> <span class="mi">100</span> <span class="o">*</span> <span class="n">n_anomaly</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">q2</span><span class="p">),</span>
+        <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;g/kg&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;aggregate_comparison&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">AttributionResult</span><span class="p">(</span>
+        <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;q2&quot;</span><span class="p">,</span>
+        <span class="n">contributions</span><span class="o">=</span><span class="n">contributions</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="n">summary</span><span class="p">,</span>
+        <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+</pre></div>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By SUEWS dev team led by Prof Sue Grimmond
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2018 – 2026.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+<div class="extra_footer">
+  <p>Version: 2026.2.18.dev64 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c2ae6323da700059cf8ae6539c0cc21aa67633fb">c2ae632</a> |
+    <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
+</div>
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../../../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

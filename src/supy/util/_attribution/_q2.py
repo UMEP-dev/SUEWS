@@ -6,14 +6,18 @@ into physically attributable components.
 """
 
 from typing import Literal
-import warnings
 
 import numpy as np
 import pandas as pd
 
 from .._atm import cal_qa
 from ._core import shapley_triple_product
-from ._helpers import extract_suews_group
+from ._helpers import (
+    align_scenarios,
+    detect_anomalies,
+    extract_suews_group,
+    unwrap_forcing,
+)
 from ._physics import cal_gamma_humidity, cal_r_eff_humidity
 from ._result import AttributionResult
 
@@ -71,34 +75,17 @@ def attribute_q2(
 
     >>> result.plot(kind="bar")  # Visualise contributions
     """
+    # Unwrap OOP wrappers to raw DataFrames
+    df_forcing_A = unwrap_forcing(df_forcing_A)
+    df_forcing_B = unwrap_forcing(df_forcing_B)
+
     # Extract SUEWS output group with column validation
     required_cols = {"q2", "QE", "T2"}
     df_A = extract_suews_group(df_output_A, required_cols=required_cols)
     df_B = extract_suews_group(df_output_B, required_cols=required_cols)
 
     # Align indices
-    n_A_original = len(df_A.index)
-    n_B_original = len(df_B.index)
-    common_idx = df_A.index.intersection(df_B.index)
-
-    if len(common_idx) == 0:
-        raise ValueError("No overlapping timestamps between scenarios A and B")
-
-    # Warn if significant data loss during alignment
-    pct_A_kept = 100 * len(common_idx) / n_A_original
-    pct_B_kept = 100 * len(common_idx) / n_B_original
-    if pct_A_kept < 90 or pct_B_kept < 90:
-        warnings.warn(
-            f"Significant data loss during alignment: keeping {pct_A_kept:.1f}% of "
-            f"scenario A ({len(common_idx)}/{n_A_original}), {pct_B_kept:.1f}% of "
-            f"scenario B ({len(common_idx)}/{n_B_original}). "
-            "Check that time indices match between scenarios.",
-            UserWarning,
-            stacklevel=2,
-        )
-
-    df_A = df_A.loc[common_idx]
-    df_B = df_B.loc[common_idx]
+    df_A, df_B, common_idx = align_scenarios(df_A, df_B)
 
     # Extract required variables
     q2_A = df_A["q2"].values
@@ -231,6 +218,9 @@ def diagnose_q2(
 
     >>> result.plot()  # Visualise decomposition
     """
+    # Unwrap OOP wrappers to raw DataFrames
+    df_forcing = unwrap_forcing(df_forcing)
+
     # Extract SUEWS output
     df = extract_suews_group(df_output)
 
@@ -242,51 +232,13 @@ def diagnose_q2(
 
     q2 = df["q2"]
 
-    if method == "anomaly":
-        # Identify anomalous timesteps (deviation > threshold sigma from daily mean)
-        daily_mean = q2.resample("D").transform("mean")
-        daily_std = q2.resample("D").transform("std")
-        # Handle zero std
-        daily_std = daily_std.replace(0, np.nan)
-        z_score = (q2 - daily_mean) / daily_std
+    anomaly_mask, normal_mask = detect_anomalies(
+        q2, method=method, threshold=threshold
+    )
 
-        anomaly_mask = np.abs(z_score) > threshold
-        normal_mask = np.abs(z_score) <= 1.0  # Within 1 sigma = normal
-
-    elif method == "extreme":
-        # Compare extreme values vs. middle range
-        q05 = q2.quantile(0.05)
-        q25 = q2.quantile(0.25)
-        q75 = q2.quantile(0.75)
-        q95 = q2.quantile(0.95)
-
-        anomaly_mask = (q2 <= q05) | (q2 >= q95)
-        normal_mask = (q2 >= q25) & (q2 <= q75)
-
-    elif method == "diurnal":
-        # Compare afternoon vs. morning baseline
-        hour = q2.index.hour
-        anomaly_mask = (hour >= 12) & (hour <= 15)  # Afternoon
-        normal_mask = (hour >= 6) & (hour <= 10)  # Morning
-
-    else:
-        raise ValueError(
-            f"Unknown method: {method}. Use 'anomaly', 'extreme', 'diurnal'"
-        )
-
-    # Check we have enough data in each group
+    # Store group sizes for metadata
     n_anomaly = anomaly_mask.sum()
     n_normal = normal_mask.sum()
-
-    if n_anomaly < 10:
-        raise ValueError(
-            f"Only {n_anomaly} anomalous timesteps found. "
-            f"Try lowering threshold (current: {threshold})"
-        )
-    if n_normal < 10:
-        raise ValueError(
-            f"Only {n_normal} reference timesteps found. Cannot establish baseline."
-        )
 
     # Extract data for each group
     df_normal = df.loc[normal_mask]

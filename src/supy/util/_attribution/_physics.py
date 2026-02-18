@@ -94,6 +94,35 @@ def cal_gamma_humidity(
 # =============================================================================
 
 
+def _cal_r_eff(
+    var: np.ndarray,
+    var_ref: np.ndarray,
+    flux: np.ndarray,
+    gamma: np.ndarray,
+    min_flux: float,
+    flux_name: str,
+) -> np.ndarray:
+    """Shared effective resistance back-calculation for heat and humidity."""
+    # Avoid division by near-zero flux
+    denom = flux * gamma
+    low_flux_mask = np.abs(denom) < min_flux * np.abs(gamma)
+    n_low_flux = int(np.sum(low_flux_mask))
+
+    if n_low_flux > 0:
+        _logger.debug(
+            "Setting %d timesteps to NaN due to %s below threshold (%.1f W/m2)",
+            n_low_flux,
+            flux_name,
+            min_flux,
+        )
+
+    denom = np.where(low_flux_mask, np.nan, denom)
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        r_eff = (var - var_ref) / denom
+    return r_eff
+
+
 def cal_r_eff_heat(
     T2: np.ndarray,
     T_ref: np.ndarray,
@@ -125,23 +154,7 @@ def cal_r_eff_heat(
     r_eff : array-like
         Effective heat resistance (s/m). NaN for timesteps with |Q_H| < min_flux.
     """
-    # Avoid division by near-zero flux
-    denom = QH * gamma
-    low_flux_mask = np.abs(denom) < min_flux * np.abs(gamma)
-    n_low_flux = int(np.sum(low_flux_mask))
-
-    if n_low_flux > 0:
-        _logger.debug(
-            "Setting %d timesteps to NaN due to flux below threshold (%.1f W/m2)",
-            n_low_flux,
-            min_flux,
-        )
-
-    denom = np.where(low_flux_mask, np.nan, denom)
-
-    with np.errstate(divide="ignore", invalid="ignore"):
-        r_eff = (T2 - T_ref) / denom
-    return r_eff
+    return _cal_r_eff(T2, T_ref, QH, gamma, min_flux=min_flux, flux_name="flux")
 
 
 def cal_r_eff_humidity(
@@ -175,23 +188,9 @@ def cal_r_eff_humidity(
     r_eff : array-like
         Effective moisture resistance (s/m). NaN for timesteps with |Q_E| < min_flux.
     """
-    # Avoid division by near-zero flux
-    denom = QE * gamma
-    low_flux_mask = np.abs(denom) < min_flux * np.abs(gamma)
-    n_low_flux = int(np.sum(low_flux_mask))
-
-    if n_low_flux > 0:
-        _logger.debug(
-            "Setting %d timesteps to NaN due to latent flux below threshold (%.1f W/m2)",
-            n_low_flux,
-            min_flux,
-        )
-
-    denom = np.where(low_flux_mask, np.nan, denom)
-
-    with np.errstate(divide="ignore", invalid="ignore"):
-        r_eff = (q2 - q_ref) / denom
-    return r_eff
+    return _cal_r_eff(
+        q2, q_ref, QE, gamma, min_flux=min_flux, flux_name="latent flux"
+    )
 
 
 # =============================================================================

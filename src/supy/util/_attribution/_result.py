@@ -284,9 +284,3 @@ class AttributionResult:
     def to_dataframe(self) -> pd.DataFrame:
         """Return contributions as a DataFrame."""
         return self.contributions.copy()
-
-
-# Convenience aliases
-T2Attribution = AttributionResult
-Q2Attribution = AttributionResult
-U10Attribution = AttributionResult

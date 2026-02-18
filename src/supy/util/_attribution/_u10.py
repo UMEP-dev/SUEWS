@@ -6,13 +6,12 @@ into physically attributable components using the logarithmic wind profile.
 """
 
 from typing import Literal
-import warnings
 
 import numpy as np
 import pandas as pd
 
 from ._core import shapley_forcing_profile
-from ._helpers import extract_suews_group
+from ._helpers import align_scenarios, detect_anomalies, extract_suews_group
 from ._physics import cal_u10_profile_components
 from ._result import AttributionResult
 
@@ -98,28 +97,7 @@ def attribute_u10(
     df_B = extract_suews_group(df_output_B, required_cols=required_cols)
 
     # Align indices
-    n_A_original = len(df_A.index)
-    n_B_original = len(df_B.index)
-    common_idx = df_A.index.intersection(df_B.index)
-
-    if len(common_idx) == 0:
-        raise ValueError("No overlapping timestamps between scenarios A and B")
-
-    # Warn if significant data loss during alignment
-    pct_A_kept = 100 * len(common_idx) / n_A_original
-    pct_B_kept = 100 * len(common_idx) / n_B_original
-    if pct_A_kept < 90 or pct_B_kept < 90:
-        warnings.warn(
-            f"Significant data loss during alignment: keeping {pct_A_kept:.1f}% of "
-            f"scenario A ({len(common_idx)}/{n_A_original}), {pct_B_kept:.1f}% of "
-            f"scenario B ({len(common_idx)}/{n_B_original}). "
-            "Check that time indices match between scenarios.",
-            UserWarning,
-            stacklevel=2,
-        )
-
-    df_A = df_A.loc[common_idx]
-    df_B = df_B.loc[common_idx]
+    df_A, df_B, common_idx = align_scenarios(df_A, df_B)
 
     # Extract required variables
     U10_A = df_A["U10"].values
@@ -254,51 +232,13 @@ def diagnose_u10(
 
     u10 = df["U10"]
 
-    if method == "anomaly":
-        # Identify anomalous timesteps (deviation > threshold sigma from daily mean)
-        daily_mean = u10.resample("D").transform("mean")
-        daily_std = u10.resample("D").transform("std")
-        # Handle zero std
-        daily_std = daily_std.replace(0, np.nan)
-        z_score = (u10 - daily_mean) / daily_std
+    anomaly_mask, normal_mask = detect_anomalies(
+        u10, method=method, threshold=threshold
+    )
 
-        anomaly_mask = np.abs(z_score) > threshold
-        normal_mask = np.abs(z_score) <= 1.0  # Within 1 sigma = normal
-
-    elif method == "extreme":
-        # Compare extreme values vs. middle range
-        q05 = u10.quantile(0.05)
-        q25 = u10.quantile(0.25)
-        q75 = u10.quantile(0.75)
-        q95 = u10.quantile(0.95)
-
-        anomaly_mask = (u10 <= q05) | (u10 >= q95)
-        normal_mask = (u10 >= q25) & (u10 <= q75)
-
-    elif method == "diurnal":
-        # Compare afternoon vs. morning baseline
-        hour = u10.index.hour
-        anomaly_mask = (hour >= 12) & (hour <= 15)  # Afternoon
-        normal_mask = (hour >= 6) & (hour <= 10)  # Morning
-
-    else:
-        raise ValueError(
-            f"Unknown method: {method}. Use 'anomaly', 'extreme', 'diurnal'"
-        )
-
-    # Check we have enough data in each group
+    # Store group sizes for metadata
     n_anomaly = anomaly_mask.sum()
     n_normal = normal_mask.sum()
-
-    if n_anomaly < 10:
-        raise ValueError(
-            f"Only {n_anomaly} anomalous timesteps found. "
-            f"Try lowering threshold (current: {threshold})"
-        )
-    if n_normal < 10:
-        raise ValueError(
-            f"Only {n_normal} reference timesteps found. Cannot establish baseline."
-        )
 
     # Extract data for each group
     df_normal = df.loc[normal_mask]

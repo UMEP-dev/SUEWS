@@ -43,7 +43,7 @@ from typing import Literal
 import pandas as pd
 
 # Import all public functions and classes
-from ._result import AttributionResult, T2Attribution, Q2Attribution, U10Attribution
+from ._result import AttributionResult
 from ._t2 import attribute_t2, diagnose_t2
 from ._q2 import attribute_q2, diagnose_q2
 from ._u10 import attribute_u10, diagnose_u10
@@ -175,7 +175,4 @@ __all__ = [
     "diagnose",
     # Result container
     "AttributionResult",
-    "T2Attribution",
-    "Q2Attribution",
-    "U10Attribution",
 ]

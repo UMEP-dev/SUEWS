@@ -39,7 +39,6 @@ from supy.data_model.core.state import (
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
 from supy.data_model.validation.pipeline.phase_b import validate_model_option_samealbedo
-# from supy.data_model.core.config import _validate_spartacus_sfr
 
 
 

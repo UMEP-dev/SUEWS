@@ -186,8 +186,17 @@ fn main() {
 }
 
 fn link_fortran_runtime(gfortran_bin: &PathBuf) {
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+
+    // Probe the correct library filename per platform
+    let (probe_lib, link_kind) = match target_os.as_str() {
+        "macos" => ("libgfortran.dylib", "dylib"),
+        "windows" => ("libgfortran.a", "static"),
+        _ => ("libgfortran.so", "dylib"),
+    };
+
     let output = Command::new(gfortran_bin)
-        .arg("-print-file-name=libgfortran.dylib")
+        .arg(format!("-print-file-name={probe_lib}"))
         .output()
         .expect("failed to query gfortran runtime library path");
 
@@ -195,18 +204,28 @@ fn link_fortran_runtime(gfortran_bin: &PathBuf) {
         panic!("gfortran could not provide libgfortran path");
     }
 
-    let lib_path = String::from_utf8(output.stdout)
+    let lib_path_str = String::from_utf8(output.stdout)
         .expect("gfortran libgfortran path should be UTF-8")
         .trim()
         .to_string();
 
-    if lib_path.is_empty() {
+    if lib_path_str.is_empty() {
         panic!("gfortran reported an empty libgfortran path");
     }
 
-    let lib_path = PathBuf::from(lib_path);
-    if let Some(parent) = lib_path.parent() {
-        println!("cargo:rustc-link-search=native={}", parent.display());
+    // gfortran returns just the bare filename when it cannot resolve
+    // the full path; only emit a search path for absolute results
+    let lib_path = PathBuf::from(&lib_path_str);
+    if lib_path.is_absolute() {
+        if let Some(parent) = lib_path.parent() {
+            println!("cargo:rustc-link-search=native={}", parent.display());
+        }
     }
-    println!("cargo:rustc-link-lib=dylib=gfortran");
+
+    println!("cargo:rustc-link-lib={link_kind}=gfortran");
+
+    // Windows/MinGW: gfortran depends on libquadmath
+    if target_os == "windows" {
+        println!("cargo:rustc-link-lib=static=quadmath");
+    }
 }

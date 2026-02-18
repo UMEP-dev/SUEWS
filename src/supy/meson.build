@@ -162,6 +162,7 @@ if rust_bridge_enabled
             '@OUTPUT1@',
         ],
         output: [rust_bridge_ext_name, rust_bridge_cli_name],
+        depends: build_suews,
         build_by_default: true,
         install: true,
         install_dir: [py.get_install_dir() / 'supy', py.get_install_dir() / 'supy/bin'],

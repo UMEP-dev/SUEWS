@@ -116,10 +116,14 @@ def attribute_q2(
     r_A = cal_r_eff_humidity(q2_A, q_ref_A, QE_A, gamma_A, min_flux)
     r_B = cal_r_eff_humidity(q2_B, q_ref_B, QE_B, gamma_B, min_flux)
 
-    # Shapley decomposition: delta_q2 = delta(r * QE * gamma)
+    # Shapley decomposition: delta(q2 - q_ref) = delta(r * QE * gamma)
     Phi_r, Phi_QE, Phi_gamma = shapley_triple_product(
         r_A, r_B, QE_A, QE_B, gamma_A, gamma_B
     )
+
+    # The total q2 change includes reference humidity change:
+    # delta_q2 = delta_q_ref + delta(r * QE * gamma)
+    Phi_q_ref = q_ref_B - q_ref_A
 
     # Build contributions DataFrame
     # Convert to g/kg for better readability
@@ -127,6 +131,7 @@ def attribute_q2(
     contributions = pd.DataFrame(
         {
             "delta_total": (q2_B - q2_A) * scale,
+            "q_ref": Phi_q_ref * scale,
             "flux_total": Phi_QE * scale,
             "resistance": Phi_r * scale,
             "air_props": Phi_gamma * scale,

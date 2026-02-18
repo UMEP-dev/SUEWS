@@ -372,7 +372,8 @@ class TestAttributeT2Integration(TestCase):
 
         delta_total = result.contributions["delta_total"]
         sum_components = (
-            result.contributions["flux_total"]
+            result.contributions["T_ref"]
+            + result.contributions["flux_total"]
             + result.contributions["resistance"]
             + result.contributions["air_props"]
         )
@@ -383,6 +384,41 @@ class TestAttributeT2Integration(TestCase):
             delta_total.values,
             rtol=1e-10,
             err_msg="Attribution closure failed",
+        )
+
+    def test_attribute_t2_closure_different_forcing(self):
+        """Closure must hold when scenarios have different forcing."""
+        np.random.seed(99)
+        n = len(self.df_forcing)
+
+        # Create a different forcing for scenario B (warmer by 2 degC)
+        df_forcing_B = self.df_forcing.copy()
+        df_forcing_B["Tair"] = df_forcing_B["Tair"] + 2.0
+
+        result = attribute_t2(
+            self.df_A, self.df_B, self.df_forcing, df_forcing_B
+        )
+
+        delta_total = result.contributions["delta_total"]
+        sum_components = (
+            result.contributions["T_ref"]
+            + result.contributions["flux_total"]
+            + result.contributions["resistance"]
+            + result.contributions["air_props"]
+        )
+
+        # T_ref should be non-zero since forcing differs
+        self.assertFalse(
+            np.allclose(result.contributions["T_ref"].values, 0),
+            "T_ref should be non-zero with different forcing",
+        )
+
+        # Closure should still hold exactly
+        np.testing.assert_allclose(
+            sum_components.values,
+            delta_total.values,
+            rtol=1e-10,
+            err_msg="Attribution closure failed with different forcing",
         )
 
     def test_attribute_t2_correct_sign(self):

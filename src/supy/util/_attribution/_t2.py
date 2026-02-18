@@ -113,15 +113,20 @@ def attribute_t2(
     r_A = cal_r_eff_heat(T2_A, T_ref_A, QH_A, gamma_A, min_flux)
     r_B = cal_r_eff_heat(T2_B, T_ref_B, QH_B, gamma_B, min_flux)
 
-    # Shapley decomposition: delta_T2 = delta(r * QH * gamma)
+    # Shapley decomposition: delta(T2 - T_ref) = delta(r * QH * gamma)
     Phi_r, Phi_QH, Phi_gamma = shapley_triple_product(
         r_A, r_B, QH_A, QH_B, gamma_A, gamma_B
     )
+
+    # The total T2 change includes reference temperature change:
+    # delta_T2 = delta_T_ref + delta(r * QH * gamma)
+    Phi_T_ref = T_ref_B - T_ref_A
 
     # Build contributions DataFrame
     contributions = pd.DataFrame(
         {
             "delta_total": T2_B - T2_A,
+            "T_ref": Phi_T_ref,
             "flux_total": Phi_QH,
             "resistance": Phi_r,
             "air_props": Phi_gamma,

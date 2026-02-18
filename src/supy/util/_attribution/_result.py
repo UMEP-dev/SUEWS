@@ -58,10 +58,10 @@ class AttributionResult:
         if self.variable == "U10":
             main_components = ["forcing", "roughness", "stability"]
         elif self.variable == "q2":
-            # Include q_ref if present (from diagnose_q2 function)
+            # Include q_ref if present (reference humidity contribution)
             main_components = ["q_ref", "flux_total", "resistance", "air_props"]
         else:
-            # Include T_ref if present (from diagnose_t2 function)
+            # Include T_ref if present (reference temperature contribution)
             main_components = ["T_ref", "flux_total", "resistance", "air_props"]
 
         # Filter to existing components
@@ -256,23 +256,12 @@ class AttributionResult:
                 norm=norm,
                 origin="lower",
             )
-            ax.set_yticks(range(24))
-            ax.set_yticklabels(range(24))
-            ax.set_xticks(range(12))
-            ax.set_xticklabels([
-                "J",
-                "F",
-                "M",
-                "A",
-                "M",
-                "J",
-                "J",
-                "A",
-                "S",
-                "O",
-                "N",
-                "D",
-            ])
+            _month_labels = ["J", "F", "M", "A", "M", "J",
+                            "J", "A", "S", "O", "N", "D"]
+            ax.set_yticks(range(len(pivot.index)))
+            ax.set_yticklabels(pivot.index)
+            ax.set_xticks(range(len(pivot.columns)))
+            ax.set_xticklabels([_month_labels[m - 1] for m in pivot.columns])
             ax.set_xlabel("Month")
             ax.set_ylabel("Hour")
             ax.set_title(f"{self.variable} Attribution - Seasonal-Diurnal Pattern")

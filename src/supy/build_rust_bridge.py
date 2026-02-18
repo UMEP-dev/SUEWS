@@ -51,7 +51,6 @@ def main() -> int:
     output_cli = Path(sys.argv[3]).resolve()
 
     manifest = repo_root / "src" / "suews_bridge" / "Cargo.toml"
-    target_dir = repo_root / "src" / "suews_bridge" / "target" / "release"
 
     cmd = [
         "cargo",
@@ -62,7 +61,26 @@ def main() -> int:
         "--features",
         "python-extension,physics",
     ]
-    subprocess.run(cmd, check=True)
+
+    env = os.environ.copy()
+
+    if os.name == "nt":
+        # Windows: Fortran is compiled with MinGW gfortran, so we must use
+        # the GNU Rust target to get a compatible linker (gcc instead of
+        # MSVC link.exe which cannot resolve MinGW symbols).
+        win_target = "x86_64-pc-windows-gnu"
+        subprocess.run(
+            ["rustup", "target", "add", win_target], check=True
+        )
+        cmd.extend(["--target", win_target])
+        env["CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER"] = "gcc"
+        target_dir = (
+            repo_root / "src" / "suews_bridge" / "target" / win_target / "release"
+        )
+    else:
+        target_dir = repo_root / "src" / "suews_bridge" / "target" / "release"
+
+    subprocess.run(cmd, check=True, env=env)
 
     ext_artifact = _find_extension_artifact(target_dir)
     cli_artifact = _find_cli_artifact(target_dir)

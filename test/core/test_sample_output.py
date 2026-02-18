@@ -64,6 +64,22 @@ test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
 p_df_sample = Path(test_data_dir) / "sample_output.csv.gz"
 
 
+def _rust_library_available() -> bool:
+    """Return True when the Rust Python bridge exposes run_suews()."""
+    try:
+        from importlib import import_module
+
+        module = import_module("supy.suews_bridge")
+    except Exception:
+        try:
+            from importlib import import_module
+
+            module = import_module("suews_bridge")
+        except Exception:
+            return False
+    return hasattr(module, "run_suews")
+
+
 # ============================================================================
 # TOLERANCE CONFIGURATION
 # ============================================================================
@@ -662,6 +678,72 @@ class TestSampleOutput(TestCase):
         self.assertTrue(
             all_passed,
             f"DTS vs traditional parity failed for: {', '.join(failed_variables)}",
+        )
+
+    @pytest.mark.core
+    @pytest.mark.skipif(
+        not _rust_library_available(),
+        reason="Rust library backend not available (install src/suews_bridge with physics feature)",
+    )
+    def test_rust_backend_via_simulation(self):
+        """Validate SUEWSSimulation backend='rust' against reference output."""
+        print("\n" + "=" * 70)
+        print("Rust Backend (SUEWSSimulation) Validation Test")
+        print("=" * 70)
+
+        sim = sp.SUEWSSimulation.from_sample_data()
+        output = sim.run(backend="rust")
+        df_output = output.df
+
+        self.assertEqual(
+            len(df_output),
+            105408,
+            f"Unexpected rust backend row count: {len(df_output)}",
+        )
+
+        df_ref = pd.read_csv(
+            p_df_sample, compression="gzip", index_col=[0, 1], parse_dates=[1]
+        )
+
+        variables_to_test = list(TOLERANCE_CONFIG.keys())
+        all_passed = True
+        failed_variables = []
+        reports = []
+        warmup_steps = TIMESTEPS_PER_DAY * 2
+
+        for var in variables_to_test:
+            col_key = ("SUEWS", var)
+            if col_key not in df_output.columns:
+                all_passed = False
+                failed_variables.append(var)
+                reports.append(f"[ERROR] Missing variable in rust output: {var}")
+                continue
+            if var not in df_ref.columns:
+                all_passed = False
+                failed_variables.append(var)
+                reports.append(f"[ERROR] Missing variable in reference output: {var}")
+                continue
+
+            actual = df_output[col_key].values[warmup_steps:]
+            expected = df_ref[var].values[warmup_steps:]
+            tolerance = get_tolerance_for_variable(var)
+            passed, report = compare_arrays_with_tolerance(
+                actual,
+                expected,
+                rtol=tolerance["rtol"],
+                atol=tolerance["atol"],
+                var_name=var,
+            )
+            reports.append(report)
+            if not passed:
+                all_passed = False
+                failed_variables.append(var)
+
+        self.assertTrue(
+            all_passed,
+            "Rust backend validation failed for: "
+            f"{', '.join(failed_variables)}\n"
+            + "\n".join(reports),
         )
 
     @pytest.mark.core

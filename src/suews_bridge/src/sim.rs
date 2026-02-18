@@ -34,6 +34,7 @@ use crate::suews_site::SuewsSite;
 use crate::suews_state::SuewsState;
 use crate::surf_store::surf_store_prm_from_ordered_values;
 use crate::timer::{SuewsTimer, SUEWS_TIMER_FLAT_LEN};
+use crate::yaml_config::load_run_config_from_str;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 
@@ -362,7 +363,11 @@ fn decode_state_members(
     })
 }
 
-fn validate_site_codec(site_flat: &[f64], site_toc: &[i32], ndepth: i32) -> Result<(), BridgeError> {
+fn validate_site_codec(
+    site_flat: &[f64],
+    site_toc: &[i32],
+    ndepth: i32,
+) -> Result<(), BridgeError> {
     let spartacus = spartacus_prm_from_ordered_values(member_slice(
         site_flat,
         site_toc,
@@ -446,6 +451,171 @@ fn validate_site_codec(site_flat: &[f64], site_toc: &[i32], ndepth: i32) -> Resu
     };
 
     Ok(())
+}
+
+fn simulation_error(message: impl Into<String>) -> BridgeError {
+    BridgeError::SimulationError {
+        code: -1,
+        message: message.into(),
+    }
+}
+
+fn parse_time_cell(value: f64, label: &str) -> Result<i32, BridgeError> {
+    if !value.is_finite() {
+        return Err(simulation_error(format!("forcing `{label}` is not finite")));
+    }
+    let rounded = value.round();
+    if (rounded - value).abs() > 1.0e-9 || rounded < i32::MIN as f64 || rounded > i32::MAX as f64 {
+        return Err(simulation_error(format!(
+            "forcing `{label}` is not an integer-compatible value"
+        )));
+    }
+    Ok(rounded as i32)
+}
+
+fn is_leap_year(year: i32) -> bool {
+    (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+}
+
+fn day_of_year_to_month(year: i32, day_of_year: i32) -> Result<i32, BridgeError> {
+    if day_of_year <= 0 {
+        return Err(simulation_error(format!(
+            "forcing `id` must be positive, got {day_of_year}"
+        )));
+    }
+
+    let month_days_common = [31_i32, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let month_days_leap = [31_i32, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let month_days = if is_leap_year(year) {
+        &month_days_leap
+    } else {
+        &month_days_common
+    };
+
+    let mut remaining = day_of_year;
+    for (idx, days) in month_days.iter().enumerate() {
+        if remaining <= *days {
+            return Ok((idx + 1) as i32);
+        }
+        remaining -= *days;
+    }
+
+    Err(simulation_error(format!(
+        "forcing `id`={day_of_year} is out of range for year {year}"
+    )))
+}
+
+fn fortran_weekday_from_ymd(year: i32, month: i32, day: i32) -> i32 {
+    // Sakamoto algorithm: returns 0=Sunday, 1=Monday, ..., 6=Saturday.
+    let t = [0_i32, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
+    let mut y = year;
+    if month < 3 {
+        y -= 1;
+    }
+    let w = (y + y / 4 - y / 100 + y / 400 + t[(month - 1) as usize] + day) % 7;
+    // Fortran convention: 1=Sunday, ..., 7=Saturday.
+    w + 1
+}
+
+pub fn run_from_config_str_and_forcing(
+    config_yaml: &str,
+    forcing_block: Vec<f64>,
+    len_sim: usize,
+) -> Result<(Vec<f64>, usize), BridgeError> {
+    let mut run_cfg = load_run_config_from_str(config_yaml).map_err(simulation_error)?;
+
+    if len_sim == 0 {
+        return Err(simulation_error(
+            "forcing block must contain at least one timestep",
+        ));
+    }
+
+    let expected_forcing_len = len_sim
+        .checked_mul(MET_FORCING_COLS)
+        .ok_or_else(|| simulation_error("forcing block length overflow"))?;
+    if forcing_block.len() != expected_forcing_len {
+        return Err(simulation_error(format!(
+            "forcing block length mismatch: got {}, expected {}",
+            forcing_block.len(),
+            expected_forcing_len
+        )));
+    }
+
+    let first_row = &forcing_block[..MET_FORCING_COLS];
+    run_cfg.timer.iy = parse_time_cell(first_row[0], "iy")?;
+    run_cfg.timer.id = parse_time_cell(first_row[1], "id")?;
+    run_cfg.timer.it = parse_time_cell(first_row[2], "it")?;
+    run_cfg.timer.imin = parse_time_cell(first_row[3], "imin")?;
+    run_cfg.timer.isec = 0;
+    run_cfg.timer.tstep_prev = run_cfg.timer.tstep;
+    run_cfg.timer.tstep_real = run_cfg.timer.tstep as f64;
+    run_cfg.timer.nsh_real = 3600.0 / run_cfg.timer.tstep as f64;
+    run_cfg.timer.nsh = (3600 / run_cfg.timer.tstep).max(1);
+    run_cfg.timer.dt_since_start = 0;
+    run_cfg.timer.dt_since_start_prev = 0;
+    run_cfg.timer.dectime = (run_cfg.timer.id - 1) as f64
+        + run_cfg.timer.it as f64 / 24.0
+        + run_cfg.timer.imin as f64 / (60.0 * 24.0)
+        + run_cfg.timer.isec as f64 / (3600.0 * 24.0);
+
+    let month = day_of_year_to_month(run_cfg.timer.iy, run_cfg.timer.id)?;
+    let day_of_month = {
+        let month_days_common = [31_i32, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        let month_days_leap = [31_i32, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        let month_days = if is_leap_year(run_cfg.timer.iy) {
+            &month_days_leap
+        } else {
+            &month_days_common
+        };
+        let mut remaining = run_cfg.timer.id;
+        for (idx, days) in month_days.iter().enumerate() {
+            if idx as i32 + 1 == month {
+                break;
+            }
+            remaining -= *days;
+        }
+        remaining
+    };
+    run_cfg.timer.dayofweek_id[0] = fortran_weekday_from_ymd(run_cfg.timer.iy, month, day_of_month);
+    run_cfg.timer.dayofweek_id[1] = month;
+    run_cfg.timer.dayofweek_id[2] = if run_cfg.site_scalars.lat >= 0.0 {
+        if (4..=9).contains(&month) {
+            1
+        } else {
+            2
+        }
+    } else if month >= 10 || month <= 3 {
+        1
+    } else {
+        2
+    };
+
+    // Match old SUEWS_cal_multitsteps state initialisation:
+    // heatState%temp_surf_dyohm = MetForcingBlock(1,12)  [first-row air temp]
+    // heatState%tsfc_surf_dyohm = MetForcingBlock(1,12)
+    // ohmState%ws_rav = 2.0
+    let first_tair = first_row[11]; // column 12 (1-indexed) = Tair
+    for v in run_cfg.state.heat_state.temp_surf_dyohm.iter_mut() {
+        *v = first_tair;
+    }
+    for v in run_cfg.state.heat_state.tsfc_surf_dyohm.iter_mut() {
+        *v = first_tair;
+    }
+    run_cfg.state.ohm_state.ws_rav = 2.0;
+
+    let sim_out = run_simulation(SimulationInput {
+        timer: run_cfg.timer,
+        config: run_cfg.config,
+        site: run_cfg.site,
+        site_scalars: run_cfg.site_scalars,
+        state: run_cfg.state,
+        forcing_block,
+        len_sim,
+        nlayer: run_cfg.nlayer,
+        ndepth: run_cfg.ndepth,
+    })?;
+
+    Ok((sim_out.output_block, len_sim))
 }
 
 pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, BridgeError> {

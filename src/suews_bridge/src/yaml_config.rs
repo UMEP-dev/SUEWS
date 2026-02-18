@@ -1382,10 +1382,12 @@ fn read_sites_indexed<'a>(root: &'a Value, idx: usize) -> Option<&'a Value> {
     }
 }
 
-pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
-    let yaml_text = fs::read_to_string(path)
-        .map_err(|e| format!("failed to read config {}: {e}", path.display()))?;
-    let root: Value = serde_yaml::from_str(&yaml_text).map_err(|e| format!("invalid YAML: {e}"))?;
+fn read_forcing_rel(root: &Value) -> Option<String> {
+    read_string(root, &["model", "control", "forcing_file"])
+        .or_else(|| read_string(root, &["model", "control", "forcing_file", "value"]))
+}
+
+pub fn load_run_config_from_value(root: &Value) -> Result<RunConfig, String> {
 
     let mut timer = suews_timer_default_from_fortran().map_err(|e| e.to_string())?;
     let mut config = suews_config_default_from_fortran().map_err(|e| e.to_string())?;
@@ -1415,30 +1417,43 @@ pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
 
     apply_state_overrides(&mut state, site_root);
 
-    let forcing_rel = read_string(&root, &["model", "control", "forcing_file"])
-        .or_else(|| read_string(&root, &["model", "control", "forcing_file", "value"]))
-        .ok_or_else(|| "`model.control.forcing_file` is missing".to_string())?;
-
-    let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
-    let forcing_path = base_dir.join(forcing_rel);
-
-    if !forcing_path.exists() {
-        return Err(format!(
-            "forcing file does not exist: {}",
-            forcing_path.display()
-        ));
-    }
-
     Ok(RunConfig {
         timer,
         config,
         site,
         site_scalars,
         state,
-        forcing_path,
+        forcing_path: read_forcing_rel(root).map(PathBuf::from).unwrap_or_default(),
         nlayer,
         ndepth,
     })
+}
+
+pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
+    let yaml_text = fs::read_to_string(path)
+        .map_err(|e| format!("failed to read config {}: {e}", path.display()))?;
+    let root: Value =
+        serde_yaml::from_str(&yaml_text).map_err(|e| format!("invalid YAML: {e}"))?;
+    let mut run_cfg = load_run_config_from_value(&root)?;
+
+    let forcing_rel =
+        read_forcing_rel(&root).ok_or_else(|| "`model.control.forcing_file` is missing".to_string())?;
+    let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
+    run_cfg.forcing_path = base_dir.join(forcing_rel);
+
+    if !run_cfg.forcing_path.exists() {
+        return Err(format!(
+            "forcing file does not exist: {}",
+            run_cfg.forcing_path.display()
+        ));
+    }
+
+    Ok(run_cfg)
+}
+
+pub fn load_run_config_from_str(yaml_str: &str) -> Result<RunConfig, String> {
+    let root: Value = serde_yaml::from_str(yaml_str).map_err(|e| format!("invalid YAML: {e}"))?;
+    load_run_config_from_value(&root)
 }
 
 /// Resize variable-length arrays in HydroState and HeatState to match nlayer/ndepth.

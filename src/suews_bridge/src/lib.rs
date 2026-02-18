@@ -100,7 +100,10 @@ pub use output_line::*;
 pub use phenology::*;
 pub use roughness::*;
 #[cfg(feature = "physics")]
-pub use sim::{run_simulation, SimulationInput, SimulationOutput, SiteScalars, OUTPUT_SUEWS_COLS};
+pub use sim::{
+    run_from_config_str_and_forcing, run_simulation, SimulationInput, SimulationOutput,
+    SiteScalars, OUTPUT_SUEWS_COLS,
+};
 pub use snow::*;
 pub use snow_prm::*;
 pub use soil::*;
@@ -4047,6 +4050,17 @@ mod python_bindings {
         Ok((out.qn1_av_next, out.dqndt_next, out.qs))
     }
 
+    #[cfg(feature = "physics")]
+    #[pyfunction(name = "run_suews")]
+    fn run_suews_py(
+        config_yaml: &str,
+        forcing_block: Vec<f64>,
+        len_sim: usize,
+    ) -> PyResult<(Vec<f64>, usize)> {
+        run_from_config_str_and_forcing(config_yaml, forcing_block, len_sim)
+            .map_err(map_bridge_error)
+    }
+
     #[pyfunction(name = "ohm_state_schema")]
     fn ohm_state_schema_py() -> PyResult<(usize, usize)> {
         ohm_state_schema().map_err(map_bridge_error)
@@ -5220,6 +5234,8 @@ mod python_bindings {
         m.add_class::<PySolarState>()?;
         m.add_class::<PyRoughnessState>()?;
         m.add_class::<PyNhoodState>()?;
+        #[cfg(feature = "physics")]
+        m.add_function(wrap_pyfunction!(run_suews_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_step_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_version_py, m)?)?;

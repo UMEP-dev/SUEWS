@@ -14,6 +14,7 @@ import pandas as pd
 
 from ._check import check_forcing
 from ._env import logger_supy
+from ._run_rust import _check_rust_available, run_suews_rust
 from ._run import run_supy_ser
 
 # Import SuPy components directly
@@ -449,6 +450,8 @@ class SUEWSSimulation:
             - ``'dts'``: Uses DTS (Derived Type Structure) interface.
               Direct Pydantic-to-Fortran execution path, bypassing intermediate
               DataFrame conversion. May be faster for short simulations.
+            - ``'rust'``: Uses Rust bridge library execution.
+              Direct Pydantic-to-Rust pipeline with Fortran C API backend.
 
         chunk_day : int, optional
             Chunk size in days for splitting long simulations, by default 3660
@@ -506,7 +509,7 @@ class SUEWSSimulation:
         >>> output = sim.run(backend="dts")
         """
         # Validate backend
-        valid_backends = ("traditional", "dts")
+        valid_backends = ("traditional", "dts", "rust")
         if backend not in valid_backends:
             raise ValueError(
                 f"Invalid backend '{backend}'. Must be one of: {valid_backends}"
@@ -523,6 +526,8 @@ class SUEWSSimulation:
         # Check DTS availability early (before other validation)
         if backend == "dts":
             _check_dts_available()
+        if backend == "rust":
+            _check_rust_available()
 
         # Validate inputs
         if self._df_state_init is None:
@@ -534,6 +539,11 @@ class SUEWSSimulation:
         if backend == "dts" and self._config is None:
             raise RuntimeError(
                 "DTS backend requires a SUEWSConfig object. "
+                "Use update_config() with a YAML config file."
+            )
+        if backend == "rust" and self._config is None:
+            raise RuntimeError(
+                "Rust backend requires a SUEWSConfig object. "
                 "Use update_config() with a YAML config file."
             )
 
@@ -584,6 +594,19 @@ class SUEWSSimulation:
             self._initial_states_final = dict_final_states[first_grid].get(
                 "initial_states"
             )
+        elif backend == "rust":
+            grid_id = self._config.sites[0].gridiv
+            if hasattr(grid_id, "value"):
+                grid_id = grid_id.value
+            df_output, _ = run_suews_rust(
+                config=self._config,
+                df_forcing=df_forcing_slice,
+                grid_id=int(grid_id),
+            )
+            self._df_output = df_output
+            self._df_state_final = None
+            self._dict_final_states = None
+            self._initial_states_final = None
         else:
             # Traditional backend: DataFrame-based execution
             result = run_supy_ser(
@@ -661,7 +684,7 @@ class SUEWSSimulation:
         # DTS backend does not yet support save() - state is in Fortran DTS objects
         if self._df_state_final is None:
             raise NotImplementedError(
-                "DTS backend does not yet support save(). "
+                "DTS and Rust backends do not yet support save(). "
                 "Access results directly via sim.output.df_output"
             )
 

@@ -10,6 +10,7 @@ py.install_sources(
         '_misc.py',
         '_post.py',
         '_run.py',
+        '_run_rust.py',
         '_save.py',
         '_supy_driver_wrapper.py',
         '_supy_module.py',
@@ -27,6 +28,7 @@ py.install_sources(
             'cmd/__init__.py',
             'cmd/SUEWS.py',
             'cmd/json_output.py',
+            'cmd/rust_bridge.py',
             'cmd/table_converter.py',
             'cmd/to_yaml.py',
             'cmd/validate_config.py',
@@ -134,6 +136,37 @@ py.install_sources(
     subdir: 'supy',
     preserve_path: true,
 )
+
+rust_bridge_enabled = get_option('with_rust_bridge')
+if rust_bridge_enabled
+    find_program('cargo', required: true)
+    rust_bridge_ext_suffix = run_command(
+        py,
+        '-c',
+        'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX") or ".so")',
+        check: true,
+    ).stdout().strip()
+    rust_bridge_ext_name = 'suews_bridge' + rust_bridge_ext_suffix
+    rust_bridge_cli_name = 'suews'
+    if host_machine.system() == 'windows'
+        rust_bridge_cli_name = 'suews.exe'
+    endif
+
+    rust_bridge_artifacts = custom_target(
+        'rust_bridge_artifacts',
+        command: [
+            py,
+            meson.current_source_dir() / 'build_rust_bridge.py',
+            meson.project_source_root(),
+            '@OUTPUT0@',
+            '@OUTPUT1@',
+        ],
+        output: [rust_bridge_ext_name, rust_bridge_cli_name],
+        build_by_default: true,
+        install: true,
+        install_dir: [py.get_install_dir() / 'supy', py.get_install_dir() / 'supy/bin'],
+    )
+endif
 
 # Install vendored f90wrap runtime files from submodule
 # These are the only runtime files needed - code generation tools are build-time only

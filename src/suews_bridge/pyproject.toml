@@ -9,5 +9,5 @@ description = "Rust bridge MVP for SUEWS OHM Fortran C API"
 requires-python = ">=3.9"
 
 [tool.maturin]
-features = ["python-extension"]
+features = ["python-extension", "physics"]
 module-name = "suews_bridge"

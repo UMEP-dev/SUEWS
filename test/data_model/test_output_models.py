@@ -47,7 +47,7 @@ from output.nhood_vars import NHOOD_VARIABLES
 # Formula: ncolumnsDataOut* - 5 (subtract datetime columns)
 EXPECTED_COUNTS = {
     OutputGroup.DATETIME: 5,  # Year, DOY, Hour, Min, Dectime
-    OutputGroup.SUEWS: 99,  # Core SUEWS variables including Ts_* surface temps
+    OutputGroup.SUEWS: 113,  # Core SUEWS variables incl. Ts_* and surface-specific QN/QS
     OutputGroup.SNOW: 98,  # Snow variables (7 surface types × 14 vars)
     OutputGroup.ESTM: 27,  # ESTM variables
     OutputGroup.RSL: 135,  # RSL profile variables (30 levels × 4 vars + 15)
@@ -57,7 +57,7 @@ EXPECTED_COUNTS = {
     OutputGroup.DEBUG: 131,  # Debug variables (matches Fortran dataOutLineDebug)
     OutputGroup.EHC: 224,  # EHC variables (2 + 7×15 roof + 7×15 wall)
     OutputGroup.SPARTACUS: 194,  # SPARTACUS variables (10 scalars + 12×15 layers)
-    OutputGroup.STEBBS: 78,  # STEBBS variables (matches Fortran truncated names)
+    OutputGroup.STEBBS: 80,  # STEBBS variables (matches Fortran truncated names)
     OutputGroup.NHOOD: 1,  # Neighbourhood variables
 }
 

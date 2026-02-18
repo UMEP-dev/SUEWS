@@ -105,6 +105,11 @@ class SUEWSOutput:
         return self._df_output.columns
 
     @property
+    def index(self) -> pd.Index:
+        """Row index of output DataFrame (pandas-compatible)."""
+        return self._df_output.index
+
+    @property
     def state_final(self) -> pd.DataFrame:
         """
         Final model state for restart runs.
@@ -390,7 +395,7 @@ class SUEWSOutput:
         """
         from ._post import resample_output
 
-        resampled = resample_output(self._df_output, freq)
+        resampled = resample_output(self, freq, _internal=True)
         return SUEWSOutput(
             resampled,
             self._df_state_final,

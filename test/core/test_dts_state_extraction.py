@@ -295,3 +295,62 @@ class TestDTSStateExtraction:
         assert qf_diff < EXACT_MATCH_TOLERANCE, (
             f"QF should match exactly but differs by {qf_diff}"
         )
+
+
+class TestChunkedDTS:
+    """Tests for chunked DTS simulation."""
+
+    @pytest.mark.core
+    def test_chunked_dts_parity(self):
+        """Test that chunked run matches non-chunked run within tolerance.
+
+        Runs 96 timesteps both non-chunked and with chunk_day=1, then
+        asserts that QN, QF, QH, QE, QS are within FLUX_TOLERANCE_W_M2.
+        """
+        import numpy as np
+
+        df_state_init, df_forcing_full = load_SampleData()
+        grid_id = df_state_init.index.get_level_values("grid")[0]
+        config = SUEWSConfig.from_df_state(df_state_init.loc[[grid_id]])
+
+        df_forcing_96 = df_forcing_full.iloc[:96]
+
+        # Non-chunked (default chunk_day is large enough for 96 steps)
+        df_output_nochunk, _ = run_dts(
+            df_forcing=df_forcing_96,
+            config=config,
+        )
+
+        # Chunked: chunk_day=1 forces splitting at daily boundaries
+        df_output_chunked, _ = run_dts(
+            df_forcing=df_forcing_96,
+            config=config,
+            chunk_day=1,
+        )
+
+        assert len(df_output_nochunk) == len(df_output_chunked), (
+            "Chunked and non-chunked outputs should have same length"
+        )
+
+        for var in ["QN", "QF", "QH", "QE", "QS"]:
+            nochunk_vals = df_output_nochunk[("SUEWS", var)].values.flatten()
+            chunked_vals = df_output_chunked[("SUEWS", var)].values.flatten()
+            max_diff = np.max(np.abs(nochunk_vals - chunked_vals))
+            assert max_diff < FLUX_TOLERANCE_W_M2, (
+                f"{var} max difference {max_diff:.4f} W/m2 exceeds "
+                f"tolerance {FLUX_TOLERANCE_W_M2}"
+            )
+
+    @pytest.mark.core
+    def test_simulation_run_accepts_chunk_day(self):
+        """Test that SUEWSSimulation.run(backend='dts', chunk_day=1) works."""
+        df_state_init, df_forcing_full = load_SampleData()
+        grid_id = df_state_init.index.get_level_values("grid")[0]
+        config = SUEWSConfig.from_df_state(df_state_init.loc[[grid_id]])
+
+        sim = SUEWSSimulation(config)
+        sim.update_forcing(df_forcing_full.iloc[:96])
+
+        output = sim.run(backend="dts", chunk_day=1)
+        assert output is not None
+        assert len(output.df) == 96

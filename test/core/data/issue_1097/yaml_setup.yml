@@ -141,11 +141,9 @@ sites:
         value: null
       ExternalGroundConductivity:
         value: null
-      MetabolicRate:
+      MetabolismThreshold:
         value: null
       LatentSensibleRatio:
-        value: null
-      ApplianceRating:
         value: null
       TotalNumberofAppliances:
         value: null

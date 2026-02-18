@@ -7,7 +7,11 @@ intermediate df_state conversion layer.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import copy
+import logging
+import multiprocessing
+import os
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -41,6 +45,50 @@ from ._populate import (
     populate_storedrainprm,
     populate_timer_from_datetime,
 )
+
+_WORKER_DF_FORCING: pd.DataFrame | None = None
+_WORKER_CONFIG: SUEWSConfig | None = None
+_WORKER_NLAYER: int | None = None
+_WORKER_NDEPTH: int | None = None
+
+
+def _init_dts_worker(
+    df_forcing: pd.DataFrame,
+    config_payload: dict[str, Any],
+    nlayer: int | None,
+    ndepth: int | None,
+) -> None:
+    """Initialise process-local state for DTS workers."""
+    from ..data_model import SUEWSConfig
+
+    global _WORKER_DF_FORCING, _WORKER_CONFIG, _WORKER_NLAYER, _WORKER_NDEPTH
+    _WORKER_DF_FORCING = df_forcing
+    _WORKER_CONFIG = SUEWSConfig.model_validate(config_payload)
+    _WORKER_NLAYER = nlayer
+    _WORKER_NDEPTH = ndepth
+
+
+def _run_dts_worker(site_index: int) -> tuple[int, pd.DataFrame, dict[str, Any] | None]:
+    """Run a single DTS site simulation inside a worker process."""
+    if _WORKER_DF_FORCING is None or _WORKER_CONFIG is None:
+        raise RuntimeError("DTS worker not initialised")
+
+    df_output, final_state = run_dts(
+        df_forcing=_WORKER_DF_FORCING,
+        config=_WORKER_CONFIG,
+        site_index=site_index,
+        nlayer=_WORKER_NLAYER,
+        ndepth=_WORKER_NDEPTH,
+    )
+
+    initial_states = final_state.get("initial_states")
+    initial_states_payload = (
+        initial_states.model_dump(mode="python")
+        if hasattr(initial_states, "model_dump")
+        else initial_states
+    )
+
+    return site_index, df_output, initial_states_payload
 
 
 def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
@@ -101,18 +149,18 @@ def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
     return block
 
 
-def run_dts(
+def _run_dts_single_chunk(
     df_forcing: pd.DataFrame,
     config: SUEWSConfig,
     site_index: int = 0,
     nlayer: int | None = None,
     ndepth: int | None = None,
 ) -> tuple[pd.DataFrame, dict]:
-    """Run SUEWS simulation using DTS interface.
+    """Run a single chunk of SUEWS simulation using DTS interface.
 
-    This function provides a direct path from Pydantic configuration to
-    Fortran kernel execution, eliminating the intermediate df_state layer.
-    Uses batch execution via suews_cal_multitsteps_dts for efficiency.
+    This is the core execution function that creates fresh Fortran DTS objects,
+    populates them from a Pydantic configuration, and runs the simulation for
+    the provided forcing period. Called by ``run_dts()`` once per chunk.
 
     Parameters
     ----------
@@ -134,20 +182,10 @@ def run_dts(
         Output DataFrame with MultiIndex columns (group, var).
     final_state : dict
         Dictionary containing final state for potential restart.
-
-    Notes
-    -----
-    The function follows this workflow:
-    1. Create DTS objects (config, site, state, forcing, timer)
-    2. Populate from Pydantic configuration
-    3. Calculate derived site parameters
-    4. Prepare forcing block and output array
-    5. Call batch suews_cal_multitsteps_dts
-    6. Build output DataFrame from result block
     """
     # Get components from config
     model = config.model
-    site = config.sites[site_index] if hasattr(config, "sites") else config.site
+    site = config.sites[site_index]
     initial_states = site.initial_states
 
     # Determine timestep from forcing index
@@ -276,3 +314,236 @@ def run_dts(
     }
 
     return df_output, final_state
+
+
+logger = logging.getLogger(__name__)
+
+
+def run_dts(
+    df_forcing: pd.DataFrame,
+    config: SUEWSConfig,
+    site_index: int = 0,
+    nlayer: int | None = None,
+    ndepth: int | None = None,
+    chunk_day: int = 3660,
+) -> tuple[pd.DataFrame, dict]:
+    """Run SUEWS simulation using DTS interface.
+
+    This function provides a direct path from Pydantic configuration to
+    Fortran kernel execution, eliminating the intermediate df_state layer.
+    Uses batch execution via suews_cal_multitsteps_dts for efficiency.
+
+    For long simulations the forcing is split into ``chunk_day``-day
+    periods. Each chunk creates fresh Fortran DTS objects (bounded memory)
+    and the final Pydantic ``InitialStates`` from one chunk seeds the next.
+
+    Parameters
+    ----------
+    df_forcing : pd.DataFrame
+        Forcing data with datetime index and meteorological variables.
+    config : SUEWSConfig
+        Pydantic configuration object containing Model, Site, and InitialStates.
+    site_index : int, optional
+        Index of site to simulate (for multi-site configs), by default 0.
+    nlayer : int, optional
+        Number of vertical layers. If None, inferred from
+        config.sites[site_index].properties.vertical_layers.nlayer.
+    ndepth : int, optional
+        Number of substrate depth levels. If None, uses the Fortran constant (5).
+    chunk_day : int, optional
+        Chunk size in days for splitting long simulations, by default 3660
+        (~10 years). Smaller values reduce peak memory at a small overhead cost.
+
+    Returns
+    -------
+    df_output : pd.DataFrame
+        Output DataFrame with MultiIndex rows ``(grid, datetime)`` and
+        MultiIndex columns ``(group, var)``.
+    final_state : dict
+        Dictionary containing final state for potential restart.
+
+    Notes
+    -----
+    The function follows this workflow:
+    1. Create DTS objects (config, site, state, forcing, timer)
+    2. Populate from Pydantic configuration
+    3. Calculate derived site parameters
+    4. Prepare forcing block and output array
+    5. Call batch suews_cal_multitsteps_dts
+    6. Build output DataFrame from result block
+    """
+    # Deep-copy config so chunking state mutations do not leak to the caller
+    config = copy.deepcopy(config)
+
+    # Group forcing into chunk_day-day periods
+    idx_start = df_forcing.index.min()
+    idx_all = df_forcing.index
+    grp_forcing = df_forcing.groupby(
+        (idx_all - idx_start) // pd.Timedelta(chunk_day, "d")
+    )
+    n_chunk = len(grp_forcing)
+
+    # Single chunk -- delegate directly (no overhead)
+    if n_chunk <= 1:
+        return _run_dts_single_chunk(
+            df_forcing,
+            config,
+            site_index=site_index,
+            nlayer=nlayer,
+            ndepth=ndepth,
+        )
+
+    # Multiple chunks -- iterate with state threading
+    logger.info(
+        "DTS forcing split into %d chunks of %d days for bounded memory.",
+        n_chunk,
+        chunk_day,
+    )
+
+    site = config.sites[site_index] if hasattr(config, "sites") else config.site
+    list_df_output = []
+    final_state = {}
+
+    for grp_key in grp_forcing.groups:
+        df_chunk = grp_forcing.get_group(grp_key)
+
+        df_output_chunk, final_state = _run_dts_single_chunk(
+            df_chunk,
+            config,
+            site_index=site_index,
+            nlayer=nlayer,
+            ndepth=ndepth,
+        )
+        list_df_output.append(df_output_chunk)
+
+        # Thread extracted Pydantic state into next chunk
+        site.initial_states = final_state["initial_states"]
+
+    df_output = pd.concat(list_df_output).sort_index()
+    return df_output, final_state
+
+
+def run_dts_multi(
+    df_forcing: pd.DataFrame,
+    config: SUEWSConfig,
+    nlayer: int | None = None,
+    ndepth: int | None = None,
+    n_jobs: int = 1,
+) -> tuple[pd.DataFrame, dict]:
+    """Run SUEWS DTS simulation for all sites in a configuration.
+
+    Iterates over ``config.sites``, calls :func:`run_dts` for each site,
+    and aggregates the results into a single DataFrame with a grid-level
+    MultiIndex matching the traditional backend output format.
+
+    Parameters
+    ----------
+    df_forcing : pd.DataFrame
+        Forcing data with datetime index and meteorological variables.
+    config : SUEWSConfig
+        Pydantic configuration object containing Model and one or more Sites.
+    nlayer : int, optional
+        Number of vertical layers (passed to each ``run_dts`` call).
+    ndepth : int, optional
+        Number of substrate depth levels (passed to each ``run_dts`` call).
+    n_jobs : int, optional
+        Number of worker processes for multi-grid execution. Use 1 for
+        serial execution. Parallel execution is not supported on Windows.
+        The multiprocessing context is set via ``SUPY_MP_CONTEXT`` (default: spawn).
+
+    Returns
+    -------
+    df_output : pd.DataFrame
+        Output DataFrame with MultiIndex rows ``(grid, datetime)`` and
+        MultiIndex columns ``(group, var)``. For multi-grid configs the
+        grid level contains one entry per site.
+    dict_final_states : dict
+        Final states keyed by grid id.  Each value is a dict containing
+        ``"initial_states"`` (a Pydantic InitialStates object suitable
+        for continuation runs or YAML persistence).
+
+    See Also
+    --------
+    run_dts : Single-grid DTS runner (called internally per site).
+    """
+    sites = config.sites
+
+    # Validate unique grid IDs to avoid silent overwrites in state dict
+    gridivs = [s.gridiv for s in sites]
+    dupes = [g for g in gridivs if gridivs.count(g) > 1]
+    if dupes:
+        raise ValueError(f"Duplicate gridiv values in config.sites: {set(dupes)}")
+
+    if n_jobs < 1:
+        raise ValueError("n_jobs must be >= 1")
+
+    if n_jobs == 1 or len(sites) == 1:
+        list_df_output = []
+        dict_final_states = {}
+
+        for idx, site in enumerate(sites):
+            df_output, final_state = run_dts(
+                df_forcing=df_forcing,
+                config=config,
+                site_index=idx,
+                nlayer=nlayer,
+                ndepth=ndepth,
+            )
+            list_df_output.append(df_output)
+            dict_final_states[site.gridiv] = {
+                "initial_states": final_state.get("initial_states"),
+            }
+
+        # Concatenate all grids — each df already has (grid, datetime) index
+        df_output_all = pd.concat(list_df_output).sort_index()
+
+        return df_output_all, dict_final_states
+
+    if os.name == "nt":
+        raise RuntimeError("Parallel DTS execution is not supported on Windows")
+
+    n_jobs = min(n_jobs, len(sites))
+    mp_context = os.environ.get("SUPY_MP_CONTEXT", "spawn")
+    # WARNING: 'fork' context inherits parent Fortran SAVE-variable state,
+    # which can cause silent corruption when workers mutate module globals
+    # during DTS simulation. Default 'spawn' avoids this.
+    ctx = multiprocessing.get_context(mp_context)
+
+    config_payload = config.model_dump(mode="python")
+
+    try:
+        with ctx.Pool(
+            processes=n_jobs,
+            initializer=_init_dts_worker,
+            initargs=(df_forcing, config_payload, nlayer, ndepth),
+        ) as pool:
+            results = pool.map(_run_dts_worker, range(len(sites)))
+    except Exception as exc:
+        raise RuntimeError(
+            f"Parallel DTS execution failed ({type(exc).__name__}: {exc}). "
+            "Re-run with n_jobs=1 for serial execution."
+        ) from exc
+
+    list_df_output = []
+    dict_final_states = {}
+    for site_index, df_output, initial_states_payload in results:
+        site = sites[site_index]
+        list_df_output.append(df_output)
+
+        if initial_states_payload is None:
+            initial_states = None
+        elif isinstance(initial_states_payload, dict):
+            initial_states = site.initial_states.__class__.model_validate(
+                initial_states_payload
+            )
+        else:
+            initial_states = initial_states_payload
+
+        dict_final_states[site.gridiv] = {
+            "initial_states": initial_states,
+        }
+
+    # Concatenate all grids - each df already has (grid, datetime) index
+    df_output_all = pd.concat(list_df_output).sort_index()
+
+    return df_output_all, dict_final_states

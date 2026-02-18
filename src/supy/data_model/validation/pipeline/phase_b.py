@@ -178,6 +178,8 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
         "snowuse",
         "stebbsmethod",
         "rcmethod",
+        "samealbedo_wall",
+        "samealbedo_roof",
     ]
 
     missing_params = [
@@ -333,6 +335,73 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
 
     return results
 
+def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
+    """Validate consistency between model physics options, reporting site names."""
+    results = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+
+    samealbedo_roof = get_value_safe(physics, "samealbedo_roof")
+    samealbedo_wall = get_value_safe(physics, "samealbedo_wall")
+
+    if samealbedo_wall == 0:
+        for site in yaml_data.get("sites", []):
+            site_name = site.get("name", "Unknown")
+            vlay = site.get("properties", {}).get("vertical_layers", {})
+            walls = vlay.get("walls", [])
+            if isinstance(walls, dict):  # rare but possible
+                walls = [walls]
+            found_albedos = []
+            for wall in walls:
+                alb_val = get_value_safe(wall, "alb")
+                if alb_val is not None:
+                    found_albedos.append(alb_val)
+            building_archetype = site.get("properties", {}).get("building_archetype", {})
+            wallrefl_val = get_value_safe(building_archetype, "WallReflectivity")
+            msg = (
+                f"samealbedo_wall == 0. No check of consistency between walls albedo (found values: {found_albedos}) and WallReflectivity (found value: {wallrefl_val})."
+            )
+            results.append(
+                ValidationResult(
+                    status="WARNING",
+                    category="MODEL_OPTIONS",
+                    parameter="samealbedo_wall",
+                    site_gridid=site_name,
+                    site_index=None,
+                    message=f"{msg}",
+                    suggested_value=None,
+                )
+            )
+
+    if samealbedo_roof == 0:
+        for site in yaml_data.get("sites", []):
+            site_name = site.get("name", "Unknown")
+            vlay = site.get("properties", {}).get("vertical_layers", {})
+            roofs = vlay.get("roofs", [])
+            if isinstance(roofs, dict):  # rare but possible
+                roofs = [roofs]
+            found_albedos = []
+            for roof in roofs:
+                alb_val = get_value_safe(roof, "alb")
+                if alb_val is not None:
+                    found_albedos.append(alb_val)
+            building_archetype = site.get("properties", {}).get("building_archetype", {})
+            roofrefl_val = get_value_safe(building_archetype, "RoofReflectivity")
+            msg = (
+                f"samealbedo_roof == 0. No check of consistency between roofs albedo (found values: {found_albedos}) and RoofReflectivity (found value: {roofrefl_val})."
+            )
+            results.append(
+                ValidationResult(
+                    status="WARNING",
+                    category="MODEL_OPTIONS",
+                    parameter="samealbedo_roof",
+                    site_gridid=site_name,
+                    site_index=None,
+                    message=f"{msg}",
+                    suggested_value=None,
+                )
+            )
+
+    return results
 
 def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
     """Validate land cover fractions and parameters."""
@@ -405,10 +474,37 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
                     )
                 )
 
+        # Determine if biogenic CO2 parameters should be required
+        physics = yaml_data.get("model", {}).get("physics", {})
+        emissionsmethod = get_value_safe(physics, "emissionsmethod")
+        biogenic_params = {
+            "alpha_bioco2",
+            "alpha_enh_bioco2",
+            "beta_bioco2",
+            "beta_enh_bioco2",
+            "min_res_bioco2",
+            "theta_bioco2",
+            "resp_a",
+            "resp_b",
+        }
+        biogenic_surfaces = {"dectr", "evetr", "grass"}
+
         for surface_type, sfr_value in surface_types:
             if sfr_value > 0:
                 surface_props = land_cover[surface_type]
                 missing_params = _check_surface_parameters(surface_props, surface_type)
+
+                # If emissionsmethod disables CO2, skip biogenic params for relevant surfaces
+                if (
+                    emissionsmethod is not None
+                    and emissionsmethod in [0, 1, 2, 3, 4]
+                    and surface_type in biogenic_surfaces
+                ):
+                    missing_params = [
+                        p
+                        for p in missing_params
+                        if p.split(".")[-1] not in biogenic_params
+                    ]
 
                 for param_name in missing_params:
                     readable_message = (
@@ -608,7 +704,7 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                     parameter="timezone",
                     site_index=site_idx,
                     site_gridid=site_gridid,
-                    message="Timezone parameter is missing - will be calculated automatically from latitude and longitude",
+                    message="Timezone parameter is missing - will be calculated automatically from latitude and longitude (see updated parameters)",
                     suggested_value="Timezone will be set based on your coordinates. You can also manually set the timezone value if you prefer a specific UTC offset",
                 )
             )
@@ -626,7 +722,7 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
                         parameter="anthropogenic_emissions.startdls,enddls",
                         site_index=site_idx,
                         site_gridid=site_gridid,
-                        message="Daylight saving parameters (startdls, enddls) are missing - will be calculated automatically from geographic coordinates",
+                        message="Daylight saving parameters (startdls, enddls) are missing - will be calculated automatically from geographic coordinates (see updated parameters)",
                         suggested_value="Parameters will be set based on your location. You can also manually set startdls and enddls if you prefer specific values",
                     )
                 )
@@ -917,6 +1013,8 @@ def run_scientific_validation_pipeline(
     validation_results.extend(validate_physics_parameters(yaml_data))
 
     validation_results.extend(validate_model_option_dependencies(yaml_data))
+
+    validation_results.extend(validate_model_option_samealbedo(yaml_data))
 
     validation_results.extend(validate_land_cover_consistency(yaml_data))
 

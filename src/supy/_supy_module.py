@@ -62,6 +62,7 @@ _FUNCTIONAL_DEPRECATIONS = {
     "run_supy_sample": "`SUEWSSimulation` sample workflows",
     "save_supy": "`SUEWSSimulation.save`",
     "init_config": "`SUEWSSimulation` or `SUEWSConfig` constructors",
+    "resample_output": "`SUEWSOutput.resample` (e.g., `output.resample(freq='h')`)",
 }
 
 

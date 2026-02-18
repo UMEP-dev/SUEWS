@@ -1720,29 +1720,29 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    HeatingSetpointTemperature: Optional[TenMinuteProfile] = Field(
-        default_factory=TenMinuteProfile,  
-        description="Heating setpoint temperature [degC] profile.",
+    HeatingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
+        default=0.0,
+        description="Heating setpoint temperature [degC]",
         json_schema_extra={
             "unit": "degC",
             "display_name": "Heating Setpoint Temperature",
         },
     )
-    CoolingSetpointTemperature: Optional[TenMinuteProfile] = Field(
-        default_factory=TenMinuteProfile, 
-        description="Cooling setpoint temperature [degC] profile.",
+    CoolingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
+        default=0.0,
+        description="Cooling setpoint temperature [degC]",
         json_schema_extra={
             "unit": "degC",
             "display_name": "Cooling Setpoint Temperature",
         },
     )
 
-    OccupantsProfile: Optional[TenMinuteProfile] = Field(
+    MetabolismProfile: Optional[TenMinuteProfile] = Field(
         default_factory=TenMinuteProfile,
-        description="Profile of number of occupants in building [-]",
+        description="Profile of occupants metabolism in building [-]",
         json_schema_extra={
-            "unit": "dimensionless",
-            "display_name": "Occupants Profile",
+            "unit": "W",
+            "display_name": "Metabolism Profile",
         },
     )
 
@@ -1751,9 +1751,7 @@ class ArchetypeProperties(BaseModel):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         string_fields = {"BuildingType", "BuildingName"}
         ten_minute_profile_fields = {
-            "HeatingSetpointTemperature",
-            "CoolingSetpointTemperature",
-            "OccupantsProfile",
+            "MetabolismProfile",
         }
         excluded_fields = string_fields | ten_minute_profile_fields | {"ref"}
 
@@ -1783,7 +1781,7 @@ class ArchetypeProperties(BaseModel):
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ArchetypeProperties":
         string_fields = {"BuildingType", "BuildingName"}
-        ten_minute_profile_fields = {"HeatingSetpointTemperature", "CoolingSetpointTemperature", "OccupantsProfile"}
+        ten_minute_profile_fields = {"MetabolismProfile"}
 
         default_instance = cls()
         params: Dict[str, object] = {}
@@ -1928,10 +1926,10 @@ class StebbsProperties(BaseModel):
             "display_name": "External Ground Conductivity",
         },
     )
-    MetabolicRate: Optional[FlexibleRefValue(float)] = Field(
+    MetabolismThreshold: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
-        description="Metabolic rate of building occupants [W]",
-        json_schema_extra={"unit": "W", "display_name": "Metabolic Rate"},
+        description="threshold of metabolic rate to determine occupancy active or inactive [W]",
+        json_schema_extra={"unit": "W", "display_name": "Metabolic Rate Threshold"},
         ge=0.0,
     )
     LatentSensibleRatio: Optional[FlexibleRefValue(float)] = Field(
@@ -1941,12 +1939,6 @@ class StebbsProperties(BaseModel):
             "unit": "dimensionless",
             "display_name": "Latent Sensible Ratio",
         },
-        ge=0.0,
-    )
-    ApplianceRating: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
-        description="Power demand of single appliance [W]",
-        json_schema_extra={"unit": "W", "display_name": "Appliance Rating"},
         ge=0.0,
     )
     HeatingSystemEfficiency: Optional[FlexibleRefValue(float)] = Field(

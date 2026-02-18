@@ -525,7 +525,7 @@ def gen_epw(
 
         # Resample if frequency specified (before extracting to single grid)
         if freq is not None:
-            df_output = resample_output(df_output, freq=freq)
+            df_output = resample_output(df_output, freq=freq, _internal=True)
 
         # Extract SUEWS group for the specified grid
         if isinstance(df_output.columns, pd.MultiIndex):

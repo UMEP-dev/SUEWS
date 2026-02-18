@@ -1,9 +1,28 @@
-<!-- Each entry should fall into one of the following categories: -->
-<!-- [feature]: New feature -->
-<!-- [bugfix]: Bug fixes; also, create a related GitHub issue -->
-<!-- [maintenance]: Codebase maintenance (including Claude Code/dev tooling) -->
-<!-- [doc]: Documentation updates -->
-<!-- [change]: Changes exposed to users -->
+<!-- CHANGELOG ENTRY GUIDELINES -->
+<!--
+CATEGORIES (required):
+  [feature]     - New functionality
+  [bugfix]      - Bug fixes (link related GitHub issue)
+  [change]      - Breaking changes or user-facing API changes
+  [maintenance] - Internal/dev tooling, CI, CLAUDE.md updates
+  [doc]         - User documentation updates
+
+STATUS TAGS (for [feature] and [change] only):
+  [experimental] - Under development, not for public announcement
+  [stable]       - Reviewed and approved for public release notes
+  [internal]     - Internal tooling, never announced publicly
+
+DEFAULTS:
+  - New [feature] entries default to [experimental]
+  - Only governance-approved features get [stable] tag
+  - [bugfix], [maintenance], [doc] don't need status tags
+
+EXAMPLES:
+  - [feature][experimental] Added new radiation scheme (#123)
+  - [feature][stable] Added OOP interface for output data (#456)
+  - [change][experimental] Refactored land cover fraction API (#789)
+  - [bugfix] Fixed temperature calculation (#124)
+-->
 
 ## Table of Contents
 
@@ -21,7 +40,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 63 | 76 | 24 | 79 | 38 | 280 |
+| 2026 | 65 | 78 | 25 | 79 | 39 | 286 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -34,8 +53,26 @@
 
 ## 2026
 
+### 13 Feb 2026
+
+- [feature][experimental] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS bldgh and SPARTACUS height entries (PR #1205).
+- [docs] Updated PHASE_C_DETAILED.md with new conditional validation logic for SPARTACUS (PR #1205).
+
+### 5 Feb 2026
+
+- [change][experimental] Replace OccupantsProfile with MetabolismProfile and add metabolism threshold for occupancy activity classification in STEBBS; fix missing appliance energy in QEC_bldg and uninitialised heating/cooling load accumulators (PR #1194)
+- [change] Refactor error message in validate_albedo_ranges to explicitly declare that range comes from alb_min and alb_max (PR #1193)
+
+### 4 Feb 2026
+
+- [bugfix] Fix conflict in the validation logic when vegetated surfaces are active (sfr > 0) but carbon is disabled (PR #1188)
+- [bugfix] Fix a bug in the phase_b.py required physics options, adding the new samealbedo_roof and samealbedo_wall to the list (PR #1188).
+
 ### 28 Jan 2026
 
+- [feature] Added `samealbedo_wall` and `samealbedo_roof` model options for roof and wall albedo validation (PR #1123)
+  - When enabled (`=1`), enforces all roof/wall albedo values match their respective reflectivity parameters; errors reported if inconsistent as ACTION NEEDED in the report.
+  - When disabled (`=0`), skips consistency checks and issues a user warning listing current albedo values in NO ACTION NEEDED section of the report.
 - [feature] Added sphinx-gallery for executable documentation examples (#1057)
 - [doc] Added user workflow guide for getting started with SUEWS (#1014)
 - [change] Refactored land cover fraction check to use Phase B as single authority (#1099)

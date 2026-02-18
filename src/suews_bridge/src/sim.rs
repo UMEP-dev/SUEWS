@@ -521,7 +521,7 @@ pub fn run_from_config_str_and_forcing(
     config_yaml: &str,
     forcing_block: Vec<f64>,
     len_sim: usize,
-) -> Result<(Vec<f64>, usize), BridgeError> {
+) -> Result<(Vec<f64>, SuewsState, usize), BridgeError> {
     let mut run_cfg = load_run_config_from_str(config_yaml).map_err(simulation_error)?;
 
     if len_sim == 0 {
@@ -615,7 +615,7 @@ pub fn run_from_config_str_and_forcing(
         ndepth: run_cfg.ndepth,
     })?;
 
-    Ok((sim_out.output_block, len_sim))
+    Ok((sim_out.output_block, sim_out.state, len_sim))
 }
 
 pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, BridgeError> {

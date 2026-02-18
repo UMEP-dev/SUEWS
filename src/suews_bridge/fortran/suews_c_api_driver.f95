@@ -4,9 +4,8 @@
 ! Notes:
 ! - This adapter exposes the batch entry point `SUEWS_cal_multitsteps_dts`.
 ! - Site/state member payloads are transferred via concatenated buffers and TOC
-!   arrays. The current implementation applies the conductance member to the
-!   runtime site object and round-trips state buffers for deterministic Rust
-!   codec compatibility while state packing is finalised.
+!   arrays. Post-simulation state is packed from the modified Fortran types
+!   back into the flat output buffer for Rust codec round-trip.
 ! -----------------------------------------------------------------------------
 module module_c_api_driver
 use, intrinsic :: iso_c_binding, only: c_int, c_double, c_char
@@ -105,6 +104,7 @@ integer(c_int), parameter :: SUEWS_CAPI_HEAT_STATE_BASE_LEN = 7_c_int * int(nsur
 integer(c_int), parameter :: SUEWS_CAPI_ROUGHNESS_STATE_LEN = 11_c_int
 integer(c_int), parameter :: SUEWS_CAPI_STEBBS_STATE_LEN = 154_c_int
 integer(c_int), parameter :: SUEWS_CAPI_NHOOD_STATE_LEN = 5_c_int
+integer(c_int), parameter :: SUEWS_CAPI_STEBBS_STATE_RSL_LEN = 30_c_int
 
 public :: suews_cal_multitsteps_c
 
@@ -314,8 +314,10 @@ subroutine suews_cal_multitsteps_c( &
       call copy_to_c_buffer(state_local%errorState%message, sim_err_message, sim_err_message_len)
    end if
 
-   call copy_state_input_to_output( &
-      state_flat, state_flat_len, state_out_flat, state_out_len, local_err)
+   call pack_state_to_output( &
+      state_local, nlayer_i, ndepth_i, &
+      state_out_flat, state_out_len, &
+      state_toc, state_toc_len, state_member_count, local_err)
    if (local_err/=SUEWS_CAPI_OK) then
       err = local_err
       return
@@ -1075,6 +1077,925 @@ subroutine unpack_site_scalars(flat, n_flat, site, err)
    err = SUEWS_CAPI_OK
 
 end subroutine unpack_site_scalars
+
+
+! -----------------------------------------------------------------------------
+! Inline helpers for packing vectors and matrices into flat output buffers.
+! These mirror the unpack_vec/unpack_mat helpers in the heat_state module
+! but work with allocatable arrays from the real Fortran types.
+! -----------------------------------------------------------------------------
+
+subroutine pack_vec_inline(field, flat, idx, n)
+   implicit none
+
+   real(c_double), dimension(:), allocatable, intent(in) :: field
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(inout) :: idx
+   integer(c_int), intent(in) :: n
+   integer(c_int) :: i
+
+   if (n<=0_c_int) return
+   do i = 1_c_int, n
+      flat(idx) = field(i)
+      idx = idx + 1_c_int
+   end do
+
+end subroutine pack_vec_inline
+
+subroutine pack_mat_inline(field, flat, idx, n1, n2)
+   implicit none
+
+   real(c_double), dimension(:, :), allocatable, intent(in) :: field
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(inout) :: idx
+   integer(c_int), intent(in) :: n1
+   integer(c_int), intent(in) :: n2
+   integer(c_int) :: i
+   integer(c_int) :: j
+
+   if (n1<=0_c_int .or. n2<=0_c_int) return
+   do i = 1_c_int, n1
+      do j = 1_c_int, n2
+         flat(idx) = field(i, j)
+         idx = idx + 1_c_int
+      end do
+   end do
+
+end subroutine pack_mat_inline
+
+! -----------------------------------------------------------------------------
+! pack_state_to_output: pack the post-simulation state_local (SUEWS_STATE)
+! into the flat output buffer, using the same TOC layout as the input buffer.
+! This is the REVERSE of unpack_state_members.
+! -----------------------------------------------------------------------------
+subroutine pack_state_to_output( &
+   state, nlayer, ndepth, &
+   state_out_flat, state_out_len, &
+   state_toc, state_toc_len, state_member_count, err)
+   implicit none
+
+   type(SUEWS_STATE), intent(in) :: state
+   integer, intent(in) :: nlayer
+   integer, intent(in) :: ndepth
+   real(c_double), intent(out) :: state_out_flat(*)
+   integer(c_int), intent(in) :: state_out_len
+   integer(c_int), intent(in) :: state_toc(*)
+   integer(c_int), intent(in) :: state_toc_len
+   integer(c_int), intent(in) :: state_member_count
+   integer(c_int), intent(out) :: err
+
+   integer(c_int) :: member_offset
+   integer(c_int) :: member_len
+   integer(c_int) :: local_err
+
+   ! --- Member 1: error_state (empty, length 0) ---
+   call member_span_from_toc(state_out_len, state_toc, state_toc_len, state_member_count, &
+                             SUEWS_CAPI_STATE_MEMBER_ERROR_STATE, member_offset, member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   ! --- Member 2: flag_state ---
+   call member_span_from_toc(state_out_len, state_toc, state_toc_len, state_member_count, &
+                             SUEWS_CAPI_STATE_MEMBER_FLAG, member_offset, member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK .or. member_len<SUEWS_CAPI_FLAG_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   call pack_flag_state(state%flagState, state_out_flat(int(member_offset) + 1), member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   ! --- Member 3: anthroemis_state ---
+   call member_span_from_toc(state_out_len, state_toc, state_toc_len, state_member_count, &
+                             SUEWS_CAPI_STATE_MEMBER_ANTHRO_EMIS, member_offset, member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK .or. member_len<SUEWS_CAPI_ANTHROEMIS_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   call pack_anthroemis_state(state%anthroemisState, state_out_flat(int(member_offset) + 1), member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   ! --- Member 4: ohm_state ---
+   call member_span_from_toc(state_out_len, state_toc, state_toc_len, state_member_count, &
+                             SUEWS_CAPI_STATE_MEMBER_OHM, member_offset, member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK .or. member_len<SUEWS_CAPI_OHM_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   call pack_ohm_state(state%ohmState, state_out_flat(int(member_offset) + 1), member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   ! --- Member 5: solar_state ---
+   call member_span_from_toc(state_out_len, state_toc, state_toc_len, state_member_count, &
+                             SUEWS_CAPI_STATE_MEMBER_SOLAR, member_offset, member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK .or. member_len<SUEWS_CAPI_SOLAR_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   call pack_solar_state(state%solarState, state_out_flat(int(member_offset) + 1), member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   ! --- Member 6: atm_state ---
+   call member_span_from_toc(state_out_len, state_toc, state_toc_len, state_member_count, &
+                             SUEWS_CAPI_STATE_MEMBER_ATM, member_offset, member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK .or. member_len<SUEWS_CAPI_ATM_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   call pack_atm_state(state%atmState, state_out_flat(int(member_offset) + 1), member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   ! --- Member 7: phenology_state ---
+   call member_span_from_toc(state_out_len, state_toc, state_toc_len, state_member_count, &
+                             SUEWS_CAPI_STATE_MEMBER_PHENOLOGY, member_offset, member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK .or. member_len<SUEWS_CAPI_PHENOLOGY_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   call pack_phenology_state(state%phenState, state_out_flat(int(member_offset) + 1), member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   ! --- Member 8: snow_state ---
+   call member_span_from_toc(state_out_len, state_toc, state_toc_len, state_member_count, &
+                             SUEWS_CAPI_STATE_MEMBER_SNOW, member_offset, member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK .or. member_len<SUEWS_CAPI_SNOW_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   call pack_snow_state(state%snowState, state_out_flat(int(member_offset) + 1), member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   ! --- Member 9: hydro_state ---
+   call member_span_from_toc(state_out_len, state_toc, state_toc_len, state_member_count, &
+                             SUEWS_CAPI_STATE_MEMBER_HYDRO, member_offset, member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+   call pack_hydro_state(state%hydroState, int(nlayer, c_int), &
+                         state_out_flat(int(member_offset) + 1), member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   ! --- Member 10: heat_state ---
+   call member_span_from_toc(state_out_len, state_toc, state_toc_len, state_member_count, &
+                             SUEWS_CAPI_STATE_MEMBER_HEAT, member_offset, member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+   call pack_heat_state(state%heatState, int(nlayer, c_int), int(ndepth, c_int), &
+                        state_out_flat(int(member_offset) + 1), member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   ! --- Member 11: roughness_state ---
+   call member_span_from_toc(state_out_len, state_toc, state_toc_len, state_member_count, &
+                             SUEWS_CAPI_STATE_MEMBER_ROUGHNESS, member_offset, member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK .or. member_len<SUEWS_CAPI_ROUGHNESS_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   call pack_roughness_state(state%roughnessState, state_out_flat(int(member_offset) + 1), member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   ! --- Member 12: stebbs_state ---
+   call member_span_from_toc(state_out_len, state_toc, state_toc_len, state_member_count, &
+                             SUEWS_CAPI_STATE_MEMBER_STEBBS, member_offset, member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK .or. member_len<SUEWS_CAPI_STEBBS_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   call pack_stebbs_state(state%stebbsState, state_out_flat(int(member_offset) + 1), member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   ! --- Member 13: nhood_state ---
+   call member_span_from_toc(state_out_len, state_toc, state_toc_len, state_member_count, &
+                             SUEWS_CAPI_STATE_MEMBER_NHOOD, member_offset, member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK .or. member_len<SUEWS_CAPI_NHOOD_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   call pack_nhood_state(state%nhoodState, state_out_flat(int(member_offset) + 1), member_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   err = SUEWS_CAPI_OK
+
+end subroutine pack_state_to_output
+
+! ---- Individual state member pack subroutines ----
+! Each reverses the corresponding *_state_unpack, using the REAL types
+! from module_ctrl_type (not the shadow types).
+
+subroutine pack_flag_state(s, flat, n_flat, err)
+   implicit none
+   type(flag_STATE), intent(in) :: s
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
+   integer(c_int) :: idx
+
+   if (n_flat<SUEWS_CAPI_FLAG_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   idx = 1_c_int
+   flat(idx) = merge(1.0_c_double, 0.0_c_double, s%flag_converge); idx = idx + 1_c_int
+   flat(idx) = real(s%i_iter, c_double); idx = idx + 1_c_int
+   flat(idx) = real(s%stebbs_bldg_init, c_double); idx = idx + 1_c_int
+   flat(idx) = merge(1.0_c_double, 0.0_c_double, s%snow_warning_shown); idx = idx + 1_c_int
+   flat(idx) = merge(1.0_c_double, 0.0_c_double, s%iter_safe)
+
+   err = SUEWS_CAPI_OK
+end subroutine pack_flag_state
+
+subroutine pack_anthroemis_state(s, flat, n_flat, err)
+   implicit none
+   type(anthroEmis_STATE), intent(in) :: s
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
+   integer(c_int) :: idx
+   integer(c_int) :: i
+
+   if (n_flat<SUEWS_CAPI_ANTHROEMIS_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   idx = 1_c_int
+   do i = 1_c_int, 12_c_int
+      flat(idx) = s%HDD_id(i)
+      idx = idx + 1_c_int
+   end do
+   flat(idx) = s%Fc; idx = idx + 1_c_int
+   flat(idx) = s%Fc_anthro; idx = idx + 1_c_int
+   flat(idx) = s%Fc_biogen; idx = idx + 1_c_int
+   flat(idx) = s%Fc_build; idx = idx + 1_c_int
+   flat(idx) = s%Fc_metab; idx = idx + 1_c_int
+   flat(idx) = s%Fc_photo; idx = idx + 1_c_int
+   flat(idx) = s%Fc_point; idx = idx + 1_c_int
+   flat(idx) = s%Fc_respi; idx = idx + 1_c_int
+   flat(idx) = s%Fc_traff; idx = idx + 1_c_int
+   flat(idx) = merge(1.0_c_double, 0.0_c_double, s%iter_safe)
+
+   err = SUEWS_CAPI_OK
+end subroutine pack_anthroemis_state
+
+subroutine pack_ohm_state(s, flat, n_flat, err)
+   implicit none
+   type(OHM_STATE), intent(in) :: s
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
+   integer(c_int) :: idx
+   integer(c_int) :: i
+
+   if (n_flat<SUEWS_CAPI_OHM_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   idx = 1_c_int
+   flat(idx) = s%qn_av; idx = idx + 1_c_int
+   flat(idx) = s%dqndt; idx = idx + 1_c_int
+
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%qn_surfs(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%dqndt_surf(i); idx = idx + 1_c_int
+   end do
+
+   flat(idx) = s%qn_s_av; idx = idx + 1_c_int
+   flat(idx) = s%dqnsdt; idx = idx + 1_c_int
+   flat(idx) = s%a1; idx = idx + 1_c_int
+   flat(idx) = s%a2; idx = idx + 1_c_int
+   flat(idx) = s%a3; idx = idx + 1_c_int
+   flat(idx) = s%t2_prev; idx = idx + 1_c_int
+   flat(idx) = s%ws_rav; idx = idx + 1_c_int
+   flat(idx) = s%tair_prev; idx = idx + 1_c_int
+
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%qn_rav(i); idx = idx + 1_c_int
+   end do
+
+   flat(idx) = s%a1_paved; idx = idx + 1_c_int
+   flat(idx) = s%a1_bldg; idx = idx + 1_c_int
+   flat(idx) = s%a1_evetr; idx = idx + 1_c_int
+   flat(idx) = s%a1_dectr; idx = idx + 1_c_int
+   flat(idx) = s%a1_grass; idx = idx + 1_c_int
+   flat(idx) = s%a1_bsoil; idx = idx + 1_c_int
+   flat(idx) = s%a1_water; idx = idx + 1_c_int
+
+   flat(idx) = s%a2_paved; idx = idx + 1_c_int
+   flat(idx) = s%a2_bldg; idx = idx + 1_c_int
+   flat(idx) = s%a2_evetr; idx = idx + 1_c_int
+   flat(idx) = s%a2_dectr; idx = idx + 1_c_int
+   flat(idx) = s%a2_grass; idx = idx + 1_c_int
+   flat(idx) = s%a2_bsoil; idx = idx + 1_c_int
+   flat(idx) = s%a2_water; idx = idx + 1_c_int
+
+   flat(idx) = s%a3_paved; idx = idx + 1_c_int
+   flat(idx) = s%a3_bldg; idx = idx + 1_c_int
+   flat(idx) = s%a3_evetr; idx = idx + 1_c_int
+   flat(idx) = s%a3_dectr; idx = idx + 1_c_int
+   flat(idx) = s%a3_grass; idx = idx + 1_c_int
+   flat(idx) = s%a3_bsoil; idx = idx + 1_c_int
+   flat(idx) = s%a3_water; idx = idx + 1_c_int
+
+   flat(idx) = merge(1.0_c_double, 0.0_c_double, s%iter_safe)
+
+   err = SUEWS_CAPI_OK
+end subroutine pack_ohm_state
+
+subroutine pack_solar_state(s, flat, n_flat, err)
+   implicit none
+   type(solar_State), intent(in) :: s
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
+
+   if (n_flat<SUEWS_CAPI_SOLAR_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   flat(1) = s%azimuth_deg
+   flat(2) = s%zenith_deg
+   flat(3) = merge(1.0_c_double, 0.0_c_double, s%iter_safe)
+
+   err = SUEWS_CAPI_OK
+end subroutine pack_solar_state
+
+subroutine pack_atm_state(s, flat, n_flat, err)
+   implicit none
+   type(atm_state), intent(in) :: s
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
+   integer(c_int) :: idx
+   integer(c_int) :: i
+
+   if (n_flat<SUEWS_CAPI_ATM_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   idx = 1_c_int
+   flat(idx) = s%fcld; idx = idx + 1_c_int
+   flat(idx) = s%avcp; idx = idx + 1_c_int
+   flat(idx) = s%dens_dry; idx = idx + 1_c_int
+   flat(idx) = s%avdens; idx = idx + 1_c_int
+   flat(idx) = s%dq; idx = idx + 1_c_int
+   flat(idx) = s%ea_hpa; idx = idx + 1_c_int
+   flat(idx) = s%es_hpa; idx = idx + 1_c_int
+   flat(idx) = s%lv_j_kg; idx = idx + 1_c_int
+   flat(idx) = s%lvs_j_kg; idx = idx + 1_c_int
+   flat(idx) = s%tlv; idx = idx + 1_c_int
+   flat(idx) = s%psyc_hpa; idx = idx + 1_c_int
+   flat(idx) = s%psycice_hpa; idx = idx + 1_c_int
+   flat(idx) = s%s_pa; idx = idx + 1_c_int
+   flat(idx) = s%s_hpa; idx = idx + 1_c_int
+   flat(idx) = s%sice_hpa; idx = idx + 1_c_int
+   flat(idx) = s%vpd_hpa; idx = idx + 1_c_int
+   flat(idx) = s%vpd_pa; idx = idx + 1_c_int
+   flat(idx) = s%u10_ms; idx = idx + 1_c_int
+   flat(idx) = s%u_hbh; idx = idx + 1_c_int
+   flat(idx) = s%t2_c; idx = idx + 1_c_int
+   flat(idx) = s%t_half_bldg_c; idx = idx + 1_c_int
+   flat(idx) = s%q2_gkg; idx = idx + 1_c_int
+   flat(idx) = s%rh2; idx = idx + 1_c_int
+   flat(idx) = s%l_mod; idx = idx + 1_c_int
+   flat(idx) = s%zl; idx = idx + 1_c_int
+   flat(idx) = s%ra_h; idx = idx + 1_c_int
+   flat(idx) = s%rs; idx = idx + 1_c_int
+   flat(idx) = s%ustar; idx = idx + 1_c_int
+   flat(idx) = s%tstar; idx = idx + 1_c_int
+   flat(idx) = s%rb; idx = idx + 1_c_int
+   flat(idx) = s%tair_av; idx = idx + 1_c_int
+
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%rss_surf(i)
+      idx = idx + 1_c_int
+   end do
+
+   flat(idx) = merge(1.0_c_double, 0.0_c_double, s%iter_safe)
+
+   err = SUEWS_CAPI_OK
+end subroutine pack_atm_state
+
+subroutine pack_phenology_state(s, flat, n_flat, err)
+   implicit none
+   type(PHENOLOGY_STATE), intent(in) :: s
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
+   integer(c_int) :: idx
+   integer(c_int) :: i
+   integer(c_int) :: j
+
+   if (n_flat<SUEWS_CAPI_PHENOLOGY_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   idx = 1_c_int
+
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%alb(i)
+      idx = idx + 1_c_int
+   end do
+
+   do i = 1_c_int, int(nvegsurf, c_int)
+      flat(idx) = s%lai_id(i)
+      idx = idx + 1_c_int
+   end do
+
+   do i = 1_c_int, int(nvegsurf, c_int)
+      flat(idx) = s%gdd_id(i)
+      idx = idx + 1_c_int
+   end do
+
+   do i = 1_c_int, int(nvegsurf, c_int)
+      flat(idx) = s%sdd_id(i)
+      idx = idx + 1_c_int
+   end do
+
+   flat(idx) = s%vegphenlumps; idx = idx + 1_c_int
+   flat(idx) = s%porosity_id; idx = idx + 1_c_int
+   flat(idx) = s%decidcap_id; idx = idx + 1_c_int
+   flat(idx) = s%albdectr_id; idx = idx + 1_c_int
+   flat(idx) = s%albevetr_id; idx = idx + 1_c_int
+   flat(idx) = s%albgrass_id; idx = idx + 1_c_int
+   flat(idx) = s%tmin_id; idx = idx + 1_c_int
+   flat(idx) = s%tmax_id; idx = idx + 1_c_int
+   flat(idx) = s%lenday_id; idx = idx + 1_c_int
+   flat(idx) = s%tempveg; idx = idx + 1_c_int
+
+   do j = 1_c_int, int(nsurf, c_int)
+      do i = 1_c_int, 6_c_int
+         flat(idx) = s%storedrainprm(i, j)
+         idx = idx + 1_c_int
+      end do
+   end do
+
+   flat(idx) = s%gfunc; idx = idx + 1_c_int
+   flat(idx) = s%gsc; idx = idx + 1_c_int
+   flat(idx) = s%g_kdown; idx = idx + 1_c_int
+   flat(idx) = s%g_dq; idx = idx + 1_c_int
+   flat(idx) = s%g_ta; idx = idx + 1_c_int
+   flat(idx) = s%g_smd; idx = idx + 1_c_int
+   flat(idx) = s%g_lai; idx = idx + 1_c_int
+   flat(idx) = merge(1.0_c_double, 0.0_c_double, s%iter_safe)
+
+   err = SUEWS_CAPI_OK
+end subroutine pack_phenology_state
+
+subroutine pack_snow_state(s, flat, n_flat, err)
+   implicit none
+   type(SNOW_STATE), intent(in) :: s
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
+   integer(c_int) :: idx
+   integer(c_int) :: i
+
+   if (n_flat<SUEWS_CAPI_SNOW_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   idx = 1_c_int
+   flat(idx) = s%snowfallcum; idx = idx + 1_c_int
+   flat(idx) = s%snowalb; idx = idx + 1_c_int
+   flat(idx) = s%chsnow_per_interval; idx = idx + 1_c_int
+   flat(idx) = s%mwh; idx = idx + 1_c_int
+   flat(idx) = s%mwstore; idx = idx + 1_c_int
+   flat(idx) = s%qn_snow; idx = idx + 1_c_int
+   flat(idx) = s%qm; idx = idx + 1_c_int
+   flat(idx) = s%qmfreez; idx = idx + 1_c_int
+   flat(idx) = s%qmrain; idx = idx + 1_c_int
+   flat(idx) = s%swe; idx = idx + 1_c_int
+   flat(idx) = s%z0vsnow; idx = idx + 1_c_int
+   flat(idx) = s%rasnow; idx = idx + 1_c_int
+   flat(idx) = s%sice_hpa; idx = idx + 1_c_int
+
+   do i = 1_c_int, 2_c_int
+      flat(idx) = s%snowremoval(i)
+      idx = idx + 1_c_int
+   end do
+
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%icefrac(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%snowdens(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%snowfrac(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%snowpack(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%snowwater(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%kup_ind_snow(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%qn_ind_snow(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%deltaqi(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%tsurf_ind_snow(i); idx = idx + 1_c_int
+   end do
+
+   flat(idx) = merge(1.0_c_double, 0.0_c_double, s%iter_safe)
+
+   err = SUEWS_CAPI_OK
+end subroutine pack_snow_state
+
+subroutine pack_hydro_state(s, nlayer_c, flat, n_flat, err)
+   implicit none
+   type(HYDRO_STATE), intent(in) :: s
+   integer(c_int), intent(in) :: nlayer_c
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
+   integer(c_int) :: idx
+   integer(c_int) :: i
+   integer(c_int) :: n_expected
+
+   n_expected = SUEWS_CAPI_HYDRO_STATE_BASE_LEN + 6_c_int * nlayer_c
+   if (n_flat<n_expected) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   idx = 1_c_int
+
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%soilstore_surf(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%state_surf(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, 9_c_int
+      flat(idx) = s%wuday_id(i); idx = idx + 1_c_int
+   end do
+
+   do i = 1_c_int, nlayer_c
+      flat(idx) = s%soilstore_roof(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, nlayer_c
+      flat(idx) = s%state_roof(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, nlayer_c
+      flat(idx) = s%soilstore_wall(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, nlayer_c
+      flat(idx) = s%state_wall(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, nlayer_c
+      flat(idx) = s%ev_roof(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, nlayer_c
+      flat(idx) = s%ev_wall(i); idx = idx + 1_c_int
+   end do
+
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%ev0_surf(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%ev_surf(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%wu_surf(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%runoffsoil(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%smd_surf(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%drain_surf(i); idx = idx + 1_c_int
+   end do
+
+   flat(idx) = s%drain_per_tstep; idx = idx + 1_c_int
+   flat(idx) = s%ev_per_tstep; idx = idx + 1_c_int
+   flat(idx) = s%wu_ext; idx = idx + 1_c_int
+   flat(idx) = s%wu_int; idx = idx + 1_c_int
+
+   flat(idx) = s%runoffagveg; idx = idx + 1_c_int
+   flat(idx) = s%runoffagimpervious; idx = idx + 1_c_int
+   flat(idx) = s%runoff_per_tstep; idx = idx + 1_c_int
+   flat(idx) = s%runoffpipes; idx = idx + 1_c_int
+   flat(idx) = s%runoffsoil_per_tstep; idx = idx + 1_c_int
+   flat(idx) = s%runoffwaterbody; idx = idx + 1_c_int
+   flat(idx) = s%smd; idx = idx + 1_c_int
+   flat(idx) = s%soilstate; idx = idx + 1_c_int
+   flat(idx) = s%state_per_tstep; idx = idx + 1_c_int
+   flat(idx) = s%surf_chang_per_tstep; idx = idx + 1_c_int
+   flat(idx) = s%tot_chang_per_tstep; idx = idx + 1_c_int
+   flat(idx) = s%runoff_per_interval; idx = idx + 1_c_int
+   flat(idx) = s%nwstate_per_tstep; idx = idx + 1_c_int
+
+   flat(idx) = s%soilmoistcap; idx = idx + 1_c_int
+   flat(idx) = s%vsmd; idx = idx + 1_c_int
+
+   flat(idx) = s%additionalwater; idx = idx + 1_c_int
+   flat(idx) = s%addimpervious; idx = idx + 1_c_int
+   flat(idx) = s%addpipes; idx = idx + 1_c_int
+   flat(idx) = s%addveg; idx = idx + 1_c_int
+   flat(idx) = s%addwaterbody; idx = idx + 1_c_int
+
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%addwater(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%frac_water2runoff(i); idx = idx + 1_c_int
+   end do
+
+   flat(idx) = merge(1.0_c_double, 0.0_c_double, s%iter_safe)
+
+   err = SUEWS_CAPI_OK
+end subroutine pack_hydro_state
+
+subroutine pack_heat_state(s, nlayer_c, ndepth_c, flat, n_flat, err)
+   implicit none
+   type(HEAT_STATE), intent(in) :: s
+   integer(c_int), intent(in) :: nlayer_c
+   integer(c_int), intent(in) :: ndepth_c
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
+   integer(c_int) :: idx
+   integer(c_int) :: surf_vec_len
+   integer(c_int) :: i
+   integer(c_int) :: n_expected
+
+   if (nlayer_c>0_c_int) then
+      n_expected = SUEWS_CAPI_HEAT_STATE_BASE_LEN + &
+                   2_c_int * nlayer_c * ndepth_c + 2_c_int * int(nsurf, c_int) * ndepth_c + &
+                   14_c_int * nlayer_c + 3_c_int * int(nsurf, c_int)
+   else
+      n_expected = SUEWS_CAPI_HEAT_STATE_BASE_LEN
+   end if
+   if (n_flat<n_expected) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   surf_vec_len = 0_c_int
+   if (nlayer_c>0_c_int) surf_vec_len = int(nsurf, c_int)
+
+   idx = 1_c_int
+
+   call pack_mat_inline(s%temp_roof, flat, idx, nlayer_c, ndepth_c)
+   call pack_mat_inline(s%temp_wall, flat, idx, nlayer_c, ndepth_c)
+   call pack_mat_inline(s%temp_surf, flat, idx, int(nsurf, c_int), ndepth_c)
+   call pack_mat_inline(s%temp_surf_dyohm, flat, idx, int(nsurf, c_int), ndepth_c)
+
+   call pack_vec_inline(s%tsfc_roof, flat, idx, nlayer_c)
+   call pack_vec_inline(s%tsfc_wall, flat, idx, nlayer_c)
+   call pack_vec_inline(s%tsfc_surf, flat, idx, surf_vec_len)
+   call pack_vec_inline(s%tsfc_surf_dyohm, flat, idx, surf_vec_len)
+   call pack_vec_inline(s%tsfc_roof_stepstart, flat, idx, nlayer_c)
+   call pack_vec_inline(s%tsfc_wall_stepstart, flat, idx, nlayer_c)
+   call pack_vec_inline(s%tsfc_surf_stepstart, flat, idx, surf_vec_len)
+
+   call pack_vec_inline(s%qs_roof, flat, idx, nlayer_c)
+   call pack_vec_inline(s%qn_roof, flat, idx, nlayer_c)
+   call pack_vec_inline(s%qe_roof, flat, idx, nlayer_c)
+   call pack_vec_inline(s%qh_roof, flat, idx, nlayer_c)
+   call pack_vec_inline(s%qh_resist_roof, flat, idx, nlayer_c)
+
+   call pack_vec_inline(s%qs_wall, flat, idx, nlayer_c)
+   call pack_vec_inline(s%qn_wall, flat, idx, nlayer_c)
+   call pack_vec_inline(s%qe_wall, flat, idx, nlayer_c)
+   call pack_vec_inline(s%qh_wall, flat, idx, nlayer_c)
+   call pack_vec_inline(s%qh_resist_wall, flat, idx, nlayer_c)
+
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%qs_surf(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%qn_surf(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%qe0_surf(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%qe_surf(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%qh_surf(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%qh_resist_surf(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, int(nsurf, c_int)
+      flat(idx) = s%tsurf_ind(i); idx = idx + 1_c_int
+   end do
+
+   flat(idx) = s%qh_lumps; idx = idx + 1_c_int
+   flat(idx) = s%qe_lumps; idx = idx + 1_c_int
+   flat(idx) = s%kclear; idx = idx + 1_c_int
+   flat(idx) = s%kup; idx = idx + 1_c_int
+   flat(idx) = s%ldown; idx = idx + 1_c_int
+   flat(idx) = s%lup; idx = idx + 1_c_int
+   flat(idx) = s%qe; idx = idx + 1_c_int
+   flat(idx) = s%qf; idx = idx + 1_c_int
+   flat(idx) = s%qf_sahp; idx = idx + 1_c_int
+   flat(idx) = s%qh; idx = idx + 1_c_int
+   flat(idx) = s%qh_residual; idx = idx + 1_c_int
+   flat(idx) = s%qh_resist; idx = idx + 1_c_int
+   flat(idx) = s%qn; idx = idx + 1_c_int
+   flat(idx) = s%qn_snowfree; idx = idx + 1_c_int
+   flat(idx) = s%qs; idx = idx + 1_c_int
+   flat(idx) = s%tsfc_c; idx = idx + 1_c_int
+   flat(idx) = s%tsurf; idx = idx + 1_c_int
+   flat(idx) = s%qh_init; idx = idx + 1_c_int
+
+   do i = 1_c_int, 15_c_int
+      flat(idx) = s%roof_in_sw_spc(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, 15_c_int
+      flat(idx) = s%roof_in_lw_spc(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, 15_c_int
+      flat(idx) = s%wall_in_sw_spc(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, 15_c_int
+      flat(idx) = s%wall_in_lw_spc(i); idx = idx + 1_c_int
+   end do
+
+   flat(idx) = merge(1.0_c_double, 0.0_c_double, s%iter_safe)
+
+   err = SUEWS_CAPI_OK
+end subroutine pack_heat_state
+
+subroutine pack_roughness_state(s, flat, n_flat, err)
+   implicit none
+   type(ROUGHNESS_STATE), intent(in) :: s
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
+
+   if (n_flat<SUEWS_CAPI_ROUGHNESS_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   flat(1) = s%faibldg_use
+   flat(2) = s%faievetree_use
+   flat(3) = s%faidectree_use
+   flat(4) = s%fai
+   flat(5) = s%pai
+   flat(6) = s%zh
+   flat(7) = s%z0m
+   flat(8) = s%z0v
+   flat(9) = s%zdm
+   flat(10) = s%zzd
+   flat(11) = merge(1.0_c_double, 0.0_c_double, s%iter_safe)
+
+   err = SUEWS_CAPI_OK
+end subroutine pack_roughness_state
+
+subroutine pack_stebbs_state(s, flat, n_flat, err)
+   implicit none
+   type(STEBBS_STATE), intent(in) :: s
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
+   integer(c_int) :: idx
+   integer(c_int) :: i
+   integer(c_int) :: bldg_count
+
+   if (n_flat<SUEWS_CAPI_STEBBS_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   idx = 1_c_int
+
+   flat(idx) = s%kdown2d; idx = idx + 1_c_int
+   flat(idx) = s%kup2d; idx = idx + 1_c_int
+   flat(idx) = s%kwest; idx = idx + 1_c_int
+   flat(idx) = s%ksouth; idx = idx + 1_c_int
+   flat(idx) = s%knorth; idx = idx + 1_c_int
+   flat(idx) = s%keast; idx = idx + 1_c_int
+   flat(idx) = s%ldown2d; idx = idx + 1_c_int
+   flat(idx) = s%lup2d; idx = idx + 1_c_int
+   flat(idx) = s%lwest; idx = idx + 1_c_int
+   flat(idx) = s%lsouth; idx = idx + 1_c_int
+   flat(idx) = s%lnorth; idx = idx + 1_c_int
+   flat(idx) = s%least; idx = idx + 1_c_int
+
+   do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
+      flat(idx) = s%zarray(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
+      flat(idx) = s%dataoutlineursl(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
+      flat(idx) = s%dataoutlinetrsl(i); idx = idx + 1_c_int
+   end do
+   do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
+      flat(idx) = s%dataoutlineqrsl(i); idx = idx + 1_c_int
+   end do
+
+   flat(idx) = s%deepsoiltemperature; idx = idx + 1_c_int
+   flat(idx) = s%outdoorairstarttemperature; idx = idx + 1_c_int
+   flat(idx) = s%indoorairstarttemperature; idx = idx + 1_c_int
+   flat(idx) = s%indoormassstarttemperature; idx = idx + 1_c_int
+   flat(idx) = s%wallindoorsurfacetemperature; idx = idx + 1_c_int
+   flat(idx) = s%walloutdoorsurfacetemperature; idx = idx + 1_c_int
+   flat(idx) = s%roofindoorsurfacetemperature; idx = idx + 1_c_int
+   flat(idx) = s%roofoutdoorsurfacetemperature; idx = idx + 1_c_int
+   flat(idx) = s%windowindoorsurfacetemperature; idx = idx + 1_c_int
+   flat(idx) = s%windowoutdoorsurfacetemperature; idx = idx + 1_c_int
+   flat(idx) = s%groundfloorindoorsurfacetemperature; idx = idx + 1_c_int
+   flat(idx) = s%groundflooroutdoorsurfacetemperature; idx = idx + 1_c_int
+   flat(idx) = s%watertanktemperature; idx = idx + 1_c_int
+   flat(idx) = s%internalwallwatertanktemperature; idx = idx + 1_c_int
+   flat(idx) = s%externalwallwatertanktemperature; idx = idx + 1_c_int
+   flat(idx) = s%mainswatertemperature; idx = idx + 1_c_int
+   flat(idx) = s%domestichotwatertemperatureinuseinbuilding; idx = idx + 1_c_int
+   flat(idx) = s%internalwalldhwvesseltemperature; idx = idx + 1_c_int
+   flat(idx) = s%externalwalldhwvesseltemperature; idx = idx + 1_c_int
+   flat(idx) = s%qs_stebbs; idx = idx + 1_c_int
+
+   bldg_count = 0_c_int
+   if (allocated(s%buildings)) bldg_count = int(size(s%buildings), c_int)
+   flat(idx) = real(bldg_count, c_double); idx = idx + 1_c_int
+
+   flat(idx) = merge(1.0_c_double, 0.0_c_double, s%iter_safe)
+
+   err = SUEWS_CAPI_OK
+end subroutine pack_stebbs_state
+
+subroutine pack_nhood_state(s, flat, n_flat, err)
+   implicit none
+   type(NHOOD_STATE), intent(in) :: s
+   real(c_double), intent(out) :: flat(*)
+   integer(c_int), intent(in) :: n_flat
+   integer(c_int), intent(out) :: err
+
+   if (n_flat<SUEWS_CAPI_NHOOD_STATE_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   flat(1) = s%u_hbh_1dravg
+   flat(2) = s%qn_1dravg
+   flat(3) = s%tair_mn_prev
+   flat(4) = s%iter_count
+   flat(5) = merge(1.0_c_double, 0.0_c_double, s%iter_safe)
+
+   err = SUEWS_CAPI_OK
+end subroutine pack_nhood_state
 
 end module module_c_api_driver
 

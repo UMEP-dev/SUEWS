@@ -7,8 +7,11 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+import json as _json
+
 import yaml
 
+from ._env import logger_supy
 from ._post import gen_index
 
 if TYPE_CHECKING:
@@ -109,8 +112,12 @@ def run_suews_rust(
     config: "SUEWSConfig",
     df_forcing: pd.DataFrame,
     grid_id: int = 1,
-) -> tuple[pd.DataFrame, None]:
-    """Run SUEWS via Rust bridge library."""
+) -> tuple[pd.DataFrame, str | None]:
+    """Run SUEWS via Rust bridge library.
+
+    Returns ``(df_output, state_json)`` where *state_json* is a JSON string
+    encoding the post-simulation state (or ``None`` if unavailable).
+    """
     _check_rust_available()
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
@@ -124,7 +131,7 @@ def run_suews_rust(
     forcing_block = _prepare_forcing_block(df_forcing)
     forcing_flat = forcing_block.ravel(order="C").tolist()
 
-    output_flat, len_sim = rust_module.run_suews(
+    output_flat, state_json, len_sim = rust_module.run_suews(
         config_yaml,
         forcing_flat,
         len(df_forcing),
@@ -155,4 +162,59 @@ def run_suews_rust(
         [[_normalise_grid_id(grid_id)], datetime_index],
         names=["grid", "datetime"],
     )
-    return df_output, None
+    return df_output, state_json
+
+
+def run_suews_rust_multi(
+    config: "SUEWSConfig",
+    df_forcing: pd.DataFrame,
+) -> tuple[pd.DataFrame, dict[int, str] | None]:
+    """Run SUEWS via Rust bridge for all sites in configuration.
+
+    Iterates over ``config.sites``, creates a single-site config copy for
+    each, calls :func:`run_suews_rust`, and concatenates the results into a
+    single DataFrame with a ``(grid, datetime)`` MultiIndex.
+
+    Returns ``(df_output, dict_state_json)`` where *dict_state_json* maps
+    each grid ID to its post-simulation state JSON string.
+    """
+    sites = config.sites
+
+    # Validate unique grid IDs
+    list_gridiv = [s.gridiv for s in sites]
+    list_dupes = [g for g in list_gridiv if list_gridiv.count(g) > 1]
+    if list_dupes:
+        raise ValueError(
+            f"Duplicate gridiv values in config.sites: {set(list_dupes)}"
+        )
+
+    list_df_output = []
+    dict_state_json: dict[int, str] = {}
+
+    for idx, site in enumerate(sites):
+        grid_id = _normalise_grid_id(site.gridiv)
+        logger_supy.debug(
+            "Rust backend: running site %d/%d (gridiv=%d)",
+            idx + 1,
+            len(sites),
+            grid_id,
+        )
+
+        # Create a single-site config copy so the Rust bridge (which
+        # always reads sites[0]) processes the correct site.
+        config_single = config.model_copy(deep=True)
+        config_single.sites = [site.model_copy(deep=True)]
+
+        df_output, state_json = run_suews_rust(
+            config=config_single,
+            df_forcing=df_forcing,
+            grid_id=grid_id,
+        )
+        list_df_output.append(df_output)
+        if state_json is not None:
+            dict_state_json[grid_id] = state_json
+
+    # Concatenate all grids -- each df already has (grid, datetime) index
+    df_output_all = pd.concat(list_df_output).sort_index()
+
+    return df_output_all, dict_state_json or None

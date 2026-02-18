@@ -4056,9 +4056,13 @@ mod python_bindings {
         config_yaml: &str,
         forcing_block: Vec<f64>,
         len_sim: usize,
-    ) -> PyResult<(Vec<f64>, usize)> {
-        run_from_config_str_and_forcing(config_yaml, forcing_block, len_sim)
-            .map_err(map_bridge_error)
+    ) -> PyResult<(Vec<f64>, String, usize)> {
+        let (output_block, state, actual_len) =
+            run_from_config_str_and_forcing(config_yaml, forcing_block, len_sim)
+                .map_err(map_bridge_error)?;
+        let state_json = serde_json::to_string(&suews_state_to_nested_payload(&state))
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        Ok((output_block, state_json, actual_len))
     }
 
     #[pyfunction(name = "ohm_state_schema")]

@@ -14,7 +14,7 @@ import pandas as pd
 
 from ._check import check_forcing
 from ._env import logger_supy
-from ._run_rust import _check_rust_available, run_suews_rust
+from ._run_rust import _check_rust_available, run_suews_rust_multi
 from ._run import run_supy_ser
 
 # Import SuPy components directly
@@ -595,13 +595,9 @@ class SUEWSSimulation:
                 "initial_states"
             )
         elif backend == "rust":
-            grid_id = self._config.sites[0].gridiv
-            if hasattr(grid_id, "value"):
-                grid_id = grid_id.value
-            df_output, _ = run_suews_rust(
+            df_output, _ = run_suews_rust_multi(
                 config=self._config,
                 df_forcing=df_forcing_slice,
-                grid_id=int(grid_id),
             )
             self._df_output = df_output
             self._df_state_final = None

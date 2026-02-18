@@ -35,6 +35,10 @@ def extract_suews_group(
     ValueError
         If required columns are missing from the extracted DataFrame
     """
+    # Unwrap SUEWSOutput to underlying DataFrame
+    if hasattr(df_output, "_df_output"):
+        df_output = df_output._df_output
+
     # Check if MultiIndex columns
     if isinstance(df_output.columns, pd.MultiIndex):
         # Try to get SUEWS group
@@ -64,3 +68,10 @@ def extract_suews_group(
             )
 
     return df
+
+
+def unwrap_forcing(df_forcing: pd.DataFrame) -> pd.DataFrame:
+    """Unwrap SUEWSForcing to underlying DataFrame if needed."""
+    if hasattr(df_forcing, "_data"):
+        return df_forcing._data
+    return df_forcing

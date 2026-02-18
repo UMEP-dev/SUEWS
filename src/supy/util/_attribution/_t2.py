@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 from ._core import shapley_triple_product
-from ._helpers import extract_suews_group
+from ._helpers import extract_suews_group, unwrap_forcing
 from ._physics import cal_gamma_heat, cal_r_eff_heat, decompose_flux_budget
 from ._result import AttributionResult
 
@@ -74,6 +74,10 @@ def attribute_t2(
 
     >>> result.plot(kind="bar")  # Visualise contributions
     """
+    # Unwrap OOP wrappers to raw DataFrames
+    df_forcing_A = unwrap_forcing(df_forcing_A)
+    df_forcing_B = unwrap_forcing(df_forcing_B)
+
     # Extract SUEWS output group with column validation
     required_cols = {"T2", "QH"}
     df_A = extract_suews_group(df_output_A, required_cols=required_cols)
@@ -251,6 +255,9 @@ def diagnose_t2(
 
     >>> result.plot()  # Visualise decomposition
     """
+    # Unwrap OOP wrappers to raw DataFrames
+    df_forcing = unwrap_forcing(df_forcing)
+
     # Extract SUEWS output
     df = extract_suews_group(df_output)
     t2 = df["T2"]

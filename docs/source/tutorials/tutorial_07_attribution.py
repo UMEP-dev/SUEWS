@@ -181,16 +181,9 @@ print("Both scenarios simulated successfully")
 # This tells us *what* changed but not *why*.
 
 
-def get_t2(df_output):
-    """Extract T2 series from run output.
-
-    Handles both MultiIndex (grid, datetime) and flat column formats
-    produced by :meth:`~supy.SUEWSSimulation.run`.
-    """
-    if isinstance(df_output.columns, pd.MultiIndex):
-        grid = df_output.index.get_level_values(0)[0]
-        return df_output.loc[grid, "SUEWS"]["T2"]
-    return df_output["T2"]
+def get_t2(output):
+    """Extract T2 series from SUEWSOutput."""
+    return output.get_variable("T2", group="SUEWS").iloc[:, 0]
 
 
 t2_baseline = get_t2(df_output_baseline)

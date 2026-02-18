@@ -110,7 +110,7 @@ dev:
 		uv pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran for macOS compatibility"; \
-			bash -c 'FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=false"'; \
+			bash -c 'PATH="$$HOME/.cargo/bin:$$PATH" FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=false"'; \
 		else \
 			uv pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=false"; \
 		fi \
@@ -181,7 +181,7 @@ dev-dts:
 		uv pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran for macOS compatibility"; \
-			bash -c 'FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=true"'; \
+			bash -c 'PATH="$$HOME/.cargo/bin:$$PATH" FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=true"'; \
 		else \
 			uv pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=true"; \
 		fi \

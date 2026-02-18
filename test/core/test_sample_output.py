@@ -759,6 +759,9 @@ class TestSampleOutput(TestCase):
 
         Skipped if the Rust binary has not been built.
         """
+        import pyarrow.ipc as ipc
+        import yaml
+
         print("\n" + "=" * 70)
         print("Rust Bridge Sample Output Validation Test")
         print("=" * 70)
@@ -772,15 +775,40 @@ class TestSampleOutput(TestCase):
                 "build with: cd src/suews_bridge && cargo build --release"
             )
 
-        # Locate the sample YAML config
-        sample_config = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+        # Locate the sample YAML config and its directory
+        sample_dir = Path(sp.__file__).parent / "sample_data"
+        sample_config = sample_dir / "sample_config.yml"
         assert sample_config.exists(), f"Sample config not found: {sample_config}"
 
-        # Run the Rust CLI
-        print(f"\nRunning Rust CLI: {rust_binary.name} run {sample_config.name}")
+        # Load reference first to get SUEWS variable names
+        print("Loading reference output...")
+        df_ref = pd.read_csv(
+            p_df_sample, compression="gzip", index_col=[0, 1], parse_dates=[1]
+        )
+        print(f"Reference: {df_ref.shape[0]} rows x {df_ref.shape[1]} columns")
+
+        # Run the Rust CLI with a temporary config pointing output to tmpdir
+        print(f"\nRunning Rust CLI: {rust_binary.name} run (Arrow output)")
         with tempfile.TemporaryDirectory() as tmpdir:
+            # Copy config to tmpdir and modify output_file.path
+            with open(sample_config) as f:
+                cfg = yaml.safe_load(f)
+            cfg["model"]["control"]["output_file"]["path"] = tmpdir
+            tmp_config = Path(tmpdir) / "sample_config.yml"
+            with open(tmp_config, "w") as f:
+                yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
+
+            # Symlink the forcing file so the CLI can find it
+            forcing_name = cfg["model"]["control"]["forcing_file"]
+            if isinstance(forcing_name, dict):
+                forcing_name = forcing_name["value"]
+            forcing_src = sample_dir / forcing_name
+            forcing_dst = Path(tmpdir) / forcing_name
+            if forcing_src.exists() and not forcing_dst.exists():
+                os.symlink(forcing_src, forcing_dst)
+
             result = subprocess.run(
-                [str(rust_binary), "run", str(sample_config), "--output-dir", tmpdir],
+                [str(rust_binary), "run", str(tmp_config)],
                 capture_output=True,
                 text=True,
                 timeout=120,
@@ -792,19 +820,18 @@ class TestSampleOutput(TestCase):
                     f"stderr: {result.stderr[:500]}"
                 )
 
-            # Load Rust output
-            rust_output_path = Path(tmpdir) / "suews_output.csv"
-            assert rust_output_path.exists(), "Rust CLI did not produce suews_output.csv"
-            df_rust = pd.read_csv(rust_output_path)
+            # Load Rust Arrow output (all 1134 columns across 11 groups)
+            rust_output_path = Path(tmpdir) / "suews_output.arrow"
+            assert rust_output_path.exists(), "Rust CLI did not produce suews_output.arrow"
+            reader = ipc.open_file(rust_output_path)
+            table = reader.read_all()
+            df_rust_all = table.to_pandas()
+
+        # SUEWS group uses proper variable names (Kdown, Kup, QN, etc.)
+        # directly in the Arrow file — just use df_rust_all as-is
+        df_rust = df_rust_all
 
         print(f"Rust output: {df_rust.shape[0]} rows x {df_rust.shape[1]} columns")
-
-        # Load reference (same method as test_sample_output_validation)
-        print("Loading reference output...")
-        df_ref = pd.read_csv(
-            p_df_sample, compression="gzip", index_col=[0, 1], parse_dates=[1]
-        )
-        print(f"Reference: {df_ref.shape[0]} rows x {df_ref.shape[1]} columns")
 
         # Verify row count alignment
         n_rust = len(df_rust)

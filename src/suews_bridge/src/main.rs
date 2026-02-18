@@ -119,10 +119,9 @@ use suews_bridge::{
     water_dist_prm_schema_version, water_dist_prm_schema_version_runtime, water_dist_prm_to_map,
     water_dist_prm_to_values_payload, OhmModel, OhmStateValuesPayload, OHM_STATE_FLAT_LEN,
 };
-#[cfg(feature = "physics")]
+#[cfg(all(feature = "physics", feature = "arrow-output"))]
 use suews_bridge::{
     interpolate_forcing, load_run_config, read_forcing_block, run_from_config_str_and_forcing,
-    write_output_csv,
 };
 
 fn parse_state_map_json(text: &str) -> Result<std::collections::BTreeMap<String, f64>, String> {
@@ -242,17 +241,11 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    #[cfg(feature = "physics")]
+    #[cfg(all(feature = "physics", feature = "arrow-output"))]
     /// Run SUEWS batch simulation from YAML config.
     Run {
         /// Path to config YAML.
         config: String,
-        /// Output directory for simulation results.
-        #[arg(long, default_value = "./output")]
-        output_dir: String,
-        /// Output format: csv or arrow (requires arrow-output feature).
-        #[arg(long, default_value = "csv")]
-        format: String,
     },
     /// Inspect bridge type schemas and defaults.
     Schema {
@@ -667,17 +660,11 @@ enum FlatCommand {
         #[arg(long, value_delimiter = ',')]
         qn: Vec<f64>,
     },
-    #[cfg(feature = "physics")]
+    #[cfg(all(feature = "physics", feature = "arrow-output"))]
     /// Run SUEWS batch simulation from YAML config.
     Run {
         /// Path to config YAML.
         config: String,
-        /// Output directory for simulation results.
-        #[arg(long, default_value = "./output")]
-        output_dir: String,
-        /// Output format: csv or arrow (requires arrow-output feature).
-        #[arg(long, default_value = "csv")]
-        format: String,
     },
     /// Step the Fortran OHM_STATE bridge payload once.
     StateStep {
@@ -1020,20 +1007,8 @@ fn main() {
     std::process::exit(code);
 }
 
-#[cfg(feature = "physics")]
-fn run_physics_command(config_path: &str, output_dir: &str, format: &str) -> Result<(), String> {
-    let supported = if cfg!(feature = "arrow-output") {
-        vec!["csv", "arrow"]
-    } else {
-        vec!["csv"]
-    };
-    if !supported.iter().any(|s| format.eq_ignore_ascii_case(s)) {
-        return Err(format!(
-            "unsupported output format `{format}`; supported: {}",
-            supported.join(", ")
-        ));
-    }
-
+#[cfg(all(feature = "physics", feature = "arrow-output"))]
+fn run_physics_command(config_path: &str) -> Result<(), String> {
     let config_path = std::path::PathBuf::from(config_path);
     let config_yaml = fs::read_to_string(&config_path)
         .map_err(|e| format!("failed to read config {}: {e}", config_path.display()))?;
@@ -1045,20 +1020,7 @@ fn run_physics_command(config_path: &str, output_dir: &str, format: &str) -> Res
         run_from_config_str_and_forcing(&config_yaml, forcing.block, forcing.len_sim)
             .map_err(|e| e.to_string())?;
 
-    let output_path = if format.eq_ignore_ascii_case("csv") {
-        write_output_csv(std::path::Path::new(output_dir), &output_block, len_sim)?
-    } else {
-        #[cfg(feature = "arrow-output")]
-        {
-            write_output_arrow(std::path::Path::new(output_dir), &output_block, len_sim)?
-        }
-        #[cfg(not(feature = "arrow-output"))]
-        {
-            return Err(format!(
-                "output format `{format}` requires the `arrow-output` feature"
-            ));
-        }
-    };
+    let output_path = write_output_arrow(&run_cfg.output_dir, &output_block, len_sim)?;
 
     println!("simulation complete");
     println!("timesteps_processed={}", len_sim);
@@ -1253,13 +1215,9 @@ fn run_schema(schema_type: SchemaType) -> Result<(), String> {
 
 fn run(cli: Cli) -> Result<(), String> {
     match cli.command {
-        #[cfg(feature = "physics")]
-        Commands::Run {
-            config,
-            output_dir,
-            format,
-        } => {
-            run_physics_command(&config, &output_dir, &format)?;
+        #[cfg(all(feature = "physics", feature = "arrow-output"))]
+        Commands::Run { config } => {
+            run_physics_command(&config)?;
         }
         Commands::Schema { command } => run_schema(command)?,
     }
@@ -1362,13 +1320,9 @@ fn run_flat(command: FlatCommand) -> Result<(), String> {
                 );
             }
         }
-        #[cfg(feature = "physics")]
-        FlatCommand::Run {
-            config,
-            output_dir,
-            format,
-        } => {
-            run_physics_command(&config, &output_dir, &format)?;
+        #[cfg(all(feature = "physics", feature = "arrow-output"))]
+        FlatCommand::Run { config } => {
+            run_physics_command(&config)?;
         }
         FlatCommand::StateStep {
             dt,

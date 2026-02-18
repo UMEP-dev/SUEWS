@@ -1,25 +1,19 @@
-use crate::sim::{OUTPUT_ALL_COLS, OUTPUT_SUEWS_COLS};
+use crate::sim::{OUTPUT_ALL_COLS, OUTPUT_GROUP_LAYOUT, OUTPUT_SUEWS_COLS};
+use std::collections::HashMap;
 use std::fs::{self, File};
-use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
-#[cfg(feature = "arrow-output")]
 use arrow::array::Float64Array;
-#[cfg(feature = "arrow-output")]
 use arrow::datatypes::{DataType, Field, Schema};
-#[cfg(feature = "arrow-output")]
 use arrow::ipc::writer::FileWriter;
-#[cfg(feature = "arrow-output")]
 use arrow::record_batch::RecordBatch;
 
 /// 118 SUEWS output column names, positionally mapped 1:1 to the Fortran
 /// output block `dataOutBlockSUEWS(ir, 1:118)`.
 ///
 /// Structure: 5 time columns + 113 physics columns.
-/// The time columns are prepended by the Fortran driver via `datetimeLine`.
-/// Physics columns sourced from: src/supy/data_model/output/suews_vars.py
 const SUEWS_OUTPUT_NAMES: [&str; 118] = [
-    // Time columns (0-4) — from Fortran datetimeLine
+    // Time columns (0-4)
     "iy", "id", "it", "imin", "dectime",
     // Radiation (5-9)
     "Kdown", "Kup", "Ldown", "Lup", "Tsurf",
@@ -59,81 +53,58 @@ const SUEWS_OUTPUT_NAMES: [&str; 118] = [
     "QS_Paved", "QS_Bldgs", "QS_EveTr", "QS_DecTr", "QS_Grass", "QS_BSoil", "QS_Water",
 ];
 
-fn suews_output_headers() -> Vec<String> {
-    SUEWS_OUTPUT_NAMES.iter().map(|s| s.to_string()).collect()
-}
-
-pub fn write_output_csv(
-    output_dir: &Path,
-    output_block: &[f64],
-    len_sim: usize,
-) -> Result<PathBuf, String> {
-    // The output buffer now contains all 11 groups (OUTPUT_ALL_COLS per row).
-    // The CLI CSV writer extracts only the SUEWS group (first 118 columns).
-    let expected_len = len_sim
-        .checked_mul(OUTPUT_ALL_COLS)
-        .ok_or_else(|| "output length overflow".to_string())?;
-
-    if output_block.len() != expected_len {
-        return Err(format!(
-            "output block length mismatch: got {}, expected {}",
-            output_block.len(),
-            expected_len
-        ));
-    }
-
-    fs::create_dir_all(output_dir).map_err(|e| {
-        format!(
-            "failed to create output directory {}: {e}",
-            output_dir.display()
-        )
-    })?;
-
-    let out_path = output_dir.join("suews_output.csv");
-    let file = File::create(&out_path)
-        .map_err(|e| format!("failed to create {}: {e}", out_path.display()))?;
-    let mut writer = BufWriter::new(file);
-
-    let headers = suews_output_headers();
-    if headers.len() != OUTPUT_SUEWS_COLS {
-        return Err(format!(
-            "unexpected SUEWS output header count: got {}, expected {}",
-            headers.len(),
-            OUTPUT_SUEWS_COLS
-        ));
-    }
-
-    writeln!(writer, "{}", headers.join(","))
-        .map_err(|e| format!("failed to write CSV header: {e}"))?;
-
-    for row_idx in 0..len_sim {
-        // Each row is OUTPUT_ALL_COLS wide; SUEWS is the first group.
-        let base = row_idx * OUTPUT_ALL_COLS;
-        let mut row = String::new();
-        for col_idx in 0..OUTPUT_SUEWS_COLS {
-            if col_idx > 0 {
-                row.push(',');
+/// Build column names for the full 1134-column flat buffer.
+///
+/// The SUEWS group uses proper variable names from [`SUEWS_OUTPUT_NAMES`].
+/// Other groups use `{group}_{idx}` where `idx` is zero-based.
+fn build_all_column_names() -> Vec<String> {
+    let mut names = Vec::with_capacity(OUTPUT_ALL_COLS);
+    let mut is_suews = true;
+    for &(group, ncols) in OUTPUT_GROUP_LAYOUT {
+        if is_suews {
+            // SUEWS group: use proper variable names
+            debug_assert_eq!(ncols, OUTPUT_SUEWS_COLS);
+            for name in &SUEWS_OUTPUT_NAMES {
+                names.push(name.to_string());
             }
-            row.push_str(&format!("{:.10}", output_block[base + col_idx]));
+            is_suews = false;
+        } else {
+            // Other groups: {group}_{idx}
+            for idx in 0..ncols {
+                names.push(format!("{group}_{idx}"));
+            }
         }
-        writeln!(writer, "{row}")
-            .map_err(|e| format!("failed to write CSV row {}: {e}", row_idx + 1))?;
     }
-
-    writer
-        .flush()
-        .map_err(|e| format!("failed to flush CSV output: {e}"))?;
-
-    Ok(out_path)
+    names
 }
 
-#[cfg(feature = "arrow-output")]
+/// Build Arrow schema metadata encoding the group layout.
+///
+/// Stored as `group_layout` key with value
+/// `"SUEWS:118,snow:103,BEERS:34,..."` so downstream consumers
+/// can split the flat column space into groups.
+fn group_layout_metadata() -> HashMap<String, String> {
+    let layout_str: String = OUTPUT_GROUP_LAYOUT
+        .iter()
+        .map(|&(name, ncols)| format!("{name}:{ncols}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    let mut meta = HashMap::new();
+    meta.insert("group_layout".to_string(), layout_str);
+    meta
+}
+
+/// Write all 11 output groups to a single Arrow IPC file.
+///
+/// The flat buffer has `len_sim` rows of `OUTPUT_ALL_COLS` columns.
+/// SUEWS columns use proper variable names; other groups use
+/// `{group}_{idx}` naming.  The group layout is stored as Arrow
+/// schema metadata.
 pub fn write_output_arrow(
     output_dir: &Path,
     output_block: &[f64],
     len_sim: usize,
 ) -> Result<PathBuf, String> {
-    // Buffer is OUTPUT_ALL_COLS wide; extract SUEWS group (first 118 cols).
     let expected_len = len_sim
         .checked_mul(OUTPUT_ALL_COLS)
         .ok_or_else(|| "output length overflow".to_string())?;
@@ -153,23 +124,24 @@ pub fn write_output_arrow(
         )
     })?;
 
-    // Transpose row-major output_block into column vectors (SUEWS group only).
-    let mut columns: Vec<Vec<f64>> = vec![Vec::with_capacity(len_sim); OUTPUT_SUEWS_COLS];
+    // Transpose row-major buffer into column vectors.
+    let mut columns: Vec<Vec<f64>> = vec![Vec::with_capacity(len_sim); OUTPUT_ALL_COLS];
     for row_idx in 0..len_sim {
         let base = row_idx * OUTPUT_ALL_COLS;
-        for col_idx in 0..OUTPUT_SUEWS_COLS {
+        for col_idx in 0..OUTPUT_ALL_COLS {
             columns[col_idx].push(output_block[base + col_idx]);
         }
     }
 
-    // Build Arrow schema from column names.
-    let fields: Vec<Field> = SUEWS_OUTPUT_NAMES
+    // Build schema with column names and layout metadata.
+    let col_names = build_all_column_names();
+    let fields: Vec<Field> = col_names
         .iter()
-        .map(|name| Field::new(*name, DataType::Float64, false))
+        .map(|name| Field::new(name, DataType::Float64, false))
         .collect();
-    let schema = Schema::new(fields);
+    let schema = Schema::new_with_metadata(fields, group_layout_metadata());
 
-    // Build Arrow arrays (zero-copy from Vec<f64>).
+    // Build Arrow arrays.
     let arrays: Vec<std::sync::Arc<dyn arrow::array::Array>> = columns
         .into_iter()
         .map(|col| std::sync::Arc::new(Float64Array::from(col)) as _)

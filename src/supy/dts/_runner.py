@@ -263,9 +263,21 @@ def _run_dts_single_chunk(
     len_sim = len(df_forcing)
     metforcingblock = _prepare_forcing_block(df_forcing)
 
-    # Prepare output array
-    ncols_out = int(alloc.ncolumnsdataoutsuews)
-    dataoutblock = np.zeros((len_sim, ncols_out), dtype=np.float64, order="F")
+    # Prepare output array — all 11 output groups concatenated
+    ncols_all = (
+        int(alloc.ncolumnsdataoutsuews)
+        + int(alloc.ncolumnsdataoutsnow)
+        + int(alloc.ncolumnsdataoutbeers)
+        + int(alloc.ncolumnsdataoutestm)
+        + int(alloc.ncolumnsdataoutehc)
+        + int(alloc.ncolumnsdataoutdailystate)
+        + int(alloc.ncolumnsdataoutrsl)
+        + int(alloc.ncolumnsdataoutdebug)
+        + int(alloc.ncolumnsdataoutspartacus)
+        + int(alloc.ncolumnsdataoutstebbs)
+        + int(alloc.ncolumnsdataoutnhood)
+    )
+    dataoutblockall = np.zeros((len_sim, ncols_all), dtype=np.float64, order="F")
 
     # Initialize timer with first timestep info
     dt_start = df_forcing.index[0]
@@ -287,10 +299,15 @@ def _run_dts_single_chunk(
         config_dts,
         site_dts,
         state_dts,
-        dataoutblock,
+        dataoutblockall,
+        ncols_all,
     )
 
-    # Build output DataFrame from result block
+    # Extract SUEWS group (first ncolumnsdataoutsuews columns) for output
+    ncols_suews = int(alloc.ncolumnsdataoutsuews)
+    dataoutblock = dataoutblockall[:, :ncols_suews]
+
+    # Build output DataFrame from SUEWS result block
     grid_id = site.gridiv
     df_output = build_output_dataframe_from_block(
         dataoutblock,

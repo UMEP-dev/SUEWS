@@ -34,7 +34,7 @@ mod nhood;
 mod ohm_coef_lc;
 mod ohm_prm;
 mod output_block;
-#[cfg(feature = "physics")]
+#[cfg(all(feature = "physics", feature = "arrow-output"))]
 mod output_io;
 mod output_line;
 mod phenology;
@@ -94,7 +94,7 @@ pub use nhood::*;
 pub use ohm_coef_lc::*;
 pub use ohm_prm::*;
 pub use output_block::*;
-#[cfg(feature = "physics")]
+#[cfg(all(feature = "physics", feature = "arrow-output"))]
 pub use output_io::*;
 pub use output_line::*;
 pub use phenology::*;

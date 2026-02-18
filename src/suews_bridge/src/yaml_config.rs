@@ -16,6 +16,7 @@ pub struct RunConfig {
     pub site_scalars: SiteScalars,
     pub state: SuewsState,
     pub forcing_path: PathBuf,
+    pub output_dir: PathBuf,
     pub nlayer: i32,
     pub ndepth: i32,
 }
@@ -1417,6 +1418,10 @@ pub fn load_run_config_from_value(root: &Value) -> Result<RunConfig, String> {
 
     apply_state_overrides(&mut state, site_root);
 
+    let output_dir = read_string(root, &["model", "control", "output_file", "path"])
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("./output"));
+
     Ok(RunConfig {
         timer,
         config,
@@ -1424,6 +1429,7 @@ pub fn load_run_config_from_value(root: &Value) -> Result<RunConfig, String> {
         site_scalars,
         state,
         forcing_path: read_forcing_rel(root).map(PathBuf::from).unwrap_or_default(),
+        output_dir,
         nlayer,
         ndepth,
     })
@@ -1440,6 +1446,10 @@ pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
         read_forcing_rel(&root).ok_or_else(|| "`model.control.forcing_file` is missing".to_string())?;
     let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
     run_cfg.forcing_path = base_dir.join(forcing_rel);
+    // Resolve output_dir relative to config file location
+    if run_cfg.output_dir.is_relative() {
+        run_cfg.output_dir = base_dir.join(&run_cfg.output_dir);
+    }
 
     if !run_cfg.forcing_path.exists() {
         return Err(format!(

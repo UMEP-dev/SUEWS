@@ -114,16 +114,19 @@ def _init_dts_check():
     -----
     Result is cached after first call since DTS availability
     does not change during a session.
+
+    The check probes the C extension (``_supy_driver``) directly for a
+    nested-type accessor that only exists when the full set of type
+    definition files was wrapped (``wrap_dts_types=true``).  The Python
+    wrapper (``supy_driver``) defines stub classes for these types even
+    in fast builds, so checking the wrapper gives false positives.
     """
     try:
-        from . import supy_driver as _supy_driver
+        from . import _supy_driver
 
-        # Check if DTS type classes exist (only present in full build with wrap_dts_types=true)
-        # The module_type_heat module exists in both builds, but the HEAT_STATE class
-        # is only generated when DTS type wrappers are enabled
-        return hasattr(_supy_driver, "module_type_heat") and hasattr(
-            _supy_driver.module_type_heat, "HEAT_STATE"
-        )
+        # f90wrap_suews_site__get__ehc is generated only when
+        # suews_type_ehc.f95 is included in the wrap list (full build).
+        return hasattr(_supy_driver, "f90wrap_suews_site__get__ehc")
     except ImportError:
         return False
     except Exception as exc:

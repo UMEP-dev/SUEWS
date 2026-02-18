@@ -55,7 +55,7 @@ EXAMPLES:
 
 ### 18 Feb 2026
 
-- [feature][experimental] Add attribution module for diagnosing T2, q2, and U10 changes by decomposing model output into physical process contributions, with diurnal cycle and heatmap visualisation helpers (PR #918)
+- [feature] Add attribution module for diagnosing T2, q2, and U10 changes by decomposing model output into physical process contributions, with diurnal cycle and heatmap visualisation helpers (PR #918)
 
 ### 13 Feb 2026
 

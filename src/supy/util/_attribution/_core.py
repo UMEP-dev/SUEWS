@@ -89,6 +89,10 @@ def shapley_binary_product(
     -------
     Phi_x, Phi_y : array-like
         Shapley value contributions from each factor
+
+    Notes
+    -----
+    This helper is retained for binary-product diagnostics and direct tests.
     """
     dx = x_B - x_A
     dy = y_B - y_A

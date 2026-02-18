@@ -133,6 +133,33 @@ def align_scenarios(
     return df_A.loc[common_idx], df_B.loc[common_idx], common_idx
 
 
+def _group_means(
+    df_A: pd.DataFrame,
+    df_B: pd.DataFrame,
+    columns: list[str],
+) -> dict[str, tuple[np.ndarray, np.ndarray]]:
+    """
+    Extract group means as 1-element arrays for Shapley inputs.
+
+    Parameters
+    ----------
+    df_A, df_B : pd.DataFrame
+        DataFrames representing state/group A and B.
+    columns : list of str
+        Column names to average in both groups.
+
+    Returns
+    -------
+    dict
+        Mapping of column name to (A_mean, B_mean) tuple, where each
+        mean is a shape-(1,) numpy array.
+    """
+    return {
+        col: (np.array([df_A[col].mean()]), np.array([df_B[col].mean()]))
+        for col in columns
+    }
+
+
 def detect_anomalies(
     series: pd.Series,
     method: Literal["anomaly", "extreme", "diurnal"],

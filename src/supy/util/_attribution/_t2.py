@@ -15,10 +15,32 @@ from ._helpers import (
     align_scenarios,
     detect_anomalies,
     extract_suews_group,
+    _group_means,
     unwrap_forcing,
 )
 from ._physics import cal_gamma_heat, cal_r_eff_heat, decompose_flux_budget
 from ._result import AttributionResult
+
+
+def _extract_flux_components(
+    df: pd.DataFrame,
+    flux_like: np.ndarray,
+    aggregate: bool = False,
+) -> dict[str, np.ndarray]:
+    """Extract signed energy-budget components with zero-fill for missing columns."""
+
+    def _extract(col: str, sign: float = 1.0) -> np.ndarray:
+        if col not in df.columns:
+            return np.zeros_like(flux_like, dtype=float)
+        values = np.array([df[col].mean()]) if aggregate else df[col].values
+        return sign * values
+
+    return {
+        "Qstar": _extract("QN"),
+        "QE": _extract("QE", sign=-1.0),
+        "dQS": _extract("QS", sign=-1.0),
+        "QF": _extract("QF"),
+    }
 
 
 def attribute_t2(
@@ -137,19 +159,8 @@ def attribute_t2(
     # Hierarchical flux decomposition
     if hierarchical:
         # Q_H = Q* - Q_E - dQ_S + Q_F (energy balance)
-        # Extract flux components
-        flux_comps_A = {
-            "Qstar": df_A["QN"].values if "QN" in df_A.columns else np.zeros_like(QH_A),
-            "QE": -df_A["QE"].values if "QE" in df_A.columns else np.zeros_like(QH_A),
-            "dQS": -df_A["QS"].values if "QS" in df_A.columns else np.zeros_like(QH_A),
-            "QF": df_A["QF"].values if "QF" in df_A.columns else np.zeros_like(QH_A),
-        }
-        flux_comps_B = {
-            "Qstar": df_B["QN"].values if "QN" in df_B.columns else np.zeros_like(QH_B),
-            "QE": -df_B["QE"].values if "QE" in df_B.columns else np.zeros_like(QH_B),
-            "dQS": -df_B["QS"].values if "QS" in df_B.columns else np.zeros_like(QH_B),
-            "QF": df_B["QF"].values if "QF" in df_B.columns else np.zeros_like(QH_B),
-        }
+        flux_comps_A = _extract_flux_components(df_A, QH_A)
+        flux_comps_B = _extract_flux_components(df_B, QH_B)
 
         flux_breakdown = decompose_flux_budget(
             QH_A, QH_B, flux_comps_A, flux_comps_B, Phi_QH
@@ -263,20 +274,19 @@ def diagnose_t2(
     df_anomaly = df.loc[anomaly_mask]
 
     # Get mean values for each group
-    T2_A = np.array([df_normal["T2"].mean()])
-    T2_B = np.array([df_anomaly["T2"].mean()])
-    QH_A = np.array([df_normal["QH"].mean()])
-    QH_B = np.array([df_anomaly["QH"].mean()])
+    output_means = _group_means(df_normal, df_anomaly, ["T2", "QH"])
+    T2_A, T2_B = output_means["T2"]
+    QH_A, QH_B = output_means["QH"]
 
     # Extract forcing data for each group
     df_forcing_normal = df_forcing.loc[normal_mask]
     df_forcing_anomaly = df_forcing.loc[anomaly_mask]
-    T_ref_A = np.array([df_forcing_normal["Tair"].mean()])
-    T_ref_B = np.array([df_forcing_anomaly["Tair"].mean()])
-    RH_A = np.array([df_forcing_normal["RH"].mean()])
-    RH_B = np.array([df_forcing_anomaly["RH"].mean()])
-    P_A = np.array([df_forcing_normal["pres"].mean()])
-    P_B = np.array([df_forcing_anomaly["pres"].mean()])
+    forcing_means = _group_means(
+        df_forcing_normal, df_forcing_anomaly, ["Tair", "RH", "pres"]
+    )
+    T_ref_A, T_ref_B = forcing_means["Tair"]
+    RH_A, RH_B = forcing_means["RH"]
+    P_A, P_B = forcing_means["pres"]
 
     # Calculate gamma = 1/(rho*cp)
     # Ensure numpy arrays (cal_gamma_heat may return pandas Series)
@@ -310,28 +320,8 @@ def diagnose_t2(
 
     # Hierarchical flux decomposition
     if hierarchical:
-        # Get mean flux components
-        QN_A = df_normal["QN"].mean() if "QN" in df_normal.columns else 0.0
-        QN_B = df_anomaly["QN"].mean() if "QN" in df_anomaly.columns else 0.0
-        QE_A = df_normal["QE"].mean() if "QE" in df_normal.columns else 0.0
-        QE_B = df_anomaly["QE"].mean() if "QE" in df_anomaly.columns else 0.0
-        QS_A = df_normal["QS"].mean() if "QS" in df_normal.columns else 0.0
-        QS_B = df_anomaly["QS"].mean() if "QS" in df_anomaly.columns else 0.0
-        QF_A = df_normal["QF"].mean() if "QF" in df_normal.columns else 0.0
-        QF_B = df_anomaly["QF"].mean() if "QF" in df_anomaly.columns else 0.0
-
-        flux_comps_A = {
-            "Qstar": np.array([QN_A]),
-            "QE": np.array([-QE_A]),
-            "dQS": np.array([-QS_A]),
-            "QF": np.array([QF_A]),
-        }
-        flux_comps_B = {
-            "Qstar": np.array([QN_B]),
-            "QE": np.array([-QE_B]),
-            "dQS": np.array([-QS_B]),
-            "QF": np.array([QF_B]),
-        }
+        flux_comps_A = _extract_flux_components(df_normal, QH_A, aggregate=True)
+        flux_comps_B = _extract_flux_components(df_anomaly, QH_B, aggregate=True)
 
         flux_breakdown = decompose_flux_budget(
             QH_A, QH_B, flux_comps_A, flux_comps_B, Phi_QH

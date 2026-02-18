@@ -16,6 +16,7 @@ from ._helpers import (
     align_scenarios,
     detect_anomalies,
     extract_suews_group,
+    _group_means,
     unwrap_forcing,
 )
 from ._physics import cal_gamma_humidity, cal_r_eff_humidity
@@ -250,20 +251,19 @@ def diagnose_q2(
     df_anomaly = df.loc[anomaly_mask]
 
     # Get mean values for each group
-    q2_A = np.array([df_normal["q2"].mean()])
-    q2_B = np.array([df_anomaly["q2"].mean()])
-    QE_A = np.array([df_normal["QE"].mean()])
-    QE_B = np.array([df_anomaly["QE"].mean()])
+    output_means = _group_means(df_normal, df_anomaly, ["q2", "QE"])
+    q2_A, q2_B = output_means["q2"]
+    QE_A, QE_B = output_means["QE"]
 
     # Extract forcing data for each group
     df_forcing_normal = df_forcing.loc[normal_mask]
     df_forcing_anomaly = df_forcing.loc[anomaly_mask]
-    T_ref_A = np.array([df_forcing_normal["Tair"].mean()])
-    T_ref_B = np.array([df_forcing_anomaly["Tair"].mean()])
-    RH_A = np.array([df_forcing_normal["RH"].mean()])
-    RH_B = np.array([df_forcing_anomaly["RH"].mean()])
-    P_A = np.array([df_forcing_normal["pres"].mean()])
-    P_B = np.array([df_forcing_anomaly["pres"].mean()])
+    forcing_means = _group_means(
+        df_forcing_normal, df_forcing_anomaly, ["Tair", "RH", "pres"]
+    )
+    T_ref_A, T_ref_B = forcing_means["Tair"]
+    RH_A, RH_B = forcing_means["RH"]
+    P_A, P_B = forcing_means["pres"]
 
     # Calculate reference specific humidity
     theta_A = T_ref_A + 273.15

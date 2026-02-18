@@ -11,7 +11,12 @@ import numpy as np
 import pandas as pd
 
 from ._core import shapley_forcing_profile
-from ._helpers import align_scenarios, detect_anomalies, extract_suews_group
+from ._helpers import (
+    align_scenarios,
+    detect_anomalies,
+    extract_suews_group,
+    _group_means,
+)
 from ._physics import cal_u10_profile_components
 from ._result import AttributionResult
 
@@ -245,16 +250,14 @@ def diagnose_u10(
     df_anomaly = df.loc[anomaly_mask]
 
     # Get mean values for each group
-    U10_A = np.array([df_normal["U10"].mean()])
-    U10_B = np.array([df_anomaly["U10"].mean()])
-    ustar_A = np.array([df_normal["UStar"].mean()])
-    ustar_B = np.array([df_anomaly["UStar"].mean()])
-    z0m_A = np.array([df_normal["z0m"].mean()])
-    z0m_B = np.array([df_anomaly["z0m"].mean()])
-    zd_A = np.array([df_normal["zd"].mean()])
-    zd_B = np.array([df_anomaly["zd"].mean()])
-    Lob_A = np.array([df_normal["Lob"].mean()])
-    Lob_B = np.array([df_anomaly["Lob"].mean()])
+    output_means = _group_means(
+        df_normal, df_anomaly, ["U10", "UStar", "z0m", "zd", "Lob"]
+    )
+    U10_A, U10_B = output_means["U10"]
+    ustar_A, ustar_B = output_means["UStar"]
+    z0m_A, z0m_B = output_means["z0m"]
+    zd_A, zd_B = output_means["zd"]
+    Lob_A, Lob_B = output_means["Lob"]
 
     # Calculate profile components for each scenario
     F_A, R_A, S_A = cal_u10_profile_components(ustar_A, z0m_A, zd_A, Lob_A, z_ref=z_ref)

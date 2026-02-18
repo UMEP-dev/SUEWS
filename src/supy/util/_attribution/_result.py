@@ -11,6 +11,20 @@ from typing import Literal, Optional
 import pandas as pd
 
 
+_VAR_SYMBOLS = {"T2": "T2", "q2": "q2", "U10": "U10"}
+_UNITS = {"T2": "degC", "q2": "g/kg", "U10": "m/s"}
+_MAIN_COMPONENTS = {
+    "T2": ["T_ref", "flux_total", "resistance", "air_props"],
+    "q2": ["q_ref", "flux_total", "resistance", "air_props"],
+    "U10": ["forcing", "roughness", "stability"],
+}
+_DEFAULT_PLOT_COMPONENTS = {
+    "T2": ["flux_total", "resistance", "air_props"],
+    "q2": ["flux_total", "resistance", "air_props"],
+    "U10": ["forcing", "roughness", "stability"],
+}
+
+
 @dataclass
 class AttributionResult:
     """
@@ -36,10 +50,8 @@ class AttributionResult:
     def __repr__(self) -> str:
         """Generate clean text representation of attribution results."""
         lines = []
-        var_symbol = {"T2": "T2", "q2": "q2", "U10": "U10"}.get(
-            self.variable, self.variable
-        )
-        unit = {"T2": "degC", "q2": "g/kg", "U10": "m/s"}.get(self.variable, "")
+        var_symbol = _VAR_SYMBOLS.get(self.variable, self.variable)
+        unit = _UNITS.get(self.variable, "")
 
         # Header
         lines.append(f"{var_symbol} Attribution Results")
@@ -54,18 +66,11 @@ class AttributionResult:
         lines.append("Component Breakdown:")
         lines.append("-" * 40)
 
-        # Main components depend on variable type
-        if self.variable == "U10":
-            main_components = ["forcing", "roughness", "stability"]
-        elif self.variable == "q2":
-            # Include q_ref if present (reference humidity contribution)
-            main_components = ["q_ref", "flux_total", "resistance", "air_props"]
-        else:
-            # Include T_ref if present (reference temperature contribution)
-            main_components = ["T_ref", "flux_total", "resistance", "air_props"]
-
-        # Filter to existing components
-        main_components = [c for c in main_components if c in self.summary.index]
+        main_components = [
+            c
+            for c in _MAIN_COMPONENTS.get(self.variable, [])
+            if c in self.summary.index
+        ]
 
         for comp in main_components:
             val = self.summary.loc[comp, "mean"]
@@ -135,14 +140,13 @@ class AttributionResult:
 
         # Default components depend on variable type
         if components is None:
-            if self.variable == "U10":
-                components = ["forcing", "roughness", "stability"]
-            else:
-                components = ["flux_total", "resistance", "air_props"]
-            # Filter to existing columns
-            components = [c for c in components if c in self.contributions.columns]
+            components = [
+                c
+                for c in _DEFAULT_PLOT_COMPONENTS.get(self.variable, [])
+                if c in self.contributions.columns
+            ]
 
-        unit = {"T2": "degC", "q2": "g/kg", "U10": "m/s"}.get(self.variable, "")
+        unit = _UNITS.get(self.variable, "")
 
         if kind == "bar":
             # Stacked bar chart of mean contributions

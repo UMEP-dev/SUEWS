@@ -81,7 +81,7 @@ def attribute_q2(
     df_forcing_B = unwrap_forcing(df_forcing_B)
 
     # Extract SUEWS output group with column validation
-    required_cols = {"q2", "QE", "T2"}
+    required_cols = {"q2", "QE"}
     df_A = extract_suews_group(df_output_A, required_cols=required_cols)
     df_B = extract_suews_group(df_output_B, required_cols=required_cols)
 

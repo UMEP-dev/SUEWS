@@ -647,18 +647,13 @@ def test_phase_b_validate_model_option_samealbedo_disabled():
     assert "samealbedo_roof == 0" in results_roof[0].message.lower()
 
 def test_needs_spartacus_validation_true_and_false():
-    #SPARTACUS conditional validation is disabled by default.
-    # _needs_spartacus_validation currently relies on _is_physics_explicitly_configured(),
-    # which conservatively returns False for normal configs. This test only checks that
-    # the method behaves consistently and returns a boolean. This test will be changed
-    # once we implement a more robust way to detect when SPARTACUS validation should be active.
-
+    
     cfg = make_cfg()
-    cfg.model.physics.netradiationmethod = 1001  # SPARTACUS method
-    assert cfg._needs_spartacus_validation() is False
+    cfg.model.physics.netradiationmethod = 1001
+    assert cfg._needs_spartacus_validation() is True
 
     cfg2 = make_cfg()
-    cfg2.model.physics.netradiationmethod = 1  # non-SPARTACUS
+    cfg2.model.physics.netradiationmethod = 1
     assert cfg2._needs_spartacus_validation() is False
 
 def test_validate_spartacus_building_height_error():

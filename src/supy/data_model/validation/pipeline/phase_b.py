@@ -1662,6 +1662,126 @@ def adjust_seasonal_parameters(
             # Note: When sfr=0, we don't nullify lai_id - we simply skip validation
             # The warning "Parameters not checked because surface fraction is 0" covers this
 
+        # Seasonal adjustment of vegetation albedo ranges (alb_id only)
+        land_cover = props.get("land_cover", {})
+        vegetated_surfaces = (
+            ("grass", "grass"),
+            ("dectr", "deciduous trees"),
+            ("evetr", "evergreen trees"),
+        )
+
+        def _get_range_and_id(surf_key: str) -> tuple[Optional[float], Optional[float], Optional[float]]:
+            """Return (alb_min, alb_max, alb_id) for a given vegetated surface from
+            properties.land_cover and initial_states."""
+            surf_props = land_cover.get(surf_key, {})
+            surf_state = initial_states.get(surf_key, {})
+
+            if not isinstance(surf_props, dict) or not isinstance(surf_state, dict):
+                return None, None, None
+
+            alb_min_entry = surf_props.get("alb_min", {})
+            alb_max_entry = surf_props.get("alb_max", {})
+            alb_id_entry = surf_state.get("alb_id", {})
+
+            alb_min_val = (
+                alb_min_entry.get("value")
+                if isinstance(alb_min_entry, dict)
+                else alb_min_entry
+            )
+            alb_max_val = (
+                alb_max_entry.get("value")
+                if isinstance(alb_max_entry, dict)
+                else alb_max_entry
+            )
+            alb_id_val = (
+                alb_id_entry.get("value")
+                if isinstance(alb_id_entry, dict)
+                else alb_id_entry
+            )
+
+            return alb_min_val, alb_max_val, alb_id_val
+
+        def _set_alb_id(surf_key: str, new_alb_id: Optional[float], label: str) -> None:
+            """Set initial_states.<surf_key>.alb_id to new_alb_id and record adjustment."""
+            nonlocal adjustments
+
+            if new_alb_id is None:
+                return
+
+            surf_state = initial_states.get(surf_key, {})
+            if not isinstance(surf_state, dict):
+                return
+
+            alb_id_entry = surf_state.get("alb_id", {})
+            old_val = (
+                alb_id_entry.get("value")
+                if isinstance(alb_id_entry, dict)
+                else alb_id_entry
+            )
+
+            if old_val == new_alb_id:
+                return
+
+            surf_state["alb_id"] = {"value": new_alb_id}
+            adjustments.append(
+                ScientificAdjustment(
+                    parameter=f"{surf_key}.alb_id",
+                    site_index=site_idx,
+                    site_gridid=site_gridid,
+                    old_value=str(old_val),
+                    new_value=str(new_alb_id),
+                    reason=(
+                        f"Set seasonal albedo for {season} "
+                        f"on {label} based on (alb_min, alb_max)"
+                    ),
+                )
+            )
+
+        if season in ("summer", "tropical", "equatorial"):
+            # Summer:
+            # - alb_id(grass)  -> its alb_min
+            # - alb_id(dectr)  -> its alb_max
+            # - alb_id(evetr)  -> its alb_max
+            for surf_key, label in vegetated_surfaces:
+                alb_min, alb_max, _alb_id = _get_range_and_id(surf_key)
+                if alb_min is None or alb_max is None:
+                    continue
+
+                if surf_key == "grass":
+                    target = alb_min
+                else:  # dectr, evetr
+                    target = alb_max
+
+                _set_alb_id(surf_key, target, label)
+
+        elif season == "winter":
+            # Winter:
+            # - alb_id(grass)  -> its alb_max
+            # - alb_id(dectr)  -> its alb_min
+            # - alb_id(evetr)  -> its alb_min
+            for surf_key, label in vegetated_surfaces:
+                alb_min, alb_max, _alb_id = _get_range_and_id(surf_key)
+                if alb_min is None or alb_max is None:
+                    continue
+
+                if surf_key == "grass":
+                    target = alb_max
+                else:  # dectr, evetr
+                    target = alb_min
+
+                _set_alb_id(surf_key, target, label)
+
+        else:
+            # Other seasons (e.g. spring, fall): alb_id set to midpoint of [alb_min, alb_max]
+            for surf_key, label in vegetated_surfaces:
+                alb_min, alb_max, alb_id_val = _get_range_and_id(surf_key)
+                if alb_min is None or alb_max is None or alb_id_val is None:
+                    continue
+
+                midpoint = 0.5 * (alb_min + alb_max)
+                _set_alb_id(surf_key, midpoint, label)
+
+
         if lat is not None and lng is not None:
             try:
                 dls = DLSCheck(lat=lat, lng=lng, year=model_year)

@@ -1236,23 +1236,8 @@ def create_analysis_report(
     # Use unified report title for all validation phases
     title = "SUEWS Validation Report"
 
-    # Map phase to user-facing validation stage
-    if phase == "A":
-        validation_stage = "Completeness Check"
-    elif phase == "B":
-        validation_stage = "Scientific Validation"
-    elif phase == "C":
-        validation_stage = "Model Compatibility"
-    elif phase == "AB":
-        validation_stage = "Completeness Check → Scientific Validation"
-    elif phase == "AC":
-        validation_stage = "Completeness Check → Model Compatibility"
-    elif phase == "BC":
-        validation_stage = "Scientific Validation → Model Compatibility"
-    elif phase == "ABC":
-        validation_stage = "Completeness Check → Scientific Validation → Model Compatibility"
-    else:
-        validation_stage = "Unknown"
+    # For Phase A reports, always label the current stage only
+    validation_stage = "Completeness Check"
 
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)

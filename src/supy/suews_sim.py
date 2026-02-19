@@ -479,10 +479,21 @@ class SUEWSSimulation:
         if self._df_forcing is None:
             raise RuntimeError("No forcing data loaded. Use update_forcing() first.")
         if self._config is None:
-            raise RuntimeError(
-                "Rust backend requires a SUEWSConfig object. "
-                "Use update_config() with a YAML config file."
-            )
+            # Backward-compatible path: allow runs initialised from df_state
+            # (legacy functional workflows and continuation tests).
+            try:
+                self._config = SUEWSConfig.from_df_state(self._df_state_init)
+            except Exception:
+                # Some legacy state CSVs carry an extra unnamed index level
+                # (e.g. MultiIndex [('grid', None)]). Strip to grid only.
+                df_state_for_cfg = self._df_state_init.copy()
+                if isinstance(df_state_for_cfg.index, pd.MultiIndex):
+                    if "grid" in df_state_for_cfg.index.names:
+                        grid_vals = df_state_for_cfg.index.get_level_values("grid")
+                    else:
+                        grid_vals = df_state_for_cfg.index.get_level_values(0)
+                    df_state_for_cfg.index = pd.Index(grid_vals, name="grid")
+                self._config = SUEWSConfig.from_df_state(df_state_for_cfg)
 
         # Fall back to config values if start_date/end_date not provided
         if start_date is None and self._config is not None:
@@ -810,7 +821,10 @@ class SUEWSSimulation:
             # Load based on file extension
             if state_path.suffix == ".csv":
                 df_state_saved = pd.read_csv(
-                    state_path, header=[0, 1], index_col=[0, 1], parse_dates=[0]
+                    state_path,
+                    header=[0, 1],
+                    index_col=0,
+                    parse_dates=True,
                 )
             elif state_path.suffix == ".parquet":
                 df_state_saved = pd.read_parquet(state_path)
@@ -1265,4 +1279,3 @@ class SUEWSSimulation:
         True
         """
         return self._df_state_final
-

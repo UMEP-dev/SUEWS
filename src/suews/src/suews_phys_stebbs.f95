@@ -480,8 +480,10 @@ CONTAINS
 
       ! Local variable
       INTEGER :: i
-      ! Initialize to zero (not found)
-      i_layer = 0
+      ! Default to the top layer when height exceeds the SPARTACUS domain.
+      ! This avoids index 0 access when buildings are taller than the highest
+      ! layer interface.
+      i_layer = nlayer
       DO i = 1, nlayer
          IF (h <= layer_h(i+1)) THEN
             i_layer = i
@@ -750,7 +752,7 @@ CONTAINS
             zdm => roughnessState%zdm &
             )
 
-            IF (dt_start < timestep) THEN
+            IF (dt_start <= timestep) THEN
                ! correct wind speed using log law; assuming neutral condition (without stability correction)
                ws = forcing%U * (LOG((10 + z0m) / z0m) / LOG((height_forcing + z0m) / z0m)) !10m 
                Tair_sout = stebbsState%OutdoorAirStartTemperature ! unit degree
@@ -764,7 +766,7 @@ CONTAINS
 
             sout%ntstep = 1
             resolution = 1
-            IF (stebbs_bldg_init == 0) THEN
+            IF (stebbs_bldg_init == 0 .OR. dt_start <= timestep) THEN
                CALL gen_building(stebbsState, stebbsPrm, building_archtype, config, buildings(1), nlayer)
                stebbs_bldg_init = 1
             END IF
@@ -813,7 +815,7 @@ CONTAINS
             sout%cp_air_exch = cp_air
             sout%density_air_exch = density_air
             sout%pres_exch = pres            
-            IF (dt_start < timestep) THEN !initialisation before getting RSL output
+            IF (dt_start <= timestep) THEN !initialisation before getting RSL output
                ws_bh = forcing%U * (LOG((buildings(1)%height_building + z0m) / z0m) / LOG((height_forcing + z0m) / z0m)) !archetype height
                ws_hbh = forcing%U * (LOG((buildings(1)%height_building/2 + z0m) / z0m) / LOG((height_forcing + z0m) / z0m)) !half archetype height
                Tair_bh = stebbsState%OutdoorAirStartTemperature ! unit degree

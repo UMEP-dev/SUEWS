@@ -158,9 +158,11 @@ def _parse_output_block(
     for group_name, ncols in OUTPUT_GROUP_LAYOUT:
         group_data = output_block[:, col_offset + OUTPUT_TIME_COLS : col_offset + ncols]
         idx = gen_index(f"dataoutline{group_name.lower()}")
-        list_df_group.append(
-            pd.DataFrame(group_data, columns=idx, index=datetime_index)
-        )
+        df_group = pd.DataFrame(group_data, columns=idx, index=datetime_index)
+        # SUEWS uses -999 as missing-data sentinel; expose these as NaN in
+        # Python outputs so downstream filtering/resampling behaves correctly.
+        df_group = df_group.mask(df_group == -999.0)
+        list_df_group.append(df_group)
         col_offset += ncols
 
     df_output = pd.concat(list_df_group, axis=1)

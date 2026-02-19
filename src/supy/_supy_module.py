@@ -695,10 +695,14 @@ def _run_supy(
 
     # Preprocess forcing for observed soil moisture if needed
     try:
-        smd_val = config.model.options.smdmethod
+        # SMDMethod is a physics option in the validated config schema.
+        # Keep a fallback to legacy `model.options` for compatibility.
+        smd_val = getattr(config.model.physics, "smdmethod", None)
+        if smd_val is None:
+            smd_val = getattr(getattr(config.model, "options", None), "smdmethod", None)
         if hasattr(smd_val, "value"):
             smd_val = smd_val.value
-        smd_int = int(smd_val)
+        smd_int = int(smd_val) if smd_val is not None else 0
     except (AttributeError, TypeError, ValueError):
         smd_int = 0
 

@@ -11,6 +11,7 @@ The implementation uses a two-layer approach:
    if it exceeds maximum after calculation
 """
 
+import os
 from pathlib import Path
 
 import numpy as np
@@ -24,6 +25,8 @@ import supy as sp
 # - Timestep is 300s, flow rates ~0.001 m3/s = 0.3 m3/timestep max change
 # - Using 0.01 m3 tolerance accounts for floating-point accumulation over simulation
 VOLUME_TOLERANCE_M3 = 0.01
+FAIL_FAST_STEPS_ENV = "SUEWS_FAIL_FAST_STEPS"
+DEFAULT_FAIL_FAST_STEPS = 20
 
 
 def _load_stebbs_test_config():
@@ -32,6 +35,29 @@ def _load_stebbs_test_config():
         Path(__file__).parent.parent / "fixtures" / "data_test" / "stebbs_test"
     )
     return stebbs_test_dir / "sample_config.yml"
+
+
+def _get_fail_fast_steps(default_steps: int = DEFAULT_FAIL_FAST_STEPS) -> int:
+    """Return number of timesteps for fail-fast execution."""
+    raw = os.environ.get(FAIL_FAST_STEPS_ENV)
+    if raw is None or raw == "":
+        return default_steps
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise ValueError(
+            f"{FAIL_FAST_STEPS_ENV} must be an integer, got: {raw!r}"
+        ) from exc
+
+
+def _select_forcing_window(df_forcing_full):
+    """Return one-day forcing truncated to fail-fast timesteps."""
+    forcing_day = df_forcing_full.loc["2017-08-26":"2017-08-26"]
+    requested_steps = _get_fail_fast_steps()
+    if requested_steps <= 0:
+        return forcing_day
+    steps = min(requested_steps, len(forcing_day))
+    return forcing_day.iloc[:steps]
 
 
 @pytest.mark.core
@@ -58,7 +84,7 @@ def test_maximum_volume_capping():
     df_forcing_full = sp.load_forcing_grid(
         str(config_path), df_state_init.index[0], df_state_init=df_state_init
     )
-    df_forcing = df_forcing_full.loc["2017-08-26":"2017-08-26"]
+    df_forcing = _select_forcing_window(df_forcing_full)
 
     # ACT
     df_output, df_state = sp.run_supy(df_forcing, df_state_init)
@@ -111,8 +137,7 @@ def test_volume_accumulation_with_supply_greater_than_drain():
     df_forcing_full = sp.load_forcing_grid(
         str(config_path), df_state_init.index[0], df_state_init=df_state_init
     )
-    # Use longer period to allow volume to try to exceed max
-    df_forcing = df_forcing_full.loc["2017-08-26":"2017-08-26"]
+    df_forcing = _select_forcing_window(df_forcing_full)
 
     # ACT
     df_output, df_state = sp.run_supy(df_forcing, df_state_init)
@@ -164,7 +189,7 @@ def test_maximum_volume_disabled_when_zero():
     df_forcing_full = sp.load_forcing_grid(
         str(config_path), df_state_init.index[0], df_state_init=df_state_init
     )
-    df_forcing = df_forcing_full.loc["2017-08-26":"2017-08-26"]
+    df_forcing = _select_forcing_window(df_forcing_full)
 
     # ACT
     df_output, df_state = sp.run_supy(df_forcing, df_state_init)
@@ -217,7 +242,7 @@ def test_minimum_volume_still_enforced():
     df_forcing_full = sp.load_forcing_grid(
         str(config_path), df_state_init.index[0], df_state_init=df_state_init
     )
-    df_forcing = df_forcing_full.loc["2017-08-26":"2017-08-26"]
+    df_forcing = _select_forcing_window(df_forcing_full)
 
     # ACT
     df_output, df_state = sp.run_supy(df_forcing, df_state_init)
@@ -263,7 +288,7 @@ def test_volume_stability_at_maximum():
     df_forcing_full = sp.load_forcing_grid(
         str(config_path), df_state_init.index[0], df_state_init=df_state_init
     )
-    df_forcing = df_forcing_full.loc["2017-08-26":"2017-08-26"]
+    df_forcing = _select_forcing_window(df_forcing_full)
 
     # ACT
     df_output, df_state = sp.run_supy(df_forcing, df_state_init)

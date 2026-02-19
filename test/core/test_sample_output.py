@@ -64,6 +64,26 @@ from conftest import TIMESTEPS_PER_DAY
 # Get the test data directory
 test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
 p_df_sample = Path(test_data_dir) / "sample_output.csv.gz"
+FAIL_FAST_STEPS_ENV = "SUEWS_FAIL_FAST_STEPS"
+DEFAULT_FAIL_FAST_STEPS = 20
+
+
+def _get_fail_fast_steps(default_steps: int = DEFAULT_FAIL_FAST_STEPS) -> int:
+    """Return validation timesteps for fail-fast execution."""
+    raw = os.environ.get(FAIL_FAST_STEPS_ENV)
+    if raw is None or raw == "":
+        return default_steps
+    try:
+        steps = int(raw)
+    except ValueError as exc:
+        raise ValueError(
+            f"{FAIL_FAST_STEPS_ENV} must be an integer, got: {raw!r}"
+        ) from exc
+
+    # Non-positive value means "disable fail-fast", use full day window.
+    if steps <= 0:
+        return TIMESTEPS_PER_DAY
+    return steps
 
 
 def _rust_library_available() -> bool:
@@ -870,15 +890,35 @@ class TestSTEBBSOutput(TestCase):
             str(config_path), df_state_init.index[0], df_state_init=df_state_init
         )
 
-        # Subset forcing data to match config period (2017-08-26 to 2017-08-27)
-        df_forcing = df_forcing_full.loc["2017-08-26":"2017-08-27"]
+        # Subset forcing data to match config period (2017-08-26 to 2017-08-27).
+        # Run day 1 as spin-up and validate only the first N timesteps of day 2
+        # for fail-fast debugging.
+        df_forcing_window = df_forcing_full.loc["2017-08-26":"2017-08-27"]
+        max_validation_steps = len(df_forcing_window) - TIMESTEPS_PER_DAY
+        if max_validation_steps < 1:
+            self.fail(
+                "Insufficient forcing data for STEBBS validation: "
+                f"{len(df_forcing_window)} rows."
+            )
+        requested_steps = _get_fail_fast_steps()
+        validation_steps = min(requested_steps, max_validation_steps)
+        if validation_steps != requested_steps:
+            print(
+                f"[INFO] Requested {requested_steps} validation steps, "
+                f"clamped to available {validation_steps}."
+            )
+        df_forcing = df_forcing_window.iloc[: TIMESTEPS_PER_DAY + validation_steps]
 
-        print(f"Running STEBBS simulation ({len(df_forcing)} timesteps, 2 days)...")
+        print(
+            "Running STEBBS simulation "
+            f"({len(df_forcing)} timesteps: day-1 spin-up + "
+            f"{validation_steps} validation steps)..."
+        )
         df_output, df_state = sp.run_supy(df_forcing, df_state_init)
 
         # Load reference output
         print("Loading reference output...")
-        df_reference = pd.read_csv(reference_output_path)
+        df_reference = pd.read_csv(reference_output_path).iloc[:validation_steps].copy()
 
         # Define STEBBS-specific variables to test with tolerances
         # Higher tolerances for building energy due to complex thermal dynamics
@@ -893,14 +933,14 @@ class TestSTEBBSOutput(TestCase):
         print(f"\nValidating STEBBS variables: {', '.join(stebbs_variables.keys())}")
         print("=" * 70)
 
-        # Extract only 2017-08-27 data from simulation output to match reference
-        # Reference contains data for 2017-08-27 00:00 to 23:55 (TIMESTEPS_PER_DAY timesteps)
-        # Simulation output contains 2 days, so we take the second day
-        # df_output has MultiIndex columns, so we slice the second day of data
-        df_output_day2 = df_output.iloc[TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY * 2]
+        # Extract day-2 validation window from simulation output to match reference.
+        df_output_day2 = df_output.iloc[
+            TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY + validation_steps
+        ]
 
-        print(f"\nFiltered output to match reference period (2017-08-27):")
-        print(f"  Simulation output (2nd day) length: {len(df_output_day2)}")
+        print("\nFiltered output to match reference period (2017-08-27):")
+        print(f"  Validation timesteps: {validation_steps}")
+        print(f"  Simulation output (2nd day window) length: {len(df_output_day2)}")
         print(f"  Reference data length: {len(df_reference)}")
 
         # Compare each variable

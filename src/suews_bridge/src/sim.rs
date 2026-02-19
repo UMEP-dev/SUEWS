@@ -26,8 +26,8 @@ use crate::roughness::roughness_state_from_ordered_values;
 use crate::snow::snow_state_from_ordered_values;
 use crate::snow_prm::snow_prm_from_ordered_values;
 use crate::solar::solar_state_from_ordered_values;
-use crate::spartacus_layer_prm::spartacus_layer_prm_from_ordered_values;
-use crate::spartacus_prm::spartacus_prm_from_ordered_values;
+use crate::spartacus_layer_prm::{spartacus_layer_prm_from_ordered_values, SpartacusLayerPrm};
+use crate::spartacus_prm::{spartacus_prm_from_ordered_values, SpartacusPrm};
 use crate::stebbs_prm::stebbs_prm_from_ordered_values;
 use crate::stebbs_state::stebbs_state_from_ordered_values;
 use crate::suews_site::SuewsSite;
@@ -408,13 +408,17 @@ fn decode_state_members(
 fn validate_site_codec(
     site_flat: &[f64],
     site_toc: &[i32],
+    nlayer: i32,
     ndepth: i32,
 ) -> Result<(), BridgeError> {
-    let spartacus = spartacus_prm_from_ordered_values(member_slice(
-        site_flat,
-        site_toc,
-        SITE_MEMBER_SPARTACUS,
-    )?)?;
+    let nlayer_usize = usize::try_from(nlayer).map_err(|_| BridgeError::BadBuffer)?;
+
+    let spartacus_slice = member_slice(site_flat, site_toc, SITE_MEMBER_SPARTACUS)?;
+    let spartacus = if spartacus_slice.len() == 14 {
+        spartacus_prm_from_ordered_values(spartacus_slice)?
+    } else {
+        SpartacusPrm::from_flat_with_height_len(spartacus_slice, nlayer_usize + 1)?
+    };
     let lumps =
         lumps_prm_from_ordered_values(member_slice(site_flat, site_toc, SITE_MEMBER_LUMPS)?)?;
     let ehc_slice = member_slice(site_flat, site_toc, SITE_MEMBER_EHC)?;
@@ -423,11 +427,26 @@ fn validate_site_codec(
     } else {
         EhcPrm::from_flat_with_dims(ehc_slice, NSURF, ndepth as usize)?
     };
-    let spartacus_layer = spartacus_layer_prm_from_ordered_values(member_slice(
-        site_flat,
-        site_toc,
-        SITE_MEMBER_SPARTACUS_LAYER,
-    )?)?;
+    let spartacus_layer_slice = member_slice(site_flat, site_toc, SITE_MEMBER_SPARTACUS_LAYER)?;
+    let spartacus_layer = if spartacus_layer_slice.is_empty() {
+        spartacus_layer_prm_from_ordered_values(spartacus_layer_slice)?
+    } else {
+        let base_len = 8usize
+            .checked_mul(nlayer_usize)
+            .ok_or(BridgeError::BadBuffer)?;
+        if spartacus_layer_slice.len() < base_len {
+            return Err(BridgeError::BadBuffer);
+        }
+        let remainder = spartacus_layer_slice.len() - base_len;
+        let denom = 2usize
+            .checked_mul(nlayer_usize)
+            .ok_or(BridgeError::BadBuffer)?;
+        if denom == 0 || remainder % denom != 0 {
+            return Err(BridgeError::BadBuffer);
+        }
+        let nspec = remainder / denom;
+        SpartacusLayerPrm::from_flat_with_dims(spartacus_layer_slice, nlayer_usize, nspec)?
+    };
     let surf_store = surf_store_prm_from_ordered_values(member_slice(
         site_flat,
         site_toc,
@@ -566,6 +585,102 @@ pub fn run_from_config_str_and_forcing(
 ) -> Result<(Vec<f64>, SuewsState, usize), BridgeError> {
     let mut run_cfg = load_run_config_from_str(config_yaml).map_err(simulation_error)?;
 
+    eprintln!(
+        "DEBUG_CFG netrad={} storage={} stebbs={} nlayer={} ndepth={} sp_height_len={} sp_layer_n={} sp_layer_spec={} bf={:?} bs={:?} ba_hset={} ba_cset={} ba_met43={} ba_app43={} ba_app109={} st_init_out={} st_init_in={} st_mass={} st_wall_i={} st_wall_o={} st_roof_i={} st_roof_o={} st_win_i={} st_win_o={} st_gnd_i={} st_gnd_o={} st_deep={} st_tank={} st_tank_iw={} st_tank_ow={} st_mains={} st_dhw={} st_dhw_iw={} st_dhw_ow={} st_vent={} st_min_dhw={} st_max_dhw={}",
+        run_cfg.config.net_radiation_method,
+        run_cfg.config.storage_heat_method,
+        run_cfg.config.stebbs_method,
+        run_cfg.nlayer,
+        run_cfg.ndepth,
+        run_cfg.site.spartacus.height.len(),
+        run_cfg.site.spartacus_layer.nlayer,
+        run_cfg.site.spartacus_layer.nspec,
+        run_cfg
+            .site
+            .spartacus_layer
+            .building_frac
+            .iter()
+            .take(3)
+            .copied()
+            .collect::<Vec<f64>>(),
+        run_cfg
+            .site
+            .spartacus_layer
+            .building_scale
+            .iter()
+            .take(3)
+            .copied()
+            .collect::<Vec<f64>>(),
+        run_cfg.site.building_archtype.heatingsetpointtemperature,
+        run_cfg.site.building_archtype.coolingsetpointtemperature,
+        run_cfg.site.building_archtype.metabolismprofile[0][42],
+        run_cfg.site.building_archtype.applianceprofile[0][42],
+        run_cfg.site.building_archtype.applianceprofile[0][108],
+        run_cfg.state.stebbs_state.outdoor_air_start_temperature,
+        run_cfg.state.stebbs_state.indoor_air_start_temperature,
+        run_cfg.state.stebbs_state.indoor_mass_start_temperature,
+        run_cfg.state.stebbs_state.wall_indoor_surface_temperature,
+        run_cfg.state.stebbs_state.wall_outdoor_surface_temperature,
+        run_cfg.state.stebbs_state.roof_indoor_surface_temperature,
+        run_cfg.state.stebbs_state.roof_outdoor_surface_temperature,
+        run_cfg.state.stebbs_state.window_indoor_surface_temperature,
+        run_cfg.state.stebbs_state.window_outdoor_surface_temperature,
+        run_cfg.state.stebbs_state.ground_floor_indoor_surface_temperature,
+        run_cfg.state.stebbs_state.ground_floor_outdoor_surface_temperature,
+        run_cfg.state.stebbs_state.deep_soil_temperature,
+        run_cfg.state.stebbs_state.water_tank_temperature,
+        run_cfg.state.stebbs_state.internal_wall_water_tank_temperature,
+        run_cfg.state.stebbs_state.external_wall_water_tank_temperature,
+        run_cfg.state.stebbs_state.mains_water_temperature,
+        run_cfg
+            .state
+            .stebbs_state
+            .domestic_hot_water_temperature_in_use_in_building,
+        run_cfg.state.stebbs_state.internal_wall_dhw_vessel_temperature,
+        run_cfg.state.stebbs_state.external_wall_dhw_vessel_temperature,
+        run_cfg.site.stebbs.ventilation_rate,
+        run_cfg.site.stebbs.minimum_volume_of_dhw_in_use,
+        run_cfg.site.stebbs.maximum_volume_of_dhw_in_use
+    );
+    let _ = std::fs::write(
+        "/Users/tingsun/conductor/workspaces/suews/walla-walla/.context/debug_cfg.txt",
+        format!(
+            "netrad={} storage={} stebbs={} nlayer={} ndepth={} sp_height_len={} sp_layer_n={} sp_layer_spec={} height={:?} bf={:?} bs={:?}\n",
+            run_cfg.config.net_radiation_method,
+            run_cfg.config.storage_heat_method,
+            run_cfg.config.stebbs_method,
+            run_cfg.nlayer,
+            run_cfg.ndepth,
+            run_cfg.site.spartacus.height.len(),
+            run_cfg.site.spartacus_layer.nlayer,
+            run_cfg.site.spartacus_layer.nspec,
+            run_cfg
+                .site
+                .spartacus
+                .height
+                .iter()
+                .take(4)
+                .copied()
+                .collect::<Vec<f64>>(),
+            run_cfg
+                .site
+                .spartacus_layer
+                .building_frac
+                .iter()
+                .take(3)
+                .copied()
+                .collect::<Vec<f64>>(),
+            run_cfg
+                .site
+                .spartacus_layer
+                .building_scale
+                .iter()
+                .take(3)
+                .copied()
+                .collect::<Vec<f64>>(),
+        ),
+    );
+
     if len_sim == 0 {
         return Err(simulation_error(
             "forcing block must contain at least one timestep",
@@ -593,12 +708,49 @@ pub fn run_from_config_str_and_forcing(
     run_cfg.timer.tstep_real = run_cfg.timer.tstep as f64;
     run_cfg.timer.nsh_real = 3600.0 / run_cfg.timer.tstep as f64;
     run_cfg.timer.nsh = (3600 / run_cfg.timer.tstep).max(1);
-    run_cfg.timer.dt_since_start = 0;
+    // Match SUEWS standalone stepping semantics: first physics step uses one
+    // full timestep elapsed, avoiding dt_since_start/tstep == 0 in DyOHM.
+    run_cfg.timer.dt_since_start = run_cfg.timer.tstep;
     run_cfg.timer.dt_since_start_prev = 0;
     run_cfg.timer.dectime = (run_cfg.timer.id - 1) as f64
         + run_cfg.timer.it as f64 / 24.0
         + run_cfg.timer.imin as f64 / (60.0 * 24.0)
         + run_cfg.timer.isec as f64 / (3600.0 * 24.0);
+
+    // Guardrail: DyOHM (storageheatmethod 6/7) requires positive material
+    // properties and lambda_c. Catch malformed config input before entering
+    // Fortran to avoid opaque runtime errors.
+    let storage_heat_method = run_cfg.config.storage_heat_method;
+    if storage_heat_method == 6 || storage_heat_method == 7 {
+        let lambda_c = run_cfg.site_scalars.lambda_c;
+        if lambda_c <= 0.0 {
+            return Err(simulation_error(format!(
+                "invalid site scalar for DyOHM: lambda_c={lambda_c}"
+            )));
+        }
+
+        let dz_wall_11 = run_cfg.site.ehc.dz_wall.first().copied().unwrap_or(0.0);
+        let cp_wall_11 = run_cfg.site.ehc.cp_wall.first().copied().unwrap_or(0.0);
+        let k_wall_11 = run_cfg.site.ehc.k_wall.first().copied().unwrap_or(0.0);
+        if dz_wall_11 <= 0.0 || cp_wall_11 <= 0.0 || k_wall_11 <= 0.0 {
+            return Err(simulation_error(format!(
+                "invalid EHC wall layer(1,1) for DyOHM: dz={dz_wall_11}, cp={cp_wall_11}, k={k_wall_11}"
+            )));
+        }
+
+        for surf_idx in 0..NSURF {
+            let offset = surf_idx;
+            let dz = run_cfg.site.ehc.dz_surf.get(offset).copied().unwrap_or(0.0);
+            let cp = run_cfg.site.ehc.cp_surf.get(offset).copied().unwrap_or(0.0);
+            let k = run_cfg.site.ehc.k_surf.get(offset).copied().unwrap_or(0.0);
+            if dz <= 0.0 || cp <= 0.0 || k <= 0.0 {
+                return Err(simulation_error(format!(
+                    "invalid EHC surface layer(1,{}) for DyOHM: dz={dz}, cp={cp}, k={k}",
+                    surf_idx + 1
+                )));
+            }
+        }
+    }
 
     let month = day_of_year_to_month(run_cfg.timer.iy, run_cfg.timer.id)?;
     let day_of_month = {
@@ -704,12 +856,45 @@ pub fn run_from_config_str_and_forcing_with_state(
     run_cfg.timer.tstep_real = run_cfg.timer.tstep as f64;
     run_cfg.timer.nsh_real = 3600.0 / run_cfg.timer.tstep as f64;
     run_cfg.timer.nsh = (3600 / run_cfg.timer.tstep).max(1);
-    run_cfg.timer.dt_since_start = 0;
+    // Keep first-step timing consistent with non-state run path.
+    run_cfg.timer.dt_since_start = run_cfg.timer.tstep;
     run_cfg.timer.dt_since_start_prev = 0;
     run_cfg.timer.dectime = (run_cfg.timer.id - 1) as f64
         + run_cfg.timer.it as f64 / 24.0
         + run_cfg.timer.imin as f64 / (60.0 * 24.0)
         + run_cfg.timer.isec as f64 / (3600.0 * 24.0);
+
+    let storage_heat_method = run_cfg.config.storage_heat_method;
+    if storage_heat_method == 6 || storage_heat_method == 7 {
+        let lambda_c = run_cfg.site_scalars.lambda_c;
+        if lambda_c <= 0.0 {
+            return Err(simulation_error(format!(
+                "invalid site scalar for DyOHM: lambda_c={lambda_c}"
+            )));
+        }
+
+        let dz_wall_11 = run_cfg.site.ehc.dz_wall.first().copied().unwrap_or(0.0);
+        let cp_wall_11 = run_cfg.site.ehc.cp_wall.first().copied().unwrap_or(0.0);
+        let k_wall_11 = run_cfg.site.ehc.k_wall.first().copied().unwrap_or(0.0);
+        if dz_wall_11 <= 0.0 || cp_wall_11 <= 0.0 || k_wall_11 <= 0.0 {
+            return Err(simulation_error(format!(
+                "invalid EHC wall layer(1,1) for DyOHM: dz={dz_wall_11}, cp={cp_wall_11}, k={k_wall_11}"
+            )));
+        }
+
+        for surf_idx in 0..NSURF {
+            let offset = surf_idx;
+            let dz = run_cfg.site.ehc.dz_surf.get(offset).copied().unwrap_or(0.0);
+            let cp = run_cfg.site.ehc.cp_surf.get(offset).copied().unwrap_or(0.0);
+            let k = run_cfg.site.ehc.k_surf.get(offset).copied().unwrap_or(0.0);
+            if dz <= 0.0 || cp <= 0.0 || k <= 0.0 {
+                return Err(simulation_error(format!(
+                    "invalid EHC surface layer(1,{}) for DyOHM: dz={dz}, cp={cp}, k={k}",
+                    surf_idx + 1
+                )));
+            }
+        }
+    }
 
     let month = day_of_year_to_month(run_cfg.timer.iy, run_cfg.timer.id)?;
     let day_of_month = {
@@ -732,7 +917,11 @@ pub fn run_from_config_str_and_forcing_with_state(
     run_cfg.timer.dayofweek_id[0] = fortran_weekday_from_ymd(run_cfg.timer.iy, month, day_of_month);
     run_cfg.timer.dayofweek_id[1] = month;
     run_cfg.timer.dayofweek_id[2] = if run_cfg.site_scalars.lat >= 0.0 {
-        if (4..=9).contains(&month) { 1 } else { 2 }
+        if (4..=9).contains(&month) {
+            1
+        } else {
+            2
+        }
     } else if month >= 10 || month <= 3 {
         1
     } else {
@@ -800,17 +989,24 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
         return Err(BridgeError::BadState);
     }
 
-    validate_site_codec(&site_members.flat, &site_members.toc, input.ndepth)?;
+    eprintln!("DEBUG_VALIDATE_START");
+    validate_site_codec(&site_members.flat, &site_members.toc, input.nlayer, input.ndepth)?;
+    eprintln!(
+        "DEBUG_VALIDATE_OK site_flat_len={} site_toc={:?}",
+        site_members.flat.len(),
+        site_members.toc
+    );
 
     let mut timer_out = vec![0.0_f64; SUEWS_TIMER_FLAT_LEN];
     let mut state_out = vec![0.0_f64; state_members.flat.len()];
-    let output_len = input
-        .len_sim
-        .checked_mul(OUTPUT_ALL_COLS)
-        .ok_or_else(|| BridgeError::SimulationError {
-            code: -1,
-            message: "output block length overflow".to_string(),
-        })?;
+    let output_len =
+        input
+            .len_sim
+            .checked_mul(OUTPUT_ALL_COLS)
+            .ok_or_else(|| BridgeError::SimulationError {
+                code: -1,
+                message: "output block length overflow".to_string(),
+            })?;
     let mut output_block = vec![0.0_f64; output_len];
 
     let mut sim_err_code = 0_i32;

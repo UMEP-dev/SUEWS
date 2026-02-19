@@ -806,13 +806,16 @@ CONTAINS
       REAL(KIND(1D0)) :: theta_a2
       REAL(KIND(1D0)) :: y0_a2
       REAL(KIND(1D0)) :: n
+      CHARACTER(LEN=256) :: err_msg
 
       ! Validate inputs
       IF (d <= 0 .OR. C <= 0 .OR. k <= 0 .OR. lambda_c <= 0) THEN
+         WRITE (err_msg, '(A,1X,ES12.4,1X,A,1X,ES12.4,1X,A,1X,ES12.4,1X,A,1X,ES12.4)') &
+            'OHM calculate_a2 invalid inputs: d=', d, 'C=', C, 'k=', k, 'lambda_c=', lambda_c
 #ifdef wrf
          PRINT *, "Thickness (d), heat capacity (C), conductivity (k), and lambda_c must be positive."
 #endif
-         CALL set_supy_error(101, 'OHM calculate_a2: d, C, k, lambda_c must be positive')
+         CALL set_supy_error(101, TRIM(err_msg))
          a2 = -999.0D0
          RETURN
       END IF

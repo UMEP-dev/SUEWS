@@ -36,11 +36,12 @@ else
 # --DEBUGGING CONFIGURATION--
 OPTFLAGS = -O0
 WARNFLAGS = -Wall
-# Note: -ffpe-trap removed — on x86_64 it causes SIGFPE for legitimate
-# division-by-zero in STEBBS/SPARTACUS night paths (ARM64 silently returns NaN).
-# Use -finit-real=nan (quiet NaN) instead of snan (signalling NaN): sNaN can
-# still trigger SIGFPE on x86_64 if numpy/Python clears the MXCSR invalid mask.
-DEBUGFLAGS = -ggdb -g -fcheck=bounds -finit-real=nan
+# Flags removed from production DEBUG build for cross-platform safety:
+# -ffpe-trap: SIGFPE on x86_64 for legitimate div-by-zero (STEBBS/SPARTACUS)
+# -finit-real=snan: sNaN SIGFPE when numpy clears MXCSR invalid mask
+# -fcheck=bounds: gfortran 14 catches violations that gfortran 10 misses;
+#   the resulting abort() is not cleanly caught through the Rust FFI bridge
+DEBUGFLAGS = -ggdb -g
 
 endif
 

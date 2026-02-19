@@ -254,6 +254,7 @@ CONTAINS
       ! nlay = [nlayers] ! modified to follow ESTM_ext convention
       nlay = [nlayer]
       ALLOCATE (veg_ext(nlayer))
+      veg_ext = 0.0D0
 
       !Set the values of profiles that are implemented as being constant with height
       ! veg_frac(:) = veg_frac_const
@@ -329,6 +330,11 @@ CONTAINS
       ALLOCATE (LAI_av(ncol))
       ALLOCATE (veg_depth(ncol))
       ALLOCATE (LAI_av_z(nlayer))
+      ! Initialise to avoid platform-dependent values when no vegetation is
+      ! present in some (or all) layers.
+      LAI_av = 0.0D0
+      veg_depth = 0.0D0
+      LAI_av_z = 0.0D0
       !Calculate the area weighted LAI of trees
       DO jcol = 1, ncol
          ! the 10.**-10 stops the equation blowing up when there are no trees

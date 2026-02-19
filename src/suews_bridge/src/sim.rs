@@ -585,102 +585,6 @@ pub fn run_from_config_str_and_forcing(
 ) -> Result<(Vec<f64>, SuewsState, usize), BridgeError> {
     let mut run_cfg = load_run_config_from_str(config_yaml).map_err(simulation_error)?;
 
-    eprintln!(
-        "DEBUG_CFG netrad={} storage={} stebbs={} nlayer={} ndepth={} sp_height_len={} sp_layer_n={} sp_layer_spec={} bf={:?} bs={:?} ba_hset={} ba_cset={} ba_met43={} ba_app43={} ba_app109={} st_init_out={} st_init_in={} st_mass={} st_wall_i={} st_wall_o={} st_roof_i={} st_roof_o={} st_win_i={} st_win_o={} st_gnd_i={} st_gnd_o={} st_deep={} st_tank={} st_tank_iw={} st_tank_ow={} st_mains={} st_dhw={} st_dhw_iw={} st_dhw_ow={} st_vent={} st_min_dhw={} st_max_dhw={}",
-        run_cfg.config.net_radiation_method,
-        run_cfg.config.storage_heat_method,
-        run_cfg.config.stebbs_method,
-        run_cfg.nlayer,
-        run_cfg.ndepth,
-        run_cfg.site.spartacus.height.len(),
-        run_cfg.site.spartacus_layer.nlayer,
-        run_cfg.site.spartacus_layer.nspec,
-        run_cfg
-            .site
-            .spartacus_layer
-            .building_frac
-            .iter()
-            .take(3)
-            .copied()
-            .collect::<Vec<f64>>(),
-        run_cfg
-            .site
-            .spartacus_layer
-            .building_scale
-            .iter()
-            .take(3)
-            .copied()
-            .collect::<Vec<f64>>(),
-        run_cfg.site.building_archtype.heatingsetpointtemperature,
-        run_cfg.site.building_archtype.coolingsetpointtemperature,
-        run_cfg.site.building_archtype.metabolismprofile[0][42],
-        run_cfg.site.building_archtype.applianceprofile[0][42],
-        run_cfg.site.building_archtype.applianceprofile[0][108],
-        run_cfg.state.stebbs_state.outdoor_air_start_temperature,
-        run_cfg.state.stebbs_state.indoor_air_start_temperature,
-        run_cfg.state.stebbs_state.indoor_mass_start_temperature,
-        run_cfg.state.stebbs_state.wall_indoor_surface_temperature,
-        run_cfg.state.stebbs_state.wall_outdoor_surface_temperature,
-        run_cfg.state.stebbs_state.roof_indoor_surface_temperature,
-        run_cfg.state.stebbs_state.roof_outdoor_surface_temperature,
-        run_cfg.state.stebbs_state.window_indoor_surface_temperature,
-        run_cfg.state.stebbs_state.window_outdoor_surface_temperature,
-        run_cfg.state.stebbs_state.ground_floor_indoor_surface_temperature,
-        run_cfg.state.stebbs_state.ground_floor_outdoor_surface_temperature,
-        run_cfg.state.stebbs_state.deep_soil_temperature,
-        run_cfg.state.stebbs_state.water_tank_temperature,
-        run_cfg.state.stebbs_state.internal_wall_water_tank_temperature,
-        run_cfg.state.stebbs_state.external_wall_water_tank_temperature,
-        run_cfg.state.stebbs_state.mains_water_temperature,
-        run_cfg
-            .state
-            .stebbs_state
-            .domestic_hot_water_temperature_in_use_in_building,
-        run_cfg.state.stebbs_state.internal_wall_dhw_vessel_temperature,
-        run_cfg.state.stebbs_state.external_wall_dhw_vessel_temperature,
-        run_cfg.site.stebbs.ventilation_rate,
-        run_cfg.site.stebbs.minimum_volume_of_dhw_in_use,
-        run_cfg.site.stebbs.maximum_volume_of_dhw_in_use
-    );
-    let _ = std::fs::write(
-        "/Users/tingsun/conductor/workspaces/suews/walla-walla/.context/debug_cfg.txt",
-        format!(
-            "netrad={} storage={} stebbs={} nlayer={} ndepth={} sp_height_len={} sp_layer_n={} sp_layer_spec={} height={:?} bf={:?} bs={:?}\n",
-            run_cfg.config.net_radiation_method,
-            run_cfg.config.storage_heat_method,
-            run_cfg.config.stebbs_method,
-            run_cfg.nlayer,
-            run_cfg.ndepth,
-            run_cfg.site.spartacus.height.len(),
-            run_cfg.site.spartacus_layer.nlayer,
-            run_cfg.site.spartacus_layer.nspec,
-            run_cfg
-                .site
-                .spartacus
-                .height
-                .iter()
-                .take(4)
-                .copied()
-                .collect::<Vec<f64>>(),
-            run_cfg
-                .site
-                .spartacus_layer
-                .building_frac
-                .iter()
-                .take(3)
-                .copied()
-                .collect::<Vec<f64>>(),
-            run_cfg
-                .site
-                .spartacus_layer
-                .building_scale
-                .iter()
-                .take(3)
-                .copied()
-                .collect::<Vec<f64>>(),
-        ),
-    );
-
     if len_sim == 0 {
         return Err(simulation_error(
             "forcing block must contain at least one timestep",
@@ -989,13 +893,7 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
         return Err(BridgeError::BadState);
     }
 
-    eprintln!("DEBUG_VALIDATE_START");
     validate_site_codec(&site_members.flat, &site_members.toc, input.nlayer, input.ndepth)?;
-    eprintln!(
-        "DEBUG_VALIDATE_OK site_flat_len={} site_toc={:?}",
-        site_members.flat.len(),
-        site_members.toc
-    );
 
     let mut timer_out = vec![0.0_f64; SUEWS_TIMER_FLAT_LEN];
     let mut state_out = vec![0.0_f64; state_members.flat.len()];

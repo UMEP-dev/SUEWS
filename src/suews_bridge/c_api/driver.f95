@@ -19,6 +19,7 @@ use module_ctrl_const_allocate, only: ncolumnsDataOutSUEWS, nspec, nsurf, nvegsu
 use module_ctrl_type, only: SUEWS_TIMER, SUEWS_CONFIG, SUEWS_SITE, SUEWS_STATE, &
                             flag_STATE, anthroEmis_STATE, OHM_STATE, solar_State, atm_state, PHENOLOGY_STATE, &
                             SNOW_STATE, HYDRO_STATE, HEAT_STATE, ROUGHNESS_STATE, STEBBS_STATE, NHOOD_STATE
+use module_ctrl_error_state, only: reset_supy_error
 use module_c_api_spartacus_prm, only: spartacus_prm_unpack
 use module_c_api_lumps, only: lumps_prm_unpack
 use module_c_api_ehc_prm, only: ehc_prm_unpack
@@ -189,6 +190,7 @@ subroutine suews_cal_multitsteps_c( &
    sim_err_code = 0_c_int
    call copy_to_c_buffer('', sim_err_message, sim_err_message_len)
    err = SUEWS_CAPI_OK
+   call reset_supy_error()
 
    len_sim_i = int(len_sim)
    forcing_cols_i = int(forcing_cols)

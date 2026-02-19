@@ -36,12 +36,15 @@ else
 # --DEBUGGING CONFIGURATION--
 OPTFLAGS = -O0
 WARNFLAGS = -Wall
-# Flags removed from production DEBUG build for cross-platform safety:
+# Flags removed from production build for cross-platform safety:
 # -ffpe-trap: SIGFPE on x86_64 for legitimate div-by-zero (STEBBS/SPARTACUS)
 # -finit-real=snan: sNaN SIGFPE when numpy clears MXCSR invalid mask
 # -fcheck=bounds: gfortran 14 catches violations that gfortran 10 misses;
-#   the resulting abort() is not cleanly caught through the Rust FFI bridge
-DEBUGFLAGS = -ggdb -g
+#   the resulting abort() through Rust FFI manifests as a segfault
+# Use -finit-real=zero: prevents uninitialised-variable segfaults across
+# gfortran versions (14+ uses different stack layout than 10) without any
+# FPE risk.
+DEBUGFLAGS = -ggdb -g -finit-real=zero
 
 endif
 

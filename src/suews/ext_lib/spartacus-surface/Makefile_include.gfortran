@@ -28,7 +28,7 @@ else
 # --DEBUGGING CONFIGURATION--
 OPTFLAGS = -O0
 WARNFLAGS = -Wall
-# See src/suews/Makefile.gfortran for rationale on removed flags
-DEBUGFLAGS = -g
+# See src/suews/Makefile.gfortran for rationale on flag choices
+DEBUGFLAGS = -g -finit-real=zero
 
 endif

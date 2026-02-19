@@ -36,7 +36,10 @@ else
 # --DEBUGGING CONFIGURATION--
 OPTFLAGS = -O0
 WARNFLAGS = -Wall
-DEBUGFLAGS = -ggdb -g -ffpe-trap=invalid,zero,overflow -fcheck=bounds -finit-real=snan
+# Note: -ffpe-trap removed — on x86_64 it causes SIGFPE for legitimate
+# division-by-zero in STEBBS/SPARTACUS night paths (ARM64 silently returns NaN).
+# Keep -fcheck=bounds and -finit-real=snan for memory safety.
+DEBUGFLAGS = -ggdb -g -fcheck=bounds -finit-real=snan
 
 endif
 

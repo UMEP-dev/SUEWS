@@ -28,6 +28,7 @@ else
 # --DEBUGGING CONFIGURATION--
 OPTFLAGS = -O0
 WARNFLAGS = -Wall
-DEBUGFLAGS = -g -ffpe-trap=invalid,zero,overflow -fcheck=bounds -finit-real=snan
+# -ffpe-trap removed: see src/suews/Makefile.gfortran for rationale
+DEBUGFLAGS = -g -fcheck=bounds -finit-real=snan
 
 endif

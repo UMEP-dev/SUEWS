@@ -454,6 +454,11 @@ CONTAINS
          END IF
 
       ELSE
+         WRITE (*, *) 'OHM_DEBUG invalid qn1 for qs:', &
+            ' qn1=', qn1, &
+            ' storageHeatMethod=', StorageHeatMethod, &
+            ' tstep=', tstep, &
+            ' dt_since_start=', dt_since_start
          CALL ErrorHint(21, 'In SUEWS_OHM.f95: bad value for qn1 found during qs calculation.', qn1, -55.55D0, -55, modState)
          IF (supy_error_flag) RETURN
       END IF

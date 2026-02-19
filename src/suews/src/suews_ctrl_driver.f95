@@ -1602,6 +1602,16 @@ CONTAINS
                         roof_in_sw_spc, roof_in_lw_spc, &
                         wall_in_sw_spc, wall_in_lw_spc, &
                         dataOutLineSPARTACUS)
+                     IF (qn /= qn .OR. qn <= -999D0) THEN
+                        WRITE (*, *) 'QN_DEBUG invalid qn after SPARTACUS:', &
+                           ' netrad=', NetRadiationMethod, &
+                           ' qn=', qn, &
+                           ' qn_obs=', qn1_obs, &
+                           ' kdown=', kdown, &
+                           ' ldown=', ldown, &
+                           ' tair=', Tair_C, &
+                           ' qn_surf=', qn_surf
+                     END IF
                   ELSE
                      qn_roof = qn_surf(BldgSurf)
                      qn_wall = qn_surf(BldgSurf)

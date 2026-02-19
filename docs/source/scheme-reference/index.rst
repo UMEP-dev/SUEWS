@@ -80,6 +80,8 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
    .mc-table td ul { margin: 0; padding-left: 1.2rem; }
    .mc-table td li { margin: 0.15rem 0; }
    .mc-table tr:last-child td, .mc-table tr:last-child th { border-bottom: none; }
+   .mc-table th.mc-col-name a { color: inherit; text-decoration: none; border-bottom: 1px dashed currentColor; }
+   .mc-table th.mc-col-name a:hover { border-bottom-style: solid; }
    .mc-cross { color: var(--pst-color-text-muted, #999); }
    .mc-empty { text-align: center; padding: 3rem; color: var(--pst-color-text-muted, #999); }
    </style>
@@ -401,7 +403,8 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
        // Column header: scheme names
        t += "<thead><tr><th></th>";
        selected.forEach(d => {
-         t += '<th class="mc-col-name">' + d.full_name + '</th>';
+         const href = d.scheme_name + ".html";
+         t += '<th class="mc-col-name"><a href="' + href + '">' + d.full_name + '</a></th>';
        });
        t += "</tr></thead><tbody>";
 

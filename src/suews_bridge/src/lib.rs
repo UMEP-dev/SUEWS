@@ -4095,6 +4095,54 @@ mod python_bindings {
             .collect()
     }
 
+    /// Return per-group data column counts from the compiled Fortran library.
+    ///
+    /// Calls the Fortran C API `suews_output_group_ncolumns` which reads from
+    /// the compiled `ncolumnsDataOut*` constants in `suews_ctrl_const.f95`.
+    /// Returns a list of (group_name, ncols) tuples where ncols excludes the
+    /// 5-column datetime prefix (except for "datetime" which returns 5).
+    #[cfg(feature = "physics")]
+    #[pyfunction(name = "output_group_ncolumns")]
+    fn output_group_ncolumns_py() -> PyResult<Vec<(String, i32)>> {
+        const N_GROUPS: usize = 13;
+        let group_names: [&str; N_GROUPS] = [
+            "datetime",
+            "SUEWS",
+            "snow",
+            "ESTM",
+            "EHC",
+            "RSL",
+            "BL",
+            "debug",
+            "BEERS",
+            "DailyState",
+            "SPARTACUS",
+            "STEBBS",
+            "NHood",
+        ];
+
+        let mut ncols_arr = [0i32; N_GROUPS];
+        let mut n_groups = 0i32;
+        let mut err = 0i32;
+        unsafe {
+            ffi::suews_output_group_ncolumns(
+                ncols_arr.as_mut_ptr(),
+                &mut n_groups,
+                &mut err,
+            );
+        }
+        if err != 0 {
+            return Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
+                "suews_output_group_ncolumns failed with error code {err}"
+            )));
+        }
+        Ok(group_names
+            .iter()
+            .zip(ncols_arr.iter())
+            .map(|(name, &ncols)| (name.to_string(), ncols))
+            .collect())
+    }
+
     #[pyfunction(name = "ohm_state_schema")]
     fn ohm_state_schema_py() -> PyResult<(usize, usize)> {
         ohm_state_schema().map_err(map_bridge_error)
@@ -5274,6 +5322,8 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(run_suews_with_state_py, m)?)?;
         #[cfg(feature = "physics")]
         m.add_function(wrap_pyfunction!(output_group_layout_py, m)?)?;
+        #[cfg(feature = "physics")]
+        m.add_function(wrap_pyfunction!(output_group_ncolumns_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_step_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_version_py, m)?)?;

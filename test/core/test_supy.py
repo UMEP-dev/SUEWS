@@ -446,10 +446,10 @@ class TestSuPy(TestCase):
         surf_veg = surf_veg / surf_veg.sum()
         smd_veg_correct = np.dot(surf_veg, smd_veg)
 
-        # test SMD_veg
-        from supy.supy_driver import module_phys_waterdist as wm
+        # test SMD_veg via Python port of Fortran cal_smd_veg
+        from supy.util import cal_smd_veg
 
-        smd_veg_test = wm.cal_smd_veg(soilstorecap, soilstore_id, sfr_surf)
+        smd_veg_test = cal_smd_veg(soilstorecap, soilstore_id, sfr_surf)
 
         self.assertAlmostEqual(smd_veg_correct, smd_veg_test)
 

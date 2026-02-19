@@ -686,12 +686,39 @@ def _run_supy(
     n_grid = list_grid.size
     logger_supy.info(f"No. of grids: {n_grid}")
 
-    raise RuntimeError(
-        "The legacy DataFrame-based simulation backend (f2py) has been removed.\n"
-        "Please use the modern SUEWSSimulation interface instead:\n\n"
-        "    sim = supy.SUEWSSimulation('config.yml')\n"
-        "    output = sim.run()\n"
-    )
+    # Build config from DataFrame state
+    from .data_model.core import SUEWSConfig
+    from ._run_rust import run_suews_rust_chunked
+    from .util._forcing import convert_observed_soil_moisture
+
+    config = SUEWSConfig.from_df_state(df_state_init)
+
+    # Preprocess forcing for observed soil moisture if needed
+    try:
+        smd_val = config.model.options.smdmethod
+        if hasattr(smd_val, "value"):
+            smd_val = smd_val.value
+        smd_int = int(smd_val)
+    except (AttributeError, TypeError, ValueError):
+        smd_int = 0
+
+    df_forcing_processed = df_forcing.copy()
+    if smd_int > 0:
+        df_forcing_processed = convert_observed_soil_moisture(
+            df_forcing_processed, df_state_init
+        )
+
+    # Run via Rust bridge
+    df_output, _ = run_suews_rust_chunked(config, df_forcing_processed, chunk_day)
+
+    # Build state_final: copy initial state + version metadata
+    df_state_final = df_state_init.copy()
+    df_state_final[("version", "0")] = __version__
+
+    end = time.time()
+    logger_supy.info(f"Simulation completed. Elapsed: {end - start:.1f}s")
+
+    return df_output, df_state_final
 
 
 def run_supy(

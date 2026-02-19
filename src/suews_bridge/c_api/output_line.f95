@@ -8,7 +8,8 @@ MODULE module_c_api_output_line
       copy_to_c_buffer, suews_capi_error_text
    USE module_ctrl_const_allocate, ONLY: &
       ncolumnsDataOutSUEWS, ncolumnsDataOutSnow, ncolumnsDataOutESTM, ncolumnsDataOutEHC, &
-      ncolumnsDataOutRSL, ncolumnsDataOutBEERS, ncolumnsDataOutDebug, ncolumnsDataOutSPARTACUS, &
+      ncolumnsDataOutRSL, ncolumnsdataOutBL, ncolumnsDataOutBEERS, ncolumnsDataOutDebug, &
+      ncolumnsDataOutSPARTACUS, &
       ncolumnsDataOutDailyState, ncolumnsDataOutSTEBBS, ncolumnsDataOutNHood
 
    IMPLICIT NONE
@@ -45,6 +46,11 @@ MODULE module_c_api_output_line
       SUEWS_CAPI_OUTPUT_LINE_STEBBS_LEN + &
       SUEWS_CAPI_OUTPUT_LINE_NHOOD_LEN
 
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_OUTPUT_LINE_BL_LEN = INT(ncolumnsdataOutBL, c_int)
+
+   ! Number of output groups returned by suews_output_group_ncolumns (including datetime and BL).
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_OUTPUT_N_GROUPS = 13_c_int
+
    INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_OUTPUT_LINE_SCHEMA_VERSION = 1_c_int
 
    TYPE :: output_line_shadow
@@ -66,6 +72,7 @@ MODULE module_c_api_output_line
    PUBLIC :: suews_output_line_schema_version
    PUBLIC :: suews_output_line_default
    PUBLIC :: suews_output_line_error_message
+   PUBLIC :: suews_output_group_ncolumns
 
 CONTAINS
 
@@ -192,6 +199,38 @@ CONTAINS
       CALL copy_to_c_buffer(msg, buffer, buffer_len)
 
    END SUBROUTINE suews_output_line_error_message
+
+   SUBROUTINE suews_output_group_ncolumns(ncols_arr, n_groups, err) &
+         BIND(C, name='suews_output_group_ncolumns')
+      ! Return per-group data column counts (excluding datetime prefix) from compiled
+      ! Fortran ncolumnsDataOut* constants. Datetime group returns 5.
+      ! Order: datetime, SUEWS, snow, ESTM, EHC, RSL, BL, debug, BEERS,
+      !        DailyState, SPARTACUS, STEBBS, NHood.
+      IMPLICIT NONE
+
+      INTEGER(c_int), INTENT(out) :: ncols_arr(SUEWS_CAPI_OUTPUT_N_GROUPS)
+      INTEGER(c_int), INTENT(out) :: n_groups
+      INTEGER(c_int), INTENT(out) :: err
+
+      ncols_arr(1)  = SUEWS_CAPI_OUTPUT_LINE_DATETIME_LEN            ! datetime: 5
+      ncols_arr(2)  = SUEWS_CAPI_OUTPUT_LINE_SUEWS_LEN - 5_c_int     ! SUEWS
+      ncols_arr(3)  = SUEWS_CAPI_OUTPUT_LINE_SNOW_LEN - 5_c_int      ! snow
+      ncols_arr(4)  = SUEWS_CAPI_OUTPUT_LINE_ESTM_LEN - 5_c_int      ! ESTM
+      ncols_arr(5)  = SUEWS_CAPI_OUTPUT_LINE_EHC_LEN - 5_c_int       ! EHC
+      ncols_arr(6)  = SUEWS_CAPI_OUTPUT_LINE_RSL_LEN - 5_c_int       ! RSL
+      ncols_arr(7)  = SUEWS_CAPI_OUTPUT_LINE_BL_LEN - 5_c_int        ! BL
+      ncols_arr(8)  = SUEWS_CAPI_OUTPUT_LINE_DEBUG_LEN - 5_c_int     ! debug
+      ncols_arr(9)  = SUEWS_CAPI_OUTPUT_LINE_BEERS_LEN - 5_c_int     ! BEERS
+      ncols_arr(10) = SUEWS_CAPI_OUTPUT_LINE_DAILYSTATE_LEN - 5_c_int ! DailyState
+      ncols_arr(11) = SUEWS_CAPI_OUTPUT_LINE_SPARTACUS_LEN - 5_c_int ! SPARTACUS
+      ncols_arr(12) = SUEWS_CAPI_OUTPUT_LINE_STEBBS_LEN - 5_c_int    ! STEBBS
+      ncols_arr(13) = SUEWS_CAPI_OUTPUT_LINE_NHOOD_LEN - 5_c_int     ! NHood
+
+      n_groups = SUEWS_CAPI_OUTPUT_N_GROUPS
+      err = SUEWS_CAPI_OK
+
+   END SUBROUTINE suews_output_group_ncolumns
+
 
 END MODULE module_c_api_output_line
 

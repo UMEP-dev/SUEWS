@@ -394,14 +394,33 @@ def main():
         return 1
 
 
+def _load_fortran_group_ncolumns():
+    """Load per-group column counts from the compiled Fortran library via the Rust bridge.
+
+    Returns a dict mapping group name to data column count (excluding datetime prefix,
+    except 'datetime' which returns 5).
+    """
+    from importlib import import_module
+
+    for module_name in ("supy.suews_bridge", "suews_bridge"):
+        try:
+            bridge = import_module(module_name)
+            return dict(bridge.output_group_ncolumns())
+        except Exception:
+            pass
+    pytest.skip("Rust bridge not available (output_group_ncolumns)")
+
+
 def test_fortran_python_output_consistency():
-    """Verify Python OUTPUT_REGISTRY matches Fortran ncolumnsDataOut* constants.
+    """Verify Python OUTPUT_REGISTRY matches compiled Fortran ncolumnsDataOut* constants.
 
-    This test calls Fortran's output_ncolumns() function at runtime to get the
-    expected number of columns for each output group, then verifies Python's
-    OUTPUT_REGISTRY has the exact same count.
+    Calls the compiled Fortran library through the Rust C API bridge to get
+    the ncolumnsDataOut* integer constants, then verifies Python's
+    OUTPUT_REGISTRY has the exact same count for each output group.
 
-    This provides runtime verification that Python and Fortran stay in sync.
+    This provides runtime verification that Python and Fortran stay in sync,
+    using the actual compiled library rather than source-level inspection.
+
     If this test fails, either:
     - Fortran ncolumnsDataOut* constants were changed (update Python registry)
     - Python registry was changed (update Fortran constants)
@@ -411,90 +430,68 @@ def test_fortran_python_output_consistency():
     print("=" * 70)
     print()
 
-    try:
-        from supy.data_model.output import OUTPUT_REGISTRY, OutputGroup
-        from supy.supy_driver import suews_driver as sd
+    from supy.data_model.output import OUTPUT_REGISTRY, OutputGroup
 
-        # Mapping from Python OutputGroup to Fortran group name strings
-        # These must match the CASE statements in output_ncolumns()
-        GROUP_MAPPING = {
-            OutputGroup.DATETIME: "datetime",
-            OutputGroup.SUEWS: "SUEWS",
-            OutputGroup.SNOW: "snow",
-            OutputGroup.ESTM: "ESTM",
-            OutputGroup.EHC: "EHC",
-            OutputGroup.RSL: "RSL",
-            OutputGroup.BL: "BL",
-            OutputGroup.DEBUG: "debug",
-            OutputGroup.BEERS: "BEERS",
-            OutputGroup.DAILYSTATE: "DailyState",
-            OutputGroup.SPARTACUS: "SPARTACUS",
-            OutputGroup.STEBBS: "STEBBS",
-            OutputGroup.NHOOD: "NHood",
-        }
+    fortran_ncolumns = _load_fortran_group_ncolumns()
 
-        print("Verifying Python registry against Fortran ncolumnsDataOut* constants:")
-        mismatches = []
-        for py_group, fortran_name in GROUP_MAPPING.items():
-            python_count = len(OUTPUT_REGISTRY.by_group(py_group))
-            fortran_count = sd.output_ncolumns(fortran_name)
+    # Mapping from Python OutputGroup to Fortran group name strings
+    GROUP_MAPPING = {
+        OutputGroup.DATETIME: "datetime",
+        OutputGroup.SUEWS: "SUEWS",
+        OutputGroup.SNOW: "snow",
+        OutputGroup.ESTM: "ESTM",
+        OutputGroup.EHC: "EHC",
+        OutputGroup.RSL: "RSL",
+        OutputGroup.BL: "BL",
+        OutputGroup.DEBUG: "debug",
+        OutputGroup.BEERS: "BEERS",
+        OutputGroup.DAILYSTATE: "DailyState",
+        OutputGroup.SPARTACUS: "SPARTACUS",
+        OutputGroup.STEBBS: "STEBBS",
+        OutputGroup.NHOOD: "NHood",
+    }
 
-            if python_count == fortran_count:
-                print(
-                    f"  [OK] {py_group.value:12s}: Python={python_count:3d}, Fortran={fortran_count:3d}"
-                )
-            else:
-                print(
-                    f"  [FAIL] {py_group.value:12s}: Python={python_count:3d}, Fortran={fortran_count:3d} MISMATCH!"
-                )
-                mismatches.append((py_group.value, python_count, fortran_count))
+    print("Verifying Python registry against compiled Fortran ncolumnsDataOut* constants:")
+    mismatches = []
+    for py_group, fortran_name in GROUP_MAPPING.items():
+        python_count = len(OUTPUT_REGISTRY.by_group(py_group))
+        fortran_count = fortran_ncolumns[fortran_name]
 
-        print()
-        if mismatches:
-            print("=" * 70)
-            print("[FAIL] CONSISTENCY CHECK FAILED")
-            print("=" * 70)
-            print("Mismatches found:")
-            for group, py_count, f_count in mismatches:
-                print(f"  - {group}: Python has {py_count}, Fortran expects {f_count}")
-            print()
-            print("ACTION REQUIRED:")
+        if python_count == fortran_count:
             print(
-                "1. If Fortran changed: update Python registry in src/supy/data_model/output/"
+                f"  [OK] {py_group.value:12s}: Python={python_count:3d}, Fortran={fortran_count:3d}"
             )
-            print(
-                "2. If Python changed: update ncolumnsDataOut* in src/suews/src/suews_ctrl_const.f95"
-            )
-            pytest.fail(f"Fortran/Python mismatch: {mismatches}")
         else:
-            print("=" * 70)
-            print("[PASS] CONSISTENCY CHECK PASSED")
-            print("=" * 70)
             print(
-                "Python OUTPUT_REGISTRY matches Fortran ncolumnsDataOut* constants exactly."
+                f"  [FAIL] {py_group.value:12s}: Python={python_count:3d}, Fortran={fortran_count:3d} MISMATCH!"
             )
-            print()
+            mismatches.append((py_group.value, python_count, fortran_count))
 
-    except ImportError as e:
+    print()
+    if mismatches:
+        print("=" * 70)
+        print("[FAIL] CONSISTENCY CHECK FAILED")
+        print("=" * 70)
+        print("Mismatches found:")
+        for group, py_count, f_count in mismatches:
+            print(f"  - {group}: Python has {py_count}, Fortran expects {f_count}")
         print()
+        print("ACTION REQUIRED:")
+        print(
+            "1. If Fortran changed: update Python registry in src/supy/data_model/output/"
+        )
+        print(
+            "2. If Python changed: update ncolumnsDataOut* in src/suews/src/suews_ctrl_const.f95"
+        )
+        pytest.fail(f"Fortran/Python mismatch: {mismatches}")
+    else:
         print("=" * 70)
-        print("[SKIP] SKIPPED: supy not available")
+        print("[PASS] CONSISTENCY CHECK PASSED")
         print("=" * 70)
-        print(f"Reason: {e}")
-        print("This test requires a full supy build with Fortran components.")
+        print(
+            "Python OUTPUT_REGISTRY matches compiled Fortran ncolumnsDataOut* constants exactly."
+        )
         print()
-        pytest.skip(f"supy not available: {e}")
-
-    except Exception as e:
-        print()
-        print("=" * 70)
-        print("[FAIL] UNEXPECTED ERROR")
-        print("=" * 70)
-        print(f"{e}")
-        import traceback
-
-        traceback.print_exc()
-        pytest.fail(f"Unexpected error: {e}")
 
 
 if __name__ == "__main__":

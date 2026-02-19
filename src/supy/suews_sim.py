@@ -520,7 +520,13 @@ class SUEWSSimulation:
             chunk_day=chunk_day,
         )
         self._df_output = df_output
-        self._df_state_final = None
+
+        # Build state_final: copy initial state + version metadata
+        from ._version import __version__
+
+        df_state_final = self._df_state_init.copy()
+        df_state_final[("version", "0")] = __version__
+        self._df_state_final = df_state_final
 
         self._run_completed = True
 

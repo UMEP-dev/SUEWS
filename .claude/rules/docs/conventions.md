@@ -21,8 +21,13 @@ cd docs && make livehtml     # Live-reload development server
 ## Auto-Generated Files (DO NOT EDIT)
 
 - `docs/source/inputs/yaml/config-reference/` - RST from Pydantic models
-- Rebuilt automatically when running `make docs`
-- To change: modify `docs/generate_datamodel_rst.py`
+  - Rebuilt automatically when running `make docs`
+  - To change: modify `docs/generate_datamodel_rst.py`
+- `docs/source/scheme-reference/` - RST from model card YAML files
+  - Regenerate: `python docs/generate_model_cards_rst.py`
+  - Source data: `src/supy/model_cards/*.yaml`
+  - Option descriptions are auto-pulled from Python enum docstrings (hybrid architecture)
+  - See `src/supy/model_cards/README.md` for details
 
 ---
 

@@ -142,11 +142,12 @@ All workflows begin with `/start-work`, which uses a two-step selection:
 1. `/examine-issue <N>` -- analyse and assess complexity
 2. `/start-work` setup -- branch, build, baseline tests
 3. Implement (auto-loaded rules guide coding)
-4. `git commit` -- pre-commit hook auto-runs quality checks
-5. `/sync-docs` + `/log-changes` + `make docs`
-6. `/gh-sync` + `gh pr create` -- rebase and create PR
-7. `/audit-pr <N>` -- review
-8. `/gh-debrief` -- verify closure
+4. If adding/modifying a physics scheme: create/update model card YAML in `src/supy/model_cards/` and run `python docs/generate_model_cards_rst.py`
+5. `git commit` -- pre-commit hook auto-runs quality checks
+6. `/sync-docs` + `/log-changes` + `make docs`
+7. `/gh-sync` + `gh pr create` -- rebase and create PR
+8. `/audit-pr <N>` -- review
+9. `/gh-debrief` -- verify closure
 
 **Bug Fix**
 1. `/examine-issue <N>` -- triage

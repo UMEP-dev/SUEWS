@@ -1,0 +1,108 @@
+identity:
+  scheme_name: stebbs
+  full_name: Surface Temperature Energy Balance Based Scheme
+  category: storage_heat
+  purpose: >-
+    Calculates facet-level surface temperatures and storage heat flux for
+    buildings by solving explicit energy balances for roof, wall, and ground
+    surfaces with multi-layer heat conduction.
+  version_introduced: "v2024a"
+  original_authors:
+    - "SUEWS Development Team"
+  enum_class: StorageHeatMethod
+  enum_values: [7]
+
+scientific_basis:
+  theoretical_basis: >-
+    STEBBS solves the surface energy balance at individual urban facets (roof,
+    wall, ground) using explicit heat conduction through multi-layer building
+    envelopes. Each facet has its own thermal properties (conductivity, heat
+    capacity, layer thicknesses) and exchanges radiation, convection, and
+    conduction. Internal building temperature is modelled, and the heat
+    capacity can be split between envelope and interior using a configurable
+    weighting factor. For buildings, STEBBS computes the storage heat flux;
+    for other surface types, OHM is used.
+  key_publications: []
+  key_assumptions:
+    - "Building envelope is represented as 1D multi-layer heat conduction"
+    - "Heat capacity splitting between envelope and interior is parameterisable"
+    - "Indoor convection follows standard heat transfer correlations"
+    - "Water use energy losses to drains are accounted for"
+  comparison_to_established: >-
+    STEBBS provides higher physical detail than OHM by resolving individual
+    facet temperatures and multi-layer heat conduction, similar in concept
+    to the Element Surface Temperature Method (ESTM) but with improved
+    building energy modelling including indoor processes. EHC provides
+    explicit heat conduction without the full building energy model.
+
+evaluation_evidence:
+  evaluation_status: internal
+  performance_summary: >-
+    Under development and internal testing. Validation against observations
+    is ongoing. Users should verify results for their specific applications
+    before using in production.
+
+technical_characteristics:
+  spatial_scale:
+    - neighbourhood
+  temporal_resolution:
+    - sub-hourly
+    - hourly
+  required_inputs:
+    parameters:
+      - "Building thermal properties (conductivity, heat capacity per layer)"
+      - "Layer thicknesses for roof, wall, and ground"
+      - "Building geometry (heights, plan area fractions)"
+      - "Surface albedo and emissivity per facet"
+      - "RC method and weighting factor for heat capacity splitting"
+      - "Internal temperature settings"
+    forcing:
+      - "Incoming shortwave radiation"
+      - "Air temperature"
+      - "Wind speed"
+      - "Net all-wave radiation (from NARP or observed)"
+  outputs:
+    - "Storage heat flux (delta QS) for buildings"
+    - "Facet surface temperatures (roof, wall, ground)"
+    - "Internal building temperature"
+    - "Detailed STEBBS output columns"
+  computational_cost: medium
+  dependencies:
+    - "Net radiation scheme (NARP or observed) for non-building surfaces"
+    - "OHM for non-building surface types"
+  conflicts:
+    - "Cannot be combined with ESTM (StorageHeatMethod=4)"
+
+operational_status:
+  development_status: experimental
+  current_maintainers:
+    - name: SUEWS Development Team
+      affiliation: University of Reading / UCL
+  active_development: "yes"
+  test_coverage:
+    - "Integration tests via make test"
+  known_issues:
+    - "Peer-reviewed validation not yet published"
+    - "Requires detailed building thermal property data that may not be readily available"
+
+user_guidance:
+  recommended_for:
+    - "Research applications investigating facet-level urban surface temperatures"
+    - "Building energy studies requiring internal temperature modelling"
+  not_recommended_for:
+    - "Production runs until peer-reviewed validation is complete"
+    - "Sites where building thermal property data is unavailable"
+    - "Long-duration runs where computational cost is a constraint"
+  configuration_notes: >-
+    StorageHeatMethod=7 enables STEBBS for building surfaces (other surfaces
+    use OHM). StebbsMethod controls whether STEBBS runs (0=disabled,
+    1=default parameters, 2=user-provided parameters). RCMethod controls
+    the building envelope heat capacity splitting (0=none, 1=user-defined
+    weighting, 2=parameterised from material properties).
+  common_pitfalls:
+    - "StorageHeatMethod must be set to 7 alongside StebbsMethod > 0"
+    - "Missing building layer properties will cause runtime errors"
+    - "Results are sensitive to the number and specification of thermal layers"
+
+governance:
+  candidate_for_deprecation: false

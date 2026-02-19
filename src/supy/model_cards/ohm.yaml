@@ -1,0 +1,106 @@
+identity:
+  scheme_name: ohm
+  full_name: Objective Hysteresis Model
+  category: storage_heat
+  purpose: >-
+    Calculates storage heat flux (delta QS) using empirically-fitted
+    hysteresis relations between net all-wave radiation and its rate of change.
+  version_introduced: "v1.0"
+  original_authors:
+    - "C.S.B. Grimmond"
+    - "T.R. Oke"
+  enum_class: StorageHeatMethod
+  enum_values: [1]
+
+scientific_basis:
+  theoretical_basis: >-
+    OHM models the storage heat flux as a linear combination of net all-wave
+    radiation (Q*) and its temporal rate of change (dQ*/dt), with empirically
+    determined coefficients (a1, a2, a3) that capture the hysteresis between
+    Q* and delta QS. The area-averaged storage heat flux is computed as a
+    weighted sum over surface types, each with their own OHM coefficients.
+    The formulation is: delta QS = a1*Q* + a2*(dQ*/dt) + a3.
+  key_publications:
+    - "G91"
+    - "GO99"
+    - "GO02"
+  key_assumptions:
+    - "Storage heat flux is primarily a function of Q* and dQ*/dt"
+    - "OHM coefficients are constant for each surface type (seasonally or by condition)"
+    - "Area-averaged flux is a linear combination weighted by surface fractions"
+  comparison_to_established: >-
+    OHM is the original and simplest storage heat flux scheme in SUEWS. EHC
+    provides explicit multi-layer heat conduction, DyOHM calculates OHM
+    coefficients dynamically from material properties, and STEBBS solves
+    facet-level energy balances. OHM remains suitable when empirical
+    coefficients are available for the site.
+
+evaluation_evidence:
+  evaluation_status: peer-reviewed
+  evaluation_datasets:
+    - "Multiple urban sites including Vancouver, Tucson, Sacramento, Chicago"
+    - "Urban flux tower observations across different climate zones"
+  performance_summary: >-
+    Extensively validated since 1991. Performance depends on availability of
+    appropriate OHM coefficients for the surface types present. Well-suited
+    to neighbourhood-scale applications where surface composition is known.
+  intercomparison_results: >-
+    Compared with residual methods and direct calorimetric estimates.
+    Generally performs well when coefficients are appropriate for the site,
+    but can underperform for novel surface configurations without calibration.
+
+technical_characteristics:
+  spatial_scale:
+    - neighbourhood
+    - city
+  temporal_resolution:
+    - sub-hourly
+    - hourly
+  required_inputs:
+    parameters:
+      - "OHM coefficients (a1, a2, a3) for each surface type"
+      - "Surface fractions (7 surface types)"
+      - "OHM threshold parameters (SW and wetness)"
+      - "Soil store capacity (for wet/dry coefficient selection)"
+    forcing:
+      - "Net all-wave radiation (Q*)"
+      - "Anthropogenic heat flux (QF, if OhmIncQf=1)"
+  outputs:
+    - "Storage heat flux (delta QS)"
+    - "Area-averaged OHM coefficients"
+  computational_cost: low
+  dependencies:
+    - "Net radiation scheme (NARP or observed Q*)"
+    - "OhmIncQf setting controls whether Q*+QF or Q* alone is used"
+  conflicts:
+    - "StorageHeatMethod=1 requires OhmIncQf=0 (Q* only)"
+
+operational_status:
+  development_status: stable
+  current_maintainers:
+    - name: SUEWS Development Team
+      affiliation: University of Reading / UCL
+  last_significant_update: "2025-01"
+  active_development: maintenance-only
+  test_coverage:
+    - "Smoke tests via make test-smoke"
+    - "Full regression tests via make test"
+
+user_guidance:
+  recommended_for:
+    - "Standard urban energy balance runs with well-characterised surfaces"
+    - "Long-duration simulations where computational efficiency matters"
+    - "Applications where published OHM coefficients exist for the site type"
+  not_recommended_for:
+    - "Sites with novel surface types lacking OHM coefficient calibration"
+    - "Studies requiring facet-level surface temperatures (use STEBBS or EHC)"
+  configuration_notes: >-
+    StorageHeatMethod=1 selects OHM with Q* only (requires OhmIncQf=0).
+    OHM coefficients are specified per surface type, with separate sets for
+    dry/wet and summer/winter conditions selected by threshold parameters.
+  common_pitfalls:
+    - "Incorrect OhmIncQf setting for the chosen StorageHeatMethod"
+    - "Using default OHM coefficients for surface types very different from calibration sites"
+
+governance:
+  candidate_for_deprecation: false

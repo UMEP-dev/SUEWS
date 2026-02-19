@@ -3,7 +3,7 @@
 Surface Temperature Energy Balance Based Scheme
 ===============================================
 
-:bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-info-line:`medium demand`
+:bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-info-line:`compute: medium` :bdg-warning-line:`data prep: high`
 
 Calculates facet-level surface temperatures and storage heat flux for buildings by solving explicit energy balances for roof, wall, and ground surfaces with multi-layer heat conduction.
 
@@ -38,7 +38,8 @@ Calculates facet-level surface temperatures and storage heat flux for buildings 
 
       :Spatial scale: neighbourhood
       :Temporal resolution: sub-hourly, hourly
-      :Computational demand: :bdg-info-line:`medium demand`
+      :Computational demand: :bdg-info-line:`compute: medium`
+      :Data preparation: :bdg-warning-line:`data prep: high`
 
       .. dropdown:: Required parameters (static)
          :class-container: sd-shadow-sm

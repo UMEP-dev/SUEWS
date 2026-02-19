@@ -73,6 +73,7 @@ technical_characteristics:
     - "Incoming longwave radiation (Ldown, if modelled)"
     - "Outgoing longwave radiation (Lup)"
   computational_demand: low
+  data_preparation_demand: low
   dependencies:
     - "Sun position calculation (internal)"
   conflicts:

@@ -69,6 +69,7 @@ technical_characteristics:
     - "Storage heat flux (delta QS)"
     - "Area-averaged OHM coefficients"
   computational_demand: low
+  data_preparation_demand: medium
   dependencies:
     - "Net radiation scheme (NARP or observed Q*)"
     - "OhmIncQf setting controls whether Q*+QF or Q* alone is used"

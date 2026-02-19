@@ -114,7 +114,8 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
        "purpose": "Calculates net all-wave radiation (Q*) from incoming shortwave radiation, air temperature, humidity, and surface characteristics using empirical longwave parameterisations.",
        "status": "stable",
        "evaluation": "peer-reviewed",
-       "cost": "low",
+       "compute": "low",
+       "data_prep": "low",
        "spatial_scale": [
          "neighbourhood",
          "city"
@@ -179,7 +180,8 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
        "purpose": "Calculates storage heat flux (delta QS) using empirically-fitted hysteresis relations between net all-wave radiation and its rate of change.",
        "status": "stable",
        "evaluation": "peer-reviewed",
-       "cost": "low",
+       "compute": "low",
+       "data_prep": "medium",
        "spatial_scale": [
          "neighbourhood",
          "city"
@@ -239,7 +241,8 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
        "purpose": "Calculates facet-level surface temperatures and storage heat flux for buildings by solving explicit energy balances for roof, wall, and ground surfaces with multi-layer heat conduction.",
        "status": "experimental",
        "evaluation": "internal",
-       "cost": "medium",
+       "compute": "medium",
+       "data_prep": "high",
        "spatial_scale": [
          "neighbourhood"
        ],
@@ -352,7 +355,7 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
      }
      function statusBadge(s) { return badge(s, s); }
      function evalBadge(s) { return badge(s, s); }
-     function costBadge(s) { return badge(s + " demand", s); }
+     function levelBadge(label, s) { return badge(label + ": " + s, s); }
 
      function listHtml(arr) {
        if (!arr || arr.length === 0) return '<span class="mc-cross">--</span>';
@@ -376,7 +379,8 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
        const rows = [
          ["Status", d => statusBadge(d.status)],
          ["Evaluation", d => evalBadge(d.evaluation)],
-         ["Demand", d => costBadge(d.cost)],
+         ["Compute", d => levelBadge("compute", d.compute)],
+         ["Data prep", d => levelBadge("data prep", d.data_prep)],
          ["Purpose", d => d.purpose],
          ["Config", d => d.enum_class ? "<code>" + d.enum_class + "</code> = " + (d.enum_values || []).join(", ") : "--"],
          ["Spatial scale", d => d.spatial_scale.join(", ")],

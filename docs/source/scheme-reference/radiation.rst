@@ -12,7 +12,7 @@ Comparing **1** scheme(s) for **radiation (q*)** in SUEWS.
       :link: model_card_narp
       :link-type: ref
 
-      :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`low demand`
+      :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
 
       Calculates net all-wave radiation (Q*) from incoming shortwave radiation, air temperature, humidity, and surface characteristics using empirical longwave parameterisations.
 

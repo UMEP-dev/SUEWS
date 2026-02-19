@@ -105,10 +105,16 @@ EVAL_BADGE = {
     "untested": ":bdg-danger-line:`untested`",
 }
 
-DEMAND_BADGE = {
-    "low": ":bdg-success-line:`low demand`",
-    "medium": ":bdg-info-line:`medium demand`",
-    "high": ":bdg-warning-line:`high demand`",
+COMPUTE_BADGE = {
+    "low": ":bdg-success-line:`compute: low`",
+    "medium": ":bdg-info-line:`compute: medium`",
+    "high": ":bdg-warning-line:`compute: high`",
+}
+
+DATA_PREP_BADGE = {
+    "low": ":bdg-success-line:`data prep: low`",
+    "medium": ":bdg-info-line:`data prep: medium`",
+    "high": ":bdg-warning-line:`data prep: high`",
 }
 
 
@@ -139,7 +145,9 @@ def generate_card_rst(card: ModelCard) -> str:
     name = card.identity.scheme_name
     status = _enum_val(card.operational_status.development_status)
     eval_st = _enum_val(card.evaluation_evidence.evaluation_status)
-    cost = card.technical_characteristics.computational_demand or "unknown"
+    tech = card.technical_characteristics
+    comp = tech.computational_demand or "unknown"
+    data_prep = tech.data_preparation_demand or "unknown"
 
     # Reference label
     L.append(f".. _{f'model_card_{name}'}:")
@@ -153,7 +161,8 @@ def generate_card_rst(card: ModelCard) -> str:
     badges = [
         STATUS_BADGE.get(status, f":bdg-secondary:`{status}`"),
         EVAL_BADGE.get(eval_st, f":bdg-secondary-line:`{eval_st}`"),
-        DEMAND_BADGE.get(cost, f":bdg-secondary-line:`{cost} demand`"),
+        COMPUTE_BADGE.get(comp, f":bdg-secondary-line:`compute: {comp}`"),
+        DATA_PREP_BADGE.get(data_prep, f":bdg-secondary-line:`data prep: {data_prep}`"),
     ]
     L.append(" ".join(badges))
     L.append("")
@@ -243,10 +252,10 @@ def generate_card_rst(card: ModelCard) -> str:
     tab = [".. tab-item:: Technical", ""]
     body = []
 
-    tech = card.technical_characteristics
     body.append(f":Spatial scale: {', '.join(tech.spatial_scale)}")
     body.append(f":Temporal resolution: {', '.join(tech.temporal_resolution)}")
-    body.append(f":Computational demand: {DEMAND_BADGE.get(cost, cost)}")
+    body.append(f":Computational demand: {COMPUTE_BADGE.get(comp, comp)}")
+    body.append(f":Data preparation: {DATA_PREP_BADGE.get(data_prep, data_prep)}")
     body.append("")
 
     if tech.required_inputs.get("parameters"):
@@ -411,7 +420,8 @@ def generate_category_page(category: str, cards: list[ModelCard]) -> str:
         full = card.identity.full_name
         status = _enum_val(card.operational_status.development_status)
         eval_st = _enum_val(card.evaluation_evidence.evaluation_status)
-        cost = card.technical_characteristics.computational_demand or "unknown"
+        comp = card.technical_characteristics.computational_demand or "unknown"
+        dp = card.technical_characteristics.data_preparation_demand or "unknown"
 
         L.append(f"   .. grid-item-card:: {full}")
         L.append(f"      :link: model_card_{nm}")
@@ -421,8 +431,9 @@ def generate_category_page(category: str, cards: list[ModelCard]) -> str:
         # Badges
         sbadge = STATUS_BADGE.get(status, f":bdg-secondary:`{status}`")
         ebadge = EVAL_BADGE.get(eval_st, f":bdg-secondary-line:`{eval_st}`")
-        cbadge = DEMAND_BADGE.get(cost, f":bdg-secondary-line:`{cost} demand`")
-        L.append(f"      {sbadge} {ebadge} {cbadge}")
+        comp_b = COMPUTE_BADGE.get(comp, f":bdg-secondary-line:`compute: {comp}`")
+        dp_b = DATA_PREP_BADGE.get(dp, f":bdg-secondary-line:`data prep: {dp}`")
+        L.append(f"      {sbadge} {ebadge} {comp_b} {dp_b}")
         L.append("")
 
         # Purpose
@@ -553,7 +564,6 @@ def _card_to_dict(card: ModelCard) -> dict:
     """Serialise a ModelCard to a plain dict for JSON embedding."""
     status = _enum_val(card.operational_status.development_status)
     eval_st = _enum_val(card.evaluation_evidence.evaluation_status)
-    cost = card.technical_characteristics.computational_demand or "unknown"
     tech = card.technical_characteristics
 
     d: dict = {
@@ -563,7 +573,8 @@ def _card_to_dict(card: ModelCard) -> dict:
         "purpose": card.identity.purpose,
         "status": status,
         "evaluation": eval_st,
-        "cost": cost,
+        "compute": tech.computational_demand or "unknown",
+        "data_prep": tech.data_preparation_demand or "unknown",
         "spatial_scale": tech.spatial_scale,
         "temporal_resolution": tech.temporal_resolution,
         "parameters": tech.required_inputs.get("parameters", []),
@@ -761,7 +772,7 @@ def _build_compare_html(json_str: str) -> str:
   }}
   function statusBadge(s) {{ return badge(s, s); }}
   function evalBadge(s) {{ return badge(s, s); }}
-  function costBadge(s) {{ return badge(s + " demand", s); }}
+  function levelBadge(label, s) {{ return badge(label + ": " + s, s); }}
 
   function listHtml(arr) {{
     if (!arr || arr.length === 0) return '<span class="mc-cross">--</span>';
@@ -785,7 +796,8 @@ def _build_compare_html(json_str: str) -> str:
     const rows = [
       ["Status", d => statusBadge(d.status)],
       ["Evaluation", d => evalBadge(d.evaluation)],
-      ["Demand", d => costBadge(d.cost)],
+      ["Compute", d => levelBadge("compute", d.compute)],
+      ["Data prep", d => levelBadge("data prep", d.data_prep)],
       ["Purpose", d => d.purpose],
       ["Config", d => d.enum_class ? "<code>" + d.enum_class + "</code> = " + (d.enum_values || []).join(", ") : "--"],
       ["Spatial scale", d => d.spatial_scale.join(", ")],

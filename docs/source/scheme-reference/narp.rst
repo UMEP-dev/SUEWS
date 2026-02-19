@@ -3,7 +3,7 @@
 Net All-wave Radiation Parameterisation
 =======================================
 
-:bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`low demand`
+:bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
 
 Calculates net all-wave radiation (Q*) from incoming shortwave radiation, air temperature, humidity, and surface characteristics using empirical longwave parameterisations.
 
@@ -50,7 +50,8 @@ Calculates net all-wave radiation (Q*) from incoming shortwave radiation, air te
 
       :Spatial scale: neighbourhood, city
       :Temporal resolution: sub-hourly, hourly
-      :Computational demand: :bdg-success-line:`low demand`
+      :Computational demand: :bdg-success-line:`compute: low`
+      :Data preparation: :bdg-success-line:`data prep: low`
 
       .. dropdown:: Required parameters (static)
          :class-container: sd-shadow-sm

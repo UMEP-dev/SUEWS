@@ -67,6 +67,7 @@ technical_characteristics:
     - "Internal building temperature"
     - "Detailed STEBBS output columns"
   computational_demand: medium
+  data_preparation_demand: high
   dependencies:
     - "Net radiation scheme (NARP or observed) for non-building surfaces"
     - "OHM for non-building surface types"

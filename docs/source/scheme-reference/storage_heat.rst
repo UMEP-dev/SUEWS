@@ -12,7 +12,7 @@ Comparing **2** scheme(s) for **storage heat flux (qs)** in SUEWS.
       :link: model_card_ohm
       :link-type: ref
 
-      :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`low demand`
+      :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-info-line:`data prep: medium`
 
       Calculates storage heat flux (delta QS) using empirically-fitted hysteresis relations between net all-wave radiation and its rate of change.
 
@@ -22,7 +22,7 @@ Comparing **2** scheme(s) for **storage heat flux (qs)** in SUEWS.
       :link: model_card_stebbs
       :link-type: ref
 
-      :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-info-line:`medium demand`
+      :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-info-line:`compute: medium` :bdg-warning-line:`data prep: high`
 
       Calculates facet-level surface temperatures and storage heat flux for buildings by solving explicit energy balances for roof, wall, and ground surfaces with multi-layer heat conduction.
 

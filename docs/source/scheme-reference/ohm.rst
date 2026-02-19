@@ -3,7 +3,7 @@
 Objective Hysteresis Model
 ==========================
 
-:bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`low demand`
+:bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-info-line:`data prep: medium`
 
 Calculates storage heat flux (delta QS) using empirically-fitted hysteresis relations between net all-wave radiation and its rate of change.
 
@@ -48,7 +48,8 @@ Calculates storage heat flux (delta QS) using empirically-fitted hysteresis rela
 
       :Spatial scale: neighbourhood, city
       :Temporal resolution: sub-hourly, hourly
-      :Computational demand: :bdg-success-line:`low demand`
+      :Computational demand: :bdg-success-line:`compute: low`
+      :Data preparation: :bdg-info-line:`data prep: medium`
 
       .. dropdown:: Required parameters (static)
          :class-container: sd-shadow-sm

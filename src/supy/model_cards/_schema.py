@@ -90,7 +90,14 @@ class TechnicalCharacteristics(BaseModel):
         description="Keys: 'parameters' (static) and 'forcing' (dynamic)"
     )
     outputs: list[str] | None = None
-    computational_demand: Literal["low", "medium", "high"] | None = None
+    computational_demand: Literal["low", "medium", "high"] | None = Field(
+        default=None,
+        description="Runtime cost per timestep (CPU/memory)",
+    )
+    data_preparation_demand: Literal["low", "medium", "high"] | None = Field(
+        default=None,
+        description="Effort to gather and prepare required input parameters",
+    )
     dependencies: list[str] | None = None
     conflicts: list[str] | None = None
 

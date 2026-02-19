@@ -330,7 +330,7 @@ def _validate_spartacus_sfr(self, site: Site, site_index: int) -> List[str]:
     """
     If SPARTACUS is enabled, check that:
     - bldgs.sfr == building_frac[0]
-    - (evetr.sfr + dectr.sfr) == veg_frac[0]
+    - (evetr.sfr + dectr.sfr) == max(veg_frac)
     Returns a list of issue messages.
     """
 ```

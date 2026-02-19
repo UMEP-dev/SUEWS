@@ -26,7 +26,8 @@ import supy as sp
 # - Using 0.01 m3 tolerance accounts for floating-point accumulation over simulation
 VOLUME_TOLERANCE_M3 = 0.01
 FAIL_FAST_STEPS_ENV = "SUEWS_FAIL_FAST_STEPS"
-DEFAULT_FAIL_FAST_STEPS = 20
+# Default to full-window validation; set SUEWS_FAIL_FAST_STEPS>0 for fast debugging.
+DEFAULT_FAIL_FAST_STEPS = 0
 
 
 def _load_stebbs_test_config():

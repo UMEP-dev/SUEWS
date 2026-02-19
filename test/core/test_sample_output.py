@@ -65,7 +65,8 @@ from conftest import TIMESTEPS_PER_DAY
 test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
 p_df_sample = Path(test_data_dir) / "sample_output.csv.gz"
 FAIL_FAST_STEPS_ENV = "SUEWS_FAIL_FAST_STEPS"
-DEFAULT_FAIL_FAST_STEPS = 20
+# Default to full-window validation; set SUEWS_FAIL_FAST_STEPS>0 for fast debugging.
+DEFAULT_FAIL_FAST_STEPS = 0
 
 
 def _get_fail_fast_steps(default_steps: int = DEFAULT_FAIL_FAST_STEPS) -> int:

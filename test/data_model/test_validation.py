@@ -38,7 +38,9 @@ from supy.data_model.core.state import (
 )
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
-from supy.data_model.validation.pipeline.phase_b import validate_model_option_samealbedo
+from supy.data_model.validation.pipeline.phase_b import validate_model_option_samealbedo, adjust_seasonal_parameters
+import copy
+
 
 
 
@@ -1229,6 +1231,125 @@ def test_phase_b_deep_soil_temperature_missing_stebbs():
     ]
     assert len(annual_temp_adjustments) == 0
 
+
+def _make_minimal_phase_b_yaml_for_albedo(lat: float) -> dict:
+    """Build a minimal Phase-B-style YAML dict with vegetation albedo ranges and alb_id."""
+    return {
+        "sites": [
+            {
+                "name": "TestSite",
+                "gridiv": 1,
+                "properties": {
+                    "lat": {"value": lat},
+                    "lng": {"value": 0.0},
+                    "land_cover": {
+                        "grass": {
+                            "sfr": {"value": 0.1},
+                            "alb_min": {"value": 0.10},
+                            "alb_max": {"value": 0.20},
+                        },
+                        "dectr": {
+                            "sfr": {"value": 0.1},
+                            "alb_min": {"value": 0.12},
+                            "alb_max": {"value": 0.30},
+                        },
+                        "evetr": {
+                            "sfr": {"value": 0.1},
+                            "alb_min": {"value": 0.14},
+                            "alb_max": {"value": 0.40},
+                        },
+                    },
+                },
+                "initial_states": {
+                    "grass": {"alb_id": {"value": 0.15}},
+                    "dectr": {"alb_id": {"value": 0.18}},
+                    "evetr": {"alb_id": {"value": 0.25}},
+                },
+            }
+        ]
+    }
+
+
+def _get_phase_b_alb_ids(yaml_data: dict):
+    site = yaml_data["sites"][0]
+    ist = site["initial_states"]
+    return (
+        ist["grass"]["alb_id"]["value"],
+        ist["dectr"]["alb_id"]["value"],
+        ist["evetr"]["alb_id"]["value"],
+    )
+
+
+def test_phase_b_seasonal_albedo_summer_updates_alb_id_from_ranges():
+    """Summer: grass.alb_id -> alb_min, dectr/evetr.alb_id -> alb_max."""
+    # Northern Hemisphere, DOY in summer window: 2017-07-15
+    yaml_data = _make_minimal_phase_b_yaml_for_albedo(lat=51.5)
+    yaml_before = copy.deepcopy(yaml_data)
+
+    updated, adjustments = adjust_seasonal_parameters(
+        yaml_data, start_date="2017-07-15", model_year=2017
+    )
+
+    grass_id, dectr_id, evetr_id = _get_phase_b_alb_ids(updated)
+
+    # Expected from ranges defined above
+    assert grass_id == pytest.approx(0.10)  # alb_min(grass)
+    assert dectr_id == pytest.approx(0.30)  # alb_max(dectr)
+    assert evetr_id == pytest.approx(0.40)  # alb_max(evetr)
+
+    # We should have ScientificAdjustment entries for each
+    params = {a.parameter for a in adjustments}
+    assert "grass.alb_id" in params
+    assert "dectr.alb_id" in params
+    assert "evetr.alb_id" in params
+
+    # Land-cover ranges themselves must be unchanged
+    lc_before = yaml_before["sites"][0]["properties"]["land_cover"]
+    lc_after = updated["sites"][0]["properties"]["land_cover"]
+    assert lc_after == lc_before
+
+
+def test_phase_b_seasonal_albedo_winter_updates_alb_id_from_ranges():
+    """Winter: grass.alb_id -> alb_max, dectr/evetr.alb_id -> alb_min."""
+    # Northern Hemisphere, DOY in winter window: 2017-01-15
+    yaml_data = _make_minimal_phase_b_yaml_for_albedo(lat=51.5)
+
+    updated, adjustments = adjust_seasonal_parameters(
+        yaml_data, start_date="2017-01-15", model_year=2017
+    )
+
+    grass_id, dectr_id, evetr_id = _get_phase_b_alb_ids(updated)
+
+    assert grass_id == pytest.approx(0.20)  # alb_max(grass)
+    assert dectr_id == pytest.approx(0.12)  # alb_min(dectr)
+    assert evetr_id == pytest.approx(0.14)  # alb_min(evetr)
+
+    params = {a.parameter for a in adjustments}
+    assert "grass.alb_id" in params
+    assert "dectr.alb_id" in params
+    assert "evetr.alb_id" in params
+
+
+def test_phase_b_seasonal_albedo_midseason_sets_alb_id_midpoint():
+    """Spring/fall: alb_id -> (alb_min + alb_max)/2 for all veg surfaces."""
+    # Northern Hemisphere, DOY in spring window: 2017-04-01
+    yaml_data = _make_minimal_phase_b_yaml_for_albedo(lat=51.5)
+
+    updated, adjustments = adjust_seasonal_parameters(
+        yaml_data, start_date="2017-04-01", model_year=2017
+    )
+
+    grass_id, dectr_id, evetr_id = _get_phase_b_alb_ids(updated)
+
+    # Expected midpoints
+    assert grass_id == pytest.approx((0.10 + 0.20) / 2)  # 0.15
+    assert dectr_id == pytest.approx((0.12 + 0.30) / 2)  # 0.21
+    assert evetr_id == pytest.approx((0.14 + 0.40) / 2)  # 0.27
+
+    params = {a.parameter for a in adjustments}
+    assert "grass.alb_id" in params
+    assert "dectr.alb_id" in params
+    assert "evetr.alb_id" in params
 
 # =====================================================================
 # Phase A: nlayer dimension validation tests

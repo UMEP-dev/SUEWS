@@ -78,7 +78,10 @@ def test_all_test_imports_resolve():
             continue
 
         try:
-            tree = ast.parse(test_file.read_text(), filename=str(test_file))
+            tree = ast.parse(
+                test_file.read_text(encoding="utf-8", errors="replace"),
+                filename=str(test_file),
+            )
         except SyntaxError:
             continue
 

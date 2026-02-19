@@ -28,6 +28,8 @@ VOLUME_TOLERANCE_M3 = 0.01
 FAIL_FAST_STEPS_ENV = "SUEWS_FAIL_FAST_STEPS"
 # Default to full-window validation; set SUEWS_FAIL_FAST_STEPS>0 for fast debugging.
 DEFAULT_FAIL_FAST_STEPS = 0
+MISSING_FORCING_SENTINEL = -900.0
+FORCING_COLS_REQUIRE_FINITE = ("qn", "qh", "qe", "qs", "qf", "ldown")
 
 
 def _load_stebbs_test_config():
@@ -53,7 +55,16 @@ def _get_fail_fast_steps(default_steps: int = DEFAULT_FAIL_FAST_STEPS) -> int:
 
 def _select_forcing_window(df_forcing_full):
     """Return one-day forcing truncated to fail-fast timesteps."""
-    forcing_day = df_forcing_full.loc["2017-08-26":"2017-08-26"]
+    forcing_day = df_forcing_full.loc["2017-08-26":"2017-08-26"].copy()
+
+    # The STEBBS fixture uses -999 sentinels in flux columns. Replace those
+    # with neutral zeros so OHM does not fail on missing-value sentinels.
+    for col in FORCING_COLS_REQUIRE_FINITE:
+        if col in forcing_day.columns:
+            forcing_day.loc[:, col] = forcing_day[col].where(
+                forcing_day[col] > MISSING_FORCING_SENTINEL, 0.0
+            )
+
     requested_steps = _get_fail_fast_steps()
     if requested_steps <= 0:
         return forcing_day

@@ -352,7 +352,7 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
      }
      function statusBadge(s) { return badge(s, s); }
      function evalBadge(s) { return badge(s, s); }
-     function costBadge(s) { return badge(s + " cost", s); }
+     function costBadge(s) { return badge(s + " demand", s); }
 
      function listHtml(arr) {
        if (!arr || arr.length === 0) return '<span class="mc-cross">--</span>';
@@ -376,7 +376,7 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
        const rows = [
          ["Status", d => statusBadge(d.status)],
          ["Evaluation", d => evalBadge(d.evaluation)],
-         ["Cost", d => costBadge(d.cost)],
+         ["Demand", d => costBadge(d.cost)],
          ["Purpose", d => d.purpose],
          ["Config", d => d.enum_class ? "<code>" + d.enum_class + "</code> = " + (d.enum_values || []).join(", ") : "--"],
          ["Spatial scale", d => d.spatial_scale.join(", ")],

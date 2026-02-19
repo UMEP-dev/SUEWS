@@ -90,7 +90,7 @@ class TechnicalCharacteristics(BaseModel):
         description="Keys: 'parameters' (static) and 'forcing' (dynamic)"
     )
     outputs: list[str] | None = None
-    computational_cost: Literal["low", "medium", "high"] | None = None
+    computational_demand: Literal["low", "medium", "high"] | None = None
     dependencies: list[str] | None = None
     conflicts: list[str] | None = None
 

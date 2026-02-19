@@ -105,10 +105,10 @@ EVAL_BADGE = {
     "untested": ":bdg-danger-line:`untested`",
 }
 
-COST_BADGE = {
-    "low": ":bdg-success-line:`low cost`",
-    "medium": ":bdg-info-line:`medium cost`",
-    "high": ":bdg-warning-line:`high cost`",
+DEMAND_BADGE = {
+    "low": ":bdg-success-line:`low demand`",
+    "medium": ":bdg-info-line:`medium demand`",
+    "high": ":bdg-warning-line:`high demand`",
 }
 
 
@@ -139,7 +139,7 @@ def generate_card_rst(card: ModelCard) -> str:
     name = card.identity.scheme_name
     status = _enum_val(card.operational_status.development_status)
     eval_st = _enum_val(card.evaluation_evidence.evaluation_status)
-    cost = card.technical_characteristics.computational_cost or "unknown"
+    cost = card.technical_characteristics.computational_demand or "unknown"
 
     # Reference label
     L.append(f".. _{f'model_card_{name}'}:")
@@ -153,7 +153,7 @@ def generate_card_rst(card: ModelCard) -> str:
     badges = [
         STATUS_BADGE.get(status, f":bdg-secondary:`{status}`"),
         EVAL_BADGE.get(eval_st, f":bdg-secondary-line:`{eval_st}`"),
-        COST_BADGE.get(cost, f":bdg-secondary-line:`{cost} cost`"),
+        DEMAND_BADGE.get(cost, f":bdg-secondary-line:`{cost} demand`"),
     ]
     L.append(" ".join(badges))
     L.append("")
@@ -246,7 +246,7 @@ def generate_card_rst(card: ModelCard) -> str:
     tech = card.technical_characteristics
     body.append(f":Spatial scale: {', '.join(tech.spatial_scale)}")
     body.append(f":Temporal resolution: {', '.join(tech.temporal_resolution)}")
-    body.append(f":Computational cost: {COST_BADGE.get(cost, cost)}")
+    body.append(f":Computational demand: {DEMAND_BADGE.get(cost, cost)}")
     body.append("")
 
     if tech.required_inputs.get("parameters"):
@@ -411,7 +411,7 @@ def generate_category_page(category: str, cards: list[ModelCard]) -> str:
         full = card.identity.full_name
         status = _enum_val(card.operational_status.development_status)
         eval_st = _enum_val(card.evaluation_evidence.evaluation_status)
-        cost = card.technical_characteristics.computational_cost or "unknown"
+        cost = card.technical_characteristics.computational_demand or "unknown"
 
         L.append(f"   .. grid-item-card:: {full}")
         L.append(f"      :link: model_card_{nm}")
@@ -421,7 +421,7 @@ def generate_category_page(category: str, cards: list[ModelCard]) -> str:
         # Badges
         sbadge = STATUS_BADGE.get(status, f":bdg-secondary:`{status}`")
         ebadge = EVAL_BADGE.get(eval_st, f":bdg-secondary-line:`{eval_st}`")
-        cbadge = COST_BADGE.get(cost, f":bdg-secondary-line:`{cost} cost`")
+        cbadge = DEMAND_BADGE.get(cost, f":bdg-secondary-line:`{cost} demand`")
         L.append(f"      {sbadge} {ebadge} {cbadge}")
         L.append("")
 
@@ -553,7 +553,7 @@ def _card_to_dict(card: ModelCard) -> dict:
     """Serialise a ModelCard to a plain dict for JSON embedding."""
     status = _enum_val(card.operational_status.development_status)
     eval_st = _enum_val(card.evaluation_evidence.evaluation_status)
-    cost = card.technical_characteristics.computational_cost or "unknown"
+    cost = card.technical_characteristics.computational_demand or "unknown"
     tech = card.technical_characteristics
 
     d: dict = {
@@ -761,7 +761,7 @@ def _build_compare_html(json_str: str) -> str:
   }}
   function statusBadge(s) {{ return badge(s, s); }}
   function evalBadge(s) {{ return badge(s, s); }}
-  function costBadge(s) {{ return badge(s + " cost", s); }}
+  function costBadge(s) {{ return badge(s + " demand", s); }}
 
   function listHtml(arr) {{
     if (!arr || arr.length === 0) return '<span class="mc-cross">--</span>';
@@ -785,7 +785,7 @@ def _build_compare_html(json_str: str) -> str:
     const rows = [
       ["Status", d => statusBadge(d.status)],
       ["Evaluation", d => evalBadge(d.evaluation)],
-      ["Cost", d => costBadge(d.cost)],
+      ["Demand", d => costBadge(d.cost)],
       ["Purpose", d => d.purpose],
       ["Config", d => d.enum_class ? "<code>" + d.enum_class + "</code> = " + (d.enum_values || []).join(", ") : "--"],
       ["Spatial scale", d => d.spatial_scale.join(", ")],

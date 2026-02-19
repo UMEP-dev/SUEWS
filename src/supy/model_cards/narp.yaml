@@ -72,7 +72,7 @@ technical_characteristics:
     - "Outgoing shortwave radiation (Kup)"
     - "Incoming longwave radiation (Ldown, if modelled)"
     - "Outgoing longwave radiation (Lup)"
-  computational_cost: low
+  computational_demand: low
   dependencies:
     - "Sun position calculation (internal)"
   conflicts:

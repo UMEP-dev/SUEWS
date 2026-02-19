@@ -76,6 +76,18 @@ def _build_datetime_index(output_block: np.ndarray) -> pd.DatetimeIndex:
     hour = output_block[:, 2].astype(np.int64)
     minute = output_block[:, 3].astype(np.int64)
 
+    # Guard against -999 sentinels from uninitialised output rows (e.g. when
+    # the simulation errored and left output_line at its default values).
+    valid = (year > 0) & (day_of_year > 0)
+    if not valid.all():
+        n_bad = int((~valid).sum())
+        raise RuntimeError(
+            f"{n_bad} of {len(year)} output rows contain sentinel datetime "
+            f"values (year={year[~valid][0]}, doy={day_of_year[~valid][0]}). "
+            "This usually means the Fortran simulation errored on an early "
+            "timestep. Check stderr for OHM_DEBUG or SPARTACUS diagnostics."
+        )
+
     date_part = pd.to_datetime(year * 1000 + day_of_year, format="%Y%j")
     return date_part + pd.to_timedelta(hour, unit="h") + pd.to_timedelta(minute, unit="m")
 

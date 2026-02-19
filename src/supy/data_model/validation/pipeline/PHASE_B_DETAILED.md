@@ -260,6 +260,14 @@ Phase B makes scientific adjustments that improve model realism without changing
 - **Fraction Normalisation**: Adjusts surface fractions to sum to 1.0 by rounding the surface with maximum fraction value
 - **Seasonal LAI Adjustments**: Calculates LAI for deciduous trees based on seasonal parameters (laimin, laimax) when surface fraction > 0. When surface fraction is 0, existing lai_id values are preserved and validation is skipped with a warning
 
+### Seasonal Vegetation Albedo Adjustments
+
+- **Season‑Aware `alb_id`**: Updates `initial_states.*.alb_id` for grass, dectr, evetr 
+- **Summer Regime**: `alb_id(grass) = alb_min(grass)`; `alb_id(dectr/evetr) = alb_max(dectr/evetr)`
+- **Winter Regime**: `alb_id(grass) = alb_max(grass)`; `alb_id(dectr/evetr) = alb_min(dectr/evetr)`
+- **Transition Seasons**: `alb_id` set to midpoint `(alb_min + alb_max)/2` for grass, dectr, evetr
+
+
 ### STEBBS Method Integration
 
 - **Conditional Logic**: When `stebbsmethod == 0`, nullifies STEBBS parameters

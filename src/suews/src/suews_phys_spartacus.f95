@@ -388,9 +388,9 @@ CONTAINS
       canopy_props%roof_temperature = tsfc_roof_K
       canopy_props%wall_temperature = tsfc_wall_K
       canopy_props%clear_air_temperature = tair_K
-      ! Keep vegetation-related fields deterministic even when vegetation is off.
-      canopy_props%veg_temperature = tair_K
-      canopy_props%veg_air_temperature = tair_K
+      ! Keep vegetation-related fields deterministic when vegetation arrays exist.
+      IF (ALLOCATED(canopy_props%veg_temperature)) canopy_props%veg_temperature = tair_K
+      IF (ALLOCATED(canopy_props%veg_air_temperature)) canopy_props%veg_air_temperature = tair_K
       IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0) THEN
          canopy_props%veg_temperature = DOT_PRODUCT(tsfc_surf_K(ConifSurf:DecidSurf), sfr_surf(ConifSurf:DecidSurf))
          canopy_props%veg_air_temperature = tair_K
@@ -400,11 +400,11 @@ CONTAINS
       canopy_props%i_representation = i_representation
       canopy_props%building_scale = building_scale(:) ! diameter of buildings (m). The only L method for buildings is Eq. 19 Hogan et al. 2018.
       canopy_props%building_fraction = building_frac(:) ! building fraction
-      canopy_props%veg_fraction = 0.0D0
-      canopy_props%veg_scale = 0.0D0
-      canopy_props%veg_ext = 0.0D0
-      canopy_props%veg_fsd = 0.0D0
-      canopy_props%veg_contact_fraction = 0.0D0
+      IF (ALLOCATED(canopy_props%veg_fraction)) canopy_props%veg_fraction = 0.0D0
+      IF (ALLOCATED(canopy_props%veg_scale)) canopy_props%veg_scale = 0.0D0
+      IF (ALLOCATED(canopy_props%veg_ext)) canopy_props%veg_ext = 0.0D0
+      IF (ALLOCATED(canopy_props%veg_fsd)) canopy_props%veg_fsd = 0.0D0
+      IF (ALLOCATED(canopy_props%veg_contact_fraction)) canopy_props%veg_contact_fraction = 0.0D0
       IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0) THEN
          canopy_props%veg_fraction = veg_frac(:) ! evergreen + deciduous fractions
          canopy_props%veg_scale = veg_scale(:) ! scale of tree crowns (m). Using the default use_symmetric_vegetation_scale_urban=.TRUE. so that Eq. 20 Hogan et al. 2018 is used for L.
@@ -434,7 +434,7 @@ CONTAINS
                          (sfr_surf(PavSurf) + sfr_surf(GrassSurf) + sfr_surf(BSoilSurf) + sfr_surf(WaterSurf))
       sw_spectral_props%air_ext = air_ext_sw
       sw_spectral_props%air_ssa = air_ssa_sw
-      sw_spectral_props%veg_ssa = 0.0D0
+      IF (ALLOCATED(sw_spectral_props%veg_ssa)) sw_spectral_props%veg_ssa = 0.0D0
       IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0) THEN
          sw_spectral_props%veg_ssa = veg_ssa_sw
       END IF
@@ -442,8 +442,8 @@ CONTAINS
       sw_spectral_props%roof_albedo = roof_albedo(nspec, ncol) ! albedo of buildings
       sw_spectral_props%wall_albedo = wall_albedo(nspec, ncol) ! albedo of buildings
       sw_spectral_props%wall_specular_frac = wall_specular_frac(nspec, ncol)
-      sw_spectral_props%ground_albedo_dir = sw_spectral_props%ground_albedo
-      sw_spectral_props%roof_albedo_dir = sw_spectral_props%roof_albedo
+      IF (ALLOCATED(sw_spectral_props%ground_albedo_dir)) sw_spectral_props%ground_albedo_dir = sw_spectral_props%ground_albedo
+      IF (ALLOCATED(sw_spectral_props%roof_albedo_dir)) sw_spectral_props%roof_albedo_dir = sw_spectral_props%roof_albedo
       IF (config%use_sw_direct_albedo) THEN
          sw_spectral_props%ground_albedo_dir = alb_no_tree_bldg*ground_albedo_dir_mult_fact
          sw_spectral_props%roof_albedo_dir = roof_albedo(nspec, ncol)*roof_albedo_dir_mult_fact(nspec, ncol)
@@ -459,7 +459,7 @@ CONTAINS
                           (sfr_surf(PavSurf) + sfr_surf(GrassSurf) + sfr_surf(BSoilSurf) + sfr_surf(WaterSurf)) ! emissivity of the ground
       lw_spectral_props%air_ext = air_ext_lw
       lw_spectral_props%air_ssa = air_ssa_lw
-      lw_spectral_props%veg_ssa = 0.0D0
+      IF (ALLOCATED(lw_spectral_props%veg_ssa)) lw_spectral_props%veg_ssa = 0.0D0
       IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0) THEN
          lw_spectral_props%veg_ssa = veg_ssa_lw
       END IF

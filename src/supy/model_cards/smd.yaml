@@ -1,0 +1,68 @@
+identity:
+  scheme_name: smd
+  full_name: Soil Moisture Deficit Method
+  category: water_balance
+  purpose: >-
+    Controls how soil moisture deficit is determined: modelled from the
+    water balance or provided from observations.
+  version_introduced: "v1.0"
+  original_authors:
+    - "C.S.B. Grimmond"
+  enum_class: SMDMethod
+  enum_values: [0, 1, 2]
+
+scientific_basis:
+  theoretical_basis: >-
+    Soil moisture deficit (SMD) controls evapotranspiration through stomatal
+    conductance and surface resistance. Method 0 calculates SMD from the
+    SUEWS water balance model. Methods 1 and 2 use observed soil moisture
+    from the forcing file (volumetric or gravimetric units respectively),
+    bypassing the internal water balance for SMD.
+  key_publications:
+    - "GO02"
+  key_assumptions:
+    - "SMD is representative of the neighbourhood-scale root zone"
+    - "Observed values (methods 1-2) are spatially representative of the grid cell"
+
+evaluation_evidence:
+  evaluation_status: peer-reviewed
+  performance_summary: >-
+    The modelled SMD approach has been validated as part of the full SUEWS
+    water balance at multiple urban sites.
+
+technical_characteristics:
+  spatial_scale:
+    - neighbourhood
+  temporal_resolution:
+    - sub-hourly
+    - hourly
+  required_inputs:
+    parameters:
+      - "Soil store capacity per surface type"
+    forcing:
+      - "Observed soil moisture (methods 1-2 only)"
+  outputs:
+    - "Soil moisture deficit per surface type"
+  computational_demand: low
+  data_preparation_demand: low
+
+operational_status:
+  development_status: stable
+  current_maintainers:
+    - name: SUEWS Development Team
+      affiliation: University of Reading / UCL
+  active_development: maintenance-only
+  test_coverage:
+    - "Smoke tests via make test-smoke"
+
+user_guidance:
+  recommended_for:
+    - "Most applications (use method 0 for modelled SMD)"
+    - "Sites with reliable soil moisture observations (methods 1-2)"
+  configuration_notes: >-
+    SMDMethod=0 uses the internal SUEWS water balance. SMDMethod=1 reads
+    volumetric soil moisture (m3/m3) from forcing. SMDMethod=2 reads
+    gravimetric soil moisture (kg/kg) from forcing.
+
+governance:
+  candidate_for_deprecation: false

@@ -138,6 +138,11 @@ py.install_sources(
             'dts/_populate.py',
             'dts/_runner.py',
         ],
+        [
+            # Model cards: structured documentation for physics schemes
+            'model_cards/__init__.py',
+            'model_cards/_schema.py',
+        ],
     ],
     subdir: 'supy',
     preserve_path: true,

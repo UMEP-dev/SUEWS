@@ -78,6 +78,25 @@ logger_supy.info("Processing %s", path_file)
 
 ---
 
+## Model Cards
+
+When adding or modifying a physics scheme (enum in `src/supy/data_model/core/model.py`):
+
+1. **Enum docstring**: Update the option description line (`NUMBER: NAME - Description`)
+   - This is the single source of truth for option-level detail
+   - The RST generator auto-pulls these into the "Configuration Options" section
+
+2. **Model card YAML**: Create or update `src/supy/model_cards/<scheme_name>.yaml`
+   - Set `enum_class` and `enum_values` to link back to the Python enum
+   - Follow the Pydantic schema in `src/supy/model_cards/_schema.py`
+   - See `src/supy/model_cards/README.md` for the architecture decision and examples
+
+3. **Regenerate RST**: Run `python docs/generate_model_cards_rst.py`
+
+Do **not** duplicate option descriptions in the YAML — the generator reads them from the enum.
+
+---
+
 ## Exceptions
 
 - CLI files (`cmd/`) may use `print()`

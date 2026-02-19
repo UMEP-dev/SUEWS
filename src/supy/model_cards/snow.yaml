@@ -1,0 +1,76 @@
+identity:
+  scheme_name: snow
+  full_name: Snow Processes
+  category: water_balance
+  purpose: >-
+    Controls snow accumulation, melt, and albedo effects on the surface
+    energy balance.
+  version_introduced: "v2014a"
+  original_authors:
+    - "L. Jarvi"
+  enum_class: SnowUse
+  enum_values: [0, 1]
+
+scientific_basis:
+  theoretical_basis: >-
+    When enabled, the snow module tracks snow accumulation, snowmelt, and
+    snow-covered fraction for each surface type. Snow affects the surface
+    albedo, roughness length, and energy balance partitioning. Snowmelt is
+    driven by available energy and air temperature following a
+    degree-day-plus-energy approach (Jarvi et al. 2014).
+  key_publications:
+    - "J14"
+  key_assumptions:
+    - "Snow is distributed across all surface types according to precipitation partitioning"
+    - "Snowmelt rate is controlled by available energy and degree-day parameters"
+  comparison_to_established: >-
+    A simple toggle for SUEWS snow processes. When disabled (0), all
+    precipitation is treated as liquid regardless of temperature.
+
+evaluation_evidence:
+  evaluation_status: peer-reviewed
+  performance_summary: >-
+    Validated against Helsinki and other high-latitude urban sites where
+    snow processes are significant (Jarvi et al. 2014).
+
+technical_characteristics:
+  spatial_scale:
+    - neighbourhood
+  temporal_resolution:
+    - sub-hourly
+    - hourly
+  required_inputs:
+    parameters:
+      - "Snow density parameters"
+      - "Snow albedo limits (min, max)"
+      - "Degree-day melt factor"
+    forcing:
+      - "Air temperature"
+      - "Precipitation"
+  outputs:
+    - "Snow water equivalent per surface type"
+    - "Snow-covered fraction"
+    - "Snowmelt rate"
+  computational_demand: low
+  data_preparation_demand: low
+
+operational_status:
+  development_status: stable
+  current_maintainers:
+    - name: SUEWS Development Team
+      affiliation: University of Reading / UCL
+  active_development: maintenance-only
+  test_coverage:
+    - "Smoke tests via make test-smoke"
+
+user_guidance:
+  recommended_for:
+    - "Sites where snow occurs and affects the energy balance"
+  not_recommended_for:
+    - "Tropical or snow-free sites (set SnowUse=0)"
+  configuration_notes: >-
+    SnowUse=0 disables snow processes entirely. SnowUse=1 enables full snow
+    accumulation, melt, and albedo effects.
+
+governance:
+  candidate_for_deprecation: false

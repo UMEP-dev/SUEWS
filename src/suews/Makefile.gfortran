@@ -38,8 +38,9 @@ OPTFLAGS = -O0
 WARNFLAGS = -Wall
 # Note: -ffpe-trap removed — on x86_64 it causes SIGFPE for legitimate
 # division-by-zero in STEBBS/SPARTACUS night paths (ARM64 silently returns NaN).
-# Keep -fcheck=bounds and -finit-real=snan for memory safety.
-DEBUGFLAGS = -ggdb -g -fcheck=bounds -finit-real=snan
+# Use -finit-real=nan (quiet NaN) instead of snan (signalling NaN): sNaN can
+# still trigger SIGFPE on x86_64 if numpy/Python clears the MXCSR invalid mask.
+DEBUGFLAGS = -ggdb -g -fcheck=bounds -finit-real=nan
 
 endif
 

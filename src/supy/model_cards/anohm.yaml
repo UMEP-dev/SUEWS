@@ -1,0 +1,75 @@
+identity:
+  scheme_name: anohm
+  full_name: Analytical Objective Hysteresis Model
+  category: storage_heat
+  purpose: >-
+    Calculates storage heat flux using an analytical extension of OHM with
+    coefficients derived from surface thermal properties.
+  version_introduced: "v2017a"
+  original_authors:
+    - "T. Sun"
+  enum_class: StorageHeatMethod
+  enum_values: [3]
+
+scientific_basis:
+  theoretical_basis: >-
+    AnOHM analytically derives OHM coefficients from material thermal
+    properties (thermal conductivity, heat capacity) and surface
+    characteristics, avoiding the need for empirical coefficient
+    calibration. The method was described in Sun et al. (2017).
+  key_publications:
+    - "S17"
+  key_assumptions:
+    - "OHM functional form is valid"
+    - "Coefficients can be derived analytically from material properties"
+
+evaluation_evidence:
+  evaluation_status: internal
+  performance_summary: >-
+    Limited testing. Superseded by DyOHM (StorageHeatMethod=6) which provides
+    a more robust dynamic coefficient calculation approach.
+
+technical_characteristics:
+  spatial_scale:
+    - neighbourhood
+  temporal_resolution:
+    - sub-hourly
+    - hourly
+  required_inputs:
+    parameters:
+      - "Material thermal properties per surface type"
+    forcing:
+      - "Net all-wave radiation (Q*)"
+  outputs:
+    - "Storage heat flux (delta QS)"
+  computational_demand: low
+  data_preparation_demand: medium
+
+operational_status:
+  development_status: deprecated
+  current_maintainers:
+    - name: SUEWS Development Team
+      affiliation: University of Reading / UCL
+  active_development: "no"
+  known_issues:
+    - "Marked as 'not recommended' in the data model"
+    - "Superseded by DyOHM (StorageHeatMethod=6)"
+
+user_guidance:
+  not_recommended_for:
+    - "Any new applications"
+  configuration_notes: >-
+    StorageHeatMethod=3 selects AnOHM. This method is deprecated and not
+    recommended. Use DyOHM (StorageHeatMethod=6) for dynamic coefficient
+    calculation or standard OHM (StorageHeatMethod=1) for empirical
+    coefficients.
+
+governance:
+  candidate_for_deprecation: true
+  deprecation_rationale: >-
+    Superseded by DyOHM (StorageHeatMethod=6) which provides improved
+    dynamic coefficient calculation from material properties and
+    meteorological conditions.
+  migration_path: >-
+    Migrate to DyOHM (StorageHeatMethod=6) for dynamic coefficients or
+    OHM (StorageHeatMethod=1) for standard empirical coefficients.

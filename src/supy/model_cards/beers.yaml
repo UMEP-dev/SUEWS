@@ -1,0 +1,133 @@
+identity:
+  scheme_name: beers
+  full_name: Building Envelope Energy Radiation Scheme
+  category: radiation
+  purpose: >-
+    Calculates detailed point-specific radiation components and mean radiant
+    temperature for urban thermal comfort assessment.
+  version_introduced: "v2020a"
+  original_authors:
+    - "F. Lindberg"
+  enum_class: null
+  enum_values: null
+
+scientific_basis:
+  theoretical_basis: >-
+    BEERS is the successor to SOLWEIG and provides point-specific radiation
+    analysis within urban environments. It solves the urban radiation balance
+    by computing sun position using astronomical algorithms, analysing 3D
+    urban geometry to determine sky view factors and shadow patterns, and
+    calculating direct, diffuse, and reflected shortwave and longwave
+    radiation components from all cardinal directions. Surface temperatures
+    for ground, wall, and roof facets are computed from energy balance
+    considerations. Mean radiant temperature (Tmrt) is derived by integrating
+    directional radiation fluxes weighted by human body shape factors for a
+    standing person (Fside=0.22, Fup=0.06) and absorption coefficients for
+    shortwave (absK=0.7) and longwave (absL=0.97) radiation.
+  key_publications:
+    - "F08"
+    - "FG11"
+  key_assumptions:
+    - "Urban geometry is characterised by plan area fraction and frontal area fraction"
+    - "Sky view factors are derived from height-to-width ratio"
+    - "Human body is represented as a standing person with fixed shape factors"
+    - "Direct and diffuse shortwave components are calculated from global radiation (clearness index)"
+    - "Shadow patterns on roofs are treated as constant (not geometry-dependent)"
+  comparison_to_established: >-
+    BEERS provides point-specific radiation analysis and mean radiant
+    temperature, which NARP and SPARTACUS-Surface do not calculate. While
+    SPARTACUS-Surface resolves multi-layer 3D radiation transfer for energy
+    balance purposes, BEERS focuses on directional radiation components
+    relevant to pedestrian thermal comfort at specific locations.
+
+evaluation_evidence:
+  evaluation_status: internal
+  evaluation_datasets:
+    - "Internal testing within SUEWS framework"
+  performance_summary: >-
+    BEERS inherits the physical basis from SOLWEIG, which has been extensively
+    validated for mean radiant temperature calculations. The SUEWS-integrated
+    version is under ongoing testing. Users should verify results against
+    observations for their specific applications.
+  intercomparison_results: >-
+    SOLWEIG (predecessor) has been validated against field measurements of
+    mean radiant temperature in multiple urban environments. Direct
+    intercomparison of BEERS within the SUEWS framework is pending.
+
+technical_characteristics:
+  spatial_scale:
+    - point
+    - neighbourhood
+  temporal_resolution:
+    - sub-hourly
+    - hourly
+  required_inputs:
+    parameters:
+      - "Plan area fraction (lamdaP)"
+      - "Frontal area fraction (lamdaF)"
+      - "Ground surface albedo"
+      - "Building surface albedo"
+      - "Ground surface emissivity"
+      - "Wall surface emissivity"
+      - "Location coordinates (latitude, longitude, altitude)"
+      - "Time zone"
+    forcing:
+      - "Incoming shortwave radiation (Kdown)"
+      - "Incoming longwave radiation (Ldown)"
+      - "Air temperature"
+      - "Relative humidity"
+      - "Atmospheric pressure"
+      - "Surface temperature"
+  outputs:
+    - "Mean radiant temperature (Tmrt)"
+    - "Shortwave radiation at point of interest (Kdown2d, Kup2d)"
+    - "Longwave radiation at point of interest (Ldown2d, Lup2d)"
+    - "Directional radiation components (north, south, east, west)"
+    - "Shadow patterns on ground and walls"
+    - "Sky view factors (ground, roof, building-vegetation)"
+    - "Surface temperatures (ground Tg, wall Tw)"
+  computational_demand: medium
+  data_preparation_demand: high
+  dependencies:
+    - "Sun position calculation (NARP_cal_SunPosition)"
+    - "Building morphology parameters from SUEWS site configuration"
+  conflicts:
+    - "None (standalone diagnostic module)"
+
+operational_status:
+  development_status: experimental
+  current_maintainers:
+    - name: SUEWS Development Team
+      affiliation: University of Reading / UCL
+  last_significant_update: "2020-11"
+  active_development: "yes"
+  test_coverage:
+    - "Smoke tests via make test-smoke"
+    - "Full regression tests via make test"
+  known_issues:
+    - "Shadow on roof is constant rather than varying with building morphology and sun altitude"
+    - "Surface temperature (Tsurf) is provided by SUEWS but also calculated internally -- interaction needs clarification"
+    - "Conversion of H/W to SVF uses simplified relations rather than the Oke basin equation"
+
+user_guidance:
+  recommended_for:
+    - "Human thermal comfort studies in urban environments"
+    - "Point-specific radiation analysis at pedestrian level"
+    - "Urban microclimate analysis for planning and design"
+  not_recommended_for:
+    - "Production runs until peer-reviewed validation of SUEWS integration is complete"
+    - "Applications requiring only grid-averaged net radiation (use NARP instead)"
+    - "Sites lacking building morphology data"
+  configuration_notes: >-
+    BEERS is a standalone diagnostic module within SUEWS. It requires building
+    morphology parameters (plan area fraction, frontal area fraction) and
+    surface optical properties (albedo and emissivity for ground, building,
+    and wall surfaces). Location coordinates and time zone must be correctly
+    specified for accurate sun position calculations.
+  common_pitfalls:
+    - "Incorrect building morphology parameters (lamdaP, lamdaF) leading to unrealistic view factors"
+    - "Missing or incorrect location coordinates affecting sun position calculations"
+    - "Confusion between SUEWS-provided surface temperature and BEERS-internal surface temperature"
+
+governance:
+  candidate_for_deprecation: false

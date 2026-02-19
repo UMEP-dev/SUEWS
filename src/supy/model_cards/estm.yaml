@@ -1,0 +1,79 @@
+identity:
+  scheme_name: estm
+  full_name: Element Surface Temperature Method
+  category: storage_heat
+  purpose: >-
+    Calculates storage heat flux and surface temperatures using 1D heat
+    conduction through urban surface elements.
+  version_introduced: "v2012a"
+  original_authors:
+    - "B. Offerle"
+  enum_class: StorageHeatMethod
+  enum_values: [4]
+
+scientific_basis:
+  theoretical_basis: >-
+    ESTM solves the one-dimensional heat conduction equation through urban
+    surface elements (roof, wall, ground) to compute storage heat flux and
+    surface temperatures. The method was described in Offerle et al. (2005).
+  key_publications:
+    - "O05"
+  key_assumptions:
+    - "1D heat conduction through each element"
+    - "Material properties are constant per layer"
+
+evaluation_evidence:
+  evaluation_status: peer-reviewed
+  evaluation_datasets:
+    - "Urban sites in Basel, Switzerland (Offerle et al. 2005)"
+  performance_summary: >-
+    Validated against observations in Basel. Superseded by EHC
+    (StorageHeatMethod=5) which extends the approach with multi-level
+    building support and improved numerical methods.
+
+technical_characteristics:
+  spatial_scale:
+    - neighbourhood
+  temporal_resolution:
+    - sub-hourly
+    - hourly
+  required_inputs:
+    parameters:
+      - "Thermal properties per layer (conductivity, heat capacity, thickness)"
+    forcing:
+      - "Surface temperature boundary conditions"
+  outputs:
+    - "Storage heat flux (delta QS)"
+    - "Element surface temperatures"
+  computational_demand: medium
+  data_preparation_demand: high
+
+operational_status:
+  development_status: deprecated
+  current_maintainers:
+    - name: SUEWS Development Team
+      affiliation: University of Reading / UCL
+  active_development: "no"
+  known_issues:
+    - "Marked as 'not recommended' in the data model"
+    - "Superseded by EHC (StorageHeatMethod=5) and STEBBS (StorageHeatMethod=7)"
+
+user_guidance:
+  not_recommended_for:
+    - "Any new applications"
+  configuration_notes: >-
+    StorageHeatMethod=4 selects ESTM. This method is deprecated and not
+    recommended. Use EHC (StorageHeatMethod=5) for explicit heat conduction
+    or STEBBS (StorageHeatMethod=7) for full building energy modelling.
+
+governance:
+  candidate_for_deprecation: true
+  deprecation_rationale: >-
+    Superseded by EHC (StorageHeatMethod=5) which provides multi-level
+    building support, adaptive numerical methods, and improved solver
+    stability. STEBBS (StorageHeatMethod=7) extends further with full
+    building energy modelling.
+  migration_path: >-
+    Migrate to EHC (StorageHeatMethod=5) for physically equivalent heat
+    conduction with improved numerics, or STEBBS (StorageHeatMethod=7) for
+    full building energy modelling including indoor processes.

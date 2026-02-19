@@ -2635,7 +2635,7 @@ sites:
         - 11.0
       veg_frac:
         value:
-        - 0.0
+        - 0.037
         - 0.0
         - 0.0
       veg_scale:
@@ -2645,7 +2645,7 @@ sites:
         - 10.0
       building_frac:
         value:
-        - 0.329
+        - 0.351
         - 0.28
         - 0.202
       building_scale:

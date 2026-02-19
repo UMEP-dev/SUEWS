@@ -272,7 +272,9 @@ CONTAINS
       !!!!!!!!!!!!!! Model configuration !!!!!!!!!!!!!!
       IF (DiagQN == 1) PRINT *, 'in SPARTACUS, setting up model ...'
       ! CALL config%READ(file_name=TRIM(FileInputPath)//'SUEWS_SPARTACUS.nml')
-      config%do_sw = .TRUE.
+      ! Skip shortwave computation at night: cos_sza = 0 causes
+      ! division-by-zero inside radsurf on platforms with FPE traps.
+      config%do_sw = (kdown > 0.0D0)
       config%do_lw = .TRUE.
       config%use_sw_direct_albedo = use_sw_direct_albedo
       ALLOCATE (i_representation(ncol))
@@ -529,12 +531,6 @@ CONTAINS
             CALL sw_norm_diff%SCALE(canopy_props%nlay, &
             &  top_flux_dn_sw - top_flux_dn_direct_sw)
             CALL sw_flux%SUM(sw_norm_dir, sw_norm_diff)
-            ! Night-time guard: when kdown=0, radsurf may produce NaN
-            ! normalised fluxes (cos_sza=0 path), and NaN*0=NaN
-            ! propagates through SCALE. Zero SW fluxes to be safe.
-            IF (kdown <= 0.0D0) THEN
-               CALL sw_flux%zero_all()
-            END IF
          END IF
          IF (config%do_lw) THEN
             CALL lw_norm%SCALE(canopy_props%nlay, top_flux_dn_lw)
@@ -543,11 +539,15 @@ CONTAINS
       END DO
 
       ! albedo
-      IF (top_flux_dn_diffuse_sw + top_flux_dn_direct_sw(nspec, ncol) > 0.1) THEN
-         alb_spc = ((top_flux_dn_diffuse_sw + 10.**(-10))*(bc_out%sw_albedo(nspec, ncol)) & ! the 10.**-10 stops the equation blowing up when kdwn=0
-                    + (top_flux_dn_direct_sw(nspec, ncol) + 10.**(-10))*(bc_out%sw_albedo_dir(nspec, ncol))) &
-                   /(top_flux_dn_diffuse_sw + top_flux_dn_direct_sw(nspec, ncol) + 10.**(-10))
-         IF (alb_spc < 0.0) alb_spc = 0
+      IF (config%do_sw) THEN
+         IF (top_flux_dn_diffuse_sw + top_flux_dn_direct_sw(nspec, ncol) > 0.1) THEN
+            alb_spc = ((top_flux_dn_diffuse_sw + 10.**(-10))*(bc_out%sw_albedo(nspec, ncol)) & ! the 10.**-10 stops the equation blowing up when kdwn=0
+                       + (top_flux_dn_direct_sw(nspec, ncol) + 10.**(-10))*(bc_out%sw_albedo_dir(nspec, ncol))) &
+                      /(top_flux_dn_diffuse_sw + top_flux_dn_direct_sw(nspec, ncol) + 10.**(-10))
+            IF (alb_spc < 0.0) alb_spc = 0
+         ELSE
+            alb_spc = 0.0
+         END IF
       ELSE
          alb_spc = 0.0
       END IF
@@ -564,7 +564,11 @@ CONTAINS
       sw_up_spc = 0.0
       sw_up_spc = kdown*alb_spc ! or more simply: alb_spc*avKdn
       ! net all = net sw + net lw
-      qn_spc = sw_flux%top_net(nspec, ncol) + lw_flux%top_net(nspec, ncol)
+      IF (config%do_sw) THEN
+         qn_spc = sw_flux%top_net(nspec, ncol) + lw_flux%top_net(nspec, ncol)
+      ELSE
+         qn_spc = lw_flux%top_net(nspec, ncol)
+      END IF
 
       ! lw arrays
       clear_air_abs_lw_spc = -999
@@ -583,34 +587,43 @@ CONTAINS
       grnd_net_lw_spc = lw_flux%ground_net(nspec, ncol)
       top_dn_lw_spc = lw_flux%top_dn(nspec, ncol)
 
-      ! sw arrays
+      ! sw arrays — only read from sw_flux when SW was computed
       clear_air_abs_sw_spc = -999
-      clear_air_abs_sw_spc(:nlayer) = sw_flux%clear_air_abs(nspec, :nlayer)
       wall_net_sw_spc = -999
-      wall_net_sw_spc(:nlayer) = sw_flux%wall_net(nspec, :nlayer)
       wall_in_sw_spc = -999
-      wall_in_sw_spc(:nlayer) = sw_flux%wall_in(nspec, :nlayer)
-      ! PRINT *, 'wall_net_sw_spc in suews-su', wall_net_sw_spc(:nlayer), sw_flux%wall_net
       roof_net_sw_spc = -999
-      roof_net_sw_spc(:nlayer) = sw_flux%roof_net(nspec, :nlayer)
-      ! PRINT *, 'roof_net_sw_spc in suews-su', roof_net_sw_spc(:nlayer)
-      ! PRINT *, 'roof_net_sw_spc in suews-su', sw_flux%roof_net
       roof_in_sw_spc = -999
-      roof_in_sw_spc(:nlayer) = sw_flux%roof_in(nspec, :nlayer)
-      ! PRINT *, 'roof sw in in suews-su', roof_in_sw_spc(:nlayer)
-      ! PRINT *, 'roof sw in in suews-su', sw_flux%roof_in
-      ! print *, ''
-      top_dn_dir_sw_spc = sw_flux%top_dn_dir(nspec, ncol)
-      top_net_sw_spc = sw_flux%top_net(nspec, ncol)
-      grnd_dn_dir_sw_spc = sw_flux%ground_dn_dir(nspec, ncol)
-      grnd_net_sw_spc = sw_flux%ground_net(nspec, ncol)
-      grnd_vertical_diff = sw_flux%ground_vertical_diff(nspec, ncol)
+      IF (config%do_sw) THEN
+         clear_air_abs_sw_spc(:nlayer) = sw_flux%clear_air_abs(nspec, :nlayer)
+         wall_net_sw_spc(:nlayer) = sw_flux%wall_net(nspec, :nlayer)
+         wall_in_sw_spc(:nlayer) = sw_flux%wall_in(nspec, :nlayer)
+         roof_net_sw_spc(:nlayer) = sw_flux%roof_net(nspec, :nlayer)
+         roof_in_sw_spc(:nlayer) = sw_flux%roof_in(nspec, :nlayer)
+         top_dn_dir_sw_spc = sw_flux%top_dn_dir(nspec, ncol)
+         top_net_sw_spc = sw_flux%top_net(nspec, ncol)
+         grnd_dn_dir_sw_spc = sw_flux%ground_dn_dir(nspec, ncol)
+         grnd_net_sw_spc = sw_flux%ground_net(nspec, ncol)
+         grnd_vertical_diff = sw_flux%ground_vertical_diff(nspec, ncol)
+      ELSE
+         clear_air_abs_sw_spc(:nlayer) = 0.0
+         wall_net_sw_spc(:nlayer) = 0.0
+         wall_in_sw_spc(:nlayer) = 0.0
+         roof_net_sw_spc(:nlayer) = 0.0
+         roof_in_sw_spc(:nlayer) = 0.0
+         top_dn_dir_sw_spc = 0.0
+         top_net_sw_spc = 0.0
+         grnd_dn_dir_sw_spc = 0.0
+         grnd_net_sw_spc = 0.0
+         grnd_vertical_diff = 0.0
+      END IF
 
       ! De-normalise the fluxes
-      wall_in_sw_spc(:nlayer) = wall_in_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
-      wall_net_sw_spc(:nlayer) = wall_net_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
-      roof_in_sw_spc(:nlayer) = roof_in_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
-      roof_net_sw_spc(:nlayer) = roof_net_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+      IF (config%do_sw) THEN
+         wall_in_sw_spc(:nlayer) = wall_in_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+         wall_net_sw_spc(:nlayer) = wall_net_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+         roof_in_sw_spc(:nlayer) = roof_in_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+         roof_net_sw_spc(:nlayer) = roof_net_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+      END IF
 
       wall_in_lw_spc(:nlayer) = wall_in_lw_spc(:nlayer)/sfr_wall_spc(:nlayer)
       wall_net_lw_spc(:nlayer) = wall_net_lw_spc(:nlayer)/sfr_wall_spc(:nlayer)

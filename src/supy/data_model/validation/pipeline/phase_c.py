@@ -175,10 +175,13 @@ def generate_phase_c_report(
     phase_str = "".join(phases_run) if phases_run else "C"
     title = REPORT_TITLE
 
+    # Phase C is the "Model Compatibility" stage
+    validation_stage = "Model Compatibility"
+
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
     report_lines.append(
-        f"# Mode: {'Public' if mode.lower() == 'public' else mode.title()}"
+        f"# Mode: {'Public' if mode.lower() == 'public' else mode.title()} - Validation stage: {validation_stage}"
     )
     report_lines.append("# " + "=" * 50)
     report_lines.append("")
@@ -565,9 +568,12 @@ def generate_fallback_report(
     title = REPORT_TITLE
     mode_title = "Public" if mode.lower() == "public" else mode.title()
 
+    # Phase C is the "Model Compatibility" stage
+    validation_stage = "Model Compatibility"
+
     error_report = f"""# {title}
 # ============================================
-# Mode: {mode_title}
+# Mode: {mode_title} - Validation stage: {validation_stage}
 # ============================================
 
 ## ACTION NEEDED
@@ -578,5 +584,3 @@ def generate_fallback_report(
 
 # ==================================================
 """
-
-    REPORT_WRITER.write(output_report_file, error_report)

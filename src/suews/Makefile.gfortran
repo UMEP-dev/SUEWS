@@ -25,9 +25,12 @@ OPTFLAGS = -O3
 WARNFLAGS = -Wall -Wno-unused-label -Wno-unused-dummy-argument -Wno-unused-variable
 # WARNFLAGS = -Wall -Wno-unused-label -Wno-unused-dummy-argument -Wno-unused-variable -Wimplicit-interface
 
-# Debugging flags, such as "-g" to store debugging symbols, and
-# instructions to abort if certain floating-point exceptions occur
-DEBUGFLAGS = -g -ffpe-trap=invalid,zero,overflow
+# Debugging flags: -g for symbols.
+# Note: -ffpe-trap is intentionally omitted from the normal build.
+# On x86_64 it causes SIGFPE for any division-by-zero (e.g. in STEBBS
+# or SPARTACUS night-time paths), while ARM64 silently produces NaN.
+# Use DEBUG=1 to enable FPE traps during development.
+DEBUGFLAGS = -g
 
 else
 # --DEBUGGING CONFIGURATION--

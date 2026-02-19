@@ -9,51 +9,677 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
    Auto-generated from YAML model card files.
    See ``src/supy/model_cards/`` for the source data.
 
-:ref:`Radiation (Q*) <scheme_category_radiation>` -- 4 schemes
+.. tab-set::
 
-- :bdg-warning:`experimental` :ref:`beers <model_card_beers>` -- Building Envelope Energy Radiation Scheme
-- :bdg-primary:`stable` :ref:`narp <model_card_narp>` -- Net All-wave Radiation Parameterisation
-- :bdg-primary:`stable` :ref:`same_albedo <model_card_same_albedo>` -- Uniform Wall/Roof Albedo Assumption
-- :bdg-warning:`experimental` :ref:`spartacus <model_card_spartacus>` -- SPARTACUS-Surface
+   .. tab-item:: Net Radiation
 
-:ref:`Storage Heat Flux (QS) <scheme_category_storage_heat>` -- 7 schemes
+      **6 schemes** -- select a ``NetRadiationMethod`` option to see its model card
 
-- :bdg-danger:`deprecated` :ref:`anohm <model_card_anohm>` -- Analytical Objective Hysteresis Model
-- :bdg-warning:`experimental` :ref:`dyohm <model_card_dyohm>` -- Dynamic Objective Hysteresis Model
-- :bdg-primary:`stable` :ref:`ehc <model_card_ehc>` -- Explicit Heat Conduction
-- :bdg-danger:`deprecated` :ref:`estm <model_card_estm>` -- Element Surface Temperature Method
-- :bdg-primary:`stable` :ref:`ohm <model_card_ohm>` -- Objective Hysteresis Model
-- :bdg-primary:`stable` :ref:`ohm_inc_qf <model_card_ohm_inc_qf>` -- OHM Anthropogenic Heat Inclusion
-- :bdg-warning:`experimental` :ref:`stebbs <model_card_stebbs>` -- Surface Temperature Energy Balance Based Scheme
+      .. grid:: 1 1 2 2
+         :gutter: 3
 
-:ref:`Turbulent Fluxes (QH/QE) <scheme_category_turbulent_fluxes>` -- 2 schemes
+         .. grid-item-card:: Ldown Observed
+            :link: model_card_narp
+            :link-type: ref
 
-- :bdg-primary:`stable` :ref:`gs_model <model_card_gs_model>` -- Stomatal Conductance Model
-- :bdg-primary:`stable` :ref:`lumps <model_card_lumps>` -- LUMPS Turbulent Flux Scheme
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
 
-:ref:`Anthropogenic Heat (QF) <scheme_category_emissions>` -- 1 scheme
+            Models Q* using NARP (Net All-wave Radiation Parameterization; Offerle et al. 2003, Loridan et al. 2011) with observed longwave down radiation (L↓) from forcing file
 
-- :bdg-primary:`stable` :ref:`qf <model_card_qf>` -- Anthropogenic Heat Flux
+            ``NetRadiationMethod`` = 1
 
-:ref:`Boundary Layer <scheme_category_boundary_layer>` -- 4 schemes
+         .. grid-item-card:: Ldown Cloud
+            :link: model_card_narp
+            :link-type: ref
 
-- :bdg-primary:`stable` :ref:`fai <model_card_fai>` -- Frontal Area Index Method
-- :bdg-primary:`stable` :ref:`roughness <model_card_roughness>` -- Roughness Length Parameterisations
-- :bdg-primary:`stable` :ref:`rsl <model_card_rsl>` -- Roughness Sublayer Diagnostic Scheme
-- :bdg-primary:`stable` :ref:`stability <model_card_stability>` -- Atmospheric Stability Corrections
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
 
-:ref:`Water Balance / Snow <scheme_category_water_balance>` -- 3 schemes
+            Models Q* using NARP with L↓ estimated from cloud cover fraction
 
-- :bdg-primary:`stable` :ref:`smd <model_card_smd>` -- Soil Moisture Deficit Method
-- :bdg-primary:`stable` :ref:`snow <model_card_snow>` -- Snow Processes
-- :bdg-primary:`stable` :ref:`water_use <model_card_water_use>` -- External Water Use Method
+            ``NetRadiationMethod`` = 2
 
-:ref:`CO2 Exchange and Vegetation <scheme_category_co2_vegetation>` -- 1 scheme
+         .. grid-item-card:: Ldown Air
+            :link: model_card_narp
+            :link-type: ref
 
-- :bdg-warning:`experimental` :ref:`biogen_co2 <model_card_biogen_co2>` -- Biogenic CO2 Exchange
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Models Q* using NARP with L↓ estimated from air temperature and relative humidity
+
+            ``NetRadiationMethod`` = 3
+
+         .. grid-item-card:: Ldown Ss Observed
+            :link: model_card_spartacus
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-warning-line:`compute: high` :bdg-warning-line:`data prep: high`
+
+            SPARTACUS-Surface integration with observed L↓ (experimental)
+
+            ``NetRadiationMethod`` = 1001
+
+         .. grid-item-card:: Ldown Ss Cloud
+            :link: model_card_spartacus
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-warning-line:`compute: high` :bdg-warning-line:`data prep: high`
+
+            SPARTACUS-Surface integration with L↓ from cloud fraction (experimental)
+
+            ``NetRadiationMethod`` = 1002
+
+         .. grid-item-card:: Ldown Ss Air
+            :link: model_card_spartacus
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-warning-line:`compute: high` :bdg-warning-line:`data prep: high`
+
+            SPARTACUS-Surface integration with L↓ from air temperature/humidity (experimental)
+
+            ``NetRadiationMethod`` = 1003
+
+   .. tab-item:: Albedo Uniformity
+
+      **1 scheme** -- select a ``SameAlbedoWall`` option to see its model card
+
+      .. grid:: 1 1 2 2
+         :gutter: 3
+
+         .. grid-item-card:: Uniform Wall/Roof Albedo Assumption
+            :link: model_card_same_albedo
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Controls whether all walls (or roofs) within the urban canopy share the same albedo value, simplifying the radiation calculation for multi-layer schemes.
+
+            ``SameAlbedoWall`` = 0, 1
+
+   .. tab-item:: Storage Heat Flux
+
+      **6 schemes** -- select a ``StorageHeatMethod`` option to see its model card
+
+      .. grid:: 1 1 2 2
+         :gutter: 3
+
+         .. grid-item-card:: Objective Hysteresis Model
+            :link: model_card_ohm
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-info-line:`data prep: medium`
+
+            Calculates storage heat flux (delta QS) using empirically-fitted hysteresis relations between net all-wave radiation and its rate of change.
+
+            ``StorageHeatMethod`` = 1
+
+         .. grid-item-card:: Analytical Objective Hysteresis Model
+            :link: model_card_anohm
+            :link-type: ref
+
+            :bdg-danger:`deprecated` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-info-line:`data prep: medium`
+
+            Calculates storage heat flux using an analytical extension of OHM with coefficients derived from surface thermal properties.
+
+            ``StorageHeatMethod`` = 3
+
+         .. grid-item-card:: Element Surface Temperature Method
+            :link: model_card_estm
+            :link-type: ref
+
+            :bdg-danger:`deprecated` :bdg-success-line:`peer-reviewed` :bdg-info-line:`compute: medium` :bdg-warning-line:`data prep: high`
+
+            Calculates storage heat flux and surface temperatures using 1D heat conduction through urban surface elements.
+
+            ``StorageHeatMethod`` = 4
+
+         .. grid-item-card:: Explicit Heat Conduction
+            :link: model_card_ehc
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-warning-line:`internal` :bdg-info-line:`compute: medium` :bdg-warning-line:`data prep: high`
+
+            Calculates storage heat flux using explicit 1D heat conduction through urban facets (roof, wall, ground) with separate surface temperature outputs for each element.
+
+            ``StorageHeatMethod`` = 5
+
+         .. grid-item-card:: Dynamic Objective Hysteresis Model
+            :link: model_card_dyohm
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-info-line:`preprint` :bdg-success-line:`compute: low` :bdg-info-line:`data prep: medium`
+
+            Extends OHM by dynamically calculating the hysteresis coefficients (a1, a2, a3) from material thermal properties and meteorological conditions, removing the need for empirically pre-calibrated values.
+
+            ``StorageHeatMethod`` = 6
+
+         .. grid-item-card:: Surface Temperature Energy Balance Based Scheme
+            :link: model_card_stebbs
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-info-line:`compute: medium` :bdg-warning-line:`data prep: high`
+
+            Calculates facet-level surface temperatures and storage heat flux for buildings by solving explicit energy balances for roof, wall, and ground surfaces with multi-layer heat conduction.
+
+            ``StorageHeatMethod`` = 7
+
+   .. tab-item:: OHM QF Inclusion
+
+      **1 scheme** -- select a ``OhmIncQf`` option to see its model card
+
+      .. grid:: 1 1 2 2
+         :gutter: 3
+
+         .. grid-item-card:: OHM Anthropogenic Heat Inclusion
+            :link: model_card_ohm_inc_qf
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Controls whether anthropogenic heat flux (QF) is included in the OHM storage heat calculation, switching between Q* only and Q*+QF as input.
+
+            ``OhmIncQf`` = 0, 1
+
+   .. tab-item:: Emissions
+
+      **21 schemes** -- select a ``EmissionsMethod`` option to see its model card
+
+      .. grid:: 1 1 2 2
+         :gutter: 3
+
+         .. grid-item-card:: Observed
+            :link: model_card_qf
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-info-line:`data prep: medium`
+
+            Uses observed QF values from forcing file (set to zero to exclude QF from energy balance)
+
+            ``EmissionsMethod`` = 0
+
+         .. grid-item-card:: L11
+            :link: model_card_qf
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-info-line:`data prep: medium`
+
+            Loridan et al. (2011) SAHP method with air temperature and population density
+
+            ``EmissionsMethod`` = 1
+
+         .. grid-item-card:: J11
+            :link: model_card_qf
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-info-line:`data prep: medium`
+
+            Järvi et al. (2011) SAHP_2 method with heating/cooling degree days
+
+            ``EmissionsMethod`` = 2
+
+         .. grid-item-card:: L11 Updated
+            :link: model_card_qf
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-info-line:`data prep: medium`
+
+            Modified Loridan method using daily mean air temperature
+
+            ``EmissionsMethod`` = 3
+
+         .. grid-item-card:: J19
+            :link: model_card_qf
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-info-line:`data prep: medium`
+
+            Järvi et al. (2019) method with building energy, metabolism, and traffic
+
+            ``EmissionsMethod`` = 4
+
+         .. grid-item-card:: J19 Updated
+            :link: model_card_qf
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-info-line:`data prep: medium`
+
+            As method 4 but also calculates CO2 emissions
+
+            ``EmissionsMethod`` = 5
+
+         .. grid-item-card:: Biogen Rect L11
+            :link: model_card_biogen_co2
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-warning-line:`data prep: high`
+
+            Rectangular hyperbola photosynthesis + L11 QF (experimental)
+
+            ``EmissionsMethod`` = 11
+
+         .. grid-item-card:: Biogen Rect J11
+            :link: model_card_biogen_co2
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-warning-line:`data prep: high`
+
+            Rectangular hyperbola photosynthesis + J11 QF (experimental)
+
+            ``EmissionsMethod`` = 12
+
+         .. grid-item-card:: Biogen Rect L11U
+            :link: model_card_biogen_co2
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-warning-line:`data prep: high`
+
+            Rectangular hyperbola photosynthesis + L11_UPDATED QF (experimental)
+
+            ``EmissionsMethod`` = 13
+
+         .. grid-item-card:: Biogen Rect J19
+            :link: model_card_biogen_co2
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-warning-line:`data prep: high`
+
+            Rectangular hyperbola photosynthesis + J19 QF (experimental)
+
+            ``EmissionsMethod`` = 14
+
+         .. grid-item-card:: Biogen Rect J19U
+            :link: model_card_biogen_co2
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-warning-line:`data prep: high`
+
+            Rectangular hyperbola photosynthesis + J19_UPDATED QF (experimental)
+
+            ``EmissionsMethod`` = 15
+
+         .. grid-item-card:: Biogen Nrect L11
+            :link: model_card_biogen_co2
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-warning-line:`data prep: high`
+
+            Non-rectangular hyperbola (Bellucco 2017) + L11 QF (experimental)
+
+            ``EmissionsMethod`` = 21
+
+         .. grid-item-card:: Biogen Nrect J11
+            :link: model_card_biogen_co2
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-warning-line:`data prep: high`
+
+            Non-rectangular hyperbola (Bellucco 2017) + J11 QF (experimental)
+
+            ``EmissionsMethod`` = 22
+
+         .. grid-item-card:: Biogen Nrect L11U
+            :link: model_card_biogen_co2
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-warning-line:`data prep: high`
+
+            Non-rectangular hyperbola (Bellucco 2017) + L11_UPDATED QF (experimental)
+
+            ``EmissionsMethod`` = 23
+
+         .. grid-item-card:: Biogen Nrect J19
+            :link: model_card_biogen_co2
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-warning-line:`data prep: high`
+
+            Non-rectangular hyperbola (Bellucco 2017) + J19 QF (experimental)
+
+            ``EmissionsMethod`` = 24
+
+         .. grid-item-card:: Biogen Nrect J19U
+            :link: model_card_biogen_co2
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-warning-line:`data prep: high`
+
+            Non-rectangular hyperbola (Bellucco 2017) + J19_UPDATED QF (experimental)
+
+            ``EmissionsMethod`` = 25
+
+         .. grid-item-card:: Biogen Cond L11
+            :link: model_card_biogen_co2
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-warning-line:`data prep: high`
+
+            Conductance-based photosynthesis (Järvi 2019) + L11 QF (experimental)
+
+            ``EmissionsMethod`` = 41
+
+         .. grid-item-card:: Biogen Cond J11
+            :link: model_card_biogen_co2
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-warning-line:`data prep: high`
+
+            Conductance-based photosynthesis (Järvi 2019) + J11 QF (experimental)
+
+            ``EmissionsMethod`` = 42
+
+         .. grid-item-card:: Biogen Cond L11U
+            :link: model_card_biogen_co2
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-warning-line:`data prep: high`
+
+            Conductance-based photosynthesis (Järvi 2019) + L11_UPDATED QF (experimental)
+
+            ``EmissionsMethod`` = 43
+
+         .. grid-item-card:: Biogen Cond J19
+            :link: model_card_biogen_co2
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-warning-line:`data prep: high`
+
+            Conductance-based photosynthesis (Järvi 2019) + J19 QF (experimental)
+
+            ``EmissionsMethod`` = 44
+
+         .. grid-item-card:: Biogen Cond J19U
+            :link: model_card_biogen_co2
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-warning-line:`data prep: high`
+
+            Conductance-based photosynthesis (Järvi 2019) + J19_UPDATED QF (experimental)
+
+            ``EmissionsMethod`` = 45
+
+   .. tab-item:: Stomatal Conductance
+
+      **2 schemes** -- select a ``GSModel`` option to see its model card
+
+      .. grid:: 1 1 2 2
+         :gutter: 3
+
+         .. grid-item-card:: Jarvi
+            :link: model_card_gs_model
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Original parameterisation (Järvi et al. 2011) based on environmental controls
+
+            ``GSModel`` = 1
+
+         .. grid-item-card:: Ward
+            :link: model_card_gs_model
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Updated parameterisation (Ward et al. 2016) with improved temperature and VPD responses
+
+            ``GSModel`` = 2
+
+   .. tab-item:: Frontal Area Index
+
+      **2 schemes** -- select a ``FAIMethod`` option to see its model card
+
+      .. grid:: 1 1 2 2
+         :gutter: 3
+
+         .. grid-item-card:: Use Provided
+            :link: model_card_fai
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)
+
+            ``FAIMethod`` = 0
+
+         .. grid-item-card:: Simple Scheme
+            :link: model_card_fai
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-warning-line:`internal` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)
+
+            ``FAIMethod`` = 1
+
+   .. tab-item:: Roughness Length
+
+      **5 schemes** -- select a ``MomentumRoughnessMethod`` option to see its model card
+
+      .. grid:: 1 1 2 2
+         :gutter: 3
+
+         .. grid-item-card:: Fixed
+            :link: model_card_roughness
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Fixed roughness length from site parameters
+
+            ``MomentumRoughnessMethod`` = 1
+
+         .. grid-item-card:: Variable
+            :link: model_card_roughness
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999)
+
+            ``MomentumRoughnessMethod`` = 2
+
+         .. grid-item-card:: Macdonald
+            :link: model_card_roughness
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            MacDonald et al. (1998) morphometric method based on building geometry
+
+            ``MomentumRoughnessMethod`` = 3
+
+         .. grid-item-card:: Lambdap Dependent
+            :link: model_card_roughness
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Varies with plan area fraction λp (Grimmond & Oke 1999)
+
+            ``MomentumRoughnessMethod`` = 4
+
+         .. grid-item-card:: Alternative
+            :link: model_card_roughness
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Alternative variable method
+
+            ``MomentumRoughnessMethod`` = 5
+
+   .. tab-item:: Roughness Sublayer
+
+      **3 schemes** -- select a ``RSLMethod`` option to see its model card
+
+      .. grid:: 1 1 2 2
+         :gutter: 3
+
+         .. grid-item-card:: Most
+            :link: model_card_rsl
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Appropriate for relatively homogeneous, flat surfaces
+
+            ``RSLMethod`` = 0
+
+         .. grid-item-card:: Rst
+            :link: model_card_rsl
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Appropriate for heterogeneous urban surfaces with tall roughness elements
+
+            ``RSLMethod`` = 1
+
+         .. grid-item-card:: Variable
+            :link: model_card_rsl
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Automatically selects between MOST and RST based on surface morphology (plan area index, frontal area index, and roughness element heights)
+
+            ``RSLMethod`` = 2
+
+   .. tab-item:: Stability Corrections
+
+      **3 schemes** -- select a ``StabilityMethod`` option to see its model card
+
+      .. grid:: 1 1 2 2
+         :gutter: 3
+
+         .. grid-item-card:: Hoegstrom
+            :link: model_card_stability
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Dyer (1974)/Högström (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended)
+
+            ``StabilityMethod`` = 2
+
+         .. grid-item-card:: Campbell Norman
+            :link: model_card_stability
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Campbell & Norman (1998) formulations for both momentum and heat
+
+            ``StabilityMethod`` = 3
+
+         .. grid-item-card:: Businger Hoegstrom
+            :link: model_card_stability
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Businger et al. (1971)/Högström (1988) formulations (not recommended)
+
+            ``StabilityMethod`` = 4
+
+   .. tab-item:: Soil Moisture
+
+      **3 schemes** -- select a ``SMDMethod`` option to see its model card
+
+      .. grid:: 1 1 2 2
+         :gutter: 3
+
+         .. grid-item-card:: Modelled
+            :link: model_card_smd
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            SMD calculated from water balance using soil parameters
+
+            ``SMDMethod`` = 0
+
+         .. grid-item-card:: Observed Volumetric
+            :link: model_card_smd
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Uses observed volumetric soil moisture content (m³/m³) from forcing file
+
+            ``SMDMethod`` = 1
+
+         .. grid-item-card:: Observed Gravimetric
+            :link: model_card_smd
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Uses observed gravimetric soil moisture content (kg/kg) from forcing file
+
+            ``SMDMethod`` = 2
+
+   .. tab-item:: Snow
+
+      **1 scheme** -- select a ``SnowUse`` option to see its model card
+
+      .. grid:: 1 1 2 2
+         :gutter: 3
+
+         .. grid-item-card:: Snow Processes
+            :link: model_card_snow
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Controls snow accumulation, melt, and albedo effects on the surface energy balance.
+
+            ``SnowUse`` = 0, 1
+
+   .. tab-item:: Water Use
+
+      **1 scheme** -- select a ``WaterUseMethod`` option to see its model card
+
+      .. grid:: 1 1 2 2
+         :gutter: 3
+
+         .. grid-item-card:: External Water Use Method
+            :link: model_card_water_use
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Controls whether external water use (irrigation) is modelled internally or read from observations.
+
+            ``WaterUseMethod`` = 0, 1
+
+   .. tab-item:: Other
+
+      **Diagnostic / internal modules** not controlled by a method selector.
+
+      .. grid:: 1 1 2 2
+         :gutter: 3
+
+         .. grid-item-card:: Building Envelope Energy Radiation Scheme
+            :link: model_card_beers
+            :link-type: ref
+
+            :bdg-warning:`experimental` :bdg-warning-line:`internal` :bdg-info-line:`compute: medium` :bdg-warning-line:`data prep: high`
+
+            Calculates detailed point-specific radiation components and mean radiant temperature for urban thermal comfort assessment.
 
 
-**Compare Schemes** -- select a category, then pick two schemes to compare side by side.
+         .. grid-item-card:: LUMPS Turbulent Flux Scheme
+            :link: model_card_lumps
+            :link-type: ref
+
+            :bdg-primary:`stable` :bdg-success-line:`peer-reviewed` :bdg-success-line:`compute: low` :bdg-success-line:`data prep: low`
+
+            Estimates sensible and latent heat fluxes using a simple de Bruin and Holtslag approach modified for urban areas with vegetation fraction.
+
+
+
+
+**Compare Schemes** -- select a method type, then pick two schemes to compare side by side.
 
 .. raw:: html
 
@@ -184,76 +810,6 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
        "enum_class": "StorageHeatMethod",
        "enum_values": [
          3
-       ]
-     },
-     "beers": {
-       "scheme_name": "beers",
-       "full_name": "Building Envelope Energy Radiation Scheme",
-       "category": "radiation",
-       "purpose": "Calculates detailed point-specific radiation components and mean radiant temperature for urban thermal comfort assessment.",
-       "status": "experimental",
-       "evaluation": "internal",
-       "compute": "medium",
-       "data_prep": "high",
-       "spatial_scale": [
-         "point",
-         "neighbourhood"
-       ],
-       "temporal_resolution": [
-         "sub-hourly",
-         "hourly"
-       ],
-       "parameters": [
-         "Plan area fraction (lamdaP)",
-         "Frontal area fraction (lamdaF)",
-         "Ground surface albedo",
-         "Building surface albedo",
-         "Ground surface emissivity",
-         "Wall surface emissivity",
-         "Location coordinates (latitude, longitude, altitude)",
-         "Time zone"
-       ],
-       "forcing": [
-         "Incoming shortwave radiation (Kdown)",
-         "Incoming longwave radiation (Ldown)",
-         "Air temperature",
-         "Relative humidity",
-         "Atmospheric pressure",
-         "Surface temperature"
-       ],
-       "outputs": [
-         "Mean radiant temperature (Tmrt)",
-         "Shortwave radiation at point of interest (Kdown2d, Kup2d)",
-         "Longwave radiation at point of interest (Ldown2d, Lup2d)",
-         "Directional radiation components (north, south, east, west)",
-         "Shadow patterns on ground and walls",
-         "Sky view factors (ground, roof, building-vegetation)",
-         "Surface temperatures (ground Tg, wall Tw)"
-       ],
-       "dependencies": [
-         "Sun position calculation (NARP_cal_SunPosition)",
-         "Building morphology parameters from SUEWS site configuration"
-       ],
-       "conflicts": [
-         "None (standalone diagnostic module)"
-       ],
-       "publications": [
-         "F08",
-         "FG11"
-       ],
-       "maintainers": [
-         "SUEWS Development Team (University of Reading / UCL)"
-       ],
-       "active_development": "yes",
-       "recommended_for": [
-         "Human thermal comfort studies in urban environments",
-         "Point-specific radiation analysis at pedestrian level",
-         "Urban microclimate analysis for planning and design"
-       ],
-       "not_recommended_for": [
-         "Production runs until peer-reviewed validation of SUEWS integration is complete",
-         "Applications requiring only grid-averaged net radiation (use NARP instead)",
-         "Sites lacking building morphology data"
        ]
      },
      "biogen_co2": {
@@ -507,162 +1063,6 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
          4
        ]
      },
-     "fai": {
-       "scheme_name": "fai",
-       "full_name": "Frontal Area Index Method",
-       "category": "boundary_layer",
-       "purpose": "Controls how the frontal area index (FAI) is determined: from user-provided values or calculated from surface fractions and element heights.",
-       "status": "stable",
-       "evaluation": "internal",
-       "compute": "low",
-       "data_prep": "low",
-       "spatial_scale": [
-         "neighbourhood"
-       ],
-       "temporal_resolution": [
-         "sub-hourly",
-         "hourly"
-       ],
-       "parameters": [
-         "FAI values per element type (method 0)",
-         "Surface fractions and element heights (method 1)"
-       ],
-       "forcing": [],
-       "outputs": [
-         "Frontal area index for buildings, evergreen trees, deciduous trees"
-       ],
-       "dependencies": [],
-       "conflicts": [],
-       "publications": [
-         "GO99"
-       ],
-       "maintainers": [
-         "SUEWS Development Team (University of Reading / UCL)"
-       ],
-       "active_development": "maintenance-only",
-       "recommended_for": [
-         "Sites with known FAI values (method 0)",
-         "Quick estimates when FAI data are unavailable (method 1)"
-       ],
-       "not_recommended_for": [],
-       "enum_class": "FAIMethod",
-       "enum_values": [
-         0,
-         1
-       ]
-     },
-     "gs_model": {
-       "scheme_name": "gs_model",
-       "full_name": "Stomatal Conductance Model",
-       "category": "turbulent_fluxes",
-       "purpose": "Selects the stomatal conductance parameterisation used for the Jarvis-type surface resistance in the Penman-Monteith evapotranspiration calculation.",
-       "status": "stable",
-       "evaluation": "peer-reviewed",
-       "compute": "low",
-       "data_prep": "low",
-       "spatial_scale": [
-         "neighbourhood"
-       ],
-       "temporal_resolution": [
-         "sub-hourly",
-         "hourly"
-       ],
-       "parameters": [
-         "Maximum conductance (Gmax) per vegetation type",
-         "Conductance response parameters (G1-G6)"
-       ],
-       "forcing": [
-         "Solar radiation",
-         "Air temperature",
-         "Vapour pressure deficit",
-         "Soil moisture"
-       ],
-       "outputs": [
-         "Surface conductance (gs)"
-       ],
-       "dependencies": [],
-       "conflicts": [],
-       "publications": [
-         "J11",
-         "W16"
-       ],
-       "maintainers": [
-         "SUEWS Development Team (University of Reading / UCL)"
-       ],
-       "active_development": "maintenance-only",
-       "recommended_for": [
-         "All SUEWS simulations using the Penman-Monteith evapotranspiration"
-       ],
-       "not_recommended_for": [],
-       "enum_class": "GSModel",
-       "enum_values": [
-         1,
-         2
-       ]
-     },
-     "lumps": {
-       "scheme_name": "lumps",
-       "full_name": "LUMPS Turbulent Flux Scheme",
-       "category": "turbulent_fluxes",
-       "purpose": "Estimates sensible and latent heat fluxes using a simple de Bruin and Holtslag approach modified for urban areas with vegetation fraction.",
-       "status": "stable",
-       "evaluation": "peer-reviewed",
-       "compute": "low",
-       "data_prep": "low",
-       "spatial_scale": [
-         "neighbourhood",
-         "city"
-       ],
-       "temporal_resolution": [
-         "sub-hourly",
-         "hourly"
-       ],
-       "parameters": [
-         "LUMPS alpha and beta coefficients",
-         "Surface fractions (7 surface types)",
-         "Vegetation LAI parameters (LAImax, LAImin per vegetation type)",
-         "LUMPS drain rate and rain cover threshold",
-         "Maximum rain bucket reservoir capacity"
-       ],
-       "forcing": [
-         "Net all-wave radiation (Q*)",
-         "Anthropogenic heat flux (QF)",
-         "Storage heat flux (delta QS)",
-         "Air temperature",
-         "Atmospheric pressure",
-         "Precipitation"
-       ],
-       "outputs": [
-         "Sensible heat flux (QH_LUMPS)",
-         "Latent heat flux (QE_LUMPS)",
-         "Psychrometric constant",
-         "Slope of saturation vapour pressure curve"
-       ],
-       "dependencies": [
-         "Net radiation scheme (Q*)",
-         "Storage heat flux scheme (delta QS)",
-         "Anthropogenic heat flux (QF)"
-       ],
-       "conflicts": [],
-       "publications": [
-         "GO02",
-         "L11"
-       ],
-       "maintainers": [
-         "SUEWS Development Team (University of Reading / UCL)"
-       ],
-       "active_development": "maintenance-only",
-       "recommended_for": [
-         "Quick first-order estimates of urban turbulent fluxes with minimal data",
-         "Internal use as initial stability estimate within the full SUEWS scheme",
-         "Applications where surface conductance data are unavailable"
-       ],
-       "not_recommended_for": [
-         "Studies requiring accurate latent heat flux partitioning (use full SUEWS biophysical approach)",
-         "Sites with significant irrigation or complex water management",
-         "Applications where soil moisture stress is an important control on evaporation"
-       ]
-     },
      "narp": {
        "scheme_name": "narp",
        "full_name": "Net All-wave Radiation Parameterisation",
@@ -790,44 +1190,6 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
          1
        ]
      },
-     "ohm_inc_qf": {
-       "scheme_name": "ohm_inc_qf",
-       "full_name": "OHM Anthropogenic Heat Inclusion",
-       "category": "storage_heat",
-       "purpose": "Controls whether anthropogenic heat flux (QF) is included in the OHM storage heat calculation, switching between Q* only and Q*+QF as input.",
-       "status": "stable",
-       "evaluation": "peer-reviewed",
-       "compute": "low",
-       "data_prep": "low",
-       "spatial_scale": [
-         "neighbourhood"
-       ],
-       "temporal_resolution": [
-         "sub-hourly",
-         "hourly"
-       ],
-       "parameters": [],
-       "forcing": [],
-       "outputs": [
-         "Modified radiation input to OHM (Q* or Q*+QF)"
-       ],
-       "dependencies": [],
-       "conflicts": [],
-       "publications": [
-         "GO99"
-       ],
-       "maintainers": [
-         "SUEWS Development Team (University of Reading / UCL)"
-       ],
-       "active_development": "maintenance-only",
-       "recommended_for": [],
-       "not_recommended_for": [],
-       "enum_class": "OhmIncQf",
-       "enum_values": [
-         0,
-         1
-       ]
-     },
      "qf": {
        "scheme_name": "qf",
        "full_name": "Anthropogenic Heat Flux",
@@ -898,272 +1260,6 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
          3,
          4,
          5
-       ]
-     },
-     "roughness": {
-       "scheme_name": "roughness",
-       "full_name": "Roughness Length Parameterisations",
-       "category": "boundary_layer",
-       "purpose": "Calculates aerodynamic roughness length for momentum (z0m), zero-plane displacement height (zd) and roughness length for heat (z0v) using morphometric or empirical methods.",
-       "status": "stable",
-       "evaluation": "peer-reviewed",
-       "compute": "low",
-       "data_prep": "low",
-       "spatial_scale": [
-         "neighbourhood"
-       ],
-       "temporal_resolution": [
-         "sub-hourly",
-         "hourly"
-       ],
-       "parameters": [
-         "Mean building/element height (Zh)",
-         "Building plan area fraction",
-         "Frontal area index (FAI) (for methods 3 and 4)",
-         "Surface fractions (7 surface types)",
-         "Vegetation fraction (for heat roughness methods)"
-       ],
-       "forcing": [
-         "Friction velocity (UStar, for heat roughness methods 2, 4, 5)"
-       ],
-       "outputs": [
-         "Aerodynamic roughness length for momentum (z0m)",
-         "Zero-plane displacement height (zd)",
-         "Roughness length for heat/vapour (z0v)"
-       ],
-       "dependencies": [
-         "Surface morphology data (building heights, plan area fractions)",
-         "Vegetation phenology (for seasonally varying LAI methods)"
-       ],
-       "conflicts": [],
-       "publications": [
-         "GO99",
-         "M98",
-         "B82"
-       ],
-       "maintainers": [
-         "SUEWS Development Team (University of Reading / UCL)"
-       ],
-       "active_development": "maintenance-only",
-       "recommended_for": [
-         "Urban energy balance simulations requiring dynamic roughness parameters",
-         "Sites with available building morphology data (methods 3 or 4)",
-         "Applications where roughness varies seasonally with vegetation state"
-       ],
-       "not_recommended_for": [
-         "Sites without morphological data (unless fixed values are well constrained)",
-         "Method 5 (alternative variable) is not recommended for production use"
-       ],
-       "enum_class": "MomentumRoughnessMethod",
-       "enum_values": [
-         1,
-         2,
-         3,
-         4,
-         5
-       ]
-     },
-     "rsl": {
-       "scheme_name": "rsl",
-       "full_name": "Roughness Sublayer Diagnostic Scheme",
-       "category": "boundary_layer",
-       "purpose": "Diagnoses vertical profiles of wind speed, temperature and humidity within and above the urban roughness sublayer for near-surface meteorological variables.",
-       "status": "stable",
-       "evaluation": "peer-reviewed",
-       "compute": "low",
-       "data_prep": "low",
-       "spatial_scale": [
-         "neighbourhood"
-       ],
-       "temporal_resolution": [
-         "sub-hourly",
-         "hourly"
-       ],
-       "parameters": [
-         "Mean building height (Zh)",
-         "Displacement height (zd)",
-         "Aerodynamic roughness length (z0m)",
-         "Frontal area index (FAI)",
-         "Measurement/forcing height"
-       ],
-       "forcing": [
-         "Air temperature at forcing height",
-         "Specific humidity at forcing height",
-         "Wind speed at forcing height",
-         "Obukhov length (L_MOD)"
-       ],
-       "outputs": [
-         "2 m air temperature (T2)",
-         "2 m specific humidity (Q2)",
-         "2 m relative humidity (RH2)",
-         "10 m wind speed (U10)",
-         "Full 30-level profiles of wind, temperature and humidity"
-       ],
-       "dependencies": [
-         "Stability correction scheme (StabilityMethod)",
-         "Roughness length parameterisation (z0m, z0v)",
-         "Surface energy balance (for friction velocity and scaling parameters)"
-       ],
-       "conflicts": [],
-       "publications": [
-         "HF07",
-         "HF08",
-         "T19",
-         "T21"
-       ],
-       "maintainers": [
-         "SUEWS Development Team (University of Reading / UCL)"
-       ],
-       "active_development": "maintenance-only",
-       "recommended_for": [
-         "Urban near-surface diagnostics (T2, U10) in dense built environments",
-         "Applications requiring vertical meteorological profiles through the urban canopy",
-         "Coupling with dispersion or comfort models that need sub-forcing-height conditions"
-       ],
-       "not_recommended_for": [
-         "Flat homogeneous terrain where standard MOST is sufficient (use option 0)",
-         "Street canyon or microscale applications below the neighbourhood scale"
-       ],
-       "enum_class": "RSLMethod",
-       "enum_values": [
-         0,
-         1,
-         2
-       ]
-     },
-     "same_albedo": {
-       "scheme_name": "same_albedo",
-       "full_name": "Uniform Wall/Roof Albedo Assumption",
-       "category": "radiation",
-       "purpose": "Controls whether all walls (or roofs) within the urban canopy share the same albedo value, simplifying the radiation calculation for multi-layer schemes.",
-       "status": "stable",
-       "evaluation": "internal",
-       "compute": "low",
-       "data_prep": "low",
-       "spatial_scale": [
-         "neighbourhood"
-       ],
-       "temporal_resolution": [
-         "sub-hourly",
-         "hourly"
-       ],
-       "parameters": [
-         "Wall/roof albedo values"
-       ],
-       "forcing": [],
-       "outputs": [
-         "Simplified albedo input to radiation scheme"
-       ],
-       "dependencies": [],
-       "conflicts": [],
-       "publications": [],
-       "maintainers": [
-         "SUEWS Development Team (University of Reading / UCL)"
-       ],
-       "active_development": "maintenance-only",
-       "recommended_for": [],
-       "not_recommended_for": [],
-       "enum_class": "SameAlbedoWall",
-       "enum_values": [
-         0,
-         1
-       ]
-     },
-     "smd": {
-       "scheme_name": "smd",
-       "full_name": "Soil Moisture Deficit Method",
-       "category": "water_balance",
-       "purpose": "Controls how soil moisture deficit is determined: modelled from the water balance or provided from observations.",
-       "status": "stable",
-       "evaluation": "peer-reviewed",
-       "compute": "low",
-       "data_prep": "low",
-       "spatial_scale": [
-         "neighbourhood"
-       ],
-       "temporal_resolution": [
-         "sub-hourly",
-         "hourly"
-       ],
-       "parameters": [
-         "Soil store capacity per surface type"
-       ],
-       "forcing": [
-         "Observed soil moisture (methods 1-2 only)"
-       ],
-       "outputs": [
-         "Soil moisture deficit per surface type"
-       ],
-       "dependencies": [],
-       "conflicts": [],
-       "publications": [
-         "GO02"
-       ],
-       "maintainers": [
-         "SUEWS Development Team (University of Reading / UCL)"
-       ],
-       "active_development": "maintenance-only",
-       "recommended_for": [
-         "Most applications (use method 0 for modelled SMD)",
-         "Sites with reliable soil moisture observations (methods 1-2)"
-       ],
-       "not_recommended_for": [],
-       "enum_class": "SMDMethod",
-       "enum_values": [
-         0,
-         1,
-         2
-       ]
-     },
-     "snow": {
-       "scheme_name": "snow",
-       "full_name": "Snow Processes",
-       "category": "water_balance",
-       "purpose": "Controls snow accumulation, melt, and albedo effects on the surface energy balance.",
-       "status": "stable",
-       "evaluation": "peer-reviewed",
-       "compute": "low",
-       "data_prep": "low",
-       "spatial_scale": [
-         "neighbourhood"
-       ],
-       "temporal_resolution": [
-         "sub-hourly",
-         "hourly"
-       ],
-       "parameters": [
-         "Snow density parameters",
-         "Snow albedo limits (min, max)",
-         "Degree-day melt factor"
-       ],
-       "forcing": [
-         "Air temperature",
-         "Precipitation"
-       ],
-       "outputs": [
-         "Snow water equivalent per surface type",
-         "Snow-covered fraction",
-         "Snowmelt rate"
-       ],
-       "dependencies": [],
-       "conflicts": [],
-       "publications": [
-         "J14"
-       ],
-       "maintainers": [
-         "SUEWS Development Team (University of Reading / UCL)"
-       ],
-       "active_development": "maintenance-only",
-       "recommended_for": [
-         "Sites where snow occurs and affects the energy balance"
-       ],
-       "not_recommended_for": [
-         "Tropical or snow-free sites (set SnowUse=0)"
-       ],
-       "enum_class": "SnowUse",
-       "enum_values": [
-         0,
-         1
        ]
      },
      "spartacus": {
@@ -1242,64 +1338,6 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
          1003
        ]
      },
-     "stability": {
-       "scheme_name": "stability",
-       "full_name": "Atmospheric Stability Corrections",
-       "category": "boundary_layer",
-       "purpose": "Provides stability correction functions (psi and phi) for momentum and heat transfer in the surface layer under non-neutral atmospheric conditions.",
-       "status": "stable",
-       "evaluation": "peer-reviewed",
-       "compute": "low",
-       "data_prep": "low",
-       "spatial_scale": [
-         "neighbourhood"
-       ],
-       "temporal_resolution": [
-         "sub-hourly",
-         "hourly"
-       ],
-       "parameters": [
-         "Measurement height (z)",
-         "Displacement height (zd)",
-         "Roughness lengths (z0m, z0v)"
-       ],
-       "forcing": [
-         "Obukhov length (L)"
-       ],
-       "outputs": [
-         "Integrated stability function for momentum (psi_m)",
-         "Integrated stability function for heat (psi_h)",
-         "Dimensionless gradient for momentum (phi_m)",
-         "Dimensionless gradient for heat (phi_h)"
-       ],
-       "dependencies": [
-         "Obukhov length calculation (from sensible heat flux and friction velocity)",
-         "Roughness length parameterisation"
-       ],
-       "conflicts": [],
-       "publications": [
-         "CN98",
-         "H88",
-         "D74"
-       ],
-       "maintainers": [
-         "SUEWS Development Team (University of Reading / UCL)"
-       ],
-       "active_development": "maintenance-only",
-       "recommended_for": [
-         "All SUEWS simulations requiring turbulent flux calculations",
-         "Surface-layer profile diagnostics and aerodynamic resistance estimation"
-       ],
-       "not_recommended_for": [
-         "Methods 2 and 4 are not recommended for general use; prefer method 3"
-       ],
-       "enum_class": "StabilityMethod",
-       "enum_values": [
-         2,
-         3,
-         4
-       ]
-     },
      "stebbs": {
        "scheme_name": "stebbs",
        "full_name": "Surface Temperature Energy Balance Based Scheme",
@@ -1361,55 +1399,10 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
        "enum_values": [
          7
        ]
-     },
-     "water_use": {
-       "scheme_name": "water_use",
-       "full_name": "External Water Use Method",
-       "category": "water_balance",
-       "purpose": "Controls whether external water use (irrigation) is modelled internally or read from observations.",
-       "status": "stable",
-       "evaluation": "peer-reviewed",
-       "compute": "low",
-       "data_prep": "low",
-       "spatial_scale": [
-         "neighbourhood"
-       ],
-       "temporal_resolution": [
-         "sub-hourly",
-         "hourly"
-       ],
-       "parameters": [
-         "Irrigation parameters (automatic/manual fractions, day-of-week profiles)"
-       ],
-       "forcing": [
-         "Observed water use (method 1 only)"
-       ],
-       "outputs": [
-         "External water use per surface type"
-       ],
-       "dependencies": [],
-       "conflicts": [],
-       "publications": [
-         "GO02"
-       ],
-       "maintainers": [
-         "SUEWS Development Team (University of Reading / UCL)"
-       ],
-       "active_development": "maintenance-only",
-       "recommended_for": [
-         "Most applications (use method 0 for modelled irrigation)",
-         "Sites with observed water use data (method 1)"
-       ],
-       "not_recommended_for": [],
-       "enum_class": "WaterUseMethod",
-       "enum_values": [
-         0,
-         1
-       ]
      }
    };
 
-     const CATEGORY_NAMES = {
+     const GROUP_NAMES = {"StorageHeatMethod": "Storage Heat Flux", "NetRadiationMethod": "Net Radiation", "EmissionsMethod": "Emissions"} || {
        radiation: "Radiation (Q*)",
        storage_heat: "Storage Heat Flux (QS)",
        turbulent_fluxes: "Turbulent Fluxes (QH/QE)",
@@ -1420,14 +1413,19 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
        co2_vegetation: "CO2 Exchange and Vegetation"
      };
 
-     // Group schemes by category
+     // Group schemes by enum_class (or category as fallback)
      const byCategory = {};
      Object.entries(DATA).forEach(([name, d]) => {
-       const cat = d.category;
-       if (!byCategory[cat]) byCategory[cat] = [];
-       byCategory[cat].push(name);
+       const grp = d.enum_class || d.category;
+       if (!grp) return;
+       if (!byCategory[grp]) byCategory[grp] = [];
+       byCategory[grp].push(name);
      });
-     // Sort schemes within each category
+     // Only keep groups with 2+ schemes (meaningful comparisons)
+     Object.keys(byCategory).forEach(k => {
+       if (byCategory[k].length < 2) delete byCategory[k];
+     });
+     // Sort schemes within each group
      Object.values(byCategory).forEach(arr => arr.sort());
 
      const catSel = document.getElementById("mc-cat");
@@ -1437,7 +1435,7 @@ Model cards for each physics scheme in SUEWS -- scientific basis, evaluation evi
      Object.keys(byCategory).sort().forEach(cat => {
        const opt = document.createElement("option");
        opt.value = cat;
-       opt.textContent = CATEGORY_NAMES[cat] || cat;
+       opt.textContent = GROUP_NAMES[cat] || cat;
        catSel.appendChild(opt);
      });
 

@@ -61,17 +61,36 @@ def _parse_enum_options(enum_cls: type, values: list[int] | None) -> list[dict]:
 
     Returns a list of dicts with keys: value, name, description.
     If *values* is given, only matching options are returned.
+
+    Supported docstring line formats::
+
+        N: NAME - description
+        N: NAME (extra info) - description
+        N: NAME                              (no description)
     """
     doc = inspect.cleandoc(enum_cls.__doc__ or "")
     options = []
     for line in doc.split("\n"):
-        m = re.match(r"^\s*(\d+)\s*:\s*(\w+)\s*-\s*(.+)$", line)
-        if m:
-            val = int(m.group(1))
-            if values is None or val in values:
-                options.append(
-                    {"value": val, "name": m.group(2), "description": m.group(3).strip()}
-                )
+        # Match "N: NAME_PART ... - description" or "N: NAME_PART" (no dash)
+        m = re.match(r"^\s*(\d+)\s*:\s*(\w+)\s*(.*)", line)
+        if not m:
+            continue
+        val = int(m.group(1))
+        if values is not None and val not in values:
+            continue
+        name = m.group(2)
+        rest = m.group(3).strip()
+        # Extract description from the remainder after the NAME token.
+        # Cases: "- desc", "(extra) - desc", or empty.
+        if rest.startswith("- "):
+            description = rest[2:].strip()
+        elif " - " in rest:
+            description = rest[rest.find(" - ") + 3:].strip()
+        elif rest:
+            description = rest.strip("() ")
+        else:
+            description = name.replace("_", " ").title()
+        options.append({"value": val, "name": name, "description": description})
     return options
 
 
@@ -116,6 +135,49 @@ DATA_PREP_BADGE = {
     "medium": ":bdg-info-line:`data prep: medium`",
     "high": ":bdg-warning-line:`data prep: high`",
 }
+
+# Enum classes that are simple on/off toggles or input-source selectors.
+# These are rendered as a single card (not expanded per enum value).
+TOGGLE_ENUMS: set[str] = {
+    "SameAlbedoWall",   # Off / On
+    "OhmIncQf",         # Exclude / Include QF
+    "SnowUse",          # Disabled / Enabled
+    "WaterUseMethod",   # Modelled / Observed
+}
+
+# Display names for enum classes (used in tabs and comparison widget)
+ENUM_CLASS_DISPLAY = {
+    "NetRadiationMethod": "Net Radiation",
+    "SameAlbedoWall": "Albedo Uniformity",
+    "StorageHeatMethod": "Storage Heat Flux",
+    "OhmIncQf": "OHM QF Inclusion",
+    "EmissionsMethod": "Emissions",
+    "GSModel": "Stomatal Conductance",
+    "FAIMethod": "Frontal Area Index",
+    "MomentumRoughnessMethod": "Roughness Length",
+    "RSLMethod": "Roughness Sublayer",
+    "StabilityMethod": "Stability Corrections",
+    "SMDMethod": "Soil Moisture",
+    "SnowUse": "Snow",
+    "WaterUseMethod": "Water Use",
+}
+
+# Preferred display order (follows energy balance chain)
+ENUM_CLASS_ORDER = [
+    "NetRadiationMethod",
+    "SameAlbedoWall",
+    "StorageHeatMethod",
+    "OhmIncQf",
+    "EmissionsMethod",
+    "GSModel",
+    "FAIMethod",
+    "MomentumRoughnessMethod",
+    "RSLMethod",
+    "StabilityMethod",
+    "SMDMethod",
+    "SnowUse",
+    "WaterUseMethod",
+]
 
 
 def _enum_val(obj: object) -> str:
@@ -478,14 +540,84 @@ def generate_category_page(category: str, cards: list[ModelCard]) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _render_card_rst(card: ModelCard, indent: str) -> list[str]:
+    """Render a single grid-item-card for use in index or category pages."""
+    L: list[str] = []
+    nm = card.identity.scheme_name
+    full = card.identity.full_name
+    status = _enum_val(card.operational_status.development_status)
+    eval_st = _enum_val(card.evaluation_evidence.evaluation_status)
+    comp = card.technical_characteristics.computational_demand or "unknown"
+    dp = card.technical_characteristics.data_preparation_demand or "unknown"
+
+    L.append(f"{indent}.. grid-item-card:: {full}")
+    L.append(f"{indent}   :link: model_card_{nm}")
+    L.append(f"{indent}   :link-type: ref")
+    L.append("")
+
+    sbadge = STATUS_BADGE.get(status, f":bdg-secondary:`{status}`")
+    ebadge = EVAL_BADGE.get(eval_st, f":bdg-secondary-line:`{eval_st}`")
+    comp_b = COMPUTE_BADGE.get(comp, f":bdg-secondary-line:`compute: {comp}`")
+    dp_b = DATA_PREP_BADGE.get(dp, f":bdg-secondary-line:`data prep: {dp}`")
+    L.append(f"{indent}   {sbadge} {ebadge} {comp_b} {dp_b}")
+    L.append("")
+    L.append(f"{indent}   {card.identity.purpose}")
+    L.append("")
+
+    if card.identity.enum_class and card.identity.enum_values:
+        vals = ", ".join(str(v) for v in card.identity.enum_values)
+        L.append(f"{indent}   ``{card.identity.enum_class}`` = {vals}")
+    L.append("")
+    return L
+
+
+def _render_option_card_rst(
+    card: ModelCard,
+    option: dict,
+    indent: str,
+) -> list[str]:
+    """Render a card for a single enum option, expanding from the parent card.
+
+    *option* has keys: value, name, description (from _parse_enum_options).
+    Badges are inherited from the parent YAML card; title and description
+    come from the enum docstring.
+    """
+    L: list[str] = []
+    nm = card.identity.scheme_name
+    ec = card.identity.enum_class
+    opt_name = option["name"].replace("_", " ").title()
+    status = _enum_val(card.operational_status.development_status)
+    eval_st = _enum_val(card.evaluation_evidence.evaluation_status)
+    comp = card.technical_characteristics.computational_demand or "unknown"
+    dp = card.technical_characteristics.data_preparation_demand or "unknown"
+
+    L.append(f"{indent}.. grid-item-card:: {opt_name}")
+    L.append(f"{indent}   :link: model_card_{nm}")
+    L.append(f"{indent}   :link-type: ref")
+    L.append("")
+
+    sbadge = STATUS_BADGE.get(status, f":bdg-secondary:`{status}`")
+    ebadge = EVAL_BADGE.get(eval_st, f":bdg-secondary-line:`{eval_st}`")
+    comp_b = COMPUTE_BADGE.get(comp, f":bdg-secondary-line:`compute: {comp}`")
+    dp_b = DATA_PREP_BADGE.get(dp, f":bdg-secondary-line:`data prep: {dp}`")
+    L.append(f"{indent}   {sbadge} {ebadge} {comp_b} {dp_b}")
+    L.append("")
+    L.append(f"{indent}   {option['description']}")
+    L.append("")
+    L.append(f"{indent}   ``{ec}`` = {option['value']}")
+    L.append("")
+    return L
+
+
 def generate_index(
     categories: dict[str, list[ModelCard]],
     cards: dict[str, ModelCard] | None = None,
 ) -> str:
-    """Generate the main scheme-reference index.rst with a category card grid.
+    """Generate the main scheme-reference index.rst grouped by enum_class.
 
-    If *cards* is provided the interactive comparison widget is embedded
-    directly in the index page.
+    Every enum_class gets its own tab.  Schemes without an enum_class
+    (diagnostic / internal modules) are collected in a final "Other" tab.
+    If *cards* is provided the interactive comparison widget is embedded.
     """
     L: list[str] = []
 
@@ -504,44 +636,120 @@ def generate_index(
     L.append("   See ``src/supy/model_cards/`` for the source data.")
     L.append("")
 
-    if categories:
-        for cat_key, display_name in CATEGORY_DISPLAY.items():
-            if cat_key not in categories:
-                continue
-            cat_cards = categories[cat_key]
-            n = len(cat_cards)
+    if cards:
+        # Group by enum_class
+        by_enum: dict[str, list[ModelCard]] = {}
+        no_enum: list[ModelCard] = []
+        for card in cards.values():
+            ec = card.identity.enum_class
+            if ec:
+                by_enum.setdefault(ec, []).append(card)
+            else:
+                no_enum.append(card)
+
+        # Pre-load enum registry for option expansion
+        registry = _get_enum_registry()
+
+        # --- Tab-set: one tab per enum_class ---
+        L.append(".. tab-set::")
+        L.append("")
+
+        # Use defined order, then alphabetical for any extras
+        ordered_keys = [k for k in ENUM_CLASS_ORDER if k in by_enum]
+        ordered_keys.extend(
+            sorted(k for k in by_enum if k not in ENUM_CLASS_ORDER)
+        )
+
+        for ec in ordered_keys:
+            ec_cards = by_enum[ec]
+            display = ENUM_CLASS_DISPLAY.get(ec, ec)
+
+            # Build per-option entries: (sort_key, card, option_or_None)
+            # If a card covers multiple enum values, expand into per-value
+            # cards using the enum docstring for individual descriptions.
+            entries: list[tuple[int, ModelCard, dict | None]] = []
+            enum_cls = registry.get(ec)
+
+            for card in ec_cards:
+                vals = card.identity.enum_values or []
+                if len(vals) > 1 and enum_cls is not None and ec not in TOGGLE_ENUMS:
+                    # Expand: one entry per enum value
+                    options = _parse_enum_options(enum_cls, vals)
+                    for opt in options:
+                        entries.append((opt["value"], card, opt))
+                else:
+                    # Single-value card or no enum info: render as-is
+                    sort_key = vals[0] if vals else 0
+                    entries.append((sort_key, card, None))
+
+            entries.sort(key=lambda e: e[0])
+            n = len(entries)
+
+            L.append(f"   .. tab-item:: {display}")
+            L.append("")
+
             L.append(
-                f":ref:`{display_name} <scheme_category_{cat_key}>` "
-                f"-- {n} scheme{'s' if n != 1 else ''}"
+                f"      **{n} {'scheme' if n == 1 else 'schemes'}** "
+                f"-- select a ``{ec}`` option to see its model card"
             )
             L.append("")
-            for card in sorted(cat_cards, key=lambda c: c.identity.scheme_name):
-                st = _enum_val(card.operational_status.development_status)
-                badge = STATUS_BADGE.get(st, f":bdg-secondary:`{st}`")
-                nm = card.identity.scheme_name
-                full = card.identity.full_name
-                L.append(
-                    f"- {badge} :ref:`{nm} <model_card_{nm}>` -- {full}"
-                )
+
+            L.append("      .. grid:: 1 1 2 2")
+            L.append("         :gutter: 3")
             L.append("")
+
+            for _sort_key, card, opt in entries:
+                if opt is not None:
+                    L.extend(_render_option_card_rst(card, opt, "         "))
+                else:
+                    L.extend(_render_card_rst(card, "         "))
+
+        # "Other" tab for cards without enum_class (e.g. beers, lumps)
+        if no_enum:
+            L.append("   .. tab-item:: Other")
+            L.append("")
+            L.append(
+                "      **Diagnostic / internal modules** "
+                "not controlled by a method selector."
+            )
+            L.append("")
+
+            L.append("      .. grid:: 1 1 2 2")
+            L.append("         :gutter: 3")
+            L.append("")
+
+            for card in sorted(no_enum, key=lambda c: c.identity.scheme_name):
+                L.extend(_render_card_rst(card, "         "))
+
+        L.append("")
 
     L.append("")
 
-    # Embedded comparison widget
+    # Embedded comparison widget (enum_classes with 2+ cards)
     if cards:
-        L.append(
-            "**Compare Schemes** -- select a category, "
-            "then pick two schemes to compare side by side."
-        )
-        L.append("")
-        L.append(".. raw:: html")
-        L.append("")
-        data = {name: _card_to_dict(card) for name, card in cards.items()}
-        json_str = json.dumps(data, indent=2)
-        html = _build_compare_html(json_str)
-        for line in html.split("\n"):
-            L.append(f"   {line}" if line.strip() else "")
-        L.append("")
+        multi_keys = {k for k, v in by_enum.items() if len(v) >= 2}
+        widget_cards = {
+            name: _card_to_dict(card)
+            for name, card in cards.items()
+            if card.identity.enum_class in multi_keys
+        }
+
+        if widget_cards:
+            L.append(
+                "**Compare Schemes** -- select a method type, "
+                "then pick two schemes to compare side by side."
+            )
+            L.append("")
+            L.append(".. raw:: html")
+            L.append("")
+            json_str = json.dumps(widget_cards, indent=2)
+            group_names = {
+                ec: ENUM_CLASS_DISPLAY.get(ec, ec) for ec in multi_keys
+            }
+            html = _build_compare_html(json_str, group_names=group_names)
+            for line in html.split("\n"):
+                L.append(f"   {line}" if line.strip() else "")
+            L.append("")
 
     # Toctree (hidden, for Sphinx navigation tree)
     L.append(".. toctree::")
@@ -627,8 +835,16 @@ def generate_compare_page(cards: dict[str, ModelCard]) -> str:
     return "\n".join(L)
 
 
-def _build_compare_html(json_str: str) -> str:
-    """Return the self-contained HTML/CSS/JS for the comparison widget."""
+def _build_compare_html(
+    json_str: str,
+    group_names: dict[str, str] | None = None,
+) -> str:
+    """Return the self-contained HTML/CSS/JS for the comparison widget.
+
+    If *group_names* is provided, schemes are grouped by ``enum_class``
+    instead of ``category``, and only groups with 2+ members are shown.
+    """
+    group_names_json = json.dumps(group_names) if group_names else "null"
     return f"""\
 <style>
 .mc-compare {{ font-family: var(--pst-font-family-base, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif); }}
@@ -717,7 +933,7 @@ def _build_compare_html(json_str: str) -> str:
 (function() {{
   const DATA = {json_str};
 
-  const CATEGORY_NAMES = {{
+  const GROUP_NAMES = {group_names_json} || {{
     radiation: "Radiation (Q*)",
     storage_heat: "Storage Heat Flux (QS)",
     turbulent_fluxes: "Turbulent Fluxes (QH/QE)",
@@ -728,14 +944,19 @@ def _build_compare_html(json_str: str) -> str:
     co2_vegetation: "CO2 Exchange and Vegetation"
   }};
 
-  // Group schemes by category
+  // Group schemes by enum_class (or category as fallback)
   const byCategory = {{}};
   Object.entries(DATA).forEach(([name, d]) => {{
-    const cat = d.category;
-    if (!byCategory[cat]) byCategory[cat] = [];
-    byCategory[cat].push(name);
+    const grp = d.enum_class || d.category;
+    if (!grp) return;
+    if (!byCategory[grp]) byCategory[grp] = [];
+    byCategory[grp].push(name);
   }});
-  // Sort schemes within each category
+  // Only keep groups with 2+ schemes (meaningful comparisons)
+  Object.keys(byCategory).forEach(k => {{
+    if (byCategory[k].length < 2) delete byCategory[k];
+  }});
+  // Sort schemes within each group
   Object.values(byCategory).forEach(arr => arr.sort());
 
   const catSel = document.getElementById("mc-cat");
@@ -745,7 +966,7 @@ def _build_compare_html(json_str: str) -> str:
   Object.keys(byCategory).sort().forEach(cat => {{
     const opt = document.createElement("option");
     opt.value = cat;
-    opt.textContent = CATEGORY_NAMES[cat] || cat;
+    opt.textContent = GROUP_NAMES[cat] || cat;
     catSel.appendChild(opt);
   }});
 

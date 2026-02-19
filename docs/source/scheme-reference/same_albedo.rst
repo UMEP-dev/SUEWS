@@ -7,6 +7,11 @@ Uniform Wall/Roof Albedo Assumption
 
 Controls whether all walls (or roofs) within the urban canopy share the same albedo value, simplifying the radiation calculation for multi-layer schemes.
 
+**SameAlbedoWall** options:
+
+- ``0`` **OFF** -- Off
+- ``1`` **ON** -- On
+
 .. tab-set::
 
    .. tab-item:: Science

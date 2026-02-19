@@ -9,6 +9,8 @@ Diagnoses vertical profiles of wind speed, temperature and humidity within and a
 
 **RSLMethod** options:
 
+- ``0`` **MOST** -- Appropriate for relatively homogeneous, flat surfaces
+- ``1`` **RST** -- Appropriate for heterogeneous urban surfaces with tall roughness elements
 - ``2`` **VARIABLE** -- Automatically selects between MOST and RST based on surface morphology (plan area index, frontal area index, and roughness element heights)
 
 .. tab-set::

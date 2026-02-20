@@ -1784,7 +1784,7 @@ def create_science_report(
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
     report_lines.append(
-        f"# Mode: {'Public' if mode.lower() == 'public' else mode.title()} - Validation stage: Scientific Validation"
+        f"# Mode: {'Public' if mode.lower() == 'public' else mode.title()} - Last successful validation stage: Scientific Validation"
     )
     report_lines.append("# " + "=" * 50)
     report_lines.append("")

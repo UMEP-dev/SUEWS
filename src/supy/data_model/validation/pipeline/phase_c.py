@@ -181,7 +181,7 @@ def generate_phase_c_report(
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
     report_lines.append(
-        f"# Mode: {'Public' if mode.lower() == 'public' else mode.title()} - Validation stage: {validation_stage}"
+        f"# Mode: {'Public' if mode.lower() == 'public' else mode.title()} - Last successful validation stage: {validation_stage}"
     )
     report_lines.append("# " + "=" * 50)
     report_lines.append("")
@@ -573,7 +573,7 @@ def generate_fallback_report(
 
     error_report = f"""# {title}
 # ============================================
-# Mode: {mode_title} - Validation stage: {validation_stage}
+# Mode: {mode_title} - Last successful validation stage: {validation_stage}
 # ============================================
 
 ## ACTION NEEDED

@@ -1242,7 +1242,7 @@ def create_analysis_report(
     report_lines.append(f"# {title}")
     report_lines.append("# " + "=" * 50)
     report_lines.append(
-        f"# Mode: {'Public' if mode.lower() == 'public' else mode.title()} - Validation stage: {validation_stage}"
+        f"# Mode: {'Public' if mode.lower() == 'public' else mode.title()} - Last successful validation stage: {validation_stage}"
     )
     report_lines.append("# " + "=" * 50)
     report_lines.append("")

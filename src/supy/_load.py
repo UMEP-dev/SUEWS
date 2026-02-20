@@ -13,10 +13,6 @@ import pandas as pd
 from packaging import version
 
 
-from . import _supy_driver as _sd
-from . import supy_driver as sd
-
-
 from ._env import logger_supy, trv_supy_module, ISSUES_URL
 from ._misc import path_insensitive 
 
@@ -25,93 +21,22 @@ from ._misc import path_insensitive
 str_second = "S" if version.parse(pd.__version__) < version.parse("1.5.0") else "s"
 
 
-########################################################################
-# get_args_suews can get the interface information
-# of the f2py-converted Fortran interface
-def get_args_suews(docstring=_sd.f90wrap_suews_driver__suews_cal_multitsteps.__doc__):
-    # split doc lines for processing
-    docLines = np.array(docstring.splitlines(), dtype=str)
-
-    dict_inout_sd = extract_dict_docs(docLines)
-
-    return dict_inout_sd
-
-
-def extract_dict_docs(docLines):
-    # get the information of input variables for SUEWS_driver
-    ser_docs = pd.Series(docLines)
-    varInputLines = ser_docs[ser_docs.str.contains("input|in/output")].values
-    varInputInfo = np.array([
-        [xx.rstrip() for xx in x.split(":")] for x in varInputLines
-    ])
-    # varInputInfo
-    dict_InputInfo = {xx[0]: xx[1] for xx in varInputInfo}
-    dict_InOutInfo = {xx[0]: xx[1] for xx in varInputInfo if "in/out" in xx[1]}
-
-    list_var_inout = tuple(dict_InOutInfo.keys())
-    list_var_in = tuple(set(dict_InputInfo.keys()))
-    # temporary fix for state variables
-    list_var_in = list(set(list_var_in) - set(["state_debug", "block_mod_state"]))
-    # dict_InOutInfo
-    # get the information of output variables for SUEWS_driver
-
-    varOutputLines = ser_docs[ser_docs.str.startswith(("dataout", "dailystate"))].values
-
-    # varOutputLines = docLines[posOutput[0][0] + 2 :]
-    varOutputInfo = np.array([
-        [xx.rstrip() for xx in x.split(":")] for x in varOutputLines
-    ])
-    # varOutputInfo
-    dict_OutputInfo = {xx[0]: xx[1] for xx in varOutputInfo}
-    list_var_out = tuple(dict_OutputInfo.keys())
-    list_var_inout = set(list_var_inout) - set(list_var_out)
-    # list_var_in= set(list_var_in) - set(list_var_out)
-    # pack in/out results:
-    dict_inout_sd = {
-        # 'input' and 'output' are dict's that store variable information:
-        # 1. intent: e.g., input, in/output
-        # 2. dimension: e.g., (366,7)
-        "input": dict_InputInfo,
-        "output": dict_OutputInfo,
-        # 'var_input' and 'var_output' are tuples,
-        # that keep the order of arguments as in the Fortran subroutine
-        "var_input": list_var_in,
-        "var_inout": list_var_inout,
-        "var_output": list_var_out,
-    }
-    return dict_inout_sd
-
-
-# for `suews_cal_multitsteps`
-def get_args_suews_multitsteps():
-    # split doc lines for processing
-    docLines = np.array(
-        _sd.f90wrap_suews_driver__suews_cal_multitsteps.__doc__.splitlines(), dtype=str
-    )
-
-    dict_inout_sd = extract_dict_docs(docLines)
-
-    return dict_inout_sd
-
-
-# store these lists for later use
-list_var_input = list(get_args_suews()["var_input"])
-list_var_inout = list(get_args_suews()["var_inout"])
-list_var_output = list(get_args_suews()["var_output"])
-set_var_input = set(list_var_input)
-set_var_inout = set(list_var_inout)
-set_var_ouput = set(list_var_output)
-
-list_var_input_multitsteps = list(get_args_suews_multitsteps()["var_input"])
-list_var_inout_multitsteps = list(get_args_suews_multitsteps()["var_inout"])
-list_var_output_multitsteps = list(get_args_suews_multitsteps()["var_output"])
-set_var_input_multitsteps = set(list_var_input_multitsteps)
-set_var_inout_multitsteps = set(list_var_inout_multitsteps)
-set_var_ouput_multitsteps = set(list_var_output_multitsteps)
-
-# variables used in df_state
-set_var_use = set_var_input_multitsteps
-# set_var_use = set_var_input.intersection(set_var_input_multitsteps)
+# Variable lists from static metadata (previously extracted from f90wrap docstrings)
+from ._var_metadata import (
+    list_var_input,
+    list_var_inout,
+    list_var_output,
+    set_var_input,
+    set_var_inout,
+    set_var_ouput,
+    list_var_input_multitsteps,
+    list_var_inout_multitsteps,
+    list_var_output_multitsteps,
+    set_var_input_multitsteps,
+    set_var_inout_multitsteps,
+    set_var_ouput_multitsteps,
+    set_var_use,
+)
 
 ##############################################################################
 # input processor
@@ -207,55 +132,10 @@ dict_var_type_forcing = {
 
 
 ######################################################################
-# functions
-# extract metainfo of var from dict_info
-def extract_var_info(var_name, dict_info):
-    dict_var_info = {"name": var_name}
-    var_line = dict_info[var_name]
-    list_var_line = var_line.split()
-    if "array" in var_line:
-        dict_var_info.update({"intent": list_var_line[0]})
-        # print(list_var_line)
-        rank = int(list_var_line[1].split("-")[-1])
-        dict_var_info.update({"rank": rank})
-        dtype = list_var_line[2]
-        dict_var_info.update({"dtype": dtype})
-        if rank > 0:
-            bounds = list_var_line[-1]
-            dict_var_info.update({"bounds": bounds})
-        else:
-            dict_var_info.update({"bounds": 0})
-    else:
-        dict_var_info.update({"intent": list_var_line[0]})
-        rank = 0
-        dict_var_info.update({"rank": rank})
-        dtype = list_var_line[1]
-        dict_var_info.update({"dtype": dtype})
-        dict_var_info.update({"bounds": 0})
-    return dict_var_info
+# Variable type information from static metadata
+from ._var_metadata import get_df_var_info
 
-
-# generate DataFrame of docstring for suews_wrappers generated by f2py
-def gen_suews_arg_info_df(docstring):
-    dict_info = get_args_suews(docstring)["input"]
-    # dict_info.update(get_args_suews(docstring)['output'])
-    dict_info = {var: extract_var_info(var, dict_info) for var in dict_info}
-    df_info = pd.DataFrame(dict_info).T
-    return df_info
-
-
-# note: infer data types for variables to avoid type conversion
-df_info_suews_cal_multitsteps = gen_suews_arg_info_df(
-    _sd.f90wrap_suews_driver__suews_cal_multitsteps.__doc__
-)
-try:
-    df_info_suews_cal_multitsteps = df_info_suews_cal_multitsteps.infer_objects()
-except TypeError:
-    df_info_suews_cal_multitsteps = df_info_suews_cal_multitsteps.infer_objects(
-        copy=False
-    )
-
-df_var_info = df_info_suews_cal_multitsteps.set_index("name")
+df_var_info = get_df_var_info()
 
 
 # load model settings
@@ -431,13 +311,13 @@ def load_SUEWS_SurfaceChar(path_input):
     # modify some variables to be compliant with SUEWS requirement
     for xgrid in df_gridSurfaceChar.index:
         # transpose snowprof (use .copy(order='F') for Pandas 3.0+ CoW compatibility
-        # while preserving Fortran memory layout for f2py):
+        # while preserving Fortran memory layout):
         df_gridSurfaceChar.at[xgrid, "snowprof_24hr"] = np.asfortranarray(
             np.array(df_gridSurfaceChar.at[xgrid, "snowprof_24hr"], order="F").T
         )
 
         # transpose laipower (use asfortranarray for Pandas 3.0+ CoW compatibility
-        # while preserving Fortran memory layout for f2py):
+        # while preserving Fortran memory layout):
         df_gridSurfaceChar.at[xgrid, "laipower"] = np.asfortranarray(
             np.array(df_gridSurfaceChar.at[xgrid, "laipower"], order="F").T
         )
@@ -473,7 +353,7 @@ def load_SUEWS_SurfaceChar(path_input):
         # print 'len(dict_x)',len(dict_x['laipower'])
 
         # profiles (use asfortranarray for Pandas 3.0+ CoW compatibility
-        # while preserving Fortran memory layout for f2py):
+        # while preserving Fortran memory layout):
         list_varTstep = [
             "ahprof_24hr",
             "popprof_24hr",
@@ -520,12 +400,12 @@ def dectime(timestamp):
 
 # resample solar radiation by zenith correction and total amount distribution
 def resample_kdn(data_raw_kdn, tstep_mod, timezone, lat, lon, alt):
+    from .suews_bridge import sunposition_calc
+
     # adjust solar radiation
     datetime_mid_local = data_raw_kdn.index - timedelta(seconds=tstep_mod / 2)
     sol_elev = np.array([
-        _sd.f90wrap_suews_cal_sunposition(t.year, dectime(t), timezone, lat, lon, alt)[
-            -1
-        ]
+        sunposition_calc(float(t.year), dectime(t), timezone, lat, lon, alt)[1]
         for t in datetime_mid_local
     ])
     sol_elev_reset = np.zeros_like(sol_elev)

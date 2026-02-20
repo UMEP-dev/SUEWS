@@ -136,11 +136,13 @@ runs:
         CIBW_ENVIRONMENT: >
           PIP_PREFER_BINARY=1
           ${{ inputs.is_umep_variant == 'true' && 'BUILD_UMEP_VARIANT=true' || '' }}
-        # Platform-specific: Linux Fortran compiler settings
+        # Platform-specific: Linux Fortran compiler and Rust toolchain settings
         CIBW_ENVIRONMENT_LINUX: >
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           F90=gfortran
+          PATH="$HOME/.cargo/bin:$PATH"
         CIBW_BEFORE_ALL_LINUX: >
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y &&
           pip install --upgrade pip setuptools wheel &&
           if [[ "${{ inputs.is_umep_variant }}" == "true" ]]; then
             echo "Installing oldest-supported-numpy for UMEP variant build" &&
@@ -196,8 +198,12 @@ runs:
         CIBW_TEST_REQUIRES: ${{ inputs.is_umep_variant == 'true' && 'pytest numpy==1.26.*' || 'pytest' }}
         # Test tiers: choose subset based on path detection and trigger
         # Always include --durations=10 to show slowest tests in output
-        CIBW_TEST_COMMAND: >
-          python -m pytest {project}/test -v --tb=short --durations=10
+        # After pytest, enforce bridge-manifest coverage of public Fortran types.
+        # Uses run_ci_tests.py wrapper to avoid shell-level && chaining,
+        # which breaks on Windows cmd.exe with quoted marker expressions.
+        CIBW_TEST_COMMAND: >-
+          python {project}/scripts/run_ci_tests.py {project}
+          -v --tb=short --durations=10
           ${{ inputs.test_tier == 'smoke' && '-m smoke' ||
               inputs.test_tier == 'core' && '-m "smoke or core"' ||
               inputs.test_tier == 'cfg' && '-m "smoke or cfg"' ||

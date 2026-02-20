@@ -37,7 +37,8 @@ else
 	endif
 endif
 
-# enable this if we want to use the debug version of SUEWS
+# Enable debug build: bounds checking and sNaN init protect against
+# uninitialised variables and array-bounds violations.
 DEBUG=1
 
 LIBUTILS = $(addprefix $(DIR_LIB_SUEWS),libsuewsutil.a)

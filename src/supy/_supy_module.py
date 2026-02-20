@@ -36,7 +36,6 @@ from ._load import (
     load_SUEWS_Forcing_met_df_yaml,
     resample_forcing_met,
 )
-from ._run import run_supy_par, run_supy_ser
 from ._post import resample_output
 from ._save import (
     get_save_info,
@@ -687,34 +686,43 @@ def _run_supy(
     n_grid = list_grid.size
     logger_supy.info(f"No. of grids: {n_grid}")
 
-    if n_grid > 1 and os.name != "nt" and (not serial_mode):
-        logger_supy.info("SUEWS is running in parallel mode")
-        res_supy = run_supy_par(
-            df_forcing, df_state_init, save_state, chunk_day, debug_mode
-        )
-    else:
-        logger_supy.info("SUEWS is running in serial mode")
-        res_supy = run_supy_ser(
-            df_forcing, df_state_init, save_state, chunk_day, debug_mode
-        )
-        # try:
-        #     res_supy = run_supy_ser(df_forcing, df_state_init, save_state, chunk_day)
-        # except:
-        #     res_supy = run_supy_ser(df_forcing, df_state_init, save_state, chunk_day)
+    # Build config from DataFrame state
+    from .data_model.core import SUEWSConfig
+    from ._run_rust import run_suews_rust_chunked
+    from .util._forcing import convert_observed_soil_moisture
 
-    # show simulation time
+    config = SUEWSConfig.from_df_state(df_state_init)
+
+    # Preprocess forcing for observed soil moisture if needed
+    try:
+        # SMDMethod is a physics option in the validated config schema.
+        # Keep a fallback to legacy `model.options` for compatibility.
+        smd_val = getattr(config.model.physics, "smdmethod", None)
+        if smd_val is None:
+            smd_val = getattr(getattr(config.model, "options", None), "smdmethod", None)
+        if hasattr(smd_val, "value"):
+            smd_val = smd_val.value
+        smd_int = int(smd_val) if smd_val is not None else 0
+    except (AttributeError, TypeError, ValueError):
+        smd_int = 0
+
+    df_forcing_processed = df_forcing.copy()
+    if smd_int > 0:
+        df_forcing_processed = convert_observed_soil_moisture(
+            df_forcing_processed, df_state_init
+        )
+
+    # Run via Rust bridge
+    df_output, _ = run_suews_rust_chunked(config, df_forcing_processed, chunk_day)
+
+    # Build state_final: copy initial state + version metadata
+    df_state_final = df_state_init.copy()
+    df_state_final[("version", "0")] = __version__
+
     end = time.time()
-    logger_supy.info(f"Execution time: {(end - start):.1f} s")
-    logger_supy.info("====================\n")
+    logger_supy.info(f"Simulation completed. Elapsed: {end - start:.1f}s")
 
-    # unpack results
-    df_output, df_state_final, res_debug, res_state = res_supy
-
-    # return results based on debugging needs
-    if debug_mode:
-        return df_output, df_state_final, res_debug, res_state
-    else:
-        return df_output, df_state_final
+    return df_output, df_state_final
 
 
 def run_supy(

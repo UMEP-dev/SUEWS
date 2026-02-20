@@ -78,6 +78,7 @@ fn main() {
 
     if physics_enabled {
         fortran_sources.push(manifest_dir.join("c_api/driver.f95"));
+        fortran_sources.push(manifest_dir.join("c_api/sunposition.f95"));
     }
 
     for src in &fortran_sources {

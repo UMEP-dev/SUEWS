@@ -400,12 +400,12 @@ def dectime(timestamp):
 
 # resample solar radiation by zenith correction and total amount distribution
 def resample_kdn(data_raw_kdn, tstep_mod, timezone, lat, lon, alt):
+    from .suews_bridge import sunposition_calc
+
     # adjust solar radiation
     datetime_mid_local = data_raw_kdn.index - timedelta(seconds=tstep_mod / 2)
     sol_elev = np.array([
-        _sd.f90wrap_suews_cal_sunposition(t.year, dectime(t), timezone, lat, lon, alt)[
-            -1
-        ]
+        sunposition_calc(float(t.year), dectime(t), timezone, lat, lon, alt)[1]
         for t in datetime_mid_local
     ])
     sol_elev_reset = np.zeros_like(sol_elev)

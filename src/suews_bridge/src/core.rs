@@ -529,6 +529,43 @@ pub fn ohm_state_step(
     Ok(qs)
 }
 
+/// Compute sun azimuth and zenith angles.
+///
+/// Returns `(azimuth, zenith)` in degrees.
+#[cfg(feature = "physics")]
+pub fn sunposition_calc(
+    year: f64,
+    idectime: f64,
+    utc: f64,
+    lat: f64,
+    lon: f64,
+    alt: f64,
+) -> Result<(f64, f64), BridgeError> {
+    let mut azimuth = 0.0_f64;
+    let mut zenith = 0.0_f64;
+    let mut err = -1_i32;
+
+    unsafe {
+        ffi::suews_sunposition_calc(
+            year,
+            idectime,
+            utc,
+            lat,
+            lon,
+            alt,
+            &mut azimuth as *mut f64,
+            &mut zenith as *mut f64,
+            &mut err as *mut i32,
+        );
+    }
+
+    if err != ffi::SUEWS_CAPI_OK {
+        return Err(BridgeError::from_code(err));
+    }
+
+    Ok((azimuth, zenith))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

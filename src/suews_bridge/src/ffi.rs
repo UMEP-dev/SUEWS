@@ -465,4 +465,17 @@ unsafe extern "C" {
     pub fn suews_irrigation_prm_schema_version(schema_version: *mut c_int, err: *mut c_int);
 
     pub fn suews_irrigation_prm_default(flat: *mut c_double, n_flat: c_int, err: *mut c_int);
+
+    #[cfg(feature = "physics")]
+    pub fn suews_sunposition_calc(
+        year: c_double,
+        idectime: c_double,
+        utc: c_double,
+        lat: c_double,
+        lon: c_double,
+        alt: c_double,
+        azimuth: *mut c_double,
+        zenith: *mut c_double,
+        err: *mut c_int,
+    );
 }

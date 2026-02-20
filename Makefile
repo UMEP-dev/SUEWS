@@ -147,6 +147,16 @@ rebuild-meson:
 		fi; \
 	else \
 		echo "Rebuilding changed Fortran sources..."; \
+		BRIDGE_SO=$$(ls build/$$PYVER/src/supy/suews_bridge.* 2>/dev/null | head -1); \
+		if [ -n "$$BRIDGE_SO" ] && [ -d "src/suews_bridge/src" ]; then \
+			STALE=$$(find src/suews_bridge/src src/suews_bridge/c_api \
+				src/suews_bridge/build.rs src/suews_bridge/Cargo.toml \
+				-newer "$$BRIDGE_SO" 2>/dev/null | head -1); \
+			if [ -n "$$STALE" ]; then \
+				echo "Rust bridge sources changed - forcing rebuild..."; \
+				rm -f build/$$PYVER/src/supy/suews_bridge.* build/$$PYVER/src/supy/bin/suews*; \
+			fi; \
+		fi; \
 		if cd "build/$$PYVER" && ninja; then \
 			echo "[OK] Fortran extension rebuilt"; \
 		else \

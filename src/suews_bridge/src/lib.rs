@@ -4052,6 +4052,21 @@ mod python_bindings {
     }
 
     #[cfg(feature = "physics")]
+    #[pyfunction(name = "sunposition_calc")]
+    fn sunposition_calc_py(
+        year: f64,
+        idectime: f64,
+        utc: f64,
+        lat: f64,
+        lon: f64,
+        alt: f64,
+    ) -> PyResult<(f64, f64)> {
+        let (az, zen) = sunposition_calc(year, idectime, utc, lat, lon, alt)
+            .map_err(map_bridge_error)?;
+        Ok((az, zen))
+    }
+
+    #[cfg(feature = "physics")]
     #[pyfunction(name = "run_suews")]
     fn run_suews_py(
         config_yaml: &str,
@@ -5325,6 +5340,8 @@ mod python_bindings {
         #[cfg(feature = "physics")]
         m.add_function(wrap_pyfunction!(output_group_ncolumns_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_step_py, m)?)?;
+        #[cfg(feature = "physics")]
+        m.add_function(wrap_pyfunction!(sunposition_calc_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_version_py, m)?)?;
         m.add_function(wrap_pyfunction!(ohm_state_schema_version_runtime_py, m)?)?;

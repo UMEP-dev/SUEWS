@@ -1231,6 +1231,13 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
                       Qlw_dn_extwall, Qlw_dn_extroof
    REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
    TYPE(STEBBS_BLDG) :: self
+   ! Local variables to hold computed flow rates:
+   ! tstep WRITES to flowrate_water_supply and flowrate_water_drain
+   ! (lines 1870/1874), so passing an expression directly is UB
+   ! (gfortran 14 creates a read-only temporary -> SIGSEGV).
+   REAL(KIND(1D0)) :: local_flowrate_supply, local_flowrate_drain
+   local_flowrate_supply = self%flowrate_water_supply * self%frac_hotwater
+   local_flowrate_drain = self%flowrate_water_supply * self%frac_hotwater
    CALL tstep( &
       ! flginit,
       datetimeLine, Tair_out, Tair_out_bh, Tair_out_hbh, Tground_deep, Tsurf, &
@@ -1271,7 +1278,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%Vwater_tank, self%Asurf_tank, self%Vwall_tank, self%setTwater_tank, &
       self%Twater_vessel, self%Tintwall_vessel, self%Textwall_vessel, &
       self%thickness_wall_vessel, self%Vwater_vessel, self%Awater_vessel, &
-      self%Vwall_vessel, self%flowrate_water_supply*self%frac_hotwater, self%flowrate_water_supply*self%frac_hotwater, &
+      self%Vwall_vessel, local_flowrate_supply, local_flowrate_drain, &
       self%cp_water, self%cp_wall_tank, self%cp_wall_vessel, &
       self%density_water, self%density_wall_tank, self%density_wall_vessel, &
       self%BVF_tank, self%MVF_tank, self%conductivity_wall_tank, &
@@ -1464,7 +1471,7 @@ SUBROUTINE tstep( &
    REAL(KIND(1D0)) :: Twater_tank, & ! Water temperature in Hot Water Tank [K]
                       Tintwall_tank, & ! Hot water tank internal wall temperature [K]
                       Textwall_tank ! Hot water tank external wall temperature [K]
-   REAL(KIND(1D0)) :: dTwater_tank = 0.0, dTintwall_tank = 0.0, dTextwall_tank = 0.0
+   REAL(KIND(1D0)) :: dTwater_tank, dTintwall_tank, dTextwall_tank
    REAL(KIND(1D0)) :: thickness_tankwall ! Hot water tank wall thickness [m]
    REAL(KIND(1D0)) :: Tincomingwater_tank ! Water temperature of Water coming into the Water Tank [K]
    REAL(KIND(1D0)) :: Vwater_tank, & ! Volume of Water in Hot Water Tank [m3]
@@ -1474,10 +1481,10 @@ SUBROUTINE tstep( &
    REAL(KIND(1D0)) :: Twater_vessel, & ! Water temperature of water held in use in Building [K]
                       Tintwall_vessel, & ! Hot water tank internal wall temperature [K]
                       Textwall_vessel ! Hot water tank external wall temperature [K]
-   REAL(KIND(1D0)) :: dTwater_vessel = 0.0, dTintwall_vessel = 0.0, dTextwall_vessel = 0.0
+   REAL(KIND(1D0)) :: dTwater_vessel, dTintwall_vessel, dTextwall_vessel
    REAL(KIND(1D0)) :: thickness_wall_vessel ! DHW vessels wall thickness [m]
    REAL(KIND(1D0)) :: Vwater_vessel ! Volume of water held in use in building [m3]
-   REAL(KIND(1D0)) :: dVwater_vessel = 0.0 ! Change in volume of Domestic Hot Water held in use in building [m3]
+   REAL(KIND(1D0)) :: dVwater_vessel
    REAL(KIND(1D0)) :: Awater_vessel, & ! Surface Area of Hot Water in Vessels in Building [m2]
                       Vwall_vessel, & ! Wall volume of Hot water Vessels in Building [m3]
                       flowrate_water_supply, & ! Hot Water Flow Rate [m3 s-1]
@@ -1543,45 +1550,45 @@ SUBROUTINE tstep( &
                       Vindoormass, Aindoormass ! Assumed internal mass as a cube [m3], [m2]
    REAL(KIND(1D0)) :: Tair_ind, Tindoormass, Tintwall, Tintroof, Textwall, Textroof, & ! [K], [K], [K], [K], [K], [K]
                       Tintwindow, Textwindow, Tintgroundfloor, Textgroundfloor ! [K], [K], [K], [K]
-   REAL(KIND(1D0)) :: dTair_ind = 0.0, dTindoormass = 0.0, dTintwall = 0.0, dTintroof = 0.0, & ! [K], [K], [K]
-                      dTextwall = 0.0, dTextroof = 0.0, dTintwindow = 0.0, dTextwindow = 0.0, & ! [K], [K], [K], [K]
-                      dTintgroundfloor = 0.0, dTextgroundfloor = 0.0 ! [K], [K]
-   REAL(KIND(1D0)) :: QHconv_water_to_inttankwall = 0.0, & ! heat flux to internal wall of hot water tank
-                      QHconv_exttankwall_to_indair = 0.0, & ! convective heat flux to external wall of hot water tank
-                      Qlw_net_exttankwall_to_indoormass = 0.0, & ! radiative heat flux to external wall of hot water tank
-                      QHcond_tankwall = 0.0, & ! heat flux through wall of hot water tank
-                      QHconv_water_to_intvesselwall = 0.0, & ! heat flux to internal wall of vessels holding DHW in use in building
-                      QHcond_vesselwall = 0.0, & ! heat flux through wall of vessels holding DHW in use in building
-                      QHconv_extvesselwall_to_indair = 0.0, & ! convective heat flux to external wall of vessels holding DHW in use in building
-                      Qlw_net_extvesselwall_to_wall = 0.0, &
-                      Qlw_net_extvesselwall_to_indoormass = 0.0, & ! radiative heat flux to external wall of vessels holding DHW in use in building
-                      Qloss_drain,  & ! Heat loss as water held in use in building drains to sewer
-                      QHwaste_dhw = 0.0 ! additional heat release from efficieny losses/gains of heating hot water
+   REAL(KIND(1D0)) :: dTair_ind, dTindoormass, dTintwall, dTintroof, & ! [K], [K], [K]
+                      dTextwall, dTextroof, dTintwindow, dTextwindow, & ! [K], [K], [K], [K]
+                      dTintgroundfloor, dTextgroundfloor ! [K], [K]
+   REAL(KIND(1D0)) :: QHconv_water_to_inttankwall, & ! heat flux to internal wall of hot water tank
+                      QHconv_exttankwall_to_indair, & ! convective heat flux to external wall of hot water tank
+                      Qlw_net_exttankwall_to_indoormass, & ! radiative heat flux to external wall of hot water tank
+                      QHcond_tankwall, & ! heat flux through wall of hot water tank
+                      QHconv_water_to_intvesselwall, & ! heat flux to internal wall of vessels holding DHW in use in building
+                      QHcond_vesselwall, & ! heat flux through wall of vessels holding DHW in use in building
+                      QHconv_extvesselwall_to_indair, & ! convective heat flux to external wall of vessels holding DHW in use in building
+                      Qlw_net_extvesselwall_to_wall, &
+                      Qlw_net_extvesselwall_to_indoormass, & ! radiative heat flux to external wall of vessels holding DHW in use in building
+                      Qloss_drain, & ! Heat loss as water held in use in building drains to sewer
+                      QHwaste_dhw ! additional heat release from efficieny losses/gains of heating hot water
 
-   REAL(KIND(1D0)) :: Qtotal_net_water_tank = 0.0, Qtotal_net_intwall_tank = 0.0, &
-                      Qtotal_net_extwall_tank = 0.0, Qtotal_net_water_vessel = 0.0, &
-                      Qtotal_net_intwall_vessel = 0.0, Qtotal_net_extwall_vessel = 0.0
-   REAL(KIND(1D0)) :: qhwt_timestep = 0.0
-   REAL(KIND(1D0)) :: VARatio_water_vessel = 0.0
+   REAL(KIND(1D0)) :: Qtotal_net_water_tank, Qtotal_net_intwall_tank, &
+                      Qtotal_net_extwall_tank, Qtotal_net_water_vessel, &
+                      Qtotal_net_intwall_vessel, Qtotal_net_extwall_vessel
+   REAL(KIND(1D0)) :: qhwt_timestep
+   REAL(KIND(1D0)) :: VARatio_water_vessel
    REAL(KIND(1D0)) :: minVwater_vessel
    REAL(KIND(1D0)) :: maxVwater_vessel
    REAL(KIND(1D0)) :: weighting_factor_heatcapacity_wall, weighting_factor_heatcapacity_roof
    REAL(KIND(1D0)), DIMENSION(2) :: Ts ! Heating and Cooling setpoint temperature (K)s, respectively
    REAL(KIND(1D0)), DIMENSION(2) :: Qm ! Metabolic heat, sensible(1) and latent(2)
    INTEGER :: timestep, resolution
-   REAL(KIND(1D0)) :: Qf_ground_timestep = 0.0, &
-                 QHload_heating_timestep = 0.0, &
-                 QHload_cooling_timestep = 0.0
-   REAL(KIND(1D0)) :: Qsw_transmitted_window = 0.0, Qsw_absorbed_window = 0.0, Qsw_absorbed_wall = 0.0, Qsw_absorbed_roof = 0.0, &
-     QHconv_indair_to_indoormass = 0.0, Qlw_net_intwall_to_allotherindoorsurfaces = 0.0, Qlw_net_introof_to_allotherindoorsurfaces = 0.0,&
-                      Qlw_net_intwindow_to_allotherindoorsurfaces = 0.0, Qlw_net_intgroundfloor_to_allotherindoorsurfaces = 0.0
-   REAL(KIND(1D0)) :: QH_appliance = 0.0, QH_ventilation = 0.0, QHconv_indair_to_intwall = 0.0, QHconv_indair_to_introof = 0.0, &
-                      QHconv_indair_to_intwindow = 0.0, QHconv_indair_to_intgroundfloor = 0.0
-   REAL(KIND(1D0)) :: QHwaste_heating = 0.0, QHcond_wall = 0.0, QHcond_roof = 0.0, QHcond_window = 0.0, &
-                      QHcond_groundfloor = 0.0, QHcond_ground = 0.0
-   REAL(KIND(1D0)) :: Qlw_net_wall = 0.0, Qlw_net_roof = 0.0, Qlw_net_window = 0.0, &
-                      QHconv_extwall_to_outair = 0.0, QHconv_extroof_to_outair = 0.0, QHconv_extwindow_to_outair = 0.0
-   REAL(KIND(1D0)) :: QS_bldg = 0.0, QS_wall = 0.0, QS_roof = 0.0, QS_groundfloor = 0.0, QS_window = 0.0, QS_indoormass = 0.0, QS_air = 0.0
+   REAL(KIND(1D0)) :: Qf_ground_timestep, &
+                 QHload_heating_timestep, &
+                 QHload_cooling_timestep
+   REAL(KIND(1D0)) :: Qsw_transmitted_window, Qsw_absorbed_window, Qsw_absorbed_wall, Qsw_absorbed_roof, &
+     QHconv_indair_to_indoormass, Qlw_net_intwall_to_allotherindoorsurfaces, Qlw_net_introof_to_allotherindoorsurfaces, &
+                      Qlw_net_intwindow_to_allotherindoorsurfaces, Qlw_net_intgroundfloor_to_allotherindoorsurfaces
+   REAL(KIND(1D0)) :: QH_appliance, QH_ventilation, QHconv_indair_to_intwall, QHconv_indair_to_introof, &
+                      QHconv_indair_to_intwindow, QHconv_indair_to_intgroundfloor
+   REAL(KIND(1D0)) :: QHwaste_heating, QHcond_wall, QHcond_roof, QHcond_window, &
+                      QHcond_groundfloor, QHcond_ground
+   REAL(KIND(1D0)) :: Qlw_net_wall, Qlw_net_roof, Qlw_net_window, &
+                      QHconv_extwall_to_outair, QHconv_extroof_to_outair, QHconv_extwindow_to_outair
+   REAL(KIND(1D0)) :: QS_bldg, QS_wall, QS_roof, QS_groundfloor, QS_window, QS_indoormass, QS_air
    REAL(KIND(1D0)) :: Qsw_transmitted_window_tstepTotal, &
                                      Qsw_absorbed_window_tstepTotal, &
                                      Qsw_absorbed_wall_tstepTotal, &
@@ -1685,12 +1692,56 @@ SUBROUTINE tstep( &
                         Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepFA, &
                         QE_metabolism_tstepFA
 
-   REAL(KIND(1D0)) :: QH_metabolism = 0.0, QE_metabolism = 0.0
-   REAL(KIND(1D0)) :: QStotal_net_indoormass = 0.0, QStotal_net_indair = 0.0, &
-                      QStotal_net_intwall = 0.0, QStotal_net_introof = 0.0, QStotal_net_extwall = 0.0, QStotal_net_extroof = 0.0, &
-                      QStotal_net_intwindow = 0.0, QStotal_net_extwindow = 0.0, &
-                      QStotal_net_intgroundfloor = 0.0, QStotal_net_extgroundfloor = 0.0
+   REAL(KIND(1D0)) :: QH_metabolism, QE_metabolism
+   REAL(KIND(1D0)) :: QStotal_net_indoormass, QStotal_net_indair, &
+                      QStotal_net_intwall, QStotal_net_introof, QStotal_net_extwall, QStotal_net_extroof, &
+                      QStotal_net_intwindow, QStotal_net_extwindow, &
+                      QStotal_net_intgroundfloor, QStotal_net_extgroundfloor
    CHARACTER(len=256) :: fout
+
+   ! Explicit zero-init for variables that formerly had implicit SAVE
+   ! via `= 0.0` in declarations (Fortran standard: initialiser in
+   ! declaration implies SAVE, so values persisted across calls).
+   dTwater_tank = 0.0; dTintwall_tank = 0.0; dTextwall_tank = 0.0
+   dTwater_vessel = 0.0; dTintwall_vessel = 0.0; dTextwall_vessel = 0.0
+   dVwater_vessel = 0.0
+   dTair_ind = 0.0; dTindoormass = 0.0; dTintwall = 0.0; dTintroof = 0.0
+   dTextwall = 0.0; dTextroof = 0.0; dTintwindow = 0.0; dTextwindow = 0.0
+   dTintgroundfloor = 0.0; dTextgroundfloor = 0.0
+   QHconv_water_to_inttankwall = 0.0; QHconv_exttankwall_to_indair = 0.0
+   Qlw_net_exttankwall_to_indoormass = 0.0; QHcond_tankwall = 0.0
+   QHconv_water_to_intvesselwall = 0.0; QHcond_vesselwall = 0.0
+   QHconv_extvesselwall_to_indair = 0.0
+   Qlw_net_extvesselwall_to_wall = 0.0; Qlw_net_extvesselwall_to_indoormass = 0.0
+   QHwaste_dhw = 0.0
+   Qtotal_net_water_tank = 0.0; Qtotal_net_intwall_tank = 0.0
+   Qtotal_net_extwall_tank = 0.0; Qtotal_net_water_vessel = 0.0
+   Qtotal_net_intwall_vessel = 0.0; Qtotal_net_extwall_vessel = 0.0
+   qhwt_timestep = 0.0; VARatio_water_vessel = 0.0
+   Qf_ground_timestep = 0.0; QHload_heating_timestep = 0.0; QHload_cooling_timestep = 0.0
+   Qsw_transmitted_window = 0.0; Qsw_absorbed_window = 0.0
+   Qsw_absorbed_wall = 0.0; Qsw_absorbed_roof = 0.0
+   QHconv_indair_to_indoormass = 0.0
+   Qlw_net_intwall_to_allotherindoorsurfaces = 0.0
+   Qlw_net_introof_to_allotherindoorsurfaces = 0.0
+   Qlw_net_intwindow_to_allotherindoorsurfaces = 0.0
+   Qlw_net_intgroundfloor_to_allotherindoorsurfaces = 0.0
+   QH_appliance = 0.0; QH_ventilation = 0.0
+   QHconv_indair_to_intwall = 0.0; QHconv_indair_to_introof = 0.0
+   QHconv_indair_to_intwindow = 0.0; QHconv_indair_to_intgroundfloor = 0.0
+   QHwaste_heating = 0.0; QHcond_wall = 0.0; QHcond_roof = 0.0; QHcond_window = 0.0
+   QHcond_groundfloor = 0.0; QHcond_ground = 0.0
+   Qlw_net_wall = 0.0; Qlw_net_roof = 0.0; Qlw_net_window = 0.0
+   QHconv_extwall_to_outair = 0.0; QHconv_extroof_to_outair = 0.0; QHconv_extwindow_to_outair = 0.0
+   QS_bldg = 0.0; QS_wall = 0.0; QS_roof = 0.0; QS_groundfloor = 0.0
+   QS_window = 0.0; QS_indoormass = 0.0; QS_air = 0.0
+   QH_metabolism = 0.0; QE_metabolism = 0.0
+   QStotal_net_indoormass = 0.0; QStotal_net_indair = 0.0
+   QStotal_net_intwall = 0.0; QStotal_net_introof = 0.0
+   QStotal_net_extwall = 0.0; QStotal_net_extroof = 0.0
+   QStotal_net_intwindow = 0.0; QStotal_net_extwindow = 0.0
+   QStotal_net_intgroundfloor = 0.0; QStotal_net_extgroundfloor = 0.0
+
    Qsw_transmitted_window_tstepTotal = 0.0
    Qsw_absorbed_window_tstepTotal = 0.0
    Qsw_absorbed_wall_tstepTotal = 0.0
@@ -2072,9 +2123,9 @@ SUBROUTINE tstep( &
          Twater_vessel = &
             (((flowrate_water_supply*resolution)*Twater_tank) + &
              ((Vwater_vessel - (flowrate_water_supply*resolution))*Twater_vessel))/Vwater_vessel
-         IF (Vwater_vessel > 0.0) THEN ! Check volume is positive
+         IF (Vwater_vessel > 0.0 .AND. VARatio_water_vessel > 0.0) THEN
             Awater_vessel = Vwater_vessel/VARatio_water_vessel
-         ELSE ! If volume is zero, set area to zero
+         ELSE
             Awater_vessel = 0.0
          END IF
          Vwall_vessel = Awater_vessel*thickness_wall_vessel

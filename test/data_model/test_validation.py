@@ -483,7 +483,6 @@ def test_auto_albedo_zero_lai_range():
     )
     land_cover = LandCover(evetr=evetr_props, grass=grass_props)
     site_props = SiteProperties(land_cover=land_cover)
-
     evetr_state = InitialStateEvetr(alb_id=None, lai_id=2.0)
     grass_state = InitialStateGrass(alb_id=None, lai_id=1.5)
     initial_states = InitialStates(evetr=evetr_state, grass=grass_state)
@@ -646,6 +645,109 @@ def test_phase_b_validate_model_option_samealbedo_disabled():
     assert results_roof[0].status == "WARNING"
     assert "no check of consistency" in results_roof[0].message.lower()
     assert "samealbedo_roof == 0" in results_roof[0].message.lower()
+
+def test_needs_spartacus_validation_true_and_false():
+    
+    cfg = make_cfg()
+    cfg.model.physics.netradiationmethod = 1001
+    assert cfg._needs_spartacus_validation() is True
+
+    cfg2 = make_cfg()
+    cfg2.model.physics.netradiationmethod = 1
+    assert cfg2._needs_spartacus_validation() is False
+
+def test_validate_spartacus_building_height_error():
+    cfg = make_cfg(netradiationmethod=1001)
+    # bldgh exceeds height[nlayer+1]
+    bldgs = SimpleNamespace(bldgh=15.0)
+    vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
+    props = SimpleNamespace(
+        land_cover=SimpleNamespace(bldgs=bldgs),
+        vertical_layers=vertical_layers
+    )
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_building_height(site, 0)
+
+    # Should produce exactly one clear message with correct content
+    assert msgs
+    msg = msgs[0]
+    assert "TestSite" in msg
+    assert "bldgh=15.0" in msg
+    assert "height[2]=10.0" in msg
+def test_validate_spartacus_building_height_no_error():
+    cfg = make_cfg(netradiationmethod=1001)
+    # bldgh does not exceed height[nlayer+1]
+    bldgs = SimpleNamespace(bldgh=8.0)
+    vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
+    props = SimpleNamespace(
+        land_cover=SimpleNamespace(bldgs=bldgs),
+        vertical_layers=vertical_layers
+    )
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_building_height(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_sfr_mismatch_bldgs_frac():
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    bldgs = SimpleNamespace(sfr=0.6)  
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.3],  
+        veg_frac=[0.0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+    assert msgs  
+    assert any(
+        "bldgs.sfr (0.6) does not match vertical_layers.building_frac[0] (0.3)"
+        in m
+        for m in msgs
+    )
+
+def test_validate_spartacus_sfr_consistent_values():
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    bldgs = SimpleNamespace(sfr=0.3)  
+    evetr = SimpleNamespace(sfr=0.1)
+    dectr = SimpleNamespace(sfr=0.2)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=evetr, dectr=dectr)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.3],
+        veg_frac=[0.3],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_sfr_mismatch_veg_frac():
+    """SPARTACUS SFR validation flags mismatch between evetr.sfr + dectr.sfr and max(veg_frac)."""
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+
+    # land_cover vegetation: evetr + dectr = 0.4
+    evetr = SimpleNamespace(sfr=0.1)
+    dectr = SimpleNamespace(sfr=0.3)
+    bldgs = SimpleNamespace(sfr=0.2)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=evetr, dectr=dectr)
+
+    # vertical_layers veg_frac: max = 0.1 -> mismatch with 0.4
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.2],
+        veg_frac=[0.1],  # max(vertical_layers.veg_frac) = 0.1
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+    assert msgs
+    assert any(
+        "evetr.sfr + dectr.sfr (0.4) does not match max(vertical_layers.veg_frac) (0.1)"
+        in m
+        for m in msgs
+    )
 
 # From test_validation_topdown.py
 class TestTopDownValidation:

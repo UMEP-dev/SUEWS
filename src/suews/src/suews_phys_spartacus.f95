@@ -39,6 +39,7 @@ MODULE module_phys_spartacus
    USE module_ctrl_const_allocate, ONLY: NSURF, NVegSurf, nspec, nsw, nlw, ncol, &
                             ConifSurf, DecidSurf, BldgSurf, PavSurf, GrassSurf, BSoilSurf, WaterSurf
    USE module_ctrl_const_physconst, ONLY: SBConst, eps_fp
+   USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN
 
    IMPLICIT NONE
 
@@ -98,6 +99,7 @@ CONTAINS
       USE radsurf_simple_spectrum, ONLY: calc_simple_spectrum_lw
       ! USE module_ctrl_const_datain, ONLY: fileinputpath
       USE module_ctrl_const_allocate, ONLY: ncolumnsDataOutSPARTACUS
+      USE module_ctrl_error_state, ONLY: add_supy_warning
 
       IMPLICIT NONE
 
@@ -516,6 +518,43 @@ CONTAINS
             CALL lw_flux%SUM(lw_internal, lw_norm)
          END IF
       END DO
+
+      ! Guard: the SPARTACUS LW eigenvalue solver can produce NaN for
+      ! certain urban canopy geometries due to matrix singularity.
+      ! Detect NaN in the critical outputs and replace with a simple
+      ! flat-tile LW radiation approximation to prevent downstream
+      ! crashes (e.g. OHM error code 21 from NaN qn).
+      IF (config%do_lw) THEN
+         IF (IEEE_IS_NAN(lw_flux%top_net(nspec, ncol))) THEN
+            ! Full NaN from solver source-term singularity: replace all
+            ! LW outputs with flat-tile approximation (net = absorbed
+            ! incoming minus emitted upward).
+            CALL add_supy_warning('SPARTACUS: LW full NaN detected -- using flat-tile fallback')
+            CALL lw_flux%zero_all()
+            lw_flux%top_net(nspec, ncol) = emis_no_tree_bldg*ldown &
+               - lw_spectral_props%ground_emission(nspec, ncol)
+            lw_flux%top_dn(nspec, ncol) = ldown
+            lw_flux%ground_net(nspec, ncol) = emis_no_tree_bldg*ldown &
+               - lw_spectral_props%ground_emission(nspec, ncol)
+            lw_flux%ground_dn(nspec, ncol) = ldown
+            bc_out%lw_emission(nspec, ncol) = lw_spectral_props%ground_emission(nspec, ncol)
+            bc_out%lw_emissivity(nspec, ncol) = emis_no_tree_bldg
+         ELSE IF (ANY(IEEE_IS_NAN(lw_flux%wall_net(nspec, :nlayer))) &
+                  .OR. ANY(IEEE_IS_NAN(lw_flux%roof_net(nspec, :nlayer)))) THEN
+            ! Partial NaN from integrated-flux singularity: per-layer
+            ! fields (wall, roof, clear-air) are contaminated; top-level
+            ! fluxes remain valid.
+            ! NOTE: zeroing per-layer absorption is non-conservative
+            ! (surface energy budget not closed) but acceptable as a
+            ! crash guard; the top-level net fluxes driving qn are kept.
+            CALL add_supy_warning('SPARTACUS: LW partial NaN detected -- zeroing per-layer fields')
+            lw_flux%clear_air_abs(nspec, :nlayer) = 0.0D0
+            lw_flux%wall_net(nspec, :nlayer) = 0.0D0
+            lw_flux%wall_in(nspec, :nlayer) = 0.0D0
+            lw_flux%roof_net(nspec, :nlayer) = 0.0D0
+            lw_flux%roof_in(nspec, :nlayer) = 0.0D0
+         END IF
+      END IF
 
       ! albedo
       IF (top_flux_dn_diffuse_sw + top_flux_dn_direct_sw(nspec, ncol) > 0.1) THEN

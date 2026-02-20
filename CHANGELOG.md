@@ -53,6 +53,10 @@ EXAMPLES:
 
 ## 2026
 
+### 20 Feb 2026
+
+- [bugfix] Guard SPARTACUS LW solver NaN from matrix singularity in certain urban canopy geometries (#1212)
+
 ### 18 Feb 2026
 
 - [feature][experimental] Add attribution module for diagnosing T2, q2, and U10 changes by decomposing model output into physical process contributions, with diurnal cycle and heatmap visualisation helpers (#918)

@@ -272,9 +272,9 @@ CONTAINS
       !!!!!!!!!!!!!! Model configuration !!!!!!!!!!!!!!
       IF (DiagQN == 1) PRINT *, 'in SPARTACUS, setting up model ...'
       ! CALL config%READ(file_name=TRIM(FileInputPath)//'SUEWS_SPARTACUS.nml')
-      ! Skip shortwave computation at night: cos_sza = 0 causes
-      ! division-by-zero inside radsurf on platforms with FPE traps.
-      config%do_sw = (kdown > 0.0D0)
+      ! Always run SW: radsurf already guards cos_sza=0 per-column,
+      ! and scaling by zero kdown produces zero SW contribution.
+      config%do_sw = .TRUE.
       config%do_lw = .TRUE.
       config%use_sw_direct_albedo = use_sw_direct_albedo
       ALLOCATE (i_representation(ncol))
@@ -390,7 +390,23 @@ CONTAINS
       canopy_props%roof_temperature = tsfc_roof_K
       canopy_props%wall_temperature = tsfc_wall_K
       canopy_props%clear_air_temperature = tair_K
-      ! Keep vegetation-related fields deterministic even when vegetation is off.
+      ! allocate_canopy only allocates veg_* when do_vegetation=.TRUE.,
+      ! but downstream radsurf code may still access them.  Ensure they
+      ! exist (zeroed) so that assignments and reads are always valid.
+      IF (.NOT. ALLOCATED(canopy_props%veg_temperature)) &
+         ALLOCATE(canopy_props%veg_temperature(canopy_props%ntotlay))
+      IF (.NOT. ALLOCATED(canopy_props%veg_air_temperature)) &
+         ALLOCATE(canopy_props%veg_air_temperature(canopy_props%ntotlay))
+      IF (.NOT. ALLOCATED(canopy_props%veg_fraction)) &
+         ALLOCATE(canopy_props%veg_fraction(canopy_props%ntotlay))
+      IF (.NOT. ALLOCATED(canopy_props%veg_scale)) &
+         ALLOCATE(canopy_props%veg_scale(canopy_props%ntotlay))
+      IF (.NOT. ALLOCATED(canopy_props%veg_ext)) &
+         ALLOCATE(canopy_props%veg_ext(canopy_props%ntotlay))
+      IF (.NOT. ALLOCATED(canopy_props%veg_fsd)) &
+         ALLOCATE(canopy_props%veg_fsd(canopy_props%ntotlay))
+      IF (.NOT. ALLOCATED(canopy_props%veg_contact_fraction)) &
+         ALLOCATE(canopy_props%veg_contact_fraction(canopy_props%ntotlay))
       canopy_props%veg_temperature = tair_K
       canopy_props%veg_air_temperature = tair_K
       IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0) THEN
@@ -408,8 +424,8 @@ CONTAINS
       canopy_props%veg_fsd = 0.0D0
       canopy_props%veg_contact_fraction = 0.0D0
       IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0) THEN
-         canopy_props%veg_fraction = veg_frac(:) ! evergreen + deciduous fractions
-         canopy_props%veg_scale = veg_scale(:) ! scale of tree crowns (m). Using the default use_symmetric_vegetation_scale_urban=.TRUE. so that Eq. 20 Hogan et al. 2018 is used for L.
+         canopy_props%veg_fraction = veg_frac(:)
+         canopy_props%veg_scale = veg_scale(:)
          canopy_props%veg_ext = veg_ext(:)
          canopy_props%veg_fsd = veg_fsd(:)
          canopy_props%veg_contact_fraction = veg_contact_fraction(:)
@@ -436,6 +452,13 @@ CONTAINS
                          (sfr_surf(PavSurf) + sfr_surf(GrassSurf) + sfr_surf(BSoilSurf) + sfr_surf(WaterSurf))
       sw_spectral_props%air_ext = air_ext_sw
       sw_spectral_props%air_ssa = air_ssa_sw
+      ! Ensure conditionally-allocated arrays exist for downstream radsurf.
+      IF (.NOT. ALLOCATED(sw_spectral_props%veg_ssa)) &
+         ALLOCATE(sw_spectral_props%veg_ssa(nspec, nlayer))
+      IF (.NOT. ALLOCATED(sw_spectral_props%ground_albedo_dir)) &
+         ALLOCATE(sw_spectral_props%ground_albedo_dir(nspec, ncol))
+      IF (.NOT. ALLOCATED(sw_spectral_props%roof_albedo_dir)) &
+         ALLOCATE(sw_spectral_props%roof_albedo_dir(nspec, nlayer))
       sw_spectral_props%veg_ssa = 0.0D0
       IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0) THEN
          sw_spectral_props%veg_ssa = veg_ssa_sw
@@ -461,7 +484,16 @@ CONTAINS
                           (sfr_surf(PavSurf) + sfr_surf(GrassSurf) + sfr_surf(BSoilSurf) + sfr_surf(WaterSurf)) ! emissivity of the ground
       lw_spectral_props%air_ext = air_ext_lw
       lw_spectral_props%air_ssa = air_ssa_lw
+      ! Ensure conditionally-allocated veg arrays exist for downstream radsurf.
+      IF (.NOT. ALLOCATED(lw_spectral_props%veg_ssa)) &
+         ALLOCATE(lw_spectral_props%veg_ssa(nspec, nlayer))
+      IF (.NOT. ALLOCATED(lw_spectral_props%veg_air_planck)) &
+         ALLOCATE(lw_spectral_props%veg_air_planck(nspec, nlayer))
+      IF (.NOT. ALLOCATED(lw_spectral_props%veg_planck)) &
+         ALLOCATE(lw_spectral_props%veg_planck(nspec, nlayer))
       lw_spectral_props%veg_ssa = 0.0D0
+      lw_spectral_props%veg_air_planck = 0.0D0
+      lw_spectral_props%veg_planck = 0.0D0
       IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0) THEN
          lw_spectral_props%veg_ssa = veg_ssa_lw
       END IF
@@ -476,15 +508,13 @@ CONTAINS
 
       !!!!!!!!!!!!!! allocate sw !!!!!!!!!!!!!!
 
-      IF (config%do_sw) THEN
-         CALL sw_norm_dir%ALLOCATE(config, ncol, nlayer, config%nsw, use_direct=.TRUE.)
-         CALL sw_norm_diff%ALLOCATE(config, ncol, nlayer, config%nsw, use_direct=.TRUE.)
+      CALL sw_norm_dir%ALLOCATE(config, ncol, nlayer, config%nsw, use_direct=.TRUE.)
+      CALL sw_norm_diff%ALLOCATE(config, ncol, nlayer, config%nsw, use_direct=.TRUE.)
 
-         CALL sw_norm_dir%zero_all()
-         CALL sw_norm_diff%zero_all()
+      CALL sw_norm_dir%zero_all()
+      CALL sw_norm_diff%zero_all()
 
-         CALL sw_flux%ALLOCATE(config, ncol, nlayer, config%nsw, use_direct=.TRUE.)
-      END IF
+      CALL sw_flux%ALLOCATE(config, ncol, nlayer, config%nsw, use_direct=.TRUE.)
 
       !!!!!!!!!!!!!! allocate lw !!!!!!!!!!!!!!
 

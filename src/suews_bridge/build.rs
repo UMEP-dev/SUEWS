@@ -104,6 +104,9 @@ fn main() {
             "-finit-real=zero",
             "-finit-integer=0",
             "-finit-logical=false",
+            // Runtime checks: bounds, pointer, memory – catch UB as
+            // Fortran runtime error instead of bare SIGSEGV.
+            "-fcheck=all",
             "-I",
             out_dir.to_string_lossy().as_ref(),
         ]);

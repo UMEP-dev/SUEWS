@@ -38,7 +38,7 @@ OPTFLAGS = -O0
 WARNFLAGS = -Wall
 # -ffpe-trap removed: causes SIGFPE on x86_64 for legitimate div-by-zero
 # in STEBBS/SPARTACUS night paths (ARM64 silently returns NaN).
-DEBUGFLAGS = -ggdb -g -finit-real=zero
+DEBUGFLAGS = -ggdb -g -finit-real=zero -fcheck=all
 
 endif
 

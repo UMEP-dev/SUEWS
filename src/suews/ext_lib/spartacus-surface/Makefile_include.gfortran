@@ -28,6 +28,6 @@ else
 # --DEBUGGING CONFIGURATION--
 OPTFLAGS = -O0
 WARNFLAGS = -Wall
-DEBUGFLAGS = -g -ffpe-trap=invalid,zero,overflow -fcheck=bounds -finit-real=zero
+DEBUGFLAGS = -g -fcheck=all -finit-real=zero
 
 endif

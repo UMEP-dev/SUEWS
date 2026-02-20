@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-01-28T15:54:16+00:00" />
-    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.2.20.dev69 documentation</title>
+    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.2.20.dev72 documentation</title>
   
   
   
@@ -41,7 +41,7 @@
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
   <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
 
-    <script src="../_static/documentation_options.js?v=0c03c319"></script>
+    <script src="../_static/documentation_options.js?v=a779d00b"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
@@ -108,7 +108,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.2.20.dev69, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/bae3ebc5097fecf17c12006f1ea055bbdf303886" style="color: #31708f;">bae3ebc</a>).
+        (2026.2.20.dev72, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f2bd2e4a17e39491f5129b310be834b567766fd0" style="color: #31708f;">f2bd2e4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -154,8 +154,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.20.dev69 documentation - Home"/>
-    <script>document.write(`<img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.20.dev69 documentation - Home"/>`);</script>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.20.dev72 documentation - Home"/>
+    <script>document.write(`<img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.20.dev72 documentation - Home"/>`);</script>
   
   
 </a></div>
@@ -624,7 +624,6 @@ document.write(`
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.update_forcing"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.update_forcing()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.config"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.config</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.forcing"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.forcing</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.initial_states_final"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.initial_states_final</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.output"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.output</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.results"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.results</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.state_final"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.state_final</span></code></a></li>
@@ -738,7 +737,7 @@ document.write(`
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="#supy.SUEWSSimulation.run" title="supy.SUEWSSimulation.run"><code class="xref py py-obj docutils literal notranslate"><span class="pre">run</span></code></a></p></td>
-<td><p>Run SUEWS simulation.</p></td>
+<td><p>Run SUEWS simulation using the Rust bridge backend.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#supy.SUEWSSimulation.reset" title="supy.SUEWSSimulation.reset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reset</span></code></a></p></td>
 <td><p>Reset simulation to initial state, clearing results.</p></td>
@@ -1054,37 +1053,16 @@ If None and variable is in multiple groups, raises ValueError.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="supy.SUEWSSimulation.run">
-<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_date</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_date</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">backend</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'traditional'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_day</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3660</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">run_kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">SUEWSOutput</span></span></span><a class="reference internal" href="../_modules/supy/suews_sim.html#SUEWSSimulation.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSSimulation.run" title="Link to this definition">#</a></dt>
-<dd><p>Run SUEWS simulation.</p>
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_date</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_date</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_day</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3660</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">run_kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">SUEWSOutput</span></span></span><a class="reference internal" href="../_modules/supy/suews_sim.html#SUEWSSimulation.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSSimulation.run" title="Link to this definition">#</a></dt>
+<dd><p>Run SUEWS simulation using the Rust bridge backend.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>start_date</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – Start date for simulation (inclusive).</p></li>
 <li><p><strong>end_date</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – End date for simulation (inclusive).</p></li>
-<li><p><strong>backend</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – <p>Execution backend to use. Options:</p>
-<ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">'traditional'</span></code> (default): Uses DataFrame-based run_supy_ser.
-Established interface with comprehensive state tracking.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">'dts'</span></code>: Uses DTS (Derived Type Structure) interface.
-Direct Pydantic-to-Fortran execution path, bypassing intermediate
-DataFrame conversion. May be faster for short simulations.</p></li>
-</ul>
-</p></li>
 <li><p><strong>chunk_day</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Chunk size in days for splitting long simulations, by default 3660
 (~10 years). Smaller values reduce peak memory at a small overhead
-cost. Applied to both <code class="docutils literal notranslate"><span class="pre">traditional</span></code> and <code class="docutils literal notranslate"><span class="pre">dts</span></code> backends.</p></li>
-<li><p><strong>run_kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – <p>Additional keyword arguments. Currently supported:</p>
-<ul>
-<li><p><strong>n_jobs</strong> : int
-Number of worker processes for DTS multi-grid execution
-(used only when <code class="docutils literal notranslate"><span class="pre">backend='dts'</span></code>).</p></li>
-</ul>
-<p>Other keyword arguments are reserved for future use and ignored.</p>
-<p>In a future version, the following options may be supported:
-- save_state: bool - Save state at each timestep (planned)</p>
-<p>For now, simulations use default settings:
-- save_state=False (states not saved at each step)</p>
-</p></li>
+cost.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -1096,29 +1074,15 @@ and plotting convenience methods. Access raw DataFrame via
 <dd class="field-odd"><p>SUEWSOutput</p>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
-<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#RuntimeError" title="(in Python v3.14)"><strong>RuntimeError</strong></a> – If configuration or forcing data is missing.</p></li>
-<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If an invalid backend is specified.</p></li>
-</ul>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#RuntimeError" title="(in Python v3.14)"><strong>RuntimeError</strong></a> – If configuration or forcing data is missing.</p>
 </dd>
 </dl>
-<p class="rubric">Notes</p>
-<p>The simulation runs with fixed internal settings. For advanced control
-over simulation parameters, consider using the lower-level functional
-API (though it is deprecated).</p>
-<p>The DTS backend requires a valid SUEWSConfig object loaded via
-<code class="docutils literal notranslate"><span class="pre">update_config()</span></code>. It provides a more direct execution path
-but may have different state tracking characteristics.</p>
 <p class="rubric">Examples</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_sample_data</span><span class="p">()</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">output</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">output</span><span class="o">.</span><span class="n">QH</span>  <span class="c1"># Access sensible heat flux</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">output</span><span class="o">.</span><span class="n">diurnal_average</span><span class="p">(</span><span class="s2">&quot;QH&quot;</span><span class="p">)</span>  <span class="c1"># Get diurnal pattern</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">output</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">()</span>  <span class="c1"># Get raw DataFrame</span>
-</pre></div>
-</div>
-<p>Using the DTS backend:</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">output</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="s2">&quot;dts&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -1304,42 +1268,6 @@ validation and analysis methods. None if no forcing loaded.</p>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>  <span class="c1"># Get forcing statistics</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="o">.</span><span class="n">Tair</span>  <span class="c1"># Access air temperature</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">sim</span><span class="o">.</span><span class="n">forcing</span><span class="o">.</span><span class="n">df</span>  <span class="c1"># Access raw DataFrame</span>
-</pre></div>
-</div>
-</dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="supy.SUEWSSimulation.initial_states_final">
-<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">initial_states_final</span></span><a class="headerlink" href="#supy.SUEWSSimulation.initial_states_final" title="Link to this definition">#</a></dt>
-<dd><p>Final state as Pydantic InitialStates after DTS simulation.</p>
-<p>Available only after running simulation with <code class="docutils literal notranslate"><span class="pre">backend='dts'</span></code>.
-Contains the evolved state variables as a Pydantic model that can
-be used for continuation runs or YAML persistence.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Pydantic InitialStates model after DTS simulation.
-None if simulation hasn’t been run or used traditional backend.</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>InitialStates or None</p>
-</dd>
-</dl>
-<div class="admonition seealso">
-<p class="admonition-title">See also</p>
-<dl class="simple">
-<dt><a class="reference internal" href="#supy.SUEWSSimulation.state_final" title="supy.SUEWSSimulation.state_final"><code class="xref py py-obj docutils literal notranslate"><span class="pre">state_final</span></code></a></dt><dd><p>DataFrame state for traditional backend</p>
-</dd>
-<dt><a class="reference internal" href="#supy.SUEWSSimulation.run" title="supy.SUEWSSimulation.run"><code class="xref py py-obj docutils literal notranslate"><span class="pre">run</span></code></a></dt><dd><p>Run simulation with backend parameter</p>
-</dd>
-</dl>
-</div>
-<p class="rubric">Examples</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_sample_data</span><span class="p">()</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="s2">&quot;dts&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">sim</span><span class="o">.</span><span class="n">initial_states_final</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-<span class="go">True</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Save state to YAML</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">sim</span><span class="o">.</span><span class="n">initial_states_final</span><span class="o">.</span><span class="n">to_yaml</span><span class="p">(</span><span class="s2">&quot;final_state.yaml&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -1604,7 +1532,6 @@ Use the <code class="docutils literal notranslate"><span class="pre">get_variabl
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.update_forcing"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.update_forcing()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.config"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.config</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.forcing"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.forcing</span></code></a></li>
-<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.initial_states_final"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.initial_states_final</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.output"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.output</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.results"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.results</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.state_final"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.state_final</span></code></a></li>
@@ -1658,8 +1585,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.2.20.dev69 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/bae3ebc5097fecf17c12006f1ea055bbdf303886">bae3ebc</a> |
+  <p>Version: 2026.2.20.dev72 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f2bd2e4a17e39491f5129b310be834b567766fd0">f2bd2e4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

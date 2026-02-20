@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.suews_sim &#8212; SUEWS 2026.2.20.dev69 documentation</title>
+    <title>supy.suews_sim &#8212; SUEWS 2026.2.20.dev72 documentation</title>
   
   
   
@@ -39,7 +39,7 @@
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
   <script src="../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
 
-    <script src="../../_static/documentation_options.js?v=0c03c319"></script>
+    <script src="../../_static/documentation_options.js?v=a779d00b"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
@@ -103,7 +103,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.2.20.dev69, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/bae3ebc5097fecf17c12006f1ea055bbdf303886" style="color: #31708f;">bae3ebc</a>).
+        (2026.2.20.dev72, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f2bd2e4a17e39491f5129b310be834b567766fd0" style="color: #31708f;">f2bd2e4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -151,8 +151,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.20.dev69 documentation - Home"/>
-    <script>document.write(`<img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.20.dev69 documentation - Home"/>`);</script>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.20.dev72 documentation - Home"/>
+    <script>document.write(`<img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.20.dev72 documentation - Home"/>`);</script>
   
   
 </a></div>
@@ -553,13 +553,12 @@ document.write(`
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">._check</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_forcing</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._env</span><span class="w"> </span><span class="kn">import</span> <span class="n">logger_supy</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">._run</span><span class="w"> </span><span class="kn">import</span> <span class="n">run_supy_ser</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._run_rust</span><span class="w"> </span><span class="kn">import</span> <span class="n">_check_rust_available</span><span class="p">,</span> <span class="n">run_suews_rust_chunked</span>
 
 <span class="c1"># Import SuPy components directly</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._supy_module</span><span class="w"> </span><span class="kn">import</span> <span class="n">_save_supy</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.data_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">RefValue</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.data_model.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSConfig</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.dts</span><span class="w"> </span><span class="kn">import</span> <span class="n">_check_dts_available</span><span class="p">,</span> <span class="n">run_dts_multi</span>
 
 <span class="c1"># Import new OOP classes</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.suews_forcing</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSForcing</span>
@@ -623,8 +622,6 @@ document.write(`
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_initial_states_final</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Pydantic state for DTS backend</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_dict_final_states</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Per-grid final states for DTS backend</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -977,12 +974,11 @@ document.write(`
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">start_date</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">end_date</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="n">backend</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;traditional&quot;</span><span class="p">,</span>
         <span class="n">chunk_day</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3660</span><span class="p">,</span>
         <span class="o">**</span><span class="n">run_kwargs</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SUEWSOutput</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Run SUEWS simulation.</span>
+<span class="sd">        Run SUEWS simulation using the Rust bridge backend.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -990,33 +986,10 @@ document.write(`
 <span class="sd">            Start date for simulation (inclusive).</span>
 <span class="sd">        end_date : str, optional</span>
 <span class="sd">            End date for simulation (inclusive).</span>
-<span class="sd">        backend : str, optional</span>
-<span class="sd">            Execution backend to use. Options:</span>
-
-<span class="sd">            - ``&#39;traditional&#39;`` (default): Uses DataFrame-based run_supy_ser.</span>
-<span class="sd">              Established interface with comprehensive state tracking.</span>
-<span class="sd">            - ``&#39;dts&#39;``: Uses DTS (Derived Type Structure) interface.</span>
-<span class="sd">              Direct Pydantic-to-Fortran execution path, bypassing intermediate</span>
-<span class="sd">              DataFrame conversion. May be faster for short simulations.</span>
-
 <span class="sd">        chunk_day : int, optional</span>
 <span class="sd">            Chunk size in days for splitting long simulations, by default 3660</span>
 <span class="sd">            (~10 years). Smaller values reduce peak memory at a small overhead</span>
-<span class="sd">            cost. Applied to both ``traditional`` and ``dts`` backends.</span>
-<span class="sd">        run_kwargs : dict</span>
-<span class="sd">            Additional keyword arguments. Currently supported:</span>
-
-<span class="sd">            - **n_jobs** : int</span>
-<span class="sd">              Number of worker processes for DTS multi-grid execution</span>
-<span class="sd">              (used only when ``backend=&#39;dts&#39;``).</span>
-
-<span class="sd">            Other keyword arguments are reserved for future use and ignored.</span>
-
-<span class="sd">            In a future version, the following options may be supported:</span>
-<span class="sd">            - save_state: bool - Save state at each timestep (planned)</span>
-
-<span class="sd">            For now, simulations use default settings:</span>
-<span class="sd">            - save_state=False (states not saved at each step)</span>
+<span class="sd">            cost.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1029,18 +1002,6 @@ document.write(`
 <span class="sd">        ------</span>
 <span class="sd">        RuntimeError</span>
 <span class="sd">            If configuration or forcing data is missing.</span>
-<span class="sd">        ValueError</span>
-<span class="sd">            If an invalid backend is specified.</span>
-
-<span class="sd">        Notes</span>
-<span class="sd">        -----</span>
-<span class="sd">        The simulation runs with fixed internal settings. For advanced control</span>
-<span class="sd">        over simulation parameters, consider using the lower-level functional</span>
-<span class="sd">        API (though it is deprecated).</span>
-
-<span class="sd">        The DTS backend requires a valid SUEWSConfig object loaded via</span>
-<span class="sd">        ``update_config()``. It provides a more direct execution path</span>
-<span class="sd">        but may have different state tracking characteristics.</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
@@ -1049,42 +1010,39 @@ document.write(`
 <span class="sd">        &gt;&gt;&gt; output.QH  # Access sensible heat flux</span>
 <span class="sd">        &gt;&gt;&gt; output.diurnal_average(&quot;QH&quot;)  # Get diurnal pattern</span>
 <span class="sd">        &gt;&gt;&gt; output.to_dataframe()  # Get raw DataFrame</span>
-
-<span class="sd">        Using the DTS backend:</span>
-
-<span class="sd">        &gt;&gt;&gt; output = sim.run(backend=&quot;dts&quot;)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Validate backend</span>
-        <span class="n">valid_backends</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;traditional&quot;</span><span class="p">,</span> <span class="s2">&quot;dts&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">backend</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">valid_backends</span><span class="p">:</span>
+        <span class="c1"># Handle deprecated backend kwarg</span>
+        <span class="n">backend</span> <span class="o">=</span> <span class="n">run_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;backend&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">backend</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">backend</span> <span class="o">!=</span> <span class="s2">&quot;rust&quot;</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Invalid backend &#39;</span><span class="si">{</span><span class="n">backend</span><span class="si">}</span><span class="s2">&#39;. Must be one of: </span><span class="si">{</span><span class="n">valid_backends</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;The &#39;</span><span class="si">{</span><span class="n">backend</span><span class="si">}</span><span class="s2">&#39; backend has been removed. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Only the &#39;rust&#39; backend is available. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Remove the backend parameter or use backend=&#39;rust&#39;.&quot;</span>
             <span class="p">)</span>
 
-        <span class="n">n_jobs</span> <span class="o">=</span> <span class="n">run_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;n_jobs&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">n_jobs</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">backend</span> <span class="o">!=</span> <span class="s2">&quot;dts&quot;</span><span class="p">:</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                <span class="s2">&quot;n_jobs &gt; 1 is only supported with backend=&#39;dts&#39;; &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;ignoring n_jobs=</span><span class="si">{</span><span class="n">n_jobs</span><span class="si">}</span><span class="s2"> for backend=&#39;</span><span class="si">{</span><span class="n">backend</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">,</span>
-                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-            <span class="p">)</span>
-
-        <span class="c1"># Check DTS availability early (before other validation)</span>
-        <span class="k">if</span> <span class="n">backend</span> <span class="o">==</span> <span class="s2">&quot;dts&quot;</span><span class="p">:</span>
-            <span class="n">_check_dts_available</span><span class="p">()</span>
+        <span class="n">_check_rust_available</span><span class="p">()</span>
 
         <span class="c1"># Validate inputs</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No configuration loaded. Use update_config() first.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No forcing data loaded. Use update_forcing() first.&quot;</span><span class="p">)</span>
-
-        <span class="c1"># DTS backend requires config object</span>
-        <span class="k">if</span> <span class="n">backend</span> <span class="o">==</span> <span class="s2">&quot;dts&quot;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-                <span class="s2">&quot;DTS backend requires a SUEWSConfig object. &quot;</span>
-                <span class="s2">&quot;Use update_config() with a YAML config file.&quot;</span>
-            <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Backward-compatible path: allow runs initialised from df_state</span>
+            <span class="c1"># (legacy functional workflows and continuation tests).</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">SUEWSConfig</span><span class="o">.</span><span class="n">from_df_state</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="c1"># Some legacy state CSVs carry an extra unnamed index level</span>
+                <span class="c1"># (e.g. MultiIndex [(&#39;grid&#39;, None)]). Strip to grid only.</span>
+                <span class="n">df_state_for_cfg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">df_state_for_cfg</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="s2">&quot;grid&quot;</span> <span class="ow">in</span> <span class="n">df_state_for_cfg</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">names</span><span class="p">:</span>
+                        <span class="n">grid_vals</span> <span class="o">=</span> <span class="n">df_state_for_cfg</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="s2">&quot;grid&quot;</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">grid_vals</span> <span class="o">=</span> <span class="n">df_state_for_cfg</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                    <span class="n">df_state_for_cfg</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Index</span><span class="p">(</span><span class="n">grid_vals</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;grid&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">SUEWSConfig</span><span class="o">.</span><span class="n">from_df_state</span><span class="p">(</span><span class="n">df_state_for_cfg</span><span class="p">)</span>
 
         <span class="c1"># Fall back to config values if start_date/end_date not provided</span>
         <span class="k">if</span> <span class="n">start_date</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -1106,7 +1064,7 @@ document.write(`
         <span class="c1"># Slice forcing data</span>
         <span class="n">df_forcing_slice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">start_date</span><span class="p">:</span><span class="n">end_date</span><span class="p">]</span>
 
-        <span class="c1"># Validate forcing data (shared by both backends)</span>
+        <span class="c1"># Validate forcing data</span>
         <span class="n">list_issues</span> <span class="o">=</span> <span class="n">check_forcing</span><span class="p">(</span><span class="n">df_forcing_slice</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">list_issues</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">issues_summary</span> <span class="o">=</span> <span class="n">list_issues</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="k">else</span> <span class="n">list_issues</span>
@@ -1115,33 +1073,20 @@ document.write(`
             <span class="p">)</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid forcing data: </span><span class="si">{</span><span class="n">issues_summary</span><span class="si">}{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-        <span class="c1"># Run simulation with selected backend</span>
-        <span class="k">if</span> <span class="n">backend</span> <span class="o">==</span> <span class="s2">&quot;dts&quot;</span><span class="p">:</span>
-            <span class="c1"># DTS backend: direct Pydantic-to-Fortran execution</span>
-            <span class="n">df_output</span><span class="p">,</span> <span class="n">dict_final_states</span> <span class="o">=</span> <span class="n">run_dts_multi</span><span class="p">(</span>
-                <span class="n">df_forcing</span><span class="o">=</span><span class="n">df_forcing_slice</span><span class="p">,</span>
-                <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span>
-                <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">,</span>
-            <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="n">df_output</span>
-            <span class="c1"># DTS extracts state to Pydantic InitialStates (not DataFrame)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="c1"># Store per-grid final states; expose first site&#39;s initial_states</span>
-            <span class="c1"># for single-grid backward compatibility</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_dict_final_states</span> <span class="o">=</span> <span class="n">dict_final_states</span>
-            <span class="n">first_grid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">gridiv</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_initial_states_final</span> <span class="o">=</span> <span class="n">dict_final_states</span><span class="p">[</span><span class="n">first_grid</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                <span class="s2">&quot;initial_states&quot;</span>
-            <span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Traditional backend: DataFrame-based execution</span>
-            <span class="n">result</span> <span class="o">=</span> <span class="n">run_supy_ser</span><span class="p">(</span>
-                <span class="n">df_forcing_slice</span><span class="p">,</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="p">,</span>
-                <span class="n">chunk_day</span><span class="o">=</span><span class="n">chunk_day</span><span class="p">,</span>
-            <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="c1"># Run simulation via Rust bridge</span>
+        <span class="n">df_output</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">run_suews_rust_chunked</span><span class="p">(</span>
+            <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span>
+            <span class="n">df_forcing</span><span class="o">=</span><span class="n">df_forcing_slice</span><span class="p">,</span>
+            <span class="n">chunk_day</span><span class="o">=</span><span class="n">chunk_day</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="n">df_output</span>
+
+        <span class="c1"># Build state_final: copy initial state + version metadata</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">._version</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span>
+
+        <span class="n">df_state_final</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">df_state_final</span><span class="p">[(</span><span class="s2">&quot;version&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">)]</span> <span class="o">=</span> <span class="n">__version__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="n">df_state_final</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">True</span>
 
@@ -1210,10 +1155,9 @@ document.write(`
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No simulation results available. Run simulation first.&quot;</span><span class="p">)</span>
 
-        <span class="c1"># DTS backend does not yet support save() - state is in Fortran DTS objects</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
-                <span class="s2">&quot;DTS backend does not yet support save(). &quot;</span>
+                <span class="s2">&quot;save() is not yet supported for the Rust backend. &quot;</span>
                 <span class="s2">&quot;Access results directly via sim.output.df_output&quot;</span>
             <span class="p">)</span>
 
@@ -1438,7 +1382,10 @@ document.write(`
             <span class="c1"># Load based on file extension</span>
             <span class="k">if</span> <span class="n">state_path</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">&quot;.csv&quot;</span><span class="p">:</span>
                 <span class="n">df_state_saved</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span>
-                    <span class="n">state_path</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">index_col</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">parse_dates</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">state_path</span><span class="p">,</span>
+                    <span class="n">header</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                    <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                    <span class="n">parse_dates</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                 <span class="p">)</span>
             <span class="k">elif</span> <span class="n">state_path</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">&quot;.parquet&quot;</span><span class="p">:</span>
                 <span class="n">df_state_saved</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">state_path</span><span class="p">)</span>
@@ -1905,37 +1852,7 @@ document.write(`
 <span class="sd">        &gt;&gt;&gt; sim.state_final is not None</span>
 <span class="sd">        True</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">initial_states_final</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Final state as Pydantic InitialStates after DTS simulation.</span>
-
-<span class="sd">        Available only after running simulation with ``backend=&#39;dts&#39;``.</span>
-<span class="sd">        Contains the evolved state variables as a Pydantic model that can</span>
-<span class="sd">        be used for continuation runs or YAML persistence.</span>
-
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        InitialStates or None</span>
-<span class="sd">            Pydantic InitialStates model after DTS simulation.</span>
-<span class="sd">            None if simulation hasn&#39;t been run or used traditional backend.</span>
-
-<span class="sd">        See Also</span>
-<span class="sd">        --------</span>
-<span class="sd">        state_final : DataFrame state for traditional backend</span>
-<span class="sd">        run : Run simulation with backend parameter</span>
-
-<span class="sd">        Examples</span>
-<span class="sd">        --------</span>
-<span class="sd">        &gt;&gt;&gt; sim = SUEWSSimulation.from_sample_data()</span>
-<span class="sd">        &gt;&gt;&gt; sim.run(backend=&quot;dts&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; sim.initial_states_final is not None</span>
-<span class="sd">        True</span>
-<span class="sd">        &gt;&gt;&gt; # Save state to YAML</span>
-<span class="sd">        &gt;&gt;&gt; sim.initial_states_final.to_yaml(&quot;final_state.yaml&quot;)</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initial_states_final</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span></div>
 
 </pre></div>
 
@@ -1989,8 +1906,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.2.20.dev69 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/bae3ebc5097fecf17c12006f1ea055bbdf303886">bae3ebc</a> |
+  <p>Version: 2026.2.20.dev72 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f2bd2e4a17e39491f5129b310be834b567766fd0">f2bd2e4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

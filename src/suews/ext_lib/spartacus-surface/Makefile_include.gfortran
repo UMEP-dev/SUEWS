@@ -29,6 +29,6 @@ else
 OPTFLAGS = -O0
 WARNFLAGS = -Wall
 # See src/suews/Makefile.gfortran for rationale on flag choices
-DEBUGFLAGS = -g -finit-real=zero
+DEBUGFLAGS = -g -finit-real=zero -fmax-stack-var-size=100
 
 endif

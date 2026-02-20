@@ -44,7 +44,9 @@ WARNFLAGS = -Wall
 # Use -finit-real=zero: prevents uninitialised-variable segfaults across
 # gfortran versions (14+ uses different stack layout than 10) without any
 # FPE risk.
-DEBUGFLAGS = -ggdb -g -finit-real=zero
+# -fmax-stack-var-size=100: heap-allocate local arrays > 100 bytes to prevent
+# stack overflow when gfortran 14+ uses larger stack frames than gfortran 10.
+DEBUGFLAGS = -ggdb -g -finit-real=zero -fmax-stack-var-size=100
 
 endif
 

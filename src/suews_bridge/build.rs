@@ -104,6 +104,7 @@ fn main() {
             "-finit-real=zero",
             "-finit-integer=0",
             "-finit-logical=false",
+            "-fmax-stack-var-size=100",
             "-I",
             out_dir.to_string_lossy().as_ref(),
         ]);

@@ -1,7 +1,6 @@
 [build-system]
 requires = [
     "wheel",
-    "f90wrap==0.2.16",
     "numpy>=2.0",
     "meson-python>=0.12.0",
 ]
@@ -115,6 +114,7 @@ dev = [
 
 [project.scripts]
 suews-run = "supy.cmd.SUEWS:SUEWS"
+suews-bridge = "supy.cmd.rust_bridge:main"
 suews-convert = "supy.cmd.table_converter:convert_table_cmd"
 suews-validate = "supy.cmd.validate_config:main"
 suews-schema = "supy.cmd.schema_cli:main"
@@ -127,6 +127,7 @@ filterwarnings = [
 markers = [
     "smoke: Minimal wheel validation (~6 tests, ~60s)",
     "core: Core physics & logic tests (Fortran, driver)",
+    "rust: Rust bridge backend tests (requires suews_bridge with physics feature)",
     "util: Utility function tests (non-critical)",
     "cfg: Config/schema validation tests",
     "slow: Tests taking >30s individually",

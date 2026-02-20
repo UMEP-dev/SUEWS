@@ -589,11 +589,16 @@ CONTAINS
 
    ! Batch DTS execution subroutine - loops internally over timesteps for efficiency
    ! This avoids Python->Fortran call overhead when processing multiple timesteps
+   !
+   ! Output layout: all 11 output groups concatenated per row in a single flat block.
+   ! Column order: SUEWS | Snow | BEERS | ESTM | EHC | DailyState | RSL | Debug | SPARTACUS | STEBBS | NHood
+   ! Each group retains its own 5-column datetime prefix.
+   ! Total columns = sum of all ncolumnsDataOut* constants; passed as ncols_all.
    SUBROUTINE SUEWS_cal_multitsteps_dts( &
       timer, MetForcingBlock, len_sim, &
       config, siteInfo, &
       modState, &
-      dataOutBlockSUEWS)
+      dataOutBlockAll, ncols_all)
 
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, &
                                   SUEWS_STATE, output_line, anthroEMIS_PRM
@@ -609,13 +614,14 @@ CONTAINS
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
-      REAL(KIND(1D0)), DIMENSION(len_sim, ncolumnsDataOutSUEWS), INTENT(OUT) :: dataOutBlockSUEWS
+      INTEGER, INTENT(IN) :: ncols_all
+      REAL(KIND(1D0)), DIMENSION(len_sim, ncols_all), INTENT(OUT) :: dataOutBlockAll
 
       ! Local variables
       TYPE(SUEWS_FORCING) :: forcing
       TYPE(output_line) :: output_line_local
       TYPE(anthroEMIS_PRM) :: ahemisPrm
-      INTEGER :: ir
+      INTEGER :: ir, col_offset
 
       ! Initialise anthropogenic heat parameters for DLS calculation
       ahemisPrm%startDLS = siteInfo%anthroemis%startDLS
@@ -660,8 +666,62 @@ CONTAINS
             modState, &
             output_line_local)
 
-         ! === Store output (dataOutLineSUEWS already includes datetime in columns 1-5) ===
-         dataOutBlockSUEWS(ir, :) = output_line_local%dataOutLineSUEWS
+         ! === Store all output groups concatenated ===
+         col_offset = 0
+
+         ! 1. SUEWS
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutSUEWS) = &
+            output_line_local%dataOutLineSUEWS
+         col_offset = col_offset + ncolumnsDataOutSUEWS
+
+         ! 2. Snow
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutSnow) = &
+            output_line_local%dataOutLineSnow
+         col_offset = col_offset + ncolumnsDataOutSnow
+
+         ! 3. BEERS
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutBEERS) = &
+            output_line_local%dataOutLineBEERS
+         col_offset = col_offset + ncolumnsDataOutBEERS
+
+         ! 4. ESTM
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutESTM) = &
+            output_line_local%dataOutLineESTM
+         col_offset = col_offset + ncolumnsDataOutESTM
+
+         ! 5. EHC
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutEHC) = &
+            output_line_local%dataOutLineEHC
+         col_offset = col_offset + ncolumnsDataOutEHC
+
+         ! 6. DailyState
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutDailyState) = &
+            output_line_local%dataOutLineDailyState
+         col_offset = col_offset + ncolumnsDataOutDailyState
+
+         ! 7. RSL
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutRSL) = &
+            output_line_local%dataoutLineRSL
+         col_offset = col_offset + ncolumnsDataOutRSL
+
+         ! 8. Debug
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutDebug) = &
+            output_line_local%dataOutLineDebug
+         col_offset = col_offset + ncolumnsDataOutDebug
+
+         ! 9. SPARTACUS
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutSPARTACUS) = &
+            output_line_local%dataOutLineSPARTACUS
+         col_offset = col_offset + ncolumnsDataOutSPARTACUS
+
+         ! 10. STEBBS
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutSTEBBS) = &
+            output_line_local%dataOutLineSTEBBS
+         col_offset = col_offset + ncolumnsDataOutSTEBBS
+
+         ! 11. NHood
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutNHood) = &
+            output_line_local%dataOutLineNHood
 
          ! === Update dt_since_start for next iteration ===
          timer%dt_since_start = timer%dt_since_start + timer%tstep
@@ -1363,6 +1423,12 @@ CONTAINS
 
       INTEGER, PARAMETER :: DiagQN = 0 ! flag for printing diagnostic info for QN module during runtime [N/A] ! not used and will be removed
 
+      ! Safe selection of roof/wall surface temperatures for radiation calc.
+      ! Cannot use MERGE(buildings(1)%Textroof_C, ...) because MERGE
+      ! evaluates both arguments and the allocatable array may be null
+      ! before gen_building runs in SUEWS_cal_Qs (gfortran 14+ segfaults).
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_roof_local, tsfc_wall_local
+
       ASSOCIATE ( &
          solarState => modState%solarState, &
          atmState => modState%atmState, &
@@ -1372,6 +1438,26 @@ CONTAINS
          ohmState => modState%ohmState, &
          stebbsState => modState%stebbsState &
          )
+
+         ! Safely resolve roof/wall surface temps without MERGE on
+         ! possibly-unallocated allocatable arrays.
+         IF (config%StorageHeatMethod == 7 &
+             .AND. ALLOCATED(stebbsState%buildings)) THEN
+            IF (ALLOCATED(stebbsState%buildings(1)%Textroof_C)) THEN
+               tsfc_roof_local = stebbsState%buildings(1)%Textroof_C
+            ELSE
+               tsfc_roof_local = heatState%tsfc_roof
+            END IF
+            IF (ALLOCATED(stebbsState%buildings(1)%Textwall_C)) THEN
+               tsfc_wall_local = stebbsState%buildings(1)%Textwall_C
+            ELSE
+               tsfc_wall_local = heatState%tsfc_wall
+            END IF
+         ELSE
+            tsfc_roof_local = heatState%tsfc_roof
+            tsfc_wall_local = heatState%tsfc_wall
+         END IF
+
          ASSOCIATE ( &
             alb_prev => phenState%alb, &
             albDecTr_id => phenState%albDecTr_id, &
@@ -1465,8 +1551,8 @@ CONTAINS
                wall_in_sw_spc => heatState%wall_in_sw_spc, &
                wall_in_lw_spc => heatState%wall_in_lw_spc, &
                tsfc_surf => MERGE(heatState%tsfc_surf_dyohm, heatState%tsfc_surf, (storageheatmethod == 6 .OR. storageheatmethod == 7)), &
-               tsfc_roof => MERGE(buildings(1)%Textroof_C, heatState%tsfc_roof, storageheatmethod == 7), &
-               tsfc_wall => MERGE(buildings(1)%Textwall_C, heatState%tsfc_wall, storageheatmethod == 7) &
+               tsfc_roof => tsfc_roof_local, &
+               tsfc_wall => tsfc_wall_local &
                )
 
                emis = [pavedPrm%emis, bldgPrm%emis, evetrPrm%emis, dectrPrm%emis, &
@@ -1542,6 +1628,16 @@ CONTAINS
                         roof_in_sw_spc, roof_in_lw_spc, &
                         wall_in_sw_spc, wall_in_lw_spc, &
                         dataOutLineSPARTACUS)
+                     IF (qn /= qn .OR. qn <= -999D0) THEN
+                        WRITE (*, *) 'QN_DEBUG invalid qn after SPARTACUS:', &
+                           ' netrad=', NetRadiationMethod, &
+                           ' qn=', qn, &
+                           ' qn_obs=', qn1_obs, &
+                           ' kdown=', kdown, &
+                           ' ldown=', ldown, &
+                           ' tair=', Tair_C, &
+                           ' qn_surf=', qn_surf
+                     END IF
                   ELSE
                      qn_roof = qn_surf(BldgSurf)
                      qn_wall = qn_surf(BldgSurf)

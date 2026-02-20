@@ -318,7 +318,7 @@ def check_state(df_state: pd.DataFrame, fix=True) -> List:
     ])
 
     # check the following:
-    # 0. mandatory variables in supy_driver
+    # 0. mandatory variables for the Fortran interface
     set_diff = set_var_use.difference(set(list_col_rule).union(set(list_var_exclude)))
     if len(set_diff) > 0:
         str_issue = f"Mandatory parameters missing from rule file: {set_diff}"

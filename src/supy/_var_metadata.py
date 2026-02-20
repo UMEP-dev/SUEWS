@@ -1,11 +1,5 @@
 """
-Static variable metadata for the SUEWS Fortran interface.
-
-Generated from f90wrap docstrings. These lists define the variable
-names, intents, and types for the suews_cal_multitsteps interface.
-
-This file replaces the dynamic extraction that previously occurred
-at import time via f90wrap-generated docstrings.
+Static variable lists for the SUEWS Fortran interface.
 """
 
 import pandas as pd

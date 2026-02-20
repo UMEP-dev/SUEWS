@@ -311,13 +311,13 @@ def load_SUEWS_SurfaceChar(path_input):
     # modify some variables to be compliant with SUEWS requirement
     for xgrid in df_gridSurfaceChar.index:
         # transpose snowprof (use .copy(order='F') for Pandas 3.0+ CoW compatibility
-        # while preserving Fortran memory layout for f2py):
+        # while preserving Fortran memory layout):
         df_gridSurfaceChar.at[xgrid, "snowprof_24hr"] = np.asfortranarray(
             np.array(df_gridSurfaceChar.at[xgrid, "snowprof_24hr"], order="F").T
         )
 
         # transpose laipower (use asfortranarray for Pandas 3.0+ CoW compatibility
-        # while preserving Fortran memory layout for f2py):
+        # while preserving Fortran memory layout):
         df_gridSurfaceChar.at[xgrid, "laipower"] = np.asfortranarray(
             np.array(df_gridSurfaceChar.at[xgrid, "laipower"], order="F").T
         )
@@ -353,7 +353,7 @@ def load_SUEWS_SurfaceChar(path_input):
         # print 'len(dict_x)',len(dict_x['laipower'])
 
         # profiles (use asfortranarray for Pandas 3.0+ CoW compatibility
-        # while preserving Fortran memory layout for f2py):
+        # while preserving Fortran memory layout):
         list_varTstep = [
             "ahprof_24hr",
             "popprof_24hr",

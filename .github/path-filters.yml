@@ -26,28 +26,13 @@ fortran:
   - 'src/suews/src/**'
   # External Fortran library (spartacus-surface)
   - 'src/suews/ext_lib/**'
-  # f90wrap driver interface and build
-  - 'src/supy_driver/**'
-  # Guard: supy_driver may move under src/supy/ in future restructuring
-  # (currently at src/supy_driver/, covered above)
-  - 'src/supy/supy_driver/**'
-  # Vendored f90wrap C/Fortran source and runtime patches
-  - 'src/supy/_vendor/**'
-  # Python loader for compiled extension -- intentional dual-category match.
-  # This file manages dlopen/importlib loading of the compiled f90wrap extension.
-  # Edits can change which .so/.pyd is loaded, error handling for missing
-  # binaries, or platform-specific import paths. Multiplatform build is
-  # warranted because breakage may only surface on specific OS/arch combos.
-  - 'src/supy/_supy_driver_wrapper.py'
+  # Fortran static library build helper
+  - 'src/supy/run_make.py'
 
 python:
   # Pure Python source (glob catches new files automatically)
-  # NOTE: _supy_driver_wrapper.py also matches here (and under fortran:).
-  # Double-categorisation is harmless: fortran changes already trigger
-  # multiplatform builds, which is the stricter path.
   - 'src/supy/*.py'
   # Sub-packages (pure Python)
-  - 'src/supy/dts/**'
   - 'src/supy/data_model/**'
   - 'src/supy/cmd/**'
   # Bundled data and configs

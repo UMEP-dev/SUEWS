@@ -23,7 +23,6 @@ This test runs first in CI/CD to provide fast feedback before expensive
 wheel building operations.
 
 Note on NumPy Compatibility:
-Python 3.9 requires NumPy 1.x due to f90wrap binary compatibility issues.
 Python 3.10+ can use NumPy 2.0. This is handled in pyproject.toml build requirements.
 
 Test Ordering Solution:
@@ -57,7 +56,7 @@ import pytest
 
 import supy as sp
 
-# DTS backend has been removed (f90wrap dependency eliminated)
+# DTS backend has been removed.
 _DTS_AVAILABLE = False
 from conftest import TIMESTEPS_PER_DAY
 
@@ -448,7 +447,6 @@ class TestSampleOutput(TestCase):
 
         NOTE: This test uses the removed legacy run_supy() API. Validation is
         covered by test_rust_bridge_sample_output and test_rust_backend_via_simulation.
-        To be refactored in Phase 4 of f2py removal.
         """
         print("\n" + "=" * 70)
         print("SUEWS Sample Output Validation Test")

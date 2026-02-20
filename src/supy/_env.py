@@ -86,24 +86,3 @@ else:
     from importlib_metadata import metadata
 
 
-########################################################################
-# DTS (Derived Type Structure) availability check
-########################################################################
-# DTS and f90wrap backends have been removed.
-# The Rust bridge is now the only execution backend.
-
-DTS_ERROR_MSG = (
-    "DTS features have been removed.\n"
-    "The f90wrap/f2py backends are no longer available.\n"
-    "Use the Rust bridge backend via SUEWSSimulation instead."
-)
-
-
-def _init_dts_check():
-    """DTS is no longer available (f90wrap removed). Always returns False."""
-    return False
-
-
-def check_dts_available():
-    """Raise RuntimeError — DTS features have been removed."""
-    raise RuntimeError(DTS_ERROR_MSG)

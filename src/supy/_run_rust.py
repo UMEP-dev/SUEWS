@@ -42,7 +42,7 @@ OUTPUT_GROUP_LAYOUT: list[tuple[str, int]] = [
 
 _RUST_ERROR_MSG = (
     "Rust backend not available in this build.\n"
-    "Rebuild/install SuPy with Meson Rust bridge enabled (e.g. make dev or make dev-dts)."
+    "Rebuild/install SuPy with Meson Rust bridge enabled (e.g. make dev)."
 )
 
 
@@ -92,8 +92,8 @@ def _build_datetime_index(output_block: np.ndarray) -> pd.DatetimeIndex:
     return date_part + pd.to_timedelta(hour, unit="h") + pd.to_timedelta(minute, unit="m")
 
 
-def _prepare_forcing_block_fallback(df_forcing: pd.DataFrame) -> np.ndarray:
-    """Prepare forcing block locally when DTS runner helper is unavailable."""
+def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
+    """Prepare forcing DataFrame as a Fortran-order array for the Rust bridge."""
     len_sim = len(df_forcing)
     block = np.zeros((len_sim, 21), dtype=np.float64, order="F")
 
@@ -129,15 +129,6 @@ def _prepare_forcing_block_fallback(df_forcing: pd.DataFrame) -> np.ndarray:
             block[:, idx] = default
 
     return block
-
-
-def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
-    """Prepare forcing block using DTS helper when available."""
-    try:
-        from .dts._runner import _prepare_forcing_block as dts_prepare
-    except Exception:
-        return _prepare_forcing_block_fallback(df_forcing)
-    return dts_prepare(df_forcing)
 
 
 def _parse_output_block(

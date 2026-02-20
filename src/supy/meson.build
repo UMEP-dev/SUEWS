@@ -1,7 +1,6 @@
 py.install_sources(
     [
         '__init__.py',
-        '_vendor/__init__.py',
         '_check.py',
         '_env.py',
         '_load.py',
@@ -134,6 +133,56 @@ py.install_sources(
     ],
     subdir: 'supy',
     preserve_path: true,
+)
+
+# Build SUEWS Fortran physics libraries (used by Rust bridge)
+dir_suews = meson.current_source_dir() / '../suews'
+dir_src_suews = dir_suews / 'src'
+
+src_f95_all = [
+  'suews_ctrl_const.f95',
+  'suews_ctrl_type.f95',
+  'suews_util_profile.f95',
+  'suews_util_time.f95',
+  'suews_util_meteo.f95',
+  'suews_util_datetime.f95',
+  'suews_phys_waterdist.f95',
+  'suews_phys_narp.f95',
+  'suews_phys_beers.f95',
+  'suews_phys_atmmoiststab.f95',
+  'suews_phys_resist.f95',
+  'suews_phys_evap.f95',
+  'suews_phys_snow.f95',
+  'suews_phys_dailystate.f95',
+  'suews_phys_lumps.f95',
+  'suews_phys_anthro.f95',
+  'suews_phys_rslprof.f95',
+  'suews_phys_biogenco2.f95',
+  'suews_phys_ohm.f95',
+  'suews_phys_spartacus.f95',
+  'suews_phys_stebbs.f95',
+  'suews_ctrl_driver.f95',
+]
+
+src_f95_files = []
+foreach f : src_f95_all
+  src_f95_files += join_paths(dir_src_suews, f)
+endforeach
+src_f95_files = files(src_f95_files)
+
+makefile_deps = files(dir_suews / 'Makefile')
+
+build_suews = custom_target(
+  'suews_objects',
+  command: [
+    py,
+    '@CURRENT_SOURCE_DIR@/run_make.py',
+    meson.current_source_dir() / '../suews/',
+    '@OUTPUT@',
+  ],
+  build_by_default: true,
+  depend_files: [src_f95_files, makefile_deps],
+  output: 'suews_objects',
 )
 
 rust_bridge_enabled = get_option('with_rust_bridge')

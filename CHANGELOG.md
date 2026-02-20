@@ -53,6 +53,20 @@ EXAMPLES:
 
 ## 2026
 
+### 20 Feb 2026
+
+- [bugfix] Guard SPARTACUS LW solver NaN from matrix singularity in certain urban canopy geometries (#1212)
+
+### 18 Feb 2026
+
+- [feature][experimental] Add attribution module for diagnosing T2, q2, and U10 changes by decomposing model output into physical process contributions, with diurnal cycle and heatmap visualisation helpers (#918)
+
+### 13 Feb 2026
+
+- [feature][experimental] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS bldgh and SPARTACUS height entries (PR #1205).
+- [docs] Updated PHASE_C_DETAILED.md with new conditional validation logic for SPARTACUS (PR #1205).
+
+>>>>>>> 71014040d (fix: harden SPARTACUS LW NaN guard with IEEE_IS_NAN and roof coverage)
 ### 5 Feb 2026
 
 - [change][experimental] Replace OccupantsProfile with MetabolismProfile and add metabolism threshold for occupancy activity classification in STEBBS; fix missing appliance energy in QEC_bldg and uninitialised heating/cooling load accumulators (PR #1194)

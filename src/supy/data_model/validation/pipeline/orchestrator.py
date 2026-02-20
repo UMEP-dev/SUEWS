@@ -759,7 +759,7 @@ def run_phase_c(
                         field_name = critical.get("field_name", "unknown")
                         field_path = critical.get("field_path", "unknown")
                         action_needed += f"-- {field_name} at level {field_path}: Physics parameter is null and will cause runtime crash\n"
-                        action_needed += f"   Suggested fix: Set to appropriate non-null value - see documentation at https://suews.readthedocs.io/en/latest\n"
+                        action_needed += f"   Suggested fix: Set to appropriate non-null value - see documentation at https://docs.suews.io/en/latest\n"
 
                     failure_report = f"""# SUEWS Validation Report
 # ============================================
@@ -792,7 +792,7 @@ def run_phase_c(
                         status = default_app.get(
                             "status", "found null"
                         )  # Default to old behaviour
-                        no_action_info += f"- {field_name} {status} in user YAML at level {field_path}.\n  The validation system will interpret that as default value: {default_value} - check doc for info on this parameter: https://suews.readthedocs.io/en/latest\n"
+                        no_action_info += f"- {field_name} {status} in user YAML at level {field_path}.\n  The validation system will interpret that as default value: {default_value} - check doc for info on this parameter: https://docs.suews.io/en/latest\n"
 
                 # Generate phase-specific title for success report
                 if phases_run:

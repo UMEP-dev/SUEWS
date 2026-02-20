@@ -509,7 +509,7 @@ if is_dev_version:
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
         ({git_version_string}, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/{git_commit_full}" style="color: #31708f;">{git_commit_short}</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
-        <a href="https://suews.readthedocs.io/stable/" style="color: #31708f;">latest release</a>.
+        <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
     """
 else:

@@ -548,7 +548,7 @@ jobs:
 
           ## Documentation
 
-          - [User Guide](https://suews.readthedocs.io)
+          - [User Guide](https://docs.suews.io)
           - [CHANGELOG](https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md)
           - [GitHub Repository](https://github.com/UMEP-dev/SUEWS)
           EOF

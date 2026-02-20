@@ -147,8 +147,8 @@ list_col_forcing = list(dict_var_type_forcing.keys())
 
 # Requirements mapping: links physics options to required forcing columns
 # Format: (physics_option_name, option_value): [list of required columns]
-# Reference: https://suews.readthedocs.io/en/latest/input_files/RunControl/RunControl.html#scheme-options
-# and https://suews.readthedocs.io/en/latest/input_files/met_forcing.html
+# Reference: https://docs.suews.io/en/latest/input_files/RunControl/RunControl.html#scheme-options
+# and https://docs.suews.io/en/latest/input_files/met_forcing.html
 FORCING_REQUIREMENTS = {
     ("netradiationmethod", 0): ["qn"],  # Uses observed Q*
     ("netradiationmethod", 1): ["ldown"],  # Q* modelled with L↓ observations
@@ -280,7 +280,7 @@ def check_forcing(df_forcing: pd.DataFrame, fix=False, physics=None):
                                     f"values (-999). Please provide valid forcing data or change "
                                     f"the physics option.{extra_help} "
                                     f"See documentation: "
-                                    f"https://suews.readthedocs.io/en/latest/input_files/RunControl/RunControl.html#scheme-options"
+                                    f"https://docs.suews.io/en/latest/input_files/RunControl/RunControl.html#scheme-options"
                                 )
                                 list_issues.append(str_issue)
                                 flag_valid = False

@@ -1364,7 +1364,7 @@ def create_analysis_report(
                         f"-- {param_name} has been added to the updated YAML and set to null"
                     )
                     report_lines.append(
-                        f"   Suggested fix: Set appropriate value based on SUEWS documentation -- https://suews.readthedocs.io/latest/"
+                        f"   Suggested fix: Set appropriate value based on SUEWS documentation -- https://docs.suews.io/latest/"
                     )
             if forbidden_extras:
                 report_lines.append("")  # Add spacing if both sections present

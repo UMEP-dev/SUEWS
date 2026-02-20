@@ -110,7 +110,7 @@
       "scheme": "url"
     },
     {
-      "identifier": "https://suews.readthedocs.io",
+      "identifier": "https://docs.suews.io",
       "relation": "isDocumentedBy",
       "scheme": "url"
     }

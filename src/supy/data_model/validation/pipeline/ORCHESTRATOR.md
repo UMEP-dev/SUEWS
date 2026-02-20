@@ -121,7 +121,7 @@ The consolidated report uses a harmonised format regardless of pipeline:
 ```text
 # SUEWS Validation Report
 # ==================================================
-# Mode: {mode}
+# Mode: {mode} - Last succesful validation stage: {validation_stage}
 # ==================================================
 
 ## ACTION NEEDED

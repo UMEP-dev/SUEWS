@@ -452,7 +452,7 @@ def generate_phase_c_report(validation_error: Exception, ...):
 ```text
 # SUEWS Validation Report
 # ==================================================
-# Mode: Public
+# Mode: {mode} - Last succesful validation stage: {validation_stage}
 # ==================================================
 
 ## ACTION NEEDED
@@ -558,7 +558,7 @@ sites:
 ```text
 # SUEWS Validation Report
 # ==================================================
-# Mode: Public
+# Mode: {mode} - Last succesful validation stage: {validation_stage}
 # ==================================================
 
 ## ACTION NEEDED
@@ -574,7 +574,7 @@ sites:
 ```text
 # SUEWS Validation Report
 # ==================================================
-# Mode: Public
+# Mode: {mode} - Last succesful validation stage: {validation_stage}
 # ==================================================
 
 ## ACTION NEEDED
@@ -590,7 +590,7 @@ sites:
 ```text
 # SUEWS Validation Report
 # ==================================================
-# Mode: Public
+# Mode: {mode} - Last succesful validation stage: {validation_stage}
 # ==================================================
 
 ## NO ACTION NEEDED

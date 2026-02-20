@@ -347,7 +347,7 @@ Phase B generates comprehensive reports with two main sections:
 ```text
 # SUEWS Validation Report
 # ==================================================
-# Mode: Public
+# Mode: {mode} - Last succesful validation stage: {validation_stage}
 # ==================================================
 
 ## ACTION NEEDED

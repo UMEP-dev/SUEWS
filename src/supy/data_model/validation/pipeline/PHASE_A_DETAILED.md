@@ -476,7 +476,7 @@ Phase A generates mode-dependent comprehensive reports with enhanced user-friend
 ```text
 # SUEWS Validation Report
 # ==================================================
-# Mode: Public
+# Mode: Public - Last succesful validation stage: {validation_stage}
 # ==================================================
 
 ## ACTION NEEDED
@@ -505,7 +505,7 @@ Phase A generates mode-dependent comprehensive reports with enhanced user-friend
 ```text
 # SUEWS Validation Report
 # ==================================================
-# Mode: Developer
+# Mode: Developer - Last succesful validation stage: {validation_stage}
 # ==================================================
 
 ## ACTION NEEDED

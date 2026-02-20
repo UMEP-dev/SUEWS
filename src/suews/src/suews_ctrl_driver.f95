@@ -1423,6 +1423,12 @@ CONTAINS
 
       INTEGER, PARAMETER :: DiagQN = 0 ! flag for printing diagnostic info for QN module during runtime [N/A] ! not used and will be removed
 
+      ! Safe selection of roof/wall surface temperatures for radiation calc.
+      ! Cannot use MERGE(buildings(1)%Textroof_C, ...) because MERGE
+      ! evaluates both arguments and the allocatable array may be null
+      ! before gen_building runs in SUEWS_cal_Qs (gfortran 14+ segfaults).
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_roof_local, tsfc_wall_local
+
       ASSOCIATE ( &
          solarState => modState%solarState, &
          atmState => modState%atmState, &
@@ -1432,6 +1438,26 @@ CONTAINS
          ohmState => modState%ohmState, &
          stebbsState => modState%stebbsState &
          )
+
+         ! Safely resolve roof/wall surface temps without MERGE on
+         ! possibly-unallocated allocatable arrays.
+         IF (config%StorageHeatMethod == 7 &
+             .AND. ALLOCATED(stebbsState%buildings)) THEN
+            IF (ALLOCATED(stebbsState%buildings(1)%Textroof_C)) THEN
+               tsfc_roof_local = stebbsState%buildings(1)%Textroof_C
+            ELSE
+               tsfc_roof_local = heatState%tsfc_roof
+            END IF
+            IF (ALLOCATED(stebbsState%buildings(1)%Textwall_C)) THEN
+               tsfc_wall_local = stebbsState%buildings(1)%Textwall_C
+            ELSE
+               tsfc_wall_local = heatState%tsfc_wall
+            END IF
+         ELSE
+            tsfc_roof_local = heatState%tsfc_roof
+            tsfc_wall_local = heatState%tsfc_wall
+         END IF
+
          ASSOCIATE ( &
             alb_prev => phenState%alb, &
             albDecTr_id => phenState%albDecTr_id, &
@@ -1525,8 +1551,8 @@ CONTAINS
                wall_in_sw_spc => heatState%wall_in_sw_spc, &
                wall_in_lw_spc => heatState%wall_in_lw_spc, &
                tsfc_surf => MERGE(heatState%tsfc_surf_dyohm, heatState%tsfc_surf, (storageheatmethod == 6 .OR. storageheatmethod == 7)), &
-               tsfc_roof => MERGE(buildings(1)%Textroof_C, heatState%tsfc_roof, storageheatmethod == 7), &
-               tsfc_wall => MERGE(buildings(1)%Textwall_C, heatState%tsfc_wall, storageheatmethod == 7) &
+               tsfc_roof => tsfc_roof_local, &
+               tsfc_wall => tsfc_wall_local &
                )
 
                emis = [pavedPrm%emis, bldgPrm%emis, evetrPrm%emis, dectrPrm%emis, &

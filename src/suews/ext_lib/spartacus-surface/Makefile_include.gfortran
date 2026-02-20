@@ -20,15 +20,14 @@ OPTFLAGS = -O3
 # Warning flags: all except those that warn about unused stuff
 WARNFLAGS = -Wall -Wno-unused-label -Wno-unused-dummy-argument -Wno-unused-variable -Wimplicit-interface
 
-# Debugging flags: -g for symbols.
-# Note: -ffpe-trap omitted from normal build (see src/suews/Makefile.gfortran).
-DEBUGFLAGS = -g
+# Debugging flags, such as "-g" to store debugging symbols, and
+# instructions to abort if certain floating-point exceptions occur
+DEBUGFLAGS = -g -ffpe-trap=invalid,zero,overflow
 
 else
 # --DEBUGGING CONFIGURATION--
 OPTFLAGS = -O0
 WARNFLAGS = -Wall
-# See src/suews/Makefile.gfortran for rationale on flag choices
-DEBUGFLAGS = -g -finit-real=zero -fcheck=all
+DEBUGFLAGS = -g -ffpe-trap=invalid,zero,overflow -fcheck=bounds -finit-real=snan
 
 endif

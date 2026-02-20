@@ -33,7 +33,11 @@ else
 # --DEBUGGING CONFIGURATION--
 OPTFLAGS = -O0
 WARNFLAGS = -Wall
-DEBUGFLAGS = -ggdb -g -ffpe-trap=invalid,zero,overflow -fcheck=bounds -finit-real=snan
+# Use -finit-real=zero (not snan): when loaded as a shared library from
+# Python/Rust, FPE traps are inactive so sNaN propagates silently.
+# On Windows, ALLOCATE returns recycled memory (not zeroed pages), and
+# sNaN locals + garbage allocatables produce platform-dependent NaN.
+DEBUGFLAGS = -ggdb -g -ffpe-trap=invalid,zero,overflow -fcheck=bounds -finit-real=zero
 
 endif
 

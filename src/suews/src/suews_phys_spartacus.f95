@@ -515,6 +515,7 @@ CONTAINS
       CALL sw_norm_diff%zero_all()
 
       CALL sw_flux%ALLOCATE(config, ncol, nlayer, config%nsw, use_direct=.TRUE.)
+      CALL sw_flux%zero_all()
 
       !!!!!!!!!!!!!! allocate lw !!!!!!!!!!!!!!
 
@@ -526,11 +527,18 @@ CONTAINS
          CALL lw_norm%zero_all()
 
          CALL lw_flux%ALLOCATE(config, ncol, nlayer, config%nlw, use_direct=.TRUE.)
+         CALL lw_flux%zero_all()
       END IF
 
       !!!!!!!!!!!!!! allocate bc_out !!!!!!!!!!!!!!
 
       CALL bc_out%ALLOCATE(ncol, config%nsw, config%nlw)
+      ! Zero bc_out arrays: Windows ALLOCATE may return recycled memory
+      ! containing NaN bit patterns, unlike macOS/Linux which zero-fill pages.
+      bc_out%sw_albedo = 0.0_jprb
+      bc_out%sw_albedo_dir = 0.0_jprb
+      bc_out%lw_emissivity = 0.0_jprb
+      bc_out%lw_emission = 0.0_jprb
 
       !!!!!!!!!!!!!! run calc_monochromatic_emission !!!!!!!!!!!!!!
 

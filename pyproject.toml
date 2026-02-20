@@ -28,7 +28,7 @@ dependencies = [
     # dask removed - CLI uses stdlib multiprocessing.pool.ThreadPool
 
     # Model requirements
-    "pydantic",
+    "pydantic>=2.12",
     "pyyaml",  # YAML configuration parsing (used in data_model/core/config.py)
     "f90nml",
     

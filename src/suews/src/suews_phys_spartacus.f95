@@ -517,6 +517,36 @@ CONTAINS
          END IF
       END DO
 
+      ! Guard: the SPARTACUS LW eigenvalue solver can produce NaN for
+      ! certain urban canopy geometries due to matrix singularity.
+      ! Detect NaN in the critical outputs and replace with a simple
+      ! flat-tile LW radiation approximation to prevent downstream
+      ! crashes (e.g. OHM error code 21 from NaN qn).
+      IF (config%do_lw) THEN
+         IF (lw_flux%top_net(nspec, ncol) /= lw_flux%top_net(nspec, ncol)) THEN
+            ! Full NaN from solver source-term singularity: replace all
+            ! LW outputs with flat-tile approximation (net = absorbed
+            ! incoming minus emitted upward).
+            CALL lw_flux%zero_all()
+            lw_flux%top_net(nspec, ncol) = emis_no_tree_bldg*ldown &
+               - lw_spectral_props%ground_emission(nspec, ncol)
+            lw_flux%top_dn(nspec, ncol) = ldown
+            lw_flux%ground_net(nspec, ncol) = emis_no_tree_bldg*ldown &
+               - lw_spectral_props%ground_emission(nspec, ncol)
+            lw_flux%ground_dn(nspec, ncol) = ldown
+            bc_out%lw_emission(nspec, ncol) = lw_spectral_props%ground_emission(nspec, ncol)
+            bc_out%lw_emissivity(nspec, ncol) = emis_no_tree_bldg
+         ELSE IF (ANY(lw_flux%wall_net(nspec, :nlayer) &
+                      /= lw_flux%wall_net(nspec, :nlayer))) THEN
+            ! Partial NaN from integrated-flux singularity: only the
+            ! per-layer absorption fields are contaminated; top-level
+            ! fluxes remain valid.
+            lw_flux%clear_air_abs(nspec, :nlayer) = 0.0D0
+            lw_flux%wall_net(nspec, :nlayer) = 0.0D0
+            lw_flux%wall_in(nspec, :nlayer) = 0.0D0
+         END IF
+      END IF
+
       ! albedo
       IF (top_flux_dn_diffuse_sw + top_flux_dn_direct_sw(nspec, ncol) > 0.1) THEN
          alb_spc = ((top_flux_dn_diffuse_sw + 10.**(-10))*(bc_out%sw_albedo(nspec, ncol)) & ! the 10.**-10 stops the equation blowing up when kdwn=0

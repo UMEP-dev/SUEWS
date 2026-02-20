@@ -193,7 +193,7 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
                     category="PHYSICS",
                     parameter=f"model.physics.{param}",
                     message=f"Physics parameter '{param}' is required but missing or null. This parameter controls critical model behaviour and must be specified for the simulation to run properly.",
-                    suggested_value=f"Set '{param}' to an appropriate value. Consult the SUEWS documentation for parameter descriptions and typical values: https://suews.readthedocs.io/latest/",
+                    suggested_value=f"Set '{param}' to an appropriate value. Consult the SUEWS documentation for parameter descriptions and typical values: https://docs.suews.io/latest/",
                 )
             )
 
@@ -210,7 +210,7 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
                     category="PHYSICS",
                     parameter=f"model.physics.{param}",
                     message=f"Physics parameter '{param}' has null value. This parameter controls critical model behaviour and must be set for proper simulation.",
-                    suggested_value=f"Set '{param}' to an appropriate non-null value. Check documentation for parameter details: https://suews.readthedocs.io/en/latest",
+                    suggested_value=f"Set '{param}' to an appropriate non-null value. Check documentation for parameter details: https://docs.suews.io/en/latest",
                 )
             )
 

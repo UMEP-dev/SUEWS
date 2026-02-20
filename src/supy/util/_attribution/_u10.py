@@ -57,7 +57,7 @@ def attribute_u10(
         Reference height for wind speed (m). Default 10.0 m.
     min_ustar : float, optional
         Minimum friction velocity threshold (m/s). Timesteps with
-        |u*| < min_ustar are flagged. Default 0.01.
+        abs(u*) < min_ustar are flagged. Default 0.01.
 
     Returns
     -------

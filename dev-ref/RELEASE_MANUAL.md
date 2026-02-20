@@ -596,7 +596,7 @@ This release is automatically archived on Zenodo and assigned a DOI for academic
 
 ## Documentation
 
-- [User Guide](https://suews.readthedocs.io)
+- [User Guide](https://docs.suews.io)
 - [Complete CHANGELOG](https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md)
 - [GitHub Repository](https://github.com/UMEP-dev/SUEWS)
 ```

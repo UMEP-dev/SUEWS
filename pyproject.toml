@@ -113,8 +113,8 @@ dev = [
 ]
 
 [project.scripts]
+suews = "supy.cmd.rust_bridge:main"
 suews-run = "supy.cmd.SUEWS:SUEWS"
-suews-bridge = "supy.cmd.rust_bridge:main"
 suews-convert = "supy.cmd.table_converter:convert_table_cmd"
 suews-validate = "supy.cmd.validate_config:main"
 suews-schema = "supy.cmd.schema_cli:main"

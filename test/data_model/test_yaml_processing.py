@@ -802,7 +802,7 @@ sites:
 
             # Should contain usage instructions with manual link
             self.assertIn(
-                "https://suews.readthedocs.io/latest/",
+                "https://docs.suews.io/latest/",
                 report_content,
                 "Should contain manual link",
             )

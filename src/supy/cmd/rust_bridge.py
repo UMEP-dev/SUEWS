@@ -31,4 +31,3 @@ def main() -> None:
     cmd = [str(bridge_path), *sys.argv[1:]]
     result = subprocess.run(cmd, check=False)
     raise SystemExit(result.returncode)
-

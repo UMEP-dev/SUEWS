@@ -60,7 +60,7 @@ This directory contains internal documentation for SUEWS core developers.
 
 ## External Links
 - [GitHub Repository](https://github.com/UMEP-dev/SUEWS)
-- [User Documentation](https://suews.readthedocs.io)
+- [User Documentation](https://docs.suews.io)
 - [GitHub Issues](https://github.com/UMEP-dev/SUEWS/issues)
 - [GitHub Discussions](https://github.com/UMEP-dev/SUEWS/discussions)
 

@@ -10,6 +10,45 @@ fn main() {
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
     let physics_enabled = env::var_os("CARGO_FEATURE_PHYSICS").is_some();
 
+    // --- Git version detection (mirrors get_ver_git.py logic) ---
+    let repo_root = manifest_dir.join("../../");
+    let (version, commit) = match Command::new("git")
+        .args(["describe", "--tags", "--long", "--match=[0-9]*"])
+        .current_dir(&repo_root)
+        .output()
+    {
+        Ok(output) if output.status.success() => {
+            let describe = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            // Pattern: <tag>-<distance>-g<hash>  (optional v prefix on tag)
+            let parts: Vec<&str> = describe.rsplitn(3, '-').collect();
+            if parts.len() == 3 {
+                let hash = parts[0].trim_start_matches('g');
+                let distance: u32 = parts[1].parse().unwrap_or(0);
+                let mut base = parts[2].trim_start_matches('v').to_string();
+
+                let ver = if base.ends_with(".dev") {
+                    // Nightly: 2025.8.17.dev -> 2025.8.17.devN
+                    format!("{base}{distance}")
+                } else if base.contains(".dev") {
+                    // Already has .devN suffix — replace N with distance
+                    let idx = base.rfind(".dev").unwrap();
+                    base.truncate(idx);
+                    format!("{base}.dev{distance}")
+                } else if distance == 0 {
+                    base
+                } else {
+                    format!("{base}.dev{distance}")
+                };
+                (ver, hash.to_string())
+            } else {
+                (env!("CARGO_PKG_VERSION").to_string(), "unknown".to_string())
+            }
+        }
+        _ => (env!("CARGO_PKG_VERSION").to_string(), "unknown".to_string()),
+    };
+    println!("cargo:rustc-env=SUEWS_VERSION={version}");
+    println!("cargo:rustc-env=SUEWS_COMMIT={commit}");
+
     let gfortran_bin = if target_os == "macos" {
         let homebrew_gfortran = PathBuf::from("/opt/homebrew/bin/gfortran");
         if homebrew_gfortran.exists() {

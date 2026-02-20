@@ -74,7 +74,7 @@ dict_libVar2File = {
 # dictionaries:
 # links between code in SiteSelect to properties in according tables
 # this is described in SUEWS online manual:
-# https://suews.readthedocs.io/en/latest/input_files/SUEWS_SiteInfo/SUEWS_SiteInfo.html
+# https://docs.suews.io/en/latest/input_files/SUEWS_SiteInfo/SUEWS_SiteInfo.html
 path_code2file = trv_supy_module.joinpath("code2file.json")
 dict_Code2File = pd.read_json(
     path_code2file,

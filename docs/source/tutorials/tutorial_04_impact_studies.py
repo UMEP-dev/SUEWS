@@ -95,11 +95,11 @@ print(df_state_test.sfr_surf)
 n_albedo = 3
 list_albedo = np.linspace(0.1, 0.8, n_albedo).round(2)
 
-# Create scenario matrix by concatenating copies with different albedo values
+# Create scenario matrix by concatenating copies with integer grid IDs
 df_state_scenarios = (
     pd.concat(
-        {a: df_state_test.copy() for a in list_albedo},
-        names=["alb", "grid"],
+        {i: df_state_test.copy() for i in range(n_albedo)},
+        names=["scenario", "grid"],
     )
     .droplevel("grid", axis=0)
     .rename_axis(index="grid")

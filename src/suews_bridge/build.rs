@@ -98,6 +98,12 @@ fn main() {
             "-O2",
             "-fPIC",
             "-ffree-line-length-none",
+            // Initialise all local variables to zero/false: prevents segfaults
+            // from uninitialised derived-type descriptors under gfortran 14+
+            // which uses a different stack layout than gfortran 10.
+            "-finit-real=zero",
+            "-finit-integer=0",
+            "-finit-logical=false",
             "-I",
             out_dir.to_string_lossy().as_ref(),
         ]);

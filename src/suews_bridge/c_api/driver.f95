@@ -270,7 +270,7 @@ subroutine suews_cal_multitsteps_c( &
       return
    end if
 
-   allocate (metforcing_block(len_sim_i, forcing_cols_i))
+   allocate (metforcing_block(len_sim_i, forcing_cols_i), source=0.0d0)
    allocate (dataout_block(len_sim_i, ncols_all), source=0.0d0)
 
    idx = 1

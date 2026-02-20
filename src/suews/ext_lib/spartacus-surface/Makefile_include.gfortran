@@ -26,9 +26,9 @@ DEBUGFLAGS = -g
 
 else
 # --DEBUGGING CONFIGURATION--
-OPTFLAGS = -O0
+OPTFLAGS = -O2
 WARNFLAGS = -Wall
 # See src/suews/Makefile.gfortran for rationale on flag choices
-DEBUGFLAGS = -g -finit-real=zero -fmax-stack-var-size=100
+DEBUGFLAGS = -g -finit-real=zero
 
 endif

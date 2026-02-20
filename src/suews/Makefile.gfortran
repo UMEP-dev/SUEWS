@@ -34,19 +34,16 @@ DEBUGFLAGS = -g
 
 else
 # --DEBUGGING CONFIGURATION--
-OPTFLAGS = -O0
+# Use -O2 instead of -O0: gfortran 14+ at -O0 on x86_64 generates code with
+# larger stack frames that segfaults in STEBBS paths; -O2 produces safe code.
+OPTFLAGS = -O2
 WARNFLAGS = -Wall
 # Flags removed from production build for cross-platform safety:
 # -ffpe-trap: SIGFPE on x86_64 for legitimate div-by-zero (STEBBS/SPARTACUS)
 # -finit-real=snan: sNaN SIGFPE when numpy clears MXCSR invalid mask
-# -fcheck=bounds: gfortran 14 catches violations that gfortran 10 misses;
+# -fcheck=bounds: gfortran 14 catches violations gfortran 10 misses;
 #   the resulting abort() through Rust FFI manifests as a segfault
-# Use -finit-real=zero: prevents uninitialised-variable segfaults across
-# gfortran versions (14+ uses different stack layout than 10) without any
-# FPE risk.
-# -fmax-stack-var-size=100: heap-allocate local arrays > 100 bytes to prevent
-# stack overflow when gfortran 14+ uses larger stack frames than gfortran 10.
-DEBUGFLAGS = -ggdb -g -finit-real=zero -fmax-stack-var-size=100
+DEBUGFLAGS = -g -finit-real=zero
 
 endif
 

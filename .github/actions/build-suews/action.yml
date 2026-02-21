@@ -114,17 +114,16 @@ runs:
         python3 get_ver_git.py
         echo "Generated version: $(cat src/supy/_version_scm.py | grep __version__)"
 
+    - name: Prepare Rust cache directories
+      shell: bash
+      run: mkdir -p .cargo-cache .rust-target-cache
+
     - name: Cache Rust/Cargo dependencies
       uses: actions/cache@v4
       with:
         path: |
-          ~/.cargo/registry/cache
-          ~/.cargo/registry/src
-          ~/.cargo/git/db
-          .cargo-cache/registry/cache
-          .cargo-cache/registry/src
-          .cargo-cache/git/db
-          src/suews_bridge/target
+          .cargo-cache
+          .rust-target-cache
         key: cargo-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-${{ inputs.python }}-${{ hashFiles('src/suews_bridge/Cargo.lock') }}
         restore-keys: |
           cargo-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-${{ inputs.python }}-
@@ -136,6 +135,14 @@ runs:
         BUILD_UMEP_VARIANT: ${{ inputs.is_umep_variant }}
         CIBW_BUILD: ${{ inputs.python }}-${{ inputs.buildplat_name }}*
         CIBW_ARCHS: ${{ inputs.buildplat_arch }}
+        # Mount host cache directories into the Linux Docker container so that
+        # cargo artifacts survive container teardown and can be saved by actions/cache.
+        # cibuildwheel uses `docker cp` (not bind mount) for the project, so without
+        # explicit volume mounts the compiled deps are lost when the container exits.
+        CIBW_CONTAINER_ENGINE: >-
+          docker; create_args:
+          --volume ${{ github.workspace }}/.cargo-cache:/cargo-cache
+          --volume ${{ github.workspace }}/.rust-target-cache:/rust-target-cache
         # CIBW_ENABLE: ${{ inputs.python == 'cp314' && 'cp314' || '' }}
         CIBW_ENVIRONMENT_PASS_LINUX: ${{ inputs.is_umep_variant == 'true' && 'RUNNER_OS BUILD_UMEP_VARIANT' || 'RUNNER_OS' }}
         # Use manylinux_2_28 for Python 3.13+ (newer dependencies require it), manylinux2014 for 3.9-3.12 (older Linux compatibility)
@@ -149,8 +156,9 @@ runs:
         CIBW_ENVIRONMENT_LINUX: >
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           F90=gfortran
-          CARGO_HOME=/project/.cargo-cache
-          PATH="/project/.cargo-cache/bin:$PATH"
+          CARGO_HOME=/cargo-cache
+          CARGO_TARGET_DIR=/rust-target-cache
+          PATH="/cargo-cache/bin:$PATH"
         CIBW_BEFORE_ALL_LINUX: >
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y &&
           pip install --upgrade pip setuptools wheel &&

@@ -64,6 +64,12 @@ def main() -> int:
 
     env = os.environ.copy()
 
+    # CARGO_TARGET_DIR overrides where cargo writes compiled artifacts.
+    # Set in CI to a bind-mounted volume so artifacts survive Docker teardown.
+    cargo_target_dir = os.environ.get("CARGO_TARGET_DIR")
+    default_target = repo_root / "src" / "suews_bridge" / "target"
+    base_target = Path(cargo_target_dir) if cargo_target_dir else default_target
+
     if os.name == "nt":
         # Windows: Fortran is compiled with MinGW gfortran, so we must use
         # the GNU Rust target to get a compatible linker (gcc instead of
@@ -74,11 +80,9 @@ def main() -> int:
         )
         cmd.extend(["--target", win_target])
         env["CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER"] = "gcc"
-        target_dir = (
-            repo_root / "src" / "suews_bridge" / "target" / win_target / "release"
-        )
+        target_dir = base_target / win_target / "release"
     else:
-        target_dir = repo_root / "src" / "suews_bridge" / "target" / "release"
+        target_dir = base_target / "release"
 
     subprocess.run(cmd, check=True, env=env)
 

@@ -1,5 +1,5 @@
 name: 'Build SUEWS Wheels'
-description: 'Build SUEWS wheels with cibuildwheel (standard or UMEP variant)'
+description: 'Build SUEWS wheels with cibuildwheel and cached Rust dependencies'
 
 inputs:
   buildplat:

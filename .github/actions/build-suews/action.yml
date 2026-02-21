@@ -213,8 +213,6 @@ runs:
           gcc --version &&
           pip install delvewheel
         CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
-        # TODO: remove CIBW_TEST_SKIP after cargo cache is verified
-        CIBW_TEST_SKIP: "*"
         CIBW_TEST_REQUIRES: ${{ inputs.is_umep_variant == 'true' && 'pytest numpy==1.26.*' || 'pytest' }}
         # Test tiers: choose subset based on path detection and trigger
         # Always include --durations=10 to show slowest tests in output

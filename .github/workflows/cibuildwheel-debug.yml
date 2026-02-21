@@ -105,7 +105,6 @@ jobs:
       CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
       CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
       # Configure pip to use binary wheels and avoid building from source
-      # For Python 3.13, allow building f90wrap from source since no wheels exist
       # Also set Fortran flags for line length handling
       CIBW_ENVIRONMENT_LINUX: >
         PIP_PREFER_BINARY=1
@@ -118,7 +117,7 @@ jobs:
         pip install --upgrade pip setuptools wheel &&
         pip install oldest-supported-numpy &&
         if [[ "${{ inputs.python_version }}" == "cp313" ]]; then
-          echo "Installing numpy for Python 3.13 f90wrap build" &&
+          echo "Installing numpy for Python 3.13 build" &&
           pip install numpy;
         fi
 

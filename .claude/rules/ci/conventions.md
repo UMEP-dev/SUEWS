@@ -332,10 +332,6 @@ jobs:
 Use `github.event_name` and ref checks for event-specific behaviour:
 
 ```yaml
-- name: Build with DTS
-  if: github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')
-  run: make build-dts
-
 - name: Upload release artifacts
   if: startsWith(github.ref, 'refs/tags/v')
   uses: actions/upload-artifact@v4

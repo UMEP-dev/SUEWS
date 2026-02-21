@@ -149,8 +149,8 @@ runs:
         CIBW_ENVIRONMENT_LINUX: >
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           F90=gfortran
-          PATH="$HOME/.cargo/bin:$PATH"
           CARGO_HOME=/project/.cargo-cache
+          PATH="/project/.cargo-cache/bin:$PATH"
         CIBW_BEFORE_ALL_LINUX: >
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y &&
           pip install --upgrade pip setuptools wheel &&

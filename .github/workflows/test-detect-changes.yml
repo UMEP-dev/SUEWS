@@ -33,10 +33,11 @@ jobs:
       # NOTE: needs-build here treats any pyproject.toml change as build-triggering.
       # The real CI workflow classifies pyproject.toml by content (see build-publish_to_pypi.yml).
       # SYNC-NOTE: update if needs-build categories change in build-publish_to_pypi.yml
-      needs-build: ${{ steps.filter.outputs.fortran == 'true' || steps.filter.outputs.python == 'true' || steps.filter.outputs.util == 'true' || steps.filter.outputs.build == 'true' || steps.filter.outputs.pyproject == 'true' || steps.filter.outputs.ci == 'true' || steps.filter.outputs.tests == 'true' }}
+      needs-build: ${{ steps.filter.outputs.fortran == 'true' || steps.filter.outputs.rust == 'true' || steps.filter.outputs.python == 'true' || steps.filter.outputs.util == 'true' || steps.filter.outputs.build == 'true' || steps.filter.outputs.pyproject == 'true' || steps.filter.outputs.ci == 'true' || steps.filter.outputs.tests == 'true' }}
       # SYNC-NOTE: UMEP build only needed when compiled extension ABI may differ
-      needs-umep-build: ${{ steps.filter.outputs.fortran == 'true' || steps.filter.outputs.build == 'true' }}
+      needs-umep-build: ${{ steps.filter.outputs.fortran == 'true' || steps.filter.outputs.rust == 'true' || steps.filter.outputs.build == 'true' }}
       fortran-changed: ${{ steps.filter.outputs.fortran }}
+      rust-changed: ${{ steps.filter.outputs.rust }}
       python-changed: ${{ steps.filter.outputs.python }}
       util-changed: ${{ steps.filter.outputs.util }}
       build-changed: ${{ steps.filter.outputs.build }}
@@ -66,6 +67,7 @@ jobs:
         run: |
           echo "=== Changed Files ==="
           echo "fortran files:   ${{ steps.filter.outputs.fortran_files }}"
+          echo "rust files:      ${{ steps.filter.outputs.rust_files }}"
           echo "python files:    ${{ steps.filter.outputs.python_files }}"
           echo "util files:      ${{ steps.filter.outputs.util_files }}"
           echo "build files:     ${{ steps.filter.outputs.build_files }}"
@@ -77,6 +79,7 @@ jobs:
           echo ""
           echo "=== Category Results ==="
           echo "fortran:   ${{ steps.filter.outputs.fortran }}"
+          echo "rust:      ${{ steps.filter.outputs.rust }}"
           echo "python:    ${{ steps.filter.outputs.python }}"
           echo "util:      ${{ steps.filter.outputs.util }}"
           echo "build:     ${{ steps.filter.outputs.build }}"
@@ -95,6 +98,7 @@ jobs:
         env:
           NEEDS_BUILD: ${{ needs.detect-changes.outputs.needs-build }}
           FORTRAN: ${{ needs.detect-changes.outputs.fortran-changed }}
+          RUST: ${{ needs.detect-changes.outputs.rust-changed }}
           PYTHON: ${{ needs.detect-changes.outputs.python-changed }}
           UTIL: ${{ needs.detect-changes.outputs.util-changed }}
           BUILD: ${{ needs.detect-changes.outputs.build-changed }}
@@ -109,7 +113,7 @@ jobs:
 
           # UMEP build needed only when compiled extension ABI may differ
           NEEDS_UMEP_BUILD=false
-          if [[ "$FORTRAN" == "true" ]] || [[ "$BUILD" == "true" ]]; then
+          if [[ "$FORTRAN" == "true" ]] || [[ "$RUST" == "true" ]] || [[ "$BUILD" == "true" ]]; then
             NEEDS_UMEP_BUILD=true
           fi
           echo "needs-umep-build: $NEEDS_UMEP_BUILD"
@@ -118,7 +122,7 @@ jobs:
           # Determine multiplatform requirement
           # (fortran or build-system — NOT ci workflow tweaks)
           NEEDS_MULTIPLATFORM=false
-          if [[ "$FORTRAN" == "true" ]] || [[ "$BUILD" == "true" ]]; then
+          if [[ "$FORTRAN" == "true" ]] || [[ "$RUST" == "true" ]] || [[ "$BUILD" == "true" ]]; then
             NEEDS_MULTIPLATFORM=true
           fi
           echo "needs-multiplatform: $NEEDS_MULTIPLATFORM"
@@ -136,7 +140,7 @@ jobs:
             # NOTE: Simplified reproduction of determine_matrix logic.
             # Update if build-publish_to_pypi.yml changes tier rules.
             echo "--- Draft PR ---"
-            if [[ "$FORTRAN" == "true" ]]; then
+            if [[ "$FORTRAN" == "true" ]] || [[ "$RUST" == "true" ]]; then
               echo "  platforms: reduced (3), test tier: core"
             elif [[ "$BUILD" == "true" ]]; then
               echo "  platforms: reduced (3), test tier: cfg"
@@ -164,7 +168,7 @@ jobs:
           if [[ "$NEEDS_BUILD" == "true" ]]; then
             echo "- wheel build (build_wheels)"
             TRIGGERED=true
-            if [[ "$FORTRAN" == "true" ]] || [[ "$BUILD" == "true" ]]; then
+            if [[ "$FORTRAN" == "true" ]] || [[ "$RUST" == "true" ]] || [[ "$BUILD" == "true" ]]; then
               echo "- UMEP build (build_umep) [compiled extension changed]"
             else
               echo "- UMEP build skipped [no compiled extension changes]"

@@ -8,6 +8,7 @@
 #   EVENT_NAME           -- github.event_name
 #   IS_DRAFT             -- github.event.pull_request.draft (true/false)
 #   FORTRAN_CHANGED      -- detect-changes output
+#   RUST_CHANGED         -- detect-changes output
 #   PYTHON_CHANGED       -- detect-changes output
 #   UTIL_CHANGED         -- detect-changes output
 #   BUILD_CHANGED        -- detect-changes output
@@ -39,13 +40,13 @@ ALL_PYTHON='["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]'
 
 # Multiplatform needed when compiled extension might change
 NEEDS_MULTIPLATFORM=false
-if [[ "${FORTRAN_CHANGED}" == "true" ]] || [[ "${BUILD_CHANGED}" == "true" ]]; then
+if [[ "${FORTRAN_CHANGED}" == "true" ]] || [[ "${RUST_CHANGED}" == "true" ]] || [[ "${BUILD_CHANGED}" == "true" ]]; then
   NEEDS_MULTIPLATFORM=true
 fi
 
 if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${IS_DRAFT}" == "true" ]]; then
-  if [[ "${FORTRAN_CHANGED}" == "true" ]]; then
-    echo "Draft PR with fortran changes - reduced platforms, core tests"
+  if [[ "${FORTRAN_CHANGED}" == "true" ]] || [[ "${RUST_CHANGED}" == "true" ]]; then
+    echo "Draft PR with fortran/rust changes - reduced platforms, core tests"
     echo "buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
     echo "test_tier=core" >> "$GITHUB_OUTPUT"
   elif [[ "${BUILD_CHANGED}" == "true" ]]; then

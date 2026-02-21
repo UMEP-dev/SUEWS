@@ -13,6 +13,7 @@
 #
 # Category guide:
 #   fortran  — compiled extension source (multiplatform build)
+#   rust     — Rust FFI bridge (compiled extension, multiplatform build)
 #   python   — pure Python source (single-platform build)
 #   util     — utility modules (single-platform build)
 #   build    — build system files affecting wheel output (multiplatform build)
@@ -28,6 +29,15 @@ fortran:
   - 'src/suews/ext_lib/**'
   # Fortran static library build helper
   - 'src/supy/run_make.py'
+
+rust:
+  # Rust FFI bridge (compiled extension, multiplatform build)
+  - 'src/suews_bridge/src/**'
+  - 'src/suews_bridge/Cargo.toml'
+  - 'src/suews_bridge/Cargo.lock'
+  - 'src/suews_bridge/build.rs'
+  # C API Fortran wrappers called by the Rust bridge
+  - 'src/suews_bridge/c_api/**'
 
 python:
   # Pure Python source (glob catches new files automatically)

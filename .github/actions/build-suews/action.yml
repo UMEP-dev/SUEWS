@@ -114,6 +114,21 @@ runs:
         python3 get_ver_git.py
         echo "Generated version: $(cat src/supy/_version_scm.py | grep __version__)"
 
+    - name: Cache Rust/Cargo dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry/cache
+          ~/.cargo/registry/src
+          ~/.cargo/git/db
+          .cargo-cache/registry/cache
+          .cargo-cache/registry/src
+          .cargo-cache/git/db
+          src/suews_bridge/target
+        key: cargo-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-${{ inputs.python }}-${{ hashFiles('src/suews_bridge/Cargo.lock') }}
+        restore-keys: |
+          cargo-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-${{ inputs.python }}-
+
     - name: Build wheels
       uses: pypa/cibuildwheel@v3.2
       env:
@@ -135,6 +150,7 @@ runs:
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           F90=gfortran
           PATH="$HOME/.cargo/bin:$PATH"
+          CARGO_HOME=/project/.cargo-cache
         CIBW_BEFORE_ALL_LINUX: >
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y &&
           pip install --upgrade pip setuptools wheel &&

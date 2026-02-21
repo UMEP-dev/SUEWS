@@ -35,11 +35,6 @@ on:
         required: false
         type: string
         default: 'false'
-      enable_dts:
-        description: 'Enable DTS type wrappers'
-        required: false
-        type: string
-        default: 'false'
 
 jobs:
   build:
@@ -68,4 +63,3 @@ jobs:
           wheel_name_suffix: ${{ inputs.wheel_name_suffix }}
           test_tier: ${{ inputs.test_tier }}
           is_testpypi_build: ${{ inputs.is_testpypi_build }}
-          enable_dts: ${{ inputs.enable_dts }}

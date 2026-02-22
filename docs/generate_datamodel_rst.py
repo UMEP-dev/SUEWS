@@ -187,13 +187,25 @@ class RSTGenerator:
         ]
 
         # Add reference label for physics method fields with relationships
-        # Note: diagmethod→rslmethod, localclimatemethod→rsllevel (legacy rename)
-        if field_name in {
+        # These fields are cross-referenced in documentation describing physics
+        # method dependencies (e.g., "see netradiationmethod_" for SPARTACUS coupling)
+        # Note: diagmethod→rslmethod, localclimatemethod→rsllevel (legacy renames)
+        physics_anchor_fields = {
+            "netradiationmethod",
+            "emissionsmethod",
+            "storageheatmethod",
+            "ohmincqf",
+            "roughlenmommethod",
+            "roughlenheatmethod",
             "stabilitymethod",
             "rslmethod",  # was diagmethod
             "rsllevel",  # was localclimatemethod
             "gsmodel",
-        }:
+            "snowuse",
+            "stebbsmethod",
+            "rcmethod",
+        }
+        if field_name in physics_anchor_fields:
             lines.append(f".. _{field_name}:")
             lines.append("")
 
@@ -356,12 +368,14 @@ class RSTGenerator:
             if depends:
                 refs = ", ".join(f":ref:`{d} <{d}>`" for d in depends)
                 lines.append(f"      **Depends on:** {refs}")
+                lines.append("")
 
             # Add provides_to
             provides = relationships.get("provides_to", [])
             if provides:
                 refs = ", ".join(f":ref:`{p} <{p}>`" for p in provides)
                 lines.append(f"      **Provides to:** {refs}")
+                lines.append("")
 
         return lines
 

@@ -148,9 +148,14 @@ runs:
         # Use manylinux_2_28 for Python 3.13+ (newer dependencies require it), manylinux2014 for 3.9-3.12 (older Linux compatibility)
         CIBW_MANYLINUX_X86_64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
         CIBW_MANYLINUX_AARCH64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
-        # Configure pip for all platforms - prefer binary wheels
+        # Configure pip and Rust cache for all platforms.
+        # CARGO_HOME / CARGO_TARGET_DIR point to workspace-local dirs that
+        # actions/cache saves and restores.  On Linux the container-internal
+        # paths in CIBW_ENVIRONMENT_LINUX take precedence (via cibuildwheel merge).
         CIBW_ENVIRONMENT: >
           PIP_PREFER_BINARY=1
+          CARGO_HOME=${{ github.workspace }}/.cargo-cache
+          CARGO_TARGET_DIR=${{ github.workspace }}/.rust-target-cache
           ${{ inputs.is_umep_variant == 'true' && 'BUILD_UMEP_VARIANT=true' || '' }}
         # Platform-specific: Linux Fortran compiler and Rust toolchain settings
         CIBW_ENVIRONMENT_LINUX: >

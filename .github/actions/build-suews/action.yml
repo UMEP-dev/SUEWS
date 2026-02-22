@@ -206,8 +206,8 @@ runs:
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           LDFLAGS="-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat"
           PIP_PREFER_BINARY=1
-          CARGO_HOME=${{ github.workspace }}/.cargo-cache
-          CARGO_TARGET_DIR=${{ github.workspace }}/.rust-target-cache
+          CARGO_HOME='${{ github.workspace }}/.cargo-cache'
+          CARGO_TARGET_DIR='${{ github.workspace }}/.rust-target-cache'
         CIBW_BEFORE_BUILD_WINDOWS: >
           echo Creating setjmp compatibility library... &&
           echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c &&

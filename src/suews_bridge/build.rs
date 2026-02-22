@@ -48,6 +48,16 @@ fn main() {
     };
     println!("cargo:rustc-env=SUEWS_VERSION={version}");
     println!("cargo:rustc-env=SUEWS_COMMIT={commit}");
+    // Re-run when the git HEAD changes (new commits, branch switches)
+    // so that the embedded version stays fresh during local development.
+    let git_head = repo_root.join(".git/HEAD");
+    if git_head.exists() {
+        println!("cargo:rerun-if-changed={}", git_head.display());
+        println!(
+            "cargo:rerun-if-changed={}",
+            repo_root.join(".git/refs/tags").display()
+        );
+    }
 
     let gfortran_bin = if target_os == "macos" {
         let homebrew_gfortran = PathBuf::from("/opt/homebrew/bin/gfortran");

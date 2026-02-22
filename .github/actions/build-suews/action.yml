@@ -148,14 +148,22 @@ runs:
         # Use manylinux_2_28 for Python 3.13+ (newer dependencies require it), manylinux2014 for 3.9-3.12 (older Linux compatibility)
         CIBW_MANYLINUX_X86_64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
         CIBW_MANYLINUX_AARCH64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
-        # Configure pip for all platforms - prefer binary wheels
+        # Configure pip and Rust cache — defaults for platforms without
+        # a CIBW_ENVIRONMENT_{PLATFORM} override (currently macOS only).
+        # NOTE: CIBW_ENVIRONMENT_{PLATFORM} replaces this block entirely,
+        # so any vars needed on Linux/Windows must be repeated there.
         CIBW_ENVIRONMENT: >
           PIP_PREFER_BINARY=1
+          CARGO_HOME=${{ github.workspace }}/.cargo-cache
+          CARGO_TARGET_DIR=${{ github.workspace }}/.rust-target-cache
           ${{ inputs.is_umep_variant == 'true' && 'BUILD_UMEP_VARIANT=true' || '' }}
         # Platform-specific: Linux Fortran compiler and Rust toolchain settings
+        # NOTE: CIBW_ENVIRONMENT_{PLATFORM} replaces (not merges with) CIBW_ENVIRONMENT,
+        # so PIP_PREFER_BINARY must be repeated here.
         CIBW_ENVIRONMENT_LINUX: >
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           F90=gfortran
+          PIP_PREFER_BINARY=1
           CARGO_HOME=/cargo-cache
           CARGO_TARGET_DIR=/rust-target-cache
           PATH="/cargo-cache/bin:$PATH"
@@ -186,6 +194,8 @@ runs:
           C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm --disable-download-timeout" &&
           C:\msys64\usr\bin\bash.exe -lc "for i in 1 2 3; do pacman -S --needed --noconfirm --disable-download-timeout mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas && break || { echo Retry $i/3 && sleep 15; }; done"
         # Platform-specific: Windows compiler and toolchain settings
+        # NOTE: CIBW_ENVIRONMENT_{PLATFORM} replaces (not merges with) CIBW_ENVIRONMENT,
+        # so CARGO_HOME/CARGO_TARGET_DIR and PIP_PREFER_BINARY must be repeated here.
         CIBW_ENVIRONMENT_WINDOWS: >
           PATH="C:\\msys64\\ucrt64\\bin;$PATH"
           CC=gcc
@@ -195,6 +205,9 @@ runs:
           CXXFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           LDFLAGS="-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat"
+          PIP_PREFER_BINARY=1
+          CARGO_HOME='${{ github.workspace }}/.cargo-cache'
+          CARGO_TARGET_DIR='${{ github.workspace }}/.rust-target-cache'
         CIBW_BEFORE_BUILD_WINDOWS: >
           echo Creating setjmp compatibility library... &&
           echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c &&

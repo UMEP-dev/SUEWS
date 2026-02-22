@@ -1050,6 +1050,8 @@ class VerticalLayers(BaseModel):
         default=3,
         description="Number of vertical layers in the urban canopy",
         json_schema_extra={"unit": "dimensionless", "display_name": "Number of Layers"},
+        ge=1,
+        le = 15 #Number of available layers in SPARTACUS is 15, so we set this as an upper limit to prevent indexing issues in the model
     )
     height: FlexibleRefValue(List[float]) = Field(
         default=[0.0, 10.0, 20.0, 30.0],

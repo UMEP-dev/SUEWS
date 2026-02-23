@@ -845,7 +845,7 @@ CONTAINS
                buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature + 273.15
                buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature + 273.15
             ELSE
-               buildings(1)%Ts(1) = 10 + 273.15
+               buildings(1)%Ts(1) = -100 + 273.15
                buildings(1)%Ts(2) = 100 + 273.15
             END IF
 

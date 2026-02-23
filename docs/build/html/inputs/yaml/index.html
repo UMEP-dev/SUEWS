@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-02-10T16:35:53+00:00" />
-    <title>4.1. YAML Configuration Format &#8212; SUEWS 2026.2.21.dev76 documentation</title>
+    <meta property="article:modified_time" content="2026-02-23T19:49:26+00:00" />
+    <title>4.1. YAML Configuration Format &#8212; SUEWS 2026.2.23.dev80 documentation</title>
   
   
   
@@ -41,7 +41,7 @@
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
   <script src="../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
 
-    <script src="../../_static/documentation_options.js?v=54cd98e5"></script>
+    <script src="../../_static/documentation_options.js?v=c3c17501"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
@@ -54,7 +54,7 @@
     <link rel="prev" title="4. Input Files" href="../index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-    <meta name="docbuild:last-update" content="2026-02-10"/>
+    <meta name="docbuild:last-update" content="2026-02-23"/>
   </head>
   
   
@@ -108,7 +108,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.2.21.dev76, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4db171374f4c0e512b8a152647644bef30ee4e3f" style="color: #31708f;">4db1713</a>).
+        (2026.2.23.dev80, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f0bf294b92912c002d0b387fb8e32100e2717e31" style="color: #31708f;">f0bf294</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -154,8 +154,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.21.dev76 documentation - Home"/>
-    <script>document.write(`<img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.21.dev76 documentation - Home"/>`);</script>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.2.23.dev80 documentation - Home"/>
+    <script>document.write(`<img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark" alt="SUEWS 2026.2.23.dev80 documentation - Home"/>`);</script>
   
   
 </a></div>
@@ -609,19 +609,20 @@ document.write(`
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parameter-documentation">4.1.4. Parameter Documentation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#forcing-data">4.1.5. Forcing Data</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validation-and-troubleshooting">4.1.6. Validation and Troubleshooting</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-the-validation-tool">4.1.6.1. Using the Validation Tool</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#what-gets-fixed-automatically">4.1.6.2. What Gets Fixed Automatically</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#common-issues-and-solutions">4.1.6.3. Common Issues and Solutions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#internal-only-parameters">4.1.5. Internal-only parameters</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#forcing-data">4.1.6. Forcing Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validation-and-troubleshooting">4.1.7. Validation and Troubleshooting</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-the-validation-tool">4.1.7.1. Using the Validation Tool</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#what-gets-fixed-automatically">4.1.7.2. What Gets Fixed Automatically</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#common-issues-and-solutions">4.1.7.3. Common Issues and Solutions</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">4.1.7. Examples</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#urban-site-configuration">4.1.7.1. Urban Site Configuration</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">4.1.8. Examples</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#urban-site-configuration">4.1.8.1. Urban Site Configuration</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tips-for-success">4.1.8. Tips for Success</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#getting-help">4.1.9. Getting Help</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tips-for-success">4.1.9. Tips for Success</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#getting-help">4.1.10. Getting Help</a></li>
 </ul>
             </nav>
         </div>
@@ -752,8 +753,27 @@ suews-validate<span class="w"> </span>my_config.yml
 <li><p>Cross-references between related parameters</p></li>
 </ul>
 </section>
+<section id="internal-only-parameters">
+<h2><span class="section-number">4.1.5. </span>Internal-only parameters<a class="headerlink" href="#internal-only-parameters" title="Link to this heading">#</a></h2>
+<p>Some parameters exist in the YAML schema but are <strong>internal-only</strong> and are therefore intentionally omitted from <code class="docutils literal notranslate"><span class="pre">sample_config.yml</span></code>.
+The following parameters were removed from the sample configuration for clarity:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">diagnose</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dqndt</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dqnsdt</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dt_since_start</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lenday_id</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">qn_av</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">qn_s_av</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tair_av</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tmax_id</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tmin_id</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tstep_prev</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">snowfallcum</span></code></p></li>
+</ul>
+</section>
 <section id="forcing-data">
-<h2><span class="section-number">4.1.5. </span>Forcing Data<a class="headerlink" href="#forcing-data" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.1.6. </span>Forcing Data<a class="headerlink" href="#forcing-data" title="Link to this heading">#</a></h2>
 <p>Meteorological forcing data drives the SUEWS simulation. You specify the forcing file(s) in your configuration:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">control</span><span class="p">:</span>
@@ -789,9 +809,9 @@ suews-validate<span class="w"> </span>my_config.yml
 <p>For detailed format specifications, column order, and optional variables, see <a class="reference internal" href="../forcing-data.html"><span class="doc">Meteorological Forcing Data</span></a>.</p>
 </section>
 <section id="validation-and-troubleshooting">
-<h2><span class="section-number">4.1.6. </span>Validation and Troubleshooting<a class="headerlink" href="#validation-and-troubleshooting" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.1.7. </span>Validation and Troubleshooting<a class="headerlink" href="#validation-and-troubleshooting" title="Link to this heading">#</a></h2>
 <section id="using-the-validation-tool">
-<h3><span class="section-number">4.1.6.1. </span>Using the Validation Tool<a class="headerlink" href="#using-the-validation-tool" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.1.7.1. </span>Using the Validation Tool<a class="headerlink" href="#using-the-validation-tool" title="Link to this heading">#</a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">suews-validate</span></code> command checks your configuration and fixes common issues:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Basic validation with automatic fixes</span>
 suews-validate<span class="w"> </span>config.yml
@@ -805,7 +825,7 @@ suews-validate<span class="w"> </span>validate<span class="w"> </span>config.yml
 </div>
 </section>
 <section id="what-gets-fixed-automatically">
-<h3><span class="section-number">4.1.6.2. </span>What Gets Fixed Automatically<a class="headerlink" href="#what-gets-fixed-automatically" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.1.7.2. </span>What Gets Fixed Automatically<a class="headerlink" href="#what-gets-fixed-automatically" title="Link to this heading">#</a></h3>
 <p>The validator automatically corrects these issues:</p>
 <ul class="simple">
 <li><p><strong>Missing parameters</strong> - Adds required fields with sensible defaults</p></li>
@@ -817,7 +837,7 @@ suews-validate<span class="w"> </span>validate<span class="w"> </span>config.yml
 <p>For complete validation documentation, see <a class="reference internal" href="validation.html"><span class="doc">Validation Tool Reference</span></a>.</p>
 </section>
 <section id="common-issues-and-solutions">
-<h3><span class="section-number">4.1.6.3. </span>Common Issues and Solutions<a class="headerlink" href="#common-issues-and-solutions" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.1.7.3. </span>Common Issues and Solutions<a class="headerlink" href="#common-issues-and-solutions" title="Link to this heading">#</a></h3>
 <dl class="simple">
 <dt><strong>“Missing required parameter”</strong></dt><dd><p>The validator will add it with a default value. Check the report to see what was added.</p>
 </dd>
@@ -831,9 +851,9 @@ suews-validate<span class="w"> </span>validate<span class="w"> </span>config.yml
 </section>
 </section>
 <section id="examples">
-<h2><span class="section-number">4.1.7. </span>Examples<a class="headerlink" href="#examples" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.1.8. </span>Examples<a class="headerlink" href="#examples" title="Link to this heading">#</a></h2>
 <section id="urban-site-configuration">
-<h3><span class="section-number">4.1.7.1. </span>Urban Site Configuration<a class="headerlink" href="#urban-site-configuration" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.1.8.1. </span>Urban Site Configuration<a class="headerlink" href="#urban-site-configuration" title="Link to this heading">#</a></h3>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;London</span><span class="nv"> </span><span class="s">Urban&quot;</span>
 <span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Central</span><span class="nv"> </span><span class="s">London</span><span class="nv"> </span><span class="s">urban</span><span class="nv"> </span><span class="s">climate&quot;</span>
 
@@ -874,7 +894,7 @@ suews-validate<span class="w"> </span>validate<span class="w"> </span>config.yml
 </section>
 </section>
 <section id="tips-for-success">
-<h2><span class="section-number">4.1.8. </span>Tips for Success<a class="headerlink" href="#tips-for-success" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.1.9. </span>Tips for Success<a class="headerlink" href="#tips-for-success" title="Link to this heading">#</a></h2>
 <ol class="arabic simple">
 <li><p><strong>Start with the sample</strong>: Always begin with <code class="docutils literal notranslate"><span class="pre">sample_config.yml</span></code> and modify it</p></li>
 <li><p><strong>Validate early</strong>: Run validation before long simulations</p></li>
@@ -884,7 +904,7 @@ suews-validate<span class="w"> </span>validate<span class="w"> </span>config.yml
 </ol>
 </section>
 <section id="getting-help">
-<h2><span class="section-number">4.1.9. </span>Getting Help<a class="headerlink" href="#getting-help" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.1.10. </span>Getting Help<a class="headerlink" href="#getting-help" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><strong>Validation issues</strong>: Check the report file (<code class="docutils literal notranslate"><span class="pre">report_*.txt</span></code>)</p></li>
 <li><p><strong>Parameter documentation</strong>: See the error messages from validation</p></li>
@@ -946,19 +966,20 @@ suews-validate<span class="w"> </span>validate<span class="w"> </span>config.yml
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parameter-documentation">4.1.4. Parameter Documentation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#forcing-data">4.1.5. Forcing Data</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validation-and-troubleshooting">4.1.6. Validation and Troubleshooting</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-the-validation-tool">4.1.6.1. Using the Validation Tool</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#what-gets-fixed-automatically">4.1.6.2. What Gets Fixed Automatically</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#common-issues-and-solutions">4.1.6.3. Common Issues and Solutions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#internal-only-parameters">4.1.5. Internal-only parameters</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#forcing-data">4.1.6. Forcing Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validation-and-troubleshooting">4.1.7. Validation and Troubleshooting</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#using-the-validation-tool">4.1.7.1. Using the Validation Tool</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#what-gets-fixed-automatically">4.1.7.2. What Gets Fixed Automatically</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#common-issues-and-solutions">4.1.7.3. Common Issues and Solutions</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">4.1.7. Examples</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#urban-site-configuration">4.1.7.1. Urban Site Configuration</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">4.1.8. Examples</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#urban-site-configuration">4.1.8.1. Urban Site Configuration</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tips-for-success">4.1.8. Tips for Success</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#getting-help">4.1.9. Getting Help</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tips-for-success">4.1.9. Tips for Success</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#getting-help">4.1.10. Getting Help</a></li>
 </ul>
   </nav></div>
 
@@ -992,7 +1013,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-02-10.
+  Last updated on 2026-02-23.
   <br/>
 </p>
   </div>
@@ -1000,8 +1021,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.2.21.dev76 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4db171374f4c0e512b8a152647644bef30ee4e3f">4db1713</a> |
+  <p>Version: 2026.2.23.dev80 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f0bf294b92912c002d0b387fb8e32100e2717e31">f0bf294</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

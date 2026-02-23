@@ -24,7 +24,6 @@ model:
     forcing_file:
       value: C:/Users\RSLab2022z/Desktop/phd_1_suews_model_runs/ROTH_rad90p_full_package/suews_inputs/beroth_forcing_2021_2023_SUEWS_merged.txt
     output_file: C:/Users\RSLab2022z/Desktop/phd_1_suews_model_runs/testrun/output.txt
-    diagnose: 0
     start_time: '2021-01-01'
     end_time: '2023-12-31'
   physics:
@@ -2310,17 +2309,6 @@ sites:
         value: 1.0499998331069946
       tin:
         value: 1.0499998331069946
-    dqndt: 0.0
-    dqnsdt: 0.0
-    dt_since_start: 0.0
-    lenday_id: 0
-    qn_av: 0.0
-    qn_s_av: 0.0
-    tair_av: 273.15
-    tmax_id: -90.0
-    tmin_id: 90.0
-    tstep_prev: 300.0
-    snowfallcum: 0.0
     hdd_id:
     - 0.0
     - 0.0

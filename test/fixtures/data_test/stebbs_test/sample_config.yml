@@ -12,7 +12,6 @@ model:
       groups:
         - SUEWS
         - STEBBS
-    diagnose: 0
   physics:
     netradiationmethod:
       value: 1003
@@ -3203,7 +3202,6 @@ sites:
         value: 17.540002822875977
       tin:
         value: 17.540002822875977
-    dqndt: 0.0
     dqndt_surf:
     - 0.0
     - 0.0
@@ -3212,10 +3210,6 @@ sites:
     - 0.0
     - 0.0
     - 0.0
-    dqnsdt: 0.0
-    dt_since_start: 0.0
-    lenday_id: 0
-    qn_av: 0.0
     qn_surfs:
     - 0.0
     - 0.0
@@ -3224,12 +3218,6 @@ sites:
     - 0.0
     - 0.0
     - 0.0
-    qn_s_av: 0.0
-    tair_av: 273.15
-    tmax_id: -90.0
-    tmin_id: 90.0
-    tstep_prev: 300.0
-    snowfallcum: 0.0
     hdd_id:
     - 13.5
     - 13.5

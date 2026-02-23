@@ -699,6 +699,8 @@ CONTAINS
       REAL(KIND(1D0)) :: QEC_heating_tstepFA
       REAL(KIND(1D0)) :: QEC_cooling_tstepFA
       REAL(KIND(1D0)) :: QEC_dhw_tstepFA
+      REAL(KIND(1D0)) :: Unused_heating_setpoint_C = -100
+      REAL(KIND(1D0)) :: Unused_cooling_setpoint_C = 100
       INTEGER :: iu !type of day: weekday/weekend
       INTEGER :: idx !index of profiles for 10 mins interval
       ASSOCIATE ( &
@@ -843,8 +845,8 @@ CONTAINS
                buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature + 273.15
                buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature + 273.15
             ELSE
-               buildings(1)%Ts(1) = -100 + 273.15
-               buildings(1)%Ts(2) = 100 + 273.15
+               buildings(1)%Ts(1) = Unused_heating_setpoint_C + 273.15
+               buildings(1)%Ts(2) = Unused_cooling_setpoint_C + 273.15
             END IF
 
             CALL setdatetime(datetimeLine)

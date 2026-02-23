@@ -246,7 +246,6 @@ CONTAINS
    ! Parameters:
    !   Ts - set point temperature for heating load [K]
    !   Ti - indoor air node temperature [K]
-   !   epsilon - rated efficiency of the total heating system [-]
    !   P - maximum power rating of the total heating system [W]
    ! Returns:
    !   q_heating - [W]
@@ -303,7 +302,6 @@ CONTAINS
    ! Parameters:
    !   Ts - set point temperature for cooling load [K]
    !   Ti -indoor air node temperature [K]
-   !   COP - Rated efficiency of the total heating system [-]
    !   P - maximum power rating of the total heating system [W]
    ! Returns:
    !   q_cooling - [W]

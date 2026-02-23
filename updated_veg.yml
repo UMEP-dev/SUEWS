@@ -1,0 +1,3256 @@
+# ==============================================================================
+# Updated YAML
+# ==============================================================================
+#
+# This file has been updated by the SUEWS processor and is the updated version of the user provided YAML.
+# Details of changes are in the generated report.
+#
+# ==============================================================================
+
+name: sample_config
+description: Sample configuration built from benchmark 1a (Ward et al. 2016) model
+  configuration
+model:
+  control:
+    tstep: 300
+    start_time: '2011-01-01'
+    end_time: '2013-12-31'
+    forcing_file:
+      value: Kc_2012_data_60.txt
+    output_file:
+      format: txt
+      freq: 3600
+      path: ./Output
+      groups:
+      - SUEWS
+    diagnose: 0
+  physics:
+    netradiationmethod:
+      value: 1001
+    emissionsmethod:
+      value: 2
+    storageheatmethod:
+      value: 1
+    ohmincqf:
+      value: 0
+    roughlenmommethod:
+      value: 1
+    roughlenheatmethod:
+      value: 2
+    stabilitymethod:
+      value: 3
+    smdmethod:
+      value: 0
+    waterusemethod:
+      value: 0
+    rslmethod:
+      value: 2
+    faimethod:
+      value: 0
+    rsllevel:
+      value: 1
+    gsmodel:
+      value: 2
+    snowuse:
+      value: 0
+    stebbsmethod:
+      value: 0
+    rcmethod:
+      value: 0
+    samealbedo_wall:
+      value: 0
+    samealbedo_roof:
+      value: 0
+sites:
+- name: KCL
+  gridiv: 1
+  properties:
+    lat:
+      value: 51.51
+    lng:
+      value: -0.12
+    alt:
+      value: 10.7
+    timezone:
+      value: 0
+    surfacearea:
+      value: 785000.0
+    z:
+      value: 40.0
+    z0m_in:
+      value: 1.9
+    zdm_in:
+      value: 14.2
+    pipecapacity:
+      value: 100.0
+    runofftowater:
+      value: 0.0
+    narp_trans_site:
+      value: 1.0
+    lumps:
+      raincover:
+        value: 1.0
+      rainmaxres:
+        value: 10.0
+      drainrt:
+        value: 0.25
+      veg_type:
+        value: 1
+    spartacus:
+      air_ext_lw:
+        value: 0.0
+      air_ext_sw:
+        value: 0.0
+      air_ssa_lw:
+        value: 0.0
+      air_ssa_sw:
+        value: 0.95
+      ground_albedo_dir_mult_fact:
+        value: 1.0
+      n_stream_lw_urban:
+        value: 4
+      n_stream_sw_urban:
+        value: 4
+      n_vegetation_region_urban:
+        value: 1
+      sw_dn_direct_frac:
+        value: 0.45
+      use_sw_direct_albedo:
+        value: 0.0
+      veg_contact_fraction_const:
+        value: 0.0
+      veg_fsd_const:
+        value: 0.75
+      veg_ssa_lw:
+        value: 0.06
+      veg_ssa_sw:
+        value: 0.46
+    stebbs:
+      WallInternalConvectionCoefficient:
+        value: null
+      RoofInternalConvectionCoefficient:
+        value: null
+      InternalMassConvectionCoefficient:
+        value: null
+      FloorInternalConvectionCoefficient:
+        value: null
+      WindowInternalConvectionCoefficient:
+        value: null
+      WallExternalConvectionCoefficient:
+        value: null
+      RoofExternalConvectionCoefficient:
+        value: null
+      WindowExternalConvectionCoefficient:
+        value: null
+      GroundDepth:
+        value: null
+      ExternalGroundConductivity:
+        value: null
+      MetabolismThreshold:
+        value: null
+      LatentSensibleRatio:
+        value: null
+      ApplianceProfile:
+        working_day:
+          '1': null
+          '2': null
+          '3': null
+          '4': null
+          '5': null
+          '6': null
+          '7': null
+          '8': null
+          '9': null
+          '10': null
+          '11': null
+          '12': null
+          '13': null
+          '14': null
+          '15': null
+          '16': null
+          '17': null
+          '18': null
+          '19': null
+          '20': null
+          '21': null
+          '22': null
+          '23': null
+          '24': null
+          '25': null
+          '26': null
+          '27': null
+          '28': null
+          '29': null
+          '30': null
+          '31': null
+          '32': null
+          '33': null
+          '34': null
+          '35': null
+          '36': null
+          '37': null
+          '38': null
+          '39': null
+          '40': null
+          '41': null
+          '42': null
+          '43': null
+          '44': null
+          '45': null
+          '46': null
+          '47': null
+          '48': null
+          '49': null
+          '50': null
+          '51': null
+          '52': null
+          '53': null
+          '54': null
+          '55': null
+          '56': null
+          '57': null
+          '58': null
+          '59': null
+          '60': null
+          '61': null
+          '62': null
+          '63': null
+          '64': null
+          '65': null
+          '66': null
+          '67': null
+          '68': null
+          '69': null
+          '70': null
+          '71': null
+          '72': null
+          '73': null
+          '74': null
+          '75': null
+          '76': null
+          '77': null
+          '78': null
+          '79': null
+          '80': null
+          '81': null
+          '82': null
+          '83': null
+          '84': null
+          '85': null
+          '86': null
+          '87': null
+          '88': null
+          '89': null
+          '90': null
+          '91': null
+          '92': null
+          '93': null
+          '94': null
+          '95': null
+          '96': null
+          '97': null
+          '98': null
+          '99': null
+          '100': null
+          '101': null
+          '102': null
+          '103': null
+          '104': null
+          '105': null
+          '106': null
+          '107': null
+          '108': null
+          '109': null
+          '110': null
+          '111': null
+          '112': null
+          '113': null
+          '114': null
+          '115': null
+          '116': null
+          '117': null
+          '118': null
+          '119': null
+          '120': null
+          '121': null
+          '122': null
+          '123': null
+          '124': null
+          '125': null
+          '126': null
+          '127': null
+          '128': null
+          '129': null
+          '130': null
+          '131': null
+          '132': null
+          '133': null
+          '134': null
+          '135': null
+          '136': null
+          '137': null
+          '138': null
+          '139': null
+          '140': null
+          '141': null
+          '142': null
+          '143': null
+          '144': null
+        holiday:
+          '1': null
+          '2': null
+          '3': null
+          '4': null
+          '5': null
+          '6': null
+          '7': null
+          '8': null
+          '9': null
+          '10': null
+          '11': null
+          '12': null
+          '13': null
+          '14': null
+          '15': null
+          '16': null
+          '17': null
+          '18': null
+          '19': null
+          '20': null
+          '21': null
+          '22': null
+          '23': null
+          '24': null
+          '25': null
+          '26': null
+          '27': null
+          '28': null
+          '29': null
+          '30': null
+          '31': null
+          '32': null
+          '33': null
+          '34': null
+          '35': null
+          '36': null
+          '37': null
+          '38': null
+          '39': null
+          '40': null
+          '41': null
+          '42': null
+          '43': null
+          '44': null
+          '45': null
+          '46': null
+          '47': null
+          '48': null
+          '49': null
+          '50': null
+          '51': null
+          '52': null
+          '53': null
+          '54': null
+          '55': null
+          '56': null
+          '57': null
+          '58': null
+          '59': null
+          '60': null
+          '61': null
+          '62': null
+          '63': null
+          '64': null
+          '65': null
+          '66': null
+          '67': null
+          '68': null
+          '69': null
+          '70': null
+          '71': null
+          '72': null
+          '73': null
+          '74': null
+          '75': null
+          '76': null
+          '77': null
+          '78': null
+          '79': null
+          '80': null
+          '81': null
+          '82': null
+          '83': null
+          '84': null
+          '85': null
+          '86': null
+          '87': null
+          '88': null
+          '89': null
+          '90': null
+          '91': null
+          '92': null
+          '93': null
+          '94': null
+          '95': null
+          '96': null
+          '97': null
+          '98': null
+          '99': null
+          '100': null
+          '101': null
+          '102': null
+          '103': null
+          '104': null
+          '105': null
+          '106': null
+          '107': null
+          '108': null
+          '109': null
+          '110': null
+          '111': null
+          '112': null
+          '113': null
+          '114': null
+          '115': null
+          '116': null
+          '117': null
+          '118': null
+          '119': null
+          '120': null
+          '121': null
+          '122': null
+          '123': null
+          '124': null
+          '125': null
+          '126': null
+          '127': null
+          '128': null
+          '129': null
+          '130': null
+          '131': null
+          '132': null
+          '133': null
+          '134': null
+          '135': null
+          '136': null
+          '137': null
+          '138': null
+          '139': null
+          '140': null
+          '141': null
+          '142': null
+          '143': null
+          '144': null
+      HeatingSystemEfficiency:
+        value: null
+      MaxCoolingPower:
+        value: null
+      CoolingSystemCOP:
+        value: null
+      VentilationRate:
+        value: null
+      InitialOutdoorTemperature:
+        value: null
+      InitialIndoorTemperature:
+        value: null
+      DeepSoilTemperature:
+        value: null
+      WaterTankWallThickness:
+        value: null
+      MainsWaterTemperature:
+        value: null
+      WaterTankSurfaceArea:
+        value: null
+      HotWaterHeatingSetpointTemperature:
+        value: null
+      HotWaterTankWallEmissivity:
+        value: null
+      DHWVesselWallThickness:
+        value: null
+      DHWWaterVolume:
+        value: null
+      DHWSurfaceArea:
+        value: null
+      HotWaterFlowRate:
+        value: null
+      HotWaterFlowProfile:
+        working_day:
+          '1': null
+          '2': null
+          '3': null
+          '4': null
+          '5': null
+          '6': null
+          '7': null
+          '8': null
+          '9': null
+          '10': null
+          '11': null
+          '12': null
+          '13': null
+          '14': null
+          '15': null
+          '16': null
+          '17': null
+          '18': null
+          '19': null
+          '20': null
+          '21': null
+          '22': null
+          '23': null
+          '24': null
+          '25': null
+          '26': null
+          '27': null
+          '28': null
+          '29': null
+          '30': null
+          '31': null
+          '32': null
+          '33': null
+          '34': null
+          '35': null
+          '36': null
+          '37': null
+          '38': null
+          '39': null
+          '40': null
+          '41': null
+          '42': null
+          '43': null
+          '44': null
+          '45': null
+          '46': null
+          '47': null
+          '48': null
+          '49': null
+          '50': null
+          '51': null
+          '52': null
+          '53': null
+          '54': null
+          '55': null
+          '56': null
+          '57': null
+          '58': null
+          '59': null
+          '60': null
+          '61': null
+          '62': null
+          '63': null
+          '64': null
+          '65': null
+          '66': null
+          '67': null
+          '68': null
+          '69': null
+          '70': null
+          '71': null
+          '72': null
+          '73': null
+          '74': null
+          '75': null
+          '76': null
+          '77': null
+          '78': null
+          '79': null
+          '80': null
+          '81': null
+          '82': null
+          '83': null
+          '84': null
+          '85': null
+          '86': null
+          '87': null
+          '88': null
+          '89': null
+          '90': null
+          '91': null
+          '92': null
+          '93': null
+          '94': null
+          '95': null
+          '96': null
+          '97': null
+          '98': null
+          '99': null
+          '100': null
+          '101': null
+          '102': null
+          '103': null
+          '104': null
+          '105': null
+          '106': null
+          '107': null
+          '108': null
+          '109': null
+          '110': null
+          '111': null
+          '112': null
+          '113': null
+          '114': null
+          '115': null
+          '116': null
+          '117': null
+          '118': null
+          '119': null
+          '120': null
+          '121': null
+          '122': null
+          '123': null
+          '124': null
+          '125': null
+          '126': null
+          '127': null
+          '128': null
+          '129': null
+          '130': null
+          '131': null
+          '132': null
+          '133': null
+          '134': null
+          '135': null
+          '136': null
+          '137': null
+          '138': null
+          '139': null
+          '140': null
+          '141': null
+          '142': null
+          '143': null
+          '144': null
+        holiday:
+          '1': null
+          '2': null
+          '3': null
+          '4': null
+          '5': null
+          '6': null
+          '7': null
+          '8': null
+          '9': null
+          '10': null
+          '11': null
+          '12': null
+          '13': null
+          '14': null
+          '15': null
+          '16': null
+          '17': null
+          '18': null
+          '19': null
+          '20': null
+          '21': null
+          '22': null
+          '23': null
+          '24': null
+          '25': null
+          '26': null
+          '27': null
+          '28': null
+          '29': null
+          '30': null
+          '31': null
+          '32': null
+          '33': null
+          '34': null
+          '35': null
+          '36': null
+          '37': null
+          '38': null
+          '39': null
+          '40': null
+          '41': null
+          '42': null
+          '43': null
+          '44': null
+          '45': null
+          '46': null
+          '47': null
+          '48': null
+          '49': null
+          '50': null
+          '51': null
+          '52': null
+          '53': null
+          '54': null
+          '55': null
+          '56': null
+          '57': null
+          '58': null
+          '59': null
+          '60': null
+          '61': null
+          '62': null
+          '63': null
+          '64': null
+          '65': null
+          '66': null
+          '67': null
+          '68': null
+          '69': null
+          '70': null
+          '71': null
+          '72': null
+          '73': null
+          '74': null
+          '75': null
+          '76': null
+          '77': null
+          '78': null
+          '79': null
+          '80': null
+          '81': null
+          '82': null
+          '83': null
+          '84': null
+          '85': null
+          '86': null
+          '87': null
+          '88': null
+          '89': null
+          '90': null
+          '91': null
+          '92': null
+          '93': null
+          '94': null
+          '95': null
+          '96': null
+          '97': null
+          '98': null
+          '99': null
+          '100': null
+          '101': null
+          '102': null
+          '103': null
+          '104': null
+          '105': null
+          '106': null
+          '107': null
+          '108': null
+          '109': null
+          '110': null
+          '111': null
+          '112': null
+          '113': null
+          '114': null
+          '115': null
+          '116': null
+          '117': null
+          '118': null
+          '119': null
+          '120': null
+          '121': null
+          '122': null
+          '123': null
+          '124': null
+          '125': null
+          '126': null
+          '127': null
+          '128': null
+          '129': null
+          '130': null
+          '131': null
+          '132': null
+          '133': null
+          '134': null
+          '135': null
+          '136': null
+          '137': null
+          '138': null
+          '139': null
+          '140': null
+          '141': null
+          '142': null
+          '143': null
+          '144': null
+      DHWSpecificHeatCapacity:
+        value: null
+      HotWaterTankSpecificHeatCapacity:
+        value: null
+      DHWVesselSpecificHeatCapacity:
+        value: null
+      DHWDensity:
+        value: null
+      HotWaterTankWallDensity:
+        value: null
+      DHWVesselDensity:
+        value: null
+      HotWaterTankBuildingWallViewFactor:
+        value: null
+      HotWaterTankInternalMassViewFactor:
+        value: null
+      HotWaterTankWallConductivity:
+        value: null
+      HotWaterTankInternalWallConvectionCoefficient:
+        value: null
+      HotWaterTankExternalWallConvectionCoefficient:
+        value: null
+      DHWVesselWallConductivity:
+        value: null
+      DHWVesselInternalWallConvectionCoefficient:
+        value: null
+      DHWVesselExternalWallConvectionCoefficient:
+        value: null
+      DHWVesselWallEmissivity:
+        value: null
+      HotWaterHeatingEfficiency:
+        value: null
+      MinimumVolumeOfDHWinUse:
+        value: null
+      MaximumVolumeOfDHWinUse:
+        value: null
+    building_archetype:
+      BuildingType: null
+      BuildingName: null
+      BuildingCount:
+        value: null
+      Occupants:
+        value: null
+      MetabolismProfile:
+        working_day:
+          '1': null
+          '2': null
+          '3': null
+          '4': null
+          '5': null
+          '6': null
+          '7': null
+          '8': null
+          '9': null
+          '10': null
+          '11': null
+          '12': null
+          '13': null
+          '14': null
+          '15': null
+          '16': null
+          '17': null
+          '18': null
+          '19': null
+          '20': null
+          '21': null
+          '22': null
+          '23': null
+          '24': null
+          '25': null
+          '26': null
+          '27': null
+          '28': null
+          '29': null
+          '30': null
+          '31': null
+          '32': null
+          '33': null
+          '34': null
+          '35': null
+          '36': null
+          '37': null
+          '38': null
+          '39': null
+          '40': null
+          '41': null
+          '42': null
+          '43': null
+          '44': null
+          '45': null
+          '46': null
+          '47': null
+          '48': null
+          '49': null
+          '50': null
+          '51': null
+          '52': null
+          '53': null
+          '54': null
+          '55': null
+          '56': null
+          '57': null
+          '58': null
+          '59': null
+          '60': null
+          '61': null
+          '62': null
+          '63': null
+          '64': null
+          '65': null
+          '66': null
+          '67': null
+          '68': null
+          '69': null
+          '70': null
+          '71': null
+          '72': null
+          '73': null
+          '74': null
+          '75': null
+          '76': null
+          '77': null
+          '78': null
+          '79': null
+          '80': null
+          '81': null
+          '82': null
+          '83': null
+          '84': null
+          '85': null
+          '86': null
+          '87': null
+          '88': null
+          '89': null
+          '90': null
+          '91': null
+          '92': null
+          '93': null
+          '94': null
+          '95': null
+          '96': null
+          '97': null
+          '98': null
+          '99': null
+          '100': null
+          '101': null
+          '102': null
+          '103': null
+          '104': null
+          '105': null
+          '106': null
+          '107': null
+          '108': null
+          '109': null
+          '110': null
+          '111': null
+          '112': null
+          '113': null
+          '114': null
+          '115': null
+          '116': null
+          '117': null
+          '118': null
+          '119': null
+          '120': null
+          '121': null
+          '122': null
+          '123': null
+          '124': null
+          '125': null
+          '126': null
+          '127': null
+          '128': null
+          '129': null
+          '130': null
+          '131': null
+          '132': null
+          '133': null
+          '134': null
+          '135': null
+          '136': null
+          '137': null
+          '138': null
+          '139': null
+          '140': null
+          '141': null
+          '142': null
+          '143': null
+          '144': null
+        holiday:
+          '1': null
+          '2': null
+          '3': null
+          '4': null
+          '5': null
+          '6': null
+          '7': null
+          '8': null
+          '9': null
+          '10': null
+          '11': null
+          '12': null
+          '13': null
+          '14': null
+          '15': null
+          '16': null
+          '17': null
+          '18': null
+          '19': null
+          '20': null
+          '21': null
+          '22': null
+          '23': null
+          '24': null
+          '25': null
+          '26': null
+          '27': null
+          '28': null
+          '29': null
+          '30': null
+          '31': null
+          '32': null
+          '33': null
+          '34': null
+          '35': null
+          '36': null
+          '37': null
+          '38': null
+          '39': null
+          '40': null
+          '41': null
+          '42': null
+          '43': null
+          '44': null
+          '45': null
+          '46': null
+          '47': null
+          '48': null
+          '49': null
+          '50': null
+          '51': null
+          '52': null
+          '53': null
+          '54': null
+          '55': null
+          '56': null
+          '57': null
+          '58': null
+          '59': null
+          '60': null
+          '61': null
+          '62': null
+          '63': null
+          '64': null
+          '65': null
+          '66': null
+          '67': null
+          '68': null
+          '69': null
+          '70': null
+          '71': null
+          '72': null
+          '73': null
+          '74': null
+          '75': null
+          '76': null
+          '77': null
+          '78': null
+          '79': null
+          '80': null
+          '81': null
+          '82': null
+          '83': null
+          '84': null
+          '85': null
+          '86': null
+          '87': null
+          '88': null
+          '89': null
+          '90': null
+          '91': null
+          '92': null
+          '93': null
+          '94': null
+          '95': null
+          '96': null
+          '97': null
+          '98': null
+          '99': null
+          '100': null
+          '101': null
+          '102': null
+          '103': null
+          '104': null
+          '105': null
+          '106': null
+          '107': null
+          '108': null
+          '109': null
+          '110': null
+          '111': null
+          '112': null
+          '113': null
+          '114': null
+          '115': null
+          '116': null
+          '117': null
+          '118': null
+          '119': null
+          '120': null
+          '121': null
+          '122': null
+          '123': null
+          '124': null
+          '125': null
+          '126': null
+          '127': null
+          '128': null
+          '129': null
+          '130': null
+          '131': null
+          '132': null
+          '133': null
+          '134': null
+          '135': null
+          '136': null
+          '137': null
+          '138': null
+          '139': null
+          '140': null
+          '141': null
+          '142': null
+          '143': null
+          '144': null
+      stebbs_Height:
+        value: null
+      FootprintArea:
+        value: null
+      WallExternalArea:
+        value: null
+      RatioInternalVolume:
+        value: null
+      WWR:
+        value: null
+      WallThickness:
+        value: null
+      WallEffectiveConductivity:
+        value: null
+      WallDensity:
+        value: null
+      WallCp:
+        value: null
+      WallextThickness:
+        value: null
+      WallextEffectiveConductivity:
+        value: null
+      WallextDensity:
+        value: null
+      WallextCp:
+        value: null
+      WallOuterCapFrac:
+        value: null
+      WallExternalEmissivity:
+        value: null
+      WallInternalEmissivity:
+        value: null
+      WallTransmissivity:
+        value: null
+      WallAbsorbtivity:
+        value: null
+      WallReflectivity:
+        value: null
+      RoofThickness:
+        value: null
+      RoofEffectiveConductivity:
+        value: null
+      RoofDensity:
+        value: null
+      RoofCp:
+        value: null
+      RoofextThickness:
+        value: null
+      RoofextEffectiveConductivity:
+        value: null
+      RoofextDensity:
+        value: null
+      RoofextCp:
+        value: null
+      RoofOuterCapFrac:
+        value: null
+      RoofExternalEmissivity:
+        value: null
+      RoofInternalEmissivity:
+        value: null
+      RoofTransmissivity:
+        value: null
+      RoofAbsorbtivity:
+        value: null
+      RoofReflectivity:
+        value: null
+      FloorThickness:
+        value: null
+      GroundFloorEffectiveConductivity:
+        value: null
+      GroundFloorDensity:
+        value: null
+      GroundFloorCp:
+        value: null
+      WindowThickness:
+        value: null
+      WindowEffectiveConductivity:
+        value: null
+      WindowDensity:
+        value: null
+      WindowCp:
+        value: null
+      WindowExternalEmissivity:
+        value: null
+      WindowInternalEmissivity:
+        value: null
+      WindowTransmissivity:
+        value: null
+      WindowAbsorbtivity:
+        value: null
+      WindowReflectivity:
+        value: null
+      InternalMassDensity:
+        value: null
+      InternalMassCp:
+        value: null
+      InternalMassEmissivity:
+        value: null
+      MaxHeatingPower:
+        value: null
+      WaterTankWaterVolume:
+        value: null
+      MaximumHotWaterHeatingPower:
+        value: null
+      HeatingSetpointTemperature:
+        value: null
+      CoolingSetpointTemperature:
+        value: null
+    conductance:
+      g_max:
+        value: 3.5
+      g_k:
+        value: 200.0
+      g_q_base:
+        value: 0.13
+      g_q_shape:
+        value: 0.7
+      g_t:
+        value: 30.0
+      g_sm:
+        value: 0.05
+      kmax:
+        value: 1200.0
+      s1:
+        value: 5.56
+      s2:
+        value: 0.0
+      tl:
+        value: -10.0
+      th:
+        value: 55.0
+      ref:
+        ID: test id
+        DOI: test doi
+    irrigation:
+      h_maintain:
+        value: -999.0
+      faut:
+        value: 0.0
+      ie_start:
+        value: 1.0
+      ie_end:
+        value: 365.0
+      internalwateruse_h:
+        value: 0.0
+      daywatper:
+        monday: 0.0
+        tuesday: 0.0
+        wednesday: 0.0
+        thursday: 0.0
+        friday: 0.0
+        saturday: 0.0
+        sunday: 0.0
+      daywat:
+        monday: 0.0
+        tuesday: 0.0
+        wednesday: 0.0
+        thursday: 0.0
+        friday: 0.0
+        saturday: 0.0
+        sunday: 0.0
+      wuprofa_24hr:
+        working_day:
+          '1': -999.0
+          '2': -999.0
+          '3': -999.0
+          '4': -999.0
+          '5': -999.0
+          '6': -999.0
+          '7': -999.0
+          '8': -999.0
+          '9': -999.0
+          '10': -999.0
+          '11': -999.0
+          '12': -999.0
+          '13': -999.0
+          '14': -999.0
+          '15': -999.0
+          '16': -999.0
+          '17': -999.0
+          '18': -999.0
+          '19': -999.0
+          '20': -999.0
+          '21': -999.0
+          '22': -999.0
+          '23': -999.0
+          '24': -999.0
+        holiday:
+          '1': -999.0
+          '2': -999.0
+          '3': -999.0
+          '4': -999.0
+          '5': -999.0
+          '6': -999.0
+          '7': -999.0
+          '8': -999.0
+          '9': -999.0
+          '10': -999.0
+          '11': -999.0
+          '12': -999.0
+          '13': -999.0
+          '14': -999.0
+          '15': -999.0
+          '16': -999.0
+          '17': -999.0
+          '18': -999.0
+          '19': -999.0
+          '20': -999.0
+          '21': -999.0
+          '22': -999.0
+          '23': -999.0
+          '24': -999.0
+      wuprofm_24hr:
+        working_day:
+          '1': -999.0
+          '2': -999.0
+          '3': -999.0
+          '4': -999.0
+          '5': -999.0
+          '6': -999.0
+          '7': -999.0
+          '8': -999.0
+          '9': -999.0
+          '10': -999.0
+          '11': -999.0
+          '12': -999.0
+          '13': -999.0
+          '14': -999.0
+          '15': -999.0
+          '16': -999.0
+          '17': -999.0
+          '18': -999.0
+          '19': -999.0
+          '20': -999.0
+          '21': -999.0
+          '22': -999.0
+          '23': -999.0
+          '24': -999.0
+        holiday:
+          '1': -999.0
+          '2': -999.0
+          '3': -999.0
+          '4': -999.0
+          '5': -999.0
+          '6': -999.0
+          '7': -999.0
+          '8': -999.0
+          '9': -999.0
+          '10': -999.0
+          '11': -999.0
+          '12': -999.0
+          '13': -999.0
+          '14': -999.0
+          '15': -999.0
+          '16': -999.0
+          '17': -999.0
+          '18': -999.0
+          '19': -999.0
+          '20': -999.0
+          '21': -999.0
+          '22': -999.0
+          '23': -999.0
+          '24': -999.0
+    anthropogenic_emissions:
+      startdls:
+        value: 86.0
+      enddls:
+        value: 303.0
+      heat:
+        qf0_beu:
+          working_day: 0.88
+          holiday: 0.88
+        qf_a:
+          working_day: 0.3743
+          holiday: 0.3412
+        qf_b:
+          working_day: 0.0
+          holiday: 0.0
+        qf_c:
+          working_day: 0.0073
+          holiday: 0.0067
+        baset_cooling:
+          working_day: 18.2
+          holiday: 18.2
+        baset_heating:
+          working_day: 18.2
+          holiday: 18.2
+        ah_min:
+          working_day: 15.0
+          holiday: 15.0
+        ah_slope_cooling:
+          working_day: 2.7
+          holiday: 2.7
+        ah_slope_heating:
+          working_day: 2.7
+          holiday: 2.7
+        ahprof_24hr:
+          working_day:
+            '1': 0.57
+            '2': 0.45
+            '3': 0.43
+            '4': 0.4
+            '5': 0.4
+            '6': 0.45
+            '7': 0.71
+            '8': 1.2
+            '9': 1.44
+            '10': 1.29
+            '11': 1.28
+            '12': 1.31
+            '13': 1.3
+            '14': 1.32
+            '15': 1.35
+            '16': 1.44
+            '17': 1.51
+            '18': 1.41
+            '19': 1.14
+            '20': 0.99
+            '21': 0.86
+            '22': 0.85
+            '23': 0.8
+            '24': 0.7
+          holiday:
+            '1': 0.65
+            '2': 0.49
+            '3': 0.46
+            '4': 0.47
+            '5': 0.47
+            '6': 0.53
+            '7': 0.7
+            '8': 1.13
+            '9': 1.37
+            '10': 1.37
+            '11': 1.3
+            '12': 1.37
+            '13': 1.33
+            '14': 1.3
+            '15': 1.27
+            '16': 1.36
+            '17': 1.44
+            '18': 1.3
+            '19': 1.1
+            '20': 0.98
+            '21': 0.84
+            '22': 0.9
+            '23': 0.87
+            '24': 0.74
+        popdensdaytime:
+          working_day: 204.58
+          holiday: 204.58
+        popdensnighttime: 204.58
+        popprof_24hr:
+          working_day:
+            '1': 0.57
+            '2': 0.45
+            '3': 0.43
+            '4': 0.4
+            '5': 0.4
+            '6': 0.45
+            '7': 0.71
+            '8': 1.2
+            '9': 1.44
+            '10': 1.29
+            '11': 1.28
+            '12': 1.31
+            '13': 1.3
+            '14': 1.32
+            '15': 1.35
+            '16': 1.44
+            '17': 1.51
+            '18': 1.41
+            '19': 1.14
+            '20': 0.99
+            '21': 0.86
+            '22': 0.85
+            '23': 0.8
+            '24': 0.7
+          holiday:
+            '1': 0.65
+            '2': 0.49
+            '3': 0.46
+            '4': 0.47
+            '5': 0.47
+            '6': 0.53
+            '7': 0.7
+            '8': 1.13
+            '9': 1.37
+            '10': 1.37
+            '11': 1.3
+            '12': 1.37
+            '13': 1.33
+            '14': 1.3
+            '15': 1.27
+            '16': 1.36
+            '17': 1.44
+            '18': 1.3
+            '19': 1.1
+            '20': 0.98
+            '21': 0.84
+            '22': 0.9
+            '23': 0.87
+            '24': 0.74
+      co2:
+        co2pointsource:
+          value: null
+        ef_umolco2perj:
+          value: null
+        enef_v_jkm:
+          value: null
+        fcef_v_kgkm:
+          working_day: null
+          holiday: null
+        frfossilfuel_heat:
+          value: null
+        frfossilfuel_nonheat:
+          value: null
+        maxfcmetab:
+          value: null
+        maxqfmetab:
+          value: null
+        minfcmetab:
+          value: null
+        minqfmetab:
+          value: null
+        trafficrate:
+          working_day: null
+          holiday: null
+        trafficunits:
+          value: null
+        traffprof_24hr:
+          working_day:
+            '1': null
+            '2': null
+            '3': null
+            '4': null
+            '5': null
+            '6': null
+            '7': null
+            '8': null
+            '9': null
+            '10': null
+            '11': null
+            '12': null
+            '13': null
+            '14': null
+            '15': null
+            '16': null
+            '17': null
+            '18': null
+            '19': null
+            '20': null
+            '21': null
+            '22': null
+            '23': null
+            '24': null
+          holiday:
+            '1': null
+            '2': null
+            '3': null
+            '4': null
+            '5': null
+            '6': null
+            '7': null
+            '8': null
+            '9': null
+            '10': null
+            '11': null
+            '12': null
+            '13': null
+            '14': null
+            '15': null
+            '16': null
+            '17': null
+            '18': null
+            '19': null
+            '20': null
+            '21': null
+            '22': null
+            '23': null
+            '24': null
+        humactivity_24hr:
+          working_day:
+            '1': null
+            '2': null
+            '3': null
+            '4': null
+            '5': null
+            '6': null
+            '7': null
+            '8': null
+            '9': null
+            '10': null
+            '11': null
+            '12': null
+            '13': null
+            '14': null
+            '15': null
+            '16': null
+            '17': null
+            '18': null
+            '19': null
+            '20': null
+            '21': null
+            '22': null
+            '23': null
+            '24': null
+          holiday:
+            '1': null
+            '2': null
+            '3': null
+            '4': null
+            '5': null
+            '6': null
+            '7': null
+            '8': null
+            '9': null
+            '10': null
+            '11': null
+            '12': null
+            '13': null
+            '14': null
+            '15': null
+            '16': null
+            '17': null
+            '18': null
+            '19': null
+            '20': null
+            '21': null
+            '22': null
+            '23': null
+            '24': null
+    snow:
+      crwmax:
+        value: 0.1
+      crwmin:
+        value: 0.03
+      narp_emis_snow:
+        value: 0.99
+      preciplimit:
+        value: 2.2
+      preciplimitalb:
+        value: 2.0
+      snowalbmax:
+        value: 0.8
+      snowalbmin:
+        value: 0.18
+      snowdensmin:
+        value: 100.0
+      snowdensmax:
+        value: 450.0
+      snowlimbldg:
+        value: -999.0
+      snowlimpaved:
+        value: -999.0
+      snowprof_24hr:
+        working_day:
+          '1': -999.0
+          '2': -999.0
+          '3': -999.0
+          '4': -999.0
+          '5': -999.0
+          '6': -999.0
+          '7': -999.0
+          '8': -999.0
+          '9': -999.0
+          '10': -999.0
+          '11': -999.0
+          '12': -999.0
+          '13': -999.0
+          '14': -999.0
+          '15': -999.0
+          '16': -999.0
+          '17': -999.0
+          '18': -999.0
+          '19': -999.0
+          '20': -999.0
+          '21': -999.0
+          '22': -999.0
+          '23': -999.0
+          '24': -999.0
+        holiday:
+          '1': -999.0
+          '2': -999.0
+          '3': -999.0
+          '4': -999.0
+          '5': -999.0
+          '6': -999.0
+          '7': -999.0
+          '8': -999.0
+          '9': -999.0
+          '10': -999.0
+          '11': -999.0
+          '12': -999.0
+          '13': -999.0
+          '14': -999.0
+          '15': -999.0
+          '16': -999.0
+          '17': -999.0
+          '18': -999.0
+          '19': -999.0
+          '20': -999.0
+          '21': -999.0
+          '22': -999.0
+          '23': -999.0
+          '24': -999.0
+      tau_a:
+        value: 0.01
+      tau_f:
+        value: 0.1
+      tau_r:
+        value: 0.02
+      tempmeltfact:
+        value: 0.14
+      radmeltfact:
+        value: 0.001
+    land_cover:
+      paved:
+        sfr:
+          value: 0.43
+        emis:
+          value: 0.95
+        ch_anohm:
+          value: 4.0
+        rho_cp_anohm:
+          value: 20000000.0
+        k_anohm:
+          value: 1.2
+        ohm_threshsw:
+          value: 10.0
+        ohm_threshwd:
+          value: 0.9
+        ohm_coef:
+          summer_dry:
+            a1:
+              value: 0.722
+            a2:
+              value: 0.3
+            a3:
+              value: -36.14
+          summer_wet:
+            a1:
+              value: 0.722
+            a2:
+              value: 0.3
+            a3:
+              value: -36.14
+          winter_dry:
+            a1:
+              value: 0.848
+            a2:
+              value: 0.3
+            a3:
+              value: 14.16
+          winter_wet:
+            a1:
+              value: 0.848
+            a2:
+              value: 0.3
+            a3:
+              value: 14.16
+        soildepth:
+          value: 350.0
+        soilstorecap:
+          value: 150.0
+        statelimit:
+          value: 0.48
+        wetthresh:
+          value: 0.6
+        sathydraulicconduct:
+          value: 0.0005
+        waterdist:
+          to_bldgs:
+            value: 0.0
+          to_dectr:
+            value: 0.0
+          to_evetr:
+            value: 0.0
+          to_grass:
+            value: 0.02
+          to_bsoil:
+            value: 0.0
+          to_water:
+            value: 0.0
+          to_runoff:
+            value: 0.98
+        storedrainprm:
+          store_min:
+            value: 0.48
+          store_max:
+            value: 0.48
+          store_cap:
+            value: 0.48
+          drain_eq:
+            value: 3
+          drain_coef_1:
+            value: 10.0
+          drain_coef_2:
+            value: 3.0
+        snowpacklimit:
+          value: -999.0
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.15
+            - 0.01
+            - 0.01
+            - 0.01
+          k:
+            value:
+            - 1.1
+            - 1.1
+            - 1.1
+            - 1.1
+            - 1.1
+          rho_cp:
+            value:
+            - 2200000.0
+            - 2200000.0
+            - 2200000.0
+            - 2200000.0
+            - 2600000.0
+        irrfrac:
+          value: 0.0
+        alb:
+          value: 0.1
+      bldgs:
+        sfr:
+          value: 0.38
+        emis:
+          value: 0.91
+        ch_anohm:
+          value: 4.0
+        rho_cp_anohm:
+          value: 20000000.0
+        k_anohm:
+          value: 1.2
+        ohm_threshsw:
+          value: 10.0
+        ohm_threshwd:
+          value: 0.9
+        ohm_coef:
+          summer_dry:
+            a1:
+              value: 0.51
+            a2:
+              value: 0.337
+            a3:
+              value: -28.85
+          summer_wet:
+            a1:
+              value: 0.51
+            a2:
+              value: 0.337
+            a3:
+              value: -28.85
+          winter_dry:
+            a1:
+              value: 0.598
+            a2:
+              value: 0.337
+            a3:
+              value: 11.3
+          winter_wet:
+            a1:
+              value: 0.598
+            a2:
+              value: 0.337
+            a3:
+              value: 11.3
+        soildepth:
+          value: 350.0
+        soilstorecap:
+          value: 150.0
+        statelimit:
+          value: 0.25
+        wetthresh:
+          value: 0.6
+        sathydraulicconduct:
+          value: 0.0005
+        waterdist:
+          to_paved:
+            value: 0.1
+          to_dectr:
+            value: 0.0
+          to_evetr:
+            value: 0.0
+          to_grass:
+            value: 0.0
+          to_bsoil:
+            value: 0.0
+          to_water:
+            value: 0.0
+          to_runoff:
+            value: 0.9
+        storedrainprm:
+          store_min:
+            value: 0.25
+          store_max:
+            value: 0.25
+          store_cap:
+            value: 0.25
+          drain_eq:
+            value: 3
+          drain_coef_1:
+            value: 10.0
+          drain_coef_2:
+            value: 3.0
+        snowpacklimit:
+          value: -999.0
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.5
+            - 1.6
+          k:
+            value:
+            - 1.2
+            - 1.1
+            - 1.1
+            - 1.5
+            - 1.6
+          rho_cp:
+            value:
+            - 1200000.0
+            - 1100000.0
+            - 1100000.0
+            - 1500000.0
+            - 1600000.0
+        irrfrac:
+          value: 0.0
+        alb:
+          value: 0.12
+        faibldg:
+          value: 0.11
+        bldgh:
+          value: 22.0
+      dectr:
+        sfr:
+          value: 0.02
+        emis:
+          value: 0.98
+        ch_anohm:
+          value: 4.0
+        rho_cp_anohm:
+          value: 100000.0
+        k_anohm:
+          value: 1.2
+        ohm_threshsw:
+          value: 10.0
+        ohm_threshwd:
+          value: 0.9
+        ohm_coef:
+          summer_dry:
+            a1:
+              value: 0.23
+            a2:
+              value: 0.325
+            a3:
+              value: -16.91
+          summer_wet:
+            a1:
+              value: 0.23
+            a2:
+              value: 0.325
+            a3:
+              value: -16.91
+          winter_dry:
+            a1:
+              value: 0.27
+            a2:
+              value: 0.325
+            a3:
+              value: 6.62
+          winter_wet:
+            a1:
+              value: 0.27
+            a2:
+              value: 0.325
+            a3:
+              value: 6.62
+        soildepth:
+          value: 350.0
+        soilstorecap:
+          value: 150.0
+        statelimit:
+          value: 0.8
+        wetthresh:
+          value: 1.0
+        sathydraulicconduct:
+          value: 0.0005
+        waterdist:
+          to_paved:
+            value: 0.1
+          to_bldgs:
+            value: 0.0
+          to_evetr:
+            value: 0.0
+          to_grass:
+            value: 0.0
+          to_bsoil:
+            value: 0.0
+          to_water:
+            value: 0.0
+          to_soilstore:
+            value: 0.9
+        storedrainprm:
+          store_min:
+            value: 0.3
+          store_max:
+            value: 0.8
+          store_cap:
+            value: 0.3
+          drain_eq:
+            value: 2
+          drain_coef_1:
+            value: 0.013
+          drain_coef_2:
+            value: 1.71
+        snowpacklimit:
+          value: -999.0
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.1
+            - 2.2
+          k:
+            value:
+            - 1.2
+            - 1.1
+            - 1.1
+            - 1.5
+            - 1.6
+          rho_cp:
+            value:
+            - 3200000.0
+            - 1100000.0
+            - 1100000.0
+            - 1500000.0
+            - 1600000.0
+        irrfrac:
+          value: 0.0
+        alb_min:
+          value: 0.12
+        alb_max:
+          value: 0.18
+        beta_bioco2:
+          value: null
+        beta_enh_bioco2:
+          value: null
+        alpha_bioco2:
+          value: null
+        alpha_enh_bioco2:
+          value: null
+        resp_a:
+          value: null
+        resp_b:
+          value: null
+        theta_bioco2:
+          value: null
+        maxconductance:
+          value: 11.7
+        min_res_bioco2:
+          value: null
+        lai:
+          baset:
+            value: 6.0
+          gddfull:
+            value: 300.0
+          basete:
+            value: 11.0
+          sddfull:
+            value: -450.0
+          laimin:
+            value: 1.0
+          laimax:
+            value: 5.5
+          laipower:
+            growth_lai:
+              value: 0.04
+            growth_gdd:
+              value: 0.001
+            senescence_lai:
+              value: -1.5
+            senescence_sdd:
+              value: 0.0015
+          laitype:
+            value: 1
+        ie_a:
+          value: 0.0
+        ie_m:
+          value: 0.0
+        faidectree:
+          value: 0.3
+        dectreeh:
+          value: 13.1
+        pormin_dec:
+          value: 0.1
+        pormax_dec:
+          value: 0.9
+        capmax_dec:
+          value: 0.8
+        capmin_dec:
+          value: 0.3
+      evetr:
+        sfr:
+          value: 0.0
+        emis:
+          value: 0.98
+        ch_anohm:
+          value: 4.0
+        rho_cp_anohm:
+          value: 100000.0
+        k_anohm:
+          value: 1.2
+        ohm_threshsw:
+          value: 10.0
+        ohm_threshwd:
+          value: 0.9
+        ohm_coef:
+          summer_dry:
+            a1:
+              value: 0.23
+            a2:
+              value: 0.325
+            a3:
+              value: -16.91
+          summer_wet:
+            a1:
+              value: 0.23
+            a2:
+              value: 0.325
+            a3:
+              value: -16.91
+          winter_dry:
+            a1:
+              value: 0.27
+            a2:
+              value: 0.325
+            a3:
+              value: 6.62
+          winter_wet:
+            a1:
+              value: 0.27
+            a2:
+              value: 0.325
+            a3:
+              value: 6.62
+        soildepth:
+          value: 350.0
+        soilstorecap:
+          value: 150.0
+        statelimit:
+          value: 1.3
+        wetthresh:
+          value: 1.8
+        sathydraulicconduct:
+          value: 0.0005
+        waterdist:
+          to_paved:
+            value: 0.1
+          to_bldgs:
+            value: 0.0
+          to_dectr:
+            value: 0.0
+          to_grass:
+            value: 0.0
+          to_bsoil:
+            value: 0.0
+          to_water:
+            value: 0.0
+          to_soilstore:
+            value: 0.9
+        storedrainprm:
+          store_min:
+            value: 1.3
+          store_max:
+            value: 1.3
+          store_cap:
+            value: 1.3
+          drain_eq:
+            value: 2
+          drain_coef_1:
+            value: 0.013
+          drain_coef_2:
+            value: 1.71
+        snowpacklimit:
+          value: -999.0
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.5
+            - 1.6
+          k:
+            value:
+            - 1.2
+            - 1.1
+            - 1.1
+            - 1.5
+            - 1.6
+          rho_cp:
+            value:
+            - 3200000.0
+            - 1100000.0
+            - 1100000.0
+            - 1500000.0
+            - 1600000.0
+        irrfrac:
+          value: 0.0
+        alb_min:
+          value: 0.1
+        alb_max:
+          value: 0.1
+        beta_bioco2:
+          value: null
+        beta_enh_bioco2:
+          value: null
+        alpha_bioco2:
+          value: null
+        alpha_enh_bioco2:
+          value: null
+        resp_a:
+          value: null
+        resp_b:
+          value: null
+        theta_bioco2:
+          value: null
+        maxconductance:
+          value: 7.4
+        min_res_bioco2:
+          value: null
+        lai:
+          baset:
+            value: 6.0
+          gddfull:
+            value: 300.0
+          basete:
+            value: 11.0
+          sddfull:
+            value: -450.0
+          laimin:
+            value: 4.0
+          laimax:
+            value: 5.1
+          laipower:
+            growth_lai:
+              value: 0.04
+            growth_gdd:
+              value: 0.001
+            senescence_lai:
+              value: -1.5
+            senescence_sdd:
+              value: 0.0015
+          laitype:
+            value: 1
+        ie_a:
+          value: 0.0
+        ie_m:
+          value: 0.0
+        faievetree:
+          value: 0.3
+        evetreeh:
+          value: 13.1
+      grass:
+        sfr:
+          value: 0.03
+        emis:
+          value: 0.93
+        ch_anohm:
+          value: 4.0
+        rho_cp_anohm:
+          value: 100000.0
+        k_anohm:
+          value: 1.2
+        ohm_threshsw:
+          value: 10.0
+        ohm_threshwd:
+          value: 0.9
+        ohm_coef:
+          summer_dry:
+            a1:
+              value: 0.23
+            a2:
+              value: 0.325
+            a3:
+              value: -16.91
+          summer_wet:
+            a1:
+              value: 0.23
+            a2:
+              value: 0.325
+            a3:
+              value: -16.91
+          winter_dry:
+            a1:
+              value: 0.27
+            a2:
+              value: 0.325
+            a3:
+              value: 6.62
+          winter_wet:
+            a1:
+              value: 0.27
+            a2:
+              value: 0.325
+            a3:
+              value: 6.62
+        soildepth:
+          value: 350.0
+        soilstorecap:
+          value: 150.0
+        statelimit:
+          value: 1.9
+        wetthresh:
+          value: 2.0
+        sathydraulicconduct:
+          value: 0.0005
+        waterdist:
+          to_paved:
+            value: 0.0
+          to_bldgs:
+            value: 0.0
+          to_dectr:
+            value: 0.0
+          to_evetr:
+            value: 0.0
+          to_bsoil:
+            value: 0.0
+          to_water:
+            value: 0.0
+          to_soilstore:
+            value: 1.0
+        storedrainprm:
+          store_min:
+            value: 1.9
+          store_max:
+            value: 1.9
+          store_cap:
+            value: 1.9
+          drain_eq:
+            value: 2
+          drain_coef_1:
+            value: 0.013
+          drain_coef_2:
+            value: 1.71
+        snowpacklimit:
+          value: -999.0
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.05
+            - 0.1
+            - 0.1
+            - 2.2
+          k:
+            value:
+            - 1.2
+            - 1.1
+            - 1.1
+            - 1.5
+            - 1.6
+          rho_cp:
+            value:
+            - 1600000.0
+            - 1100000.0
+            - 1100000.0
+            - 1500000.0
+            - 1600000.0
+        irrfrac:
+          value: 0.0
+        alb_min:
+          value: 0.18
+        alb_max:
+          value: 0.21
+        beta_bioco2:
+          value: null
+        beta_enh_bioco2:
+          value: null
+        alpha_bioco2:
+          value: null
+        alpha_enh_bioco2:
+          value: null
+        resp_a:
+          value: null
+        resp_b:
+          value: null
+        theta_bioco2:
+          value: null
+        maxconductance:
+          value: 33.1
+        min_res_bioco2:
+          value: null
+        lai:
+          baset:
+            value: 6.0
+          gddfull:
+            value: 300.0
+          basete:
+            value: 11.0
+          sddfull:
+            value: -450.0
+          laimin:
+            value: 1.6
+          laimax:
+            value: 5.9
+          laipower:
+            growth_lai:
+              value: 0.04
+            growth_gdd:
+              value: 0.001
+            senescence_lai:
+              value: -1.5
+            senescence_sdd:
+              value: 0.0015
+          laitype:
+            value: 1
+        ie_a:
+          value: 0.0
+        ie_m:
+          value: 0.0
+      bsoil:
+        sfr:
+          value: 0.0
+        emis:
+          value: 0.94
+        ch_anohm:
+          value: 4.0
+        rho_cp_anohm:
+          value: 20000000.0
+        k_anohm:
+          value: 1.2
+        ohm_threshsw:
+          value: 10.0
+        ohm_threshwd:
+          value: 0.9
+        ohm_coef:
+          summer_dry:
+            a1:
+              value: 0.379
+            a2:
+              value: 0.335
+            a3:
+              value: -30.05
+          summer_wet:
+            a1:
+              value: 0.379
+            a2:
+              value: 0.335
+            a3:
+              value: -30.05
+          winter_dry:
+            a1:
+              value: 0.445
+            a2:
+              value: 0.335
+            a3:
+              value: 11.77
+          winter_wet:
+            a1:
+              value: 0.445
+            a2:
+              value: 0.335
+            a3:
+              value: 11.77
+        soildepth:
+          value: 350.0
+        soilstorecap:
+          value: 150.0
+        statelimit:
+          value: 0.8
+        wetthresh:
+          value: 1.0
+        sathydraulicconduct:
+          value: 0.0005
+        waterdist:
+          to_paved:
+            value: 0.0
+          to_bldgs:
+            value: 0.0
+          to_dectr:
+            value: 0.0
+          to_evetr:
+            value: 0.0
+          to_grass:
+            value: 0.0
+          to_water:
+            value: 0.0
+          to_soilstore:
+            value: 1.0
+        storedrainprm:
+          store_min:
+            value: 0.8
+          store_max:
+            value: 0.8
+          store_cap:
+            value: 0.8
+          drain_eq:
+            value: 3
+          drain_coef_1:
+            value: 10.0
+          drain_coef_2:
+            value: 3.0
+        snowpacklimit:
+          value: -999.0
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.05
+            - 0.1
+            - 0.1
+            - 2.2
+          k:
+            value:
+            - 1.2
+            - 1.1
+            - 1.1
+            - 1.5
+            - 1.6
+          rho_cp:
+            value:
+            - 1900000.0
+            - 1100000.0
+            - 1100000.0
+            - 1500000.0
+            - 1600000.0
+        irrfrac:
+          value: 0.0
+        alb:
+          value: 0.18
+      water:
+        sfr:
+          value: 0.14
+        emis:
+          value: 0.95
+        ch_anohm:
+          value: 4.0
+        rho_cp_anohm:
+          value: 100000.0
+        k_anohm:
+          value: 1.2
+        ohm_threshsw:
+          value: 10.0
+        ohm_threshwd:
+          value: 0.9
+        ohm_coef:
+          summer_dry:
+            a1:
+              value: 0.534
+            a2:
+              value: 0.21
+            a3:
+              value: -33.31
+          summer_wet:
+            a1:
+              value: 0.534
+            a2:
+              value: 0.21
+            a3:
+              value: -33.31
+          winter_dry:
+            a1:
+              value: 0.627
+            a2:
+              value: 0.21
+            a3:
+              value: 13.05
+          winter_wet:
+            a1:
+              value: 0.627
+            a2:
+              value: 0.21
+            a3:
+              value: 13.05
+        soildepth:
+          value: 0.0
+        soilstorecap:
+          value: 0.0
+        statelimit:
+          value: 30000.0
+        wetthresh:
+          value: 0.5
+        sathydraulicconduct:
+          value: 0.0
+        storedrainprm:
+          store_min:
+            value: 0.5
+          store_max:
+            value: 0.5
+          store_cap:
+            value: 0.5
+          drain_eq:
+            value: -999
+          drain_coef_1:
+            value: -999.0
+          drain_coef_2:
+            value: -999.0
+        snowpacklimit:
+          value: 0.0
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.05
+            - 0.1
+            - 0.1
+            - 2.2
+          k:
+            value:
+            - 1.2
+            - 1.1
+            - 1.1
+            - 1.5
+            - 1.6
+          rho_cp:
+            value:
+            - 1900000.0
+            - 1100000.0
+            - 1100000.0
+            - 1500000.0
+            - 1600000.0
+        irrfrac:
+          value: 0.0
+        alb:
+          value: 0.1
+        flowchange:
+          value: 0.0
+    vertical_layers:
+      nlayer:
+        value: 3
+      height:
+        value:
+        - 0.0
+        - 11.0
+        - 13.1
+        - 21.0
+      veg_frac:
+        value:
+        - 0.01
+        - 0.02
+        - 0.01
+      veg_scale:
+        value:
+        - 10.0
+        - 10.0
+        - 10.0
+      building_frac:
+        value:
+        - 0.43
+        - 0.38
+        - 0.2
+      building_scale:
+        value:
+        - 50.0
+        - 50.0
+        - 50.0
+      roofs:
+      - alb:
+          value: 0.5
+        emis:
+          value: 0.95
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.01
+            - 0.01
+          k:
+            value:
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+          rho_cp:
+            value:
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+        statelimit:
+          value: 5.0
+        soilstorecap:
+          value: 120.0
+        wetthresh:
+          value: 5.0
+        roof_albedo_dir_mult_fact:
+          value: 1.0
+        wall_specular_frac:
+          value: 0.1
+      - alb:
+          value: 0.5
+        emis:
+          value: 0.95
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.01
+            - 0.01
+          k:
+            value:
+            - 2.2
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+          rho_cp:
+            value:
+            - 2000000.0
+            - 3000000.0
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+        statelimit:
+          value: 5.0
+        soilstorecap:
+          value: 120.0
+        wetthresh:
+          value: 5.0
+        roof_albedo_dir_mult_fact:
+          value: 1.0
+        wall_specular_frac:
+          value: 0.1
+      - alb:
+          value: 0.2
+        emis:
+          value: 0.95
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.01
+            - 0.01
+          k:
+            value:
+            - 2.2
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+          rho_cp:
+            value:
+            - 2000000.0
+            - 3000000.0
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+        statelimit:
+          value: 5.0
+        soilstorecap:
+          value: 120.0
+        wetthresh:
+          value: 5.0
+        roof_albedo_dir_mult_fact:
+          value: 1.0
+        wall_specular_frac:
+          value: 0.1
+      walls:
+      - alb:
+          value: 0.5
+        emis:
+          value: 0.95
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.01
+            - 0.01
+          k:
+            value:
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+          rho_cp:
+            value:
+            - 3000000.0
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+        statelimit:
+          value: 5.0
+        soilstorecap:
+          value: 120.0
+        wetthresh:
+          value: 5.0
+        roof_albedo_dir_mult_fact:
+          value: 0.1
+        wall_specular_frac:
+          value: 0.0
+      - alb:
+          value: 0.5
+        emis:
+          value: 0.95
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.01
+            - 0.01
+          k:
+            value:
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+          rho_cp:
+            value:
+            - 2000000.0
+            - 3000000.0
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+        statelimit:
+          value: 5.0
+        soilstorecap:
+          value: 120.0
+        wetthresh:
+          value: 5.0
+        roof_albedo_dir_mult_fact:
+          value: 0.1
+        wall_specular_frac:
+          value: 0.0
+      - alb:
+          value: 0.5
+        emis:
+          value: 0.95
+        thermal_layers:
+          dz:
+            value:
+            - 0.2
+            - 0.1
+            - 0.1
+            - 0.01
+            - 0.01
+          k:
+            value:
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+            - 1.2
+          rho_cp:
+            value:
+            - 2000000.0
+            - 3000000.0
+            - 2000000.0
+            - 2000000.0
+            - 2000000.0
+        statelimit:
+          value: 5.0
+        soilstorecap:
+          value: 120.0
+        wetthresh:
+          value: 5.0
+        roof_albedo_dir_mult_fact:
+          value: 0.1
+        wall_specular_frac:
+          value: 0.0
+    n_buildings:
+      value: 150
+    h_std:
+      value: 5.0
+    lambda_c:
+      value: 3.0
+  initial_states:
+    snowalb:
+      value: 0.0
+    paved:
+      state:
+        value: 0.0
+      soilstore:
+        value: 120.0
+      snowfrac:
+        value: 0.0
+      snowpack:
+        value: 0.0
+      icefrac:
+        value: 0.2
+      snowwater:
+        value: 0.0
+      snowdens:
+        value: 0.0
+      temperature:
+        value:
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+      tsfc:
+        value: 4.793333530426025
+      tin:
+        value: 4.793333530426025
+    bldgs:
+      state:
+        value: 0.0
+      soilstore:
+        value: 120.0
+      snowfrac:
+        value: 0.0
+      snowpack:
+        value: 0.0
+      icefrac:
+        value: 0.2
+      snowwater:
+        value: 0.0
+      snowdens:
+        value: 0.0
+      temperature:
+        value:
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+      tsfc:
+        value: 4.793333530426025
+      tin:
+        value: 4.793333530426025
+    evetr:
+      state:
+        value: 0.0
+      soilstore:
+        value: 120.0
+      snowfrac:
+        value: 0.0
+      snowpack:
+        value: 0.0
+      icefrac:
+        value: 0.2
+      snowwater:
+        value: 0.0
+      snowdens:
+        value: 0.0
+      temperature:
+        value:
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+      tsfc:
+        value: 4.793333530426025
+      tin:
+        value: 4.793333530426025
+      alb_id:
+        value: 0.1
+      lai_id:
+        value: 4.0
+      gdd_id:
+        value: 0.0
+      sdd_id:
+        value: -450.0
+      wu:
+        wu_total:
+          value: 0.0
+        wu_auto:
+          value: 0.0
+        wu_manual:
+          value: 0.0
+    dectr:
+      state:
+        value: 0.0
+      soilstore:
+        value: 120.0
+      snowfrac:
+        value: 0.0
+      snowpack:
+        value: 0.0
+      icefrac:
+        value: 0.2
+      snowwater:
+        value: 0.0
+      snowdens:
+        value: 0.0
+      temperature:
+        value:
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+      tsfc:
+        value: 4.793333530426025
+      tin:
+        value: 4.793333530426025
+      alb_id:
+        value: 0.12
+      lai_id:
+        value: 1.0
+      gdd_id:
+        value: 0.0
+      sdd_id:
+        value: -450.0
+      wu:
+        wu_total:
+          value: 0.0
+        wu_auto:
+          value: 0.0
+        wu_manual:
+          value: 0.0
+      porosity_id:
+        value: 0.6
+      decidcap_id:
+        value: 0.3
+    grass:
+      state:
+        value: 0.0
+      soilstore:
+        value: 120.0
+      snowfrac:
+        value: 0.0
+      snowpack:
+        value: 0.0
+      icefrac:
+        value: 0.2
+      snowwater:
+        value: 0.0
+      snowdens:
+        value: 0.0
+      temperature:
+        value:
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+      tsfc:
+        value: 4.793333530426025
+      tin:
+        value: 4.793333530426025
+      alb_id:
+        value: 0.18
+      lai_id:
+        value: 1.6
+      gdd_id:
+        value: 0.0
+      sdd_id:
+        value: -450.0
+      wu:
+        wu_total:
+          value: 0.0
+        wu_auto:
+          value: 0.0
+        wu_manual:
+          value: 0.0
+    bsoil:
+      state:
+        value: 0.0
+      soilstore:
+        value: 120.0
+      snowfrac:
+        value: 0.0
+      snowpack:
+        value: 0.0
+      icefrac:
+        value: 0.2
+      snowwater:
+        value: 0.0
+      snowdens:
+        value: 0.0
+      temperature:
+        value:
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+      tsfc:
+        value: 4.793333530426025
+      tin:
+        value: 4.793333530426025
+    water:
+      state:
+        value: 20000.0
+      soilstore:
+        value: 10.0
+      snowfrac:
+        value: 0.0
+      snowpack:
+        value: 0.0
+      icefrac:
+        value: 0.2
+      snowwater:
+        value: 0.0
+      snowdens:
+        value: 0.0
+      temperature:
+        value:
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+      tsfc:
+        value: 4.793333530426025
+      tin:
+        value: 4.793333530426025
+    roofs:
+    - state:
+        value: 0.0
+      soilstore:
+        value: 20.0
+      temperature:
+        value:
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+      tsfc:
+        value: 4.793333530426025
+      tin:
+        value: 4.793333530426025
+    - state:
+        value: 0.0
+      soilstore:
+        value: 20.0
+      temperature:
+        value:
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+      tsfc:
+        value: 4.793333530426025
+      tin:
+        value: 4.793333530426025
+    - state:
+        value: 0.0
+      soilstore:
+        value: 20.0
+      temperature:
+        value:
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+      tsfc:
+        value: 4.793333530426025
+      tin:
+        value: 4.793333530426025
+    walls:
+    - state:
+        value: 0.0
+      soilstore:
+        value: 20.0
+      temperature:
+        value:
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+      tsfc:
+        value: 4.793333530426025
+      tin:
+        value: 4.793333530426025
+    - state:
+        value: 0.0
+      soilstore:
+        value: 20.0
+      temperature:
+        value:
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+      tsfc:
+        value: 4.793333530426025
+      tin:
+        value: 4.793333530426025
+    - state:
+        value: 0.0
+      soilstore:
+        value: 20.0
+      temperature:
+        value:
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+        - 4.793333530426025
+      tsfc:
+        value: 4.793333530426025
+      tin:
+        value: 4.793333530426025
+    dqndt: 0.0
+    dqndt_surf:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    dqnsdt: 0.0
+    dt_since_start: 0.0
+    lenday_id: 0
+    qn_av: 0.0
+    qn_surfs:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
+    qn_s_av: 0.0
+    tair_av: 273.15
+    tmax_id: -90.0
+    tmin_id: 90.0
+    tstep_prev: 300.0
+    snowfallcum: 0.0
+    hdd_id:
+    - 13.5
+    - 13.5
+    - 13.5
+    - 13.5
+    - 13.5
+    - 13.5
+    - 13.5
+    - 13.5
+    - 13.5
+    - 13.5
+    - 13.5
+    - 13.5

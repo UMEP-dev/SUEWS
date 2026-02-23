@@ -1593,7 +1593,7 @@ class SUEWSConfig(BaseModel):
         """
         Return True if SPARTACUS is enabled (netradiationmethod 1001, 1002, or 1003).
         """
-        spartacus_methods = {1001, 1002, 1003}
+        spartacus_methods = {1002, 1003}
         netrad_method = _unwrap_value(getattr(self.model.physics, "netradiationmethod", None))
         try:
             netrad_method = int(netrad_method)
@@ -1685,6 +1685,22 @@ class SUEWSConfig(BaseModel):
 
         return issues
 
+    def validate_spartacus_veg_dimensions(self, site: Site, site_index: int) -> list:
+        """
+        If SPARTACUS is enabled, check that if veg_frac has any elements, issue a message "hello!".
+        Returns a list of issue messages.
+        """
+        issues: list = []
+        # props = getattr(site, "properties", None)
+        # if not props or not hasattr(props, "vertical_layers"):
+        #     return issues
+        # vertical_layers = props.vertical_layers
+        # veg_frac = _unwrap_value(getattr(vertical_layers, "veg_frac", None))
+        # if isinstance(veg_frac, (list, tuple)) and len(veg_frac) > 0:
+        #     issues.append("hello!")
+        issues.append("hello!")
+        return issues
+
     def _validate_conditional_parameters(self) -> List[str]:
         """
         Run any method‐specific validations (STEBBS, RSL, StorageHeat) in one
@@ -1758,7 +1774,7 @@ class SUEWSConfig(BaseModel):
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(samealbedo_roof_issues)
 
-            # SPARTACUS building height and SFR consistency checks
+            # SPARTACUS building height, SFR and vegetation consistency checks
             if needs_spartacus:
                 spartacus_issues = self._validate_spartacus_building_height(site, idx)
                 if spartacus_issues:
@@ -1766,13 +1782,18 @@ class SUEWSConfig(BaseModel):
                     if site_name not in self._validation_summary["sites_with_issues"]:
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(spartacus_issues)
-
                 spartacus_sfr_issues = self._validate_spartacus_sfr(site, idx)
                 if spartacus_sfr_issues:
                     self._validation_summary["issue_types"].add("SPARTACUS SFR")
                     if site_name not in self._validation_summary["sites_with_issues"]:
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(spartacus_sfr_issues)
+                spartacus_veg_dim_issues = self.validate_spartacus_veg_dimensions(site, idx)
+                if spartacus_veg_dim_issues:
+                    self._validation_summary["issue_types"].add("SPARTACUS vegetation dimensions")
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(spartacus_veg_dim_issues)
         return all_issues
 
     def _check_critical_null_physics_params(self) -> List[str]:

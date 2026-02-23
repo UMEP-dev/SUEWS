@@ -53,6 +53,11 @@ EXAMPLES:
 
 ## 2026
 
+### 23 Feb 2026
+
+- [change][experimental] Remove the heating efficiency in the calculation of heating load, avoid double-counted; Correct the 
+unused heating setpoints in STEBBS (PR #1221)
+
 ### 20 Feb 2026
 
 - [bugfix] Guard SPARTACUS LW solver NaN from matrix singularity in certain urban canopy geometries (#1212)

@@ -41,7 +41,6 @@ from supy.data_model.validation.core.utils import check_missing_params
 from supy.data_model.validation.pipeline.phase_b import validate_model_option_samealbedo
 
 
-
 # A tiny “site” stub that only carries exactly the properties our validators look at
 class DummySite:
     def __init__(self, properties, name="SiteX"):
@@ -748,6 +747,66 @@ def test_validate_spartacus_sfr_mismatch_veg_frac():
         in m
         for m in msgs
     )
+
+def test_validate_spartacus_veg_dimensions_valid():
+    """Test validate_spartacus_veg_dimensions passes with matching veg_frac and nlayer."""
+    cfg = SUEWSConfig.model_construct()
+    vertical_layers = SimpleNamespace(
+        nlayer=2,
+        veg_frac=[0.3, 0.7],
+    )
+    props = SimpleNamespace(vertical_layers=vertical_layers)
+    site = SimpleNamespace(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_too_few_elements():
+    """Test validate_spartacus_veg_dimensions detects too few veg_frac elements."""
+    cfg = SUEWSConfig.model_construct()
+    vertical_layers = SimpleNamespace(
+        nlayer=3,
+        veg_frac=[0.2, 0.8],
+    )
+    props = SimpleNamespace(vertical_layers=vertical_layers)
+    site = SimpleNamespace(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_too_many_elements():
+    """Test validate_spartacus_veg_dimensions detects too many veg_frac elements."""
+    cfg = SUEWSConfig.model_construct()
+    vertical_layers = SimpleNamespace(
+        nlayer=2,
+        veg_frac=[0.1, 0.2, 0.7],
+    )
+    props = SimpleNamespace(vertical_layers=vertical_layers)
+    site = SimpleNamespace(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_missing_veg_frac():
+    """Test validate_spartacus_veg_dimensions handles missing veg_frac gracefully."""
+    cfg = SUEWSConfig.model_construct()
+    vertical_layers = SimpleNamespace(
+        nlayer=2,
+        # veg_frac missing
+    )
+    props = SimpleNamespace(vertical_layers=vertical_layers)
+    site = SimpleNamespace(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_missing_nlayer():
+    """Test validate_spartacus_veg_dimensions handles missing nlayer gracefully."""
+    cfg = SUEWSConfig.model_construct()
+    vertical_layers = SimpleNamespace(
+        veg_frac=[0.5, 0.5],
+        # nlayer missing
+    )
+    props = SimpleNamespace(vertical_layers=vertical_layers)
+    site = SimpleNamespace(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
 
 # From test_validation_topdown.py
 class TestTopDownValidation:

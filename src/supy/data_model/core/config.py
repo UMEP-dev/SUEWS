@@ -1684,6 +1684,64 @@ class SUEWSConfig(BaseModel):
                 )
 
         return issues
+    
+    def _validate_spartacus_veg_dimensions(self, site: Site, site_index: int) -> list:
+        """
+        Check that veg_scale and veg_frac are zero above the layer where max_tree falls.
+        max_tree = max(dectreeh, evetreeh)
+        The last layer where max_tree < height[layer] (layer index 1..nlayer) is the tree layer.
+        All veg_scale and veg_frac entries above this layer (i.e., layer_index+1 to nlayer) must be zero.
+        """
+        issues: list = []
+        site_name = getattr(site, "name", f"Site {site_index}")
+
+        vertical_layers = getattr(getattr(site, "properties", None), "vertical_layers", None)
+        land_cover = getattr(getattr(site, "properties", None), "land_cover", None)
+
+        # Get tree heights
+        dectreeh = _unwrap_value(getattr(getattr(land_cover, "dectr", None), "dectreeh", None)) if land_cover and getattr(land_cover, "dectr", None) else None
+        evetreeh = _unwrap_value(getattr(getattr(land_cover, "evetr", None), "evetreeh", None)) if land_cover and getattr(land_cover, "evetr", None) else None
+        
+        # Compute max_tree
+        tree_heights = [h for h in [dectreeh, evetreeh] if h is not None]
+        if not tree_heights:
+            return issues  # No tree heights to check
+
+        max_tree = max(tree_heights)
+
+        # Get height array (should be nlayer+1)
+        height_arr = _unwrap_value(getattr(vertical_layers, "height", None)) if vertical_layers else None
+        if not isinstance(height_arr, (list, tuple)) or len(height_arr) < 2:
+            return issues  # Not enough height info
+
+        # Find the last layer where max_tree < height[layer] (layer index 1..nlayer)
+        layer_index = None
+        for i in range(1, len(height_arr)):
+            if max_tree < height_arr[i]:
+                layer_index = i
+                break
+        if layer_index is None:
+            # max_tree exceeds all layers
+            issues.append(
+                f"Site {site_name}: max_tree ({max_tree}) exceeds all vertical_layers heights."
+            )
+            return issues
+
+        # Check veg_scale and veg_frac above the tree layer (layer_index+1 to nlayer)
+        veg_scale = _unwrap_value(getattr(vertical_layers, "veg_scale", None)) if vertical_layers else None
+        veg_frac = _unwrap_value(getattr(vertical_layers, "veg_frac", None)) if vertical_layers else None
+
+        nlayer = len(height_arr) - 1  # nlayer is height_arr length minus 1
+
+        for arr_name, arr in [("veg_scale", veg_scale), ("veg_frac", veg_frac)]:
+            if isinstance(arr, (list, tuple)):
+                for i in range(layer_index, nlayer):
+                    val = arr[i]
+                    if val != 0:
+                        issues.append(
+                            f"Site {site_name}: {arr_name}[{i}] should be zero (provided max tree height {max_tree} does not reach height {height_arr[i+1]} of layer {i+1})."
+                        )
+        return issues
 
     def _validate_conditional_parameters(self) -> List[str]:
         """
@@ -1758,7 +1816,7 @@ class SUEWSConfig(BaseModel):
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(samealbedo_roof_issues)
 
-            # SPARTACUS building height and SFR consistency checks
+            # SPARTACUS building height, sfr, and vegetation consistency checks
             if needs_spartacus:
                 spartacus_issues = self._validate_spartacus_building_height(site, idx)
                 if spartacus_issues:
@@ -1773,6 +1831,13 @@ class SUEWSConfig(BaseModel):
                     if site_name not in self._validation_summary["sites_with_issues"]:
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(spartacus_sfr_issues)
+
+                spartacus_veg_issues = self._validate_spartacus_veg_dimensions(site, idx)
+                if spartacus_veg_issues:
+                    self._validation_summary["issue_types"].add("SPARTACUS vegetation layer consistency")
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(spartacus_veg_issues)
         return all_issues
 
     def _check_critical_null_physics_params(self) -> List[str]:

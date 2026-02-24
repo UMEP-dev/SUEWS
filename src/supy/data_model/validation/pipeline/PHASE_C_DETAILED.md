@@ -345,6 +345,29 @@ For each site, Phase C:
 2. Reads SPARTACUS vertical-layer fractions from `vertical_layers`
 3. Performs consistency checks (only if arrays exist and have at least one element) 
 
+### 6. SPARTACUS vegetation structure validation
+
+```python
+def _validate_spartacus_veg_dimensions(self, site: Site, site_index: int) -> list:
+    """
+    Check that veg_scale and veg_frac are zero above the layer where max_tree falls.
+    max_tree = max(dectreeh, evetreeh)
+    The last layer where max_tree < height[layer] (layer index 1..nlayer) is the tree layer.
+    All veg_scale and veg_frac entries above this layer (i.e., layer_index+1 to nlayer) must be zero.
+    """
+```
+
+**Logic**
+
+When SPARTACUS is enabled (i.e., `netradiationmethod` is set to 1001, 1002, or 1003), Phase C performs a vegetation structure consistency check for each site:
+
+1. Determines the maximum tree height (`max_tree`) as the greater of `dectreeh` and `evetreeh` from the land cover properties.
+2. Identifies the last vertical layer index (`tree_layer_index`) where `max_tree` is less than the corresponding domain top height (`vertical_layers.height[layer]`).
+3. For all layers above `tree_layer_index` (i.e., from `tree_layer_index + 1` to `nlayer`), both `veg_scale` and `veg_frac` arrays must be zero.
+4. If any value in `veg_scale` or `veg_frac` above the tree layer is nonzero, an ACTION NEEDED report message is generated and validation fails.
+
+This ensures that vegetation is not present above the physical height of the tallest trees.
+
 ### Orchestration Pattern
 
 ```python

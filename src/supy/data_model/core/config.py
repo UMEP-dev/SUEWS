@@ -1685,7 +1685,7 @@ class SUEWSConfig(BaseModel):
 
         return issues
     
-    def validate_spartacus_veg_dimensions(self, site: Site, site_index: int) -> list:
+    def _validate_spartacus_veg_dimensions(self, site: Site, site_index: int) -> list:
         """
         Check that veg_scale and veg_frac are zero above the layer where max_tree falls.
         max_tree = max(dectreeh, evetreeh)
@@ -1832,7 +1832,7 @@ class SUEWSConfig(BaseModel):
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(spartacus_sfr_issues)
 
-                spartacus_veg_issues = self.validate_spartacus_veg_dimensions(site, idx)
+                spartacus_veg_issues = self._validate_spartacus_veg_dimensions(site, idx)
                 if spartacus_veg_issues:
                     self._validation_summary["issue_types"].add("SPARTACUS vegetation layer consistency")
                     if site_name not in self._validation_summary["sites_with_issues"]:

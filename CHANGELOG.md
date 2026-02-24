@@ -55,8 +55,7 @@ EXAMPLES:
 
 ### 23 Feb 2026
 
-- [change][experimental] Remove the heating efficiency in the calculation of heating load, avoid double-counted; Correct the 
-unused heating setpoints in STEBBS (PR #1221)
+- [bugfix][experimental] Fix double-counted heating efficiency in STEBBS load calculation; correct unused heating setpoint to prevent spurious activation (PR #1221)
 
 ### 20 Feb 2026
 

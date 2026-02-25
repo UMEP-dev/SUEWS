@@ -246,19 +246,18 @@ CONTAINS
    ! Parameters:
    !   Ts - set point temperature for heating load [K]
    !   Ti - indoor air node temperature [K]
-   !   epsilon - rated efficiency of the total heating system [-]
    !   P - maximum power rating of the total heating system [W]
    ! Returns:
    !   q_heating - [W]
    !-------------------------------------------------------------------
-   FUNCTION heating(Ts, Ti, epsilon, P) RESULT(q_heating)
+   FUNCTION heating(Ts, Ti, P) RESULT(q_heating)
       USE module_phys_stebbs_precision
       IMPLICIT NONE
-      REAL(KIND(1D0)), INTENT(in) :: Ts, Ti, epsilon, P
+      REAL(KIND(1D0)), INTENT(in) :: Ts, Ti, P
       REAL(KIND(1D0)) :: q_heating
       q_heating = 0.0
       IF (Ti < Ts) THEN
-         q_heating = (P - (P/EXP(Ts - Ti)))*epsilon
+         q_heating = (P - (P/EXP(Ts - Ti)))
       END IF
    END FUNCTION heating
    !-------------------------------------------------------------------
@@ -303,15 +302,14 @@ CONTAINS
    ! Parameters:
    !   Ts - set point temperature for cooling load [K]
    !   Ti -indoor air node temperature [K]
-   !   COP - Rated efficiency of the total heating system [-]
    !   P - maximum power rating of the total heating system [W]
    ! Returns:
    !   q_cooling - [W]
    !-------------------------------------------------------------------
-   FUNCTION cooling(Ts, Ti, COP, P) RESULT(q_cooling)
+   FUNCTION cooling(Ts, Ti, P) RESULT(q_cooling)
       USE module_phys_stebbs_precision
       IMPLICIT NONE
-      REAL(KIND(1D0)), INTENT(in) :: Ts, Ti, COP, P
+      REAL(KIND(1D0)), INTENT(in) :: Ts, Ti, P
       REAL(KIND(1D0)) :: q_cooling
       q_cooling = 0.0
       IF (Ti > Ts) THEN
@@ -701,6 +699,8 @@ CONTAINS
       REAL(KIND(1D0)) :: QEC_heating_tstepFA
       REAL(KIND(1D0)) :: QEC_cooling_tstepFA
       REAL(KIND(1D0)) :: QEC_dhw_tstepFA
+      REAL(KIND(1D0)) :: Unused_heating_setpoint_C = -100
+      REAL(KIND(1D0)) :: Unused_cooling_setpoint_C = 100
       INTEGER :: iu !type of day: weekday/weekend
       INTEGER :: idx !index of profiles for 10 mins interval
       ASSOCIATE ( &
@@ -845,8 +845,8 @@ CONTAINS
                buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature + 273.15
                buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature + 273.15
             ELSE
-               buildings(1)%Ts(1) = 10 + 273.15
-               buildings(1)%Ts(2) = 100 + 273.15
+               buildings(1)%Ts(1) = Unused_heating_setpoint_C + 273.15
+               buildings(1)%Ts(2) = Unused_cooling_setpoint_C + 273.15
             END IF
 
             CALL setdatetime(datetimeLine)
@@ -1821,8 +1821,8 @@ SUBROUTINE tstep( &
          QHconv_indair_to_indoormass = &
             internalConvectionHeatTransfer(conv_coeff_indoormass, Aindoormass, Tindoormass, Tair_ind)
 
-         QHload_heating_timestep = heating(Ts(1), Tair_ind, heating_efficiency_air, maxheatingpower_air)
-         QHload_cooling_timestep = cooling(Ts(2), Tair_ind, coeff_performance_cooling, maxcoolingpower_air)
+         QHload_heating_timestep = heating(Ts(1), Tair_ind, maxheatingpower_air)
+         QHload_cooling_timestep = cooling(Ts(2), Tair_ind, maxcoolingpower_air)
          !internalOccupancyGains(occupants, metabolic_rate, ratio_metabolic_latent_sensible, Qmetabolic_sensible, Qmetabolic_latent)
          Qm = internalOccupancyGains(metabolic_rate, ratio_metabolic_latent_sensible)
          QH_metabolism = Qm(1)
@@ -1882,7 +1882,7 @@ SUBROUTINE tstep( &
             ! // heat input into water of hot water tank
             qhwt_timestep = &
                heating &
-               (setTwater_tank, Twater_tank, heating_efficiency_water, maxheatingpower_water)
+               (setTwater_tank, Twater_tank, maxheatingpower_water)
 
             ! //Heat release from hot water heating due to efficiency losses
             QHwaste_dhw = &

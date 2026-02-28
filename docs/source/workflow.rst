@@ -362,6 +362,9 @@ Data Requirements and Quality
 
    **Data Sources**: Use the `UMEP`_ plugin for QGIS to derive land cover fractions from satellite imagery or local spatial datasets.
 
+For detailed guidance on obtaining and preparing surface characteristics data,
+see :doc:`/inputs/surface-data-preparation`.
+
 Part III: Advanced Applications and Research
 ---------------------------------------------
 

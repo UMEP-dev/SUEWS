@@ -2471,17 +2471,24 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%weighting_factor_heatcapacity_wall = building_archtype%WallOuterCapFrac
    self%weighting_factor_heatcapacity_roof = building_archtype%RoofOuterCapFrac
 
-   IF (config%rcmethod  == 2) THEN
-      !recalculate the weighting factor for splitting heat capacity (OuterCapFrac)
+   IF (config%rcmethod  == 0) THEN !default value
+      self%weighting_factor_heatcapacity_wall = 0.5
+      self%weighting_factor_heatcapacity_roof = 0.5
+
+   ELSEIF (config%rcmethod  == 1) THEN !provided fractional value
+      self%weighting_factor_heatcapacity_wall = building_archtype%WallOuterCapFrac
+      self%weighting_factor_heatcapacity_roof = building_archtype%RoofOuterCapFrac  
+
+   ELSE !recalculate the weighting factor for splitting heat capacity (OuterCapFrac) by parameterisation
       self%weighting_factor_heatcapacity_wall = calculate_x1(self%thickness_wall, self%cp_wall, self%density_wall, &
                                              self%thickness_wallext, self%cp_wallext, self%density_wallext, self%conductivity_wallext)
       self%weighting_factor_heatcapacity_roof = calculate_x1(self%thickness_roof, self%cp_roof, self%density_roof, &
                                              self%thickness_roofext, self%cp_roofext, self%density_roofext, self%conductivity_roofext)
       IF (self%weighting_factor_heatcapacity_wall > 1) THEN
-         CALL add_supy_warning('STEBBS: Wall_OuterCapFrac > 1, parameterisation should not be used')
+         CALL add_supy_warning('STEBBS: Wall_OuterCapFrac > 1, parameterisation should not be used, check thermal property of material external to insulation layer')
       END IF
       IF (self%weighting_factor_heatcapacity_roof > 1) THEN
-         CALL add_supy_warning('STEBBS: Roof_OuterCapFrac > 1, parameterisation should not be used')
+         CALL add_supy_warning('STEBBS: Roof_OuterCapFrac > 1, parameterisation should not be used, check thermal property of material external to insulation layer')
       END IF  
    END IF                                                    
 END SUBROUTINE gen_building

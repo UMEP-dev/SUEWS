@@ -475,14 +475,14 @@ class StebbsMethod(Enum):
 
 class RCMethod(Enum):
     """
-    Method to split building envelope heat capacity in STEBBS.
+    Method to determine the two weighting factor (WallOuterCapFrac and RoofOuterCapFrac) spliting heat capacity of building envelope into two nodes in STEBBS.
 
-    0: NONE - No heat capacity splitting applied
-    1: PROVIDED - Use user defined value (fractional x1) between 0 and 1
-    2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor x1
+    0: DEFAULT - Default value of 0.5 is used
+    1: PROVIDED - Use user defined value (WallOuterCapFrac and RoofOuterCapFrac) between 0 and 1
+    2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor
     """
 
-    NONE = 0
+    DEFAULT = 0
     PROVIDED = 1
     PARAMETERISE = 2
 
@@ -690,7 +690,7 @@ class ModelPhysics(BaseModel):
         json_schema_extra={"unit": "dimensionless"},
     )
     rcmethod: FlexibleRefValue(RCMethod) = Field(
-        default=RCMethod.NONE,
+        default=RCMethod.DEFAULT,
         description=_enum_description(RCMethod),
         json_schema_extra={"unit": "dimensionless"},
     )

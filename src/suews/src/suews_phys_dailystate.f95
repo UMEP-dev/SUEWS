@@ -499,7 +499,9 @@ CONTAINS
       iv = ivGrass
       IF ((LAI_id(iv) - LAI_id_prev(iv)) /= 0) THEN
          deltaLAIGrass = (LAI_id(iv) - LAI_id_prev(iv))/(LAImax(iv) - LAIMin(iv))
-         albChangeGrass = (AlbMax_Grass - AlbMin_Grass)*deltaLAIGrass
+         ! Grass has reversed LAI-albedo relationship: higher LAI -> lower albedo
+         ! (bright soil/litter background replaced by absorbing canopy)
+         albChangeGrass = (AlbMin_Grass - AlbMax_Grass)*deltaLAIGrass
       END IF
 
       iv = ivDecid

@@ -29,7 +29,7 @@ def test_validate_output_layout_ignores_registry_only_groups(monkeypatch):
     )
 
     rust_module = FakeRustModule([
-        ("datetime", 5),
+        ("datetime", _run_rust.OUTPUT_TIME_COLS),
         ("SUEWS", 2),
         ("DailyState", 3),
         ("BL", 999),
@@ -49,7 +49,7 @@ def test_validate_output_layout_reports_generated_registry_path(monkeypatch):
     )
 
     rust_module = FakeRustModule([
-        ("datetime", 5),
+        ("datetime", _run_rust.OUTPUT_TIME_COLS),
         ("SUEWS", 2),
     ])
 

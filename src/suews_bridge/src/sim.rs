@@ -992,3 +992,82 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
         output_block,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::OUTPUT_GROUP_LAYOUT;
+    use crate::ffi;
+
+    #[test]
+    fn output_group_layout_matches_fortran_ncolumns() {
+        const N_GROUPS: usize = 13;
+        const OUTPUT_TIME_COLS: usize = 5;
+
+        let group_names = [
+            "datetime",
+            "SUEWS",
+            "snow",
+            "ESTM",
+            "EHC",
+            "RSL",
+            "BL",
+            "debug",
+            "BEERS",
+            "DailyState",
+            "SPARTACUS",
+            "STEBBS",
+            "NHood",
+        ];
+
+        let mut ncols_arr = [0_i32; N_GROUPS];
+        let mut n_groups = 0_i32;
+        let mut err = -1_i32;
+
+        unsafe {
+            ffi::suews_output_group_ncolumns(
+                ncols_arr.as_mut_ptr(),
+                &mut n_groups,
+                &mut err,
+            );
+        }
+
+        assert_eq!(
+            err,
+            ffi::SUEWS_CAPI_OK,
+            "suews_output_group_ncolumns returned error code {err}"
+        );
+        assert_eq!(
+            usize::try_from(n_groups).expect("n_groups should be non-negative"),
+            N_GROUPS,
+            "unexpected number of output groups returned by Fortran"
+        );
+        assert_eq!(
+            usize::try_from(ncols_arr[0]).expect("datetime cols should be non-negative"),
+            OUTPUT_TIME_COLS,
+            "Fortran datetime column count should stay at {OUTPUT_TIME_COLS}"
+        );
+
+        for &(group_name, rust_total_cols) in OUTPUT_GROUP_LAYOUT {
+            let fortran_data_cols = group_names
+                .iter()
+                .zip(ncols_arr.iter())
+                .find_map(|(name, cols)| {
+                    if *name == group_name {
+                        Some(
+                            usize::try_from(*cols)
+                                .expect("Fortran output column counts should be non-negative"),
+                        )
+                    } else {
+                        None
+                    }
+                })
+                .expect("group from Rust layout should exist in Fortran metadata");
+
+            assert_eq!(
+                rust_total_cols - OUTPUT_TIME_COLS,
+                fortran_data_cols,
+                "Rust constant for group '{group_name}' drifted from compiled Fortran metadata"
+            );
+        }
+    }
+}

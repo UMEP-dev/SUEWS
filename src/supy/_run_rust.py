@@ -2,43 +2,55 @@
 
 from __future__ import annotations
 
+from functools import cache
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-import json as _json
-
 import yaml
 
 from ._env import logger_supy
-from ._post import gen_index
+from ._post import df_var, gen_index
 
 if TYPE_CHECKING:
     from .data_model import SUEWSConfig
 
-OUTPUT_SUEWS_COLS = 118
 OUTPUT_TIME_COLS = 5
 
-# All 11 output groups concatenated (match Rust/Fortran constants).
-OUTPUT_ALL_COLS = 1134
+_GROUP_ORDER: tuple[str, ...] = (
+    "SUEWS",
+    "snow",
+    "BEERS",
+    "ESTM",
+    "EHC",
+    "DailyState",
+    "RSL",
+    "debug",
+    "SPARTACUS",
+    "STEBBS",
+    "NHood",
+)
+
+
+def _registry_group_data_cols(group_name: str) -> int:
+    """Return the number of registered data columns for one output group."""
+    return int(df_var.xs(group_name, level="group").shape[0])
+
 
 # Ordered list of (group_name, total_cols_including_datetime) matching
-# the Fortran concatenation layout.  Group names must match the
-# ``dict_var_lower`` keys in ``_post.py`` (lowercased for lookup).
+# the Fortran concatenation layout. BL is a registry group but is not part
+# of the concatenated Rust output buffer.
 OUTPUT_GROUP_LAYOUT: list[tuple[str, int]] = [
-    ("SUEWS", 118),
-    ("snow", 103),
-    ("BEERS", 34),
-    ("ESTM", 32),
-    ("EHC", 229),
-    ("DailyState", 52),
-    ("RSL", 140),
-    ("debug", 136),
-    ("SPARTACUS", 199),
-    ("STEBBS", 85),
-    ("NHood", 6),
+    (group_name, _registry_group_data_cols(group_name) + OUTPUT_TIME_COLS)
+    for group_name in _GROUP_ORDER
 ]
+
+# All concatenated output groups in the Rust flat buffer.
+OUTPUT_ALL_COLS = sum(ncols for _, ncols in OUTPUT_GROUP_LAYOUT)
+_GROUP_DATA_COLS_BY_NAME: dict[str, int] = {
+    group_name: ncols - OUTPUT_TIME_COLS for group_name, ncols in OUTPUT_GROUP_LAYOUT
+}
 
 _RUST_ERROR_MSG = (
     "Rust backend not available in this build.\n"
@@ -62,6 +74,64 @@ def _check_rust_available():
     module = _load_rust_module()
     if not hasattr(module, "run_suews"):
         raise RuntimeError(_RUST_ERROR_MSG)
+    return module
+
+
+def _output_layout_update_hint(group_name: str) -> str:
+    registry_file = f"src/supy/data_model/output/{group_name.lower()}_vars.py"
+    return (
+        f"Update `{registry_file}`, then keep "
+        "`src/suews/src/suews_ctrl_const.f95` and the corresponding "
+        "Fortran `dataOutLine*` population in `src/suews/src/` in step."
+    )
+
+
+@cache
+def _validate_output_layout(rust_module: Any | None = None) -> None:
+    """Validate Python registry column counts against compiled Fortran values."""
+    if rust_module is None:
+        rust_module = _load_rust_module()
+
+    if not hasattr(rust_module, "output_group_ncolumns"):
+        raise RuntimeError(
+            "Rust backend does not expose `output_group_ncolumns()`.\n"
+            "Rebuild/install SuPy with Meson Rust bridge enabled (e.g. make dev)."
+        )
+
+    try:
+        dict_fortran_cols = {
+            group_name: int(ncols)
+            for group_name, ncols in rust_module.output_group_ncolumns()
+        }
+    except Exception as exc:  # pragma: no cover - depends on local build
+        raise RuntimeError(
+            "Failed to read compiled Fortran output column counts from the Rust bridge."
+        ) from exc
+
+    list_issues: list[str] = []
+    for group_name in _GROUP_ORDER:
+        expected_cols = _GROUP_DATA_COLS_BY_NAME[group_name]
+        actual_cols = dict_fortran_cols.get(group_name)
+
+        if actual_cols is None:
+            list_issues.append(
+                f"- {group_name}: missing from compiled Fortran output metadata. "
+                f"{_output_layout_update_hint(group_name)}"
+            )
+            continue
+
+        if actual_cols != expected_cols:
+            list_issues.append(
+                f"- {group_name}: Python registry expects {expected_cols} data "
+                f"columns, but compiled Fortran reports {actual_cols}. "
+                f"{_output_layout_update_hint(group_name)}"
+            )
+
+    if list_issues:
+        raise RuntimeError(
+            "Compiled Fortran output column counts do not match the Python "
+            "registry:\n" + "\n".join(list_issues)
+        )
 
 
 def _normalise_grid_id(grid_id: Any) -> int:
@@ -89,7 +159,9 @@ def _build_datetime_index(output_block: np.ndarray) -> pd.DatetimeIndex:
         )
 
     date_part = pd.to_datetime(year * 1000 + day_of_year, format="%Y%j")
-    return date_part + pd.to_timedelta(hour, unit="h") + pd.to_timedelta(minute, unit="m")
+    return (
+        date_part + pd.to_timedelta(hour, unit="h") + pd.to_timedelta(minute, unit="m")
+    )
 
 
 def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
@@ -147,6 +219,16 @@ def _parse_output_block(
     output_array = np.asarray(output_flat, dtype=np.float64)
     expected = len_sim * OUTPUT_ALL_COLS
     if output_array.size != expected:
+        if len_sim > 0 and output_array.size % len_sim == 0:
+            actual_cols = output_array.size // len_sim
+            raise RuntimeError(
+                "Rust backend output shape mismatch: received "
+                f"{actual_cols} columns per timestep from the compiled backend, "
+                f"but the Python registry-derived layout expects "
+                f"{OUTPUT_ALL_COLS}. Run `_validate_output_layout()` to identify "
+                "the drifting group."
+            )
+
         raise RuntimeError(
             f"Rust backend output shape mismatch: got {output_array.size}, "
             f"expected {expected}"
@@ -161,7 +243,16 @@ def _parse_output_block(
     for group_name, ncols in OUTPUT_GROUP_LAYOUT:
         group_data = output_block[:, col_offset + OUTPUT_TIME_COLS : col_offset + ncols]
         idx = gen_index(f"dataoutline{group_name.lower()}")
-        df_group = pd.DataFrame(group_data, columns=idx, index=datetime_index)
+        try:
+            df_group = pd.DataFrame(group_data, columns=idx, index=datetime_index)
+        except ValueError as exc:
+            raise RuntimeError(
+                f"Failed to parse Rust backend output group '{group_name}': "
+                f"received {group_data.shape[1]} data columns, but the Python "
+                f"registry expects {len(idx)}. "
+                f"{_output_layout_update_hint(group_name)} "
+                f"Original pandas error: {exc}"
+            ) from exc
         # SUEWS uses -999 as missing-data sentinel; expose these as NaN in
         # Python outputs so downstream filtering/resampling behaves correctly.
         df_group = df_group.mask(df_group == -999.0)
@@ -176,9 +267,8 @@ def _parse_output_block(
     return df_output
 
 
-
 def run_suews_rust(
-    config: "SUEWSConfig",
+    config: SUEWSConfig,
     df_forcing: pd.DataFrame,
     grid_id: int = 1,
 ) -> tuple[pd.DataFrame, str | None]:
@@ -187,11 +277,11 @@ def run_suews_rust(
     Returns ``(df_output, state_json)`` where *state_json* is a JSON string
     encoding the post-simulation state (or ``None`` if unavailable).
     """
-    _check_rust_available()
+    rust_module = _check_rust_available()
+    _validate_output_layout(rust_module)
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
 
-    rust_module = _load_rust_module()
     config_yaml = yaml.dump(
         config.model_dump(exclude_none=True, mode="json"),
         default_flow_style=False,
@@ -216,7 +306,7 @@ def run_suews_rust(
 
 
 def run_suews_rust_multi(
-    config: "SUEWSConfig",
+    config: SUEWSConfig,
     df_forcing: pd.DataFrame,
 ) -> tuple[pd.DataFrame, dict[int, str] | None]:
     """Run SUEWS via Rust bridge for all sites in configuration.
@@ -234,9 +324,7 @@ def run_suews_rust_multi(
     list_gridiv = [s.gridiv for s in sites]
     list_dupes = [g for g in list_gridiv if list_gridiv.count(g) > 1]
     if list_dupes:
-        raise ValueError(
-            f"Duplicate gridiv values in config.sites: {set(list_dupes)}"
-        )
+        raise ValueError(f"Duplicate gridiv values in config.sites: {set(list_dupes)}")
 
     list_df_output = []
     dict_state_json: dict[int, str] = {}
@@ -271,17 +359,17 @@ def run_suews_rust_multi(
 
 
 def run_suews_rust_with_state(
-    config: "SUEWSConfig",
+    config: SUEWSConfig,
     df_forcing: pd.DataFrame,
     grid_id: int = 1,
     state_json: str = "",
 ) -> tuple[pd.DataFrame, str | None]:
     """Run SUEWS via Rust bridge with injected state from a previous chunk."""
-    _check_rust_available()
+    rust_module = _check_rust_available()
+    _validate_output_layout(rust_module)
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
 
-    rust_module = _load_rust_module()
     config_yaml = yaml.dump(
         config.model_dump(exclude_none=True, mode="json"),
         default_flow_style=False,
@@ -307,7 +395,7 @@ def run_suews_rust_with_state(
 
 
 def run_suews_rust_chunked(
-    config: "SUEWSConfig",
+    config: SUEWSConfig,
     df_forcing: pd.DataFrame,
     chunk_day: int = 366,
 ) -> tuple[pd.DataFrame, dict[int, str] | None]:
@@ -338,9 +426,7 @@ def run_suews_rust_chunked(
     list_gridiv = [s.gridiv for s in sites]
     list_dupes = [g for g in list_gridiv if list_gridiv.count(g) > 1]
     if list_dupes:
-        raise ValueError(
-            f"Duplicate gridiv values in config.sites: {set(list_dupes)}"
-        )
+        raise ValueError(f"Duplicate gridiv values in config.sites: {set(list_dupes)}")
 
     dict_state_json: dict[int, str] = {}
     list_df_output: list[pd.DataFrame] = []

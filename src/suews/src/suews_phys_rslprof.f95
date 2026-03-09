@@ -7,6 +7,7 @@ MODULE module_phys_rslprof
    USE module_ctrl_const_physconst, ONLY: eps_fp
    USE module_ctrl_error_state, ONLY: set_supy_error, add_supy_warning
    USE module_ctrl_error, ONLY: ErrorHint
+   USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN
    IMPLICIT NONE
 
    INTEGER, PARAMETER :: nz = 30 ! number of levels 10 levels in canopy plus 20 (3 x Zh) above the canopy
@@ -149,7 +150,16 @@ CONTAINS
 
       ! Start just above displacement height plus roughness length
       ! This ensures (z - zdm)/z0m > 1, keeping the LOG argument positive
-      z_start = 1.01D0 * (zdm + z0m)  ! 1% above to avoid LOG singularity
+      z_start = MAX(1.01D0*(zdm + z0m), 0.1D0)  ! Keep above the roughness sublayer and avoid 0*Inf
+
+      IF (zMeas <= z_start) THEN
+         ! Degenerate case: keep a small positive monotonic array for downstream interpolation.
+         z_temp = MAX(z_start*1.5D0, z_start + 1.0D0)
+         DO i = 1, nz
+            zarray(i) = z_start + (i - 1)*(z_temp - z_start)/(nz - 1)
+         END DO
+         RETURN
+      END IF
 
       ! Calculate ratio for logarithmic spacing
       z_ratio = (zMeas/z_start)**(1.0D0/(nz-1))
@@ -377,6 +387,8 @@ CONTAINS
             vegfraction => siteInfo%vegfraction, &
             NonWaterFraction => siteInfo%NonWaterFraction, &
             zMeas => siteInfo%z, &
+            z0m_in => siteInfo%z0m_in, &
+            zdm_in => siteInfo%zdm_in, &
             tstep_real => timer%tstep_real, &
             ! tsfc_surf => heatState_out%tsfc_surf, &
             ! tsfc_roof => heatState_out%tsfc_roof, &
@@ -484,8 +496,20 @@ CONTAINS
 
             ELSE
                ! ========== MOST APPROACH ==========
-               ! Generate MOST height array
-               CALL setup_MOST_heights(nz, zdm, z0m, zMeas, zarray)
+               !correct RSL-based using SUEWS system-wide values
+               z0_RSL = z0m
+               zd_RSL = zdm
+               IF (IEEE_IS_NAN(z0_RSL) .OR. z0_RSL <= 0D0) THEN
+                  z0_RSL = MAX(z0m_in, 0.03D0)
+                  CALL add_supy_warning('RSLProfile: invalid MOST roughness length, using site z0m_in')
+               END IF
+               IF (IEEE_IS_NAN(zd_RSL) .OR. zd_RSL < 0D0) THEN
+                  zd_RSL = MAX(zdm_in, 0D0)
+                  CALL add_supy_warning('RSLProfile: invalid MOST displacement height, using site zdm_in')
+               END IF
+
+               ! Generate MOST height array from sanitised roughness values
+               CALL setup_MOST_heights(nz, zd_RSL, z0_RSL, zMeas, zarray)
 
                ! Initialize arrays
                psihatm_z = 0.0D0
@@ -494,9 +518,6 @@ CONTAINS
                ! use L_MOD as in other parts of SUEWS
                L_MOD_RSL = L_MOD
 
-               !correct RSL-based using SUEWS system-wide values
-               z0_RSL = z0m
-               zd_RSL = zdm
                zH_RSL = Zh
 
                Lc = -999
@@ -638,6 +659,18 @@ CONTAINS
 
       ! initialise variables
       idx_x = 0
+
+      IF (IEEE_IS_NAN(z_x)) THEN
+         CALL set_supy_error(103, 'interp_z: target height z_x is NaN')
+         v_x = 0.0D0
+         RETURN
+      END IF
+
+      IF (ANY(IEEE_IS_NAN(z))) THEN
+         CALL set_supy_error(103, 'interp_z: height array contains NaN')
+         v_x = 0.0D0
+         RETURN
+      END IF
 
       dif = z - z_x
       idx_x = MAXLOC(dif, 1, ABS(dif) < 1.D-6)
@@ -1325,4 +1358,3 @@ END MODULE module_phys_rslprof
 MODULE rsl_module
    USE module_phys_rslprof
 END MODULE rsl_module
-

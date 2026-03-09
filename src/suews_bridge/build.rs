@@ -227,6 +227,7 @@ fn main() {
                     lib_path.display()
                 );
             }
+            println!("cargo:rerun-if-changed={}", lib_path.display());
         }
 
         println!("cargo:rustc-link-search=native={}", suews_lib_dir.display());

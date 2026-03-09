@@ -40,19 +40,9 @@ use std::os::raw::c_char;
 
 pub const MET_FORCING_COLS: usize = 21;
 
-// Per-group output column counts (match Fortran ncolumnsDataOut* constants).
-// Each group includes a 5-column datetime prefix.
-pub const OUTPUT_SUEWS_COLS: usize = 118;
-pub const OUTPUT_SNOW_COLS: usize = 103;
-pub const OUTPUT_BEERS_COLS: usize = 34;
-pub const OUTPUT_ESTM_COLS: usize = 32;
-pub const OUTPUT_EHC_COLS: usize = 229;
-pub const OUTPUT_DAILYSTATE_COLS: usize = 52;
-pub const OUTPUT_RSL_COLS: usize = 140;
-pub const OUTPUT_DEBUG_COLS: usize = 136;
-pub const OUTPUT_SPARTACUS_COLS: usize = 199;
-pub const OUTPUT_STEBBS_COLS: usize = 85;
-pub const OUTPUT_NHOOD_COLS: usize = 6;
+// Per-group output column counts (including 5-column datetime prefix).
+// Auto-generated from Fortran ncolumnsDataOut* constants in suews_ctrl_const.f95.
+include!(concat!(env!("OUT_DIR"), "/output_cols.rs"));
 
 /// Total columns across all 11 output groups (concatenated flat buffer).
 pub const OUTPUT_ALL_COLS: usize = OUTPUT_SUEWS_COLS

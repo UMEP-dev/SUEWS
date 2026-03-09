@@ -970,7 +970,7 @@ def validate_nlayer_limit(user_data: dict) -> list:
                 nlayer_int = int(nlayer)
                 if nlayer_int > 15:
                     path = f"sites[{site_idx}].properties.vertical_layers.nlayer"
-                    errors.append((path, nlayer_int, "You have entered a nlayer > 15."))
+                    errors.append((path, nlayer_int, f"nlayer={nlayer_int} exceeds the supported range [1, 15]. The SPARTACUS radiation scheme supports up to 15 vertical layers. Reduce nlayer to proceed."))
             except Exception:
                 path = f"sites[{site_idx}].properties.vertical_layers.nlayer"
                 errors.append((path, nlayer, "Could not interpret nlayer value for limit check."))
@@ -1518,7 +1518,7 @@ def create_analysis_report(
                 value_display = f" (value={nlayer_value})" if nlayer_value is not None else ""
                 report_lines.append(f"-- {path}{value_display}: {message}")
                 report_lines.append(
-                    "Note: If you need nlayer>15 for your run, consider to change SPARTACUS Fortran code and Pydantic nlayer Field constraints to allow more layers."
+                    "The SPARTACUS radiation scheme supports up to 15 vertical layers."
                 )
             report_lines.append("")
 

@@ -298,6 +298,8 @@ fn parse_ncolumns_constants(source: &str) -> Vec<(String, i64)> {
     let joined = join_fortran_continuations(source);
 
     let mut results = Vec::new();
+    // Safe: Fortran identifiers are ASCII, so byte offsets match between
+    // the lowercased and original strings.
     let lower = joined.to_lowercase();
     let needle = "ncolumnsdataout";
 
@@ -337,29 +339,21 @@ fn join_fortran_continuations(source: &str) -> String {
     let mut continuation = false;
     for line in source.lines() {
         let trimmed = line.trim();
-        if continuation {
-            // Strip leading `&` on continuation line if present.
-            let continued = trimmed.strip_prefix('&').unwrap_or(trimmed);
+        // On a continuation line, strip the leading `&` and join with a space.
+        let content = if continuation {
             out.push(' ');
-            // Strip trailing comment before checking for another `&`.
-            let no_comment = strip_fortran_comment(continued);
-            if let Some(stripped) = no_comment.strip_suffix('&') {
-                out.push_str(stripped.trim_end());
-                continuation = true;
-            } else {
-                out.push_str(no_comment.trim_end());
-                continuation = false;
-                out.push('\n');
-            }
+            trimmed.strip_prefix('&').unwrap_or(trimmed)
         } else {
-            let no_comment = strip_fortran_comment(trimmed);
-            if let Some(stripped) = no_comment.strip_suffix('&') {
-                out.push_str(stripped.trim_end());
-                continuation = true;
-            } else {
-                out.push_str(no_comment);
-                out.push('\n');
-            }
+            trimmed
+        };
+        let no_comment = strip_fortran_comment(content);
+        if let Some(stripped) = no_comment.strip_suffix('&') {
+            out.push_str(stripped.trim_end());
+            continuation = true;
+        } else {
+            out.push_str(no_comment.trim_end());
+            continuation = false;
+            out.push('\n');
         }
     }
     out

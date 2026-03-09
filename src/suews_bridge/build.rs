@@ -398,7 +398,7 @@ fn extract_expression(s: &str) -> &str {
 // ---------------------------------------------------------------------------
 
 fn eval_int_expr(expr: &str) -> i64 {
-    let tokens = tokenise_int_expr(expr);
+    let tokens = lex_int_expr(expr);
     let (val, rest) = parse_additive(&tokens);
     assert!(
         rest.is_empty(),
@@ -418,7 +418,7 @@ enum Token {
     RParen,
 }
 
-fn tokenise_int_expr(s: &str) -> Vec<Token> {
+fn lex_int_expr(s: &str) -> Vec<Token> {
     let mut tokens = Vec::new();
     let mut chars = s.chars().peekable();
     while let Some(&c) = chars.peek() {

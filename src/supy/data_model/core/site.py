@@ -1391,7 +1391,7 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
     )
     WallOuterCapFrac: Optional[FlexibleRefValue(float)] = Field(
-        default=1.0,
+        default=0.5,
         description="Weighting factor for heat capacity of walls [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1507,7 +1507,7 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
     )
     RoofOuterCapFrac: Optional[FlexibleRefValue(float)] = Field(
-        default=1.0,
+        default=0.5,
         description="Weighting factor for heat capacity of roof [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1678,13 +1678,13 @@ class ArchetypeProperties(BaseModel):
     )
     # TODO: Add defaults below here
     InternalMassDensity: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
+        default=1000.0,
         description="Effective density of the internal mass [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Internal Mass Density"},
         gt=0.0,
     )
     InternalMassCp: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
+        default=1000.0,
         description="Effective specific heat capacity of internal mass [J kg-1 K-1]",
         json_schema_extra={
             "unit": "J kg^-1 K^-1",
@@ -1733,7 +1733,7 @@ class ArchetypeProperties(BaseModel):
         lt=30.0,
     )
     CoolingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
+        default=26.0,
         description="Cooling setpoint temperature [degC]",
         json_schema_extra={
             "unit": "degC",

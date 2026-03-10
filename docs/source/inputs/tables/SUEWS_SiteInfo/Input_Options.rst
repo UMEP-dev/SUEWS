@@ -3851,7 +3851,7 @@ Input Options
 .. option:: ToRunoff
 
 	:Description:
-		Fraction of water going to `Runoff`
+		Fraction of drainage going to `Runoff` (applied after infiltration for pervious surfaces)
 
 	:Configuration:
 		.. csv-table::
@@ -3859,20 +3859,6 @@ Input Options
 			:file: csv-table/ToRunoff.csv
 			:header-rows: 1
 			:widths: 44 18 38
-
-
-.. option:: ToSoilStore
-
-	:Description:
-		Fraction of water going to `SoilStore`
-
-	:Configuration:
-		.. csv-table::
-			:class: longtable
-			:file: csv-table/ToSoilStore.csv
-			:header-rows: 1
-			:widths: 44 18 38
-
 
 .. option:: ToWater
 

@@ -1,24 +1,15 @@
-import functools
 from datetime import timedelta
+import functools
 from pathlib import Path
 
 import f90nml
 import numpy as np
-import pandas as pd
-
-
-from pathlib import Path
-
-import pandas as pd
 from packaging import version
-
+import pandas as pd
 
 from . import _supy_driver as _sd
-from . import supy_driver as sd
-
-
-from ._env import logger_supy, trv_supy_module, ISSUES_URL
-from ._misc import path_insensitive 
+from ._env import ISSUES_URL, logger_supy, trv_supy_module
+from ._misc import path_insensitive
 
 # choose different second representation to accommodate different pandas versions
 # pandas version <1.5
@@ -362,7 +353,14 @@ def lookup_code_lib(libCode, codeKey, codeValue, path_input):
     if codeKey == ":":
         res = lib.loc[int(np.unique(codeValue).item()), :].tolist()
     else:
-        res = lib.loc[int(np.unique(codeValue).item()), codeKey]
+        try:
+            res = lib.loc[int(np.unique(codeValue).item()), codeKey]
+        except KeyError:
+            # Legacy compatibility: ToSoilStore was removed from table schema.
+            # Treat missing ToSoilStore as zero and rely on ToRunoff.
+            if codeKey == "ToSoilStore":
+                return 0.0
+            raise
         if isinstance(res, pd.Series):
             # drop duolicates, otherwise duplicate values
             # will be introduced with more complexity
@@ -623,7 +621,8 @@ def resample_linear_avg(data_raw_avg, tstep_in, tstep_mod):
 
     # insert the shifted
     idx_comb = (
-        data_raw_tstep.index.append(data_raw_shift.index)
+        data_raw_tstep.index
+        .append(data_raw_shift.index)
         .append(data_tstep.index)
         .unique()
     )
@@ -707,7 +706,8 @@ def resample_forcing_met(
 
         # combine the resampled individual dataframes
         data_met_tstep = (
-            pd.concat(
+            pd
+            .concat(
                 [data_met_tstep_inst, data_met_tstep_avg, data_met_tstep_sum], axis=1
             )
             .interpolate()
@@ -754,7 +754,8 @@ def set_index_dt(df_raw: pd.DataFrame) -> pd.DataFrame:
 
     # set timestamp as index
     idx_dt = pd.date_range(
-        *df_raw.iloc[[0, -1], :4]
+        *df_raw
+        .iloc[[0, -1], :4]
         .astype(int)
         .astype(str)
         .apply(lambda ser: ser.str.cat(sep=" "), axis=1)
@@ -762,7 +763,8 @@ def set_index_dt(df_raw: pd.DataFrame) -> pd.DataFrame:
         periods=df_raw.shape[0],
     )
     list_dt = [
-        *df_raw.iloc[:, :4]
+        *df_raw
+        .iloc[:, :4]
         .astype(int)
         .astype(str)
         .apply(lambda ser: ser.str.cat(sep=" "), axis=1)
@@ -829,6 +831,7 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
     """
     # from dask import dataframe as dd
     from pathlib import Path
+
     from .util._io import read_suews
 
     # list of met forcing files
@@ -865,6 +868,7 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
 
 def load_SUEWS_Forcing_met_df_yaml(path_forcing):
     from pathlib import Path
+
     from .util._io import read_suews
 
     if isinstance(path_forcing, (str, Path)):
@@ -1358,8 +1362,8 @@ def load_SUEWS_SurfaceChar_df(path_input):
             val_x0 = val.reshape((len_grid, 9, 6))
             # directly load the values for common land covers
             val_x1 = val_x0[:, :7]
-            # process the ToSoilStore and ToRunoff entries
-            # since only one of ToSoilStore and ToRunoff can be non-zero for each row, we sum them up and combine them
+            # Process legacy ToSoilStore + ToRunoff entries.
+            # Current schema uses ToRunoff only; ToSoilStore (if present) is folded in.
             val_x2 = val_x0[:, 7:].reshape(len_grid, 6, 2).sum(axis=2).reshape(-1, 1, 6)
             # combine valuees of common land convers and special cases
             val_x = np.hstack((val_x1, val_x2))
@@ -2166,7 +2170,6 @@ def load_InitialCond_grid_df(path_runcontrol, force_reload=True):
     # print('localclimatemethod is in df_init')
     # else:
     # print('localclimatemethod is not in df_init')
-
 
     return df_init
 

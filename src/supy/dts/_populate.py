@@ -844,7 +844,8 @@ def _populate_landcover_common(
         wd_dts.to_grass = _unwrap(wd.to_grass) if wd.to_grass is not None else 0.0
         wd_dts.to_bsoil = _unwrap(wd.to_bsoil) if wd.to_bsoil is not None else 0.0
         wd_dts.to_water = _unwrap(wd.to_water) if wd.to_water is not None else 0.0
-        # to_soilstore is the last column
+        # to_runoff is stored in the last waterdist column.
+        # Keep legacy to_soilstore support for backward compatibility.
         if hasattr(wd, "to_soilstore") and wd.to_soilstore is not None:
             wd_dts.to_soilstore = _unwrap(wd.to_soilstore)
         elif hasattr(wd, "to_runoff") and wd.to_runoff is not None:

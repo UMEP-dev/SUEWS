@@ -12,9 +12,8 @@ taken into account.
 Each row corresponds to a surface type (linked by the Code in column 1
 to the `SUEWS_SiteSelect.txt` columns:
 WithinGridPavedCode, WithinGridBldgsCode, …, WithinGridWaterCode). Each
-column contains the fraction of water flowing from the surface type to
-each of the other surface types or to runoff or the sub-surface soil
-store.
+column contains the fraction of drainage flowing from the source surface
+to each of the other surface types or to runoff.
 
 .. note::
 
@@ -24,9 +23,13 @@ store.
   -  The row corresponding to the water surface should be zero, as there
      is currently no flow permitted from the water surface to other
      surfaces by the model.
-  -  Currently water **CANNOT** go to both runoff and soil store (i.e. it
-     must go to one or the other – `Runoff` for impervious surfaces;
-     `SoilStore` for pervious surfaces).
+  -  For pervious surfaces (evergreen trees, deciduous trees, grass, bare
+     soil), drainage first infiltrates into the soil store up to remaining
+     capacity. The `Runoff` column then applies to the **remaining**
+     drainage (after infiltration), with the non-runoff fraction available
+     for lateral redistribution to other surfaces.
+  -  For impervious surfaces, the `Runoff` column gives the drainage
+     fraction routed directly to runoff.
 
 In the table below, for example,
 
@@ -34,8 +37,9 @@ In the table below, for example,
 -  90% of flow from buildings goes to runoff, with small amounts going
    to other surfaces (mostly paved surfaces as buildings are often
    surrounded by paved areas);
--  All flow from vegetated and bare soil areas goes into the sub-surface
-   soil store;
+-  For vegetated and bare soil areas, drainage first infiltrates into soil
+   (up to capacity); any remaining drainage is then partitioned between
+   runoff and redistribution using the row fractions;
 -  The row corresponding to water contains zeros (as it is currently not
    used).
 

@@ -1,8 +1,10 @@
-from pydantic import ConfigDict, BaseModel, Field, PrivateAttr
-from typing import Optional
-import pandas as pd
-from .type import RefValue, Reference, SurfaceType, FlexibleRefValue
 import math
+from typing import Optional
+
+import pandas as pd
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
+
+from .type import FlexibleRefValue, Reference, RefValue, SurfaceType
 
 
 class WaterDistribution(BaseModel):
@@ -68,18 +70,11 @@ class WaterDistribution(BaseModel):
     )
     to_runoff: Optional[FlexibleRefValue(float)] = Field(
         None,
-        description="Fraction of water going to surface runoff (for impervious surfaces: paved and buildings)",
+        description="Fraction of drainage going to surface runoff after within-grid redistribution",
         json_schema_extra={"unit": "dimensionless", "display_name": "To Runoff"},
         ge=0,
         le=1,
-    )  # For paved/bldgs
-    to_soilstore: Optional[FlexibleRefValue(float)] = Field(
-        None,
-        description="Fraction of water going to subsurface soil storage (for pervious surfaces: vegetation and bare soil)",
-        json_schema_extra={"unit": "dimensionless", "display_name": "To Soil Store"},
-        ge=0,
-        le=1,
-    )  # For vegetated surfaces
+    )
     _surface_type: Optional[SurfaceType] = PrivateAttr(None)
 
     ref: Optional[Reference] = None
@@ -93,6 +88,19 @@ class WaterDistribution(BaseModel):
         if surface_type:
             self._set_defaults(surface_type)
             self.validate_distribution(surface_type)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_legacy_to_soilstore(cls, data):
+        """Map legacy to_soilstore to to_runoff for backward compatibility."""
+        if not isinstance(data, dict):
+            return data
+
+        migrated = dict(data)
+        if "to_runoff" not in migrated and "to_soilstore" in migrated:
+            migrated["to_runoff"] = migrated["to_soilstore"]
+        migrated.pop("to_soilstore", None)
+        return migrated
 
     def _set_defaults(self, surface_type: SurfaceType):
         # Default distributions based on surface type
@@ -122,7 +130,7 @@ class WaterDistribution(BaseModel):
                 "to_grass": RefValue(0.1),
                 "to_bsoil": RefValue(0.1),
                 "to_water": RefValue(0.1),
-                "to_soilstore": RefValue(0.4),
+                "to_runoff": RefValue(0.4),
             },
             SurfaceType.DECTR: {
                 "to_paved": RefValue(0.1),
@@ -131,7 +139,7 @@ class WaterDistribution(BaseModel):
                 "to_grass": RefValue(0.1),
                 "to_bsoil": RefValue(0.1),
                 "to_water": RefValue(0.1),
-                "to_soilstore": RefValue(0.4),
+                "to_runoff": RefValue(0.4),
             },
             SurfaceType.GRASS: {
                 "to_paved": RefValue(0.1),
@@ -140,7 +148,7 @@ class WaterDistribution(BaseModel):
                 "to_evetr": RefValue(0.1),
                 "to_bsoil": RefValue(0.1),
                 "to_water": RefValue(0.1),
-                "to_soilstore": RefValue(0.4),
+                "to_runoff": RefValue(0.4),
             },
             SurfaceType.BSOIL: {
                 "to_paved": RefValue(0.1),
@@ -149,7 +157,7 @@ class WaterDistribution(BaseModel):
                 "to_evetr": RefValue(0.1),
                 "to_grass": RefValue(0.1),
                 "to_water": RefValue(0.1),
-                "to_soilstore": RefValue(0.4),
+                "to_runoff": RefValue(0.4),
             },
         }
 
@@ -188,7 +196,7 @@ class WaterDistribution(BaseModel):
                 "to_grass",
                 "to_bsoil",
                 "to_water",
-                "to_soilstore",
+                "to_runoff",
             ],
             SurfaceType.EVETR: [
                 "to_paved",
@@ -197,7 +205,7 @@ class WaterDistribution(BaseModel):
                 "to_grass",
                 "to_bsoil",
                 "to_water",
-                "to_soilstore",
+                "to_runoff",
             ],
             SurfaceType.GRASS: [
                 "to_paved",
@@ -206,7 +214,7 @@ class WaterDistribution(BaseModel):
                 "to_evetr",
                 "to_bsoil",
                 "to_water",
-                "to_soilstore",
+                "to_runoff",
             ],
             SurfaceType.BSOIL: [
                 "to_paved",
@@ -215,7 +223,7 @@ class WaterDistribution(BaseModel):
                 "to_evetr",
                 "to_grass",
                 "to_water",
-                "to_soilstore",
+                "to_runoff",
             ],
             SurfaceType.WATER: None,  # Water surface doesn't have water distribution
         }
@@ -268,8 +276,6 @@ class WaterDistribution(BaseModel):
             "to_grass",
             "to_bsoil",
             "to_water",
-            # "to_soilstore",
-            # "to_runoff",
         ]):
             value = getattr(self, attr)
             if value is None:
@@ -277,11 +283,7 @@ class WaterDistribution(BaseModel):
             else:
                 list_waterdist_value.append(value)
 
-        # either to_soilstore or to_runoff must be provided - the other must be 0
-        to_soilstore_or_runoff = (
-            self.to_runoff if self.to_soilstore is None else self.to_soilstore
-        )
-        list_waterdist_value.append(to_soilstore_or_runoff)
+        list_waterdist_value.append(0.0 if self.to_runoff is None else self.to_runoff)
 
         # 2. Create param_tuples and values - only add non-None values following the order of the list
         for i, value in enumerate(list_waterdist_value):
@@ -344,8 +346,6 @@ class WaterDistribution(BaseModel):
             "to_grass": 4,
             "to_bsoil": 5,
             "to_water": 6,
-            # "to_soilstore": 7,
-            # "to_runoff": 8,
         }
 
         # Extract the values from the DataFrame
@@ -358,13 +358,10 @@ class WaterDistribution(BaseModel):
             if getattr(instance, param) is not None:
                 setattr(instance, param, value)
 
-        # set the last to_soilstore or to_runoff
+        # Set the last water distribution column as to_runoff
         waterdist_last = df.loc[grid_id, ("waterdist", f"(7, {surf_idx})")]
         waterdist_last = RefValue(waterdist_last)
-        if getattr(instance, "to_soilstore") is None:
-            setattr(instance, "to_runoff", waterdist_last)
-        else:
-            setattr(instance, "to_soilstore", waterdist_last)
+        setattr(instance, "to_runoff", waterdist_last)
 
         return instance
 

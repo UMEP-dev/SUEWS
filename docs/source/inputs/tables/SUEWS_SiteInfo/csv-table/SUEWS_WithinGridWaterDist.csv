@@ -7,4 +7,3 @@ No.,Column Name,Use,Description
 6,`ToBSoil`,`MU`,Fraction of water going to ``BSoil``
 7,`ToWater`,`MU`,Fraction of water going to `Water`
 8,`ToRunoff`,`MU`,Fraction of water going to `Runoff`
-9,`ToSoilStore`,`MU`,Fraction of water going to `SoilStore`

@@ -2094,6 +2094,10 @@ CONTAINS
       TYPE(SUEWS_STATE), INTENT(INout) :: modState
 
       REAL(KIND(1D0)), DIMENSION(nsurf) :: state_id !wetness states of each surface [mm]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: SoilStoreCap !Capacity of soil store for each surface [mm]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: drain_surf_redist !Drainage remaining for redistribution/runoff partition [mm]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: runoff_scale !Scale runoff fraction to use post-infiltration residual drainage [-]
+      REAL(KIND(1D0)) :: infiltration
 
       REAL(KIND(1D0)), DIMENSION(6, nsurf) :: StoreDrainPrm ! drain storage capacity [mm]
       REAL(KIND(1D0)), DIMENSION(nsurf + 1, nsurf - 1) :: WaterDist !Within-grid water distribution to other surfaces and runoff/soil store [-]
@@ -2122,6 +2126,7 @@ CONTAINS
             addWaterBody => hydroState%addWaterBody, &
             drain_per_tstep => hydroState%drain_per_tstep, &
             drain_surf => hydroState%drain_surf, &
+            soilstore_surf => hydroState%soilstore_surf, &
             frac_water2runoff => hydroState%frac_water2runoff, &
             AdditionalWater => hydroState%AdditionalWater, &
             runoffPipes => hydroState%runoffPipes, &
@@ -2138,6 +2143,15 @@ CONTAINS
 
             state_id = hydroState%state_surf
             StoreDrainPrm = phenState%StoreDrainPrm
+            SoilStoreCap = [ &
+                           pavedPrm%soil%soilstorecap, &
+                           bldgPrm%soil%soilstorecap, &
+                           evetrPrm%soil%soilstorecap, &
+                           dectrPrm%soil%soilstorecap, &
+                           grassPrm%soil%soilstorecap, &
+                           bsoilPrm%soil%soilstorecap, &
+                           waterPrm%soil%soilstorecap &
+                           ]
 
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
             WaterDist(1, 1) = pavedPrm%waterdist%to_paved
@@ -2239,13 +2253,37 @@ CONTAINS
 
             drain_surf(WaterSurf) = 0 ! Set drainage from water body to zero
 
+            ! Infiltrate pervious-surface drainage before lateral redistribution.
+            ! Keep drain_surf for surface-state balance (A8), and use reduced drainage
+            ! for redistribution and runoff partitioning.
+            drain_surf_redist = drain_surf
+            runoff_scale = 1.0D0
+            DO is = ConifSurf, BSoilSurf
+               infiltration = MIN( &
+                              drain_surf_redist(is), &
+                              MAX(0.0D0, SoilStoreCap(is) - soilstore_surf(is)) &
+                              )
+               soilstore_surf(is) = soilstore_surf(is) + infiltration
+               drain_surf_redist(is) = drain_surf_redist(is) - infiltration
+               IF (drain_surf(is) > 0.0D0) THEN
+                  runoff_scale(is) = drain_surf_redist(is)/drain_surf(is)
+               ELSE
+                  runoff_scale(is) = 0.0D0
+               END IF
+            END DO
+
             ! Distribute water within grid, according to WithinGridWaterDist matrix (Cols 1-7)
             IF (Diagnose == 1) WRITE (*, *) 'Calling ReDistributeWater...'
             ! CALL ReDistributeWater
             !Calculates AddWater(is)
             CALL ReDistributeWater( &
-               SnowUse, WaterDist, sfr_surf, drain_surf, & ! input:
+               SnowUse, WaterDist, sfr_surf, drain_surf_redist, & ! input:
                frac_water2runoff, AddWater) ! output
+
+            ! Apply runoff fractions to post-infiltration residual drainage for pervious surfaces.
+            DO is = ConifSurf, BSoilSurf
+               frac_water2runoff(is) = frac_water2runoff(is)*runoff_scale(is)
+            END DO
 
          END ASSOCIATE
       END ASSOCIATE

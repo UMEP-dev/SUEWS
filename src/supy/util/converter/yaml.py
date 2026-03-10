@@ -14,6 +14,31 @@ from ...data_model.core.model import OutputConfig
 from .table import convert_table
 
 
+def _normalise_legacy_waterdist_fields(config: SUEWSConfig) -> None:
+    """Normalise legacy waterdist fields to the current to_runoff key."""
+    for site in getattr(config, "sites", []):
+        properties = getattr(site, "properties", None)
+        land_cover = getattr(properties, "land_cover", None)
+        if land_cover is None:
+            continue
+
+        for surface_name in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil"):
+            surface = getattr(land_cover, surface_name, None)
+            waterdist = (
+                getattr(surface, "waterdist", None) if surface is not None else None
+            )
+            if waterdist is None:
+                continue
+
+            # Keep support for migrated/legacy objects that still expose to_soilstore.
+            if getattr(waterdist, "to_runoff", None) is None and hasattr(
+                waterdist, "to_soilstore"
+            ):
+                legacy_value = getattr(waterdist, "to_soilstore")
+                if legacy_value is not None:
+                    setattr(waterdist, "to_runoff", legacy_value)
+
+
 def _prepare_processing_dir(
     input_path: Path,
     from_ver: Optional[str],
@@ -168,9 +193,9 @@ def convert_to_yaml(
     """
     from . import detect_input_type
     from .df_state import (
-        load_df_state_file,
-        detect_df_state_version,
         convert_df_state_format,
+        detect_df_state_version,
+        load_df_state_file,
         validate_converted_df_state,
     )
 
@@ -255,6 +280,7 @@ def convert_to_yaml(
 
         # Save to YAML
         click.echo(f"Saving to: {output_path}")
+        _normalise_legacy_waterdist_fields(config)
         config.to_yaml(output_path)
 
     finally:

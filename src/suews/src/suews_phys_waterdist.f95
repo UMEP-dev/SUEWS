@@ -181,7 +181,6 @@ CONTAINS
 
       !Extra evaporation [mm] from impervious surfaces which cannot happen due to lack of water
       REAL(KIND(1D0)) :: EvPart
-      REAL(KIND(1D0)), PARAMETER :: NotUsed = -55.5
 
       !Threshold for intense precipitation [mm hr-1]
       REAL(KIND(1D0)), PARAMETER :: IPThreshold_mmhr = 10 ! NB:this should be an input and can be specified. SG 25 Apr 2018
@@ -312,22 +311,9 @@ CONTAINS
          ! Recalculate change in surface state_id from difference with previous timestep
          chang(is) = state_out(is) - state_in(is)
 
-         !Where should this go? Used to be before previous part!!
-         ! soilstore_id -------------------------------------------------
-         ! For pervious surfaces (not water), some of drain(is) goes to soil storage
-         ! Drainage (that is not flowing to other surfaces) goes to soil storages
-         soilstore(is) = soilstore(is) + drain_surf(is)*frac_water2runoff(is)
-
-         ! If soilstore is full, the excess will go to runoff
-         IF (soilstore(is) > SoilStoreCap(is)) THEN ! TODO: this should also go to flooding of some sort
-            runoff(is) = runoff(is) + (soilstore(is) - SoilStoreCap(is))
-            soilstore(is) = SoilStoreCap(is)
-         ELSEIF (soilstore(is) < 0) THEN !! QUESTION: But where does this lack of water go? !!Can this really happen here?
-            CALL ErrorHint(62, 'SUEWS_store: soilstore_id(is) < 0 ', soilstore(is), NotUsed, is, modState)
-            IF (supy_error_flag) RETURN
-            ! Code this properly - soilstore_id(is) < 0 shouldn't happen given the above loops
-            !soilstore_id(is)=0   !Groundwater / deeper soil should kick in
-         END IF
+         ! Runoff -------------------------------------------------------
+         ! For pervious surfaces, fraction of remaining drainage goes to runoff
+         runoff(is) = runoff(is) + drain_surf(is)*frac_water2runoff(is)
 
       CASE (WaterSurf)
          IF (sfr_surf(WaterSurf) /= 0) THEN

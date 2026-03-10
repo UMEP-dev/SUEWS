@@ -406,6 +406,7 @@ def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
 def validate_model_option_rcmethod(yaml_data: dict) -> List[ValidationResult]:
     """Validate RoofOuterCapFrac and WallOuterCapFrac if rcmethod == 1.
     For rcmethod == 2, validate required roof/wall external parameters are not null.
+    If provided, emit a warning with their values for user review.
     """
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
@@ -493,7 +494,8 @@ def validate_model_option_rcmethod(yaml_data: dict) -> List[ValidationResult]:
             building_archetype = props.get("building_archetype", {})
             site_gridid = get_site_gridid(site)
 
-            # Check wall params
+            # Collect provided wall params
+            provided_wall = []
             for param in required_wall_params:
                 entry = building_archetype.get(param, {})
                 value = entry.get("value") if isinstance(entry, dict) else entry
@@ -509,8 +511,11 @@ def validate_model_option_rcmethod(yaml_data: dict) -> List[ValidationResult]:
                             suggested_value=f"Set {param} to a valid numeric value."
                         )
                     )
+                else:
+                    provided_wall.append(f"{param}={value}")
 
-            # Check roof params
+            # Collect provided roof params
+            provided_roof = []
             for param in required_roof_params:
                 entry = building_archetype.get(param, {})
                 value = entry.get("value") if isinstance(entry, dict) else entry
@@ -526,6 +531,34 @@ def validate_model_option_rcmethod(yaml_data: dict) -> List[ValidationResult]:
                             suggested_value=f"Set {param} to a valid numeric value."
                         )
                     )
+                else:
+                    provided_roof.append(f"{param}={value}")
+
+            # Emit warning if any required params are provided
+            if provided_wall:
+                results.append(
+                    ValidationResult(
+                        status="WARNING",
+                        category="MODEL_OPTIONS",
+                        parameter="building_archetype.wall_external_parameters",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message=f"You provided wall external parameters: {', '.join(provided_wall)}. Please check that these values are valid for your building material.",
+                        suggested_value="Review wall material properties for accuracy."
+                    )
+                )
+            if provided_roof:
+                results.append(
+                    ValidationResult(
+                        status="WARNING",
+                        category="MODEL_OPTIONS",
+                        parameter="building_archetype.roof_external_parameters",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message=f"You provided roof external parameters: {', '.join(provided_roof)}. Please check that these values are valid for your building material.",
+                        suggested_value="Review roof material properties for accuracy."
+                    )
+                )
 
     return results
 

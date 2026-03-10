@@ -53,6 +53,11 @@ EXAMPLES:
 
 ## 2026
 
+### 12 March 2026
+
+- [changes][experimental] Fix the default values for STEBBS parameters "WallOuterCapFra = 0.5" and "RoofOuterCapFra = 0.5" when "rcmethod==0 or missing" and update the related validator logic (PR #1224).
+- [doc] Updated the description of weighting factors "WallOuterCapFra" and "RoofOuterCapFra" and rcmethod (PR #1224).
+
 ### 11 Mar 2026
 
 - [feature][experimental] Add new Pydantic Field ranges and defaults for STEBBS parameters (PR #1233)

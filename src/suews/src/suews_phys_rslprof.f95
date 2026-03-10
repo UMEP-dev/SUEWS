@@ -685,12 +685,16 @@ CONTAINS
    END FUNCTION interp_z
 
    FUNCTION cal_elm_RSL(beta, Lc) RESULT(elm)
+      ! Mixing length at canopy top (HF08 Eq. 8):
+      !   l_m(h) = 2 * beta^3 * Lc
+      ! where beta is the RSL attenuation coefficient and Lc is the
+      ! canopy-drag length scale (= mean building height / frontal area index).
 
-      REAL(KIND(1D0)), INTENT(in) :: Lc ! height scale for bluff bodies [m]
-      REAL(KIND(1D0)), INTENT(in) :: beta ! parameter in RSL
+      REAL(KIND(1D0)), INTENT(in) :: Lc ! canopy-drag length scale [m]
+      REAL(KIND(1D0)), INTENT(in) :: beta ! RSL attenuation coefficient [-]
 
       ! output
-      REAL(KIND(1D0)) :: elm ! a scaling parameter for RSL
+      REAL(KIND(1D0)) :: elm ! mixing length at canopy top [m]
 
       elm = 2.*beta**3*Lc
 
@@ -897,7 +901,11 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: kappa = 0.40
       REAL(KIND(1D0)), PARAMETER :: dz = 0.1 !height step
 
-      elm = 2.D0*beta**3*Lc
+      ! HF08 intermediate variables (pre-substitution forms from #1055):
+      !   elm = l_m(h): mixing length at canopy top (HF08 Eq. 8)
+      !   hd  = d:      displacement height (general, not assuming d = beta^2*Lc)
+      !   R   = beta*d/l_m: dimensionless ratio (= 1/2 when d = beta^2*Lc)
+      elm = cal_elm_RSL(beta, Lc)
       hd = Zh_RSL - zd_RSL
       R = beta*hd/elm
 
@@ -906,15 +914,15 @@ CONTAINS
 
       dphi = (phim_zhdz - phim_zh)/dz
       IF (phim_zh /= 0.) THEN
-         phi_hatmZh = kappa*hd/(phim_zh*elm)
+         phi_hatmZh = kappa*hd/(phim_zh*elm) ! HF08 Eq. 25a (pre-substitution)
       ELSE
          ! neutral condition
          phi_hatmZh = 1.
       END IF
 
-      ! Compute c2 dynamically (Issue #1055): guard singularity when phi_hatmZh >= 1
+      ! Compute c2 dynamically (#1055): guard singularity when phi_hatmZh >= 1
       IF (phi_hatmZh < 1.) THEN
-         ! Unstable: denominator (beta*phim_zh - kappa*R) is guaranteed positive
+         ! HF08 Eq. 28a (pre-substitution): denominator positive when phi_hatmZh < 1
          c2 = (kappa*(R + 1.D0 - hd*dphi/phim_zh))/(beta*phim_zh - kappa*R)
          ! Clamp to prevent EXP overflow near singularity (phi_hatmZh -> 1)
          c2 = MAX(MIN(c2, 20.D0), 0.D0)
@@ -955,7 +963,8 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: kappa = 0.40
       REAL(KIND(1D0)), PARAMETER :: dz = 0.1 !height step
 
-      elm = 2.D0*beta**3*Lc
+      ! HF08 intermediate variables (see cal_c2 for details)
+      elm = cal_elm_RSL(beta, Lc)
       hd = Zh_RSL - zd_RSL
       R = beta*hd/elm
 
@@ -964,14 +973,14 @@ CONTAINS
 
       dphih = (phih_zhdz - phih_zh)/dz
       IF (phih_zh /= 0.) THEN
-         phi_hathZh = kappa*Scc*hd/(phih_zh*elm)
+         phi_hathZh = kappa*Scc*hd/(phih_zh*elm) ! HF08 Eq. 25b (pre-substitution)
       ELSE
          phi_hathZh = 1.
       END IF
 
-      ! Compute c2h dynamically (Issue #1055): guard singularity when phi_hathZh >= 1
+      ! Compute c2h dynamically (#1055): guard singularity when phi_hathZh >= 1
       IF (phi_hathZh < 1.) THEN
-         ! Unstable: denominator (beta*phih_zh - kappa*Scc*R) is guaranteed positive
+         ! HF08 Eq. 28b (pre-substitution): denominator positive when phi_hathZh < 1
          c2h = (kappa*Scc*(f*R + 1.D0 - hd*dphih/phih_zh))/(beta*phih_zh - kappa*Scc*R)
          ! Clamp to prevent EXP overflow near singularity (phi_hathZh -> 1)
          c2h = MAX(MIN(c2h, 20.D0), 0.D0)

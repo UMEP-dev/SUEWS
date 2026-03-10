@@ -65,14 +65,18 @@ CONTAINS
          k2 = 0.16, & !Power of Van Karman's constant (= 0.16 = 0.4^2)
          muu = 1.46E-5 !molecular viscosity
       REAL(KIND(1D0)) :: psim
+      REAL(KIND(1D0)) :: AVU1_use ! local wind speed with minimum threshold
       ! REAL(KIND(1d0)):: psih
 
       !Z0V roughness length for vapour
       z0V = cal_z0V(RoughLenHeatMethod, z0m, VegFraction, UStar)
 
+      ! Minimum wind speed to prevent division by zero
+      AVU1_use = MAX(AVU1, 0.01D0)
+
       !1)Monteith (1965)-neutral stability
       IF (AerodynamicResistanceMethod == 1) THEN
-         RA_h = (LOG(ZZD/z0m)**2)/(k2*AVU1)
+         RA_h = (LOG(ZZD/z0m)**2)/(k2*AVU1_use)
 
          !2) Non-neutral stability
          !    PSIM - stability function for momentum
@@ -86,15 +90,15 @@ CONTAINS
          psih = stab_psi_heat(StabilityMethod, ZZD/L_mod) - stab_psi_heat(StabilityMethod, z0v/L_mod)
 
          IF (Zzd/L_mod == 0 .OR. UStar == 0) THEN
-            RA_h = (LOG(ZZD/z0m)*LOG(ZZD/z0V))/(k2*AVU1) !Use neutral equation
+            RA_h = (LOG(ZZD/z0m)*LOG(ZZD/z0V))/(k2*AVU1_use) !Use neutral equation
          ELSE
-            RA_h = ((LOG(ZZD/z0m) - psim)*(LOG(ZZD/z0V) - psih))/(K2*AVU1)
+            RA_h = ((LOG(ZZD/z0m) - psim)*(LOG(ZZD/z0V) - psih))/(K2*AVU1_use)
             ! RA = AVU1/UStar**2
          END IF
 
          !3) Thom and Oliver (1977)
       ELSEIF (AerodynamicResistanceMethod == 3) THEN
-         RA_h = (4.72*LOG(ZZD/z0m)**2)/(1 + 0.54*AVU1)
+         RA_h = (4.72*LOG(ZZD/z0m)**2)/(1 + 0.54*AVU1_use)
       END IF
 
       !If RA outside permitted range, adjust extreme values !!Check whether these thresholds are suitable over a range of z0
@@ -434,9 +438,8 @@ CONTAINS
 
       REAL(KIND(1D0)), PARAMETER :: k = 0.4
 
-!       IF (UStar < 0.001) THEN
-!          UStar = avu1/LOG(zzd/z0m)*k
-!       END IF
+      ! Minimum friction velocity to prevent division by zero (Jimenez et al 2012)
+      UStar = MAX(UStar, 0.001D0)
 
       rb = (1.1/UStar) + (5.6*(UStar**0.333333)) !rb - boundary layer resistance shuttleworth
 

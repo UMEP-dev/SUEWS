@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2025-08-15T15:58:04+00:00" />
-    <title>SUEWS_AnthropogenicEmission.txt &#8212; SUEWS 2026.3.10.dev91 documentation</title>
+    <meta property="article:modified_time" content="2026-03-10T20:35:34+00:00" />
+    <title>SUEWS_AnthropogenicEmission.txt &#8212; SUEWS 2026.3.10.dev97 documentation</title>
   
   
   
@@ -44,7 +44,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=21f76918"></script>
+    <script src="../../../_static/documentation_options.js?v=0f1e69d4"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -55,8 +55,8 @@
     <link rel="search" title="Search" href="../../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.3.10.dev91" />
-    <meta name="docbuild:last-update" content="2025-08-15"/>
+  <meta name="docsearch:version" content="2026.3.10.dev97" />
+    <meta name="docbuild:last-update" content="2026-03-10"/>
   </head>
   
   
@@ -98,7 +98,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.3.10.dev91, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cee212b773b02fa5065e9acbfe42e78f7a86f610" style="color: #31708f;">cee212b</a>).
+        (2026.3.10.dev97, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c8efa59f25275a4bd15709263b2777513d994388" style="color: #31708f;">c8efa59</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -145,8 +145,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.3.10.dev91 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.3.10.dev91 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.3.10.dev97 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.3.10.dev97 documentation - Home"/>
   
   
 </a></div>
@@ -618,6 +618,34 @@ See our <a class="reference internal" href="../../transition_guide.html"><span c
 </ul>
 <p>The sub-daily variation in anthropogenic heat flux is modelled according to the daily cycles specified in <a class="reference internal" href="SUEWS_Profiles.html#suews-profiles-txt"><span class="std std-ref">SUEWS_Profiles.txt</span></a>.</p>
 <p>Alternatively, if available, the anthropogenic heat flux can be provided in the met forcing file (and set <a class="reference internal" href="../RunControl/scheme_options.html#cmdoption-arg-EmissionsMethod"><code class="xref any std std-option docutils literal notranslate"><span class="pre">EmissionsMethod</span></code></a> = 0 in <a class="reference internal" href="../SS_input/SS_input.html#runcontrol-nml"><span class="std std-ref">RunControl.nml</span></a>) by filling the <a class="reference internal" href="../../../data-structures/df_forcing.html#cmdoption-arg-qf"><code class="xref std std-option docutils literal notranslate"><span class="pre">qf</span></code></a> column with valid values.</p>
+<p><strong>Method-specific required parameters</strong></p>
+<p>For <code class="docutils literal notranslate"><span class="pre">EmissionsMethod</span></code> = 0, <a class="reference internal" href="../../../data-structures/df_forcing.html#cmdoption-arg-qf"><code class="xref std std-option docutils literal notranslate"><span class="pre">qf</span></code></a> from the forcing file is used, so values in this table can be set to <code class="docutils literal notranslate"><span class="pre">-999</span></code> when they are not needed.</p>
+<p>For <code class="docutils literal notranslate"><span class="pre">EmissionsMethod</span></code> = 1, 3, or 4 (and related extended options), provide <code class="docutils literal notranslate"><span class="pre">BaseTHDD</span></code>, <code class="docutils literal notranslate"><span class="pre">AHMin_*</span></code>, <code class="docutils literal notranslate"><span class="pre">AHSlope_*</span></code>, and <code class="docutils literal notranslate"><span class="pre">TCritic_*</span></code>; <code class="docutils literal notranslate"><span class="pre">QF_A_*</span></code>, <code class="docutils literal notranslate"><span class="pre">QF_B_*</span></code>, and <code class="docutils literal notranslate"><span class="pre">QF_C_*</span></code> can be set to <code class="docutils literal notranslate"><span class="pre">-999</span></code>.</p>
+<p>For <code class="docutils literal notranslate"><span class="pre">EmissionsMethod</span></code> = 2 (and related extended options), provide <code class="docutils literal notranslate"><span class="pre">BaseTHDD</span></code>, <code class="docutils literal notranslate"><span class="pre">QF_A_*</span></code>, <code class="docutils literal notranslate"><span class="pre">QF_B_*</span></code>, and <code class="docutils literal notranslate"><span class="pre">QF_C_*</span></code>; <code class="docutils literal notranslate"><span class="pre">AHMin_*</span></code>, <code class="docutils literal notranslate"><span class="pre">AHSlope_*</span></code>, and <code class="docutils literal notranslate"><span class="pre">TCritic_*</span></code> can be set to <code class="docutils literal notranslate"><span class="pre">-999</span></code>.</p>
+<p><strong>Default profile codes</strong></p>
+<p>The following profile code pairs are used in the distributed sample tables (<code class="docutils literal notranslate"><span class="pre">benchmark1</span></code> and <code class="docutils literal notranslate"><span class="pre">sample-table</span></code>):</p>
+<ul class="simple">
+<li><p>Energy use: <code class="docutils literal notranslate"><span class="pre">44</span></code> (weekday) and <code class="docutils literal notranslate"><span class="pre">45</span></code> (weekend)</p></li>
+<li><p>Activity: <code class="docutils literal notranslate"><span class="pre">55663</span></code> (weekday) and <code class="docutils literal notranslate"><span class="pre">55664</span></code> (weekend)</p></li>
+<li><p>Traffic: <code class="docutils literal notranslate"><span class="pre">701</span></code> (weekday) and <code class="docutils literal notranslate"><span class="pre">702</span></code> (weekend)</p></li>
+<li><p>Population: <code class="docutils literal notranslate"><span class="pre">801</span></code> (weekday) and <code class="docutils literal notranslate"><span class="pre">802</span></code> (weekend)</p></li>
+</ul>
+<p><strong>Recommended starting values</strong></p>
+<p>The values below are sample benchmark settings (including <span id="id4">Ward <em>et al.</em> [<a class="reference internal" href="../../../references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">2016</a>]</span>, central London). They are not universal defaults and should be calibrated case by case for each location:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">BaseTHDD</span></code>: <code class="docutils literal notranslate"><span class="pre">18.2</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MinQFMetab</span></code>: <code class="docutils literal notranslate"><span class="pre">75.0</span></code>; <code class="docutils literal notranslate"><span class="pre">MaxQFMetab</span></code>: <code class="docutils literal notranslate"><span class="pre">175.0</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MinFCMetab</span></code>: <code class="docutils literal notranslate"><span class="pre">120.0</span></code>; <code class="docutils literal notranslate"><span class="pre">MaxFCMetab</span></code>: <code class="docutils literal notranslate"><span class="pre">280.0</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">FrFossilFuel_Heat</span></code>: <code class="docutils literal notranslate"><span class="pre">0.05</span></code> (up to <code class="docutils literal notranslate"><span class="pre">0.7</span></code> in fossil-dependent systems)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">FrFossilFuel_NonHeat</span></code>: <code class="docutils literal notranslate"><span class="pre">0.0</span></code> (up to <code class="docutils literal notranslate"><span class="pre">0.7</span></code> in fossil-dependent systems)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">EF_umolCO2perJ</span></code>: <code class="docutils literal notranslate"><span class="pre">1.159</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">EnEF_v_Jkm</span></code>: <code class="docutils literal notranslate"><span class="pre">3.97e6-4.11e6</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">FcEF_v_kgkmWD</span></code> / <code class="docutils literal notranslate"><span class="pre">FcEF_v_kgkmWE</span></code>: <code class="docutils literal notranslate"><span class="pre">0.285</span></code></p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In this table format, <code class="docutils literal notranslate"><span class="pre">-999</span></code> indicates “not used” for optional or method-inactive parameters.</p>
+</div>
 <div class="pst-scrollable-table-container"><table class="table">
 <colgroup>
 <col style="width: 5.0%" />
@@ -897,7 +925,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2025-08-15.
+  Last updated on 2026-03-10.
   <br/>
 </p>
   </div>
@@ -905,8 +933,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.3.10.dev91 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/cee212b773b02fa5065e9acbfe42e78f7a86f610">cee212b</a> |
+  <p>Version: 2026.3.10.dev97 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c8efa59f25275a4bd15709263b2777513d994388">c8efa59</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

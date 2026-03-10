@@ -2199,7 +2199,7 @@ class StebbsProperties(BaseModel):
     )
     DHWVesselExternalWallConvectionCoefficient: Optional[FlexibleRefValue(float)] = (
         Field(
-            default=0.0,
+            default=7.7,
             description="Effective external wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
             json_schema_extra={
                 "unit": "W m^-2 K^-1",

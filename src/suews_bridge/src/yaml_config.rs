@@ -106,7 +106,26 @@ fn parse_numeric_sequence(value: &Value) -> Option<Vec<f64>> {
             }
             Some(out)
         }
-        Value::Mapping(_) => get_path(value, &["value"]).and_then(parse_numeric_sequence),
+        Value::Mapping(map) => {
+            // First try the standard RefValue wrapper: {value: [1.0, 2.0, ...]}
+            if let Some(inner) = get_path(value, &["value"]) {
+                return parse_numeric_sequence(inner);
+            }
+            // Fallback: extract numeric values from named keys (e.g. Pydantic
+            // dict serialisation of hdd_id: {hdd_accum: 13.5, cdd_accum: 13.5, ...}).
+            let mut out = Vec::with_capacity(map.len());
+            for (_key, val) in map {
+                match val {
+                    Value::Number(n) => out.push(n.as_f64()?),
+                    _ => return None,
+                }
+            }
+            if out.is_empty() {
+                None
+            } else {
+                Some(out)
+            }
+        }
         _ => None,
     }
 }

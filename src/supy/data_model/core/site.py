@@ -2164,7 +2164,7 @@ class StebbsProperties(BaseModel):
                 "display_name": "Hot Water Tank Internal Wall Convection Coefficient",
             },
         gt=0.0,
-        ),
+        )
     )
     HotWaterTankExternalWallConvectionCoefficient: Optional[FlexibleRefValue(float)] = (
         Field(

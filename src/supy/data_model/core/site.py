@@ -2011,6 +2011,7 @@ class StebbsProperties(BaseModel):
         default=0.0,
         description="Surface area of hot water tank cylinder [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Water Tank Surface Area"},
+        gt=0.0,
     )
     HotWaterHeatingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=60.0,

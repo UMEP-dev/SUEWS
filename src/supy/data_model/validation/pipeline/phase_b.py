@@ -1738,6 +1738,57 @@ def adjust_seasonal_parameters(
 
     return yaml_data, adjustments
 
+def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
+    """If rcmethod == 0, set RoofOuterCapFrac and WallOuterCapFrac to 0.5 for all sites."""
+    adjustments = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+    rcmethod_value = get_value_safe(physics, "rcmethod")
+
+    if rcmethod_value == 0:
+        sites = yaml_data.get("sites", [])
+        for site_idx, site in enumerate(sites):
+            props = site.get("properties", {})
+            building_archetype = props.get("building_archetype", {})
+            site_gridid = get_site_gridid(site)
+
+            # RoofOuterCapFrac
+            roof_frac_entry = building_archetype.get("RoofOuterCapFrac", {})
+            old_roof_frac = roof_frac_entry.get("value") if isinstance(roof_frac_entry, dict) else roof_frac_entry
+            if old_roof_frac != 0.5:
+                building_archetype["RoofOuterCapFrac"] = {"value": 0.5}
+                adjustments.append(
+                    ScientificAdjustment(
+                        parameter="building_archetype.RoofOuterCapFrac",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        old_value=str(old_roof_frac),
+                        new_value="0.5",
+                        reason="rcmethod == 0, set RoofOuterCapFrac to 0.5"
+                    )
+                )
+
+            # WallOuterCapFrac
+            wall_frac_entry = building_archetype.get("WallOuterCapFrac", {})
+            old_wall_frac = wall_frac_entry.get("value") if isinstance(wall_frac_entry, dict) else wall_frac_entry
+            if old_wall_frac != 0.5:
+                building_archetype["WallOuterCapFrac"] = {"value": 0.5}
+                adjustments.append(
+                    ScientificAdjustment(
+                        parameter="building_archetype.WallOuterCapFrac",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        old_value=str(old_wall_frac),
+                        new_value="0.5",
+                        reason="rcmethod == 0, set WallOuterCapFrac to 0.5"
+                    )
+                )
+
+            props["building_archetype"] = building_archetype
+            site["properties"] = props
+            yaml_data["sites"][site_idx] = site
+
+    return yaml_data, adjustments
+
 
 def run_scientific_adjustment_pipeline(
     yaml_data: dict, start_date: str, model_year: int
@@ -1763,6 +1814,9 @@ def run_scientific_adjustment_pipeline(
         updated_data, start_date, model_year
     )
     adjustments.extend(seasonal_adjustments)
+
+    updated_data, rcmethod_adjustments = adjust_model_option_rcmethod(updated_data)
+    adjustments.extend(rcmethod_adjustments)    
 
     return updated_data, adjustments
 

@@ -1277,6 +1277,7 @@ class ArchetypeProperties(BaseModel):
         default=1,
         description="Number of occupants present in building [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Occupants"},
+        ge=0.0,
     )
 
     # Not used in STEBBS - DAVE only
@@ -1320,8 +1321,8 @@ class ArchetypeProperties(BaseModel):
             "unit": "dimensionless",
             "display_name": "Ratio Internal Volume",
         },
-        ge=0.0,
-        le=1.0,
+        gt=0.0,
+        lt=1.0,
     )
     WWR: Optional[FlexibleRefValue(float)] = Field(
         default=0.20,
@@ -1396,8 +1397,8 @@ class ArchetypeProperties(BaseModel):
             "unit": "dimensionless",
             "display_name": "Wall Outer Capacity Fraction",
         },
-        ge=0.0,
-        le=1.0,
+        gt=0.0,
+        lt=1.0,
     )
     WallExternalEmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
@@ -1427,7 +1428,7 @@ class ArchetypeProperties(BaseModel):
             "display_name": "Wall Transmissivity",
         },
         ge=0.0,
-        le=1.0,
+        lt=1.0,
     )
     WallAbsorbtivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.8,
@@ -1436,7 +1437,7 @@ class ArchetypeProperties(BaseModel):
             "unit": "dimensionless",
             "display_name": "Wall Absorptivity",
         },
-        ge=0.0,
+        gt=0.0,
         le=1.0,
     )
     WallReflectivity: Optional[FlexibleRefValue(float)] = Field(
@@ -1447,7 +1448,7 @@ class ArchetypeProperties(BaseModel):
             "display_name": "Wall Reflectivity",
         },
         ge=0.0,
-        le=1.0,
+        lt=1.0,
     )
     RoofThickness: Optional[FlexibleRefValue(float)] = Field(
         default=20.0,
@@ -1512,8 +1513,8 @@ class ArchetypeProperties(BaseModel):
             "unit": "dimensionless",
             "display_name": "Roof Outer Capacity Fraction",
         },
-        ge=0.0,
-        le=1.0,
+        gt=0.0,
+        lt=1.0,
     )
     RoofExternalEmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
@@ -1543,7 +1544,7 @@ class ArchetypeProperties(BaseModel):
             "display_name": "Roof Transmissivity",
         },
         ge=0.0,
-        le=1.0,
+        lt=1.0,
     )
     RoofAbsorbtivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.8,
@@ -1552,7 +1553,7 @@ class ArchetypeProperties(BaseModel):
             "unit": "dimensionless",
             "display_name": "Roof Absorptivity",
         },
-        ge=0.0,
+        gt=0.0,
         le=1.0,
     )
     RoofReflectivity: Optional[FlexibleRefValue(float)] = Field(
@@ -1563,7 +1564,7 @@ class ArchetypeProperties(BaseModel):
             "display_name": "Roof Reflectivity",
         },
         ge=0.0,
-        le=1.0,
+        lt=1.0,
     )
     FloorThickness: Optional[FlexibleRefValue(float)] = Field(
         default=0.2,
@@ -1653,7 +1654,7 @@ class ArchetypeProperties(BaseModel):
             "display_name": "Window Transmissivity",
         },
         ge=0.0,
-        le=1.0,
+        lt=1.0,
     )
     WindowAbsorbtivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.01,
@@ -1662,7 +1663,7 @@ class ArchetypeProperties(BaseModel):
             "unit": "dimensionless",
             "display_name": "Window Absorptivity",
         },
-        ge=0.0,
+        gt=0.0,
         le=1.0,
     )
     WindowReflectivity: Optional[FlexibleRefValue(float)] = Field(
@@ -1673,13 +1674,14 @@ class ArchetypeProperties(BaseModel):
             "display_name": "Window Reflectivity",
         },
         ge=0.0,
-        le=1.0,
+        lt=1.0,
     )
     # TODO: Add defaults below here
     InternalMassDensity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Effective density of the internal mass [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Internal Mass Density"},
+        gt=0.0,
     )
     InternalMassCp: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -1688,6 +1690,7 @@ class ArchetypeProperties(BaseModel):
             "unit": "J kg^-1 K^-1",
             "display_name": "Internal Mass Specific Heat",
         },
+        gt=0.0,
     )
     InternalMassEmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -1718,7 +1721,7 @@ class ArchetypeProperties(BaseModel):
             "unit": "W",
             "display_name": "Maximum Hot Water Heating Power",
         },
-        gt=0.0,
+        ge=0.0,
     )
     HeatingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -1727,6 +1730,7 @@ class ArchetypeProperties(BaseModel):
             "unit": "degC",
             "display_name": "Heating Setpoint Temperature",
         },
+        lt=30.0,
     )
     CoolingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -1735,6 +1739,7 @@ class ArchetypeProperties(BaseModel):
             "unit": "degC",
             "display_name": "Cooling Setpoint Temperature",
         },
+        gt=15.0
     )
 
     MetabolismProfile: Optional[TenMinuteProfile] = Field(
@@ -1917,6 +1922,7 @@ class StebbsProperties(BaseModel):
         default=0.0,
         description="Depth of external ground (deep soil) [m]",
         json_schema_extra={"unit": "m", "display_name": "Ground Depth"},
+        gt=0.0,
     )
     ExternalGroundConductivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -1925,12 +1931,13 @@ class StebbsProperties(BaseModel):
             "unit": "W m^-1 K^-1",
             "display_name": "External Ground Conductivity",
         },
+        gt=0.0,
     )
     MetabolismThreshold: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="threshold of metabolic rate to determine occupancy active or inactive [W]",
         json_schema_extra={"unit": "W", "display_name": "Metabolic Rate Threshold"},
-        ge=0.0,
+        gt=0.0,
     )
     LatentSensibleRatio: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -1940,6 +1947,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Latent Sensible Ratio",
         },
         ge=0.0,
+        lt=1.0,
     )
     HeatingSystemEfficiency: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -1948,8 +1956,8 @@ class StebbsProperties(BaseModel):
             "unit": "dimensionless",
             "display_name": "Heating System Efficiency",
         },
-        ge=0.0,
-        le=1.0,
+        gt=0.0,
+        lt=1.0,
     )
     MaxCoolingPower: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -1964,7 +1972,7 @@ class StebbsProperties(BaseModel):
             "unit": "dimensionless",
             "display_name": "Cooling System COP",
         },
-        ge=0.0,
+        gt=0.0,
     )
     VentilationRate: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -2020,7 +2028,7 @@ class StebbsProperties(BaseModel):
             "unit": "degC",
             "display_name": "Hot Water Heating Setpoint Temperature",
         },
-        gt=0.0,
+        lt=100.0,
     )
     HotWaterTankWallEmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -2155,7 +2163,8 @@ class StebbsProperties(BaseModel):
                 "unit": "W m^-2 K^-1",
                 "display_name": "Hot Water Tank Internal Wall Convection Coefficient",
             },
-        )
+        gt=0.0,
+        ),
     )
     HotWaterTankExternalWallConvectionCoefficient: Optional[FlexibleRefValue(float)] = (
         Field(
@@ -2165,6 +2174,7 @@ class StebbsProperties(BaseModel):
                 "unit": "W m^-2 K^-1",
                 "display_name": "Hot Water Tank External Wall Convection Coefficient",
             },
+        gt=0.0,
         )
     )
     DHWVesselWallConductivity: Optional[FlexibleRefValue(float)] = Field(
@@ -2184,6 +2194,7 @@ class StebbsProperties(BaseModel):
                 "unit": "W m^-2 K^-1",
                 "display_name": "DHW Vessel Internal Wall Convection Coefficient",
             },
+        gt=0.0,
         )
     )
     DHWVesselExternalWallConvectionCoefficient: Optional[FlexibleRefValue(float)] = (
@@ -2194,6 +2205,7 @@ class StebbsProperties(BaseModel):
                 "unit": "W m^-2 K^-1",
                 "display_name": "DHW Vessel External Wall Convection Coefficient",
             },
+        gt=0.0,
         )
     )
     DHWVesselWallEmissivity: Optional[FlexibleRefValue(float)] = Field(
@@ -2213,8 +2225,8 @@ class StebbsProperties(BaseModel):
             "unit": "dimensionless",
             "display_name": "Hot Water Heating Efficiency",
         },
-        ge=0.0,
-        le=1.0,
+        gt=0.0,
+        lt=1.0,
     )
     MinimumVolumeOfDHWinUse: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,

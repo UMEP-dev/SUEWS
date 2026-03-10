@@ -470,12 +470,16 @@ class TestSampleOutput(TestCase):
                     f"stderr: {result.stderr[:500]}"
                 )
 
-            # Load Rust Arrow output (all 1134 columns across 11 groups)
+            # Load Rust Arrow output (all 1134 columns across 11 groups).
+            # Read into bytes first to avoid holding a file handle on Windows
+            # (pyarrow keeps the file open, blocking TemporaryDirectory cleanup).
             rust_output_path = Path(tmpdir) / "suews_output.arrow"
             assert rust_output_path.exists(), "Rust CLI did not produce suews_output.arrow"
-            reader = ipc.open_file(rust_output_path)
-            table = reader.read_all()
-            df_rust_all = table.to_pandas()
+            arrow_bytes = rust_output_path.read_bytes()
+
+        reader = ipc.open_file(arrow_bytes)
+        table = reader.read_all()
+        df_rust_all = table.to_pandas()
 
         # SUEWS group uses proper variable names (Kdown, Kup, QN, etc.)
         # directly in the Arrow file — just use df_rust_all as-is

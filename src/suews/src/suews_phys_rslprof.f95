@@ -325,6 +325,7 @@ CONTAINS
       REAL(KIND(1D0)) :: fx ! H&F'07 and H&F'08 'constants'
       REAL(KIND(1D0)) :: TStar_RSL ! temperature scale
       REAL(KIND(1D0)) :: UStar_RSL ! friction velocity used in RSL
+      REAL(KIND(1D0)) :: denom_RSL ! denominator in UStar_RSL calculation
       REAL(KIND(1D0)) :: UStar_heat ! friction velocity derived from RA_h with correction/restriction
       ! REAL(KIND(1D0)) :: PAI ! plan area index, including areas of roughness elements: buildings and trees
       ! REAL(KIND(1d0))::sfr_tr ! land cover fraction of trees
@@ -528,7 +529,9 @@ CONTAINS
             psimza = stab_psi_mom(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
             psihza = stab_psi_heat(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
 
-            UStar_RSL = avU1*kappa/(LOG((zMeas - zd_RSL)/z0_RSL) - psimza + psimz0 + psihatm_z(nz))
+            denom_RSL = LOG((zMeas - zd_RSL)/z0_RSL) - psimza + psimz0 + psihatm_z(nz)
+            denom_RSL = MAX(denom_RSL, 0.1D0) ! Prevent zero/negative denominator from RSL correction
+            UStar_RSL = avU1*kappa/denom_RSL
 
             ! TS 11 Feb 2021: limit UStar and TStar to reasonable ranges
             ! under all conditions, min(UStar)==0.001 m s-1 (Jimenez et al 2012, MWR, https://doi.org/10.1175/mwr-d-11-00056.1
@@ -922,19 +925,18 @@ CONTAINS
          phi_hatmZh = 1.
       END IF
 
-      IF (phi_hatmZh >= 1.) THEN
-         ! more stable, but less correct
-         c2 = 0.5
-         phi_hatmZh = 1.
-      ELSE
-         ! if very unstable this might cause some high values of psihat_z
+      ! Compute c2 dynamically (Issue #1055): guard singularity when phi_hatmZh >= 1
+      IF (phi_hatmZh < 1.) THEN
+         ! Unstable: denominator (2*beta*phim_zh - kappa) is guaranteed positive
          c2 = (kappa*(3.-(2.*beta**2.*Lc/phim_zh*dphi)))/(2.*beta*phim_zh - kappa)
+         ! Clamp to prevent EXP overflow near singularity (phi_hatmZh -> 1)
+         c2 = MAX(MIN(c2, 20.D0), 0.D0)
+         cm = (1.-phi_hatmZh)*EXP(c2/2.)
+      ELSE
+         ! Neutral/stable: RSL correction vanishes
+         c2 = 0.
+         cm = 0.
       END IF
-      ! force c2 to 0.5 for better stability. TS 14 Jul 2020
-      ! TODO: a more proper threshold needs to be determined
-      c2 = 0.5
-
-      cm = (1.-phi_hatmZh)*EXP(c2/2.)
 
    END SUBROUTINE cal_cm
 
@@ -965,28 +967,27 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: dz = 0.1 !height step
 
       phih_zh = stab_phi_heat(StabilityMethod, (Zh_RSL - zd_RSL)/L_MOD)
-      phih_zhdz = stab_phi_heat(StabilityMethod, (Zh_RSL - zd_RSL + 1.)/L_MOD)
+      phih_zhdz = stab_phi_heat(StabilityMethod, (Zh_RSL - zd_RSL + dz)/L_MOD)
 
-      dphih = phih_zhdz - phih_zh
+      dphih = (phih_zhdz - phih_zh)/dz
       IF (phih_zh /= 0.) THEN
          phi_hathZh = kappa*Scc/(2.*beta*phih_zh)
       ELSE
          phi_hathZh = 1.
       END IF
 
-      IF (phi_hathZh >= 1.) THEN
-         ! more stable, but less correct
-         c2h = 0.5
-         phi_hathZh = 1.
-      ELSE
-         ! if very unstable this might cause some high values of psihat_z
+      ! Compute c2h dynamically (Issue #1055): guard singularity when phi_hathZh >= 1
+      IF (phi_hathZh < 1.) THEN
+         ! Unstable: denominator (2*beta*phih_zh - kappa*Scc) is guaranteed positive
          c2h = (kappa*Scc*(2.+f - (dphih*2.*beta**2.*Lc/phih_zh)))/(2.*beta*phih_zh - kappa*Scc)
+         ! Clamp to prevent EXP overflow near singularity (phi_hathZh -> 1)
+         c2h = MAX(MIN(c2h, 20.D0), 0.D0)
+         ch = (1.-phi_hathZh)*EXP(c2h/2.)
+      ELSE
+         ! Neutral/stable: RSL correction vanishes
+         c2h = 0.
+         ch = 0.
       END IF
-      ! force c2h to 0.5 for better stability. TS 14 Jul 2020
-      ! TODO: a more proper threshold needs to be determined
-      c2h = 0.5
-
-      ch = (1.-phi_hathZh)*EXP(c2h/2.)
 
    END SUBROUTINE cal_ch
 

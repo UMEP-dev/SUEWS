@@ -89,7 +89,6 @@ except ImportError:
             return False
 
     trv_supy_module = MockTraversable()
-import os
 
 
 def get_value_safe(param_dict, param_key, default=None):
@@ -495,7 +494,7 @@ def save_precheck_diff_report(diffs: List[dict], original_yaml_path: str):
     report_filename = f"precheck_report_{os.path.basename(original_yaml_path).replace('.yml', '.csv')}"
     report_path = os.path.join(os.path.dirname(original_yaml_path), report_filename)
 
-    with open(report_path, "w", newline="") as csvfile:
+    with open(report_path, "w", encoding="utf-8", newline="") as csvfile:
         writer = csv.DictWriter(
             csvfile,
             fieldnames=["site", "parameter", "old_value", "new_value", "reason"],
@@ -1407,14 +1406,32 @@ def precheck_model_option_rules(data: dict) -> dict:
     """
     physics = data.get("model", {}).get("physics", {})
 
-    # Helper: recursively nullify any "value" leaves in the passed block
-    def _recursive_nullify(block: dict):
-        for key, val in block.items():
-            if isinstance(val, dict):
-                if "value" in val:
-                    val["value"] = None
+    def _recursive_nullify(block):
+        if isinstance(block, dict):
+            for key, val in block.items():
+                if isinstance(val, dict):
+                    if "value" in val:
+                        inner = val["value"]
+                        if isinstance(inner, list):
+                            val["value"] = [None] * len(inner)
+                        else:
+                            val["value"] = None
+                    else:
+                        _recursive_nullify(val)
+                elif isinstance(val, list):
+                    for idx, item in enumerate(val):
+                        if isinstance(item, (dict, list)):
+                            _recursive_nullify(item)
+                        else:
+                            val[idx] = None
                 else:
-                    _recursive_nullify(val)
+                    block[key] = None
+        elif isinstance(block, list):
+            for idx, item in enumerate(block):
+                if isinstance(item, (dict, list)):
+                    _recursive_nullify(item)
+                else:
+                    block[idx] = None
 
     # --- STEBBSMETHOD RULE: when stebbsmethod == 0, wipe out all stebbs params ---
     stebbsmethod = get_value_safe(physics, "stebbsmethod")
@@ -1560,7 +1577,7 @@ def run_precheck(path: str) -> dict:
     output_filename = f"py0_{os.path.basename(path)}"
     output_path = os.path.join(os.path.dirname(path), output_filename)
 
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8", newline="\n") as f:
         yaml.dump(data, f, sort_keys=False, allow_unicode=True)
 
     logger_supy.info(f"Saved updated YAML file to: {output_path}")

@@ -1,10 +1,8 @@
 import numpy as np
 import pandas as pd
 import copy
-from .supy_driver import module_ctrl_type as sd_dts
 from ._env import logger_supy
 from .data_model.output import OUTPUT_REGISTRY
-
 
 ##############################################################################
 # post-processing part
@@ -167,8 +165,15 @@ def pack_df_output_block(dict_output_block, df_forcing_block):
 
 
 # resample supy output
-def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
+def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, _internal=False):
     """Resample SUEWS simulation output to a different temporal frequency.
+
+    .. deprecated:: 2026.2
+        Direct use of this function is deprecated. Use :meth:`SUEWSOutput.resample`
+        instead for the recommended object-oriented interface::
+
+            output = sim.run()
+            resampled = output.resample(freq="h")
 
     This function resamples time series data using variable-appropriate
     aggregation methods. Different variable types are handled correctly:
@@ -179,9 +184,9 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
 
     Parameters
     ----------
-    df_output : pandas.DataFrame
+    df_output : pandas.DataFrame or SUEWSOutput
         Output DataFrame from `run_supy`, with MultiIndex (grid, datetime)
-        and MultiIndex columns (group, var).
+        and MultiIndex columns (group, var). Also accepts SUEWSOutput objects.
     freq : str, optional
         Target frequency using pandas offset aliases.
         Common values: '30min', '60min' or 'h', '3h', 'D'.
@@ -197,38 +202,76 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
 
     Notes
     -----
+    **Recommended Usage**
+
+    For new code, use the object-oriented interface::
+
+        sim = SUEWSSimulation('config.yml')
+        output = sim.run()
+        resampled = output.resample(freq="h")  # Returns SUEWSOutput
+
+    **Timestamp Convention**
+
     The SUEWS convention uses right-closed intervals with right labels,
-    meaning timestamps represent the END of each period.
+    meaning timestamps represent the END of each period. For example,
+    hourly data at 13:00 covers the period 12:00-13:00.
+
+    **DailyState Labeling**
+
+    When resampling to daily frequency, the DailyState group uses a different
+    labeling convention (``label='left'``) compared to other groups
+    (``label='right'``). This is intentional:
+
+    - **SUEWS, snow, ESTM, etc.** (``label='right'``): Daily data is labeled
+      with the END of each day. Data for January 1st is labeled "Jan 2"
+      (the midnight timestamp at the end of Jan 1).
+
+    - **DailyState** (``label='left'``): Daily data is labeled with the
+      START of each day. Data for January 1st is labeled "Jan 1".
+      This makes the output more intuitive - the row "Jan 1" contains
+      the state at the end of January 1st.
+
+    As a result, when resampling 7 full days of simulation data to daily
+    frequency, the combined output may contain 8 unique dates:
+
+    - SUEWS group: Jan 2 through Jan 8 (7 days)
+    - DailyState group: Jan 1 through Jan 7 (7 days)
+    - Combined: Jan 1 through Jan 8 (8 unique dates)
+
+    The first date (Jan 1) will have NaN for SUEWS variables, and the last
+    date (Jan 8) will have NaN for DailyState variables. This asymmetry
+    reflects the different semantic meanings of each group's timestamps.
 
     Examples
     --------
-    Basic usage - resample to hourly:
+    **Recommended** - Use the OOP interface:
 
-    >>> import supy as sp
+    >>> sim = sp.SUEWSSimulation.from_sample_data()
+    >>> output = sim.run()
+    >>> resampled = output.resample(freq="h")  # Returns SUEWSOutput
+
+    Legacy usage (deprecated):
+
     >>> df_state_init, df_forcing = sp.load_SampleData()
     >>> df_output, df_state_final = sp.run_supy(df_forcing, df_state_init)
-    >>> df_hourly = sp.resample_output(df_output, freq='h')
-
-    Resample for EPW generation:
-
-    >>> df_hourly = sp.resample_output(df_output, freq='h')
-    >>> grid = df_hourly.index.get_level_values('grid')[0]
-    >>> df_epw, meta, path = sp.util.gen_epw(
-    ...     df_hourly.loc[grid, 'SUEWS'],
-    ...     lat=51.5, lon=-0.1
-    ... )
-
-    Or use the convenience freq parameter in gen_epw:
-
-    >>> df_epw, meta, path = sp.util.gen_epw(
-    ...     df_output, lat=51.5, lon=-0.1, freq='h'
-    ... )
+    >>> df_hourly = sp.resample_output(df_output, freq="h")
 
     See Also
     --------
+    SUEWSOutput.resample : Recommended OOP interface for resampling
     supy.util.gen_epw : Generate EPW files (supports freq parameter)
     supy.data_model.output.OUTPUT_REGISTRY : Aggregation rules source
     """
+    # Unwrap SUEWSOutput to raw DataFrame if needed
+    if hasattr(df_output, "_df_output"):
+        df_output = df_output._df_output
+
+    # Issue deprecation warning for direct external calls
+    if not _internal:
+        from ._supy_module import _warn_functional_deprecation
+
+        _warn_functional_deprecation("resample_output")
+
     # Helper function to resample a group with specified parameters
     def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None):
         """Resample a dataframe group with specified aggregation rules.
@@ -256,18 +299,13 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
                     index=pd.DatetimeIndex([]), columns=df_group.columns
                 )
 
-            # Resample the non-empty data
-            df_resampled = df_with_data.resample(freq, closed="right", label=label).agg(
+            # Resample the non-empty data and return directly
+            # Note: We don't reindex because Pandas 3.0's asfreq() behaviour changed
+            # and can produce different boundary dates. The resampled data already
+            # contains the correct timestamps.
+            return df_with_data.resample(freq, closed="right", label=label).agg(
                 dict_aggm_group
             )
-
-            # Reindex to match the expected output timerange
-            # This ensures we have the full time range even if data is sparse
-            full_index = (
-                df_group.resample(freq, closed="right", label=label).asfreq().index
-            )
-            df_resampled = df_resampled.reindex(full_index)
-            return df_resampled
         else:
             df_to_resample = df_group
 
@@ -309,28 +347,30 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm):
 
     # clean results
     df_rsmp = df_rsmp.dropna(how="all", axis=0)
+
+    # Ensure the index has proper names (grid, datetime)
+    # After concat, the datetime level may lose its name
+    if isinstance(df_rsmp.index, pd.MultiIndex):
+        if df_rsmp.index.names[1] is None:
+            df_rsmp.index = df_rsmp.index.set_names(["grid", "datetime"])
+
+    # Filter to actual data range to ensure consistent behaviour across Pandas versions
+    # Pandas 3.0 may create extra boundary bins that fall outside the actual data range.
+    # Use floor/ceil of the data range to allow for label='left' convention (DailyState)
+    # where the label can be up to one period before the first data point.
+    dt_idx = df_output.index.get_level_values("datetime")
+    dt_min, dt_max = dt_idx.min(), dt_idx.max()
+    # Extend dt_min by one period to allow for 'left' labels
+    dt_min_floor = dt_min.floor(freq)
+    rsmp_dt_idx = df_rsmp.index.get_level_values("datetime")
+    mask = (rsmp_dt_idx >= dt_min_floor) & (rsmp_dt_idx <= dt_max)
+    df_rsmp = df_rsmp[mask]
+
     return df_rsmp
 
 
-# Debug-related processing functions
-# ---------------------------------
-# Typical debug workflow:
-# 1. Run simulation with debug_mode=True:
-#    df_output, df_state_final, df_debug, res_state = run_supy(
-#        df_forcing, df_state_init, debug_mode=True)
-#
-# 2. Basic analysis of debug data:
-#    # View main debug data structure
-#    df_debug.columns.levels  # Check available variable groups
-#    df_debug[('energy_balance', 'qh')].plot()  # Plot heat flux from debug data
-#
-# 3. Advanced analysis with RSL data (if present):
-#    # Process RSL-specific outputs
-#    df_rsl_proc = proc_df_rsl(df_output, debug=True)
-#
-# 4. Direct inspection of raw state objects (for advanced users):
-#    # Convert state block to dict using selective extraction
-#    dict_energy_vars = pack_dts_selective(res_state, {'energy_balance': ['qn', 'qh', 'qe']})
+# RSL post-processing
+# -------------------
 
 
 def proc_df_rsl(df_output, debug=False):
@@ -431,439 +471,3 @@ def is_numeric(obj):
     return False
 
 
-def inspect_dts_structure(dts_obj):
-    """
-    Inspect derived type structure (DTS) object and extract its property hierarchy.
-
-    This function maps the structure of Fortran-derived type objects for efficient access
-    later without repeatedly traversing the object hierarchy.
-
-    Parameters
-    ----------
-    dts_obj : object
-        A Fortran derived type object, typically from SUEWS kernel debug output.
-
-    Returns
-    -------
-    dict
-        Dictionary mapping attribute names to their sub-properties.
-        None values indicate leaf attributes (no nested structure).
-
-    Notes
-    -----
-    This is a preprocessing step for `fast_pack_dts()` to improve performance
-    when processing multiple debug objects with the same structure.
-    """
-    dict_props = {}
-    for attr in dir(dts_obj):
-        if not attr.startswith("_") and not callable(getattr(dts_obj, attr)):
-            val = getattr(dts_obj, attr)
-            # If it's a nested object, get its properties too
-            if hasattr(val, "__dict__"):
-                list_sub_props = [
-                    sub_attr
-                    for sub_attr in dir(val)
-                    if not sub_attr.startswith("_")
-                    and not callable(getattr(val, sub_attr))
-                ]
-                dict_props[attr] = list_sub_props
-            else:
-                dict_props[attr] = None
-    return dict_props
-
-
-def fast_pack_dts(dts_obj, dict_structure=None):
-    """
-    Convert a derived type object to a Python dictionary efficiently.
-
-    Uses a pre-computed structure map (if provided) to avoid repeated inspection
-    of the object hierarchy, making it faster for batch processing.
-
-    Parameters
-    ----------
-    dts_obj : object
-        A Fortran derived type object from SUEWS kernel debug output.
-    dict_structure : dict, optional
-        Pre-computed structure map from `inspect_dts_structure()`.
-        If None, the structure will be inspected on the fly.
-
-    Returns
-    -------
-    dict
-        Nested dictionary representation of the derived type object.
-
-    Examples
-    --------
-    >>> # For a single object
-    >>> dict_debug = fast_pack_dts(state_debug)
-    >>>
-    >>> # For efficient processing of multiple objects
-    >>> dict_structure = inspect_dts_structure(state_debug)
-    >>> list_debug_dicts = [
-    ...     fast_pack_dts(obj, dict_structure) for obj in debug_objects
-    ... ]
-    """
-    if dict_structure is None:
-        dict_structure = inspect_dts_structure(dts_obj)
-
-    dict_result = {}
-    for attr, list_sub_props in dict_structure.items():
-        val = getattr(dts_obj, attr)
-        if list_sub_props:
-            # Nested object
-            dict_result[attr] = {
-                sub_prop: getattr(val, sub_prop) for sub_prop in list_sub_props
-            }
-        else:
-            # Direct value
-            dict_result[attr] = val
-
-    return dict_result
-
-
-def pack_dts_batch(list_dts_objs, dict_structure):
-    """
-    Process multiple derived type objects at once using a shared structure map.
-
-    This is more efficient than calling fast_pack_dts() on each object separately
-    when processing a large number of similar debug objects.
-
-    Parameters
-    ----------
-    list_dts_objs : list
-        List of Fortran derived type objects to process.
-    dict_structure : dict
-        Pre-computed structure map from `inspect_dts_structure()`.
-
-    Returns
-    -------
-    list
-        List of dictionaries, each representing a derived type object.
-
-    Examples
-    --------
-    >>> # Efficiently process multiple debug objects
-    >>> dict_structure = inspect_dts_structure(debug_objects[0])
-    >>> list_debug_data = pack_dts_batch(debug_objects, dict_structure)
-    """
-    return [fast_pack_dts(obj, dict_structure) for obj in list_dts_objs]
-
-
-def pack_dts2dict_selective(dts_obj, dict_needed_vars):
-    """
-    Selectively extract specific variables from a derived type object.
-
-    Useful when only a subset of debug information is needed, reducing
-    memory usage and processing time.
-
-    Parameters
-    ----------
-    dts_obj : object
-        Fortran derived type object from SUEWS kernel.
-    dict_needed_vars : dict
-        Dictionary mapping state names to lists of variable names to extract.
-        If a list is empty or None, all variables for that state are extracted.
-
-    Returns
-    -------
-    dict
-        Nested dictionary containing only the requested variables.
-
-    Examples
-    --------
-    >>> # Extract only specific variables of interest
-    >>> dict_needed = {"energy_balance": ["qn", "qh", "qe"], "surface": None}
-    >>> dict_subset_data = pack_dts_selective(debug_obj, dict_needed)
-    """
-    dict_dts = {}
-    get = getattr
-
-    for state, list_vars in dict_needed_vars.items():
-        try:
-            state_obj = get(dts_obj, state)
-            if list_vars:  # If specific variables are requested
-                dict_dts[state] = {var: get(state_obj, var) for var in list_vars}
-            else:  # If None, get all non-private attributes
-                dict_dts[state] = {
-                    attr: get(state_obj, attr)
-                    for attr in dir(state_obj)
-                    if not attr.startswith("_") and not callable(get(state_obj, attr))
-                }
-        except AttributeError:
-            # Skip if the state doesn't exist in this object
-            continue
-
-    return dict_dts
-
-
-def pack_dts(dts):
-    """
-    Fast conversion of a derived type object to a nested dictionary.
-
-    This is the main function used by the SuPy framework to convert debug objects
-    returned from the SUEWS kernel into Python dictionaries.
-
-    Parameters
-    ----------
-    dts : object
-        Fortran derived type object from SUEWS kernel (e.g., state_debug).
-
-    Returns
-    -------
-    dict
-        Nested dictionary representation of the object's structure and values.
-
-    Notes
-    -----
-    This function is used in the debug mode workflow to process state_debug and
-    block_mod_state objects in suews_cal_tstep_multi().
-    """
-    dict_dts = {}
-    for attr in dir(dts):
-        # Skip magic methods with one check
-        if not attr.startswith("_"):
-            val = getattr(dts, attr)
-            # Most values should be numeric, so check that first
-            if isinstance(val, (int, float, bool, np.ndarray)):
-                dict_dts[attr] = val
-            # Only recurse if not numeric and not callable
-            elif not callable(val):
-                dict_dts[attr] = pack_dts(val)
-    return dict_dts
-
-
-def has_dict(dict_d):
-    """
-    Check if a dictionary contains any nested dictionaries.
-
-    Used by pack_df_dts_raw to determine how to handle dictionary values.
-
-    Parameters
-    ----------
-    dict_d : dict
-        Dictionary to check.
-
-    Returns
-    -------
-    bool
-        True if any value in the dictionary is itself a dictionary.
-    """
-    if not isinstance(dict_d, dict):
-        return False
-    return any(isinstance(v, dict) for v in dict_d.values())
-
-
-def pack_dict_dts(dict_dts):
-    """
-    Convert a nested dictionary of debug information into a pandas Series.
-
-    This flattens the nested structure into a single Series with a MultiIndex
-    that preserves the hierarchy and any array indices.
-    """
-    rows = []
-
-    def _flatten(obj, prefix):
-        if isinstance(obj, dict):
-            if not obj:
-                return
-            for key, value in obj.items():
-                _flatten(value, prefix + (key,))
-            return
-
-        if isinstance(obj, np.ndarray) and obj.ndim > 1:
-            for idx in np.ndindex(obj.shape):
-                rows.append((prefix + idx, obj[idx]))
-            return
-
-        series = pd.Series(obj)
-        if series.empty:
-            return
-        for idx, val in series.items():
-            if isinstance(idx, tuple):
-                rows.append((prefix + idx, val))
-            else:
-                rows.append((prefix + (idx,), val))
-
-    if not isinstance(dict_dts, dict):
-        return pd.Series(dict_dts)
-
-    _flatten(dict_dts, ())
-
-    if not rows:
-        return pd.Series(dtype=float)
-
-    max_len = max(len(item[0]) for item in rows)
-    tuples = [item[0] + (None,) * (max_len - len(item[0])) for item in rows]
-    values = [item[1] for item in rows]
-    index = pd.MultiIndex.from_tuples(tuples)
-    return pd.Series(values, index=index)
-
-
-sample_dts = sd_dts.SUEWS_STATE_BLOCK()
-sample_dts.init(3, 3, 3)
-dict_structure = inspect_dts_structure(sample_dts.block[0])
-
-
-def pack_dict_dts_datetime_grid(dict_dts_datetime_grid):
-    """
-    Convert dictionary of debug information into a clean, indexed DataFrame.
-
-    This is the final step in processing debug information, producing a DataFrame
-    that can be easily analyzed and visualized.
-
-    Parameters
-    ----------
-    dict_dts_datetime_grid : dict
-        Dictionary containing DTS-derived information, typically from dict_debug in
-        the SUEWS simulation output.
-
-    Returns
-    -------
-    pandas.DataFrame
-        Clean DataFrame with MultiIndex columns organized by group and variable.
-
-    Notes
-    -----
-    Usage workflow in debug mode:
-    1. Run simulation with debug_mode=True
-    2. Receive dict_debug from simulation output
-    3. Convert to DataFrame using: df_debug = pack_df_dts(dict_debug)
-    4. Analyze specific variables: df_debug.loc[:, ('energy_balance', 'qh')]
-
-    The resulting DataFrame has a datetime index and MultiIndex columns with
-    levels for variable groups and specific variables.
-    """
-    # First convert to raw dataframe with nested index
-    df_dts_raw = pack_dict_dts(dict_dts_datetime_grid)
-
-    # Rename index levels for clarity
-    base_names = ["datetime", "grid", "step", "group", "var"]
-    if df_dts_raw.index.nlevels <= len(base_names):
-        names = base_names[: df_dts_raw.index.nlevels]
-    else:
-        extra = [f"dim_{i}" for i in range(df_dts_raw.index.nlevels - len(base_names))]
-        names = base_names + extra
-    df_dts_raw.index = df_dts_raw.index.rename(names)
-
-    # Restructure to have a more user-friendly format
-    if "group" in df_dts_raw.index.names and "var" in df_dts_raw.index.names:
-        df_dts = (
-            df_dts_raw.unstack(level=["group", "var"])
-            .sort_index(level=0, axis=1)
-            .dropna(axis=1, how="all")
-        )
-    else:
-        df_dts = df_dts_raw.to_frame(name="value")
-
-    return df_dts
-
-
-def pack_dts_state_selective(
-    dict_dts_state,
-    df_output,
-    dict_vars_sel=dict_structure,
-):
-    """
-    Selectively extract and pack specified variables from a debug state dictionary into a DataFrame.
-
-    Parameters
-    ----------
-    dict_dts_state : dict
-        Dictionary containing debug state information (typically from res_state)
-    df_output : pandas.DataFrame
-        DataFrame containing simulation output, used to get datetime index
-    dict_vars_sel : dict
-        Dictionary mapping state categories to lists of specific variables to extract.
-        Format: {'state_category': ['var1', 'var2', ...], ...}
-        Example: {'heatState': ['qn', 'qh', 'qe'], 'atmState': ['RH2']}
-        If a value is None or empty list, all variables in that state will be extracted.
-
-    Returns
-    -------
-    pandas.DataFrame
-        DataFrame containing only the requested variables, with MultiIndex columns organized
-        by state category and variable name, and datetime index.
-    """
-    dict_result = {}
-
-    # retrieve datetime from df_output
-    list_datetime = df_output.index.get_level_values("datetime")
-
-    # Process each state block
-    for grid_id, state_block in dict_dts_state.items():
-        dict_grid_results = {}
-
-        # Process each timestep in the state block
-        for time_idx, dts_obj in enumerate(state_block.block):
-            dict_timestep_data = {}
-
-            # Extract only the requested variables for each state category
-            for state_category, list_var in dict_vars_sel.items():
-                if not hasattr(dts_obj, state_category):
-                    continue
-
-                state_obj = getattr(dts_obj, state_category)
-
-                # If list_var is None or empty, get all non-private attributes
-                if not list_var:
-                    list_var = [
-                        attr
-                        for attr in dir(state_obj)
-                        if not attr.startswith("_")
-                        and not callable(getattr(state_obj, attr))
-                    ]
-
-                # Extract only specified variables from the state category
-                for var in list_var:
-                    if hasattr(state_obj, var):
-                        value = getattr(state_obj, var)
-                        # Handle arrays and scalar values
-                        if isinstance(value, np.ndarray):
-                            dict_timestep_data[(state_category, var)] = value
-                        else:
-                            dict_timestep_data[(state_category, var)] = value
-
-            dict_grid_results[time_idx] = dict_timestep_data
-
-        dict_result[grid_id] = dict_grid_results
-
-    # Convert the nested dictionary structure to a MultiIndex DataFrame
-    list_dfs = []
-    for grid_id, dict_grid_data in dict_result.items():
-        # Create a list of dictionaries for each timestep
-        list_rows = []
-        for time_idx, dict_time_data in dict_grid_data.items():
-            list_rows.append(dict_time_data)
-
-        if list_rows:
-            # Create DataFrame with MultiIndex columns
-            df_grid = pd.DataFrame(list_rows)
-
-            # Use datetime index if available
-            if list_datetime is not None and len(list_datetime) == len(list_rows):
-                df_grid.index = list_datetime
-                df_grid.index.name = "datetime"
-            else:
-                df_grid.index = pd.RangeIndex(len(list_rows), name="timestep")
-
-            if not df_grid.empty:
-                df_grid.columns = pd.MultiIndex.from_tuples(
-                    df_grid.columns, names=["state", "variable"]
-                )
-                # Add grid information
-                df_grid = df_grid.assign(grid=grid_id)
-                df_grid.set_index("grid", append=True, inplace=True)
-
-                # Reorder index levels to put datetime first if present
-                if "datetime" in df_grid.index.names:
-                    df_grid = df_grid.reorder_levels(["datetime", "grid"])
-
-                list_dfs.append(df_grid)
-
-    if not list_dfs:
-        return pd.DataFrame()
-
-    # Combine all grid DataFrames and ensure proper index ordering
-    df_combined = pd.concat(list_dfs).sort_index().swaplevel(0, 1, axis=0)
-
-    return df_combined

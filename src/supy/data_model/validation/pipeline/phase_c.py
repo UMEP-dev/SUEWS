@@ -4,6 +4,8 @@ import os
 import re
 import yaml
 
+from .report_writer import REPORT_WRITER
+
 # Use unified report title for all validation phases
 REPORT_TITLE = "SUEWS Validation Report"
 
@@ -199,8 +201,7 @@ def generate_phase_c_report(
         ) = _parse_consolidated_messages(no_action_messages)
     elif phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
-            with open(phase_a_report_file, "r") as f:
-                report_content = f.read()
+            report_content = REPORT_WRITER.read(phase_a_report_file)
             (
                 phase_a_renames,
                 phase_a_optional_missing,
@@ -303,9 +304,11 @@ def generate_phase_c_report(
                             param_name = issue.split(" is set to null")[0]
                             issue_field_name = param_name
                             issue_path = f"model.physics.{param_name}"
-                        elif " → " in issue:
-                            # StorageHeat parameter format: "site: storageheatmethod=6 → properties.lambda_c must be set"
-                            parts = issue.split(" → ", 1)
+                        elif " -> " in issue or " \u2192 " in issue:
+                            # StorageHeat parameter format: "site: storageheatmethod=6 -> properties.lambda_c must be set"
+                            # Handle both ASCII (->) and Unicode (→) for backward compatibility
+                            separator = " -> " if " -> " in issue else " \u2192 "
+                            parts = issue.split(separator, 1)
                             if len(parts) == 2:
                                 site_part = parts[0].strip()
                                 param_part = parts[1].strip()
@@ -372,9 +375,11 @@ def generate_phase_c_report(
                         param_name = issue.split(" is set to null")[0]
                         field_name = param_name
                         path = f"model.physics.{param_name}"
-                    elif " → " in issue:
-                        # StorageHeat parameter format: "site: storageheatmethod=6 → properties.lambda_c must be set"
-                        parts = issue.split(" → ", 1)
+                    elif " -> " in issue or " \u2192 " in issue:
+                        # StorageHeat parameter format: "site: storageheatmethod=6 -> properties.lambda_c must be set"
+                        # Handle both ASCII (->) and Unicode (→) for backward compatibility
+                        separator = " -> " if " -> " in issue else " \u2192 "
+                        parts = issue.split(separator, 1)
                         if len(parts) == 2:
                             site_part = parts[0].strip()
                             param_part = parts[1].strip()
@@ -485,8 +490,7 @@ def generate_phase_c_report(
 
     report_lines.extend(["", "# " + "=" * 50])
 
-    with open(output_report_file, "w") as f:
-        f.write("\n".join(report_lines))
+    REPORT_WRITER.write(output_report_file, "\n".join(report_lines))
 
 
 def generate_fallback_report(
@@ -517,8 +521,7 @@ def generate_fallback_report(
         ) = _parse_consolidated_messages(no_action_messages)
     elif phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
-            with open(phase_a_report_file, "r") as f:
-                report_content = f.read()
+            report_content = REPORT_WRITER.read(phase_a_report_file)
             (
                 phase_a_renames,
                 phase_a_optional_missing,
@@ -576,5 +579,4 @@ def generate_fallback_report(
 # ==================================================
 """
 
-    with open(output_report_file, "w") as f:
-        f.write(error_report)
+    REPORT_WRITER.write(output_report_file, error_report)

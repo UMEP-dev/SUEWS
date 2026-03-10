@@ -1,0 +1,7 @@
+name = "discourse-to-github-dispatch"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Secrets (set via CLI, not committed):
+#   wrangler secret put DISCOURSE_WEBHOOK_SECRET
+#   wrangler secret put GITHUB_PAT

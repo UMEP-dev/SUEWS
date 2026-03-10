@@ -1,9 +1,28 @@
-<!-- Each entry should fall into one of the following categories: -->
-<!-- [feature]: New feature -->
-<!-- [bugfix]: Bug fixes; also, create a related GitHub issue -->
-<!-- [maintenance]: Codebase maintenance (including Claude Code/dev tooling) -->
-<!-- [doc]: Documentation updates -->
-<!-- [change]: Changes exposed to users -->
+<!-- CHANGELOG ENTRY GUIDELINES -->
+<!--
+CATEGORIES (required):
+  [feature]     - New functionality
+  [bugfix]      - Bug fixes (link related GitHub issue)
+  [change]      - Breaking changes or user-facing API changes
+  [maintenance] - Internal/dev tooling, CI, CLAUDE.md updates
+  [doc]         - User documentation updates
+
+STATUS TAGS (for [feature] and [change] only):
+  [experimental] - Under development, not for public announcement
+  [stable]       - Reviewed and approved for public release notes
+  [internal]     - Internal tooling, never announced publicly
+
+DEFAULTS:
+  - New [feature] entries default to [experimental]
+  - Only governance-approved features get [stable] tag
+  - [bugfix], [maintenance], [doc] don't need status tags
+
+EXAMPLES:
+  - [feature][experimental] Added new radiation scheme (#123)
+  - [feature][stable] Added OOP interface for output data (#456)
+  - [change][experimental] Refactored land cover fraction API (#789)
+  - [bugfix] Fixed temperature calculation (#124)
+-->
 
 ## Table of Contents
 
@@ -21,7 +40,7 @@
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 60 | 70 | 22 | 71 | 36 | 258 |
+| 2026 | 65 | 78 | 25 | 79 | 39 | 286 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -33,6 +52,71 @@
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 20 Feb 2026
+
+- [bugfix] Guard SPARTACUS LW solver NaN from matrix singularity in certain urban canopy geometries (#1212)
+
+### 18 Feb 2026
+
+- [feature][experimental] Add attribution module for diagnosing T2, q2, and U10 changes by decomposing model output into physical process contributions, with diurnal cycle and heatmap visualisation helpers (#918)
+
+### 13 Feb 2026
+
+- [feature][experimental] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS bldgh and SPARTACUS height entries (PR #1205).
+- [docs] Updated PHASE_C_DETAILED.md with new conditional validation logic for SPARTACUS (PR #1205).
+
+### 5 Feb 2026
+
+- [change][experimental] Replace OccupantsProfile with MetabolismProfile and add metabolism threshold for occupancy activity classification in STEBBS; fix missing appliance energy in QEC_bldg and uninitialised heating/cooling load accumulators (PR #1194)
+- [change] Refactor error message in validate_albedo_ranges to explicitly declare that range comes from alb_min and alb_max (PR #1193)
+
+### 4 Feb 2026
+
+- [bugfix] Fix conflict in the validation logic when vegetated surfaces are active (sfr > 0) but carbon is disabled (PR #1188)
+- [bugfix] Fix a bug in the phase_b.py required physics options, adding the new samealbedo_roof and samealbedo_wall to the list (PR #1188).
+
+### 28 Jan 2026
+
+- [feature] Added `samealbedo_wall` and `samealbedo_roof` model options for roof and wall albedo validation (PR #1123)
+  - When enabled (`=1`), enforces all roof/wall albedo values match their respective reflectivity parameters; errors reported if inconsistent as ACTION NEEDED in the report.
+  - When disabled (`=0`), skips consistency checks and issues a user warning listing current albedo values in NO ACTION NEEDED section of the report.
+- [feature] Added sphinx-gallery for executable documentation examples (#1057)
+- [doc] Added user workflow guide for getting started with SUEWS (#1014)
+- [change] Refactored land cover fraction check to use Phase B as single authority (#1099)
+- [maintenance] Replaced incremental DataFrame assignment with batch column creation (#1129)
+- [bugfix] Fixed macOS UMEP wheel build by replacing sed with Python (#1128)
+- [maintenance] Removed format-master workflow incompatible with merge queue (#1130)
+
+### 27 Jan 2026
+
+- [maintenance] Refactored prep-release skill to use PR-based workflow (#1126)
+
+### 26 Jan 2026
+
+- [feature] Added separate surfaces for dyOHM (dynamic Objective Hysteresis Model) calculation (#1122)
+- [maintenance] Refactored albedo handling for vegetated surfaces (#1100)
+- [maintenance] Fixed conductor.json to use current branch instead of hardcoded master (#1124)
+
+### 25 Jan 2026
+
+- [maintenance] Centralised report I/O with ValidationReportWriter class (#1121)
+
+### 24 Jan 2026
+
+- [bugfix] Added test_cli_validation.py to test suews-validate behaviour on Windows (#1098)
+
+### 23 Jan 2026
+
+- [feature] Added STEBBS profiles for Heating and Cooling setpoints, Appliance, Occupants and Hot Water (#1038)
+- [bugfix] Fixed biogenic CO2 to use local climate instead of global average temperature (#1117)
+- [bugfix] Retained DatetimeIndex.freq after concat in forcing data loading (#1105)
+- [bugfix] Fixed missing STEBBS parameters in sample_config.yml (#1111)
+- [change] Changed values of some STEBBS parameters in sample_config.yml to be physically reasonable (#1111)
+- [bugfix] Extended nullification logic in validator for stebbsmethod==0 to handle nested TenMinutesProfiles structures (#1115)
+- [doc] Specified precision requirements for pressure input (#1107)
+- [maintenance] Added CI rules for fork PR handling (#1118)
+- [maintenance] Fixed CI to skip pages deployment and format-master for fork PRs (#1113, #1114)
 
 ### 20 Jan 2026
 

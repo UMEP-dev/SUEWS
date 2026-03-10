@@ -79,7 +79,9 @@ class SUEWSOutput:
             Additional metadata (timing, version, etc.)
         """
         self._df_output = df_output.copy()
-        self._df_state_final = df_state_final.copy() if df_state_final is not None else None
+        self._df_state_final = (
+            df_state_final.copy() if df_state_final is not None else None
+        )
         self._config = config
         self._metadata = metadata or {}
 
@@ -101,6 +103,11 @@ class SUEWSOutput:
     def columns(self) -> pd.Index:
         """Column index of output DataFrame (pandas-compatible)."""
         return self._df_output.columns
+
+    @property
+    def index(self) -> pd.Index:
+        """Row index of output DataFrame (pandas-compatible)."""
+        return self._df_output.index
 
     @property
     def state_final(self) -> pd.DataFrame:
@@ -388,7 +395,7 @@ class SUEWSOutput:
         """
         from ._post import resample_output
 
-        resampled = resample_output(self._df_output, freq)
+        resampled = resample_output(self, freq, _internal=True)
         return SUEWSOutput(
             resampled,
             self._df_state_final,

@@ -37,6 +37,7 @@ livehtml: $(RST_STAMP) $(OUTPUT_RST_STAMP)
 	sphinx-autobuild -j auto \
 		--re-ignore 'supy\.util\..*' \
 		--ignore "source/SuPy.log" \
+		--ignore "source/auto_examples/*" \
 		--watch ../src/supy/data_model \
 		--open-browser \
 		"$(SOURCEDIR)" "$(BUILDDIR)/html" \

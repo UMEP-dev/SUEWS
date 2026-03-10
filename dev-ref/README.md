@@ -10,7 +10,7 @@ This directory contains internal documentation for SUEWS core developers.
   - Start here if you're new to the team
   
 - **[Building Locally](building-locally.md)** - Quick guide to build and test SUEWS from source
-  - Prerequisites, setup with pip or conda/mamba, and test commands
+  - Prerequisites, setup with uv or pip, and test commands
 
 ### Development Guidelines
 - **[Coding Guidelines](CODING_GUIDELINES.md)** - Code style and conventions
@@ -41,8 +41,7 @@ This directory contains internal documentation for SUEWS core developers.
   - Test design principles
   - FIRST principles and AAA pattern
   
-- **[Fortran Test Patterns](testing/FORTRAN_TEST_PATTERNS.md)** - Fortran-specific testing
-  - Available modules via f90wrap
+- **[Fortran Test Patterns](testing/FORTRAN_TEST_PATTERNS.md)** - Fortran-specific testing (historical; f90wrap removed)
   - Common test patterns
   
 - **[Error Handling](testing/ERROR_HANDLING_PATTERNS.md)** - Error handling best practices

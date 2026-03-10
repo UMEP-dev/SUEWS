@@ -41,11 +41,7 @@ __all__ = [
     "check_state",
     "init_config",
     "run_supy_sample",
-    "resample_output",
-    # Debug utilities
-    "pack_dts_state_selective",
-    "inspect_dts_structure",
-    "dict_structure",
+    "resample_output",  # Deprecated - use SUEWSOutput.resample() instead
     # Modules
     "util",
     "data_model",
@@ -97,18 +93,12 @@ def __getattr__(name):
         _lazy_cache[name] = getattr(_supy_module, name)
         return _lazy_cache[name]
 
-    # resample_output can come from either module
+    # resample_output - deprecated, use SUEWSOutput.resample() instead
     if name == "resample_output":
-        from ._supy_module import resample_output
+        from ._supy_module import _warn_functional_deprecation, resample_output
 
+        _warn_functional_deprecation("resample_output")
         _lazy_cache[name] = resample_output
-        return _lazy_cache[name]
-
-    # Debug utilities from _post
-    if name in {"pack_dts_state_selective", "inspect_dts_structure", "dict_structure"}:
-        from . import _post
-
-        _lazy_cache[name] = getattr(_post, name)
         return _lazy_cache[name]
 
     # Submodules
@@ -191,9 +181,16 @@ def __getattr__(name):
         _lazy_cache[name] = SUEWS
         return _lazy_cache[name]
 
-    # Exception for Fortran kernel errors
+    # Exception for Fortran kernel errors (kept for backward compatibility)
     if name == "SUEWSKernelError":
-        from ._run import SUEWSKernelError
+
+        class SUEWSKernelError(RuntimeError):
+            """Error raised when the SUEWS Fortran kernel encounters a fatal condition."""
+
+            def __init__(self, code=None, message=None):
+                self.code = code
+                self.message = message or "SUEWS kernel error"
+                super().__init__(f"SUEWS kernel error (code={code}): {self.message}")
 
         _lazy_cache[name] = SUEWSKernelError
         return _lazy_cache[name]

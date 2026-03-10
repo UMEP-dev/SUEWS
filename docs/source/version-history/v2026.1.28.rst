@@ -1,0 +1,65 @@
+
+.. _new_latest:
+
+.. _new_2026.1.28:
+
+Version 2026.1.28 (released on 28 January 2026)
+------------------------------------------------
+
+This release introduces significant STEBBS enhancements, physics improvements for dyOHM calculations, executable documentation examples, and extensive stability fixes for QGIS/UMEP integration.
+
+**Major Features:**
+
+- **STEBBS Time-Varying Profiles**: Added support for 10-minute profiles for Heating setpoints, Cooling setpoints, Appliance usage, Occupants, and Hot Water demand. This enables more realistic diurnal variation in building energy simulations. (:pr:`1038`)
+
+- **Dynamic OHM Surface Separation**: Separated surfaces for dyOHM (dynamic Objective Hysteresis Model) calculation, allowing more accurate surface heat storage modelling for different land cover types. (:pr:`1122`)
+
+- **Executable Documentation**: Added sphinx-gallery for executable documentation examples, enabling tutorial scripts that generate output and plots during documentation builds. (:pr:`1057`)
+
+**Stability Improvements:**
+
+- **Thread-Safe Error Logging**: Added modState parameter for thread-safe error handling, preventing race conditions in parallel simulations. (:pr:`1083`)
+
+- **QGIS Crash Fix**: Removed stdout writes that caused QGIS to crash when running SUEWS through the UMEP plugin. (:pr:`1086`)
+
+- **Pandas 3.0 Compatibility**: Fixed Copy-on-Write and ``asfreq()`` changes for forward compatibility with Pandas 3.0. (:pr:`1106`)
+
+- **QGIS/UMEP Test Suite**: Added comprehensive compatibility test suite to catch integration issues early. (:pr:`905`)
+
+**Physics Fixes:**
+
+- **Biogenic CO2**: Fixed biogenic CO2 calculations to use local climate instead of global average temperature, improving FcRespi accuracy in regional studies. (:pr:`1117`)
+
+- **NumCapita Initialisation**: Fixed uninitialised NumCapita variable that caused NaN values in CO2 flux calculations. (:pr:`1053`)
+
+- **Error Flag Reset**: Reset error flag before kernel calls to prevent stale errors from previous runs affecting subsequent simulations. (:pr:`1109`)
+
+**Validation Enhancements:**
+
+- Land cover fraction check refactored to use Phase B as single authority (:pr:`1099`)
+- Improved albedo ranges for physics-aware validation (:pr:`978`)
+- Improved emissivity ranges for physics-aware validation (:pr:`979`)
+- Added warning when surface fractions are auto-normalised (:pr:`1071`)
+- Structured error handling with detailed validation reports (:pr:`1070`)
+
+**Documentation:**
+
+- Added user workflow guide for getting started with SUEWS (:pr:`1014`)
+- Executable documentation examples using sphinx-gallery (:pr:`1057`)
+
+**Build System:**
+
+- Split ``make dev`` and ``make dev-dts`` targets for faster development builds when DTS components are unchanged (:pr:`1108`)
+- Vendored f90wrap runtime to eliminate pip dependency conflicts (:pr:`963`)
+- Fixed UMEP NumPy ABI compatibility for QGIS environments (:pr:`1056`)
+- Fixed macOS UMEP wheel build by replacing sed with Python (:pr:`1128`)
+- Added merge queue support to CI workflow (:pr:`954`)
+- Removed format-master workflow incompatible with merge queue (:pr:`1130`)
+- Replaced incremental DataFrame assignment with batch column creation (:pr:`1129`)
+
+**Breaking Changes:**
+
+None. This release maintains full backward compatibility with 2025.11.20.
+
+For complete details, see the `CHANGELOG <https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md>`_.
+

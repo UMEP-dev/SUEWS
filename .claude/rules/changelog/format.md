@@ -23,15 +23,36 @@ Conventions for SUEWS CHANGELOG entries.
 
 ## Categories
 
-| Category | Use for |
-|----------|---------|
-| `[feature]` | New functionality |
-| `[bugfix]` | Bug fixes (link issue) |
-| `[change]` | User-facing changes |
-| `[maintenance]` | Internal/dev tooling, CLAUDE.md |
-| `[doc]` | User documentation (not CLAUDE.md) |
+- `[feature]` - New functionality
+- `[bugfix]` - Bug fixes (link issue)
+- `[change]` - User-facing/breaking changes
+- `[maintenance]` - Internal/dev tooling, CLAUDE.md
+- `[doc]` - User documentation (not CLAUDE.md)
 
 **IMPORTANT**: CLAUDE.md updates are `[maintenance]`, not `[doc]`
+
+---
+
+## Status Tags (Governance)
+
+For `[feature]` and `[change]` entries, add a status tag:
+
+- `[experimental]` - Under development, not for public announcement
+- `[stable]` - Governance-approved, can appear in public release notes
+- `[internal]` - Internal tooling, never announced publicly
+
+**Rules**:
+- New features default to `[experimental]` until governance approval
+- Only `[stable]` entries are included in public release announcements
+- `[bugfix]`, `[maintenance]`, `[doc]` do not need status tags
+
+**Format**: `[category][status] Description (#ref)`
+
+```markdown
+- [feature][experimental] Added new radiation scheme (#123)
+- [feature][stable] Added OOP interface for output data (#456)
+- [change][experimental] Refactored land cover API (#789)
+```
 
 ---
 

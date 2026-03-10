@@ -35,6 +35,22 @@ SUEWS-specific Python conventions. Complements ruff for standard linting.
 
 4. **pathlib**: Use `Path` not `os.path`
 
+5. **UTF-8 encoding**: Always specify `encoding="utf-8"` for file operations
+   ```python
+   # BAD: Windows default encoding (cp1252/cp1253) breaks Unicode
+   with open(path, "w") as f:
+       f.write(content)
+   Path(output).write_text(content)
+
+   # GOOD: Explicit UTF-8 encoding for cross-platform compatibility
+   with open(path, "w", encoding="utf-8") as f:
+       f.write(content)
+   Path(output).write_text(content, encoding="utf-8")
+   ```
+   **Why**: Windows uses locale-specific encodings by default (e.g., cp1252, cp1253).
+   Unicode characters like `→` cause `UnicodeEncodeError` and produce empty files.
+   See issue #1097 for details.
+
 ---
 
 ## Style Guidelines

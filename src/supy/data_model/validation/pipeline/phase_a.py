@@ -4,6 +4,8 @@ import subprocess
 import pandas as pd
 from pathlib import Path
 
+from .report_writer import REPORT_WRITER
+
 RENAMED_PARAMS = {
     "cp": "rho_cp",
     "diagmethod": "rslmethod",
@@ -29,6 +31,8 @@ PHYSICS_OPTIONS = {
     "snowuse",
     "stebbsmethod",
     "rcmethod",
+    "samealbedo_wall",
+    "samealbedo_roof",
 }
 
 
@@ -635,6 +639,12 @@ def create_uptodate_yaml_header():
 def create_clean_missing_param_annotation(param_name, standard_value):
     """Create missing parameter annotation without inline comments for clean YAML."""
     lines = []
+
+    if param_name in ["qn_surfs", "dqndt_surf"]:
+        null_array = ["null"] * 7
+        lines.append(f"{param_name}: [{', '.join(null_array)}]")
+        return lines
+
     if isinstance(standard_value, dict):
         lines.append(f"{param_name}:")
         for key, value in standard_value.items():
@@ -1618,13 +1628,19 @@ def annotate_missing_parameters(
 
     # Write output files
     if uptodate_file:
-        with open(uptodate_file, "w") as f:
+        with open(uptodate_file, "w", encoding="utf-8", newline="\n") as f:
             f.write(uptodate_content)
         # print(f"\n Clean YAML written to: {uptodate_file}")
 
     if report_file:
-        with open(report_file, "w") as f:
-            f.write(report_content)
+        import sys
+        debug = os.environ.get("SUEWS_DEBUG", "").lower() in ("1", "true", "yes")
+        if debug:
+            print(f"[DEBUG] Phase A: Writing report ({len(report_content)} chars) to {report_file}", file=sys.stderr)
+        REPORT_WRITER.write(report_file, report_content)
+        if debug:
+            actual_size = os.path.getsize(report_file) if os.path.exists(report_file) else -1
+            print(f"[DEBUG] Phase A: After write, file size: {actual_size} bytes", file=sys.stderr)
         # print(f" Analysis report written to: {report_file}")
 
 

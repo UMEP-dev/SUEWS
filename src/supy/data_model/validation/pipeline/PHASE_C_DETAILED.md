@@ -238,12 +238,9 @@ def _check_thermal_layers(self, thermal_layers, surface_type: str, site_name: st
 ```python
 def _collect_land_cover_issues(self, land_cover, site_name: str, site_index: int, annotator) -> None:
     """Collect land cover validation issues."""
-
-def _check_land_cover_fractions(self, land_cover, site_name: str) -> bool:
-    """Check that land cover fractions sum to 1.0."""
 ```
 
-- **Functions**: `_collect_land_cover_issues()`, `_check_land_cover_fractions()`
+- **Functions**: `_collect_land_cover_issues()`
 - **Logic**: When surface fraction `> 0`, validates surface-specific parameters and fraction totals
 - **Building-specific**: `bldgs.sfr > 0.05` requires `bldgh`, `faibldg`
 
@@ -304,6 +301,49 @@ def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
 - **Logic**: When `stebbsmethod == 1`, validates all required STEBBS building energy parameters are present and non-null
 - **Required Parameters**: Defined in `STEBBS_REQUIRED_PARAMS` constant
 - **Convection Coefficient Constraints**: Validates that STEBBS convection coefficients are greater than 0 (physically sensible)
+
+### 4. SPARTACUS Building Height Validation
+
+```python
+def _needs_spartacus_validation(self) -> bool:
+    """Return True if SPARTACUS is enabled (netradiationmethod == 1001, 1002, or 1003)."""
+    # Checks if SPARTACUS is selected as the radiation method (public or dev mode)
+    # Triggers additional building height validation when activated
+
+def _validate_spartacus_building_height(self, site: Site, site_index: int) -> List[str]:
+    """
+    If SPARTACUS is enabled, enforce that bldgh does not exceed the domain top (height[nlayer+1]).
+    Returns a list of issue messages.
+    """
+```
+
+**Logic**:  
+- When `netradiationmethod` is set to a SPARTACUS method (1001, 1002, or 1003), for every site in the configuration:
+  - The main building height (`bldgh`) from `land_cover.bldgs.bldgh` **must not exceed** the domain top height (`vertical_layers.height[nlayer+1]`).
+  - If `bldgh` exceeds the simulation domain top, an ACTION NEEDED report message is generated, and validation fails.
+
+
+### 5. SPARTACUS Surface Fraction Validation
+
+```python
+def _validate_spartacus_sfr(self, site: Site, site_index: int) -> List[str]:
+    """
+    If SPARTACUS is enabled, check that:
+    - bldgs.sfr == building_frac[0]
+    - (evetr.sfr + dectr.sfr) == max(veg_frac)
+    Returns a list of issue messages.
+    """
+```
+
+**Logic**
+
+When SPARTACUS is enabled (same condition as in `_needs_spartacus_validation`):
+
+For each site, Phase C:
+
+1. Reads land-cover surface fractions
+2. Reads SPARTACUS vertical-layer fractions from `vertical_layers`
+3. Performs consistency checks (only if arrays exist and have at least one element) 
 
 ### Orchestration Pattern
 

@@ -80,7 +80,7 @@ MODULE module_ctrl_const_allocate
    INTEGER, PARAMETER :: ncolsESTMdata = 13 !ESTM input file (_ESTM_Ts_data.txt))
 
    ! ---- Set number of columns in output files ---------------------------------------------------
-   INTEGER, PARAMETER :: ncolumnsDataOutSUEWS = 90 + 7 + 7, & !Main output file (_5.txt). dataOutSUEWS created in SUEWS_Calculations.f95
+   INTEGER, PARAMETER :: ncolumnsDataOutSUEWS = 90 + 7 + 7 + 7 + 7, & !Main output file (_5.txt): base + Ts_surf + Ts_surf_dyohm + qn_surf + qs_surf
                          ncolumnsDataOutSnow = 103, &
                          ncolumnsdataOutSOLWEIG = 31, &
                          ncolumnsDataOutBEERS = 34, &
@@ -91,7 +91,7 @@ MODULE module_ctrl_const_allocate
                          ncolumnsDataOutRSL = 30*4 + 5 + 13 + 2, &
                          ncolumnsDataOutDebug = 1 + 5 + 103 + 14 + 5 + 4 + 3 + 1, &
                          ncolumnsDataOutSPARTACUS = 5 + 7 + 4*15 + 3 + 6*15 + 2*15 + 4, &
-                         ncolumnsDataOutSTEBBS = 5 + 78, &
+                         ncolumnsDataOutSTEBBS = 5 + 80, &
                          ncolumnsDataOutNHood = 5 + 1
 
    ! ---- Define input file headers ---------------------------------------------------------------

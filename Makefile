@@ -1,5 +1,5 @@
 # SUEWS Simplified Makefile - Essential recipes only
-.PHONY: help setup submodules dev reinstall test test-smoke test-all docs clean format
+.PHONY: help setup submodules dev reinstall test test-smoke test-all docs clean format bridge
 
 # Default Python
 PYTHON := python
@@ -8,12 +8,13 @@ help:
 	@echo "SUEWS Development - Essential Commands"
 	@echo ""
 	@echo "  setup      - Create virtual environment (if using uv)"
-	@echo "  dev        - Install in editable mode (requires activated venv)"
+	@echo "  dev        - Build and install in editable mode"
 	@echo "  test       - Run standard tests (excludes slow, ~2-3 min)"
 	@echo "  test-smoke - Run smoke tests only (fast CI validation, ~30-60 sec)"
 	@echo "  test-all   - Run ALL tests including slow (~4-5 min)"
 	@echo "  docs       - Build documentation"
 	@echo "  clean      - Smart clean (keeps .venv if active)"
+	@echo "  bridge     - Build the Rust bridge CLI (suews_bridge)"
 	@echo "  format     - Format Python and Fortran code"
 	@echo ""
 	@echo "Quick start:"
@@ -32,8 +33,8 @@ setup:
 		if [ ! -d ".venv" ]; then \
 			echo "Creating uv virtual environment..."; \
 			uv venv; \
-			echo "✓ Created .venv"; \
-			echo "→ Now run: source .venv/bin/activate"; \
+			echo "Created .venv"; \
+			echo "-> Now run: source .venv/bin/activate"; \
 		else \
 			echo "Virtual environment already exists at .venv"; \
 		fi \
@@ -47,7 +48,7 @@ setup:
 submodules:
 	@git submodule update --init --recursive
 
-# Install in editable mode (self-healing - works after clean)
+# Build and install in editable mode
 dev:
 	@# Check for activated virtual environment
 	@if [ -z "$$VIRTUAL_ENV" ]; then \
@@ -98,15 +99,15 @@ dev:
 	@# Install build dependencies first (required for --no-build-isolation)
 	@if command -v uv >/dev/null 2>&1; then \
 		echo "Using uv for fast installation..."; \
-		uv pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
+		uv pip install wheel pytest "numpy>=2.0" "meson-python>=0.12.0"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran for macOS compatibility"; \
-			bash -c 'FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]"'; \
+			bash -c 'PATH="$$HOME/.cargo/bin:$$PATH" FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]"'; \
 		else \
 			uv pip install --no-build-isolation -e ".[dev]"; \
 		fi \
 	else \
-		$(PYTHON) -m pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
+		$(PYTHON) -m pip install wheel pytest "numpy>=2.0" "meson-python>=0.12.0"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation -e ".[dev]"; \
 		else \
@@ -115,7 +116,7 @@ dev:
 	fi
 	@# Ensure meson build directory is initialized (fixes post-clean state)
 	@$(MAKE) rebuild-meson
-	@echo "✓ Installation complete"
+	@echo "Build complete"
 
 # Deprecated: use 'make clean && make dev' instead (kept for backwards compatibility)
 reinstall:
@@ -139,15 +140,25 @@ rebuild-meson:
 		echo "Initializing meson build directory for $$PYVER..."; \
 		mkdir -p "build/$$PYVER"; \
 		if cd "build/$$PYVER" && meson setup ../.. --prefix=$$VIRTUAL_ENV; then \
-			echo "✓ Build directory initialized"; \
+			echo "[OK] Build directory initialized"; \
 		else \
 			echo "ERROR: meson setup failed"; \
 			exit 1; \
 		fi; \
 	else \
 		echo "Rebuilding changed Fortran sources..."; \
+		BRIDGE_SO=$$(ls build/$$PYVER/src/supy/suews_bridge.* 2>/dev/null | head -1); \
+		if [ -n "$$BRIDGE_SO" ] && [ -d "src/suews_bridge/src" ]; then \
+			STALE=$$(find src/suews_bridge/src src/suews_bridge/c_api \
+				src/suews_bridge/build.rs src/suews_bridge/Cargo.toml \
+				-newer "$$BRIDGE_SO" 2>/dev/null | head -1); \
+			if [ -n "$$STALE" ]; then \
+				echo "Rust bridge sources changed - forcing rebuild..."; \
+				rm -f build/$$PYVER/src/supy/suews_bridge.* build/$$PYVER/src/supy/bin/suews*; \
+			fi; \
+		fi; \
 		if cd "build/$$PYVER" && ninja; then \
-			echo "✓ Fortran extension rebuilt"; \
+			echo "[OK] Fortran extension rebuilt"; \
 		else \
 			echo "ERROR: ninja build failed"; \
 			exit 1; \
@@ -192,15 +203,26 @@ clean:
 	@$(MAKE) -C src/suews clean 2>/dev/null || true
 	@$(MAKE) -C docs clean 2>/dev/null || true
 	@if [ -n "$$VIRTUAL_ENV" ] && [ -d ".venv" ]; then \
-		echo "✓ Cleaned (keeping .venv - you're using it)"; \
-		echo "→ Run 'make dev' to rebuild"; \
+		echo "[OK] Cleaned (keeping .venv - you're using it)"; \
+		echo "-> Run 'make dev' to rebuild"; \
 	elif [ -d ".venv" ]; then \
 		echo "Removing .venv (not active)..."; \
 		rm -rf .venv; \
-		echo "✓ Cleaned everything including .venv"; \
+		echo "[OK] Cleaned everything including .venv"; \
 	else \
-		echo "✓ Cleaned"; \
+		echo "[OK] Cleaned"; \
 	fi
+
+# Build the Rust bridge CLI binary
+bridge:
+	@if ! command -v cargo >/dev/null 2>&1; then \
+		echo "ERROR: cargo not found. Install Rust: https://rustup.rs"; \
+		exit 1; \
+	fi
+	@echo "Building Rust bridge CLI..."
+	cd src/suews_bridge && cargo build --release
+	@echo "Binary at: src/suews_bridge/target/release/suews"
+	@echo "Run: src/suews_bridge/target/release/suews --help"
 
 # Format code
 format:

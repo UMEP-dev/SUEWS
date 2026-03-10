@@ -74,3 +74,23 @@ Functions for calculating roughness parameters:
 
     cal_z0zd
     cal_neutral
+
+Attribution Analysis
+--------------------
+
+Functions for decomposing near-surface variable changes into physically
+attributable components using Shapley value analysis :cite:`S53,O72`.
+See :doc:`/auto_examples/tutorial_07_attribution` for a worked example.
+
+.. autosummary::
+    :toctree: _autosummary
+
+    attribute
+    diagnose
+    attribute_t2
+    attribute_q2
+    attribute_u10
+    diagnose_t2
+    diagnose_q2
+    diagnose_u10
+    AttributionResult

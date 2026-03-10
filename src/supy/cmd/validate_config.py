@@ -20,6 +20,8 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.progress import track
 
+from ..data_model.validation.pipeline.report_writer import REPORT_WRITER
+
 # Import the new JSON output formatter
 try:
     from .json_output import JSONOutput, ErrorCode, ValidationError
@@ -104,7 +106,7 @@ def validate_single_file(
 
         if validation_errors:
             for error in validation_errors:
-                path = " → ".join(str(p) for p in error.path) if error.path else "root"
+                path = " -> ".join(str(p) for p in error.path) if error.path else "root"
                 if ValidationError and ErrorCode:
                     # Categorize the error based on its content
                     if "required" in error.message.lower():
@@ -543,7 +545,7 @@ def _print_schema_info():
 
     console.print("\n[bold]Version History:[/bold]")
     for version, description in SCHEMA_VERSIONS.items():
-        marker = "→" if version == CURRENT_SCHEMA_VERSION else " "
+        marker = ">" if version == CURRENT_SCHEMA_VERSION else " "
         console.print(f"  {marker} v{version}: {description}")
 
     console.print("\n[bold]Schema Files:[/bold]")
@@ -617,7 +619,7 @@ def version(files, update, target_version, backup):
                     cfg["schema_version"] = new_version
                     with open(path, "w") as f:
                         yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
-                    action = f"Updated → {new_version}"
+                    action = f"Updated -> {new_version}"
                 else:
                     action = "No change needed"
 
@@ -773,6 +775,13 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
 
     All findings are consolidated into a single report and updated YAML file.
     """
+    debug = os.environ.get("SUEWS_DEBUG", "").lower() in ("1", "true", "yes")
+    if debug:
+        print(f"[DEBUG] _execute_pipeline called", file=sys.stderr)
+        print(f"[DEBUG]   file: {file}", file=sys.stderr)
+        print(f"[DEBUG]   pipeline: {pipeline}", file=sys.stderr)
+        print(f"[DEBUG]   mode: {mode}", file=sys.stderr)
+
     # Ensure processor is importable
     if not all([
         _processor_validate_input_file,
@@ -1193,8 +1202,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
 
                 # Read Phase C error report and append Phase B messages
                 if Path(pydantic_report_file).exists():
-                    with open(pydantic_report_file, "r") as f:
-                        phase_c_content = f.read()
+                    phase_c_content = REPORT_WRITER.read(pydantic_report_file)
 
                     # Append Phase B NO ACTION NEEDED messages to Phase C report
                     if phase_b_messages:
@@ -1219,8 +1227,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
                         phase_c_content += f"\n\n# {'=' * 50}\n"
 
                         # Write consolidated report
-                        with open(pydantic_report_file, "w") as f:
-                            f.write(phase_c_content)
+                        REPORT_WRITER.write(pydantic_report_file, phase_c_content)
 
                 # Use Phase B YAML as final (last successful phase)
                 if Path(science_yaml_file).exists():
@@ -1295,14 +1302,23 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
     )
     if not a_ok:
         # Phase A failed in ABC - create final files from Phase A outputs
-        import shutil
+        if debug:
+            print(f"[DEBUG] Phase A failed in ABC pipeline", file=sys.stderr)
+            print(f"[DEBUG]   report_file: {report_file}, exists: {Path(report_file).exists()}", file=sys.stderr)
+            if Path(report_file).exists():
+                print(f"[DEBUG]   report_file size: {os.path.getsize(report_file)} bytes", file=sys.stderr)
+            print(f"[DEBUG]   pydantic_report_file (target): {pydantic_report_file}", file=sys.stderr)
 
         try:
-            if Path(report_file).exists():
-                shutil.move(report_file, pydantic_report_file)  # reportA → report
-            if Path(uptodate_file).exists():
-                shutil.move(uptodate_file, pydantic_yaml_file)  # updatedA → updated
-        except Exception:
+            # Use orchestrator helper to handle move/copy fallbacks consistently.
+            _processor_create_final_user_files(
+                user_yaml_file=str(file),
+                source_yaml=str(uptodate_file),
+                source_report=str(report_file),
+            )
+        except Exception as e:
+            if debug:
+                print(f"[DEBUG]   Move failed with exception: {e}", file=sys.stderr)
             pass  # Don't fail if move doesn't work
 
         console.print("[red]✗ Validation failed[/red]")
@@ -1462,6 +1478,11 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
     console.print("[green]✓ Validation completed[/green]")
     console.print(f"Report: {pydantic_report_file}")
     console.print(f"Updated YAML: {pydantic_yaml_file}")
+
+    if debug:
+        report_exists = os.path.exists(pydantic_report_file)
+        report_size = os.path.getsize(pydantic_report_file) if report_exists else -1
+        print(f"[DEBUG] Final report state: exists={report_exists}, size={report_size} bytes", file=sys.stderr)
 
     # The intermediate files are now cleaned up by run_phase_c during consolidation
     # Clean up any remaining intermediate YAML files that weren't cleaned up

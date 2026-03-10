@@ -6,8 +6,7 @@ import pandas as pd
 from enum import Enum
 import inspect
 
-from .type import RefValue, Reference, FlexibleRefValue
-from .type import init_df_state
+from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -510,6 +509,44 @@ class SnowUse(Enum):
 
     def __repr__(self):
         return str(self.value)
+    
+class SameAlbedoWall(Enum):
+    """
+    Controls assumption of same albedoes for walls.
+
+    0: OFF
+    1: ON
+    """
+
+    DISABLED = 0
+    ENABLED = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+    
+
+class SameAlbedoRoof(Enum):
+    """
+    Controls assumption of same albedoes for roofs.
+
+    0: OFF
+    1: ON
+    """
+
+    DISABLED = 0
+    ENABLED = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+    
+    
+
 
 
 def yaml_equivalent_of_default(dumper, data):
@@ -546,6 +583,8 @@ for enum_class in [
     RCMethod,
     SnowUse,
     OhmIncQf,
+    SameAlbedoWall,
+    SameAlbedoRoof,
 ]:
     yaml.add_representer(enum_class, yaml_equivalent_of_default)
 
@@ -655,6 +694,17 @@ class ModelPhysics(BaseModel):
         description=_enum_description(RCMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
+    samealbedo_wall: FlexibleRefValue(SameAlbedoWall) = Field(
+        default=SameAlbedoWall.DISABLED,
+        description=_enum_description(SameAlbedoWall),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    samealbedo_roof: FlexibleRefValue(SameAlbedoRoof) = Field(
+        default=SameAlbedoRoof.DISABLED,
+        description=_enum_description(SameAlbedoRoof),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+
     ref: Optional[Reference] = None
 
     # We then need to set to 0 (or None) all the CO2-related parameters or rules
@@ -662,17 +712,7 @@ class ModelPhysics(BaseModel):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model physics properties to DataFrame state format."""
-        df_state = init_df_state(grid_id)
-
-        # Helper function to set values in DataFrame
-        def set_df_value(col_name: str, value: float):
-            idx_str = "0"
-            if (col_name, idx_str) not in df_state.columns:
-                # df_state[(col_name, idx_str)] = np.nan
-                df_state[(col_name, idx_str)] = None
-            val = value.value if isinstance(value, RefValue) else value
-            df_state.at[grid_id, (col_name, idx_str)] = int(val)
-
+        cols = {("gridiv", "0"): grid_id}
         list_attr = [
             "netradiationmethod",
             "emissionsmethod",
@@ -690,10 +730,14 @@ class ModelPhysics(BaseModel):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
+            "samealbedo_wall",
+            "samealbedo_roof",
         ]
         for attr in list_attr:
-            set_df_value(attr, getattr(self, attr))
-        return df_state
+            value = getattr(self, attr)
+            val = value.value if isinstance(value, RefValue) else value
+            cols[(attr, "0")] = int(val)
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ModelPhysics":
@@ -707,10 +751,9 @@ class ModelPhysics(BaseModel):
         Returns:
             ModelPhysics: Instance of ModelPhysics
         """
+        properties: dict = {}
 
-        properties = {}
-
-        list_attr = [
+        required_attrs = [
             "netradiationmethod",
             "emissionsmethod",
             "storageheatmethod",
@@ -729,11 +772,25 @@ class ModelPhysics(BaseModel):
             "rcmethod",
         ]
 
-        for attr in list_attr:
+        # New options: optional in legacy DataFrames, default if missing
+        optional_new_attrs_with_defaults = {
+            "samealbedo_wall": SameAlbedoWall.DISABLED,
+            "samealbedo_roof": SameAlbedoRoof.DISABLED,
+        }
+
+        for attr in required_attrs:
             try:
                 properties[attr] = RefValue(int(df.loc[grid_id, (attr, "0")]))
             except KeyError:
                 raise ValueError(f"Missing attribute '{attr}' in the DataFrame")
+
+        # Optional new attributes
+        for attr, default_enum in optional_new_attrs_with_defaults.items():
+            try:
+                value = df.loc[grid_id, (attr, "0")]
+                properties[attr] = RefValue(int(value))
+            except KeyError:
+                properties[attr] = RefValue(int(default_enum))
 
         return cls(**properties)
 
@@ -834,23 +891,14 @@ class ModelControl(BaseModel):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model control properties to DataFrame state format."""
-        df_state = init_df_state(grid_id)
-
-        # Helper function to set values in DataFrame
-        def set_df_value(col_name: str, value: float):
-            idx_str = "0"
-            if (col_name, idx_str) not in df_state.columns:
-                # df_state[(col_name, idx_str)] = np.nan
-                df_state[(col_name, idx_str)] = None
-            df_state.at[grid_id, (col_name, idx_str)] = value
-
+        cols = {("gridiv", "0"): grid_id}
         list_attr = ["tstep", "diagnose"]
         for attr in list_attr:
             value = getattr(self, attr)
             # Extract value from RefValue if needed
             val = value.value if isinstance(value, RefValue) else value
-            set_df_value(attr, val)
-        return df_state
+            cols[(attr, "0")] = val
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ModelControl":
@@ -880,7 +928,9 @@ class Model(BaseModel):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model to DataFrame state format"""
-        df_state = init_df_state(grid_id)
+        df_state = df_from_cols(
+            {("gridiv", "0"): grid_id}, index=pd.Index([grid_id], name="grid")
+        )
         df_control = self.control.to_df_state(grid_id)
         df_physics = self.physics.to_df_state(grid_id)
         df_state = pd.concat([df_state, df_control, df_physics], axis=1)

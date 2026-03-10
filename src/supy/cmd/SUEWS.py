@@ -140,6 +140,7 @@ def _run_with_yaml(config_path):
         sys.exit(130)
     except Exception as e:
         import traceback
+
         click.echo(f"Error running simulation: {e}", err=True)
         click.echo("\nFull traceback:", err=True)
         click.echo(traceback.format_exc(), err=True)
@@ -250,6 +251,7 @@ def _run_with_namelist(path_runcontrol):
         sys.exit(130)
     except Exception as e:
         import traceback
+
         click.echo(f"Error: {e}", err=True)
         click.echo("\nFull traceback:", err=True)
         click.echo(traceback.format_exc(), err=True)

@@ -35,7 +35,7 @@ module module_type_atmosphere
       REAL(KIND(1D0)) :: U10_ms = 0.0D0 !average wind speed at 10m [W m-1]
       REAL(KIND(1D0)) :: U_hbh = 0.0D0 ! wind speed at half building height [m s-1]
       REAL(KIND(1D0)) :: T2_C = 0.0D0 !modelled 2 meter air temperature [degC]
-      REAL(KIND(1D0)) :: T_hbh_C = 0.0D0 ! air temperature at half building height [Deg C]
+      REAL(KIND(1D0)) :: T_half_bldg_C = 0.0D0 ! air temperature at half building height [Deg C]
       REAL(KIND(1D0)) :: q2_gkg = 0.0D0 ! Air specific humidity at 2 m [g kg-1]
       REAL(KIND(1D0)) :: RH2 = 0.0D0 ! air relative humidity at 2m [-]
       REAL(KIND(1D0)) :: L_mod = 0.0D0 !Obukhov length [m]

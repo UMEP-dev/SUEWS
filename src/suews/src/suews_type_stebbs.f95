@@ -11,7 +11,7 @@ module module_type_stebbs
       ! CHARACTER(LEN=50) :: BuildingType !
       ! CHARACTER(LEN=50) :: BuildingName !
       REAL(KIND(1D0)) :: BuildingCount = 0.0D0 ! Number of buildings of this archetype [-]
-      REAL(KIND(1D0)) :: Occupants = 0.0D0 ! Number of occupants present in building [-]
+      REAL(KIND(1D0)) :: Occupants = 0.0D0 ! Maixmum number of occupants in building [-]
       REAL(KIND(1D0)) :: hhs0 = 0.0D0 !
       REAL(KIND(1D0)) :: age_0_4 = 0.0D0 !
       REAL(KIND(1D0)) :: age_5_11 = 0.0D0 !
@@ -72,6 +72,8 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: MaximumHotWaterHeatingPower = 0.0D0 ! Maximum power demand of water heating system [W]
       REAL(KIND(1D0)) :: HeatingSetpointTemperature = 0.0D0 ! Heating setpoint temperature [degC]
       REAL(KIND(1D0)) :: CoolingSetpointTemperature = 0.0D0 ! Cooling setpoint temperature [degC]
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: MetabolismProfile = 0.0D0 ! diurnal profiles of occupant metabolic rate [W]
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: ApplianceProfile = 0.0D0 ! diurnal profiles of appliance energy power [W]
       ! flag for iteration safety - YES - as we this should be updated every iteration
       LOGICAL :: iter_safe = .TRUE.
    END TYPE BUILDING_ARCHETYPE_PRM
@@ -90,17 +92,8 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: ExternalGroundConductivity = 0.0D0
       REAL(KIND(1D0)) :: IndoorAirDensity = 0.0D0 ! Density of indoor air [kg m-3]
       REAL(KIND(1D0)) :: IndoorAirCp = 0.0D0 ! Specific heat capacity of indoor air [J kg-1 K-1]
-      !REAL(KIND(1D0)) :: WallBuildingViewFactor = 0.0D0 ! Building view factor of external walls [-]
-      !REAL(KIND(1D0)) :: WallGroundViewFactor = 0.0D0 ! Ground view factor of external walls [-]
-      !REAL(KIND(1D0)) :: WallSkyViewFactor = 0.0D0 ! Sky view factor of external roofs [-]
-      !REAL(KIND(1D0)) :: RoofBuildingViewFactor = 0.0D0 ! Building view factor of external roofs [-]
-      !REAL(KIND(1D0)) :: RoofGroundViewFactor = 0.0D0 ! Ground view factor of external roofs [-]
-      !REAL(KIND(1D0)) :: RoofSkyViewFactor = 0.0D0 ! Sky view factor of external roofs [-]
-      REAL(KIND(1D0)) :: MetabolicRate = 0.0D0 ! Metabolic rate of building occupants [W]
+      REAL(KIND(1D0)) :: MetabolismThreshold = 0.0D0 ! Threshold of Metabolic rate of each occupancy for active or inactive [W]
       REAL(KIND(1D0)) :: LatentSensibleRatio = 0.0D0 ! Latent-to-sensible ratio of metabolic energy release of occupants [-]
-      REAL(KIND(1D0)) :: ApplianceRating = 0.0D0 ! Power demand of single appliance [W]
-      REAL(KIND(1D0)) :: TotalNumberofAppliances = 0.0D0 ! Number of appliances present in building [-]
-      REAL(KIND(1D0)) :: ApplianceUsageFactor = 0.0D0 ! Number of appliances in use [-]
       REAL(KIND(1D0)) :: HeatingSystemEfficiency = 0.0D0 ! Efficiency of space heating system [-]
       REAL(KIND(1D0)) :: MaxCoolingPower = 0.0D0 ! Maximum power demand of cooling system [W]
       REAL(KIND(1D0)) :: CoolingSystemCOP = 0.0D0 ! Coefficient of performance of cooling system [-]
@@ -113,7 +106,7 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: DHWWaterVolume = 0.0D0 ! Volume of water held in use in building [m3]
       REAL(KIND(1D0)) :: DHWSurfaceArea = 0.0D0 ! Surface area of hot water in vessels in building [m2]
       REAL(KIND(1D0)) :: HotWaterFlowRate = 0.0D0 ! Hot water flow rate from tank to vessel [m3 s-1]
-      REAL(KIND(1D0)) :: DHWDrainFlowRate = 0.0D0 ! Flow rate of hot water held in building to drain [m3 s-1]
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: HotWaterFlowProfile = 0.0D0 ! Diurnal profile of domestic hot water usage [m3 s-1]
       REAL(KIND(1D0)) :: DHWSpecificHeatCapacity = 0.0D0 ! Specific heat capacity of hot water [J kg-1 K-1]
       REAL(KIND(1D0)) :: HotWaterTankSpecificHeatCapacity = 0.0D0 ! Specific heat capacity of hot water tank wal [J kg-1 K-1]
       REAL(KIND(1D0)) :: DHWVesselSpecificHeatCapacity = 0.0D0 ! Specific heat capacity of vessels containing hot water in use in buildings [J kg-1 K-1]
@@ -149,8 +142,8 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: QHload_cooling_tstepFA = 0.0D0
       REAL(KIND(1D0)) :: QH_metabolism = 0.0D0
       REAL(KIND(1D0)) :: QE_metabolism = 0.0D0
-      REAL(KIND(1D0)) :: Qtotal_water_tank = 0.0D0
-      REAL(KIND(1D0)) :: qhwtDrain = 0.0D0
+      REAL(KIND(1D0)) :: QHload_dhw_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: Qloss_drain_tstepFA = 0.0D0
       REAL(KIND(1D0)) :: ratio_window_wall = 0.0D0
       REAL(KIND(1D0)) :: Afootprint = 0.0D0
       REAL(KIND(1D0)) :: height_building = 0.0D0
@@ -212,17 +205,12 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: roofTransmisivity = 0.0D0
       REAL(KIND(1D0)) :: roofAbsorbtivity = 0.0D0
       REAL(KIND(1D0)) :: roofReflectivity = 0.0D0
-      !REAL(KIND(1D0)) :: BVF_extwall = 0.0D0
-      !REAL(KIND(1D0)) :: GVF_extwall = 0.0D0
-      !REAL(KIND(1D0)) :: SVF_extwall = 0.0D0
-      !REAL(KIND(1D0)) :: BVF_extroof = 0.0D0
-      !REAL(KIND(1D0)) :: GVF_extroof = 0.0D0
-      !REAL(KIND(1D0)) :: SVF_extroof = 0.0D0
       REAL(KIND(1D0)) :: occupants = 0.0D0
       REAL(KIND(1D0)) :: metabolic_rate = 0.0D0
+      REAL(KIND(1D0)) :: metabolism_threshold = 0.0D0
       REAL(KIND(1D0)) :: ratio_metabolic_latent_sensible = 0.0D0
       REAL(KIND(1D0)) :: appliance_power_rating = 0.0D0
-      REAL(KIND(1D0)) :: appliance_usage_factor = 0.0D0
+      REAL(KIND(1D0)) :: frac_hotwater = 0.0D0
       REAL(KIND(1D0)) :: maxheatingpower_air = 0.0D0
       REAL(KIND(1D0)) :: heating_efficiency_air = 0.0D0
       REAL(KIND(1D0)) :: maxcoolingpower_air = 0.0D0
@@ -266,7 +254,7 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: Awater_vessel = 0.0D0
       REAL(KIND(1D0)) :: Vwall_vessel = 0.0D0
       REAL(KIND(1D0)) :: flowrate_water_supply = 0.0D0
-      REAL(KIND(1D0)) :: flowrate_water_drain = 0.0D0
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: flowrate_water_supply_profile = 0.0D0
       REAL(KIND(1D0)) :: single_flowrate_water_supply = 0.0D0
       REAL(KIND(1D0)) :: single_flowrate_water_drain = 0.0D0
       REAL(KIND(1D0)) :: cp_water = 0.0D0
@@ -298,12 +286,18 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: qfb_hw_dom = 0.0D0  ! Hot water
       REAL(KIND(1D0)) :: qfb_dom_air = 0.0D0  ! Sensible heat to air [W]
       REAL(KIND(1D0)) :: dom_temp = 0.0D0  ! Domain temperature   [W]
-      REAL(KIND(1D0)) :: QStar = 0.0D0  ! Net radiation        [W m-2]
-      REAL(KIND(1D0)) :: QEC = 0.0D0  ! Energy use           [W m-2]
-      REAL(KIND(1D0)) :: QH = 0.0D0  ! Sensible heat flux   [W m-2]
-      REAL(KIND(1D0)) :: QS = 0.0D0  ! Storage heat flux    [W m-2]
-      REAL(KIND(1D0)) :: QBAE = 0.0D0  ! Building exchange    [W m-2]
-      REAL(KIND(1D0)) :: QWaste = 0.0D0  ! Waste heating        [W m-2]
+      REAL(KIND(1D0)) :: QN_bldg_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QEC_bldg_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QS_total_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QH_bldg_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QBAE_bldg_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QWaste_bldg_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QS_bldg_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QS_dhw_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QS_ground_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QEC_heating_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QEC_cooling_tstepFA = 0.0D0
+      REAL(KIND(1D0)) :: QEC_dhw_tstepFA = 0.0D0
 
       REAL(KIND(1D0)), DIMENSION(2) :: Ts, initTs = 0.0D0
       REAL(KIND(1D0)), DIMENSION(5) :: h_i, k_eff = 0.0D0
@@ -312,11 +306,9 @@ module module_type_stebbs
       REAL(KIND(1D0)), DIMENSION(6) :: Cp = 0.0D0
       REAL(KIND(1D0)), DIMENSION(7) :: emis = 0.0D0
       REAL(KIND(1D0)), DIMENSION(3) :: wiTAR, waTAR, roofTAR = 0.0D0
-      !REAL(KIND(1D0)), DIMENSION(6) :: viewFactors = 0.0D0
-      REAL(KIND(1D0)), DIMENSION(3) :: occupantData = 0.0D0
       REAL(KIND(1D0)), DIMENSION(3) :: HTsAverage, HWTsAverage = 0.0D0
       REAL(KIND(1D0)), DIMENSION(3) :: HWPowerAverage = 0.0D0
-      REAL(KIND(1D0)), DIMENSION(40) :: EnergyExchanges = 0.0D0
+      REAL(KIND(1D0)), DIMENSION(44) :: EnergyExchanges = 0.0D0
 
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Textwall_C  ! Wall external surface temperature from STEBBS[K]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Textroof_C ! Roof external surface temperature from STEBBS[K]
@@ -431,9 +423,16 @@ module module_type_stebbs
 
       CLASS(STEBBS_STATE), INTENT(INOUT) :: self
       INTEGER, INTENT(IN) :: ntypes, num_layer
+      INTEGER :: i
 
       CALL self%DEALLOCATE()
       ALLOCATE (self%buildings(ntypes))
+      ! Pre-allocate inner arrays so they are never null when accessed
+      ! via ASSOCIATE in SUEWS_cal_Qn. gen_building re-allocates later
+      ! with correct values from STEBBS state.
+      DO i = 1, ntypes
+         CALL self%buildings(i)%ALLOCATE(num_layer)
+      END DO
 
    END SUBROUTINE allocSTEBBS_bldg
 

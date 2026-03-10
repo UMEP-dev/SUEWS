@@ -274,7 +274,7 @@ CONTAINS
                IF (config%RSLLevel == 1) THEN
                   Tair = atmState%t2_C
                ELSE IF (config%RSLLevel == 2) THEN
-                  Tair = atmState%T_hbh_C
+                  Tair = atmState%T_half_bldg_C
                ELSE
                   Tair = Temp_C
                END IF

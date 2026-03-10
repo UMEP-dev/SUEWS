@@ -19,21 +19,12 @@ ISSUE: src/suews/src/suews_phys_new.f95 not in meson.build
 
 ## Warning Checks
 
-### 3. Dependency Sync
-
-pyproject.toml ↔ env.yml:
-
-```
-ISSUE: lmfit in pyproject.toml but not in env.yml
-ISSUE: pandas>=2.0 vs pandas=1.5.3 version mismatch
-```
-
-### 4. Python Version Matrix
+### 3. Python Version Matrix
 
 - pyproject.toml classifiers match CI build matrix
 - `.github/workflows/build_wheels.yml` matrix alignment
 
-### 5. Makefile Consistency
+### 4. Makefile Consistency
 
 - All documented targets exist
 - Prerequisites are valid
@@ -41,7 +32,7 @@ ISSUE: pandas>=2.0 vs pandas=1.5.3 version mismatch
 
 ## Style Checks
 
-### 6. Configuration Alignment
+### 5. Configuration Alignment
 
 - `.fprettify.rc` matches documented settings
 - `.ruff.toml` covers all source directories

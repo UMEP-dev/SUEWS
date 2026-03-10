@@ -177,4 +177,4 @@ Related Documentation
 - :doc:`/data-structures/df_state` - Complete state variable reference
 - :doc:`/data-structures/df_forcing` - Forcing variable reference
 - :doc:`/data-structures/df_output` - Output variable reference
-- :doc:`/tutorials/python/quick-start` - Interactive tutorial with DataFrame examples
+- :doc:`/auto_examples/tutorial_01_quick_start` - Interactive tutorial with DataFrame examples

@@ -53,10 +53,34 @@ from ._missing import to_nan, from_nan, SUEWS_MISSING
 
 from ._roughness import cal_z0zd, cal_neutral
 
-from ._debug import diag_rsl, diag_rsl_prm, save_zip_debug
+from ._waterdist import cal_smd_veg
+
+from ._debug import save_zip_debug
 
 from ._spinup import get_spinup_state
 
-from .._post import resample_output
+
+def resample_output(*args, **kwargs):
+    """Deprecated wrapper for resample_output via supy.util."""
+    from .._supy_module import _warn_functional_deprecation
+    from .._post import resample_output as _resample_output
+
+    _warn_functional_deprecation("resample_output")
+    return _resample_output(*args, **kwargs)
+
+from ._attribution import (
+    # Variable-specific functions
+    attribute_t2,
+    attribute_q2,
+    attribute_u10,
+    diagnose_t2,
+    diagnose_q2,
+    diagnose_u10,
+    # Generic dispatchers
+    attribute,
+    diagnose,
+    # Result container
+    AttributionResult,
+)
 
 # from ._config import SUEWSConfig, init_config_from_yaml

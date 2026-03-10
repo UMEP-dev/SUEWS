@@ -13,7 +13,6 @@ Check build configuration consistency.
 |----------|-------|
 | Critical | Source files in meson.build |
 | Critical | f90wrap version pinned (==0.2.16) |
-| Warning | pyproject.toml ↔ env.yml sync |
 | Warning | Python version matrix alignment |
 | Style | .fprettify.rc, .ruff.toml |
 
@@ -25,7 +24,6 @@ Details: `references/checks-detail.md`
 |------|---------|
 | `meson.build` | Build system |
 | `pyproject.toml` | Python packaging |
-| `env.yml` | Conda environment |
 | `.github/workflows/` | CI |
 
 ## Output Format

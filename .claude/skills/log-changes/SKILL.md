@@ -18,13 +18,21 @@ Fill CHANGELOG.md gap from last documented date to today.
 
 ## Categories
 
-| Category | Use for |
-|----------|---------|
-| `[feature]` | New functionality |
-| `[bugfix]` | Bug fixes |
-| `[change]` | User-facing changes |
-| `[maintenance]` | Dev tooling, CLAUDE.md |
-| `[doc]` | User docs (not CLAUDE.md) |
+- `[feature]` - New functionality
+- `[bugfix]` - Bug fixes
+- `[change]` - User-facing changes
+- `[maintenance]` - Dev tooling, CLAUDE.md
+- `[doc]` - User docs (not CLAUDE.md)
+
+## Status Tags (Governance)
+
+For `[feature]` and `[change]` entries, add a status tag:
+
+- `[experimental]` - Default for new features, not publicly announced
+- `[stable]` - Governance-approved, included in release notes
+- `[internal]` - Internal tooling, never announced
+
+**Default behaviour**: New `[feature]` and `[change]` entries get `[experimental]` tag unless explicitly marked otherwise.
 
 ## Key Rules
 
@@ -32,6 +40,7 @@ Fill CHANGELOG.md gap from last documented date to today.
 - Include refs: `(#123)` for PRs, `(abc1234)` for commits
 - Skip minor changes (formatting, typos)
 - British English
+- **New features default to `[experimental]`** — only governance-approved features get `[stable]`
 
 Details: `references/workflow-details.md`
 

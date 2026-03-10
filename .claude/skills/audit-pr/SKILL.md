@@ -16,17 +16,30 @@ gh pr diff {pr} --name-only
 
 ## Workflow
 
-| Step | Action | Skill/Reference |
-|------|--------|-----------------|
-| 1 | **Context** | Gather files, classify changes |
-| 2 | **Code Style** | lint-code |
-| 3 | **Scientific** | Physics validation (if applicable) |
-| 4 | **Testing** | Coverage, FIRST principles |
-| 5 | **Docs** | CHANGELOG, PR description |
-| 6 | **Build** | CI status, meson.build |
-| 7 | **Draft** | Comments for approval |
-| 8 | **Approval** | Wait for human confirmation |
-| 9 | **Post** | Only after approval |
+- **Step 1 - Context**: Gather files, classify changes
+- **Step 2 - Code Style**: lint-code
+- **Step 3 - Scientific**: Physics validation (if applicable)
+- **Step 4 - Testing**: Coverage, FIRST principles
+- **Step 5 - Docs**: CHANGELOG, PR description
+- **Step 6 - Governance**: Check feature status tags (see below)
+- **Step 7 - Build**: CI status, meson.build
+- **Step 8 - Draft**: Comments for approval
+- **Step 9 - Approval**: Wait for human confirmation
+- **Step 10 - Post**: Only after approval
+
+## Governance Check (Step 6)
+
+For PRs that add new features or breaking changes:
+
+- Verify CHANGELOG entries have appropriate status tags
+- New `[feature]` entries should have `[experimental]` tag by default
+- Flag if `[stable]` tag is used without governance approval
+- Check PR description mentions if feature is experimental
+
+**Questions to ask**:
+- Is this feature ready for public announcement?
+- Does it have associated publication/evaluation?
+- Has the governance panel reviewed it?
 
 Details: `references/workflow-steps.md`
 

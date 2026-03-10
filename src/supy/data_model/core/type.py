@@ -40,32 +40,14 @@ class RefValue(BaseModel, Generic[T]):
     This class allows storing a value along with its reference information (e.g. DOI).
     It handles numeric type conversion and implements comparison operators.
 
-    When used in Field definitions for physical quantities, units should be specified:
+    When used in Field definitions for physical quantities, units should be specified.
 
-    Examples:
-        # Physical quantity with units
-        temperature: RefValue[float] = Field(
-            default=RefValue(15.0,
-            description="Air temperature", json_schema_extra={"unit": "degC"}
-        )
+    **Unit Conventions:**
 
-        # Dimensionless ratio
-        albedo: RefValue[float] = Field(
-            default=RefValue(0.2,
-            description="Surface albedo", json_schema_extra={"unit": "dimensionless"}
-        )
-
-        # Configuration parameter (no unit needed)
-        method: RefValue[int] = Field(
-            default=RefValue(1,
-            description="Calculation method selection"
-        )
-
-    Unit Conventions:
-        - Use SI base units: m, kg, s, K, W, etc.
-        - Use ASCII notation for compounds: m^2, kg m^-3, W m^-1 K^-1
-        - Use degC for temperatures, K for temperature differences
-        - Use "dimensionless" for ratios, fractions, albedos, etc.
+    - Use SI base units: m, kg, s, K, W, etc.
+    - Use ASCII notation for compounds: m^2, kg m^-3, W m^-1 K^-1
+    - Use degC for temperatures, K for temperature differences
+    - Use "dimensionless" for ratios, fractions, albedos, etc.
 
     Attributes:
         value (T): The wrapped value of generic type T
@@ -167,6 +149,14 @@ class RefValue(BaseModel, Generic[T]):
 def FlexibleRefValue(type_param):
     """Create a Union type that accepts both RefValue and simple values"""
     return Union[RefValue[type_param], type_param]
+
+
+def df_from_cols(cols: dict, index: pd.Index) -> pd.DataFrame:
+    df_state = pd.DataFrame(cols, index=index)
+    df_state.columns = pd.MultiIndex.from_tuples(
+        df_state.columns, names=["var", "ind_dim"]
+    )
+    return df_state
 
 
 def init_df_state(grid_id: int) -> pd.DataFrame:

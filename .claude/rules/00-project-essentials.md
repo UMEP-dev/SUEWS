@@ -8,7 +8,11 @@ Rules that apply to ALL Claude Code sessions in this repository.
 
 - **British English** for documentation, comments, file names, and communication
   - Exception: Scientific computing terms follow numpy/scipy conventions (e.g., "analyze" not "analyse")
-- **No emoji-like characters** in print/logging functions - use plain ASCII only
+- **ASCII-only output** in print/logging functions, validation reports, and all generated files
+  - Use `->` not `→` for arrows
+  - Use `[X]` not `✗` for failure indicators
+  - Use `[OK]` not `✓` for success indicators
+  - Reason: Ensures compatibility across all platforms and encodings
 
 ## Variant-Neutral Naming
 
@@ -48,6 +52,14 @@ uv venv && source .venv/bin/activate && make dev && make test-smoke
 
 For full setup options, use `/setup-dev` command.
 
+## Build System Notes
+
+- `FCFLAGS` env var is NOT forwarded through `make dev` -> meson-python pipeline
+  - Compiler flags are hard-coded in `meson.build` (`fast_build` vs full flag sets)
+  - To add debug flags like `-fcheck=bounds`, modify `meson.build` directly
+- `make clean` removes `build/` but meson-python may cache compiled extensions elsewhere
+  - For a truly clean rebuild: `make clean && pip cache purge && make dev`
+
 ## Environment Reminders
 
 - After conversation compaction, re-activate: `source .venv/bin/activate`
@@ -62,3 +74,4 @@ For full setup options, use `/setup-dev` command.
 | `src/supy/` | Python wrapper (see `rules/python/`) |
 | `docs/` | Documentation (see `rules/docs/`) |
 | `test/` | Tests (see `rules/tests/`) |
+| `.github/workflows/` | CI/Actions (see `rules/ci/`) |

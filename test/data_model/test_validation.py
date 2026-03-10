@@ -21,8 +21,25 @@ import pytest
 import supy as sp
 from supy._env import trv_supy_module
 from supy.data_model.core import SUEWSConfig
+from supy.data_model.core.site import (
+    LAIParams,
+    DectrProperties,
+    EvetrProperties,
+    GrassProperties,
+    LandCover,
+    Site,
+    SiteProperties,
+)
+from supy.data_model.core.state import (
+    InitialStateDectr,
+    InitialStateEvetr,
+    InitialStateGrass,
+    InitialStates,
+)
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
+from supy.data_model.validation.pipeline.phase_b import validate_model_option_samealbedo
+
 
 
 # A tiny “site” stub that only carries exactly the properties our validators look at
@@ -267,154 +284,470 @@ def test_validate_lai_ranges_none_values():
     assert has_issues is False
 
 
-# Land cover fraction test data: (description, land_cover, expected_has_issues, expected_sum_str, check_details)
-LAND_COVER_TEST_CASES = [
-    # No land cover
-    ("no_land_cover", None, False, None, False),
-    # Sum to exactly 1.0
-    (
-        "sum_to_one",
-        SimpleNamespace(
-            paved=SimpleNamespace(sfr=SimpleNamespace(value=0.4)),
-            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
-            grass=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
-            dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-            evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        ),
-        False,
-        None,
-        False,
-    ),
-    # Sum > 1.0
-    (
-        "sum_too_high",
-        SimpleNamespace(
-            paved=SimpleNamespace(sfr=SimpleNamespace(value=0.6)),
-            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
-            grass=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
-            dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-            evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        ),
-        True,
-        "1.400000",
-        False,
-    ),
-    # Sum < 1.0
-    (
-        "sum_too_low",
-        SimpleNamespace(
-            paved=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
-            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
-            grass=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-            dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        ),
-        True,
-        "0.600000",
-        False,
-    ),
-    # Missing surfaces (defaults to 0.0, sum = 1.0)
-    (
-        "missing_surfaces",
-        SimpleNamespace(
-            paved=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
-            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.5)),
-        ),
-        False,
-        None,
-        False,
-    ),
-    # None sfr values (treated as 0.0, sum = 1.0)
-    (
-        "none_values",
-        SimpleNamespace(
-            paved=SimpleNamespace(sfr=None),
-            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=1.0)),
-            grass=SimpleNamespace(),  # No sfr attribute
-            dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-            water=SimpleNamespace(sfr=SimpleNamespace(value=0.0)),
-        ),
-        False,
-        None,
-        False,
-    ),
-    # Direct values (not RefValue, sum = 1.0)
-    (
-        "direct_values",
-        SimpleNamespace(
-            paved=SimpleNamespace(sfr=0.4),
-            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
-            grass=SimpleNamespace(sfr=0.2),
-            dectr=SimpleNamespace(sfr=0.1),
-            evetr=SimpleNamespace(sfr=0.0),
-            bsoil=SimpleNamespace(sfr=0.0),
-            water=SimpleNamespace(sfr=0.0),
-        ),
-        False,
-        None,
-        False,
-    ),
-    # Detailed message check (sum = 0.95)
-    (
-        "detailed_message",
-        SimpleNamespace(
-            paved=SimpleNamespace(sfr=SimpleNamespace(value=0.3)),
-            bldgs=SimpleNamespace(sfr=SimpleNamespace(value=0.2)),
-            grass=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-            dectr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-            evetr=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-            bsoil=SimpleNamespace(sfr=SimpleNamespace(value=0.1)),
-            water=SimpleNamespace(sfr=SimpleNamespace(value=0.05)),
-        ),
-        True,
-        "0.950000",
-        True,
-    ),
-]
+def test_auto_albedo_trees_follow_lai_relation():
+    """Test tree albedo follows the direct LAI-albedo relationship.
+
+    Physical basis: Trees have dark bark/branches as background surface.
+    - Low LAI (sparse canopy) -> more bark visible -> lower albedo
+    - High LAI (dense foliage) -> leaves dominate -> higher albedo
+    Leaf albedo (0.20-0.30) typically exceeds bark albedo (0.10-0.15).
+
+    Test verifies boundary conditions:
+    - evetr at LAI=laimin (ratio=0) -> alb_id = alb_min = 0.1
+    - dectr at LAI=laimax (ratio=1) -> alb_id = alb_max = 0.4
+    """
+    evetr_props = EvetrProperties(
+        alb_min=0.1,
+        alb_max=0.3,
+        lai=LAIParams(laimin=1.0, laimax=3.0),
+    )
+    dectr_props = DectrProperties(
+        alb_min=0.2,
+        alb_max=0.4,
+        lai=LAIParams(laimin=2.0, laimax=4.0),
+    )
+    land_cover = LandCover(evetr=evetr_props, dectr=dectr_props)
+    site_props = SiteProperties(land_cover=land_cover)
+
+    evetr_state = InitialStateEvetr(alb_id=None, lai_id=1.0)
+    dectr_state = InitialStateDectr(alb_id=None, lai_id=4.0)
+    initial_states = InitialStates(evetr=evetr_state, dectr=dectr_state)
+
+    site = Site(properties=site_props, initial_states=initial_states)
+    config = SUEWSConfig(sites=[site])
+
+    assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.1)
+    assert config.sites[0].initial_states.dectr.alb_id == pytest.approx(0.4)
 
 
-@pytest.mark.parametrize(
-    "case_name,land_cover,expected_has_issues,expected_sum_str,check_details",
-    LAND_COVER_TEST_CASES,
-    ids=[case[0] for case in LAND_COVER_TEST_CASES],
-)
-def test_validate_land_cover_fractions(
-    case_name, land_cover, expected_has_issues, expected_sum_str, check_details
-):
-    """Test land cover fraction validation across all scenarios."""
+def test_auto_albedo_grass_reversed_relation():
+    """Test grass albedo follows the reversed LAI-albedo relationship.
+
+    Physical basis: Grass has bright soil/litter as background surface.
+    - Low LAI (sparse grass) -> more soil visible -> higher albedo
+    - High LAI (dense grass) -> green blades dominate -> lower albedo
+    Dry soil albedo (0.25-0.45) typically exceeds grass blade albedo (0.18-0.25).
+
+    Test verifies boundary conditions:
+    - grass at LAI=laimin (ratio=0) -> alb_id = alb_max = 0.4 (bright soil)
+    - grass at LAI=laimax (ratio=1) -> alb_id = alb_min = 0.2 (dense grass)
+    """
+    grass_props = GrassProperties(
+        alb_min=0.2,
+        alb_max=0.4,
+        lai=LAIParams(laimin=0.5, laimax=2.5),
+    )
+    land_cover = LandCover(grass=grass_props)
+    site_props = SiteProperties(land_cover=land_cover)
+
+    grass_state_low = InitialStateGrass(alb_id=None, lai_id=0.5)
+    grass_state_high = InitialStateGrass(alb_id=None, lai_id=2.5)
+
+    site_low = Site(
+        properties=site_props,
+        initial_states=InitialStates(grass=grass_state_low),
+    )
+    site_high = Site(
+        properties=site_props,
+        initial_states=InitialStates(grass=grass_state_high),
+    )
+
+    config = SUEWSConfig(sites=[site_low, site_high])
+
+    assert config.sites[0].initial_states.grass.alb_id == pytest.approx(0.4)
+    assert config.sites[1].initial_states.grass.alb_id == pytest.approx(0.2)
+
+
+def test_auto_albedo_preserves_user_value():
+    """Test user-provided albedo is preserved."""
+    evetr_props = EvetrProperties(
+        alb_min=0.1,
+        alb_max=0.3,
+        lai=LAIParams(laimin=1.0, laimax=3.0),
+    )
+    site_props = SiteProperties(land_cover=LandCover(evetr=evetr_props))
+    evetr_state = InitialStateEvetr(alb_id=0.28, lai_id=2.0)
+    site = Site(
+        properties=site_props,
+        initial_states=InitialStates(evetr=evetr_state),
+    )
+
+    config = SUEWSConfig(sites=[site])
+
+    assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.28)
+
+
+def test_validate_albedo_id_within_range():
+    """Test initial albedo validation against vegetation limits."""
+    evetr_props = EvetrProperties(
+        alb_min=0.1,
+        alb_max=0.2,
+        lai=LAIParams(laimin=1.0, laimax=3.0),
+    )
+    site_props = SiteProperties(land_cover=LandCover(evetr=evetr_props))
+    evetr_state = InitialStateEvetr(alb_id=0.5, lai_id=2.0)
+    site = Site(
+        properties=site_props,
+        initial_states=InitialStates(evetr=evetr_state),
+    )
+
+    with pytest.raises(ValueError, match="alb_id"):
+        SUEWSConfig(sites=[site])
+
+
+def test_auto_albedo_midrange_interpolation():
+    """Test linear interpolation at mid-range LAI produces expected intermediate albedo.
+
+    For trees (direct relationship):
+        lai_ratio = (2.0 - 1.0) / (3.0 - 1.0) = 0.5
+        alb_id = 0.1 + (0.3 - 0.1) * 0.5 = 0.2
+
+    For grass (reversed relationship):
+        lai_ratio = (1.5 - 0.5) / (2.5 - 0.5) = 0.5
+        alb_id = 0.4 - (0.4 - 0.2) * 0.5 = 0.3
+    """
+    evetr_props = EvetrProperties(
+        alb_min=0.1,
+        alb_max=0.3,
+        lai=LAIParams(laimin=1.0, laimax=3.0),
+    )
+    grass_props = GrassProperties(
+        alb_min=0.2,
+        alb_max=0.4,
+        lai=LAIParams(laimin=0.5, laimax=2.5),
+    )
+    land_cover = LandCover(evetr=evetr_props, grass=grass_props)
+    site_props = SiteProperties(land_cover=land_cover)
+
+    evetr_state = InitialStateEvetr(alb_id=None, lai_id=2.0)
+    grass_state = InitialStateGrass(alb_id=None, lai_id=1.5)
+    initial_states = InitialStates(evetr=evetr_state, grass=grass_state)
+
+    site = Site(properties=site_props, initial_states=initial_states)
+    config = SUEWSConfig(sites=[site])
+
+    assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.2)
+    assert config.sites[0].initial_states.grass.alb_id == pytest.approx(0.3)
+
+
+def test_auto_albedo_clamps_lai_outside_range():
+    """Test LAI values outside [laimin, laimax] are clamped to [0, 1] ratio.
+
+    lai_id below laimin -> ratio clamped to 0 -> boundary albedo
+    lai_id above laimax -> ratio clamped to 1 -> boundary albedo
+    """
+    evetr_props = EvetrProperties(
+        alb_min=0.1,
+        alb_max=0.3,
+        lai=LAIParams(laimin=2.0, laimax=4.0),
+    )
+    land_cover = LandCover(evetr=evetr_props)
+    site_props = SiteProperties(land_cover=land_cover)
+
+    # LAI below laimin -> clamped to ratio=0 -> alb_min
+    evetr_below = InitialStateEvetr(alb_id=None, lai_id=0.5)
+    site_below = Site(
+        properties=site_props,
+        initial_states=InitialStates(evetr=evetr_below),
+    )
+
+    # LAI above laimax -> clamped to ratio=1 -> alb_max
+    evetr_above = InitialStateEvetr(alb_id=None, lai_id=6.0)
+    site_above = Site(
+        properties=site_props,
+        initial_states=InitialStates(evetr=evetr_above),
+    )
+
+    config = SUEWSConfig(sites=[site_below, site_above])
+
+    assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.1)
+    assert config.sites[1].initial_states.evetr.alb_id == pytest.approx(0.3)
+
+
+def test_auto_albedo_zero_lai_range():
+    """Test auto-albedo when laimin equals laimax (zero range).
+
+    When lai_range <= 0, lai_ratio should be set to 0.0.
+    For trees: alb_id = alb_min + (alb_max - alb_min) * 0.0 = alb_min
+    For grass: alb_id = alb_max - (alb_max - alb_min) * 0.0 = alb_max
+    """
+    evetr_props = EvetrProperties(
+        alb_min=0.1,
+        alb_max=0.3,
+        lai=LAIParams(laimin=2.0, laimax=2.0),
+    )
+    grass_props = GrassProperties(
+        alb_min=0.2,
+        alb_max=0.4,
+        lai=LAIParams(laimin=1.5, laimax=1.5),
+    )
+    land_cover = LandCover(evetr=evetr_props, grass=grass_props)
+    site_props = SiteProperties(land_cover=land_cover)
+    evetr_state = InitialStateEvetr(alb_id=None, lai_id=2.0)
+    grass_state = InitialStateGrass(alb_id=None, lai_id=1.5)
+    initial_states = InitialStates(evetr=evetr_state, grass=grass_state)
+
+    site = Site(properties=site_props, initial_states=initial_states)
+    config = SUEWSConfig(sites=[site])
+
+    assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.1)
+    assert config.sites[0].initial_states.grass.alb_id == pytest.approx(0.4)
+
+
+def test_auto_albedo_with_refvalue_inputs():
+    """Test auto-albedo with RefValue-wrapped inputs exercises _unwrap_value."""
+    evetr_props = EvetrProperties(
+        alb_min=RefValue(value=0.1),
+        alb_max=RefValue(value=0.3),
+        lai=LAIParams(laimin=1.0, laimax=3.0),
+    )
+    land_cover = LandCover(evetr=evetr_props)
+    site_props = SiteProperties(land_cover=land_cover)
+
+    evetr_state = InitialStateEvetr(alb_id=None, lai_id=RefValue(value=2.0))
+    site = Site(
+        properties=site_props,
+        initial_states=InitialStates(evetr=evetr_state),
+    )
+
+    config = SUEWSConfig(sites=[site])
+    # lai_ratio = (2.0 - 1.0) / (3.0 - 1.0) = 0.5
+    # alb_id = 0.1 + (0.3 - 0.1) * 0.5 = 0.2
+    assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.2)
+
+
+def test_validate_samealbedo_wall_requires_identical_wall_albedos():
+    """
+    When samealbedo_wall is ON but walls have different albedos,
+    we should get an error about them needing to be identical.
+    """
+    cfg = make_cfg(samealbedo_wall=1)
+
+    walls = [
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+        SimpleNamespace(alb=SimpleNamespace(value=0.6)),  # mismatch
+    ]
+    vl = SimpleNamespace(walls=walls)
+    ba = SimpleNamespace(WallReflectivity=SimpleNamespace(value=0.5))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteWallMismatch")
+
+    msgs = SUEWSConfig._validate_samealbedo_wall(cfg, site, 0)
+    assert len(msgs) == 1
+    assert "so all walls albedoes must be identical;" in msgs[0]
+    assert "SiteWallMismatch" in msgs[0]
+
+
+def test_validate_samealbedo_wall_requires_match_with_wallreflectivity():
+    """
+    When samealbedo_wall is ON, all walls have same alb but it differs
+    from building_archetype.WallReflectivity, we should get an error.
+    """
+    cfg = make_cfg(samealbedo_wall=1)
+
+    walls = [
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+    ]
+    vl = SimpleNamespace(walls=walls)
+    ba = SimpleNamespace(WallReflectivity=SimpleNamespace(value=0.345))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteRefMismatch")
+
+    msgs = SUEWSConfig._validate_samealbedo_wall(cfg, site, 0)
+    assert len(msgs) == 1
+    msg = msgs[0]
+    assert "must equal properties.building_archetype.WallReflectivity (0.345)" in msg
+    assert "walls[0]=0.5" in msg
+
+def test_validate_samealbedo_roof_requires_match_with_roofreflectivity():
+    """
+    When samealbedo_roof is ON, all roofs have same alb but it differs
+    from building_archetype.RoofReflectivity, we should get an error.
+    """
+    cfg = make_cfg(samealbedo_roof=1)
+
+    roofs = [
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+    ]
+    vl = SimpleNamespace(roofs=roofs)
+    ba = SimpleNamespace(RoofReflectivity=SimpleNamespace(value=0.345))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteRefMismatch")
+
+    msgs = SUEWSConfig._validate_samealbedo_roof(cfg, site, 0)
+    assert len(msgs) == 1
+    msg = msgs[0]
+    assert "must equal properties.building_archetype.RoofReflectivity (0.345)" in msg
+    assert "roofs[0]=0.5" in msg
+
+def test_validate_samealbedo_roof_requires_identical_roof_albedos():
+    """
+    When samealbedo_roof is ON but roofs have different albedos,
+    we should get an error about them needing to be identical.
+    """
+    cfg = make_cfg(samealbedo_roof=1)
+
+    roofs = [
+        SimpleNamespace(alb=SimpleNamespace(value=0.5)),
+        SimpleNamespace(alb=SimpleNamespace(value=0.6)),  # mismatch
+    ]
+    vl = SimpleNamespace(roofs=roofs)
+    ba = SimpleNamespace(RoofReflectivity=SimpleNamespace(value=0.5))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteRoofMismatch")
+
+    msgs = SUEWSConfig._validate_samealbedo_roof(cfg, site, 0)
+    assert len(msgs) == 1
+    assert "so all roofs albedoes must be identical;" in msgs[0]
+    assert "SiteRoofMismatch" in msgs[0]
+
+def test_needs_samealbedo_roof_validation_true_and_false():
+    cfg = make_cfg(samealbedo_roof=1)
+    assert cfg._needs_samealbedo_roof_validation() is True
+    cfg2 = make_cfg(samealbedo_roof=0)
+    assert cfg2._needs_samealbedo_roof_validation() is False
+
+def test_needs_samealbedo_wall_validation_true_and_false():
+    cfg = make_cfg(samealbedo_wall=1)
+    assert cfg._needs_samealbedo_wall_validation() is True
+    cfg2 = make_cfg(samealbedo_wall=0)
+    assert cfg2._needs_samealbedo_wall_validation() is False
+
+def test_phase_b_validate_model_option_samealbedo_disabled():
+    """Test validate_model_option_samealbedo returns WARNING when option is disabled (==0)."""
+
+    yaml_data_wall = {
+        "model": {
+            "physics": {
+                "samealbedo_wall": {"value": 0}
+            }
+        },
+        "sites": [{"name": "site1", "properties": {}}],  
+    }
+    results_wall = validate_model_option_samealbedo(yaml_data_wall)
+    assert len(results_wall) == 1
+    assert results_wall[0].status == "WARNING"
+    assert "no check of consistency" in results_wall[0].message.lower()
+    assert "samealbedo_wall == 0" in results_wall[0].message.lower()
+
+    yaml_data_roof = {
+        "model": {
+            "physics": {
+                "samealbedo_roof": {"value": 0}
+            }
+        },
+        "sites": [{"name": "site1", "properties": {}}],  
+    }
+    results_roof = validate_model_option_samealbedo(yaml_data_roof)
+    assert len(results_roof) == 1
+    assert results_roof[0].status == "WARNING"
+    assert "no check of consistency" in results_roof[0].message.lower()
+    assert "samealbedo_roof == 0" in results_roof[0].message.lower()
+
+def test_needs_spartacus_validation_true_and_false():
+    
+    cfg = make_cfg()
+    cfg.model.physics.netradiationmethod = 1001
+    assert cfg._needs_spartacus_validation() is True
+
+    cfg2 = make_cfg()
+    cfg2.model.physics.netradiationmethod = 1
+    assert cfg2._needs_spartacus_validation() is False
+
+def test_validate_spartacus_building_height_error():
+    cfg = make_cfg(netradiationmethod=1001)
+    # bldgh exceeds height[nlayer+1]
+    bldgs = SimpleNamespace(bldgh=15.0)
+    vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
+    props = SimpleNamespace(
+        land_cover=SimpleNamespace(bldgs=bldgs),
+        vertical_layers=vertical_layers
+    )
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_building_height(site, 0)
+
+    # Should produce exactly one clear message with correct content
+    assert msgs
+    msg = msgs[0]
+    assert "TestSite" in msg
+    assert "bldgh=15.0" in msg
+    assert "height[2]=10.0" in msg
+def test_validate_spartacus_building_height_no_error():
+    cfg = make_cfg(netradiationmethod=1001)
+    # bldgh does not exceed height[nlayer+1]
+    bldgs = SimpleNamespace(bldgh=8.0)
+    vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
+    props = SimpleNamespace(
+        land_cover=SimpleNamespace(bldgs=bldgs),
+        vertical_layers=vertical_layers
+    )
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_building_height(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_sfr_mismatch_bldgs_frac():
     cfg = SUEWSConfig.model_construct()
-    has_issues = cfg._check_land_cover_fractions(land_cover, "TestSite")
-    assert has_issues is expected_has_issues
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    bldgs = SimpleNamespace(sfr=0.6)  
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.3],  
+        veg_frac=[0.0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+    assert msgs  
+    assert any(
+        "bldgs.sfr (0.6) does not match vertical_layers.building_frac[0] (0.3)"
+        in m
+        for m in msgs
+    )
 
-    if expected_has_issues:
-        assert cfg._validation_summary["total_warnings"] >= 1
-        assert (
-            "Land cover fraction validation" in cfg._validation_summary["issue_types"]
-        )
-        if expected_sum_str:
-            assert any(
-                "must sum to 1.0 within tolerance" in msg and expected_sum_str in msg
-                for msg in cfg._validation_summary["detailed_messages"]
-            )
-        if check_details:
-            messages = cfg._validation_summary["detailed_messages"]
-            assert len(messages) >= 1
-            message = messages[0]
-            assert "TestSite" in message
-            assert "paved=0.300" in message
-            assert "bldgs=0.200" in message
-            assert "grass=0.100" in message
-    elif case_name == "sum_to_one":
-        assert cfg._validation_summary["total_warnings"] == 0
+def test_validate_spartacus_sfr_consistent_values():
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    bldgs = SimpleNamespace(sfr=0.3)  
+    evetr = SimpleNamespace(sfr=0.1)
+    dectr = SimpleNamespace(sfr=0.2)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=evetr, dectr=dectr)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.3],
+        veg_frac=[0.3],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+    assert msgs == []
 
+def test_validate_spartacus_sfr_mismatch_veg_frac():
+    """SPARTACUS SFR validation flags mismatch between evetr.sfr + dectr.sfr and max(veg_frac)."""
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+
+    # land_cover vegetation: evetr + dectr = 0.4
+    evetr = SimpleNamespace(sfr=0.1)
+    dectr = SimpleNamespace(sfr=0.3)
+    bldgs = SimpleNamespace(sfr=0.2)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=evetr, dectr=dectr)
+
+    # vertical_layers veg_frac: max = 0.1 -> mismatch with 0.4
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.2],
+        veg_frac=[0.1],  # max(vertical_layers.veg_frac) = 0.1
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+    assert msgs
+    assert any(
+        "evetr.sfr + dectr.sfr (0.4) does not match max(vertical_layers.veg_frac) (0.1)"
+        in m
+        for m in msgs
+    )
 
 # From test_validation_topdown.py
 class TestTopDownValidation:

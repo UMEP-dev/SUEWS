@@ -403,6 +403,77 @@ def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
 
     return results
 
+def validate_model_option_rcmethod(yaml_data: dict) -> List[ValidationResult]:
+    """Validate RoofOuterCapFrac and WallOuterCapFrac if rcmethod == 1."""
+    results = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+    rcmethod_value = get_value_safe(physics, "rcmethod")
+
+    if rcmethod_value == 1:
+        sites = yaml_data.get("sites", [])
+        for site_idx, site in enumerate(sites):
+            props = site.get("properties", {})
+            building_archetype = props.get("building_archetype", {})
+            site_gridid = get_site_gridid(site)
+
+            # RoofOuterCapFrac
+            roof_frac_entry = building_archetype.get("RoofOuterCapFrac", {})
+            roof_frac = roof_frac_entry.get("value") if isinstance(roof_frac_entry, dict) else roof_frac_entry
+            if roof_frac is None:
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter="building_archetype.RoofOuterCapFrac",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message="RoofOuterCapFrac must be explicitly provided when rcmethod == 1.",
+                        suggested_value="Set RoofOuterCapFrac to a value between 0 and 1 (exclusive)."
+                    )
+                )
+            elif not (0 < roof_frac < 1):
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter="building_archetype.RoofOuterCapFrac",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message=f"RoofOuterCapFrac value {roof_frac} is out of valid range (0, 1) when rcmethod == 1.",
+                        suggested_value="Set RoofOuterCapFrac to a value strictly between 0 and 1."
+                    )
+                )
+
+            # WallOuterCapFrac
+            wall_frac_entry = building_archetype.get("WallOuterCapFrac", {})
+            wall_frac = wall_frac_entry.get("value") if isinstance(wall_frac_entry, dict) else wall_frac_entry
+            if wall_frac is None:
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter="building_archetype.WallOuterCapFrac",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message="WallOuterCapFrac must be explicitly provided when rcmethod == 1.",
+                        suggested_value="Set WallOuterCapFrac to a value between 0 and 1 (exclusive)."
+                    )
+                )
+            elif not (0 < wall_frac < 1):
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter="building_archetype.WallOuterCapFrac",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message=f"WallOuterCapFrac value {wall_frac} is out of valid range (0, 1) when rcmethod == 1.",
+                        suggested_value="Set WallOuterCapFrac to a value strictly between 0 and 1."
+                    )
+                )
+
+    return results
+
 def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
     """Validate land cover fractions and parameters."""
     results = []
@@ -1015,6 +1086,8 @@ def run_scientific_validation_pipeline(
     validation_results.extend(validate_model_option_dependencies(yaml_data))
 
     validation_results.extend(validate_model_option_samealbedo(yaml_data))
+
+    validation_results.extend(validate_model_option_rcmethod(yaml_data))
 
     validation_results.extend(validate_land_cover_consistency(yaml_data))
 

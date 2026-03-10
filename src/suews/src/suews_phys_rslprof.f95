@@ -7,6 +7,7 @@ MODULE module_phys_rslprof
    USE module_ctrl_const_physconst, ONLY: eps_fp
    USE module_ctrl_error_state, ONLY: set_supy_error, add_supy_warning
    USE module_ctrl_error, ONLY: ErrorHint
+   USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN
    IMPLICIT NONE
 
    INTEGER, PARAMETER :: nz = 30 ! number of levels 10 levels in canopy plus 20 (3 x Zh) above the canopy
@@ -96,7 +97,6 @@ CONTAINS
       ! Local variables
       REAL(KIND(1D0)) :: psimz0, psimza, psihz0, psihza
       REAL(KIND(1D0)) :: psimz, psihz
-      REAL(KIND(1D0)) :: t_h, q_h
       REAL(KIND(1D0)), PARAMETER :: kappa = 0.40
       INTEGER :: z
 
@@ -120,12 +120,13 @@ CONTAINS
 
       ! Step 4: Within canopy profiles (exponential)
       IF (nz_can > 1) THEN
-         t_h = Scc*TStar_RSL/(beta*fx)
-         q_h = Scc*qStar_RSL/(beta*fx)
          DO z = 1, nz_can - 1
             dataoutLineURSL(z) = dataoutLineURSL(nz_can)*EXP(beta*(zarray(z) - zH_RSL)/elm)
-            dataoutLineTRSL(z) = dataoutLineTRSL(nz_can) + (t_h*EXP(beta*fx*(zarray(z) - zH_RSL)/elm) - t_h)/TStar_RSL
-            dataoutLineqRSL(z) = dataoutLineqRSL(nz_can) + (q_h*EXP(beta*fx*(zarray(z) - zH_RSL)/elm) - q_h)/qStar_RSL
+            ! Algebraic cancellation: t_h/TStar = Scc/(beta*fx), avoiding 0/0 when qh=0
+            dataoutLineTRSL(z) = dataoutLineTRSL(nz_can) &
+                                 + Scc*(EXP(beta*fx*(zarray(z) - zH_RSL)/elm) - 1.0D0)/(beta*fx)
+            dataoutLineqRSL(z) = dataoutLineqRSL(nz_can) &
+                                 + Scc*(EXP(beta*fx*(zarray(z) - zH_RSL)/elm) - 1.0D0)/(beta*fx)
          END DO
       END IF
 
@@ -149,7 +150,16 @@ CONTAINS
 
       ! Start just above displacement height plus roughness length
       ! This ensures (z - zdm)/z0m > 1, keeping the LOG argument positive
-      z_start = 1.01D0 * (zdm + z0m)  ! 1% above to avoid LOG singularity
+      z_start = MAX(1.01D0*(zdm + z0m), 0.1D0)  ! Keep above the roughness sublayer and avoid 0*Inf
+
+      IF (zMeas <= z_start) THEN
+         ! Degenerate case: keep a small positive monotonic array for downstream interpolation.
+         z_temp = MAX(z_start*1.5D0, z_start + 1.0D0)
+         DO i = 1, nz
+            zarray(i) = z_start + (i - 1)*(z_temp - z_start)/(nz - 1)
+         END DO
+         RETURN
+      END IF
 
       ! Calculate ratio for logarithmic spacing
       z_ratio = (zMeas/z_start)**(1.0D0/(nz-1))
@@ -237,6 +247,13 @@ CONTAINS
          dz_above = zarray(i) - zH_RSL
       END DO
 
+      ! Enforce strict monotonicity (geometric series can converge for small zH_RSL)
+      DO i = 2, nz
+         IF (zarray(i) <= zarray(i - 1)) THEN
+            zarray(i) = zarray(i - 1)*1.01D0
+         END IF
+      END DO
+
    END SUBROUTINE setup_RSL_heights
 
    SUBROUTINE RSLProfile( &
@@ -306,9 +323,9 @@ CONTAINS
       REAL(KIND(1D0)) :: elm ! mixing length
       ! REAL(KIND(1d0))::xxm1, xxm1_2, xxh1, xxh1_2, dphi, dphih ! dummy variables for stability functions
       REAL(KIND(1D0)) :: fx ! H&F'07 and H&F'08 'constants'
-      REAL(KIND(1D0)) :: t_h, q_h ! H&F'08 canopy corrections
       REAL(KIND(1D0)) :: TStar_RSL ! temperature scale
       REAL(KIND(1D0)) :: UStar_RSL ! friction velocity used in RSL
+      REAL(KIND(1D0)) :: denom_RSL ! denominator in UStar_RSL calculation
       REAL(KIND(1D0)) :: UStar_heat ! friction velocity derived from RA_h with correction/restriction
       ! REAL(KIND(1D0)) :: PAI ! plan area index, including areas of roughness elements: buildings and trees
       ! REAL(KIND(1d0))::sfr_tr ! land cover fraction of trees
@@ -512,7 +529,9 @@ CONTAINS
             psimza = stab_psi_mom(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
             psihza = stab_psi_heat(StabilityMethod, (zMeas - zd_RSL)/L_MOD_RSL)
 
-            UStar_RSL = avU1*kappa/(LOG((zMeas - zd_RSL)/z0_RSL) - psimza + psimz0 + psihatm_z(nz))
+            denom_RSL = LOG((zMeas - zd_RSL)/z0_RSL) - psimza + psimz0 + psihatm_z(nz)
+            denom_RSL = MAX(denom_RSL, 0.1D0) ! Prevent zero/negative denominator from RSL correction
+            UStar_RSL = avU1*kappa/denom_RSL
 
             ! TS 11 Feb 2021: limit UStar and TStar to reasonable ranges
             ! under all conditions, min(UStar)==0.001 m s-1 (Jimenez et al 2012, MWR, https://doi.org/10.1175/mwr-d-11-00056.1
@@ -552,12 +571,13 @@ CONTAINS
             IF (flag_RSL) THEN
                ! RSL approach: exponential profiles within canopy
                IF (nz_can > 1) THEN
-                  t_h = Scc*TStar_RSL/(beta*fx)
-                  q_h = Scc*qStar_RSL/(beta*fx)
                   DO z = 1, nz_can - 1
                      dataoutLineURSL(z) = dataoutLineURSL(nz_can)*EXP(beta*(zarray(z) - Zh_RSL)/elm)
-                     dataoutLineTRSL(z) = dataoutLineTRSL(nz_can) + (t_h*EXP(beta*fx*(zarray(z) - Zh_RSL)/elm) - t_h)/TStar_RSL
-                     dataoutLineqRSL(z) = dataoutLineqRSL(nz_can) + (q_h*EXP(beta*fx*(zarray(z) - Zh_RSL)/elm) - q_h)/qStar_RSL
+                     ! Algebraic cancellation: t_h/TStar = Scc/(beta*fx), avoiding 0/0 when qh=0
+                     dataoutLineTRSL(z) = dataoutLineTRSL(nz_can) &
+                                          + Scc*(EXP(beta*fx*(zarray(z) - Zh_RSL)/elm) - 1.0D0)/(beta*fx)
+                     dataoutLineqRSL(z) = dataoutLineqRSL(nz_can) &
+                                          + Scc*(EXP(beta*fx*(zarray(z) - Zh_RSL)/elm) - 1.0D0)/(beta*fx)
                   END DO
                END IF
             ELSE
@@ -638,6 +658,18 @@ CONTAINS
 
       ! initialise variables
       idx_x = 0
+
+      IF (IEEE_IS_NAN(z_x)) THEN
+         CALL set_supy_error(103, 'interp_z: target height z_x is NaN')
+         v_x = 0.0D0
+         RETURN
+      END IF
+
+      IF (ANY(IEEE_IS_NAN(z))) THEN
+         CALL set_supy_error(103, 'interp_z: height array contains NaN')
+         v_x = 0.0D0
+         RETURN
+      END IF
 
       dif = z - z_x
       idx_x = MAXLOC(dif, 1, ABS(dif) < 1.D-6)
@@ -893,19 +925,18 @@ CONTAINS
          phi_hatmZh = 1.
       END IF
 
-      IF (phi_hatmZh >= 1.) THEN
-         ! more stable, but less correct
-         c2 = 0.5
-         phi_hatmZh = 1.
-      ELSE
-         ! if very unstable this might cause some high values of psihat_z
+      ! Compute c2 dynamically (Issue #1055): guard singularity when phi_hatmZh >= 1
+      IF (phi_hatmZh < 1.) THEN
+         ! Unstable: denominator (2*beta*phim_zh - kappa) is guaranteed positive
          c2 = (kappa*(3.-(2.*beta**2.*Lc/phim_zh*dphi)))/(2.*beta*phim_zh - kappa)
+         ! Clamp to prevent EXP overflow near singularity (phi_hatmZh -> 1)
+         c2 = MAX(MIN(c2, 20.D0), 0.D0)
+         cm = (1.-phi_hatmZh)*EXP(c2/2.)
+      ELSE
+         ! Neutral/stable: RSL correction vanishes
+         c2 = 0.
+         cm = 0.
       END IF
-      ! force c2 to 0.5 for better stability. TS 14 Jul 2020
-      ! TODO: a more proper threshold needs to be determined
-      c2 = 0.5
-
-      cm = (1.-phi_hatmZh)*EXP(c2/2.)
 
    END SUBROUTINE cal_cm
 
@@ -936,28 +967,27 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: dz = 0.1 !height step
 
       phih_zh = stab_phi_heat(StabilityMethod, (Zh_RSL - zd_RSL)/L_MOD)
-      phih_zhdz = stab_phi_heat(StabilityMethod, (Zh_RSL - zd_RSL + 1.)/L_MOD)
+      phih_zhdz = stab_phi_heat(StabilityMethod, (Zh_RSL - zd_RSL + dz)/L_MOD)
 
-      dphih = phih_zhdz - phih_zh
+      dphih = (phih_zhdz - phih_zh)/dz
       IF (phih_zh /= 0.) THEN
          phi_hathZh = kappa*Scc/(2.*beta*phih_zh)
       ELSE
          phi_hathZh = 1.
       END IF
 
-      IF (phi_hathZh >= 1.) THEN
-         ! more stable, but less correct
-         c2h = 0.5
-         phi_hathZh = 1.
-      ELSE
-         ! if very unstable this might cause some high values of psihat_z
+      ! Compute c2h dynamically (Issue #1055): guard singularity when phi_hathZh >= 1
+      IF (phi_hathZh < 1.) THEN
+         ! Unstable: denominator (2*beta*phih_zh - kappa*Scc) is guaranteed positive
          c2h = (kappa*Scc*(2.+f - (dphih*2.*beta**2.*Lc/phih_zh)))/(2.*beta*phih_zh - kappa*Scc)
+         ! Clamp to prevent EXP overflow near singularity (phi_hathZh -> 1)
+         c2h = MAX(MIN(c2h, 20.D0), 0.D0)
+         ch = (1.-phi_hathZh)*EXP(c2h/2.)
+      ELSE
+         ! Neutral/stable: RSL correction vanishes
+         c2h = 0.
+         ch = 0.
       END IF
-      ! force c2h to 0.5 for better stability. TS 14 Jul 2020
-      ! TODO: a more proper threshold needs to be determined
-      c2h = 0.5
-
-      ch = (1.-phi_hathZh)*EXP(c2h/2.)
 
    END SUBROUTINE cal_ch
 
@@ -1070,6 +1100,7 @@ CONTAINS
       REAL(KIND(1D0)) :: cm, ch, c2m, c2h
       ! real(KIND(1D0)) ::betaHF
       ! real(KIND(1D0)) ::betaNL
+      REAL(KIND(1D0)) :: FAI_use ! local FAI with minimum threshold
       REAL(KIND(1D0)) :: Lc_min ! LB Oct2021 - minimum value of Lc
       REAL(KIND(1D0)) :: dim_bluffbody ! LB Oct2021 - horizontal building dimensions
       REAL(KIND(1D0)) :: SurfaceArea ! Grid Surface Area: TODO Check units
@@ -1106,8 +1137,11 @@ CONTAINS
       ! land cover fraction of trees
       sfr_tr = SUM(sfr_surf([ConifSurf, DecidSurf]))
 
+      ! Guard against zero frontal area index from user data
+      FAI_use = MAX(FAI, planF_low)
+
       ! height scale for buildings !not used? why?
-      ! Lc_build = (1.-sfr_surf(BldgSurf))/FAI*Zh_RSL  ! Coceal and Belcher 2004 assuming Cd = 2
+      ! Lc_build = (1.-sfr_surf(BldgSurf))/FAI_use*Zh_RSL  ! Coceal and Belcher 2004 assuming Cd = 2
 
       ! height scale for tress
       ! Lc_tree = 1./(cd_tree*a_tree) ! not used? why?
@@ -1115,23 +1149,27 @@ CONTAINS
       ! height scale for bluff bodies
       ! LB Oct2021 - replaced PAI with sfr(BldgSurf) since the parameter should represent the solid fraction (and trees have negligible solid fraction).
       ! TS 18 Jun 2022 - changed sfr_surf(BldgSurf) back to PAI to account for trees with PAI updated by accounting for porosity.
-      Lc = (1.-PAI)/FAI*Zh_RSL
+      Lc = (1.-PAI)/FAI_use*Zh_RSL
 
       ! set a minimum threshold (of 0.5*Zh_RSL) for Lc to avoid numerical diffulties when FAI is too large (e.g., FAI>10)
       ! Lc = MERGE(Lc, 0.5*Zh_RSL, Lc > 0.5*Zh_RSL)
       ! LB Oct2021 - set a minimum Lc threshold based on the Lc required to ensure the horizontal length scale associated with changes in canopy geometry (i.e. 3Lc) is greater than a typical street+building unit
       ! Note: the horizontal building size and street+building unit size is calculated assuming a regular array of cuboids with the same x and y dimension but with height that can be different
-      dim_bluffbody = Zh_RSL*PAI/FAI
+      dim_bluffbody = Zh_RSL*PAI/FAI_use
       Lc_min = dim_bluffbody*PAI**(-0.5)/3.
       Lc = MERGE(Lc, Lc_min, Lc > Lc_min)
 
       ! a normalised scale with a physcially valid range between [-2,2] (Harman 2012, BLM)
-      lc_over_L = Lc/L_MOD
-      ! lc_over_L = lc/L_MOD_RSL_x
-      IF (lc_over_L > 0) THEN
-         lc_over_L = MIN(2., lc_over_L)
+      IF (ABS(L_MOD) < 1.D-6) THEN
+         ! Neutral: assign sign based on very small L_MOD, clamp to limit
+         lc_over_L = SIGN(2.D0, L_MOD)
       ELSE
-         lc_over_L = MAX(-2., lc_over_L)
+         lc_over_L = Lc/L_MOD
+         IF (lc_over_L > 0) THEN
+            lc_over_L = MIN(2., lc_over_L)
+         ELSE
+            lc_over_L = MAX(-2., lc_over_L)
+         END IF
       END IF
       ! correct L_MOD_RSL
       L_MOD_RSL = Lc/lc_over_L
@@ -1155,7 +1193,11 @@ CONTAINS
 
       ! Calculate blending height zR - the height at which RSL influences both momentum and heat # Issue338
       ! ref: eqn 21 in Grimmond (1999, JAM)
-      Dx = SQRT(SurfaceArea/nBuildings)
+      IF (nBuildings > 0) THEN
+         Dx = SQRT(SurfaceArea/nBuildings)
+      ELSE
+         Dx = SQRT(SurfaceArea) ! Treat entire grid as one element
+      END IF
       Lx = SQRT(Dx**2*PAI)
       zR = zH_RSL + 1.5*(Dx - Lx)
 
@@ -1325,4 +1367,3 @@ END MODULE module_phys_rslprof
 MODULE rsl_module
    USE module_phys_rslprof
 END MODULE rsl_module
-

@@ -53,6 +53,11 @@ EXAMPLES:
 
 ## 2026
 
+### 10 March 2026
+
+- [changes][experimental] Fix the default values for STEBBS parameters "WallOuterCapFra = 0.5" and "RoofOuterCapFra = 0.5" when "rcmethod==0 or missing" and update the related validator logic (PR #1224).
+- [doc] Updated the description of weighting factors "WallOuterCapFra" and "RoofOuterCapFra" and rcmethod (PR #1224).
+
 ### 23 Feb 2026
 
 - [bugfix][experimental] Fix double-counted heating efficiency in STEBBS load calculation; correct unused heating setpoint to prevent spurious activation (PR #1221)

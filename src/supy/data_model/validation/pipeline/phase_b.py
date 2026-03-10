@@ -404,7 +404,9 @@ def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
     return results
 
 def validate_model_option_rcmethod(yaml_data: dict) -> List[ValidationResult]:
-    """Validate RoofOuterCapFrac and WallOuterCapFrac if rcmethod == 1."""
+    """Validate RoofOuterCapFrac and WallOuterCapFrac if rcmethod == 1.
+    For rcmethod == 2, validate required roof/wall external parameters are not null.
+    """
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
     rcmethod_value = get_value_safe(physics, "rcmethod")
@@ -471,6 +473,59 @@ def validate_model_option_rcmethod(yaml_data: dict) -> List[ValidationResult]:
                         suggested_value="Set WallOuterCapFrac to a value strictly between 0 and 1."
                     )
                 )
+
+    elif rcmethod_value == 2:
+        required_wall_params = [
+            "WallextThickness",
+            "WallextEffectiveConductivity",
+            "WallextDensity",
+            "WallextCp",
+        ]
+        required_roof_params = [
+            "RoofextThickness",
+            "RoofextEffectiveConductivity",
+            "RoofextDensity",
+            "RoofextCp",
+        ]
+        sites = yaml_data.get("sites", [])
+        for site_idx, site in enumerate(sites):
+            props = site.get("properties", {})
+            building_archetype = props.get("building_archetype", {})
+            site_gridid = get_site_gridid(site)
+
+            # Check wall params
+            for param in required_wall_params:
+                entry = building_archetype.get(param, {})
+                value = entry.get("value") if isinstance(entry, dict) else entry
+                if value in (None, ""):
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="MODEL_OPTIONS",
+                            parameter=f"building_archetype.{param}",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=f"{param} must be provided and non-null when rcmethod == 2.",
+                            suggested_value=f"Set {param} to a valid numeric value."
+                        )
+                    )
+
+            # Check roof params
+            for param in required_roof_params:
+                entry = building_archetype.get(param, {})
+                value = entry.get("value") if isinstance(entry, dict) else entry
+                if value in (None, ""):
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="MODEL_OPTIONS",
+                            parameter=f"building_archetype.{param}",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=f"{param} must be provided and non-null when rcmethod == 2.",
+                            suggested_value=f"Set {param} to a valid numeric value."
+                        )
+                    )
 
     return results
 

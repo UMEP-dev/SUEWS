@@ -1919,13 +1919,13 @@ class StebbsProperties(BaseModel):
         gt=0.0,
     )
     GroundDepth: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
+        default=3.0,
         description="Depth of external ground (deep soil) [m]",
         json_schema_extra={"unit": "m", "display_name": "Ground Depth"},
         gt=0.0,
     )
     ExternalGroundConductivity: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
+        default=0.193,
         description="External ground thermal conductivity",
         json_schema_extra={
             "unit": "W m^-1 K^-1",
@@ -1934,7 +1934,7 @@ class StebbsProperties(BaseModel):
         gt=0.0,
     )
     MetabolismThreshold: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
+        default=74.3,
         description="threshold of metabolic rate to determine occupancy active or inactive [W]",
         json_schema_extra={"unit": "W", "display_name": "Metabolic Rate Threshold"},
         gt=0.0,
@@ -1950,7 +1950,7 @@ class StebbsProperties(BaseModel):
         lt=1.0,
     )
     HeatingSystemEfficiency: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
+        default=0.9,
         description="Efficiency of space heating system [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -1966,7 +1966,7 @@ class StebbsProperties(BaseModel):
         ge=0.0,
     )
     CoolingSystemCOP: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
+        default=3.4,
         description="Coefficient of performance of cooling system [-]",
         json_schema_extra={
             "unit": "dimensionless",
@@ -2016,7 +2016,7 @@ class StebbsProperties(BaseModel):
         json_schema_extra={"unit": "degC", "display_name": "Mains Water Temperature"},
     )
     WaterTankSurfaceArea: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
+        default=2.0,
         description="Surface area of hot water tank cylinder [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Water Tank Surface Area"},
         gt=0.0,
@@ -2157,7 +2157,7 @@ class StebbsProperties(BaseModel):
     )
     HotWaterTankInternalWallConvectionCoefficient: Optional[FlexibleRefValue(float)] = (
         Field(
-            default=0.0,
+            default=7.7,
             description="Effective internal wall convection coefficient of the hot water tank [W m-2 K-1]",
             json_schema_extra={
                 "unit": "W m^-2 K^-1",
@@ -2168,7 +2168,7 @@ class StebbsProperties(BaseModel):
     )
     HotWaterTankExternalWallConvectionCoefficient: Optional[FlexibleRefValue(float)] = (
         Field(
-            default=0.0,
+            default=7.7,
             description="Effective external wall convection coefficient of the hot water tank [W m-2 K-1]",
             json_schema_extra={
                 "unit": "W m^-2 K^-1",
@@ -2188,7 +2188,7 @@ class StebbsProperties(BaseModel):
     )
     DHWVesselInternalWallConvectionCoefficient: Optional[FlexibleRefValue(float)] = (
         Field(
-            default=0.0,
+            default=7.7,
             description="Effective internal wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
             json_schema_extra={
                 "unit": "W m^-2 K^-1",
@@ -2219,7 +2219,7 @@ class StebbsProperties(BaseModel):
         le=1.0,
     )
     HotWaterHeatingEfficiency: Optional[FlexibleRefValue(float)] = Field(
-        default=0.0,
+        default=0.9,
         description="Efficiency of hot water system [-]",
         json_schema_extra={
             "unit": "dimensionless",

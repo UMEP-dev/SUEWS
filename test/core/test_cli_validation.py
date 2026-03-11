@@ -202,6 +202,7 @@ def test_validate_second_run_not_truncated(suews_validate_exe, tmp_path):
             f"(size_before={size_before}, size_after={size_after})"
         )
 
+    assert reports3, "Third run on updated YAML produced no report files"
     latest_report = max(reports3, key=lambda p: p.stat().st_mtime)
     assert latest_report.stat().st_size > 0, "Latest report after third run is empty"
 

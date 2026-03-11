@@ -76,7 +76,6 @@ ci:
   - '.github/scripts/**'
   - 'Makefile'
   - 'scripts/*'
-  - 'scripts/cloudflare-worker/**'
 
 site:
   # Static site content (GitHub Pages) - separate from wheel builds

@@ -185,8 +185,8 @@ A single file can match multiple categories. The build decision logic ORs catego
 ### Testing path filters locally
 
 ```bash
-./scripts/test-detect-changes.sh              # compare HEAD vs origin/master
-./scripts/test-detect-changes.sh abc123       # compare HEAD vs specific commit
+./scripts/suews/test-detect-changes.sh              # compare HEAD vs origin/master
+./scripts/suews/test-detect-changes.sh abc123       # compare HEAD vs specific commit
 ```
 
 Requires Docker and `act` (`brew install act`).

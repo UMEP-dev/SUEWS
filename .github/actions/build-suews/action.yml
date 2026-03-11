@@ -233,7 +233,7 @@ runs:
         # Uses run_ci_tests.py wrapper to avoid shell-level && chaining,
         # which breaks on Windows cmd.exe with quoted marker expressions.
         CIBW_TEST_COMMAND: >-
-          python {project}/scripts/run_ci_tests.py {project}
+          python {project}/scripts/suews/run_ci_tests.py {project}
           -v --tb=short --durations=10
           ${{ inputs.test_tier == 'smoke' && '-m smoke' ||
               inputs.test_tier == 'core' && '-m "smoke or core"' ||

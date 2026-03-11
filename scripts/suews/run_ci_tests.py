@@ -29,7 +29,7 @@ def main() -> int:
 
     # Run bridge manifest check
     rc = subprocess.call(
-        [sys.executable, f"{project_dir}/scripts/check_bridge_manifest.py"],
+        [sys.executable, f"{project_dir}/scripts/suews/check_bridge_manifest.py"],
     )
     return rc
 

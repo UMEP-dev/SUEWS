@@ -6,9 +6,9 @@ Checks Fortran source files against the naming conventions defined in
 dev-ref/FORTRAN_NAMING_CONVENTIONS.md
 
 Usage:
-    python scripts/check_naming_conventions.py [files...]
-    python scripts/check_naming_conventions.py --report report.txt
-    python scripts/check_naming_conventions.py --strict  # Exit with error on violations
+    python scripts/suews/check_naming_conventions.py [files...]
+    python scripts/suews/check_naming_conventions.py --report report.txt
+    python scripts/suews/check_naming_conventions.py --strict  # Exit with error on violations
 """
 
 import argparse
@@ -481,7 +481,7 @@ def main():
         files_to_check = [Path(f) for f in args.files if f.endswith((".f95", ".f90"))]
     else:
         # Default: check all .f95 files in src/suews/src/
-        src_dir = Path(__file__).parent.parent / "src" / "suews" / "src"
+        src_dir = Path(__file__).parent.parent.parent / "src" / "suews" / "src"
         if not src_dir.exists():
             print(f"Error: Source directory not found: {src_dir}", file=sys.stderr)
             sys.exit(1)

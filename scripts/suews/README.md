@@ -12,22 +12,22 @@ Validates Fortran source files against the naming conventions defined in `dev-re
 
 ```bash
 # Check all Fortran files in src/suews/src/
-python3 scripts/check_naming_conventions.py
+python3 scripts/suews/check_naming_conventions.py
 
 # Check specific files
-python3 scripts/check_naming_conventions.py src/suews/src/suews_phys_snow.f95
+python3 scripts/suews/check_naming_conventions.py src/suews/src/suews_phys_snow.f95
 
 # Check multiple files
-python3 scripts/check_naming_conventions.py src/suews/src/suews_ctrl_*.f95
+python3 scripts/suews/check_naming_conventions.py src/suews/src/suews_ctrl_*.f95
 
 # Show informational messages (including passing checks)
-python3 scripts/check_naming_conventions.py --show-info
+python3 scripts/suews/check_naming_conventions.py --show-info
 
 # Strict mode (treat warnings as errors)
-python3 scripts/check_naming_conventions.py --strict
+python3 scripts/suews/check_naming_conventions.py --strict
 
 # Generate report file
-python3 scripts/check_naming_conventions.py --report naming_report.txt
+python3 scripts/suews/check_naming_conventions.py --report naming_report.txt
 ```
 
 ### What It Checks
@@ -55,7 +55,7 @@ repos:
     hooks:
       - id: fortran-naming-check
         name: Fortran Naming Convention Check
-        entry: python3 scripts/check_naming_conventions.py
+        entry: python3 scripts/suews/check_naming_conventions.py
         language: python
         files: \\.f95$
         pass_filenames: true
@@ -94,7 +94,7 @@ jobs:
 
       - name: Check Fortran naming conventions
         run: |
-          python3 scripts/check_naming_conventions.py
+          python3 scripts/suews/check_naming_conventions.py
 ```
 
 ### Current Status
@@ -114,7 +114,7 @@ The checker is designed to be:
 - **Helpful** (provides suggestions for fixes)
 - **Informative** (shows what's correct with `--show-info`)
 
-To modify checking behaviour, edit `scripts/check_naming_conventions.py`.
+To modify checking behaviour, edit `scripts/suews/check_naming_conventions.py`.
 
 ## Deprecation Warning Demo
 
@@ -133,7 +133,7 @@ Demonstrates the deprecation warnings emitted by legacy functional helpers (`loa
 
 ```bash
 # Run the demo (expect a deprecation warning)
-python3 scripts/demo_deprecation_warning.py
+python3 scripts/suews/demo_deprecation_warning.py
 ```
 
 ### Expected Output

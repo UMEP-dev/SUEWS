@@ -1,8 +1,8 @@
 # Local-only workflow for testing path detection logic with `act`
 #
 # Usage (via wrapper script):
-#   ./scripts/test-detect-changes.sh              # compare HEAD vs master
-#   ./scripts/test-detect-changes.sh origin/main   # compare HEAD vs specific base
+#   ./scripts/suews/test-detect-changes.sh              # compare HEAD vs master
+#   ./scripts/suews/test-detect-changes.sh origin/main   # compare HEAD vs specific base
 #
 # Direct act usage:
 #   act workflow_dispatch -W .github/workflows/test-detect-changes.yml \

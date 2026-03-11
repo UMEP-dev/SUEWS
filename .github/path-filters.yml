@@ -75,7 +75,8 @@ ci:
   - '.github/actions/build-suews/**'
   - '.github/scripts/**'
   - 'Makefile'
-  - 'scripts/**'
+  - 'scripts/*'
+  - 'scripts/cloudflare-worker/**'
 
 site:
   # Static site content (GitHub Pages) - separate from wheel builds

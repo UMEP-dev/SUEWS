@@ -6,9 +6,10 @@ set -e
 
 # Change to workspace root
 cd "$CONDUCTOR_ROOT_PATH"
+source "$(dirname "$0")/_common.sh"
 
 echo "[archive] Fetching from origin..."
-git fetch origin --prune
+fetch_origin "[archive]"
 
 # Get current branch name (empty if detached HEAD)
 branch=$(git branch --show-current)

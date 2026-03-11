@@ -6,9 +6,9 @@ Checks Fortran source files against the naming conventions defined in
 dev-ref/FORTRAN_NAMING_CONVENTIONS.md
 
 Usage:
-    python scripts/check_naming_conventions.py [files...]
-    python scripts/check_naming_conventions.py --report report.txt
-    python scripts/check_naming_conventions.py --strict  # Exit with error on violations
+    python scripts/suews/check_naming_conventions.py [files...]
+    python scripts/suews/check_naming_conventions.py --report report.txt
+    python scripts/suews/check_naming_conventions.py --strict  # Exit with error on violations
 """
 
 import argparse

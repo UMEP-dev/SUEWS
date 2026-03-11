@@ -1,7 +1,7 @@
 # Path filter categories for CI build detection
 #
 # Used by: build-publish_to_pypi.yml (detect-changes job)
-# Tested by: test-detect-changes.yml + scripts/test-detect-changes.sh
+# Tested by: test-detect-changes.yml + scripts/suews/test-detect-changes.sh
 #
 # IMPORTANT — DO NOT use negation patterns (! prefix) in this file.
 # dorny/paths-filter evaluates patterns with OR logic (picomatch).
@@ -75,7 +75,7 @@ ci:
   - '.github/actions/build-suews/**'
   - '.github/scripts/**'
   - 'Makefile'
-  - 'scripts/*'
+  - 'scripts/suews/**'
 
 site:
   # Static site content (GitHub Pages) - separate from wheel builds

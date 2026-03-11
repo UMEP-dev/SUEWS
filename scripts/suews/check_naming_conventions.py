@@ -481,7 +481,7 @@ def main():
         files_to_check = [Path(f) for f in args.files if f.endswith((".f95", ".f90"))]
     else:
         # Default: check all .f95 files in src/suews/src/
-        src_dir = Path(__file__).parent.parent / "src" / "suews" / "src"
+        src_dir = Path(__file__).parent.parent.parent / "src" / "suews" / "src"
         if not src_dir.exists():
             print(f"Error: Source directory not found: {src_dir}", file=sys.stderr)
             sys.exit(1)

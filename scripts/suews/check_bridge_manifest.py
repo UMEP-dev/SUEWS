@@ -15,7 +15,7 @@ from pathlib import Path
 
 TYPE_PUBLIC_RE = re.compile(r"^\s*TYPE\s*,\s*PUBLIC\s*::\s*(\w+)", re.IGNORECASE)
 ALLOWED_STATUSES = {"bridged", "planned", "excluded"}
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def discover_public_types(source_root: Path) -> dict[str, str]:

@@ -4,9 +4,11 @@
 
 set -e
 
+# Resolve script directory before cd (dirname "$0" may be relative)
+source "$(dirname "$0")/_common.sh"
+
 # Change to workspace root
 cd "$CONDUCTOR_ROOT_PATH"
-source "$(dirname "$0")/_common.sh"
 
 echo "[archive] Fetching from origin..."
 fetch_origin "[archive]"

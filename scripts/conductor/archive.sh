@@ -4,11 +4,14 @@
 
 set -e
 
+# Resolve script directory before cd (dirname "$0" may be relative)
+source "$(dirname "$0")/_common.sh"
+
 # Change to workspace root
 cd "$CONDUCTOR_ROOT_PATH"
 
 echo "[archive] Fetching from origin..."
-git fetch origin --prune
+fetch_origin "[archive]"
 
 # Get current branch name (empty if detached HEAD)
 branch=$(git branch --show-current)

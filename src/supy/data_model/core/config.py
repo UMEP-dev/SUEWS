@@ -1626,8 +1626,63 @@ class SUEWSConfig(BaseModel):
             spartacus_top = height_arr[nlayer]
             if bldgh > spartacus_top:
                 issues.append(
-                    f"ACTION NEEDED: Site '{site_name}' has bldgh={bldgh} exceeding SPARTACUS domain top (height[{nlayer+1}]={spartacus_top})."
+                    f"Site '{site_name}' has bldgh={bldgh} exceeding SPARTACUS domain top (height[{nlayer+1}]={spartacus_top})."
                 )
+        return issues
+
+    def _validate_spartacus_sfr(self, site: Site, site_index: int) -> list:
+        """
+        If SPARTACUS is enabled, check that:
+        - bldgs.sfr == building_frac[0]
+        - (evetr.sfr + dectr.sfr) == max(veg_frac[:])
+        Returns a list of issue messages.
+        """
+        issues: list = []
+        site_name = getattr(site, "name", f"Site {site_index}")
+        props = getattr(site, "properties", None)
+        if not props or not hasattr(props, "land_cover") or not props.land_cover:
+            return issues
+
+        lc = props.land_cover
+        bldgs = getattr(lc, "bldgs", None)
+        evetr = getattr(lc, "evetr", None)
+        dectr = getattr(lc, "dectr", None)
+        vertical_layers = getattr(props, "vertical_layers", None)
+        if not vertical_layers:
+            return issues
+
+        # Unwrap values
+        bldgs_sfr = _unwrap_value(getattr(bldgs, "sfr", None)) if bldgs else None
+        evetr_sfr = _unwrap_value(getattr(evetr, "sfr", None)) if evetr else 0.0
+        dectr_sfr = _unwrap_value(getattr(dectr, "sfr", None)) if dectr else 0.0
+        veg_sfr = (evetr_sfr or 0.0) + (dectr_sfr or 0.0)
+
+        building_frac = _unwrap_value(getattr(vertical_layers, "building_frac", None))
+        veg_frac = _unwrap_value(getattr(vertical_layers, "veg_frac", None))
+
+        tol = 1e-6
+
+        # Buildings: surface fraction vs first SPARTACUS layer
+        if (
+            isinstance(building_frac, (list, tuple))
+            and len(building_frac) > 0
+            and bldgs_sfr is not None
+        ):
+            if not np.isclose(bldgs_sfr, building_frac[0], atol=tol):
+                issues.append(
+                    f"{site_name}: bldgs.sfr ({bldgs_sfr}) does not match "
+                    f"vertical_layers.building_frac[0] ({building_frac[0]})"
+                )
+
+        # Vegetation: surface fraction vs maximum veg_frac across layers
+        if isinstance(veg_frac, (list, tuple)) and len(veg_frac) > 0:
+            veg_frac_max = max(veg_frac)
+            if not np.isclose(veg_sfr, veg_frac_max, atol=tol):
+                issues.append(
+                    f"{site_name}: evetr.sfr + dectr.sfr ({veg_sfr}) does not match "
+                    f"max(vertical_layers.veg_frac) ({veg_frac_max})"
+                )
+
         return issues
 
     def _validate_conditional_parameters(self) -> List[str]:
@@ -1703,7 +1758,7 @@ class SUEWSConfig(BaseModel):
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(samealbedo_roof_issues)
 
-            # SPARTACUS building height
+            # SPARTACUS building height and SFR consistency checks
             if needs_spartacus:
                 spartacus_issues = self._validate_spartacus_building_height(site, idx)
                 if spartacus_issues:
@@ -1711,6 +1766,13 @@ class SUEWSConfig(BaseModel):
                     if site_name not in self._validation_summary["sites_with_issues"]:
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(spartacus_issues)
+
+                spartacus_sfr_issues = self._validate_spartacus_sfr(site, idx)
+                if spartacus_sfr_issues:
+                    self._validation_summary["issue_types"].add("SPARTACUS SFR")
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(spartacus_sfr_issues)
         return all_issues
 
     def _check_critical_null_physics_params(self) -> List[str]:

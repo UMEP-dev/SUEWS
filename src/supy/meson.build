@@ -1,18 +1,16 @@
 py.install_sources(
     [
         '__init__.py',
-        # Vendored packages (wrapper modules - actual files copied from submodule)
-        '_vendor/__init__.py',
-        '_vendor/f90wrap/__init__.py',
         '_check.py',
         '_env.py',
         '_load.py',
         '_misc.py',
         '_post.py',
         '_run.py',
+        '_run_rust.py',
         '_save.py',
-        '_supy_driver_wrapper.py',
         '_supy_module.py',
+        '_var_metadata.py',
         '_version.py',
         '_version_scm.py',
         'suews_forcing.py',
@@ -27,6 +25,7 @@ py.install_sources(
             'cmd/__init__.py',
             'cmd/SUEWS.py',
             'cmd/json_output.py',
+            'cmd/rust_bridge.py',
             'cmd/table_converter.py',
             'cmd/to_yaml.py',
             'cmd/validate_config.py',
@@ -59,6 +58,7 @@ py.install_sources(
             'util/_spinup.py',
             'util/_state_io.py',
             'util/_tmy.py',
+            'util/_waterdist.py',
             'util/converter/__init__.py',
             'util/converter/df_state.py',
             'util/converter/table/__init__.py',
@@ -130,38 +130,89 @@ py.install_sources(
         [
             'ext_data/CRU_TS4.06_1991_2020.parquet',
         ],
-        [
-            # GH-1045: DTS interface for direct Pydantic→Fortran mapping
-            'dts/__init__.py',
-            'dts/_core.py',
-            'dts/_extract.py',
-            'dts/_populate.py',
-            'dts/_runner.py',
-        ],
     ],
     subdir: 'supy',
     preserve_path: true,
 )
 
-# Install vendored f90wrap runtime files from submodule
-# These are the only runtime files needed - code generation tools are build-time only
-dir_f90wrap_submodule = meson.current_source_dir() / '_vendor' / 'f90wrap_src' / 'f90wrap'
-dir_f90wrap_vendor = meson.current_source_dir() / '_vendor' / 'f90wrap'
+# Build SUEWS Fortran physics libraries (used by Rust bridge)
+dir_suews = meson.current_source_dir() / '../suews'
+dir_src_suews = dir_suews / 'src'
 
-# Patch runtime.py to use relative imports (required for vendoring)
-patched_runtime = custom_target(
-    'patched_runtime',
-    input: dir_f90wrap_submodule / 'runtime.py',
-    output: 'runtime.py',
-    command: [py, dir_f90wrap_vendor / 'patch_runtime.py', '@INPUT@', '@OUTPUT@'],
-    install: true,
-    install_dir: py.get_install_dir() / 'supy/_vendor/f90wrap',
+src_f95_all = [
+  'suews_ctrl_const.f95',
+  'suews_ctrl_type.f95',
+  'suews_util_profile.f95',
+  'suews_util_time.f95',
+  'suews_util_meteo.f95',
+  'suews_util_datetime.f95',
+  'suews_phys_waterdist.f95',
+  'suews_phys_narp.f95',
+  'suews_phys_beers.f95',
+  'suews_phys_atmmoiststab.f95',
+  'suews_phys_resist.f95',
+  'suews_phys_evap.f95',
+  'suews_phys_snow.f95',
+  'suews_phys_dailystate.f95',
+  'suews_phys_lumps.f95',
+  'suews_phys_anthro.f95',
+  'suews_phys_rslprof.f95',
+  'suews_phys_biogenco2.f95',
+  'suews_phys_ohm.f95',
+  'suews_phys_spartacus.f95',
+  'suews_phys_stebbs.f95',
+  'suews_ctrl_driver.f95',
+]
+
+src_f95_files = []
+foreach f : src_f95_all
+  src_f95_files += join_paths(dir_src_suews, f)
+endforeach
+src_f95_files = files(src_f95_files)
+
+makefile_deps = files(dir_suews / 'Makefile')
+
+build_suews = custom_target(
+  'suews_objects',
+  command: [
+    py,
+    '@CURRENT_SOURCE_DIR@/run_make.py',
+    meson.current_source_dir() / '../suews/',
+    '@OUTPUT@',
+  ],
+  build_by_default: true,
+  depend_files: [src_f95_files, makefile_deps],
+  output: 'suews_objects',
 )
 
-# fortrantype.py has no f90wrap imports, can be installed directly
-py.install_sources(
-    [
-        dir_f90wrap_submodule / 'fortrantype.py',
-    ],
-    subdir: 'supy/_vendor/f90wrap',
-)
+rust_bridge_enabled = get_option('with_rust_bridge')
+if rust_bridge_enabled
+    find_program('cargo', required: true)
+    rust_bridge_ext_suffix = run_command(
+        py,
+        '-c',
+        'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX") or ".so")',
+        check: true,
+    ).stdout().strip()
+    rust_bridge_ext_name = 'suews_bridge' + rust_bridge_ext_suffix
+    rust_bridge_cli_name = 'suews'
+    if host_machine.system() == 'windows'
+        rust_bridge_cli_name = 'suews.exe'
+    endif
+
+    rust_bridge_artifacts = custom_target(
+        'rust_bridge_artifacts',
+        command: [
+            py,
+            meson.current_source_dir() / 'build_rust_bridge.py',
+            meson.project_source_root(),
+            '@OUTPUT0@',
+            '@OUTPUT1@',
+        ],
+        output: [rust_bridge_ext_name, rust_bridge_cli_name],
+        depends: build_suews,
+        build_by_default: true,
+        install: true,
+        install_dir: [py.get_install_dir() / 'supy', py.get_install_dir() / 'supy/bin'],
+    )
+endif

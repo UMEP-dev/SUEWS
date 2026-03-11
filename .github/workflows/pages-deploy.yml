@@ -121,7 +121,7 @@ jobs:
             done
 
             # Inject preview banner into docs pages (Sphinx theme structure)
-            DOCS_BANNER='<div id="preview-banner" style="background:linear-gradient(90deg,#0077B6,#F7B538);color:#fff;padding:8px 16px;text-align:center;font-family:system-ui,-apple-system,sans-serif;font-size:12px;position:fixed;top:0;left:0;right:0;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);"><strong>Docs Preview - PR #'"${PR_NUM}"'</strong> \&nbsp;\| <a href="https://suews.readthedocs.io/" style="color:#fff;text-decoration:underline;">Production Docs</a> \&nbsp;\| <a href="https://github.com/UMEP-dev/SUEWS/pull/'"${PR_NUM}"'" style="color:#fff;text-decoration:underline;">View PR</a></div><style>.bd-header{top:36px !important;}.bd-sidebar-primary{top:calc(var(--pst-header-height) + 36px) !important;}</style>'
+            DOCS_BANNER='<div id="preview-banner" style="background:linear-gradient(90deg,#0077B6,#F7B538);color:#fff;padding:8px 16px;text-align:center;font-family:system-ui,-apple-system,sans-serif;font-size:12px;position:fixed;top:0;left:0;right:0;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);"><strong>Docs Preview - PR #'"${PR_NUM}"'</strong> \&nbsp;\| <a href="https://docs.suews.io/" style="color:#fff;text-decoration:underline;">Production Docs</a> \&nbsp;\| <a href="https://github.com/UMEP-dev/SUEWS/pull/'"${PR_NUM}"'" style="color:#fff;text-decoration:underline;">View PR</a></div><style>.bd-header{top:36px !important;}.bd-sidebar-primary{top:calc(var(--pst-header-height) + 36px) !important;}</style>'
 
             find "_site/${PR_DIR}/docs" -name "*.html" -type f | while read -r f; do
               # Inject banner after <body> tag

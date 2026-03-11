@@ -35,5 +35,5 @@ Getting Help
 
 - **Issues**: `GitHub Issues <https://github.com/UMEP-dev/SUEWS/issues>`_
 - **Discussions**: `SUEWS Community <https://community.suews.io/invites/bKjzoboyVV>`_
-- **Documentation**: `ReadTheDocs <https://suews.readthedocs.io>`_
+- **Documentation**: `ReadTheDocs <https://docs.suews.io>`_
 

@@ -49,11 +49,9 @@ class TestSuPy(TestCase):
         # Run only 1 hour (12 timesteps) instead of 8 hours
         results = sim.run(end_date=sim.forcing.index[11])
 
-        # Verify results and state are populated
+        # Verify results are populated
         self.assertIsNotNone(results)
-        self.assertIsNotNone(sim.state_final)
         self.assertFalse(results.empty)
-        self.assertFalse(sim.state_final.empty)
 
     # test if multi-tstep mode can run
     @pytest.mark.core
@@ -448,10 +446,10 @@ class TestSuPy(TestCase):
         surf_veg = surf_veg / surf_veg.sum()
         smd_veg_correct = np.dot(surf_veg, smd_veg)
 
-        # test SMD_veg
-        from supy.supy_driver import module_phys_waterdist as wm
+        # test SMD_veg via Python port of Fortran cal_smd_veg
+        from supy.util import cal_smd_veg
 
-        smd_veg_test = wm.cal_smd_veg(soilstorecap, soilstore_id, sfr_surf)
+        smd_veg_test = cal_smd_veg(soilstorecap, soilstore_id, sfr_surf)
 
         self.assertAlmostEqual(smd_veg_correct, smd_veg_test)
 

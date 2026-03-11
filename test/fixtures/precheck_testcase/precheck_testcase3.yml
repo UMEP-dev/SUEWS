@@ -8,7 +8,6 @@ model:
     output_file:
       format: parquet
       freq: 3600
-    diagnose: 0
     start_time: "2011-01-01"
     end_time: "2013-12-31"
   physics:
@@ -2324,17 +2323,6 @@ sites:
         value: 5.0
       tin:
         value: 5.0
-    dqndt: 0.0
-    dqnsdt: 0.0
-    dt_since_start: 0.0
-    lenday_id: 0
-    qn_av: 0.0
-    qn_s_av: 0.0
-    tair_av: 273.15
-    tmax_id: -90.0
-    tmin_id: 90.0
-    tstep_prev: 300.0
-    snowfallcum: 0.0
     hdd_id:
     - 0.0
     - 0.0

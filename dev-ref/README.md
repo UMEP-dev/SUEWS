@@ -41,8 +41,7 @@ This directory contains internal documentation for SUEWS core developers.
   - Test design principles
   - FIRST principles and AAA pattern
   
-- **[Fortran Test Patterns](testing/FORTRAN_TEST_PATTERNS.md)** - Fortran-specific testing
-  - Available modules via f90wrap
+- **[Fortran Test Patterns](testing/FORTRAN_TEST_PATTERNS.md)** - Fortran-specific testing (historical; f90wrap removed)
   - Common test patterns
   
 - **[Error Handling](testing/ERROR_HANDLING_PATTERNS.md)** - Error handling best practices
@@ -61,7 +60,7 @@ This directory contains internal documentation for SUEWS core developers.
 
 ## External Links
 - [GitHub Repository](https://github.com/UMEP-dev/SUEWS)
-- [User Documentation](https://suews.readthedocs.io)
+- [User Documentation](https://docs.suews.io)
 - [GitHub Issues](https://github.com/UMEP-dev/SUEWS/issues)
 - [GitHub Discussions](https://github.com/UMEP-dev/SUEWS/discussions)
 

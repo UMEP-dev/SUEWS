@@ -1,6 +1,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_resist
    USE module_ctrl_error, ONLY: ErrorHint
+   USE module_ctrl_const_physconst, ONLY: eps_fp
    IMPLICIT NONE
 
 CONTAINS
@@ -64,14 +65,18 @@ CONTAINS
          k2 = 0.16, & !Power of Van Karman's constant (= 0.16 = 0.4^2)
          muu = 1.46E-5 !molecular viscosity
       REAL(KIND(1D0)) :: psim
+      REAL(KIND(1D0)) :: AVU1_use ! local wind speed with minimum threshold
       ! REAL(KIND(1d0)):: psih
 
       !Z0V roughness length for vapour
       z0V = cal_z0V(RoughLenHeatMethod, z0m, VegFraction, UStar)
 
+      ! Minimum wind speed to prevent division by zero
+      AVU1_use = MAX(AVU1, 0.01D0)
+
       !1)Monteith (1965)-neutral stability
       IF (AerodynamicResistanceMethod == 1) THEN
-         RA_h = (LOG(ZZD/z0m)**2)/(k2*AVU1)
+         RA_h = (LOG(ZZD/z0m)**2)/(k2*AVU1_use)
 
          !2) Non-neutral stability
          !    PSIM - stability function for momentum
@@ -85,15 +90,15 @@ CONTAINS
          psih = stab_psi_heat(StabilityMethod, ZZD/L_mod) - stab_psi_heat(StabilityMethod, z0v/L_mod)
 
          IF (Zzd/L_mod == 0 .OR. UStar == 0) THEN
-            RA_h = (LOG(ZZD/z0m)*LOG(ZZD/z0V))/(k2*AVU1) !Use neutral equation
+            RA_h = (LOG(ZZD/z0m)*LOG(ZZD/z0V))/(k2*AVU1_use) !Use neutral equation
          ELSE
-            RA_h = ((LOG(ZZD/z0m) - psim)*(LOG(ZZD/z0V) - psih))/(K2*AVU1)
+            RA_h = ((LOG(ZZD/z0m) - psim)*(LOG(ZZD/z0V) - psih))/(K2*AVU1_use)
             ! RA = AVU1/UStar**2
          END IF
 
          !3) Thom and Oliver (1977)
       ELSEIF (AerodynamicResistanceMethod == 3) THEN
-         RA_h = (4.72*LOG(ZZD/z0m)**2)/(1 + 0.54*AVU1)
+         RA_h = (4.72*LOG(ZZD/z0m)**2)/(1 + 0.54*AVU1_use)
       END IF
 
       !If RA outside permitted range, adjust extreme values !!Check whether these thresholds are suitable over a range of z0
@@ -433,9 +438,8 @@ CONTAINS
 
       REAL(KIND(1D0)), PARAMETER :: k = 0.4
 
-!       IF (UStar < 0.001) THEN
-!          UStar = avu1/LOG(zzd/z0m)*k
-!       END IF
+      ! Minimum friction velocity to prevent division by zero (Jimenez et al 2012)
+      UStar = MAX(UStar, 0.001D0)
 
       rb = (1.1/UStar) + (5.6*(UStar**0.333333)) !rb - boundary layer resistance shuttleworth
 
@@ -532,6 +536,7 @@ CONTAINS
       REAL(KIND(1D0)) :: zdm_zh ! zdm for roughness elements (i.e. zh>0)
       REAL(KIND(1D0)) :: z0m_zh0 ! z0m for non-roughness elements (i.e. zh=0)
       REAL(KIND(1D0)) :: zdm_zh0 ! zdm for non-roughness elements (i.e. zh=0)
+      REAL(KIND(1D0)) :: non_rough_fraction
 
       ! calculated values of FAI
       ! REAL(KIND(1D0)), INTENT(out) :: FAIBldg_use
@@ -597,12 +602,18 @@ CONTAINS
             ! areaZh = (sfr_surf(BldgSurf) + sfr_surf(ConifSurf) + sfr_surf(DecidSurf))
             ! TS 19 Jun 2022: take porosity of trees into account; to be consistent with PAI calculation in RSL
             PAI = DOT_PRODUCT(sfr_surf([BldgSurf, ConifSurf, DecidSurf]), [1D0, 1 - porosity_evetr, 1 - porosity_dectr])
+            PAI = MIN(MAX(PAI, 0D0), 1D0)
 
             ! z0m for non-roughness elements (i.e. zh=0)
-            z0m_zh0 = (z0m_Paved*sfr_surf(PavSurf) &
-                       + z0m_Grass*sfr_surf(GrassSurf) &
-                       + z0m_BSoil*sfr_surf(BSoilSurf) &
-                       + z0m_Water*sfr_surf(WaterSurf))/(1 - PAI)
+            non_rough_fraction = 1D0 - PAI
+            IF (non_rough_fraction > eps_fp) THEN
+               z0m_zh0 = (z0m_Paved*sfr_surf(PavSurf) &
+                          + z0m_Grass*sfr_surf(GrassSurf) &
+                          + z0m_BSoil*sfr_surf(BSoilSurf) &
+                          + z0m_Water*sfr_surf(WaterSurf))/non_rough_fraction
+            ELSE
+               z0m_zh0 = 0D0
+            END IF
             zdm_zh0 = 0
 
             !------------------------------------------------------------------------------
@@ -659,8 +670,13 @@ CONTAINS
                             76.5*MIN(PAI, .7)**5 - 40.*MIN(PAI, .7)**6)*Zh
                END IF
                ! #271: to smooth the z0m (and zdm) values when other non-rough surfaces are present
-               z0m = DOT_PRODUCT([z0m_zh, z0m_zh0], [PAI, 1 - PAI])
-               zdm = DOT_PRODUCT([zdm_zh, zdm_zh0], [PAI, 1 - PAI])
+               IF (non_rough_fraction > eps_fp) THEN
+                  z0m = DOT_PRODUCT([z0m_zh, z0m_zh0], [PAI, non_rough_fraction])
+                  zdm = DOT_PRODUCT([zdm_zh, zdm_zh0], [PAI, non_rough_fraction])
+               ELSE
+                  z0m = z0m_zh
+                  zdm = zdm_zh
+               END IF
 
             ELSEIF (Zh == 0) THEN !If zh calculated to be zero, set default roughness length and displacement height
                IF (PAI /= 0) CALL ErrorHint(15, 'In SUEWS_RoughnessParameters.f95, zh = 0 m but areaZh > 0', zh, PAI, notUsedI, modState)

@@ -74,7 +74,7 @@ def attribute_t2(
         (Q*, Q_E, dQ_S, Q_F). Default True.
     min_flux : float, optional
         Minimum flux threshold (W/m2) for resistance calculation.
-        Timesteps with |Q_H| < min_flux are flagged. Default 0.1.
+        Timesteps with abs(Q_H) < min_flux are flagged. Default 0.1.
 
     Returns
     -------
@@ -226,7 +226,7 @@ def diagnose_t2(
         Include flux budget breakdown. Default True.
     min_flux : float, optional
         Minimum flux threshold (W/m2) for resistance calculation.
-        Timesteps with |Q_H| < min_flux are excluded. Default 0.1.
+        Timesteps with abs(Q_H) < min_flux are excluded. Default 0.1.
 
     Returns
     -------

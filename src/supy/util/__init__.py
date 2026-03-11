@@ -53,7 +53,9 @@ from ._missing import to_nan, from_nan, SUEWS_MISSING
 
 from ._roughness import cal_z0zd, cal_neutral
 
-from ._debug import diag_rsl, diag_rsl_prm, save_zip_debug
+from ._waterdist import cal_smd_veg
+
+from ._debug import save_zip_debug
 
 from ._spinup import get_spinup_state
 

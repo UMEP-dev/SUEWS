@@ -41,7 +41,7 @@ def read_forcing(path_suews_file: str, tstep_mod=300) -> pd.DataFrame:
     path_suews_file : str
         a string that represents wildcard pattern can locate SUEWS forcing files,
         which should follow `SUEWS convention
-        <https://suews.readthedocs.io/en/latest/input_files/met_input.html>`_.
+        <https://docs.suews.io/en/latest/input_files/met_input.html>`_.
 
     tstep_mod: int or None, optional
         time step [s] for resampling, by default 300.

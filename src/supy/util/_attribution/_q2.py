@@ -50,7 +50,7 @@ def attribute_q2(
         Forcing DataFrame for scenario B. Must contain 'Tair', 'RH', 'pres' columns.
     min_flux : float, optional
         Minimum flux threshold (W/m2) for resistance calculation.
-        Timesteps with |Q_E| < min_flux are flagged. Default 0.1.
+        Timesteps with abs(Q_E) < min_flux are flagged. Default 0.1.
 
     Returns
     -------
@@ -196,7 +196,7 @@ def diagnose_q2(
         Standard deviation threshold for anomaly detection. Default 2.0.
     min_flux : float, optional
         Minimum flux threshold (W/m2) for resistance calculation.
-        Timesteps with |Q_E| < min_flux are excluded. Default 0.1.
+        Timesteps with abs(Q_E) < min_flux are excluded. Default 0.1.
 
     Returns
     -------

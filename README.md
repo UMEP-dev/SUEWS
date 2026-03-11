@@ -10,7 +10,7 @@ pip install supy
 
 ## Documentation
 
-See the full documentation at: https://suews.readthedocs.io
+See the full documentation at: https://docs.suews.io
 
 ## Quick Start
 

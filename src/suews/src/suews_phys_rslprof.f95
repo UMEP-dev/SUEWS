@@ -379,6 +379,8 @@ CONTAINS
             vegfraction => siteInfo%vegfraction, &
             NonWaterFraction => siteInfo%NonWaterFraction, &
             zMeas => siteInfo%z, &
+            z0m_in => siteInfo%z0m_in, &
+            zdm_in => siteInfo%zdm_in, &
             tstep_real => timer%tstep_real, &
             ! tsfc_surf => heatState_out%tsfc_surf, &
             ! tsfc_roof => heatState_out%tsfc_roof, &
@@ -486,8 +488,20 @@ CONTAINS
 
             ELSE
                ! ========== MOST APPROACH ==========
-               ! Generate MOST height array
-               CALL setup_MOST_heights(nz, zdm, z0m, zMeas, zarray)
+               !correct RSL-based using SUEWS system-wide values
+               z0_RSL = z0m
+               zd_RSL = zdm
+               IF (IEEE_IS_NAN(z0_RSL) .OR. z0_RSL <= 0D0) THEN
+                  z0_RSL = MAX(z0m_in, 0.03D0)
+                  CALL add_supy_warning('RSLProfile: invalid MOST roughness length, using site z0m_in')
+               END IF
+               IF (IEEE_IS_NAN(zd_RSL) .OR. zd_RSL < 0D0) THEN
+                  zd_RSL = MAX(zdm_in, 0D0)
+                  CALL add_supy_warning('RSLProfile: invalid MOST displacement height, using site zdm_in')
+               END IF
+
+               ! Generate MOST height array from sanitised roughness values
+               CALL setup_MOST_heights(nz, zd_RSL, z0_RSL, zMeas, zarray)
 
                ! Initialize arrays
                psihatm_z = 0.0D0
@@ -496,9 +510,6 @@ CONTAINS
                ! use L_MOD as in other parts of SUEWS
                L_MOD_RSL = L_MOD
 
-               !correct RSL-based using SUEWS system-wide values
-               z0_RSL = z0m
-               zd_RSL = zdm
                zH_RSL = Zh
 
                Lc = -999

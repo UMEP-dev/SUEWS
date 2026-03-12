@@ -40,7 +40,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 66 | 78 | 26 | 79 | 40 | 289 |
+| 2026 | 66 | 78 | 26 | 79 | 39 | 288 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -52,6 +52,14 @@ EXAMPLES:
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 11 Mar 2026
+
+- [feature][experimental] Add new Pydantic Field ranges and defaults for STEBBS parameters (PR #1233)
+
+### 23 Feb 2026
+
+- [bugfix][experimental] Fix double-counted heating efficiency in STEBBS load calculation; correct unused heating setpoint to prevent spurious activation (PR #1221)
 
 ### 24 Feb 2026
 

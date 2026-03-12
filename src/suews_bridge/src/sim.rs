@@ -40,19 +40,9 @@ use std::os::raw::c_char;
 
 pub const MET_FORCING_COLS: usize = 21;
 
-// Per-group output column counts (match Fortran ncolumnsDataOut* constants).
-// Each group includes a 5-column datetime prefix.
-pub const OUTPUT_SUEWS_COLS: usize = 118;
-pub const OUTPUT_SNOW_COLS: usize = 103;
-pub const OUTPUT_BEERS_COLS: usize = 34;
-pub const OUTPUT_ESTM_COLS: usize = 32;
-pub const OUTPUT_EHC_COLS: usize = 229;
-pub const OUTPUT_DAILYSTATE_COLS: usize = 52;
-pub const OUTPUT_RSL_COLS: usize = 140;
-pub const OUTPUT_DEBUG_COLS: usize = 136;
-pub const OUTPUT_SPARTACUS_COLS: usize = 199;
-pub const OUTPUT_STEBBS_COLS: usize = 85;
-pub const OUTPUT_NHOOD_COLS: usize = 6;
+// Per-group output column counts (including 5-column datetime prefix).
+// Auto-generated from Fortran ncolumnsDataOut* constants in suews_ctrl_const.f95.
+include!(concat!(env!("OUT_DIR"), "/output_cols.rs"));
 
 /// Total columns across all 11 output groups (concatenated flat buffer).
 pub const OUTPUT_ALL_COLS: usize = OUTPUT_SUEWS_COLS
@@ -991,4 +981,83 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
         state,
         output_block,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::OUTPUT_GROUP_LAYOUT;
+    use crate::ffi;
+
+    #[test]
+    fn output_group_layout_matches_fortran_ncolumns() {
+        const N_GROUPS: usize = 13;
+        const OUTPUT_TIME_COLS: usize = 5;
+
+        let group_names = [
+            "datetime",
+            "SUEWS",
+            "snow",
+            "ESTM",
+            "EHC",
+            "RSL",
+            "BL",
+            "debug",
+            "BEERS",
+            "DailyState",
+            "SPARTACUS",
+            "STEBBS",
+            "NHood",
+        ];
+
+        let mut ncols_arr = [0_i32; N_GROUPS];
+        let mut n_groups = 0_i32;
+        let mut err = -1_i32;
+
+        unsafe {
+            ffi::suews_output_group_ncolumns(
+                ncols_arr.as_mut_ptr(),
+                &mut n_groups,
+                &mut err,
+            );
+        }
+
+        assert_eq!(
+            err,
+            ffi::SUEWS_CAPI_OK,
+            "suews_output_group_ncolumns returned error code {err}"
+        );
+        assert_eq!(
+            usize::try_from(n_groups).expect("n_groups should be non-negative"),
+            N_GROUPS,
+            "unexpected number of output groups returned by Fortran"
+        );
+        assert_eq!(
+            usize::try_from(ncols_arr[0]).expect("datetime cols should be non-negative"),
+            OUTPUT_TIME_COLS,
+            "Fortran datetime column count should stay at {OUTPUT_TIME_COLS}"
+        );
+
+        for &(group_name, rust_total_cols) in OUTPUT_GROUP_LAYOUT {
+            let fortran_data_cols = group_names
+                .iter()
+                .zip(ncols_arr.iter())
+                .find_map(|(name, cols)| {
+                    if *name == group_name {
+                        Some(
+                            usize::try_from(*cols)
+                                .expect("Fortran output column counts should be non-negative"),
+                        )
+                    } else {
+                        None
+                    }
+                })
+                .expect("group from Rust layout should exist in Fortran metadata");
+
+            assert_eq!(
+                rust_total_cols - OUTPUT_TIME_COLS,
+                fortran_data_cols,
+                "Rust constant for group '{group_name}' drifted from compiled Fortran metadata"
+            );
+        }
+    }
 }

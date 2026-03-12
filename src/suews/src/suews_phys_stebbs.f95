@@ -2468,8 +2468,6 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%HeatingPower_DHW = building_archtype%MaximumHotWaterHeatingPower
 
    self%HWPowerAverage = (/30000, 30000, 30000/)
-   self%weighting_factor_heatcapacity_wall = building_archtype%WallOuterCapFrac
-   self%weighting_factor_heatcapacity_roof = building_archtype%RoofOuterCapFrac
 
    IF (config%rcmethod  == 0) THEN !default value
       self%weighting_factor_heatcapacity_wall = 0.5
@@ -2479,7 +2477,7 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
       self%weighting_factor_heatcapacity_wall = building_archtype%WallOuterCapFrac
       self%weighting_factor_heatcapacity_roof = building_archtype%RoofOuterCapFrac  
 
-   ELSE !recalculate the weighting factor for splitting heat capacity (OuterCapFrac) by parameterisation
+   ELSEIF (config%rcmethod == 2) THEN !recalculate the weighting factor for splitting heat capacity (OuterCapFrac) by parameterisation
       self%weighting_factor_heatcapacity_wall = calculate_x1(self%thickness_wall, self%cp_wall, self%density_wall, &
                                              self%thickness_wallext, self%cp_wallext, self%density_wallext, self%conductivity_wallext)
       self%weighting_factor_heatcapacity_roof = calculate_x1(self%thickness_roof, self%cp_roof, self%density_roof, &

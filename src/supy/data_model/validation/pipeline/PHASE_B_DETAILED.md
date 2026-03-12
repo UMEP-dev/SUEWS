@@ -262,11 +262,10 @@ Phase B makes scientific adjustments that improve model realism without changing
 
 ### Seasonal Vegetation Albedo Adjustments
 
-- **Season‑Aware `alb_id`**: Updates `initial_states.*.alb_id` for grass, dectr, evetr 
+- **Season-Aware `alb_id`**: Updates `initial_states.*.alb_id` for grass, dectr, evetr.
 - **Summer Regime**: `alb_id(grass) = alb_min(grass)`; `alb_id(dectr/evetr) = alb_max(dectr/evetr)`
 - **Winter Regime**: `alb_id(grass) = alb_max(grass)`; `alb_id(dectr/evetr) = alb_min(dectr/evetr)`
 - **Transition Seasons**: `alb_id` set to midpoint `(alb_min + alb_max)/2` for grass, dectr, evetr
-
 
 ### STEBBS Method Integration
 

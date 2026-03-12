@@ -840,7 +840,7 @@ def test_validate_spartacus_veg_dimensions_boundary_case():
     """Boundary case: max_tree exactly on a layer boundary."""
     cfg = SUEWSConfig.model_construct()
     cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
-    lc = SimpleNamespace(dectreeh=15.0, evetreeh=None)
+    lc = SimpleNamespace(dectr=SimpleNamespace(dectreeh=15.0), evetr=None)
     vertical_layers = SimpleNamespace(
         height=[0, 5, 10, 15, 20],
         veg_frac=[0.3, 0.3, 0.2, 0, 0],

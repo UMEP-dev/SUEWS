@@ -203,7 +203,6 @@ class SUEWSConfig(BaseModel):
         "DHWVesselExternalWallConvectionCoefficient",
         "DHWVesselWallEmissivity",
         "HotWaterHeatingEfficiency",
-        "MinimumVolumeOfDHWinUse",
         "MaximumVolumeOfDHWinUse",
     ]
 

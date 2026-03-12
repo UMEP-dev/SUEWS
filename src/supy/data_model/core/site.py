@@ -1392,7 +1392,7 @@ class ArchetypeProperties(BaseModel):
     )
     WallOuterCapFrac: Optional[FlexibleRefValue(float)] = Field(
         default=0.5,
-        description="Weighting factor (0-1) representing the fraction of wall heat capacity assigned to the external node, with the remainder assigned to the internal node[-]",
+        description="Weighting factor (0-1) representing the fraction of wall heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Wall Outer Capacity Fraction",
@@ -1508,7 +1508,7 @@ class ArchetypeProperties(BaseModel):
     )
     RoofOuterCapFrac: Optional[FlexibleRefValue(float)] = Field(
         default=0.5,
-        description="Weighting factor (0-1) representing the fraction of roof heat capacity assigned to the external node, with the remainder assigned to the internal node[-]",
+        description="Weighting factor (0-1) representing the fraction of roof heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Roof Outer Capacity Fraction",

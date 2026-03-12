@@ -772,8 +772,8 @@ def test_validate_model_option_rcmethod2_all_params_provided():
     }
     results = validate_model_option_rcmethod(yaml_data)
     warnings = [r for r in results if r.status == "WARNING"]
-    assert any("wall material external to insulation layer" in r.message for r in warnings)
-    assert any("roof material external to insulation layer" in r.message for r in warnings)
+    assert any("wall material parameters will be used for parameterisation" in r.message for r in warnings)
+    assert any("roof material parameters will be used for parameterisation" in r.message for r in warnings)
     assert all(r.status != "ERROR" for r in results)
 
 def test_validate_model_option_rcmethod2_some_params_missing():

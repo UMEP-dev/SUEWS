@@ -7171,7 +7171,7 @@
             }
           ],
           "default": 0,
-          "description": "Method to determine the two weighting factors (WallOuterCapFrac and RoofOuterCapFrac) spliting heat capacity of building envelope into two nodes in STEBBS. Options: 0 (DEFAULT) = Default value of 0.5 is used; 1 (PROVIDED) = Use user defined value between 0 and 1; 2 (PARAMETERISE) = Use building material thermal property to parameterise the weighting factor",
+          "description": "Method to determine the two weighting factors (WallOuterCapFrac and RoofOuterCapFrac) splitting heat capacity of building envelope into two nodes in STEBBS. Options: 0 (DEFAULT) = Default value of 0.5 is used; 1 (PROVIDED) = Use user defined value between 0 and 1; 2 (PARAMETERISE) = Use building material thermal property to parameterise the weighting factor",
           "title": "Rcmethod",
           "unit": "dimensionless"
         },
@@ -7699,7 +7699,7 @@
       "type": "object"
     },
     "RCMethod": {
-      "description": "Method to determine the two weighting factors (WallOuterCapFrac and RoofOuterCapFrac) spliting heat capacity of building envelope into two nodes in STEBBS.\n\n0: DEFAULT - Default value of 0.5 is used\n1: PROVIDED - Use user defined value between 0 and 1\n2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor",
+      "description": "Method to determine the two weighting factors (WallOuterCapFrac and RoofOuterCapFrac) splitting heat capacity of building envelope into two nodes in STEBBS.\n\n0: DEFAULT - Default value of 0.5 is used\n1: PROVIDED - Use user defined value between 0 and 1\n2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor",
       "enum": [
         0,
         1,

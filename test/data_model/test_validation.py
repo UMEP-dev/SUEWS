@@ -1145,8 +1145,8 @@ def test_phase_b_model_option_dependencies_comprehensive():
     assert isinstance(results, list)  # Should return a list, not crash
 
 
-def test_phase_b_deep_soil_temperature_from_cru():
-    """Test that DeepSoilTemperature is populated from CRU annual mean data."""
+def test_phase_b_annual_mean_air_temperature_from_cru():
+    """Test that AnnualMeanAirTemperature is populated from CRU annual mean data."""
     from supy.data_model.validation.pipeline.phase_b import (
         adjust_surface_temperatures,
         get_mean_annual_air_temperature,
@@ -1173,7 +1173,7 @@ def test_phase_b_deep_soil_temperature_from_cru():
                     "lat": {"value": test_lat},
                     "lng": {"value": test_lon},
                     "stebbs": {
-                        "DeepSoilTemperature": {
+                        "AnnualMeanAirTemperature": {
                             "value": 999.0
                         },  # Wrong value to be updated
                         "InitialOutdoorTemperature": {
@@ -1189,9 +1189,9 @@ def test_phase_b_deep_soil_temperature_from_cru():
     # Run adjustment
     updated_data, adjustments = adjust_surface_temperatures(yaml_data, start_date)
 
-    # Check that DeepSoilTemperature was updated
+    # Check that AnnualMeanAirTemperature was updated
     updated_annual_temp = updated_data["sites"][0]["properties"]["stebbs"][
-        "DeepSoilTemperature"
+        "AnnualMeanAirTemperature"
     ]["value"]
     assert updated_annual_temp == annual_temp, (
         f"Expected {annual_temp}, got {updated_annual_temp}"
@@ -1199,7 +1199,7 @@ def test_phase_b_deep_soil_temperature_from_cru():
 
     # Check that adjustment was recorded
     annual_temp_adjustments = [
-        adj for adj in adjustments if adj.parameter == "stebbs.DeepSoilTemperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.AnnualMeanAirTemperature"
     ]
     assert len(annual_temp_adjustments) == 1
     adj = annual_temp_adjustments[0]
@@ -1209,8 +1209,8 @@ def test_phase_b_deep_soil_temperature_from_cru():
     assert "1991-2020" in adj.reason
 
 
-def test_phase_b_deep_soil_temperature_no_update_if_same():
-    """Test that DeepSoilTemperature is not updated if already correct."""
+def test_phase_b_annual_mean_air_temperature_no_update_if_same():
+    """Test that AnnualMeanAirTemperature is not updated if already correct."""
     from supy.data_model.validation.pipeline.phase_b import (
         adjust_surface_temperatures,
         get_mean_annual_air_temperature,
@@ -1237,7 +1237,7 @@ def test_phase_b_deep_soil_temperature_no_update_if_same():
                     "lat": {"value": test_lat},
                     "lng": {"value": test_lon},
                     "stebbs": {
-                        "DeepSoilTemperature": {
+                        "AnnualMeanAirTemperature": {
                             "value": annual_temp
                         },  # Already correct
                     },
@@ -1252,15 +1252,15 @@ def test_phase_b_deep_soil_temperature_no_update_if_same():
 
     # Check that NO adjustment was made (value already correct)
     annual_temp_adjustments = [
-        adj for adj in adjustments if adj.parameter == "stebbs.DeepSoilTemperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.AnnualMeanAirTemperature"
     ]
     assert len(annual_temp_adjustments) == 0, (
         "Should not adjust if value already correct"
     )
 
 
-def test_phase_b_deep_soil_temperature_missing_stebbs():
-    """Test graceful handling when DeepSoilTemperature is not in stebbs."""
+def test_phase_b_annual_mean_air_temperature_missing_stebbs():
+    """Test graceful handling when AnnualMeanAirTemperature is not in stebbs."""
     from supy.data_model.validation.pipeline.phase_b import adjust_surface_temperatures
 
     # Test coordinates
@@ -1268,7 +1268,7 @@ def test_phase_b_deep_soil_temperature_missing_stebbs():
     test_lon = -0.1
     start_date = "2020-01-15"
 
-    # Create test YAML without DeepSoilTemperature
+    # Create test YAML without AnnualMeanAirTemperature
     yaml_data = {
         "sites": [
             {
@@ -1277,7 +1277,7 @@ def test_phase_b_deep_soil_temperature_missing_stebbs():
                     "lng": {"value": test_lon},
                     "stebbs": {
                         "InitialOutdoorTemperature": {"value": 10.0},
-                        # DeepSoilTemperature NOT present
+                        # AnnualMeanAirTemperature NOT present
                     },
                 },
                 "initial_states": {},
@@ -1288,9 +1288,9 @@ def test_phase_b_deep_soil_temperature_missing_stebbs():
     # Run adjustment - should not crash
     updated_data, adjustments = adjust_surface_temperatures(yaml_data, start_date)
 
-    # Check that no DeepSoilTemperature adjustment was attempted
+    # Check that no AnnualMeanAirTemperature adjustment was attempted
     annual_temp_adjustments = [
-        adj for adj in adjustments if adj.parameter == "stebbs.DeepSoilTemperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.AnnualMeanAirTemperature"
     ]
     assert len(annual_temp_adjustments) == 0
 

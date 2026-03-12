@@ -214,7 +214,7 @@ sites:
         value: null
       InitialIndoorTemperature:
         value: null
-      DeepSoilTemperature:
+      AnnualMeanAirTemperature:
         value: null
     building_archetype:
       BuildingType: test

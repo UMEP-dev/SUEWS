@@ -4164,7 +4164,7 @@ CONTAINS
       MetabolismThreshold, LatentSensibleRatio, &
       ApplianceProfile, &
       HeatingSystemEfficiency, &
-      MaxCoolingPower, CoolingSystemCOP, VentilationRate, DeepSoilTemperature, InitialOutdoorTemperature, InitialIndoorTemperature, &
+      MaxCoolingPower, CoolingSystemCOP, VentilationRate, AnnualMeanAirTemperature, InitialOutdoorTemperature, InitialIndoorTemperature, &
       WaterTankWallThickness, MainsWaterTemperature, WaterTankSurfaceArea, &
       HotWaterHeatingSetpointTemperature, HotWaterTankWallEmissivity, &
       DHWVesselWallThickness, DHWWaterVolume, &
@@ -4580,7 +4580,7 @@ CONTAINS
       REAL(KIND(1D0)) :: MaxCoolingPower
       REAL(KIND(1D0)) :: CoolingSystemCOP
       REAL(KIND(1D0)) :: VentilationRate
-      REAL(KIND(1D0)) :: DeepSoilTemperature
+      REAL(KIND(1D0)) :: AnnualMeanAirTemperature
       REAL(KIND(1D0)) :: InitialOutdoorTemperature
       REAL(KIND(1D0)) :: InitialIndoorTemperature
       REAL(KIND(1D0)) :: WaterTankWallThickness
@@ -5481,7 +5481,7 @@ CONTAINS
       ! states - updated during the simulation
       ! TODO: STEBBS States act as parameters for building generation (move all but allocation?)
       CALL stebbsState%ALLOCATE(nbtypes, nlayer)
-      stebbsState%DeepSoilTemperature = DeepSoilTemperature
+      stebbsState%DeepSoilTemperature = AnnualMeanAirTemperature
       stebbsState%OutdoorAirStartTemperature = InitialOutdoorTemperature
       stebbsState%IndoorAirStartTemperature = InitialIndoorTemperature
       stebbsState%IndoorMassStartTemperature = InitialIndoorTemperature
@@ -5492,7 +5492,7 @@ CONTAINS
       stebbsState%WindowIndoorSurfaceTemperature = InitialIndoorTemperature
       stebbsState%WindowOutdoorSurfaceTemperature = InitialOutdoorTemperature
       stebbsState%GroundFloorIndoorSurfaceTemperature = InitialIndoorTemperature
-      stebbsState%GroundFloorOutdoorSurfaceTemperature = DeepSoilTemperature
+      stebbsState%GroundFloorOutdoorSurfaceTemperature = AnnualMeanAirTemperature
       stebbsState%WaterTankTemperature = HotWaterHeatingSetpointTemperature
       stebbsState%InternalWallWaterTankTemperature = HotWaterHeatingSetpointTemperature
       stebbsState%ExternalWallWaterTankTemperature = InitialIndoorTemperature

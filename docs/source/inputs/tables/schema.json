@@ -10524,7 +10524,7 @@
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 7.7,
           "description": "Effective internal wall convection coefficient of the hot water tank [W m-2 K-1]",
           "display_name": "Hot Water Tank Internal Wall Convection Coefficient",
           "title": "Hotwatertankinternalwallconvectioncoefficient",

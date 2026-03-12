@@ -273,7 +273,7 @@ Phase B makes scientific adjustments that improve model realism without changing
 - **Conditional Logic**: When `stebbsmethod == 0`, nullifies STEBBS parameters
 - **Parameter Cleanup**: Removes unused STEBBS parameters for clarity
 - **Consistency**: Ensures STEBBS configuration matches selected method
-- **Temperature Initialisation**: When `stebbsmethod == 1`, automatically updates `InitialOutdoorTemperature` using CRU climatological data
+- **Temperature Initialisation**: When `stebbsmethod == 1`, automatically updates `InitialOutdoorTemperature` and `InitialIndoorTemperature` using CRU climatological data
 - **CRU-Based Updates**: Uses location-specific mean monthly air temperature from CRU TS4.06 dataset
 
 ### RC Method Integration

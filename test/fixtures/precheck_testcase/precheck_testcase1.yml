@@ -232,8 +232,6 @@ sites:
         value: 0.8
       HotWaterHeatingEfficiency:
         value: 0.8
-      MaximumVolumeOfDHWinUse:
-        value: 100.0
     building_archetype:
       BuildingType: 2000-2008
       BuildingName: SampleBuilding

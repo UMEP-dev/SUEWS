@@ -203,7 +203,6 @@ class SUEWSConfig(BaseModel):
         "DHWVesselExternalWallConvectionCoefficient",
         "DHWVesselWallEmissivity",
         "HotWaterHeatingEfficiency",
-        "MaximumVolumeOfDHWinUse",
     ]
 
     ARCHETYPE_REQUIRED_PARAMS: ClassVar[List[str]] = [

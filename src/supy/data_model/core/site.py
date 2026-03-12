@@ -2228,16 +2228,6 @@ class StebbsProperties(BaseModel):
         gt=0.0,
         lt=1.0,
     )
-    MaximumVolumeOfDHWinUse: Optional[FlexibleRefValue(float)] = Field(
-        default=100.0,
-        description="Maximum volume of hot water in use [m3]. Default is arbitrary placeholder to be refined with validation.",
-        json_schema_extra={
-            "unit": "m^3",
-            "display_name": "Maximum Volume of DHW in Use",
-        },
-        ge=0.0,
-    )
-
     ApplianceProfile: Optional[TenMinuteProfile] = Field(
         default_factory=TenMinuteProfile,
         description="10-minute profile of appliance usage factor in building [-]",

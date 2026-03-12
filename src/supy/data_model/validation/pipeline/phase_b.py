@@ -1663,7 +1663,6 @@ def adjust_seasonal_parameters(
             # The warning "Parameters not checked because surface fraction is 0" covers this
 
         # Seasonal adjustment of vegetation albedo ranges (alb_id only)
-        land_cover = props.get("land_cover", {})
         vegetated_surfaces = (
             ("grass", "grass"),
             ("dectr", "deciduous trees"),

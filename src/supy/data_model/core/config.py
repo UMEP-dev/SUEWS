@@ -1689,7 +1689,7 @@ class SUEWSConfig(BaseModel):
         """
         Check that veg_scale and veg_frac are zero above the layer where max_tree falls.
         max_tree = max(dectreeh, evetreeh)
-        The last layer where max_tree < height[layer] (layer index 1..nlayer) is the tree layer.
+        The first layer where max_tree < height[layer] (layer index 1..nlayer) is the tree layer.
         All veg_scale and veg_frac entries above this layer (i.e., layer_index+1 to nlayer) must be zero.
         """
         issues: list = []

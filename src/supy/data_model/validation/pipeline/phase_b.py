@@ -1680,7 +1680,9 @@ def adjust_seasonal_parameters(
         def _set_alb_id(surf_key: str, new_alb_id: Optional[float], label: str):
             if new_alb_id is None:
                 return
-            surf_state = initial_states.get(surf_key, {})
+            if surf_key not in initial_states:
+                initial_states[surf_key] = {}
+            surf_state = initial_states[surf_key]
             if not isinstance(surf_state, dict):
                 return
             old_val = surf_state.get("alb_id", {}).get("value") if isinstance(surf_state.get("alb_id", {}), dict) else surf_state.get("alb_id")

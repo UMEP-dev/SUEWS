@@ -555,7 +555,7 @@ def validate_model_option_rcmethod(yaml_data: dict) -> List[ValidationResult]:
                         parameter="building_archetype.roof_external_parameters",
                         site_index=site_idx,
                         site_gridid=site_gridid,
-                        message=f"Following parameters of roof material external to insulation layer need to be provided.: {', '.join(provided_roof)}. Please check that these values are valid for your building material.",
+                        message=f"Following parameters of roof material external to insulation layer need to be provided: {', '.join(provided_roof)}. Please check that these values are valid for your building material.",
                         suggested_value="Review roof material properties for accuracy."
                     )
                 )

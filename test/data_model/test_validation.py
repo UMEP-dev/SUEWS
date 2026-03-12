@@ -39,6 +39,9 @@ from supy.data_model.core.state import (
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
 from supy.data_model.validation.pipeline.phase_b import validate_model_option_samealbedo
+from supy.data_model.validation.pipeline.phase_b import validate_model_option_rcmethod
+from supy.data_model.validation.pipeline.phase_b import adjust_model_option_rcmethod
+
 
 
 
@@ -646,6 +649,160 @@ def test_phase_b_validate_model_option_samealbedo_disabled():
     assert "no check of consistency" in results_roof[0].message.lower()
     assert "samealbedo_roof == 0" in results_roof[0].message.lower()
 
+
+def test_validate_model_option_rcmethod_missing_params():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {},
+            }
+        }],
+    }
+    results = validate_model_option_rcmethod(yaml_data)
+    params = [r.parameter for r in results]
+    assert any("RoofOuterCapFrac" in p for p in params)
+    assert any("WallOuterCapFrac" in p for p in params)
+    assert all(r.status == "ERROR" for r in results)
+
+def test_validate_model_option_rcmethod_enabled_invalid_values():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "RoofOuterCapFrac": {"value": 1.5},
+                    "WallOuterCapFrac": {"value": -0.2},
+                },
+            }
+        }],
+    }
+    results = validate_model_option_rcmethod(yaml_data)
+    assert any("out of valid range" in r.message for r in results)
+    assert all(r.status == "ERROR" for r in results)
+
+def test_validate_model_option_rcmethod_enabled_valid_values():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "RoofOuterCapFrac": {"value": 0.5},
+                    "WallOuterCapFrac": {"value": 0.5},
+                },
+            }
+        }],
+    }
+    results = validate_model_option_rcmethod(yaml_data)
+    assert not results or all(r.status != "ERROR" for r in results)
+
+def test_adjust_model_option_rcmethod_sets_defaults():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 0}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {},
+            }
+        }],
+    }
+    updated_data, adjustments = adjust_model_option_rcmethod(yaml_data)
+    ba = updated_data["sites"][0]["properties"]["building_archetype"]
+    assert ba["RoofOuterCapFrac"]["value"] == 0.5
+    assert ba["WallOuterCapFrac"]["value"] == 0.5
+    assert any(adj.parameter == "building_archetype.RoofOuterCapFrac" for adj in adjustments)
+    assert any(adj.parameter == "building_archetype.WallOuterCapFrac" for adj in adjustments)
+
+def test_adjust_model_option_rcmethod_no_action_when_already_set():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 0}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "RoofOuterCapFrac": {"value": 0.5},
+                    "WallOuterCapFrac": {"value": 0.5},
+                },
+            }
+        }],
+    }
+    updated_data, adjustments = adjust_model_option_rcmethod(yaml_data)
+    assert len(adjustments) == 0
+
+def test_validate_model_option_rcmethod2_missing_params():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {"building_archetype": {}},
+        }],
+    }
+    results = validate_model_option_rcmethod(yaml_data)
+    required = [
+        "WallextThickness", "WallextEffectiveConductivity", "WallextDensity", "WallextCp",
+        "RoofextThickness", "RoofextEffectiveConductivity", "RoofextDensity", "RoofextCp"
+    ]
+    expected = [f"building_archetype.{p}" for p in required]
+    error_params = [r.parameter for r in results if r.status == "ERROR"]
+    for p in expected:
+        assert p in error_params
+    assert all(r.status == "ERROR" for r in results if r.parameter in expected)
+
+def test_validate_model_option_rcmethod2_all_params_provided():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "WallextThickness": {"value": 0.2},
+                    "WallextEffectiveConductivity": {"value": 1.0},
+                    "WallextDensity": {"value": 2200},
+                    "WallextCp": {"value": 900},
+                    "RoofextThickness": {"value": 0.18},
+                    "RoofextEffectiveConductivity": {"value": 1.2},
+                    "RoofextDensity": {"value": 2300},
+                    "RoofextCp": {"value": 1000},
+                }
+            }
+        }],
+    }
+    results = validate_model_option_rcmethod(yaml_data)
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert any("wall material parameters will be used for parameterisation" in r.message for r in warnings)
+    assert any("roof material parameters will be used for parameterisation" in r.message for r in warnings)
+    assert all(r.status != "ERROR" for r in results)
+
+def test_validate_model_option_rcmethod2_some_params_missing():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "WallextThickness": {"value": 0.2},
+                    "WallextEffectiveConductivity": {},
+                    "WallextDensity": {"value": 2200},
+                    # WallextCp missing
+                    "RoofextThickness": {"value": 0.18},
+                    # RoofextEffectiveConductivity missing
+                    "RoofextDensity": {"value": 2300},
+                    "RoofextCp": {"value": 1000},
+                }
+            }
+        }],
+    }
+    results = validate_model_option_rcmethod(yaml_data)
+    error_params = [r.parameter for r in results if r.status == "ERROR"]
+    assert "building_archetype.WallextEffectiveConductivity" in error_params
+    assert "building_archetype.WallextCp" in error_params
+    assert "building_archetype.RoofextEffectiveConductivity" in error_params
+    assert any(r.status == "WARNING" for r in results)
+    assert all("must be provided" in r.message for r in results if r.status == "ERROR")
+
 def test_needs_spartacus_validation_true_and_false():
     
     cfg = make_cfg()
@@ -748,6 +905,8 @@ def test_validate_spartacus_sfr_mismatch_veg_frac():
         in m
         for m in msgs
     )
+
+
 
 # From test_validation_topdown.py
 class TestTopDownValidation:

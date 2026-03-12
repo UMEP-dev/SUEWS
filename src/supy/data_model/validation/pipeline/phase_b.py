@@ -403,6 +403,165 @@ def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
 
     return results
 
+def validate_model_option_rcmethod(yaml_data: dict) -> List[ValidationResult]:
+    """Validate RoofOuterCapFrac and WallOuterCapFrac if rcmethod == 1.
+    For rcmethod == 2, validate required roof/wall external parameters are not null.
+    If provided, emit a warning with their values for user review.
+    """
+    results = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+    rcmethod_value = get_value_safe(physics, "rcmethod")
+
+    if rcmethod_value == 1:
+        sites = yaml_data.get("sites", [])
+        for site_idx, site in enumerate(sites):
+            props = site.get("properties", {})
+            building_archetype = props.get("building_archetype", {})
+            site_gridid = get_site_gridid(site)
+
+            # RoofOuterCapFrac
+            roof_frac_entry = building_archetype.get("RoofOuterCapFrac", {})
+            roof_frac = roof_frac_entry.get("value") if isinstance(roof_frac_entry, dict) else roof_frac_entry
+            if roof_frac is None:
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter="building_archetype.RoofOuterCapFrac",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message="RoofOuterCapFrac must be explicitly provided when rcmethod == 1.",
+                        suggested_value="Set RoofOuterCapFrac to a value between 0 and 1 (exclusive)."
+                    )
+                )
+            elif not (0 < roof_frac < 1):
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter="building_archetype.RoofOuterCapFrac",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message=f"RoofOuterCapFrac value {roof_frac} is out of valid range (0, 1) when rcmethod == 1.",
+                        suggested_value="Set RoofOuterCapFrac to a value strictly between 0 and 1."
+                    )
+                )
+
+            # WallOuterCapFrac
+            wall_frac_entry = building_archetype.get("WallOuterCapFrac", {})
+            wall_frac = wall_frac_entry.get("value") if isinstance(wall_frac_entry, dict) else wall_frac_entry
+            if wall_frac is None:
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter="building_archetype.WallOuterCapFrac",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message="WallOuterCapFrac must be explicitly provided when rcmethod == 1.",
+                        suggested_value="Set WallOuterCapFrac to a value between 0 and 1 (exclusive)."
+                    )
+                )
+            elif not (0 < wall_frac < 1):
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter="building_archetype.WallOuterCapFrac",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message=f"WallOuterCapFrac value {wall_frac} is out of valid range (0, 1) when rcmethod == 1.",
+                        suggested_value="Set WallOuterCapFrac to a value strictly between 0 and 1."
+                    )
+                )
+
+    elif rcmethod_value == 2:
+        required_wall_params = [
+            "WallextThickness",
+            "WallextEffectiveConductivity",
+            "WallextDensity",
+            "WallextCp",
+        ]
+        required_roof_params = [
+            "RoofextThickness",
+            "RoofextEffectiveConductivity",
+            "RoofextDensity",
+            "RoofextCp",
+        ]
+        sites = yaml_data.get("sites", [])
+        for site_idx, site in enumerate(sites):
+            props = site.get("properties", {})
+            building_archetype = props.get("building_archetype", {})
+            site_gridid = get_site_gridid(site)
+
+            # Collect provided wall params
+            provided_wall = []
+            for param in required_wall_params:
+                entry = building_archetype.get(param, {})
+                value = entry.get("value") if isinstance(entry, dict) else entry
+                if value in (None, ""):
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="MODEL_OPTIONS",
+                            parameter=f"building_archetype.{param}",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=f"{param} must be provided and non-null when rcmethod == 2.",
+                            suggested_value=f"Set {param} to a valid numeric value."
+                        )
+                    )
+                else:
+                    provided_wall.append(f"{param}={value}")
+
+            # Collect provided roof params
+            provided_roof = []
+            for param in required_roof_params:
+                entry = building_archetype.get(param, {})
+                value = entry.get("value") if isinstance(entry, dict) else entry
+                if value in (None, ""):
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="MODEL_OPTIONS",
+                            parameter=f"building_archetype.{param}",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=f"{param} must be provided and non-null when rcmethod == 2.",
+                            suggested_value=f"Set {param} to a valid numeric value."
+                        )
+                    )
+                else:
+                    provided_roof.append(f"{param}={value}")
+
+            # Emit warning if any required params are provided
+            if provided_wall:
+                results.append(
+                    ValidationResult(
+                        status="WARNING",
+                        category="MODEL_OPTIONS",
+                        parameter="building_archetype.wall_external_parameters",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message=f"The following wall material parameters will be used for parameterisation: {', '.join(provided_wall)}. Please check that these values are valid for your building material.",
+                        suggested_value="Review wall material properties for accuracy."
+                    )
+                )
+            if provided_roof:
+                results.append(
+                    ValidationResult(
+                        status="WARNING",
+                        category="MODEL_OPTIONS",
+                        parameter="building_archetype.roof_external_parameters",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message=f"The following roof material parameters will be used for parameterisation: {', '.join(provided_roof)}. Please check that these values are valid for your building material.",
+                        suggested_value="Review roof material properties for accuracy."
+                    )
+                )
+
+    return results
+
 def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
     """Validate land cover fractions and parameters."""
     results = []
@@ -1015,6 +1174,8 @@ def run_scientific_validation_pipeline(
     validation_results.extend(validate_model_option_dependencies(yaml_data))
 
     validation_results.extend(validate_model_option_samealbedo(yaml_data))
+
+    validation_results.extend(validate_model_option_rcmethod(yaml_data))
 
     validation_results.extend(validate_land_cover_consistency(yaml_data))
 
@@ -1738,6 +1899,57 @@ def adjust_seasonal_parameters(
 
     return yaml_data, adjustments
 
+def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
+    """If rcmethod == 0, set RoofOuterCapFrac and WallOuterCapFrac to 0.5 for all sites."""
+    adjustments = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+    rcmethod_value = get_value_safe(physics, "rcmethod")
+
+    if rcmethod_value == 0:
+        sites = yaml_data.get("sites", [])
+        for site_idx, site in enumerate(sites):
+            props = site.get("properties", {})
+            building_archetype = props.get("building_archetype", {})
+            site_gridid = get_site_gridid(site)
+
+            # RoofOuterCapFrac
+            roof_frac_entry = building_archetype.get("RoofOuterCapFrac", {})
+            old_roof_frac = roof_frac_entry.get("value") if isinstance(roof_frac_entry, dict) else roof_frac_entry
+            if old_roof_frac != 0.5:
+                building_archetype["RoofOuterCapFrac"] = {"value": 0.5}
+                adjustments.append(
+                    ScientificAdjustment(
+                        parameter="building_archetype.RoofOuterCapFrac",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        old_value=str(old_roof_frac),
+                        new_value="0.5",
+                        reason="rcmethod == 0, set RoofOuterCapFrac to 0.5"
+                    )
+                )
+
+            # WallOuterCapFrac
+            wall_frac_entry = building_archetype.get("WallOuterCapFrac", {})
+            old_wall_frac = wall_frac_entry.get("value") if isinstance(wall_frac_entry, dict) else wall_frac_entry
+            if old_wall_frac != 0.5:
+                building_archetype["WallOuterCapFrac"] = {"value": 0.5}
+                adjustments.append(
+                    ScientificAdjustment(
+                        parameter="building_archetype.WallOuterCapFrac",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        old_value=str(old_wall_frac),
+                        new_value="0.5",
+                        reason="rcmethod == 0, set WallOuterCapFrac to 0.5"
+                    )
+                )
+
+            props["building_archetype"] = building_archetype
+            site["properties"] = props
+            yaml_data["sites"][site_idx] = site
+
+    return yaml_data, adjustments
+
 
 def run_scientific_adjustment_pipeline(
     yaml_data: dict, start_date: str, model_year: int
@@ -1763,6 +1975,9 @@ def run_scientific_adjustment_pipeline(
         updated_data, start_date, model_year
     )
     adjustments.extend(seasonal_adjustments)
+
+    updated_data, rcmethod_adjustments = adjust_model_option_rcmethod(updated_data)
+    adjustments.extend(rcmethod_adjustments)    
 
     return updated_data, adjustments
 

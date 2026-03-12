@@ -808,6 +808,66 @@ def test_validate_spartacus_veg_dimensions_missing_nlayer():
     msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
     assert msgs == []
 
+def test_validate_spartacus_veg_dimensions_passing_case():
+    """Passing case: dectreeh=12, height=[0, 5, 10, 15, 20], veg_frac=[0.3, 0.3, 0.2, 0, 0]"""
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    lc = SimpleNamespace(dectreeh=12.0, evetreeh=None)
+    vertical_layers = SimpleNamespace(
+        height=[0, 5, 10, 15, 20],
+        veg_frac=[0.3, 0.3, 0.2, 0, 0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_failing_case():
+    """Failing case: dectreeh=16, height=[0, 5, 10, 15, 20], veg_frac=[0.3, 0.3, 0.2, 0.1, 0]"""
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    lc = SimpleNamespace(dectr=SimpleNamespace(dectreeh=16.0), evetr=None)
+    vertical_layers = SimpleNamespace(
+        height=[0, 5, 10, 15, 20],
+        veg_frac=[0.3, 0.3, 0.2, 0.1, 0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_boundary_case():
+    """Boundary case: max_tree exactly on a layer boundary."""
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    lc = SimpleNamespace(dectreeh=15.0, evetreeh=None)
+    vertical_layers = SimpleNamespace(
+        height=[0, 5, 10, 15, 20],
+        veg_frac=[0.3, 0.3, 0.2, 0, 0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_exceeds_all_case():
+    """Exceeds-all case: max_tree=100 with height=[0, 5, 10] — should produce the 'exceeds' message."""
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    # Note: dectrh and evetrh are attributes of land_cover.dectr and land_cover.evetr, not land_cover itself
+    dectr = SimpleNamespace(dectreeh=100.0)
+    lc = SimpleNamespace(dectr=dectr, evetr=None)
+    vertical_layers = SimpleNamespace(
+        height=[0, 5, 10],
+        veg_frac=[0.3, 0.3, 0.2],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs
+    assert any("exceeds all vertical_layers heights" in m for m in msgs)
+
+
 # From test_validation_topdown.py
 class TestTopDownValidation:
     """Test the new top-down validation approach."""

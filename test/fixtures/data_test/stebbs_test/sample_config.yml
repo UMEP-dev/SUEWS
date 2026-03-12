@@ -441,7 +441,7 @@ sites:
         value: 17.540002822875977
       InitialIndoorTemperature:
         value: 20.0
-      DeepSoilTemperature:
+      AnnualMeanAirTemperature:
         value: 10.0
       WaterTankWallThickness:
         value: 0.055

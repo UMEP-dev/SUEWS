@@ -10072,7 +10072,7 @@
           "title": "Initialindoortemperature",
           "unit": "degC"
         },
-        "DeepSoilTemperature": {
+        "AnnualMeanAirTemperature": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -10085,9 +10085,9 @@
             }
           ],
           "default": 10.0,
-          "description": "Initial deep soil temperature [degC]",
-          "display_name": "Deep Soil Temperature",
-          "title": "Deepsoiltemperature",
+          "description": "Annual mean outdoor air temperature [degC]",
+          "display_name": "Annual Mean Air Temperature",
+          "title": "Annualmeanairtemperature",
           "unit": "degC"
         },
         "WaterTankWallThickness": {

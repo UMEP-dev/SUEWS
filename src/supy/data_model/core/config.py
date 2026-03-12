@@ -1717,7 +1717,7 @@ class SUEWSConfig(BaseModel):
         # Find the last layer where max_tree < height[layer] (layer index 1..nlayer)
         layer_index = None
         for i in range(1, len(height_arr)):
-            if max_tree < height_arr[i]:
+            if max_tree <= height_arr[i]:
                 layer_index = i
                 break
         if layer_index is None:

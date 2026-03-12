@@ -176,7 +176,7 @@ class SUEWSConfig(BaseModel):
         "VentilationRate",
         "InitialOutdoorTemperature",
         "InitialIndoorTemperature",
-        "DeepSoilTemperature",
+        "AnnualMeanAirTemperature",
         "WaterTankWallThickness",
         "MainsWaterTemperature",
         "WaterTankSurfaceArea",

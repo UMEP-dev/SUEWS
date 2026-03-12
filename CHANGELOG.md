@@ -73,7 +73,7 @@ EXAMPLES:
 
 ### 19 Feb 2026
 
-- [feature] Add update logic under seasonal adjustments in phase_b.py to handle different alb_id behaviour across vegetated surface types (PR #1211).
+- [feature][experimental] Add update logic under seasonal adjustments in phase_b.py to handle different alb_id behaviour across vegetated surface types (PR #1211).
 - [doc] Updated PHASE_B_DETAILED.md with new seasonal adjustment logic (PR #1211).
 
 ### 18 Feb 2026

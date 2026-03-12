@@ -2117,11 +2117,11 @@ SUBROUTINE tstep( &
          Vwater_vessel = Vwater_vessel + dVwater_vessel
          !IF (Vwater_vessel < minVwater_vessel) THEN
          !   Vwater_vessel = minVwater_vessel
-         END IF
+         !END IF
          ! Maximum volume cap as safety net (GH-340)
-         IF (maxVwater_vessel > 0.0D0 .AND. Vwater_vessel > maxVwater_vessel) THEN
-            Vwater_vessel = maxVwater_vessel
-         END IF
+         !IF (maxVwater_vessel > 0.0D0 .AND. Vwater_vessel > maxVwater_vessel) THEN
+         !   Vwater_vessel = maxVwater_vessel
+         !END IF
          Twater_vessel = &
             (((flowrate_water_supply*resolution)*Twater_tank) + &
              ((Vwater_vessel - (flowrate_water_supply*resolution))*Twater_vessel))/Vwater_vessel

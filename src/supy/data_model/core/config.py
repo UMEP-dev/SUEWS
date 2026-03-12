@@ -1717,7 +1717,7 @@ class SUEWSConfig(BaseModel):
         # Find the last layer where max_tree < height[layer] (layer index 1..nlayer)
         layer_index = None
         for i in range(1, len(height_arr)):
-            if max_tree < height_arr[i]:
+            if max_tree <= height_arr[i]:
                 layer_index = i
                 break
         if layer_index is None:
@@ -1737,7 +1737,7 @@ class SUEWSConfig(BaseModel):
             if isinstance(arr, (list, tuple)):
                 for i in range(layer_index, nlayer):
                     val = arr[i]
-                    if val != 0:
+                    if not np.isclose(val, 0, atol=1e-6):
                         issues.append(
                             f"Site {site_name}: {arr_name}[{i}] should be zero (provided max tree height {max_tree} does not reach height {height_arr[i+1]} of layer {i+1})."
                         )

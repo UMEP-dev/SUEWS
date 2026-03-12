@@ -812,7 +812,7 @@ def test_validate_spartacus_veg_dimensions_passing_case():
     """Passing case: dectreeh=12, height=[0, 5, 10, 15, 20], veg_frac=[0.3, 0.3, 0.2, 0, 0]"""
     cfg = SUEWSConfig.model_construct()
     cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
-    lc = SimpleNamespace(dectreeh=12.0, evetreeh=None)
+    lc = SimpleNamespace(dectr=SimpleNamespace(dectreeh=12.0), evetr=None)
     vertical_layers = SimpleNamespace(
         height=[0, 5, 10, 15, 20],
         veg_frac=[0.3, 0.3, 0.2, 0, 0],

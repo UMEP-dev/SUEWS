@@ -1672,9 +1672,25 @@ def adjust_seasonal_parameters(
         def _get_range_and_id(surf_key: str):
             surf_props = land_cover.get(surf_key, {})
             surf_state = initial_states.get(surf_key, {})
-            alb_min = surf_props.get("alb_min", {}).get("value") if isinstance(surf_props.get("alb_min", {}), dict) else surf_props.get("alb_min")
-            alb_max = surf_props.get("alb_max", {}).get("value") if isinstance(surf_props.get("alb_max", {}), dict) else surf_props.get("alb_max")
-            alb_id = surf_state.get("alb_id", {}).get("value") if isinstance(surf_state.get("alb_id", {}), dict) else surf_state.get("alb_id")
+
+            alb_min_field = surf_props.get("alb_min")
+            if isinstance(alb_min_field, dict):
+                alb_min = alb_min_field.get("value")
+            else:
+                alb_min = alb_min_field
+
+            alb_max_field = surf_props.get("alb_max")
+            if isinstance(alb_max_field, dict):
+                alb_max = alb_max_field.get("value")
+            else:
+                alb_max = alb_max_field
+
+            alb_id_field = surf_state.get("alb_id")
+            if isinstance(alb_id_field, dict):
+                alb_id = alb_id_field.get("value")
+            else:
+                alb_id = alb_id_field
+
             return alb_min, alb_max, alb_id
 
         def _set_alb_id(surf_key: str, new_alb_id: Optional[float], label: str):

@@ -133,7 +133,7 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
     return results
 ```
 
-### RCMEthod Validation
+### RCMethod Validation
 
 Validates the `rcmethod` parameter and related roof/wall options:
 

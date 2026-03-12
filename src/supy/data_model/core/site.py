@@ -1996,12 +1996,12 @@ class StebbsProperties(BaseModel):
             "display_name": "Initial Indoor Temperature",
         },
     )
-    DeepSoilTemperature: Optional[FlexibleRefValue(float)] = Field(
+    AnnualMeanAirTemperature: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,
-        description="Initial deep soil temperature [degC]",
+        description="Annual mean air temperature [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Deep Soil Temperature",
+            "display_name": "Annual Mean Air Temperature",
         },
     )
     WaterTankWallThickness: Optional[FlexibleRefValue(float)] = Field(

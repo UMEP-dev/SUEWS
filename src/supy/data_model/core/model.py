@@ -475,7 +475,7 @@ class StebbsMethod(Enum):
 
 class RCMethod(Enum):
     """
-    ghting factors (WallOuterCapFrac and RoofOuterCapFrac) splitting heat capacity of building envelope into two nodes in STEBBS.
+    Method to determine the two weighting factors (WallOuterCapFrac and RoofOuterCapFrac) splitting heat capacity of building envelope into two nodes in STEBBS.
 
     0: DEFAULT - Default value of 0.5 is used
     1: PROVIDED - Use user defined value (WallOuterCapFrac and RoofOuterCapFrac) between 0 and 1

@@ -543,7 +543,7 @@ def validate_model_option_rcmethod(yaml_data: dict) -> List[ValidationResult]:
                         parameter="building_archetype.wall_external_parameters",
                         site_index=site_idx,
                         site_gridid=site_gridid,
-                        message=f"Following parameters of wall material external to insulation layer need to be provided: {', '.join(provided_wall)}. Please check that these values are valid for your building material.",
+                        message=f"The following wall material parameters will be used for parameterisation: {', '.join(provided_wall)}. Please check that these values are valid for your building material.",
                         suggested_value="Review wall material properties for accuracy."
                     )
                 )
@@ -555,7 +555,7 @@ def validate_model_option_rcmethod(yaml_data: dict) -> List[ValidationResult]:
                         parameter="building_archetype.roof_external_parameters",
                         site_index=site_idx,
                         site_gridid=site_gridid,
-                        message=f"Following parameters of roof material external to insulation layer need to be provided: {', '.join(provided_roof)}. Please check that these values are valid for your building material.",
+                        message=f"The following roof material parameters will be used for parameterisation: {', '.join(provided_roof)}. Please check that these values are valid for your building material.",
                         suggested_value="Review roof material properties for accuracy."
                     )
                 )

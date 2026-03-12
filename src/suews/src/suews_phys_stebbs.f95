@@ -2487,8 +2487,13 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
       END IF
       IF (self%weighting_factor_heatcapacity_roof > 1) THEN
          CALL add_supy_warning('STEBBS: Roof_OuterCapFrac > 1, parameterisation should not be used, check thermal property of material external to insulation layer')
-      END IF  
-   END IF                                                    
+      END IF
+
+   ELSE
+      CALL add_supy_warning('STEBBS: unrecognised rcmethod value, defaulting to 0.5')
+      self%weighting_factor_heatcapacity_wall = 0.5
+      self%weighting_factor_heatcapacity_roof = 0.5
+   END IF
 END SUBROUTINE gen_building
 
 SUBROUTINE create_building(CASE, self, icase)

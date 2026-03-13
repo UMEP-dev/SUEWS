@@ -140,6 +140,14 @@ Validates the `rcmethod` parameter and related roof/wall options:
 - **Consistency Validation**: Ensures that roof and wall parameters are compatible with the selected `rcmethod`.
 - **Error Handling**: If required parameters for `rcmethod` are missing or invalid, Phase B generates ERROR or WARNING status in the validation report.
 
+### STEBBSMethod Validation
+
+Validates the `stebbsmethod` parameter and related STEBBS options:
+
+- **HotWaterFlowProfile Validation**: If `stebbsmethod == 1`, checks that all hourly values in `HotWaterFlowProfile` for each site and day type (`working_day`, `holiday`) are either 0 or 1 (integer or float).
+- **Error Handling**: Any invalid value generates an ERROR in the validation report, specifying the site, hour, and suggested correction.
+
+
 ### Land Cover Consistency
 
 Comprehensive validation and adjustment of surface types and parameters:

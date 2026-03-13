@@ -1952,7 +1952,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
                         site_gridid=site_gridid,
                         old_value=str(old_roof_frac),
                         new_value="0.5",
-                        reason="rcmethod == 0, set RoofOuterCapFrac to 0.5"
+                        reason="rcmethod == 0, xxx set RoofOuterCapFrac to 0.5"
                     )
                 )
 
@@ -1996,7 +1996,7 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
             wwr_entry = bldgarc.get("WWR", {})
             wwr = wwr_entry.get("value") if isinstance(wwr_entry, dict) else wwr_entry
 
-            if wwr == 0:
+            if wwr == 0.0:
                 window_params_stebbs = [
                     "WindowInternalConvectionCoefficient",
                     "WindowExternalConvectionCoefficient",

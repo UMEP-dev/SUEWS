@@ -562,6 +562,38 @@ def validate_model_option_rcmethod(yaml_data: dict) -> List[ValidationResult]:
 
     return results
 
+def validate_model_option_stebbsmethod(yaml_data: dict) -> List[ValidationResult]:
+    results = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+
+    if stebbsmethod == 1:
+        sites = yaml_data.get("sites", [])
+        for site_idx, site in enumerate(sites):
+            props = site.get("properties", {})
+            stebbs = props.get("stebbs", {})
+            site_gridid = get_site_gridid(site)
+            hwfp_entry = stebbs.get("HotWaterFlowProfile", {})
+            for daytype in ("working_day", "holiday"):
+                day_profile = hwfp_entry.get(daytype, {})
+                if isinstance(day_profile, dict):
+                    for hour_str, v in day_profile.items():
+                        if v not in (0, 1, 0.0, 1.0):
+                            results.append(
+                                ValidationResult(
+                                    status="ERROR",
+                                    category="MODEL_OPTIONS",
+                                    parameter=f"stebbs.HotWaterFlowProfile.{daytype}.{hour_str}",
+                                    site_index=site_idx,
+                                    site_gridid=site_gridid,
+                                    message=(
+                                        f"HotWaterFlowProfile for '{daytype}' hour '{hour_str}' must be 0 or 1, got '{v}'."
+                                    ),
+                                    suggested_value="Set HotWaterFlowProfile to 0 or 1"
+                                )
+                            )
+    return results
+
 def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
     """Validate land cover fractions and parameters."""
     results = []
@@ -1176,6 +1208,8 @@ def run_scientific_validation_pipeline(
     validation_results.extend(validate_model_option_samealbedo(yaml_data))
 
     validation_results.extend(validate_model_option_rcmethod(yaml_data))
+
+    validation_results.extend(validate_model_option_stebbsmethod(yaml_data))
 
     validation_results.extend(validate_land_cover_consistency(yaml_data))
 

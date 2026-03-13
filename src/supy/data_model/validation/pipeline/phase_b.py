@@ -578,7 +578,7 @@ def validate_model_option_stebbsmethod(yaml_data: dict) -> List[ValidationResult
                 day_profile = hwfp_entry.get(daytype, {})
                 if isinstance(day_profile, dict):
                     for hour_str, v in day_profile.items():
-                        if v is None:
+                        if v not in (0, 1, 0.0, 1.0):
                             results.append(
                                 ValidationResult(
                                     status="ERROR",
@@ -587,23 +587,7 @@ def validate_model_option_stebbsmethod(yaml_data: dict) -> List[ValidationResult
                                     site_index=site_idx,
                                     site_gridid=site_gridid,
                                     message=(
-                                        f"Error! Null value (None) supplied for HotWaterFlowProfile when stebbsmethod == 1. "
-                                        f"For '{daytype}' hour '{hour_str}', you set value 'null'. Only allowed values are 0 or 1."
-                                    ),
-                                    suggested_value="Set HotWaterFlowProfile to 0 or 1"
-                                )
-                            )
-                        elif v not in (0, 1, 0.0, 1.0):
-                            results.append(
-                                ValidationResult(
-                                    status="ERROR",
-                                    category="MODEL_OPTIONS",
-                                    parameter=f"stebbs.HotWaterFlowProfile.{daytype}.{hour_str}",
-                                    site_index=site_idx,
-                                    site_gridid=site_gridid,
-                                    message=(
-                                        f"Error! Only allowed values are 0 or 1 for HotWaterFlowProfile when stebbsmethod == 1. "
-                                        f"You set value '{v}' for '{daytype}' hour '{hour_str}'."
+                                        f"HotWaterFlowProfile for '{daytype}' hour '{hour_str}' must be 0 or 1, got '{v}'."
                                     ),
                                     suggested_value="Set HotWaterFlowProfile to 0 or 1"
                                 )

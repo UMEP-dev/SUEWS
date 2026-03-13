@@ -2049,6 +2049,50 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
                 site["properties"] = props
                 yaml_data["sites"][site_idx] = site
 
+            elif wwr == 1.0:
+                # Nullify external wall parameters in stebbs and building_archetype
+                wall_params_stebbs = ["WWallExternalConvectionCoefficient"]
+                wall_params_bldgarc = [
+                    "WallextThickness",
+                    "WallextEffectiveConductivity",
+                    "WallextDensity",
+                    "WallextCp",
+                ]
+                for param in wall_params_stebbs:
+                    entry = stebbs.get(param)
+                    if isinstance(entry, dict) and entry.get("value") is not None:
+                        old_val = entry["value"]
+                        entry["value"] = None
+                        adjustments.append(
+                            ScientificAdjustment(
+                                parameter=f"stebbs.{param}",
+                                site_index=site_idx,
+                                site_gridid=site_gridid,
+                                old_value=str(old_val),
+                                new_value="null",
+                                reason="WWR == 1, external wall parameter nullified"
+                            )
+                        )
+                for param in wall_params_bldgarc:
+                    entry = bldgarc.get(param)
+                    if isinstance(entry, dict) and entry.get("value") is not None:
+                        old_val = entry["value"]
+                        entry["value"] = None
+                        adjustments.append(
+                            ScientificAdjustment(
+                                parameter=f"building_archetype.{param}",
+                                site_index=site_idx,
+                                site_gridid=site_gridid,
+                                old_value=str(old_val),
+                                new_value="null",
+                                reason="WWR == 1, external wall parameter nullified"
+                            )
+                        )
+                props["stebbs"] = stebbs
+                props["building_archetype"] = bldgarc
+                site["properties"] = props
+                yaml_data["sites"][site_idx] = site
+
     return yaml_data, adjustments
 
 def run_scientific_adjustment_pipeline(

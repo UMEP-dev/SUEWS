@@ -1281,7 +1281,7 @@ class SUEWSConfig(BaseModel):
                 if val is None:
                     missing_params.append(param)
 
-        # Check if WWR (Window-to-Wall Ratio) is present and zero
+        # Check if WWR (Window-to-Wall Ratio) is present and zero or one
         wwr = getattr(building_archetype, "WWR", None)
         wwr_val = _unwrap_value(wwr) if wwr is not None else None
 
@@ -1302,11 +1302,24 @@ class SUEWSConfig(BaseModel):
             "WindowReflectivity",
         ]
 
+        # Wall parameter lists for WWR == 1.0
+        wall_params_stebbs = ["WallExternalConvectionCoefficient"]
+        wall_params_bldgarc = [
+            "WallThickness",
+            "WallEffectiveConductivity",
+            "WallDensity",
+            "WallCp",
+        ]
+
         # Determine which params to require based on WWR
         if wwr_val == 0.0:
             # Exclude window params if WWR is zero
             stebbs_required = [p for p in self.STEBBS_REQUIRED_PARAMS if p not in window_params_stebbs]
             archetype_required = [p for p in self.ARCHETYPE_REQUIRED_PARAMS if p not in window_params_bldgarc]
+        elif wwr_val == 1.0:
+            # Exclude external wall params if WWR is one
+            stebbs_required = [p for p in self.STEBBS_REQUIRED_PARAMS if p not in wall_params_stebbs]
+            archetype_required = [p for p in self.ARCHETYPE_REQUIRED_PARAMS if p not in wall_params_bldgarc]
         else:
             stebbs_required = self.STEBBS_REQUIRED_PARAMS
             archetype_required = self.ARCHETYPE_REQUIRED_PARAMS

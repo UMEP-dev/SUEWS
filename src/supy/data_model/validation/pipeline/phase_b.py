@@ -1979,7 +1979,13 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
     return yaml_data, adjustments
 
 def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
-    """If stebbsmethod == 1 and WWR == 0, nullify window-related parameters in stebbs and building_archetype for all sites."""
+    """
+    Adjusts stebbs-related parameters according to stebbsmethod options.
+
+    - If 'stebbsmethod' is 1 and 'WWR' is 0.0 for a site, all window-related parameters are set to None.
+    - If 'stebbsmethod' is 1 and 'WWR' is 1.0 for a site, all external wall-related parameters are set to None.
+
+    """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
     stebbsmethod = get_value_safe(physics, "stebbsmethod")

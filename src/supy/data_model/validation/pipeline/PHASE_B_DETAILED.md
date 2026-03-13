@@ -278,7 +278,11 @@ Phase B makes scientific adjustments that improve model realism without changing
 
 ### STEBBS Method Integration
 
-- **Conditional Logic**: When `stebbsmethod == 0`, nullifies STEBBS parameters
+- **Conditional Logic**: 
+    - When `stebbsmethod == 0`, nullifies STEBBS parameters.
+    - When `stebbsmethod == 1`, checks `WWR`:
+        - If `stebbsmethod == 1` and `WWR == 0.0`, all window-related parameters are set to `None`.
+        - If `stebbsmethod == 1` and `WWR == 1.0`, all external wall-related parameters are set to `None`.
 - **Parameter Cleanup**: Removes unused STEBBS parameters for clarity
 - **Consistency**: Ensures STEBBS configuration matches selected method
 - **Temperature Initialisation**: When `stebbsmethod == 1`, automatically updates `InitialOutdoorTemperature` and `InitialIndoorTemperature` using CRU climatological data

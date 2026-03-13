@@ -258,8 +258,8 @@ subroutine stebbs_prm_unpack(flat, n_flat, state, err)
    state%dhwvesselexternalwallconvectioncoefficient = flat(idx); idx = idx + 1_c_int
    state%dhwvesselwallemissivity = flat(idx); idx = idx + 1_c_int
    state%hotwaterheatingefficiency = flat(idx); idx = idx + 1_c_int
-   state%minimumvolumeofdhwinuse = flat(idx); idx = idx + 1_c_int
-   state%maximumvolumeofdhwinuse = flat(idx); idx = idx + 1_c_int
+   !state%minimumvolumeofdhwinuse = flat(idx); idx = idx + 1_c_int
+   !state%maximumvolumeofdhwinuse = flat(idx); idx = idx + 1_c_int
    state%iter_safe = flat(idx)>=0.5_c_double
 
    err = SUEWS_CAPI_OK

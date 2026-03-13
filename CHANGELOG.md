@@ -40,7 +40,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 67 | 78 | 28 | 79 | 40 | 292 |
+| 2026 | 67 | 78 | 29 | 79 | 40 | 293 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -53,10 +53,13 @@ EXAMPLES:
 
 ## 2026
 
-### 12 Mar 2026
+### 13 Mar 2026
 
+- [change][experimental] Remove STEBBS MinimumVolumeOfDHWinUse and MaximumVolumeOfDHWinUse across codebase (PR #1242)
+
+### 12 Mar 2026
 - [feature][experimental] Update STEBBS InitialIndoorTemperature with mean monthly air temperature from CRU dataset (PR #1241)
-- [changes][experimental] Replace STEBBS DeepSoilTemperature with AnnualMeanAirTemperature across codebase (PR #1240)
+- [change][experimental] Replace STEBBS DeepSoilTemperature with AnnualMeanAirTemperature across codebase (PR #1240)
 - [change][experimental] Fix the default values for STEBBS parameters "WallOuterCapFrac = 0.5" and "RoofOuterCapFrac = 0.5" when "rcmethod==0 or missing" and update the related validator logic (PR #1224).
 - [doc] Updated the description of weighting factors "WallOuterCapFrac" and "RoofOuterCapFrac" and rcmethod (PR #1224).
 

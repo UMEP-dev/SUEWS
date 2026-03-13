@@ -40,7 +40,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 67 | 78 | 29 | 79 | 40 | 293 |
+| 2026 | 68 | 78 | 29 | 79 | 40 | 294 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -55,7 +55,8 @@ EXAMPLES:
 
 ### 13 Mar 2026
 
-- [change][experimental] Remove STEBBS MinimumVolumeOfDHWinUse and MaximumVolumeOfDHWinUse across codebase (PR #1242)
+- [change][experimental] Remove STEBBS MinimumVolumeOfDHWinUse and MaximumVolumeOfDHWinUse across codebase (PR #1242).
+- [feature][experimental] Add new validation function for STEBBS and implement HotWaterFlowProfile consistency checks when STEBBS method is on (PR #1243).
 
 ### 12 Mar 2026
 - [feature][experimental] Update STEBBS InitialIndoorTemperature with mean monthly air temperature from CRU dataset (PR #1241)

@@ -39,7 +39,7 @@ from supy.data_model.core.state import (
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
 from supy.data_model.validation.pipeline.phase_b import validate_model_option_samealbedo
-from supy.data_model.validation.pipeline.phase_b import validate_model_option_rcmethod
+from supy.data_model.validation.pipeline.phase_b import validate_model_option_rcmethod, validate_model_option_stebbsmethod
 from supy.data_model.validation.pipeline.phase_b import adjust_model_option_rcmethod
 
 
@@ -802,6 +802,94 @@ def test_validate_model_option_rcmethod2_some_params_missing():
     assert "building_archetype.RoofextEffectiveConductivity" in error_params
     assert any(r.status == "WARNING" for r in results)
     assert all("must be provided" in r.message for r in results if r.status == "ERROR")
+
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid():
+    """Test HotWaterFlowProfile accepts only 0 or 1 values."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "HotWaterFlowProfile": {
+                        "working_day": {"0": 0, "1": 1, "2": 0.0, "3": 1.0},
+                        "holiday": {"0": 1, "1": 0, "2": 1.0, "3": 0.0},
+                    }
+                }
+            }
+        }],
+    }
+    results = validate_model_option_stebbsmethod(yaml_data)
+    assert not results, "Should not return errors for valid HotWaterFlowProfile values"
+
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid():
+    """Test HotWaterFlowProfile returns ERROR for invalid values."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "HotWaterFlowProfile": {
+                        "working_day": {"0": 2, "1": -1, "2": 0.5},
+                        "holiday": {"0": "yes", "1": None},
+                    }
+                }
+            }
+        }],
+    }
+    results = validate_model_option_stebbsmethod(yaml_data)
+    error_params = [r.parameter for r in results]
+    assert "stebbs.HotWaterFlowProfile.working_day.0" in error_params
+    assert "stebbs.HotWaterFlowProfile.working_day.1" in error_params
+    assert "stebbs.HotWaterFlowProfile.working_day.2" in error_params
+    assert "stebbs.HotWaterFlowProfile.holiday.0" in error_params
+    assert "stebbs.HotWaterFlowProfile.holiday.1" in error_params
+    assert all(r.status == "ERROR" for r in results)
+    assert all("must be 0 or 1" in r.message for r in results)
+
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing():
+    """Test HotWaterFlowProfile missing returns no errors."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    # HotWaterFlowProfile missing
+                }
+            }
+        }],
+    }
+    results = validate_model_option_stebbsmethod(yaml_data)
+    assert not results, "Should not return errors if HotWaterFlowProfile is missing"
+
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial():
+    """Test HotWaterFlowProfile with partial valid/invalid values."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "HotWaterFlowProfile": {
+                        "working_day": {"0": 1, "1": 0, "2": 2},
+                        "holiday": {"0": 0, "1": 1, "2": -1},
+                    }
+                }
+            }
+        }],
+    }
+    results = validate_model_option_stebbsmethod(yaml_data)
+    error_params = [r.parameter for r in results]
+    assert "stebbs.HotWaterFlowProfile.working_day.2" in error_params
+    assert "stebbs.HotWaterFlowProfile.holiday.2" in error_params
+    assert all(r.status == "ERROR" for r in results)
+    assert len(results) == 2
 
 def test_needs_spartacus_validation_true_and_false():
     

@@ -10655,52 +10655,6 @@
           "title": "Hotwaterheatingefficiency",
           "unit": "dimensionless"
         },
-        "MinimumVolumeOfDHWinUse": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Minimum volume of hot water in use [m3]",
-          "display_name": "Minimum Volume of DHW in Use",
-          "title": "Minimumvolumeofdhwinuse",
-          "unit": "m^3"
-        },
-        "MaximumVolumeOfDHWinUse": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 100.0,
-          "description": "Maximum volume of hot water in use [m3]. Default is arbitrary placeholder to be refined with validation.",
-          "display_name": "Maximum Volume of DHW in Use",
-          "title": "Maximumvolumeofdhwinuse",
-          "unit": "m^3"
-        },
         "ApplianceProfile": {
           "anyOf": [
             {

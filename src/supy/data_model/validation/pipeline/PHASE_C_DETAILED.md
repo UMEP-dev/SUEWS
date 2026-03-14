@@ -363,7 +363,7 @@ When SPARTACUS is enabled (i.e., `netradiationmethod` is set to 1001, 1002, or 1
 
 1. Determines the maximum tree height (`max_tree`) as the greater of `dectreeh` and `evetreeh` from the land cover properties.
 2. Identifies the first vertical layer index (`tree_layer_index`) where `max_tree` is less than or equal to the corresponding domain top height (`vertical_layers.height[layer]`).
-3. For all layers above `tree_layer_index` (i.e., from `tree_layer_index + 1` to `nlayer`), both `veg_scale` and `veg_frac` arrays must be zero.
+3. For all layers from `tree_layer_index` onward (i.e., from `tree_layer_index` to `nlayer - 1`), both `veg_scale` and `veg_frac` arrays must be zero.
 4. If any value in `veg_scale` or `veg_frac` above the tree layer is nonzero, an ACTION NEEDED report message is generated and validation fails.
 
 This ensures that vegetation is not present above the physical height of the tallest trees.

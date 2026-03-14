@@ -1688,7 +1688,7 @@ class SUEWSConfig(BaseModel):
         Check that veg_scale and veg_frac are zero above the layer where max_tree falls.
         max_tree = max(dectreeh, evetreeh)
         The first layer where max_tree <= height[layer] (layer index 1..nlayer) is the tree layer.
-        All veg_scale and veg_frac entries above this layer (i.e., layer_index+1 to nlayer) must be zero.
+        All veg_scale and veg_frac entries from this layer onward (i.e., layer_index to nlayer-1) must be zero.
         """
         issues: list = []
         site_name = getattr(site, "name", f"Site {site_index}")
@@ -1725,7 +1725,7 @@ class SUEWSConfig(BaseModel):
             )
             return issues
 
-        # Check veg_scale and veg_frac above the tree layer (layer_index+1 to nlayer)
+        # Check veg_scale and veg_frac from the tree layer onward (layer_index to nlayer-1)
         veg_scale = _unwrap_value(getattr(vertical_layers, "veg_scale", None)) if vertical_layers else None
         veg_frac = _unwrap_value(getattr(vertical_layers, "veg_frac", None)) if vertical_layers else None
 
@@ -1733,7 +1733,7 @@ class SUEWSConfig(BaseModel):
 
         for arr_name, arr in [("veg_scale", veg_scale), ("veg_frac", veg_frac)]:
             if isinstance(arr, (list, tuple)):
-                for i in range(layer_index, nlayer):
+                for i in range(layer_index, min(nlayer, len(arr))):
                     val = arr[i]
                     if not np.isclose(val, 0, atol=1e-6):
                         issues.append(

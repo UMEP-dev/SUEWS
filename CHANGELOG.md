@@ -71,7 +71,7 @@ EXAMPLES:
 ### 24 Feb 2026
 
 - [feature][experimental] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS dectreeh/evetreeh and SPARTACUS veg_scale/veg_frac entries (PR #1222).
-- [docs] Updated PHASE_C_DETAILED.md with new conditional validation logic for SPARTACUS (PR #1222).
+- [doc] Updated PHASE_C_DETAILED.md with new conditional validation logic for SPARTACUS (PR #1222).
 
 ### 23 Feb 2026
 

@@ -208,13 +208,11 @@ sites:
         value: null
       HotWaterHeatingEfficiency:
         value: null
-      MinimumVolumeOfDHWinUse:
-        value: null
       InitialOutdoorTemperature:
         value: null
       InitialIndoorTemperature:
         value: null
-      DeepSoilTemperature:
+      AnnualMeanAirTemperature:
         value: null
     building_archetype:
       BuildingType: test

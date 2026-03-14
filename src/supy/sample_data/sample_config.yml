@@ -448,7 +448,7 @@ sites:
         value: 17.540002822875977
       InitialIndoorTemperature:
         value: 20.0
-      DeepSoilTemperature:
+      AnnualMeanAirTemperature:
         value: 10.0        
       WaterTankWallThickness:
         value: 0.055
@@ -791,10 +791,6 @@ sites:
         value: 0.8
       HotWaterHeatingEfficiency:
         value: 0.8
-      MinimumVolumeOfDHWinUse:
-        value: 1.0
-      MaximumVolumeOfDHWinUse:
-        value: 100.0
     building_archetype:
       BuildingType: test
       BuildingName: test

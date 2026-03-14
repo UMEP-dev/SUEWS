@@ -39,6 +39,9 @@ from supy.data_model.core.state import (
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
 from supy.data_model.validation.pipeline.phase_b import validate_model_option_samealbedo
+from supy.data_model.validation.pipeline.phase_b import validate_model_option_rcmethod, validate_model_option_stebbsmethod
+from supy.data_model.validation.pipeline.phase_b import adjust_model_option_rcmethod
+
 
 
 # A tiny “site” stub that only carries exactly the properties our validators look at
@@ -644,6 +647,248 @@ def test_phase_b_validate_model_option_samealbedo_disabled():
     assert results_roof[0].status == "WARNING"
     assert "no check of consistency" in results_roof[0].message.lower()
     assert "samealbedo_roof == 0" in results_roof[0].message.lower()
+
+
+def test_validate_model_option_rcmethod_missing_params():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {},
+            }
+        }],
+    }
+    results = validate_model_option_rcmethod(yaml_data)
+    params = [r.parameter for r in results]
+    assert any("RoofOuterCapFrac" in p for p in params)
+    assert any("WallOuterCapFrac" in p for p in params)
+    assert all(r.status == "ERROR" for r in results)
+
+def test_validate_model_option_rcmethod_enabled_invalid_values():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "RoofOuterCapFrac": {"value": 1.5},
+                    "WallOuterCapFrac": {"value": -0.2},
+                },
+            }
+        }],
+    }
+    results = validate_model_option_rcmethod(yaml_data)
+    assert any("out of valid range" in r.message for r in results)
+    assert all(r.status == "ERROR" for r in results)
+
+def test_validate_model_option_rcmethod_enabled_valid_values():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "RoofOuterCapFrac": {"value": 0.5},
+                    "WallOuterCapFrac": {"value": 0.5},
+                },
+            }
+        }],
+    }
+    results = validate_model_option_rcmethod(yaml_data)
+    assert not results or all(r.status != "ERROR" for r in results)
+
+def test_adjust_model_option_rcmethod_sets_defaults():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 0}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {},
+            }
+        }],
+    }
+    updated_data, adjustments = adjust_model_option_rcmethod(yaml_data)
+    ba = updated_data["sites"][0]["properties"]["building_archetype"]
+    assert ba["RoofOuterCapFrac"]["value"] == 0.5
+    assert ba["WallOuterCapFrac"]["value"] == 0.5
+    assert any(adj.parameter == "building_archetype.RoofOuterCapFrac" for adj in adjustments)
+    assert any(adj.parameter == "building_archetype.WallOuterCapFrac" for adj in adjustments)
+
+def test_adjust_model_option_rcmethod_no_action_when_already_set():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 0}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "RoofOuterCapFrac": {"value": 0.5},
+                    "WallOuterCapFrac": {"value": 0.5},
+                },
+            }
+        }],
+    }
+    updated_data, adjustments = adjust_model_option_rcmethod(yaml_data)
+    assert len(adjustments) == 0
+
+def test_validate_model_option_rcmethod2_missing_params():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {"building_archetype": {}},
+        }],
+    }
+    results = validate_model_option_rcmethod(yaml_data)
+    required = [
+        "WallextThickness", "WallextEffectiveConductivity", "WallextDensity", "WallextCp",
+        "RoofextThickness", "RoofextEffectiveConductivity", "RoofextDensity", "RoofextCp"
+    ]
+    expected = [f"building_archetype.{p}" for p in required]
+    error_params = [r.parameter for r in results if r.status == "ERROR"]
+    for p in expected:
+        assert p in error_params
+    assert all(r.status == "ERROR" for r in results if r.parameter in expected)
+
+def test_validate_model_option_rcmethod2_all_params_provided():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "WallextThickness": {"value": 0.2},
+                    "WallextEffectiveConductivity": {"value": 1.0},
+                    "WallextDensity": {"value": 2200},
+                    "WallextCp": {"value": 900},
+                    "RoofextThickness": {"value": 0.18},
+                    "RoofextEffectiveConductivity": {"value": 1.2},
+                    "RoofextDensity": {"value": 2300},
+                    "RoofextCp": {"value": 1000},
+                }
+            }
+        }],
+    }
+    results = validate_model_option_rcmethod(yaml_data)
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert any("wall material parameters will be used for parameterisation" in r.message for r in warnings)
+    assert any("roof material parameters will be used for parameterisation" in r.message for r in warnings)
+    assert all(r.status != "ERROR" for r in results)
+
+def test_validate_model_option_rcmethod2_some_params_missing():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "WallextThickness": {"value": 0.2},
+                    "WallextEffectiveConductivity": {},
+                    "WallextDensity": {"value": 2200},
+                    # WallextCp missing
+                    "RoofextThickness": {"value": 0.18},
+                    # RoofextEffectiveConductivity missing
+                    "RoofextDensity": {"value": 2300},
+                    "RoofextCp": {"value": 1000},
+                }
+            }
+        }],
+    }
+    results = validate_model_option_rcmethod(yaml_data)
+    error_params = [r.parameter for r in results if r.status == "ERROR"]
+    assert "building_archetype.WallextEffectiveConductivity" in error_params
+    assert "building_archetype.WallextCp" in error_params
+    assert "building_archetype.RoofextEffectiveConductivity" in error_params
+    assert any(r.status == "WARNING" for r in results)
+    assert all("must be provided" in r.message for r in results if r.status == "ERROR")
+
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid():
+    """Test HotWaterFlowProfile accepts only 0 or 1 values."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "HotWaterFlowProfile": {
+                        "working_day": {"0": 0, "1": 1, "2": 0.0, "3": 1.0},
+                        "holiday": {"0": 1, "1": 0, "2": 1.0, "3": 0.0},
+                    }
+                }
+            }
+        }],
+    }
+    results = validate_model_option_stebbsmethod(yaml_data)
+    assert not results, "Should not return errors for valid HotWaterFlowProfile values"
+
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid():
+    """Test HotWaterFlowProfile returns ERROR for invalid values."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "HotWaterFlowProfile": {
+                        "working_day": {"0": 2, "1": -1, "2": 0.5},
+                        "holiday": {"0": "yes", "1": None},
+                    }
+                }
+            }
+        }],
+    }
+    results = validate_model_option_stebbsmethod(yaml_data)
+    error_params = [r.parameter for r in results]
+    assert "stebbs.HotWaterFlowProfile.working_day.0" in error_params
+    assert "stebbs.HotWaterFlowProfile.working_day.1" in error_params
+    assert "stebbs.HotWaterFlowProfile.working_day.2" in error_params
+    assert "stebbs.HotWaterFlowProfile.holiday.0" in error_params
+    assert "stebbs.HotWaterFlowProfile.holiday.1" in error_params
+    assert all(r.status == "ERROR" for r in results)
+    assert all("must be 0 or 1" in r.message for r in results)
+
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing():
+    """Test HotWaterFlowProfile missing returns no errors."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    # HotWaterFlowProfile missing
+                }
+            }
+        }],
+    }
+    results = validate_model_option_stebbsmethod(yaml_data)
+    assert not results, "Should not return errors if HotWaterFlowProfile is missing"
+
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial():
+    """Test HotWaterFlowProfile with partial valid/invalid values."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "HotWaterFlowProfile": {
+                        "working_day": {"0": 1, "1": 0, "2": 2},
+                        "holiday": {"0": 0, "1": 1, "2": -1},
+                    }
+                }
+            }
+        }],
+    }
+    results = validate_model_option_stebbsmethod(yaml_data)
+    error_params = [r.parameter for r in results]
+    assert "stebbs.HotWaterFlowProfile.working_day.2" in error_params
+    assert "stebbs.HotWaterFlowProfile.holiday.2" in error_params
+    assert all(r.status == "ERROR" for r in results)
+    assert len(results) == 2
 
 def test_needs_spartacus_validation_true_and_false():
     
@@ -1267,8 +1512,8 @@ def test_phase_b_model_option_dependencies_comprehensive():
     assert isinstance(results, list)  # Should return a list, not crash
 
 
-def test_phase_b_deep_soil_temperature_from_cru():
-    """Test that DeepSoilTemperature is populated from CRU annual mean data."""
+def test_phase_b_annual_mean_air_temperature_from_cru():
+    """Test that AnnualMeanAirTemperature is populated from CRU annual mean data."""
     from supy.data_model.validation.pipeline.phase_b import (
         adjust_surface_temperatures,
         get_mean_annual_air_temperature,
@@ -1295,7 +1540,7 @@ def test_phase_b_deep_soil_temperature_from_cru():
                     "lat": {"value": test_lat},
                     "lng": {"value": test_lon},
                     "stebbs": {
-                        "DeepSoilTemperature": {
+                        "AnnualMeanAirTemperature": {
                             "value": 999.0
                         },  # Wrong value to be updated
                         "InitialOutdoorTemperature": {
@@ -1311,9 +1556,9 @@ def test_phase_b_deep_soil_temperature_from_cru():
     # Run adjustment
     updated_data, adjustments = adjust_surface_temperatures(yaml_data, start_date)
 
-    # Check that DeepSoilTemperature was updated
+    # Check that AnnualMeanAirTemperature was updated
     updated_annual_temp = updated_data["sites"][0]["properties"]["stebbs"][
-        "DeepSoilTemperature"
+        "AnnualMeanAirTemperature"
     ]["value"]
     assert updated_annual_temp == annual_temp, (
         f"Expected {annual_temp}, got {updated_annual_temp}"
@@ -1321,7 +1566,7 @@ def test_phase_b_deep_soil_temperature_from_cru():
 
     # Check that adjustment was recorded
     annual_temp_adjustments = [
-        adj for adj in adjustments if adj.parameter == "stebbs.DeepSoilTemperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.AnnualMeanAirTemperature"
     ]
     assert len(annual_temp_adjustments) == 1
     adj = annual_temp_adjustments[0]
@@ -1331,8 +1576,8 @@ def test_phase_b_deep_soil_temperature_from_cru():
     assert "1991-2020" in adj.reason
 
 
-def test_phase_b_deep_soil_temperature_no_update_if_same():
-    """Test that DeepSoilTemperature is not updated if already correct."""
+def test_phase_b_annual_mean_air_temperature_no_update_if_same():
+    """Test that AnnualMeanAirTemperature is not updated if already correct."""
     from supy.data_model.validation.pipeline.phase_b import (
         adjust_surface_temperatures,
         get_mean_annual_air_temperature,
@@ -1359,7 +1604,7 @@ def test_phase_b_deep_soil_temperature_no_update_if_same():
                     "lat": {"value": test_lat},
                     "lng": {"value": test_lon},
                     "stebbs": {
-                        "DeepSoilTemperature": {
+                        "AnnualMeanAirTemperature": {
                             "value": annual_temp
                         },  # Already correct
                     },
@@ -1374,15 +1619,15 @@ def test_phase_b_deep_soil_temperature_no_update_if_same():
 
     # Check that NO adjustment was made (value already correct)
     annual_temp_adjustments = [
-        adj for adj in adjustments if adj.parameter == "stebbs.DeepSoilTemperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.AnnualMeanAirTemperature"
     ]
     assert len(annual_temp_adjustments) == 0, (
         "Should not adjust if value already correct"
     )
 
 
-def test_phase_b_deep_soil_temperature_missing_stebbs():
-    """Test graceful handling when DeepSoilTemperature is not in stebbs."""
+def test_phase_b_annual_mean_air_temperature_missing_stebbs():
+    """Test graceful handling when AnnualMeanAirTemperature is not in stebbs."""
     from supy.data_model.validation.pipeline.phase_b import adjust_surface_temperatures
 
     # Test coordinates
@@ -1390,7 +1635,7 @@ def test_phase_b_deep_soil_temperature_missing_stebbs():
     test_lon = -0.1
     start_date = "2020-01-15"
 
-    # Create test YAML without DeepSoilTemperature
+    # Create test YAML without AnnualMeanAirTemperature
     yaml_data = {
         "sites": [
             {
@@ -1399,7 +1644,7 @@ def test_phase_b_deep_soil_temperature_missing_stebbs():
                     "lng": {"value": test_lon},
                     "stebbs": {
                         "InitialOutdoorTemperature": {"value": 10.0},
-                        # DeepSoilTemperature NOT present
+                        # AnnualMeanAirTemperature NOT present
                     },
                 },
                 "initial_states": {},
@@ -1410,9 +1655,9 @@ def test_phase_b_deep_soil_temperature_missing_stebbs():
     # Run adjustment - should not crash
     updated_data, adjustments = adjust_surface_temperatures(yaml_data, start_date)
 
-    # Check that no DeepSoilTemperature adjustment was attempted
+    # Check that no AnnualMeanAirTemperature adjustment was attempted
     annual_temp_adjustments = [
-        adj for adj in adjustments if adj.parameter == "stebbs.DeepSoilTemperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.AnnualMeanAirTemperature"
     ]
     assert len(annual_temp_adjustments) == 0
 

@@ -4164,7 +4164,7 @@ CONTAINS
       MetabolismThreshold, LatentSensibleRatio, &
       ApplianceProfile, &
       HeatingSystemEfficiency, &
-      MaxCoolingPower, CoolingSystemCOP, VentilationRate, DeepSoilTemperature, InitialOutdoorTemperature, InitialIndoorTemperature, &
+      MaxCoolingPower, CoolingSystemCOP, VentilationRate, AnnualMeanAirTemperature, InitialOutdoorTemperature, InitialIndoorTemperature, &
       WaterTankWallThickness, MainsWaterTemperature, WaterTankSurfaceArea, &
       HotWaterHeatingSetpointTemperature, HotWaterTankWallEmissivity, &
       DHWVesselWallThickness, DHWWaterVolume, &
@@ -4174,7 +4174,6 @@ CONTAINS
       HotWaterTankInternalMassViewFactor, HotWaterTankWallConductivity, HotWaterTankInternalWallConvectionCoefficient, &
       HotWaterTankExternalWallConvectionCoefficient, DHWVesselWallConductivity, DHWVesselInternalWallConvectionCoefficient, &
       DHWVesselExternalWallConvectionCoefficient, DHWVesselWallEmissivity, HotWaterHeatingEfficiency, &
-      MinimumVolumeOfDHWinUse, MaximumVolumeOfDHWinUse, &
       height, building_frac, veg_frac, building_scale, veg_scale, & !input: SPARTACUS
       alb_roof, emis_roof, alb_wall, emis_wall, &
       roof_albedo_dir_mult_fact, wall_specular_frac, &
@@ -4580,7 +4579,7 @@ CONTAINS
       REAL(KIND(1D0)) :: MaxCoolingPower
       REAL(KIND(1D0)) :: CoolingSystemCOP
       REAL(KIND(1D0)) :: VentilationRate
-      REAL(KIND(1D0)) :: DeepSoilTemperature
+      REAL(KIND(1D0)) :: AnnualMeanAirTemperature
       REAL(KIND(1D0)) :: InitialOutdoorTemperature
       REAL(KIND(1D0)) :: InitialIndoorTemperature
       REAL(KIND(1D0)) :: WaterTankWallThickness
@@ -4609,8 +4608,8 @@ CONTAINS
       REAL(KIND(1D0)) :: DHWVesselExternalWallConvectionCoefficient
       REAL(KIND(1D0)) :: DHWVesselWallEmissivity
       REAL(KIND(1D0)) :: HotWaterHeatingEfficiency
-      REAL(KIND(1D0)) :: MinimumVolumeOfDHWinUse
-      REAL(KIND(1D0)) :: MaximumVolumeOfDHWinUse
+      !REAL(KIND(1D0)) :: MinimumVolumeOfDHWinUse
+      !REAL(KIND(1D0)) :: MaximumVolumeOfDHWinUse
       !REAL(KIND(1D0)), DIMENSION(nlayer) :: Textroof_C !roof surface temperature from STEBBS[degC]
       !REAL(KIND(1D0)), DIMENSION(nlayer) :: Textwall_C !wall surface temperature from STEBBS[degC]
 
@@ -5475,13 +5474,13 @@ CONTAINS
       stebbsPrm%DHWVesselExternalWallConvectionCoefficient = DHWVesselExternalWallConvectionCoefficient
       stebbsPrm%DHWVesselWallEmissivity = DHWVesselWallEmissivity
       stebbsPrm%HotWaterHeatingEfficiency = HotWaterHeatingEfficiency
-      stebbsPrm%MinimumVolumeOfDHWinUse = MinimumVolumeOfDHWinUse
-      stebbsPrm%MaximumVolumeOfDHWinUse = MaximumVolumeOfDHWinUse
+      !stebbsPrm%MinimumVolumeOfDHWinUse = MinimumVolumeOfDHWinUse
+      !stebbsPrm%MaximumVolumeOfDHWinUse = MaximumVolumeOfDHWinUse
 
       ! states - updated during the simulation
       ! TODO: STEBBS States act as parameters for building generation (move all but allocation?)
       CALL stebbsState%ALLOCATE(nbtypes, nlayer)
-      stebbsState%DeepSoilTemperature = DeepSoilTemperature
+      stebbsState%DeepSoilTemperature = AnnualMeanAirTemperature
       stebbsState%OutdoorAirStartTemperature = InitialOutdoorTemperature
       stebbsState%IndoorAirStartTemperature = InitialIndoorTemperature
       stebbsState%IndoorMassStartTemperature = InitialIndoorTemperature
@@ -5492,7 +5491,7 @@ CONTAINS
       stebbsState%WindowIndoorSurfaceTemperature = InitialIndoorTemperature
       stebbsState%WindowOutdoorSurfaceTemperature = InitialOutdoorTemperature
       stebbsState%GroundFloorIndoorSurfaceTemperature = InitialIndoorTemperature
-      stebbsState%GroundFloorOutdoorSurfaceTemperature = DeepSoilTemperature
+      stebbsState%GroundFloorOutdoorSurfaceTemperature = AnnualMeanAirTemperature
       stebbsState%WaterTankTemperature = HotWaterHeatingSetpointTemperature
       stebbsState%InternalWallWaterTankTemperature = HotWaterHeatingSetpointTemperature
       stebbsState%ExternalWallWaterTankTemperature = InitialIndoorTemperature

@@ -823,10 +823,12 @@ def test_validate_spartacus_veg_dimensions_passing_case():
     assert msgs == []
 
 def test_validate_spartacus_veg_dimensions_failing_case():
-    """Failing case: dectreeh=16, height=[0, 5, 10, 15, 20], veg_frac=[0.3, 0.3, 0.2, 0.1, 0]"""
+    """Failing case: dectreeh=12, height=[0, 5, 10, 15, 20], veg_frac=[0.3, 0.3, 0.2, 0.1, 0].
+    Tree at 12 m falls in layer 10-15 m (layer_index=3), so veg_frac[3]=0.1 in the
+    15-20 m layer should be flagged."""
     cfg = SUEWSConfig.model_construct()
     cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
-    lc = SimpleNamespace(dectr=SimpleNamespace(dectreeh=16.0), evetr=None)
+    lc = SimpleNamespace(dectr=SimpleNamespace(dectreeh=12.0), evetr=None)
     vertical_layers = SimpleNamespace(
         height=[0, 5, 10, 15, 20],
         veg_frac=[0.3, 0.3, 0.2, 0.1, 0],
@@ -834,7 +836,8 @@ def test_validate_spartacus_veg_dimensions_failing_case():
     props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
     site = DummySite(properties=props, name="TestSite")
     msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
-    assert msgs == []
+    assert len(msgs) >= 1
+    assert any("veg_frac[3]" in m for m in msgs)
 
 def test_validate_spartacus_veg_dimensions_boundary_case():
     """Boundary case: max_tree exactly on a layer boundary."""

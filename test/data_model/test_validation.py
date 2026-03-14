@@ -44,7 +44,6 @@ from supy.data_model.validation.pipeline.phase_b import adjust_model_option_rcme
 
 
 
-
 # A tiny “site” stub that only carries exactly the properties our validators look at
 class DummySite:
     def __init__(self, properties, name="SiteX"):
@@ -994,6 +993,127 @@ def test_validate_spartacus_sfr_mismatch_veg_frac():
         for m in msgs
     )
 
+def test_validate_spartacus_veg_dimensions_valid():
+    """Test validate_spartacus_veg_dimensions passes with matching veg_frac and nlayer."""
+    cfg = SUEWSConfig.model_construct()
+    vertical_layers = SimpleNamespace(
+        nlayer=2,
+        veg_frac=[0.3, 0.7],
+    )
+    props = SimpleNamespace(vertical_layers=vertical_layers)
+    site = SimpleNamespace(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_too_few_elements():
+    """Test validate_spartacus_veg_dimensions detects too few veg_frac elements."""
+    cfg = SUEWSConfig.model_construct()
+    vertical_layers = SimpleNamespace(
+        nlayer=3,
+        veg_frac=[0.2, 0.8],
+    )
+    props = SimpleNamespace(vertical_layers=vertical_layers)
+    site = SimpleNamespace(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_too_many_elements():
+    """Test validate_spartacus_veg_dimensions detects too many veg_frac elements."""
+    cfg = SUEWSConfig.model_construct()
+    vertical_layers = SimpleNamespace(
+        nlayer=2,
+        veg_frac=[0.1, 0.2, 0.7],
+    )
+    props = SimpleNamespace(vertical_layers=vertical_layers)
+    site = SimpleNamespace(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_missing_veg_frac():
+    """Test validate_spartacus_veg_dimensions handles missing veg_frac gracefully."""
+    cfg = SUEWSConfig.model_construct()
+    vertical_layers = SimpleNamespace(
+        nlayer=2,
+        # veg_frac missing
+    )
+    props = SimpleNamespace(vertical_layers=vertical_layers)
+    site = SimpleNamespace(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_missing_nlayer():
+    """Test validate_spartacus_veg_dimensions handles missing nlayer gracefully."""
+    cfg = SUEWSConfig.model_construct()
+    vertical_layers = SimpleNamespace(
+        veg_frac=[0.5, 0.5],
+        # nlayer missing
+    )
+    props = SimpleNamespace(vertical_layers=vertical_layers)
+    site = SimpleNamespace(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_passing_case():
+    """Passing case: dectreeh=12, height=[0, 5, 10, 15, 20], veg_frac=[0.3, 0.3, 0.2, 0, 0]"""
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    lc = SimpleNamespace(dectr=SimpleNamespace(dectreeh=12.0), evetr=None)
+    vertical_layers = SimpleNamespace(
+        height=[0, 5, 10, 15, 20],
+        veg_frac=[0.3, 0.3, 0.2, 0, 0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_failing_case():
+    """Failing case: dectreeh=12, height=[0, 5, 10, 15, 20], veg_frac=[0.3, 0.3, 0.2, 0.1, 0].
+    Tree at 12 m falls in layer 10-15 m (layer_index=3), so veg_frac[3]=0.1 in the
+    15-20 m layer should be flagged."""
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    lc = SimpleNamespace(dectr=SimpleNamespace(dectreeh=12.0), evetr=None)
+    vertical_layers = SimpleNamespace(
+        height=[0, 5, 10, 15, 20],
+        veg_frac=[0.3, 0.3, 0.2, 0.1, 0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert len(msgs) >= 1
+    assert any("veg_frac[3]" in m for m in msgs)
+
+def test_validate_spartacus_veg_dimensions_boundary_case():
+    """Boundary case: max_tree exactly on a layer boundary."""
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    lc = SimpleNamespace(dectr=SimpleNamespace(dectreeh=15.0), evetr=None)
+    vertical_layers = SimpleNamespace(
+        height=[0, 5, 10, 15, 20],
+        veg_frac=[0.3, 0.3, 0.2, 0, 0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_exceeds_all_case():
+    """Exceeds-all case: max_tree=100 with height=[0, 5, 10] — should produce the 'exceeds' message."""
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    # Note: dectrh and evetrh are attributes of land_cover.dectr and land_cover.evetr, not land_cover itself
+    dectr = SimpleNamespace(dectreeh=100.0)
+    lc = SimpleNamespace(dectr=dectr, evetr=None)
+    vertical_layers = SimpleNamespace(
+        height=[0, 5, 10],
+        veg_frac=[0.3, 0.3, 0.2],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs
+    assert any("exceeds all vertical_layers heights" in m for m in msgs)
 
 
 # From test_validation_topdown.py

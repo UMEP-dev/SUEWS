@@ -1303,8 +1303,16 @@ class SUEWSConfig(BaseModel):
         ]
 
         # Wall parameter lists for WWR == 1.0
-        wall_params_stebbs = ["WallExternalConvectionCoefficient"]
+        wall_params_stebbs = [
+            "WallExternalConvectionCoefficient",
+            "WallInternalConvectionCoefficient",
+            ]
         wall_params_bldgarc = [
+            "WallExternalEmissivity",
+            "WallInternalEmissivity",
+            "WallTransmissivity",
+            "WallAbsorbtivity",
+            "WallReflectivity",
             "WallThickness",
             "WallEffectiveConductivity",
             "WallDensity",

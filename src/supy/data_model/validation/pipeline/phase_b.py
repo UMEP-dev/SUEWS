@@ -2063,13 +2063,21 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
 
             elif wwr == 1.0:
                 # Nullify external wall parameters in stebbs and building_archetype
-                wall_params_stebbs = ["WWallExternalConvectionCoefficient"]
+                wall_params_stebbs = [
+                    "WallExternalConvectionCoefficient",
+                    "WallInternalConvectionCoefficient",
+                    ]
                 wall_params_bldgarc = [
-                    "WallextThickness",
-                    "WallextEffectiveConductivity",
-                    "WallextDensity",
-                    "WallextCp",
-                ]
+                    "WallExternalEmissivity",
+                    "WallInternalEmissivity",
+                    "WallTransmissivity",
+                    "WallAbsorbtivity",
+                    "WallReflectivity",
+                    "WallThickness",
+                    "WallEffectiveConductivity",
+                    "WallDensity",
+                    "WallCp",
+                    ]
                 for param in wall_params_stebbs:
                     entry = stebbs.get(param)
                     if isinstance(entry, dict) and entry.get("value") is not None:

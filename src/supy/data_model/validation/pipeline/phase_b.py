@@ -1958,7 +1958,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
                         site_gridid=site_gridid,
                         old_value=str(old_roof_frac),
                         new_value="0.5",
-                        reason="rcmethod == 0, xxx set RoofOuterCapFrac to 0.5"
+                        reason="rcmethod == 0, set RoofOuterCapFrac to 0.5"
                     )
                 )
 

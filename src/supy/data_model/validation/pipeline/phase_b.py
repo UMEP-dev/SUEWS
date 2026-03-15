@@ -1199,21 +1199,27 @@ def run_scientific_validation_pipeline(
     yaml_data: dict, start_date: str, model_year: int
 ) -> List[ValidationResult]:
     """Execute all scientific validation checks."""
-    checks = [
-        validate_physics_parameters,
-        validate_model_option_dependencies,
-        validate_model_option_samealbedo,
-        validate_model_option_rcmethod,
-        validate_model_option_stebbsmethod,
-        validate_land_cover_consistency,
-        validate_geographic_parameters,
-        lambda yd: validate_irrigation_parameters(yd, model_year),
-        check_missing_vegetation_albedo,
-    ]
-    results = []
-    for check in checks:
-        results.extend(check(yaml_data))
-    return results
+    validation_results = []
+
+    validation_results.extend(validate_physics_parameters(yaml_data))
+
+    validation_results.extend(validate_model_option_dependencies(yaml_data))
+
+    validation_results.extend(validate_model_option_samealbedo(yaml_data))
+
+    validation_results.extend(validate_model_option_rcmethod(yaml_data))
+
+    validation_results.extend(validate_model_option_stebbsmethod(yaml_data))
+
+    validation_results.extend(validate_land_cover_consistency(yaml_data))
+
+    validation_results.extend(validate_geographic_parameters(yaml_data))
+
+    validation_results.extend(validate_irrigation_parameters(yaml_data, model_year))
+
+    validation_results.extend(check_missing_vegetation_albedo(yaml_data))
+
+    return validation_results
 
 
 def get_mean_monthly_air_temperature(

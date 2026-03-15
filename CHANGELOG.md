@@ -68,6 +68,11 @@ EXAMPLES:
 
 - [feature][experimental] Add new Pydantic Field ranges and defaults for STEBBS parameters (PR #1233)
 
+### 24 Feb 2026
+
+- [feature][experimental] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS dectreeh/evetreeh and SPARTACUS veg_scale/veg_frac entries (PR #1222).
+- [doc] Updated PHASE_C_DETAILED.md with new conditional validation logic for SPARTACUS (PR #1222).
+
 ### 23 Feb 2026
 
 - [bugfix][experimental] Fix double-counted heating efficiency in STEBBS load calculation; correct unused heating setpoint to prevent spurious activation (PR #1221)

@@ -39,7 +39,7 @@ from supy.data_model.core.state import (
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
 from supy.data_model.validation.pipeline.phase_b import validate_model_option_samealbedo
-from supy.data_model.validation.pipeline.phase_b import validate_model_option_rcmethod, validate_model_option_stebbsmethod
+from supy.data_model.validation.pipeline.phase_b import validate_model_option_rcmethod, validate_model_option_stebbsmethod, adjust_model_option_stebbsmethod
 from supy.data_model.validation.pipeline.phase_b import adjust_model_option_rcmethod
 
 
@@ -958,6 +958,133 @@ def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_
     }
     results = validate_model_option_stebbsmethod(yaml_data)
     assert not results, "Should not return errors when Occupants > 0"
+
+@pytest.mark.parametrize(
+    "wwr, nullify, keep",
+    [
+        (0.0,  # WWR==0: nullify window params
+         ["WindowInternalConvectionCoefficient", "WindowExternalConvectionCoefficient"],
+         ["WallExternalConvectionCoefficient", "WallInternalConvectionCoefficient"]),
+        (1.0,  # WWR==1: nullify wall params
+         ["WallExternalConvectionCoefficient", "WallInternalConvectionCoefficient"],
+         ["WindowInternalConvectionCoefficient", "WindowExternalConvectionCoefficient"]),
+        (0.5,  # WWR!=0,1: nullify nothing
+         [], ["WindowInternalConvectionCoefficient", "WindowExternalConvectionCoefficient",
+              "WallExternalConvectionCoefficient", "WallInternalConvectionCoefficient"]),
+    ],
+)
+def test_adjust_model_option_stebbsmethod_nullification(wwr, nullify, keep):
+    """Test adjust_model_option_stebbsmethod nullifies correct params based on WWR."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "properties": {
+                "stebbs": {
+                    "WindowInternalConvectionCoefficient": {"value": 5.0},
+                    "WindowExternalConvectionCoefficient": {"value": 6.0},
+                    "WallExternalConvectionCoefficient": {"value": 8.0},
+                    "WallInternalConvectionCoefficient": {"value": 9.0},
+                },
+                "building_archetype": {
+                    "WWR": {"value": wwr},
+                    "WindowThickness": {"value": 0.2},
+                    "WindowEffectiveConductivity": {"value": 1.1},
+                    "WindowDensity": {"value": 2500},
+                    "WindowCp": {"value": 900},
+                    "WindowExternalEmissivity": {"value": 0.85},
+                    "WindowInternalEmissivity": {"value": 0.9},
+                    "WindowTransmissivity": {"value": 0.7},
+                    "WindowAbsorbtivity": {"value": 0.1},
+                    "WindowReflectivity": {"value": 0.2},
+                    "WallExternalEmissivity": {"value": 0.88},
+                    "WallInternalEmissivity": {"value": 0.89},
+                    "WallTransmissivity": {"value": 0.5},
+                    "WallAbsorbtivity": {"value": 0.15},
+                    "WallReflectivity": {"value": 0.25},
+                    "WallThickness": {"value": 0.35},
+                    "WallEffectiveConductivity": {"value": 1.3},
+                    "WallDensity": {"value": 2400},
+                    "WallCp": {"value": 920},
+                },
+            }
+        }],
+    }
+    updated, adjustments = adjust_model_option_stebbsmethod(yaml_data)
+    stebbs = updated["sites"][0]["properties"]["stebbs"]
+    bldgarc = updated["sites"][0]["properties"]["building_archetype"]
+
+    # Check nullified params
+    for param in nullify:
+        assert stebbs.get(param, {}).get("value") is None
+    # Check kept params
+    for param in keep:
+        assert stebbs.get(param, {}).get("value") == yaml_data["sites"][0]["properties"]["stebbs"].get(param, {}).get("value")
+
+    # Check building_archetype nullification
+    if wwr == 0.0:
+        for param in [
+            "WindowThickness", "WindowEffectiveConductivity", "WindowDensity", "WindowCp",
+            "WindowExternalEmissivity", "WindowInternalEmissivity", "WindowTransmissivity",
+            "WindowAbsorbtivity", "WindowReflectivity"
+        ]:
+            assert bldgarc[param]["value"] is None
+        for param in [
+            "WallExternalEmissivity", "WallInternalEmissivity", "WallTransmissivity",
+            "WallAbsorbtivity", "WallReflectivity", "WallThickness", "WallEffectiveConductivity",
+            "WallDensity", "WallCp"
+        ]:
+            assert bldgarc[param]["value"] == yaml_data["sites"][0]["properties"]["building_archetype"][param]["value"]
+    elif wwr == 1.0:
+        for param in [
+            "WallExternalEmissivity", "WallInternalEmissivity", "WallTransmissivity",
+            "WallAbsorbtivity", "WallReflectivity", "WallThickness", "WallEffectiveConductivity",
+            "WallDensity", "WallCp"
+        ]:
+            assert bldgarc[param]["value"] is None
+        for param in [
+            "WindowThickness", "WindowEffectiveConductivity", "WindowDensity", "WindowCp",
+            "WindowExternalEmissivity", "WindowInternalEmissivity", "WindowTransmissivity",
+            "WindowAbsorbtivity", "WindowReflectivity"
+        ]:
+            assert bldgarc[param]["value"] == yaml_data["sites"][0]["properties"]["building_archetype"][param]["value"]
+    else:
+        # No params nullified
+        for param in bldgarc:
+            assert bldgarc[param]["value"] == yaml_data["sites"][0]["properties"]["building_archetype"][param]["value"]
+
+    # Adjustments
+    if wwr in (0.0, 1.0):
+        assert adjustments
+        assert all(a.new_value == "null" for a in adjustments)
+    else:
+        assert adjustments == []
+
+
+def test_adjust_model_option_stebbsmethod_not_one_no_action():
+    """If stebbsmethod != 1, nothing is changed."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 0}}},
+        "sites": [{
+            "properties": {
+                "stebbs": {
+                    "WindowInternalConvectionCoefficient": {"value": 5.0},
+                    "WallExternalConvectionCoefficient": {"value": 8.0},
+                },
+                "building_archetype": {
+                    "WWR": {"value": 0.0},
+                    "WindowThickness": {"value": 0.2},
+                    "WallThickness": {"value": 0.35},
+                },
+            }
+        }],
+    }
+    updated, adjustments = adjust_model_option_stebbsmethod(yaml_data)
+    props = updated["sites"][0]["properties"]
+    for param in ["WindowInternalConvectionCoefficient", "WallExternalConvectionCoefficient"]:
+        assert props["stebbs"][param]["value"] == yaml_data["sites"][0]["properties"]["stebbs"][param]["value"]
+    for param in ["WindowThickness", "WallThickness"]:
+        assert props["building_archetype"][param]["value"] == yaml_data["sites"][0]["properties"]["building_archetype"][param]["value"]
+    assert adjustments == []
 
 def test_needs_spartacus_validation_true_and_false():
     

@@ -1281,10 +1281,61 @@ class SUEWSConfig(BaseModel):
                 if val is None:
                     missing_params.append(param)
 
+        # Check if WWR (Window-to-Wall Ratio) is present and zero or one
+        wwr = getattr(building_archetype, "WWR", None)
+        wwr_val = _unwrap_value(wwr) if wwr is not None else None
+
+        # Window parameter lists
+        window_params_stebbs = [
+            "WindowInternalConvectionCoefficient",
+            "WindowExternalConvectionCoefficient",
+        ]
+        window_params_bldgarc = [
+            "WindowThickness",
+            "WindowEffectiveConductivity",
+            "WindowDensity",
+            "WindowCp",
+            "WindowExternalEmissivity",
+            "WindowInternalEmissivity",
+            "WindowTransmissivity",
+            "WindowAbsorbtivity",
+            "WindowReflectivity",
+        ]
+
+        # Wall parameter lists for WWR == 1.0
+        wall_params_stebbs = [
+            "WallExternalConvectionCoefficient",
+            "WallInternalConvectionCoefficient",
+            ]
+        wall_params_bldgarc = [
+            "WallExternalEmissivity",
+            "WallInternalEmissivity",
+            "WallTransmissivity",
+            "WallAbsorbtivity",
+            "WallReflectivity",
+            "WallThickness",
+            "WallEffectiveConductivity",
+            "WallDensity",
+            "WallCp",
+        ]
+
+        # Determine which params to require based on WWR
+        if wwr_val == 0.0:
+            # Exclude window params if WWR is zero
+            stebbs_required = [p for p in self.STEBBS_REQUIRED_PARAMS if p not in window_params_stebbs]
+            archetype_required = [p for p in self.ARCHETYPE_REQUIRED_PARAMS if p not in window_params_bldgarc]
+        elif wwr_val == 1.0:
+            # Exclude external wall params if WWR is one
+            stebbs_required = [p for p in self.STEBBS_REQUIRED_PARAMS if p not in wall_params_stebbs]
+            archetype_required = [p for p in self.ARCHETYPE_REQUIRED_PARAMS if p not in wall_params_bldgarc]
+        else:
+            stebbs_required = self.STEBBS_REQUIRED_PARAMS
+            archetype_required = self.ARCHETYPE_REQUIRED_PARAMS
+
         # Validate stebbs required params
-        _check_required(stebbs, self.STEBBS_REQUIRED_PARAMS)
+        _check_required(stebbs, stebbs_required)
         # Validate building_archetype required params
-        _check_required(building_archetype, self.ARCHETYPE_REQUIRED_PARAMS)
+        _check_required(building_archetype, archetype_required)
 
         ## Always list all missing parameters, regardless of count
         if missing_params:

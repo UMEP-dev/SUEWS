@@ -592,6 +592,38 @@ def validate_model_option_stebbsmethod(yaml_data: dict) -> List[ValidationResult
                                     suggested_value="Set HotWaterFlowProfile to 0 or 1"
                                 )
                             )
+            # --- Occupants and MetabolismProfile validation ---
+            building_archetype = props.get("building_archetype", {})
+            occupants_entry = building_archetype.get("Occupants", {})
+            occupants = occupants_entry.get("value") if isinstance(occupants_entry, dict) else occupants_entry
+            metabolism_profile = building_archetype.get("MetabolismProfile", {})
+            # Only check if both are present
+            if occupants == 0.0 and isinstance(metabolism_profile, dict):
+                problematic_entries = []
+                for daytype in ("working_day", "holiday"):
+                    profile = metabolism_profile.get(daytype, {})
+                    if isinstance(profile, dict):
+                        for hour_str, metab_val in profile.items():
+                            if metab_val not in (0, 0.0, None):
+                                problematic_entries.append(
+                                    f"{daytype}.{hour_str}={metab_val}"
+                                )
+                if problematic_entries:
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="MODEL_OPTIONS",
+                            parameter="building_archetype.MetabolismProfile",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=(
+                                f"Occupants is 0.0 but MetabolismProfile has nonzero entries: {', '.join(problematic_entries)} (should all be 0)."
+                            ),
+                            suggested_value="Set all MetabolismProfile entries to 0 if Occupants is 0.0"
+                        )
+                    )
+                                # Stop further validation for this site after first error
+                                #return results
     return results
 
 def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:

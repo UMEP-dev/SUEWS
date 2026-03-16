@@ -183,6 +183,7 @@ list_var_input = [
     "min_res_bioco2",
     "minfcmetab",
     "minqfmetab",
+    "monthmeanairtemperature_diffmax"
     "n_buildings",
     "n_stream_lw_urban",
     "n_stream_sw_urban",
@@ -598,6 +599,7 @@ list_var_input_multitsteps = [
     "min_res_bioco2",
     "minfcmetab",
     "minqfmetab",
+    "monthmeanairtemperature_diffmax"
     "n_buildings",
     "n_stream_lw_urban",
     "n_stream_sw_urban",
@@ -1019,6 +1021,7 @@ _VAR_INFO_DICT = {
     "min_res_bioco2": {"intent": "input", "rank": 1, "dtype": "array('d')", "bounds": "(n25)"},
     "minfcmetab": {"intent": "input", "rank": 0, "dtype": "float", "bounds": 0},
     "minqfmetab": {"intent": "input", "rank": 0, "dtype": "float", "bounds": 0},
+    "monthmeanairtemperature_diffmax": {"intent": "input", "rank": 0, "dtype": "float", "bounds": 0},
     "n_buildings": {"intent": "input", "rank": 0, "dtype": "float", "bounds": 0},
     "n_stream_lw_urban": {"intent": "input", "rank": 0, "dtype": "int", "bounds": 0},
     "n_stream_sw_urban": {"intent": "input", "rank": 0, "dtype": "int", "bounds": 0},

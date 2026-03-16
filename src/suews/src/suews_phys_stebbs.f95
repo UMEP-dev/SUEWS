@@ -33,17 +33,18 @@ CONTAINS
    !   Cp - specific heat capacity [J kg-1 K-1]
    !   vFR - volume Flow Rate [m3 s-1]
    !   Tout - temperature of water in vessel lost to drains [K]
+   !   Tmains - Water mains (cold) temperature [K]
    !   timeResolution - time resolution [s]
    ! Returns:
    !   q_wt - energy lost to drains [J]
    !-------------------------------------------------------------------
-   FUNCTION waterUseEnergyLossToDrains(rho, Cp, vFRo, Tout, timeResolution) RESULT(q_wt)
+   FUNCTION waterUseEnergyLossToDrains(rho, Cp, vFRo, Tout, Tmains, timeResolution) RESULT(q_wt)
       USE module_phys_stebbs_precision
       IMPLICIT NONE
       INTEGER, INTENT(in) :: timeResolution
-      REAL(KIND(1D0)), INTENT(in) :: rho, Cp, vFRo, Tout
+      REAL(KIND(1D0)), INTENT(in) :: rho, Cp, vFRo, Tout, Tmains
       REAL(KIND(1D0)) :: q_wt
-      q_wt = rho*Cp*Tout*(vFRo*timeResolution)
+      q_wt = rho*Cp*(Tout - Tmains)*(vFRo*timeResolution)
    END FUNCTION
    !-------------------------------------------------------------------
    ! Function: indoorConvectionHeatTransfer
@@ -2159,7 +2160,7 @@ SUBROUTINE tstep( &
             Textwall_vessel = Textwall_vessel + dTextwall_vessel
          END IF
          Qloss_drain = &
-            waterUseEnergyLossToDrains(density_water, cp_water, flowrate_water_drain, Twater_vessel, resolution)
+            waterUseEnergyLossToDrains(density_water, cp_water, flowrate_water_drain, Twater_vessel, Tincomingwater_tank, resolution)
          Qloss_drain_tstepTotal = Qloss_drain_tstepTotal + Qloss_drain * resolution
          dVwater_vessel = (flowrate_water_supply - flowrate_water_drain)*resolution
          Vwater_vessel = Vwater_vessel + dVwater_vessel

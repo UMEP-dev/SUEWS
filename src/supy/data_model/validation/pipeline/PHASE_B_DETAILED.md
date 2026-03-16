@@ -142,10 +142,13 @@ Validates the `rcmethod` parameter and related roof/wall options:
 
 ### STEBBSMethod Validation
 
-Validates the `stebbsmethod` parameter and related STEBBS options:
+Validates the `stebbsmethod` parameter and related STEBBS and building archetype options:
 
-- **HotWaterFlowProfile Validation**: If `stebbsmethod == 1`, checks that all hourly values in `HotWaterFlowProfile` for each site and day type (`working_day`, `holiday`) are either 0 or 1 (integer or float).
-- **Error Handling**: Any invalid value generates an ERROR in the validation report, specifying the site, hour, and suggested correction.
+- **HotWaterFlowProfile Validation**: If `stebbsmethod == 1`, checks that all hourly values in `HotWaterFlowProfile` for each site and day type (`working_day`, `holiday`) are either 0 or 1 (integer or float). Any invalid value generates an ERROR in the validation report, specifying the site, hour, and suggested correction.
+
+- **Occupants and MetabolismProfile Validation**: If `Occupants` is set to `0.0` for a site, all values in the corresponding `MetabolismProfile` (for both `working_day` and `holiday`) must be `0`, `0.0`, or `None`. If any nonzero value is found, an ERROR is generated, listing the problematic entries and suggesting that all values be set to 0.
+
+- **Error Handling**: All validation errors specify the site, parameter, and suggested correction in the validation report.
 
 
 ### Land Cover Consistency

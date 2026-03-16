@@ -4,12 +4,12 @@ Development script for assigning rules to the validator controller
 Example Usage:
 
 @RulesRegistry.add_phase_b("rule name/descriptor")
-def function_name(self): # For now self is expected (to be expanded as dynamic call to attributes)
-    errors = []
+def function_name(arguments):
+    errors = [ValidationResult()]
     
-    processing of self as defined by rule
-    
-    return errors # Expects a return of errors to be logged
+    # Validation logic
+
+    return errors
 """
 
 from dataclasses import dataclass
@@ -18,7 +18,6 @@ from dataclasses import dataclass
 class RulesRegistry:
 
     phase_b = {}
-
 
     def __getitem__(self, item):
         return self.phase_b[item]

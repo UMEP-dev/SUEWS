@@ -158,7 +158,6 @@ model:
     assert config.model.control.output_file == "output.txt"
 
 
-
 def test_deprecation_warning():
     """Test deprecation warning for non-default string output_file"""
     import warnings

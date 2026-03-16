@@ -395,6 +395,50 @@ CONTAINS
       END IF 
    END FUNCTION int_conv_coeff   
 
+  !-------------------------------------------------------------------
+   ! Function: mainsWaterTemperature
+   ! Description: Calculate daily water mains temperature based on the
+   !              EnergyPlus correlation in SI units
+   ! Parameters:
+   !   dayOfYear   - day of year [-]
+   !   To_annual_C - annual mean outdoor air temperature [degC]
+   !   dTo_month_C - largest difference in monthly mean outdoor air [degC]
+   !                 temperature [degC]
+   ! Returns:
+   !   Tmains      - water mains temperature [K]
+   !-------------------------------------------------------------------
+   FUNCTION cal_mainsWaterTemperature(dayOfYear, To_annual_C, dTo_month_C) RESULT(Tmains)
+      USE module_phys_stebbs_precision
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN) :: dayOfYear
+      REAL(KIND(1D0)), INTENT(in) :: To_annual_C
+      REAL(KIND(1D0)), INTENT(in) :: dTo_month_C
+      REAL(KIND(1D0)) :: Tmains
+
+      REAL(KIND(1D0)) :: ratio
+      REAL(KIND(1D0)) :: lag
+      REAL(KIND(1D0)) :: angle_deg
+      REAL(KIND(1D0)) :: angle_rad
+      REAL(KIND(1D0)) :: Tmains_C
+      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793
+
+      ! EnergyPlus empirical coefficients in SI units
+      ratio = 0.28 + 0.018*To_annual_C
+      lag   = 47.0 - 1.8*To_annual_C
+
+      ! Convert angle from degrees to radians for SIN
+      angle_deg = 0.986*(dayOfYear - 15.0 - lag) - 90.0
+      angle_rad = angle_deg*pi/180.0
+
+      ! Water mains temperature in degC
+      Tmains_C = (To_annual_C + 3.33) + ratio*(dTo_month_C/2.0)*SIN(angle_rad)
+
+      ! Convert water mains temperature from degC to K
+      Tmains = Tmains_C + 273.15
+
+   END FUNCTION cal_mainsWaterTemperature
+
    FUNCTION calculate_x1(d, cp, rho, d_ext, cp_ext, rho_ext, k_ext) RESULT(x1)
       IMPLICIT NONE
       ! Input parameters
@@ -578,7 +622,7 @@ CONTAINS
       modState, & ! Input/Output
       datetimeLine, nlayer, &
       dataOutLineSTEBBS) ! Output
-      USE module_phys_stebbs_func, ONLY: find_layer
+      USE module_phys_stebbs_func, ONLY: find_layer, cal_mainsWaterTemperature
       USE module_phys_stebbs_core, ONLY: cases, resolution
       USE module_phys_stebbs_couple, ONLY: sout ! Defines sout
       USE module_phys_stebbs_precision, ONLY: rprc ! Defines rprc as REAL64
@@ -609,6 +653,7 @@ CONTAINS
       REAL(KIND(1D0)) :: Tair_hbh
       REAL(KIND(1D0)) :: Tsurf_sout
       REAL(KIND(1D0)) :: Tground_deep_sout
+      REAL(KIND(1D0)) :: MonthMeanAirTemperature_diffmax_sout
       REAL(KIND(1D0)) :: Kroof_sout
       REAL(KIND(1D0)) :: Lroof_sout
       REAL(KIND(1D0)) :: Kwall_sout
@@ -707,6 +752,7 @@ CONTAINS
          timestep => timer%tstep, &
          dt_start => timer%dt_since_start, &
          it => timer%it, &!hour of day
+         id => timer%id, & !day of year
          imin => timer%imin, & !minute of day
          dayofWeek_id => timer%dayofWeek_id, & !1 - day of week; 2 - month; 3 - season
          flagstate => modState%flagstate, &
@@ -743,6 +789,7 @@ CONTAINS
             Least => stebbsState%Least, &
             Lwest => stebbsState%Lwest, &
             Tground_deep_sout => stebbsState%DeepSoilTemperature, &
+            MonthMeanAirTemperature_diffmax_sout => stebbsState%MonthMeanAirTemperature_diffmax, &
             pres => forcing%pres, &
             RH => forcing%RH, &
             cp_air => atmState%avcp, &
@@ -848,7 +895,8 @@ CONTAINS
                buildings(1)%Ts(1) = Unused_heating_setpoint_C + 273.15
                buildings(1)%Ts(2) = Unused_cooling_setpoint_C + 273.15
             END IF
-
+            !calculate water mains temperature 
+            buildings(1)%Tincomingwater_tank = cal_mainsWaterTemperature(id, Tground_deep_sout, MonthMeanAirTemperature_diffmax_sout)
             CALL setdatetime(datetimeLine)
 
             CALL suewsstebbscouple( &

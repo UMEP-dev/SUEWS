@@ -13,6 +13,7 @@ def function_name(arguments):
 """
 
 from dataclasses import dataclass
+from typing import Any, Optional
 
 
 class RulesRegistry:

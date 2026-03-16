@@ -5,18 +5,27 @@ from .rules_core import (
 
 def check_archetype_radiation_properties(archetype_data, facet):
     """Validate parameters for STEBBS radiation checks."""
+    archetype_facet_reflectivity = archetype_data.get(f"{facet}Reflectivity")
+    archetype_facet_absorbtivity = archetype_data.get(f"{facet}Absorbtivity")
+    archetype_facet_transmissivity = archetype_data.get(f"{facet}Transmissivity")
+
+    # Skip validation if any radiation property is missing
+    if any(v is None for v in (archetype_facet_reflectivity, archetype_facet_absorbtivity, archetype_facet_transmissivity)):
+        return None
+
+    # Extract values from RefValue dicts if needed
+    if isinstance(archetype_facet_reflectivity, dict):
+        archetype_facet_reflectivity = archetype_facet_reflectivity.get("value", archetype_facet_reflectivity)
+    if isinstance(archetype_facet_absorbtivity, dict):
+        archetype_facet_absorbtivity = archetype_facet_absorbtivity.get("value", archetype_facet_absorbtivity)
+    if isinstance(archetype_facet_transmissivity, dict):
+        archetype_facet_transmissivity = archetype_facet_transmissivity.get("value", archetype_facet_transmissivity)
+
     result = ValidationResult(
         status="PASS",
         category="Archetype",
         parameter=f"{facet}Reflectivity, {facet}Absorbtivity, {facet}Transmissivity",
     )
-
-    archetype_facet_reflectivity = archetype_data.get(f"{facet}Reflectivity")
-    archetype_facet_reflectivity = archetype_facet_reflectivity.get("value", archetype_facet_reflectivity)
-    archetype_facet_absorbtivity = archetype_data.get(f"{facet}Absorbtivity")
-    archetype_facet_absorbtivity = archetype_facet_absorbtivity.get("value", archetype_facet_absorbtivity)
-    archetype_facet_transmissivity = archetype_data.get(f"{facet}Transmissivity")
-    archetype_facet_transmissivity = archetype_facet_transmissivity.get("value", archetype_facet_transmissivity)
 
     radiation_properties_total = archetype_facet_reflectivity + archetype_facet_absorbtivity + archetype_facet_transmissivity
 
@@ -37,11 +46,50 @@ def check_archetype_properties(config_data):
 
         for facet in ["Wall", "Roof"]:
             result = check_archetype_radiation_properties(archetype_props, facet=facet)
-            result.site_index = i
-            result.site_gridid = site.get("gridiv")
-            errors.append(result)
+            if result is not None:
+                result.site_index = i
+                result.site_gridid = site.get("gridiv")
+                errors.append(result)
 
     return errors
+
+@RulesRegistry.add_phase_b("occupants_metabolism")
+def check_occupants_metabolism(yaml_data):
+    """Check for inconsistency: zero occupants with nonzero metabolism."""
+    results = []
+    sites = yaml_data.get("sites", [])
+    for site_idx, site in enumerate(sites):
+        props = site.get("properties", {})
+        building_archetype = props.get("building_archetype", {})
+        occupants_entry = building_archetype.get("Occupants", {})
+        occupants = occupants_entry.get("value") if isinstance(occupants_entry, dict) else occupants_entry
+        metabolism_profile = building_archetype.get("MetabolismProfile", {})
+        if occupants == 0.0 and isinstance(metabolism_profile, dict):
+            problematic_entries = []
+            for daytype in ("working_day", "holiday"):
+                profile = metabolism_profile.get(daytype, {})
+                if isinstance(profile, dict):
+                    for hour_str, metab_val in profile.items():
+                        if metab_val not in (0, 0.0, None):
+                            problematic_entries.append(
+                                f"{daytype}.{hour_str}={metab_val}"
+                            )
+            if problematic_entries:
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter="building_archetype.MetabolismProfile",
+                        site_index=site_idx,
+                        site_gridid=site.get("gridiv"),
+                        message=(
+                            f"Occupants is 0.0 but MetabolismProfile has nonzero entries: {', '.join(problematic_entries)} (should all be 0)."
+                        ),
+                        suggested_value="Set all MetabolismProfile entries to 0 if Occupants is 0.0",
+                    )
+                )
+    return results
+
 
 @RulesRegistry.add_phase_b("stebbs_props")
 def check_stebbs_properties(yaml_data):

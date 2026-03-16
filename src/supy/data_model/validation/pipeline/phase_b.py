@@ -558,6 +558,7 @@ def validate_model_option_stebbsmethod(yaml_data: dict) -> List[ValidationResult
     if stebbsmethod == 1:
         results.extend(RulesRegistry()["stebbs_props"](yaml_data))
         results.extend(RulesRegistry()["archetype_properties"](yaml_data))
+        results.extend(RulesRegistry()["occupants_metabolism"](yaml_data))
     return results
 
 def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:

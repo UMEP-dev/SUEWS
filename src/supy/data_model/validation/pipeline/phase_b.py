@@ -40,22 +40,10 @@ from ..core.yaml_helpers import (
     HAS_TIMEZONE_FINDER,
 )
 
+from .phase_b_rules import RulesRegistry, ValidationResult
+
 # Constants 
 SFR_FRACTION_TOL = 1e-4
-
-@dataclass
-class ValidationResult:
-    """Structured result from scientific validation checks."""
-
-    status: str  # 'PASS', 'WARNING', 'ERROR'
-    category: str  # 'PHYSICS', 'GEOGRAPHY', 'SEASONAL', 'LAND_COVER', 'MODEL_OPTIONS'
-    parameter: str
-    site_index: Optional[int] = None  # Array index (for internal use)
-    site_gridid: Optional[int] = None  # GRIDID value (for display)
-    message: str = ""
-    suggested_value: Any = None
-    applied_fix: bool = False
-
 
 @dataclass
 class ScientificAdjustment:
@@ -592,6 +580,7 @@ def validate_model_option_stebbsmethod(yaml_data: dict) -> List[ValidationResult
                                     suggested_value="Set HotWaterFlowProfile to 0 or 1"
                                 )
                             )
+        results.extend(RulesRegistry()["archetype_properties"](yaml_data))
     return results
 
 def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:

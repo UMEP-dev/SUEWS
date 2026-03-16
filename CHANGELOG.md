@@ -54,7 +54,7 @@ EXAMPLES:
 ## 2026
 
 ### 15 Mar 2026
-- [feature][experimental] Add new adjustment function for STEBBS and implement WWR relatedadjustmets when STEBBS method is on (PR #1244).
+- [feature][experimental] Add new adjustment function for STEBBS and implement WWR related adjustments when STEBBS method is on (PR #1244).
 
 
 ### 13 Mar 2026

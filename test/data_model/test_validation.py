@@ -946,10 +946,7 @@ def test_adjust_model_option_stebbsmethod_nullification(wwr, nullify, keep):
 
     # Check nullified params
     for param in nullify:
-        if "Window" in param:
-            assert stebbs.get(param, {}).get("value") is None
-        else:
-            assert stebbs.get(param, {}).get("value") is None
+        assert stebbs.get(param, {}).get("value") is None
     # Check kept params
     for param in keep:
         assert stebbs.get(param, {}).get("value") == yaml_data["sites"][0]["properties"]["stebbs"].get(param, {}).get("value")

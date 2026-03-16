@@ -1443,7 +1443,7 @@ class SUEWSConfig(BaseModel):
 
     def _is_physics_explicitly_configured(self, option_name: str) -> bool:
         physics = getattr(self.model, "physics", None)
-        return bool(physics and hasattr(physics, "__fields_set__") and option_name in physics.__fields_set__)
+        return bool(physics and hasattr(physics, "model_fields_set") and option_name in physics.model_fields_set)
 
     def _validate_storage(self, site: Site, site_index: int) -> List[str]:
         issues: List[str] = []

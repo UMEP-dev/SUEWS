@@ -573,6 +573,8 @@ def validate_model_option_stebbsmethod(yaml_data: dict) -> List[ValidationResult
             props = site.get("properties", {})
             stebbs = props.get("stebbs", {})
             site_gridid = get_site_gridid(site)
+
+            # --- HotWaterFlowProfile validation ---
             hwfp_entry = stebbs.get("HotWaterFlowProfile", {})
             for daytype in ("working_day", "holiday"):
                 day_profile = hwfp_entry.get(daytype, {})
@@ -622,8 +624,6 @@ def validate_model_option_stebbsmethod(yaml_data: dict) -> List[ValidationResult
                             suggested_value="Set all MetabolismProfile entries to 0 if Occupants is 0.0"
                         )
                     )
-                                # Stop further validation for this site after first error
-                                #return results
     return results
 
 def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:

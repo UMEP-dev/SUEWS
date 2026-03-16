@@ -40,7 +40,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 68 | 78 | 29 | 79 | 40 | 294 |
+| 2026 | 69 | 78 | 29 | 79 | 40 | 295 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -53,10 +53,19 @@ EXAMPLES:
 
 ## 2026
 
+### 15 Mar 2026
+- [feature][experimental] Add new adjustment function for STEBBS and implement WWR related adjustments when STEBBS method is on (PR #1244).
+
+
 ### 13 Mar 2026
 
 - [change][experimental] Remove STEBBS MinimumVolumeOfDHWinUse and MaximumVolumeOfDHWinUse across codebase (PR #1242).
 - [feature][experimental] Add new validation function for STEBBS and implement HotWaterFlowProfile consistency checks when STEBBS method is on (PR #1243).
+
+### 16 Mar 2026
+
+- [feature][experimental] Add Occupants/MetabolismProfile consistency validation to STEBBSMethod check (PR #1245)
+- [doc] Updated PHASE_B_DETAILED.md with Occupants/MetabolismProfile validation description (PR #1245)
 
 ### 12 Mar 2026
 - [feature][experimental] Update STEBBS InitialIndoorTemperature with mean monthly air temperature from CRU dataset (PR #1241)

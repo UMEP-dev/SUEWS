@@ -142,10 +142,13 @@ Validates the `rcmethod` parameter and related roof/wall options:
 
 ### STEBBSMethod Validation
 
-Validates the `stebbsmethod` parameter and related STEBBS options:
+Validates the `stebbsmethod` parameter and related STEBBS and building archetype options:
 
-- **HotWaterFlowProfile Validation**: If `stebbsmethod == 1`, checks that all hourly values in `HotWaterFlowProfile` for each site and day type (`working_day`, `holiday`) are either 0 or 1 (integer or float).
-- **Error Handling**: Any invalid value generates an ERROR in the validation report, specifying the site, hour, and suggested correction.
+- **HotWaterFlowProfile Validation**: If `stebbsmethod == 1`, checks that all hourly values in `HotWaterFlowProfile` for each site and day type (`working_day`, `holiday`) are either 0 or 1 (integer or float). Any invalid value generates an ERROR in the validation report, specifying the site, hour, and suggested correction.
+
+- **Occupants and MetabolismProfile Validation**: If `Occupants` is set to `0.0` for a site, all values in the corresponding `MetabolismProfile` (for both `working_day` and `holiday`) must be `0`, `0.0`, or `None`. If any nonzero value is found, an ERROR is generated, listing the problematic entries and suggesting that all values be set to 0.
+
+- **Error Handling**: All validation errors specify the site, parameter, and suggested correction in the validation report.
 
 
 ### Land Cover Consistency
@@ -278,7 +281,11 @@ Phase B makes scientific adjustments that improve model realism without changing
 
 ### STEBBS Method Integration
 
-- **Conditional Logic**: When `stebbsmethod == 0`, nullifies STEBBS parameters
+- **Conditional Logic**: 
+    - When `stebbsmethod == 0`, nullifies STEBBS parameters.
+    - When `stebbsmethod == 1`, checks `WWR`:
+        - If `stebbsmethod == 1` and `WWR == 0.0`, all window-related parameters are set to `None`.
+        - If `stebbsmethod == 1` and `WWR == 1.0`, all external wall-related parameters are set to `None`.
 - **Parameter Cleanup**: Removes unused STEBBS parameters for clarity
 - **Consistency**: Ensures STEBBS configuration matches selected method
 - **Temperature Initialisation**: When `stebbsmethod == 1`, automatically updates `InitialOutdoorTemperature` and `InitialIndoorTemperature` using CRU climatological data

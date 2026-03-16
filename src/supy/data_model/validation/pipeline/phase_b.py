@@ -1950,34 +1950,154 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
 
     return yaml_data, adjustments
 
+def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
+    """
+    Adjusts stebbs-related parameters according to stebbsmethod options.
+
+    - If 'stebbsmethod' is 1 and 'WWR' is 0.0 for a site, all window-related parameters are set to None.
+    - If 'stebbsmethod' is 1 and 'WWR' is 1.0 for a site, all external wall-related parameters are set to None.
+
+    """
+    adjustments = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+
+    if stebbsmethod == 1:
+        sites = yaml_data.get("sites", [])
+        for site_idx, site in enumerate(sites):
+            props = site.get("properties", {})
+            stebbs = props.get("stebbs", {})
+            bldgarc = props.get("building_archetype", {})
+
+            site_gridid = get_site_gridid(site)
+
+            wwr_entry = bldgarc.get("WWR", {})
+            wwr = wwr_entry.get("value") if isinstance(wwr_entry, dict) else wwr_entry
+
+            if wwr == 0.0:
+                window_params_stebbs = [
+                    "WindowInternalConvectionCoefficient",
+                    "WindowExternalConvectionCoefficient",
+                ]
+                window_params_bldgarc = [
+                    "WindowThickness",
+                    "WindowEffectiveConductivity",
+                    "WindowDensity",
+                    "WindowCp",
+                    "WindowExternalEmissivity",
+                    "WindowInternalEmissivity",
+                    "WindowTransmissivity",
+                    "WindowAbsorbtivity",
+                    "WindowReflectivity",
+                ]
+                # Nullify in stebbs
+                for param in window_params_stebbs:
+                    if param in stebbs and isinstance(stebbs[param], dict):
+                        old_val = stebbs[param].get("value")
+                        if old_val is not None:
+                            stebbs[param]["value"] = None
+                            adjustments.append(
+                                ScientificAdjustment(
+                                    parameter=f"stebbs.{param}",
+                                    site_index=site_idx,
+                                    site_gridid=site_gridid,
+                                    old_value=str(old_val),
+                                    new_value="null",
+                                    reason="WWR == 0, window parameter nullified"
+                                )
+                            )
+                # Nullify in building_archetype
+                for param in window_params_bldgarc:
+                    if param in bldgarc and isinstance(bldgarc[param], dict):
+                        old_val = bldgarc[param].get("value")
+                        if old_val is not None:
+                            bldgarc[param]["value"] = None
+                            adjustments.append(
+                                ScientificAdjustment(
+                                    parameter=f"building_archetype.{param}",
+                                    site_index=site_idx,
+                                    site_gridid=site_gridid,
+                                    old_value=str(old_val),
+                                    new_value="null",
+                                    reason="WWR == 0, window parameter nullified"
+                                )
+                            )
+                props["stebbs"] = stebbs
+                props["building_archetype"] = bldgarc
+                site["properties"] = props
+                yaml_data["sites"][site_idx] = site
+
+            elif wwr == 1.0:
+                # Nullify external wall parameters in stebbs and building_archetype
+                wall_params_stebbs = [
+                    "WallExternalConvectionCoefficient",
+                    "WallInternalConvectionCoefficient",
+                    ]
+                wall_params_bldgarc = [
+                    "WallExternalEmissivity",
+                    "WallInternalEmissivity",
+                    "WallTransmissivity",
+                    "WallAbsorbtivity",
+                    "WallReflectivity",
+                    "WallThickness",
+                    "WallEffectiveConductivity",
+                    "WallDensity",
+                    "WallCp",
+                    ]
+                for param in wall_params_stebbs:
+                    entry = stebbs.get(param)
+                    if isinstance(entry, dict) and entry.get("value") is not None:
+                        old_val = entry["value"]
+                        entry["value"] = None
+                        adjustments.append(
+                            ScientificAdjustment(
+                                parameter=f"stebbs.{param}",
+                                site_index=site_idx,
+                                site_gridid=site_gridid,
+                                old_value=str(old_val),
+                                new_value="null",
+                                reason="WWR == 1, external wall parameter nullified"
+                            )
+                        )
+                for param in wall_params_bldgarc:
+                    entry = bldgarc.get(param)
+                    if isinstance(entry, dict) and entry.get("value") is not None:
+                        old_val = entry["value"]
+                        entry["value"] = None
+                        adjustments.append(
+                            ScientificAdjustment(
+                                parameter=f"building_archetype.{param}",
+                                site_index=site_idx,
+                                site_gridid=site_gridid,
+                                old_value=str(old_val),
+                                new_value="null",
+                                reason="WWR == 1, external wall parameter nullified"
+                            )
+                        )
+                props["stebbs"] = stebbs
+                props["building_archetype"] = bldgarc
+                site["properties"] = props
+                yaml_data["sites"][site_idx] = site
+
+    return yaml_data, adjustments
 
 def run_scientific_adjustment_pipeline(
     yaml_data: dict, start_date: str, model_year: int
 ) -> Tuple[dict, List[ScientificAdjustment]]:
     """Apply automatic scientific corrections and adjustments."""
-    adjustments = []
     updated_data = deepcopy(yaml_data)
+    adjustments = []
 
-    updated_data, temp_adjustments = adjust_surface_temperatures(
-        updated_data, start_date
-    )
-    adjustments.extend(temp_adjustments)
-
-    updated_data, fraction_adjustments = adjust_land_cover_fractions(updated_data)
-    adjustments.extend(fraction_adjustments)
-
-    updated_data, nullify_adjustments = adjust_model_dependent_nullification(
-        updated_data
-    )
-    adjustments.extend(nullify_adjustments)
-
-    updated_data, seasonal_adjustments = adjust_seasonal_parameters(
-        updated_data, start_date, model_year
-    )
-    adjustments.extend(seasonal_adjustments)
-
-    updated_data, rcmethod_adjustments = adjust_model_option_rcmethod(updated_data)
-    adjustments.extend(rcmethod_adjustments)    
+    for adjust_func, args in [
+        (adjust_surface_temperatures, (updated_data, start_date)),
+        (adjust_land_cover_fractions, (updated_data,)),
+        (adjust_model_dependent_nullification, (updated_data,)),
+        (adjust_seasonal_parameters, (updated_data, start_date, model_year)),
+        (adjust_model_option_rcmethod, (updated_data,)),
+        (adjust_model_option_stebbsmethod, (updated_data,))
+    ]:
+        updated_data, adj = adjust_func(*args)
+        adjustments.extend(adj)
 
     return updated_data, adjustments
 

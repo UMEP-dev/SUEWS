@@ -599,7 +599,7 @@ def validate_model_option_stebbsmethod(yaml_data: dict) -> List[ValidationResult
             occupants_entry = building_archetype.get("Occupants", {})
             occupants = occupants_entry.get("value") if isinstance(occupants_entry, dict) else occupants_entry
             metabolism_profile = building_archetype.get("MetabolismProfile", {})
-            # Only check if both are present
+            # Check for inconsistency: zero occupants with nonzero metabolism
             if occupants == 0.0 and isinstance(metabolism_profile, dict):
                 problematic_entries = []
                 for daytype in ("working_day", "holiday"):

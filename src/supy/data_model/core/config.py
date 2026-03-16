@@ -1447,24 +1447,35 @@ class SUEWSConfig(BaseModel):
 
     def _is_physics_explicitly_configured(self) -> bool:
         """
-        Heuristic to determine if physics parameters were explicitly set by the user
-        rather than using all default values.
-
-        For now, we'll be conservative and assume that if no model section was
-        provided by the user, then conditional validation should not apply.
-
-        Returns True if physics appears to be explicitly configured.
+        Returns True if any physics parameter was explicitly set by the user in YAML.
         """
-        # For now, disable conditional validation entirely for configs that
-        # don't explicitly set the problematic physics methods
-        # This is a conservative approach that avoids breaking existing tests
-
-        # The real solution would be to track whether fields were explicitly set
-        # vs using defaults, but that requires more complex Pydantic handling
-
-        # For now, return False to disable conditional validation unless
-        # explicitly enabled during testing
+        physics = getattr(self.model, "physics", None)
+        if physics and hasattr(physics, "__fields_set__"):
+            # If any field was set by the user, return True
+            return bool(physics.__fields_set__)
+            #return False
         return False
+
+    # def _is_physics_explicitly_configured(self) -> bool:
+    #     """
+    #     Heuristic to determine if physics parameters were explicitly set by the user
+    #     rather than using all default values.
+
+    #     For now, we'll be conservative and assume that if no model section was
+    #     provided by the user, then conditional validation should not apply.
+
+    #     Returns True if physics appears to be explicitly configured.
+    #     """
+    #     # For now, disable conditional validation entirely for configs that
+    #     # don't explicitly set the problematic physics methods
+    #     # This is a conservative approach that avoids breaking existing tests
+
+    #     # The real solution would be to track whether fields were explicitly set
+    #     # vs using defaults, but that requires more complex Pydantic handling
+
+    #     # For now, return False to disable conditional validation unless
+    #     # explicitly enabled during testing
+    #     return False
 
     def _validate_storage(self, site: Site, site_index: int) -> List[str]:
         issues: List[str] = []

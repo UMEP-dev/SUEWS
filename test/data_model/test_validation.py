@@ -41,8 +41,7 @@ from supy.data_model.validation.core.utils import check_missing_params
 from supy.data_model.validation.pipeline.phase_b import validate_model_option_samealbedo
 from supy.data_model.validation.pipeline.phase_b import validate_model_option_rcmethod, validate_model_option_stebbsmethod
 from supy.data_model.validation.pipeline.phase_b import adjust_model_option_rcmethod
-
-
+from supy.data_model.validation.pipeline.phase_b_rules import RulesRegistry
 
 # A tiny “site” stub that only carries exactly the properties our validators look at
 class DummySite:
@@ -819,7 +818,8 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid():
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    # results = validate_model_option_stebbsmethod(yaml_data)
+    results = RulesRegistry()["stebbs_props"](yaml_data)
     assert not results, "Should not return errors for valid HotWaterFlowProfile values"
 
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid():
@@ -839,7 +839,8 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid():
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    # results = validate_model_option_stebbsmethod(yaml_data)
+    results = RulesRegistry()["stebbs_props"](yaml_data)
     error_params = [r.parameter for r in results]
     assert "stebbs.HotWaterFlowProfile.working_day.0" in error_params
     assert "stebbs.HotWaterFlowProfile.working_day.1" in error_params
@@ -863,7 +864,8 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing():
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    # results = validate_model_option_stebbsmethod(yaml_data)
+    results = RulesRegistry()["stebbs_props"](yaml_data)
     assert not results, "Should not return errors if HotWaterFlowProfile is missing"
 
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial():
@@ -883,7 +885,8 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial():
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    # results = validate_model_option_stebbsmethod(yaml_data)
+    results = RulesRegistry()["stebbs_props"](yaml_data)
     error_params = [r.parameter for r in results]
     assert "stebbs.HotWaterFlowProfile.working_day.2" in error_params
     assert "stebbs.HotWaterFlowProfile.holiday.2" in error_params

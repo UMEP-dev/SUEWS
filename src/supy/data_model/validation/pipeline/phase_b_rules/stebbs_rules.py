@@ -11,9 +11,12 @@ def check_archetype_radiation_properties(archetype_data, facet):
         parameter=f"{facet}Reflectivity, {facet}Absorbtivity, {facet}Transmissivity",
     )
 
-    archetype_facet_reflectivity = archetype_data.get(f"{facet}Reflectivity").get("value")
-    archetype_facet_absorbtivity = archetype_data.get(f"{facet}Absorbtivity").get("value")
-    archetype_facet_transmissivity = archetype_data.get(f"{facet}Transmissivity").get("value")
+    archetype_facet_reflectivity = archetype_data.get(f"{facet}Reflectivity")
+    archetype_facet_reflectivity = archetype_facet_reflectivity.get("value", archetype_facet_reflectivity)
+    archetype_facet_absorbtivity = archetype_data.get(f"{facet}Absorbtivity")
+    archetype_facet_absorbtivity = archetype_facet_absorbtivity.get("value", archetype_facet_absorbtivity)
+    archetype_facet_transmissivity = archetype_data.get(f"{facet}Transmissivity")
+    archetype_facet_transmissivity = archetype_facet_transmissivity.get("value", archetype_facet_transmissivity)
 
     radiation_properties_total = archetype_facet_reflectivity + archetype_facet_absorbtivity + archetype_facet_transmissivity
 

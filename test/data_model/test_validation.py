@@ -890,6 +890,75 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial():
     assert all(r.status == "ERROR" for r in results)
     assert len(results) == 2
 
+def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_nonzero():
+    """Test error when Occupants=0.0 but MetabolismProfile has nonzero values."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "Occupants": {"value": 0.0},
+                    "MetabolismProfile": {
+                        "working_day": {"0": 0, "1": 1.2, "2": 0},
+                        "holiday": {"0": 0, "1": 0, "2": 0.5},
+                    },
+                },
+                "stebbs": {},
+            }
+        }],
+    }
+    results = validate_model_option_stebbsmethod(yaml_data)
+    error_params = [r.parameter for r in results]
+    assert "building_archetype.MetabolismProfile" in error_params
+    assert any("nonzero entries" in r.message for r in results)
+    assert all(r.status == "ERROR" for r in results)
+
+def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_all_zero():
+    """Test no error when Occupants=0.0 and all MetabolismProfile values are zero."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "Occupants": {"value": 0.0},
+                    "MetabolismProfile": {
+                        "working_day": {"0": 0, "1": 0.0, "2": None},
+                        "holiday": {"0": 0, "1": 0.0, "2": None},
+                    },
+                },
+                "stebbs": {},
+            }
+        }],
+    }
+    results = validate_model_option_stebbsmethod(yaml_data)
+    assert not results, "Should not return errors when all MetabolismProfile values are zero or None"
+
+def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_nonzero():
+    """Test no error when Occupants>0 and MetabolismProfile has nonzero values."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "Occupants": {"value": 2.0},
+                    "MetabolismProfile": {
+                        "working_day": {"0": 1.1, "1": 1.2},
+                        "holiday": {"0": 0.9, "1": 1.0},
+                    },
+                },
+                "stebbs": {},
+            }
+        }],
+    }
+    results = validate_model_option_stebbsmethod(yaml_data)
+    assert not results, "Should not return errors when Occupants > 0"
+
 def test_needs_spartacus_validation_true_and_false():
     
     cfg = make_cfg()

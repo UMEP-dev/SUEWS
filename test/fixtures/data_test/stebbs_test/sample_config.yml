@@ -443,6 +443,8 @@ sites:
         value: 20.0
       AnnualMeanAirTemperature:
         value: 10.0
+      MonthMeanAirTemperature_diffmax:
+        value: 10.0
       WaterTankWallThickness:
         value: 0.055
       MainsWaterTemperature:

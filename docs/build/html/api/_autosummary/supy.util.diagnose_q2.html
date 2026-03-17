@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>6.3.7.7. supy.util.diagnose_q2 &#8212; SUEWS 2026.3.16.dev117 documentation</title>
+    <title>6.3.7.7. supy.util.diagnose_q2 &#8212; SUEWS 2026.3.17.dev118 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=aa12a13a"></script>
+    <script src="../../_static/documentation_options.js?v=f2721cde"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
     <link rel="prev" title="6.3.7.6. supy.util.diagnose_t2" href="supy.util.diagnose_t2.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.3.16.dev117" />
+  <meta name="docsearch:version" content="2026.3.17.dev118" />
   </head>
   
   
@@ -98,7 +98,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.3.16.dev117, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/003b55c26d5581990a801bbcf8de09dc202ae486" style="color: #31708f;">003b55c</a>).
+        (2026.3.17.dev118, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6a795a10b4ba70d86ff985ad4c29f00fdede5934" style="color: #31708f;">6a795a1</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -145,8 +145,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.3.16.dev117 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.3.16.dev117 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.3.17.dev118 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.3.17.dev118 documentation - Home"/>
   
   
 </a></div>
@@ -545,7 +545,7 @@
 <h1><span class="section-number">6.3.7.7. </span>supy.util.diagnose_q2<a class="headerlink" href="#supy-util-diagnose-q2" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="supy.util.diagnose_q2">
-<span class="sig-prename descclassname"><span class="pre">supy.util.</span></span><span class="sig-name descname"><span class="pre">diagnose_q2</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_output</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df_forcing</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'anomaly'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'extreme'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'diurnal'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'anomaly'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_flux</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="supy.util.AttributionResult.html#supy.util.AttributionResult" title="supy.util._attribution._result.AttributionResult"><span class="pre">AttributionResult</span></a></span></span><a class="reference internal" href="../../_modules/supy/util/_attribution/_q2.html#diagnose_q2"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.util.diagnose_q2" title="Link to this definition">#</a></dt>
+<span class="sig-prename descclassname"><span class="pre">supy.util.</span></span><span class="sig-name descname"><span class="pre">diagnose_q2</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_output</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.1)"><span class="pre">DataFrame</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">df_forcing</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.1)"><span class="pre">DataFrame</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Literal" title="(in Python v3.14)"><span class="pre">Literal</span></a><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'anomaly'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'extreme'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'diurnal'</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'anomaly'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_flux</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="supy.util.AttributionResult.html#supy.util.AttributionResult" title="supy.util._attribution._result.AttributionResult"><span class="pre">AttributionResult</span></a></span></span><a class="reference internal" href="../../_modules/supy/util/_attribution/_q2.html#diagnose_q2"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.util.diagnose_q2" title="Link to this definition">#</a></dt>
 <dd><p>Automatically identify anomalous q2 values and attribute the causes.</p>
 <p>This convenience function identifies unusual q2 (2m specific humidity)
 behaviour within a single simulation run and diagnoses the driving factors
@@ -685,8 +685,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.3.16.dev117 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/003b55c26d5581990a801bbcf8de09dc202ae486">003b55c</a> |
+  <p>Version: 2026.3.17.dev118 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6a795a10b4ba70d86ff985ad4c29f00fdede5934">6a795a1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

@@ -105,12 +105,12 @@ def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
     # Collect all validation errors instead of failing on first error
     errors = []
 
-    if not isinstance(start_date, str) or "-" not in str(start_date):
+    if not isinstance(start_date, str|datetime.date) or "-" not in str(start_date):
         errors.append(
             "Missing or invalid 'start_time' in model.control - must be in 'YYYY-MM-DD' format"
         )
 
-    if not isinstance(end_date, str) or "-" not in str(end_date):
+    if not isinstance(end_date, str|datetime.date) or "-" not in str(end_date):
         errors.append(
             "Missing or invalid 'end_time' in model.control - must be in 'YYYY-MM-DD' format"
         )

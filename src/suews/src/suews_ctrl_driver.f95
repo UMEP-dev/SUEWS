@@ -4162,7 +4162,7 @@ CONTAINS
       WallExternalConvectionCoefficient, RoofExternalConvectionCoefficient, WindowExternalConvectionCoefficient, &
       GroundDepth, ExternalGroundConductivity, &
       MetabolismThreshold, LatentSensibleRatio, &
-      ApplianceProfile, &
+      ApplianceProfile, LightingPowerDensity, &
       HeatingSystemEfficiency, &
       MaxCoolingPower, CoolingSystemCOP, VentilationRate, &
       AnnualMeanAirTemperature, MonthMeanAirTemperature_diffmax, &
@@ -4683,6 +4683,7 @@ CONTAINS
       REAL(KIND(1D0)) :: MaximumHotWaterHeatingPower
       REAL(KIND(1D0)) :: HeatingSetpointTemperature 
       REAL(KIND(1D0)) :: CoolingSetpointTemperature
+      REAL(KIND(1D0)) :: LightingPowerDensity
       REAL(KIND(1D0)), DIMENSION(0:143, 2) :: MetabolismProfile
       REAL(KIND(1D0)), DIMENSION(0:143, 2) :: ApplianceProfile
       TYPE(STEBBS_PRM) :: stebbsPrm
@@ -5594,6 +5595,7 @@ CONTAINS
       building_archtype%CoolingSetpointTemperature = CoolingSetpointTemperature
       building_archtype%MetabolismProfile = MetabolismProfile
       building_archtype%ApplianceProfile = ApplianceProfile
+      building_archtype%LightingPowerDensity = LightingPowerDensity
       siteInfo%building_archtype = building_archtype
 
       IF (mod_state%flagState%stebbs_bldg_init == 0) THEN

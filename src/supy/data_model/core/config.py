@@ -170,6 +170,7 @@ class SUEWSConfig(BaseModel):
         "MetabolismThreshold",
         "LatentSensibleRatio",
         "ApplianceProfile",
+        "LightingPowerDensity"
         "HeatingSystemEfficiency",
         "MaxCoolingPower",
         "CoolingSystemCOP",

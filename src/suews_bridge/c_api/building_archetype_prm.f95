@@ -86,6 +86,7 @@ type :: building_archetype_prm_shadow
    real(c_double) :: coolingsetpointtemperature = 0.0_c_double
    real(c_double), dimension(0:143, 2) :: metabolismprofile = 0.0_c_double
    real(c_double), dimension(0:143, 2) :: applianceprofile = 0.0_c_double
+   real(c_double) :: LightingPowerDensity = 0.0_c_double
    logical :: iter_safe = .true.
 end type building_archetype_prm_shadow
 

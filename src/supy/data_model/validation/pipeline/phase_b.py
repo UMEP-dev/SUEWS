@@ -133,74 +133,6 @@ def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
     return model_year, start_date, end_date
 
 
-def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
-    """Validate consistency between model physics options, reporting site names."""
-    results = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-
-    samealbedo_roof = get_value_safe(physics, "samealbedo_roof")
-    samealbedo_wall = get_value_safe(physics, "samealbedo_wall")
-
-    if samealbedo_wall == 0:
-        for site in yaml_data.get("sites", []):
-            site_name = site.get("name", "Unknown")
-            vlay = site.get("properties", {}).get("vertical_layers", {})
-            walls = vlay.get("walls", [])
-            if isinstance(walls, dict):  # rare but possible
-                walls = [walls]
-            found_albedos = []
-            for wall in walls:
-                alb_val = get_value_safe(wall, "alb")
-                if alb_val is not None:
-                    found_albedos.append(alb_val)
-            building_archetype = site.get("properties", {}).get("building_archetype", {})
-            wallrefl_val = get_value_safe(building_archetype, "WallReflectivity")
-            msg = (
-                f"samealbedo_wall == 0. No check of consistency between walls albedo (found values: {found_albedos}) and WallReflectivity (found value: {wallrefl_val})."
-            )
-            results.append(
-                ValidationResult(
-                    status="WARNING",
-                    category="MODEL_OPTIONS",
-                    parameter="samealbedo_wall",
-                    site_gridid=site_name,
-                    site_index=None,
-                    message=f"{msg}",
-                    suggested_value=None,
-                )
-            )
-
-    if samealbedo_roof == 0:
-        for site in yaml_data.get("sites", []):
-            site_name = site.get("name", "Unknown")
-            vlay = site.get("properties", {}).get("vertical_layers", {})
-            roofs = vlay.get("roofs", [])
-            if isinstance(roofs, dict):  # rare but possible
-                roofs = [roofs]
-            found_albedos = []
-            for roof in roofs:
-                alb_val = get_value_safe(roof, "alb")
-                if alb_val is not None:
-                    found_albedos.append(alb_val)
-            building_archetype = site.get("properties", {}).get("building_archetype", {})
-            roofrefl_val = get_value_safe(building_archetype, "RoofReflectivity")
-            msg = (
-                f"samealbedo_roof == 0. No check of consistency between roofs albedo (found values: {found_albedos}) and RoofReflectivity (found value: {roofrefl_val})."
-            )
-            results.append(
-                ValidationResult(
-                    status="WARNING",
-                    category="MODEL_OPTIONS",
-                    parameter="samealbedo_roof",
-                    site_gridid=site_name,
-                    site_index=None,
-                    message=f"{msg}",
-                    suggested_value=None,
-                )
-            )
-
-    return results
-
 def validate_model_option_rcmethod(yaml_data: dict) -> List[ValidationResult]:
     """Validate RoofOuterCapFrac and WallOuterCapFrac if rcmethod == 1.
     For rcmethod == 2, validate required roof/wall external parameters are not null.
@@ -969,8 +901,6 @@ def run_scientific_validation_pipeline(
 
     for rule_id, rule_fn in RulesRegistry().phase_b.items():
         validation_results.extend(rule_fn(yaml_data))
-
-    validation_results.extend(validate_model_option_samealbedo(yaml_data))
 
     validation_results.extend(validate_model_option_rcmethod(yaml_data))
 

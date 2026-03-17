@@ -92,10 +92,10 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    rslmethod = physics.get("rslmethod")
-    stabilitymethod = physics.get("stabilitymethod")
-    storageheatmethod = physics.get("storageheatmethod")
-    ohmincqf = physics.get("ohmincqf")
+    rslmethod = get_value_safe(physics, "rslmethod")
+    stabilitymethod = get_value_safe(physics, "stabilitymethod")
+    storageheatmethod = get_value_safe(physics, "storageheatmethod")
+    ohmincqf = get_value_safe(physics, "ohmincqf")
 
     # RSL method and stability method dependencies
     if rslmethod == 2 and stabilitymethod != 3:
@@ -192,5 +192,74 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
             )
     # When SMDMethod=0 (modelled), no validation needed - skip adding PASS result
     # to reduce noise in validation output.
+
+    return results
+
+@RulesRegistry.add_phase_b("samealbedo")
+def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
+    """Validate consistency between model physics options, reporting site names."""
+    results = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+
+    samealbedo_roof = get_value_safe(physics, "samealbedo_roof")
+    samealbedo_wall = get_value_safe(physics, "samealbedo_wall")
+
+    if samealbedo_wall == 0:
+        for site in yaml_data.get("sites", []):
+            site_name = site.get("name", "Unknown")
+            vlay = site.get("properties", {}).get("vertical_layers", {})
+            walls = vlay.get("walls", [])
+            if isinstance(walls, dict):  # rare but possible
+                walls = [walls]
+            found_albedos = []
+            for wall in walls:
+                alb_val = get_value_safe(wall, "alb")
+                if alb_val is not None:
+                    found_albedos.append(alb_val)
+            building_archetype = site.get("properties", {}).get("building_archetype", {})
+            wallrefl_val = get_value_safe(building_archetype, "WallReflectivity")
+            msg = (
+                f"samealbedo_wall == 0. No check of consistency between walls albedo (found values: {found_albedos}) and WallReflectivity (found value: {wallrefl_val})."
+            )
+            results.append(
+                ValidationResult(
+                    status="WARNING",
+                    category="MODEL_OPTIONS",
+                    parameter="samealbedo_wall",
+                    site_gridid=site_name,
+                    site_index=None,
+                    message=f"{msg}",
+                    suggested_value=None,
+                )
+            )
+
+    if samealbedo_roof == 0:
+        for site in yaml_data.get("sites", []):
+            site_name = site.get("name", "Unknown")
+            vlay = site.get("properties", {}).get("vertical_layers", {})
+            roofs = vlay.get("roofs", [])
+            if isinstance(roofs, dict):  # rare but possible
+                roofs = [roofs]
+            found_albedos = []
+            for roof in roofs:
+                alb_val = get_value_safe(roof, "alb")
+                if alb_val is not None:
+                    found_albedos.append(alb_val)
+            building_archetype = site.get("properties", {}).get("building_archetype", {})
+            roofrefl_val = get_value_safe(building_archetype, "RoofReflectivity")
+            msg = (
+                f"samealbedo_roof == 0. No check of consistency between roofs albedo (found values: {found_albedos}) and RoofReflectivity (found value: {roofrefl_val})."
+            )
+            results.append(
+                ValidationResult(
+                    status="WARNING",
+                    category="MODEL_OPTIONS",
+                    parameter="samealbedo_roof",
+                    site_gridid=site_name,
+                    site_index=None,
+                    message=f"{msg}",
+                    suggested_value=None,
+                )
+            )
 
     return results

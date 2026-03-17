@@ -967,7 +967,7 @@ def run_scientific_validation_pipeline(
     """Execute all scientific validation checks."""
     validation_results = []
 
-    for rule_id, rule_fn in RulesRegistry().items():
+    for rule_id, rule_fn in RulesRegistry().phase_b.items():
         validation_results.extend(rule_fn(yaml_data))
 
     validation_results.extend(validate_model_option_samealbedo(yaml_data))

@@ -2,7 +2,7 @@ from .rules_core import (
     RulesRegistry,
     ValidationResult,
 )
-
+from ...core.yaml_helpers import get_value_safe
 @RulesRegistry.add_phase_b("physics_params")
 def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
     """Validate required physics parameters."""

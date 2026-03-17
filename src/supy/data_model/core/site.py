@@ -2011,6 +2011,7 @@ class StebbsProperties(BaseModel):
             "unit": "degC",
             "display_name": "Maximum difference in monthly outdoor air temperature",
         },
+        gt = 0.0,
     )
     WaterTankWallThickness: Optional[FlexibleRefValue(float)] = Field(
         default=0.01,

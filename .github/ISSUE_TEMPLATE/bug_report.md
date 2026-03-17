@@ -1,27 +1,28 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: Report a bug or unexpected behaviour
 title: ''
-labels: ''
+labels: bug
 assignees: ''
 
 ---
 
 **Describe the bug**
-A clear and concise description of what the bug is.
+<!-- A clear and concise description of what the bug is. -->
 
-**To Reproduce**
-Attach your input files that can reproduce the bug.
+**To reproduce**
+<!-- Steps or input files that reproduce the bug. -->
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+**Expected behaviour**
+<!-- What you expected to happen. -->
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Debug file**
+<!-- If `supy_debug-xxxxxxxx.zip` was generated, please attach it here. -->
 
-**Version and platform (please complete the following information):**
-- SUEWS version: [e.g., 2018b] 
-- OS: [e.g. macOS]
+**Version and platform**
+- SUEWS/SuPy version:
+- OS:
+- Python version (if applicable):
 
-**Additional context**
-Add any other context about the problem here.
+**Screenshots or logs**
+<!-- If applicable, add screenshots or error output. -->

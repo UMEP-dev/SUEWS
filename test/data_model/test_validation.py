@@ -42,7 +42,7 @@ from supy.data_model.validation.pipeline.phase_b import validate_model_option_sa
 from supy.data_model.validation.pipeline.phase_b import validate_model_option_rcmethod, validate_model_option_stebbsmethod, adjust_model_option_stebbsmethod
 from supy.data_model.validation.pipeline.phase_b import adjust_model_option_rcmethod
 
-
+import types
 
 # A tiny “site” stub that only carries exactly the properties our validators look at
 class DummySite:
@@ -1311,6 +1311,87 @@ def test_validate_spartacus_veg_dimensions_exceeds_all_case():
     assert msgs
     assert any("exceeds all vertical_layers heights" in m for m in msgs)
 
+def make_sample_physics(fields):
+    obj = types.SimpleNamespace()
+    obj.model_fields_set = set(fields)
+    return obj
+
+def make_sample_model(physics):
+    obj = types.SimpleNamespace()
+    obj.physics = physics
+    return obj
+
+class SampleConfig:
+    def __init__(self, model):
+        self.model = model
+
+    def _is_physics_explicitly_configured(self, option_name: str) -> bool:
+        physics = getattr(self.model, "physics", None)
+        return bool(
+            physics
+            and hasattr(physics, "model_fields_set")
+            and option_name in physics.model_fields_set
+        )
+
+def test_is_physics_explicitly_configured_true():
+    """Returns True if the physics field is explicitly set."""
+    model = make_sample_model(make_sample_physics({'rslmethod', 'storageheatmethod'}))
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is True
+
+def test_is_physics_explicitly_configured_false():
+    """Returns False if the specific physics field is not set."""
+    model = make_sample_model(make_sample_physics({'storageheatmethod'}))
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+
+def test_is_physics_explicitly_configured_empty():
+    """Returns False if model_fields_set is empty."""
+    model = make_sample_model(make_sample_physics(set()))
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+
+def test_is_physics_explicitly_configured_no_physics():
+    """Returns False if physics attribute is missing or None."""
+    # model without physics attribute
+    class DummyModel: pass
+    cfg = SampleConfig(DummyModel())
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+
+    # model with physics None
+    class DummyModel2: pass
+    m = DummyModel2()
+    m.physics = None
+    cfg = SampleConfig(m)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+
+def test_is_physics_explicitly_configured_no_model_fields_set():
+    """Returns False if physics object has no model_fields_set attribute."""
+    class DummyPhysics: pass
+    model = make_sample_model(DummyPhysics())
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+
+def test_is_physics_explicitly_configured_non_string_fields():
+    """Handles non-string entries in model_fields_set gracefully."""
+    model = make_sample_model(make_sample_physics({1, None, 'rslmethod'}))
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is True
+    assert cfg._is_physics_explicitly_configured('storageheatmethod') is False
+
+def test_is_physics_explicitly_configured_model_fields_set_list():
+    """Handles model_fields_set as a list instead of set."""
+    obj = types.SimpleNamespace()
+    obj.model_fields_set = ['rslmethod', 'storageheatmethod']
+    model = make_sample_model(obj)
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is True
+    assert cfg._is_physics_explicitly_configured('other') is False
+
+def test_is_physics_explicitly_configured_model_none():
+    """Returns False if model is None."""
+    cfg = SampleConfig(None)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
 
 # From test_validation_topdown.py
 class TestTopDownValidation:

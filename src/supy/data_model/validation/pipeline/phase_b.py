@@ -105,12 +105,12 @@ def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
     # Collect all validation errors instead of failing on first error
     errors = []
 
-    if not isinstance(start_date, str|datetime.date) or "-" not in str(start_date):
+    if not isinstance(start_date, str) or "-" not in str(start_date):
         errors.append(
             "Missing or invalid 'start_time' in model.control - must be in 'YYYY-MM-DD' format"
         )
 
-    if not isinstance(end_date, str|datetime.date) or "-" not in str(end_date):
+    if not isinstance(end_date, str) or "-" not in str(end_date):
         errors.append(
             "Missing or invalid 'end_time' in model.control - must be in 'YYYY-MM-DD' format"
         )
@@ -132,114 +132,6 @@ def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
 
     return model_year, start_date, end_date
 
-
-def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult]:
-    """Validate consistency between model physics options."""
-    results = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-
-    rslmethod = get_value_safe(physics, "rslmethod")
-    stabilitymethod = get_value_safe(physics, "stabilitymethod")
-    storageheatmethod = get_value_safe(physics, "storageheatmethod")
-    ohmincqf = get_value_safe(physics, "ohmincqf")
-
-    # RSL method and stability method dependencies
-    if rslmethod == 2 and stabilitymethod != 3:
-        results.append(
-            ValidationResult(
-                status="ERROR",
-                category="MODEL_OPTIONS",
-                parameter="rslmethod-stabilitymethod",
-                message="If rslmethod == 2, stabilitymethod must be 3",
-                suggested_value="Set stabilitymethod to 3",
-            )
-        )
-
-    elif stabilitymethod == 1 and rslmethod is None:
-        results.append(
-            ValidationResult(
-                status="ERROR",
-                category="MODEL_OPTIONS",
-                parameter="stabilitymethod-rslmethod",
-                message="If stabilitymethod == 1, rslmethod parameter is required for atmospheric stability calculations",
-                suggested_value="Set rslmethod to appropriate value",
-            )
-        )
-
-    else:
-        results.append(
-            ValidationResult(
-                status="PASS",
-                category="MODEL_OPTIONS",
-                parameter="rslmethod-stabilitymethod",
-                message="rslmethod-stabilitymethod constraints satisfied",
-            )
-        )
-
-    # Storage heat method and OhmIncQf compatibility check
-    # Only method 1 (OHM_WITHOUT_QF) has specific compatibility requirements
-    if storageheatmethod == 1 and ohmincqf != 0:
-        results.append(
-            ValidationResult(
-                status="ERROR",
-                category="MODEL_OPTIONS",
-                parameter="storageheatmethod-ohmincqf",
-                message=f"StorageHeatMethod is set to {storageheatmethod} and OhmIncQf is set to {ohmincqf}. You should switch to OhmIncQf=0.",
-                suggested_value="Set OhmIncQf to 0",
-            )
-        )
-    else:
-        results.append(
-            ValidationResult(
-                status="PASS",
-                category="MODEL_OPTIONS",
-                parameter="storageheatmethod-ohmincqf",
-                message="StorageHeatMethod-OhmIncQf compatibility validated",
-            )
-        )
-
-    # SMDMethod and soil_observation dependency
-    smdmethod = get_value_safe(physics, "smdmethod")
-    if smdmethod:  # Truthy check: skips None and 0 (modelled), validates 1+ (observed)
-        sites = yaml_data.get("sites", [])
-        sites_missing_soil_obs = []
-        for site in sites:
-            site_name = site.get("name", "Unknown")
-            properties = site.get("properties", {})
-            soil_obs = properties.get("soil_observation")
-            if soil_obs is None:
-                sites_missing_soil_obs.append(site_name)
-
-        if sites_missing_soil_obs:
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="MODEL_OPTIONS",
-                    parameter="smdmethod-soil_observation",
-                    message=(
-                        f"SMDMethod is set to {smdmethod} (observed soil moisture), "
-                        f"but site(s) {sites_missing_soil_obs} are missing the required "
-                        "'soil_observation' configuration block."
-                    ),
-                    suggested_value=(
-                        "Add 'soil_observation' block to site properties with: "
-                        "depth, smcap, soil_not_rocks, and bulk_density"
-                    ),
-                )
-            )
-        else:
-            results.append(
-                ValidationResult(
-                    status="PASS",
-                    category="MODEL_OPTIONS",
-                    parameter="smdmethod-soil_observation",
-                    message="SMDMethod-soil_observation configuration validated",
-                )
-            )
-    # When SMDMethod=0 (modelled), no validation needed - skip adding PASS result
-    # to reduce noise in validation output.
-
-    return results
 
 def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
     """Validate consistency between model physics options, reporting site names."""
@@ -1077,8 +969,6 @@ def run_scientific_validation_pipeline(
 
     for rule_id, rule_fn in RulesRegistry().items():
         validation_results.extend(rule_fn(yaml_data))
-    
-    validation_results.extend(validate_model_option_dependencies(yaml_data))
 
     validation_results.extend(validate_model_option_samealbedo(yaml_data))
 

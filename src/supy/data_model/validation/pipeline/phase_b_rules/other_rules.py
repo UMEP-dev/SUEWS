@@ -84,3 +84,113 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
         )
 
     return results
+
+
+@RulesRegistry.add_phase_b("option_dependencies")
+def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult]:
+    """Validate consistency between model physics options."""
+    results = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+
+    rslmethod = physics.get("rslmethod")
+    stabilitymethod = physics.get("stabilitymethod")
+    storageheatmethod = physics.get("storageheatmethod")
+    ohmincqf = physics.get("ohmincqf")
+
+    # RSL method and stability method dependencies
+    if rslmethod == 2 and stabilitymethod != 3:
+        results.append(
+            ValidationResult(
+                status="ERROR",
+                category="MODEL_OPTIONS",
+                parameter="rslmethod-stabilitymethod",
+                message="If rslmethod == 2, stabilitymethod must be 3",
+                suggested_value="Set stabilitymethod to 3",
+            )
+        )
+
+    elif stabilitymethod == 1 and rslmethod is None:
+        results.append(
+            ValidationResult(
+                status="ERROR",
+                category="MODEL_OPTIONS",
+                parameter="stabilitymethod-rslmethod",
+                message="If stabilitymethod == 1, rslmethod parameter is required for atmospheric stability calculations",
+                suggested_value="Set rslmethod to appropriate value",
+            )
+        )
+
+    else:
+        results.append(
+            ValidationResult(
+                status="PASS",
+                category="MODEL_OPTIONS",
+                parameter="rslmethod-stabilitymethod",
+                message="rslmethod-stabilitymethod constraints satisfied",
+            )
+        )
+
+    # Storage heat method and OhmIncQf compatibility check
+    # Only method 1 (OHM_WITHOUT_QF) has specific compatibility requirements
+    if storageheatmethod == 1 and ohmincqf != 0:
+        results.append(
+            ValidationResult(
+                status="ERROR",
+                category="MODEL_OPTIONS",
+                parameter="storageheatmethod-ohmincqf",
+                message=f"StorageHeatMethod is set to {storageheatmethod} and OhmIncQf is set to {ohmincqf}. You should switch to OhmIncQf=0.",
+                suggested_value="Set OhmIncQf to 0",
+            )
+        )
+    else:
+        results.append(
+            ValidationResult(
+                status="PASS",
+                category="MODEL_OPTIONS",
+                parameter="storageheatmethod-ohmincqf",
+                message="StorageHeatMethod-OhmIncQf compatibility validated",
+            )
+        )
+
+    # SMDMethod and soil_observation dependency
+    smdmethod = get_value_safe(physics, "smdmethod")
+    if smdmethod:  # Truthy check: skips None and 0 (modelled), validates 1+ (observed)
+        sites = yaml_data.get("sites", [])
+        sites_missing_soil_obs = []
+        for site in sites:
+            site_name = site.get("name", "Unknown")
+            properties = site.get("properties", {})
+            soil_obs = properties.get("soil_observation")
+            if soil_obs is None:
+                sites_missing_soil_obs.append(site_name)
+
+        if sites_missing_soil_obs:
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="MODEL_OPTIONS",
+                    parameter="smdmethod-soil_observation",
+                    message=(
+                        f"SMDMethod is set to {smdmethod} (observed soil moisture), "
+                        f"but site(s) {sites_missing_soil_obs} are missing the required "
+                        "'soil_observation' configuration block."
+                    ),
+                    suggested_value=(
+                        "Add 'soil_observation' block to site properties with: "
+                        "depth, smcap, soil_not_rocks, and bulk_density"
+                    ),
+                )
+            )
+        else:
+            results.append(
+                ValidationResult(
+                    status="PASS",
+                    category="MODEL_OPTIONS",
+                    parameter="smdmethod-soil_observation",
+                    message="SMDMethod-soil_observation configuration validated",
+                )
+            )
+    # When SMDMethod=0 (modelled), no validation needed - skip adding PASS result
+    # to reduce noise in validation output.
+
+    return results

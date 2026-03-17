@@ -309,119 +309,6 @@ def validate_irrigation_doy(
 
     return results
 
-
-def validate_irrigation_parameters(
-    yaml_data: dict, model_year: int
-) -> List[ValidationResult]:
-    """
-    Validate irrigation DOY parameters for all sites.
-
-    Extracts irrigation parameters from each site configuration and validates
-    them using context-aware checks (leap year, hemisphere).
-
-    Args:
-        yaml_data: Complete YAML configuration
-        model_year: Simulation year for leap year detection
-
-    Returns:
-        List of ValidationResult objects for all sites
-    """
-    results = []
-    sites = yaml_data.get("sites", [])
-
-    # Handle both list and dict formats for sites
-    if isinstance(sites, dict):
-        # Dict format: {site_name: {lat: ..., ...}, ...}
-        sites_list = [(site_name, site_data) for site_name, site_data in sites.items()]
-    elif isinstance(sites, list):
-        # List format: [{name: site_name, lat: ..., ...}, ...]
-        sites_list = [
-            (site.get("name", f"site_{idx}"), site) for idx, site in enumerate(sites)
-        ]
-    else:
-        return results  # No valid sites structure
-
-    for site_name, site_data in sites_list:
-        # Extract latitude from properties
-        properties = site_data.get("properties", {})
-        lat = get_value_safe(properties, "lat", 0.0)
-
-        # Extract irrigation parameters from properties
-        irrigation = properties.get("irrigation", {})
-        ie_start = get_value_safe(irrigation, "ie_start")
-        ie_end = get_value_safe(irrigation, "ie_end")
-
-        # Run validation
-        results.extend(
-            validate_irrigation_doy(ie_start, ie_end, lat, model_year, site_name)
-        )
-
-    return results
-
-
-def check_missing_vegetation_albedo(yaml_data: dict) -> List[ValidationResult]:
-    """Report when vegetated surfaces have null alb_id.
-
-    This is informational: SUEWSConfig will auto-calculate alb_id from
-    LAI state before the model run. Trees use a direct LAI-albedo
-    relationship (higher LAI -> higher albedo); grass uses a reversed
-    relationship (higher LAI -> lower albedo).
-    """
-    results = []
-    sites = yaml_data.get("sites", [])
-
-    surface_labels = {
-        "evetr": "evergreen trees",
-        "dectr": "deciduous trees",
-        "grass": "grass",
-    }
-
-    for site_idx, site in enumerate(sites):
-        props = site.get("properties", {})
-        initial_states = site.get("initial_states", {})
-        land_cover = props.get("land_cover", {})
-        site_gridid = get_site_gridid(site)
-
-        for surf_key, surf_label in surface_labels.items():
-            surf_props = land_cover.get(surf_key, {})
-            surf_state = initial_states.get(surf_key, {})
-            if not surf_props or not surf_state:
-                continue
-
-            # Check if surface has non-zero fraction
-            sfr_entry = surf_props.get("sfr", {})
-            sfr_val = (
-                sfr_entry.get("value") if isinstance(sfr_entry, dict) else sfr_entry
-            )
-            if not sfr_val or sfr_val <= 0:
-                continue
-
-            # Check if alb_id is null
-            alb_entry = surf_state.get("alb_id", {})
-            alb_val = (
-                alb_entry.get("value") if isinstance(alb_entry, dict) else alb_entry
-            )
-            if alb_val is not None:
-                continue
-
-            results.append(
-                ValidationResult(
-                    status="INFO",
-                    category="SEASONAL",
-                    parameter=f"{surf_key}.alb_id",
-                    site_index=site_idx,
-                    site_gridid=site_gridid,
-                    message=(
-                        f"alb_id is null for {surf_label} (sfr={sfr_val}). "
-                        "It will be auto-calculated from LAI state during "
-                        "SUEWSConfig construction"
-                    ),
-                )
-            )
-
-    return results
-
-
 def run_scientific_validation_pipeline(
     yaml_data: dict, start_date: str, model_year: int
 ) -> List[ValidationResult]:
@@ -429,11 +316,10 @@ def run_scientific_validation_pipeline(
     validation_results = []
 
     for rule_id, rule_fn in RulesRegistry().phase_b.items():
+        if rule_id == "irrigation":
+            validation_results.extend(rule_fn(yaml_data, model_year))
+            continue
         validation_results.extend(rule_fn(yaml_data))
-
-    validation_results.extend(validate_irrigation_parameters(yaml_data, model_year))
-
-    validation_results.extend(check_missing_vegetation_albedo(yaml_data))
 
     return validation_results
 

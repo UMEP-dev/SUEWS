@@ -747,6 +747,7 @@ CONTAINS
       REAL(KIND(1D0)) :: QEC_dhw_tstepFA
       REAL(KIND(1D0)) :: Unused_heating_setpoint_C = -100
       REAL(KIND(1D0)) :: Unused_cooling_setpoint_C = 100
+      REAL(KIND(1D0)) :: T_watermains_K
       INTEGER :: iu !type of day: weekday/weekend
       INTEGER :: idx !index of profiles for 10 mins interval
       ASSOCIATE ( &
@@ -897,7 +898,11 @@ CONTAINS
                buildings(1)%Ts(2) = Unused_cooling_setpoint_C + 273.15
             END IF
             !calculate water mains temperature 
-            buildings(1)%Tincomingwater_tank = cal_mainsWaterTemperature(id, Tground_deep_sout, MonthMeanAirTemperature_diffmax_sout)
+            T_watermains_K = cal_mainsWaterTemperature(id, Tground_deep_sout, MonthMeanAirTemperature_diffmax_sout)
+            !constrain the temperature between 4 and 20
+            T_watermains_K = min(max(4.0, T_watermains_K), 20.0)
+            buildings(1)%Tincomingwater_tank = T_watermains_K
+            
             CALL setdatetime(datetimeLine)
 
             CALL suewsstebbscouple( &

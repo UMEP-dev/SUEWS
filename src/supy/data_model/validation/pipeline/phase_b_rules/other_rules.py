@@ -426,7 +426,7 @@ def validate_model_option_rcmethod(yaml_data: dict) -> List[ValidationResult]:
     return results
 
 
-
+@RulesRegistry.add_phase_b("land_cover")
 def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
     """Validate land cover fractions and parameters."""
     results = []

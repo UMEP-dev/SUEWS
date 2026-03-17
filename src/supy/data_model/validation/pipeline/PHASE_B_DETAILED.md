@@ -214,6 +214,31 @@ Used for initialising parameters that vary with seasons:
 - STEBBS outdoor surface temperatures
 - Initial state temperatures for all surface types
 
+#### Monthly Diffmax Temperature
+
+```python
+def get_monthly_air_temperature_diffmax(
+    lat: float, lon: float, spatial_res: float = 0.5
+) -> float:
+    """
+    Calculate the maximum difference between mean monthly air temperatures
+    using CRU TS4.06 climatological data. This is defined as the difference 
+    between the warmest and coldest mean monthly temperature within the annual 
+    cycle at the specified location.
+    """
+    monthly_temps = []
+    for month in range(1, 13):
+        monthly_temp = get_mean_monthly_air_temperature(lat, lon, month, spatial_res)
+        monthly_temps.append(monthly_temp)
+    diffmax = float(max(monthly_temps) - min(monthly_temps))
+    return diffmax
+```
+
+This function computes the annual temperature amplitude at a given site by finding the difference between the highest and lowest mean monthly air temperatures from the CRU TS4.06 dataset. 
+
+- **Inputs**: Latitude, longitude, and optional spatial resolution.
+- **Output**: Maximum difference in mean monthly air temperature (°C) for the site.
+
 #### Annual Temperature (Stable Parameters)
 
 ```python

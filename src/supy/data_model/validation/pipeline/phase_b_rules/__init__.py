@@ -4,3 +4,4 @@ from .rules_core import (
 )
 
 from .stebbs_rules import *
+from .other_rules import *

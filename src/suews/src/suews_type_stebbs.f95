@@ -211,6 +211,7 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: metabolism_threshold = 0.0D0
       REAL(KIND(1D0)) :: ratio_metabolic_latent_sensible = 0.0D0
       REAL(KIND(1D0)) :: appliance_power_rating = 0.0D0
+      REAL(KIND(1D0)) :: lighting_power_rating = 0.0D0
       REAL(KIND(1D0)) :: frac_hotwater = 0.0D0
       REAL(KIND(1D0)) :: maxheatingpower_air = 0.0D0
       REAL(KIND(1D0)) :: heating_efficiency_air = 0.0D0

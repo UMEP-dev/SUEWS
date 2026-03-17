@@ -429,6 +429,8 @@ sites:
           '142': 88.0
           '143': 88.0
           '144': 88.0
+      LightingPowerDensity:
+        value: 2.0
       HeatingSystemEfficiency:
         value: 0.8
       MaxCoolingPower:

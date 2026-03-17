@@ -685,6 +685,7 @@ CONTAINS
       REAL(KIND(1D0)) :: Qlw_net_exttankwall_to_indoormass_tstepFA
       REAL(KIND(1D0)) :: Qlw_net_extvesselwall_to_indoormass_tstepFA
       REAL(KIND(1D0)) :: QH_appliance_tstepFA
+      REAL(KIND(1D0)) :: QH_lighting_tstepFA
       REAL(KIND(1D0)) :: QH_ventilation_tstepFA
       REAL(KIND(1D0)) :: QHconv_indair_to_intwall_tstepFA
       REAL(KIND(1D0)) :: QHconv_indair_to_introof_tstepFA
@@ -919,7 +920,7 @@ CONTAINS
                QHconv_water_to_intvesselwall_tstepFA, QHconv_extvesselwall_to_indair_tstepFA, &
                QHcond_wall_tstepFA, QHcond_roof_tstepFA, QHcond_window_tstepFA, QHcond_groundfloor_tstepFA, &
                QHcond_ground_tstepFA, QHcond_tankwall_tstepFA, QHcond_vesselwall_tstepFA, &
-               QH_appliance_tstepFA, QH_metabolism_tstepFA, QHwaste_heating_tstepFA, &
+               QH_appliance_tstepFA, QH_lighting_tstepFA, QH_metabolism_tstepFA, QHwaste_heating_tstepFA, &
                QHwaste_dhw_tstepFA, QH_ventilation_tstepFA, QHload_heating_tstepFA, QHload_cooling_tstepFA, &
                QHload_dhw_tstepFA, QHwaste_cooling_tstepFA, Qloss_drain_tstepFA, QS_wall_tstepFA, QS_roof_tstepFA, &
                QS_groundfloor_tstepFA, QS_window_tstepFA, QS_indoormass_tstepFA, QS_air_tstepFA, &
@@ -959,7 +960,7 @@ CONTAINS
                                 QHconv_water_to_intvesselwall_tstepFA, QHconv_extvesselwall_to_indair_tstepFA, &
                                 QHcond_wall_tstepFA, QHcond_roof_tstepFA, QHcond_window_tstepFA, QHcond_groundfloor_tstepFA, &
                                 QHcond_ground_tstepFA, QHcond_tankwall_tstepFA, QHcond_vesselwall_tstepFA, &
-                                QH_appliance_tstepFA, QH_metabolism_tstepFA, QHwaste_heating_tstepFA, &
+                                QH_appliance_tstepFA, QH_lighting_tstepFA, QH_metabolism_tstepFA, QHwaste_heating_tstepFA, &
                                 QHwaste_dhw_tstepFA, QH_ventilation_tstepFA, QHload_heating_tstepFA, QHload_cooling_tstepFA, &
                                 QHload_dhw_tstepFA, QHwaste_cooling_tstepFA, Qloss_drain_tstepFA, QS_wall_tstepFA, QS_roof_tstepFA, &
                                 QS_groundfloor_tstepFA, QS_window_tstepFA, QS_indoormass_tstepFA, QS_air_tstepFA, &
@@ -985,7 +986,7 @@ SUBROUTINE suewsstebbscouple(self, datetimeLine, &
                             QHconv_water_to_intvesselwall_tstepFA, QHconv_extvesselwall_to_indair_tstepFA, &
                             QHcond_wall_tstepFA, QHcond_roof_tstepFA, QHcond_window_tstepFA, QHcond_groundfloor_tstepFA, &
                             QHcond_ground_tstepFA, QHcond_tankwall_tstepFA, QHcond_vesselwall_tstepFA, &
-                            QH_appliance_tstepFA, QH_metabolism_tstepFA, QHwaste_heating_tstepFA, &
+                            QH_appliance_tstepFA, QH_lighting_tstepFA, QH_metabolism_tstepFA, QHwaste_heating_tstepFA, &
                             QHwaste_dhw_tstepFA, QH_ventilation_tstepFA, QHload_heating_tstepFA, QHload_cooling_tstepFA, &
                             QHload_dhw_tstepFA, QHwaste_cooling_tstepFA, Qloss_drain_tstepFA, QS_wall_tstepFA, QS_roof_tstepFA, &
                             QS_groundfloor_tstepFA, QS_window_tstepFA, QS_indoormass_tstepFA, QS_air_tstepFA, &
@@ -1056,6 +1057,7 @@ SUBROUTINE suewsstebbscouple(self, datetimeLine, &
    REAL(KIND(1D0)), INTENT(OUT) :: QHcond_tankwall_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: QHcond_vesselwall_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: QH_appliance_tstepFA
+   REAL(KIND(1D0)), INTENT(OUT) :: QH_lighting_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: QH_metabolism_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: QHwaste_heating_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: QHwaste_dhw_tstepFA
@@ -1180,21 +1182,22 @@ SUBROUTINE suewsstebbscouple(self, datetimeLine, &
       QHcond_tankwall_tstepFA                         = self%EnergyExchanges(27)
       QHcond_vesselwall_tstepFA                       = self%EnergyExchanges(28)
       QH_appliance_tstepFA                            = self%EnergyExchanges(29)
-      QH_metabolism_tstepFA                           = self%EnergyExchanges(30)
-      QHwaste_heating_tstepFA                         = self%EnergyExchanges(31)
-      QHwaste_dhw_tstepFA                             = self%EnergyExchanges(32)
-      QH_ventilation_tstepFA                          = self%EnergyExchanges(33)
-      QHload_heating_tstepFA                          = self%EnergyExchanges(34)
-      QHload_cooling_tstepFA                          = self%EnergyExchanges(35)
-      QHload_dhw_tstepFA                              = self%EnergyExchanges(36)
-      QHwaste_cooling_tstepFA                         = self%EnergyExchanges(37)
-      Qloss_drain_tstepFA                             = self%EnergyExchanges(38)
-      QS_wall_tstepFA                                 = self%EnergyExchanges(39)
-      QS_roof_tstepFA                                 = self%EnergyExchanges(40)
-      QS_groundfloor_tstepFA                          = self%EnergyExchanges(41)
-      QS_window_tstepFA                               = self%EnergyExchanges(42)
-      QS_indoormass_tstepFA                           = self%EnergyExchanges(43)
-      QS_air_tstepFA                                  = self%EnergyExchanges(44)
+      QH_lighting_tstepFA                             = self%EnergyExchanges(30)
+      QH_metabolism_tstepFA                           = self%EnergyExchanges(31)
+      QHwaste_heating_tstepFA                         = self%EnergyExchanges(32)
+      QHwaste_dhw_tstepFA                             = self%EnergyExchanges(33)
+      QH_ventilation_tstepFA                          = self%EnergyExchanges(34)
+      QHload_heating_tstepFA                          = self%EnergyExchanges(35)
+      QHload_cooling_tstepFA                          = self%EnergyExchanges(36)
+      QHload_dhw_tstepFA                              = self%EnergyExchanges(37)
+      QHwaste_cooling_tstepFA                         = self%EnergyExchanges(38)
+      Qloss_drain_tstepFA                             = self%EnergyExchanges(39)
+      QS_wall_tstepFA                                 = self%EnergyExchanges(40)
+      QS_roof_tstepFA                                 = self%EnergyExchanges(41)
+      QS_groundfloor_tstepFA                          = self%EnergyExchanges(42)
+      QS_window_tstepFA                               = self%EnergyExchanges(43)
+      QS_indoormass_tstepFA                           = self%EnergyExchanges(44)
+      QS_air_tstepFA                                  = self%EnergyExchanges(45)
       QN_bldg_tstepFA      = self%QN_bldg_tstepFA
       QEC_bldg_tstepFA     = self%QEC_bldg_tstepFA
       QS_total_tstepFA     = self%QS_total_tstepFA
@@ -1317,7 +1320,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity, &
       self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity, &
       self%occupants, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
-      self%appliance_power_rating, &
+      self%appliance_power_rating, self%lighting_power_rating,&
       self%maxheatingpower_air, self%heating_efficiency_air, &
       self%maxcoolingpower_air, self%coeff_performance_cooling, &
       self%Vair_ind, self%ventilation_rate, self%Awall, self%Aroof, &
@@ -1375,21 +1378,22 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%EnergyExchanges(27), & !QHcond_tankwall_tstepFA
       self%EnergyExchanges(28), & !QHcond_vesselwall_tstepFA
       self%EnergyExchanges(29), & !QH_appliance_tstepFA
-      self%EnergyExchanges(30), & !QH_metabolism_tstepFA
-      self%EnergyExchanges(31), & !QHwaste_heating_tstepFA
-      self%EnergyExchanges(32), & !QHwaste_dhw_tstepFA
-      self%EnergyExchanges(33), & !QH_ventilation_tstepFA
-      self%EnergyExchanges(34), & !QHload_heating_tstepFA
-      self%EnergyExchanges(35), & !QHload_cooling_tstepFA
-      self%EnergyExchanges(36), & !QHload_dhw_tstepFA
-      self%EnergyExchanges(37), & !QHwaste_cooling_tstepFA
-      self%EnergyExchanges(38), & !Qloss_drain_tstepFA
-      self%EnergyExchanges(39), & !QS_wall_tstepFA
-      self%EnergyExchanges(40), & !QS_roof_tstepFA
-      self%EnergyExchanges(41), & !QS_groundfloor_tstepFA
-      self%EnergyExchanges(42), & !QS_window_tstepFA
-      self%EnergyExchanges(43), & !QS_indoormass_tstepFA
-      self%EnergyExchanges(44), & !QS_air_tstepFA
+      self%EnergyExchanges(30), & !QH_lighting_tstepFA
+      self%EnergyExchanges(31), & !QH_metabolism_tstepFA
+      self%EnergyExchanges(32), & !QHwaste_heating_tstepFA
+      self%EnergyExchanges(33), & !QHwaste_dhw_tstepFA
+      self%EnergyExchanges(34), & !QH_ventilation_tstepFA
+      self%EnergyExchanges(35), & !QHload_heating_tstepFA
+      self%EnergyExchanges(36), & !QHload_cooling_tstepFA
+      self%EnergyExchanges(37), & !QHload_dhw_tstepFA
+      self%EnergyExchanges(38), & !QHwaste_cooling_tstepFA
+      self%EnergyExchanges(39), & !Qloss_drain_tstepFA
+      self%EnergyExchanges(40), & !QS_wall_tstepFA
+      self%EnergyExchanges(41), & !QS_roof_tstepFA
+      self%EnergyExchanges(42), & !QS_groundfloor_tstepFA
+      self%EnergyExchanges(43), & !QS_window_tstepFA
+      self%EnergyExchanges(44), & !QS_indoormass_tstepFA
+      self%EnergyExchanges(45), & !QS_air_tstepFA
       self%QN_bldg_tstepFA, & ! QN_bldg_tstepFA
       self%QEC_bldg_tstepFA, & ! QEC_bldg_tstepFA
       self%QS_total_tstepFA, & ! QS_total_tstepFA
@@ -1428,7 +1432,7 @@ SUBROUTINE tstep( &
    wallTransmisivity, wallAbsorbtivity, wallReflectivity, &
    roofTransmisivity, roofAbsorbtivity, roofReflectivity, &
    occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
-   appliance_power_rating, &
+   appliance_power_rating, lighting_power_rating, &
    maxheatingpower_air, heating_efficiency_air, &
    maxcoolingpower_air, coeff_performance_cooling, &
    Vair_ind, ventilation_rate, Awall, Aroof, &
@@ -1487,21 +1491,22 @@ SUBROUTINE tstep( &
    QHcond_tankwall_tstepFA, & !EE(27)
    QHcond_vesselwall_tstepFA, & !EE(28)
    QH_appliance_tstepFA, & !EE(29)
-   QH_metabolism_tstepFA, & !EE(30)
-   QHwaste_heating_tstepFA, & !EE(31)
-   QHwaste_dhw_tstepFA, & !EE(32)
-   QH_ventilation_tstepFA, & !EE(33)
-   QHload_heating_tstepFA, & !EE(34)
-   QHload_cooling_tstepFA, & !EE(35)
-   QHload_dhw_tstepFA, & !EE(36)
-   QHwaste_cooling_tstepFA, & !EE(37)
-   Qloss_drain_tstepFA, & !EE(38)
-   QS_wall_tstepFA, & !EE(39)
-   QS_roof_tstepFA, & !EE(40)
-   QS_groundfloor_tstepFA, & !EE(41)
-   QS_window_tstepFA, & !EE(42)
-   QS_indoormass_tstepFA, & !EE(43)
-   QS_air_tstepFA, & !EE(44)
+   QH_lighting_tstepFA, & !EE(30)
+   QH_metabolism_tstepFA, & !EE(31)
+   QHwaste_heating_tstepFA, & !EE(32)
+   QHwaste_dhw_tstepFA, & !EE(33)
+   QH_ventilation_tstepFA, & !EE(34)
+   QHload_heating_tstepFA, & !EE(35)
+   QHload_cooling_tstepFA, & !EE(36)
+   QHload_dhw_tstepFA, & !EE(37)
+   QHwaste_cooling_tstepFA, & !EE(38)
+   Qloss_drain_tstepFA, & !EE(39)
+   QS_wall_tstepFA, & !EE(40)
+   QS_roof_tstepFA, & !EE(41)
+   QS_groundfloor_tstepFA, & !EE(42)
+   QS_window_tstepFA, & !EE(43)
+   QS_indoormass_tstepFA, & !EE(44)
+   QS_air_tstepFA, & !EE(45)
 
    QN_bldg_tstepFA, &
    QEC_bldg_tstepFA, &
@@ -1595,7 +1600,7 @@ SUBROUTINE tstep( &
                  roofTransmisivity, roofAbsorbtivity, roofReflectivity ! [-], [-], [-]
    REAL(KIND(1D0)) :: occupants! Number of occupants [-]
    REAL(KIND(1D0)) :: metabolic_rate, ratio_metabolic_latent_sensible, & ! [W], [-]
-                      appliance_power_rating ! [W]
+                      appliance_power_rating, lighting_power_rating ! [W]
    REAL(KIND(1D0)) :: maxheatingpower_air, heating_efficiency_air, & ! [W], [-]
                       maxcoolingpower_air, coeff_performance_cooling, & ! [W], [-]
                       Vair_ind, ventilation_rate, & ! Fixed at begining to have no natural ventilation.
@@ -1638,7 +1643,7 @@ SUBROUTINE tstep( &
    REAL(KIND(1D0)) :: Qsw_transmitted_window, Qsw_absorbed_window, Qsw_absorbed_wall, Qsw_absorbed_roof, &
      QHconv_indair_to_indoormass, Qlw_net_intwall_to_allotherindoorsurfaces, Qlw_net_introof_to_allotherindoorsurfaces, &
                       Qlw_net_intwindow_to_allotherindoorsurfaces, Qlw_net_intgroundfloor_to_allotherindoorsurfaces
-   REAL(KIND(1D0)) :: QH_appliance, QH_ventilation, QHconv_indair_to_intwall, QHconv_indair_to_introof, &
+   REAL(KIND(1D0)) :: QH_appliance, QH_lighting, QH_ventilation, QHconv_indair_to_intwall, QHconv_indair_to_introof, &
                       QHconv_indair_to_intwindow, QHconv_indair_to_intgroundfloor
    REAL(KIND(1D0)) :: QHwaste_heating, QHcond_wall, QHcond_roof, QHcond_window, &
                       QHcond_groundfloor, QHcond_ground
@@ -1654,7 +1659,7 @@ SUBROUTINE tstep( &
                                 Qlw_net_introof_to_allotherindoorsurfaces_tstepTotal, &
                                      Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal, &
                                      Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal
-   REAL(KIND(1D0)) :: QH_appliance_tstepTotal, &
+   REAL(KIND(1D0)) :: QH_appliance_tstepTotal, QH_lighting_tstepTotal,&
                                      QH_ventilation_tstepTotal, &
                                      QHconv_indair_to_intwall_tstepTotal, &
                                 QHconv_indair_to_introof_tstepTotal, &
@@ -1714,6 +1719,7 @@ SUBROUTINE tstep( &
                                     QHcond_tankwall_tstepFA, &
                                     QHcond_vesselwall_tstepFA, &
                                     QH_appliance_tstepFA, &
+                                    QH_lighting_tstepFA, &
                                     QH_metabolism_tstepFA, &
                                     QHwaste_heating_tstepFA, &
                                     QHwaste_dhw_tstepFA, &
@@ -1782,7 +1788,7 @@ SUBROUTINE tstep( &
    Qlw_net_introof_to_allotherindoorsurfaces = 0.0
    Qlw_net_intwindow_to_allotherindoorsurfaces = 0.0
    Qlw_net_intgroundfloor_to_allotherindoorsurfaces = 0.0
-   QH_appliance = 0.0; QH_ventilation = 0.0
+   QH_appliance = 0.0; QH_lighting = 0.0;QH_ventilation = 0.0
    QHconv_indair_to_intwall = 0.0; QHconv_indair_to_introof = 0.0
    QHconv_indair_to_intwindow = 0.0; QHconv_indair_to_intgroundfloor = 0.0
    QHwaste_heating = 0.0; QHcond_wall = 0.0; QHcond_roof = 0.0; QHcond_window = 0.0
@@ -1810,6 +1816,7 @@ SUBROUTINE tstep( &
    Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal = 0.0
    Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal = 0.0
    QH_appliance_tstepTotal = 0.0
+   QH_lighting_tstepTotal = 0.0
    QH_ventilation_tstepTotal = 0.0
    QHconv_indair_to_indoormass_tstepTotal = 0.0
    QHconv_indair_to_intwall_tstepTotal = 0.0
@@ -1864,6 +1871,7 @@ SUBROUTINE tstep( &
          Qlw_net_intwindow_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for window internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
          Qlw_net_intgroundfloor_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for ground floor internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
          QH_appliance = appliance_power_rating
+         QH_lighting = lighting_power_rating
          QH_ventilation = &
             ventilationHeatTransfer(density_air_ind, cp_air_ind, ventilation_rate, Tair_out_hbh, Tair_ind)
          QHconv_indair_to_intwall = &
@@ -1997,7 +2005,7 @@ SUBROUTINE tstep( &
             Qlw_net_intwall_to_allotherindoorsurfaces + Qlw_net_introof_to_allotherindoorsurfaces + &
             Qlw_net_exttankwall_to_indoormass + Qlw_net_extvesselwall_to_indoormass
          QStotal_net_indair = &
-            QH_appliance + QH_metabolism + QH_ventilation + &
+            QH_appliance + QH_lighting + QH_metabolism + QH_ventilation + &
             QHload_heating_timestep - QHload_cooling_timestep - QHconv_indair_to_indoormass - &
             Qlw_net_intwall_to_allotherindoorsurfaces - Qlw_net_introof_to_allotherindoorsurfaces - &
             QHconv_indair_to_intwall - QHconv_indair_to_introof - &
@@ -2072,6 +2080,7 @@ SUBROUTINE tstep( &
             Qlw_net_extvesselwall_to_indoormass_tstepTotal + &
             Qlw_net_extvesselwall_to_indoormass*resolution         
          QH_appliance_tstepTotal = QH_appliance_tstepTotal + QH_appliance*resolution
+         QH_lighting_tstepTotal = QH_lighting_tstepTotal + QH_lighting*resolution
          QH_ventilation_tstepTotal = QH_ventilation_tstepTotal + QH_ventilation*resolution
 
          QHconv_indair_to_intwall_tstepTotal = &
@@ -2269,8 +2278,9 @@ SUBROUTINE tstep( &
       QHcond_tankwall_tstepFA = QHcond_tankwall_tstepTotal / timestep / Afootprint
       QHcond_vesselwall_tstepFA = QHcond_vesselwall_tstepTotal / timestep / Afootprint
       
-      ! Internal heat gains (2)
+      ! Internal heat gains (3)
       QH_appliance_tstepFA = QH_appliance_tstepTotal / timestep / Afootprint
+      QH_lighting_tstepFA = QH_lighting_tstepTotal / timestep / Afootprint
       QH_metabolism_tstepFA = QH_metabolism_tstepTotal / timestep / Afootprint
       !QE_metabolism_tstepFA = QE_metabolism_tstepTotal / timestep / Afootprint
       ! HVAC related (5)
@@ -2298,7 +2308,7 @@ SUBROUTINE tstep( &
       QEC_heating_tstepFA = QHload_heating_tstepFA / heating_efficiency_air
       QEC_cooling_tstepFA = QHload_cooling_tstepFA / coeff_performance_cooling
       QEC_dhw_tstepFA = QHload_dhw_tstepFA / heating_efficiency_air
-      QEC_bldg_tstepFA = QEC_heating_tstepFA + QEC_cooling_tstepFA + QEC_dhw_tstepFA + QH_metabolism_tstepFA + QH_appliance_tstepFA
+      QEC_bldg_tstepFA = QEC_heating_tstepFA + QEC_cooling_tstepFA + QEC_dhw_tstepFA + QH_metabolism_tstepFA + QH_appliance_tstepFA + QH_lighting_tstepFA
       !Convection
       QH_bldg_tstepFA = QHconv_extwall_to_outair_tstepFA + QHconv_extroof_to_outair_tstepFA + QHconv_extwindow_to_outair_tstepFA
       !Building air exchange (ventilation)

@@ -607,6 +607,32 @@ def get_mean_monthly_air_temperature(
 
     return temperature
 
+def get_monthly_air_temperature_diffmax(
+    lat: float, lon: float, spatial_res: float = 0.5
+) -> float:
+    """
+    Calculate the maximum difference between mean monthly air temperatures
+    using CRU TS4.06 climatological data. This is defined as the difference 
+    between the warmest and coldest mean monthly temperature within the annual 
+    cycle at the specified location.
+    
+    Args:
+        lat (float): Site latitude in degrees (positive for Northern Hemisphere, negative for Southern).
+        lon (float): Site longitude in degrees (-180 to 180).
+        spatial_res (float): Search spatial resolution for nearest CRU grid cell. Default 0.5.
+    
+    Returns:
+        float: Maximum difference in mean monthly air temperature (°C).
+    
+    Raises:
+        ValueError, FileNotFoundError: If CRU data cannot be found or inputs are invalid.
+    """
+    monthly_temps = []
+    for month in range(1, 13):
+        monthly_temp = get_mean_monthly_air_temperature(lat, lon, month, spatial_res)
+        monthly_temps.append(monthly_temp)
+    diffmax = float(max(monthly_temps) - min(monthly_temps))
+    return diffmax
 
 def get_mean_annual_air_temperature(
     lat: float, lon: float, spatial_res: float = 0.5

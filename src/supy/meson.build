@@ -131,6 +131,7 @@ py.install_sources(
             'data_model/validation/pipeline/phase_b_rules/__init__.py',
             'data_model/validation/pipeline/phase_b_rules/rules_core.py',
             'data_model/validation/pipeline/phase_b_rules/stebbs_rules.py',
+            'data_model/validation/pipeline/phase_b_rules/other_rules.py',
         ],
         [
             'ext_data/CRU_TS4.06_1991_2020.parquet',

@@ -38,7 +38,6 @@ from supy.data_model.core.state import (
 )
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
-from supy.data_model.validation.pipeline.phase_b import validate_model_option_samealbedo
 from supy.data_model.validation.pipeline.phase_b import validate_model_option_rcmethod, adjust_model_option_stebbsmethod
 from supy.data_model.validation.pipeline.phase_b import adjust_model_option_rcmethod
 from supy.data_model.validation.pipeline.phase_b_rules import RulesRegistry
@@ -627,7 +626,7 @@ def test_phase_b_validate_model_option_samealbedo_disabled():
         },
         "sites": [{"name": "site1", "properties": {}}],  
     }
-    results_wall = validate_model_option_samealbedo(yaml_data_wall)
+    results_wall = RulesRegistry()["samealbedo"](yaml_data_wall)
     assert len(results_wall) == 1
     assert results_wall[0].status == "WARNING"
     assert "no check of consistency" in results_wall[0].message.lower()
@@ -641,7 +640,7 @@ def test_phase_b_validate_model_option_samealbedo_disabled():
         },
         "sites": [{"name": "site1", "properties": {}}],  
     }
-    results_roof = validate_model_option_samealbedo(yaml_data_roof)
+    results_roof = RulesRegistry()["samealbedo"](yaml_data_roof)
     assert len(results_roof) == 1
     assert results_roof[0].status == "WARNING"
     assert "no check of consistency" in results_roof[0].message.lower()
@@ -1557,9 +1556,6 @@ sites:
 
 def test_phase_b_storageheatmethod_ohmincqf_validation():
     """Test StorageHeatMethod-OhmIncQf validation in Phase B."""
-    from supy.data_model.validation.pipeline.phase_b import (
-        validate_model_option_dependencies,
-    )
 
     # Test incompatible combination: StorageHeatMethod=1 requires OhmIncQf=0
     yaml_data_incompatible = {
@@ -1571,7 +1567,7 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
         }
     }
 
-    results = validate_model_option_dependencies(yaml_data_incompatible)
+    results = RulesRegistry()["option_dependencies"](yaml_data_incompatible)
 
     # Should find the incompatible combination
     storage_results = [
@@ -1595,7 +1591,7 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
         }
     }
 
-    results = validate_model_option_dependencies(yaml_data_compatible)
+    results = RulesRegistry()["option_dependencies"](yaml_data_compatible)
 
     # Should pass validation
     storage_results = [
@@ -1611,9 +1607,6 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
 
 def test_phase_b_rsl_stabilitymethod_validation():
     """Test that existing RSL-StabilityMethod validation still works in Phase B."""
-    from supy.data_model.validation.pipeline.phase_b import (
-        validate_model_option_dependencies,
-    )
 
     # Test incompatible combination: rslmethod=2 requires stabilitymethod=3
     yaml_data_incompatible = {
@@ -1625,7 +1618,7 @@ def test_phase_b_rsl_stabilitymethod_validation():
         }
     }
 
-    results = validate_model_option_dependencies(yaml_data_incompatible)
+    results = RulesRegistry()["option_dependencies"](yaml_data_incompatible)
 
     # Should find the incompatible combination
     rsl_results = [r for r in results if "rslmethod-stabilitymethod" in r.parameter]
@@ -1637,10 +1630,6 @@ def test_phase_b_rsl_stabilitymethod_validation():
 
 def test_phase_b_model_option_dependencies_comprehensive():
     """Test validate_model_option_dependencies function with various configurations."""
-    from supy.data_model.validation.pipeline.phase_b import (
-        validate_model_option_dependencies,
-    )
-
     # Test with minimal physics configuration (should all pass)
     yaml_data_minimal = {
         "model": {
@@ -1653,7 +1642,7 @@ def test_phase_b_model_option_dependencies_comprehensive():
         }
     }
 
-    results = validate_model_option_dependencies(yaml_data_minimal)
+    results = RulesRegistry()["option_dependencies"](yaml_data_minimal)
 
     # All should pass
     error_results = [r for r in results if r.status == "ERROR"]
@@ -1680,7 +1669,7 @@ def test_phase_b_model_option_dependencies_comprehensive():
         }
     }
 
-    results = validate_model_option_dependencies(yaml_data_mixed)
+    results = RulesRegistry()["option_dependencies"](yaml_data_mixed)
 
     # Should have one error (RSL) and one pass (storage heat)
     error_results = [r for r in results if r.status == "ERROR"]
@@ -1701,7 +1690,7 @@ def test_phase_b_model_option_dependencies_comprehensive():
     # Test with missing physics section (should handle gracefully)
     yaml_data_no_physics = {"model": {}}
 
-    results = validate_model_option_dependencies(yaml_data_no_physics)
+    results = RulesRegistry()["option_dependencies"](yaml_data_no_physics)
 
     # Should handle gracefully - may have default values or skip validation
     assert isinstance(results, list)  # Should return a list, not crash

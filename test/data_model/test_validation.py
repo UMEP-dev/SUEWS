@@ -38,7 +38,7 @@ from supy.data_model.core.state import (
 )
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
-from supy.data_model.validation.pipeline.phase_b import validate_model_option_rcmethod, adjust_model_option_stebbsmethod
+from supy.data_model.validation.pipeline.phase_b import adjust_model_option_stebbsmethod
 from supy.data_model.validation.pipeline.phase_b import adjust_model_option_rcmethod
 from supy.data_model.validation.pipeline.phase_b_rules import RulesRegistry
 
@@ -657,7 +657,7 @@ def test_validate_model_option_rcmethod_missing_params():
             }
         }],
     }
-    results = validate_model_option_rcmethod(yaml_data)
+    results = RulesRegistry()["rcmethod"](yaml_data)
     params = [r.parameter for r in results]
     assert any("RoofOuterCapFrac" in p for p in params)
     assert any("WallOuterCapFrac" in p for p in params)
@@ -676,7 +676,7 @@ def test_validate_model_option_rcmethod_enabled_invalid_values():
             }
         }],
     }
-    results = validate_model_option_rcmethod(yaml_data)
+    results = RulesRegistry()["rcmethod"](yaml_data)
     assert any("out of valid range" in r.message for r in results)
     assert all(r.status == "ERROR" for r in results)
 
@@ -693,7 +693,7 @@ def test_validate_model_option_rcmethod_enabled_valid_values():
             }
         }],
     }
-    results = validate_model_option_rcmethod(yaml_data)
+    results = RulesRegistry()["rcmethod"](yaml_data)
     assert not results or all(r.status != "ERROR" for r in results)
 
 def test_adjust_model_option_rcmethod_sets_defaults():
@@ -737,7 +737,7 @@ def test_validate_model_option_rcmethod2_missing_params():
             "properties": {"building_archetype": {}},
         }],
     }
-    results = validate_model_option_rcmethod(yaml_data)
+    results = RulesRegistry()["rcmethod"](yaml_data)
     required = [
         "WallextThickness", "WallextEffectiveConductivity", "WallextDensity", "WallextCp",
         "RoofextThickness", "RoofextEffectiveConductivity", "RoofextDensity", "RoofextCp"
@@ -767,7 +767,7 @@ def test_validate_model_option_rcmethod2_all_params_provided():
             }
         }],
     }
-    results = validate_model_option_rcmethod(yaml_data)
+    results = RulesRegistry()["rcmethod"](yaml_data)
     warnings = [r for r in results if r.status == "WARNING"]
     assert any("wall material parameters will be used for parameterisation" in r.message for r in warnings)
     assert any("roof material parameters will be used for parameterisation" in r.message for r in warnings)
@@ -792,7 +792,7 @@ def test_validate_model_option_rcmethod2_some_params_missing():
             }
         }],
     }
-    results = validate_model_option_rcmethod(yaml_data)
+    results = RulesRegistry()["rcmethod"](yaml_data)
     error_params = [r.parameter for r in results if r.status == "ERROR"]
     assert "building_archetype.WallextEffectiveConductivity" in error_params
     assert "building_archetype.WallextCp" in error_params

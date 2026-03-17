@@ -39,7 +39,7 @@ from supy.data_model.core.state import (
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
 from supy.data_model.validation.pipeline.phase_b import validate_model_option_samealbedo
-from supy.data_model.validation.pipeline.phase_b import validate_model_option_rcmethod, validate_model_option_stebbsmethod, adjust_model_option_stebbsmethod
+from supy.data_model.validation.pipeline.phase_b import validate_model_option_rcmethod, adjust_model_option_stebbsmethod
 from supy.data_model.validation.pipeline.phase_b import adjust_model_option_rcmethod
 from supy.data_model.validation.pipeline.phase_b_rules import RulesRegistry
 
@@ -818,7 +818,6 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid():
             }
         }],
     }
-    # results = validate_model_option_stebbsmethod(yaml_data)
     results = RulesRegistry()["stebbs_props"](yaml_data)
     assert not results, "Should not return errors for valid HotWaterFlowProfile values"
 
@@ -839,7 +838,6 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid():
             }
         }],
     }
-    # results = validate_model_option_stebbsmethod(yaml_data)
     results = RulesRegistry()["stebbs_props"](yaml_data)
     error_params = [r.parameter for r in results]
     assert "stebbs.HotWaterFlowProfile.working_day.0" in error_params
@@ -864,7 +862,6 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing():
             }
         }],
     }
-    # results = validate_model_option_stebbsmethod(yaml_data)
     results = RulesRegistry()["stebbs_props"](yaml_data)
     assert not results, "Should not return errors if HotWaterFlowProfile is missing"
 
@@ -885,7 +882,6 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial():
             }
         }],
     }
-    # results = validate_model_option_stebbsmethod(yaml_data)
     results = RulesRegistry()["stebbs_props"](yaml_data)
     error_params = [r.parameter for r in results]
     assert "stebbs.HotWaterFlowProfile.working_day.2" in error_params
@@ -912,7 +908,7 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_non
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    results = RulesRegistry()["occupants_metabolism"](yaml_data)
     error_params = [r.parameter for r in results]
     assert "building_archetype.MetabolismProfile" in error_params
     assert any("nonzero entries" in r.message for r in results)
@@ -937,7 +933,7 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_all
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    results = RulesRegistry()["occupants_metabolism"](yaml_data)
     assert not results, "Should not return errors when all MetabolismProfile values are zero or None"
 
 def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_nonzero():
@@ -959,7 +955,7 @@ def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    results = RulesRegistry()["occupants_metabolism"](yaml_data)
     assert not results, "Should not return errors when Occupants > 0"
 
 @pytest.mark.parametrize(

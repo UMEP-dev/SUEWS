@@ -2370,6 +2370,22 @@ def test_get_mean_annual_air_temperature_invalid_longitude():
     with pytest.raises(ValueError, match="Longitude must be between -180 and 180"):
         get_mean_annual_air_temperature(45.0, 185.0)
 
+def test_get_monthly_air_temperature_diffmax_valid():
+    """Test get_monthly_air_temperature_diffmax returns a float for valid input."""
+    try:
+        diff = get_monthly_air_temperature_diffmax(45.0, 10.0)
+        assert isinstance(diff, float)
+        assert -50 <= diff <= 50  # Reasonable temperature difference range
+    except FileNotFoundError:
+        pytest.skip("CRU data file not available for temperature calculation")
+
+def test_get_monthly_air_temperature_diffmax_invalid():
+    """Test get_monthly_air_temperature_diffmax raises ValueError for invalid input."""
+    with pytest.raises(ValueError, match="Latitude must be between -90 and 90"):
+        get_monthly_air_temperature_diffmax(100.0, 10.0)
+    with pytest.raises(ValueError, match="Longitude must be between -180 and 180"):
+        get_monthly_air_temperature_diffmax(45.0, 200.0)
+
 def test_get_monthly_air_temperature_diffmax_invalid_latitude():
     """Test get_monthly_air_temperature_diffmax raises ValueError for invalid latitude."""
     with pytest.raises(ValueError, match="Latitude must be between -90 and 90"):
@@ -2380,15 +2396,6 @@ def test_get_monthly_air_temperature_diffmax_invalid_longitude():
     with pytest.raises(ValueError, match="Longitude must be between -180 and 180"):
         get_monthly_air_temperature_diffmax(45.0, 200.0)
 
-def test_get_monthly_air_temperature_diffmax_valid():
-    """Test get_monthly_air_temperature_diffmax returns a float for valid input."""
-    try:
-        diff = get_monthly_air_temperature_diffmax(45.0, 10.0)
-        assert isinstance(diff, float)
-        assert -50 <= diff <= 50  # Reasonable temperature difference range
-    except FileNotFoundError:
-        pytest.skip("CRU data file not available for temperature calculation")
-        
 class TestPrecheckRefValueHandling:
     """Test cases for precheck RefValue handling bug fixes."""
 

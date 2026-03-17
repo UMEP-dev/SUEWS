@@ -53,11 +53,12 @@ EXAMPLES:
 
 ## 2026
 
+### 16 Mar 2026
+
+- [feature][experimental] Refine `_is_physics_explicitly_configured` to use Pydantic v2 `model_fields_set`, enabling conditional validation when physics options are explicitly set by user inputs (PR #1247).
+
 ### 15 Mar 2026
 
-- [feature] Refine the logic in _is_physics_explicitly_configured to ensure that conditional physics validations is explicitly triggered by user inputs (PR #1247).
-
-### 15 Mar 2026
 - [feature][experimental] Add new adjustment function for STEBBS and implement WWR related adjustments when STEBBS method is on (PR #1244).
 
 ### 13 Mar 2026

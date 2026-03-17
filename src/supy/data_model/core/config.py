@@ -1442,6 +1442,17 @@ class SUEWSConfig(BaseModel):
             return False
 
     def _is_physics_explicitly_configured(self, option_name: str) -> bool:
+        """Check whether a physics option was explicitly set by the user.
+
+        Uses Pydantic v2 ``model_fields_set`` to distinguish user-provided
+        values from defaults, so conditional validation only fires when the
+        user actively chose the option.
+
+        Parameters
+        ----------
+        option_name : str
+            Name of the physics field to check (e.g. ``"rslmethod"``).
+        """
         physics = getattr(self.model, "physics", None)
         return bool(physics and hasattr(physics, "model_fields_set") and option_name in physics.model_fields_set)
 

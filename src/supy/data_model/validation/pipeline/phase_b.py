@@ -1495,21 +1495,26 @@ def adjust_surface_temperatures(
 
         # Update MonthMeanTemperature_diffmax in stebbs if present
         diffmax_val = get_monthly_air_temperature_diffmax(lat, lng)
-        for key in ("MonthMeanAirTemperature_diffmax",):
-            if key in stebbs and isinstance(stebbs[key], dict):
-                old_val = stebbs[key].get("value")
-                if old_val != diffmax_val:
-                    stebbs[key]["value"] = diffmax_val
-                    adjustments.append(
-                        ScientificAdjustment(
-                        parameter=f"stebbs.{key}",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        old_value=str(old_val),
-                        new_value=f"{diffmax_val} C",
-                        reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f})",
+
+
+        if diffmax_val is None:
+            logger_supy.debug("Skipping diffmax update - CRU data not available")
+        else:
+            for key in ("MonthMeanAirTemperature_diffmax",):
+                if key in stebbs and isinstance(stebbs[key], dict):
+                    old_val = stebbs[key].get("value")
+                    if old_val != diffmax_val:
+                        stebbs[key]["value"] = diffmax_val
+                        adjustments.append(
+                            ScientificAdjustment(
+                            parameter=f"stebbs.{key}",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            old_value=str(old_val),
+                            new_value=f"{diffmax_val} C",
+                            reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f})",
+                            )
                         )
-                    )
 
         # Update STEBBS OutdoorAirAnnualTemperature using annual mean from CRU data
         annual_temp = get_mean_annual_air_temperature(lat, lng)

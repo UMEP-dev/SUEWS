@@ -784,10 +784,6 @@ sites:
         value: 0.8
       HotWaterHeatingEfficiency:
         value: 0.8
-      MinimumVolumeOfDHWinUse:
-        value: 0.1
-      MaximumVolumeOfDHWinUse:
-        value: 100.0
     building_archetype:
       BuildingType: test
       BuildingName: test
@@ -2631,7 +2627,7 @@ sites:
         - 0.0
         - 4.0
         - 7.0
-        - 11.0
+        - 26.0
       veg_frac:
         value:
         - 0.037
@@ -2646,12 +2642,12 @@ sites:
         value:
         - 0.351
         - 0.28
-        - 0.202
+        - 0.027
       building_scale:
         value:
         - 21.66
         - 21.49
-        - 21.13
+        - 19.43
       roofs:
       - alb:
           value: 0.345

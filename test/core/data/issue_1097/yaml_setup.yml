@@ -208,8 +208,6 @@ sites:
         value: null
       HotWaterHeatingEfficiency:
         value: null
-      MinimumVolumeOfDHWinUse:
-        value: null
       InitialOutdoorTemperature:
         value: null
       InitialIndoorTemperature:

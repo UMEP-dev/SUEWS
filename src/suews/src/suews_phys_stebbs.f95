@@ -1286,7 +1286,8 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%emissivity_extwall_tank, self%conductivity_wall_vessel, &
       self%conv_coeff_intwall_vessel, self%conv_coeff_extwall_vessel, &
       self%emissivity_extwall_vessel, self%HeatingPower_DHW, &
-      self%heating_efficiency_water, self%minVwater_vessel, self%maxVwater_vessel, &
+      self%heating_efficiency_water, &
+      !self%minVwater_vessel, self%maxVwater_vessel, &
       self%weighting_factor_heatcapacity_wall, self%weighting_factor_heatcapacity_roof, &
       !
       ! Output only variables
@@ -1397,7 +1398,8 @@ SUBROUTINE tstep( &
    emissivity_extwall_tank, conductivity_wall_vessel, &
    conv_coeff_intwall_vessel, conv_coeff_extwall_vessel, &
    emissivity_extwall_vessel, maxheatingpower_water, &
-   heating_efficiency_water, minVwater_vessel, maxVwater_vessel, &
+   heating_efficiency_water, &
+   !minVwater_vessel, maxVwater_vessel, &
    weighting_factor_heatcapacity_wall, weighting_factor_heatcapacity_roof, &
    !
    ! Output only variables
@@ -1570,8 +1572,8 @@ SUBROUTINE tstep( &
                       Qtotal_net_intwall_vessel, Qtotal_net_extwall_vessel
    REAL(KIND(1D0)) :: qhwt_timestep
    REAL(KIND(1D0)) :: VARatio_water_vessel
-   REAL(KIND(1D0)) :: minVwater_vessel
-   REAL(KIND(1D0)) :: maxVwater_vessel
+   !REAL(KIND(1D0)) :: minVwater_vessel
+   !REAL(KIND(1D0)) :: maxVwater_vessel
    REAL(KIND(1D0)) :: weighting_factor_heatcapacity_wall, weighting_factor_heatcapacity_roof
    REAL(KIND(1D0)), DIMENSION(2) :: Ts ! Heating and Cooling setpoint temperature (K)s, respectively
    REAL(KIND(1D0)), DIMENSION(2) :: Qm ! Metabolic heat, sensible(1) and latent(2)
@@ -1915,14 +1917,14 @@ SUBROUTINE tstep( &
 
             ! Heat transfer due to use and replacement of water
             ! qhwt_v = waterUseHeatTransfer(density_water, cp_water, flowrate_water_supply, Tincomingwater_tank, Twater_tank)
-         ELSEIF (Vwater_vessel == minVwater_vessel .AND. &
-                 flowrate_water_supply < flowrate_water_drain) THEN
+         !ELSEIF (Vwater_vessel == minVwater_vessel .AND. &
+         !        flowrate_water_supply < flowrate_water_drain) THEN
             ! Set drain flow rate to match supply to prevent volume going below minimum (minVwater_vessel)
-            flowrate_water_drain = flowrate_water_supply
-         ELSEIF (maxVwater_vessel > 0.0D0 .AND. Vwater_vessel >= maxVwater_vessel .AND. &
-                 flowrate_water_supply > flowrate_water_drain) THEN
+         !   flowrate_water_drain = flowrate_water_supply
+         !ELSEIF (maxVwater_vessel > 0.0D0 .AND. Vwater_vessel >= maxVwater_vessel .AND. &
+         !        flowrate_water_supply > flowrate_water_drain) THEN
             ! Set supply flow rate to match drain to prevent volume exceeding maximum (maxVwater_vessel) - GH-340
-            flowrate_water_supply = flowrate_water_drain
+         !   flowrate_water_supply = flowrate_water_drain
          END IF ifVwater_vessel
 
          Qtotal_net_water_tank = qhwt_timestep - QHconv_water_to_inttankwall
@@ -2113,13 +2115,13 @@ SUBROUTINE tstep( &
          Qloss_drain_tstepTotal = Qloss_drain_tstepTotal + Qloss_drain * resolution
          dVwater_vessel = (flowrate_water_supply - flowrate_water_drain)*resolution
          Vwater_vessel = Vwater_vessel + dVwater_vessel
-         IF (Vwater_vessel < minVwater_vessel) THEN
-            Vwater_vessel = minVwater_vessel
-         END IF
+         !IF (Vwater_vessel < minVwater_vessel) THEN
+         !   Vwater_vessel = minVwater_vessel
+         !END IF
          ! Maximum volume cap as safety net (GH-340)
-         IF (maxVwater_vessel > 0.0D0 .AND. Vwater_vessel > maxVwater_vessel) THEN
-            Vwater_vessel = maxVwater_vessel
-         END IF
+         !IF (maxVwater_vessel > 0.0D0 .AND. Vwater_vessel > maxVwater_vessel) THEN
+         !   Vwater_vessel = maxVwater_vessel
+         !END IF
          Twater_vessel = &
             (((flowrate_water_supply*resolution)*Twater_tank) + &
              ((Vwater_vessel - (flowrate_water_supply*resolution))*Twater_vessel))/Vwater_vessel
@@ -2461,29 +2463,39 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
 
    self%maxheatingpower_water = building_archtype%MaximumHotWaterHeatingPower ! # Watts
    self%heating_efficiency_water = stebbsPrm%HotWaterHeatingEfficiency
-   self%minVwater_vessel = stebbsPrm%MinimumVolumeOfDHWinUse ! # m3
-   self%maxVwater_vessel = stebbsPrm%MaximumVolumeOfDHWinUse ! # m3
+   !self%minVwater_vessel = stebbsPrm%MinimumVolumeOfDHWinUse ! # m3
+   !self%maxVwater_vessel = stebbsPrm%MaximumVolumeOfDHWinUse ! # m3
 
    self%minHeatingPower_DHW = building_archtype%MaximumHotWaterHeatingPower
    self%HeatingPower_DHW = building_archtype%MaximumHotWaterHeatingPower
 
    self%HWPowerAverage = (/30000, 30000, 30000/)
-   self%weighting_factor_heatcapacity_wall = building_archtype%WallOuterCapFrac
-   self%weighting_factor_heatcapacity_roof = building_archtype%RoofOuterCapFrac
 
-   IF (config%rcmethod  == 2) THEN
-      !recalculate the weighting factor for splitting heat capacity (OuterCapFrac)
+   IF (config%rcmethod  == 0) THEN !default value
+      self%weighting_factor_heatcapacity_wall = 0.5
+      self%weighting_factor_heatcapacity_roof = 0.5
+
+   ELSEIF (config%rcmethod  == 1) THEN !provided fractional value
+      self%weighting_factor_heatcapacity_wall = building_archtype%WallOuterCapFrac
+      self%weighting_factor_heatcapacity_roof = building_archtype%RoofOuterCapFrac  
+
+   ELSEIF (config%rcmethod == 2) THEN !recalculate the weighting factor for splitting heat capacity (OuterCapFrac) by parameterisation
       self%weighting_factor_heatcapacity_wall = calculate_x1(self%thickness_wall, self%cp_wall, self%density_wall, &
                                              self%thickness_wallext, self%cp_wallext, self%density_wallext, self%conductivity_wallext)
       self%weighting_factor_heatcapacity_roof = calculate_x1(self%thickness_roof, self%cp_roof, self%density_roof, &
                                              self%thickness_roofext, self%cp_roofext, self%density_roofext, self%conductivity_roofext)
       IF (self%weighting_factor_heatcapacity_wall > 1) THEN
-         CALL add_supy_warning('STEBBS: Wall_OuterCapFrac > 1, parameterisation should not be used')
+         CALL add_supy_warning('STEBBS: Wall_OuterCapFrac > 1, parameterisation should not be used, check thermal property of material external to insulation layer')
       END IF
       IF (self%weighting_factor_heatcapacity_roof > 1) THEN
-         CALL add_supy_warning('STEBBS: Roof_OuterCapFrac > 1, parameterisation should not be used')
-      END IF  
-   END IF                                                    
+         CALL add_supy_warning('STEBBS: Roof_OuterCapFrac > 1, parameterisation should not be used, check thermal property of material external to insulation layer')
+      END IF
+
+   ELSE
+      CALL add_supy_warning('STEBBS: unrecognised rcmethod value, defaulting to 0.5')
+      self%weighting_factor_heatcapacity_wall = 0.5
+      self%weighting_factor_heatcapacity_roof = 0.5
+   END IF
 END SUBROUTINE gen_building
 
 SUBROUTINE create_building(CASE, self, icase)
@@ -2658,8 +2670,8 @@ SUBROUTINE create_building(CASE, self, icase)
 
    self%maxheatingpower_water = 3000 ! # Watts
    self%heating_efficiency_water = 0.95
-   self%minVwater_vessel = 0.1 ! # m3
-   self%maxVwater_vessel = 100.0 ! # m3 - arbitrary placeholder (GH-340), to be refined with validation
+   !self%minVwater_vessel = 0.1 ! # m3
+   !self%maxVwater_vessel = 100.0 ! # m3 - arbitrary placeholder (GH-340), to be refined with validation
 
    self%minHeatingPower_DHW = 3000
    self%HeatingPower_DHW = 3000

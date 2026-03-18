@@ -71,7 +71,7 @@ def _select_forcing_window(df_forcing_full):
     steps = min(requested_steps, len(forcing_day))
     return forcing_day.iloc[:steps]
 
-
+@pytest.mark.skip
 @pytest.mark.core
 @pytest.mark.slow
 def test_maximum_volume_capping():
@@ -116,7 +116,7 @@ def test_maximum_volume_capping():
         f"({max_volume} m3). GH-340 fix not working correctly."
     )
 
-
+@pytest.mark.skip
 @pytest.mark.core
 @pytest.mark.slow
 def test_volume_accumulation_with_supply_greater_than_drain():
@@ -179,6 +179,7 @@ def test_volume_accumulation_with_supply_greater_than_drain():
         f"Observed values: {vwater_vessel.unique()}"
     )
 
+@pytest.mark.skip
 @pytest.mark.core
 @pytest.mark.slow
 def test_maximum_volume_disabled_when_zero():
@@ -224,7 +225,7 @@ def test_maximum_volume_disabled_when_zero():
         f"Initial: {initial_vol}, Mean: {mean_vol:.4f}"
     )
 
-
+@pytest.mark.skip
 @pytest.mark.core
 @pytest.mark.slow
 def test_minimum_volume_still_enforced():
@@ -273,7 +274,7 @@ def test_minimum_volume_still_enforced():
         f"({min_volume} m3). Minimum constraint may be broken."
     )
 
-
+@pytest.mark.skip
 @pytest.mark.core
 @pytest.mark.slow
 def test_volume_stability_at_maximum():

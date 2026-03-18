@@ -203,8 +203,6 @@ class SUEWSConfig(BaseModel):
         "DHWVesselExternalWallConvectionCoefficient",
         "DHWVesselWallEmissivity",
         "HotWaterHeatingEfficiency",
-        "MinimumVolumeOfDHWinUse",
-        "MaximumVolumeOfDHWinUse",
     ]
 
     ARCHETYPE_REQUIRED_PARAMS: ClassVar[List[str]] = [
@@ -1283,10 +1281,61 @@ class SUEWSConfig(BaseModel):
                 if val is None:
                     missing_params.append(param)
 
+        # Check if WWR (Window-to-Wall Ratio) is present and zero or one
+        wwr = getattr(building_archetype, "WWR", None)
+        wwr_val = _unwrap_value(wwr) if wwr is not None else None
+
+        # Window parameter lists
+        window_params_stebbs = [
+            "WindowInternalConvectionCoefficient",
+            "WindowExternalConvectionCoefficient",
+        ]
+        window_params_bldgarc = [
+            "WindowThickness",
+            "WindowEffectiveConductivity",
+            "WindowDensity",
+            "WindowCp",
+            "WindowExternalEmissivity",
+            "WindowInternalEmissivity",
+            "WindowTransmissivity",
+            "WindowAbsorbtivity",
+            "WindowReflectivity",
+        ]
+
+        # Wall parameter lists for WWR == 1.0
+        wall_params_stebbs = [
+            "WallExternalConvectionCoefficient",
+            "WallInternalConvectionCoefficient",
+            ]
+        wall_params_bldgarc = [
+            "WallExternalEmissivity",
+            "WallInternalEmissivity",
+            "WallTransmissivity",
+            "WallAbsorbtivity",
+            "WallReflectivity",
+            "WallThickness",
+            "WallEffectiveConductivity",
+            "WallDensity",
+            "WallCp",
+        ]
+
+        # Determine which params to require based on WWR
+        if wwr_val == 0.0:
+            # Exclude window params if WWR is zero
+            stebbs_required = [p for p in self.STEBBS_REQUIRED_PARAMS if p not in window_params_stebbs]
+            archetype_required = [p for p in self.ARCHETYPE_REQUIRED_PARAMS if p not in window_params_bldgarc]
+        elif wwr_val == 1.0:
+            # Exclude external wall params if WWR is one
+            stebbs_required = [p for p in self.STEBBS_REQUIRED_PARAMS if p not in wall_params_stebbs]
+            archetype_required = [p for p in self.ARCHETYPE_REQUIRED_PARAMS if p not in wall_params_bldgarc]
+        else:
+            stebbs_required = self.STEBBS_REQUIRED_PARAMS
+            archetype_required = self.ARCHETYPE_REQUIRED_PARAMS
+
         # Validate stebbs required params
-        _check_required(stebbs, self.STEBBS_REQUIRED_PARAMS)
+        _check_required(stebbs, stebbs_required)
         # Validate building_archetype required params
-        _check_required(building_archetype, self.ARCHETYPE_REQUIRED_PARAMS)
+        _check_required(building_archetype, archetype_required)
 
         ## Always list all missing parameters, regardless of count
         if missing_params:
@@ -1317,11 +1366,7 @@ class SUEWSConfig(BaseModel):
 
         # Only validate if method == 2 AND it was explicitly set
         if method == 2:
-            # Check if this is likely a default value by checking if other physics
-            # parameters are also at their defaults, suggesting the entire physics
-            # section was auto-generated rather than user-specified
-            return self._is_physics_explicitly_configured()
-
+            return self._is_physics_explicitly_configured("rslmethod")
         return False
 
     def _validate_rsl(self, site: Site, site_index: int) -> List[str]:
@@ -1374,7 +1419,7 @@ class SUEWSConfig(BaseModel):
 
         # Only validate if method == 6 or 7 AND it was explicitly set
         if shm == 6 or shm == 7:
-            return self._is_physics_explicitly_configured()
+            return self._is_physics_explicitly_configured("storageheatmethod")
         return False
     
     def _needs_samealbedo_wall_validation(self) -> bool:
@@ -1396,26 +1441,20 @@ class SUEWSConfig(BaseModel):
         except (TypeError, ValueError):
             return False
 
-    def _is_physics_explicitly_configured(self) -> bool:
+    def _is_physics_explicitly_configured(self, option_name: str) -> bool:
+        """Check whether a physics option was explicitly set by the user.
+
+        Uses Pydantic v2 ``model_fields_set`` to distinguish user-provided
+        values from defaults, so conditional validation only fires when the
+        user actively chose the option.
+
+        Parameters
+        ----------
+        option_name : str
+            Name of the physics field to check (e.g. ``"rslmethod"``).
         """
-        Heuristic to determine if physics parameters were explicitly set by the user
-        rather than using all default values.
-
-        For now, we'll be conservative and assume that if no model section was
-        provided by the user, then conditional validation should not apply.
-
-        Returns True if physics appears to be explicitly configured.
-        """
-        # For now, disable conditional validation entirely for configs that
-        # don't explicitly set the problematic physics methods
-        # This is a conservative approach that avoids breaking existing tests
-
-        # The real solution would be to track whether fields were explicitly set
-        # vs using defaults, but that requires more complex Pydantic handling
-
-        # For now, return False to disable conditional validation unless
-        # explicitly enabled during testing
-        return False
+        physics = getattr(self.model, "physics", None)
+        return bool(physics and hasattr(physics, "model_fields_set") and option_name in physics.model_fields_set)
 
     def _validate_storage(self, site: Site, site_index: int) -> List[str]:
         issues: List[str] = []
@@ -1684,6 +1723,64 @@ class SUEWSConfig(BaseModel):
                 )
 
         return issues
+    
+    def _validate_spartacus_veg_dimensions(self, site: Site, site_index: int) -> list:
+        """
+        Check that veg_scale and veg_frac are zero above the layer where max_tree falls.
+        max_tree = max(dectreeh, evetreeh)
+        The first layer where max_tree <= height[layer] (layer index 1..nlayer) is the tree layer.
+        All veg_scale and veg_frac entries from this layer onward (i.e., layer_index to nlayer-1) must be zero.
+        """
+        issues: list = []
+        site_name = getattr(site, "name", f"Site {site_index}")
+
+        vertical_layers = getattr(getattr(site, "properties", None), "vertical_layers", None)
+        land_cover = getattr(getattr(site, "properties", None), "land_cover", None)
+
+        # Get tree heights
+        dectreeh = _unwrap_value(getattr(getattr(land_cover, "dectr", None), "dectreeh", None)) if land_cover and getattr(land_cover, "dectr", None) else None
+        evetreeh = _unwrap_value(getattr(getattr(land_cover, "evetr", None), "evetreeh", None)) if land_cover and getattr(land_cover, "evetr", None) else None
+        
+        # Compute max_tree
+        tree_heights = [h for h in [dectreeh, evetreeh] if h is not None]
+        if not tree_heights:
+            return issues  # No tree heights to check
+
+        max_tree = max(tree_heights)
+
+        # Get height array (should be nlayer+1)
+        height_arr = _unwrap_value(getattr(vertical_layers, "height", None)) if vertical_layers else None
+        if not isinstance(height_arr, (list, tuple)) or len(height_arr) < 2:
+            return issues  # Not enough height info
+
+        # Find the first layer where max_tree <= height[layer] (layer index 1..nlayer)
+        layer_index = None
+        for i in range(1, len(height_arr)):
+            if max_tree <= height_arr[i]:
+                layer_index = i
+                break
+        if layer_index is None:
+            # max_tree exceeds all layers
+            issues.append(
+                f"Site {site_name}: max_tree ({max_tree}) exceeds all vertical_layers heights."
+            )
+            return issues
+
+        # Check veg_scale and veg_frac from the tree layer onward (layer_index to nlayer-1)
+        veg_scale = _unwrap_value(getattr(vertical_layers, "veg_scale", None)) if vertical_layers else None
+        veg_frac = _unwrap_value(getattr(vertical_layers, "veg_frac", None)) if vertical_layers else None
+
+        nlayer = len(height_arr) - 1  # nlayer is height_arr length minus 1
+
+        for arr_name, arr in [("veg_scale", veg_scale), ("veg_frac", veg_frac)]:
+            if isinstance(arr, (list, tuple)):
+                for i in range(layer_index, min(nlayer, len(arr))):
+                    val = arr[i]
+                    if not np.isclose(val, 0, atol=1e-6):
+                        issues.append(
+                            f"Site {site_name}: {arr_name}[{i}] should be zero (provided max tree height {max_tree} does not reach height {height_arr[i+1]} of layer {i+1})."
+                        )
+        return issues
 
     def _validate_conditional_parameters(self) -> List[str]:
         """
@@ -1758,7 +1855,7 @@ class SUEWSConfig(BaseModel):
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(samealbedo_roof_issues)
 
-            # SPARTACUS building height and SFR consistency checks
+            # SPARTACUS building height, sfr, and vegetation consistency checks
             if needs_spartacus:
                 spartacus_issues = self._validate_spartacus_building_height(site, idx)
                 if spartacus_issues:
@@ -1773,6 +1870,13 @@ class SUEWSConfig(BaseModel):
                     if site_name not in self._validation_summary["sites_with_issues"]:
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(spartacus_sfr_issues)
+
+                spartacus_veg_issues = self._validate_spartacus_veg_dimensions(site, idx)
+                if spartacus_veg_issues:
+                    self._validation_summary["issue_types"].add("SPARTACUS vegetation layer consistency")
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(spartacus_veg_issues)
         return all_issues
 
     def _check_critical_null_physics_params(self) -> List[str]:

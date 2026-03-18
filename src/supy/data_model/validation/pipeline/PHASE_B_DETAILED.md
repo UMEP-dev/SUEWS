@@ -39,6 +39,7 @@ Phase B implements a multi-layered scientific validation system that:
 - `extract_simulation_parameters()`: Extract and validate simulation parameters with comprehensive error collection
 - `validate_physics_parameters()`: Required physics parameter validation
 - `validate_model_option_dependencies()`: Physics option consistency checking
+- `validate_model_option_rcmethod()`: RCMethod option related checks
 - `validate_land_cover_consistency()`: Surface fraction and parameter validation
 - `validate_geographic_parameters()`: Coordinate and location validation
 - `validate_irrigation_doy()`: Irrigation timing validation with hemisphere and leap year awareness
@@ -131,6 +132,24 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
 
     return results
 ```
+
+### RCMethod Validation
+
+Validates the `rcmethod` parameter and related roof/wall options:
+
+- **Consistency Validation**: Ensures that roof and wall parameters are compatible with the selected `rcmethod`.
+- **Error Handling**: If required parameters for `rcmethod` are missing or invalid, Phase B generates ERROR or WARNING status in the validation report.
+
+### STEBBSMethod Validation
+
+Validates the `stebbsmethod` parameter and related STEBBS and building archetype options:
+
+- **HotWaterFlowProfile Validation**: If `stebbsmethod == 1`, checks that all hourly values in `HotWaterFlowProfile` for each site and day type (`working_day`, `holiday`) are either 0 or 1 (integer or float). Any invalid value generates an ERROR in the validation report, specifying the site, hour, and suggested correction.
+
+- **Occupants and MetabolismProfile Validation**: If `Occupants` is set to `0.0` for a site, all values in the corresponding `MetabolismProfile` (for both `working_day` and `holiday`) must be `0`, `0.0`, or `None`. If any nonzero value is found, an ERROR is generated, listing the problematic entries and suggesting that all values be set to 0.
+
+- **Error Handling**: All validation errors specify the site, parameter, and suggested correction in the validation report.
+
 
 ### Land Cover Consistency
 
@@ -269,11 +288,19 @@ Phase B makes scientific adjustments that improve model realism without changing
 
 ### STEBBS Method Integration
 
-- **Conditional Logic**: When `stebbsmethod == 0`, nullifies STEBBS parameters
+- **Conditional Logic**: 
+    - When `stebbsmethod == 0`, nullifies STEBBS parameters.
+    - When `stebbsmethod == 1`, checks `WWR`:
+        - If `stebbsmethod == 1` and `WWR == 0.0`, all window-related parameters are set to `None`.
+        - If `stebbsmethod == 1` and `WWR == 1.0`, all external wall-related parameters are set to `None`.
 - **Parameter Cleanup**: Removes unused STEBBS parameters for clarity
 - **Consistency**: Ensures STEBBS configuration matches selected method
 - **Temperature Initialisation**: When `stebbsmethod == 1`, automatically updates `InitialOutdoorTemperature` and `InitialIndoorTemperature` using CRU climatological data
 - **CRU-Based Updates**: Uses location-specific mean monthly air temperature from CRU TS4.06 dataset
+
+### RC Method Integration
+
+- **Conditional Logic**: When `rcmethod == 0`, automatically updates `RoofOuterCapFrac` and `WallOuterCapFrac` to 0.5 for all sites.
 
 ### Parameter Validation Improvements
 

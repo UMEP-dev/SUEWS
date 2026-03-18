@@ -40,7 +40,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 68 | 78 | 27 | 79 | 40 | 292  |
+| 2026 | 70 | 78 | 29 | 79 | 40 | 296 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -53,14 +53,38 @@ EXAMPLES:
 
 ## 2026
 
-### 12 Mar 2026
+### 16 Mar 2026
 
+- [feature][experimental] Refine `_is_physics_explicitly_configured` to use Pydantic v2 `model_fields_set`, enabling conditional validation when physics options are explicitly set by user inputs (PR #1247).
+
+### 15 Mar 2026
+
+- [feature][experimental] Add new adjustment function for STEBBS and implement WWR related adjustments when STEBBS method is on (PR #1244).
+
+### 13 Mar 2026
+
+- [change][experimental] Remove STEBBS MinimumVolumeOfDHWinUse and MaximumVolumeOfDHWinUse across codebase (PR #1242).
+- [feature][experimental] Add new validation function for STEBBS and implement HotWaterFlowProfile consistency checks when STEBBS method is on (PR #1243).
+
+### 16 Mar 2026
+
+- [feature][experimental] Add Occupants/MetabolismProfile consistency validation to STEBBSMethod check (PR #1245)
+- [doc] Updated PHASE_B_DETAILED.md with Occupants/MetabolismProfile validation description (PR #1245)
+
+### 12 Mar 2026
 - [feature][experimental] Update STEBBS InitialIndoorTemperature with mean monthly air temperature from CRU dataset (PR #1241)
-- [changes][experimental] Replace STEBBS DeepSoilTemperature with AnnualMeanAirTemperature across codebase (PR #1240)
+- [change][experimental] Replace STEBBS DeepSoilTemperature with AnnualMeanAirTemperature across codebase (PR #1240)
+- [change][experimental] Fix the default values for STEBBS parameters "WallOuterCapFrac = 0.5" and "RoofOuterCapFrac = 0.5" when "rcmethod==0 or missing" and update the related validator logic (PR #1224).
+- [doc] Updated the description of weighting factors "WallOuterCapFrac" and "RoofOuterCapFrac" and rcmethod (PR #1224).
 
 ### 11 Mar 2026
 
 - [feature][experimental] Add new Pydantic Field ranges and defaults for STEBBS parameters (PR #1233)
+
+### 24 Feb 2026
+
+- [feature][experimental] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS dectreeh/evetreeh and SPARTACUS veg_scale/veg_frac entries (PR #1222).
+- [doc] Updated PHASE_C_DETAILED.md with new conditional validation logic for SPARTACUS (PR #1222).
 
 ### 23 Feb 2026
 

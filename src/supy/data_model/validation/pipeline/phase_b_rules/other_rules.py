@@ -5,58 +5,6 @@ from .rules_core import (
 from ...core.yaml_helpers import get_value_safe
 from collections.abc import Mapping
 
-
-def validate_model_option_samealbedo_facet(site_data, facet):
-    site_name = site_data.get("name", "Unknown")
-    vlay = site_data.get("properties", {}).get("vertical_layers", {})
-    facet_layers = vlay.get(f"{facet.lower()}s", [])
-    if isinstance(facet_layers, Mapping):  # rare but possible
-        facet_layers = [facet_layers]
-    found_albedos = []
-    for layer in facet_layers:
-        alb_val = get_value_safe(layer, "alb")
-        if alb_val is not None:
-            found_albedos.append(alb_val)
-    building_archetype = site_data.get("properties", {}).get("building_archetype", {})
-    facetrefl_val = get_value_safe(building_archetype, f"{facet}Reflectivity")
-    msg = (
-        f"samealbedo_{facet.lower()} == 0. No check of consistency between {facet.lower()}s albedo (found values: {found_albedos}) and {facet}Reflectivity (found value: {facetrefl_val})."
-    )
-    return ValidationResult(
-        status="WARNING",
-        category="MODEL_OPTIONS",
-        parameter=f"samealbedo_{facet.lower()}",
-        site_gridid=site_name,
-        site_index=None,
-        message=f"{msg}",
-        suggested_value=None,
-    )
-
-@RulesRegistry.add_phase_b("samealbedo")
-def validate_model_option_samealbedo(context) -> List[ValidationResult]:
-    """Validate consistency between model physics options, reporting site names."""
-    yaml_data = context.yaml_data
-    
-    results = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-
-    samealbedo_roof = get_value_safe(physics, "samealbedo_roof")
-    samealbedo_wall = get_value_safe(physics, "samealbedo_wall")
-
-    if samealbedo_wall == 0:
-        for site in yaml_data.get("sites", []):
-            results.append(
-                validate_model_option_samealbedo_facet(site, "Wall")
-            )
-    if samealbedo_roof == 0:
-        for site in yaml_data.get("sites", []):
-            results.append(
-                validate_model_option_samealbedo_facet(site, "Roof")
-            )
-
-    return results
-
-
 @RulesRegistry.add_phase_b("land_cover")
 def validate_land_cover_consistency(context) -> List[ValidationResult]:
     """Validate land cover fractions and parameters."""

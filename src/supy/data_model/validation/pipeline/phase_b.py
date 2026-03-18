@@ -1816,33 +1816,19 @@ def _set_alb_id(
     initial_states: dict,
     surf_key: str,
     new_alb_id: Optional[float],
-    label: str,
-    site_idx: int,
-    site_gridid: Optional[int],
-    season: str,
-    adjustments: list,
 ):
     if new_alb_id is None:
-        return
+        return False, None, None
     if surf_key not in initial_states:
         initial_states[surf_key] = {}
     surf_state = initial_states[surf_key]
     if not isinstance(surf_state, dict):
-        return
+        return False, None, None
     old_val = get_value_safe(surf_state, "alb_id")
     if old_val is not None and math.isclose(old_val, new_alb_id):
-        return
+        return False, old_val, new_alb_id
     surf_state["alb_id"] = {"value": new_alb_id}
-    adjustments.append(
-        ScientificAdjustment(
-            parameter=f"{surf_key}.alb_id",
-            site_index=site_idx,
-            site_gridid=site_gridid,
-            old_value=str(old_val),
-            new_value=str(new_alb_id),
-            reason=f"Set seasonal albedo for {season} on {label} based on (alb_min, alb_max)",
-        )
-    )
+    return True, old_val, new_alb_id
 
 def adjust_seasonal_parameters(
     yaml_data: dict, start_date: str, model_year: int
@@ -1949,16 +1935,22 @@ def adjust_seasonal_parameters(
                 if alb_id_val is None:
                     continue
                 target = 0.5 * (alb_min + alb_max)
-            _set_alb_id(
+            changed, old_val, new_alb_id = _set_alb_id(
                 initial_states,
                 surf_key,
                 target,
-                label,
-                site_idx,
-                site_gridid,
-                season,
-                adjustments,
             )
+            if changed:
+                adjustments.append(
+                    ScientificAdjustment(
+                        parameter=f"{surf_key}.alb_id",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        old_value=str(old_val),
+                        new_value=str(new_alb_id),
+                        reason=f"Set seasonal albedo for {season} on {label} based on (alb_min, alb_max)",
+                    )
+                )
 
         if lat is not None and lng is not None:
             try:

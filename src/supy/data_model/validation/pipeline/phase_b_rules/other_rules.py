@@ -4,8 +4,10 @@ from .rules_core import (
 )
 from ...core.yaml_helpers import get_value_safe
 @RulesRegistry.add_phase_b("physics_params")
-def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
+def validate_physics_parameters(context) -> List[ValidationResult]:
     """Validate required physics parameters."""
+    yaml_data = context.yaml_data
+
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
@@ -87,8 +89,10 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
 
 
 @RulesRegistry.add_phase_b("option_dependencies")
-def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult]:
+def validate_model_option_dependencies(context) -> List[ValidationResult]:
     """Validate consistency between model physics options."""
+    yaml_data = context.yaml_data
+    
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
@@ -196,8 +200,10 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
     return results
 
 @RulesRegistry.add_phase_b("samealbedo")
-def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
+def validate_model_option_samealbedo(context) -> List[ValidationResult]:
     """Validate consistency between model physics options, reporting site names."""
+    yaml_data = context.yaml_data
+    
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
@@ -266,11 +272,13 @@ def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
 
 
 @RulesRegistry.add_phase_b("rcmethod")
-def validate_model_option_rcmethod(yaml_data: dict) -> List[ValidationResult]:
+def validate_model_option_rcmethod(context) -> List[ValidationResult]:
     """Validate RoofOuterCapFrac and WallOuterCapFrac if rcmethod == 1.
     For rcmethod == 2, validate required roof/wall external parameters are not null.
     If provided, emit a warning with their values for user review.
     """
+    yaml_data = context.yaml_data
+
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
     rcmethod_value = get_value_safe(physics, "rcmethod")
@@ -427,8 +435,10 @@ def validate_model_option_rcmethod(yaml_data: dict) -> List[ValidationResult]:
 
 
 @RulesRegistry.add_phase_b("land_cover")
-def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
+def validate_land_cover_consistency(context) -> List[ValidationResult]:
     """Validate land cover fractions and parameters."""
+    yaml_data = context.yaml_data
+
     results = []
     sites = yaml_data.get("sites", [])
 
@@ -606,8 +616,10 @@ def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
 
 
 @RulesRegistry.add_phase_b("geographic")
-def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
+def validate_geographic_parameters(context) -> List[ValidationResult]:
     """Validate geographic coordinates and location parameters."""
+    yaml_data = context.yaml_data
+    
     results = []
     sites = yaml_data.get("sites", [])
 
@@ -741,9 +753,7 @@ def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
 
 
 @RulesRegistry.add_phase_b("irrigation")
-def validate_irrigation_parameters(
-    yaml_data: dict, model_year: int
-) -> List[ValidationResult]:
+def validate_irrigation_parameters(context) -> List[ValidationResult]:
     """
     Validate irrigation DOY parameters for all sites.
 
@@ -757,6 +767,9 @@ def validate_irrigation_parameters(
     Returns:
         List of ValidationResult objects for all sites
     """
+    yaml_data = context.yaml_data
+    model_year = context.model_year
+
     results = []
     sites = yaml_data.get("sites", [])
 
@@ -790,7 +803,7 @@ def validate_irrigation_parameters(
     return results
 
 @RulesRegistry.add_phase_b("veg_albedo")
-def check_missing_vegetation_albedo(yaml_data: dict) -> List[ValidationResult]:
+def check_missing_vegetation_albedo() -> List[ValidationResult]:
     """Report when vegetated surfaces have null alb_id.
 
     This is informational: SUEWSConfig will auto-calculate alb_id from
@@ -798,6 +811,8 @@ def check_missing_vegetation_albedo(yaml_data: dict) -> List[ValidationResult]:
     relationship (higher LAI -> higher albedo); grass uses a reversed
     relationship (higher LAI -> lower albedo).
     """
+    yaml_data = context.yaml_data
+
     results = []
     sites = yaml_data.get("sites", [])
 

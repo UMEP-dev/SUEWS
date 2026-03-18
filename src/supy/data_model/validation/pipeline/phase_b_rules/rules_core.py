@@ -35,6 +35,15 @@ class RulesRegistry:
         return decorator
 
 
+@dataclass(frozen=True)
+class ValidationContext:
+    """Immutable context for validation rules"""
+
+    yaml_data: dict
+    start_date: str|None = None
+    model_year: int|None = None
+
+
 @dataclass
 class ValidationResult:
     """Structured result from scientific validation checks."""

@@ -40,7 +40,7 @@ from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
 from supy.data_model.validation.pipeline.phase_b import adjust_model_option_stebbsmethod
 from supy.data_model.validation.pipeline.phase_b import adjust_model_option_rcmethod
-from supy.data_model.validation.pipeline.phase_b_rules import RulesRegistry
+from supy.data_model.validation.pipeline.phase_b_rules import RulesRegistry, ValidationContext
 
 # A tiny “site” stub that only carries exactly the properties our validators look at
 class DummySite:
@@ -626,7 +626,8 @@ def test_phase_b_validate_model_option_samealbedo_disabled():
         },
         "sites": [{"name": "site1", "properties": {}}],  
     }
-    results_wall = RulesRegistry()["samealbedo"](yaml_data_wall)
+
+    results_wall = RulesRegistry()["samealbedo"](ValidationContext(yaml_data=yaml_data_wall))
     assert len(results_wall) == 1
     assert results_wall[0].status == "WARNING"
     assert "no check of consistency" in results_wall[0].message.lower()
@@ -640,7 +641,7 @@ def test_phase_b_validate_model_option_samealbedo_disabled():
         },
         "sites": [{"name": "site1", "properties": {}}],  
     }
-    results_roof = RulesRegistry()["samealbedo"](yaml_data_roof)
+    results_roof = RulesRegistry()["samealbedo"](ValidationContext(yaml_data=yaml_data_roof))
     assert len(results_roof) == 1
     assert results_roof[0].status == "WARNING"
     assert "no check of consistency" in results_roof[0].message.lower()
@@ -657,7 +658,7 @@ def test_validate_model_option_rcmethod_missing_params():
             }
         }],
     }
-    results = RulesRegistry()["rcmethod"](yaml_data)
+    results = RulesRegistry()["rcmethod"](ValidationContext(yaml_data=yaml_data))
     params = [r.parameter for r in results]
     assert any("RoofOuterCapFrac" in p for p in params)
     assert any("WallOuterCapFrac" in p for p in params)
@@ -676,7 +677,7 @@ def test_validate_model_option_rcmethod_enabled_invalid_values():
             }
         }],
     }
-    results = RulesRegistry()["rcmethod"](yaml_data)
+    results = RulesRegistry()["rcmethod"](ValidationContext(yaml_data=yaml_data))
     assert any("out of valid range" in r.message for r in results)
     assert all(r.status == "ERROR" for r in results)
 
@@ -693,7 +694,7 @@ def test_validate_model_option_rcmethod_enabled_valid_values():
             }
         }],
     }
-    results = RulesRegistry()["rcmethod"](yaml_data)
+    results = RulesRegistry()["rcmethod"](ValidationContext(yaml_data=yaml_data))
     assert not results or all(r.status != "ERROR" for r in results)
 
 def test_adjust_model_option_rcmethod_sets_defaults():
@@ -737,7 +738,7 @@ def test_validate_model_option_rcmethod2_missing_params():
             "properties": {"building_archetype": {}},
         }],
     }
-    results = RulesRegistry()["rcmethod"](yaml_data)
+    results = RulesRegistry()["rcmethod"](ValidationContext(yaml_data=yaml_data))
     required = [
         "WallextThickness", "WallextEffectiveConductivity", "WallextDensity", "WallextCp",
         "RoofextThickness", "RoofextEffectiveConductivity", "RoofextDensity", "RoofextCp"
@@ -767,7 +768,7 @@ def test_validate_model_option_rcmethod2_all_params_provided():
             }
         }],
     }
-    results = RulesRegistry()["rcmethod"](yaml_data)
+    results = RulesRegistry()["rcmethod"](ValidationContext(yaml_data=yaml_data))
     warnings = [r for r in results if r.status == "WARNING"]
     assert any("wall material parameters will be used for parameterisation" in r.message for r in warnings)
     assert any("roof material parameters will be used for parameterisation" in r.message for r in warnings)
@@ -792,7 +793,7 @@ def test_validate_model_option_rcmethod2_some_params_missing():
             }
         }],
     }
-    results = RulesRegistry()["rcmethod"](yaml_data)
+    results = RulesRegistry()["rcmethod"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
     assert "building_archetype.WallextEffectiveConductivity" in error_params
     assert "building_archetype.WallextCp" in error_params
@@ -817,7 +818,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid():
             }
         }],
     }
-    results = RulesRegistry()["stebbs_props"](yaml_data)
+    results = RulesRegistry()["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors for valid HotWaterFlowProfile values"
 
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid():
@@ -837,7 +838,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid():
             }
         }],
     }
-    results = RulesRegistry()["stebbs_props"](yaml_data)
+    results = RulesRegistry()["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
     assert "stebbs.HotWaterFlowProfile.working_day.0" in error_params
     assert "stebbs.HotWaterFlowProfile.working_day.1" in error_params
@@ -861,7 +862,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing():
             }
         }],
     }
-    results = RulesRegistry()["stebbs_props"](yaml_data)
+    results = RulesRegistry()["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors if HotWaterFlowProfile is missing"
 
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial():
@@ -881,7 +882,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial():
             }
         }],
     }
-    results = RulesRegistry()["stebbs_props"](yaml_data)
+    results = RulesRegistry()["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
     assert "stebbs.HotWaterFlowProfile.working_day.2" in error_params
     assert "stebbs.HotWaterFlowProfile.holiday.2" in error_params
@@ -907,7 +908,7 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_non
             }
         }],
     }
-    results = RulesRegistry()["occupants_metabolism"](yaml_data)
+    results = RulesRegistry()["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
     assert "building_archetype.MetabolismProfile" in error_params
     assert any("nonzero entries" in r.message for r in results)
@@ -932,7 +933,7 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_all
             }
         }],
     }
-    results = RulesRegistry()["occupants_metabolism"](yaml_data)
+    results = RulesRegistry()["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors when all MetabolismProfile values are zero or None"
 
 def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_nonzero():
@@ -954,7 +955,7 @@ def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_
             }
         }],
     }
-    results = RulesRegistry()["occupants_metabolism"](yaml_data)
+    results = RulesRegistry()["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors when Occupants > 0"
 
 @pytest.mark.parametrize(
@@ -1567,7 +1568,7 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
         }
     }
 
-    results = RulesRegistry()["option_dependencies"](yaml_data_incompatible)
+    results = RulesRegistry()["option_dependencies"](ValidationContext(yaml_data=yaml_data_incompatible))
 
     # Should find the incompatible combination
     storage_results = [
@@ -1591,7 +1592,7 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
         }
     }
 
-    results = RulesRegistry()["option_dependencies"](yaml_data_compatible)
+    results = RulesRegistry()["option_dependencies"](ValidationContext(yaml_data=yaml_data_compatible))
 
     # Should pass validation
     storage_results = [
@@ -1618,7 +1619,7 @@ def test_phase_b_rsl_stabilitymethod_validation():
         }
     }
 
-    results = RulesRegistry()["option_dependencies"](yaml_data_incompatible)
+    results = RulesRegistry()["option_dependencies"](ValidationContext(yaml_data=yaml_data_incompatible))
 
     # Should find the incompatible combination
     rsl_results = [r for r in results if "rslmethod-stabilitymethod" in r.parameter]
@@ -1642,7 +1643,7 @@ def test_phase_b_model_option_dependencies_comprehensive():
         }
     }
 
-    results = RulesRegistry()["option_dependencies"](yaml_data_minimal)
+    results = RulesRegistry()["option_dependencies"](ValidationContext(yaml_data=yaml_data_minimal))
 
     # All should pass
     error_results = [r for r in results if r.status == "ERROR"]
@@ -1669,7 +1670,7 @@ def test_phase_b_model_option_dependencies_comprehensive():
         }
     }
 
-    results = RulesRegistry()["option_dependencies"](yaml_data_mixed)
+    results = RulesRegistry()["option_dependencies"](ValidationContext(yaml_data=yaml_data_mixed))
 
     # Should have one error (RSL) and one pass (storage heat)
     error_results = [r for r in results if r.status == "ERROR"]
@@ -1690,7 +1691,7 @@ def test_phase_b_model_option_dependencies_comprehensive():
     # Test with missing physics section (should handle gracefully)
     yaml_data_no_physics = {"model": {}}
 
-    results = RulesRegistry()["option_dependencies"](yaml_data_no_physics)
+    results = RulesRegistry()["option_dependencies"](ValidationContext(yaml_data=yaml_data_no_physics))
 
     # Should handle gracefully - may have default values or skip validation
     assert isinstance(results, list)  # Should return a list, not crash

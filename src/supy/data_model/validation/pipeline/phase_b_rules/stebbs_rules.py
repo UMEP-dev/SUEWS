@@ -38,7 +38,9 @@ def check_archetype_radiation_properties(archetype_data, facet):
     return result
 
 @RulesRegistry.add_phase_b("archetype_properties")
-def check_archetype_properties(yaml_data):
+def check_archetype_properties(context):
+    yaml_data = context.yaml_data
+
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
     stebbsmethod = get_value_safe(physics, "stebbsmethod")
@@ -59,8 +61,10 @@ def check_archetype_properties(yaml_data):
     return results
 
 @RulesRegistry.add_phase_b("occupants_metabolism")
-def check_occupants_metabolism(yaml_data):
+def check_occupants_metabolism(context):
     """Check for inconsistency: zero occupants with nonzero metabolism."""
+    yaml_data = context.yaml_data
+
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
     stebbsmethod = get_value_safe(physics, "stebbsmethod")
@@ -101,7 +105,9 @@ def check_occupants_metabolism(yaml_data):
 
 
 @RulesRegistry.add_phase_b("stebbs_props")
-def check_stebbs_properties(yaml_data):
+def check_stebbs_properties(context):
+    yaml_data = context.yaml_data
+
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
     stebbsmethod = get_value_safe(physics, "stebbsmethod")

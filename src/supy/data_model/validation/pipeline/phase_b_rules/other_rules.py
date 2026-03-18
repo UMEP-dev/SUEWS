@@ -5,6 +5,37 @@ from .rules_core import (
 from ...core.yaml_helpers import get_value_safe
 from collections.abc import Mapping
 
+
+# Constants 
+SFR_FRACTION_TOL = 1e-4
+
+def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[str]:
+    """Check for missing/empty parameters in surface configuration."""
+    missing_params = []
+
+    def _check_recursively(props: dict, path: str = ""):
+        for key, value in props.items():
+            if key == "sfr":
+                continue
+
+            current_path = f"{path}.{key}" if path else key
+
+            if isinstance(value, dict):
+                if "value" in value:
+                    param_value = value["value"]
+                    if param_value in (None, "") or (
+                        isinstance(param_value, list)
+                        and any(v in (None, "") for v in param_value)
+                    ):
+                        missing_params.append(current_path)
+                else:
+                    _check_recursively(value, current_path)
+
+    _check_recursively(surface_props)
+    return missing_params
+
+
+
 @RulesRegistry.add_phase_b("land_cover")
 def validate_land_cover_consistency(context) -> List[ValidationResult]:
     """Validate land cover fractions and parameters."""
@@ -16,7 +47,7 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
     for site_idx, site in enumerate(sites):
         props = site.get("properties", {})
         land_cover = props.get("land_cover")
-        site_gridid = get_site_gridid(site)
+        site_gridid = site.get("gridiv")
 
         if not land_cover:
             results.append(
@@ -196,7 +227,7 @@ def validate_geographic_parameters(context) -> List[ValidationResult]:
 
     for site_idx, site in enumerate(sites):
         props = site.get("properties", {})
-        site_gridid = get_site_gridid(site)
+        site_gridid = site.get("gridiv")
 
         lat = get_value_safe(props, "lat")
 
@@ -323,6 +354,158 @@ def validate_geographic_parameters(context) -> List[ValidationResult]:
     return results
 
 
+def validate_irrigation_doy(
+    ie_start: Optional[float],
+    ie_end: Optional[float],
+    lat: float,
+    model_year: int,
+    site_name: str,
+) -> List[ValidationResult]:
+    """
+    Validate irrigation DOY parameters with leap year, hemisphere, and tropical awareness.
+
+    This validator ensures irrigation timing parameters are logically consistent
+    and appropriate for the site's location. It checks:
+    1. DOY values are within valid range (1-365 or 1-366 for leap years)
+    2. Both parameters are set together or both disabled
+    3. Warm season appropriateness based on hemisphere and latitude:
+       - Tropical regions (|lat| < 23.5): No restrictions, irrigation allowed year-round
+       - Northern Hemisphere (lat >= 23.5): Warm season is May-September (DOY 121-273)
+       - Southern Hemisphere (lat <= -23.5): Warm season is November-March (DOY 305-90)
+
+    Args:
+        ie_start: Irrigation start day of year
+        ie_end: Irrigation end day of year
+        lat: Site latitude (for hemisphere and tropical detection)
+        model_year: Simulation year (for leap year detection)
+        site_name: Site identifier for error messages
+
+    Returns:
+        List of ValidationResult objects (errors, warnings, or empty)
+    """
+    results = []
+
+    # Helper: treat 0 and None as equivalent (both mean "disabled")
+    def is_disabled(value):
+        return value is None or value == 0 or value == 0.0
+
+    start_disabled = is_disabled(ie_start)
+    end_disabled = is_disabled(ie_end)
+
+    # Case 1: Both disabled = valid (irrigation not configured)
+    if start_disabled and end_disabled:
+        return results
+
+    # Case 2: One disabled, one enabled = ERROR (inconsistent)
+    if start_disabled != end_disabled:
+        results.append(
+            ValidationResult(
+                status="ERROR",
+                category="IRRIGATION",
+                parameter=f"irrigation in site {site_name}",
+                message="Both ie_start and ie_end must be specified together (both set to valid DOY), "
+                "or both left as None/0 (irrigation disabled). "
+                f"Currently: ie_start={ie_start}, ie_end={ie_end}",
+                suggested_value="Set both to valid DOY (1-365/366) or both to None/0",
+            )
+        )
+        return results
+
+    # Case 3: Both enabled = validate DOY range and hemisphere logic
+    is_leap = calendar.isleap(model_year)
+    max_doy = 366 if is_leap else 365
+
+    # Validate DOY range (must be 1-365/366, not 0)
+    for param_name, param_value in [("ie_start", ie_start), ("ie_end", ie_end)]:
+        if param_value < 1 or param_value > max_doy:
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="IRRIGATION",
+                    parameter=f"{param_name} in site {site_name}",
+                    message=f"{param_name}={param_value} is invalid. "
+                    f"Must be between 1 and {max_doy} for {'leap' if is_leap else 'non-leap'} "
+                    f"year {model_year}, or 0/None to disable irrigation",
+                    suggested_value=f"Valid range: 1-{max_doy}, or 0/None to disable",
+                )
+            )
+
+    # Seasonal validation based on hemisphere and latitude
+    abs_lat = abs(lat)
+
+    # Tropical regions (within Tropic of Cancer/Capricorn): irrigation allowed all year
+    if abs_lat < 23.5:
+        return results
+
+    # Helper function to check if DOY is in warm season
+    def is_in_warm_season(doy: float, latitude: float) -> bool:
+        """
+        Check if a DOY falls within the warm season for the given hemisphere.
+
+        Warm season definitions:
+        - Northern Hemisphere (lat >= 23.5): May-September (DOY 121-273)
+        - Southern Hemisphere (lat <= -23.5): November-March (DOY 305-90, wraps year boundary)
+        """
+        if latitude >= 0:  # Northern Hemisphere
+            # May to September (DOY 121-273)
+            return 121 <= doy <= 273
+        else:  # Southern Hemisphere
+            # November to March (DOY 305-365/366 or 1-90)
+            return doy >= 305 or doy <= 90
+
+    # Check if ie_start and ie_end are within warm season
+    start_in_warm_season = is_in_warm_season(ie_start, lat)
+    end_in_warm_season = is_in_warm_season(ie_end, lat)
+
+    if not start_in_warm_season or not end_in_warm_season:
+        hemisphere = "Northern" if lat >= 0 else "Southern"
+        season_range = (
+            "May-September (DOY 121-273)" if lat >= 0 else "November-March (DOY 305-90)"
+        )
+
+        results.append(
+            ValidationResult(
+                status="WARNING",
+                category="IRRIGATION",
+                parameter=f"irrigation in site {site_name}",
+                message=f"Irrigation period (DOY {int(ie_start)} to {int(ie_end)}) falls outside "
+                f"the typical warm season for {hemisphere} Hemisphere sites (lat={lat:.2f}). "
+                f"Irrigation typically occurs during warm season: {season_range}. "
+                f"Verify this configuration is intentional.",
+                suggested_value=f"Consider adjusting to warm season: {season_range}",
+            )
+        )
+
+    # Check for unusual year-wrapping irrigation patterns
+    # This helps catch likely user errors where start/end are swapped
+    if lat >= 23.5 and ie_start > ie_end:  # NH with year-wrapping
+        results.append(
+            ValidationResult(
+                status="WARNING",
+                category="IRRIGATION",
+                parameter=f"irrigation in site {site_name}",
+                message=f"Irrigation period wraps year boundary (DOY {int(ie_start)} to {int(ie_end)}). "
+                f"This means irrigation spans {365 - int(ie_start) + int(ie_end)} days including cold season. "
+                f"Verify this is intentional for Northern Hemisphere.",
+                suggested_value="Check if ie_start should be less than ie_end",
+            )
+        )
+    elif lat <= -23.5 and ie_start < ie_end:  # SH without year-wrapping
+        results.append(
+            ValidationResult(
+                status="WARNING",
+                category="IRRIGATION",
+                parameter=f"irrigation in site {site_name}",
+                message=f"Irrigation period does not wrap year boundary (DOY {int(ie_start)} to {int(ie_end)}). "
+                f"In Southern Hemisphere, warm season typically spans November-March (year-wrapping).",
+                suggested_value="Check if ie_start should be greater than ie_end",
+            )
+        )
+
+    return results
+
+
+
 @RulesRegistry.add_phase_b("irrigation")
 def validate_irrigation_parameters(context) -> List[ValidationResult]:
     """
@@ -374,7 +557,7 @@ def validate_irrigation_parameters(context) -> List[ValidationResult]:
     return results
 
 @RulesRegistry.add_phase_b("veg_albedo")
-def check_missing_vegetation_albedo() -> List[ValidationResult]:
+def check_missing_vegetation_albedo(context) -> List[ValidationResult]:
     """Report when vegetated surfaces have null alb_id.
 
     This is informational: SUEWSConfig will auto-calculate alb_id from
@@ -397,7 +580,7 @@ def check_missing_vegetation_albedo() -> List[ValidationResult]:
         props = site.get("properties", {})
         initial_states = site.get("initial_states", {})
         land_cover = props.get("land_cover", {})
-        site_gridid = get_site_gridid(site)
+        site_gridid = site.get("gridiv")
 
         for surf_key, surf_label in surface_labels.items():
             surf_props = land_cover.get(surf_key, {})

@@ -16,6 +16,7 @@ Phase B assumes Phase A has completed successfully and builds upon clean YAML ou
 without duplicating parameter detection or YAML structure validation.
 """
 
+import math
 import yaml
 import os
 import calendar
@@ -1929,7 +1930,7 @@ def adjust_seasonal_parameters(
             if not isinstance(surf_state, dict):
                 return
             old_val = surf_state.get("alb_id", {}).get("value") if isinstance(surf_state.get("alb_id", {}), dict) else surf_state.get("alb_id")
-            if old_val == new_alb_id:
+            if math.isclose(old_val, new_alb_id):
                 return
             surf_state["alb_id"] = {"value": new_alb_id}
             adjustments.append(

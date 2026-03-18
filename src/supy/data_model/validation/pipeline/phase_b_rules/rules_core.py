@@ -12,8 +12,9 @@ def function_name(arguments):
     return errors
 """
 
-from dataclasses import dataclass
-from typing import Any, Optional
+from dataclasses import dataclass, fields
+from types import MappingProxyType
+from typing import Any, Mapping, Tuple, Optional
 
 
 class RulesRegistry:
@@ -42,6 +43,24 @@ class ValidationContext:
     yaml_data: dict
     start_date: str|None = None
     model_year: int|None = None
+
+
+    def __post_init__(self):
+        for f in fields(self):
+            value = getattr(self, f.name)
+            object.__setattr__(self, f.name, self._deep_freeze(value))
+
+    def _deep_freeze(self, value):
+        if isinstance(value, dict):
+            return MappingProxyType({
+                k: self._deep_freeze(v) for k, v in value.items()
+            })
+        elif isinstance(value, list):
+            return tuple(self._deep_freeze(v) for v in value)
+        elif isinstance(value, set):
+            return frozenset(self._deep_freeze(v) for v in value)
+        else:
+            return value
 
 
 @dataclass

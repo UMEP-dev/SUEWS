@@ -2,7 +2,7 @@ from .rules_core import (
     RulesRegistry,
     ValidationResult,
 )
-
+from collections.abc import Mapping
 from ...core.yaml_helpers import get_value_safe
 
 def check_archetype_radiation_properties(archetype_data, facet):
@@ -16,11 +16,11 @@ def check_archetype_radiation_properties(archetype_data, facet):
         return None
 
     # Extract values from RefValue dicts if needed
-    if isinstance(archetype_facet_reflectivity, dict):
+    if isinstance(archetype_facet_reflectivity, Mapping):
         archetype_facet_reflectivity = archetype_facet_reflectivity.get("value", archetype_facet_reflectivity)
-    if isinstance(archetype_facet_absorbtivity, dict):
+    if isinstance(archetype_facet_absorbtivity, Mapping):
         archetype_facet_absorbtivity = archetype_facet_absorbtivity.get("value", archetype_facet_absorbtivity)
-    if isinstance(archetype_facet_transmissivity, dict):
+    if isinstance(archetype_facet_transmissivity, Mapping):
         archetype_facet_transmissivity = archetype_facet_transmissivity.get("value", archetype_facet_transmissivity)
 
     result = ValidationResult(
@@ -75,13 +75,13 @@ def check_occupants_metabolism(context):
             props = site.get("properties", {})
             building_archetype = props.get("building_archetype", {})
             occupants_entry = building_archetype.get("Occupants", {})
-            occupants = occupants_entry.get("value") if isinstance(occupants_entry, dict) else occupants_entry
+            occupants = occupants_entry.get("value") if isinstance(occupants_entry, Mapping) else occupants_entry
             metabolism_profile = building_archetype.get("MetabolismProfile", {})
-            if occupants == 0.0 and isinstance(metabolism_profile, dict):
+            if occupants == 0.0 and isinstance(metabolism_profile, Mapping):
                 problematic_entries = []
                 for daytype in ("working_day", "holiday"):
                     profile = metabolism_profile.get(daytype, {})
-                    if isinstance(profile, dict):
+                    if isinstance(profile, Mapping):
                         for hour_str, metab_val in profile.items():
                             if metab_val not in (0, 0.0, None):
                                 problematic_entries.append(
@@ -121,7 +121,7 @@ def check_stebbs_properties(context):
             hwfp_entry = stebbs.get("HotWaterFlowProfile", {})
             for daytype in ("working_day", "holiday"):
                 day_profile = hwfp_entry.get(daytype, {})
-                if isinstance(day_profile, dict):
+                if isinstance(day_profile, Mapping):
                     for hour_str, v in day_profile.items():
                         if v not in (0, 1, 0.0, 1.0):
                             results.append(

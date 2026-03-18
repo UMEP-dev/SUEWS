@@ -3,6 +3,7 @@ from .rules_core import (
     ValidationResult,
 )
 from ...core.yaml_helpers import get_value_safe
+from collections.abc import Mapping
 @RulesRegistry.add_phase_b("physics_params")
 def validate_physics_parameters(context) -> List[ValidationResult]:
     """Validate required physics parameters."""
@@ -215,7 +216,7 @@ def validate_model_option_samealbedo(context) -> List[ValidationResult]:
             site_name = site.get("name", "Unknown")
             vlay = site.get("properties", {}).get("vertical_layers", {})
             walls = vlay.get("walls", [])
-            if isinstance(walls, dict):  # rare but possible
+            if isinstance(walls, Mapping):  # rare but possible
                 walls = [walls]
             found_albedos = []
             for wall in walls:
@@ -244,7 +245,7 @@ def validate_model_option_samealbedo(context) -> List[ValidationResult]:
             site_name = site.get("name", "Unknown")
             vlay = site.get("properties", {}).get("vertical_layers", {})
             roofs = vlay.get("roofs", [])
-            if isinstance(roofs, dict):  # rare but possible
+            if isinstance(roofs, Mapping):  # rare but possible
                 roofs = [roofs]
             found_albedos = []
             for roof in roofs:
@@ -292,7 +293,7 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
 
             # RoofOuterCapFrac
             roof_frac_entry = building_archetype.get("RoofOuterCapFrac", {})
-            roof_frac = roof_frac_entry.get("value") if isinstance(roof_frac_entry, dict) else roof_frac_entry
+            roof_frac = roof_frac_entry.get("value") if isinstance(roof_frac_entry, Mapping) else roof_frac_entry
             if roof_frac is None:
                 results.append(
                     ValidationResult(
@@ -320,7 +321,7 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
 
             # WallOuterCapFrac
             wall_frac_entry = building_archetype.get("WallOuterCapFrac", {})
-            wall_frac = wall_frac_entry.get("value") if isinstance(wall_frac_entry, dict) else wall_frac_entry
+            wall_frac = wall_frac_entry.get("value") if isinstance(wall_frac_entry, Mapping) else wall_frac_entry
             if wall_frac is None:
                 results.append(
                     ValidationResult(
@@ -369,7 +370,7 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
             provided_wall = []
             for param in required_wall_params:
                 entry = building_archetype.get(param, {})
-                value = entry.get("value") if isinstance(entry, dict) else entry
+                value = entry.get("value") if isinstance(entry, Mapping) else entry
                 if value in (None, ""):
                     results.append(
                         ValidationResult(
@@ -389,7 +390,7 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
             provided_roof = []
             for param in required_roof_params:
                 entry = building_archetype.get(param, {})
-                value = entry.get("value") if isinstance(entry, dict) else entry
+                value = entry.get("value") if isinstance(entry, Mapping) else entry
                 if value in (None, ""):
                     results.append(
                         ValidationResult(
@@ -466,7 +467,7 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
         surface_types = []
 
         for surface_type, surface_props in land_cover.items():
-            if isinstance(surface_props, dict):
+            if isinstance(surface_props, Mapping):
                 sfr_value = surface_props.get("sfr", {}).get("value")
                 if sfr_value is not None:
                     sfr_sum += sfr_value
@@ -577,7 +578,7 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                         if k == "sfr":
                             continue
                         current_path = f"{prefix}.{k}" if prefix else k
-                        if isinstance(v, dict):
+                        if isinstance(v, Mapping):
                             if "value" in v:
                                 param_list.append(current_path)
                             else:
@@ -774,10 +775,10 @@ def validate_irrigation_parameters(context) -> List[ValidationResult]:
     sites = yaml_data.get("sites", [])
 
     # Handle both list and dict formats for sites
-    if isinstance(sites, dict):
+    if isinstance(sites, Mapping):
         # Dict format: {site_name: {lat: ..., ...}, ...}
         sites_list = [(site_name, site_data) for site_name, site_data in sites.items()]
-    elif isinstance(sites, list):
+    elif isinstance(sites, Mapping):
         # List format: [{name: site_name, lat: ..., ...}, ...]
         sites_list = [
             (site.get("name", f"site_{idx}"), site) for idx, site in enumerate(sites)
@@ -837,7 +838,7 @@ def check_missing_vegetation_albedo() -> List[ValidationResult]:
             # Check if surface has non-zero fraction
             sfr_entry = surf_props.get("sfr", {})
             sfr_val = (
-                sfr_entry.get("value") if isinstance(sfr_entry, dict) else sfr_entry
+                sfr_entry.get("value") if isinstance(sfr_entry, Mapping) else sfr_entry
             )
             if not sfr_val or sfr_val <= 0:
                 continue
@@ -845,7 +846,7 @@ def check_missing_vegetation_albedo() -> List[ValidationResult]:
             # Check if alb_id is null
             alb_entry = surf_state.get("alb_id", {})
             alb_val = (
-                alb_entry.get("value") if isinstance(alb_entry, dict) else alb_entry
+                alb_entry.get("value") if isinstance(alb_entry, Mapping) else alb_entry
             )
             if alb_val is not None:
                 continue

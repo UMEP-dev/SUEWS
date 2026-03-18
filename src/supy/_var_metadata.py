@@ -599,7 +599,7 @@ list_var_input_multitsteps = [
     "min_res_bioco2",
     "minfcmetab",
     "minqfmetab",
-    "monthmeanairtemperature_diffmax"
+    "monthmeanairtemperature_diffmax",
     "n_buildings",
     "n_stream_lw_urban",
     "n_stream_sw_urban",

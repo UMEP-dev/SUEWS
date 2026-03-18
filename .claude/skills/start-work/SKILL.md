@@ -31,6 +31,7 @@ Based on the category selected, present a second AskUserQuestion:
 - **Bug Fix** -- Fix a reported problem (requires issue)
 - **Refactoring** -- Restructure code, preserve behaviour (requires issue)
 - **Documentation** -- Update docs only
+- **Validation Rule** -- Add a Phase B validation rule (issue optional)
 
 ### If Review:
 - **Examine Issue** -- Analyse a GitHub issue in depth
@@ -61,6 +62,18 @@ After selection, run the initial stages for the chosen workflow:
 2. `make dev` -- build the project
 3. `make docs` -- verify baseline documentation builds
 4. Report readiness with editing guidance
+
+### Create: Validation Rule
+
+1. Ask for issue number (GitHub `#N`) -- optional for this workflow
+2. If issue provided: run `/examine-issue <N>` -- extract rule spec from issue body
+3. If issue provided: run `/gh-link <N>` -- create branch linked to issue
+   If no issue: create branch `feat/<rule_id>`
+4. `make dev` -- build the project
+5. `make test-smoke` -- baseline
+6. Run `/add-rule` (passing issue number if available) -- generates rule + tests + verification
+7. `/log-changes` -- verify CHANGELOG entry from `/add-rule` Step 6
+8. Report readiness for PR creation
 
 ### Review: Examine Issue
 

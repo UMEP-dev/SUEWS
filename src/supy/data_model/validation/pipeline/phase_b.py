@@ -1806,6 +1806,44 @@ def get_season(start_date: str, lat: float) -> str:
     return get_season_from_doy(start, lat)
 
 
+def _get_range_and_id(surf_props: dict, surf_state: dict) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    alb_min = get_value_safe(surf_props, "alb_min")
+    alb_max = get_value_safe(surf_props, "alb_max")
+    alb_id = get_value_safe(surf_state, "alb_id")
+    return alb_min, alb_max, alb_id
+
+def _set_alb_id(
+    initial_states: dict,
+    surf_key: str,
+    new_alb_id: Optional[float],
+    label: str,
+    site_idx: int,
+    site_gridid: Optional[int],
+    season: str,
+    adjustments: list,
+):
+    if new_alb_id is None:
+        return
+    if surf_key not in initial_states:
+        initial_states[surf_key] = {}
+    surf_state = initial_states[surf_key]
+    if not isinstance(surf_state, dict):
+        return
+    old_val = get_value_safe(surf_state, "alb_id")
+    if old_val is not None and math.isclose(old_val, new_alb_id):
+        return
+    surf_state["alb_id"] = {"value": new_alb_id}
+    adjustments.append(
+        ScientificAdjustment(
+            parameter=f"{surf_key}.alb_id",
+            site_index=site_idx,
+            site_gridid=site_gridid,
+            old_value=str(old_val),
+            new_value=str(new_alb_id),
+            reason=f"Set seasonal albedo for {season} on {label} based on (alb_min, alb_max)",
+        )
+    )
+
 def adjust_seasonal_parameters(
     yaml_data: dict, start_date: str, model_year: int
 ) -> Tuple[dict, List[ScientificAdjustment]]:
@@ -1856,8 +1894,8 @@ def adjust_seasonal_parameters(
 
             if sfr > 0:
                 lai = dectr.get("lai", {})
-                laimin = lai.get("laimin", {}).get("value")
-                laimax = lai.get("laimax", {}).get("value")
+                laimin = get_value_safe(lai, "laimin")
+                laimax = get_value_safe(lai, "laimax")
 
                 if laimin is not None and laimax is not None:
                     if season == "summer":
@@ -1872,7 +1910,7 @@ def adjust_seasonal_parameters(
                     if "dectr" not in initial_states:
                         initial_states["dectr"] = {}
 
-                    current_lai = initial_states["dectr"].get("lai_id", {}).get("value")
+                    current_lai = get_value_safe(initial_states["dectr"], "lai_id")
                     if current_lai != lai_val:
                         initial_states["dectr"]["lai_id"] = {"value": lai_val}
                         adjustments.append(
@@ -1897,55 +1935,10 @@ def adjust_seasonal_parameters(
             ("evetr", "evergreen trees"),
         )
 
-        def _get_range_and_id(surf_key: str):
+        for surf_key, label in vegetated_surfaces:
             surf_props = land_cover.get(surf_key, {})
             surf_state = initial_states.get(surf_key, {})
-
-            alb_min_field = surf_props.get("alb_min")
-            if isinstance(alb_min_field, dict):
-                alb_min = alb_min_field.get("value")
-            else:
-                alb_min = alb_min_field
-
-            alb_max_field = surf_props.get("alb_max")
-            if isinstance(alb_max_field, dict):
-                alb_max = alb_max_field.get("value")
-            else:
-                alb_max = alb_max_field
-
-            alb_id_field = surf_state.get("alb_id")
-            if isinstance(alb_id_field, dict):
-                alb_id = alb_id_field.get("value")
-            else:
-                alb_id = alb_id_field
-
-            return alb_min, alb_max, alb_id
-
-        def _set_alb_id(surf_key: str, new_alb_id: Optional[float], label: str):
-            if new_alb_id is None:
-                return
-            if surf_key not in initial_states:
-                initial_states[surf_key] = {}
-            surf_state = initial_states[surf_key]
-            if not isinstance(surf_state, dict):
-                return
-            old_val = surf_state.get("alb_id", {}).get("value") if isinstance(surf_state.get("alb_id", {}), dict) else surf_state.get("alb_id")
-            if math.isclose(old_val, new_alb_id):
-                return
-            surf_state["alb_id"] = {"value": new_alb_id}
-            adjustments.append(
-                ScientificAdjustment(
-                    parameter=f"{surf_key}.alb_id",
-                    site_index=site_idx,
-                    site_gridid=site_gridid,
-                    old_value=str(old_val),
-                    new_value=str(new_alb_id),
-                    reason=f"Set seasonal albedo for {season} on {label} based on (alb_min, alb_max)",
-                )
-            )
-
-        for surf_key, label in vegetated_surfaces:
-            alb_min, alb_max, alb_id_val = _get_range_and_id(surf_key)
+            alb_min, alb_max, alb_id_val = _get_range_and_id(surf_props, surf_state)
             if alb_min is None or alb_max is None:
                 continue
             if season in ("summer", "tropical", "equatorial"):
@@ -1956,8 +1949,16 @@ def adjust_seasonal_parameters(
                 if alb_id_val is None:
                     continue
                 target = 0.5 * (alb_min + alb_max)
-            _set_alb_id(surf_key, target, label)
-
+            _set_alb_id(
+                initial_states,
+                surf_key,
+                target,
+                label,
+                site_idx,
+                site_gridid,
+                season,
+                adjustments,
+            )
 
         if lat is not None and lng is not None:
             try:

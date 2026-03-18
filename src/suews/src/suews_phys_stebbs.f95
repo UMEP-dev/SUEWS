@@ -900,7 +900,7 @@ CONTAINS
             !calculate water mains temperature 
             T_watermains_K = cal_mainsWaterTemperature(id, Tground_deep_sout, MonthMeanAirTemperature_diffmax_sout)
             !constrain the temperature between 4 and 20
-            T_watermains_K = min(max(4.0, T_watermains_K), 20.0)
+            T_watermains_K = min(max(4.0 + 273.15, T_watermains_K), 20.0 + 273.15)
             buildings(1)%Tincomingwater_tank = T_watermains_K
             
             CALL setdatetime(datetimeLine)

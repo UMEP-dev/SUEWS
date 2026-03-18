@@ -2039,7 +2039,7 @@ def test_phase_b_seasonal_albedo_winter_updates_alb_id_from_ranges():
 
 
 def test_phase_b_seasonal_albedo_midseason_sets_alb_id_midpoint():
-    """Spring/fall: alb_id -> (alb_min + alb_max)/2 for all veg surfaces."""
+    """Spring/fall: alb_id -> (alb_min + alb_max)/2 for dectr/evetr surfaces."""
     # Northern Hemisphere, DOY in spring window: 2017-04-01
     yaml_data = _make_minimal_phase_b_yaml_for_albedo(lat=51.5)
 
@@ -2047,15 +2047,13 @@ def test_phase_b_seasonal_albedo_midseason_sets_alb_id_midpoint():
         yaml_data, start_date="2017-04-01", model_year=2017
     )
 
-    grass_id, dectr_id, evetr_id = _get_phase_b_alb_ids(updated)
+    dectr_id, evetr_id = _get_phase_b_alb_ids(updated)
 
     # Expected midpoints
-    assert grass_id == pytest.approx((0.10 + 0.20) / 2)  # 0.15
     assert dectr_id == pytest.approx((0.12 + 0.30) / 2)  # 0.21
     assert evetr_id == pytest.approx((0.14 + 0.40) / 2)  # 0.27
 
     params = {a.parameter for a in adjustments}
-    assert "grass.alb_id" in params
     assert "dectr.alb_id" in params
     assert "evetr.alb_id" in params
 

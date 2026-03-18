@@ -1,10 +1,19 @@
 """
 Development script for assigning rules to the validator controller
 
+All functions should expect a single argument of type ValidationContext and
+to retrieve all arguments from the class properties.
+
+ValidationContext is designed to be immutable and as such property assignments cannot be made
+and all data types are immutable data types. For instance checks for dict, use type Mapping
+from collections.abc import Mapping.
+
 Example Usage:
 
 @RulesRegistry.add_phase_b("rule name/descriptor")
-def function_name(arguments):
+def function_name(context):
+    variable = context.variable
+
     errors = [ValidationResult()]
     
     # Validation logic

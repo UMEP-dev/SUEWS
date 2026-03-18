@@ -5,4 +5,5 @@ from .rules_core import (
 )
 
 from .stebbs_rules import *
+from .physics_rules import *
 from .other_rules import *

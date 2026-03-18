@@ -200,6 +200,34 @@ def validate_model_option_dependencies(context) -> List[ValidationResult]:
 
     return results
 
+def validate_model_option_samealbedo_facet(site_data, facet):
+    site_name = site_data.get("name", "Unknown")
+    vlay = site_data.get("properties", {}).get("vertical_layers", {})
+    facet_layers = vlay.get(f"{facet.lower()}s", [])
+    if isinstance(facet_layers, Mapping):  # rare but possible
+        facet_layers = [facet_layers]
+    found_albedos = []
+    for layer in facet_layers:
+        alb_val = get_value_safe(layer, "alb")
+        if alb_val is not None:
+            found_albedos.append(alb_val)
+    building_archetype = site_data.get("properties", {}).get("building_archetype", {})
+    facetrefl_val = get_value_safe(building_archetype, f"{facet}Reflectivity")
+    msg = (
+        f"samealbedo_{facet.lower()} == 0. No check of consistency between {facet.lower()}s albedo (found values: {found_albedos}) and {facet}Reflectivity (found value: {facetrefl_val})."
+    )
+    return ValidationResult(
+        status="WARNING",
+        category="MODEL_OPTIONS",
+        parameter=f"samealbedo_{facet.lower()}",
+        site_gridid=site_name,
+        site_index=None,
+        message=f"{msg}",
+        suggested_value=None,
+    )
+
+
+
 @RulesRegistry.add_phase_b("samealbedo")
 def validate_model_option_samealbedo(context) -> List[ValidationResult]:
     """Validate consistency between model physics options, reporting site names."""
@@ -213,60 +241,13 @@ def validate_model_option_samealbedo(context) -> List[ValidationResult]:
 
     if samealbedo_wall == 0:
         for site in yaml_data.get("sites", []):
-            site_name = site.get("name", "Unknown")
-            vlay = site.get("properties", {}).get("vertical_layers", {})
-            walls = vlay.get("walls", [])
-            if isinstance(walls, Mapping):  # rare but possible
-                walls = [walls]
-            found_albedos = []
-            for wall in walls:
-                alb_val = get_value_safe(wall, "alb")
-                if alb_val is not None:
-                    found_albedos.append(alb_val)
-            building_archetype = site.get("properties", {}).get("building_archetype", {})
-            wallrefl_val = get_value_safe(building_archetype, "WallReflectivity")
-            msg = (
-                f"samealbedo_wall == 0. No check of consistency between walls albedo (found values: {found_albedos}) and WallReflectivity (found value: {wallrefl_val})."
-            )
             results.append(
-                ValidationResult(
-                    status="WARNING",
-                    category="MODEL_OPTIONS",
-                    parameter="samealbedo_wall",
-                    site_gridid=site_name,
-                    site_index=None,
-                    message=f"{msg}",
-                    suggested_value=None,
-                )
+                validate_model_option_samealbedo_facet(site, "Wall")
             )
-
     if samealbedo_roof == 0:
         for site in yaml_data.get("sites", []):
-            site_name = site.get("name", "Unknown")
-            vlay = site.get("properties", {}).get("vertical_layers", {})
-            roofs = vlay.get("roofs", [])
-            if isinstance(roofs, Mapping):  # rare but possible
-                roofs = [roofs]
-            found_albedos = []
-            for roof in roofs:
-                alb_val = get_value_safe(roof, "alb")
-                if alb_val is not None:
-                    found_albedos.append(alb_val)
-            building_archetype = site.get("properties", {}).get("building_archetype", {})
-            roofrefl_val = get_value_safe(building_archetype, "RoofReflectivity")
-            msg = (
-                f"samealbedo_roof == 0. No check of consistency between roofs albedo (found values: {found_albedos}) and RoofReflectivity (found value: {roofrefl_val})."
-            )
             results.append(
-                ValidationResult(
-                    status="WARNING",
-                    category="MODEL_OPTIONS",
-                    parameter="samealbedo_roof",
-                    site_gridid=site_name,
-                    site_index=None,
-                    message=f"{msg}",
-                    suggested_value=None,
-                )
+                validate_model_option_samealbedo_facet(site, "Roof")
             )
 
     return results

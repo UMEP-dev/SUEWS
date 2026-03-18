@@ -53,6 +53,10 @@ EXAMPLES:
 
 ## 2026
 
+### 18 Mar 2026
+
+- [feature][experimental] Add dynamic calculation of water mains (cold) temperature in STEBBS and relevant new tests (PR #1249).
+
 ### 16 Mar 2026
 
 - [feature][experimental] Refine `_is_physics_explicitly_configured` to use Pydantic v2 `model_fields_set`, enabling conditional validation when physics options are explicitly set by user inputs (PR #1247).

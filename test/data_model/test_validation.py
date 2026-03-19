@@ -618,6 +618,110 @@ def test_needs_samealbedo_wall_validation_true_and_false():
     cfg2 = make_cfg(samealbedo_wall=0)
     assert cfg2._needs_samealbedo_wall_validation() is False
 
+def test_validate_sameemissivity_wall_requires_identical_wall_emissivities():
+    """
+    When sameemissivity_wall is ON but walls have different emissivities,
+    we should get an error about them needing to be identical.
+    """
+    cfg = make_cfg(sameemissivity_wall=1)
+
+    walls = [
+        SimpleNamespace(emis=SimpleNamespace(value=0.5)),
+        SimpleNamespace(emis=SimpleNamespace(value=0.6)),  # mismatch
+    ]
+    vl = SimpleNamespace(walls=walls)
+    ba = SimpleNamespace(WallExternalEmissivity=SimpleNamespace(value=0.5))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteWallMismatch")
+
+    msgs = SUEWSConfig._validate_sameemissivity_wall(cfg, site, 0)
+    assert len(msgs) == 1
+    assert "so all walls emissivities must be identical;" in msgs[0]
+    assert "SiteWallMismatch" in msgs[0]
+
+def test_validate_sameemissivity_wall_requires_match_with_wallexternalemissivity():
+    """
+    When sameemissivity_wall is ON, all walls have same emis but it differs
+    from building_archetype.WallExternalEmissivity, we should get an error.
+    """
+    cfg = make_cfg(sameemissivity_wall=1)
+
+    walls = [
+        SimpleNamespace(emis=SimpleNamespace(value=0.9)),
+        SimpleNamespace(emis=SimpleNamespace(value=0.9)),
+    ]
+    vl = SimpleNamespace(walls=walls)
+    ba = SimpleNamespace(WallExternalEmissivity=SimpleNamespace(value=0.8))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteEmisRefMismatch")
+
+    msgs = SUEWSConfig._validate_sameemissivity_wall(cfg, site, 0)
+    assert len(msgs) == 1
+    msg = msgs[0]
+    assert (
+        "must equal properties.building_archetype.WallExternalEmissivity (0.8)" in msg
+    )
+    assert "walls[0]=0.9" in msg
+    assert "SiteEmisRefMismatch" in msg
+
+def test_validate_sameemissivity_roof_requires_match_with_roofexternalemissivity():
+    """
+    When sameemissivity_roof is ON, all roofs have same emis but it differs
+    from building_archetype.RoofExternalEmissivity, we should get an error.
+    """
+    cfg = make_cfg(sameemissivity_roof=1)
+
+    roofs = [
+        SimpleNamespace(emis=SimpleNamespace(value=0.7)),
+        SimpleNamespace(emis=SimpleNamespace(value=0.7)),
+    ]
+    vl = SimpleNamespace(roofs=roofs)
+    ba = SimpleNamespace(RoofExternalEmissivity=SimpleNamespace(value=0.5))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteRoofEmisRefMismatch")
+
+    msgs = SUEWSConfig._validate_sameemissivity_roof(cfg, site, 0)
+    assert len(msgs) == 1
+    msg = msgs[0]
+    assert (
+        "must equal properties.building_archetype.RoofExternalEmissivity (0.5)" in msg
+    )
+    assert "roofs[0]=0.7" in msg
+    assert "SiteRoofEmisRefMismatch" in msg
+
+def test_validate_sameemissivity_roof_requires_identical_roof_emissivities():
+    """
+    When sameemissivity_roof is ON but roofs have different emissivities,
+    we should get an error about them needing to be identical.
+    """
+    cfg = make_cfg(sameemissivity_roof=1)
+
+    roofs = [
+        SimpleNamespace(emis=SimpleNamespace(value=0.8)),
+        SimpleNamespace(emis=SimpleNamespace(value=0.9)),  # mismatch
+    ]
+    vl = SimpleNamespace(roofs=roofs)
+    ba = SimpleNamespace(RoofExternalEmissivity=SimpleNamespace(value=0.8))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteRoofEmisMismatch")
+
+    msgs = SUEWSConfig._validate_sameemissivity_roof(cfg, site, 0)
+    assert len(msgs) == 1
+    assert "so all roofs emissivities must be identical;" in msgs[0]
+    assert "SiteRoofEmisMismatch" in msgs[0]
+
+def test_needs_sameemissivity_roof_validation_true_and_false():
+    cfg = make_cfg(sameemissivity_roof=1)
+    assert cfg._needs_sameemissivity_roof_validation() is True
+    cfg2 = make_cfg(sameemissivity_roof=0)
+    assert cfg2._needs_sameemissivity_roof_validation() is False
+
+def test_needs_sameemissivity_wall_validation_true_and_false():
+    cfg = make_cfg(sameemissivity_wall=1)
+    assert cfg._needs_sameemissivity_wall_validation() is True
+    cfg2 = make_cfg(sameemissivity_wall=0)
+    assert cfg2._needs_sameemissivity_wall_validation() is False
+
 def test_phase_b_validate_model_option_samealbedo_disabled():
     """Test validate_model_option_samealbedo returns WARNING when option is disabled (==0)."""
 

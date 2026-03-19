@@ -38,7 +38,7 @@ from supy.data_model.core.state import (
 )
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
-from supy.data_model.validation.pipeline.phase_b import validate_model_option_samealbedo, adjust_seasonal_parameters
+from supy.data_model.validation.pipeline.phase_b import validate_model_option_samealbedo, adjust_seasonal_parameters, validate_model_option_sameemissivity
 from supy.data_model.validation.pipeline.phase_b import validate_model_option_rcmethod, validate_model_option_stebbsmethod, adjust_model_option_stebbsmethod
 from supy.data_model.validation.pipeline.phase_b import adjust_model_option_rcmethod
 
@@ -753,7 +753,36 @@ def test_phase_b_validate_model_option_samealbedo_disabled():
     assert "no check of consistency" in results_roof[0].message.lower()
     assert "samealbedo_roof == 0" in results_roof[0].message.lower()
 
+def test_phase_b_validate_model_option_sameemissivity_disabled():
+    """Test validate_model_option_sameemissivity returns WARNING when option is disabled (==0)."""
 
+    yaml_data_wall = {
+        "model": {
+            "physics": {
+                "sameemissivity_wall": {"value": 0}
+            }
+        },
+        "sites": [{"name": "site1", "properties": {}}],  
+    }
+    results_wall = validate_model_option_sameemissivity(yaml_data_wall)
+    assert len(results_wall) == 1
+    assert results_wall[0].status == "WARNING"
+    assert "no check of consistency" in results_wall[0].message.lower()
+    assert "sameemissivity_wall == 0" in results_wall[0].message.lower()
+    yaml_data_roof = {
+        "model": {
+            "physics": {
+                "sameemissivity_roof": {"value": 0}
+            }
+        },
+        "sites": [{"name": "site1", "properties": {}}],  
+    }
+    results_roof = validate_model_option_sameemissivity(yaml_data_roof)
+    assert len(results_roof) == 1
+    assert results_roof[0].status == "WARNING"
+    assert "no check of consistency" in results_roof[0].message.lower()
+    assert "sameemissivity_roof == 0" in results_roof[0].message.lower()
+    
 def test_validate_model_option_rcmethod_missing_params():
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 1}}},

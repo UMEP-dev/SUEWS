@@ -3430,7 +3430,9 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             "stebbsmethod",
             "rcmethod",
             "samealbedo_wall",
-            "samealbedo_roof"
+            "samealbedo_roof",
+            "sameemissivity_wall",
+            "sameemissivity_roof"
         }
 
         # Should match the synchronized list from Phase A and B

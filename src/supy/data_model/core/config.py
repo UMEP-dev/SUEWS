@@ -1752,12 +1752,12 @@ class SUEWSConfig(BaseModel):
 
     def _validate_sameemissivity_wall(self, site: Site, site_index: int) -> List[str]:
         return self._validate_sameemissivity_surface(
-            site, site_index, "wall", "walls", "WallEmissivity", "sameemissivity_wall"
+            site, site_index, "wall", "walls", "WallExternalEmissivity", "sameemissivity_wall"
         )
 
     def _validate_sameemissivity_roof(self, site: Site, site_index: int) -> List[str]:
         return self._validate_sameemissivity_surface(
-            site, site_index, "roof", "roofs", "RoofEmissivity", "sameemissivity_roof"
+            site, site_index, "roof", "roofs", "RoofExternalEmissivity", "sameemissivity_roof"
         )
 
     def _needs_spartacus_validation(self) -> bool:
@@ -1928,7 +1928,7 @@ class SUEWSConfig(BaseModel):
         needs_samealbedo_wall = self._needs_samealbedo_wall_validation()
         needs_samealbedo_roof = self._needs_samealbedo_roof_validation()
         needs_sameemissivity_wall = self._needs_sameemissivity_wall_validation()
-        needs_sameemissivity_roof = self._needs_sameemissivity_roof_validation
+        needs_sameemissivity_roof = self._needs_sameemissivity_roof_validation()
         needs_spartacus = self._needs_spartacus_validation()
 
         # Nothing to do?

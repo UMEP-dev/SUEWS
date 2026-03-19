@@ -169,6 +169,8 @@ class SUEWSConfig(BaseModel):
         "ExternalGroundConductivity",
         "MetabolismThreshold",
         "LatentSensibleRatio",
+        "DaylightControl",
+        "LightingIlluminanceThreshold",
         "ApplianceProfile",
         "LightingPowerDensity",
         "HeatingSystemEfficiency",

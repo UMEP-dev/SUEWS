@@ -95,6 +95,8 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: IndoorAirCp = 0.0D0 ! Specific heat capacity of indoor air [J kg-1 K-1]
       REAL(KIND(1D0)) :: MetabolismThreshold = 0.0D0 ! Threshold of Metabolic rate of each occupancy for active or inactive [W]
       REAL(KIND(1D0)) :: LatentSensibleRatio = 0.0D0 ! Latent-to-sensible ratio of metabolic energy release of occupants [-]
+      REAL(KIND(1D0)) :: DaylightControl = 0.0D0 ! Daylight-based lighting control flag encoded as 0/1 [-]
+      REAL(KIND(1D0)) :: LightingIlluminanceThreshold = 300.0D0 ! Indoor illuminance threshold for switching off electric lighting [lx]
       REAL(KIND(1D0)) :: HeatingSystemEfficiency = 0.0D0 ! Efficiency of space heating system [-]
       REAL(KIND(1D0)) :: MaxCoolingPower = 0.0D0 ! Maximum power demand of cooling system [W]
       REAL(KIND(1D0)) :: CoolingSystemCOP = 0.0D0 ! Coefficient of performance of cooling system [-]
@@ -310,7 +312,7 @@ module module_type_stebbs
       REAL(KIND(1D0)), DIMENSION(3) :: wiTAR, waTAR, roofTAR = 0.0D0
       REAL(KIND(1D0)), DIMENSION(3) :: HTsAverage, HWTsAverage = 0.0D0
       REAL(KIND(1D0)), DIMENSION(3) :: HWPowerAverage = 0.0D0
-      REAL(KIND(1D0)), DIMENSION(44) :: EnergyExchanges = 0.0D0
+      REAL(KIND(1D0)), DIMENSION(45) :: EnergyExchanges = 0.0D0
 
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Textwall_C  ! Wall external surface temperature from STEBBS[K]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Textroof_C ! Roof external surface temperature from STEBBS[K]

@@ -749,6 +749,15 @@ CONTAINS
       REAL(KIND(1D0)) :: Unused_heating_setpoint_C = -100
       REAL(KIND(1D0)) :: Unused_cooling_setpoint_C = 100
       REAL(KIND(1D0)) :: T_watermains_K
+      REAL(KIND(1D0)) :: FloorHeightDefault = 2.7D0
+      REAL(KIND(1D0)) :: GlobalLuminousEfficacy = 110.0D0
+      REAL(KIND(1D0)) :: DefaultDaylightFactor = 0.02D0
+      REAL(KIND(1D0)) :: lighting_floor_area
+      REAL(KIND(1D0)) :: lighting_power_capacity
+      REAL(KIND(1D0)) :: outdoor_illuminance
+      REAL(KIND(1D0)) :: indoor_illuminance
+      LOGICAL :: building_is_active
+      INTEGER :: n_floors
       INTEGER :: iu !type of day: weekday/weekend
       INTEGER :: idx !index of profiles for 10 mins interval
       ASSOCIATE ( &
@@ -756,7 +765,7 @@ CONTAINS
          dt_start => timer%dt_since_start, &
          it => timer%it, &!hour of day
          id => timer%id, & !day of year
-         imin => timer%imin, & !minute of day
+         imin => timer%imin, & !minute of hour
          dayofWeek_id => timer%dayofWeek_id, & !1 - day of week; 2 - month; 3 - season
          flagstate => modState%flagstate, &
          heatState => modState%heatState, &
@@ -885,12 +894,14 @@ CONTAINS
               
             iu = 1 !Set to 1=weekday
             IF (DayofWeek_id(1) == 1 .OR. DayofWeek_id(1) == 7) iu = 2 !Set to 2=weekend
-            idx = imin / 10 !for 10 minutes resolution
+            idx = MIN(143, MAX(0, it*6 + imin/10)) ! 0-based 10-minute slot across the full day
             buildings(1)%metabolic_rate = building_archtype%MetabolismProfile(idx, iu)
             buildings(1)%appliance_power_rating = building_archtype%ApplianceProfile(idx, iu)
             buildings(1)%frac_hotwater = stebbsPrm%HotWaterFlowProfile(idx, iu)
+
             ! determine the occupancy status, active and inactive (sleep, not control heating, cooling, lighting)
-            IF (buildings(1)%metabolic_rate >= buildings(1)%metabolism_threshold * buildings(1)%occupants) THEN
+            building_is_active = buildings(1)%metabolic_rate >= buildings(1)%metabolism_threshold * buildings(1)%occupants
+            IF (building_is_active) THEN
                !active: valid heating cooling setpoint.
                buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature + 273.15
                buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature + 273.15
@@ -904,6 +915,22 @@ CONTAINS
             T_watermains_K = min(max(4.0 + 273.15, T_watermains_K), 20.0 + 273.15)
             buildings(1)%Tincomingwater_tank = T_watermains_K
             
+            n_floors = MAX(1, CEILING(buildings(1)%height_building/FloorHeightDefault))
+            lighting_floor_area = n_floors * buildings(1)%Afootprint
+            lighting_power_capacity = building_archtype%LightingPowerDensity * lighting_floor_area
+            buildings(1)%lighting_power_rating = 0.0D0
+            IF (building_is_active) THEN
+               buildings(1)%lighting_power_rating = lighting_power_capacity
+               IF (stebbsPrm%DaylightControl == 1.0D0) THEN
+                  outdoor_illuminance = GlobalLuminousEfficacy * MAX(Kroof_sout, 0.0D0)
+                  indoor_illuminance = outdoor_illuminance * DefaultDaylightFactor
+
+                  IF (indoor_illuminance >= stebbsPrm%LightingIlluminanceThreshold) THEN
+                     buildings(1)%lighting_power_rating = 0.0D0
+                  END IF
+               END IF
+            END IF
+
             CALL setdatetime(datetimeLine)
 
             CALL suewsstebbscouple( &

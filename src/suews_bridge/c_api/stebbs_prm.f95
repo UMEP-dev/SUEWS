@@ -18,8 +18,8 @@ public :: SUEWS_CAPI_BAD_STATE
 
 integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_PROFILE_STEPS = 144_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_PROFILE_GROUPS = 2_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_LEN = 333_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_SCHEMA_VERSION = 1_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_LEN = 335_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_SCHEMA_VERSION = 2_c_int
 
 type :: stebbs_prm_shadow
    real(c_double) :: wall_internal_convection_coefficient = 0.0_c_double
@@ -36,6 +36,8 @@ type :: stebbs_prm_shadow
    real(c_double) :: indoor_air_cp = 0.0_c_double
    real(c_double) :: metabolism_threshold = 0.0_c_double
    real(c_double) :: latent_sensible_ratio = 0.0_c_double
+   real(c_double) :: daylight_control = 0.0_c_double
+   real(c_double) :: lighting_illuminance_threshold = 300.0_c_double
    real(c_double) :: heating_system_efficiency = 0.0_c_double
    real(c_double) :: max_cooling_power = 0.0_c_double
    real(c_double) :: cooling_system_cop = 0.0_c_double
@@ -146,6 +148,8 @@ subroutine stebbs_prm_pack(state, flat, n_flat, err)
    flat(idx) = state%indoor_air_cp; idx = idx + 1_c_int
    flat(idx) = state%metabolism_threshold; idx = idx + 1_c_int
    flat(idx) = state%latent_sensible_ratio; idx = idx + 1_c_int
+   flat(idx) = state%daylight_control; idx = idx + 1_c_int
+   flat(idx) = state%lighting_illuminance_threshold; idx = idx + 1_c_int
    flat(idx) = state%heating_system_efficiency; idx = idx + 1_c_int
    flat(idx) = state%max_cooling_power; idx = idx + 1_c_int
    flat(idx) = state%cooling_system_cop; idx = idx + 1_c_int
@@ -222,6 +226,8 @@ subroutine stebbs_prm_unpack(flat, n_flat, state, err)
    state%indooraircp = flat(idx); idx = idx + 1_c_int
    state%metabolismthreshold = flat(idx); idx = idx + 1_c_int
    state%latentsensibleratio = flat(idx); idx = idx + 1_c_int
+   state%daylightcontrol = flat(idx); idx = idx + 1_c_int
+   state%lightingilluminancethreshold = flat(idx); idx = idx + 1_c_int
    state%heatingsystemefficiency = flat(idx); idx = idx + 1_c_int
    state%maxcoolingpower = flat(idx); idx = idx + 1_c_int
    state%coolingsystemcop = flat(idx); idx = idx + 1_c_int

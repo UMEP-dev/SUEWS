@@ -251,6 +251,11 @@ fn read_normalized_numeric_from_mapping(root: &Value, target_field: &str) -> Opt
         };
 
         let field_name = normalise_field_name(field_name_raw);
+        let field_name = if field_name == "lighting_daylight_control_flag" {
+            "daylight_control".to_string()
+        } else {
+            field_name
+        };
         if field_name == target_field || field_name.replace('_', "") == target_compact {
             if let Some(v) = read_numeric_value(field_value) {
                 return Some(v);
@@ -2114,6 +2119,8 @@ mod tests {
         assert!(run_cfg.site.stebbs.wall_internal_convection_coefficient > 0.0);
         assert!(run_cfg.site.stebbs.water_tank_surface_area > 0.0);
         assert!(run_cfg.site.stebbs.hot_water_flow_profile[0][43] >= 0.0);
+        assert!((run_cfg.site.stebbs.daylight_control - 0.0).abs() < 1.0e-12);
+        assert!((run_cfg.site.stebbs.lighting_illuminance_threshold - 300.0).abs() < 1.0e-12);
         assert!((run_cfg.site.building_archtype.lightingpowerdensity - 2.0).abs() < 1.0e-12);
     }
 

@@ -4,8 +4,8 @@ use crate::ffi;
 
 pub const STEBBS_PRM_PROFILE_STEPS: usize = 144;
 pub const STEBBS_PRM_PROFILE_GROUPS: usize = 2;
-pub const STEBBS_PRM_FLAT_LEN: usize = 333;
-pub const STEBBS_PRM_SCHEMA_VERSION: u32 = 1;
+pub const STEBBS_PRM_FLAT_LEN: usize = 335;
+pub const STEBBS_PRM_SCHEMA_VERSION: u32 = 2;
 
 pub type StebbsPrmSchema = crate::codec::SimpleSchema;
 
@@ -27,6 +27,8 @@ pub struct StebbsPrm {
     pub indoor_air_cp: f64,
     pub metabolism_threshold: f64,
     pub latent_sensible_ratio: f64,
+    pub daylight_control: f64,
+    pub lighting_illuminance_threshold: f64,
     pub heating_system_efficiency: f64,
     pub max_cooling_power: f64,
     pub cooling_system_cop: f64,
@@ -78,6 +80,8 @@ impl Default for StebbsPrm {
             indoor_air_cp: 0.0,
             metabolism_threshold: 0.0,
             latent_sensible_ratio: 0.0,
+            daylight_control: 0.0,
+            lighting_illuminance_threshold: 300.0,
             heating_system_efficiency: 0.0,
             max_cooling_power: 0.0,
             cooling_system_cop: 0.0,
@@ -139,6 +143,11 @@ impl StebbsPrm {
         let indoor_air_cp = next();
         let metabolism_threshold = next();
         let latent_sensible_ratio = next();
+        let daylight_control = next();
+        if !(daylight_control == 0.0 || daylight_control == 1.0) {
+            return Err(BridgeError::BadState);
+        }
+        let lighting_illuminance_threshold = next();
         let heating_system_efficiency = next();
         let max_cooling_power = next();
         let cooling_system_cop = next();
@@ -194,6 +203,8 @@ impl StebbsPrm {
             indoor_air_cp,
             metabolism_threshold,
             latent_sensible_ratio,
+            daylight_control,
+            lighting_illuminance_threshold,
             heating_system_efficiency,
             max_cooling_power,
             cooling_system_cop,
@@ -246,6 +257,8 @@ impl StebbsPrm {
         flat.push(self.indoor_air_cp);
         flat.push(self.metabolism_threshold);
         flat.push(self.latent_sensible_ratio);
+        flat.push(self.daylight_control);
+        flat.push(self.lighting_illuminance_threshold);
         flat.push(self.heating_system_efficiency);
         flat.push(self.max_cooling_power);
         flat.push(self.cooling_system_cop);
@@ -322,6 +335,8 @@ pub fn stebbs_prm_field_names() -> Vec<String> {
         "indoor_air_cp".to_string(),
         "metabolism_threshold".to_string(),
         "latent_sensible_ratio".to_string(),
+        "daylight_control".to_string(),
+        "lighting_illuminance_threshold".to_string(),
         "heating_system_efficiency".to_string(),
         "max_cooling_power".to_string(),
         "cooling_system_cop".to_string(),
@@ -400,11 +415,15 @@ mod tests {
         let state = stebbs_prm_default_from_fortran().expect("default state should be available");
         let mut mapped = stebbs_prm_to_map(&state);
         mapped.insert("ventilation_rate".to_string(), 1.7);
+        mapped.insert("daylight_control".to_string(), 1.0);
+        mapped.insert("lighting_illuminance_threshold".to_string(), 250.0);
         mapped.insert("hot_water_flow_profile.018.2".to_string(), 0.002);
         mapped.insert("iter_safe".to_string(), 0.0);
 
         let updated = stebbs_prm_from_map(&mapped).expect("map to state should succeed");
         assert!((updated.ventilation_rate - 1.7).abs() < 1.0e-12);
+        assert!((updated.daylight_control - 1.0).abs() < 1.0e-12);
+        assert!((updated.lighting_illuminance_threshold - 250.0).abs() < 1.0e-12);
         assert!((updated.hot_water_flow_profile[1][18] - 0.002).abs() < 1.0e-12);
         assert!(!updated.iter_safe);
     }
@@ -423,6 +442,15 @@ mod tests {
         };
         let err = stebbs_prm_from_values_payload(&bad_payload)
             .expect_err("payload with schema mismatch should fail");
+        assert_eq!(err, BridgeError::BadState);
+    }
+
+    #[test]
+    fn from_flat_rejects_non_integer_daylight_control() {
+        let mut flat = vec![0.0_f64; STEBBS_PRM_FLAT_LEN];
+        flat[14] = 0.5;
+        let err = StebbsPrm::from_flat(&flat)
+            .expect_err("fractional lighting daylight control flag should fail");
         assert_eq!(err, BridgeError::BadState);
     }
 }

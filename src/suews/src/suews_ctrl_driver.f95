@@ -4161,7 +4161,7 @@ CONTAINS
       FloorInternalConvectionCoefficient, WindowInternalConvectionCoefficient, &
       WallExternalConvectionCoefficient, RoofExternalConvectionCoefficient, WindowExternalConvectionCoefficient, &
       GroundDepth, ExternalGroundConductivity, &
-      MetabolismThreshold, LatentSensibleRatio, &
+      MetabolismThreshold, LatentSensibleRatio, DaylightControl, LightingIlluminanceThreshold, &
       ApplianceProfile, LightingPowerDensity, &
       HeatingSystemEfficiency, &
       MaxCoolingPower, CoolingSystemCOP, VentilationRate, &
@@ -4577,6 +4577,8 @@ CONTAINS
       REAL(KIND(1D0)) :: ExternalGroundConductivity
       REAL(KIND(1D0)) :: MetabolismThreshold
       REAL(KIND(1D0)) :: LatentSensibleRatio
+      REAL(KIND(1D0)) :: DaylightControl
+      REAL(KIND(1D0)) :: LightingIlluminanceThreshold
       REAL(KIND(1D0)) :: HeatingSystemEfficiency
       REAL(KIND(1D0)) :: MaxCoolingPower
       REAL(KIND(1D0)) :: CoolingSystemCOP
@@ -5449,6 +5451,8 @@ CONTAINS
       stebbsPrm%ExternalGroundConductivity = ExternalGroundConductivity
       stebbsPrm%MetabolismThreshold = MetabolismThreshold
       stebbsPrm%LatentSensibleRatio = LatentSensibleRatio
+      stebbsPrm%DaylightControl = DaylightControl
+      stebbsPrm%LightingIlluminanceThreshold = LightingIlluminanceThreshold
       stebbsPrm%HeatingSystemEfficiency = HeatingSystemEfficiency
       stebbsPrm%MaxCoolingPower = MaxCoolingPower
       stebbsPrm%CoolingSystemCOP = CoolingSystemCOP

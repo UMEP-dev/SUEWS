@@ -10,7 +10,7 @@ from collections.abc import Mapping.
 
 Example Usage:
 
-@RulesRegistry.add_phase_b("rule name/descriptor")
+@RulesRegistry.add_rule("rule name/descriptor")
 def function_name(context):
     variable = context.variable
 
@@ -26,23 +26,18 @@ from types import MappingProxyType
 from typing import Any, Mapping, Tuple, Optional
 
 
-class RulesRegistry:
+@dataclass
+class ValidationResult:
+    """Structured result from scientific validation checks."""
 
-    phase_b = {}
-
-    def __getitem__(self, item):
-        return self.phase_b[item]
-
-    def get(self, key):
-        return self.phase_b.get(key)
-
-
-    @classmethod
-    def add_phase_b(cls, rule_id):
-        def decorator(rule_fn):
-            cls.phase_b[rule_id] = rule_fn
-            return
-        return decorator
+    status: str  # 'PASS', 'WARNING', 'ERROR'
+    category: str  # 'PHYSICS', 'GEOGRAPHY', 'SEASONAL', 'LAND_COVER', 'MODEL_OPTIONS'
+    parameter: str
+    site_index: Optional[int] = None  # Array index (for internal use)
+    site_gridid: Optional[int] = None  # GRIDID value (for display)
+    message: str = ""
+    suggested_value: Any = None
+    applied_fix: bool = False
 
 
 @dataclass(frozen=True)
@@ -72,15 +67,37 @@ class ValidationContext:
             return value
 
 
-@dataclass
-class ValidationResult:
-    """Structured result from scientific validation checks."""
+class RulesRegistry:
 
-    status: str  # 'PASS', 'WARNING', 'ERROR'
-    category: str  # 'PHYSICS', 'GEOGRAPHY', 'SEASONAL', 'LAND_COVER', 'MODEL_OPTIONS'
-    parameter: str
-    site_index: Optional[int] = None  # Array index (for internal use)
-    site_gridid: Optional[int] = None  # GRIDID value (for display)
-    message: str = ""
-    suggested_value: Any = None
-    applied_fix: bool = False
+    rules = {}
+
+    def __init__(self, context:ValidationContext=None):
+        self.context = context
+
+    def __getitem__(self, item):
+        return self.rules[item]
+
+    def get(self, key):
+        return self.rules.get(key)
+
+
+    @classmethod
+    def add_rule(cls, rule_id):
+        def decorator(rule_fn):
+            cls.rules[rule_id] = rule_fn
+            return
+        return decorator
+
+    def run_validation(self, context:ValidationContext=None):
+        validation_results = []
+
+        if context is None:
+            if self.context is None:
+                raise ValueError("Must provide context of type ValidationContext to run validation registry.")
+            context = self.context
+
+        for rule_id, rule_fn in self.rules.items():
+            validation_results.extend(
+                rule_fn(context)
+            )
+        return validation_results

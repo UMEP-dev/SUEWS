@@ -2649,7 +2649,7 @@ def test_forcing_validation_cli_integration(cli_runner):
 
 def test_irrigation_doy_leap_year():
     """Test DOY 366 validation for leap vs non-leap years."""
-    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+    from supy.data_model.validation.pipeline.phase_b_rules import validate_irrigation_doy
 
     # Leap year: DOY 366 valid
     results = validate_irrigation_doy(120, 366, 51.5, 2024, "test_site")
@@ -2664,7 +2664,7 @@ def test_irrigation_doy_leap_year():
 
 def test_irrigation_doy_disabled():
     """Test irrigation disabled configurations (None/0)."""
-    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+    from supy.data_model.validation.pipeline.phase_b_rules import validate_irrigation_doy
 
     # Both None = valid
     assert len(validate_irrigation_doy(None, None, 51.5, 2023, "test")) == 0
@@ -2681,7 +2681,7 @@ def test_irrigation_doy_disabled():
 
 def test_irrigation_hemisphere_warnings():
     """Test hemisphere and tropical-aware warm season warnings."""
-    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+    from supy.data_model.validation.pipeline.phase_b_rules import validate_irrigation_doy
 
     # NH: warm season (May-Sept, DOY 121-273) = no warning
     results = validate_irrigation_doy(150, 250, 51.5, 2023, "test")
@@ -2735,7 +2735,7 @@ def test_irrigation_hemisphere_warnings():
 
 def test_irrigation_year_wrapping():
     """Test year-wrapping irrigation period validation (ie_start > ie_end)."""
-    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+    from supy.data_model.validation.pipeline.phase_b_rules import validate_irrigation_doy
 
     # Year-wrapping period in NH (winter irrigation - unusual)
     results = validate_irrigation_doy(300, 50, 51.5, 2023, "test")

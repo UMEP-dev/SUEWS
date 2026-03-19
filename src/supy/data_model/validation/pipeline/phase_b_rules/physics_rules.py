@@ -7,7 +7,7 @@ from collections.abc import Mapping
 
 
 
-@RulesRegistry.add_phase_b("physics_params")
+@RulesRegistry.add_rule("physics_params")
 def validate_physics_parameters(context) -> List[ValidationResult]:
     """Validate required physics parameters."""
     yaml_data = context.yaml_data
@@ -183,7 +183,7 @@ def validate_smdmethod_dependency(smdmethod, yaml_data):
 
 
 
-@RulesRegistry.add_phase_b("option_dependencies")
+@RulesRegistry.add_rule("option_dependencies")
 def validate_model_option_dependencies(context) -> List[ValidationResult]:
     """Validate consistency between model physics options."""
     yaml_data = context.yaml_data
@@ -270,7 +270,7 @@ def check_outercapfrac_facet(building_archetype, facet, site_idx, site_gridid):
         result.suggested_value=f"Set {facet}OuterCapFrac to a value strictly between 0 and 1."
         return result
 
-@RulesRegistry.add_phase_b("rcmethod")
+@RulesRegistry.add_rule("rcmethod")
 def validate_model_option_rcmethod(context) -> List[ValidationResult]:
     """Validate RoofOuterCapFrac and WallOuterCapFrac if rcmethod == 1.
     For rcmethod == 2, validate required roof/wall external parameters are not null.
@@ -351,7 +351,7 @@ def validate_model_option_samealbedo_facet(site_data, facet):
         suggested_value=None,
     )
 
-@RulesRegistry.add_phase_b("samealbedo")
+@RulesRegistry.add_rule("samealbedo")
 def validate_model_option_samealbedo(context) -> List[ValidationResult]:
     """Validate consistency between model physics options, reporting site names."""
     yaml_data = context.yaml_data

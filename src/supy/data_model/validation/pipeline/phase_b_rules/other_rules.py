@@ -4,6 +4,7 @@ from .rules_core import (
 )
 from ...core.yaml_helpers import get_value_safe
 from collections.abc import Mapping
+import calendar
 
 
 # Constants 
@@ -36,7 +37,7 @@ def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[st
 
 
 
-@RulesRegistry.add_phase_b("land_cover")
+@RulesRegistry.add_rule("land_cover")
 def validate_land_cover_consistency(context) -> List[ValidationResult]:
     """Validate land cover fractions and parameters."""
     yaml_data = context.yaml_data
@@ -217,7 +218,7 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
     return results
 
 
-@RulesRegistry.add_phase_b("geographic")
+@RulesRegistry.add_rule("geographic")
 def validate_geographic_parameters(context) -> List[ValidationResult]:
     """Validate geographic coordinates and location parameters."""
     yaml_data = context.yaml_data
@@ -506,7 +507,7 @@ def validate_irrigation_doy(
 
 
 
-@RulesRegistry.add_phase_b("irrigation")
+@RulesRegistry.add_rule("irrigation")
 def validate_irrigation_parameters(context) -> List[ValidationResult]:
     """
     Validate irrigation DOY parameters for all sites.
@@ -556,7 +557,7 @@ def validate_irrigation_parameters(context) -> List[ValidationResult]:
 
     return results
 
-@RulesRegistry.add_phase_b("veg_albedo")
+@RulesRegistry.add_rule("veg_albedo")
 def check_missing_vegetation_albedo(context) -> List[ValidationResult]:
     """Report when vegetated surfaces have null alb_id.
 

@@ -85,7 +85,7 @@ class RulesRegistry:
     def add_rule(cls, rule_id):
         def decorator(rule_fn):
             cls.rules[rule_id] = rule_fn
-            return
+            return rule_fn
         return decorator
 
     def run_validation(self, context:ValidationContext=None):

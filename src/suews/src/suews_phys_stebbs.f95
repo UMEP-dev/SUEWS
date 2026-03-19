@@ -403,7 +403,7 @@ CONTAINS
    ! Parameters:
    !   dayOfYear   - day of year [-]
    !   To_annual_C - annual mean outdoor air temperature [degC]
-   !   dTo_month_C - largest difference in monthly mean outdoor air [degC]
+   !   dTo_month_C - largest difference in monthly mean outdoor air
    !                 temperature [degC]
    ! Returns:
    !   Tmains      - water mains temperature [K]

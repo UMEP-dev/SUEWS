@@ -1302,16 +1302,25 @@ def get_monthly_air_temperature_diffmax(
     between the warmest and coldest mean monthly temperature within the annual 
     cycle at the specified location.
 
-    Args:
-        lat (float): Site latitude in degrees (-90 to 90).
-        lon (float): Site longitude in degrees (-180 to 180).
-        spatial_res (float): Search spatial resolution for nearest CRU grid cell. Default 0.5.
+    Parameters
+    ----------
+    lat : float
+        Site latitude in degrees (-90 to 90).
+    lon : float
+        Site longitude in degrees (-180 to 180).
+    spatial_res : float, optional
+        Search spatial resolution for nearest CRU grid cell, by default 0.5.
 
-    Returns:
-        float: Maximum difference in mean monthly air temperature (°C), or None if CRU data not available.
+    Returns
+    -------
+    float or None
+        Maximum difference in mean monthly air temperature (degC),
+        or None if CRU data not available.
 
-    Raises:
-        ValueError: If input parameters are invalid (lat, lon out of range)
+    Raises
+    ------
+    ValueError
+        If input parameters are invalid (lat, lon out of range).
     """
     # Validate parameters first - these errors should propagate
     if not (-90 <= lat <= 90):
@@ -1495,8 +1504,6 @@ def adjust_surface_temperatures(
 
         # Update MonthMeanTemperature_diffmax in stebbs if present
         diffmax_val = get_monthly_air_temperature_diffmax(lat, lng)
-
-
         if diffmax_val is None:
             logger_supy.debug("Skipping diffmax update - CRU data not available")
         else:
@@ -1507,12 +1514,12 @@ def adjust_surface_temperatures(
                         stebbs[key]["value"] = diffmax_val
                         adjustments.append(
                             ScientificAdjustment(
-                            parameter=f"stebbs.{key}",
-                            site_index=site_idx,
-                            site_gridid=site_gridid,
-                            old_value=str(old_val),
-                            new_value=f"{diffmax_val} C",
-                            reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f})",
+                                parameter=f"stebbs.{key}",
+                                site_index=site_idx,
+                                site_gridid=site_gridid,
+                                old_value=str(old_val),
+                                new_value=f"{diffmax_val} C",
+                                reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f})",
                             )
                         )
 

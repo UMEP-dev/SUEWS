@@ -644,6 +644,7 @@ def get_monthly_air_temperature_diffmax(
     diffmax = float(max(monthly_temps) - min(monthly_temps))
     return diffmax
 
+
 def get_mean_annual_air_temperature(
     lat: float, lon: float, spatial_res: float = 0.5
 ) -> float:

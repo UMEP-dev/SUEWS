@@ -1812,6 +1812,7 @@ def _get_range_and_id(surf_props: dict, surf_state: dict) -> Tuple[Optional[floa
     alb_id = get_value_safe(surf_state, "alb_id")
     return alb_min, alb_max, alb_id
 
+
 def _set_alb_id(
     initial_states: dict,
     surf_key: str,
@@ -1829,6 +1830,7 @@ def _set_alb_id(
         return False, old_val, new_alb_id
     surf_state["alb_id"] = {"value": new_alb_id}
     return True, old_val, new_alb_id
+
 
 def adjust_seasonal_parameters(
     yaml_data: dict, start_date: str, model_year: int
@@ -1925,7 +1927,7 @@ def adjust_seasonal_parameters(
             surf_props = land_cover.get(surf_key, {})
             # Check surface fraction:
             sfr = surf_props.get("sfr", {}).get("value", 0)
-            if not sfr or sfr == 0:
+            if not sfr:
                 continue  # Skip albedo adjustment if surface fraction is zero
 
             surf_state = initial_states.get(surf_key, {})

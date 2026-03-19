@@ -2248,7 +2248,7 @@ class StebbsProperties(BaseModel):
     LightingPowerDensity: Optional[FlexibleRefValue(float)] = (
         Field(
             default=2,
-            description="Lighting power per building floor area [W m-2 K-1]",
+            description="Lighting power per building floor area [W m-2]",
             json_schema_extra={
                 "unit": "W m^-2",
                 "display_name": "Lighting Power Density",

@@ -1602,6 +1602,10 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
             read_normalized_numeric_from_mapping(stebbs_root, "annual_mean_air_temperature");
         let deep_soil = read_normalized_numeric_from_mapping(stebbs_root, "deep_soil_temperature")
             .or(annual_mean_air_temperature);
+        let month_mean_air_temperature_diffmax = read_normalized_numeric_from_mapping(
+            stebbs_root,
+            "month_mean_air_temperature_diffmax",
+        );
         let mains_water =
             read_normalized_numeric_from_mapping(stebbs_root, "mains_water_temperature");
         let hot_water_setpoint = read_normalized_numeric_from_mapping(
@@ -1610,11 +1614,12 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
         );
 
         eprintln!(
-            "DEBUG_STATE_MAP init_out={:?} init_in={:?} annual={:?} deep={:?} mains={:?} hwt_set={:?}",
+            "DEBUG_STATE_MAP init_out={:?} init_in={:?} annual={:?} deep={:?} month_diffmax={:?} mains={:?} hwt_set={:?}",
             init_out,
             init_in,
             annual_mean_air_temperature,
             deep_soil,
+            month_mean_air_temperature_diffmax,
             mains_water,
             hot_water_setpoint
         );
@@ -1636,6 +1641,9 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
         }
         if let Some(v) = deep_soil {
             state.stebbs_state.deep_soil_temperature = v;
+        }
+        if let Some(v) = month_mean_air_temperature_diffmax {
+            state.stebbs_state.month_mean_air_temperature_diffmax = v;
         }
         if let Some(v) = mains_water {
             state.stebbs_state.mains_water_temperature = v;

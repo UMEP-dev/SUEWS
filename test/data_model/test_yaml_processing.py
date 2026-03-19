@@ -3479,6 +3479,8 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "rcmethod",
             "samealbedo_wall",
             "samealbedo_roof",
+            "sameemissivity_wall",
+            "sameemissivity_roof"
         }
 
         valid_yaml = {

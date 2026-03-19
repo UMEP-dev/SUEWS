@@ -49,6 +49,11 @@ class DummySite:
         self.name = name
 
 
+@pytest.fixture(scope="module")
+def registry():
+    return RulesRegistry()
+
+
 # Helper to construct a SUEWSConfig without running Pydantic on sites,
 # then inject the desired physics settings.
 def make_cfg(**physics_kwargs):
@@ -615,7 +620,7 @@ def test_needs_samealbedo_wall_validation_true_and_false():
     cfg2 = make_cfg(samealbedo_wall=0)
     assert cfg2._needs_samealbedo_wall_validation() is False
 
-def test_phase_b_validate_model_option_samealbedo_disabled():
+def test_phase_b_validate_model_option_samealbedo_disabled(registry):
     """Test validate_model_option_samealbedo returns WARNING when option is disabled (==0)."""
 
     yaml_data_wall = {
@@ -627,7 +632,7 @@ def test_phase_b_validate_model_option_samealbedo_disabled():
         "sites": [{"name": "site1", "properties": {}}],  
     }
 
-    results_wall = RulesRegistry()["samealbedo"](ValidationContext(yaml_data=yaml_data_wall))
+    results_wall = registry["samealbedo"](ValidationContext(yaml_data=yaml_data_wall))
     assert len(results_wall) == 1
     assert results_wall[0].status == "WARNING"
     assert "no check of consistency" in results_wall[0].message.lower()
@@ -641,14 +646,14 @@ def test_phase_b_validate_model_option_samealbedo_disabled():
         },
         "sites": [{"name": "site1", "properties": {}}],  
     }
-    results_roof = RulesRegistry()["samealbedo"](ValidationContext(yaml_data=yaml_data_roof))
+    results_roof = registry["samealbedo"](ValidationContext(yaml_data=yaml_data_roof))
     assert len(results_roof) == 1
     assert results_roof[0].status == "WARNING"
     assert "no check of consistency" in results_roof[0].message.lower()
     assert "samealbedo_roof == 0" in results_roof[0].message.lower()
 
 
-def test_validate_model_option_rcmethod_missing_params():
+def test_validate_model_option_rcmethod_missing_params(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 1}}},
         "sites": [{
@@ -658,13 +663,13 @@ def test_validate_model_option_rcmethod_missing_params():
             }
         }],
     }
-    results = RulesRegistry()["rcmethod"](ValidationContext(yaml_data=yaml_data))
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     params = [r.parameter for r in results]
     assert any("RoofOuterCapFrac" in p for p in params)
     assert any("WallOuterCapFrac" in p for p in params)
     assert all(r.status == "ERROR" for r in results)
 
-def test_validate_model_option_rcmethod_enabled_invalid_values():
+def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 1}}},
         "sites": [{
@@ -677,11 +682,11 @@ def test_validate_model_option_rcmethod_enabled_invalid_values():
             }
         }],
     }
-    results = RulesRegistry()["rcmethod"](ValidationContext(yaml_data=yaml_data))
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     assert any("out of valid range" in r.message for r in results)
     assert all(r.status == "ERROR" for r in results)
 
-def test_validate_model_option_rcmethod_enabled_valid_values():
+def test_validate_model_option_rcmethod_enabled_valid_values(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 1}}},
         "sites": [{
@@ -694,7 +699,7 @@ def test_validate_model_option_rcmethod_enabled_valid_values():
             }
         }],
     }
-    results = RulesRegistry()["rcmethod"](ValidationContext(yaml_data=yaml_data))
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     assert not results or all(r.status != "ERROR" for r in results)
 
 def test_adjust_model_option_rcmethod_sets_defaults():
@@ -730,7 +735,7 @@ def test_adjust_model_option_rcmethod_no_action_when_already_set():
     updated_data, adjustments = adjust_model_option_rcmethod(yaml_data)
     assert len(adjustments) == 0
 
-def test_validate_model_option_rcmethod2_missing_params():
+def test_validate_model_option_rcmethod2_missing_params(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 2}}},
         "sites": [{
@@ -738,7 +743,7 @@ def test_validate_model_option_rcmethod2_missing_params():
             "properties": {"building_archetype": {}},
         }],
     }
-    results = RulesRegistry()["rcmethod"](ValidationContext(yaml_data=yaml_data))
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     required = [
         "WallextThickness", "WallextEffectiveConductivity", "WallextDensity", "WallextCp",
         "RoofextThickness", "RoofextEffectiveConductivity", "RoofextDensity", "RoofextCp"
@@ -749,7 +754,7 @@ def test_validate_model_option_rcmethod2_missing_params():
         assert p in error_params
     assert all(r.status == "ERROR" for r in results if r.parameter in expected)
 
-def test_validate_model_option_rcmethod2_all_params_provided():
+def test_validate_model_option_rcmethod2_all_params_provided(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 2}}},
         "sites": [{
@@ -768,13 +773,13 @@ def test_validate_model_option_rcmethod2_all_params_provided():
             }
         }],
     }
-    results = RulesRegistry()["rcmethod"](ValidationContext(yaml_data=yaml_data))
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     warnings = [r for r in results if r.status == "WARNING"]
     assert any("wall material parameters will be used for parameterisation" in r.message for r in warnings)
     assert any("roof material parameters will be used for parameterisation" in r.message for r in warnings)
     assert all(r.status != "ERROR" for r in results)
 
-def test_validate_model_option_rcmethod2_some_params_missing():
+def test_validate_model_option_rcmethod2_some_params_missing(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 2}}},
         "sites": [{
@@ -793,7 +798,7 @@ def test_validate_model_option_rcmethod2_some_params_missing():
             }
         }],
     }
-    results = RulesRegistry()["rcmethod"](ValidationContext(yaml_data=yaml_data))
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
     assert "building_archetype.WallextEffectiveConductivity" in error_params
     assert "building_archetype.WallextCp" in error_params
@@ -801,7 +806,7 @@ def test_validate_model_option_rcmethod2_some_params_missing():
     assert any(r.status == "WARNING" for r in results)
     assert all("must be provided" in r.message for r in results if r.status == "ERROR")
 
-def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid():
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
     """Test HotWaterFlowProfile accepts only 0 or 1 values."""
 
     yaml_data = {
@@ -818,10 +823,10 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid():
             }
         }],
     }
-    results = RulesRegistry()["stebbs_props"](ValidationContext(yaml_data=yaml_data))
+    results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors for valid HotWaterFlowProfile values"
 
-def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid():
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid(registry):
     """Test HotWaterFlowProfile returns ERROR for invalid values."""
 
     yaml_data = {
@@ -838,7 +843,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid():
             }
         }],
     }
-    results = RulesRegistry()["stebbs_props"](ValidationContext(yaml_data=yaml_data))
+    results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
     assert "stebbs.HotWaterFlowProfile.working_day.0" in error_params
     assert "stebbs.HotWaterFlowProfile.working_day.1" in error_params
@@ -848,7 +853,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid():
     assert all(r.status == "ERROR" for r in results)
     assert all("must be 0 or 1" in r.message for r in results)
 
-def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing():
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing(registry):
     """Test HotWaterFlowProfile missing returns no errors."""
 
     yaml_data = {
@@ -862,10 +867,10 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing():
             }
         }],
     }
-    results = RulesRegistry()["stebbs_props"](ValidationContext(yaml_data=yaml_data))
+    results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors if HotWaterFlowProfile is missing"
 
-def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial():
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial(registry):
     """Test HotWaterFlowProfile with partial valid/invalid values."""
 
     yaml_data = {
@@ -882,14 +887,14 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial():
             }
         }],
     }
-    results = RulesRegistry()["stebbs_props"](ValidationContext(yaml_data=yaml_data))
+    results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
     assert "stebbs.HotWaterFlowProfile.working_day.2" in error_params
     assert "stebbs.HotWaterFlowProfile.holiday.2" in error_params
     assert all(r.status == "ERROR" for r in results)
     assert len(results) == 2
 
-def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_nonzero():
+def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_nonzero(registry):
     """Test error when Occupants=0.0 but MetabolismProfile has nonzero values."""
 
     yaml_data = {
@@ -908,13 +913,13 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_non
             }
         }],
     }
-    results = RulesRegistry()["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
+    results = registry["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
     assert "building_archetype.MetabolismProfile" in error_params
     assert any("nonzero entries" in r.message for r in results)
     assert all(r.status == "ERROR" for r in results)
 
-def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_all_zero():
+def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_all_zero(registry):
     """Test no error when Occupants=0.0 and all MetabolismProfile values are zero."""
 
     yaml_data = {
@@ -933,10 +938,10 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_all
             }
         }],
     }
-    results = RulesRegistry()["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
+    results = registry["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors when all MetabolismProfile values are zero or None"
 
-def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_nonzero():
+def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_nonzero(registry):
     """Test no error when Occupants>0 and MetabolismProfile has nonzero values."""
 
     yaml_data = {
@@ -955,7 +960,7 @@ def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_
             }
         }],
     }
-    results = RulesRegistry()["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
+    results = registry["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors when Occupants > 0"
 
 @pytest.mark.parametrize(
@@ -1555,7 +1560,7 @@ sites:
         yaml_path.unlink()
 
 
-def test_phase_b_storageheatmethod_ohmincqf_validation():
+def test_phase_b_storageheatmethod_ohmincqf_validation(registry):
     """Test StorageHeatMethod-OhmIncQf validation in Phase B."""
 
     # Test incompatible combination: StorageHeatMethod=1 requires OhmIncQf=0
@@ -1568,7 +1573,7 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
         }
     }
 
-    results = RulesRegistry()["option_dependencies"](ValidationContext(yaml_data=yaml_data_incompatible))
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_incompatible))
 
     # Should find the incompatible combination
     storage_results = [
@@ -1592,7 +1597,7 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
         }
     }
 
-    results = RulesRegistry()["option_dependencies"](ValidationContext(yaml_data=yaml_data_compatible))
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_compatible))
 
     # Should pass validation
     storage_results = [
@@ -1606,7 +1611,7 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
     )
 
 
-def test_phase_b_rsl_stabilitymethod_validation():
+def test_phase_b_rsl_stabilitymethod_validation(registry):
     """Test that existing RSL-StabilityMethod validation still works in Phase B."""
 
     # Test incompatible combination: rslmethod=2 requires stabilitymethod=3
@@ -1619,7 +1624,7 @@ def test_phase_b_rsl_stabilitymethod_validation():
         }
     }
 
-    results = RulesRegistry()["option_dependencies"](ValidationContext(yaml_data=yaml_data_incompatible))
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_incompatible))
 
     # Should find the incompatible combination
     rsl_results = [r for r in results if "rslmethod-stabilitymethod" in r.parameter]
@@ -1629,7 +1634,7 @@ def test_phase_b_rsl_stabilitymethod_validation():
     assert "stabilitymethod must be 3" in rsl_results[0].message
 
 
-def test_phase_b_model_option_dependencies_comprehensive():
+def test_phase_b_model_option_dependencies_comprehensive(registry):
     """Test validate_model_option_dependencies function with various configurations."""
     # Test with minimal physics configuration (should all pass)
     yaml_data_minimal = {
@@ -1643,7 +1648,7 @@ def test_phase_b_model_option_dependencies_comprehensive():
         }
     }
 
-    results = RulesRegistry()["option_dependencies"](ValidationContext(yaml_data=yaml_data_minimal))
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_minimal))
 
     # All should pass
     error_results = [r for r in results if r.status == "ERROR"]
@@ -1670,7 +1675,7 @@ def test_phase_b_model_option_dependencies_comprehensive():
         }
     }
 
-    results = RulesRegistry()["option_dependencies"](ValidationContext(yaml_data=yaml_data_mixed))
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_mixed))
 
     # Should have one error (RSL) and one pass (storage heat)
     error_results = [r for r in results if r.status == "ERROR"]
@@ -1691,7 +1696,7 @@ def test_phase_b_model_option_dependencies_comprehensive():
     # Test with missing physics section (should handle gracefully)
     yaml_data_no_physics = {"model": {}}
 
-    results = RulesRegistry()["option_dependencies"](ValidationContext(yaml_data=yaml_data_no_physics))
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_no_physics))
 
     # Should handle gracefully - may have default values or skip validation
     assert isinstance(results, list)  # Should return a list, not crash

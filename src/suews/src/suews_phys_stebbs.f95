@@ -898,6 +898,9 @@ CONTAINS
                buildings(1)%Ts(2) = Unused_cooling_setpoint_C + 273.15
             END IF
             !calculate water mains temperature 
+            WRITE(*,*) '  Tground_deep_sout [C] = ', Tground_deep_sout
+            WRITE(*,*) '  MonthMeanAirTemperature_diffmax_sout [C] = ', MonthMeanAirTemperature_diffmax_sout
+
             T_watermains_K = cal_mainsWaterTemperature(id, Tground_deep_sout, MonthMeanAirTemperature_diffmax_sout)
             !constrain the temperature between 4 and 20
             T_watermains_K = min(max(4.0 + 273.15, T_watermains_K), 20.0 + 273.15)
@@ -938,7 +941,7 @@ CONTAINS
             stebbsState%QS_stebbs = QS_bldg_tstepFA 
             dataOutLineSTEBBS = [ &
                                 ! Forcing
-                                ws, ws_bh, ws_hbh, Tair_sout, Tair_bh, Tair_hbh, &
+                                ws, ws_bh, ws_hbh, Tair_sout, Tair_bh, Tair_hbh, T_watermains_K - 273.15, &
                                 Kroof_sout, Lroof_sout, Kwall_sout, Lwall_sout, &
                                 ! energy balance heat flux 
                                 QN_bldg_tstepFA, QEC_bldg_tstepFA, QS_total_tstepFA, QH_bldg_tstepFA, QBAE_bldg_tstepFA, QWaste_bldg_tstepFA, &

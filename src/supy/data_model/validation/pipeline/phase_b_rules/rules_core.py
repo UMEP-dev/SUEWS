@@ -45,8 +45,8 @@ class ValidationContext:
     """Immutable context for validation rules"""
 
     yaml_data: dict
-    start_date: str|None = None
-    model_year: int|None = None
+    start_date: Optional[str] = None
+    model_year: Optional[int] = None
 
 
     def __post_init__(self):

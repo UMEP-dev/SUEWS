@@ -134,21 +134,6 @@ def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
 
     return model_year, start_date, end_date
 
-def run_scientific_validation_pipeline(
-    yaml_data: dict, start_date: str, model_year: int
-) -> List[ValidationResult]:
-    """Execute all scientific validation checks."""
-    validation_context = ValidationContext(
-        yaml_data=yaml_data,
-        model_year=model_year,
-    )
-
-    validation_results = RulesRegistry(
-        context=context
-    ).run_validation()
-
-    return validation_results
-
 
 def get_mean_monthly_air_temperature(
     lat: float, lon: float, month: int, spatial_res: float = 0.5
@@ -1374,9 +1359,16 @@ def run_science_check(
 
         model_year, start_date, end_date = extract_simulation_parameters(uptodate_data)
 
-        validation_results = run_scientific_validation_pipeline(
-            uptodate_data, start_date, model_year
+        validation_context = ValidationContext(
+            yaml_data=uptodate_data,
+            start_date=start_date,
+            model_year=model_year,
         )
+
+        validation_results = RulesRegistry(
+            context=validation_context
+        ).run_validation()
+
     except (ValueError, FileNotFoundError, KeyError) as e:
         # Handle initialization failures and create error report
         error_message = str(e)

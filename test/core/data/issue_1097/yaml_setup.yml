@@ -214,6 +214,8 @@ sites:
         value: null
       AnnualMeanAirTemperature:
         value: null
+      MonthMeanAirTemperature_diffmax:
+        value: null   
     building_archetype:
       BuildingType: test
       BuildingName: test

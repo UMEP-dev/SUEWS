@@ -440,9 +440,11 @@ sites:
       InitialOutdoorTemperature:
         value: 17.540002822875977
       InitialIndoorTemperature:
-        value: 20.0
+        value: 17.540002822875977
       AnnualMeanAirTemperature:
-        value: 10.0
+        value: 10.738
+      MonthMeanAirTemperature_diffmax:
+        value: 12.947
       WaterTankWallThickness:
         value: 0.055
       MainsWaterTemperature:

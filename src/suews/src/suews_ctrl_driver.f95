@@ -4164,7 +4164,9 @@ CONTAINS
       MetabolismThreshold, LatentSensibleRatio, &
       ApplianceProfile, &
       HeatingSystemEfficiency, &
-      MaxCoolingPower, CoolingSystemCOP, VentilationRate, AnnualMeanAirTemperature, InitialOutdoorTemperature, InitialIndoorTemperature, &
+      MaxCoolingPower, CoolingSystemCOP, VentilationRate, &
+      AnnualMeanAirTemperature, MonthMeanAirTemperature_diffmax, &
+      InitialOutdoorTemperature, InitialIndoorTemperature, &
       WaterTankWallThickness, MainsWaterTemperature, WaterTankSurfaceArea, &
       HotWaterHeatingSetpointTemperature, HotWaterTankWallEmissivity, &
       DHWVesselWallThickness, DHWWaterVolume, &
@@ -4580,6 +4582,7 @@ CONTAINS
       REAL(KIND(1D0)) :: CoolingSystemCOP
       REAL(KIND(1D0)) :: VentilationRate
       REAL(KIND(1D0)) :: AnnualMeanAirTemperature
+      REAL(KIND(1D0)) :: MonthMeanAirTemperature_diffmax
       REAL(KIND(1D0)) :: InitialOutdoorTemperature
       REAL(KIND(1D0)) :: InitialIndoorTemperature
       REAL(KIND(1D0)) :: WaterTankWallThickness
@@ -5481,6 +5484,7 @@ CONTAINS
       ! TODO: STEBBS States act as parameters for building generation (move all but allocation?)
       CALL stebbsState%ALLOCATE(nbtypes, nlayer)
       stebbsState%DeepSoilTemperature = AnnualMeanAirTemperature
+      stebbsState%MonthMeanAirTemperature_diffmax = MonthMeanAirTemperature_diffmax
       stebbsState%OutdoorAirStartTemperature = InitialOutdoorTemperature
       stebbsState%IndoorAirStartTemperature = InitialIndoorTemperature
       stebbsState%IndoorMassStartTemperature = InitialIndoorTemperature

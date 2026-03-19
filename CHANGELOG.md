@@ -40,7 +40,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 70 | 78 | 29 | 79 | 40 | 296 |
+| 2026 | 71 | 78 | 29 | 79 | 40 | 297 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -52,6 +52,10 @@ EXAMPLES:
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 18 Mar 2026
+
+- [feature][experimental] Add dynamic calculation of water mains (cold) temperature in STEBBS and relevant new tests (PR #1249).
 
 ### 16 Mar 2026
 

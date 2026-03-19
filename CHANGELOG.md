@@ -95,6 +95,11 @@ EXAMPLES:
 - [bugfix] Guard SPARTACUS LW solver NaN from matrix singularity in certain urban canopy geometries (#1212)
 - [changes] Removed internal-only parameters (diagnose, dqndt, dqnsdt, dt_since_start, lenday_id, qn_av, qn_s_av, tair_av, tmax_id, tmin_id, tstep_prev, snowfallcum) from sample_config.yml. (PR #1216)
 
+### 19 Feb 2026
+
+- [feature][experimental] Add update logic under seasonal adjustments in phase_b.py to handle different alb_id behaviour across vegetated surface types (PR #1211).
+- [doc] Updated PHASE_B_DETAILED.md with new seasonal adjustment logic (PR #1211).
+
 ### 18 Feb 2026
 
 - [feature][experimental] Add attribution module for diagnosing T2, q2, and U10 changes by decomposing model output into physical process contributions, with diurnal cycle and heatmap visualisation helpers (#918)

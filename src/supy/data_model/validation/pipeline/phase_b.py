@@ -16,6 +16,7 @@ Phase B assumes Phase A has completed successfully and builds upon clean YAML ou
 without duplicating parameter detection or YAML structure validation.
 """
 
+import math
 import yaml
 import os
 import calendar
@@ -1805,6 +1806,32 @@ def get_season(start_date: str, lat: float) -> str:
     return get_season_from_doy(start, lat)
 
 
+def _get_range_and_id(surf_props: dict, surf_state: dict) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    alb_min = get_value_safe(surf_props, "alb_min")
+    alb_max = get_value_safe(surf_props, "alb_max")
+    alb_id = get_value_safe(surf_state, "alb_id")
+    return alb_min, alb_max, alb_id
+
+
+def _set_alb_id(
+    initial_states: dict,
+    surf_key: str,
+    new_alb_id: Optional[float],
+):
+    if new_alb_id is None:
+        return False, None, None
+    if surf_key not in initial_states:
+        initial_states[surf_key] = {}
+    surf_state = initial_states[surf_key]
+    if not isinstance(surf_state, dict):
+        return False, None, None
+    old_val = get_value_safe(surf_state, "alb_id")
+    if old_val is not None and math.isclose(old_val, new_alb_id):
+        return False, old_val, new_alb_id
+    surf_state["alb_id"] = {"value": new_alb_id}
+    return True, old_val, new_alb_id
+
+
 def adjust_seasonal_parameters(
     yaml_data: dict, start_date: str, model_year: int
 ) -> Tuple[dict, List[ScientificAdjustment]]:
@@ -1855,8 +1882,8 @@ def adjust_seasonal_parameters(
 
             if sfr > 0:
                 lai = dectr.get("lai", {})
-                laimin = lai.get("laimin", {}).get("value")
-                laimax = lai.get("laimax", {}).get("value")
+                laimin = get_value_safe(lai, "laimin")
+                laimax = get_value_safe(lai, "laimax")
 
                 if laimin is not None and laimax is not None:
                     if season == "summer":
@@ -1871,7 +1898,7 @@ def adjust_seasonal_parameters(
                     if "dectr" not in initial_states:
                         initial_states["dectr"] = {}
 
-                    current_lai = initial_states["dectr"].get("lai_id", {}).get("value")
+                    current_lai = get_value_safe(initial_states["dectr"], "lai_id")
                     if current_lai != lai_val:
                         initial_states["dectr"]["lai_id"] = {"value": lai_val}
                         adjustments.append(
@@ -1888,6 +1915,49 @@ def adjust_seasonal_parameters(
                         )
             # Note: When sfr=0, we don't nullify lai_id - we simply skip validation
             # The warning "Parameters not checked because surface fraction is 0" covers this
+
+        # Seasonal adjustment of vegetation albedo ranges (alb_id only)
+        vegetated_surfaces = (
+            ("grass", "grass"),
+            ("dectr", "deciduous trees"),
+            ("evetr", "evergreen trees"),
+        )
+
+        for surf_key, label in vegetated_surfaces:
+            surf_props = land_cover.get(surf_key, {})
+            # Check surface fraction:
+            sfr = surf_props.get("sfr", {}).get("value", 0)
+            if not sfr:
+                continue  # Skip albedo adjustment if surface fraction is zero
+
+            surf_state = initial_states.get(surf_key, {})
+            alb_min, alb_max, alb_id_val = _get_range_and_id(surf_props, surf_state)
+            if alb_min is None or alb_max is None:
+                continue
+            if season in ("summer", "tropical", "equatorial"):
+                target = alb_min if surf_key == "grass" else alb_max
+            elif season == "winter":
+                target = alb_max if surf_key == "grass" else alb_min
+            else:
+                if alb_id_val is None:
+                    continue
+                target = 0.5 * (alb_min + alb_max)
+            changed, old_val, new_alb_id = _set_alb_id(
+                initial_states,
+                surf_key,
+                target,
+            )
+            if changed:
+                adjustments.append(
+                    ScientificAdjustment(
+                        parameter=f"{surf_key}.alb_id",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        old_value=str(old_val),
+                        new_value=str(new_alb_id),
+                        reason=f"Set seasonal albedo for {season} on {label} based on (alb_min, alb_max)",
+                    )
+                )
 
         if lat is not None and lng is not None:
             try:

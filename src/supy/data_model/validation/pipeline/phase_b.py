@@ -138,15 +138,14 @@ def run_scientific_validation_pipeline(
     yaml_data: dict, start_date: str, model_year: int
 ) -> List[ValidationResult]:
     """Execute all scientific validation checks."""
-    validation_results = []
-
     validation_context = ValidationContext(
         yaml_data=yaml_data,
         model_year=model_year,
     )
 
-    for rule_id, rule_fn in RulesRegistry().phase_b.items():
-        validation_results.extend(rule_fn(validation_context))
+    validation_results = RulesRegistry(
+        context=context
+    ).run_validation()
 
     return validation_results
 

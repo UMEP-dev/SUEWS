@@ -14,13 +14,14 @@ from .variables import (
 # Variable definitions matching Fortran dataOutLineSTEBBS assignment
 # Names are exactly as they appear in Fortran output (truncated at 16 chars)
 STEBBS_VARIABLE_DEFS = [
-    # Forcing variables (6)
+    # Forcing variables (7)
     ("ws_10", "m s-1", "Wind speed at 10m", 0),
     ("ws_bh", "m s-1", "Wind speed at building height", 0),
     ("ws_hbh", "m s-1", "Wind speed at half building height", 0),
     ("Tair_2", "degC", "Air temperature at 2m", 0),
     ("Tair_bh", "degC", "Air temperature at building height", 0),
     ("Tair_hbh", "degC", "Air temperature at half building height", 0),
+    ("Twater_mains", "degC", "Water mains (cold) temperature", 0),
     # Radiation forcing (4)
     ("Kroof_in", "W m-2", "Incoming shortwave radiation on roof per surface area", 0),
     ("Lroof_in", "W m-2", "Incoming longwave radiation on roof per surface area", 0),

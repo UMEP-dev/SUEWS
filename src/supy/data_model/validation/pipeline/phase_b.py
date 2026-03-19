@@ -32,6 +32,7 @@ from .. import logger_supy
 from .report_writer import REPORT_WRITER
 from ..core.yaml_helpers import (
     get_mean_monthly_air_temperature as _get_mean_monthly_air_temperature,
+    get_monthly_air_temperature_diffmax as _get_monthly_air_temperature_diffmax,
     get_mean_annual_air_temperature as _get_mean_annual_air_temperature,
     nullify_co2_block_recursive,
     collect_nullified_paths,
@@ -1365,6 +1366,56 @@ def get_mean_monthly_air_temperature(
             # Re-raise validation errors
             raise
 
+def get_monthly_air_temperature_diffmax(
+    lat: float, lon: float, spatial_res: float = 0.5
+) -> Optional[float]:
+    """
+    Calculate the maximum difference between mean monthly air temperatures
+    using CRU TS4.06 climatological data. This is defined as the difference 
+    between the warmest and coldest mean monthly temperature within the annual 
+    cycle at the specified location.
+
+    Parameters
+    ----------
+    lat : float
+        Site latitude in degrees (-90 to 90).
+    lon : float
+        Site longitude in degrees (-180 to 180).
+    spatial_res : float, optional
+        Search spatial resolution for nearest CRU grid cell, by default 0.5.
+
+    Returns
+    -------
+    float or None
+        Maximum difference in mean monthly air temperature (degC),
+        or None if CRU data not available.
+
+    Raises
+    ------
+    ValueError
+        If input parameters are invalid (lat, lon out of range).
+    """
+    # Validate parameters first - these errors should propagate
+    if not (-90 <= lat <= 90):
+        raise ValueError(f"Latitude must be between -90 and 90, got {lat}")
+    if not (-180 <= lon <= 180):
+        raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
+
+    try:
+        return _get_monthly_air_temperature_diffmax(lat, lon, spatial_res)
+    except (FileNotFoundError, IOError, OSError) as e:
+        logger_supy.warning(
+            f"CRU data file not available: {e}. Temperature diffmax validation skipped."
+        )
+        return None
+    except ValueError as e:
+        if "CRU" in str(e) or "not found" in str(e).lower():
+            logger_supy.warning(
+                f"CRU data not available: {e}. Temperature diffmax validation skipped."
+            )
+            return None
+        else:
+            raise
 
 def get_mean_annual_air_temperature(
     lat: float, lon: float, spatial_res: float = 0.5
@@ -1523,6 +1574,27 @@ def adjust_surface_temperatures(
                             reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f}) for month {month}",
                         )
                     )
+
+        # Update MonthMeanTemperature_diffmax in stebbs if present
+        diffmax_val = get_monthly_air_temperature_diffmax(lat, lng)
+        if diffmax_val is None:
+            logger_supy.debug("Skipping diffmax update - CRU data not available")
+        else:
+            for key in ("MonthMeanAirTemperature_diffmax",):
+                if key in stebbs and isinstance(stebbs[key], dict):
+                    old_val = stebbs[key].get("value")
+                    if old_val != diffmax_val:
+                        stebbs[key]["value"] = diffmax_val
+                        adjustments.append(
+                            ScientificAdjustment(
+                                parameter=f"stebbs.{key}",
+                                site_index=site_idx,
+                                site_gridid=site_gridid,
+                                old_value=str(old_val),
+                                new_value=f"{diffmax_val} C",
+                                reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f})",
+                            )
+                        )
 
         # Update STEBBS OutdoorAirAnnualTemperature using annual mean from CRU data
         annual_temp = get_mean_annual_air_temperature(lat, lng)

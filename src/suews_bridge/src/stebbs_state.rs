@@ -7,8 +7,8 @@ use crate::ffi;
 use std::collections::BTreeMap;
 
 pub const STEBBS_STATE_RSL_LEN: usize = 30;
-pub const STEBBS_STATE_FLAT_LEN: usize = 154;
-pub const STEBBS_STATE_SCHEMA_VERSION: u32 = 1;
+pub const STEBBS_STATE_FLAT_LEN: usize = 155;
+pub const STEBBS_STATE_SCHEMA_VERSION: u32 = 2;
 
 pub type StebbsStateSchema = crate::codec::SimpleSchema;
 
@@ -33,6 +33,7 @@ pub struct StebbsState {
     pub dataout_line_trsl: [f64; STEBBS_STATE_RSL_LEN],
     pub dataout_line_qrsl: [f64; STEBBS_STATE_RSL_LEN],
     pub deep_soil_temperature: f64,
+    pub month_mean_air_temperature_diffmax: f64,
     pub outdoor_air_start_temperature: f64,
     pub indoor_air_start_temperature: f64,
     pub indoor_mass_start_temperature: f64,
@@ -76,6 +77,7 @@ impl Default for StebbsState {
             dataout_line_trsl: [-999.0; STEBBS_STATE_RSL_LEN],
             dataout_line_qrsl: [-999.0; STEBBS_STATE_RSL_LEN],
             deep_soil_temperature: 0.0,
+            month_mean_air_temperature_diffmax: 0.0,
             outdoor_air_start_temperature: 0.0,
             indoor_air_start_temperature: 0.0,
             indoor_mass_start_temperature: 0.0,
@@ -174,6 +176,8 @@ impl StebbsState {
 
         let deep_soil_temperature = flat[idx];
         idx += 1;
+        let month_mean_air_temperature_diffmax = flat[idx];
+        idx += 1;
         let outdoor_air_start_temperature = flat[idx];
         idx += 1;
         let indoor_air_start_temperature = flat[idx];
@@ -235,6 +239,7 @@ impl StebbsState {
             dataout_line_trsl,
             dataout_line_qrsl,
             deep_soil_temperature,
+            month_mean_air_temperature_diffmax,
             outdoor_air_start_temperature,
             indoor_air_start_temperature,
             indoor_mass_start_temperature,
@@ -281,6 +286,7 @@ impl StebbsState {
         flat.extend_from_slice(&self.dataout_line_qrsl);
 
         flat.push(self.deep_soil_temperature);
+        flat.push(self.month_mean_air_temperature_diffmax);
         flat.push(self.outdoor_air_start_temperature);
         flat.push(self.indoor_air_start_temperature);
         flat.push(self.indoor_mass_start_temperature);
@@ -385,6 +391,7 @@ pub fn stebbs_state_field_names() -> Vec<String> {
     append_indexed_names(&mut names, "dataout_line_qrsl", STEBBS_STATE_RSL_LEN);
 
     names.push("deep_soil_temperature".to_string());
+    names.push("month_mean_air_temperature_diffmax".to_string());
     names.push("outdoor_air_start_temperature".to_string());
     names.push("indoor_air_start_temperature".to_string());
     names.push("indoor_mass_start_temperature".to_string());

@@ -667,6 +667,8 @@ class TestSTEBBSOutput(TestCase):
         # Define STEBBS-specific variables to test with tolerances
         # Higher tolerances for building energy due to complex thermal dynamics
         stebbs_variables = {
+            #water mains temperature
+            "Twater_mains": {"rtol": 0.02, "atol": 0.5},  # 2% / 0.5K tolerance
             # Indoor conditions - affected by complex heat transfer
             "Tair_ind": {"rtol": 0.02, "atol": 0.5},  # 2% / 0.5K tolerance
             # Building loads - higher tolerance due to control logic

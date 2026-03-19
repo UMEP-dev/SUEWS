@@ -898,9 +898,6 @@ CONTAINS
                buildings(1)%Ts(2) = Unused_cooling_setpoint_C + 273.15
             END IF
             !calculate water mains temperature 
-            WRITE(*,*) '  Tground_deep_sout [C] = ', Tground_deep_sout
-            WRITE(*,*) '  MonthMeanAirTemperature_diffmax_sout [C] = ', MonthMeanAirTemperature_diffmax_sout
-
             T_watermains_K = cal_mainsWaterTemperature(id, Tground_deep_sout, MonthMeanAirTemperature_diffmax_sout)
             !constrain the temperature between 4 and 20
             T_watermains_K = min(max(4.0 + 273.15, T_watermains_K), 20.0 + 273.15)

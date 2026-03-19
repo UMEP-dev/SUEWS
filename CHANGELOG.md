@@ -40,7 +40,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 69 | 78 | 29 | 79 | 40 | 295 |
+| 2026 | 70 | 78 | 29 | 79 | 40 | 296 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -53,9 +53,13 @@ EXAMPLES:
 
 ## 2026
 
-### 15 Mar 2026
-- [feature][experimental] Add new adjustment function for STEBBS and implement WWR related adjustments when STEBBS method is on (PR #1244).
+### 16 Mar 2026
 
+- [feature][experimental] Refine `_is_physics_explicitly_configured` to use Pydantic v2 `model_fields_set`, enabling conditional validation when physics options are explicitly set by user inputs (PR #1247).
+
+### 15 Mar 2026
+
+- [feature][experimental] Add new adjustment function for STEBBS and implement WWR related adjustments when STEBBS method is on (PR #1244).
 
 ### 13 Mar 2026
 
@@ -90,6 +94,11 @@ EXAMPLES:
 
 - [bugfix] Guard SPARTACUS LW solver NaN from matrix singularity in certain urban canopy geometries (#1212)
 - [changes] Removed internal-only parameters (diagnose, dqndt, dqnsdt, dt_since_start, lenday_id, qn_av, qn_s_av, tair_av, tmax_id, tmin_id, tstep_prev, snowfallcum) from sample_config.yml. (PR #1216)
+
+### 19 Feb 2026
+
+- [feature][experimental] Add update logic under seasonal adjustments in phase_b.py to handle different alb_id behaviour across vegetated surface types (PR #1211).
+- [doc] Updated PHASE_B_DETAILED.md with new seasonal adjustment logic (PR #1211).
 
 ### 18 Feb 2026
 

@@ -1315,6 +1315,87 @@ def test_validate_spartacus_veg_dimensions_exceeds_all_case():
     assert msgs
     assert any("exceeds all vertical_layers heights" in m for m in msgs)
 
+def make_sample_physics(fields):
+    obj = types.SimpleNamespace()
+    obj.model_fields_set = set(fields)
+    return obj
+
+def make_sample_model(physics):
+    obj = types.SimpleNamespace()
+    obj.physics = physics
+    return obj
+
+class SampleConfig:
+    def __init__(self, model):
+        self.model = model
+
+    def _is_physics_explicitly_configured(self, option_name: str) -> bool:
+        physics = getattr(self.model, "physics", None)
+        return bool(
+            physics
+            and hasattr(physics, "model_fields_set")
+            and option_name in physics.model_fields_set
+        )
+
+def test_is_physics_explicitly_configured_true():
+    """Returns True if the physics field is explicitly set."""
+    model = make_sample_model(make_sample_physics({'rslmethod', 'storageheatmethod'}))
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is True
+
+def test_is_physics_explicitly_configured_false():
+    """Returns False if the specific physics field is not set."""
+    model = make_sample_model(make_sample_physics({'storageheatmethod'}))
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+
+def test_is_physics_explicitly_configured_empty():
+    """Returns False if model_fields_set is empty."""
+    model = make_sample_model(make_sample_physics(set()))
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+
+def test_is_physics_explicitly_configured_no_physics():
+    """Returns False if physics attribute is missing or None."""
+    # model without physics attribute
+    class DummyModel: pass
+    cfg = SampleConfig(DummyModel())
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+
+    # model with physics None
+    class DummyModel2: pass
+    m = DummyModel2()
+    m.physics = None
+    cfg = SampleConfig(m)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+
+def test_is_physics_explicitly_configured_no_model_fields_set():
+    """Returns False if physics object has no model_fields_set attribute."""
+    class DummyPhysics: pass
+    model = make_sample_model(DummyPhysics())
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+
+def test_is_physics_explicitly_configured_non_string_fields():
+    """Handles non-string entries in model_fields_set gracefully."""
+    model = make_sample_model(make_sample_physics({1, None, 'rslmethod'}))
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is True
+    assert cfg._is_physics_explicitly_configured('storageheatmethod') is False
+
+def test_is_physics_explicitly_configured_model_fields_set_list():
+    """Handles model_fields_set as a list instead of set."""
+    obj = types.SimpleNamespace()
+    obj.model_fields_set = ['rslmethod', 'storageheatmethod']
+    model = make_sample_model(obj)
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is True
+    assert cfg._is_physics_explicitly_configured('other') is False
+
+def test_is_physics_explicitly_configured_model_none():
+    """Returns False if model is None."""
+    cfg = SampleConfig(None)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
 
 # From test_validation_topdown.py
 class TestTopDownValidation:
@@ -1851,6 +1932,123 @@ def test_phase_b_annual_mean_air_temperature_missing_stebbs():
     ]
     assert len(annual_temp_adjustments) == 0
 
+
+def _make_minimal_phase_b_yaml_for_albedo(lat: float) -> dict:
+    """Build a minimal Phase-B-style YAML dict with vegetation albedo ranges and alb_id."""
+    return {
+        "sites": [
+            {
+                "name": "TestSite",
+                "gridiv": 1,
+                "properties": {
+                    "lat": {"value": lat},
+                    "lng": {"value": 0.0},
+                    "land_cover": {
+                        "grass": {
+                            "sfr": {"value": 0.1},
+                            "alb_min": {"value": 0.10},
+                            "alb_max": {"value": 0.20},
+                        },
+                        "dectr": {
+                            "sfr": {"value": 0.1},
+                            "alb_min": {"value": 0.12},
+                            "alb_max": {"value": 0.30},
+                        },
+                        "evetr": {
+                            "sfr": {"value": 0.1},
+                            "alb_min": {"value": 0.14},
+                            "alb_max": {"value": 0.40},
+                        },
+                    },
+                },
+                "initial_states": {
+                    "grass": {"alb_id": {"value": 0.15}},
+                    "dectr": {"alb_id": {"value": 0.18}},
+                    "evetr": {"alb_id": {"value": 0.25}},
+                },
+            }
+        ]
+    }
+
+
+def _get_phase_b_alb_ids(yaml_data: dict):
+    site = yaml_data["sites"][0]
+    ist = site["initial_states"]
+    return (
+        ist["grass"]["alb_id"]["value"],
+        ist["dectr"]["alb_id"]["value"],
+        ist["evetr"]["alb_id"]["value"],
+    )
+
+
+def test_phase_b_seasonal_albedo_summer_updates_alb_id_from_ranges():
+    """Summer: grass.alb_id -> alb_min, dectr/evetr.alb_id -> alb_max."""
+    # Northern Hemisphere, DOY in summer window: 2017-07-15
+    yaml_data = _make_minimal_phase_b_yaml_for_albedo(lat=51.5)
+    yaml_before = copy.deepcopy(yaml_data)
+
+    updated, adjustments = adjust_seasonal_parameters(
+        yaml_data, start_date="2017-07-15", model_year=2017
+    )
+
+    grass_id, dectr_id, evetr_id = _get_phase_b_alb_ids(updated)
+
+    # Expected from ranges defined above
+    assert grass_id == pytest.approx(0.10)  # alb_min(grass)
+    assert dectr_id == pytest.approx(0.30)  # alb_max(dectr)
+    assert evetr_id == pytest.approx(0.40)  # alb_max(evetr)
+
+    # We should have ScientificAdjustment entries for each
+    params = {a.parameter for a in adjustments}
+    assert "grass.alb_id" in params
+    assert "dectr.alb_id" in params
+    assert "evetr.alb_id" in params
+
+    # Land-cover ranges themselves must be unchanged
+    lc_before = yaml_before["sites"][0]["properties"]["land_cover"]
+    lc_after = updated["sites"][0]["properties"]["land_cover"]
+    assert lc_after == lc_before
+
+
+def test_phase_b_seasonal_albedo_winter_updates_alb_id_from_ranges():
+    """Winter: grass.alb_id -> alb_max, dectr/evetr.alb_id -> alb_min."""
+    # Northern Hemisphere, DOY in winter window: 2017-01-15
+    yaml_data = _make_minimal_phase_b_yaml_for_albedo(lat=51.5)
+
+    updated, adjustments = adjust_seasonal_parameters(
+        yaml_data, start_date="2017-01-15", model_year=2017
+    )
+
+    grass_id, dectr_id, evetr_id = _get_phase_b_alb_ids(updated)
+
+    assert grass_id == pytest.approx(0.20)  # alb_max(grass)
+    assert dectr_id == pytest.approx(0.12)  # alb_min(dectr)
+    assert evetr_id == pytest.approx(0.14)  # alb_min(evetr)
+
+    params = {a.parameter for a in adjustments}
+    assert "grass.alb_id" in params
+    assert "dectr.alb_id" in params
+    assert "evetr.alb_id" in params
+
+
+def test_phase_b_seasonal_albedo_midseason_sets_alb_id_midpoint():
+    """Spring/fall: alb_id -> (alb_min + alb_max)/2 for dectr/evetr surfaces."""
+    # Northern Hemisphere, DOY in spring window: 2017-04-01
+    yaml_data = _make_minimal_phase_b_yaml_for_albedo(lat=51.5)
+
+    updated, adjustments = adjust_seasonal_parameters(
+        yaml_data, start_date="2017-04-01", model_year=2017
+    )
+
+    _ , dectr_id, evetr_id = _get_phase_b_alb_ids(updated)
+
+    # Expected midpoints
+    assert dectr_id == pytest.approx((0.12 + 0.30) / 2)  # 0.21
+    assert evetr_id == pytest.approx((0.14 + 0.40) / 2)  # 0.27
+
+    params = {a.parameter for a in adjustments}
+    assert "dectr.alb_id" in params
+    assert "evetr.alb_id" in params
 
 # =====================================================================
 # Phase A: nlayer dimension validation tests

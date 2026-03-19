@@ -5,6 +5,7 @@ from .rules_core import (
 from ...core.yaml_helpers import get_value_safe
 from collections.abc import Mapping
 import calendar
+from typing import Dict, List, Optional, Union, Any, Tuple
 
 
 # Constants 

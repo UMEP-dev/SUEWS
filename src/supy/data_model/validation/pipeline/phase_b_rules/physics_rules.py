@@ -4,7 +4,7 @@ from .rules_core import (
 )
 from ...core.yaml_helpers import get_value_safe
 from collections.abc import Mapping
-
+from typing import Dict, List, Optional, Union, Any, Tuple
 
 
 @RulesRegistry.add_rule("physics_params")

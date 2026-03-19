@@ -4,6 +4,7 @@ from .rules_core import (
 )
 from collections.abc import Mapping
 from ...core.yaml_helpers import get_value_safe
+from typing import Dict, List, Optional, Union, Any, Tuple
 
 def check_archetype_radiation_properties(archetype_data, facet):
     """Validate parameters for STEBBS radiation checks."""

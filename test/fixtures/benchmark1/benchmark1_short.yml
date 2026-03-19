@@ -45,6 +45,10 @@ model:
       value: 0
     samealbedo_roof:
       value: 0
+    sameemissivity_wall:
+      value: 0
+    sameemissivity_roof:
+      value: 0
 sites:
 - name: KCL
   gridiv: 1

@@ -62,7 +62,8 @@ PHYSICS_OPTIONS = {
     'stabilitymethod', 'smdmethod', 'waterusemethod',
     'rslmethod', 'faimethod', 'rsllevel',
     'gsmodel', 'snowuse', 'stebbsmethod', 'rcmethod',
-    'samealbedo_wall', 'samealbedo_roof' 
+    'samealbedo_wall', 'samealbedo_roof', 'sameemissivity_wall', 
+    'sameemissivity_roof'
 }
 
 # Outdated parameter mappings

@@ -33,6 +33,8 @@ PHYSICS_OPTIONS = {
     "rcmethod",
     "samealbedo_wall",
     "samealbedo_roof",
+    "sameemissivity_wall",
+    "sameemissivity_roof",
 }
 
 

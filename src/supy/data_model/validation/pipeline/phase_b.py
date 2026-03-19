@@ -181,6 +181,8 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
         "rcmethod",
         "samealbedo_wall",
         "samealbedo_roof",
+        "sameemissivity_wall",
+        "sameemissivity_roof",
     ]
 
     missing_params = [
@@ -403,6 +405,76 @@ def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
             )
 
     return results
+
+def validate_model_option_sameemissivity(yaml_data: dict) -> List[ValidationResult]:
+    """Validate consistency between model physics options, reporting site names."""
+    results = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+
+    sameemissivity_roof = get_value_safe(physics, "sameemissivity_roof")
+    sameemissivity_wall = get_value_safe(physics, "sameemissivity_wall")
+
+    if sameemissivity_wall == 0:
+        for site in yaml_data.get("sites", []):
+            site_name = site.get("name", "Unknown")
+            vlay = site.get("properties", {}).get("vertical_layers", {})
+            walls = vlay.get("walls", [])
+            if isinstance(walls, dict):  # rare but possible
+                walls = [walls]
+            found_emissivities = []
+            for wall in walls:
+                emis_val = get_value_safe(wall, "emis")
+                if emis_val is not None:
+                    found_emissivities.append(emis_val)
+            building_archetype = site.get("properties", {}).get("building_archetype", {})
+            wallemis_val = get_value_safe(building_archetype, "WallExternalEmissivity")
+            msg = (
+                f"sameemissivity_wall == 0. No check of consistency between walls emissivity (found values: {found_emissivities}) and WallExternalEmissivity (found value: {wallemis_val})."
+            )
+            results.append(
+                ValidationResult(
+                    status="WARNING",
+                    category="MODEL_OPTIONS",
+                    parameter="sameemissivity_wall",
+                    site_gridid=site_name,
+                    site_index=None,
+                    message=f"{msg}",
+                    suggested_value=None,
+                )
+            )
+
+    if sameemissivity_roof == 0:
+        for site in yaml_data.get("sites", []):
+            site_name = site.get("name", "Unknown")
+            vlay = site.get("properties", {}).get("vertical_layers", {})
+            roofs = vlay.get("roofs", [])
+            if isinstance(roofs, dict):  # rare but possible
+                roofs = [roofs]
+            found_emissivities = []
+            for roof in roofs:
+                emis_val = get_value_safe(roof, "emis")
+                if emis_val is not None:
+                    found_emissivities.append(emis_val)
+            building_archetype = site.get("properties", {}).get("building_archetype", {})
+            roofemis_val = get_value_safe(building_archetype, "RoofExternalEmissivity")
+            msg = (
+                f"sameemissivity_roof == 0. No check of consistency between roofs emissivity (found values: {found_emissivities}) and RoofExternalEmissivity (found value: {roofemis_val})."
+            )
+            results.append(
+                ValidationResult(
+                    status="WARNING",
+                    category="MODEL_OPTIONS",
+                    parameter="sameemissivity_roof",
+                    site_gridid=site_name,
+                    site_index=None,
+                    message=f"{msg}",
+                    suggested_value=None,
+                )
+            )
+
+    return results
+
+
 
 def validate_model_option_rcmethod(yaml_data: dict) -> List[ValidationResult]:
     """Validate RoofOuterCapFrac and WallOuterCapFrac if rcmethod == 1.

@@ -106,7 +106,7 @@ integer(c_int), parameter :: SUEWS_CAPI_SNOW_STATE_LEN = 79_c_int
 integer(c_int), parameter :: SUEWS_CAPI_HYDRO_STATE_BASE_LEN = 10_c_int * int(nsurf, c_int) + 34_c_int
 integer(c_int), parameter :: SUEWS_CAPI_HEAT_STATE_BASE_LEN = 7_c_int * int(nsurf, c_int) + 79_c_int
 integer(c_int), parameter :: SUEWS_CAPI_ROUGHNESS_STATE_LEN = 11_c_int
-integer(c_int), parameter :: SUEWS_CAPI_STEBBS_STATE_LEN = 154_c_int
+integer(c_int), parameter :: SUEWS_CAPI_STEBBS_STATE_LEN = 155_c_int
 integer(c_int), parameter :: SUEWS_CAPI_NHOOD_STATE_LEN = 5_c_int
 integer(c_int), parameter :: SUEWS_CAPI_STEBBS_STATE_RSL_LEN = 30_c_int
 
@@ -1957,6 +1957,7 @@ subroutine pack_stebbs_state(s, flat, n_flat, err)
    end do
 
    flat(idx) = s%deepsoiltemperature; idx = idx + 1_c_int
+   flat(idx) = s%monthmeanairtemperature_diffmax; idx = idx + 1_c_int
    flat(idx) = s%outdoorairstarttemperature; idx = idx + 1_c_int
    flat(idx) = s%indoorairstarttemperature; idx = idx + 1_c_int
    flat(idx) = s%indoormassstarttemperature; idx = idx + 1_c_int

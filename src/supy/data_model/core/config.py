@@ -177,6 +177,7 @@ class SUEWSConfig(BaseModel):
         "InitialOutdoorTemperature",
         "InitialIndoorTemperature",
         "AnnualMeanAirTemperature",
+        "MonthMeanAirTemperature_diffmax",
         "WaterTankWallThickness",
         "MainsWaterTemperature",
         "WaterTankSurfaceArea",

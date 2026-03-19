@@ -2047,7 +2047,7 @@ def test_phase_b_seasonal_albedo_midseason_sets_alb_id_midpoint():
         yaml_data, start_date="2017-04-01", model_year=2017
     )
 
-    dectr_id, evetr_id = _get_phase_b_alb_ids(updated)
+    _ , dectr_id, evetr_id = _get_phase_b_alb_ids(updated)
 
     # Expected midpoints
     assert dectr_id == pytest.approx((0.12 + 0.30) / 2)  # 0.21

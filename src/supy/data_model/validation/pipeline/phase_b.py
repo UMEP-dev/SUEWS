@@ -1923,6 +1923,11 @@ def adjust_seasonal_parameters(
 
         for surf_key, label in vegetated_surfaces:
             surf_props = land_cover.get(surf_key, {})
+            # Check surface fraction:
+            sfr = surf_props.get("sfr", {}).get("value", 0)
+            if not sfr or sfr == 0:
+                continue  # Skip albedo adjustment if surface fraction is zero
+
             surf_state = initial_states.get(surf_key, {})
             alb_min, alb_max, alb_id_val = _get_range_and_id(surf_props, surf_state)
             if alb_min is None or alb_max is None:

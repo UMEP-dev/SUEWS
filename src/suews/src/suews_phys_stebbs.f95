@@ -915,7 +915,8 @@ CONTAINS
             T_watermains_K = min(max(4.0 + 273.15, T_watermains_K), 20.0 + 273.15)
             buildings(1)%Tincomingwater_tank = T_watermains_K
             
-            n_floors = MAX(1, CEILING(buildings(1)%height_building/FloorHeightDefault))
+            ! Estimate storey count from archetype height using the nearest integer.
+            n_floors = MAX(1, NINT(buildings(1)%height_building/FloorHeightDefault))
             lighting_floor_area = n_floors * buildings(1)%Afootprint
             lighting_power_capacity = building_archtype%LightingPowerDensity * lighting_floor_area
             buildings(1)%lighting_power_rating = 0.0D0

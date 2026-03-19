@@ -317,7 +317,6 @@ subroutine building_archetype_prm_unpack(flat, n_flat, state, err)
    state%maximumhotwaterheatingpower = flat(idx); idx = idx + 1_c_int
    state%heatingsetpointtemperature = flat(idx); idx = idx + 1_c_int
    state%coolingsetpointtemperature = flat(idx); idx = idx + 1_c_int
-   state%LightingPowerDensity = flat(idx); idx = idx + 1_c_int
    
    do j = 1_c_int, SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS
       do i = 0_c_int, SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_STEPS - 1_c_int
@@ -333,6 +332,9 @@ subroutine building_archetype_prm_unpack(flat, n_flat, state, err)
       end do
    end do
 
+   ! Keep unpack order aligned with Rust and the Fortran pack routine:
+   ! LightingPowerDensity is stored after the two 144x2 profiles.
+   state%LightingPowerDensity = flat(idx); idx = idx + 1_c_int
    state%iter_safe = flat(idx)>=0.5_c_double
    err = SUEWS_CAPI_OK
 

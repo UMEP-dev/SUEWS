@@ -545,7 +545,40 @@ class SameAlbedoRoof(Enum):
     def __repr__(self):
         return str(self.value)
     
+class SameEmissivityWall(Enum):
+    """
+    Controls assumption of same emissivities for walls.
+
+    0: OFF
+    1: ON
+    """
+
+    DISABLED = 0
+    ENABLED = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
     
+
+class SameEmissivityRoof(Enum):
+    """
+    Controls assumption of same emissivities for roofs.
+
+    0: OFF
+    1: ON
+    """
+
+    DISABLED = 0
+    ENABLED = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)    
 
 
 
@@ -585,6 +618,8 @@ for enum_class in [
     OhmIncQf,
     SameAlbedoWall,
     SameAlbedoRoof,
+    SameEmissivityWall,
+    SameEmissivityRoof,
 ]:
     yaml.add_representer(enum_class, yaml_equivalent_of_default)
 
@@ -704,6 +739,16 @@ class ModelPhysics(BaseModel):
         description=_enum_description(SameAlbedoRoof),
         json_schema_extra={"unit": "dimensionless"},
     )
+    sameemissivity_wall: FlexibleRefValue(SameEmissivityWall) = Field(
+        default=SameEmissivityWall.DISABLED,
+        description=_enum_description(SameEmissivityWall),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    sameemissivity_roof: FlexibleRefValue(SameEmissivityRoof) = Field(
+        default=SameEmissivityRoof.DISABLED,
+        description=_enum_description(SameEmissivityRoof),
+        json_schema_extra={"unit": "dimensionless"},
+    )
 
     ref: Optional[Reference] = None
 
@@ -732,6 +777,8 @@ class ModelPhysics(BaseModel):
             "rcmethod",
             "samealbedo_wall",
             "samealbedo_roof",
+            "sameemissivity_wall",
+            "sameemissivity_roof",
         ]
         for attr in list_attr:
             value = getattr(self, attr)
@@ -776,6 +823,8 @@ class ModelPhysics(BaseModel):
         optional_new_attrs_with_defaults = {
             "samealbedo_wall": SameAlbedoWall.DISABLED,
             "samealbedo_roof": SameAlbedoRoof.DISABLED,
+            "sameemissivity_wall": SameEmissivityWall.DISABLED,
+            "sameemissivity_roof": SameEmissivityRoof.DISABLED,
         }
 
         for attr in required_attrs:

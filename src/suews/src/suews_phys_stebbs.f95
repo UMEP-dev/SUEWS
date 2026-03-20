@@ -2555,8 +2555,6 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
 
    self%maxheatingpower_water = building_archtype%MaximumHotWaterHeatingPower ! # Watts
    self%heating_efficiency_water = stebbsPrm%HotWaterHeatingEfficiency
-   !self%minVwater_vessel = stebbsPrm%MinimumVolumeOfDHWinUse ! # m3
-   !self%maxVwater_vessel = stebbsPrm%MaximumVolumeOfDHWinUse ! # m3
 
    self%minHeatingPower_DHW = building_archtype%MaximumHotWaterHeatingPower
    self%HeatingPower_DHW = building_archtype%MaximumHotWaterHeatingPower

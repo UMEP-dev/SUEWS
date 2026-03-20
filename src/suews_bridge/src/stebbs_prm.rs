@@ -4,8 +4,8 @@ use crate::ffi;
 
 pub const STEBBS_PRM_PROFILE_STEPS: usize = 144;
 pub const STEBBS_PRM_PROFILE_GROUPS: usize = 2;
-pub const STEBBS_PRM_FLAT_LEN: usize = 335;
-pub const STEBBS_PRM_SCHEMA_VERSION: u32 = 2;
+pub const STEBBS_PRM_FLAT_LEN: usize = 333;
+pub const STEBBS_PRM_SCHEMA_VERSION: u32 = 3;
 
 pub type StebbsPrmSchema = crate::codec::SimpleSchema;
 
@@ -58,8 +58,6 @@ pub struct StebbsPrm {
     pub dhw_vessel_external_wall_convection_coefficient: f64,
     pub dhw_vessel_wall_emissivity: f64,
     pub hot_water_heating_efficiency: f64,
-    pub minimum_volume_of_dhw_in_use: f64,
-    pub maximum_volume_of_dhw_in_use: f64,
     pub iter_safe: bool,
 }
 
@@ -111,8 +109,6 @@ impl Default for StebbsPrm {
             dhw_vessel_external_wall_convection_coefficient: 0.0,
             dhw_vessel_wall_emissivity: 0.0,
             hot_water_heating_efficiency: 0.0,
-            minimum_volume_of_dhw_in_use: 0.0,
-            maximum_volume_of_dhw_in_use: 0.0,
             iter_safe: true,
         }
     }
@@ -185,9 +181,6 @@ impl StebbsPrm {
         let dhw_vessel_external_wall_convection_coefficient = next();
         let dhw_vessel_wall_emissivity = next();
         let hot_water_heating_efficiency = next();
-        let minimum_volume_of_dhw_in_use = next();
-        let maximum_volume_of_dhw_in_use = next();
-
         Ok(Self {
             wall_internal_convection_coefficient,
             roof_internal_convection_coefficient,
@@ -234,8 +227,6 @@ impl StebbsPrm {
             dhw_vessel_external_wall_convection_coefficient,
             dhw_vessel_wall_emissivity,
             hot_water_heating_efficiency,
-            minimum_volume_of_dhw_in_use,
-            maximum_volume_of_dhw_in_use,
             iter_safe: next() >= 0.5,
         })
     }
@@ -292,8 +283,6 @@ impl StebbsPrm {
         flat.push(self.dhw_vessel_external_wall_convection_coefficient);
         flat.push(self.dhw_vessel_wall_emissivity);
         flat.push(self.hot_water_heating_efficiency);
-        flat.push(self.minimum_volume_of_dhw_in_use);
-        flat.push(self.maximum_volume_of_dhw_in_use);
         flat.push(if self.iter_safe { 1.0 } else { 0.0 });
 
         flat
@@ -373,8 +362,6 @@ pub fn stebbs_prm_field_names() -> Vec<String> {
     names.push("dhw_vessel_external_wall_convection_coefficient".to_string());
     names.push("dhw_vessel_wall_emissivity".to_string());
     names.push("hot_water_heating_efficiency".to_string());
-    names.push("minimum_volume_of_dhw_in_use".to_string());
-    names.push("maximum_volume_of_dhw_in_use".to_string());
     names.push("iter_safe".to_string());
 
     names

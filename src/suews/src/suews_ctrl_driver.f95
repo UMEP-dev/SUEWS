@@ -4613,8 +4613,6 @@ CONTAINS
       REAL(KIND(1D0)) :: DHWVesselExternalWallConvectionCoefficient
       REAL(KIND(1D0)) :: DHWVesselWallEmissivity
       REAL(KIND(1D0)) :: HotWaterHeatingEfficiency
-      !REAL(KIND(1D0)) :: MinimumVolumeOfDHWinUse
-      !REAL(KIND(1D0)) :: MaximumVolumeOfDHWinUse
       !REAL(KIND(1D0)), DIMENSION(nlayer) :: Textroof_C !roof surface temperature from STEBBS[degC]
       !REAL(KIND(1D0)), DIMENSION(nlayer) :: Textwall_C !wall surface temperature from STEBBS[degC]
 
@@ -5482,8 +5480,6 @@ CONTAINS
       stebbsPrm%DHWVesselExternalWallConvectionCoefficient = DHWVesselExternalWallConvectionCoefficient
       stebbsPrm%DHWVesselWallEmissivity = DHWVesselWallEmissivity
       stebbsPrm%HotWaterHeatingEfficiency = HotWaterHeatingEfficiency
-      !stebbsPrm%MinimumVolumeOfDHWinUse = MinimumVolumeOfDHWinUse
-      !stebbsPrm%MaximumVolumeOfDHWinUse = MaximumVolumeOfDHWinUse
 
       ! states - updated during the simulation
       ! TODO: STEBBS States act as parameters for building generation (move all but allocation?)

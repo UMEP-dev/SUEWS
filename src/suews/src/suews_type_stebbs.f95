@@ -95,7 +95,7 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: IndoorAirCp = 0.0D0 ! Specific heat capacity of indoor air [J kg-1 K-1]
       REAL(KIND(1D0)) :: MetabolismThreshold = 0.0D0 ! Threshold of Metabolic rate of each occupancy for active or inactive [W]
       REAL(KIND(1D0)) :: LatentSensibleRatio = 0.0D0 ! Latent-to-sensible ratio of metabolic energy release of occupants [-]
-      INTEGER :: DaylightControl = 0.0D0 ! Daylight-based lighting control flag encoded as 0/1 [-]
+      INTEGER :: DaylightControl = 0 ! Daylight-based lighting control flag encoded as 0/1 [-]
       REAL(KIND(1D0)) :: LightingIlluminanceThreshold = 300.0D0 ! Indoor illuminance threshold for switching off electric lighting [lx]
       REAL(KIND(1D0)) :: HeatingSystemEfficiency = 0.0D0 ! Efficiency of space heating system [-]
       REAL(KIND(1D0)) :: MaxCoolingPower = 0.0D0 ! Maximum power demand of cooling system [W]
@@ -126,8 +126,6 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: DHWVesselExternalWallConvectionCoefficient = 0.0D0 ! Effective external wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]
       REAL(KIND(1D0)) :: DHWVesselWallEmissivity = 0.0D0 ! Effective external wall emissivity of hot water being used within building [-]
       REAL(KIND(1D0)) :: HotWaterHeatingEfficiency = 0.0D0 ! Efficiency of hot water system [-]
-      !REAL(KIND(1D0)) :: MinimumVolumeOfDHWinUse = 0.0D0 ! Minimum volume of hot water in use [m3]
-      !REAL(KIND(1D0)) :: MaximumVolumeOfDHWinUse = 0.0D0 ! Maximum volume of hot water in use [m3]
       ! flag for iteration safety - YES - as we this should be updated every iteration
       LOGICAL :: iter_safe = .TRUE.
    END TYPE STEBBS_PRM

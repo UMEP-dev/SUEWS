@@ -1956,8 +1956,6 @@ class StebbsProperties(BaseModel):
             "unit": "dimensionless",
             "display_name": "Daylight Control",
         },
-        ge=0.0,
-        le=1.0,
     )
     LightingIlluminanceThreshold: Optional[FlexibleRefValue(float)] = Field(
         default=300.0,

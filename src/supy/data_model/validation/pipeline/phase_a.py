@@ -31,8 +31,10 @@ PHYSICS_OPTIONS = {
     "snowuse",
     "stebbsmethod",
     "rcmethod",
-    "samealbedo_wall",
-    "samealbedo_roof",
+    "same_albedo_wall",
+    "same_albedo_roof",
+    "same_emissivity_wall",
+    "same_emissivity_roof",
 }
 
 

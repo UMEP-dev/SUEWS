@@ -53,6 +53,15 @@ SUEWS-specific Python conventions. Complements ruff for standard linting.
 
 ---
 
+## Naming
+
+- **snake_case** for all Python identifiers (fields, variables, functions, methods)
+- **Underscore between every word**: `soil_depth` not `soildepth`, `lai_max` not `laimax`
+- **Domain abbreviations** are single tokens separated by underscores: `ohm_inc_qf`, `rsl_method`
+- **No redundant suffixes**: avoid appending `method`/`model` when the enum type already conveys this
+- **Exception**: STEBBS archetype parameters use PascalCase to match Fortran conventions
+- See `00-project-essentials.md` for full naming rules and legacy migration policy
+
 ## Style Guidelines
 
 - **Type hints**: Complete for public functions

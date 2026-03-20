@@ -53,6 +53,11 @@ EXAMPLES:
 
 ## 2026
 
+### 19 Mar 2026
+- [feature][experimental] Added `same_emissivity_wall` and `same_emissivity_roof` model options for roof and wall emissivity validation (PR #1253)
+  - When enabled (`=1`), enforces all roof/wall emissivity values match their respective external roof/wall STEBBS parameters; errors reported if inconsistent as ACTION NEEDED in the report.
+  - When disabled (`=0`), skips consistency checks and issues a user warning listing current emissivities values in NO ACTION NEEDED section of the report.
+
 ### 18 Mar 2026
 
 - [feature][experimental] Add dynamic calculation of water mains (cold) temperature in STEBBS and relevant new tests (PR #1249).
@@ -121,11 +126,11 @@ EXAMPLES:
 ### 4 Feb 2026
 
 - [bugfix] Fix conflict in the validation logic when vegetated surfaces are active (sfr > 0) but carbon is disabled (PR #1188)
-- [bugfix] Fix a bug in the phase_b.py required physics options, adding the new samealbedo_roof and samealbedo_wall to the list (PR #1188).
+- [bugfix] Fix a bug in the phase_b.py required physics options, adding the new same_albedo_roof and same_albedo_wall to the list (PR #1188).
 
 ### 28 Jan 2026
 
-- [feature] Added `samealbedo_wall` and `samealbedo_roof` model options for roof and wall albedo validation (PR #1123)
+- [feature] Added `same_albedo_wall` and `same_albedo_roof` model options for roof and wall albedo validation (PR #1123)
   - When enabled (`=1`), enforces all roof/wall albedo values match their respective reflectivity parameters; errors reported if inconsistent as ACTION NEEDED in the report.
   - When disabled (`=0`), skips consistency checks and issues a user warning listing current albedo values in NO ACTION NEEDED section of the report.
 - [feature] Added sphinx-gallery for executable documentation examples (#1057)

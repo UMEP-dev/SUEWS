@@ -26,6 +26,36 @@ Avoid British/American spelling variants (-ise/-ize) in identifiers. Use neutral
 | analyse/analyze | `examine`, `process`, `compute` |
 | optimise/optimize | `improve`, `tune`, `refine` |
 
+## Identifier Naming (Python)
+
+### Compound identifiers
+
+All **new** multi-word identifiers — Python field names, YAML config keys, method names — must use `snake_case` with underscore separation between every constituent word. Never fuse words into a single token.
+
+- `same_albedo_wall` not `samealbedo_wall`
+- `thermal_conductivity` not `thermalconductivity`
+- `snow_density_max` not `snowdensmax`
+- `soil_depth` not `soildepth`
+
+### Abbreviations in identifiers
+
+Domain abbreviations (OHM, RSL, FAI, SMD, LAI, GDD, SDD) are acceptable as single tokens but must be separated from other words by underscores:
+- `ohm_inc_qf` not `ohmincqf`
+- `rsl_method` not `rslmethod`
+- `lai_max` not `laimax`
+
+### Redundant suffixes
+
+Avoid appending `method` or `model` to field names when the enum type already conveys this. If both the field and the enum type exist, the redundancy is acceptable only in legacy code.
+
+### PascalCase fields
+
+STEBBS building archetype parameters use PascalCase (e.g. `WallReflectivity`, `RoofExternalEmissivity`) to match Fortran/legacy conventions. New STEBBS parameters should follow this pattern for consistency within that subsystem. All other Python code uses `snake_case`.
+
+### Legacy identifiers
+
+Fused legacy identifiers (e.g. `netradiationmethod`, `storageheatmethod`, `soildepth`) exist for historical reasons. Renaming these requires a dedicated PR with a deprecation path — do not rename them inline. See #1256 for the full inventory and migration plan.
+
 ## Git
 
 - **IMPORTANT**: Always use `origin` as the ONLY remote

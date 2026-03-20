@@ -1967,7 +1967,7 @@ class StebbsProperties(BaseModel):
             "unit": "lx",
             "display_name": "Lighting Illuminance Threshold",
         },
-        gt=0.0,
+        ge=0.0,
     )
     HeatingSystemEfficiency: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
@@ -2273,7 +2273,7 @@ class StebbsProperties(BaseModel):
                 "unit": "W m^-2",
                 "display_name": "Lighting Power Density",
             },
-        gt=0.0,
+        ge=0.0,
         )
     )
     ref: Optional[Reference] = None

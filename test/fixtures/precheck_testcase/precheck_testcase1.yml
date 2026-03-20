@@ -232,6 +232,12 @@ sites:
         value: 0.8
       HotWaterHeatingEfficiency:
         value: 0.8
+      DaylightControl:
+        value: 1
+      LightingIlluminanceThreshold:
+        value: 300.0
+      LightingPowerDensity:
+        value: 2.0
     building_archetype:
       BuildingType: 2000-2008
       BuildingName: SampleBuilding

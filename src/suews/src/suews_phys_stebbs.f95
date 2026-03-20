@@ -920,11 +920,13 @@ CONTAINS
             lighting_floor_area = n_floors * buildings(1)%Afootprint
             lighting_power_capacity = building_archtype%LightingPowerDensity * lighting_floor_area
             buildings(1)%lighting_power_rating = 0.0D0
-            IF (building_is_active) THEN
-               buildings(1)%lighting_power_rating = lighting_power_capacity
-               IF (stebbsPrm%DaylightControl == 1) THEN
-                  outdoor_illuminance = GlobalLuminousEfficacy * MAX(Kroof_sout, 0.0D0)
-                  indoor_illuminance = outdoor_illuminance * DefaultDaylightFactor
+	            IF (building_is_active) THEN
+	               buildings(1)%lighting_power_rating = lighting_power_capacity
+	               IF (stebbsPrm%DaylightControl == 1) THEN
+	                  ! Apply a simple daylight-factor approximation using roof-level
+	                  ! horizontal irradiance as the outdoor illuminance proxy.
+	                  outdoor_illuminance = GlobalLuminousEfficacy * MAX(Kroof_sout, 0.0D0)
+	                  indoor_illuminance = outdoor_illuminance * DefaultDaylightFactor
 
                   IF (indoor_illuminance >= stebbsPrm%LightingIlluminanceThreshold) THEN
                      buildings(1)%lighting_power_rating = 0.0D0

@@ -1044,6 +1044,22 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_valid():
     results = validate_model_option_stebbsmethod(yaml_data)
     assert not results, "Should not return errors for valid DaylightControl value 0"
 
+def test_validate_model_option_stebbsmethod_daylightcontrol_zero():
+    """Test DaylightControl == 0 is accepted as valid."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "DaylightControl": {"value": 0}
+                }
+            }
+        }],
+    }
+    results = validate_model_option_stebbsmethod(yaml_data)
+    assert not results, "Should not return errors for DaylightControl == 0"
+
 def test_validate_model_option_stebbsmethod_daylightcontrol_invalid():
     """Test DaylightControl returns ERROR for invalid values."""
     yaml_data = {

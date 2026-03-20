@@ -40,7 +40,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 71 | 78 | 30 | 79 | 40 | 298 |
+| 2026 | 72 | 79 | 29 | 79 | 40 | 299 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -55,6 +55,8 @@ EXAMPLES:
 
 ### 20 Mar 2026
 
+- [feature][experimental] Add calculation of electrical lighting energy and optional lighting control driven by daylighting STEBBS (PR #1254).
+- [bugfix][experimental] Fix STEBBS 10-minute profile indexing to use the full-day slot (`0-143`) rather than repeating the first hour each hour, correcting metabolism, appliance, and hot water profile application (PR #1254).
 - [change][experimental] Improve STEBBS height, external wall and footprint area descriptions, linking them together (PR #1257).
 
 ### 19 Mar 2026

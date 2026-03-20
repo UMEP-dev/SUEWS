@@ -4161,8 +4161,8 @@ CONTAINS
       FloorInternalConvectionCoefficient, WindowInternalConvectionCoefficient, &
       WallExternalConvectionCoefficient, RoofExternalConvectionCoefficient, WindowExternalConvectionCoefficient, &
       GroundDepth, ExternalGroundConductivity, &
-      MetabolismThreshold, LatentSensibleRatio, &
-      ApplianceProfile, &
+      MetabolismThreshold, LatentSensibleRatio, DaylightControl, LightingIlluminanceThreshold, &
+      ApplianceProfile, LightingPowerDensity, &
       HeatingSystemEfficiency, &
       MaxCoolingPower, CoolingSystemCOP, VentilationRate, &
       AnnualMeanAirTemperature, MonthMeanAirTemperature_diffmax, &
@@ -4577,6 +4577,8 @@ CONTAINS
       REAL(KIND(1D0)) :: ExternalGroundConductivity
       REAL(KIND(1D0)) :: MetabolismThreshold
       REAL(KIND(1D0)) :: LatentSensibleRatio
+      INTEGER :: DaylightControl
+      REAL(KIND(1D0)) :: LightingIlluminanceThreshold
       REAL(KIND(1D0)) :: HeatingSystemEfficiency
       REAL(KIND(1D0)) :: MaxCoolingPower
       REAL(KIND(1D0)) :: CoolingSystemCOP
@@ -4611,8 +4613,6 @@ CONTAINS
       REAL(KIND(1D0)) :: DHWVesselExternalWallConvectionCoefficient
       REAL(KIND(1D0)) :: DHWVesselWallEmissivity
       REAL(KIND(1D0)) :: HotWaterHeatingEfficiency
-      !REAL(KIND(1D0)) :: MinimumVolumeOfDHWinUse
-      !REAL(KIND(1D0)) :: MaximumVolumeOfDHWinUse
       !REAL(KIND(1D0)), DIMENSION(nlayer) :: Textroof_C !roof surface temperature from STEBBS[degC]
       !REAL(KIND(1D0)), DIMENSION(nlayer) :: Textwall_C !wall surface temperature from STEBBS[degC]
 
@@ -4683,6 +4683,7 @@ CONTAINS
       REAL(KIND(1D0)) :: MaximumHotWaterHeatingPower
       REAL(KIND(1D0)) :: HeatingSetpointTemperature 
       REAL(KIND(1D0)) :: CoolingSetpointTemperature
+      REAL(KIND(1D0)) :: LightingPowerDensity
       REAL(KIND(1D0)), DIMENSION(0:143, 2) :: MetabolismProfile
       REAL(KIND(1D0)), DIMENSION(0:143, 2) :: ApplianceProfile
       TYPE(STEBBS_PRM) :: stebbsPrm
@@ -5448,6 +5449,8 @@ CONTAINS
       stebbsPrm%ExternalGroundConductivity = ExternalGroundConductivity
       stebbsPrm%MetabolismThreshold = MetabolismThreshold
       stebbsPrm%LatentSensibleRatio = LatentSensibleRatio
+      stebbsPrm%DaylightControl = DaylightControl
+      stebbsPrm%LightingIlluminanceThreshold = LightingIlluminanceThreshold
       stebbsPrm%HeatingSystemEfficiency = HeatingSystemEfficiency
       stebbsPrm%MaxCoolingPower = MaxCoolingPower
       stebbsPrm%CoolingSystemCOP = CoolingSystemCOP
@@ -5477,8 +5480,6 @@ CONTAINS
       stebbsPrm%DHWVesselExternalWallConvectionCoefficient = DHWVesselExternalWallConvectionCoefficient
       stebbsPrm%DHWVesselWallEmissivity = DHWVesselWallEmissivity
       stebbsPrm%HotWaterHeatingEfficiency = HotWaterHeatingEfficiency
-      !stebbsPrm%MinimumVolumeOfDHWinUse = MinimumVolumeOfDHWinUse
-      !stebbsPrm%MaximumVolumeOfDHWinUse = MaximumVolumeOfDHWinUse
 
       ! states - updated during the simulation
       ! TODO: STEBBS States act as parameters for building generation (move all but allocation?)
@@ -5594,6 +5595,7 @@ CONTAINS
       building_archtype%CoolingSetpointTemperature = CoolingSetpointTemperature
       building_archtype%MetabolismProfile = MetabolismProfile
       building_archtype%ApplianceProfile = ApplianceProfile
+      building_archtype%LightingPowerDensity = LightingPowerDensity
       siteInfo%building_archtype = building_archtype
 
       IF (mod_state%flagState%stebbs_bldg_init == 0) THEN

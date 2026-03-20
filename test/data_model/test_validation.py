@@ -1035,6 +1035,96 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial(registry
     assert all(r.status == "ERROR" for r in results)
     assert len(results) == 2
 
+def test_validate_model_option_stebbsmethod_daylightcontrol_valid(registry):
+    """Test DaylightControl accepts only 0 or 1 values."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "DaylightControl": {"value": 1}
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for valid DaylightControl value"
+
+    yaml_data["sites"][0]["properties"]["stebbs"]["DaylightControl"]["value"] = 0
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for valid DaylightControl value 0"
+
+def test_validate_model_option_stebbsmethod_daylightcontrol_zero(registry):
+    """Test DaylightControl == 0 is accepted as valid."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "DaylightControl": {"value": 0}
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for DaylightControl == 0"
+
+def test_validate_model_option_stebbsmethod_daylightcontrol_invalid(registry):
+    """Test DaylightControl returns ERROR for invalid values."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "DaylightControl": {"value": 2}
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert len(results) == 1
+    assert results[0].parameter == "stebbs.DaylightControl"
+    assert results[0].status == "ERROR"
+    assert "must be 0 (off) or 1 (on)" in results[0].message
+
+def test_validate_model_option_stebbsmethod_daylightcontrol_string_value(registry):
+    """Test DaylightControl returns ERROR for string or unexpected values."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "DaylightControl": {"value": "yes"}
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert len(results) == 1
+    assert results[0].parameter == "stebbs.DaylightControl"
+    assert results[0].status == "ERROR"
+    assert "must be 0 (off) or 1 (on)" in results[0].message
+
+def test_validate_model_option_stebbsmethod_daylightcontrol_missing(registry):
+    """Test DaylightControl missing returns no errors."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    # DaylightControl missing
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors if DaylightControl is missing"
+
 def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_nonzero(registry):
     """Test error when Occupants=0.0 but MetabolismProfile has nonzero values."""
 

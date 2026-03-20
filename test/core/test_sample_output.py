@@ -674,6 +674,7 @@ class TestSTEBBSOutput(TestCase):
             # Building loads - higher tolerance due to control logic
             "QHload_heating_FA": {"rtol": 0.05, "atol": 5.0},  # 5% / 5W tolerance
             "QHload_cooling_FA": {"rtol": 0.05, "atol": 5.0},  # 5% / 5W tolerance
+            "QH_lighting_FA": {"rtol": 0.05, "atol": 5.0},  # 5% / 5W tolerance
         }
 
         print(f"\nValidating STEBBS variables: {', '.join(stebbs_variables.keys())}")

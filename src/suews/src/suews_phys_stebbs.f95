@@ -749,9 +749,9 @@ CONTAINS
       REAL(KIND(1D0)) :: Unused_heating_setpoint_C = -100
       REAL(KIND(1D0)) :: Unused_cooling_setpoint_C = 100
       REAL(KIND(1D0)) :: T_watermains_K
-      REAL(KIND(1D0)) :: FloorHeightDefault = 2.7D0
-      REAL(KIND(1D0)) :: GlobalLuminousEfficacy = 110.0D0 ![lm W-1]
-      REAL(KIND(1D0)) :: DefaultDaylightFactor = 0.02D0 ![-]
+      REAL(KIND(1D0)), PARAMETER :: FloorHeightDefault = 2.7D0 ! [m]
+      REAL(KIND(1D0)), PARAMETER :: GlobalLuminousEfficacy = 110.0D0 ! [lm W-1]
+      REAL(KIND(1D0)), PARAMETER :: DefaultDaylightFactor = 0.02D0 ! [-]
       REAL(KIND(1D0)) :: lighting_floor_area
       REAL(KIND(1D0)) :: lighting_power_capacity
       REAL(KIND(1D0)) :: outdoor_illuminance

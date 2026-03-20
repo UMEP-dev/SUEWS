@@ -282,7 +282,7 @@
             }
           ],
           "default": 64.0,
-          "description": "Building footprint area [m2]",
+          "description": "Building footprint area. This should be consistent with stebbs_Height and WallExternalArea. [m2]",
           "display_name": "Footprint Area",
           "title": "Footprintarea",
           "unit": "m^2"

@@ -1304,7 +1304,7 @@ class ArchetypeProperties(BaseModel):
     )
     FootprintArea: Optional[FlexibleRefValue(float)] = Field(
         default=64.0,
-        description="Building footprint area [m2]",
+        description="Building footprint area. This should be consistent with stebbs_Height and WallExternalArea. [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Footprint Area"},
         gt=0.0,
     )

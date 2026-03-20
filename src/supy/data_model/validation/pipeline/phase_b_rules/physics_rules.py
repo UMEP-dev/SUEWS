@@ -43,8 +43,10 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         "snowuse",
         "stebbsmethod",
         "rcmethod",
-        "samealbedo_wall",
-        "samealbedo_roof",
+        "same_albedo_wall",
+        "same_albedo_roof",
+        "same_emissivity_wall",
+        "same_emissivity_roof",
     ]
 
     missing_params = [
@@ -325,7 +327,7 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
 
     return results
 
-def validate_model_option_samealbedo_facet(site_data, facet):
+def validate_model_option_same_albedo_facet(site_data, facet):
     site_name = site_data.get("name", "Unknown")
     vlay = site_data.get("properties", {}).get("vertical_layers", {})
     facet_layers = vlay.get(f"{facet.lower()}s", [])
@@ -339,38 +341,110 @@ def validate_model_option_samealbedo_facet(site_data, facet):
     building_archetype = site_data.get("properties", {}).get("building_archetype", {})
     facetrefl_val = get_value_safe(building_archetype, f"{facet}Reflectivity")
     msg = (
-        f"samealbedo_{facet.lower()} == 0. No check of consistency between {facet.lower()}s albedo (found values: {found_albedos}) and {facet}Reflectivity (found value: {facetrefl_val})."
+        f"same_albedo_{facet.lower()} == 0. No check of consistency between {facet.lower()}s albedo (found values: {found_albedos}) and {facet}Reflectivity (found value: {facetrefl_val})."
     )
     return ValidationResult(
         status="WARNING",
         category="MODEL_OPTIONS",
-        parameter=f"samealbedo_{facet.lower()}",
+        parameter=f"same_albedo_{facet.lower()}",
         site_gridid=site_name,
         site_index=None,
         message=f"{msg}",
         suggested_value=None,
     )
 
-@RulesRegistry.add_rule("samealbedo")
-def validate_model_option_samealbedo(context) -> List[ValidationResult]:
+@RulesRegistry.add_rule("same_albedo")
+def validate_model_option_same_albedo(context) -> List[ValidationResult]:
     """Validate consistency between model physics options, reporting site names."""
     yaml_data = context.yaml_data
     
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    samealbedo_roof = get_value_safe(physics, "samealbedo_roof")
-    samealbedo_wall = get_value_safe(physics, "samealbedo_wall")
+    same_albedo_roof = get_value_safe(physics, "same_albedo_roof")
+    same_albedo_wall = get_value_safe(physics, "same_albedo_wall")
 
-    if samealbedo_wall == 0:
+    if same_albedo_wall == 0:
         for site in yaml_data.get("sites", []):
             results.append(
-                validate_model_option_samealbedo_facet(site, "Wall")
+                validate_model_option_same_albedo_facet(site, "Wall")
             )
-    if samealbedo_roof == 0:
+    if same_albedo_roof == 0:
         for site in yaml_data.get("sites", []):
             results.append(
-                validate_model_option_samealbedo_facet(site, "Roof")
+                validate_model_option_same_albedo_facet(site, "Roof")
+            )
+
+    return results
+
+
+
+def validate_model_option_same_emissivity(yaml_data: dict) -> List[ValidationResult]:
+    """
+    Validates the consistency of model physics options related to wall and roof emissivities.
+    """
+    results = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+
+    same_emissivity_roof = get_value_safe(physics, "same_emissivity_roof")
+    same_emissivity_wall = get_value_safe(physics, "same_emissivity_wall")
+
+    if same_emissivity_wall == 0:
+        for site in yaml_data.get("sites", []):
+            site_name = site.get("name", "Unknown")
+            vlay = site.get("properties", {}).get("vertical_layers", {})
+            walls = vlay.get("walls", [])
+            if isinstance(walls, dict):  # rare but possible
+                walls = [walls]
+            found_emissivities = []
+            for wall in walls:
+                emis_val = get_value_safe(wall, "emis")
+                if emis_val is not None:
+                    found_emissivities.append(emis_val)
+            building_archetype = site.get("properties", {}).get("building_archetype", {})
+            wallemis_val = get_value_safe(building_archetype, "WallExternalEmissivity")
+            msg = (
+                f"same_emissivity_wall == 0. No check of consistency between walls emissivity (found values: {found_emissivities}) and WallExternalEmissivity (found value: {wallemis_val})."
+            )
+            results.append(
+                ValidationResult(
+                    status="WARNING",
+                    category="MODEL_OPTIONS",
+                    parameter="same_emissivity_wall",
+                    site_gridid=site_name,
+                    site_index=None,
+                    message=msg,
+                    suggested_value=None,
+                )
+            )
+
+    if same_emissivity_roof == 0:
+        for site in yaml_data.get("sites", []):
+            site_name = site.get("name", "Unknown")
+            vlay = site.get("properties", {}).get("vertical_layers", {})
+            roofs = vlay.get("roofs", [])
+            if isinstance(roofs, dict):  # rare but possible
+                roofs = [roofs]
+            found_emissivities = []
+            for roof in roofs:
+                emis_val = get_value_safe(roof, "emis")
+                if emis_val is not None:
+                    found_emissivities.append(emis_val)
+            building_archetype = site.get("properties", {}).get("building_archetype", {})
+            roofemis_val = get_value_safe(building_archetype, "RoofExternalEmissivity")
+            msg = (
+                f"same_emissivity_roof == 0. No check of consistency between roofs emissivity (found values: {found_emissivities}) and RoofExternalEmissivity (found value: {roofemis_val})."
+            )
+            results.append(
+                ValidationResult(
+                    status="WARNING",
+                    category="MODEL_OPTIONS",
+                    parameter="same_emissivity_roof",
+                    site_gridid=site_name,
+                    site_index=None,
+                    message=msg,
+                    suggested_value=None,
+                )
             )
 
     return results

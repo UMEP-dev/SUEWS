@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for physics methods parameters" name="description" />
 <meta content="SUEWS, YAML, modelphysics, parameters, configuration" name="keywords" />
 
-    <title>4.3.30. Physics Methods &#8212; SUEWS 2026.3.19.dev125 documentation</title>
+    <title>4.3.30. Physics Methods &#8212; SUEWS 2026.3.20.dev126 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=483f473a"></script>
+    <script src="../../../_static/documentation_options.js?v=075d5c1d"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -58,7 +58,7 @@
     <link rel="prev" title="4.3.29. Model Control" href="modelcontrol.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.3.19.dev125" />
+  <meta name="docsearch:version" content="2026.3.20.dev126" />
   </head>
   
   
@@ -100,7 +100,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.3.19.dev125, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ab1e54305f4cc745b082ec4e2c5211e91fc5c5cc" style="color: #31708f;">ab1e543</a>).
+        (2026.3.20.dev126, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/730b5ff55a34847d014900452d8de4eced4c856b" style="color: #31708f;">730b5ff</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +147,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.3.19.dev125 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.3.19.dev125 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.3.20.dev126 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.3.20.dev126 documentation - Home"/>
   
   
 </a></div>
@@ -864,8 +864,8 @@
 </dd></dl>
 
 <dl class="input option" id="index-17">
-<dt class="sig sig-object input" id="input-option-samealbedo_wall">
-<span class="sig-name descname"><span class="pre">samealbedo_wall</span></span><a class="headerlink" href="#input-option-samealbedo_wall" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-same_albedo_wall">
+<span class="sig-name descname"><span class="pre">same_albedo_wall</span></span><a class="headerlink" href="#input-option-same_albedo_wall" title="Link to this definition">#</a></dt>
 <dd><p>Controls assumption of same albedoes for walls.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -878,8 +878,8 @@
 </dd></dl>
 
 <dl class="input option" id="index-18">
-<dt class="sig sig-object input" id="input-option-samealbedo_roof">
-<span class="sig-name descname"><span class="pre">samealbedo_roof</span></span><a class="headerlink" href="#input-option-samealbedo_roof" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-same_albedo_roof">
+<span class="sig-name descname"><span class="pre">same_albedo_roof</span></span><a class="headerlink" href="#input-option-same_albedo_roof" title="Link to this definition">#</a></dt>
 <dd><p>Controls assumption of same albedoes for roofs.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -892,6 +892,34 @@
 </dd></dl>
 
 <dl class="input option" id="index-19">
+<dt class="sig sig-object input" id="input-option-same_emissivity_wall">
+<span class="sig-name descname"><span class="pre">same_emissivity_wall</span></span><a class="headerlink" href="#input-option-same_emissivity_wall" title="Link to this definition">#</a></dt>
+<dd><p>Controls assumption of same emissivities for walls.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dimensionless</p>
+</dd>
+<dt class="field-even">Example<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (DISABLED)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="input option" id="index-20">
+<dt class="sig sig-object input" id="input-option-same_emissivity_roof">
+<span class="sig-name descname"><span class="pre">same_emissivity_roof</span></span><a class="headerlink" href="#input-option-same_emissivity_roof" title="Link to this definition">#</a></dt>
+<dd><p>Controls assumption of same emissivities for roofs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dimensionless</p>
+</dd>
+<dt class="field-even">Example<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (DISABLED)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="input option" id="index-21">
 <dt class="sig sig-object input" id="input-option-ref">
 <span class="sig-name descname"><span class="pre">ref</span></span><a class="headerlink" href="#input-option-ref" title="Link to this definition">#</a></dt>
 <dd><p>The <code class="docutils literal notranslate"><span class="pre">ref</span></code> parameter group is defined by the <a class="reference internal" href="reference.html"><span class="doc">Reference Info</span></a> structure.</p>
@@ -968,8 +996,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.3.19.dev125 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ab1e54305f4cc745b082ec4e2c5211e91fc5c5cc">ab1e543</a> |
+  <p>Version: 2026.3.20.dev126 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/730b5ff55a34847d014900452d8de4eced4c856b">730b5ff</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

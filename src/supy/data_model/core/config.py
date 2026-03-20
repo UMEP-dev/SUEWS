@@ -1666,7 +1666,7 @@ class SUEWSConfig(BaseModel):
         issues: List[str] = []
         site_name = getattr(site, "name", f"Site {site_index}")
 
-        # --- Get layers and their albedoes ---
+        # --- Get layers and their emissivities ---
         props = getattr(site, "properties", None)
         vl = getattr(props, "vertical_layers", None) if props is not None else None
         layers = getattr(vl, layers_attr, None) if vl is not None else None

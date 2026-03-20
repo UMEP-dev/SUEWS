@@ -2954,6 +2954,10 @@ class TestProcessorFixtures:
             "standard_file": str(standard_file),
             "temp_dir": temp_directory,
         }
+    
+    @pytest.fixture
+    def registry(self):
+        return science_check.RulesRegistry()
 
 
 class TestPhaseAUptoDateYaml(TestProcessorFixtures):
@@ -3480,7 +3484,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
 class TestPhaseBScienceCheck(TestProcessorFixtures):
     """Test suite for Phase B (science check) functionality."""
 
-    def test_physics_parameters_validation_success(self):
+    def test_physics_parameters_validation_success(self, registry):
         """Test successful physics parameter validation."""
         if not has_science_check:
             pytest.skip("science_check module not available")
@@ -3512,9 +3516,10 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         valid_yaml = {
             "model": {"physics": {param: {"value": 1} for param in physics_options}}
         }
-
+        context = science_check.ValidationContext(yaml_data=valid_yaml)
         # Function returns list of ValidationResult objects, empty list means success
-        results = science_check.validate_physics_parameters(valid_yaml)
+        results = registry["physics_params"](context)
+
         assert isinstance(
             results, list
         )  # Should return list of ValidationResult objects
@@ -3522,7 +3527,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         error_results = [r for r in results if r.status == "ERROR"]
         assert len(error_results) == 0, f"Unexpected validation errors: {error_results}"
 
-    def test_physics_parameters_validation_missing(self):
+    def test_physics_parameters_validation_missing(self, registry):
         """Test physics parameter validation with missing parameters."""
         if not has_science_check:
             pytest.skip("science_check module not available")
@@ -3536,8 +3541,10 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             }
         }
 
+        context = science_check.ValidationContext(yaml_data=incomplete_yaml)
+        
         # Function returns ValidationResult objects, not raises exceptions
-        results = science_check.validate_physics_parameters(incomplete_yaml)
+        results = registry["physics_params"](context)
         assert isinstance(results, list)
 
         # Should have ERROR results for missing parameters
@@ -3553,7 +3560,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             for msg in error_messages
         )
 
-    def test_physics_parameters_validation_null_values(self):
+    def test_physics_parameters_validation_null_values(self, registry):
         """Test physics parameter validation with null values."""
         if not has_science_check:
             pytest.skip("science_check module not available")
@@ -3585,9 +3592,10 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                 }
             }
         }
+        context = science_check.ValidationContext(yaml_data=null_yaml)
 
         # Function returns ValidationResult objects, not raises exceptions
-        results = science_check.validate_physics_parameters(null_yaml)
+        results = registry["physics_params"](context)
         assert isinstance(results, list)
 
         # Should have ERROR results for null values
@@ -3600,7 +3608,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "null" in msg.lower() or "empty" in msg.lower() for msg in error_messages
         )
 
-    def test_model_option_dependencies_rsl_stability(self):
+    def test_model_option_dependencies_rsl_stability(self, registry):
         """Test RSL method and stability method dependency validation."""
         invalid_yaml = {
             "model": {
@@ -3611,8 +3619,9 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             },
             "sites": [{}],
         }
+        context = science_check.ValidationContext(yaml_data=invalid_yaml)
 
-        results = science_check.validate_model_option_dependencies(invalid_yaml)
+        results = registry["option_dependencies"](context)
         assert len(results) > 0
         assert any("rslmethod" in result.message for result in results)
 
@@ -3646,7 +3655,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         expected_temp = mock_cru(lat, lng, month)
         assert expected_temp == 15.2
 
-    def test_land_cover_fraction_validation(self):
+    def test_land_cover_fraction_validation(self, registry):
         """Test land cover fraction sum validation."""
         valid_fractions = {
             "sites": [
@@ -3662,7 +3671,9 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             ]
         }
 
-        result = science_check.validate_land_cover_consistency(valid_fractions)
+        context = science_check.ValidationContext(yaml_data=valid_fractions)
+
+        result = registry["land_cover"](context)
         assert isinstance(result, list)  # Returns list of ValidationResult objects
 
         # Should pass validation
@@ -3670,7 +3681,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             pass_results = [r for r in result if r.status == "PASS"]
             assert len(pass_results) > 0, "Should have PASS results for valid fractions"
 
-    def test_geographic_parameter_validation(self):
+    def test_geographic_parameter_validation(self, registry):
         """Test coordinate and location parameter validation."""
         invalid_coords = {
             "sites": [
@@ -3682,8 +3693,9 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                 }
             ]
         }
+        context = science_check.ValidationContext(yaml_data=invalid_coords)
 
-        results = science_check.validate_geographic_parameters(invalid_coords)
+        results = registry["geographic"](context)
         assert len(results) > 0
         assert any("latitude" in result.message.lower() for result in results)
 

@@ -20,6 +20,7 @@ from pydantic import (
     conlist,
     ValidationError,
 )
+from collections.abc import Mapping
 import numpy as np
 import pandas as pd
 import yaml
@@ -103,7 +104,7 @@ def get_value_safe(param_dict, param_key, default=None):
         The parameter value, handling both RefValue {"value": X} and plain X formats
     """
     param = param_dict.get(param_key, default)
-    if isinstance(param, dict) and "value" in param:
+    if isinstance(param, Mapping) and "value" in param:
         return param["value"]  # RefValue format: {"value": 1}
     else:
         return param  # Plain format: 1

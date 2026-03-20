@@ -1317,6 +1317,8 @@ def run_scientific_validation_pipeline(
 
     validation_results.extend(validate_model_option_samealbedo(yaml_data))
 
+    validation_results.extend(validate_model_option_sameemissivity(yaml_data))
+
     validation_results.extend(validate_model_option_rcmethod(yaml_data))
 
     validation_results.extend(validate_model_option_stebbsmethod(yaml_data))

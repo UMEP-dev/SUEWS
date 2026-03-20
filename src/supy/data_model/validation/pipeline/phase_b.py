@@ -340,7 +340,9 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
     return results
 
 def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
-    """Validate consistency between model physics options, reporting site names."""
+    """
+    Validates the consistency of model physics options related to wall and roof albedoes.
+    """
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
@@ -408,7 +410,9 @@ def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
     return results
 
 def validate_model_option_sameemissivity(yaml_data: dict) -> List[ValidationResult]:
-    """Validate consistency between model physics options, reporting site names."""
+    """
+    Validates the consistency of model physics options related to wall and roof emissivities.
+    """
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
 

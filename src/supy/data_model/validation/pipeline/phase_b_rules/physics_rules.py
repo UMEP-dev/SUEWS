@@ -378,7 +378,7 @@ def validate_model_option_same_albedo(context) -> List[ValidationResult]:
     return results
 
 
-
+@RulesRegistry.add_rule("same_emissivity")
 def validate_model_option_same_emissivity(yaml_data: dict) -> List[ValidationResult]:
     """
     Validates the consistency of model physics options related to wall and roof emissivities.

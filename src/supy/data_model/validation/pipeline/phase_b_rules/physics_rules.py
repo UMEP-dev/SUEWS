@@ -379,11 +379,12 @@ def validate_model_option_same_albedo(context) -> List[ValidationResult]:
 
 
 @RulesRegistry.add_rule("same_emissivity")
-def validate_model_option_same_emissivity(yaml_data: dict) -> List[ValidationResult]:
+def validate_model_option_same_emissivity(context) -> List[ValidationResult]:
     """
     Validates the consistency of model physics options related to wall and roof emissivities.
     """
     results = []
+    yaml_data = context.yaml_data
     physics = yaml_data.get("model", {}).get("physics", {})
 
     same_emissivity_roof = get_value_safe(physics, "same_emissivity_roof")

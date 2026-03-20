@@ -38,8 +38,11 @@ from supy.data_model.core.state import (
 )
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
-from supy.data_model.validation.pipeline.phase_b import adjust_model_option_stebbsmethod
-from supy.data_model.validation.pipeline.phase_b import adjust_model_option_rcmethod
+from supy.data_model.validation.pipeline.phase_b import (
+    adjust_model_option_stebbsmethod,
+    adjust_model_option_rcmethod,
+    adjust_seasonal_parameters,
+)
 from supy.data_model.validation.pipeline.phase_b_rules import RulesRegistry, ValidationContext
 
 # A tiny “site” stub that only carries exactly the properties our validators look at

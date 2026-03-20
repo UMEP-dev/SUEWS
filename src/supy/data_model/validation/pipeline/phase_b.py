@@ -576,6 +576,22 @@ def validate_model_option_stebbsmethod(yaml_data: dict) -> List[ValidationResult
             stebbs = props.get("stebbs", {})
             site_gridid = get_site_gridid(site)
 
+            # --- DaylightControl validation ---
+            daylight_control = stebbs.get("DaylightControl", {})
+            dc_val = daylight_control.get("value") if isinstance(daylight_control, dict) else daylight_control
+            if dc_val not in (0, 1, 0.0, 1.0, None):
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter="stebbs.DaylightControl",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message=f"DaylightControl flag must be 0 (off) or 1 (on), got '{dc_val}'.",
+                        suggested_value="Set DaylightControl to 0 or 1"
+                    )
+                )
+
             # --- HotWaterFlowProfile validation ---
             hwfp_entry = stebbs.get("HotWaterFlowProfile", {})
             for daytype in ("working_day", "holiday"):

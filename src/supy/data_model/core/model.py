@@ -729,22 +729,22 @@ class ModelPhysics(BaseModel):
         description=_enum_description(RCMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    samealbedo_wall: FlexibleRefValue(SameAlbedoWall) = Field(
+    same_albedo_wall: FlexibleRefValue(SameAlbedoWall) = Field(
         default=SameAlbedoWall.DISABLED,
         description=_enum_description(SameAlbedoWall),
         json_schema_extra={"unit": "dimensionless"},
     )
-    samealbedo_roof: FlexibleRefValue(SameAlbedoRoof) = Field(
+    same_albedo_roof: FlexibleRefValue(SameAlbedoRoof) = Field(
         default=SameAlbedoRoof.DISABLED,
         description=_enum_description(SameAlbedoRoof),
         json_schema_extra={"unit": "dimensionless"},
     )
-    sameemissivity_wall: FlexibleRefValue(SameEmissivityWall) = Field(
+    same_emissivity_wall: FlexibleRefValue(SameEmissivityWall) = Field(
         default=SameEmissivityWall.DISABLED,
         description=_enum_description(SameEmissivityWall),
         json_schema_extra={"unit": "dimensionless"},
     )
-    sameemissivity_roof: FlexibleRefValue(SameEmissivityRoof) = Field(
+    same_emissivity_roof: FlexibleRefValue(SameEmissivityRoof) = Field(
         default=SameEmissivityRoof.DISABLED,
         description=_enum_description(SameEmissivityRoof),
         json_schema_extra={"unit": "dimensionless"},
@@ -775,10 +775,10 @@ class ModelPhysics(BaseModel):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
-            "samealbedo_wall",
-            "samealbedo_roof",
-            "sameemissivity_wall",
-            "sameemissivity_roof",
+            "same_albedo_wall",
+            "same_albedo_roof",
+            "same_emissivity_wall",
+            "same_emissivity_roof",
         ]
         for attr in list_attr:
             value = getattr(self, attr)
@@ -821,10 +821,10 @@ class ModelPhysics(BaseModel):
 
         # New options: optional in legacy DataFrames, default if missing
         optional_new_attrs_with_defaults = {
-            "samealbedo_wall": SameAlbedoWall.DISABLED,
-            "samealbedo_roof": SameAlbedoRoof.DISABLED,
-            "sameemissivity_wall": SameEmissivityWall.DISABLED,
-            "sameemissivity_roof": SameEmissivityRoof.DISABLED,
+            "same_albedo_wall": SameAlbedoWall.DISABLED,
+            "same_albedo_roof": SameAlbedoRoof.DISABLED,
+            "same_emissivity_wall": SameEmissivityWall.DISABLED,
+            "same_emissivity_roof": SameEmissivityRoof.DISABLED,
         }
 
         for attr in required_attrs:

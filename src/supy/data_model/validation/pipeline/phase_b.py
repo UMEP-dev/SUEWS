@@ -180,10 +180,10 @@ def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
         "snowuse",
         "stebbsmethod",
         "rcmethod",
-        "samealbedo_wall",
-        "samealbedo_roof",
-        "sameemissivity_wall",
-        "sameemissivity_roof",
+        "same_albedo_wall",
+        "same_albedo_roof",
+        "same_emissivity_wall",
+        "same_emissivity_roof",
     ]
 
     missing_params = [
@@ -339,17 +339,17 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
 
     return results
 
-def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
+def validate_model_option_same_albedo(yaml_data: dict) -> List[ValidationResult]:
     """
     Validates the consistency of model physics options related to wall and roof albedoes.
     """
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    samealbedo_roof = get_value_safe(physics, "samealbedo_roof")
-    samealbedo_wall = get_value_safe(physics, "samealbedo_wall")
+    same_albedo_roof = get_value_safe(physics, "same_albedo_roof")
+    same_albedo_wall = get_value_safe(physics, "same_albedo_wall")
 
-    if samealbedo_wall == 0:
+    if same_albedo_wall == 0:
         for site in yaml_data.get("sites", []):
             site_name = site.get("name", "Unknown")
             vlay = site.get("properties", {}).get("vertical_layers", {})
@@ -364,13 +364,13 @@ def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
             building_archetype = site.get("properties", {}).get("building_archetype", {})
             wallrefl_val = get_value_safe(building_archetype, "WallReflectivity")
             msg = (
-                f"samealbedo_wall == 0. No check of consistency between walls albedo (found values: {found_albedos}) and WallReflectivity (found value: {wallrefl_val})."
+                f"same_albedo_wall == 0. No check of consistency between walls albedo (found values: {found_albedos}) and WallReflectivity (found value: {wallrefl_val})."
             )
             results.append(
                 ValidationResult(
                     status="WARNING",
                     category="MODEL_OPTIONS",
-                    parameter="samealbedo_wall",
+                    parameter="same_albedo_wall",
                     site_gridid=site_name,
                     site_index=None,
                     message=msg,
@@ -378,7 +378,7 @@ def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
                 )
             )
 
-    if samealbedo_roof == 0:
+    if same_albedo_roof == 0:
         for site in yaml_data.get("sites", []):
             site_name = site.get("name", "Unknown")
             vlay = site.get("properties", {}).get("vertical_layers", {})
@@ -393,13 +393,13 @@ def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
             building_archetype = site.get("properties", {}).get("building_archetype", {})
             roofrefl_val = get_value_safe(building_archetype, "RoofReflectivity")
             msg = (
-                f"samealbedo_roof == 0. No check of consistency between roofs albedo (found values: {found_albedos}) and RoofReflectivity (found value: {roofrefl_val})."
+                f"same_albedo_roof == 0. No check of consistency between roofs albedo (found values: {found_albedos}) and RoofReflectivity (found value: {roofrefl_val})."
             )
             results.append(
                 ValidationResult(
                     status="WARNING",
                     category="MODEL_OPTIONS",
-                    parameter="samealbedo_roof",
+                    parameter="same_albedo_roof",
                     site_gridid=site_name,
                     site_index=None,
                     message=msg,
@@ -409,17 +409,17 @@ def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
 
     return results
 
-def validate_model_option_sameemissivity(yaml_data: dict) -> List[ValidationResult]:
+def validate_model_option_same_emissivity(yaml_data: dict) -> List[ValidationResult]:
     """
     Validates the consistency of model physics options related to wall and roof emissivities.
     """
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    sameemissivity_roof = get_value_safe(physics, "sameemissivity_roof")
-    sameemissivity_wall = get_value_safe(physics, "sameemissivity_wall")
+    same_emissivity_roof = get_value_safe(physics, "same_emissivity_roof")
+    same_emissivity_wall = get_value_safe(physics, "same_emissivity_wall")
 
-    if sameemissivity_wall == 0:
+    if same_emissivity_wall == 0:
         for site in yaml_data.get("sites", []):
             site_name = site.get("name", "Unknown")
             vlay = site.get("properties", {}).get("vertical_layers", {})
@@ -434,13 +434,13 @@ def validate_model_option_sameemissivity(yaml_data: dict) -> List[ValidationResu
             building_archetype = site.get("properties", {}).get("building_archetype", {})
             wallemis_val = get_value_safe(building_archetype, "WallExternalEmissivity")
             msg = (
-                f"sameemissivity_wall == 0. No check of consistency between walls emissivity (found values: {found_emissivities}) and WallExternalEmissivity (found value: {wallemis_val})."
+                f"same_emissivity_wall == 0. No check of consistency between walls emissivity (found values: {found_emissivities}) and WallExternalEmissivity (found value: {wallemis_val})."
             )
             results.append(
                 ValidationResult(
                     status="WARNING",
                     category="MODEL_OPTIONS",
-                    parameter="sameemissivity_wall",
+                    parameter="same_emissivity_wall",
                     site_gridid=site_name,
                     site_index=None,
                     message=msg,
@@ -448,7 +448,7 @@ def validate_model_option_sameemissivity(yaml_data: dict) -> List[ValidationResu
                 )
             )
 
-    if sameemissivity_roof == 0:
+    if same_emissivity_roof == 0:
         for site in yaml_data.get("sites", []):
             site_name = site.get("name", "Unknown")
             vlay = site.get("properties", {}).get("vertical_layers", {})
@@ -463,13 +463,13 @@ def validate_model_option_sameemissivity(yaml_data: dict) -> List[ValidationResu
             building_archetype = site.get("properties", {}).get("building_archetype", {})
             roofemis_val = get_value_safe(building_archetype, "RoofExternalEmissivity")
             msg = (
-                f"sameemissivity_roof == 0. No check of consistency between roofs emissivity (found values: {found_emissivities}) and RoofExternalEmissivity (found value: {roofemis_val})."
+                f"same_emissivity_roof == 0. No check of consistency between roofs emissivity (found values: {found_emissivities}) and RoofExternalEmissivity (found value: {roofemis_val})."
             )
             results.append(
                 ValidationResult(
                     status="WARNING",
                     category="MODEL_OPTIONS",
-                    parameter="sameemissivity_roof",
+                    parameter="same_emissivity_roof",
                     site_gridid=site_name,
                     site_index=None,
                     message=msg,
@@ -1315,9 +1315,9 @@ def run_scientific_validation_pipeline(
 
     validation_results.extend(validate_model_option_dependencies(yaml_data))
 
-    validation_results.extend(validate_model_option_samealbedo(yaml_data))
+    validation_results.extend(validate_model_option_same_albedo(yaml_data))
 
-    validation_results.extend(validate_model_option_sameemissivity(yaml_data))
+    validation_results.extend(validate_model_option_same_emissivity(yaml_data))
 
     validation_results.extend(validate_model_option_rcmethod(yaml_data))
 

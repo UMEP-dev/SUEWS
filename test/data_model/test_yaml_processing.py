@@ -3455,10 +3455,10 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
-            "samealbedo_wall",
-            "samealbedo_roof",
-            "sameemissivity_wall",
-            "sameemissivity_roof"
+            "same_albedo_wall",
+            "same_albedo_roof",
+            "same_emissivity_wall",
+            "same_emissivity_roof"
         }
 
         # Should match the synchronized list from Phase A and B
@@ -3503,10 +3503,10 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
-            "samealbedo_wall",
-            "samealbedo_roof",
-            "sameemissivity_wall",
-            "sameemissivity_roof"
+            "same_albedo_wall",
+            "same_albedo_roof",
+            "same_emissivity_wall",
+            "same_emissivity_roof"
         }
 
         valid_yaml = {

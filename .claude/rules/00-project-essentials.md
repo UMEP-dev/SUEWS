@@ -26,6 +26,15 @@ Avoid British/American spelling variants (-ise/-ize) in identifiers. Use neutral
 | analyse/analyze | `examine`, `process`, `compute` |
 | optimise/optimize | `improve`, `tune`, `refine` |
 
+## Compound Identifiers (New Code)
+
+All **new** multi-word identifiers — Python field names, YAML config keys, method names — must use underscore separation between every constituent word. Never fuse words into a single token.
+
+- `same_albedo_wall` not `samealbedo_wall`
+- `thermal_conductivity` not `thermalconductivity`
+
+Legacy identifiers (e.g. `netradiationmethod`, `storageheatmethod`) exist for historical reasons. Renaming these requires a separate PR with a deprecation path — do not rename them inline.
+
 ## Git
 
 - **IMPORTANT**: Always use `origin` as the ONLY remote

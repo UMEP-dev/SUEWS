@@ -40,7 +40,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 71 | 78 | 29 | 79 | 40 | 297 |
+| 2026 | 71 | 78 | 30 | 79 | 40 | 298 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -52,6 +52,10 @@ EXAMPLES:
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 20 Mar 2026
+
+- [change][experimental] Improve STEBBS height, external wall and footprint area descriptions, linking them together (PR #1257).
 
 ### 18 Mar 2026
 

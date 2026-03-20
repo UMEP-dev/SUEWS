@@ -66,7 +66,7 @@ enhanced_to_df_state_validation = None
 import os
 import warnings
 
-SAME_ALB_TOL = 1e-6  # Tolerance for same albedo checks
+SAME_SURFACE_TOL = 1e-6  # Tolerance for same-surface-property checks
 
 class ConditionalValidationWarning(UserWarning):
     """Warning issued when conditional validation is requested but not available.
@@ -1426,16 +1426,35 @@ class SUEWSConfig(BaseModel):
             return self._is_physics_explicitly_configured("storageheatmethod")
         return False
     
-    def _needs_samealbedo_wall_validation(self) -> bool:
-        """Return True if samealbedo_wall option is enabled (==1)."""
-        return self._needs_samealbedo_validation("samealbedo_wall")
+    def _needs_same_albedo_wall_validation(self) -> bool:
+        """Return True if same_albedo_wall option is enabled (==1)."""
+        return self._needs_same_albedo_validation("same_albedo_wall")
 
-    def _needs_samealbedo_roof_validation(self) -> bool:
-        """Return True if samealbedo_roof option is enabled (==1)."""
-        return self._needs_samealbedo_validation("samealbedo_roof")
+    def _needs_same_albedo_roof_validation(self) -> bool:
+        """Return True if same_albedo_roof option is enabled (==1)."""
+        return self._needs_same_albedo_validation("same_albedo_roof")
 
-    def _needs_samealbedo_validation(self, attr: str) -> bool:
-        """Helper for samealbedo_wall/roof validation."""
+    def _needs_same_albedo_validation(self, attr: str) -> bool:
+        """Helper for same_albedo_wall/roof validation."""
+        physics = getattr(self.model, "physics", None)
+        if not physics or not hasattr(physics, attr):
+            return False
+        val = getattr(getattr(physics, attr), "value", getattr(physics, attr))
+        try:
+            return int(val) == 1
+        except (TypeError, ValueError):
+            return False
+
+    def _needs_same_emissivity_wall_validation(self) -> bool:
+        """Return True if same_emissivity_wall option is enabled (==1)."""
+        return self._needs_same_emissivity_validation("same_emissivity_wall")
+
+    def _needs_same_emissivity_roof_validation(self) -> bool:
+        """Return True if same_emissivity_roof option is enabled (==1)."""
+        return self._needs_same_emissivity_validation("same_emissivity_roof")
+
+    def _needs_same_emissivity_validation(self, attr: str) -> bool:
+        """Helper for same_emissivity_wall/roof validation."""
         physics = getattr(self.model, "physics", None)
         if not physics or not hasattr(physics, attr):
             return False
@@ -1519,25 +1538,36 @@ class SUEWSConfig(BaseModel):
 
         return issues
 
-    def _validate_samealbedo_surface(
+    def _validate_same_surface_property(
         self,
         site: Site,
         site_index: int,
         surface_type: str,
         layers_attr: str,
-        reflectivity_attr: str,
+        layer_field: str,
+        archetype_attr: str,
         param_name: str,
+        property_name: str,
     ) -> List[str]:
-        """
-        Generic validator for samealbedo_wall and samealbedo_roof.
+        """Validate that a surface property is uniform across layers and matches the archetype.
 
-        - All albedoes in vertical_layers.<layers_attr> must be identical
-        - That common value must equal properties.building_archetype.<reflectivity_attr>
+        Used by same_albedo and same_emissivity validators. Checks that:
+        - All values of ``layer_field`` in vertical_layers.<layers_attr> are identical
+        - That common value equals properties.building_archetype.<archetype_attr>
+
+        Parameters
+        ----------
+        layer_field : str
+            Attribute name on each layer object (e.g. "alb", "emis").
+        archetype_attr : str
+            Attribute name on building_archetype (e.g. "WallReflectivity").
+        property_name : str
+            Human-readable name for messages (e.g. "albedo", "emissivity").
         """
         issues: List[str] = []
         site_name = getattr(site, "name", f"Site {site_index}")
 
-        # --- Get layers and their albedoes ---
+        # --- Get layers ---
         props = getattr(site, "properties", None)
         vl = getattr(props, "vertical_layers", None) if props is not None else None
         layers = getattr(vl, layers_attr, None) if vl is not None else None
@@ -1548,46 +1578,46 @@ class SUEWSConfig(BaseModel):
             )
             return issues
 
-        albs: List[float] = []
+        vals: List[float] = []
 
         for i, layer in enumerate(layers):
-            alb_field = getattr(layer, "alb", None)
-            if alb_field is None:
+            field = getattr(layer, layer_field, None)
+            if field is None:
                 issues.append(
-                    f"{site_name}: {param_name}=1, so {layers_attr}[{i}].alb must be set"
+                    f"{site_name}: {param_name}=1, so {layers_attr}[{i}].{layer_field} must be set"
                 )
                 continue
 
-            val = getattr(alb_field, "value", alb_field)
+            raw = getattr(field, "value", field)
             try:
-                val_float = float(val)
-                albs.append(val_float)
+                val_float = float(raw)
+                vals.append(val_float)
             except (TypeError, ValueError):
                 issues.append(
-                    f"{site_name}: {param_name}=1 but {layers_attr}[{i}].alb ({val!r}) is not numeric"
+                    f"{site_name}: {param_name}=1 but {layers_attr}[{i}].{layer_field} ({raw!r}) is not numeric"
                 )
 
-        if len(albs) == 0:
+        if len(vals) == 0:
             issues.append(
-                f"{site_name}: {param_name}=1 but no valid {layers_attr} albedo values found"
+                f"{site_name}: {param_name}=1 but no valid {layers_attr} {property_name} values found"
             )
             return issues
 
-        # --- Check that all albedoes are identical ---
-        first_alb = albs[0]
-        tol = SAME_ALB_TOL
+        # --- Check that all values are identical ---
+        first_val = vals[0]
+        tol = SAME_SURFACE_TOL
         mismatching = [
-            (i, a) for i, a in enumerate(albs) if abs(a - first_alb) > tol
+            (i, v) for i, v in enumerate(vals) if abs(v - first_val) > tol
         ]
 
         if mismatching:
-            all_alb_str = ", ".join(f"{layers_attr}[{i}]={a}" for i, a in enumerate(albs))
+            all_str = ", ".join(f"{layers_attr}[{i}]={v}" for i, v in enumerate(vals))
             issues.append(
-                f"{site_name}: {param_name}=1, so all {layers_attr} albedoes must be identical; "
-                f"found values: {all_alb_str}"
+                f"{site_name}: {param_name}=1, so all {layers_attr} {property_name} values must be identical; "
+                f"found values: {all_str}"
             )
 
-        # --- Get building_archetype.<reflectivity_attr> ---
+        # --- Get building_archetype.<archetype_attr> ---
         ba = getattr(props, "building_archetype", None)
         if ba is None:
             issues.append(
@@ -1595,41 +1625,55 @@ class SUEWSConfig(BaseModel):
             )
             return issues
 
-        refl_field = getattr(ba, reflectivity_attr, None)
-        if refl_field is None:
+        arch_field = getattr(ba, archetype_attr, None)
+        if arch_field is None:
             issues.append(
-                f"{site_name}: {param_name}=1, so properties.building_archetype.{reflectivity_attr} must be set"
+                f"{site_name}: {param_name}=1, so properties.building_archetype.{archetype_attr} must be set"
             )
             return issues
 
-        refl_val = getattr(refl_field, "value", refl_field)
+        arch_raw = getattr(arch_field, "value", arch_field)
         try:
-            reflectivity = float(refl_val)
+            arch_val = float(arch_raw)
         except (TypeError, ValueError):
             issues.append(
-                f"{site_name}: {param_name}=1 but properties.building_archetype.{reflectivity_attr} "
-                f"({refl_val!r}) is not numeric"
+                f"{site_name}: {param_name}=1 but properties.building_archetype.{archetype_attr} "
+                f"({arch_raw!r}) is not numeric"
             )
             return issues
 
-        # --- Check equality between *common* albedo and reflectivity ---
-        if abs(first_alb - reflectivity) > tol:
-            all_alb_str = ", ".join(f"{layers_attr}[{i}]={a}" for i, a in enumerate(albs))
+        # --- Check equality between common layer value and archetype value ---
+        if abs(first_val - arch_val) > tol:
+            all_str = ", ".join(f"{layers_attr}[{i}]={v}" for i, v in enumerate(vals))
             issues.append(
-                f"{site_name}: {param_name}=1, so common {layers_attr} albedo (found {all_alb_str}) must equal "
-                f"properties.building_archetype.{reflectivity_attr} ({reflectivity})"
+                f"{site_name}: {param_name}=1, so common {layers_attr} {property_name} (found {all_str}) must equal "
+                f"properties.building_archetype.{archetype_attr} ({arch_val})"
             )
 
         return issues
 
-    def _validate_samealbedo_wall(self, site: Site, site_index: int) -> List[str]:
-        return self._validate_samealbedo_surface(
-            site, site_index, "wall", "walls", "WallReflectivity", "samealbedo_wall"
+    def _validate_same_albedo_wall(self, site: Site, site_index: int) -> List[str]:
+        return self._validate_same_surface_property(
+            site, site_index, "wall", "walls", "alb", "WallReflectivity",
+            "same_albedo_wall", "albedo",
         )
 
-    def _validate_samealbedo_roof(self, site: Site, site_index: int) -> List[str]:
-        return self._validate_samealbedo_surface(
-            site, site_index, "roof", "roofs", "RoofReflectivity", "samealbedo_roof"
+    def _validate_same_albedo_roof(self, site: Site, site_index: int) -> List[str]:
+        return self._validate_same_surface_property(
+            site, site_index, "roof", "roofs", "alb", "RoofReflectivity",
+            "same_albedo_roof", "albedo",
+        )
+
+    def _validate_same_emissivity_wall(self, site: Site, site_index: int) -> List[str]:
+        return self._validate_same_surface_property(
+            site, site_index, "wall", "walls", "emis", "WallExternalEmissivity",
+            "same_emissivity_wall", "emissivity",
+        )
+
+    def _validate_same_emissivity_roof(self, site: Site, site_index: int) -> List[str]:
+        return self._validate_same_surface_property(
+            site, site_index, "roof", "roofs", "emis", "RoofExternalEmissivity",
+            "same_emissivity_roof", "emissivity",
         )
 
     def _needs_spartacus_validation(self) -> bool:
@@ -1797,12 +1841,15 @@ class SUEWSConfig(BaseModel):
         needs_stebbs = self._needs_stebbs_validation()
         needs_rsl = self._needs_rsl_validation()
         needs_storage = self._needs_storage_validation()
-        needs_samealbedo_wall = self._needs_samealbedo_wall_validation()
-        needs_samealbedo_roof = self._needs_samealbedo_roof_validation()
+        needs_same_albedo_wall = self._needs_same_albedo_wall_validation()
+        needs_same_albedo_roof = self._needs_same_albedo_roof_validation()
+        needs_same_emissivity_wall = self._needs_same_emissivity_wall_validation()
+        needs_same_emissivity_roof = self._needs_same_emissivity_roof_validation()
         needs_spartacus = self._needs_spartacus_validation()
 
         # Nothing to do?
-        if not (needs_stebbs or needs_rsl or needs_storage or needs_samealbedo_wall or needs_samealbedo_roof or needs_spartacus):
+        if not (needs_stebbs or needs_rsl or needs_storage or needs_same_albedo_wall
+                or needs_same_albedo_roof or needs_same_emissivity_wall or needs_same_emissivity_roof or needs_spartacus):
             return all_issues
 
         for idx, site in enumerate(self.sites):
@@ -1837,27 +1884,49 @@ class SUEWSConfig(BaseModel):
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(storage_issues)
             
-            # samealbedo_wall
-            if needs_samealbedo_wall:
-                samealbedo_wall_issues = self._validate_samealbedo_wall(site, idx)
-                if samealbedo_wall_issues:
+            # same_albedo_wall
+            if needs_same_albedo_wall:
+                same_albedo_wall_issues = self._validate_same_albedo_wall(site, idx)
+                if same_albedo_wall_issues:
                     self._validation_summary["issue_types"].add(
-                        "samealbedo_wall parameters"
+                        "same_albedo_wall parameters"
                     )
                     if site_name not in self._validation_summary["sites_with_issues"]:
                         self._validation_summary["sites_with_issues"].append(site_name)
-                    all_issues.extend(samealbedo_wall_issues)
+                    all_issues.extend(same_albedo_wall_issues)
 
-            # samealbedo_roof
-            if needs_samealbedo_roof:
-                samealbedo_roof_issues = self._validate_samealbedo_roof(site, idx)
-                if samealbedo_roof_issues:
+            # same_albedo_roof
+            if needs_same_albedo_roof:
+                same_albedo_roof_issues = self._validate_same_albedo_roof(site, idx)
+                if same_albedo_roof_issues:
                     self._validation_summary["issue_types"].add(
-                        "samealbedo_roof parameters"
+                        "same_albedo_roof parameters"
                     )
                     if site_name not in self._validation_summary["sites_with_issues"]:
                         self._validation_summary["sites_with_issues"].append(site_name)
-                    all_issues.extend(samealbedo_roof_issues)
+                    all_issues.extend(same_albedo_roof_issues)
+
+            # same_emissivity_wall
+            if needs_same_emissivity_wall:
+                same_emissivity_wall_issues = self._validate_same_emissivity_wall(site, idx)
+                if same_emissivity_wall_issues:
+                    self._validation_summary["issue_types"].add(
+                        "same_emissivity_wall parameters"
+                    )
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(same_emissivity_wall_issues)
+
+            # same_emissivity_roof
+            if needs_same_emissivity_roof:
+                same_emissivity_roof_issues = self._validate_same_emissivity_roof(site, idx)
+                if same_emissivity_roof_issues:
+                    self._validation_summary["issue_types"].add(
+                        "same_emissivity_roof parameters"
+                    )
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(same_emissivity_roof_issues)
 
             # SPARTACUS building height, sfr, and vegetation consistency checks
             if needs_spartacus:
@@ -1906,8 +1975,10 @@ class SUEWSConfig(BaseModel):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
-            "samealbedo_wall",
-            "samealbedo_roof",
+            "same_albedo_wall",
+            "same_albedo_roof",
+            "same_emissivity_wall",
+            "same_emissivity_roof",
         ]
 
         critical_issues = []

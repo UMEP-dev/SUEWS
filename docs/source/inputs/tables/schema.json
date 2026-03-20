@@ -259,7 +259,7 @@
             }
           ],
           "default": 10.0,
-          "description": "Building height [m]",
+          "description": "Building height. This should be consistent with WallExternalArea and FootprintArea. [m]",
           "display_name": "Stebbs Height",
           "title": "Stebbs Height",
           "unit": "m"

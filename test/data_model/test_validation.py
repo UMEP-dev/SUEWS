@@ -44,6 +44,8 @@ from supy.data_model.validation.pipeline.phase_b import (
     adjust_seasonal_parameters,
     adjust_model_option_stebbsmethod,
     adjust_model_option_rcmethod,
+    RulesRegistry,
+    ValidationContext
 )
 import types
 import copy
@@ -730,7 +732,7 @@ def test_needs_same_emissivity_wall_validation_true_and_false():
     cfg2 = make_cfg(same_emissivity_wall=0)
     assert cfg2._needs_same_emissivity_wall_validation() is False
 
-def test_phase_b_validate_model_option_same_albedo_disabled():
+def test_phase_b_validate_model_option_same_albedo_disabled(registry):
     """Test validate_model_option_same_albedo returns WARNING when option is disabled (==0)."""
 
     yaml_data_wall = {
@@ -762,7 +764,7 @@ def test_phase_b_validate_model_option_same_albedo_disabled():
     assert "no check of consistency" in results_roof[0].message.lower()
     assert "same_albedo_roof == 0" in results_roof[0].message.lower()
 
-def test_phase_b_validate_model_option_same_emissivity_disabled():
+def test_phase_b_validate_model_option_same_emissivity_disabled(registry):
     """Test validate_model_option_same_emissivity returns WARNING when option is disabled (==0)."""
 
     yaml_data_wall = {
@@ -792,7 +794,7 @@ def test_phase_b_validate_model_option_same_emissivity_disabled():
     assert "no check of consistency" in results_roof[0].message.lower()
     assert "same_emissivity_roof == 0" in results_roof[0].message.lower()
     
-def test_validate_model_option_rcmethod_missing_params():
+def test_validate_model_option_rcmethod_missing_params(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 1}}},
         "sites": [{

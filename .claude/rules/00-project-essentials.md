@@ -54,7 +54,7 @@ STEBBS building archetype parameters use PascalCase (e.g. `WallReflectivity`, `R
 
 ### Legacy identifiers
 
-Fused legacy identifiers (e.g. `netradiationmethod`, `storageheatmethod`, `soildepth`) exist for historical reasons. Renaming these requires a dedicated PR with a deprecation path — do not rename them inline. See GitHub issue for the migration plan.
+Fused legacy identifiers (e.g. `netradiationmethod`, `storageheatmethod`, `soildepth`) exist for historical reasons. Renaming these requires a dedicated PR with a deprecation path — do not rename them inline. See #1256 for the full inventory and migration plan.
 
 ## Git
 

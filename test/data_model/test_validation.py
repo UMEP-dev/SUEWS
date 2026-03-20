@@ -15,6 +15,8 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import warnings
+import types
+import copy
 
 import pytest
 
@@ -38,10 +40,13 @@ from supy.data_model.core.state import (
 )
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
-from supy.data_model.validation.pipeline.phase_b import validate_model_option_same_albedo, adjust_seasonal_parameters, validate_model_option_same_emissivity
-from supy.data_model.validation.pipeline.phase_b import validate_model_option_rcmethod, validate_model_option_stebbsmethod, adjust_model_option_stebbsmethod
-from supy.data_model.validation.pipeline.phase_b import adjust_model_option_rcmethod
-
+from supy.data_model.validation.pipeline.phase_b import (
+    adjust_seasonal_parameters,
+    adjust_model_option_stebbsmethod,
+    adjust_model_option_rcmethod,
+    RulesRegistry,
+    ValidationContext
+)
 import types
 import copy
 
@@ -50,6 +55,11 @@ class DummySite:
     def __init__(self, properties, name="SiteX"):
         self.properties = properties
         self.name = name
+
+
+@pytest.fixture(scope="module")
+def registry():
+    return RulesRegistry()
 
 
 # Helper to construct a SUEWSConfig without running Pydantic on sites,
@@ -722,7 +732,7 @@ def test_needs_same_emissivity_wall_validation_true_and_false():
     cfg2 = make_cfg(same_emissivity_wall=0)
     assert cfg2._needs_same_emissivity_wall_validation() is False
 
-def test_phase_b_validate_model_option_same_albedo_disabled():
+def test_phase_b_validate_model_option_same_albedo_disabled(registry):
     """Test validate_model_option_same_albedo returns WARNING when option is disabled (==0)."""
 
     yaml_data_wall = {
@@ -733,7 +743,8 @@ def test_phase_b_validate_model_option_same_albedo_disabled():
         },
         "sites": [{"name": "site1", "properties": {}}],  
     }
-    results_wall = validate_model_option_same_albedo(yaml_data_wall)
+
+    results_wall = registry["same_albedo"](ValidationContext(yaml_data=yaml_data_wall))
     assert len(results_wall) == 1
     assert results_wall[0].status == "WARNING"
     assert "no check of consistency" in results_wall[0].message.lower()
@@ -747,13 +758,13 @@ def test_phase_b_validate_model_option_same_albedo_disabled():
         },
         "sites": [{"name": "site1", "properties": {}}],  
     }
-    results_roof = validate_model_option_same_albedo(yaml_data_roof)
+    results_roof = registry["same_albedo"](ValidationContext(yaml_data=yaml_data_roof))
     assert len(results_roof) == 1
     assert results_roof[0].status == "WARNING"
     assert "no check of consistency" in results_roof[0].message.lower()
     assert "same_albedo_roof == 0" in results_roof[0].message.lower()
 
-def test_phase_b_validate_model_option_same_emissivity_disabled():
+def test_phase_b_validate_model_option_same_emissivity_disabled(registry):
     """Test validate_model_option_same_emissivity returns WARNING when option is disabled (==0)."""
 
     yaml_data_wall = {
@@ -764,7 +775,7 @@ def test_phase_b_validate_model_option_same_emissivity_disabled():
         },
         "sites": [{"name": "site1", "properties": {}}],  
     }
-    results_wall = validate_model_option_same_emissivity(yaml_data_wall)
+    results_wall = registry["same_emissivity"](ValidationContext(yaml_data=yaml_data_wall))
     assert len(results_wall) == 1
     assert results_wall[0].status == "WARNING"
     assert "no check of consistency" in results_wall[0].message.lower()
@@ -777,13 +788,13 @@ def test_phase_b_validate_model_option_same_emissivity_disabled():
         },
         "sites": [{"name": "site1", "properties": {}}],  
     }
-    results_roof = validate_model_option_same_emissivity(yaml_data_roof)
+    results_roof = registry["same_emissivity"](ValidationContext(yaml_data=yaml_data_roof))
     assert len(results_roof) == 1
     assert results_roof[0].status == "WARNING"
     assert "no check of consistency" in results_roof[0].message.lower()
     assert "same_emissivity_roof == 0" in results_roof[0].message.lower()
     
-def test_validate_model_option_rcmethod_missing_params():
+def test_validate_model_option_rcmethod_missing_params(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 1}}},
         "sites": [{
@@ -793,13 +804,13 @@ def test_validate_model_option_rcmethod_missing_params():
             }
         }],
     }
-    results = validate_model_option_rcmethod(yaml_data)
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     params = [r.parameter for r in results]
     assert any("RoofOuterCapFrac" in p for p in params)
     assert any("WallOuterCapFrac" in p for p in params)
     assert all(r.status == "ERROR" for r in results)
 
-def test_validate_model_option_rcmethod_enabled_invalid_values():
+def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 1}}},
         "sites": [{
@@ -812,11 +823,11 @@ def test_validate_model_option_rcmethod_enabled_invalid_values():
             }
         }],
     }
-    results = validate_model_option_rcmethod(yaml_data)
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     assert any("out of valid range" in r.message for r in results)
     assert all(r.status == "ERROR" for r in results)
 
-def test_validate_model_option_rcmethod_enabled_valid_values():
+def test_validate_model_option_rcmethod_enabled_valid_values(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 1}}},
         "sites": [{
@@ -829,7 +840,7 @@ def test_validate_model_option_rcmethod_enabled_valid_values():
             }
         }],
     }
-    results = validate_model_option_rcmethod(yaml_data)
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     assert not results or all(r.status != "ERROR" for r in results)
 
 def test_adjust_model_option_rcmethod_sets_defaults():
@@ -865,7 +876,7 @@ def test_adjust_model_option_rcmethod_no_action_when_already_set():
     updated_data, adjustments = adjust_model_option_rcmethod(yaml_data)
     assert len(adjustments) == 0
 
-def test_validate_model_option_rcmethod2_missing_params():
+def test_validate_model_option_rcmethod2_missing_params(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 2}}},
         "sites": [{
@@ -873,7 +884,7 @@ def test_validate_model_option_rcmethod2_missing_params():
             "properties": {"building_archetype": {}},
         }],
     }
-    results = validate_model_option_rcmethod(yaml_data)
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     required = [
         "WallextThickness", "WallextEffectiveConductivity", "WallextDensity", "WallextCp",
         "RoofextThickness", "RoofextEffectiveConductivity", "RoofextDensity", "RoofextCp"
@@ -884,7 +895,7 @@ def test_validate_model_option_rcmethod2_missing_params():
         assert p in error_params
     assert all(r.status == "ERROR" for r in results if r.parameter in expected)
 
-def test_validate_model_option_rcmethod2_all_params_provided():
+def test_validate_model_option_rcmethod2_all_params_provided(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 2}}},
         "sites": [{
@@ -903,13 +914,13 @@ def test_validate_model_option_rcmethod2_all_params_provided():
             }
         }],
     }
-    results = validate_model_option_rcmethod(yaml_data)
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     warnings = [r for r in results if r.status == "WARNING"]
     assert any("wall material parameters will be used for parameterisation" in r.message for r in warnings)
     assert any("roof material parameters will be used for parameterisation" in r.message for r in warnings)
     assert all(r.status != "ERROR" for r in results)
 
-def test_validate_model_option_rcmethod2_some_params_missing():
+def test_validate_model_option_rcmethod2_some_params_missing(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 2}}},
         "sites": [{
@@ -928,7 +939,7 @@ def test_validate_model_option_rcmethod2_some_params_missing():
             }
         }],
     }
-    results = validate_model_option_rcmethod(yaml_data)
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
     assert "building_archetype.WallextEffectiveConductivity" in error_params
     assert "building_archetype.WallextCp" in error_params
@@ -936,7 +947,7 @@ def test_validate_model_option_rcmethod2_some_params_missing():
     assert any(r.status == "WARNING" for r in results)
     assert all("must be provided" in r.message for r in results if r.status == "ERROR")
 
-def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid():
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
     """Test HotWaterFlowProfile accepts only 0 or 1 values."""
 
     yaml_data = {
@@ -953,10 +964,10 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid():
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors for valid HotWaterFlowProfile values"
 
-def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid():
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid(registry):
     """Test HotWaterFlowProfile returns ERROR for invalid values."""
 
     yaml_data = {
@@ -973,7 +984,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid():
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
     assert "stebbs.HotWaterFlowProfile.working_day.0" in error_params
     assert "stebbs.HotWaterFlowProfile.working_day.1" in error_params
@@ -983,7 +994,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid():
     assert all(r.status == "ERROR" for r in results)
     assert all("must be 0 or 1" in r.message for r in results)
 
-def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing():
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing(registry):
     """Test HotWaterFlowProfile missing returns no errors."""
 
     yaml_data = {
@@ -997,10 +1008,10 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing():
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors if HotWaterFlowProfile is missing"
 
-def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial():
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial(registry):
     """Test HotWaterFlowProfile with partial valid/invalid values."""
 
     yaml_data = {
@@ -1017,14 +1028,14 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial():
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
     assert "stebbs.HotWaterFlowProfile.working_day.2" in error_params
     assert "stebbs.HotWaterFlowProfile.holiday.2" in error_params
     assert all(r.status == "ERROR" for r in results)
     assert len(results) == 2
 
-def test_validate_model_option_stebbsmethod_daylightcontrol_valid():
+def test_validate_model_option_stebbsmethod_daylightcontrol_valid(registry):
     """Test DaylightControl accepts only 0 or 1 values."""
     yaml_data = {
         "model": {"physics": {"stebbsmethod": {"value": 1}}},
@@ -1037,14 +1048,14 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_valid():
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors for valid DaylightControl value"
 
     yaml_data["sites"][0]["properties"]["stebbs"]["DaylightControl"]["value"] = 0
-    results = validate_model_option_stebbsmethod(yaml_data)
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors for valid DaylightControl value 0"
 
-def test_validate_model_option_stebbsmethod_daylightcontrol_zero():
+def test_validate_model_option_stebbsmethod_daylightcontrol_zero(registry):
     """Test DaylightControl == 0 is accepted as valid."""
     yaml_data = {
         "model": {"physics": {"stebbsmethod": {"value": 1}}},
@@ -1057,10 +1068,10 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_zero():
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors for DaylightControl == 0"
 
-def test_validate_model_option_stebbsmethod_daylightcontrol_invalid():
+def test_validate_model_option_stebbsmethod_daylightcontrol_invalid(registry):
     """Test DaylightControl returns ERROR for invalid values."""
     yaml_data = {
         "model": {"physics": {"stebbsmethod": {"value": 1}}},
@@ -1073,13 +1084,13 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_invalid():
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert len(results) == 1
     assert results[0].parameter == "stebbs.DaylightControl"
     assert results[0].status == "ERROR"
     assert "must be 0 (off) or 1 (on)" in results[0].message
 
-def test_validate_model_option_stebbsmethod_daylightcontrol_string_value():
+def test_validate_model_option_stebbsmethod_daylightcontrol_string_value(registry):
     """Test DaylightControl returns ERROR for string or unexpected values."""
     yaml_data = {
         "model": {"physics": {"stebbsmethod": {"value": 1}}},
@@ -1092,13 +1103,13 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_string_value():
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert len(results) == 1
     assert results[0].parameter == "stebbs.DaylightControl"
     assert results[0].status == "ERROR"
     assert "must be 0 (off) or 1 (on)" in results[0].message
 
-def test_validate_model_option_stebbsmethod_daylightcontrol_missing():
+def test_validate_model_option_stebbsmethod_daylightcontrol_missing(registry):
     """Test DaylightControl missing returns no errors."""
     yaml_data = {
         "model": {"physics": {"stebbsmethod": {"value": 1}}},
@@ -1111,10 +1122,10 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_missing():
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors if DaylightControl is missing"
 
-def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_nonzero():
+def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_nonzero(registry):
     """Test error when Occupants=0.0 but MetabolismProfile has nonzero values."""
 
     yaml_data = {
@@ -1133,13 +1144,13 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_non
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    results = registry["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
     assert "building_archetype.MetabolismProfile" in error_params
     assert any("nonzero entries" in r.message for r in results)
     assert all(r.status == "ERROR" for r in results)
 
-def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_all_zero():
+def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_all_zero(registry):
     """Test no error when Occupants=0.0 and all MetabolismProfile values are zero."""
 
     yaml_data = {
@@ -1158,10 +1169,10 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_all
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    results = registry["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors when all MetabolismProfile values are zero or None"
 
-def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_nonzero():
+def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_nonzero(registry):
     """Test no error when Occupants>0 and MetabolismProfile has nonzero values."""
 
     yaml_data = {
@@ -1180,7 +1191,7 @@ def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_
             }
         }],
     }
-    results = validate_model_option_stebbsmethod(yaml_data)
+    results = registry["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors when Occupants > 0"
 
 @pytest.mark.parametrize(
@@ -1861,11 +1872,8 @@ sites:
         yaml_path.unlink()
 
 
-def test_phase_b_storageheatmethod_ohmincqf_validation():
+def test_phase_b_storageheatmethod_ohmincqf_validation(registry):
     """Test StorageHeatMethod-OhmIncQf validation in Phase B."""
-    from supy.data_model.validation.pipeline.phase_b import (
-        validate_model_option_dependencies,
-    )
 
     # Test incompatible combination: StorageHeatMethod=1 requires OhmIncQf=0
     yaml_data_incompatible = {
@@ -1877,7 +1885,7 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
         }
     }
 
-    results = validate_model_option_dependencies(yaml_data_incompatible)
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_incompatible))
 
     # Should find the incompatible combination
     storage_results = [
@@ -1901,7 +1909,7 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
         }
     }
 
-    results = validate_model_option_dependencies(yaml_data_compatible)
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_compatible))
 
     # Should pass validation
     storage_results = [
@@ -1915,11 +1923,8 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
     )
 
 
-def test_phase_b_rsl_stabilitymethod_validation():
+def test_phase_b_rsl_stabilitymethod_validation(registry):
     """Test that existing RSL-StabilityMethod validation still works in Phase B."""
-    from supy.data_model.validation.pipeline.phase_b import (
-        validate_model_option_dependencies,
-    )
 
     # Test incompatible combination: rslmethod=2 requires stabilitymethod=3
     yaml_data_incompatible = {
@@ -1931,7 +1936,7 @@ def test_phase_b_rsl_stabilitymethod_validation():
         }
     }
 
-    results = validate_model_option_dependencies(yaml_data_incompatible)
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_incompatible))
 
     # Should find the incompatible combination
     rsl_results = [r for r in results if "rslmethod-stabilitymethod" in r.parameter]
@@ -1941,12 +1946,8 @@ def test_phase_b_rsl_stabilitymethod_validation():
     assert "stabilitymethod must be 3" in rsl_results[0].message
 
 
-def test_phase_b_model_option_dependencies_comprehensive():
+def test_phase_b_model_option_dependencies_comprehensive(registry):
     """Test validate_model_option_dependencies function with various configurations."""
-    from supy.data_model.validation.pipeline.phase_b import (
-        validate_model_option_dependencies,
-    )
-
     # Test with minimal physics configuration (should all pass)
     yaml_data_minimal = {
         "model": {
@@ -1959,7 +1960,7 @@ def test_phase_b_model_option_dependencies_comprehensive():
         }
     }
 
-    results = validate_model_option_dependencies(yaml_data_minimal)
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_minimal))
 
     # All should pass
     error_results = [r for r in results if r.status == "ERROR"]
@@ -1986,7 +1987,7 @@ def test_phase_b_model_option_dependencies_comprehensive():
         }
     }
 
-    results = validate_model_option_dependencies(yaml_data_mixed)
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_mixed))
 
     # Should have one error (RSL) and one pass (storage heat)
     error_results = [r for r in results if r.status == "ERROR"]
@@ -2007,7 +2008,7 @@ def test_phase_b_model_option_dependencies_comprehensive():
     # Test with missing physics section (should handle gracefully)
     yaml_data_no_physics = {"model": {}}
 
-    results = validate_model_option_dependencies(yaml_data_no_physics)
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_no_physics))
 
     # Should handle gracefully - may have default values or skip validation
     assert isinstance(results, list)  # Should return a list, not crash
@@ -3082,7 +3083,7 @@ def test_forcing_validation_cli_integration(cli_runner):
 
 def test_irrigation_doy_leap_year():
     """Test DOY 366 validation for leap vs non-leap years."""
-    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+    from supy.data_model.validation.pipeline.phase_b_rules import validate_irrigation_doy
 
     # Leap year: DOY 366 valid
     results = validate_irrigation_doy(120, 366, 51.5, 2024, "test_site")
@@ -3097,7 +3098,7 @@ def test_irrigation_doy_leap_year():
 
 def test_irrigation_doy_disabled():
     """Test irrigation disabled configurations (None/0)."""
-    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+    from supy.data_model.validation.pipeline.phase_b_rules import validate_irrigation_doy
 
     # Both None = valid
     assert len(validate_irrigation_doy(None, None, 51.5, 2023, "test")) == 0
@@ -3114,7 +3115,7 @@ def test_irrigation_doy_disabled():
 
 def test_irrigation_hemisphere_warnings():
     """Test hemisphere and tropical-aware warm season warnings."""
-    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+    from supy.data_model.validation.pipeline.phase_b_rules import validate_irrigation_doy
 
     # NH: warm season (May-Sept, DOY 121-273) = no warning
     results = validate_irrigation_doy(150, 250, 51.5, 2023, "test")
@@ -3168,7 +3169,7 @@ def test_irrigation_hemisphere_warnings():
 
 def test_irrigation_year_wrapping():
     """Test year-wrapping irrigation period validation (ie_start > ie_end)."""
-    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+    from supy.data_model.validation.pipeline.phase_b_rules import validate_irrigation_doy
 
     # Year-wrapping period in NH (winter irrigation - unusual)
     results = validate_irrigation_doy(300, 50, 51.5, 2023, "test")

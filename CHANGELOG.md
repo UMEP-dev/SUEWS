@@ -57,6 +57,7 @@ EXAMPLES:
 
 - [feature][experimental] Add calculation of electrical lighting energy and optional lighting control driven by daylighting STEBBS (PR #1254).
 - [bugfix][experimental] Fix STEBBS 10-minute profile indexing to use the full-day slot (`0-143`) rather than repeating the first hour each hour, correcting metabolism, appliance, and hot water profile application (PR #1254).
+- [change][experimental] Improve STEBBS height, external wall and footprint area descriptions, linking them together (PR #1257).
 
 ### 19 Mar 2026
 - [feature][experimental] Added `same_emissivity_wall` and `same_emissivity_roof` model options for roof and wall emissivity validation (PR #1253)

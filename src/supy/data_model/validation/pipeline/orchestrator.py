@@ -643,21 +643,21 @@ def run_phase_b(
 
     except ValueError as e:
         if "Critical scientific errors detected" in str(e):
-            if not silent:
-                print("[X] Validation failed!")
-                print(f"Report: {science_report_file}")
-                print(f"Updated YAML: {science_yaml_file}")
+            # if not silent:
+            print("[X] Validation failed!")
+            print(f"Report: {science_report_file}")
+            print(f"Updated YAML: {science_yaml_file}")
             return False
         else:
-            if not silent:
-                print("[X] Validation failed!")
-                print(f"Report: {science_report_file}")
-                print(f"Updated YAML: {science_yaml_file}")
+            # if not silent:
+            print("[X] Validation failed!")
+            print(f"Report: {science_report_file}")
+            print(f"Updated YAML: {science_yaml_file}")
             return False
     except Exception as e:
-        if not silent:
-            print()
-            print(f"[X] Validation failed with unexpected error: {e}")
+        # if not silent:
+        print()
+        print(f"[X] Validation failed with unexpected error: {e}")
         return False
 
 

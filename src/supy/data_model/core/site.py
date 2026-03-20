@@ -1310,7 +1310,7 @@ class ArchetypeProperties(BaseModel):
     )
     WallExternalArea: Optional[FlexibleRefValue(float)] = Field(
         default=80.0,
-        description="External wall area (including window area) [m2]",
+        description="External wall area (including window area). This should be consistent with stebbs_Height and FootprintArea. [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Wall External Area"},
         gt=0.0,
     )

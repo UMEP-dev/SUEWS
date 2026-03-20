@@ -20,7 +20,7 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: age_65plus = 0.0D0 !
       REAL(KIND(1D0)) :: stebbs_Height = 0.0D0 ! Building height [m]
       REAL(KIND(1D0)) :: FootprintArea = 0.0D0 ! Building footprint area [m2]
-      REAL(KIND(1D0)) :: WallExternalArea = 0.0D0 ! External wall area (including window area) [m2]
+      REAL(KIND(1D0)) :: WallExternalArea = 0.0D0 ! External wall area (including window area). This should be consistent with stebbs_Height and FootprintArea. [m2]
       REAL(KIND(1D0)) :: RatioInternalVolume = 0.0D0 ! Ratio of internal mass volume to total building volume [-]
       REAL(KIND(1D0)) :: WWR = 0.0D0 ! window to wall ratio [-]
       REAL(KIND(1D0)) :: WallThickness = 0.0D0 ! Thickness of external wall [m]

@@ -40,10 +40,11 @@ from supy.data_model.core.state import (
 )
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
-from supy.data_model.validation.pipeline.phase_b import validate_model_option_same_albedo, adjust_seasonal_parameters, validate_model_option_same_emissivity
-from supy.data_model.validation.pipeline.phase_b import validate_model_option_rcmethod, validate_model_option_stebbsmethod, adjust_model_option_stebbsmethod
-from supy.data_model.validation.pipeline.phase_b import adjust_model_option_rcmethod
-
+from supy.data_model.validation.pipeline.phase_b import (
+    adjust_seasonal_parameters,
+    adjust_model_option_stebbsmethod,
+    adjust_model_option_rcmethod,
+)
 import types
 import copy
 
@@ -741,7 +742,7 @@ def test_phase_b_validate_model_option_same_albedo_disabled():
         "sites": [{"name": "site1", "properties": {}}],  
     }
 
-    results_wall = registry["samealbedo"](ValidationContext(yaml_data=yaml_data_wall))
+    results_wall = registry["same_albedo"](ValidationContext(yaml_data=yaml_data_wall))
     assert len(results_wall) == 1
     assert results_wall[0].status == "WARNING"
     assert "no check of consistency" in results_wall[0].message.lower()
@@ -755,7 +756,7 @@ def test_phase_b_validate_model_option_same_albedo_disabled():
         },
         "sites": [{"name": "site1", "properties": {}}],  
     }
-    results_roof = registry["samealbedo"](ValidationContext(yaml_data=yaml_data_roof))
+    results_roof = registry["same_albedo"](ValidationContext(yaml_data=yaml_data_roof))
     assert len(results_roof) == 1
     assert results_roof[0].status == "WARNING"
     assert "no check of consistency" in results_roof[0].message.lower()
@@ -772,7 +773,7 @@ def test_phase_b_validate_model_option_same_emissivity_disabled():
         },
         "sites": [{"name": "site1", "properties": {}}],  
     }
-    results_wall = validate_model_option_same_emissivity(yaml_data_wall)
+    results_wall = registry["same_emissivity"](ValidationContext(yaml_data=yaml_data_wall))
     assert len(results_wall) == 1
     assert results_wall[0].status == "WARNING"
     assert "no check of consistency" in results_wall[0].message.lower()
@@ -785,7 +786,7 @@ def test_phase_b_validate_model_option_same_emissivity_disabled():
         },
         "sites": [{"name": "site1", "properties": {}}],  
     }
-    results_roof = validate_model_option_same_emissivity(yaml_data_roof)
+    results_roof = registry["same_emissivity"](ValidationContext(yaml_data=yaml_data_roof))
     assert len(results_roof) == 1
     assert results_roof[0].status == "WARNING"
     assert "no check of consistency" in results_roof[0].message.lower()

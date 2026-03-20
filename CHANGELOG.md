@@ -40,7 +40,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 70 | 78 | 29 | 79 | 40 | 296 |
+| 2026 | 71 | 78 | 30 | 79 | 40 | 298 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -52,6 +52,19 @@ EXAMPLES:
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 20 Mar 2026
+
+- [change][experimental] Improve STEBBS height, external wall and footprint area descriptions, linking them together (PR #1257).
+
+### 19 Mar 2026
+- [feature][experimental] Added `same_emissivity_wall` and `same_emissivity_roof` model options for roof and wall emissivity validation (PR #1253)
+  - When enabled (`=1`), enforces all roof/wall emissivity values match their respective external roof/wall STEBBS parameters; errors reported if inconsistent as ACTION NEEDED in the report.
+  - When disabled (`=0`), skips consistency checks and issues a user warning listing current emissivities values in NO ACTION NEEDED section of the report.
+
+### 18 Mar 2026
+
+- [feature][experimental] Add dynamic calculation of water mains (cold) temperature in STEBBS and relevant new tests (PR #1249).
 
 ### 16 Mar 2026
 
@@ -117,11 +130,11 @@ EXAMPLES:
 ### 4 Feb 2026
 
 - [bugfix] Fix conflict in the validation logic when vegetated surfaces are active (sfr > 0) but carbon is disabled (PR #1188)
-- [bugfix] Fix a bug in the phase_b.py required physics options, adding the new samealbedo_roof and samealbedo_wall to the list (PR #1188).
+- [bugfix] Fix a bug in the phase_b.py required physics options, adding the new same_albedo_roof and same_albedo_wall to the list (PR #1188).
 
 ### 28 Jan 2026
 
-- [feature] Added `samealbedo_wall` and `samealbedo_roof` model options for roof and wall albedo validation (PR #1123)
+- [feature] Added `same_albedo_wall` and `same_albedo_roof` model options for roof and wall albedo validation (PR #1123)
   - When enabled (`=1`), enforces all roof/wall albedo values match their respective reflectivity parameters; errors reported if inconsistent as ACTION NEEDED in the report.
   - When disabled (`=0`), skips consistency checks and issues a user warning listing current albedo values in NO ACTION NEEDED section of the report.
 - [feature] Added sphinx-gallery for executable documentation examples (#1057)

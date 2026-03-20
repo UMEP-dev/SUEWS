@@ -46,9 +46,13 @@ model:
       value: 0
     rcmethod:
       value: 0
-    samealbedo_wall:
+    same_albedo_wall:
       value: 0
-    samealbedo_roof:
+    same_albedo_roof:
+      value: 0
+    same_emissivity_wall:
+      value: 0
+    same_emissivity_roof:
       value: 0
 sites:
 - name: KCL
@@ -449,6 +453,8 @@ sites:
       InitialIndoorTemperature:
         value: 20.0
       AnnualMeanAirTemperature:
+        value: 10.0
+      MonthMeanAirTemperature_diffmax:
         value: 10.0        
       WaterTankWallThickness:
         value: 0.055

@@ -45,9 +45,13 @@ model:
       value: 2
     gsmodel:
       value: 2
-    samealbedo_wall:
+    same_albedo_wall:
       value: 0
-    samealbedo_roof:
+    same_albedo_roof:
+      value: 0
+    same_emissivity_wall:
+      value: 0
+    same_emissivity_roof:
       value: 0
 sites:
 - name: selected grid
@@ -440,9 +444,11 @@ sites:
       InitialOutdoorTemperature:
         value: 17.540002822875977
       InitialIndoorTemperature:
-        value: 20.0
+        value: 17.540002822875977
       AnnualMeanAirTemperature:
-        value: 10.0
+        value: 10.738
+      MonthMeanAirTemperature_diffmax:
+        value: 12.947
       WaterTankWallThickness:
         value: 0.055
       MainsWaterTemperature:

@@ -1590,14 +1590,22 @@ fn apply_site_overrides(
 
 fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
     // STEBBS initial temperatures are provided under properties.stebbs in YAML
-    // but consumed from stebbs_state by the physics core.
+    // but consumed from stebbs_state by the physics core. Match the legacy
+    // Fortran initialisation where DeepSoilTemperature falls back to
+    // AnnualMeanAirTemperature when no explicit deep-soil state is supplied.
     if let Some(stebbs_root) = get_path(site_root, &["properties", "stebbs"]) {
         let init_out =
             read_normalized_numeric_from_mapping(stebbs_root, "initial_outdoor_temperature");
         let init_in =
             read_normalized_numeric_from_mapping(stebbs_root, "initial_indoor_temperature");
-        let deep_soil =
-            read_normalized_numeric_from_mapping(stebbs_root, "deep_soil_temperature");
+        let annual_mean_air_temperature =
+            read_normalized_numeric_from_mapping(stebbs_root, "annual_mean_air_temperature");
+        let deep_soil = read_normalized_numeric_from_mapping(stebbs_root, "deep_soil_temperature")
+            .or(annual_mean_air_temperature);
+        let month_mean_air_temperature_diffmax = read_normalized_numeric_from_mapping(
+            stebbs_root,
+            "month_mean_air_temperature_diffmax",
+        );
         let mains_water =
             read_normalized_numeric_from_mapping(stebbs_root, "mains_water_temperature");
         let hot_water_setpoint = read_normalized_numeric_from_mapping(
@@ -1606,8 +1614,14 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
         );
 
         eprintln!(
-            "DEBUG_STATE_MAP init_out={:?} init_in={:?} deep={:?} mains={:?} hwt_set={:?}",
-            init_out, init_in, deep_soil, mains_water, hot_water_setpoint
+            "DEBUG_STATE_MAP init_out={:?} init_in={:?} annual={:?} deep={:?} month_diffmax={:?} mains={:?} hwt_set={:?}",
+            init_out,
+            init_in,
+            annual_mean_air_temperature,
+            deep_soil,
+            month_mean_air_temperature_diffmax,
+            mains_water,
+            hot_water_setpoint
         );
 
         if let Some(v) = init_out {
@@ -1627,6 +1641,9 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
         }
         if let Some(v) = deep_soil {
             state.stebbs_state.deep_soil_temperature = v;
+        }
+        if let Some(v) = month_mean_air_temperature_diffmax {
+            state.stebbs_state.month_mean_air_temperature_diffmax = v;
         }
         if let Some(v) = mains_water {
             state.stebbs_state.mains_water_temperature = v;

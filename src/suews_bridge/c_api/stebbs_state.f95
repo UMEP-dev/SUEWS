@@ -17,8 +17,8 @@ public :: SUEWS_CAPI_BAD_BUFFER
 public :: SUEWS_CAPI_BAD_STATE
 
 integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_STATE_RSL_LEN = 30_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_STATE_LEN = 154_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_STATE_SCHEMA_VERSION = 1_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_STATE_LEN = 155_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_STATE_SCHEMA_VERSION = 2_c_int
 
 type :: stebbs_state_shadow
    real(c_double) :: kdown2d = 0.0_c_double
@@ -38,6 +38,7 @@ type :: stebbs_state_shadow
    real(c_double), dimension(30) :: dataout_line_trsl = -999.0_c_double
    real(c_double), dimension(30) :: dataout_line_qrsl = -999.0_c_double
    real(c_double) :: deep_soil_temperature = 0.0_c_double
+   real(c_double) :: month_mean_air_temperature_diffmax = 0.0_c_double
    real(c_double) :: outdoor_air_start_temperature = 0.0_c_double
    real(c_double) :: indoor_air_start_temperature = 0.0_c_double
    real(c_double) :: indoor_mass_start_temperature = 0.0_c_double
@@ -153,6 +154,7 @@ subroutine stebbs_state_pack(state, flat, n_flat, err)
    end do
 
    flat(idx) = state%deep_soil_temperature; idx = idx + 1_c_int
+   flat(idx) = state%month_mean_air_temperature_diffmax; idx = idx + 1_c_int
    flat(idx) = state%outdoor_air_start_temperature; idx = idx + 1_c_int
    flat(idx) = state%indoor_air_start_temperature; idx = idx + 1_c_int
    flat(idx) = state%indoor_mass_start_temperature; idx = idx + 1_c_int
@@ -228,6 +230,7 @@ subroutine stebbs_state_unpack(flat, n_flat, state, err)
    end do
 
    state%deepsoiltemperature = flat(idx); idx = idx + 1_c_int
+   state%monthmeanairtemperature_diffmax = flat(idx); idx = idx + 1_c_int
    state%outdoorairstarttemperature = flat(idx); idx = idx + 1_c_int
    state%indoorairstarttemperature = flat(idx); idx = idx + 1_c_int
    state%indoormassstarttemperature = flat(idx); idx = idx + 1_c_int

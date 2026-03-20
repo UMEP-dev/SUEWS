@@ -1037,6 +1037,7 @@ from supy.data_model.validation.core.yaml_helpers import (
     SeasonCheck,
     collect_yaml_differences,
     get_mean_monthly_air_temperature,
+    get_monthly_air_temperature_diffmax,
     get_mean_annual_air_temperature,
     get_value_safe,
     precheck_land_cover_fractions,
@@ -2369,6 +2370,31 @@ def test_get_mean_annual_air_temperature_invalid_longitude():
     with pytest.raises(ValueError, match="Longitude must be between -180 and 180"):
         get_mean_annual_air_temperature(45.0, 185.0)
 
+def test_get_monthly_air_temperature_diffmax_valid():
+    """Test get_monthly_air_temperature_diffmax returns a float for valid input."""
+    try:
+        diff = get_monthly_air_temperature_diffmax(45.0, 10.0)
+        assert isinstance(diff, float)
+        assert -50 <= diff <= 50  # Reasonable temperature difference range
+    except FileNotFoundError:
+        pytest.skip("CRU data file not available for temperature calculation")
+
+def test_get_monthly_air_temperature_diffmax_invalid():
+    """Test get_monthly_air_temperature_diffmax raises ValueError for invalid input."""
+    with pytest.raises(ValueError, match="Latitude must be between -90 and 90"):
+        get_monthly_air_temperature_diffmax(100.0, 10.0)
+    with pytest.raises(ValueError, match="Longitude must be between -180 and 180"):
+        get_monthly_air_temperature_diffmax(45.0, 200.0)
+
+def test_get_monthly_air_temperature_diffmax_invalid_latitude():
+    """Test get_monthly_air_temperature_diffmax raises ValueError for invalid latitude."""
+    with pytest.raises(ValueError, match="Latitude must be between -90 and 90"):
+        get_monthly_air_temperature_diffmax(100.0, 10.0)
+
+def test_get_monthly_air_temperature_diffmax_invalid_longitude():
+    """Test get_monthly_air_temperature_diffmax raises ValueError for invalid longitude."""
+    with pytest.raises(ValueError, match="Longitude must be between -180 and 180"):
+        get_monthly_air_temperature_diffmax(45.0, 200.0)
 
 class TestPrecheckRefValueHandling:
     """Test cases for precheck RefValue handling bug fixes."""
@@ -3433,8 +3459,10 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
-            "samealbedo_wall",
-            "samealbedo_roof"
+            "same_albedo_wall",
+            "same_albedo_roof",
+            "same_emissivity_wall",
+            "same_emissivity_roof"
         }
 
         # Should match the synchronized list from Phase A and B
@@ -3479,8 +3507,10 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
-            "samealbedo_wall",
-            "samealbedo_roof",
+            "same_albedo_wall",
+            "same_albedo_roof",
+            "same_emissivity_wall",
+            "same_emissivity_roof"
         }
 
         valid_yaml = {

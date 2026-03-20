@@ -1298,19 +1298,19 @@ class ArchetypeProperties(BaseModel):
 
     stebbs_Height: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,
-        description="Building height [m]",
+        description="Building height. This should be consistent with WallExternalArea and FootprintArea. [m]",
         json_schema_extra={"unit": "m", "display_name": "Stebbs Height"},
         gt=0.0,
     )
     FootprintArea: Optional[FlexibleRefValue(float)] = Field(
         default=64.0,
-        description="Building footprint area [m2]",
+        description="Building footprint area. This should be consistent with stebbs_Height and WallExternalArea. [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Footprint Area"},
         gt=0.0,
     )
     WallExternalArea: Optional[FlexibleRefValue(float)] = Field(
         default=80.0,
-        description="External wall area (including window area) [m2]",
+        description="External wall area (including window area). This should be consistent with stebbs_Height and FootprintArea. [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Wall External Area"},
         gt=0.0,
     )
@@ -2003,6 +2003,15 @@ class StebbsProperties(BaseModel):
             "unit": "degC",
             "display_name": "Annual Mean Air Temperature",
         },
+    )
+    MonthMeanAirTemperature_diffmax: Optional[FlexibleRefValue(float)] = Field(
+        default=10.0,
+        description="Maximum difference in monthly outdoor air temperature [degC]",
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Maximum difference in monthly outdoor air temperature",
+        },
+        gt = 0.0,
     )
     WaterTankWallThickness: Optional[FlexibleRefValue(float)] = Field(
         default=0.01,

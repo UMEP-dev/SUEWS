@@ -533,7 +533,7 @@ def validate_irrigation_parameters(context) -> List[ValidationResult]:
     if isinstance(sites, Mapping):
         # Dict format: {site_name: {lat: ..., ...}, ...}
         sites_list = [(site_name, site_data) for site_name, site_data in sites.items()]
-    elif isinstance(sites, Mapping):
+    elif isinstance(sites, list):
         # List format: [{name: site_name, lat: ..., ...}, ...]
         sites_list = [
             (site.get("name", f"site_{idx}"), site) for idx, site in enumerate(sites)

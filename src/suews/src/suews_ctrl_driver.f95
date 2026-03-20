@@ -4577,7 +4577,7 @@ CONTAINS
       REAL(KIND(1D0)) :: ExternalGroundConductivity
       REAL(KIND(1D0)) :: MetabolismThreshold
       REAL(KIND(1D0)) :: LatentSensibleRatio
-      REAL(KIND(1D0)) :: DaylightControl
+      INTEGER :: DaylightControl
       REAL(KIND(1D0)) :: LightingIlluminanceThreshold
       REAL(KIND(1D0)) :: HeatingSystemEfficiency
       REAL(KIND(1D0)) :: MaxCoolingPower

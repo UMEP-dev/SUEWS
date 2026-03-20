@@ -922,7 +922,7 @@ CONTAINS
             buildings(1)%lighting_power_rating = 0.0D0
             IF (building_is_active) THEN
                buildings(1)%lighting_power_rating = lighting_power_capacity
-               IF (stebbsPrm%DaylightControl == 1.0D0) THEN
+               IF (stebbsPrm%DaylightControl == 1) THEN
                   outdoor_illuminance = GlobalLuminousEfficacy * MAX(Kroof_sout, 0.0D0)
                   indoor_illuminance = outdoor_illuminance * DefaultDaylightFactor
 

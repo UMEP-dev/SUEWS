@@ -371,7 +371,7 @@ def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
                     parameter="samealbedo_wall",
                     site_gridid=site_name,
                     site_index=None,
-                    message=f"{msg}",
+                    message=msg,
                     suggested_value=None,
                 )
             )
@@ -400,7 +400,7 @@ def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
                     parameter="samealbedo_roof",
                     site_gridid=site_name,
                     site_index=None,
-                    message=f"{msg}",
+                    message=msg,
                     suggested_value=None,
                 )
             )
@@ -439,7 +439,7 @@ def validate_model_option_sameemissivity(yaml_data: dict) -> List[ValidationResu
                     parameter="sameemissivity_wall",
                     site_gridid=site_name,
                     site_index=None,
-                    message=f"{msg}",
+                    message=msg,
                     suggested_value=None,
                 )
             )
@@ -468,7 +468,7 @@ def validate_model_option_sameemissivity(yaml_data: dict) -> List[ValidationResu
                     parameter="sameemissivity_roof",
                     site_gridid=site_name,
                     site_index=None,
-                    message=f"{msg}",
+                    message=msg,
                     suggested_value=None,
                 )
             )

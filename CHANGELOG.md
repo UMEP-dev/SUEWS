@@ -55,7 +55,7 @@ EXAMPLES:
 
 ### 20 Mar 2026
 
-- [feature][experimental] Add calculation of eletrical lighting energy and optional lighting control driven by daylighting STEBBS (PR #1254).
+- [feature][experimental] Add calculation of electrical lighting energy and optional lighting control driven by daylighting STEBBS (PR #1254).
 
 ### 19 Mar 2026
 - [feature][experimental] Added `same_emissivity_wall` and `same_emissivity_roof` model options for roof and wall emissivity validation (PR #1253)

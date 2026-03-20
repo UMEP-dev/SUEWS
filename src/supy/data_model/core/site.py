@@ -1842,7 +1842,7 @@ class StebbsProperties(BaseModel):
     building materials properties, and thermal behaviour.
     """
 
-    model_config = ConfigDict(title="STEBBS", populate_by_name=True)
+    model_config = ConfigDict(title="STEBBS")
 
     WallInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
         default=7.69,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
@@ -1952,7 +1952,6 @@ class StebbsProperties(BaseModel):
     DaylightControl: Optional[FlexibleRefValue(int)] = Field(
         default=0,
         description="Integer flag to enable daylight-based lighting control (0 = off, 1 = on)",
-        alias="LightingDaylightControlFlag",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Daylight Control",

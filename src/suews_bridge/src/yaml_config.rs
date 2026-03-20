@@ -251,11 +251,6 @@ fn read_normalized_numeric_from_mapping(root: &Value, target_field: &str) -> Opt
         };
 
         let field_name = normalise_field_name(field_name_raw);
-        let field_name = if field_name == "lighting_daylight_control_flag" {
-            "daylight_control".to_string()
-        } else {
-            field_name
-        };
         if field_name == target_field || field_name.replace('_', "") == target_compact {
             if let Some(v) = read_numeric_value(field_value) {
                 return Some(v);

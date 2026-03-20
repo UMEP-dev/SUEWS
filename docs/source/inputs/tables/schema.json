@@ -7175,7 +7175,7 @@
           "title": "Rcmethod",
           "unit": "dimensionless"
         },
-        "samealbedo_wall": {
+        "same_albedo_wall": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_SameAlbedoWall_"
@@ -7186,10 +7186,10 @@
           ],
           "default": 0,
           "description": "Controls assumption of same albedoes for walls.",
-          "title": "Samealbedo Wall",
+          "title": "Same Albedo Wall",
           "unit": "dimensionless"
         },
-        "samealbedo_roof": {
+        "same_albedo_roof": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_SameAlbedoRoof_"
@@ -7200,7 +7200,7 @@
           ],
           "default": 0,
           "description": "Controls assumption of same albedoes for roofs.",
-          "title": "Samealbedo Roof",
+          "title": "Same Albedo Roof",
           "unit": "dimensionless"
         },
         "ref": {

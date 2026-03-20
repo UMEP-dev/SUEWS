@@ -15,6 +15,8 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import warnings
+import types
+import copy
 
 import pytest
 

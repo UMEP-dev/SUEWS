@@ -47,7 +47,7 @@ def check_archetype_properties(context):
     stebbsmethod = get_value_safe(physics, "stebbsmethod")
 
     if stebbsmethod == 1:
-        sites = config_data.get("sites", [])
+        sites = yaml_data.get("sites", [])
         for i, site in enumerate(sites):
             site_props = site.get("properties", {})
             archetype_props = site_props.get("building_archetype", {})

@@ -149,6 +149,10 @@ sites:
         value: 74.3
       LatentSensibleRatio:
         value: 0
+      DaylightControl:
+        value: 1
+      LightingIlluminanceThreshold:
+        value: 300.0
       ApplianceProfile:
         working_day:
           '1': 1.0
@@ -440,6 +444,8 @@ sites:
           '142': 1.0
           '143': 1.0
           '144': 1.0
+      LightingPowerDensity:
+        value: 2.0
       HeatingSystemEfficiency:
         value: 0.8
       MaxCoolingPower:

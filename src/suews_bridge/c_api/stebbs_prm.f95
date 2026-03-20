@@ -19,7 +19,7 @@ public :: SUEWS_CAPI_BAD_STATE
 integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_PROFILE_STEPS = 144_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_PROFILE_GROUPS = 2_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_LEN = 333_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_SCHEMA_VERSION = 1_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_SCHEMA_VERSION = 3_c_int
 
 type :: stebbs_prm_shadow
    real(c_double) :: wall_internal_convection_coefficient = 0.0_c_double
@@ -36,6 +36,8 @@ type :: stebbs_prm_shadow
    real(c_double) :: indoor_air_cp = 0.0_c_double
    real(c_double) :: metabolism_threshold = 0.0_c_double
    real(c_double) :: latent_sensible_ratio = 0.0_c_double
+   real(c_double) :: daylight_control = 0.0_c_double
+   real(c_double) :: lighting_illuminance_threshold = 300.0_c_double
    real(c_double) :: heating_system_efficiency = 0.0_c_double
    real(c_double) :: max_cooling_power = 0.0_c_double
    real(c_double) :: cooling_system_cop = 0.0_c_double
@@ -65,8 +67,6 @@ type :: stebbs_prm_shadow
    real(c_double) :: dhw_vessel_external_wall_convection_coefficient = 0.0_c_double
    real(c_double) :: dhw_vessel_wall_emissivity = 0.0_c_double
    real(c_double) :: hot_water_heating_efficiency = 0.0_c_double
-   real(c_double) :: minimum_volume_of_dhw_in_use = 0.0_c_double
-   real(c_double) :: maximum_volume_of_dhw_in_use = 0.0_c_double
    logical :: iter_safe = .true.
 end type stebbs_prm_shadow
 
@@ -146,6 +146,8 @@ subroutine stebbs_prm_pack(state, flat, n_flat, err)
    flat(idx) = state%indoor_air_cp; idx = idx + 1_c_int
    flat(idx) = state%metabolism_threshold; idx = idx + 1_c_int
    flat(idx) = state%latent_sensible_ratio; idx = idx + 1_c_int
+   flat(idx) = state%daylight_control; idx = idx + 1_c_int
+   flat(idx) = state%lighting_illuminance_threshold; idx = idx + 1_c_int
    flat(idx) = state%heating_system_efficiency; idx = idx + 1_c_int
    flat(idx) = state%max_cooling_power; idx = idx + 1_c_int
    flat(idx) = state%cooling_system_cop; idx = idx + 1_c_int
@@ -182,8 +184,6 @@ subroutine stebbs_prm_pack(state, flat, n_flat, err)
    flat(idx) = state%dhw_vessel_external_wall_convection_coefficient; idx = idx + 1_c_int
    flat(idx) = state%dhw_vessel_wall_emissivity; idx = idx + 1_c_int
    flat(idx) = state%hot_water_heating_efficiency; idx = idx + 1_c_int
-   flat(idx) = state%minimum_volume_of_dhw_in_use; idx = idx + 1_c_int
-   flat(idx) = state%maximum_volume_of_dhw_in_use; idx = idx + 1_c_int
    flat(idx) = merge(1.0_c_double, 0.0_c_double, state%iter_safe)
 
    err = SUEWS_CAPI_OK
@@ -222,6 +222,8 @@ subroutine stebbs_prm_unpack(flat, n_flat, state, err)
    state%indooraircp = flat(idx); idx = idx + 1_c_int
    state%metabolismthreshold = flat(idx); idx = idx + 1_c_int
    state%latentsensibleratio = flat(idx); idx = idx + 1_c_int
+   state%daylightcontrol = flat(idx); idx = idx + 1_c_int
+   state%lightingilluminancethreshold = flat(idx); idx = idx + 1_c_int
    state%heatingsystemefficiency = flat(idx); idx = idx + 1_c_int
    state%maxcoolingpower = flat(idx); idx = idx + 1_c_int
    state%coolingsystemcop = flat(idx); idx = idx + 1_c_int
@@ -258,8 +260,6 @@ subroutine stebbs_prm_unpack(flat, n_flat, state, err)
    state%dhwvesselexternalwallconvectioncoefficient = flat(idx); idx = idx + 1_c_int
    state%dhwvesselwallemissivity = flat(idx); idx = idx + 1_c_int
    state%hotwaterheatingefficiency = flat(idx); idx = idx + 1_c_int
-   !state%minimumvolumeofdhwinuse = flat(idx); idx = idx + 1_c_int
-   !state%maximumvolumeofdhwinuse = flat(idx); idx = idx + 1_c_int
    state%iter_safe = flat(idx)>=0.5_c_double
 
    err = SUEWS_CAPI_OK

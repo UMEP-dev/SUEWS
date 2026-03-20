@@ -105,6 +105,39 @@ def check_occupants_metabolism(context):
     return results
 
 
+@RulesRegistry.add_rule("daylight_control")
+def check_daylight_control(context):
+    """Validate DaylightControl flag is 0 or 1 when STEBBS is active."""
+    yaml_data = context.yaml_data
+
+    results = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+
+    if stebbsmethod == 1:
+        sites = yaml_data.get("sites", [])
+        for site_idx, site in enumerate(sites):
+            props = site.get("properties", {})
+            stebbs = props.get("stebbs", {})
+            site_gridid = site.get("gridiv")
+
+            daylight_control = stebbs.get("DaylightControl", {})
+            dc_val = daylight_control.get("value") if isinstance(daylight_control, Mapping) else daylight_control
+            if dc_val not in (0, 1, 0.0, 1.0, None):
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter="stebbs.DaylightControl",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message=f"DaylightControl flag must be 0 (off) or 1 (on), got '{dc_val}'.",
+                        suggested_value="Set DaylightControl to 0 or 1",
+                    )
+                )
+    return results
+
+
 @RulesRegistry.add_rule("stebbs_props")
 def check_stebbs_properties(context):
     yaml_data = context.yaml_data

@@ -1949,6 +1949,23 @@ class StebbsProperties(BaseModel):
         ge=0.0,
         lt=1.0,
     )
+    DaylightControl: Optional[FlexibleRefValue(int)] = Field(
+        default=0,
+        description="Integer flag to enable daylight-based lighting control (0 = off, 1 = on)",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Daylight Control",
+        },
+    )
+    LightingIlluminanceThreshold: Optional[FlexibleRefValue(float)] = Field(
+        default=300.0,
+        description="Indoor illuminance threshold above which electric lighting is switched off [lx]",
+        json_schema_extra={
+            "unit": "lx",
+            "display_name": "Lighting Illuminance Threshold",
+        },
+        ge=0.0,
+    )
     HeatingSystemEfficiency: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Efficiency of space heating system [-]",
@@ -2245,7 +2262,17 @@ class StebbsProperties(BaseModel):
             "display_name": "Appliance Profile",
         },
     )
-
+    LightingPowerDensity: Optional[FlexibleRefValue(float)] = (
+        Field(
+            default=2,
+            description="Lighting power per building floor area [W m-2]",
+            json_schema_extra={
+                "unit": "W m^-2",
+                "display_name": "Lighting Power Density",
+            },
+        ge=0.0,
+        )
+    )
     ref: Optional[Reference] = None
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:

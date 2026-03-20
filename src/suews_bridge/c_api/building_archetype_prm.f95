@@ -18,8 +18,8 @@ public :: SUEWS_CAPI_BAD_STATE
 
 integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_STEPS = 144_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS = 2_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_LEN = 639_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_SCHEMA_VERSION = 1_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_LEN = 640_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_SCHEMA_VERSION = 2_c_int
 
 type :: building_archetype_prm_shadow
    real(c_double) :: buildingcount = 0.0_c_double
@@ -86,6 +86,7 @@ type :: building_archetype_prm_shadow
    real(c_double) :: coolingsetpointtemperature = 0.0_c_double
    real(c_double), dimension(0:143, 2) :: metabolismprofile = 0.0_c_double
    real(c_double), dimension(0:143, 2) :: applianceprofile = 0.0_c_double
+   real(c_double) :: LightingPowerDensity = 0.0_c_double
    logical :: iter_safe = .true.
 end type building_archetype_prm_shadow
 
@@ -228,6 +229,7 @@ subroutine building_archetype_prm_pack(state, flat, n_flat, err)
       end do
    end do
 
+   flat(idx) = state%LightingPowerDensity; idx = idx + 1_c_int
    flat(idx) = merge(1.0_c_double, 0.0_c_double, state%iter_safe)
 
    err = SUEWS_CAPI_OK
@@ -315,7 +317,7 @@ subroutine building_archetype_prm_unpack(flat, n_flat, state, err)
    state%maximumhotwaterheatingpower = flat(idx); idx = idx + 1_c_int
    state%heatingsetpointtemperature = flat(idx); idx = idx + 1_c_int
    state%coolingsetpointtemperature = flat(idx); idx = idx + 1_c_int
-
+   
    do j = 1_c_int, SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS
       do i = 0_c_int, SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_STEPS - 1_c_int
          state%metabolismprofile(i, j) = flat(idx)
@@ -330,6 +332,9 @@ subroutine building_archetype_prm_unpack(flat, n_flat, state, err)
       end do
    end do
 
+   ! Keep unpack order aligned with Rust and the Fortran pack routine:
+   ! LightingPowerDensity is stored after the two 144x2 profiles.
+   state%LightingPowerDensity = flat(idx); idx = idx + 1_c_int
    state%iter_safe = flat(idx)>=0.5_c_double
    err = SUEWS_CAPI_OK
 

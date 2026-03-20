@@ -8,8 +8,8 @@ use std::collections::BTreeMap;
 
 pub const BUILDING_ARCHETYPE_PRM_PROFILE_STEPS: usize = 144;
 pub const BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS: usize = 2;
-pub const BUILDING_ARCHETYPE_PRM_FLAT_LEN: usize = 639;
-pub const BUILDING_ARCHETYPE_PRM_SCHEMA_VERSION: u32 = 1;
+pub const BUILDING_ARCHETYPE_PRM_FLAT_LEN: usize = 640;
+pub const BUILDING_ARCHETYPE_PRM_SCHEMA_VERSION: u32 = 2;
 
 pub type BuildingArchetypePrmSchema = crate::codec::SimpleSchema;
 
@@ -83,6 +83,7 @@ pub struct BuildingArchetypePrm {
         [[f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS]; BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
     pub applianceprofile:
         [[f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS]; BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
+    pub lightingpowerdensity: f64,
     pub iter_safe: bool,
 }
 
@@ -155,6 +156,7 @@ impl Default for BuildingArchetypePrm {
                 BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
             applianceprofile: [[0.0; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
                 BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
+            lightingpowerdensity: 0.0,
             iter_safe: true,
         }
     }
@@ -250,6 +252,8 @@ impl BuildingArchetypePrm {
             }
         }
 
+        let lightingpowerdensity = next();
+
         Ok(Self {
             buildingcount,
             occupants,
@@ -315,6 +319,7 @@ impl BuildingArchetypePrm {
             coolingsetpointtemperature,
             metabolismprofile,
             applianceprofile,
+            lightingpowerdensity,
             iter_safe: next() >= 0.5,
         })
     }
@@ -393,6 +398,7 @@ impl BuildingArchetypePrm {
             flat.extend_from_slice(&self.applianceprofile[day_type]);
         }
 
+        flat.push(self.lightingpowerdensity);
         flat.push(if self.iter_safe { 1.0 } else { 0.0 });
 
         flat
@@ -529,6 +535,7 @@ pub fn building_archetype_prm_field_names() -> Vec<String> {
         }
     }
 
+    names.push("lightingpowerdensity".to_string());
     names.push("iter_safe".to_string());
 
     names
@@ -646,12 +653,14 @@ mod tests {
         let mut mapped = building_archetype_prm_to_map(&state);
         mapped.insert("buildingcount".to_string(), 12.0);
         mapped.insert("metabolismprofile.012.2".to_string(), 55.0);
+        mapped.insert("lightingpowerdensity".to_string(), 2.0);
         mapped.insert("iter_safe".to_string(), 0.0);
 
         let updated =
             building_archetype_prm_from_map(&mapped).expect("map to state should succeed");
         assert!((updated.buildingcount - 12.0).abs() < 1.0e-12);
         assert!((updated.metabolismprofile[1][12] - 55.0).abs() < 1.0e-12);
+        assert!((updated.lightingpowerdensity - 2.0).abs() < 1.0e-12);
         assert!(!updated.iter_safe);
     }
 

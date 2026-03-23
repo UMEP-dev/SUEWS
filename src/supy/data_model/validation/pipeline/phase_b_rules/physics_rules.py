@@ -515,7 +515,7 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                         site_gridid=site_name,
                         site_index=site_idx,
                         message="HeatingSetpointTemperatureProfile must be a mapping with daytype keys when setpointmethod == 2.",
-                        suggested_value="Set HeatingSetpointTemperatureProfile to a mapping with working_day and holiday keys, each mapping hour to temperature.",
+                        suggested_value="Set HeatingSetpointTemperatureProfile to a mapping with working_day and holiday keys, each mapping ten-minute slices to temperature.",
                     )
                 )
             else:
@@ -529,20 +529,50 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                                 parameter=f"HeatingSetpointTemperatureProfile.{daytype}",
                                 site_gridid=site_name,
                                 site_index=site_idx,
-                                message=f"HeatingSetpointTemperatureProfile.{daytype} must be a mapping of hour to value.",
-                                suggested_value="Set each daytype to a mapping of hour (as string) to temperature value.",
+                                message=f"HeatingSetpointTemperatureProfile.{daytype} must be a mapping of ten-minute slice to value.",
+                                suggested_value="Set each daytype to a mapping of ten-minute slice (as string) to temperature value.",
                             )
                         )
                     else:
-                        for hour_str, temp_val in profile.items():
+                        # Enforce exactly 144 ten-minute slices per day-type (0-143)
+                        expected_slices = {str(i) for i in range(144)}
+                        actual_slices = set(profile.keys())
+                        missing_slices = expected_slices - actual_slices
+                        extra_slices = actual_slices - expected_slices
+                        for slice_str in expected_slices:
+                            temp_val = profile.get(slice_str)
                             if temp_val is None:
-                                heating_missing_entries.append(f"{daytype}.{hour_str}")
+                                heating_missing_entries.append(f"{daytype}.{slice_str}")
                             else:
                                 try:
                                     if float(temp_val) >= 30.0:
-                                        heating_out_of_range.append(f"{daytype}.{hour_str}={temp_val}")
+                                        heating_out_of_range.append(f"{daytype}.{slice_str}={temp_val}")
                                 except Exception:
-                                    heating_out_of_range.append(f"{daytype}.{hour_str}={temp_val}")
+                                    heating_out_of_range.append(f"{daytype}.{slice_str}={temp_val}")
+                        if missing_slices:
+                            results.append(
+                                ValidationResult(
+                                    status="ERROR",
+                                    category="MODEL_OPTIONS",
+                                    parameter=f"HeatingSetpointTemperatureProfile.{daytype}",
+                                    site_gridid=site_name,
+                                    site_index=site_idx,
+                                    message=f"HeatingSetpointTemperatureProfile.{daytype} is missing {len(missing_slices)} entries: {', '.join(sorted(missing_slices))}. Must have all 144 entries.",
+                                    suggested_value="Define all 144 ten-minutes slice entries in the profile.",
+                                )
+                            )
+                        if extra_slices:
+                            results.append(
+                                ValidationResult(
+                                    status="WARNING",
+                                    category="MODEL_OPTIONS",
+                                    parameter=f"HeatingSetpointTemperatureProfile.{daytype}",
+                                    site_gridid=site_name,
+                                    site_index=site_idx,
+                                    message=f"HeatingSetpointTemperatureProfile.{daytype} has {len(extra_slices)} unexpected entries: {', '.join(sorted(extra_slices))}. Only entries 1-144 are valid.",
+                                    suggested_value="Remove any keys not in the range 1-144.",
+                                )
+                            )
 
                 if heating_missing_entries:
                     results.append(
@@ -581,7 +611,7 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                         site_gridid=site_name,
                         site_index=site_idx,
                         message="CoolingSetpointTemperatureProfile must be a mapping with daytype keys when setpointmethod == 2.",
-                        suggested_value="Set CoolingSetpointTemperatureProfile to a mapping with working_day and holiday keys, each mapping hour to temperature.",
+                        suggested_value="Set CoolingSetpointTemperatureProfile to a mapping with working_day and holiday keys, each mapping ten-minutes slice to temperature.",
                     )
                 )
             else:
@@ -595,20 +625,20 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                                 parameter=f"CoolingSetpointTemperatureProfile.{daytype}",
                                 site_gridid=site_name,
                                 site_index=site_idx,
-                                message=f"CoolingSetpointTemperatureProfile.{daytype} must be a mapping of hour to value.",
-                                suggested_value="Set each daytype to a mapping of hour (as string) to temperature value.",
+                                message=f"CoolingSetpointTemperatureProfile.{daytype} must be a mapping of ten-minute slice to value.",
+                                suggested_value="Set each daytype to a mapping of ten-minute slice (as string) to temperature value.",
                             )
                         )
                     else:
-                        for hour_str, temp_val in profile.items():
+                        for slice_str, temp_val in profile.items():
                             if temp_val is None:
-                                cooling_missing_entries.append(f"{daytype}.{hour_str}")
+                                cooling_missing_entries.append(f"{daytype}.{slice_str}")
                             else:
                                 try:
                                     if float(temp_val) <= 15.0:
-                                        cooling_out_of_range.append(f"{daytype}.{hour_str}={temp_val}")
+                                        cooling_out_of_range.append(f"{daytype}.{slice_str}={temp_val}")
                                 except Exception:
-                                    cooling_out_of_range.append(f"{daytype}.{hour_str}={temp_val}")
+                                    cooling_out_of_range.append(f"{daytype}.{slice_str}={temp_val}")
 
                 if cooling_missing_entries:
                     results.append(

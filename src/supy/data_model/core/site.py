@@ -1804,8 +1804,7 @@ class ArchetypeProperties(BaseModel):
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ArchetypeProperties":
         string_fields = {"BuildingType", "BuildingName"}
-        ten_minute_profile_fields = {"MetabolismProfile", "HeatingSetpointTemperatureProfile", 
-                                     "CoolingSetpointTemperatureProfile",}
+        ten_minute_profile_fields = {"MetabolismProfile", "HeatingSetpointTemperatureProfile", "CoolingSetpointTemperatureProfile",}
 
         default_instance = cls()
         params: Dict[str, object] = {}

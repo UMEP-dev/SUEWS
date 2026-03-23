@@ -1719,7 +1719,7 @@ class SUEWSConfig(BaseModel):
 
             # If stebbsmethod == 1, also check stebbs_Height
             stebbsmethod = _unwrap_value(getattr(self.model.physics, "stebbsmethod", None))
-            print(f"DEBUG: Using stebbsmethod={stebbsmethod}")
+
             try:
                 stebbsmethod_val = int(stebbsmethod)
             except (TypeError, ValueError):

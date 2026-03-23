@@ -1,30 +1,32 @@
-# SUEWS - Surface Urban Energy and Water Balance Scheme
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/source/_static/suews-logo-stacked-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/source/_static/suews-logo-stacked-light.svg">
+    <img alt="SUEWS" src="docs/source/_static/suews-logo-stacked-light.svg" width="200">
+  </picture>
+</p>
 
-This is the SUEWS urban climate model repository.
+<p align="center">
+  <strong>Surface Urban Energy and Water Balance Scheme</strong>
+</p>
 
-## Installation
+<p align="center">
+  <a href="https://pypi.org/project/supy/"><img alt="PyPI" src="https://img.shields.io/pypi/v/supy?color=%23F7B538"></a>
+  <a href="https://docs.suews.io"><img alt="Documentation" src="https://img.shields.io/badge/docs-suews.io-blue"></a>
+  <a href="https://github.com/UMEP-dev/SUEWS/blob/master/LICENSE"><img alt="License: MPL-2.0" src="https://img.shields.io/badge/license-MPL--2.0-green"></a>
+  <a href="https://github.com/UMEP-dev/SUEWS/actions/workflows/build-publish_to_pypi.yml"><img alt="CI" src="https://github.com/UMEP-dev/SUEWS/actions/workflows/build-publish_to_pypi.yml/badge.svg"></a>
+</p>
 
-```bash
-pip install supy
-```
-
-## Documentation
-
-See the full documentation at: https://docs.suews.io
+---
 
 ## Quick Start
 
-For users who want to run SUEWS simulations:
+```bash
+pip install supy
+suews-run /path/to/config.yml
+```
 
-1. **Install from PyPI** (simplest):
-   ```bash
-   pip install supy
-   ```
-
-2. **Run a simulation**:
-   ```bash
-   suews-run /path/to/config.yml
-   ```
+Full documentation: **[docs.suews.io](https://docs.suews.io)**
 
 For developers, see the [Developer Note](#developer-note) section below.
 

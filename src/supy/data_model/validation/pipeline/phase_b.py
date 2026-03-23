@@ -1464,6 +1464,8 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
 
 def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
     """
+    If setpointmethod == 0 or 1, set all entries in HeatingSetpointTemperatureProfile and
+    CoolingSetpointTemperatureProfile in building_archetype to null for all sites.
     If setpointmethod == 2, set HeatingSetpointTemperature and CoolingSetpointTemperature
     in building_archetype to null for all sites (they are not needed).
     """
@@ -1471,13 +1473,13 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
     physics = yaml_data.get("model", {}).get("physics", {})
     setpointmethod = get_value_safe(physics, "setpointmethod")
 
-    if setpointmethod == 2:
-        sites = yaml_data.get("sites", [])
-        for site_idx, site in enumerate(sites):
-            props = site.get("properties", {})
-            building_archetype = props.get("building_archetype", {})
-            site_gridid = get_site_gridid(site)
+    sites = yaml_data.get("sites", [])
+    for site_idx, site in enumerate(sites):
+        props = site.get("properties", {})
+        building_archetype = props.get("building_archetype", {})
+        site_gridid = get_site_gridid(site)
 
+        if setpointmethod == 2:
             for param in ["HeatingSetpointTemperature", "CoolingSetpointTemperature"]:
                 entry = building_archetype.get(param)
                 if isinstance(entry, dict):
@@ -1494,10 +1496,30 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
                                 reason="setpointmethod == 2, parameter not needed"
                             )
                         )
-
-            props["building_archetype"] = building_archetype
-            site["properties"] = props
-            yaml_data["sites"][site_idx] = site
+        elif setpointmethod == 0 or setpointmethod == 1:
+            for prof_param in ["HeatingSetpointTemperatureProfile", "CoolingSetpointTemperatureProfile"]:
+                profile = building_archetype.get(prof_param)
+                if isinstance(profile, dict):
+                    for daytype in ("working_day", "holiday"):
+                        day_profile = profile.get(daytype)
+                        if isinstance(day_profile, dict):
+                            for hour_str, temp_val in day_profile.items():
+                                if temp_val is not None:
+                                    old_val = temp_val
+                                    day_profile[hour_str] = None
+                                    adjustments.append(
+                                        ScientificAdjustment(
+                                            parameter=f"building_archetype.{prof_param}.{daytype}.{hour_str}",
+                                            site_index=site_idx,
+                                            site_gridid=site_gridid,
+                                            old_value=str(old_val),
+                                            new_value="null",
+                                            reason="setpointmethod == 0 or 1, profile entry not needed"
+                                        )
+                                    )
+        props["building_archetype"] = building_archetype
+        site["properties"] = props
+        yaml_data["sites"][site_idx] = site
 
     return yaml_data, adjustments
 

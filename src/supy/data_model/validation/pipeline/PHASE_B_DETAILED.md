@@ -39,6 +39,7 @@ Phase B implements a multi-layered scientific validation system that:
 - `extract_simulation_parameters()`: Extract and validate simulation parameters with comprehensive error collection
 - `validate_physics_parameters()`: Required physics parameter validation
 - `validate_model_option_dependencies()`: Physics option consistency checking
+- `validate_model_option_setpointmethod()`: SetpointMethod option related checks
 - `validate_model_option_rcmethod()`: RCMethod option related checks
 - `validate_land_cover_consistency()`: Surface fraction and parameter validation
 - `validate_geographic_parameters()`: Coordinate and location validation
@@ -132,6 +133,14 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
 
     return results
 ```
+
+### SetpointMethod Validation
+
+Validates the `setpointmethod` parameter and related setpoint temperature options:
+
+- **For `setpointmethod` 0 or 1**: Requires `HeatingSetpointTemperature` and `CoolingSetpointTemperature` to be set in `building_archetype` for each site.
+- **For `setpointmethod` 2**: Requires all entries in `HeatingSetpointTemperatureProfile` and `CoolingSetpointTemperatureProfile` (for both `working_day` and `holiday`) to be set (not null); heating values must be less than 30.0 °C, cooling values must be greater than 15.0 °C.
+- **Error Handling**: Missing or out-of-range values generate ERROR status in the validation report, specifying the site, parameter, and suggested correction.
 
 ### RCMethod Validation
 
@@ -322,6 +331,12 @@ Phase B makes scientific adjustments that improve model realism without changing
 - **Consistency**: Ensures STEBBS configuration matches selected method
 - **Temperature Initialisation**: When `stebbsmethod == 1`, automatically updates `InitialOutdoorTemperature` and `InitialIndoorTemperature` using CRU climatological data
 - **CRU-Based Updates**: Uses location-specific mean monthly air temperature from CRU TS4.06 dataset
+
+### Setpoint Method Integration
+
+- **Conditional Logic**: Applies automatic cleanup of setpoint temperature parameters in `building_archetype` based on `setpointmethod`:
+    - If `setpointmethod == 0` or `1`: All entries in `HeatingSetpointTemperatureProfile` and `CoolingSetpointTemperatureProfile` (for both `working_day` and `holiday`) are set to `null` for all sites.
+    - If `setpointmethod == 2`: The scalar `HeatingSetpointTemperature` and `CoolingSetpointTemperature` parameters are set to `null` for all sites.
 
 ### RC Method Integration
 

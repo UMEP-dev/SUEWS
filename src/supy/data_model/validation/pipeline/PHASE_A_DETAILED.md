@@ -63,7 +63,7 @@ PHYSICS_OPTIONS = {
     'rslmethod', 'faimethod', 'rsllevel',
     'gsmodel', 'snowuse', 'stebbsmethod', 'rcmethod',
     'same_albedo_wall', 'same_albedo_roof', 'same_emissivity_wall',
-    'same_emissivity_roof'
+    'same_emissivity_roof', 'setpointmethod'
 }
 
 # Outdated parameter mappings

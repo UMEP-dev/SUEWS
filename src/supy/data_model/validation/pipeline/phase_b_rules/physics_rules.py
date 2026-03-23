@@ -457,7 +457,8 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
     Validates that HeatingSetpointTemperature and CoolingSetpointTemperature are set
     in building_archetype when setpointmethod == 0 or 1.
     For setpointmethod == 2, validates that all entries in HeatingSetpointTemperatureProfile
-    and CoolingSetpointTemperatureProfile are set (not null).
+    and CoolingSetpointTemperatureProfile are set (not null), and that heating values < 30.0,
+    cooling values > 15.0.
     """
     results = []
     yaml_data = context.yaml_data
@@ -503,6 +504,8 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
             cooling_profile = building_archetype.get("CoolingSetpointTemperatureProfile", {})
 
             # Check heating profile
+            heating_missing_entries = []
+            heating_out_of_range = []
             if not isinstance(heating_profile, Mapping):
                 results.append(
                     ValidationResult(
@@ -516,7 +519,6 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                     )
                 )
             else:
-                missing_entries = []
                 for daytype in ("working_day", "holiday"):
                     profile = heating_profile.get(daytype, {})
                     if not isinstance(profile, Mapping):
@@ -534,8 +536,15 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                     else:
                         for hour_str, temp_val in profile.items():
                             if temp_val is None:
-                                missing_entries.append(f"{daytype}.{hour_str}")
-                if missing_entries:
+                                heating_missing_entries.append(f"{daytype}.{hour_str}")
+                            else:
+                                try:
+                                    if float(temp_val) >= 30.0:
+                                        heating_out_of_range.append(f"{daytype}.{hour_str}={temp_val}")
+                                except Exception:
+                                    heating_out_of_range.append(f"{daytype}.{hour_str}={temp_val}")
+
+                if heating_missing_entries:
                     results.append(
                         ValidationResult(
                             status="ERROR",
@@ -543,12 +552,26 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                             parameter="HeatingSetpointTemperatureProfile",
                             site_gridid=site_name,
                             site_index=site_idx,
-                            message=f"HeatingSetpointTemperatureProfile has null entries at: {', '.join(missing_entries)}. All entries must be set when setpointmethod == 2.",
+                            message=f"HeatingSetpointTemperatureProfile has null entries at: {', '.join(heating_missing_entries)}. All entries must be set when setpointmethod == 2.",
                             suggested_value="Set all entries in HeatingSetpointTemperatureProfile to valid temperature values.",
+                        )
+                    )
+                if heating_out_of_range:
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="MODEL_OPTIONS",
+                            parameter="HeatingSetpointTemperatureProfile",
+                            site_gridid=site_name,
+                            site_index=site_idx,
+                            message=f"HeatingSetpointTemperatureProfile has values >= 30.0 at: {', '.join(heating_out_of_range)}. All heating setpoints must be less than 30.0.",
+                            suggested_value="Set all entries in HeatingSetpointTemperatureProfile to values less than 30.0.",
                         )
                     )
 
             # Check cooling profile
+            cooling_missing_entries = []
+            cooling_out_of_range = []
             if not isinstance(cooling_profile, Mapping):
                 results.append(
                     ValidationResult(
@@ -562,7 +585,6 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                     )
                 )
             else:
-                missing_entries = []
                 for daytype in ("working_day", "holiday"):
                     profile = cooling_profile.get(daytype, {})
                     if not isinstance(profile, Mapping):
@@ -580,8 +602,15 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                     else:
                         for hour_str, temp_val in profile.items():
                             if temp_val is None:
-                                missing_entries.append(f"{daytype}.{hour_str}")
-                if missing_entries:
+                                cooling_missing_entries.append(f"{daytype}.{hour_str}")
+                            else:
+                                try:
+                                    if float(temp_val) <= 15.0:
+                                        cooling_out_of_range.append(f"{daytype}.{hour_str}={temp_val}")
+                                except Exception:
+                                    cooling_out_of_range.append(f"{daytype}.{hour_str}={temp_val}")
+
+                if cooling_missing_entries:
                     results.append(
                         ValidationResult(
                             status="ERROR",
@@ -589,8 +618,20 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                             parameter="CoolingSetpointTemperatureProfile",
                             site_gridid=site_name,
                             site_index=site_idx,
-                            message=f"CoolingSetpointTemperatureProfile has null entries at: {', '.join(missing_entries)}. All entries must be set when setpointmethod == 2.",
+                            message=f"CoolingSetpointTemperatureProfile has null entries at: {', '.join(cooling_missing_entries)}. All entries must be set when setpointmethod == 2.",
                             suggested_value="Set all entries in CoolingSetpointTemperatureProfile to valid temperature values.",
+                        )
+                    )
+                if cooling_out_of_range:
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="MODEL_OPTIONS",
+                            parameter="CoolingSetpointTemperatureProfile",
+                            site_gridid=site_name,
+                            site_index=site_idx,
+                            message=f"CoolingSetpointTemperatureProfile has values <= 15.0 at: {', '.join(cooling_out_of_range)}. All cooling setpoints must be greater than 15.0.",
+                            suggested_value="Set all entries in CoolingSetpointTemperatureProfile to values greater than 15.0.",
                         )
                     )
     return results

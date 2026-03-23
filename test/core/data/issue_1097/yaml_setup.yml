@@ -59,6 +59,8 @@ model:
       value: 2
     rcmethod:
       value: 1
+    setpointmethod:
+      value: 0
 sites:
 - name: ROTH
   gridiv: 1

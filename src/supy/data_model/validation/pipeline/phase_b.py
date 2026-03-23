@@ -1503,13 +1503,13 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
                     for daytype in ("working_day", "holiday"):
                         day_profile = profile.get(daytype)
                         if isinstance(day_profile, dict):
-                            changed_hours = []
-                            for hour_str, temp_val in day_profile.items():
+                            changed_slice = []
+                            for slice_str, temp_val in day_profile.items():
                                 if temp_val is not None:
                                     old_val = temp_val
-                                    day_profile[hour_str] = None
-                                    changed_hours.append(hour_str)
-                            if changed_hours:
+                                    day_profile[slice_str] = None
+                                    changed_slice.append(slice_str)
+                            if changed_slice:
                                 adjustments.append(
                                     ScientificAdjustment(
                                     parameter=f"building_archetype.{prof_param}.{daytype}",

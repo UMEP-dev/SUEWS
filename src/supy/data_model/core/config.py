@@ -1690,7 +1690,7 @@ class SUEWSConfig(BaseModel):
 
     def _validate_spartacus_building_height(self, site: Site, site_index: int) -> List[str]:
         """
-        If SPARTACUS is enabled, enforce that bldgh does not exceed the domain top (height[nlayer+1]).
+        If SPARTACUS is enabled, enforce that bldgh and (if stebbsmethod==1) stebbs_Height do not exceed the domain top (height[nlayer]).
         Returns a list of issue messages.
         """
         issues: List[str] = []
@@ -1698,23 +1698,40 @@ class SUEWSConfig(BaseModel):
         props = getattr(site, "properties", None)
         if not props or not hasattr(props, "land_cover") or not props.land_cover:
             return issues
+
         bldgs = getattr(props.land_cover, "bldgs", None)
         bldgh = _unwrap_value(getattr(bldgs, "bldgh", None)) if bldgs else None
         vertical_layers = getattr(props, "vertical_layers", None)
         height_arr = _unwrap_value(getattr(vertical_layers, "height", None)) if vertical_layers else None
         nlayer = _unwrap_value(getattr(vertical_layers, "nlayer", None)) if vertical_layers else None
+
         if (
-            bldgh is not None and
             height_arr is not None and
             nlayer is not None and
             isinstance(height_arr, (list, tuple)) and
             len(height_arr) > nlayer
         ):
             spartacus_top = height_arr[nlayer]
-            if bldgh > spartacus_top:
+            if bldgh is not None and bldgh > spartacus_top:
                 issues.append(
-                    f"Site '{site_name}' has bldgh={bldgh} exceeding SPARTACUS domain top (height[{nlayer+1}]={spartacus_top})."
+                    f"Site '{site_name}' has bldgh={bldgh} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
                 )
+
+            # If stebbsmethod == 1, also check stebbs_Height
+            stebbsmethod = _unwrap_value(getattr(self.model.physics, "stebbsmethod", None))
+            print(f"DEBUG: Using stebbsmethod={stebbsmethod}")
+            try:
+                stebbsmethod_val = int(stebbsmethod)
+            except (TypeError, ValueError):
+                stebbsmethod_val = None
+
+            if stebbsmethod_val == 1:
+                building_archetype = getattr(props, "building_archetype", None)
+                stebbs_height = _unwrap_value(getattr(building_archetype, "stebbs_Height", None)) if building_archetype else None
+                if stebbs_height is not None and stebbs_height > spartacus_top:
+                    issues.append(
+                        f"Site '{site_name}' has stebbs_Height={stebbs_height} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
+                    )
         return issues
 
     def _validate_spartacus_sfr(self, site: Site, site_index: int) -> list:

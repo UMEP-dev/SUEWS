@@ -947,6 +947,112 @@ def test_validate_model_option_rcmethod2_some_params_missing(registry):
     assert any(r.status == "WARNING" for r in results)
     assert all("must be provided" in r.message for r in results if r.status == "ERROR")
 
+def test_validate_model_option_setpointmethod_0_or_1_all_params(registry):
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 0}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperature": {"value": 21.0},
+                    "CoolingSetpointTemperature": {"value": 25.0},
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    assert not results or all(r.status != "ERROR" for r in results)
+
+def test_validate_model_option_setpointmethod_0_or_1_missing_params(registry):
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    # "HeatingSetpointTemperature" missing
+                    "CoolingSetpointTemperature": {"value": 25.0},
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    error_params = [r.parameter for r in results if r.status == "ERROR"]
+    assert "HeatingSetpointTemperature" in error_params
+    assert all("must be set" in r.message for r in results if r.status == "ERROR")
+
+def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperatureProfile": {
+                        "working_day": {"0": 20.0, "1": 19.5},
+                        "holiday": {"0": 19.0, "1": 18.5},
+                    },
+                    "CoolingSetpointTemperatureProfile": {
+                        "working_day": {"0": 26.0, "1": 27.0},
+                        "holiday": {"0": 25.5, "1": 26.5},
+                    },
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    assert not results or all(r.status != "ERROR" for r in results)
+
+def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry):
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperatureProfile": {
+                        "working_day": {"0": None, "1": 19.5},
+                        "holiday": {"0": 19.0, "1": None},
+                    },
+                    "CoolingSetpointTemperatureProfile": {
+                        "working_day": {"0": 26.0, "1": None},
+                        "holiday": {"0": None, "1": 26.5},
+                    },
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    error_params = [r.parameter for r in results if r.status == "ERROR"]
+    assert "HeatingSetpointTemperatureProfile" in error_params
+    assert "CoolingSetpointTemperatureProfile" in error_params
+    assert any("null entries" in r.message for r in results if r.status == "ERROR")
+
+def test_validate_model_option_setpointmethod_2_out_of_range(registry):
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperatureProfile": {
+                        "working_day": {"0": 31.0, "1": 19.5},
+                        "holiday": {"0": 19.0, "1": 30.0},
+                    },
+                    "CoolingSetpointTemperatureProfile": {
+                        "working_day": {"0": 14.0, "1": 27.0},
+                        "holiday": {"0": 25.5, "1": 15.0},
+                    },
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    heating_errors = [r for r in results if r.parameter == "HeatingSetpointTemperatureProfile" and r.status == "ERROR"]
+    cooling_errors = [r for r in results if r.parameter == "CoolingSetpointTemperatureProfile" and r.status == "ERROR"]
+    assert any("values >= 30.0" in r.message for r in heating_errors)
+    assert any("values <= 15.0" in r.message for r in cooling_errors)
+
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
     """Test HotWaterFlowProfile accepts only 0 or 1 values."""
 

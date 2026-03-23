@@ -251,6 +251,8 @@ class SUEWSConfig(BaseModel):
         "MaximumHotWaterHeatingPower",
         "HeatingSetpointTemperature",
         "CoolingSetpointTemperature",
+        "HeatingSetpointTemperatureProfile",
+        "CoolingSetpointTemperatureProfile",
     ]
 
     # Sort the filtered columns numerically

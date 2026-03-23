@@ -1325,6 +1325,19 @@ class SUEWSConfig(BaseModel):
             "WallCp",
         ]
 
+        #Check setpointmethod value
+        setpointmethod = getattr(self.model.physics, "setpointmethod", None)
+        setpointmethod_val = _unwrap_value(setpointmethod) if setpointmethod is not None else None
+        try:
+            setpointmethod_val = int(setpointmethod_val)
+        except (TypeError, ValueError):
+            setpointmethod_val = None
+
+        setpoint_params_bldgarc = [
+            "HeatingSetpointTemperature",
+            "CoolingSetpointTemperature",
+        ]
+
         # Determine which params to require based on WWR
         if wwr_val == 0.0:
             # Exclude window params if WWR is zero
@@ -1337,6 +1350,10 @@ class SUEWSConfig(BaseModel):
         else:
             stebbs_required = self.STEBBS_REQUIRED_PARAMS
             archetype_required = self.ARCHETYPE_REQUIRED_PARAMS
+
+        # Exclude setpoint params if setpointmethod == 2
+        if setpointmethod_val == 2:
+            archetype_required = [p for p in archetype_required if p not in setpoint_params_bldgarc]
 
         # Validate stebbs required params
         _check_required(stebbs, stebbs_required)

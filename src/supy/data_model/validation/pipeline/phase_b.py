@@ -1462,6 +1462,45 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
 
     return yaml_data, adjustments
 
+def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
+    """
+    If setpointmethod == 2, set HeatingSetpointTemperature and CoolingSetpointTemperature
+    in building_archetype to null for all sites (they are not needed).
+    """
+    adjustments = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+    setpointmethod = get_value_safe(physics, "setpointmethod")
+
+    if setpointmethod == 2:
+        sites = yaml_data.get("sites", [])
+        for site_idx, site in enumerate(sites):
+            props = site.get("properties", {})
+            building_archetype = props.get("building_archetype", {})
+            site_gridid = get_site_gridid(site)
+
+            for param in ["HeatingSetpointTemperature", "CoolingSetpointTemperature"]:
+                entry = building_archetype.get(param)
+                if isinstance(entry, dict):
+                    old_val = entry.get("value")
+                    if old_val is not None:
+                        building_archetype[param]["value"] = None
+                        adjustments.append(
+                            ScientificAdjustment(
+                                parameter=f"building_archetype.{param}",
+                                site_index=site_idx,
+                                site_gridid=site_gridid,
+                                old_value=str(old_val),
+                                new_value="null",
+                                reason="setpointmethod == 2, parameter not needed"
+                            )
+                        )
+
+            props["building_archetype"] = building_archetype
+            site["properties"] = props
+            yaml_data["sites"][site_idx] = site
+
+    return yaml_data, adjustments
+
 def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
     """
     Adjusts stebbs-related parameters according to stebbsmethod options.
@@ -1606,6 +1645,7 @@ def run_scientific_adjustment_pipeline(
         (adjust_model_dependent_nullification, (updated_data,)),
         (adjust_seasonal_parameters, (updated_data, start_date, model_year)),
         (adjust_model_option_rcmethod, (updated_data,)),
+        (adjust_model_option_setpointmethod, (updated_data,)),
         (adjust_model_option_stebbsmethod, (updated_data,))
     ]:
         updated_data, adj = adjust_func(*args)

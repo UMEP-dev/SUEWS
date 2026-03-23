@@ -47,6 +47,7 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         "same_albedo_roof",
         "same_emissivity_wall",
         "same_emissivity_roof",
+        "setpointmethod",
     ]
 
     missing_params = [

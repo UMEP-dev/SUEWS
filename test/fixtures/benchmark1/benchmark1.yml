@@ -49,6 +49,8 @@ model:
       value: 0
     same_emissivity_roof:
       value: 0
+    setpointmethod:
+      value: 0
 sites:
 - name: KCL
   gridiv: 1

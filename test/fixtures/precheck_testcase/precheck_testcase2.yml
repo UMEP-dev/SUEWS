@@ -43,6 +43,8 @@ model:
       value: 1
     rcmethod:
       value: 1
+    setpointmethod:
+      value: 0
 sites:
 - name: test site
   gridiv: 09_22_01_02

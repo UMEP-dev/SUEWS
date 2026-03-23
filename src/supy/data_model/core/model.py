@@ -492,6 +492,24 @@ class RCMethod(Enum):
     def __repr__(self):
         return str(self.value)
 
+class SetpointMethod(Enum):
+    """
+    Method to determine the approach of space heating/cooling setpoints in STEBBS.
+
+    0: Constant - Setpoint temperatures (HeatingSetpointTemperature and CoolingSetpointTemperature) need to be provided and remain fixed throughout the day.
+    1: Dependent — setpoint temperatures (HeatingSetpointTemperature and CoolingSetpointTemperature) are provided by the user but also vary with human metabolism.
+    2: Scheduled — setpoint temperatures schedules (HeatingSetpointTemperatureProfile and CoolingSetpointTemperatureProfile) follow user-provided diurnal profiles.
+    """
+
+    CONSTANT = 0
+    DEPENDENT = 1
+    SCHEDULED = 2
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
 
 class SnowUse(Enum):
     """
@@ -614,6 +632,7 @@ for enum_class in [
     GSModel,
     StebbsMethod,
     RCMethod,
+    SetpointMethod,
     SnowUse,
     OhmIncQf,
     SameAlbedoWall,
@@ -729,6 +748,11 @@ class ModelPhysics(BaseModel):
         description=_enum_description(RCMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
+    setpointmethod: FlexibleRefValue(SetpointMethod) = Field(
+        default=SetpointMethod.CONSTANT,
+        description=_enum_description(RCMethod),
+        json_schema_extra={"unit": "dimensionless"},
+    )
     same_albedo_wall: FlexibleRefValue(SameAlbedoWall) = Field(
         default=SameAlbedoWall.DISABLED,
         description=_enum_description(SameAlbedoWall),
@@ -775,6 +799,7 @@ class ModelPhysics(BaseModel):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
+            "setpontmethod",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",
@@ -817,6 +842,7 @@ class ModelPhysics(BaseModel):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
+            "setpontmethod",
         ]
 
         # New options: optional in legacy DataFrames, default if missing

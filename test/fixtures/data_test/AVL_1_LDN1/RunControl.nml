@@ -33,4 +33,5 @@ DiagMethod=2 ! (0=MOST, 1=RSL, 2=Auto, RSL+MOST)
 KdownZen=0
 diagnose=0
 rcmethod=1
+setpointmethod=0
 /

@@ -1748,7 +1748,6 @@ class ArchetypeProperties(BaseModel):
             "unit": "degC",
             "display_name": "Heating setpoint temperature profile",
         },
-        lt=30.0,
     )
     CoolingSetpointTemperatureProfile: Optional[TenMinuteProfile] = Field(
         default_factory=TenMinuteProfile,
@@ -1757,7 +1756,6 @@ class ArchetypeProperties(BaseModel):
             "unit": "degC",
             "display_name": "Cooling setpoint temperature profile",
         },
-        gt=15.0,
     )
     MetabolismProfile: Optional[TenMinuteProfile] = Field(
         default_factory=TenMinuteProfile,

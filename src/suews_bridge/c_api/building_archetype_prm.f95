@@ -18,8 +18,8 @@ public :: SUEWS_CAPI_BAD_STATE
 
 integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_STEPS = 144_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS = 2_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_LEN = 640_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_SCHEMA_VERSION = 2_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_LEN = 1216_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_SCHEMA_VERSION = 3_c_int
 
 type :: building_archetype_prm_shadow
    real(c_double) :: buildingcount = 0.0_c_double
@@ -84,6 +84,8 @@ type :: building_archetype_prm_shadow
    real(c_double) :: maximumhotwaterheatingpower = 0.0_c_double
    real(c_double) :: heatingsetpointtemperature = 0.0_c_double
    real(c_double) :: coolingsetpointtemperature = 0.0_c_double
+   real(c_double), dimension(0:143, 2) :: heatingsetpointtemperatureprofile = 0.0_c_double
+   real(c_double), dimension(0:143, 2) :: coolingsetpointtemperatureprofile = 0.0_c_double
    real(c_double), dimension(0:143, 2) :: metabolismprofile = 0.0_c_double
    real(c_double), dimension(0:143, 2) :: applianceprofile = 0.0_c_double
    real(c_double) :: LightingPowerDensity = 0.0_c_double
@@ -217,6 +219,20 @@ subroutine building_archetype_prm_pack(state, flat, n_flat, err)
 
    do j = 1_c_int, SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS
       do i = 0_c_int, SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_STEPS - 1_c_int
+         flat(idx) = state%heatingsetpointtemperatureprofile(i, j)
+         idx = idx + 1_c_int
+      end do
+   end do
+
+   do j = 1_c_int, SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS
+      do i = 0_c_int, SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_STEPS - 1_c_int
+         flat(idx) = state%coolingsetpointtemperatureprofile(i, j)
+         idx = idx + 1_c_int
+      end do
+   end do
+
+   do j = 1_c_int, SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS
+      do i = 0_c_int, SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_STEPS - 1_c_int
          flat(idx) = state%metabolismprofile(i, j)
          idx = idx + 1_c_int
       end do
@@ -317,6 +333,20 @@ subroutine building_archetype_prm_unpack(flat, n_flat, state, err)
    state%maximumhotwaterheatingpower = flat(idx); idx = idx + 1_c_int
    state%heatingsetpointtemperature = flat(idx); idx = idx + 1_c_int
    state%coolingsetpointtemperature = flat(idx); idx = idx + 1_c_int
+
+   do j = 1_c_int, SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS
+      do i = 0_c_int, SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_STEPS - 1_c_int
+         state%heatingsetpointtemperatureprofile(i, j) = flat(idx)
+         idx = idx + 1_c_int
+      end do
+   end do
+
+   do j = 1_c_int, SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS
+      do i = 0_c_int, SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_STEPS - 1_c_int
+         state%coolingsetpointtemperatureprofile(i, j) = flat(idx)
+         idx = idx + 1_c_int
+      end do
+   end do
    
    do j = 1_c_int, SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS
       do i = 0_c_int, SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_STEPS - 1_c_int

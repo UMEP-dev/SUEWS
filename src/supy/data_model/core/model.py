@@ -750,7 +750,7 @@ class ModelPhysics(BaseModel):
     )
     setpointmethod: FlexibleRefValue(SetpointMethod) = Field(
         default=SetpointMethod.CONSTANT,
-        description=_enum_description(RCMethod),
+        description=_enum_description(SetpointMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
     same_albedo_wall: FlexibleRefValue(SameAlbedoWall) = Field(

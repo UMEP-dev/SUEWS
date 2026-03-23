@@ -1524,7 +1524,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
         site["properties"] = props
         yaml_data["sites"][site_idx] = site
 
-        return yaml_data, adjustments
+    return yaml_data, adjustments
 
 def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
     """

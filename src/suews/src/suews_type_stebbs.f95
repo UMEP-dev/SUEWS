@@ -317,7 +317,8 @@ module module_type_stebbs
 
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Textwall_C  ! Wall external surface temperature from STEBBS[K]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Textroof_C ! Roof external surface temperature from STEBBS[K]
-
+      LOGICAL :: wall_surface_active = .TRUE. ! depends on WWR
+      LOGICAL :: window_surface_active = .TRUE.! depends on WWR
       ! flag for iteration safety - YES
       ! all variables are intensive and thus can be used for iteration safety
       LOGICAL :: iter_safe = .FALSE.

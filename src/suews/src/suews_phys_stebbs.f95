@@ -903,8 +903,13 @@ CONTAINS
             building_is_active = buildings(1)%metabolic_rate >= buildings(1)%metabolism_threshold * buildings(1)%occupants
             IF (building_is_active) THEN
                !active: valid heating cooling setpoint.
-               buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature + 273.15
-               buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature + 273.15
+               IF (config%setpointmethod == 2) THEN
+                  buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperatureProfile(idx, iu) + 273.15
+                  buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperatureProfile(idx, iu) + 273.15
+               ELSE
+                  buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature + 273.15
+                  buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature + 273.15
+               END IF
             ELSE
                buildings(1)%Ts(1) = Unused_heating_setpoint_C + 273.15
                buildings(1)%Ts(2) = Unused_cooling_setpoint_C + 273.15
@@ -2501,11 +2506,14 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
    self%Textwindow = stebbsState%WindowOutdoorSurfaceTemperature + 273.15 ! # Window outdoor surface temperature (K)
    self%Tintgroundfloor = stebbsState%GroundFloorIndoorSurfaceTemperature + 273.15 ! # Ground floor indoor surface temperature (K)
    self%Textgroundfloor = stebbsState%GroundFloorOutdoorSurfaceTemperature + 273.15 ! # Ground floor outdoor surface temperature (K)
-   !Heating/cooling setpoint is determined from prescribed profiles of hoursofday
-   !self%Ts = (/building_archtype%HeatingSetpointTemperature + 273.15, &
-   !            building_archtype%CoolingSetpointTemperature + 273.15/) ! # Heating and Cooling setpoint temperatures (K), respectively
-   !self%initTs = (/building_archtype%HeatingSetpointTemperature + 273.15, &
-   !                building_archtype%CoolingSetpointTemperature + 273.15/)
+   IF (config%setpointmethod == 2) THEN
+      self%Ts = (/building_archtype%HeatingSetpointTemperatureProfile(0, 1) + 273.15, &
+                   building_archtype%CoolingSetpointTemperatureProfile(0, 1) + 273.15/)
+   ELSE
+      self%Ts = (/building_archtype%HeatingSetpointTemperature + 273.15, &
+                   building_archtype%CoolingSetpointTemperature + 273.15/)
+   END IF
+   self%initTs = self%Ts
    self%HTsAverage = (/18 + 273.15, 18 + 273.15, 18 + 273.15/) ! #
    self%HWTsAverage = (/10 + 273.15, 10 + 273.15, 10 + 273.15/)
 

@@ -2011,7 +2011,7 @@ class SUEWSConfig(BaseModel):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
-            "setpointmethod"
+            "setpointmethod",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",

@@ -1325,7 +1325,7 @@ class SUEWSConfig(BaseModel):
             "WallCp",
         ]
 
-        #Check setpointmethod value
+        # Check setpointmethod value
         setpointmethod = getattr(self.model.physics, "setpointmethod", None)
         setpointmethod_val = _unwrap_value(setpointmethod) if setpointmethod is not None else None
         try:

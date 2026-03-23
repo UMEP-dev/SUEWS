@@ -1741,7 +1741,24 @@ class ArchetypeProperties(BaseModel):
         },
         gt=15.0
     )
-
+    HeatingSetpointTemperatureProfile: Optional[TenMinuteProfile] = Field(
+        default_factory=TenMinuteProfile,
+        description="10-minute profile of heating setpoints temperatrue when Setpointmethod equals to 2 [degC]",
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Heating setpoint temperature profile",
+        },
+        lt=30.0,
+    )
+    CoolingSetpointTemperatureProfile: Optional[TenMinuteProfile] = Field(
+        default_factory=TenMinuteProfile,
+        description="10-minute profile of cooling setpoints temperatrue when Setpointmethod equals to 2 [degC]",
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Cooling setpoint temperature profile",
+        },
+        gt=15.0,
+    )
     MetabolismProfile: Optional[TenMinuteProfile] = Field(
         default_factory=TenMinuteProfile,
         description="Profile of occupants metabolism in building [-]",

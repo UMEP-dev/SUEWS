@@ -799,7 +799,7 @@ class ModelPhysics(BaseModel):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
-            "setpontmethod",
+            "setpointmethod",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",
@@ -842,7 +842,7 @@ class ModelPhysics(BaseModel):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
-            "setpontmethod",
+            "setpointmethod",
         ]
 
         # New options: optional in legacy DataFrames, default if missing

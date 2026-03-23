@@ -1310,6 +1310,9 @@ fn apply_config_overrides(config: &mut SuewsConfig, root: &Value) {
     if let Some(v) = read_i32(root, &["model", "physics", "rcmethod"]) {
         config.rc_method = v;
     }
+    if let Some(v) = read_i32(root, &["model", "physics", "setpointmethod"]) {
+        config.setpoint_method = v;
+    }
     if let Some(v) = read_i32(root, &["model", "control", "flag_test"]) {
         config.flag_test = v != 0;
     }
@@ -1506,6 +1509,26 @@ fn apply_building_archetype_overrides(site: &mut SuewsSite, site_root: &Value) {
 
         if field_name == "appliance_profile" {
             apply_day_profile_overrides(&mut mapped, field_value, "applianceprofile", 144);
+            continue;
+        }
+
+        if field_name == "heating_setpoint_temperature_profile" {
+            apply_day_profile_overrides(
+                &mut mapped,
+                field_value,
+                "heatingsetpointtemperatureprofile",
+                144,
+            );
+            continue;
+        }
+
+        if field_name == "cooling_setpoint_temperature_profile" {
+            apply_day_profile_overrides(
+                &mut mapped,
+                field_value,
+                "coolingsetpointtemperatureprofile",
+                144,
+            );
             continue;
         }
 

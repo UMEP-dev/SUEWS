@@ -901,19 +901,25 @@ CONTAINS
 
             ! determine the occupancy status, active and inactive (sleep, not control heating, cooling, lighting)
             building_is_active = buildings(1)%metabolic_rate >= buildings(1)%metabolism_threshold * buildings(1)%occupants
-            IF (building_is_active) THEN
-               !active: valid heating cooling setpoint.
-               IF (config%setpointmethod == 2) THEN
-                  buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperatureProfile(idx, iu) + 273.15
-                  buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperatureProfile(idx, iu) + 273.15
-               ELSE
+            SELECT CASE (config%setpointmethod)
+            CASE (0) !constant setpoint
+               buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature + 273.15
+               buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature + 273.15
+            CASE (1) !setpoints dependent on occupant activity
+               IF (building_is_active) THEN
                   buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature + 273.15
                   buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature + 273.15
+               ELSE
+                  buildings(1)%Ts(1) = Unused_heating_setpoint_C + 273.15
+                  buildings(1)%Ts(2) = Unused_cooling_setpoint_C + 273.15
                END IF
-            ELSE
-               buildings(1)%Ts(1) = Unused_heating_setpoint_C + 273.15
-               buildings(1)%Ts(2) = Unused_cooling_setpoint_C + 273.15
-            END IF
+            CASE (2) !scheduled setpoinbts
+               buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperatureProfile(idx, iu) + 273.15
+               buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperatureProfile(idx, iu) + 273.15
+            CASE DEFAULT
+               buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature + 273.15
+               buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature + 273.15
+            END SELECT
             !calculate water mains temperature 
             T_watermains_K = cal_mainsWaterTemperature(id, Tground_deep_sout, MonthMeanAirTemperature_diffmax_sout)
             !constrain the temperature between 4 and 20

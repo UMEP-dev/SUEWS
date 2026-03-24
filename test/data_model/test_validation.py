@@ -1081,6 +1081,10 @@ def test_validate_model_option_setpointmethod_0_or_1_missing_params(registry):
     assert all("must be set" in r.message for r in results if r.status == "ERROR")
 
 def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
+    heating_working = {str(i): 20.0 for i in range(144)}
+    heating_holiday = {str(i): 19.0 for i in range(144)}
+    cooling_working = {str(i): 26.0 for i in range(144)}
+    cooling_holiday = {str(i): 25.5 for i in range(144)}
     yaml_data = {
         "model": {"physics": {"setpointmethod": {"value": 2}}},
         "sites": [{
@@ -1088,12 +1092,12 @@ def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
             "properties": {
                 "building_archetype": {
                     "HeatingSetpointTemperatureProfile": {
-                        "working_day": {"0": 20.0, "1": 19.5},
-                        "holiday": {"0": 19.0, "1": 18.5},
+                        "working_day": heating_working,
+                        "holiday": heating_holiday,
                     },
                     "CoolingSetpointTemperatureProfile": {
-                        "working_day": {"0": 26.0, "1": 27.0},
-                        "holiday": {"0": 25.5, "1": 26.5},
+                        "working_day": cooling_working,
+                        "holiday": cooling_holiday,
                     },
                 }
             }

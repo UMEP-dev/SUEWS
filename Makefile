@@ -1,5 +1,5 @@
 # SUEWS Simplified Makefile - Essential recipes only
-.PHONY: help setup submodules dev reinstall test test-smoke test-all audit-deps docs clean format bridge
+.PHONY: help setup submodules dev docs-setup reinstall test test-smoke test-all audit-deps docs livehtml clean format bridge
 
 # Default Python
 PYTHON := python
@@ -9,6 +9,7 @@ help:
 	@echo ""
 	@echo "  setup      - Create virtual environment (if using uv)"
 	@echo "  dev        - Build and install in editable mode"
+	@echo "  docs-setup - Install documentation dependencies and strip legacy .pth hooks"
 	@echo "  test       - Run standard tests (excludes slow, ~2-3 min)"
 	@echo "  test-smoke - Run smoke tests only (fast CI validation, ~30-60 sec)"
 	@echo "  test-all   - Run ALL tests including slow (~4-5 min)"
@@ -20,7 +21,6 @@ help:
 	@echo ""
 	@echo "Quick start:"
 	@echo "  With uv:    make setup && source .venv/bin/activate && make dev"
-	@echo "  With conda: mamba env create -f env.yml && mamba activate suews-dev && make dev"
 	@echo ""
 	@echo "Common workflows:"
 	@echo "  Fresh start:     make clean && make dev"
@@ -119,6 +119,30 @@ dev:
 	@$(MAKE) rebuild-meson
 	@echo "Build complete"
 
+# Install docs-only dependencies without re-installing the package
+docs-setup:
+	@# Check for activated virtual environment
+	@if [ -z "$$VIRTUAL_ENV" ]; then \
+		echo ""; \
+		echo "ERROR: No virtual environment activated."; \
+		echo ""; \
+		echo "Please activate a virtual environment first:"; \
+		echo "  make setup && source .venv/bin/activate && make dev && make docs-setup"; \
+		echo ""; \
+		exit 1; \
+	fi
+	@TMP_REQ=$$(mktemp "$${TMPDIR:-/tmp}/suews-docs.XXXXXX" 2>/dev/null || mktemp -t suews-docs); \
+	trap 'rm -f "$$TMP_REQ"' EXIT; \
+	$(PYTHON) scripts/security/export_pyproject_requirements.py --extra docs > "$$TMP_REQ"; \
+	if command -v uv >/dev/null 2>&1; then \
+		echo "Installing documentation dependencies with uv..."; \
+		uv pip install -r "$$TMP_REQ"; \
+	else \
+		echo "Installing documentation dependencies with pip..."; \
+		$(PYTHON) -m pip install -r "$$TMP_REQ"; \
+	fi; \
+	$(PYTHON) scripts/security/remove_legacy_namespace_pth.py
+
 # Deprecated: use 'make clean && make dev' instead (kept for backwards compatibility)
 reinstall:
 	@echo "Note: 'make reinstall' is deprecated. Use 'make clean && make dev' instead."
@@ -196,7 +220,7 @@ audit-deps:
 	@TMP_REQ=$$(mktemp "$${TMPDIR:-/tmp}/suews-audit.XXXXXX" 2>/dev/null || mktemp -t suews-audit); \
 	TMP_AUDIT_ENV=$$(mktemp -d "$${TMPDIR:-/tmp}/suews-audit-env.XXXXXX" 2>/dev/null || mktemp -d -t suews-audit-env); \
 	trap 'rm -f "$$TMP_REQ"; rm -rf "$$TMP_AUDIT_ENV"' EXIT; \
-	$(PYTHON) scripts/security/export_pyproject_requirements.py --extra dev > "$$TMP_REQ"; \
+	$(PYTHON) scripts/security/export_pyproject_requirements.py --extra dev --extra docs > "$$TMP_REQ"; \
 	echo "Auditing Python startup hooks in the active environment..."; \
 	$(PYTHON) scripts/security/audit_python_startup.py; \
 	echo ""; \
@@ -204,8 +228,10 @@ audit-deps:
 	if command -v uv >/dev/null 2>&1; then \
 		uv venv "$$TMP_AUDIT_ENV"; \
 		uv pip install --python "$$TMP_AUDIT_ENV/bin/python" -r "$$TMP_REQ" pip-audit; \
+		"$$TMP_AUDIT_ENV/bin/python" scripts/security/remove_legacy_namespace_pth.py; \
 		"$$TMP_AUDIT_ENV/bin/python" -m pip_audit; \
 	elif $(PYTHON) -c "import pip_audit" >/dev/null 2>&1; then \
+		$(PYTHON) scripts/security/remove_legacy_namespace_pth.py; \
 		$(PYTHON) -m pip_audit -r "$$TMP_REQ"; \
 	else \
 		echo "ERROR: pip-audit is required. Install uv or run: $(PYTHON) -m pip install pip-audit"; \
@@ -215,6 +241,9 @@ audit-deps:
 # Build documentation
 docs:
 	$(MAKE) -C docs html
+
+livehtml:
+	$(MAKE) -C docs livehtml
 
 # Smart clean - preserves .venv if you're in it
 clean:

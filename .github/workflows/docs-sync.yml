@@ -208,7 +208,8 @@ jobs:
       - name: Install supy and build docs
         if: steps.detect.outputs.docs_changed == 'true'
         run: |
-          uv pip install --system ".[dev]"
+          uv pip install --system ".[docs]"
+          python3 scripts/security/remove_legacy_namespace_pth.py
           cd docs
           # Generate data-model RST files first
           make generate-rst

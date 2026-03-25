@@ -75,7 +75,8 @@ jobs:
           uv venv
           source .venv/bin/activate
           # Use non-editable install for CI to avoid meson-python cache path issues
-          uv pip install ".[dev]"
+          uv pip install ".[docs]"
+          python scripts/security/remove_legacy_namespace_pth.py
           make docs
 
       - name: Build site

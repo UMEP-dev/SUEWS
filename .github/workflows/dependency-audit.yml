@@ -35,7 +35,7 @@ jobs:
 
       - name: Export dependency set
         run: |
-          python scripts/security/export_pyproject_requirements.py --extra dev > requirements-audit.txt
+          python scripts/security/export_pyproject_requirements.py --extra dev --extra docs > requirements-audit.txt
           echo "Exported $(wc -l < requirements-audit.txt) requirement lines"
 
       - name: Create isolated audit environment
@@ -43,6 +43,7 @@ jobs:
           uv venv .audit-venv
           uv pip install --python .audit-venv/bin/python -r requirements-audit.txt
           uv pip install --python .audit-venv/bin/python pip-audit
+          .audit-venv/bin/python scripts/security/remove_legacy_namespace_pth.py
 
       - name: Audit Python startup hooks
         run: .audit-venv/bin/python scripts/security/audit_python_startup.py

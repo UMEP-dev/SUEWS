@@ -130,6 +130,7 @@ Follow these steps to set up local development:
 4. **Build SUEWS**:
    ```bash
    make dev       # Install in editable mode
+   make docs-setup  # Optional: install docs tooling in the active venv
    make test      # Run tests (optional)
    ```
    *Run `make` to see all available commands and quick start workflows.*
@@ -145,6 +146,7 @@ Follow these steps to set up local development:
 * **Build commands**:
   ```bash
   make dev          # Install in editable mode (self-healing, works after clean)
+  make docs-setup   # Install docs tooling and strip legacy namespace .pth hooks
   make test         # Run test suite only
   make clean        # Clean build artifacts (smart - keeps .venv if active)
   make docs         # Build documentation
@@ -155,6 +157,7 @@ Follow these steps to set up local development:
 * **Common workflows**:
   ```bash
   make clean && make dev    # Fresh start (most common for troubleshooting)
+  make dev && make docs-setup && make docs
   git pull && make dev      # Update code and rebuild
   make dev && make test     # Build and test changes
   make audit-deps           # Audit dependency advisories and startup hooks

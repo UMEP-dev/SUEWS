@@ -85,7 +85,7 @@ tmy = [
     "metpy",  # Required for UMEP EPW conversion (util/_UMEP2epw.py)
 ]
 
-# Single dev group combining test + development tools
+# Core development tooling (kept separate from docs to reduce supply-chain surface)
 dev = [
     # Testing
     "pytest",
@@ -97,7 +97,10 @@ dev = [
     
     # Development
     "ipykernel",
-    
+]
+
+# Documentation tooling (isolated from the default dev environment)
+docs = [
     # Documentation - Essential only (based on conf.py usage)
     "sphinx>=7,<9",
     "sphinx-autobuild",

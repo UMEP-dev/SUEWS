@@ -48,12 +48,14 @@ pip install -e .
 - `pytest test -m slow -v` - Run slow tests manually
 
 ### Documentation
+- `make docs-setup` - Install docs tooling and strip legacy namespace `.pth` hooks
 - `make docs` - Build HTML documentation
 - `cd docs && make livehtml` - Live-reload development server
 
 ### Maintenance
 - `make clean` - Smart clean (preserves active `.venv`)
 - `make format` - Format Python (ruff) and Fortran (fprettify)
+- `make audit-deps` - Audit dependency advisories and startup hooks
 - `make help` - Show all available commands
 
 ### Common Workflows
@@ -67,6 +69,9 @@ git pull && make dev
 
 # Build and test changes
 make dev && make test
+
+# Build docs (first time needs docs-setup)
+make dev && make docs-setup && make docs
 ```
 
 ## Additional Notes

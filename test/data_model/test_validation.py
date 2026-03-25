@@ -1332,31 +1332,58 @@ def test_needs_spartacus_validation_true_and_false():
     assert cfg2._needs_spartacus_validation() is False
 
 def test_validate_spartacus_building_height_error():
-    cfg = make_cfg(netradiationmethod=1001)
-    # bldgh exceeds height[nlayer+1]
+    cfg = make_cfg(netradiationmethod=1001, stebbsmethod=1)
+    # _unwrap_value only unwraps RefValue/Enum, not SimpleNamespace;
+    # set stebbsmethod as a raw int so the validator can parse it.
+    cfg.model.physics.stebbsmethod = 1
+
+    # bldgh and stebbs_Height both exceed height[nlayer]
     bldgs = SimpleNamespace(bldgh=15.0)
+    building_archetype = SimpleNamespace(stebbs_Height=20.0)
     vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
     props = SimpleNamespace(
         land_cover=SimpleNamespace(bldgs=bldgs),
-        vertical_layers=vertical_layers
+        vertical_layers=vertical_layers,
+        building_archetype=building_archetype,
     )
     site = DummySite(properties=props, name="TestSite")
     msgs = cfg._validate_spartacus_building_height(site, 0)
 
-    # Should produce exactly one clear message with correct content
-    assert msgs
-    msg = msgs[0]
-    assert "TestSite" in msg
-    assert "bldgh=15.0" in msg
-    assert "height[2]=10.0" in msg
+    assert len(msgs) == 2
+    assert any("bldgh=15.0" in m and "height[1]=10.0" in m for m in msgs)
+    assert any("stebbs_Height=20.0" in m and "height[1]=10.0" in m for m in msgs)
+
+
 def test_validate_spartacus_building_height_no_error():
-    cfg = make_cfg(netradiationmethod=1001)
-    # bldgh does not exceed height[nlayer+1]
+    cfg = make_cfg(netradiationmethod=1001, stebbsmethod=1)
+    cfg.model.physics.stebbsmethod = 1
+
+    # bldgh and stebbs_Height do not exceed height[nlayer]
     bldgs = SimpleNamespace(bldgh=8.0)
+    building_archetype = SimpleNamespace(stebbs_Height=9.0)
     vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
     props = SimpleNamespace(
         land_cover=SimpleNamespace(bldgs=bldgs),
-        vertical_layers=vertical_layers
+        vertical_layers=vertical_layers,
+        building_archetype=building_archetype,
+    )
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_building_height(site, 0)
+    assert msgs == []
+
+
+def test_validate_spartacus_building_height_stebbs_off():
+    """stebbs_Height should NOT be checked when stebbsmethod != 1."""
+    cfg = make_cfg(netradiationmethod=1001, stebbsmethod=0)
+
+    # stebbs_Height exceeds domain top, but stebbsmethod is off
+    bldgs = SimpleNamespace(bldgh=8.0)
+    building_archetype = SimpleNamespace(stebbs_Height=20.0)
+    vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
+    props = SimpleNamespace(
+        land_cover=SimpleNamespace(bldgs=bldgs),
+        vertical_layers=vertical_layers,
+        building_archetype=building_archetype,
     )
     site = DummySite(properties=props, name="TestSite")
     msgs = cfg._validate_spartacus_building_height(site, 0)

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import site
 import sys
 from dataclasses import asdict, dataclass
@@ -45,6 +46,20 @@ DEFAULT_ALLOWED_EXECUTABLE_PTH_RULES = (
 
 DEFAULT_ALLOWED_EXECUTABLE_PTH_PREFIX_RULES = (
     AllowedExecutablePthRule("__editable__.", "import __editable__"),
+)
+
+
+SETUPTOOLS_NAMESPACE_PACKAGE_PTH_PATTERN = re.compile(
+    r"^import sys, types, os;has_mfs = sys\.version_info > \(3, 5\);"
+    r"p = os\.path\.join\(sys\._getframe\(1\)\.f_locals\['sitedir'\], \*\((?P<path_parts>.+)\)\);"
+    r"importlib = has_mfs and __import__\('importlib\.util'\);"
+    r"has_mfs and __import__\('importlib\.machinery'\);"
+    r"m = has_mfs and sys\.modules\.setdefault\('(?P<namespace>[^']+)', "
+    r"importlib\.util\.module_from_spec\(importlib\.machinery\.PathFinder\.find_spec\('(?P=namespace)', "
+    r"\[os\.path\.dirname\(p\)\]\)\)\);"
+    r"m = m or sys\.modules\.setdefault\('(?P=namespace)', types\.ModuleType\('(?P=namespace)'\)\);"
+    r"mp = \(m or \[\]\) and m\.__dict__\.setdefault\('__path__',\[\]\);"
+    r"\(p not in mp\) and mp\.append\(p\)$"
 )
 
 
@@ -129,7 +144,24 @@ def is_allowed_executable_pth(
         if filename.startswith(rule.filename) and stripped_line.startswith(rule.line_prefix):
             return True
 
+    if is_setuptools_namespace_package_pth(filename, stripped_line):
+        return True
+
     return False
+
+
+def is_setuptools_namespace_package_pth(filename: str, stripped_line: str) -> bool:
+    """Return True for setuptools-generated namespace package bootstrap hooks."""
+    if not filename.endswith("-nspkg.pth"):
+        return False
+
+    match = SETUPTOOLS_NAMESPACE_PACKAGE_PTH_PATTERN.fullmatch(stripped_line)
+    if not match:
+        return False
+
+    namespace = match.group("namespace")
+    path_parts = re.findall(r"'([^']+)'", match.group("path_parts"))
+    return path_parts == namespace.split(".")
 
 
 def scan_pth_file(

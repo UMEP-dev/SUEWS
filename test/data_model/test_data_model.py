@@ -155,6 +155,15 @@ class TestSUEWSConfig(unittest.TestCase):
             27.0,
         )
 
+    def test_setpoint_profile_defaults_use_off_values(self):
+        config = SUEWSConfig(sites=[{}])
+        archetype = config.sites[0].properties.building_archetype
+
+        self.assertEqual(archetype.HeatingSetpointTemperatureProfile.working_day["1"], 0.0)
+        self.assertEqual(archetype.HeatingSetpointTemperatureProfile.holiday["144"], 0.0)
+        self.assertEqual(archetype.CoolingSetpointTemperatureProfile.working_day["1"], 100.0)
+        self.assertEqual(archetype.CoolingSetpointTemperatureProfile.holiday["144"], 100.0)
+
     def test_model_physics_validation(self):
         """Test that SUEWSConfig allows physics combinations - validation moved to Phase B.
 

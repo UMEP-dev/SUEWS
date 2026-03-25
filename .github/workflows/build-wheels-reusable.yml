@@ -36,6 +36,9 @@ on:
         type: string
         default: 'false'
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
@@ -47,10 +50,11 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
           submodules: recursive
+          persist-credentials: false
 
       - name: Build SUEWS wheels
         uses: ./.github/actions/build-suews

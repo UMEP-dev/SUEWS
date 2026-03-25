@@ -23,27 +23,33 @@ env:
 jobs:
   create-issue:
     runs-on: ubuntu-latest
+    environment: discourse-sync
     permissions:
+      contents: read
       issues: write
     steps:
       - name: Resolve inputs
         id: inputs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CLIENT_TOPIC_ID: ${{ github.event.client_payload.topic_id || '' }}
+          INPUT_TOPIC_ID: ${{ github.event.inputs.topic_id || '' }}
+          INPUT_TARGET_REPO: ${{ github.event.inputs.target_repo || '' }}
         run: |
-          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            echo "topic_id=${{ github.event.client_payload.topic_id }}" >> "$GITHUB_OUTPUT"
-            echo "target_repo=${{ env.DEFAULT_REPO }}" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT_NAME" = "repository_dispatch" ]; then
+            echo "topic_id=${CLIENT_TOPIC_ID}" >> "$GITHUB_OUTPUT"
+            echo "target_repo=${DEFAULT_REPO}" >> "$GITHUB_OUTPUT"
           else
-            echo "topic_id=${{ github.event.inputs.topic_id }}" >> "$GITHUB_OUTPUT"
-            echo "target_repo=${{ github.event.inputs.target_repo || env.DEFAULT_REPO }}" >> "$GITHUB_OUTPUT"
+            echo "topic_id=${INPUT_TOPIC_ID}" >> "$GITHUB_OUTPUT"
+            echo "target_repo=${INPUT_TARGET_REPO:-$DEFAULT_REPO}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Fetch Discourse topic
         id: discourse
         env:
           DISCOURSE_API_KEY: ${{ secrets.DISCOURSE_SUEWS_ADMIN_KEY }}
+          TOPIC_ID: ${{ steps.inputs.outputs.topic_id }}
         run: |
-          TOPIC_ID="${{ steps.inputs.outputs.topic_id }}"
-
           RESPONSE=$(curl -s -f \
             -H "Api-Key: ${DISCOURSE_API_KEY}" \
             -H "Api-Username: ${DISCOURSE_USERNAME}" \
@@ -80,18 +86,19 @@ jobs:
       - name: Build issue body
         id: body
         shell: bash
+        env:
+          TOPIC_URL: ${{ steps.discourse.outputs.topic_url }}
+          AUTHOR: ${{ steps.discourse.outputs.author }}
+          TOPIC_ID: ${{ steps.discourse.outputs.topic_id }}
+          DISCOURSE_BODY: ${{ steps.discourse.outputs.body }}
         run: |
-          TOPIC_URL="${{ steps.discourse.outputs.topic_url }}"
-          AUTHOR="${{ steps.discourse.outputs.author }}"
-          TOPIC_ID="${{ steps.discourse.outputs.topic_id }}"
-
           {
             echo "**Reported on**: [SUEWS Community Forum](${TOPIC_URL})"
             echo "**Reporter**: @${AUTHOR} (Discourse)"
             echo ""
             echo "---"
             echo ""
-            echo "${{ steps.discourse.outputs.body }}"
+            echo "${DISCOURSE_BODY}"
             echo ""
             echo "---"
             echo ""
@@ -102,10 +109,12 @@ jobs:
         id: issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_REPO: ${{ steps.inputs.outputs.target_repo }}
+          ISSUE_TITLE: ${{ steps.discourse.outputs.title }}
         run: |
           ISSUE_URL=$(gh issue create \
-            --repo "${{ steps.inputs.outputs.target_repo }}" \
-            --title "${{ steps.discourse.outputs.title }}" \
+            --repo "${TARGET_REPO}" \
+            --title "${ISSUE_TITLE}" \
             --body-file /tmp/issue-body.md \
             --label "user-report" \
             2>&1)
@@ -116,10 +125,9 @@ jobs:
       - name: Reply on Discourse
         env:
           DISCOURSE_API_KEY: ${{ secrets.DISCOURSE_SUEWS_ADMIN_KEY }}
+          TOPIC_ID: ${{ steps.discourse.outputs.topic_id }}
+          ISSUE_URL: ${{ steps.issue.outputs.issue_url }}
         run: |
-          TOPIC_ID="${{ steps.discourse.outputs.topic_id }}"
-          ISSUE_URL="${{ steps.issue.outputs.issue_url }}"
-
           REPLY_RAW="This topic has been tracked as a GitHub issue for the development team.\n\n**GitHub issue**: ${ISSUE_URL}\n\nThe team will follow up there. Updates will be posted in the GitHub issue."
 
           # Build JSON payload with jq
@@ -139,9 +147,8 @@ jobs:
         continue-on-error: true
         env:
           DISCOURSE_API_KEY: ${{ secrets.DISCOURSE_SUEWS_ADMIN_KEY }}
+          TOPIC_ID: ${{ steps.discourse.outputs.topic_id }}
         run: |
-          TOPIC_ID="${{ steps.discourse.outputs.topic_id }}"
-
           # Fetch current tags, remove github-issue, add github-issue-created
           UPDATED_TAGS=$(curl -s -f \
             -H "Api-Key: ${DISCOURSE_API_KEY}" \

@@ -11,7 +11,7 @@ to investigate the impacts on urban climate of:
 2. **Background climate**: Long-term meteorological conditions (e.g., air temperature)
 
 **API approach**: This tutorial uses the :class:`~supy.SUEWSSimulation` OOP interface
-throughout. Scenarios are constructed by modifying the configuration directly —
+throughout. Scenarios are constructed by modifying the configuration directly --
 no DataFrame manipulation is needed. This config-level approach scales naturally
 from single-site to multi-site setups.
 
@@ -57,44 +57,22 @@ print(f"Simulation period: {forcing_sliced.df.index[0]} to {forcing_sliced.df.in
 # First, let's look at the default albedo values from the sample dataset.
 # We access the site configuration directly via the config object.
 
-site = sim._config.sites[0]
+site = sim.config.sites[0]
 lc = site.properties.land_cover
 print("Default albedo values by surface type:")
 print(f"  Paved:    {lc.paved.alb}")
 print(f"  Building: {lc.bldgs.alb}")
 
 # %%
-# Configure Test Surface
-# ~~~~~~~~~~~~~~~~~~~~~~
-#
-# To isolate the effect of building albedo, we modify the surface fractions
-# to 99% buildings and 1% paved. We do this directly on the config.
-
-sim_test = SUEWSSimulation.from_sample_data()
-site = sim_test._config.sites[0]
-lc = site.properties.land_cover
-
-# Set surface fractions: 99% buildings, 1% paved
-lc.paved.sfr = 0.01
-lc.bldgs.sfr = 0.99
-lc.evetr.sfr = 0.0
-lc.dectr.sfr = 0.0
-lc.grass.sfr = 0.0
-lc.bsoil.sfr = 0.0
-lc.water.sfr = 0.0
-
-print("Modified surface fractions:")
-print(f"  Paved: {lc.paved.sfr}, Building: {lc.bldgs.sfr}")
-
-# %%
 # Run Albedo Scenarios
 # ~~~~~~~~~~~~~~~~~~~~
 #
-# Loop over albedo values, modifying the building albedo in the config
-# for each scenario. Each iteration creates a fresh simulation to avoid
-# state accumulation between runs.
+# To isolate the effect of building albedo, each scenario sets surface
+# fractions to 99% buildings and 1% paved, then varies the building albedo.
+# Each iteration creates a fresh simulation to avoid state accumulation
+# between runs.
 #
-# This pattern works identically for multi-site configurations — all sites
+# This pattern works identically for multi-site configurations -- all sites
 # in the config are modified in the inner loop.
 
 # Test 3 albedo values (0.1 to 0.8) for faster tutorial execution
@@ -109,7 +87,7 @@ for alb_val in list_albedo:
     sim_alb = SUEWSSimulation.from_sample_data()
 
     # Modify building albedo for all sites
-    for site in sim_alb._config.sites:
+    for site in sim_alb.config.sites:
         site.properties.land_cover.bldgs.sfr = 0.99
         site.properties.land_cover.paved.sfr = 0.01
         site.properties.land_cover.evetr.sfr = 0.0
@@ -293,8 +271,8 @@ plt.tight_layout()
 #
 # Both parts use the same pattern: **loop over scenarios, modify the config or
 # forcing, run, collect results**. This approach scales naturally to multi-site
-# configurations — for example, a YAML with 15 spatial grids can be swept
-# identically by iterating over ``sim._config.sites`` in the inner loop.
+# configurations -- for example, a YAML with 15 spatial grids can be swept
+# identically by iterating over ``sim.config.sites`` in the inner loop.
 #
 # **Next steps:**
 #

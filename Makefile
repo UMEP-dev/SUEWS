@@ -231,7 +231,7 @@ audit-deps:
 		"$$TMP_AUDIT_ENV/bin/python" scripts/security/remove_legacy_namespace_pth.py; \
 		"$$TMP_AUDIT_ENV/bin/python" -m pip_audit; \
 	elif $(PYTHON) -c "import pip_audit" >/dev/null 2>&1; then \
-		$(PYTHON) scripts/security/remove_legacy_namespace_pth.py; \
+		$(PYTHON) scripts/security/remove_legacy_namespace_pth.py --dry-run; \
 		$(PYTHON) -m pip_audit -r "$$TMP_REQ"; \
 	else \
 		echo "ERROR: pip-audit is required. Install uv or run: $(PYTHON) -m pip install pip-audit"; \

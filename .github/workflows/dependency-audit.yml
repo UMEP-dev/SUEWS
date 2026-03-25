@@ -43,10 +43,12 @@ jobs:
           uv venv .audit-venv
           uv pip install --python .audit-venv/bin/python -r requirements-audit.txt
           uv pip install --python .audit-venv/bin/python pip-audit
-          .audit-venv/bin/python scripts/security/remove_legacy_namespace_pth.py
 
       - name: Audit Python startup hooks
         run: .audit-venv/bin/python scripts/security/audit_python_startup.py
+
+      - name: Remove legacy namespace-package pth files
+        run: .audit-venv/bin/python scripts/security/remove_legacy_namespace_pth.py
 
       - name: Audit declared dependencies (advisory)
         continue-on-error: true

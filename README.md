@@ -1,8 +1,8 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/source/_static/suews-logo-stacked-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="docs/source/_static/suews-logo-stacked-light.svg">
-    <img alt="SUEWS" src="docs/source/_static/suews-logo-stacked-light.svg" width="200">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/UMEP-dev/SUEWS/master/docs/source/_static/suews-logo-stacked-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/UMEP-dev/SUEWS/master/docs/source/_static/suews-logo-stacked-light.svg">
+    <img alt="SUEWS" src="https://raw.githubusercontent.com/UMEP-dev/SUEWS/master/docs/source/_static/suews-logo-stacked-light.svg" width="200">
   </picture>
 </p>
 
@@ -15,247 +15,86 @@
   <a href="https://docs.suews.io"><img alt="Documentation" src="https://img.shields.io/badge/docs-suews.io-blue"></a>
   <a href="https://github.com/UMEP-dev/SUEWS/blob/master/LICENSE"><img alt="License: MPL-2.0" src="https://img.shields.io/badge/license-MPL--2.0-green"></a>
   <a href="https://github.com/UMEP-dev/SUEWS/actions/workflows/build-publish_to_pypi.yml"><img alt="CI" src="https://github.com/UMEP-dev/SUEWS/actions/workflows/build-publish_to_pypi.yml/badge.svg"></a>
+  <a href="https://doi.org/10.5281/zenodo.5721639"><img alt="DOI" src="https://zenodo.org/badge/DOI/10.5281/zenodo.5721639.svg"></a>
 </p>
 
 ---
+
+## What is SUEWS?
+
+SUEWS is a neighbourhood/local-scale urban land surface model that simulates the urban radiation, energy and water balances using commonly measured meteorological variables and surface cover information. It uses an evaporation-interception approach (Grimmond and Oke, 1991), similar to that used in forests, to model evaporation from urban surfaces.
+
+The model represents seven surface types -- paved, buildings, evergreen trees/shrubs, deciduous trees/shrubs, grass, bare soil and water -- and tracks the running water balance of the canopy, soil moisture, and horizontal water movement above and below ground.
+
+**SuPy** (SUEWS in Python) provides the modern interface, wrapping a Fortran physics engine via F2PY and integrating with the scientific Python ecosystem (pandas, NumPy, matplotlib).
+
+## Key Features
+
+* **Energy balance**: net all-wave radiation, sensible and latent heat fluxes, storage heat flux, anthropogenic heat
+* **Water balance**: soil moisture, infiltration, runoff, drainage, irrigation demand
+* **Radiation schemes**: NARP, SPARTACUS-Surface (3D), BEERS (mean radiant temperature)
+* **Storage heat schemes**: OHM, AnOHM, ESTM, EHC (explicit heat conduction)
+* **Building energy**: STEBBS (Simple Thermal Energy Balance for Building Scheme)
+* **Python API**: YAML configuration, pandas DataFrames, programmatic simulations
+* **CLI tools**: `suews-run`, `suews-validate`, `suews-convert`, `suews-schema`
 
 ## Quick Start
 
 ```bash
 pip install supy
+```
+
+**Run from the command line:**
+
+```bash
 suews-run /path/to/config.yml
+```
+
+**Or use the Python API:**
+
+```python
+from supy import SUEWSSimulation
+
+sim = SUEWSSimulation.from_sample_data()
+sim.run()
+print(sim.output.summary())
 ```
 
 Full documentation: **[docs.suews.io](https://docs.suews.io)**
 
-For developers, see the [Developer Note](#developer-note) section below.
+## Documentation
 
-## Developer Note
+* **[Getting Started](https://docs.suews.io/en/latest/getting-started.html)** -- installation and first simulation
+* **[Tutorials](https://docs.suews.io/en/latest/tutorials.html)** -- hands-on guides with sample data
+* **[Input/Output Reference](https://docs.suews.io/en/latest/inputs.html)** -- configuration and data formats
+* **[Scientific Background](https://docs.suews.io/en/latest/parameterisations-and-sub-models.html)** -- physics schemes and parameterisations
+* **[Community Forum](https://community.suews.io)** -- questions, discussion, and support
 
-### Development Environment
+## Citation
 
-#### Claude Code Integration
+If you use SUEWS in your research, please cite:
 
-SUEWS includes Claude Code configuration in the `.claude/` directory with development skills for environment setup, code linting, build verification, PR review, and release management.
+* Jarvi L, Grimmond CSB, Christen A (2011) The Surface Urban Energy and Water Balance Scheme (SUEWS): Evaluation in Los Angeles and Vancouver. *J. Hydrol.*, 411, 219-237.
+* Ward HC, Kotthaus S, Jarvi L, Grimmond CSB (2016) Surface Urban Energy and Water Balance Scheme (SUEWS): Development and evaluation at two UK sites. *Urban Climate*, 18, 1-32.
 
-**Install Skills via Marketplace** (recommended for new contributors):
-```
-# In Claude Code, add the SUEWS skills marketplace
-/plugin marketplace add UMEP-dev/SUEWS
-
-# Then install the skills
-/plugin install suews-dev@UMEP-dev/SUEWS
-```
-
-This provides access to:
-* `/setup-dev` - Set up development environment (macOS, Linux, Windows)
-* `/lint-code` - Check code style against SUEWS conventions
-* `/verify-build` - Verify build configuration consistency
-* `/audit-pr` - Review pull requests comprehensively
-* `/examine-issue` - Analyse GitHub issues
-* `/log-changes` - Update CHANGELOG with recent commits
-* `/prep-release` - Prepare releases with pre-flight checks
-* `/sync-docs` - Check doc-code consistency
-
-**Local Configuration** (for contributors with cloned repo):
-* **Setup Guide**: See [`.claude/README.md`](.claude/README.md) for workspace structure
-* **Skills Reference**: See [`.claude/skills/`](.claude/skills/) for detailed workflows
-
-#### CLAUDE.md Protection System
-
-This repository includes automatic protection for the CLAUDE.md configuration file to prevent accidental content loss:
-
-* **Automatic Features** (no setup required):
-  - GitHub Actions validation on all PRs/pushes affecting CLAUDE.md
-  - Content reduction detection (alerts if >20% content removed)
-  - Automatic snapshots on validation failures
-
-* **Local Protection** (one-time setup):
-  ```bash
-  # Run once after cloning or pulling this feature
-  bash .claude/scripts/setup-claude-protection.sh
-  ```
-  This enables:
-  - Git pre-commit validation
-  - Local backup system
-  - Manual validation: `python3 .claude/scripts/validate-claude-md.py`
-
-#### Local Development
-
-Follow these steps to set up local development:
-
-##### Prerequisites
-
-**Essential Tools**:
-* **Fortran Compiler**: [gfortran](https://gcc.gnu.org/wiki/GFortran) (≥ 9.3.0)
-  - macOS: `brew install gcc`
-  - Ubuntu/Debian: `sudo apt-get install gfortran`
-  - Windows (MSYS2 UCRT64): `pacman -S mingw-w64-ucrt-x86_64-gcc-fortran`
-* **Version Control**: [git](https://git-scm.com/)
-* **Package Manager**: [uv](https://docs.astral.sh/uv/) (fast Python package manager)
-  ```bash
-  # Install uv (if not already installed)
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-  ```
-
-**Recommended Tools**:
-* [VS Code](https://code.visualstudio.com/) with extensions:
-  - Modern Fortran
-  - Python
-  - GitHub Copilot (free for academic use)
-* [WSL](https://docs.microsoft.com/en-us/windows/wsl/install-win10) (Windows users)
-
-##### Setup Steps
-
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/UMEP-dev/SUEWS.git
-   cd SUEWS
-   ```
-
-2. **Initialise submodules** (required for SPARTACUS dependency):
-   ```bash
-   git submodule init
-   git submodule update
-   ```
-   *Note: If permission denied, [configure SSH for GitHub](https://docs.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh)*
-
-3. **Create and activate virtual environment**:
-   ```bash
-   uv venv
-   source .venv/bin/activate   # Linux/macOS/MSYS2
-   # or: .venv\Scripts\activate  # Windows cmd/PowerShell
-   ```
-
-4. **Build SUEWS**:
-   ```bash
-   make dev       # Install in editable mode
-   make docs-setup  # Optional: install docs tooling in the active venv
-   make test      # Run tests (optional)
-   ```
-   *Run `make` to see all available commands and quick start workflows.*
-
-5. **Verify installation**:
-   ```bash
-   pip show supy
-   suews-run --help
-   ```
-
-##### Development Workflow
-
-* **Build commands**:
-  ```bash
-  make dev          # Install in editable mode (self-healing, works after clean)
-  make docs-setup   # Install docs tooling and strip legacy namespace .pth hooks
-  make test         # Run test suite only
-  make clean        # Clean build artifacts (smart - keeps .venv if active)
-  make docs         # Build documentation
-  make livehtml     # Live documentation preview
-  make              # Show help summary (default target)
-  ```
-
-* **Common workflows**:
-  ```bash
-  make clean && make dev    # Fresh start (most common for troubleshooting)
-  make dev && make docs-setup && make docs
-  git pull && make dev      # Update code and rebuild
-  make dev && make test     # Build and test changes
-  make audit-deps           # Audit dependency advisories and startup hooks
-  ```
-
-* **Environment management**:
-  ```bash
-  make help         # Show all available commands
-  make deactivate   # Show deactivation command
-  ```
-
-* **Common issues**:
-  - **Build conflicts**: Run `make clean && make dev` (most reliable)
-  - **Import errors**: Ensure the virtual environment is activated (`source .venv/bin/activate`)
-  - **Permission errors on Windows**: Right-click project folder → Properties → Security → Edit → Everyone → Allow
-
-##### Project Structure
-
-```
-SUEWS/
-├── src/
-│   ├── suews/          # Fortran physics engine
-│   ├── supy/           # Python interface
-│   └── supy_driver/    # F2Py wrapper
-├── test/               # Test suite
-├── docs/               # Documentation source
-└── Makefile            # Build commands
-```
-
+See [`CITATION.cff`](CITATION.cff) for machine-readable citation metadata.
 
 ## Contributing
 
-### Code Style and Formatting
+We welcome contributions from people who engage with the project. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for guidelines. New contributors are encouraged to start on the [Community Forum](https://community.suews.io).
 
-SUEWS maintains consistent code style through automated formatting:
+## Development
 
-* **Coding Standards**: See [`CODING_GUIDELINES.md`](dev-ref/CODING_GUIDELINES.md) for detailed standards
-* **Automated Formatting**: The master branch is automatically formatted after merge
-* **Zero Friction**: Contributors can focus on functionality; formatting is handled by machines
-* **Tools Used**:
-  - Python: [`ruff`](https://docs.astral.sh/ruff/) (configuration in `.ruff.toml`)
-  - Fortran: [`fprettify`](https://github.com/pseewald/fprettify) (configuration in `.fprettify.rc`)
-
-**For Contributors**: Just write working code! Formatting will be applied automatically after merge.
-
-### Testing Development Versions
-
-For developers who need to test pre-release versions from test.pypi.org:
-
-**1. Install uv (one-time setup):**
 ```bash
-# macOS/Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Windows (PowerShell)
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+git clone https://github.com/UMEP-dev/SUEWS.git && cd SUEWS
+uv venv && source .venv/bin/activate
+make dev && make test
 ```
 
-**2. Create isolated environment with uv:**
-```bash
-uv venv .venv-dev
-source .venv-dev/bin/activate  # Linux/macOS
-# or: .venv-dev\Scripts\activate  # Windows
-# You'll see (.venv-dev) in your terminal prompt when activated
-```
-Note: `uv venv` is 80x faster than `python -m venv` and manages Python versions automatically.
+* **[Onboarding Guide](dev-ref/onboarding-guide.md)** -- developer workflow and best practices
+* **[Building Locally](dev-ref/building-locally.md)** -- prerequisites, build commands, project structure
+* **[Coding Guidelines](dev-ref/CODING_GUIDELINES.md)** -- style conventions and formatting tools
 
-**3. Check latest version:**
-Visit https://test.pypi.org/project/supy/ to find the latest development version (format: `YYYY.M.D.dev0`)
+## Licence
 
-**4. Install development version:**
-```bash
-# Replace 2025.9.16.dev0 with the latest version from step 3
-uv pip install --extra-index-url https://test.pypi.org/simple/ \
-              --index-strategy unsafe-best-match \
-              supy==2025.9.16.dev0
-```
-
-**5. Verify installation:**
-```bash
-python -c "import supy; print(f'SUEWS version: {supy.__version__}')"
-# Should show: 2025.9.16.dev0 (or your installed version)
-```
-
-**6. Test functionality:**
-```bash
-python -c "import supy as sp; sp.load_sample_data(); print('✓ Installation successful')"
-```
-
-**For future use:** Always activate the environment before working:
-```bash
-source .venv-dev/bin/activate  # Linux/macOS
-# or: .venv-dev\Scripts\activate  # Windows
-# Use 'deactivate' to exit the environment
-```
-
-**Why uv?** 
-- Creates virtual environments 80x faster than `python -m venv`
-- Handles test.pypi.org dependencies correctly with `--index-strategy unsafe-best-match`
-- Single tool for both environment and package management
-- No Python installation required (uv can download Python as needed)
+[Mozilla Public License 2.0](LICENSE)

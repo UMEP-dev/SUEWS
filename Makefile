@@ -1,5 +1,5 @@
 # SUEWS Simplified Makefile - Essential recipes only
-.PHONY: help setup submodules dev reinstall test test-smoke test-all docs clean format bridge
+.PHONY: help setup submodules dev reinstall test test-smoke test-all audit-deps docs clean format bridge
 
 # Default Python
 PYTHON := python
@@ -12,6 +12,7 @@ help:
 	@echo "  test       - Run standard tests (excludes slow, ~2-3 min)"
 	@echo "  test-smoke - Run smoke tests only (fast CI validation, ~30-60 sec)"
 	@echo "  test-all   - Run ALL tests including slow (~4-5 min)"
+	@echo "  audit-deps - Audit Python dependencies and startup hooks"
 	@echo "  docs       - Build documentation"
 	@echo "  clean      - Smart clean (keeps .venv if active)"
 	@echo "  bridge     - Build the Rust bridge CLI (suews_bridge)"
@@ -189,6 +190,27 @@ test-all:
 	@echo "This may take 4-5 minutes."
 	@echo ""
 	$(PYTHON) -m pytest test -v --tb=short --durations=10
+
+# Audit installed dependency hooks and declared dependency advisories
+audit-deps:
+	@TMP_REQ=$$(mktemp "$${TMPDIR:-/tmp}/suews-audit.XXXXXX" 2>/dev/null || mktemp -t suews-audit); \
+	TMP_AUDIT_ENV=$$(mktemp -d "$${TMPDIR:-/tmp}/suews-audit-env.XXXXXX" 2>/dev/null || mktemp -d -t suews-audit-env); \
+	trap 'rm -f "$$TMP_REQ"; rm -rf "$$TMP_AUDIT_ENV"' EXIT; \
+	$(PYTHON) scripts/security/export_pyproject_requirements.py --extra dev > "$$TMP_REQ"; \
+	echo "Auditing Python startup hooks in the active environment..."; \
+	$(PYTHON) scripts/security/audit_python_startup.py; \
+	echo ""; \
+	echo "Auditing declared dependencies against PyPI advisories..."; \
+	if command -v uv >/dev/null 2>&1; then \
+		uv venv "$$TMP_AUDIT_ENV"; \
+		uv pip install --python "$$TMP_AUDIT_ENV/bin/python" -r "$$TMP_REQ" pip-audit; \
+		"$$TMP_AUDIT_ENV/bin/python" -m pip_audit; \
+	elif $(PYTHON) -c "import pip_audit" >/dev/null 2>&1; then \
+		$(PYTHON) -m pip_audit -r "$$TMP_REQ"; \
+	else \
+		echo "ERROR: pip-audit is required. Install uv or run: $(PYTHON) -m pip install pip-audit"; \
+		exit 1; \
+	fi
 
 # Build documentation
 docs:

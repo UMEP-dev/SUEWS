@@ -6,6 +6,11 @@ on:
     - cron: "0 9 1 * *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
 jobs:
   set-limits:
     runs-on: ubuntu-latest
@@ -13,7 +18,8 @@ jobs:
       - name: Apply contributors_only interaction limit
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY_SLUG: ${{ github.repository }}
         run: |
-          gh api -X PUT /repos/${{ github.repository }}/interaction-limits \
+          gh api -X PUT "/repos/${REPOSITORY_SLUG}/interaction-limits" \
             -f limit=contributors_only \
             -f expiry=six_months

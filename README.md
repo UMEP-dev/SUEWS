@@ -157,6 +157,7 @@ Follow these steps to set up local development:
   make clean && make dev    # Fresh start (most common for troubleshooting)
   git pull && make dev      # Update code and rebuild
   make dev && make test     # Build and test changes
+  make audit-deps           # Audit dependency advisories and startup hooks
   ```
 
 * **Environment management**:

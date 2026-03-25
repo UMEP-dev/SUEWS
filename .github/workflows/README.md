@@ -106,7 +106,6 @@ These have been replaced by the unified `auto-format.yml` workflow that runs onl
 ## Configuration
 
 ### Required Secrets
-- `ANTHROPIC_API_KEY`: Your Anthropic API key for Claude
 - `CLAUDE_AUTHORIZED_USERS`: **REQUIRED** - List of authorised GitHub usernames
   - Format option 1 (comma-separated): `sunt05,user2,user3`
   - Format option 2 (newline-separated):
@@ -115,8 +114,8 @@ These have been replaced by the unified `auto-format.yml` workflow that runs onl
     user2
     user3
     ```
-- `PYPI_API_TOKEN`: PyPI token for publishing releases
-- `TEST_PYPI_API_TOKEN`: TestPyPI token for test publishing
+- `CLAUDE_CODE_OAUTH_TOKEN`: OAuth token used by Claude Code workflows
+- `RTD_PUSH_TOKEN`: PAT used only for syncing the protected `rtd` branch
 
 
 ## Security Configuration
@@ -152,6 +151,9 @@ Without this configuration, all Claude requests will be denied.
    - Only add trusted users to CLAUDE_AUTHORIZED_USERS
    - Review Claude's code changes carefully
    - Regularly audit the authorised users list
+   - Pin every external GitHub Action to a full commit SHA, never a tag or branch
+   - Set `persist-credentials: false` on `actions/checkout` unless the job must push
+   - Prefer Trusted Publishers (OIDC) over static registry tokens for package publishing
 
 3. **Performance:**
    - Claude workflows consume GitHub Actions minutes

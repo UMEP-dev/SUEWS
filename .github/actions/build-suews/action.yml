@@ -38,18 +38,19 @@ runs:
       if: inputs.is_testpypi_build == 'true'
       shell: bash
       run: |
-        # Add TestPyPI notice after the first heading in README.md
+        # Add TestPyPI notice after the --- separator in README.md
         # This notice only appears in TestPyPI releases, not production PyPI
-        # Insert after line 3 (after "This is the SUEWS urban climate model repository.")
-        head -n 3 README.md > README.tmp
-        # Note: Using printf to avoid YAML parsing issues with '>' at line start
+        # Find the first --- line and insert the notice after it
+        SEPARATOR_LINE=$(grep -n '^---$' README.md | head -1 | cut -d: -f1)
+        head -n "$SEPARATOR_LINE" README.md > README.tmp
         printf '\n' >> README.tmp
-        printf '**TestPyPI Release**: This is a development version published to [test.pypi.org](https://test.pypi.org/project/supy/).\n' >> README.tmp
-        printf 'For installation instructions, see [Testing Development Versions](https://docs.suews.io/latest/installation.html#testing-development-versions) in the documentation.\n' >> README.tmp
-        tail -n +4 README.md >> README.tmp
+        printf '> **TestPyPI Release**: This is a development version published to [test.pypi.org](https://test.pypi.org/project/supy/).\n' >> README.tmp
+        printf '> For installation instructions, see [Testing Development Versions](https://docs.suews.io/latest/installation.html#testing-development-versions) in the documentation.\n' >> README.tmp
+        printf '\n' >> README.tmp
+        tail -n +"$((SEPARATOR_LINE + 1))" README.md >> README.tmp
         mv README.tmp README.md
         echo "Added TestPyPI notice to README.md"
-        head -15 README.md
+        head -25 README.md
 
     - name: Modify pyproject.toml for NumPy 1.x compatibility
       if: inputs.is_umep_variant == 'true'

@@ -53,6 +53,10 @@ EXAMPLES:
 
 ## 2026
 
+### 23 Mar 2026
+
+- [feature][experimental] Add stebbs_Height guard to SPARTACUS building height validation when stebbsmethod is enabled (#1259, PR #1262).
+
 ### 20 Mar 2026
 
 - [feature][experimental] Add calculation of electrical lighting energy and optional lighting control driven by daylighting STEBBS (PR #1254).

@@ -3,3 +3,5 @@
 
 # Workflow files require admin review
 /.github/workflows/ @sunt05
+/.github/actions/ @sunt05
+/.github/scripts/ @sunt05

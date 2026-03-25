@@ -18,6 +18,7 @@ jobs:
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
+    environment: claude-code
     permissions:
       contents: read
       pull-requests: read
@@ -52,7 +53,7 @@ jobs:
 
       - name: Comment if unauthorised
         if: steps.auth-check.outputs.authorized == 'false'
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const issueNumber = context.issue?.number || context.payload.pull_request?.number || context.payload.issue?.number;
@@ -69,14 +70,15 @@ jobs:
 
       - name: Checkout repository
         if: steps.auth-check.outputs.authorized == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Run Claude Code
         if: steps.auth-check.outputs.authorized == 'true'
         id: claude
-        uses: anthropics/claude-code-action@beta
+        uses: anthropics/claude-code-action@28f83620103c48a57093dcc2837eec89e036bb9f # beta
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
@@ -142,4 +144,3 @@ jobs:
             GITHUB_ACTOR: ${{ github.actor }}
             GITHUB_EVENT_NAME: ${{ github.event_name }}
             PROJECT_NAME: SUEWS
-

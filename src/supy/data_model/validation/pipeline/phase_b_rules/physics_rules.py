@@ -453,27 +453,6 @@ def validate_model_option_same_emissivity(context) -> List[ValidationResult]:
     return results
 
 
-def _as_float(x: Any) -> Optional[float]:
-    if x is None:
-        return None
-    try:
-        return float(x)
-    except (TypeError, ValueError):
-        return None
-
-
-def _last_nonzero_from_height(height_arr: Any) -> Optional[float]:
-    """Given unwrapped height array/list, return last non-zero float, else None."""
-    if not isinstance(height_arr, (list, tuple)) or not height_arr:
-        return None
-    last_nz = None
-    for h in height_arr:
-        hf = _as_float(_unwrap_nested_value(h))
-        if hf is not None and hf != 0.0:
-            last_nz = hf
-    return last_nz
-
-
 @RulesRegistry.add_rule("forcing_height")
 def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
     """
@@ -487,6 +466,25 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
 
     This check ensures the forcing height is appropriate relative to the urban morphology.
     """
+    def _as_float(x: Any) -> Optional[float]:
+        if x is None:
+            return None
+        try:
+            return float(x)
+        except (TypeError, ValueError):
+            return None
+
+    def _last_nonzero_from_height(height_arr: Any) -> Optional[float]:
+        """Given unwrapped height array/list, return last non-zero float, else None."""
+        if not isinstance(height_arr, (list, tuple)) or not height_arr:
+            return None
+        last_nz = None
+        for h in height_arr:
+            hf = _as_float(_unwrap_nested_value(h))
+            if hf is not None and hf != 0.0:
+                last_nz = hf
+        return last_nz
+
     yaml_data = context.yaml_data
     results: List[ValidationResult] = []
 

@@ -534,8 +534,8 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                             )
                         )
                     else:
-                        # Enforce exactly 144 ten-minute slices per day-type (0-143)
-                        expected_slices = {str(i) for i in range(144)}
+                        # Enforce exactly 144 ten-minute slices per day-type (1-144)
+                        expected_slices = {str(i) for i in range(1, 145)}
                         actual_slices = set(profile.keys())
                         missing_slices = expected_slices - actual_slices
                         extra_slices = actual_slices - expected_slices
@@ -630,7 +630,13 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                             )
                         )
                     else:
-                        for slice_str, temp_val in profile.items():
+                        # Enforce exactly 144 ten-minute slices per day-type (1-144)
+                        expected_slices = {str(i) for i in range(1, 145)}
+                        actual_slices = set(profile.keys())
+                        missing_slices = expected_slices - actual_slices
+                        extra_slices = actual_slices - expected_slices
+                        for slice_str in expected_slices:
+                            temp_val = profile.get(slice_str)
                             if temp_val is None:
                                 cooling_missing_entries.append(f"{daytype}.{slice_str}")
                             else:
@@ -639,6 +645,30 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                                         cooling_out_of_range.append(f"{daytype}.{slice_str}={temp_val}")
                                 except Exception:
                                     cooling_out_of_range.append(f"{daytype}.{slice_str}={temp_val}")
+                        if missing_slices:
+                            results.append(
+                                ValidationResult(
+                                    status="ERROR",
+                                    category="MODEL_OPTIONS",
+                                    parameter=f"CoolingSetpointTemperatureProfile.{daytype}",
+                                    site_gridid=site_name,
+                                    site_index=site_idx,
+                                    message=f"CoolingSetpointTemperatureProfile.{daytype} is missing {len(missing_slices)} entries: {', '.join(sorted(missing_slices))}. Must have all 144 entries.",
+                                    suggested_value="Define all 144 ten-minute slice entries in the profile.",
+                                )
+                            )
+                        if extra_slices:
+                            results.append(
+                                ValidationResult(
+                                    status="WARNING",
+                                    category="MODEL_OPTIONS",
+                                    parameter=f"CoolingSetpointTemperatureProfile.{daytype}",
+                                    site_gridid=site_name,
+                                    site_index=site_idx,
+                                    message=f"CoolingSetpointTemperatureProfile.{daytype} has {len(extra_slices)} unexpected entries: {', '.join(sorted(extra_slices))}. Only entries 1-144 are valid.",
+                                    suggested_value="Remove any keys not in the range 1-144.",
+                                )
+                            )
 
                 if cooling_missing_entries:
                     results.append(

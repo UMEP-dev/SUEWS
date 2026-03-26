@@ -1081,10 +1081,10 @@ def test_validate_model_option_setpointmethod_0_or_1_missing_params(registry):
     assert all("must be set" in r.message for r in results if r.status == "ERROR")
 
 def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
-    heating_working = {str(i): 20.0 for i in range(144)}
-    heating_holiday = {str(i): 19.0 for i in range(144)}
-    cooling_working = {str(i): 26.0 for i in range(144)}
-    cooling_holiday = {str(i): 25.5 for i in range(144)}
+    heating_working = {str(i): 20.0 for i in range(1, 145)}
+    heating_holiday = {str(i): 19.0 for i in range(1, 145)}
+    cooling_working = {str(i): 26.0 for i in range(1, 145)}
+    cooling_holiday = {str(i): 25.5 for i in range(1, 145)}
     yaml_data = {
         "model": {"physics": {"setpointmethod": {"value": 2}}},
         "sites": [{
@@ -1155,6 +1155,31 @@ def test_validate_model_option_setpointmethod_2_out_of_range(registry):
     cooling_errors = [r for r in results if r.parameter == "CoolingSetpointTemperatureProfile" and r.status == "ERROR"]
     assert any("values >= 30.0" in r.message for r in heating_errors)
     assert any("values <= 15.0" in r.message for r in cooling_errors)
+
+def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperatureProfile": {
+                        "working_day": {"0": 20.0, "1": 19.5},
+                        "holiday": {"1": 19.0, "2": 18.5},
+                    },
+                    "CoolingSetpointTemperatureProfile": {
+                        "working_day": {"1": 26.0, "145": 27.0},
+                        "holiday": {"1": 25.5, "2": 26.5},
+                    },
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    warning_params = [r.parameter for r in results if r.status == "WARNING"]
+    assert "HeatingSetpointTemperatureProfile.working_day" in warning_params
+    assert "CoolingSetpointTemperatureProfile.working_day" in warning_params
+    assert any("Only entries 1-144 are valid." in r.message for r in results if r.status == "WARNING")
 
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
     """Test HotWaterFlowProfile accepts only 0 or 1 values."""

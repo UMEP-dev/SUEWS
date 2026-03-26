@@ -794,6 +794,121 @@ def test_phase_b_validate_model_option_same_emissivity_disabled(registry):
     assert "no check of consistency" in results_roof[0].message.lower()
     assert "same_emissivity_roof == 0" in results_roof[0].message.lower()
     
+def test_phase_b_forcing_height_error_and_warning(registry):
+    """Test validate_forcing_height_vs_buildings returns ERROR and WARNING for low z."""
+    # z < 2 * bldgh (mean), z < 2 * max(stebbs_Height, spartacus_top)
+    yaml_data = {
+        "model": {
+            "physics": {
+                "stebbsmethod": {"value": 1},
+                "netradiationmethod": {"value": 1001},
+            }
+        },
+        "sites": [
+            {
+                "name": "TestSite",
+                "gridiv": 1,
+                "properties": {
+                    "z": {"value": 10.0},
+                    "land_cover": {
+                        "bldgs": {"bldgh": {"value": 6.0}},
+                    },
+                    "building_archetype": {"stebbs_Height": {"value": 8.0}},
+                    "vertical_layers": {"height": {"value": [0, 5, 12, 0]}},
+                },
+            }
+        ],
+    }
+    results = registry["forcing_height"](ValidationContext(yaml_data=yaml_data))
+    # Should have ERROR for z < 2*bldgh (2*6=12)
+    error = [r for r in results if r.status == "ERROR"]
+    assert error
+    assert "2×mean building height" in error[0].message
+    # Should have WARNING for z < 2*max(12, 8, 6) = 24
+    warning = [r for r in results if r.status == "WARNING"]
+    assert warning
+    assert "2×max building height" in warning[0].message
+    assert "SPARTACUS top layer height=12.0" in warning[0].message
+
+def test_phase_b_forcing_height_valid(registry):
+    """Test validate_forcing_height_vs_buildings passes when z is sufficient."""
+    yaml_data = {
+        "model": {
+            "physics": {
+                "stebbsmethod": {"value": 1},
+                "netradiationmethod": {"value": 1001},
+            }
+        },
+        "sites": [
+            {
+                "name": "TestSite",
+                "gridiv": 1,
+                "properties": {
+                    "z": {"value": 30.0},
+                    "land_cover": {
+                        "bldgs": {"bldgh": {"value": 10.0}},
+                    },
+                    "building_archetype": {"stebbs_Height": {"value": 12.0}},
+                    "vertical_layers": {"height": {"value": [0, 5, 12, 15]}},
+                },
+            }
+        ],
+    }
+    results = registry["forcing_height"](ValidationContext(yaml_data=yaml_data))
+    # No ERROR or WARNING expected
+    assert not results
+
+def test_phase_b_forcing_height_only_stebbs_height(registry):
+    """Test validate_forcing_height_vs_buildings uses stebbs_Height if present."""
+    yaml_data = {
+        "model": {
+            "physics": {
+                "stebbsmethod": {"value": 1},
+            }
+        },
+        "sites": [
+            {
+                "name": "TestSite",
+                "gridiv": 1,
+                "properties": {
+                    "z": {"value": 14.0},
+                    "land_cover": {
+                        "bldgs": {"bldgh": {"value": 7.0}},
+                    },
+                    "building_archetype": {"stebbs_Height": {"value": 7.0}},
+                },
+            }
+        ],
+    }
+    results = registry["forcing_height"](ValidationContext(yaml_data=yaml_data))
+
+    assert not any(r.status == "ERROR" for r in results)
+
+def test_phase_b_forcing_height_only_spartacus_top(registry):
+    """Test validate_forcing_height_vs_buildings uses SPARTACUS top if present."""
+    yaml_data = {
+        "model": {
+            "physics": {
+                "netradiationmethod": {"value": 1001},
+            }
+        },
+        "sites": [
+            {
+                "name": "TestSite",
+                "gridiv": 1,
+                "properties": {
+                    "z": {"value": 5.0},
+                    "vertical_layers": {"height": {"value": [0, 2, 8, 0]}},
+                },
+            }
+        ],
+    }
+    results = registry["forcing_height"](ValidationContext(yaml_data=yaml_data))
+
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert warnings
+    assert any("SPARTACUS top layer height=8.0" in w.message for w in warnings)
+
 def test_validate_model_option_rcmethod_missing_params(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 1}}},

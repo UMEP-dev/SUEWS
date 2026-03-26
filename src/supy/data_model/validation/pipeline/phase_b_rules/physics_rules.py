@@ -537,14 +537,14 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
                 ValidationResult(
                     status="WARNING",
                     category="FORCING",
-                    parameter="sites[].properties.land_cover.bldgs.bldgh",
+                    parameter="properties.land_cover.bldgs.bldgh",
                     site_index=site_idx,
                     site_gridid=site_gridid,
                     message=(
-                        f"Site '{site_name}': cannot validate forcing height z={z} m against "
-                        "2× mean building height because land_cover.bldgs.bldgh is missing."
+                        f"Site '{site_name}': cannot validate forcing height z={z} against "
+                        "2×mean building height because land_cover.bldgs.bldgh is missing."
                     ),
-                    suggested_value="Provide land_cover.bldgs.bldgh (mean building height, m) to enable this check.",
+                    suggested_value="Provide land_cover.bldgs.bldgh to enable this check.",
                 )
             )
         else:
@@ -554,15 +554,14 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
                     ValidationResult(
                         status="ERROR",
                         category="FORCING",
-                        parameter="sites[].properties.z",
+                        parameter="properties.z",
                         site_index=site_idx,
                         site_gridid=site_gridid,
                         message=(
-                            f"Site '{site_name}': forcing height z={z} m is smaller than "
-                            f"2× mean building height (2×bldgh={threshold_mean} m; bldgh={bldgh} m). "
-                            "Simulation halted."
+                            f"Site '{site_name}': forcing height z={z} is smaller than "
+                            f"2×mean building height (2×bldgh={threshold_mean}; bldgh={bldgh}). "
                         ),
-                        suggested_value=f"Increase z to >= {threshold_mean} m (or reduce bldgh if morphology is wrong).",
+                        suggested_value=f"Increase z to >= {threshold_mean} (or reduce bldgh).",
                     )
                 )
 
@@ -578,21 +577,21 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
                 if stebbs_height is not None:
                     parts.append(f"stebbs_Height={stebbs_height}")
                 if spartacus_top is not None:
-                    parts.append(f"SPARTACUS_top={spartacus_top}")
+                    parts.append(f"SPARTACUS top layer height={spartacus_top}")
 
                 results.append(
                     ValidationResult(
                         status="WARNING",
                         category="FORCING",
-                        parameter="sites[].properties.z",
+                        parameter="properties.z",
                         site_index=site_idx,
                         site_gridid=site_gridid,
                         message=(
                             f"Site '{site_name}': forcing height z={z} m is smaller than "
-                            f"2× the maximum configured building height (2×Hmax={threshold_max} m; Hmax={h_max} m "
+                            f"2×max building height (2×max building height={threshold_max}; max building height={h_max} "
                             f"from {', '.join(parts)})."
                         ),
-                        suggested_value=f"Consider increasing z to >= {threshold_max} m if appropriate for your forcing data.",
+                        suggested_value=f"Consider increasing z to >= {threshold_max} if appropriate for your case.",
                     )
                 )
 

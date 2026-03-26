@@ -40,7 +40,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 72 | 79 | 29 | 79 | 40 | 299 |
+| 2026 | 73 | 79 | 29 | 80 | 40 | 301 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -53,15 +53,10 @@ EXAMPLES:
 
 ## 2026
 
-### 23 Mar 2026
+### 26 Mar 2026
 
-- [feature][experimental] Add stebbs_Height guard to SPARTACUS building height validation when stebbsmethod is enabled (#1259, PR #1262).
-
-### 20 Mar 2026
-
-- [feature][experimental] Add calculation of electrical lighting energy and optional lighting control driven by daylighting STEBBS (PR #1254).
-- [bugfix][experimental] Fix STEBBS 10-minute profile indexing to use the full-day slot (`0-143`) rather than repeating the first hour each hour, correcting metabolism, appliance, and hot water profile application (PR #1254).
-- [change][experimental] Improve STEBBS height, external wall and footprint area descriptions, linking them together (PR #1257).
+- [feature][experimental] Added rule to validate forcing height (`z`) against mean building height (`bldgh`) and maximum building height (max of `bldgh`, `stebbs_Height` if STEBBS enabled, and last non-zero `height` if SPARTACUS enabled) (#1255, PR #1266).
+- [maintenance] Moved `unwrap_value` from `config.py` to `yaml_helpers.py` and added `unwrap_nested_value` for array-like YAML structures (PR #1266).
 
 ### 19 Mar 2026
 - [feature][experimental] Added `same_emissivity_wall` and `same_emissivity_roof` model options for roof and wall emissivity validation (PR #1253)

@@ -3,7 +3,7 @@ from .rules_core import (
     ValidationResult,
 )
 from ...core.yaml_helpers import get_value_safe
-from ...core.yaml_helpers import unwrap_value as _unwrap_value
+from ...core.yaml_helpers import unwrap_nested_value as _unwrap_nested_value
 
 from collections.abc import Mapping
 from typing import Dict, List, Optional, Union, Any, Tuple
@@ -462,35 +462,13 @@ def _as_float(x: Any) -> Optional[float]:
         return None
 
 
-def _unwrap_value(x: Any) -> Any:
-    """
-    Unwraps:
-      - {"value": ...} dicts (possibly nested)
-      - objects with .value attribute (e.g. RefValue-like)
-    """
-    cur = x
-    for _ in range(10):
-        if cur is None:
-            return None
-        # dict YAML form
-        if isinstance(cur, Mapping) and "value" in cur:
-            cur = cur["value"]
-            continue
-        # RefValue-like form
-        if hasattr(cur, "value"):
-            cur = getattr(cur, "value")
-            continue
-        break
-    return cur
-
-
 def _last_nonzero_from_height(height_arr: Any) -> Optional[float]:
     """Given unwrapped height array/list, return last non-zero float, else None."""
     if not isinstance(height_arr, (list, tuple)) or not height_arr:
         return None
     last_nz = None
     for h in height_arr:
-        hf = _as_float(_unwrap_value(h))
+        hf = _as_float(_unwrap_nested_value(h))
         if hf is not None and hf != 0.0:
             last_nz = hf
     return last_nz
@@ -499,23 +477,21 @@ def _last_nonzero_from_height(height_arr: Any) -> Optional[float]:
 @RulesRegistry.add_rule("forcing_height")
 def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
     """
-    2x rule (equality is fine):
-      - WARNING if z < 2 * max_height
-      - ERROR   if z < 2 * mean_height
+    Validates that the forcing height (z) is at least twice the mean and maximum building heights.
 
-    mean_height = land_cover.bldgs.bldgh
+    - ERROR if z < 2 × mean building height (land_cover.bldgs.bldgh)
+    - WARNING if z < 2 × maximum configured building height, where maximum is the largest of:
+        - land_cover.bldgs.bldgh
+        - building_archetype.stebbs_Height (if stebbsmethod == 1)
+        - last non-zero entry in vertical_layers.height (SPARTACUS top height)
 
-    max_height = max of:
-      - land_cover.bldgs.bldgh
-      - building_archetype.stebbs_Height (only if stebbsmethod == 1)
-      - SPARTACUS top height = last non-zero entry of vertical_layers.height
-        (height is accessed like the working _validate_spartacus_building_height())
+    This check ensures the forcing height is appropriate relative to the urban morphology.
     """
     yaml_data = context.yaml_data
     results: List[ValidationResult] = []
 
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod_val = _unwrap_value(physics.get("stebbsmethod"))
+    stebbsmethod_val = _unwrap_nested_value(physics.get("stebbsmethod"))
     try:
         stebbsmethod_val = int(stebbsmethod_val)
     except (TypeError, ValueError):
@@ -527,26 +503,26 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
         site_name = site.get("name", "Unknown")
 
         # forcing height
-        z = _as_float(_unwrap_value(props.get("z")))
+        z = _as_float(_unwrap_nested_value(props.get("z")))
         if z is None:
             continue
 
         # mean building height (SUEWS land cover buildings)
-        bldgs = _unwrap_value(_unwrap_value(props.get("land_cover", {})).get("bldgs", {}))
-        bldgh = _as_float(_unwrap_value(bldgs.get("bldgh"))) if isinstance(bldgs, Mapping) else None
+        bldgs = _unwrap_nested_value(_unwrap_nested_value(props.get("land_cover", {})).get("bldgs", {}))
+        bldgh = _as_float(_unwrap_nested_value(bldgs.get("bldgh"))) if isinstance(bldgs, Mapping) else None
 
         # optional STEBBS archetype height (only when STEBBS is enabled)
         stebbs_height = None
         if stebbsmethod_val == 1:
-            archetype = _unwrap_value(props.get("building_archetype"))
+            archetype = _unwrap_nested_value(props.get("building_archetype"))
             if isinstance(archetype, Mapping):
-                stebbs_height = _as_float(_unwrap_value(archetype.get("stebbs_Height")))
+                stebbs_height = _as_float(_unwrap_nested_value(archetype.get("stebbs_Height")))
 
         # SPARTACUS heights (access pattern inspired by the working function)
-        vertical_layers = _unwrap_value(props.get("vertical_layers"))
+        vertical_layers = _unwrap_nested_value(props.get("vertical_layers"))
         height_arr = None
         if isinstance(vertical_layers, Mapping):
-            height_arr = _unwrap_value(vertical_layers.get("height"))
+            height_arr = _unwrap_nested_value(vertical_layers.get("height"))
 
         spartacus_top = _last_nonzero_from_height(height_arr)
 

@@ -140,6 +140,34 @@ def unwrap_value(val):
 
     return val
 
+
+def unwrap_nested_value(x: Any) -> Any:
+    """
+    Unwrap RefValue-like objects or {"value": ...} dicts recursively.
+
+    Handles dicts with a "value" key nested
+
+    Args:
+        x (Any): The value to unwrap.
+
+    Returns:
+        Any: The unwrapped value, or None if input is None.
+    """
+    cur = x
+    for _ in range(10):
+        if cur is None:
+            return None
+        # dict YAML form
+        if isinstance(cur, Mapping) and "value" in cur:
+            cur = cur["value"]
+            continue
+        # RefValue-like form
+        if hasattr(cur, "value"):
+            cur = getattr(cur, "value")
+            continue
+        break
+    return cur
+
 class SeasonCheck(BaseModel):
     start_date: str  # Expected format: YYYY-MM-DD
     lat: float

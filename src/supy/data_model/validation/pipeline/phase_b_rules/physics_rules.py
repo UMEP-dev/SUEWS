@@ -9,7 +9,34 @@ from typing import Dict, List, Optional, Union, Any, Tuple
 
 @RulesRegistry.add_rule("physics_params")
 def validate_physics_parameters(context) -> List[ValidationResult]:
-    """Validate required physics parameters."""
+    """
+    Validate the presence and values of required physics parameters in the model configuration.
+
+    This function checks the `model.physics` section of the provided YAML data for the presence
+    and non-null values of all required physics parameters. It returns a list of `ValidationResult`
+    objects indicating whether each required parameter is present and properly set, or if any are
+    missing or empty.
+
+    Parameters
+    ----------
+    context : object
+        An object containing the parsed YAML data as an attribute `yaml_data`. The YAML data should
+        include a `model.physics` section with all relevant physics parameters.
+
+    Returns
+    -------
+    List[ValidationResult]
+        A list of `ValidationResult` objects, each representing the outcome of the validation for
+        a specific parameter or the overall section. The status can be "PASS", "ERROR", or "WARNING"
+        depending on the validation result.
+
+    Notes
+    -----
+    - If the `model.physics` section is missing or empty, a warning is returned and further validation is skipped.
+    - If any required parameter is missing or has a null/empty value, an error is returned for each such parameter.
+    - If all required parameters are present and non-empty, a pass result is returned.
+    - For parameter descriptions and typical values, consult the SUEWS documentation: https://docs.suews.io/latest/
+    """
     yaml_data = context.yaml_data
 
     results = []

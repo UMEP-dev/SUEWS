@@ -38,18 +38,19 @@ runs:
       if: inputs.is_testpypi_build == 'true'
       shell: bash
       run: |
-        # Add TestPyPI notice after the first heading in README.md
+        # Add TestPyPI notice after the --- separator in README.md
         # This notice only appears in TestPyPI releases, not production PyPI
-        # Insert after line 3 (after "This is the SUEWS urban climate model repository.")
-        head -n 3 README.md > README.tmp
-        # Note: Using printf to avoid YAML parsing issues with '>' at line start
+        # Find the first --- line and insert the notice after it
+        SEPARATOR_LINE=$(grep -n '^---$' README.md | head -1 | cut -d: -f1)
+        head -n "$SEPARATOR_LINE" README.md > README.tmp
         printf '\n' >> README.tmp
-        printf '**TestPyPI Release**: This is a development version published to [test.pypi.org](https://test.pypi.org/project/supy/).\n' >> README.tmp
-        printf 'For installation instructions, see [Testing Development Versions](https://docs.suews.io/latest/installation.html#testing-development-versions) in the documentation.\n' >> README.tmp
-        tail -n +4 README.md >> README.tmp
+        printf '> **TestPyPI Release**: This is a development version published to [test.pypi.org](https://test.pypi.org/project/supy/).\n' >> README.tmp
+        printf '> For installation instructions, see [Testing Development Versions](https://docs.suews.io/latest/installation.html#testing-development-versions) in the documentation.\n' >> README.tmp
+        printf '\n' >> README.tmp
+        tail -n +"$((SEPARATOR_LINE + 1))" README.md >> README.tmp
         mv README.tmp README.md
         echo "Added TestPyPI notice to README.md"
-        head -15 README.md
+        head -25 README.md
 
     - name: Modify pyproject.toml for NumPy 1.x compatibility
       if: inputs.is_umep_variant == 'true'
@@ -96,7 +97,7 @@ runs:
         git diff pyproject.toml || true
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
       with:
         python-version: 3.12
 
@@ -107,7 +108,7 @@ runs:
       run: |
         # Generate version file on host (where git is available)
         # This file will be copied into the cibuildwheel container
-        if [ "${{ inputs.is_umep_variant }}" = "true" ]; then
+        if [ "${BUILD_UMEP_VARIANT}" = "true" ]; then
           echo "Generating version for UMEP variant (rc1 suffix)"
           export BUILD_UMEP_VARIANT=true
         fi
@@ -119,7 +120,7 @@ runs:
       run: mkdir -p .cargo-cache .rust-target-cache
 
     - name: Cache Rust/Cargo dependencies
-      uses: actions/cache@v4
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: |
           .cargo-cache
@@ -129,7 +130,7 @@ runs:
           cargo-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-${{ inputs.python }}-
 
     - name: Build wheels
-      uses: pypa/cibuildwheel@v3.2
+      uses: pypa/cibuildwheel@9c00cb4f6b517705a3794b22395aedc36257242c # v3.2
       env:
         IS_32_BIT: ${{ inputs.buildplat_arch == 'x86' }}
         BUILD_UMEP_VARIANT: ${{ inputs.is_umep_variant }}
@@ -243,7 +244,7 @@ runs:
         MACOSX_DEPLOYMENT_TARGET: '15.0'
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
         name: ${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}${{ inputs.wheel_name_suffix }}
         path: ./wheelhouse/*.whl

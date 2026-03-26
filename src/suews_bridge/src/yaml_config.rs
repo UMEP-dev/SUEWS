@@ -182,44 +182,88 @@ fn normalise_field_name(field: &str) -> String {
     out
 }
 
+fn profile_label(field_prefix: &str) -> &'static str {
+    match field_prefix {
+        "metabolismprofile" => "MetabolismProfile",
+        "applianceprofile" => "ApplianceProfile",
+        "heatingsetpointtemperatureprofile" => "HeatingSetpointTemperatureProfile",
+        "coolingsetpointtemperatureprofile" => "CoolingSetpointTemperatureProfile",
+        "hot_water_flow_profile" => "HotWaterFlowProfile",
+        _ => "Profile",
+    }
+}
+
 fn apply_day_profile_overrides(
     mapped: &mut BTreeMap<String, f64>,
     profile_root: &Value,
     field_prefix: &str,
     n_steps: usize,
-) {
+) -> Result<(), String> {
+    let profile_name = profile_label(field_prefix);
     let profile = get_path(profile_root, &["value"]).unwrap_or(profile_root);
 
     for (day_key, day_type) in [("working_day", 1_usize), ("holiday", 2_usize)] {
         let Some(day_root) = get_path(profile, &[day_key]) else {
-            continue;
+            return Err(format!(
+                "{profile_name} must define both `working_day` and `holiday` profiles; missing `{day_key}`."
+            ));
         };
 
         let Value::Mapping(day_map) = day_root else {
-            continue;
+            return Err(format!(
+                "{profile_name}.{day_key} must be a mapping of ten-minute slice to value."
+            ));
         };
 
+        let mut seen_steps = vec![false; n_steps];
         for (step_key, step_value) in day_map {
             let Value::String(step_label) = step_key else {
-                continue;
+                return Err(format!(
+                    "{profile_name}.{day_key} has a non-string step key; only `1`-`{n_steps}` are valid."
+                ));
             };
 
             let Ok(step_1based) = step_label.parse::<usize>() else {
-                continue;
+                return Err(format!(
+                    "{profile_name}.{day_key} has invalid step `{step_label}`; only `1`-`{n_steps}` are valid."
+                ));
             };
 
             if step_1based == 0 || step_1based > n_steps {
-                continue;
+                return Err(format!(
+                    "{profile_name}.{day_key} has invalid step `{step_label}`; only `1`-`{n_steps}` are valid."
+                ));
             }
 
-            if let Some(v) = read_numeric_value(step_value) {
-                mapped.insert(
-                    format!("{field_prefix}.{:03}.{}", step_1based - 1, day_type),
-                    v,
-                );
-            }
+            let Some(v) = read_numeric_value(step_value) else {
+                return Err(format!(
+                    "{profile_name}.{day_key}.{step_label} must be numeric."
+                ));
+            };
+
+            seen_steps[step_1based - 1] = true;
+            mapped.insert(
+                format!("{field_prefix}.{:03}.{}", step_1based - 1, day_type),
+                v,
+            );
+        }
+
+        let missing_steps: Vec<String> = seen_steps
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, seen)| (!seen).then_some((idx + 1).to_string()))
+            .collect();
+
+        if !missing_steps.is_empty() {
+            return Err(format!(
+                "{profile_name}.{day_key} is missing {} entries: {}. Must define all {n_steps} ten-minute slices.",
+                missing_steps.len(),
+                missing_steps.join(", ")
+            ));
         }
     }
+
+    Ok(())
 }
 
 fn set_mapped_value(mapped: &mut BTreeMap<String, f64>, field_name: &str, value: f64) {
@@ -1484,13 +1528,13 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, ndepth: usize) {
     }
 }
 
-fn apply_building_archetype_overrides(site: &mut SuewsSite, site_root: &Value) {
+fn apply_building_archetype_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
     let Some(archetype_root) = get_path(site_root, &["properties", "building_archetype"]) else {
-        return;
+        return Ok(());
     };
 
     let Value::Mapping(archetype_map) = archetype_root else {
-        return;
+        return Ok(());
     };
 
     let mut mapped = building_archetype_prm_to_map(&site.building_archtype);
@@ -1503,12 +1547,42 @@ fn apply_building_archetype_overrides(site: &mut SuewsSite, site_root: &Value) {
         let field_name = normalise_field_name(field_name_raw);
 
         if field_name == "metabolism_profile" {
-            apply_day_profile_overrides(&mut mapped, field_value, "metabolismprofile", 144);
+            apply_day_profile_overrides(
+                &mut mapped,
+                field_value,
+                "metabolismprofile",
+                144,
+            )?;
             continue;
         }
 
         if field_name == "appliance_profile" {
-            apply_day_profile_overrides(&mut mapped, field_value, "applianceprofile", 144);
+            apply_day_profile_overrides(
+                &mut mapped,
+                field_value,
+                "applianceprofile",
+                144,
+            )?;
+            continue;
+        }
+
+        if field_name == "heating_setpoint_temperature_profile" {
+            apply_day_profile_overrides(
+                &mut mapped,
+                field_value,
+                "heatingsetpointtemperatureprofile",
+                144,
+            )?;
+            continue;
+        }
+
+        if field_name == "cooling_setpoint_temperature_profile" {
+            apply_day_profile_overrides(
+                &mut mapped,
+                field_value,
+                "coolingsetpointtemperatureprofile",
+                144,
+            )?;
             continue;
         }
 
@@ -1537,18 +1611,17 @@ fn apply_building_archetype_overrides(site: &mut SuewsSite, site_root: &Value) {
         }
     }
 
-    if let Ok(updated) = building_archetype_prm_from_map(&mapped) {
-        site.building_archtype = updated;
-    }
+    site.building_archtype = building_archetype_prm_from_map(&mapped).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
-fn apply_stebbs_overrides(site: &mut SuewsSite, site_root: &Value) {
+fn apply_stebbs_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
     let Some(stebbs_root) = get_path(site_root, &["properties", "stebbs"]) else {
-        return;
+        return Ok(());
     };
 
     let Value::Mapping(stebbs_map) = stebbs_root else {
-        return;
+        return Ok(());
     };
 
     let mut mapped = stebbs_prm_to_map(&site.stebbs);
@@ -1562,7 +1635,12 @@ fn apply_stebbs_overrides(site: &mut SuewsSite, site_root: &Value) {
         let field_name = normalise_field_name(field_name_raw);
 
         if field_name == "hot_water_flow_profile" {
-            apply_day_profile_overrides(&mut mapped, field_value, "hot_water_flow_profile", 144);
+            apply_day_profile_overrides(
+                &mut mapped,
+                field_value,
+                "hot_water_flow_profile",
+                144,
+            )?;
             continue;
         }
 
@@ -1574,7 +1652,7 @@ fn apply_stebbs_overrides(site: &mut SuewsSite, site_root: &Value) {
                 field_value,
                 "applianceprofile",
                 144,
-            );
+            )?;
             continue;
         }
 
@@ -1592,12 +1670,10 @@ fn apply_stebbs_overrides(site: &mut SuewsSite, site_root: &Value) {
         }
     }
 
-    if let Ok(updated) = stebbs_prm_from_map(&mapped) {
-        site.stebbs = updated;
-    }
-    if let Ok(updated) = building_archetype_prm_from_map(&archetype_mapped) {
-        site.building_archtype = updated;
-    }
+    site.stebbs = stebbs_prm_from_map(&mapped).map_err(|e| e.to_string())?;
+    site.building_archtype =
+        building_archetype_prm_from_map(&archetype_mapped).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 fn apply_site_overrides(
@@ -1606,7 +1682,7 @@ fn apply_site_overrides(
     site_root: &Value,
     nlayer: usize,
     ndepth: usize,
-) {
+) -> Result<(), String> {
     apply_conductance_overrides(site, root, site_root);
     apply_lumps_overrides(site, site_root);
     apply_spartacus_overrides(site, site_root);
@@ -1615,9 +1691,10 @@ fn apply_site_overrides(
     apply_snow_overrides(site, site_root);
     apply_vertical_layers_overrides(site, site_root);
     apply_anthro_emis_overrides(site, site_root);
-    apply_building_archetype_overrides(site, site_root);
-    apply_stebbs_overrides(site, site_root);
+    apply_building_archetype_overrides(site, site_root)?;
+    apply_stebbs_overrides(site, site_root)?;
     apply_ehc_overrides(site, site_root, ndepth);
+    Ok(())
 }
 
 fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
@@ -2010,7 +2087,7 @@ pub fn load_run_config_from_value(root: &Value) -> Result<RunConfig, String> {
         site_root,
         nlayer as usize,
         ndepth as usize,
-    );
+    )?;
     apply_site_scalar_overrides(&mut site_scalars, site_root);
 
     if let Some(tstep) = read_i32(&root, &["model", "control", "tstep"]) {
@@ -2123,6 +2200,24 @@ fn resize_state_variable_arrays(state: &mut SuewsState, nlayer: usize, ndepth: u
 mod tests {
     use super::*;
 
+    fn get_path_mut<'a>(root: &'a mut Value, path: &[&str]) -> Option<&'a mut Value> {
+        let mut current = root;
+        for key in path {
+            current = match current {
+                Value::Mapping(map) => map.get_mut(Value::String((*key).to_string()))?,
+                _ => return None,
+            };
+        }
+        Some(current)
+    }
+
+    fn first_site_mut(root: &mut Value) -> Option<&mut Value> {
+        match get_path_mut(root, &["sites"])? {
+            Value::Sequence(items) => items.get_mut(0),
+            _ => None,
+        }
+    }
+
     #[test]
     fn parses_stebbs_and_building_archetype_sections() {
         let yaml_str =
@@ -2185,5 +2280,59 @@ mod tests {
         assert!((run_cfg.site.ehc.tin_surf[0] - 17.540002822875977).abs() < 1.0e-12);
         assert!((run_cfg.site.ehc.tin_roof[0] - 17.540002822875977).abs() < 1.0e-12);
         assert!((run_cfg.site.ehc.tin_wall[0] - 17.540002822875977).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn rejects_incomplete_setpoint_profiles() {
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        let working_day = get_path_mut(
+            site,
+            &[
+                "properties",
+                "building_archetype",
+                "HeatingSetpointTemperatureProfile",
+                "working_day",
+            ],
+        )
+        .expect("fixture should contain heating working-day profile");
+        let Value::Mapping(working_day_map) = working_day else {
+            panic!("heating working-day profile should be a mapping");
+        };
+        working_day_map.remove(Value::String("144".to_string()));
+
+        let err = load_run_config_from_value(&root).expect_err("incomplete profile should fail");
+        assert!(err.contains("HeatingSetpointTemperatureProfile.working_day is missing 1 entries: 144"));
+    }
+
+    #[test]
+    fn rejects_out_of_range_setpoint_profile_steps() {
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        let working_day = get_path_mut(
+            site,
+            &[
+                "properties",
+                "building_archetype",
+                "CoolingSetpointTemperatureProfile",
+                "working_day",
+            ],
+        )
+        .expect("fixture should contain cooling working-day profile");
+        let Value::Mapping(working_day_map) = working_day else {
+            panic!("cooling working-day profile should be a mapping");
+        };
+        let valid_value = working_day_map
+            .get(Value::String("1".to_string()))
+            .cloned()
+            .expect("fixture should contain slice 1");
+        working_day_map.insert(Value::String("0".to_string()), valid_value);
+
+        let err = load_run_config_from_value(&root).expect_err("out-of-range step should fail");
+        assert!(err.contains("CoolingSetpointTemperatureProfile.working_day has invalid step `0`"));
     }
 }

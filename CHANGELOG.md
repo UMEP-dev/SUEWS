@@ -53,10 +53,14 @@ EXAMPLES:
 
 ## 2026
 
-### 23 Mar 2026
+### 26 Mar 2026
 
 - [feature][experimental] Add `setpointmethod` model option and heating/cooling setpoint profiles in STEBBS, supporting constant, dependent, and scheduled setpoint approaches (PR #1261).
 - [bugfix] Skip STEBBS wall or window surface-temperature calculations for the extreme `WWR` cases, avoiding non-existent surface calculations when `WWR = 0` or `WWR = 1` (PR #1261).
+
+### 23 Mar 2026
+
+- [feature][experimental] Add stebbs_Height guard to SPARTACUS building height validation when stebbsmethod is enabled (#1259, PR #1262).
 
 ### 20 Mar 2026
 

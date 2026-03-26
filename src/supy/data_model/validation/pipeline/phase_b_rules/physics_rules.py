@@ -516,13 +516,20 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
             if isinstance(archetype, Mapping):
                 stebbs_height = _as_float(_unwrap_nested_value(archetype.get("stebbs_Height")))
 
-        # SPARTACUS heights (access pattern inspired by the working function)
-        vertical_layers = _unwrap_nested_value(props.get("vertical_layers"))
-        height_arr = None
-        if isinstance(vertical_layers, Mapping):
-            height_arr = _unwrap_nested_value(vertical_layers.get("height"))
+        # SPARTACUS heights (only if SPARTACUS is enabled via netradiationmethod)
+        spartacus_top = None
+        netradiationmethod_val = _unwrap_nested_value(physics.get("netradiationmethod"))
+        try:
+            netradiationmethod_val = int(netradiationmethod_val)
+        except (TypeError, ValueError):
+            netradiationmethod_val = None
 
-        spartacus_top = _last_nonzero_from_height(height_arr)
+        if netradiationmethod_val in (1001, 1002, 1003):
+            vertical_layers = _unwrap_nested_value(props.get("vertical_layers"))
+            height_arr = None
+            if isinstance(vertical_layers, Mapping):
+                height_arr = _unwrap_nested_value(vertical_layers.get("height"))
+                spartacus_top = _last_nonzero_from_height(height_arr)
 
         # --- ERROR: z smaller than 2x mean building height ---
         if bldgh is None:

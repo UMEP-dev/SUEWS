@@ -456,15 +456,26 @@ def validate_model_option_same_emissivity(context) -> List[ValidationResult]:
 @RulesRegistry.add_rule("forcing_height")
 def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
     """
-    Validates that the forcing height (z) is at least twice the mean and maximum building heights.
+    Validate that the forcing height (z) is at least twice the mean and maximum building heights.
 
-    - ERROR if z < 2 × mean building height (land_cover.bldgs.bldgh)
-    - WARNING if z < 2 × maximum configured building height, where maximum is the largest of:
-        - land_cover.bldgs.bldgh
-        - building_archetype.stebbs_Height (if stebbsmethod == 1)
-        - last non-zero entry in vertical_layers.height (SPARTACUS top height)
+    Parameters
+    ----------
+    context : object
+        Validation context containing the parsed YAML data.
 
-    This check ensures the forcing height is appropriate relative to the urban morphology.
+    Returns
+    -------
+    List[ValidationResult]
+        List of validation results indicating errors or warnings if the forcing height is too low.
+
+    Notes
+    -----
+    - Raises an ERROR if `z` < 2 × mean building height (`land_cover.bldgs.bldgh`).
+    - Raises a WARNING if `z` < 2 × maximum configured building height, where the maximum is the largest of:
+        - `land_cover.bldgs.bldgh`
+        - `building_archetype.stebbs_Height` (if `stebbsmethod == 1`)
+        - Last non-zero entry in `vertical_layers.height` (SPARTACUS top height, if enabled)
+    - This check ensures the forcing height is appropriate relative to the urban morphology.
     """
     def _as_float(x: Any) -> Optional[float]:
         if x is None:

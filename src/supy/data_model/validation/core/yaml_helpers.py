@@ -109,6 +109,36 @@ def get_value_safe(param_dict, param_key, default=None):
     else:
         return param  # Plain format: 1
 
+def unwrap_value(val):
+    """
+    Unwrap RefValue and Enum values consistently.
+
+    This helper ensures consistent handling of RefValue wrappers and Enum values
+    throughout the validation logic.
+
+    Args:
+        val: The value to unwrap (could be RefValue, Enum, or raw value)
+
+    Returns:
+        The unwrapped raw value
+    """
+    # Handle RefValue wrapper
+    if (
+        hasattr(val, "value")
+        and hasattr(val, "__class__")
+        and "RefValue" in val.__class__.__name__
+    ):
+        val = val.value
+
+    # Handle Enum values (which also have .value attribute)
+    if (
+        hasattr(val, "value")
+        and hasattr(val, "__class__")
+        and "Enum" in str(val.__class__.__bases__)
+    ):
+        val = val.value
+
+    return val
 
 class SeasonCheck(BaseModel):
     start_date: str  # Expected format: YYYY-MM-DD

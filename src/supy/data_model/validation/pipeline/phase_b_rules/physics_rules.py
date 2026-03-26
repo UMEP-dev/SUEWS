@@ -564,7 +564,7 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                         if extra_slices:
                             results.append(
                                 ValidationResult(
-                                    status="WARNING",
+                                    status="ERROR",
                                     category="MODEL_OPTIONS",
                                     parameter=f"HeatingSetpointTemperatureProfile.{daytype}",
                                     site_gridid=site_name,
@@ -660,7 +660,7 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                         if extra_slices:
                             results.append(
                                 ValidationResult(
-                                    status="WARNING",
+                                    status="ERROR",
                                     category="MODEL_OPTIONS",
                                     parameter=f"CoolingSetpointTemperatureProfile.{daytype}",
                                     site_gridid=site_name,

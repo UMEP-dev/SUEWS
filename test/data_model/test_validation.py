@@ -1176,11 +1176,15 @@ def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
         }],
     }
     results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
-    warning_params = [r.parameter for r in results if r.status == "WARNING"]
-    assert "HeatingSetpointTemperatureProfile.working_day" in warning_params
-    assert "CoolingSetpointTemperatureProfile.working_day" in warning_params
-    assert any("Only entries 1-144 are valid." in r.message for r in results if r.status == "WARNING")
-
+    error_params = [r.parameter for r in results if r.status == "ERROR"]
+    assert "HeatingSetpointTemperatureProfile.working_day" in error_params
+    assert "CoolingSetpointTemperatureProfile.working_day" in error_params
+    assert any(
+        "Only entries 1-144 are valid." in r.message
+        for r in results
+        if r.status == "ERROR"
+    )
+    
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
     """Test HotWaterFlowProfile accepts only 0 or 1 values."""
 

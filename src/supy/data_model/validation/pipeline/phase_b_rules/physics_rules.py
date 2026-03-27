@@ -121,6 +121,26 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
 
 
 def validate_rslmethod_dependency(rslmethod, stabilitymethod):
+    """
+    Validate the dependency between `rslmethod` and `stabilitymethod` parameters.
+
+    Parameters
+    ----------
+    rslmethod : int or None
+        The roughness sublayer method identifier. Can be None or an integer.
+    stabilitymethod : int or None
+        The atmospheric stability method identifier. Can be None or an integer.
+
+    Returns
+    -------
+    ValidationResult
+        The result of the validation, indicating whether the parameter constraints are satisfied or an error with a suggested fix.
+
+    Notes
+    -----
+    - If `rslmethod` is 2, `stabilitymethod` must be 3.
+    - If `stabilitymethod` is 1, `rslmethod` must be provided (not None).
+    """
     if rslmethod == 2 and stabilitymethod != 3:
         return ValidationResult(
             status="ERROR",
@@ -148,6 +168,27 @@ def validate_rslmethod_dependency(rslmethod, stabilitymethod):
 
 
 def validate_storageheatmethod_dependency(storageheatmethod, ohmincqf):
+    """
+    Validate the dependency between StorageHeatMethod and OhmIncQf model options.
+
+    Parameters
+    ----------
+    storageheatmethod : int
+        The value of the StorageHeatMethod parameter.
+    ohmincqf : int
+        The value of the OhmIncQf parameter.
+
+    Returns
+    -------
+    ValidationResult
+        The result of the validation, including status, category, parameter,
+        message, and suggested value if applicable.
+
+    Notes
+    -----
+    - If StorageHeatMethod == 1, OhmIncQf must be 0.
+    - If this dependency is not satisfied, an error is returned with a suggested fix.
+    """
     if storageheatmethod == 1 and ohmincqf != 0:
         return ValidationResult(
             status="ERROR",
@@ -165,6 +206,27 @@ def validate_storageheatmethod_dependency(storageheatmethod, ohmincqf):
 
 
 def validate_smdmethod_dependency(smdmethod, yaml_data):
+    """
+    Validate the dependency between SMDMethod and the presence of soil_observation configuration in site properties.
+
+    Parameters
+    ----------
+    smdmethod : int
+        The value of the SMDMethod parameter. If set to a truthy value (typically 1, indicating observed soil moisture), additional validation is performed.
+    yaml_data : dict
+        The parsed YAML configuration data containing site definitions and their properties.
+
+    Returns
+    -------
+    list of ValidationResult
+        A list of validation results. Returns an error if SMDMethod is set to observed and any site is missing the required 'soil_observation' block; otherwise, returns a pass result if validation succeeds. Returns an empty list if SMDMethod is modelled (0 or None).
+
+    Notes
+    -----
+    - If SMDMethod is set to observed, each site must include a 'soil_observation' block in its properties.
+    - The 'soil_observation' block should contain: depth, smcap, soil_not_rocks, and bulk_density.
+    - If any site is missing this block, an error is returned with a suggested fix.
+    """
     results = []
 
     # Only method 1 (OHM_WITHOUT_QF) has specific compatibility requirements
@@ -258,6 +320,32 @@ def validate_model_option_dependencies(context) -> List[ValidationResult]:
 
 
 def check_rcmethod2_facet(required_params, building_archetype, site_idx, site_gridid, facet):
+    """
+    Validate that required facet material parameters are provided when rcmethod is set to 2, and generate warnings for used parameter values.
+
+    Parameters
+    ----------
+    required_params : list of str
+        List of parameter names that must be present in the building archetype for the specified facet.
+    building_archetype : dict
+        Dictionary containing building archetype properties and their values.
+    site_idx : int
+        Index of the site being validated.
+    site_gridid : str
+        Grid identifier for the site being validated.
+    facet : str
+        Name of the building facet (e.g., 'Wall', 'Roof') for which parameters are being validated.
+
+    Returns
+    -------
+    list of ValidationResult
+        A list of validation results. Returns an error for each missing or null required parameter, and a warning listing the provided parameter values for the facet.
+
+    Notes
+    -----
+    - When rcmethod is set to 2, all required facet material parameters must be provided and non-null.
+    - A warning is issued listing the parameter values that will be used for parameterisation, prompting the user to verify their correctness.
+    """
     # Collect provided wall params
     provided_facet = []
     results = []
@@ -295,6 +383,27 @@ def check_rcmethod2_facet(required_params, building_archetype, site_idx, site_gr
 
 
 def check_outercapfrac_facet(building_archetype, facet, site_idx, site_gridid):
+    """
+    Validate that the OuterCapFrac parameter for a given building facet is explicitly provided and within the valid range when rcmethod is set to 1.
+    Parameters
+    ----------
+    building_archetype : dict
+        Dictionary containing building archetype properties and their values.
+    facet : str
+        Name of the building facet (e.g., 'Wall', 'Roof') for which OuterCapFrac is being validated.
+    site_idx : int
+        Index of the site being validated.
+    site_gridid : str
+        Grid identifier for the site being validated.
+    Returns
+    -------
+    ValidationResult
+        A validation result indicating an error if OuterCapFrac is missing or out of the valid range (0, 1), with a suggested value for correction.
+    Notes
+    -----
+    - When rcmethod is set to 1, the {facet}OuterCapFrac parameter must be explicitly set and strictly between 0 and 1.
+    - Returns an error if the parameter is missing or outside the valid range, including a message and suggested value.
+    """
     facet_frac_entry = building_archetype.get(f"{facet}OuterCapFrac", {})
     facet_frac = facet_frac_entry.get("value") if isinstance(facet_frac_entry, Mapping) else facet_frac_entry
     
@@ -385,6 +494,27 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
     return results
 
 def validate_model_option_same_albedo_facet(site_data, facet):
+    """
+    Validate and generate a warning when the model option for using the same albedo for all layers of a given facet is enabled, without checking consistency between individual layer albedos and the overall facet reflectivity.
+
+    Parameters
+    ----------
+    site_data : dict
+        Dictionary containing site-specific data, including properties and vertical layer information.
+    facet : str
+        Name of the building facet (e.g., 'Wall', 'Roof') for which the albedo consistency is being considered.
+
+    Returns
+    -------
+    ValidationResult
+        A validation result with a warning status, indicating that no consistency check was performed between the albedo values of individual layers and the overall facet reflectivity.
+
+    Notes
+    -----
+    - This function is used when the model option to use the same albedo for all layers of a facet is enabled (same_albedo_{facet.lower()} == 0).
+    - The function collects all albedo values found for the specified facet's layers and the overall facet reflectivity, and includes them in the warning message for user reference.
+    - No error is raised; only a warning is generated to inform the user of the unchecked consistency.
+    """
     site_name = site_data.get("name", "Unknown")
     vlay = site_data.get("properties", {}).get("vertical_layers", {})
     facet_layers = vlay.get(f"{facet.lower()}s", [])

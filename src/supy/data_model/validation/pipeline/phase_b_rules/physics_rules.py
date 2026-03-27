@@ -500,11 +500,18 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
     results: List[ValidationResult] = []
 
     physics = yaml_data.get("model", {}).get("physics", {})
+    
     stebbsmethod_val = _unwrap_nested_value(physics.get("stebbsmethod"))
     try:
         stebbsmethod_val = int(stebbsmethod_val)
     except (TypeError, ValueError):
         stebbsmethod_val = None
+
+    netradiationmethod_val = _unwrap_nested_value(physics.get("netradiationmethod"))
+    try:
+        netradiationmethod_val = int(netradiationmethod_val)
+    except (TypeError, ValueError):
+        netradiationmethod_val = None
 
     for site_idx, site in enumerate(yaml_data.get("sites", [])):
         props = site.get("properties", {})
@@ -529,11 +536,6 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
 
         # SPARTACUS heights (only if SPARTACUS is enabled via netradiationmethod)
         spartacus_top = None
-        netradiationmethod_val = _unwrap_nested_value(physics.get("netradiationmethod"))
-        try:
-            netradiationmethod_val = int(netradiationmethod_val)
-        except (TypeError, ValueError):
-            netradiationmethod_val = None
 
         if netradiationmethod_val in (1001, 1002, 1003):
             vertical_layers = _unwrap_nested_value(props.get("vertical_layers"))

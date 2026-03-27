@@ -171,6 +171,7 @@ def unwrap_nested_value(x: Any) -> Any:
         break
     return cur
 
+
 class SeasonCheck(BaseModel):
     start_date: str  # Expected format: YYYY-MM-DD
     lat: float

@@ -19,9 +19,8 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
 
     Parameters
     ----------
-    context : object
-        An object containing the parsed YAML data as an attribute `yaml_data`. The YAML data should
-        include a `model.physics` section with all relevant physics parameters.
+    context : ValidationContext
+        The validation context containing the parsed YAML configuration data and any additional context needed for validation.
 
     Returns
     -------
@@ -121,7 +120,6 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
     return results
 
 
-
 def validate_rslmethod_dependency(rslmethod, stabilitymethod):
     if rslmethod == 2 and stabilitymethod != 3:
         return ValidationResult(
@@ -214,7 +212,25 @@ def validate_smdmethod_dependency(smdmethod, yaml_data):
 
 @RulesRegistry.add_rule("option_dependencies")
 def validate_model_option_dependencies(context) -> List[ValidationResult]:
-    """Validate consistency between model physics options."""
+    """
+    Validate dependencies and consistency between model physics options.
+    This function checks for consistency and required dependencies among various physics-related
+    model options defined in the YAML configuration file. It performs the following validations:
+        - Ensures that the selected RSL method is compatible with the chosen stability method.
+        - Checks compatibility between the storage heat method and the OhmIncQf option.
+        - Validates that the SMD method is consistent with the presence of required soil observation data.
+    Parameters
+    ----------
+    context : ValidationContext
+        The validation context containing the parsed YAML configuration data and any additional context needed for validation.
+    Returns
+    -------
+    List[ValidationResult]
+        A list of `ValidationResult` objects, each representing the outcome of the validation for
+        a specific parameter or the overall section. The status can be "PASS", "ERROR", or "WARNING"
+        depending on the validation result.
+    """
+
     yaml_data = context.yaml_data
     
     results = []
@@ -301,9 +317,23 @@ def check_outercapfrac_facet(building_archetype, facet, site_idx, site_gridid):
 
 @RulesRegistry.add_rule("rcmethod")
 def validate_model_option_rcmethod(context) -> List[ValidationResult]:
-    """Validate RoofOuterCapFrac and WallOuterCapFrac if rcmethod == 1.
-    For rcmethod == 2, validate required roof/wall external parameters are not null.
-    If provided, emit a warning with their values for user review.
+    """
+    Validate dependencies and consistency for the rcmethod model physics option.
+    This function checks for consistency and required dependencies among various roof and wall
+    parameter options defined in the YAML configuration file. It performs the following validations:
+        - If rcmethod == 1, ensures that RoofOuterCapFrac and WallOuterCapFrac are provided and within valid range.
+        - If rcmethod == 2, checks that required roof and wall external parameters are present and non-null.
+        - Emits warnings with the provided values for user review if applicable.
+    Parameters
+    ----------
+    context : ValidationContext
+        The validation context containing the parsed YAML configuration data and any additional context needed for validation.
+    Returns
+    -------
+    List[ValidationResult]
+        A list of `ValidationResult` objects, each representing the outcome of the validation for
+        a specific parameter or the overall section. The status can be "PASS", "ERROR", or "WARNING"
+        depending on the validation result.
     """
     yaml_data = context.yaml_data
 
@@ -382,6 +412,23 @@ def validate_model_option_same_albedo_facet(site_data, facet):
 
 @RulesRegistry.add_rule("same_albedo")
 def validate_model_option_same_albedo(context) -> List[ValidationResult]:
+    """
+    Validate dependencies and consistency for the same_albedo model physics options.
+    This function checks for consistency and required dependencies among various wall and roof
+    albedo options defined in the YAML configuration file. It performs the following validations:
+        - If same_albedo_wall == 0, validates wall albedo values for each site and reports site names.
+        - If same_albedo_roof == 0, validates roof albedo values for each site and reports site names.
+    Parameters
+    ----------
+    context : ValidationContext
+        The validation context containing the parsed YAML configuration data and any additional context needed for validation.
+    Returns
+    -------
+    List[ValidationResult]
+        A list of `ValidationResult` objects, each representing the outcome of the validation for
+        a specific parameter or the overall section. The status can be "PASS", "ERROR", or "WARNING"
+        depending on the validation result.
+    """
     """Validate consistency between model physics options, reporting site names."""
     yaml_data = context.yaml_data
     
@@ -408,7 +455,21 @@ def validate_model_option_same_albedo(context) -> List[ValidationResult]:
 @RulesRegistry.add_rule("same_emissivity")
 def validate_model_option_same_emissivity(context) -> List[ValidationResult]:
     """
-    Validates the consistency of model physics options related to wall and roof emissivities.
+    Validate dependencies and consistency for the same_emissivity model physics options.
+    This function checks for consistency and required dependencies among various wall and roof
+    emissivity options defined in the YAML configuration file. It performs the following validations:
+        - If same_emissivity_wall == 0, emits a warning with the found wall emissivity values and WallExternalEmissivity for user review.
+        - If same_emissivity_roof == 0, emits a warning with the found roof emissivity values and RoofExternalEmissivity for user review.
+    Parameters
+    ----------
+    context : ValidationContext
+        The validation context containing the parsed YAML configuration data and any additional context needed for validation.
+    Returns
+    -------
+    List[ValidationResult]
+        A list of `ValidationResult` objects, each representing the outcome of the validation for
+        a specific parameter or the overall section. The status can be "PASS", "ERROR", or "WARNING"
+        depending on the validation result.
     """
     results = []
     yaml_data = context.yaml_data

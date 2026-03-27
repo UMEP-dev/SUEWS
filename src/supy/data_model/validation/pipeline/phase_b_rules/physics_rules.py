@@ -553,7 +553,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
                     site_gridid=site_gridid,
                     message=(
                         f"Site '{site_name}': cannot validate forcing height z={z} against "
-                        "2×mean building height because land_cover.bldgs.bldgh is missing."
+                        "2*mean building height because land_cover.bldgs.bldgh is missing."
                     ),
                     suggested_value="Provide land_cover.bldgs.bldgh to enable this check.",
                 )
@@ -570,7 +570,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
                         site_gridid=site_gridid,
                         message=(
                             f"Site '{site_name}': forcing height z={z} is smaller than "
-                            f"2×mean building height (2×bldgh={threshold_mean}; bldgh={bldgh}). "
+                            f"2*mean building height (2*bldgh={threshold_mean}; bldgh={bldgh}). "
                         ),
                         suggested_value=f"Increase z to >= {threshold_mean} (or reduce bldgh).",
                     )
@@ -599,7 +599,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
                         site_gridid=site_gridid,
                         message=(
                             f"Site '{site_name}': forcing height z={z} m is smaller than "
-                            f"2×max building height (2×max building height={threshold_max}; max building height={h_max} "
+                            f"2*max building height (2*max building height={threshold_max}; max building height={h_max} "
                             f"from {', '.join(parts)})."
                         ),
                         suggested_value=f"Consider increasing z to >= {threshold_max} if appropriate for your case.",

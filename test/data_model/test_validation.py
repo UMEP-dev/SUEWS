@@ -823,11 +823,11 @@ def test_phase_b_forcing_height_error_and_warning(registry):
     # Should have ERROR for z < 2*bldgh (2*6=12)
     error = [r for r in results if r.status == "ERROR"]
     assert error
-    assert "2×mean building height" in error[0].message
+    assert "2*mean building height" in error[0].message
     # Should have WARNING for z < 2*max(12, 8, 6) = 24
     warning = [r for r in results if r.status == "WARNING"]
     assert warning
-    assert "2×max building height" in warning[0].message
+    assert "2*max building height" in warning[0].message
     assert "SPARTACUS top layer height=12.0" in warning[0].message
 
 def test_phase_b_forcing_height_valid(registry):

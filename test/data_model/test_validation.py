@@ -885,7 +885,7 @@ def test_phase_b_forcing_height_only_stebbs_height(registry):
     assert not any(r.status == "ERROR" for r in results)
 
 def test_phase_b_forcing_height_only_spartacus_top(registry):
-    """Test validate_forcing_height_vs_buildings uses SPARTACUS top if present."""
+    """Test validate_forcing_height_vs_buildings uses SPARTACUS top if present, and warns if bldgh is missing."""
     yaml_data = {
         "model": {
             "physics": {
@@ -907,8 +907,15 @@ def test_phase_b_forcing_height_only_spartacus_top(registry):
 
     warnings = [r for r in results if r.status == "WARNING"]
     assert warnings
+    # Check for SPARTACUS top layer warning
     assert any("SPARTACUS top layer height=8.0" in w.message for w in warnings)
-
+    # Check for missing bldgh warning
+    assert any(
+        "cannot validate forcing height" in w.message
+        and "land_cover.bldgs.bldgh is missing" in w.message
+        for w in warnings
+    )
+    
 def test_validate_model_option_rcmethod_missing_params(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 1}}},

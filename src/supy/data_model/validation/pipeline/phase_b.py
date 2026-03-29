@@ -51,7 +51,24 @@ from .phase_b_rules import (
 
 @dataclass
 class ScientificAdjustment:
-    """Record of automatic scientific adjustment applied."""
+    """
+    Record of automatic scientific adjustment applied.
+
+    Attributes
+    ----------
+    parameter : str
+        Name of the parameter that was adjusted.
+    site_index : Optional[int], default=None
+        Array index of the site (for internal use).
+    site_gridid : Optional[int], default=None
+        GRIDID value of the site (for display purposes).
+    old_value : Any, default=None
+        The original value of the parameter before adjustment.
+    new_value : Any, default=None
+        The new value of the parameter after adjustment.
+    reason : str, default=""
+        Description or reason for the adjustment.
+    """
 
     parameter: str
     site_index: Optional[int] = None  # Array index (for internal use)
@@ -62,7 +79,19 @@ class ScientificAdjustment:
 
 
 def get_site_gridid(site_data: dict) -> int:
-    """Extract GRIDID from site data, handling both direct and RefValue formats."""
+    """
+    Extract GRIDID from site data, handling both direct and RefValue formats.
+
+    Parameters
+    ----------
+    site_data : dict
+        Dictionary containing site information, which may include a 'gridiv' key.
+
+    Returns
+    -------
+    int or None
+        The GRIDID value if found, otherwise None.
+    """
     if isinstance(site_data, dict):
         gridiv = site_data.get("gridiv")
         if isinstance(gridiv, dict) and "value" in gridiv:
@@ -75,7 +104,33 @@ def get_site_gridid(site_data: dict) -> int:
 def validate_phase_b_inputs(
     uptodate_yaml_file: str, user_yaml_file: str, standard_yaml_file: str
 ) -> Tuple[dict, dict, dict]:
-    """Validate Phase B inputs and load YAML files."""
+    """
+    Validate Phase B inputs and load YAML files.
+
+    Checks the existence of the provided YAML files, loads their contents, and parses them into dictionaries.
+    Raises an error if any file is missing or if the YAML format is invalid.
+
+    Parameters
+    ----------
+    uptodate_yaml_file : str
+        Path to the "up to date" YAML file.
+    user_yaml_file : str
+        Path to the user-provided YAML file.
+    standard_yaml_file : str
+        Path to the standard YAML file.
+
+    Returns
+    -------
+    tuple of dict
+        A tuple containing three dictionaries: (uptodate_data, user_data, standard_data), each corresponding to the loaded contents of the respective YAML files.
+
+    Raises
+    ------
+    FileNotFoundError
+        If any of the specified YAML files do not exist.
+    ValueError
+        If any of the YAML files contain invalid YAML syntax.
+    """
     for file_path in [uptodate_yaml_file, user_yaml_file, standard_yaml_file]:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Required file not found: {file_path}")
@@ -100,6 +155,33 @@ def validate_phase_b_inputs(
 
 
 def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
+    """
+    Extracts simulation parameters for validation from a nested YAML data dictionary.
+
+    Parameters
+    ----------
+    yaml_data : dict
+        Dictionary containing the parsed YAML data, expected to have the structure:
+        {'model': {'control': {'start_time': str, 'end_time': str}}}
+
+    Returns
+    -------
+    Tuple[int, str, str]
+        A tuple containing:
+            - model_year (int): The year extracted from 'start_time'.
+            - start_date (str): The simulation start date in 'YYYY-MM-DD' format.
+            - end_date (str): The simulation end date in 'YYYY-MM-DD' format.
+
+    Raises
+    ------
+    ValueError
+        If 'start_time' or 'end_time' are missing or not in the expected 'YYYY-MM-DD' format,
+        or if the model year cannot be extracted from 'start_time'.
+
+    Notes
+    -----
+    All validation errors are collected and reported together in the exception message.
+    """
     """Extract simulation parameters for validation."""
     control = yaml_data.get("model", {}).get("control", {})
 
@@ -138,7 +220,21 @@ def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
 
 
 def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[str]:
-    """Check for missing/empty parameters in surface configuration."""
+    """
+    Check for missing or empty parameters in a surface configuration.
+
+    Parameters
+    ----------
+    surface_props : dict
+        Dictionary containing the properties of a surface.
+    surface_type : str
+        The type of surface being checked (e.g., 'paved', 'grass').
+
+    Returns
+    -------
+    List[str]
+        List of parameter paths that are missing or empty in the surface configuration.
+    """
     missing_params = []
 
     def _check_recursively(props: dict, path: str = ""):
@@ -164,7 +260,24 @@ def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[st
 
 
 def validate_geographic_parameters(yaml_data: dict) -> List[ValidationResult]:
-    """Validate geographic coordinates and location parameters."""
+    """
+    Perform comprehensive validation of geographic coordinates and related parameters.
+
+    This function checks for the presence, type, and valid range of latitude and longitude
+    for each site, as well as the presence of timezone and daylight saving parameters.
+    It provides detailed error and warning messages to guide users in correcting issues.
+
+    Parameters
+    ----------
+    yaml_data : dict
+        Parsed YAML data containing site configurations.
+
+    Returns
+    -------
+    List[ValidationResult]
+        List of validation results for all geographic parameters, including errors,
+        warnings, and a pass message if all checks succeed.
+    """
     results = []
     sites = yaml_data.get("sites", [])
 
@@ -307,6 +420,26 @@ def validate_irrigation_doy(
     """
     Validate irrigation DOY parameters with leap year, hemisphere, and tropical awareness.
 
+    Parameters
+    ----------
+    ie_start : Optional[float]
+        Irrigation start day of year.
+    ie_end : Optional[float]
+        Irrigation end day of year.
+    lat : float
+        Site latitude (for hemisphere and tropical detection).
+    model_year : int
+        Simulation year (for leap year detection).
+    site_name : str
+        Site identifier for error messages.
+
+    Returns
+    -------
+    List[ValidationResult]
+        List of ValidationResult objects (errors, warnings, or empty).
+
+    Notes
+    -----
     This validator ensures irrigation timing parameters are logically consistent
     and appropriate for the site's location. It checks:
     1. DOY values are within valid range (1-365 or 1-366 for leap years)
@@ -315,16 +448,6 @@ def validate_irrigation_doy(
        - Tropical regions (|lat| < 23.5): No restrictions, irrigation allowed year-round
        - Northern Hemisphere (lat >= 23.5): Warm season is May-September (DOY 121-273)
        - Southern Hemisphere (lat <= -23.5): Warm season is November-March (DOY 305-90)
-
-    Args:
-        ie_start: Irrigation start day of year
-        ie_end: Irrigation end day of year
-        lat: Site latitude (for hemisphere and tropical detection)
-        model_year: Simulation year (for leap year detection)
-        site_name: Site identifier for error messages
-
-    Returns:
-        List of ValidationResult objects (errors, warnings, or empty)
     """
     results = []
 
@@ -385,6 +508,20 @@ def validate_irrigation_doy(
         """
         Check if a DOY falls within the warm season for the given hemisphere.
 
+        Parameters
+        ----------
+        doy : float
+            Day of year (1-365/366).
+        latitude : float
+            Latitude in degrees.
+
+        Returns
+        -------
+        bool
+            True if the DOY is within the warm season for the hemisphere, False otherwise.
+
+        Notes
+        -----
         Warm season definitions:
         - Northern Hemisphere (lat >= 23.5): May-September (DOY 121-273)
         - Southern Hemisphere (lat <= -23.5): November-March (DOY 305-90, wraps year boundary)
@@ -457,12 +594,17 @@ def validate_irrigation_parameters(
     Extracts irrigation parameters from each site configuration and validates
     them using context-aware checks (leap year, hemisphere).
 
-    Args:
-        yaml_data: Complete YAML configuration
-        model_year: Simulation year for leap year detection
+    Parameters
+    ----------
+    yaml_data : dict
+        Complete YAML configuration dictionary.
+    model_year : int
+        Simulation year for leap year detection.
 
-    Returns:
-        List of ValidationResult objects for all sites
+    Returns
+    -------
+    List[ValidationResult]
+        List of ValidationResult objects for all sites.
     """
     results = []
     sites = yaml_data.get("sites", [])
@@ -498,12 +640,24 @@ def validate_irrigation_parameters(
 
 
 def check_missing_vegetation_albedo(yaml_data: dict) -> List[ValidationResult]:
-    """Report when vegetated surfaces have null alb_id.
+    """
+    Report when vegetated surfaces have null alb_id.
 
     This is informational: SUEWSConfig will auto-calculate alb_id from
     LAI state before the model run. Trees use a direct LAI-albedo
     relationship (higher LAI -> higher albedo); grass uses a reversed
     relationship (higher LAI -> lower albedo).
+
+    Parameters
+    ----------
+    yaml_data : dict
+        Parsed YAML data containing site configurations.
+
+    Returns
+    -------
+    List[ValidationResult]
+        List of informational ValidationResult objects for each vegetated surface
+        with a null alb_id, indicating that alb_id will be auto-calculated.
     """
     results = []
     sites = yaml_data.get("sites", [])
@@ -563,13 +717,33 @@ def check_missing_vegetation_albedo(yaml_data: dict) -> List[ValidationResult]:
 def get_mean_monthly_air_temperature(
     lat: float, lon: float, month: int, spatial_res: float = 0.5
 ) -> Optional[float]:
-    """Calculate monthly air temperature using CRU TS4.06 data.
+    """
+    Calculate mean monthly air temperature using CRU TS4.06 climatological data.
 
-    Wrapper around yaml_helpers.get_mean_monthly_air_temperature that returns
+    This function wraps `yaml_helpers.get_mean_monthly_air_temperature` and returns
     None if CRU data is not available (e.g., in standalone mode).
 
-    Raises:
-        ValueError: If input parameters are invalid (month, lat, lon out of range)
+    Parameters
+    ----------
+    lat : float
+        Latitude in degrees (-90 to 90).
+    lon : float
+        Longitude in degrees (-180 to 180).
+    month : int
+        Month of the year (1-12).
+    spatial_res : float, optional
+        Spatial resolution in degrees for finding the nearest CRU grid cell (default: 0.5).
+
+    Returns
+    -------
+    float or None
+        Mean monthly air temperature in Celsius for the specified location and month,
+        or None if CRU data is not available.
+
+    Raises
+    ------
+    ValueError
+        If input parameters are invalid (month, lat, or lon out of range).
     """
     # Validate parameters first - these errors should propagate
     if not (1 <= month <= 12):
@@ -652,22 +826,31 @@ def get_monthly_air_temperature_diffmax(
 def get_mean_annual_air_temperature(
     lat: float, lon: float, spatial_res: float = 0.5
 ) -> Optional[float]:
-    """Calculate annual mean air temperature using CRU TS4.06 climate normals.
+    """
+    Calculate mean annual air temperature using CRU TS4.06 climate normals.
 
-    Wrapper around yaml_helpers.get_mean_annual_air_temperature that returns
+    This function wraps `yaml_helpers.get_mean_annual_air_temperature` and returns
     None if CRU data is not available (e.g., in standalone mode).
 
-    Args:
-        lat: Latitude in degrees (-90 to 90)
-        lon: Longitude in degrees (-180 to 180)
-        spatial_res: Spatial resolution in degrees for finding nearest grid cell (default: 0.5)
+    Parameters
+    ----------
+    lat : float
+        Latitude in degrees (-90 to 90).
+    lon : float
+        Longitude in degrees (-180 to 180).
+    spatial_res : float, optional
+        Spatial resolution in degrees for finding the nearest CRU grid cell (default: 0.5).
 
-    Returns:
-        Annual mean temperature in Celsius based on 1991-2020 climate normals,
-        or None if CRU data not available
+    Returns
+    -------
+    float or None
+        Mean annual air temperature in Celsius for the specified location,
+        or None if CRU data is not available.
 
-    Raises:
-        ValueError: If input parameters are invalid (lat, lon out of range)
+    Raises
+    ------
+    ValueError
+        If input parameters are invalid (lat, lon out of range).
     """
     # Validate parameters first - these errors should propagate
     if not (-90 <= lat <= 90):
@@ -699,14 +882,27 @@ def update_temperature_parameters(
     element: dict, avg_temp: float
 ) -> Tuple[dict, List[str]]:
     """
-    Update temperature, tsfc, and tin parameters in a dictionary element.
+    Update temperature-related parameters ('temperature', 'tsfc', 'tin') in a dictionary element.
 
-    Args:
-        element: Dictionary containing temperature parameters
-        avg_temp: Target temperature value
+    Parameters
+    ----------
+    element : dict
+        Dictionary containing temperature parameters to be updated.
+    avg_temp : float
+        Target temperature value to set for the parameters.
 
-    Returns:
-        Tuple of (updated element dict, list of parameter names that were updated)
+    Returns
+    -------
+    tuple
+        A tuple containing:
+            - dict: The updated element dictionary.
+            - list of str: Names of parameters that were updated.
+
+    Notes
+    -----
+    - 'temperature' is set to a list of five values, each equal to `avg_temp`.
+    - 'tsfc' and 'tin' are set to `avg_temp` as a scalar.
+    - Only parameters whose values differ from the target are updated and reported.
     """
     updated_params = []
 
@@ -734,7 +930,39 @@ def update_temperature_parameters(
 def adjust_surface_temperatures(
     yaml_data: dict, start_date: str
 ) -> Tuple[dict, List[ScientificAdjustment]]:
-    """Set initial surface temperatures based on location and season."""
+    """
+    Set initial surface temperatures based on location and season.
+
+    This function updates the initial surface temperature parameters for each site
+    using climatological data (CRU TS4.06) based on the site's latitude, longitude,
+    and the simulation start month. It adjusts the following parameters for each
+    surface type and building element:
+        - 'temperature' (list of 5 values)
+        - 'tsfc' (scalar)
+        - 'tin' (scalar)
+    It also updates STEBBS-related temperature parameters and applies annual and
+    monthly temperature corrections where available.
+
+    Parameters
+    ----------
+    yaml_data : dict
+        Parsed YAML data containing site configurations.
+    start_date : str
+        Simulation start date in 'YYYY-MM-DD' format.
+
+    Returns
+    -------
+    tuple
+        A tuple containing:
+            - dict: The updated YAML data with adjusted surface temperatures.
+            - list of ScientificAdjustment: Records of all adjustments applied.
+
+    Notes
+    -----
+    - If CRU data is unavailable for a site, temperature adjustments are skipped for that site.
+    - Only parameters whose values differ from the climatological value are updated.
+    - Adjustments are recorded for reporting purposes.
+    """
     adjustments = []
     month = datetime.strptime(start_date, "%Y-%m-%d").month
 
@@ -883,7 +1111,32 @@ def adjust_surface_temperatures(
 def adjust_land_cover_fractions(
     yaml_data: dict,
 ) -> Tuple[dict, List[ScientificAdjustment]]:
-    """Auto-fix small floating point errors in surface fractions."""
+    """
+    Auto-fix small floating point errors in surface fractions.
+
+    This function ensures that the sum of all land cover surface fractions (sfr)
+    for each site is exactly 1.0, within a small tolerance. If the sum is slightly
+    less than or greater than 1.0 (within SFR_FRACTION_TOL), the largest surface
+    fraction is adjusted to compensate for the floating point error.
+
+    Parameters
+    ----------
+    yaml_data : dict
+        Parsed YAML data containing site configurations.
+
+    Returns
+    -------
+    tuple
+        A tuple containing:
+            - dict: The updated YAML data with corrected surface fractions.
+            - list of ScientificAdjustment: Records of all adjustments applied.
+
+    Notes
+    -----
+    - Only small floating point errors are auto-corrected (within SFR_FRACTION_TOL).
+    - The largest surface fraction is adjusted to ensure the sum is exactly 1.0.
+    - All corrections are recorded in the adjustments list.
+    """
     adjustments = []
     sites = yaml_data.get("sites", [])
 
@@ -992,7 +1245,32 @@ def adjust_land_cover_fractions(
 def adjust_model_dependent_nullification(
     yaml_data: dict,
 ) -> Tuple[dict, List[ScientificAdjustment]]:
-    """Nullify parameters for disabled model options."""
+    """
+    Nullify parameters for disabled model options.
+
+    This function automatically sets to None (nullifies) parameters that are not relevant
+    when certain model physics options are disabled. For example, if 'stebbsmethod' is 0,
+    all STEBBS and building_archetype parameters are nullified. If 'emissionsmethod' is 0-4,
+    all anthropogenic CO2 and biogenic dectr parameters are nullified.
+
+    Parameters
+    ----------
+    yaml_data : dict
+        Parsed YAML data containing the model configuration.
+
+    Returns
+    -------
+    tuple
+        A tuple containing:
+            - dict: The updated YAML data with nullified parameters.
+            - list of ScientificAdjustment: Records of all adjustments applied.
+
+    Notes
+    -----
+    - This function is called as part of the scientific adjustment pipeline.
+    - Nullification is performed recursively for nested blocks.
+    - All changes are recorded in the adjustments list for reporting.
+    """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
@@ -1136,14 +1414,35 @@ def adjust_model_dependent_nullification(
 
 def get_season_from_doy(doy: int, lat: float) -> str:
     """
-    Determine season based on day of year and latitude.
+    Determine the season based on day of year and latitude.
 
-    Args:
-        doy: Day of year (1-365/366)
-        lat: Latitude in degrees
+    Parameters
+    ----------
+    doy : int
+        Day of year (1-365 or 1-366).
+    lat : float
+        Latitude in degrees.
 
-    Returns:
-        Season string: 'equatorial', 'tropical', 'summer', 'winter', 'spring', 'fall'
+    Returns
+    -------
+    str
+        Season string: one of 'equatorial', 'tropical', 'summer', 'winter', 'spring', or 'fall'.
+
+    Notes
+    -----
+    - For |lat| <= 10, returns 'equatorial'.
+    - For 10 < |lat| < 23.5, returns 'tropical'.
+    - For |lat| >= 23.5, returns a temperate season based on hemisphere and doy.
+    - Northern Hemisphere (lat >= 0):
+        - 'summer': doy 151-249
+        - 'spring': doy 61-150
+        - 'fall': doy 250-334
+        - 'winter': otherwise
+    - Southern Hemisphere (lat < 0):
+        - 'winter': doy 151-249
+        - 'fall': doy 61-150
+        - 'spring': doy 250-334
+        - 'summer': otherwise
     """
     abs_lat = abs(lat)
 
@@ -1173,7 +1472,31 @@ def get_season_from_doy(doy: int, lat: float) -> str:
 
 
 def get_season(start_date: str, lat: float) -> str:
-    """Determine season based on start date and latitude."""
+    """
+    Determine the season based on simulation start date and latitude.
+
+    Parameters
+    ----------
+    start_date : str
+        Simulation start date in 'YYYY-MM-DD' format.
+    lat : float
+        Latitude in degrees.
+
+    Returns
+    -------
+    str
+        Season string: one of 'equatorial', 'tropical', 'summer', 'winter', 'spring', or 'fall'.
+
+    Raises
+    ------
+    ValueError
+        If start_date is not in 'YYYY-MM-DD' format.
+
+    Notes
+    -----
+    - Uses day of year from start_date and latitude to determine the season.
+    - Delegates to get_season_from_doy for actual season logic.
+    """
     try:
         start = datetime.strptime(start_date, "%Y-%m-%d").timetuple().tm_yday
     except ValueError:
@@ -1183,6 +1506,30 @@ def get_season(start_date: str, lat: float) -> str:
 
 
 def _get_range_and_id(surf_props: dict, surf_state: dict) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    """
+    Extracts albedo parameter range and current value for a surface.
+
+    Parameters
+    ----------
+    surf_props : dict
+        Dictionary containing the properties of a surface (e.g., from land_cover).
+    surf_state : dict
+        Dictionary containing the state parameters of a surface (e.g., from initial_states).
+
+    Returns
+    -------
+    tuple of (float or None, float or None, float or None)
+        - alb_min : float or None
+            Minimum albedo value for the surface (from surf_props).
+        - alb_max : float or None
+            Maximum albedo value for the surface (from surf_props).
+        - alb_id : float or None
+            Current albedo value for the surface (from surf_state).
+    """
+    alb_min = get_value_safe(surf_props, "alb_min")
+    alb_max = get_value_safe(surf_props, "alb_max")
+    alb_id = get_value_safe(surf_state, "alb_id")
+    return alb_min, alb_max, alb_id
     alb_min = get_value_safe(surf_props, "alb_min")
     alb_max = get_value_safe(surf_props, "alb_max")
     alb_id = get_value_safe(surf_state, "alb_id")
@@ -1211,7 +1558,37 @@ def _set_alb_id(
 def adjust_seasonal_parameters(
     yaml_data: dict, start_date: str, model_year: int
 ) -> Tuple[dict, List[ScientificAdjustment]]:
-    """Apply seasonal adjustments including LAI, snowalb, and DLS calculations."""
+    """
+    Apply seasonal adjustments to site parameters including LAI, snowalb, and DLS calculations.
+
+    This function updates site parameters based on the simulation start date and latitude,
+    applying seasonal logic to LAI (Leaf Area Index), snow albedo, and daylight saving time (DLS)
+    parameters. It also adjusts vegetation albedo for grass, deciduous, and evergreen trees.
+
+    Parameters
+    ----------
+    yaml_data : dict
+        Parsed YAML data containing site configurations.
+    start_date : str
+        Simulation start date in 'YYYY-MM-DD' format.
+    model_year : int
+        Simulation year for leap year and DLS calculations.
+
+    Returns
+    -------
+    tuple
+        A tuple containing:
+            - dict: The updated YAML data with seasonal adjustments applied.
+            - list of ScientificAdjustment: Records of all adjustments performed.
+
+    Notes
+    -----
+    - LAI is set based on season: summer uses laimax, winter uses laimin, spring/fall use the mean.
+    - snowalb is nullified for summer/tropical/equatorial seasons.
+    - Vegetation albedo (alb_id) is set based on season and surface type.
+    - DLS (startdls, enddls) and timezone are calculated and set if missing or outdated.
+    - All changes are recorded for reporting.
+    """
     adjustments = []
     sites = yaml_data.get("sites", [])
 
@@ -1412,7 +1789,30 @@ def adjust_seasonal_parameters(
     return yaml_data, adjustments
 
 def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
-    """If rcmethod == 0, set RoofOuterCapFrac and WallOuterCapFrac to 0.5 for all sites."""
+    """
+    Adjust RoofOuterCapFrac and WallOuterCapFrac for all sites if rcmethod == 0.
+
+    If the model physics option 'rcmethod' is set to 0, this function sets
+    'RoofOuterCapFrac' and 'WallOuterCapFrac' to 0.5 for all sites' building_archetype
+    blocks, as required by the model specification.
+
+    Parameters
+    ----------
+    yaml_data : dict
+        Parsed YAML data containing the model configuration.
+
+    Returns
+    -------
+    tuple
+        A tuple containing:
+            - dict: The updated YAML data with adjusted parameters.
+            - list of ScientificAdjustment: Records of all adjustments applied.
+
+    Notes
+    -----
+    - Only applies the adjustment if 'rcmethod' is exactly 0.
+    - Records each parameter change in the adjustments list for reporting.
+    """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
     rcmethod_value = get_value_safe(physics, "rcmethod")
@@ -1464,11 +1864,29 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
 
 def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
     """
-    Adjusts stebbs-related parameters according to stebbsmethod options.
+    Adjust STEBBS-related parameters based on the 'stebbsmethod' and 'WWR' options.
 
-    - If 'stebbsmethod' is 1 and 'WWR' is 0.0 for a site, all window-related parameters are set to None.
-    - If 'stebbsmethod' is 1 and 'WWR' is 1.0 for a site, all external wall-related parameters are set to None.
+    This function nullifies window or external wall parameters in the STEBBS and
+    building_archetype blocks depending on the Window-to-Wall Ratio (WWR) when
+    'stebbsmethod' is set to 1.
 
+    Parameters
+    ----------
+    yaml_data : dict
+        Parsed YAML data containing the model configuration.
+
+    Returns
+    -------
+    tuple
+        A tuple containing:
+            - dict: The updated YAML data with adjusted parameters.
+            - list of ScientificAdjustment: Records of all adjustments applied.
+
+    Notes
+    -----
+    - If 'stebbsmethod' == 1 and 'WWR' == 0.0, all window-related parameters are set to None.
+    - If 'stebbsmethod' == 1 and 'WWR' == 1.0, all external wall-related parameters are set to None.
+    - All changes are recorded in the adjustments list for reporting.
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
@@ -1596,7 +2014,39 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
 def run_scientific_adjustment_pipeline(
     yaml_data: dict, start_date: str, model_year: int
 ) -> Tuple[dict, List[ScientificAdjustment]]:
-    """Apply automatic scientific corrections and adjustments."""
+    """
+    Apply automatic scientific corrections and adjustments.
+
+    This function runs the scientific adjustment pipeline, applying a series of
+    automatic corrections to the YAML configuration based on climatological data,
+    model physics options, and seasonal logic.
+
+    Parameters
+    ----------
+    yaml_data : dict
+        Parsed YAML data containing the model configuration.
+    start_date : str
+        Simulation start date in 'YYYY-MM-DD' format.
+    model_year : int
+        Simulation year for leap year and seasonal calculations.
+
+    Returns
+    -------
+    tuple
+        A tuple containing:
+            - dict: The updated YAML data with all scientific adjustments applied.
+            - list of ScientificAdjustment: Records of all adjustments performed.
+
+    Notes
+    -----
+    The pipeline applies the following adjustments in order:
+        1. Surface temperature initialization from climatology.
+        2. Land cover fraction normalization.
+        3. Nullification of parameters for disabled model options.
+        4. Seasonal parameter adjustments (LAI, snow albedo, DLS, vegetation albedo).
+        5. Model option-dependent adjustments (e.g., rcmethod, stebbsmethod).
+    All changes are recorded for reporting.
+    """
     updated_data = deepcopy(yaml_data)
     adjustments = []
 
@@ -1622,7 +2072,35 @@ def create_science_report(
     mode: str = "public",
     phase: str = "B",
 ) -> str:
-    """Generate comprehensive scientific validation report."""
+    """
+    Generate a comprehensive scientific validation report.
+
+    Parameters
+    ----------
+    validation_results : List[ValidationResult]
+        List of validation results from scientific checks.
+    adjustments : List[ScientificAdjustment]
+        List of automatic scientific adjustments applied.
+    science_yaml_filename : str, optional
+        Name of the science-checked YAML file (for display).
+    phase_a_report_file : str, optional
+        Path to the Phase A report file (for extracting previous changes).
+    mode : str, default="public"
+        Output mode for the report ("public" or other).
+    phase : str, default="B"
+        Validation phase identifier.
+
+    Returns
+    -------
+    str
+        The formatted scientific validation report as a string.
+
+    Notes
+    -----
+    - Summarizes errors, warnings, adjustments, and informational notes.
+    - Integrates Phase A report highlights if available.
+    - Designed for both human readability and traceability.
+    """
     report_lines = []
 
     # Use unified report title for all validation phases
@@ -1786,10 +2264,18 @@ def create_science_report(
 
 def print_critical_halt_message(critical_errors: List[ValidationResult]):
     """
-    Print critical halt message when Phase B detects errors requiring Phase A.
+    Print a critical halt message when Phase B detects errors that require Phase A.
 
-    Args:
-        critical_errors: List of ERROR-level validation results
+    Parameters
+    ----------
+    critical_errors : List[ValidationResult]
+        List of ERROR-level validation results that triggered the halt.
+
+    Notes
+    -----
+    This function prints a clear message to the terminal, summarizing all critical
+    scientific errors found during Phase B validation. It also provides guidance
+    on how to resolve the issues, including running Phase A for automatic fixes.
     """
     print()
     print("=" * 60)
@@ -1825,11 +2311,21 @@ def print_science_check_results(
     validation_results: List[ValidationResult], adjustments: List[ScientificAdjustment]
 ):
     """
-    Print clean terminal output for Phase B results.
+    Print concise terminal output for Phase B scientific validation results.
 
-    Args:
-        validation_results: List of validation results
-        adjustments: List of automatic adjustments applied
+    Parameters
+    ----------
+    validation_results : list of ValidationResult
+        List of validation results (errors, warnings, infos, passes).
+    adjustments : list of ScientificAdjustment
+        List of automatic scientific adjustments applied.
+
+    Notes
+    -----
+    - Errors are printed with details and guidance.
+    - Warnings and info messages are summarized.
+    - Adjustment count is shown if any were applied.
+    - Output is formatted for clarity in terminal use.
     """
     errors = [r for r in validation_results if r.status == "ERROR"]
     warnings = [r for r in validation_results if r.status == "WARNING"]
@@ -1868,10 +2364,23 @@ def print_science_check_results(
 
 
 def create_science_yaml_header(phase_a_performed: bool = True) -> str:
-    """Create header for final science-checked YAML file.
+    """
+    Create header for the final science-checked YAML file.
 
-    Args:
-        phase_a_performed: Whether Phase A was performed before Phase B
+    Parameters
+    ----------
+    phase_a_performed : bool, optional
+        Whether Phase A was performed before Phase B (default: True).
+
+    Returns
+    -------
+    str
+        Standardized header string for the science-checked YAML file.
+
+    Notes
+    -----
+    - The header indicates that the file has been updated by the SUEWS processor.
+    - It references the user-provided YAML and the existence of a detailed report.
     """
     # Use the standardized header format for all Phase B outputs
     header = """# ==============================================================================
@@ -1899,23 +2408,46 @@ def run_science_check(
     phase: str = "B",
 ) -> dict:
     """
-    Main Phase B workflow - perform scientific validation and adjustments.
+    Main Phase B workflow: perform scientific validation and scientific adjustments.
 
-    Args:
-        uptodate_yaml_file: Path to Phase A output (clean YAML)
-        user_yaml_file: Path to original user YAML
-        standard_yaml_file: Path to standard reference YAML
-        science_yaml_file: Path for science-checked output YAML
-        science_report_file: Path for scientific validation report
-        phase_a_report_file: Path to Phase A report file (if available)
-        phase_a_performed: Whether Phase A was performed before Phase B
+    Parameters
+    ----------
+    uptodate_yaml_file : str
+        Path to the Phase A output YAML file (cleaned and updated user YAML).
+    user_yaml_file : str
+        Path to the original user-provided YAML file.
+    standard_yaml_file : str
+        Path to the standard reference YAML file.
+    science_yaml_file : str, optional
+        Path to write the science-checked output YAML file.
+    science_report_file : str, optional
+        Path to write the scientific validation report.
+    phase_a_report_file : str, optional
+        Path to the Phase A report file, if available.
+    phase_a_performed : bool, default=True
+        Whether Phase A was performed before Phase B.
+    mode : str, default="public"
+        Output mode for the report ("public" or other).
+    phase : str, default="B"
+        Validation phase identifier.
 
-    Returns:
-        Final science-checked YAML configuration dictionary
+    Returns
+    -------
+    dict
+        Final science-checked YAML configuration dictionary.
 
-    Raises:
-        FileNotFoundError: If required input files are missing
-        ValueError: If Phase A did not complete or YAML is invalid
+    Raises
+    ------
+    FileNotFoundError
+        If any required input files are missing.
+    ValueError
+        If Phase A did not complete successfully or YAML is invalid.
+
+    Notes
+    -----
+    - Runs all scientific validation and adjustment steps for Phase B.
+    - Writes a detailed report and optionally the updated YAML file.
+    - Halts with a clear message if critical scientific errors are detected.
     """
     try:
         uptodate_data, user_data, standard_data = validate_phase_b_inputs(

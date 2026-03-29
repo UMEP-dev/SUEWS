@@ -7,7 +7,27 @@ from ...core.yaml_helpers import get_value_safe
 from typing import Dict, List, Optional, Union, Any, Tuple
 
 def check_archetype_radiation_properties(archetype_data, facet):
-    """Validate parameters for STEBBS radiation checks."""
+    """
+    Validate that the sum of reflectivity, absorbtivity, and transmissivity for a given facet equals 1.
+
+    This function checks the radiation properties (reflectivity, absorbtivity, and transmissivity) of a specified facet
+    in the provided archetype data. If any property is missing, validation is skipped. If properties are provided as
+    dictionaries (e.g., with a "value" key), their values are extracted. The function returns a ValidationResult indicating
+    whether the sum of the three properties equals 1.
+
+    Parameters
+    ----------
+    archetype_data : dict
+        Dictionary containing the radiation properties for different facets.
+    facet : str
+        The facet name (e.g., "Wall", "Roof") whose radiation properties are to be validated.
+
+    Returns
+    -------
+    ValidationResult or None
+        Returns a ValidationResult with status "PASS" if the sum is 1, "ERROR" otherwise.
+        Returns None if any property is missing.
+    """
     archetype_facet_reflectivity = archetype_data.get(f"{facet}Reflectivity")
     archetype_facet_absorbtivity = archetype_data.get(f"{facet}Absorbtivity")
     archetype_facet_transmissivity = archetype_data.get(f"{facet}Transmissivity")
@@ -40,6 +60,32 @@ def check_archetype_radiation_properties(archetype_data, facet):
 
 @RulesRegistry.add_rule("archetype_properties")
 def check_archetype_properties(context):
+    """
+    Checks the properties of building archetypes for each site when the Stebbs method is enabled.
+
+    This rule is registered under the name "archetype_properties" and is intended to validate
+    the presence and correctness of radiation-related properties for building archetypes
+    (specifically for "Wall" and "Roof" facets) in the provided YAML data context.
+
+    Parameters
+    ----------
+    context : object
+        An object containing the YAML data to be validated. It is expected to have a `yaml_data`
+        attribute, which is a dictionary representing the configuration.
+
+    Returns
+    -------
+    list
+        A list of result objects from `check_archetype_radiation_properties` for each site and facet
+        that requires validation. Each result object may have additional attributes set, such as
+        `site_index` and `site_gridid`.
+
+    Notes
+    -----
+    - The rule only applies if the "stebbsmethod" in the physics model is set to 1.
+    - For each site, the function checks the "Wall" and "Roof" facets of the building archetype properties.
+    - If a validation result is found, it is annotated with the site's index and grid ID before being added to the results list.
+    """
     yaml_data = context.yaml_data
 
     results = []
@@ -63,7 +109,25 @@ def check_archetype_properties(context):
 
 @RulesRegistry.add_rule("occupants_metabolism")
 def check_occupants_metabolism(context):
-    """Check for inconsistency: zero occupants with nonzero metabolism."""
+    """
+    Check for inconsistency between the number of occupants and metabolism profile.
+
+    This rule validates that if the number of occupants is set to 0.0 in the building archetype,
+    then all entries in the MetabolismProfile must also be zero. If any nonzero values are found
+    in the MetabolismProfile when occupants are zero, an error is reported for each problematic entry.
+
+    Parameters
+    ----------
+    context : object
+        The validation context containing the parsed YAML data under `context.yaml_data`.
+
+    Returns
+    -------
+    list of ValidationResult
+        A list of validation results indicating errors where the MetabolismProfile contains
+        nonzero entries while the number of occupants is zero. Each result includes details
+        about the site, parameter, and suggested correction.
+    """
     yaml_data = context.yaml_data
 
     results = []
@@ -107,7 +171,23 @@ def check_occupants_metabolism(context):
 
 @RulesRegistry.add_rule("daylight_control")
 def check_daylight_control(context):
-    """Validate DaylightControl flag is 0 or 1 when STEBBS is active."""
+    """
+    Validate the 'DaylightControl' flag for each site when STEBBS is active.
+
+    Checks that the 'DaylightControl' flag under each site's 'stebbs' properties is set to 0 or 1
+    (accepting both integer and float representations), but only if the 'stebbsmethod' in the model
+    physics is set to 1. If an invalid value is found, a ValidationResult is appended to the results.
+
+    Parameters
+    ----------
+    context : object
+        An object containing the parsed YAML data as an attribute `yaml_data`.
+
+    Returns
+    -------
+    results : list of ValidationResult
+        A list of ValidationResult objects for each site with an invalid 'DaylightControl' value.
+    """
     yaml_data = context.yaml_data
 
     results = []
@@ -140,6 +220,23 @@ def check_daylight_control(context):
 
 @RulesRegistry.add_rule("stebbs_props")
 def check_stebbs_properties(context):
+    """
+    Validates the 'HotWaterFlowProfile' values in the Stebbs properties for each site.
+    Checks that, if the 'stebbsmethod' is set to 1 in the model physics configuration,
+    the 'HotWaterFlowProfile' for both 'working_day' and 'holiday' day types contains
+    only values of 0 or 1 for each hour. If any value is not 0 or 1, an error is added
+    to the results.
+    Parameters
+    ----------
+    context : object
+        An object containing the parsed YAML data as an attribute `yaml_data`.
+    Returns
+    -------
+    list of ValidationResult
+        A list of ValidationResult objects describing any errors found in the
+        'HotWaterFlowProfile' values for each site.
+    """
+
     yaml_data = context.yaml_data
 
     results = []

@@ -686,21 +686,15 @@ CONTAINS
 
       IF (config%do_sw .AND. canopy_props%nlay(1) > 0) THEN
          DO jlay = 1, MIN(canopy_props%nlay(1), 15)
-            IF (veg_frac(jlay) > 0.0D0 .AND. veg_abs_sw_spc(jlay) > -900.0D0 &
-     &          .AND. veg_in_sw_spc(jlay) > -900.0D0 .AND. veg_out_sw_spc(jlay) > -900.0D0) THEN
+            IF (veg_frac(jlay) > 0.0D0 .AND. veg_abs_sw_spc(jlay) > -900.0D0) THEN
 
                ! Absorption per vegetated plan area (W m-2 veg area)
                veg_abs_sw_per_veg = veg_abs_sw_spc(jlay) / veg_frac(jlay)
 
                ! Effective shortwave absorptance of vegetation
-               ! Use 1 - veg_ssa_sw as a simple approximation.
-               ! Guard against tiny/zero values to avoid division by zero.
                A_veg_sw = MAX(1.0D-3, 1.0D0 - veg_ssa_sw)
 
-               ! Incoming SW onto vegetation
-               veg_in_sw_spc(jlay) = veg_abs_sw_per_veg / A_veg_sw
-
-               ! Outgoing SW from vegetation (reflected + transmitted)
+               veg_in_sw_spc(jlay)  = veg_abs_sw_per_veg / A_veg_sw
                veg_out_sw_spc(jlay) = veg_in_sw_spc(jlay) - veg_abs_sw_per_veg
             END IF
          END DO

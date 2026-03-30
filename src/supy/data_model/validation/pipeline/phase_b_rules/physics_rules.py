@@ -454,11 +454,27 @@ def validate_model_option_same_emissivity(context) -> List[ValidationResult]:
 @RulesRegistry.add_rule("setpointmethod")
 def validate_model_option_setpoint(context) -> List[ValidationResult]:
     """
-    Validates that HeatingSetpointTemperature and CoolingSetpointTemperature are set
-    in building_archetype when setpointmethod == 0 or 1.
-    For setpointmethod == 2, validates that all entries in HeatingSetpointTemperatureProfile
-    and CoolingSetpointTemperatureProfile are set (not null), and that heating values < 30.0,
-    cooling values > 15.0.
+    Validate setpoint temperature configuration for buildings.
+
+    Parameters
+    ----------
+    context : object
+        Validation context containing the parsed YAML data.
+
+    Returns
+    -------
+    List[ValidationResult]
+        List of validation results for setpoint temperature configuration.
+
+    Notes
+    -----
+    - For `setpointmethod` 0 or 1, checks that `HeatingSetpointTemperature` and
+      `CoolingSetpointTemperature` are set in each site's `building_archetype`.
+    - For `setpointmethod` 2, checks that all entries in
+      `HeatingSetpointTemperatureProfile` and `CoolingSetpointTemperatureProfile`
+      are present (not null), that heating values are less than 30.0, and cooling
+      values are greater than 15.0 for all 144 ten-minute slices in both
+      `working_day` and `holiday` profiles.
     """
     results = []
     yaml_data = context.yaml_data

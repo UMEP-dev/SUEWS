@@ -181,6 +181,11 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_wall_spc
       REAL(KIND(1D0)), DIMENSION(15) :: veg_abs_sw_spc ! SW vegetation absorption per layer
       REAL(KIND(1D0)), DIMENSION(15) :: veg_abs_lw_spc ! LW vegetation absorption per layer
+      REAL(KIND(1D0)), DIMENSION(15) :: veg_in_sw_spc ! SW incoming vegetation
+      REAL(KIND(1D0)), DIMENSION(15) :: veg_out_sw_spc ! SW outcoming vegetation
+      ! Optionally:
+      ! REAL(KIND(1D0)), DIMENSION(15) :: veg_in_lw_spc
+      ! REAL(KIND(1D0)), DIMENSION(15) :: veg_out_lw_spc
       ! --------------------------------------------------------------------------------
 
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS - 5), INTENT(OUT) :: dataOutLineSPARTACUS
@@ -670,6 +675,36 @@ CONTAINS
          END IF
       END IF
 
+      !-----------------------------------------------------------------
+      ! Vegetation incident and outgoing SW per layer (W m-2 per veg area)
+      ! Approximated from veg_abs_sw_spc and veg_frac using an effective
+      ! absorptance A_veg_sw = 1 - veg_ssa_sw.
+      !-----------------------------------------------------------------
+      veg_in_sw_spc  = -999.0D0
+      veg_out_sw_spc = -999.0D0
+
+      IF (config%do_sw .AND. canopy_props%nlay(1) > 0) THEN
+         DO jlay = 1, MIN(canopy_props%nlay(1), 15)
+            IF (veg_frac(jlay) > 0.0D0 .AND. veg_abs_sw_spc(jlay) > -900.0D0) THEN
+               REAL(KIND(1D0)) :: veg_abs_sw_per_veg, A_veg_sw
+
+               ! Absorption per vegetated plan area (W m-2 veg area)
+               veg_abs_sw_per_veg = veg_abs_sw_spc(jlay) / veg_frac(jlay)
+
+               ! Effective shortwave absorptance of vegetation
+               ! Use 1 - veg_ssa_sw as a simple approximation.
+               ! Guard against tiny/zero values to avoid division by zero.
+               A_veg_sw = MAX(1.0D-3, 1.0D0 - veg_ssa_sw)
+
+               ! Incoming SW onto vegetation
+               veg_in_sw_spc(jlay) = veg_abs_sw_per_veg / A_veg_sw
+
+               ! Outgoing SW from vegetation (reflected + transmitted)
+               veg_out_sw_spc(jlay) = veg_in_sw_spc(jlay) - veg_abs_sw_per_veg
+            END IF
+         END DO
+      END IF
+
       ! albedo
       IF (config%do_sw) THEN
          IF (top_flux_dn_diffuse_sw + top_flux_dn_direct_sw(nspec, ncol) > 0.1) THEN
@@ -847,7 +882,9 @@ CONTAINS
           sfr_wall_spc, &
           clear_air_abs_lw_spc, &
           veg_abs_sw_spc, &
-          veg_abs_lw_spc &
+          veg_abs_lw_spc, &
+          veg_in_sw_spc, &      
+          veg_out_sw_spc        
           ]
 
       !!!!!!!!!!!!!! Clear from memory !!!!!!!!!!!!!

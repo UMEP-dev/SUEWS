@@ -135,6 +135,7 @@ CONTAINS
       INTEGER :: istartcol, iendcol
       INTEGER :: jrepeat, ilay, jlay, jcol
       INTEGER :: nlay_veg, max_idx     ! NEW: helpers for veg_abs extraction
+      REAL(KIND(1D0)) :: veg_abs_sw_per_veg, A_veg_sw
 
       ! --------------------------------------------------------------------------------
       ! output variables
@@ -685,8 +686,8 @@ CONTAINS
 
       IF (config%do_sw .AND. canopy_props%nlay(1) > 0) THEN
          DO jlay = 1, MIN(canopy_props%nlay(1), 15)
-            IF (veg_frac(jlay) > 0.0D0 .AND. veg_abs_sw_spc(jlay) > -900.0D0) THEN
-               REAL(KIND(1D0)) :: veg_abs_sw_per_veg, A_veg_sw
+            IF (veg_frac(jlay) > 0.0D0 .AND. veg_abs_sw_spc(jlay) > -900.0D0 &
+     &          .AND. veg_in_sw_spc(jlay) > -900.0D0 .AND. veg_out_sw_spc(jlay) > -900.0D0) THEN
 
                ! Absorption per vegetated plan area (W m-2 veg area)
                veg_abs_sw_per_veg = veg_abs_sw_spc(jlay) / veg_frac(jlay)
@@ -883,9 +884,8 @@ CONTAINS
           clear_air_abs_lw_spc, &
           veg_abs_sw_spc, &
           veg_abs_lw_spc, &
-          veg_in_sw_spc, &      
-          veg_out_sw_spc        
-          ]
+          veg_in_sw_spc, &
+          veg_out_sw_spc ]
 
       !!!!!!!!!!!!!! Clear from memory !!!!!!!!!!!!!
 

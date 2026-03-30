@@ -6,6 +6,9 @@
 # Test workspace for SPARTACUS layer issues
 spartacus_test_workspace/
 
+# Generated SUEWS config (output of data_model to_yaml)
+config-suews.yml
+
 ### Fortran ###
 # Prerequisites
 *.d

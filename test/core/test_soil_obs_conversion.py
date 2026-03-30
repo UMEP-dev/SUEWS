@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -6,6 +8,36 @@ from supy.util._forcing import convert_observed_soil_moisture
 
 # All tests in this module are core physics tests
 pytestmark = pytest.mark.core
+FAIL_FAST_STEPS_ENV = "SUEWS_FAIL_FAST_STEPS"
+# Default to full-window validation; set SUEWS_FAIL_FAST_STEPS>0 for fast debugging.
+DEFAULT_FAIL_FAST_STEPS = 0
+
+
+def _get_fail_fast_steps(default_steps: int = DEFAULT_FAIL_FAST_STEPS) -> int:
+    """Return number of timesteps for fail-fast execution."""
+    raw = os.environ.get(FAIL_FAST_STEPS_ENV)
+    if raw is None or raw == "":
+        return default_steps
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise ValueError(
+            f"{FAIL_FAST_STEPS_ENV} must be an integer, got: {raw!r}"
+        ) from exc
+
+
+def _select_integration_forcing_window(df_forcing, *, start: str, end: str):
+    """Select forcing window; optionally truncates to fail-fast timesteps."""
+    df_window = df_forcing.loc[start:end].copy()
+    requested_steps = _get_fail_fast_steps()
+    if requested_steps <= 0 or requested_steps >= len(df_window):
+        return df_window
+
+    # Start from first daytime point so evaporation diagnostics remain meaningful.
+    daytime_positions = np.flatnonzero((df_window["kdown"] > 100).values)
+    start_pos = int(daytime_positions[0]) if len(daytime_positions) else 0
+    end_pos = min(start_pos + requested_steps, len(df_window))
+    return df_window.iloc[start_pos:end_pos].copy()
 
 
 def _make_site_level_state(
@@ -275,7 +307,9 @@ class TestObservedSoilMoistureIntegration:
         # Select a week in July 2012 to capture meaningful evaporation
         start = "2012-07-01"
         end = "2012-07-07"
-        df_forcing_period = df_forcing.loc[start:end].copy()
+        df_forcing_period = _select_integration_forcing_window(
+            df_forcing, start=start, end=end
+        )
 
         # === Run 1: Baseline with SMDMethod=0 (modelled soil moisture) ===
         df_state_baseline = df_state.copy()

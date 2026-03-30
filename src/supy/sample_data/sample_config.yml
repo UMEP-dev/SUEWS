@@ -13,7 +13,6 @@ model:
       path: "./Output"
       groups:
         - "SUEWS"
-    diagnose: 0
   physics:
     netradiationmethod:
       value: 3
@@ -47,9 +46,13 @@ model:
       value: 0
     rcmethod:
       value: 0
-    samealbedo_wall:
+    same_albedo_wall:
       value: 0
-    samealbedo_roof:
+    same_albedo_roof:
+      value: 0
+    same_emissivity_wall:
+      value: 0
+    same_emissivity_roof:
       value: 0
 sites:
 - name: KCL
@@ -146,6 +149,10 @@ sites:
         value: 74.3
       LatentSensibleRatio:
         value: 0
+      DaylightControl:
+        value: 1
+      LightingIlluminanceThreshold:
+        value: 300.0
       ApplianceProfile:
         working_day:
           '1': 1.0
@@ -437,6 +444,8 @@ sites:
           '142': 1.0
           '143': 1.0
           '144': 1.0
+      LightingPowerDensity:
+        value: 2.0
       HeatingSystemEfficiency:
         value: 0.8
       MaxCoolingPower:
@@ -449,7 +458,9 @@ sites:
         value: 17.540002822875977
       InitialIndoorTemperature:
         value: 20.0
-      DeepSoilTemperature:
+      AnnualMeanAirTemperature:
+        value: 10.0
+      MonthMeanAirTemperature_diffmax:
         value: 10.0        
       WaterTankWallThickness:
         value: 0.055
@@ -792,10 +803,6 @@ sites:
         value: 0.8
       HotWaterHeatingEfficiency:
         value: 0.8
-      MinimumVolumeOfDHWinUse:
-        value: 1.0
-      MaximumVolumeOfDHWinUse:
-        value: 100.0
     building_archetype:
       BuildingType: test
       BuildingName: test
@@ -3210,7 +3217,6 @@ sites:
         value: 5.0
       tin:
         value: 5.0
-    dqndt: 0.0
     dqndt_surf:
     - 0.0
     - 0.0
@@ -3219,10 +3225,6 @@ sites:
     - 0.0
     - 0.0
     - 0.0  
-    dqnsdt: 0.0
-    dt_since_start: 0.0
-    lenday_id: 0
-    qn_av: 0.0
     qn_surfs:
     - 0.0
     - 0.0
@@ -3231,12 +3233,6 @@ sites:
     - 0.0
     - 0.0
     - 0.0  
-    qn_s_av: 0.0
-    tair_av: 273.15
-    tmax_id: -90.0
-    tmin_id: 90.0
-    tstep_prev: 300.0
-    snowfallcum: 0.0
     hdd_id:
     - 13.5
     - 13.5

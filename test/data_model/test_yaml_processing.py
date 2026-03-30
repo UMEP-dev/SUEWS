@@ -802,7 +802,7 @@ sites:
 
             # Should contain usage instructions with manual link
             self.assertIn(
-                "https://suews.readthedocs.io/latest/",
+                "https://docs.suews.io/latest/",
                 report_content,
                 "Should contain manual link",
             )
@@ -1037,6 +1037,7 @@ from supy.data_model.validation.core.yaml_helpers import (
     SeasonCheck,
     collect_yaml_differences,
     get_mean_monthly_air_temperature,
+    get_monthly_air_temperature_diffmax,
     get_mean_annual_air_temperature,
     get_value_safe,
     precheck_land_cover_fractions,
@@ -2369,6 +2370,31 @@ def test_get_mean_annual_air_temperature_invalid_longitude():
     with pytest.raises(ValueError, match="Longitude must be between -180 and 180"):
         get_mean_annual_air_temperature(45.0, 185.0)
 
+def test_get_monthly_air_temperature_diffmax_valid():
+    """Test get_monthly_air_temperature_diffmax returns a float for valid input."""
+    try:
+        diff = get_monthly_air_temperature_diffmax(45.0, 10.0)
+        assert isinstance(diff, float)
+        assert -50 <= diff <= 50  # Reasonable temperature difference range
+    except FileNotFoundError:
+        pytest.skip("CRU data file not available for temperature calculation")
+
+def test_get_monthly_air_temperature_diffmax_invalid():
+    """Test get_monthly_air_temperature_diffmax raises ValueError for invalid input."""
+    with pytest.raises(ValueError, match="Latitude must be between -90 and 90"):
+        get_monthly_air_temperature_diffmax(100.0, 10.0)
+    with pytest.raises(ValueError, match="Longitude must be between -180 and 180"):
+        get_monthly_air_temperature_diffmax(45.0, 200.0)
+
+def test_get_monthly_air_temperature_diffmax_invalid_latitude():
+    """Test get_monthly_air_temperature_diffmax raises ValueError for invalid latitude."""
+    with pytest.raises(ValueError, match="Latitude must be between -90 and 90"):
+        get_monthly_air_temperature_diffmax(100.0, 10.0)
+
+def test_get_monthly_air_temperature_diffmax_invalid_longitude():
+    """Test get_monthly_air_temperature_diffmax raises ValueError for invalid longitude."""
+    with pytest.raises(ValueError, match="Longitude must be between -180 and 180"):
+        get_monthly_air_temperature_diffmax(45.0, 200.0)
 
 class TestPrecheckRefValueHandling:
     """Test cases for precheck RefValue handling bug fixes."""
@@ -2928,6 +2954,10 @@ class TestProcessorFixtures:
             "standard_file": str(standard_file),
             "temp_dir": temp_directory,
         }
+    
+    @pytest.fixture
+    def registry(self):
+        return science_check.RulesRegistry()
 
 
 class TestPhaseAUptoDateYaml(TestProcessorFixtures):
@@ -3429,8 +3459,10 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
-            "samealbedo_wall",
-            "samealbedo_roof"
+            "same_albedo_wall",
+            "same_albedo_roof",
+            "same_emissivity_wall",
+            "same_emissivity_roof"
         }
 
         # Should match the synchronized list from Phase A and B
@@ -3452,7 +3484,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
 class TestPhaseBScienceCheck(TestProcessorFixtures):
     """Test suite for Phase B (science check) functionality."""
 
-    def test_physics_parameters_validation_success(self):
+    def test_physics_parameters_validation_success(self, registry):
         """Test successful physics parameter validation."""
         if not has_science_check:
             pytest.skip("science_check module not available")
@@ -3475,16 +3507,19 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
-            "samealbedo_wall",
-            "samealbedo_roof",
+            "same_albedo_wall",
+            "same_albedo_roof",
+            "same_emissivity_wall",
+            "same_emissivity_roof"
         }
 
         valid_yaml = {
             "model": {"physics": {param: {"value": 1} for param in physics_options}}
         }
-
+        context = science_check.ValidationContext(yaml_data=valid_yaml)
         # Function returns list of ValidationResult objects, empty list means success
-        results = science_check.validate_physics_parameters(valid_yaml)
+        results = registry["physics_params"](context)
+
         assert isinstance(
             results, list
         )  # Should return list of ValidationResult objects
@@ -3492,7 +3527,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         error_results = [r for r in results if r.status == "ERROR"]
         assert len(error_results) == 0, f"Unexpected validation errors: {error_results}"
 
-    def test_physics_parameters_validation_missing(self):
+    def test_physics_parameters_validation_missing(self, registry):
         """Test physics parameter validation with missing parameters."""
         if not has_science_check:
             pytest.skip("science_check module not available")
@@ -3506,8 +3541,10 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             }
         }
 
+        context = science_check.ValidationContext(yaml_data=incomplete_yaml)
+        
         # Function returns ValidationResult objects, not raises exceptions
-        results = science_check.validate_physics_parameters(incomplete_yaml)
+        results = registry["physics_params"](context)
         assert isinstance(results, list)
 
         # Should have ERROR results for missing parameters
@@ -3523,7 +3560,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             for msg in error_messages
         )
 
-    def test_physics_parameters_validation_null_values(self):
+    def test_physics_parameters_validation_null_values(self, registry):
         """Test physics parameter validation with null values."""
         if not has_science_check:
             pytest.skip("science_check module not available")
@@ -3555,9 +3592,10 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                 }
             }
         }
+        context = science_check.ValidationContext(yaml_data=null_yaml)
 
         # Function returns ValidationResult objects, not raises exceptions
-        results = science_check.validate_physics_parameters(null_yaml)
+        results = registry["physics_params"](context)
         assert isinstance(results, list)
 
         # Should have ERROR results for null values
@@ -3570,7 +3608,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "null" in msg.lower() or "empty" in msg.lower() for msg in error_messages
         )
 
-    def test_model_option_dependencies_rsl_stability(self):
+    def test_model_option_dependencies_rsl_stability(self, registry):
         """Test RSL method and stability method dependency validation."""
         invalid_yaml = {
             "model": {
@@ -3581,8 +3619,9 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             },
             "sites": [{}],
         }
+        context = science_check.ValidationContext(yaml_data=invalid_yaml)
 
-        results = science_check.validate_model_option_dependencies(invalid_yaml)
+        results = registry["option_dependencies"](context)
         assert len(results) > 0
         assert any("rslmethod" in result.message for result in results)
 
@@ -3616,7 +3655,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         expected_temp = mock_cru(lat, lng, month)
         assert expected_temp == 15.2
 
-    def test_land_cover_fraction_validation(self):
+    def test_land_cover_fraction_validation(self, registry):
         """Test land cover fraction sum validation."""
         valid_fractions = {
             "sites": [
@@ -3632,7 +3671,9 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             ]
         }
 
-        result = science_check.validate_land_cover_consistency(valid_fractions)
+        context = science_check.ValidationContext(yaml_data=valid_fractions)
+
+        result = registry["land_cover"](context)
         assert isinstance(result, list)  # Returns list of ValidationResult objects
 
         # Should pass validation
@@ -3640,7 +3681,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             pass_results = [r for r in result if r.status == "PASS"]
             assert len(pass_results) > 0, "Should have PASS results for valid fractions"
 
-    def test_geographic_parameter_validation(self):
+    def test_geographic_parameter_validation(self, registry):
         """Test coordinate and location parameter validation."""
         invalid_coords = {
             "sites": [
@@ -3652,8 +3693,9 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                 }
             ]
         }
+        context = science_check.ValidationContext(yaml_data=invalid_coords)
 
-        results = science_check.validate_geographic_parameters(invalid_coords)
+        results = registry["geographic"](context)
         assert len(results) > 0
         assert any("latitude" in result.message.lower() for result in results)
 

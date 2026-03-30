@@ -129,7 +129,7 @@ def export_schema(
             f"PREVIEW VERSION - PR #{pr_number} - DO NOT USE IN PRODUCTION. "
             f"JSON Schema for SUEWS YAML configuration files. "
             f"Schema version {CURRENT_SCHEMA_VERSION}. "
-            "See https://suews.readthedocs.io for documentation."
+            "See https://docs.suews.io for documentation."
         )
     else:
         schema["$id"] = f"{base_url}/schemas/suews-config/{CURRENT_SCHEMA_VERSION}.json"
@@ -137,7 +137,7 @@ def export_schema(
         schema["description"] = (
             f"JSON Schema for SUEWS YAML configuration files. "
             f"Schema version {CURRENT_SCHEMA_VERSION}. "
-            "See https://suews.readthedocs.io for documentation."
+            "See https://docs.suews.io for documentation."
         )
 
     # Add auto-generated headers

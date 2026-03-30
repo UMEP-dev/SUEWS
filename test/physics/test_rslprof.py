@@ -5,6 +5,9 @@ Regression tests for Issue #572 where the MIN constraint on height arrays
 caused negative LOG arguments and negative wind speeds for tall buildings.
 """
 
+import logging
+import warnings
+
 import numpy as np
 import pytest
 
@@ -107,3 +110,39 @@ class TestWindProfiles:
             wind_speeds = df_output[u_cols].iloc[0].values
             valid_winds = wind_speeds[~np.isnan(wind_speeds)]
             assert np.all(valid_winds >= 0), "Negative wind speeds detected"
+
+    def test_full_building_auto_rsl_grid_runs_without_nan(self, sample_data):
+        """Regression test for GH#1223 full-building grids in the auto MOST path."""
+        df_state_init, df_forcing = sample_data
+        df_state_issue = df_state_init.iloc[[0]].copy()
+        df_forcing_short = df_forcing.iloc[:2]
+
+        for idx in range(7):
+            df_state_issue.loc[:, ("sfr_surf", f"({idx},)")] = 0.0
+        df_state_issue.loc[:, ("sfr_surf", "(1,)")] = 1.0
+
+        df_state_issue.loc[:, ("bldgh", "0")] = 17.464
+        df_state_issue.loc[:, ("evetreeh", "0")] = 0.0
+        df_state_issue.loc[:, ("dectreeh", "0")] = 0.0
+        df_state_issue.loc[:, ("faibldg", "0")] = 0.011
+        df_state_issue.loc[:, ("faievetree", "0")] = 0.0
+        df_state_issue.loc[:, ("faidectree", "0")] = 0.0
+        df_state_issue.loc[:, ("faimethod", "0")] = 0
+        df_state_issue.loc[:, ("roughlenmommethod", "0")] = 2
+        df_state_issue.loc[:, ("rslmethod", "0")] = 2
+        df_state_issue.loc[:, ("stabilitymethod", "0")] = 3
+        df_state_issue.loc[:, ("z", "0")] = 52.392
+        df_state_issue.loc[:, ("z0m_in", "0")] = 0.03
+        df_state_issue.loc[:, ("zdm_in", "0")] = 17.464
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            df_output, _ = sp.run_supy(
+                df_forcing_short,
+                df_state_issue,
+                logging_level=logging.CRITICAL,
+                check_input=False,
+            )
+
+        u10 = df_output[("SUEWS", "U10")]
+        assert not u10.isna().all(), "Full-building auto MOST grid returned only NaN wind output"

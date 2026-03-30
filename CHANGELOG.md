@@ -40,7 +40,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 64 | 78 | 25 | 79 | 38 | 284 |
+| 2026 | 72 | 79 | 29 | 79 | 40 | 299 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -53,6 +53,81 @@ EXAMPLES:
 
 ## 2026
 
+### 23 Mar 2026
+
+- [feature][experimental] Add stebbs_Height guard to SPARTACUS building height validation when stebbsmethod is enabled (#1259, PR #1262).
+
+### 20 Mar 2026
+
+- [feature][experimental] Add calculation of electrical lighting energy and optional lighting control driven by daylighting STEBBS (PR #1254).
+- [bugfix][experimental] Fix STEBBS 10-minute profile indexing to use the full-day slot (`0-143`) rather than repeating the first hour each hour, correcting metabolism, appliance, and hot water profile application (PR #1254).
+- [change][experimental] Improve STEBBS height, external wall and footprint area descriptions, linking them together (PR #1257).
+
+### 19 Mar 2026
+- [feature][experimental] Added `same_emissivity_wall` and `same_emissivity_roof` model options for roof and wall emissivity validation (PR #1253)
+  - When enabled (`=1`), enforces all roof/wall emissivity values match their respective external roof/wall STEBBS parameters; errors reported if inconsistent as ACTION NEEDED in the report.
+  - When disabled (`=0`), skips consistency checks and issues a user warning listing current emissivities values in NO ACTION NEEDED section of the report.
+
+### 18 Mar 2026
+
+- [feature][experimental] Add dynamic calculation of water mains (cold) temperature in STEBBS and relevant new tests (PR #1249).
+
+### 16 Mar 2026
+
+- [feature][experimental] Refine `_is_physics_explicitly_configured` to use Pydantic v2 `model_fields_set`, enabling conditional validation when physics options are explicitly set by user inputs (PR #1247).
+
+### 15 Mar 2026
+
+- [feature][experimental] Add new adjustment function for STEBBS and implement WWR related adjustments when STEBBS method is on (PR #1244).
+
+### 13 Mar 2026
+
+- [change][experimental] Remove STEBBS MinimumVolumeOfDHWinUse and MaximumVolumeOfDHWinUse across codebase (PR #1242).
+- [feature][experimental] Add new validation function for STEBBS and implement HotWaterFlowProfile consistency checks when STEBBS method is on (PR #1243).
+
+### 16 Mar 2026
+
+- [feature][experimental] Add Occupants/MetabolismProfile consistency validation to STEBBSMethod check (PR #1245)
+- [doc] Updated PHASE_B_DETAILED.md with Occupants/MetabolismProfile validation description (PR #1245)
+
+### 12 Mar 2026
+- [feature][experimental] Update STEBBS InitialIndoorTemperature with mean monthly air temperature from CRU dataset (PR #1241)
+- [change][experimental] Replace STEBBS DeepSoilTemperature with AnnualMeanAirTemperature across codebase (PR #1240)
+- [change][experimental] Fix the default values for STEBBS parameters "WallOuterCapFrac = 0.5" and "RoofOuterCapFrac = 0.5" when "rcmethod==0 or missing" and update the related validator logic (PR #1224).
+- [doc] Updated the description of weighting factors "WallOuterCapFrac" and "RoofOuterCapFrac" and rcmethod (PR #1224).
+
+### 11 Mar 2026
+
+- [feature][experimental] Add new Pydantic Field ranges and defaults for STEBBS parameters (PR #1233)
+
+### 24 Feb 2026
+
+- [feature][experimental] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS dectreeh/evetreeh and SPARTACUS veg_scale/veg_frac entries (PR #1222).
+- [doc] Updated PHASE_C_DETAILED.md with new conditional validation logic for SPARTACUS (PR #1222).
+
+### 23 Feb 2026
+
+- [bugfix][experimental] Fix double-counted heating efficiency in STEBBS load calculation; correct unused heating setpoint to prevent spurious activation (PR #1221)
+
+### 20 Feb 2026
+
+- [bugfix] Guard SPARTACUS LW solver NaN from matrix singularity in certain urban canopy geometries (#1212)
+- [changes] Removed internal-only parameters (diagnose, dqndt, dqnsdt, dt_since_start, lenday_id, qn_av, qn_s_av, tair_av, tmax_id, tmin_id, tstep_prev, snowfallcum) from sample_config.yml. (PR #1216)
+
+### 19 Feb 2026
+
+- [feature][experimental] Add update logic under seasonal adjustments in phase_b.py to handle different alb_id behaviour across vegetated surface types (PR #1211).
+- [doc] Updated PHASE_B_DETAILED.md with new seasonal adjustment logic (PR #1211).
+
+### 18 Feb 2026
+
+- [feature][experimental] Add attribution module for diagnosing T2, q2, and U10 changes by decomposing model output into physical process contributions, with diurnal cycle and heatmap visualisation helpers (#918)
+
+### 13 Feb 2026
+
+- [feature][experimental] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS bldgh and SPARTACUS height entries (PR #1205).
+- [docs] Updated PHASE_C_DETAILED.md with new conditional validation logic for SPARTACUS (PR #1205).
+
 ### 5 Feb 2026
 
 - [change][experimental] Replace OccupantsProfile with MetabolismProfile and add metabolism threshold for occupancy activity classification in STEBBS; fix missing appliance energy in QEC_bldg and uninitialised heating/cooling load accumulators (PR #1194)
@@ -61,11 +136,11 @@ EXAMPLES:
 ### 4 Feb 2026
 
 - [bugfix] Fix conflict in the validation logic when vegetated surfaces are active (sfr > 0) but carbon is disabled (PR #1188)
-- [bugfix] Fix a bug in the phase_b.py required physics options, adding the new samealbedo_roof and samealbedo_wall to the list (PR #1188).
+- [bugfix] Fix a bug in the phase_b.py required physics options, adding the new same_albedo_roof and same_albedo_wall to the list (PR #1188).
 
 ### 28 Jan 2026
 
-- [feature] Added `samealbedo_wall` and `samealbedo_roof` model options for roof and wall albedo validation (PR #1123)
+- [feature] Added `same_albedo_wall` and `same_albedo_roof` model options for roof and wall albedo validation (PR #1123)
   - When enabled (`=1`), enforces all roof/wall albedo values match their respective reflectivity parameters; errors reported if inconsistent as ACTION NEEDED in the report.
   - When disabled (`=0`), skips consistency checks and issues a user warning listing current albedo values in NO ACTION NEEDED section of the report.
 - [feature] Added sphinx-gallery for executable documentation examples (#1057)

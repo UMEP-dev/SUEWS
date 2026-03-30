@@ -1,7 +1,6 @@
 [build-system]
 requires = [
     "wheel",
-    "f90wrap==0.2.16",
     "numpy>=2.0",
     "meson-python>=0.12.0",
 ]
@@ -29,7 +28,7 @@ dependencies = [
     # dask removed - CLI uses stdlib multiprocessing.pool.ThreadPool
 
     # Model requirements
-    "pydantic",
+    "pydantic>=2.12",
     "pyyaml",  # YAML configuration parsing (used in data_model/core/config.py)
     "f90nml",
     
@@ -86,7 +85,7 @@ tmy = [
     "metpy",  # Required for UMEP EPW conversion (util/_UMEP2epw.py)
 ]
 
-# Single dev group combining test + development tools
+# Core development tooling (kept separate from docs to reduce supply-chain surface)
 dev = [
     # Testing
     "pytest",
@@ -98,7 +97,10 @@ dev = [
     
     # Development
     "ipykernel",
-    
+]
+
+# Documentation tooling (isolated from the default dev environment)
+docs = [
     # Documentation - Essential only (based on conf.py usage)
     "sphinx>=7,<9",
     "sphinx-autobuild",
@@ -114,6 +116,7 @@ dev = [
 ]
 
 [project.scripts]
+suews = "supy.cmd.rust_bridge:main"
 suews-run = "supy.cmd.SUEWS:SUEWS"
 suews-convert = "supy.cmd.table_converter:convert_table_cmd"
 suews-validate = "supy.cmd.validate_config:main"
@@ -127,6 +130,7 @@ filterwarnings = [
 markers = [
     "smoke: Minimal wheel validation (~6 tests, ~60s)",
     "core: Core physics & logic tests (Fortran, driver)",
+    "rust: Rust bridge backend tests (requires suews_bridge with physics feature)",
     "util: Utility function tests (non-critical)",
     "cfg: Config/schema validation tests",
     "slow: Tests taking >30s individually",

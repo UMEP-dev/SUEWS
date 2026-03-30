@@ -1,5 +1,5 @@
 name: 'Build SUEWS Wheels'
-description: 'Build SUEWS wheels with cibuildwheel (standard or UMEP variant)'
+description: 'Build SUEWS wheels with cibuildwheel and cached Rust dependencies'
 
 inputs:
   buildplat:
@@ -30,10 +30,6 @@ inputs:
     description: 'Whether this is a TestPyPI build (adds notice to README)'
     required: false
     default: 'false'
-  enable_dts:
-    description: 'Enable DTS type wrappers (full build with DTS features)'
-    required: false
-    default: 'false'
 
 runs:
   using: 'composite'
@@ -42,18 +38,19 @@ runs:
       if: inputs.is_testpypi_build == 'true'
       shell: bash
       run: |
-        # Add TestPyPI notice after the first heading in README.md
+        # Add TestPyPI notice after the --- separator in README.md
         # This notice only appears in TestPyPI releases, not production PyPI
-        # Insert after line 3 (after "This is the SUEWS urban climate model repository.")
-        head -n 3 README.md > README.tmp
-        # Note: Using printf to avoid YAML parsing issues with '>' at line start
+        # Find the first --- line and insert the notice after it
+        SEPARATOR_LINE=$(grep -n '^---$' README.md | head -1 | cut -d: -f1)
+        head -n "$SEPARATOR_LINE" README.md > README.tmp
         printf '\n' >> README.tmp
-        printf '**TestPyPI Release**: This is a development version published to [test.pypi.org](https://test.pypi.org/project/supy/).\n' >> README.tmp
-        printf 'For installation instructions, see [Testing Development Versions](https://docs.suews.io/latest/installation.html#testing-development-versions) in the documentation.\n' >> README.tmp
-        tail -n +4 README.md >> README.tmp
+        printf '> **TestPyPI Release**: This is a development version published to [test.pypi.org](https://test.pypi.org/project/supy/).\n' >> README.tmp
+        printf '> For installation instructions, see [Testing Development Versions](https://docs.suews.io/latest/installation.html#testing-development-versions) in the documentation.\n' >> README.tmp
+        printf '\n' >> README.tmp
+        tail -n +"$((SEPARATOR_LINE + 1))" README.md >> README.tmp
         mv README.tmp README.md
         echo "Added TestPyPI notice to README.md"
-        head -15 README.md
+        head -25 README.md
 
     - name: Modify pyproject.toml for NumPy 1.x compatibility
       if: inputs.is_umep_variant == 'true'
@@ -100,7 +97,7 @@ runs:
         git diff pyproject.toml || true
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
       with:
         python-version: 3.12
 
@@ -111,36 +108,68 @@ runs:
       run: |
         # Generate version file on host (where git is available)
         # This file will be copied into the cibuildwheel container
-        if [ "${{ inputs.is_umep_variant }}" = "true" ]; then
+        if [ "${BUILD_UMEP_VARIANT}" = "true" ]; then
           echo "Generating version for UMEP variant (rc1 suffix)"
           export BUILD_UMEP_VARIANT=true
         fi
         python3 get_ver_git.py
         echo "Generated version: $(cat src/supy/_version_scm.py | grep __version__)"
 
+    - name: Prepare Rust cache directories
+      shell: bash
+      run: mkdir -p .cargo-cache .rust-target-cache
+
+    - name: Cache Rust/Cargo dependencies
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: |
+          .cargo-cache
+          .rust-target-cache
+        key: cargo-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-${{ inputs.python }}-${{ hashFiles('src/suews_bridge/Cargo.lock') }}
+        restore-keys: |
+          cargo-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-${{ inputs.python }}-
+
     - name: Build wheels
-      uses: pypa/cibuildwheel@v3.2
+      uses: pypa/cibuildwheel@9c00cb4f6b517705a3794b22395aedc36257242c # v3.2
       env:
         IS_32_BIT: ${{ inputs.buildplat_arch == 'x86' }}
         BUILD_UMEP_VARIANT: ${{ inputs.is_umep_variant }}
         CIBW_BUILD: ${{ inputs.python }}-${{ inputs.buildplat_name }}*
         CIBW_ARCHS: ${{ inputs.buildplat_arch }}
-        # Pass meson option to enable/disable DTS type wrappers
-        CIBW_CONFIG_SETTINGS: ${{ inputs.enable_dts == 'true' && 'setup-args=-Dwrap_dts_types=true' || '' }}
+        # Mount host cache directories into the Linux Docker container so that
+        # cargo artifacts survive container teardown and can be saved by actions/cache.
+        # cibuildwheel uses `docker cp` (not bind mount) for the project, so without
+        # explicit volume mounts the compiled deps are lost when the container exits.
+        CIBW_CONTAINER_ENGINE: >-
+          docker; create_args:
+          --volume ${{ github.workspace }}/.cargo-cache:/cargo-cache
+          --volume ${{ github.workspace }}/.rust-target-cache:/rust-target-cache
         # CIBW_ENABLE: ${{ inputs.python == 'cp314' && 'cp314' || '' }}
         CIBW_ENVIRONMENT_PASS_LINUX: ${{ inputs.is_umep_variant == 'true' && 'RUNNER_OS BUILD_UMEP_VARIANT' || 'RUNNER_OS' }}
         # Use manylinux_2_28 for Python 3.13+ (newer dependencies require it), manylinux2014 for 3.9-3.12 (older Linux compatibility)
         CIBW_MANYLINUX_X86_64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
         CIBW_MANYLINUX_AARCH64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
-        # Configure pip for all platforms - prefer binary wheels
+        # Configure pip and Rust cache — defaults for platforms without
+        # a CIBW_ENVIRONMENT_{PLATFORM} override (currently macOS only).
+        # NOTE: CIBW_ENVIRONMENT_{PLATFORM} replaces this block entirely,
+        # so any vars needed on Linux/Windows must be repeated there.
         CIBW_ENVIRONMENT: >
           PIP_PREFER_BINARY=1
+          CARGO_HOME=${{ github.workspace }}/.cargo-cache
+          CARGO_TARGET_DIR=${{ github.workspace }}/.rust-target-cache
           ${{ inputs.is_umep_variant == 'true' && 'BUILD_UMEP_VARIANT=true' || '' }}
-        # Platform-specific: Linux Fortran compiler settings
+        # Platform-specific: Linux Fortran compiler and Rust toolchain settings
+        # NOTE: CIBW_ENVIRONMENT_{PLATFORM} replaces (not merges with) CIBW_ENVIRONMENT,
+        # so PIP_PREFER_BINARY must be repeated here.
         CIBW_ENVIRONMENT_LINUX: >
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           F90=gfortran
+          PIP_PREFER_BINARY=1
+          CARGO_HOME=/cargo-cache
+          CARGO_TARGET_DIR=/rust-target-cache
+          PATH="/cargo-cache/bin:$PATH"
         CIBW_BEFORE_ALL_LINUX: >
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y &&
           pip install --upgrade pip setuptools wheel &&
           if [[ "${{ inputs.is_umep_variant }}" == "true" ]]; then
             echo "Installing oldest-supported-numpy for UMEP variant build" &&
@@ -150,7 +179,7 @@ runs:
             pip install 'numpy>=2.0';
           fi &&
           if [[ "${{ inputs.python }}" == "cp313" ]] || [[ "${{ inputs.python }}" == "cp314" ]]; then
-            echo "Installing numpy for Python ${{ inputs.python }} f90wrap build" &&
+            echo "Installing numpy for Python ${{ inputs.python }} build" &&
             pip install numpy;
           fi
         CIBW_BEFORE_ALL_MACOS: >
@@ -166,6 +195,8 @@ runs:
           C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm --disable-download-timeout" &&
           C:\msys64\usr\bin\bash.exe -lc "for i in 1 2 3; do pacman -S --needed --noconfirm --disable-download-timeout mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas && break || { echo Retry $i/3 && sleep 15; }; done"
         # Platform-specific: Windows compiler and toolchain settings
+        # NOTE: CIBW_ENVIRONMENT_{PLATFORM} replaces (not merges with) CIBW_ENVIRONMENT,
+        # so CARGO_HOME/CARGO_TARGET_DIR and PIP_PREFER_BINARY must be repeated here.
         CIBW_ENVIRONMENT_WINDOWS: >
           PATH="C:\\msys64\\ucrt64\\bin;$PATH"
           CC=gcc
@@ -175,6 +206,9 @@ runs:
           CXXFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           LDFLAGS="-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat"
+          PIP_PREFER_BINARY=1
+          CARGO_HOME='${{ github.workspace }}/.cargo-cache'
+          CARGO_TARGET_DIR='${{ github.workspace }}/.rust-target-cache'
         CIBW_BEFORE_BUILD_WINDOWS: >
           echo Creating setjmp compatibility library... &&
           echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c &&
@@ -196,8 +230,12 @@ runs:
         CIBW_TEST_REQUIRES: ${{ inputs.is_umep_variant == 'true' && 'pytest numpy==1.26.*' || 'pytest' }}
         # Test tiers: choose subset based on path detection and trigger
         # Always include --durations=10 to show slowest tests in output
-        CIBW_TEST_COMMAND: >
-          python -m pytest {project}/test -v --tb=short --durations=10
+        # After pytest, enforce bridge-manifest coverage of public Fortran types.
+        # Uses run_ci_tests.py wrapper to avoid shell-level && chaining,
+        # which breaks on Windows cmd.exe with quoted marker expressions.
+        CIBW_TEST_COMMAND: >-
+          python {project}/scripts/suews/run_ci_tests.py {project}
+          -v --tb=short --durations=10
           ${{ inputs.test_tier == 'smoke' && '-m smoke' ||
               inputs.test_tier == 'core' && '-m "smoke or core"' ||
               inputs.test_tier == 'cfg' && '-m "smoke or cfg"' ||
@@ -206,7 +244,7 @@ runs:
         MACOSX_DEPLOYMENT_TARGET: '15.0'
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
         name: ${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}${{ inputs.wheel_name_suffix }}
         path: ./wheelhouse/*.whl

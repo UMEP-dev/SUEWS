@@ -61,6 +61,9 @@ on:
           - always          # SSH both before and after
           - disabled        # No SSH sessions
 
+permissions:
+  contents: read
+
 jobs:
   debug-cibuildwheel:
     name: Debug ${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'macos-latest-arm64' }}
@@ -105,18 +108,19 @@ jobs:
       CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
       CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
       # Configure pip to use binary wheels and avoid building from source
-      # For Python 3.13, allow building f90wrap from source since no wheels exist
       # Also set Fortran flags for line length handling
       CIBW_ENVIRONMENT_LINUX: >
         PIP_PREFER_BINARY=1
         PIP_ONLY_BINARY=${{ inputs.python_version == 'cp313' && 'pyarrow' || ':all:' }}
         FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
         F90=gfortran
+        PATH="$HOME/.cargo/bin:$PATH"
       CIBW_BEFORE_ALL_LINUX: >
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y &&
         pip install --upgrade pip setuptools wheel &&
         pip install oldest-supported-numpy &&
         if [[ "${{ inputs.python_version }}" == "cp313" ]]; then
-          echo "Installing numpy for Python 3.13 f90wrap build" &&
+          echo "Installing numpy for Python 3.13 build" &&
           pip install numpy;
         fi
 
@@ -175,12 +179,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: 3.12
 
@@ -216,27 +221,35 @@ jobs:
           fi
 
       - name: Display debug information
+        env:
+          DEBUG_PLATFORM: ${{ env.PLATFORM }}
+          DEBUG_ARCHITECTURE: ${{ env.ARCHITECTURE }}
+          DEBUG_BUILDPLAT: ${{ env.BUILDPLAT }}
+          DEBUG_MODE_VALUE: ${{ env.DEBUG_MODE }}
+          WORKFLOW_ACTOR: ${{ github.actor }}
         run: |
           echo "=== Debug Build Configuration ==="
           echo "Platform-Arch: ${{ inputs.platform_arch || 'macos-latest-arm64' }}"
-          echo "Platform: ${{ env.PLATFORM }}"
-          echo "Architecture: ${{ env.ARCHITECTURE }}"
+          echo "Platform: ${DEBUG_PLATFORM}"
+          echo "Architecture: ${DEBUG_ARCHITECTURE}"
           echo "Python Version: ${{ inputs.python_version || 'cp311' }}"
-          echo "Build Platform: ${{ env.BUILDPLAT }}"
-          echo "Debug Mode: ${{ env.DEBUG_MODE }}"
-          echo "Actor: ${{ github.actor }}"
+          echo "Build Platform: ${DEBUG_BUILDPLAT}"
+          echo "Debug Mode: ${DEBUG_MODE_VALUE}"
+          echo "Actor: ${WORKFLOW_ACTOR}"
           echo "================================"
 
       - name: Configure git for debugging session
+        env:
+          WORKFLOW_ACTOR: ${{ github.actor }}
         run: |
           # Set git user to the workflow actor
-          git config --global user.name "${{ github.actor }}"
-          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
-          echo "Git configured for user: ${{ github.actor }}"
+          git config --global user.name "${WORKFLOW_ACTOR}"
+          git config --global user.email "${WORKFLOW_ACTOR}@users.noreply.github.com"
+          echo "Git configured for user: ${WORKFLOW_ACTOR}"
 
       - name: SSH Debug Session (Before Build) [Non-Windows]
         if: (env.DEBUG_MODE == 'before-build' || env.DEBUG_MODE == 'always') && runner.os != 'Windows'
-        uses: mxschmitt/action-tmate@v3
+        uses: mxschmitt/action-tmate@c0afd6f790e3a5564914980036ebf83216678101 # v3
         with:
           limit-access-to-actor: true
           tmate_session_name: "pre-build-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
@@ -244,7 +257,7 @@ jobs:
 
       - name: SSH Debug Session (Before Build) [Windows]
         if: (env.DEBUG_MODE == 'before-build' || env.DEBUG_MODE == 'always') && runner.os == 'Windows'
-        uses: mxschmitt/action-tmate@v3
+        uses: mxschmitt/action-tmate@c0afd6f790e3a5564914980036ebf83216678101 # v3
         with:
           limit-access-to-actor: true
           tmate_session_name: "pre-build-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
@@ -261,13 +274,15 @@ jobs:
         id: build
         continue-on-error: true
         shell: bash
+        env:
+          BUILD_PLATFORM_NAME: ${{ env.PLATFORM }}
         run: |
           # Determine cibuildwheel platform argument
-          if [[ "${{ env.PLATFORM }}" == *"ubuntu"* ]]; then
+          if [[ "${BUILD_PLATFORM_NAME}" == *"ubuntu"* ]]; then
             CIBW_PLATFORM="linux"
-          elif [[ "${{ env.PLATFORM }}" == *"macos"* ]]; then
+          elif [[ "${BUILD_PLATFORM_NAME}" == *"macos"* ]]; then
             CIBW_PLATFORM="macos"
-          elif [[ "${{ env.PLATFORM }}" == *"windows"* ]]; then
+          elif [[ "${BUILD_PLATFORM_NAME}" == *"windows"* ]]; then
             CIBW_PLATFORM="windows"
           else
             CIBW_PLATFORM="auto"
@@ -281,9 +296,14 @@ jobs:
       - name: Check build result and capture errors
         if: always()
         shell: bash
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          BUILD_EXIT_CODE: ${{ steps.build.outputs.exit_code }}
+          DEBUG_PLATFORM_ARCH: ${{ inputs.platform_arch || 'macos-latest-arm64' }}
+          DEBUG_PYTHON_VERSION: ${{ inputs.python_version || 'cp311' }}
         run: |
           # Check if build failed
-          if [ "${{ steps.build.outcome }}" == "failure" ] || [ "${{ steps.build.outputs.exit_code }}" != "0" ]; then
+          if [ "${BUILD_OUTCOME}" == "failure" ] || [ "${BUILD_EXIT_CODE}" != "0" ]; then
             echo "::error::Build failed! Check logs for details."
             echo "BUILD_FAILED=true" >> $GITHUB_ENV
 
@@ -291,8 +311,8 @@ jobs:
             mkdir -p debug-info
             echo "=== CIBUILDWHEEL BUILD FAILURE ===" > debug-info/build-error-summary.txt
             echo "Build failed at: $(date)" >> debug-info/build-error-summary.txt
-            echo "Platform-Arch: ${{ inputs.platform_arch || 'macos-latest-arm64' }}" >> debug-info/build-error-summary.txt
-            echo "Python: ${{ inputs.python_version || 'cp311' }}" >> debug-info/build-error-summary.txt
+            echo "Platform-Arch: ${DEBUG_PLATFORM_ARCH}" >> debug-info/build-error-summary.txt
+            echo "Python: ${DEBUG_PYTHON_VERSION}" >> debug-info/build-error-summary.txt
             echo "" >> debug-info/build-error-summary.txt
 
             # Extract the last 200 lines of cibuildwheel output (usually contains the error)
@@ -329,9 +349,12 @@ jobs:
           (env.DEBUG_MODE == 'after-failure' && env.BUILD_FAILED == 'true') ||
           env.DEBUG_MODE == 'always'
         shell: bash
+        env:
+          BUILD_FAILED_FLAG: ${{ env.BUILD_FAILED }}
+          RUNNER_OPERATING_SYSTEM: ${{ runner.os }}
         run: |
           echo "=== SSH DEBUG SESSION STARTING ===" > ssh-welcome.txt
-          if [ "${{ env.BUILD_FAILED }}" == "true" ]; then
+          if [ "${BUILD_FAILED_FLAG}" == "true" ]; then
             echo "⚠️  BUILD FAILED - Error summary available!" >> ssh-welcome.txt
             echo "" >> ssh-welcome.txt
             echo "Quick start commands:" >> ssh-welcome.txt
@@ -345,7 +368,7 @@ jobs:
           fi
           echo "" >> ssh-welcome.txt
 
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
+          if [[ "${RUNNER_OPERATING_SYSTEM}" == "Windows" ]]; then
             echo "🪟 Windows SSH Session Info:" >> ssh-welcome.txt
             echo "  - The environment has been configured for Git Bash." >> ssh-welcome.txt
             echo "  - If your prompt is 'C:\\...>', simply type 'bash' and press Enter." >> ssh-welcome.txt
@@ -359,7 +382,7 @@ jobs:
 
       - name: SSH Debug Session (After Failure) [Non-Windows]
         if: ((env.DEBUG_MODE == 'after-failure' && env.BUILD_FAILED == 'true') || env.DEBUG_MODE == 'always') && runner.os != 'Windows'
-        uses: mxschmitt/action-tmate@v3
+        uses: mxschmitt/action-tmate@c0afd6f790e3a5564914980036ebf83216678101 # v3
         with:
           limit-access-to-actor: true
           tmate_session_name: "post-build-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
@@ -367,7 +390,7 @@ jobs:
 
       - name: SSH Debug Session (After Failure) [Windows]
         if: ((env.DEBUG_MODE == 'after-failure' && env.BUILD_FAILED == 'true') || env.DEBUG_MODE == 'always') && runner.os == 'Windows'
-        uses: mxschmitt/action-tmate@v3
+        uses: mxschmitt/action-tmate@c0afd6f790e3a5564914980036ebf83216678101 # v3
         with:
           limit-access-to-actor: true
           tmate_session_name: "post-build-${{ inputs.python_version }}-${{ inputs.platform_arch }}"
@@ -379,6 +402,9 @@ jobs:
       - name: Collect debug artifacts
         if: always()
         shell: bash
+        env:
+          RUNNER_OPERATING_SYSTEM: ${{ runner.os }}
+          RUNNER_ARCHITECTURE: ${{ runner.arch }}
         run: |
           # Create debug directory
           mkdir -p debug-artifacts
@@ -404,8 +430,8 @@ jobs:
           # System information
           echo "=== System Information ===" > debug-artifacts/system-info.txt
           echo "Date: $(date)" >> debug-artifacts/system-info.txt
-          echo "Platform: ${{ runner.os }}" >> debug-artifacts/system-info.txt
-          echo "Architecture: ${{ runner.arch }}" >> debug-artifacts/system-info.txt
+          echo "Platform: ${RUNNER_OPERATING_SYSTEM}" >> debug-artifacts/system-info.txt
+          echo "Architecture: ${RUNNER_ARCHITECTURE}" >> debug-artifacts/system-info.txt
           uname -a >> debug-artifacts/system-info.txt 2>/dev/null || true
 
           # Python information
@@ -424,7 +450,7 @@ jobs:
 
       - name: Upload debug artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: debug-${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'macos-latest-arm64' }}-${{ github.run_number }}
           path: debug-artifacts/
@@ -432,7 +458,7 @@ jobs:
 
       - name: Upload built wheels
         if: steps.build.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: wheel-${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'macos-latest-arm64' }}
           path: ./wheelhouse/*.whl
@@ -440,11 +466,16 @@ jobs:
       - name: Final status
         if: always()
         shell: bash
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          DEBUG_PYTHON_VERSION: ${{ inputs.python_version || 'cp311' }}
+          DEBUG_PLATFORM_ARCH: ${{ inputs.platform_arch || 'macos-latest-arm64' }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
           echo "=== Build Summary ==="
-          echo "Build Status: ${{ steps.build.outcome }}"
-          echo "Debug artifacts uploaded: debug-${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'macos-latest-arm64' }}-${{ github.run_number }}"
-          if [ "${{ steps.build.outcome }}" == "success" ]; then
-            echo "Wheels uploaded: wheel-${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'macos-latest-arm64' }}"
+          echo "Build Status: ${BUILD_OUTCOME}"
+          echo "Debug artifacts uploaded: debug-${DEBUG_PYTHON_VERSION}-${DEBUG_PLATFORM_ARCH}-${RUN_NUMBER}"
+          if [ "${BUILD_OUTCOME}" == "success" ]; then
+            echo "Wheels uploaded: wheel-${DEBUG_PYTHON_VERSION}-${DEBUG_PLATFORM_ARCH}"
           fi
           echo "===================="

@@ -14,13 +14,14 @@ from .variables import (
 # Variable definitions matching Fortran dataOutLineSTEBBS assignment
 # Names are exactly as they appear in Fortran output (truncated at 16 chars)
 STEBBS_VARIABLE_DEFS = [
-    # Forcing variables (6)
+    # Forcing variables (7)
     ("ws_10", "m s-1", "Wind speed at 10m", 0),
     ("ws_bh", "m s-1", "Wind speed at building height", 0),
     ("ws_hbh", "m s-1", "Wind speed at half building height", 0),
     ("Tair_2", "degC", "Air temperature at 2m", 0),
     ("Tair_bh", "degC", "Air temperature at building height", 0),
     ("Tair_hbh", "degC", "Air temperature at half building height", 0),
+    ("Twater_mains", "degC", "Water mains (cold) temperature", 0),
     # Radiation forcing (4)
     ("Kroof_in", "W m-2", "Incoming shortwave radiation on roof per surface area", 0),
     ("Lroof_in", "W m-2", "Incoming longwave radiation on roof per surface area", 0),
@@ -85,8 +86,9 @@ STEBBS_VARIABLE_DEFS = [
     ("QHcond_ground_FA", "W m-2", "Conductive heat through ground beneath building",0),
     ("QHcond_tank_FA", "W m-2", "Conductive heat through water tank",0),
     ("QHcond_vessel_FA", "W m-2", "Conductive heat through water vessel",0),    
-    # Other heat gain/loss to indoor air (5)
+    # Other heat gain/loss to indoor air (6)
     ("QH_appliance_FA", "W m-2", "Sensible appliance heat gain",0),
+    ("QH_lighting_FA", "W m-2", "Sensible lighting heat gain",0),
     ("QH_metabolism_FA", "W m-2", "Sensible metabolic heat gain", 0),
     ("QHwaste_heating_FA", "W m-2", "Sensible heat gain from waste heat due to space heating", 0),
     ("QHwaste_dhw_FA", "W m-2", "Sensible heat gain from waste heat due to hot water", 0),

@@ -4,9 +4,9 @@
 // Expects detect-changes and determine_matrix outputs passed via environment variables.
 //
 // Environment variables (all set by the workflow step):
-//   FORTRAN_CHANGED, PYTHON_CHANGED, UTIL_CHANGED, BUILD_CHANGED,
+//   FORTRAN_CHANGED, RUST_CHANGED, PYTHON_CHANGED, UTIL_CHANGED, BUILD_CHANGED,
 //   CI_CHANGED, TESTS_CHANGED, DOCS_CHANGED, SITE_CHANGED
-//   FORTRAN_FILES, PYTHON_FILES, UTIL_FILES, BUILD_FILES,
+//   FORTRAN_FILES, RUST_FILES, PYTHON_FILES, UTIL_FILES, BUILD_FILES,
 //   CI_FILES, TESTS_FILES, DOCS_FILES, SITE_FILES, PYPROJECT_FILES
 //   NEEDS_BUILD, NEEDS_UMEP_BUILD, TEST_TIER
 //   BUILDPLAT_JSON, PYTHON_JSON
@@ -20,6 +20,7 @@ module.exports = async ({ github, context }) => {
   // Collect category flags and file lists
   const categories = [
     { name: 'fortran',   label: 'Fortran source',  changed: env.FORTRAN_CHANGED,  files: JSON.parse(env.FORTRAN_FILES   || '[]') },
+    { name: 'rust',      label: 'Rust bridge',     changed: env.RUST_CHANGED,     files: JSON.parse(env.RUST_FILES      || '[]') },
     { name: 'python',    label: 'Python source',   changed: env.PYTHON_CHANGED,   files: JSON.parse(env.PYTHON_FILES    || '[]') },
     { name: 'util',      label: 'Utility modules', changed: env.UTIL_CHANGED,     files: JSON.parse(env.UTIL_FILES      || '[]') },
     { name: 'build',     label: 'Build system',    changed: env.BUILD_CHANGED,    files: JSON.parse(env.BUILD_FILES     || '[]') },
@@ -92,6 +93,7 @@ module.exports = async ({ github, context }) => {
 
   // Build rationale
   const fortranChanged = env.FORTRAN_CHANGED === 'true';
+  const rustChanged = env.RUST_CHANGED === 'true';
   const buildChanged = env.BUILD_CHANGED === 'true';
   const pythonChanged = env.PYTHON_CHANGED === 'true';
   const utilChanged = env.UTIL_CHANGED === 'true';
@@ -100,6 +102,7 @@ module.exports = async ({ github, context }) => {
 
   let rationale = [];
   if (fortranChanged) rationale.push('Fortran source changed -> multiplatform build required');
+  if (rustChanged) rationale.push('Rust bridge changed -> multiplatform build required');
   if (buildChanged) rationale.push('Build system changed -> multiplatform build required');
   if (pythonChanged) rationale.push('Python source changed -> single-platform build');
   if (utilChanged) rationale.push('Utility modules changed -> single-platform build');

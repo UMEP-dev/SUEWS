@@ -12,7 +12,6 @@ model:
       groups:
         - SUEWS
         - STEBBS
-    diagnose: 0
   physics:
     netradiationmethod:
       value: 1003
@@ -46,9 +45,13 @@ model:
       value: 2
     gsmodel:
       value: 2
-    samealbedo_wall:
+    same_albedo_wall:
       value: 0
-    samealbedo_roof:
+    same_albedo_roof:
+      value: 0
+    same_emissivity_wall:
+      value: 0
+    same_emissivity_roof:
       value: 0
 sites:
 - name: selected grid
@@ -139,6 +142,10 @@ sites:
         value: 74.3
       LatentSensibleRatio:
         value: 0
+      DaylightControl:
+        value: 1
+      LightingIlluminanceThreshold:
+        value: 300.0
       ApplianceProfile:
         working_day:
           '1': 88.0
@@ -430,6 +437,8 @@ sites:
           '142': 88.0
           '143': 88.0
           '144': 88.0
+      LightingPowerDensity:
+        value: 2.0
       HeatingSystemEfficiency:
         value: 0.8
       MaxCoolingPower:
@@ -441,9 +450,11 @@ sites:
       InitialOutdoorTemperature:
         value: 17.540002822875977
       InitialIndoorTemperature:
-        value: 20.0
-      DeepSoilTemperature:
-        value: 10.0
+        value: 17.540002822875977
+      AnnualMeanAirTemperature:
+        value: 10.738
+      MonthMeanAirTemperature_diffmax:
+        value: 12.947
       WaterTankWallThickness:
         value: 0.055
       MainsWaterTemperature:
@@ -785,10 +796,6 @@ sites:
         value: 0.8
       HotWaterHeatingEfficiency:
         value: 0.8
-      MinimumVolumeOfDHWinUse:
-        value: 0.1
-      MaximumVolumeOfDHWinUse:
-        value: 100.0
     building_archetype:
       BuildingType: test
       BuildingName: test
@@ -2632,10 +2639,10 @@ sites:
         - 0.0
         - 4.0
         - 7.0
-        - 11.0
+        - 26.0
       veg_frac:
         value:
-        - 0.0
+        - 0.037
         - 0.0
         - 0.0
       veg_scale:
@@ -2645,14 +2652,14 @@ sites:
         - 10.0
       building_frac:
         value:
-        - 0.329
+        - 0.351
         - 0.28
-        - 0.202
+        - 0.027
       building_scale:
         value:
         - 21.66
         - 21.49
-        - 21.13
+        - 19.43
       roofs:
       - alb:
           value: 0.345
@@ -3203,7 +3210,6 @@ sites:
         value: 17.540002822875977
       tin:
         value: 17.540002822875977
-    dqndt: 0.0
     dqndt_surf:
     - 0.0
     - 0.0
@@ -3212,10 +3218,6 @@ sites:
     - 0.0
     - 0.0
     - 0.0
-    dqnsdt: 0.0
-    dt_since_start: 0.0
-    lenday_id: 0
-    qn_av: 0.0
     qn_surfs:
     - 0.0
     - 0.0
@@ -3224,12 +3226,6 @@ sites:
     - 0.0
     - 0.0
     - 0.0
-    qn_s_av: 0.0
-    tair_av: 273.15
-    tmax_id: -90.0
-    tmin_id: 90.0
-    tstep_prev: 300.0
-    snowfallcum: 0.0
     hdd_id:
     - 13.5
     - 13.5

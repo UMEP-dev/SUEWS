@@ -123,6 +123,25 @@ The full documentation for all YAML parameters is available in the :doc:`config-
 - Default values
 - Cross-references between related parameters
 
+Internal-only parameters 
+------------------------
+
+Some parameters exist in the YAML schema but are **internal-only** and are therefore intentionally omitted from ``sample_config.yml``. 
+The following parameters were removed from the sample configuration for clarity:
+
+- ``diagnose``
+- ``dqndt``
+- ``dqnsdt``
+- ``dt_since_start``
+- ``lenday_id``
+- ``qn_av``
+- ``qn_s_av``
+- ``tair_av``
+- ``tmax_id``
+- ``tmin_id``
+- ``tstep_prev``
+- ``snowfallcum``
+
 
 Forcing Data
 ------------

@@ -259,7 +259,7 @@
             }
           ],
           "default": 10.0,
-          "description": "Building height [m]",
+          "description": "Building height. This should be consistent with WallExternalArea and FootprintArea. [m]",
           "display_name": "Stebbs Height",
           "title": "Stebbs Height",
           "unit": "m"
@@ -282,7 +282,7 @@
             }
           ],
           "default": 64.0,
-          "description": "Building footprint area [m2]",
+          "description": "Building footprint area. This should be consistent with stebbs_Height and WallExternalArea. [m2]",
           "display_name": "Footprint Area",
           "title": "Footprintarea",
           "unit": "m^2"
@@ -305,7 +305,7 @@
             }
           ],
           "default": 80.0,
-          "description": "External wall area (including window area) [m2]",
+          "description": "External wall area (including window area). This should be consistent with stebbs_Height and FootprintArea. [m2]",
           "display_name": "Wall External Area",
           "title": "Wallexternalarea",
           "unit": "m^2"
@@ -7171,11 +7171,11 @@
             }
           ],
           "default": 0,
-          "description": "Method to split building envelope heat capacity in STEBBS. Options: 0 (NONE) = No heat capacity splitting applied; 1 (PROVIDED) = Use user defined value (fractional x1) between 0 and 1; 2 (PARAMETERISE) = Use building material thermal property to parameterise the weighting factor x1",
+          "description": "Method to determine the two weighting factors (WallOuterCapFrac and RoofOuterCapFrac) splitting heat capacity of building envelope into two nodes in STEBBS. Options: 0 (DEFAULT) = Default value of 0.5 is used; 1 (PROVIDED) = Use user defined value between 0 and 1; 2 (PARAMETERISE) = Use building material thermal property to parameterise the weighting factor",
           "title": "Rcmethod",
           "unit": "dimensionless"
         },
-        "samealbedo_wall": {
+        "same_albedo_wall": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_SameAlbedoWall_"
@@ -7186,10 +7186,10 @@
           ],
           "default": 0,
           "description": "Controls assumption of same albedoes for walls.",
-          "title": "Samealbedo Wall",
+          "title": "Same Albedo Wall",
           "unit": "dimensionless"
         },
-        "samealbedo_roof": {
+        "same_albedo_roof": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_SameAlbedoRoof_"
@@ -7200,7 +7200,7 @@
           ],
           "default": 0,
           "description": "Controls assumption of same albedoes for roofs.",
-          "title": "Samealbedo Roof",
+          "title": "Same Albedo Roof",
           "unit": "dimensionless"
         },
         "ref": {
@@ -7699,7 +7699,7 @@
       "type": "object"
     },
     "RCMethod": {
-      "description": "Method to split building envelope heat capacity in STEBBS.\n\n0: NONE - No heat capacity splitting applied\n1: PROVIDED - Use user defined value (fractional x1) between 0 and 1\n2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor x1",
+      "description": "Method to determine the two weighting factors (WallOuterCapFrac and RoofOuterCapFrac) splitting heat capacity of building envelope into two nodes in STEBBS.\n\n0: DEFAULT - Default value of 0.5 is used\n1: PROVIDED - Use user defined value between 0 and 1\n2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor",
       "enum": [
         0,
         1,
@@ -10072,7 +10072,7 @@
           "title": "Initialindoortemperature",
           "unit": "degC"
         },
-        "DeepSoilTemperature": {
+        "AnnualMeanAirTemperature": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -10085,9 +10085,9 @@
             }
           ],
           "default": 10.0,
-          "description": "Initial deep soil temperature [degC]",
-          "display_name": "Deep Soil Temperature",
-          "title": "Deepsoiltemperature",
+          "description": "Annual mean outdoor air temperature [degC]",
+          "display_name": "Annual Mean Air Temperature",
+          "title": "Annualmeanairtemperature",
           "unit": "degC"
         },
         "WaterTankWallThickness": {
@@ -10524,7 +10524,7 @@
               "type": "null"
             }
           ],
-          "default": 0.0,
+          "default": 7.7,
           "description": "Effective internal wall convection coefficient of the hot water tank [W m-2 K-1]",
           "display_name": "Hot Water Tank Internal Wall Convection Coefficient",
           "title": "Hotwatertankinternalwallconvectioncoefficient",
@@ -10654,52 +10654,6 @@
           "display_name": "Hot Water Heating Efficiency",
           "title": "Hotwaterheatingefficiency",
           "unit": "dimensionless"
-        },
-        "MinimumVolumeOfDHWinUse": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Minimum volume of hot water in use [m3]",
-          "display_name": "Minimum Volume of DHW in Use",
-          "title": "Minimumvolumeofdhwinuse",
-          "unit": "m^3"
-        },
-        "MaximumVolumeOfDHWinUse": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 100.0,
-          "description": "Maximum volume of hot water in use [m3]. Default is arbitrary placeholder to be refined with validation.",
-          "display_name": "Maximum Volume of DHW in Use",
-          "title": "Maximumvolumeofdhwinuse",
-          "unit": "m^3"
         },
         "ApplianceProfile": {
           "anyOf": [

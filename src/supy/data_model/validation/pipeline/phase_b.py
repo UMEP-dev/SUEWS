@@ -16,6 +16,7 @@ Phase B assumes Phase A has completed successfully and builds upon clean YAML ou
 without duplicating parameter detection or YAML structure validation.
 """
 
+import math
 import yaml
 import os
 import calendar
@@ -31,6 +32,7 @@ from .. import logger_supy
 from .report_writer import REPORT_WRITER
 from ..core.yaml_helpers import (
     get_mean_monthly_air_temperature as _get_mean_monthly_air_temperature,
+    get_monthly_air_temperature_diffmax as _get_monthly_air_temperature_diffmax,
     get_mean_annual_air_temperature as _get_mean_annual_air_temperature,
     nullify_co2_block_recursive,
     collect_nullified_paths,
@@ -40,22 +42,12 @@ from ..core.yaml_helpers import (
     HAS_TIMEZONE_FINDER,
 )
 
-# Constants 
-SFR_FRACTION_TOL = 1e-4
-
-@dataclass
-class ValidationResult:
-    """Structured result from scientific validation checks."""
-
-    status: str  # 'PASS', 'WARNING', 'ERROR'
-    category: str  # 'PHYSICS', 'GEOGRAPHY', 'SEASONAL', 'LAND_COVER', 'MODEL_OPTIONS'
-    parameter: str
-    site_index: Optional[int] = None  # Array index (for internal use)
-    site_gridid: Optional[int] = None  # GRIDID value (for display)
-    message: str = ""
-    suggested_value: Any = None
-    applied_fix: bool = False
-
+from .phase_b_rules import (
+    RulesRegistry,
+    ValidationResult,
+    ValidationContext,
+    SFR_FRACTION_TOL,
+)
 
 @dataclass
 class ScientificAdjustment:
@@ -143,442 +135,6 @@ def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
         raise ValueError(error_msg)
 
     return model_year, start_date, end_date
-
-
-def validate_physics_parameters(yaml_data: dict) -> List[ValidationResult]:
-    """Validate required physics parameters."""
-    results = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-
-    if not physics:
-        results.append(
-            ValidationResult(
-                status="WARNING",
-                category="PHYSICS",
-                parameter="model.physics",
-                message="Physics section is empty - skipping physics parameter validation",
-            )
-        )
-        return results
-
-    required_physics_params = [
-        "netradiationmethod",
-        "emissionsmethod",
-        "storageheatmethod",
-        "ohmincqf",
-        "roughlenmommethod",
-        "roughlenheatmethod",
-        "stabilitymethod",
-        "smdmethod",
-        "waterusemethod",
-        "rslmethod",
-        "faimethod",
-        "rsllevel",
-        "gsmodel",
-        "snowuse",
-        "stebbsmethod",
-        "rcmethod",
-        "samealbedo_wall",
-        "samealbedo_roof",
-    ]
-
-    missing_params = [
-        param for param in required_physics_params if param not in physics
-    ]
-    if missing_params:
-        for param in missing_params:
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="PHYSICS",
-                    parameter=f"model.physics.{param}",
-                    message=f"Physics parameter '{param}' is required but missing or null. This parameter controls critical model behaviour and must be specified for the simulation to run properly.",
-                    suggested_value=f"Set '{param}' to an appropriate value. Consult the SUEWS documentation for parameter descriptions and typical values: https://suews.readthedocs.io/latest/",
-                )
-            )
-
-    empty_params = [
-        param
-        for param in required_physics_params
-        if param in physics and physics.get(param, {}).get("value") in ("", None)
-    ]
-    if empty_params:
-        for param in empty_params:
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="PHYSICS",
-                    parameter=f"model.physics.{param}",
-                    message=f"Physics parameter '{param}' has null value. This parameter controls critical model behaviour and must be set for proper simulation.",
-                    suggested_value=f"Set '{param}' to an appropriate non-null value. Check documentation for parameter details: https://suews.readthedocs.io/en/latest",
-                )
-            )
-
-    if not missing_params and not empty_params:
-        results.append(
-            ValidationResult(
-                status="PASS",
-                category="PHYSICS",
-                parameter="model.physics",
-                message="All required physics parameters present and non-empty",
-            )
-        )
-
-    return results
-
-
-def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult]:
-    """Validate consistency between model physics options."""
-    results = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-
-    rslmethod = get_value_safe(physics, "rslmethod")
-    stabilitymethod = get_value_safe(physics, "stabilitymethod")
-    storageheatmethod = get_value_safe(physics, "storageheatmethod")
-    ohmincqf = get_value_safe(physics, "ohmincqf")
-
-    # RSL method and stability method dependencies
-    if rslmethod == 2 and stabilitymethod != 3:
-        results.append(
-            ValidationResult(
-                status="ERROR",
-                category="MODEL_OPTIONS",
-                parameter="rslmethod-stabilitymethod",
-                message="If rslmethod == 2, stabilitymethod must be 3",
-                suggested_value="Set stabilitymethod to 3",
-            )
-        )
-
-    elif stabilitymethod == 1 and rslmethod is None:
-        results.append(
-            ValidationResult(
-                status="ERROR",
-                category="MODEL_OPTIONS",
-                parameter="stabilitymethod-rslmethod",
-                message="If stabilitymethod == 1, rslmethod parameter is required for atmospheric stability calculations",
-                suggested_value="Set rslmethod to appropriate value",
-            )
-        )
-
-    else:
-        results.append(
-            ValidationResult(
-                status="PASS",
-                category="MODEL_OPTIONS",
-                parameter="rslmethod-stabilitymethod",
-                message="rslmethod-stabilitymethod constraints satisfied",
-            )
-        )
-
-    # Storage heat method and OhmIncQf compatibility check
-    # Only method 1 (OHM_WITHOUT_QF) has specific compatibility requirements
-    if storageheatmethod == 1 and ohmincqf != 0:
-        results.append(
-            ValidationResult(
-                status="ERROR",
-                category="MODEL_OPTIONS",
-                parameter="storageheatmethod-ohmincqf",
-                message=f"StorageHeatMethod is set to {storageheatmethod} and OhmIncQf is set to {ohmincqf}. You should switch to OhmIncQf=0.",
-                suggested_value="Set OhmIncQf to 0",
-            )
-        )
-    else:
-        results.append(
-            ValidationResult(
-                status="PASS",
-                category="MODEL_OPTIONS",
-                parameter="storageheatmethod-ohmincqf",
-                message="StorageHeatMethod-OhmIncQf compatibility validated",
-            )
-        )
-
-    # SMDMethod and soil_observation dependency
-    smdmethod = get_value_safe(physics, "smdmethod")
-    if smdmethod:  # Truthy check: skips None and 0 (modelled), validates 1+ (observed)
-        sites = yaml_data.get("sites", [])
-        sites_missing_soil_obs = []
-        for site in sites:
-            site_name = site.get("name", "Unknown")
-            properties = site.get("properties", {})
-            soil_obs = properties.get("soil_observation")
-            if soil_obs is None:
-                sites_missing_soil_obs.append(site_name)
-
-        if sites_missing_soil_obs:
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="MODEL_OPTIONS",
-                    parameter="smdmethod-soil_observation",
-                    message=(
-                        f"SMDMethod is set to {smdmethod} (observed soil moisture), "
-                        f"but site(s) {sites_missing_soil_obs} are missing the required "
-                        "'soil_observation' configuration block."
-                    ),
-                    suggested_value=(
-                        "Add 'soil_observation' block to site properties with: "
-                        "depth, smcap, soil_not_rocks, and bulk_density"
-                    ),
-                )
-            )
-        else:
-            results.append(
-                ValidationResult(
-                    status="PASS",
-                    category="MODEL_OPTIONS",
-                    parameter="smdmethod-soil_observation",
-                    message="SMDMethod-soil_observation configuration validated",
-                )
-            )
-    # When SMDMethod=0 (modelled), no validation needed - skip adding PASS result
-    # to reduce noise in validation output.
-
-    return results
-
-def validate_model_option_samealbedo(yaml_data: dict) -> List[ValidationResult]:
-    """Validate consistency between model physics options, reporting site names."""
-    results = []
-    physics = yaml_data.get("model", {}).get("physics", {})
-
-    samealbedo_roof = get_value_safe(physics, "samealbedo_roof")
-    samealbedo_wall = get_value_safe(physics, "samealbedo_wall")
-
-    if samealbedo_wall == 0:
-        for site in yaml_data.get("sites", []):
-            site_name = site.get("name", "Unknown")
-            vlay = site.get("properties", {}).get("vertical_layers", {})
-            walls = vlay.get("walls", [])
-            if isinstance(walls, dict):  # rare but possible
-                walls = [walls]
-            found_albedos = []
-            for wall in walls:
-                alb_val = get_value_safe(wall, "alb")
-                if alb_val is not None:
-                    found_albedos.append(alb_val)
-            building_archetype = site.get("properties", {}).get("building_archetype", {})
-            wallrefl_val = get_value_safe(building_archetype, "WallReflectivity")
-            msg = (
-                f"samealbedo_wall == 0. No check of consistency between walls albedo (found values: {found_albedos}) and WallReflectivity (found value: {wallrefl_val})."
-            )
-            results.append(
-                ValidationResult(
-                    status="WARNING",
-                    category="MODEL_OPTIONS",
-                    parameter="samealbedo_wall",
-                    site_gridid=site_name,
-                    site_index=None,
-                    message=f"{msg}",
-                    suggested_value=None,
-                )
-            )
-
-    if samealbedo_roof == 0:
-        for site in yaml_data.get("sites", []):
-            site_name = site.get("name", "Unknown")
-            vlay = site.get("properties", {}).get("vertical_layers", {})
-            roofs = vlay.get("roofs", [])
-            if isinstance(roofs, dict):  # rare but possible
-                roofs = [roofs]
-            found_albedos = []
-            for roof in roofs:
-                alb_val = get_value_safe(roof, "alb")
-                if alb_val is not None:
-                    found_albedos.append(alb_val)
-            building_archetype = site.get("properties", {}).get("building_archetype", {})
-            roofrefl_val = get_value_safe(building_archetype, "RoofReflectivity")
-            msg = (
-                f"samealbedo_roof == 0. No check of consistency between roofs albedo (found values: {found_albedos}) and RoofReflectivity (found value: {roofrefl_val})."
-            )
-            results.append(
-                ValidationResult(
-                    status="WARNING",
-                    category="MODEL_OPTIONS",
-                    parameter="samealbedo_roof",
-                    site_gridid=site_name,
-                    site_index=None,
-                    message=f"{msg}",
-                    suggested_value=None,
-                )
-            )
-
-    return results
-
-def validate_land_cover_consistency(yaml_data: dict) -> List[ValidationResult]:
-    """Validate land cover fractions and parameters."""
-    results = []
-    sites = yaml_data.get("sites", [])
-
-    for site_idx, site in enumerate(sites):
-        props = site.get("properties", {})
-        land_cover = props.get("land_cover")
-        site_gridid = get_site_gridid(site)
-
-        if not land_cover:
-            results.append(
-                ValidationResult(
-                    status="ERROR",
-                    category="LAND_COVER",
-                    parameter="land_cover",
-                    site_index=site_idx,
-                    site_gridid=site_gridid,
-                    message="Missing land_cover block",
-                    suggested_value="Add land_cover configuration with surface fractions",
-                )
-            )
-            continue
-
-        # Calculate sum of all surface fractions
-        sfr_sum = 0.0
-        surface_types = []
-
-        for surface_type, surface_props in land_cover.items():
-            if isinstance(surface_props, dict):
-                sfr_value = surface_props.get("sfr", {}).get("value")
-                if sfr_value is not None:
-                    sfr_sum += sfr_value
-                    surface_types.append((surface_type, sfr_value))
-
-        if abs(sfr_sum - 1.0) > SFR_FRACTION_TOL:
-            if sfr_sum == 0.0:
-                results.append(
-                    ValidationResult(
-                        status="ERROR",
-                        category="LAND_COVER",
-                        parameter="land_cover.surface_fractions",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        message=f"All surface fractions are zero or missing",
-                        suggested_value="Set surface fractions (paved.sfr, bldgs.sfr, evetr.sfr, dectr.sfr, grass.sfr, bsoil.sfr, water.sfr) that sum to 1.0",
-                    )
-                )
-            else:
-                surface_list = ", ".join([
-                    f"{surf}={val:.4f}" for surf, val in surface_types
-                ])
-                # Identify the surface with the largest fraction (same as auto-correction logic)
-                surface_dict = dict(surface_types)
-                max_surface = (
-                    max(surface_dict.keys(), key=lambda k: surface_dict[k])
-                    if surface_dict
-                    else "surface"
-                )
-                results.append(
-                    ValidationResult(
-                        status="ERROR",
-                        category="LAND_COVER",
-                        parameter=f"{max_surface}.sfr",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        message=f"Surface fractions sum to {sfr_sum:.4f}, should equal 1.0 (auto-correction range: 1.0 ± {SFR_FRACTION_TOL:.1e}, current: {surface_list}. Validator will auto‑correct small deviations in this range.)",
-                        suggested_value=f"Adjust the max surface {max_surface}.sfr or other surface fractions so they sum to exactly 1.0",
-                    )
-                )
-
-        # Determine if biogenic CO2 parameters should be required
-        physics = yaml_data.get("model", {}).get("physics", {})
-        emissionsmethod = get_value_safe(physics, "emissionsmethod")
-        biogenic_params = {
-            "alpha_bioco2",
-            "alpha_enh_bioco2",
-            "beta_bioco2",
-            "beta_enh_bioco2",
-            "min_res_bioco2",
-            "theta_bioco2",
-            "resp_a",
-            "resp_b",
-        }
-        biogenic_surfaces = {"dectr", "evetr", "grass"}
-
-        for surface_type, sfr_value in surface_types:
-            if sfr_value > 0:
-                surface_props = land_cover[surface_type]
-                missing_params = _check_surface_parameters(surface_props, surface_type)
-
-                # If emissionsmethod disables CO2, skip biogenic params for relevant surfaces
-                if (
-                    emissionsmethod is not None
-                    and emissionsmethod in [0, 1, 2, 3, 4]
-                    and surface_type in biogenic_surfaces
-                ):
-                    missing_params = [
-                        p
-                        for p in missing_params
-                        if p.split(".")[-1] not in biogenic_params
-                    ]
-
-                for param_name in missing_params:
-                    readable_message = (
-                        f"Surface '{surface_type}' is active (sfr > 0) but parameter '{param_name}' "
-                        f"is missing or null. Active surfaces require all their parameters to be "
-                        f"properly configured for accurate simulation results."
-                    )
-
-                    actionable_suggestion = (
-                        f"Set parameter '{param_name}' to an appropriate non-null value. "
-                        f"Refer to SUEWS documentation for typical values for '{surface_type}' surfaces."
-                    )
-
-                    results.append(
-                        ValidationResult(
-                            status="ERROR",
-                            category="LAND_COVER",
-                            parameter=f"{surface_type}.{param_name}",
-                            site_index=site_idx,
-                            site_gridid=site_gridid,
-                            message=readable_message,
-                            suggested_value=actionable_suggestion,
-                        )
-                    )
-
-        zero_sfr_surfaces = [surf for surf, sfr in surface_types if sfr == 0]
-        if zero_sfr_surfaces:
-            for surf_type in zero_sfr_surfaces:
-                param_list = []
-                surf_props = (
-                    site.get("properties", {}).get("land_cover", {}).get(surf_type, {})
-                )
-
-                def collect_param_names(d: dict, prefix: str = ""):
-                    for k, v in d.items():
-                        if k == "sfr":
-                            continue
-                        current_path = f"{prefix}.{k}" if prefix else k
-                        if isinstance(v, dict):
-                            if "value" in v:
-                                param_list.append(current_path)
-                            else:
-                                collect_param_names(v, current_path)
-
-                collect_param_names(surf_props)
-
-                if param_list:
-                    message = f"Parameters under sites.properties.land_cover.{surf_type} are not checked because '{surf_type}' surface fraction is 0."
-                    param_names = ", ".join(param_list)
-                    suggested_fix = f"Either set {surf_type} surface fraction > 0 to activate validation, or remove unused parameters: {param_names}"
-
-                    results.append(
-                        ValidationResult(
-                            status="WARNING",
-                            category="LAND_COVER",
-                            parameter=f"land_cover.{surf_type}",
-                            site_index=site_idx,
-                            site_gridid=site_gridid,
-                            message=message,
-                            suggested_value=suggested_fix,
-                        )
-                    )
-
-    if not any(r.status == "ERROR" for r in results):
-        results.append(
-            ValidationResult(
-                status="PASS",
-                category="LAND_COVER",
-                parameter="land_cover_validation",
-                message="Land cover fractions and parameters validated successfully",
-            )
-        )
-
-    return results
 
 
 def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[str]:
@@ -1004,29 +560,6 @@ def check_missing_vegetation_albedo(yaml_data: dict) -> List[ValidationResult]:
     return results
 
 
-def run_scientific_validation_pipeline(
-    yaml_data: dict, start_date: str, model_year: int
-) -> List[ValidationResult]:
-    """Execute all scientific validation checks."""
-    validation_results = []
-
-    validation_results.extend(validate_physics_parameters(yaml_data))
-
-    validation_results.extend(validate_model_option_dependencies(yaml_data))
-
-    validation_results.extend(validate_model_option_samealbedo(yaml_data))
-
-    validation_results.extend(validate_land_cover_consistency(yaml_data))
-
-    validation_results.extend(validate_geographic_parameters(yaml_data))
-
-    validation_results.extend(validate_irrigation_parameters(yaml_data, model_year))
-
-    validation_results.extend(check_missing_vegetation_albedo(yaml_data))
-
-    return validation_results
-
-
 def get_mean_monthly_air_temperature(
     lat: float, lon: float, month: int, spatial_res: float = 0.5
 ) -> Optional[float]:
@@ -1065,6 +598,56 @@ def get_mean_monthly_air_temperature(
             # Re-raise validation errors
             raise
 
+def get_monthly_air_temperature_diffmax(
+    lat: float, lon: float, spatial_res: float = 0.5
+) -> Optional[float]:
+    """
+    Calculate the maximum difference between mean monthly air temperatures
+    using CRU TS4.06 climatological data. This is defined as the difference 
+    between the warmest and coldest mean monthly temperature within the annual 
+    cycle at the specified location.
+
+    Parameters
+    ----------
+    lat : float
+        Site latitude in degrees (-90 to 90).
+    lon : float
+        Site longitude in degrees (-180 to 180).
+    spatial_res : float, optional
+        Search spatial resolution for nearest CRU grid cell, by default 0.5.
+
+    Returns
+    -------
+    float or None
+        Maximum difference in mean monthly air temperature (degC),
+        or None if CRU data not available.
+
+    Raises
+    ------
+    ValueError
+        If input parameters are invalid (lat, lon out of range).
+    """
+    # Validate parameters first - these errors should propagate
+    if not (-90 <= lat <= 90):
+        raise ValueError(f"Latitude must be between -90 and 90, got {lat}")
+    if not (-180 <= lon <= 180):
+        raise ValueError(f"Longitude must be between -180 and 180, got {lon}")
+
+    try:
+        return _get_monthly_air_temperature_diffmax(lat, lon, spatial_res)
+    except (FileNotFoundError, IOError, OSError) as e:
+        logger_supy.warning(
+            f"CRU data file not available: {e}. Temperature diffmax validation skipped."
+        )
+        return None
+    except ValueError as e:
+        if "CRU" in str(e) or "not found" in str(e).lower():
+            logger_supy.warning(
+                f"CRU data not available: {e}. Temperature diffmax validation skipped."
+            )
+            return None
+        else:
+            raise
 
 def get_mean_annual_air_temperature(
     lat: float, lon: float, spatial_res: float = 0.5
@@ -1208,7 +791,7 @@ def adjust_surface_temperatures(
             initial_states[surface_type] = surf
 
         # Update STEBBS temperature parameter values to avg_temp
-        for key in ("InitialOutdoorTemperature",):
+        for key in ("InitialOutdoorTemperature", "InitialIndoorTemperature",):
             if key in stebbs and isinstance(stebbs[key], dict):
                 old_val = stebbs[key].get("value")
                 if old_val != avg_temp:
@@ -1224,16 +807,37 @@ def adjust_surface_temperatures(
                         )
                     )
 
+        # Update MonthMeanTemperature_diffmax in stebbs if present
+        diffmax_val = get_monthly_air_temperature_diffmax(lat, lng)
+        if diffmax_val is None:
+            logger_supy.debug("Skipping diffmax update - CRU data not available")
+        else:
+            for key in ("MonthMeanAirTemperature_diffmax",):
+                if key in stebbs and isinstance(stebbs[key], dict):
+                    old_val = stebbs[key].get("value")
+                    if old_val != diffmax_val:
+                        stebbs[key]["value"] = diffmax_val
+                        adjustments.append(
+                            ScientificAdjustment(
+                                parameter=f"stebbs.{key}",
+                                site_index=site_idx,
+                                site_gridid=site_gridid,
+                                old_value=str(old_val),
+                                new_value=f"{diffmax_val} C",
+                                reason=f"Set from CRU data for coordinates ({lat:.2f}, {lng:.2f})",
+                            )
+                        )
+
         # Update STEBBS OutdoorAirAnnualTemperature using annual mean from CRU data
         annual_temp = get_mean_annual_air_temperature(lat, lng)
-        if annual_temp is not None and "DeepSoilTemperature" in stebbs:
-            if isinstance(stebbs["DeepSoilTemperature"], dict):
-                old_annual_val = stebbs["DeepSoilTemperature"].get("value")
+        if annual_temp is not None and "AnnualMeanAirTemperature" in stebbs:
+            if isinstance(stebbs["AnnualMeanAirTemperature"], dict):
+                old_annual_val = stebbs["AnnualMeanAirTemperature"].get("value")
                 if old_annual_val != annual_temp:
-                    stebbs["DeepSoilTemperature"]["value"] = annual_temp
+                    stebbs["AnnualMeanAirTemperature"]["value"] = annual_temp
                     adjustments.append(
                         ScientificAdjustment(
-                            parameter="stebbs.DeepSoilTemperature",
+                            parameter="stebbs.AnnualMeanAirTemperature",
                             site_index=site_idx,
                             site_gridid=site_gridid,
                             old_value=str(old_annual_val),
@@ -1578,6 +1182,32 @@ def get_season(start_date: str, lat: float) -> str:
     return get_season_from_doy(start, lat)
 
 
+def _get_range_and_id(surf_props: dict, surf_state: dict) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    alb_min = get_value_safe(surf_props, "alb_min")
+    alb_max = get_value_safe(surf_props, "alb_max")
+    alb_id = get_value_safe(surf_state, "alb_id")
+    return alb_min, alb_max, alb_id
+
+
+def _set_alb_id(
+    initial_states: dict,
+    surf_key: str,
+    new_alb_id: Optional[float],
+):
+    if new_alb_id is None:
+        return False, None, None
+    if surf_key not in initial_states:
+        initial_states[surf_key] = {}
+    surf_state = initial_states[surf_key]
+    if not isinstance(surf_state, dict):
+        return False, None, None
+    old_val = get_value_safe(surf_state, "alb_id")
+    if old_val is not None and math.isclose(old_val, new_alb_id):
+        return False, old_val, new_alb_id
+    surf_state["alb_id"] = {"value": new_alb_id}
+    return True, old_val, new_alb_id
+
+
 def adjust_seasonal_parameters(
     yaml_data: dict, start_date: str, model_year: int
 ) -> Tuple[dict, List[ScientificAdjustment]]:
@@ -1628,8 +1258,8 @@ def adjust_seasonal_parameters(
 
             if sfr > 0:
                 lai = dectr.get("lai", {})
-                laimin = lai.get("laimin", {}).get("value")
-                laimax = lai.get("laimax", {}).get("value")
+                laimin = get_value_safe(lai, "laimin")
+                laimax = get_value_safe(lai, "laimax")
 
                 if laimin is not None and laimax is not None:
                     if season == "summer":
@@ -1644,7 +1274,7 @@ def adjust_seasonal_parameters(
                     if "dectr" not in initial_states:
                         initial_states["dectr"] = {}
 
-                    current_lai = initial_states["dectr"].get("lai_id", {}).get("value")
+                    current_lai = get_value_safe(initial_states["dectr"], "lai_id")
                     if current_lai != lai_val:
                         initial_states["dectr"]["lai_id"] = {"value": lai_val}
                         adjustments.append(
@@ -1661,6 +1291,49 @@ def adjust_seasonal_parameters(
                         )
             # Note: When sfr=0, we don't nullify lai_id - we simply skip validation
             # The warning "Parameters not checked because surface fraction is 0" covers this
+
+        # Seasonal adjustment of vegetation albedo ranges (alb_id only)
+        vegetated_surfaces = (
+            ("grass", "grass"),
+            ("dectr", "deciduous trees"),
+            ("evetr", "evergreen trees"),
+        )
+
+        for surf_key, label in vegetated_surfaces:
+            surf_props = land_cover.get(surf_key, {})
+            # Check surface fraction:
+            sfr = surf_props.get("sfr", {}).get("value", 0)
+            if not sfr:
+                continue  # Skip albedo adjustment if surface fraction is zero
+
+            surf_state = initial_states.get(surf_key, {})
+            alb_min, alb_max, alb_id_val = _get_range_and_id(surf_props, surf_state)
+            if alb_min is None or alb_max is None:
+                continue
+            if season in ("summer", "tropical", "equatorial"):
+                target = alb_min if surf_key == "grass" else alb_max
+            elif season == "winter":
+                target = alb_max if surf_key == "grass" else alb_min
+            else:
+                if alb_id_val is None:
+                    continue
+                target = 0.5 * (alb_min + alb_max)
+            changed, old_val, new_alb_id = _set_alb_id(
+                initial_states,
+                surf_key,
+                target,
+            )
+            if changed:
+                adjustments.append(
+                    ScientificAdjustment(
+                        parameter=f"{surf_key}.alb_id",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        old_value=str(old_val),
+                        new_value=str(new_alb_id),
+                        reason=f"Set seasonal albedo for {season} on {label} based on (alb_min, alb_max)",
+                    )
+                )
 
         if lat is not None and lng is not None:
             try:
@@ -1738,31 +1411,205 @@ def adjust_seasonal_parameters(
 
     return yaml_data, adjustments
 
+def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
+    """If rcmethod == 0, set RoofOuterCapFrac and WallOuterCapFrac to 0.5 for all sites."""
+    adjustments = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+    rcmethod_value = get_value_safe(physics, "rcmethod")
+
+    if rcmethod_value == 0:
+        sites = yaml_data.get("sites", [])
+        for site_idx, site in enumerate(sites):
+            props = site.get("properties", {})
+            building_archetype = props.get("building_archetype", {})
+            site_gridid = get_site_gridid(site)
+
+            # RoofOuterCapFrac
+            roof_frac_entry = building_archetype.get("RoofOuterCapFrac", {})
+            old_roof_frac = roof_frac_entry.get("value") if isinstance(roof_frac_entry, dict) else roof_frac_entry
+            if old_roof_frac != 0.5:
+                building_archetype["RoofOuterCapFrac"] = {"value": 0.5}
+                adjustments.append(
+                    ScientificAdjustment(
+                        parameter="building_archetype.RoofOuterCapFrac",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        old_value=str(old_roof_frac),
+                        new_value="0.5",
+                        reason="rcmethod == 0, set RoofOuterCapFrac to 0.5"
+                    )
+                )
+
+            # WallOuterCapFrac
+            wall_frac_entry = building_archetype.get("WallOuterCapFrac", {})
+            old_wall_frac = wall_frac_entry.get("value") if isinstance(wall_frac_entry, dict) else wall_frac_entry
+            if old_wall_frac != 0.5:
+                building_archetype["WallOuterCapFrac"] = {"value": 0.5}
+                adjustments.append(
+                    ScientificAdjustment(
+                        parameter="building_archetype.WallOuterCapFrac",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        old_value=str(old_wall_frac),
+                        new_value="0.5",
+                        reason="rcmethod == 0, set WallOuterCapFrac to 0.5"
+                    )
+                )
+
+            props["building_archetype"] = building_archetype
+            site["properties"] = props
+            yaml_data["sites"][site_idx] = site
+
+    return yaml_data, adjustments
+
+def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
+    """
+    Adjusts stebbs-related parameters according to stebbsmethod options.
+
+    - If 'stebbsmethod' is 1 and 'WWR' is 0.0 for a site, all window-related parameters are set to None.
+    - If 'stebbsmethod' is 1 and 'WWR' is 1.0 for a site, all external wall-related parameters are set to None.
+
+    """
+    adjustments = []
+    physics = yaml_data.get("model", {}).get("physics", {})
+    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+
+    if stebbsmethod == 1:
+        sites = yaml_data.get("sites", [])
+        for site_idx, site in enumerate(sites):
+            props = site.get("properties", {})
+            stebbs = props.get("stebbs", {})
+            bldgarc = props.get("building_archetype", {})
+
+            site_gridid = get_site_gridid(site)
+
+            wwr_entry = bldgarc.get("WWR", {})
+            wwr = wwr_entry.get("value") if isinstance(wwr_entry, dict) else wwr_entry
+
+            if wwr == 0.0:
+                window_params_stebbs = [
+                    "WindowInternalConvectionCoefficient",
+                    "WindowExternalConvectionCoefficient",
+                ]
+                window_params_bldgarc = [
+                    "WindowThickness",
+                    "WindowEffectiveConductivity",
+                    "WindowDensity",
+                    "WindowCp",
+                    "WindowExternalEmissivity",
+                    "WindowInternalEmissivity",
+                    "WindowTransmissivity",
+                    "WindowAbsorbtivity",
+                    "WindowReflectivity",
+                ]
+                # Nullify in stebbs
+                for param in window_params_stebbs:
+                    if param in stebbs and isinstance(stebbs[param], dict):
+                        old_val = stebbs[param].get("value")
+                        if old_val is not None:
+                            stebbs[param]["value"] = None
+                            adjustments.append(
+                                ScientificAdjustment(
+                                    parameter=f"stebbs.{param}",
+                                    site_index=site_idx,
+                                    site_gridid=site_gridid,
+                                    old_value=str(old_val),
+                                    new_value="null",
+                                    reason="WWR == 0, window parameter nullified"
+                                )
+                            )
+                # Nullify in building_archetype
+                for param in window_params_bldgarc:
+                    if param in bldgarc and isinstance(bldgarc[param], dict):
+                        old_val = bldgarc[param].get("value")
+                        if old_val is not None:
+                            bldgarc[param]["value"] = None
+                            adjustments.append(
+                                ScientificAdjustment(
+                                    parameter=f"building_archetype.{param}",
+                                    site_index=site_idx,
+                                    site_gridid=site_gridid,
+                                    old_value=str(old_val),
+                                    new_value="null",
+                                    reason="WWR == 0, window parameter nullified"
+                                )
+                            )
+                props["stebbs"] = stebbs
+                props["building_archetype"] = bldgarc
+                site["properties"] = props
+                yaml_data["sites"][site_idx] = site
+
+            elif wwr == 1.0:
+                # Nullify external wall parameters in stebbs and building_archetype
+                wall_params_stebbs = [
+                    "WallExternalConvectionCoefficient",
+                    "WallInternalConvectionCoefficient",
+                    ]
+                wall_params_bldgarc = [
+                    "WallExternalEmissivity",
+                    "WallInternalEmissivity",
+                    "WallTransmissivity",
+                    "WallAbsorbtivity",
+                    "WallReflectivity",
+                    "WallThickness",
+                    "WallEffectiveConductivity",
+                    "WallDensity",
+                    "WallCp",
+                    ]
+                for param in wall_params_stebbs:
+                    entry = stebbs.get(param)
+                    if isinstance(entry, dict) and entry.get("value") is not None:
+                        old_val = entry["value"]
+                        entry["value"] = None
+                        adjustments.append(
+                            ScientificAdjustment(
+                                parameter=f"stebbs.{param}",
+                                site_index=site_idx,
+                                site_gridid=site_gridid,
+                                old_value=str(old_val),
+                                new_value="null",
+                                reason="WWR == 1, external wall parameter nullified"
+                            )
+                        )
+                for param in wall_params_bldgarc:
+                    entry = bldgarc.get(param)
+                    if isinstance(entry, dict) and entry.get("value") is not None:
+                        old_val = entry["value"]
+                        entry["value"] = None
+                        adjustments.append(
+                            ScientificAdjustment(
+                                parameter=f"building_archetype.{param}",
+                                site_index=site_idx,
+                                site_gridid=site_gridid,
+                                old_value=str(old_val),
+                                new_value="null",
+                                reason="WWR == 1, external wall parameter nullified"
+                            )
+                        )
+                props["stebbs"] = stebbs
+                props["building_archetype"] = bldgarc
+                site["properties"] = props
+                yaml_data["sites"][site_idx] = site
+
+    return yaml_data, adjustments
 
 def run_scientific_adjustment_pipeline(
     yaml_data: dict, start_date: str, model_year: int
 ) -> Tuple[dict, List[ScientificAdjustment]]:
     """Apply automatic scientific corrections and adjustments."""
-    adjustments = []
     updated_data = deepcopy(yaml_data)
+    adjustments = []
 
-    updated_data, temp_adjustments = adjust_surface_temperatures(
-        updated_data, start_date
-    )
-    adjustments.extend(temp_adjustments)
-
-    updated_data, fraction_adjustments = adjust_land_cover_fractions(updated_data)
-    adjustments.extend(fraction_adjustments)
-
-    updated_data, nullify_adjustments = adjust_model_dependent_nullification(
-        updated_data
-    )
-    adjustments.extend(nullify_adjustments)
-
-    updated_data, seasonal_adjustments = adjust_seasonal_parameters(
-        updated_data, start_date, model_year
-    )
-    adjustments.extend(seasonal_adjustments)
+    for adjust_func, args in [
+        (adjust_surface_temperatures, (updated_data, start_date)),
+        (adjust_land_cover_fractions, (updated_data,)),
+        (adjust_model_dependent_nullification, (updated_data,)),
+        (adjust_seasonal_parameters, (updated_data, start_date, model_year)),
+        (adjust_model_option_rcmethod, (updated_data,)),
+        (adjust_model_option_stebbsmethod, (updated_data,))
+    ]:
+        updated_data, adj = adjust_func(*args)
+        adjustments.extend(adj)
 
     return updated_data, adjustments
 
@@ -2077,9 +1924,16 @@ def run_science_check(
 
         model_year, start_date, end_date = extract_simulation_parameters(uptodate_data)
 
-        validation_results = run_scientific_validation_pipeline(
-            uptodate_data, start_date, model_year
+        validation_context = ValidationContext(
+            yaml_data=uptodate_data,
+            start_date=start_date,
+            model_year=model_year,
         )
+
+        validation_results = RulesRegistry(
+            context=validation_context
+        ).run_validation()
+
     except (ValueError, FileNotFoundError, KeyError) as e:
         # Handle initialization failures and create error report
         error_message = str(e)

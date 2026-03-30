@@ -1,5 +1,5 @@
 # SUEWS Simplified Makefile - Essential recipes only
-.PHONY: help setup submodules dev dev-dts reinstall test test-smoke test-all docs clean format
+.PHONY: help setup submodules dev docs-setup reinstall test test-smoke test-all audit-deps docs livehtml clean format bridge
 
 # Default Python
 PYTHON := python
@@ -8,22 +8,19 @@ help:
 	@echo "SUEWS Development - Essential Commands"
 	@echo ""
 	@echo "  setup      - Create virtual environment (if using uv)"
-	@echo "  dev        - Fast build without DTS type wrappers (traditional interface)"
-	@echo "  dev-dts    - Full build with DTS type wrappers (DTS interface enabled)"
+	@echo "  dev        - Build and install in editable mode"
+	@echo "  docs-setup - Install documentation dependencies and strip legacy .pth hooks"
 	@echo "  test       - Run standard tests (excludes slow, ~2-3 min)"
 	@echo "  test-smoke - Run smoke tests only (fast CI validation, ~30-60 sec)"
 	@echo "  test-all   - Run ALL tests including slow (~4-5 min)"
+	@echo "  audit-deps - Audit Python dependencies and startup hooks"
 	@echo "  docs       - Build documentation"
 	@echo "  clean      - Smart clean (keeps .venv if active)"
+	@echo "  bridge     - Build the Rust bridge CLI (suews_bridge)"
 	@echo "  format     - Format Python and Fortran code"
 	@echo ""
 	@echo "Quick start:"
 	@echo "  With uv:    make setup && source .venv/bin/activate && make dev"
-	@echo "  With conda: mamba env create -f env.yml && mamba activate suews-dev && make dev"
-	@echo ""
-	@echo "Build options:"
-	@echo "  make dev      - Fast build (skips 13 type files in f90wrap)"
-	@echo "  make dev-dts  - Full build (for DTS interface development)"
 	@echo ""
 	@echo "Common workflows:"
 	@echo "  Fresh start:     make clean && make dev"
@@ -37,8 +34,8 @@ setup:
 		if [ ! -d ".venv" ]; then \
 			echo "Creating uv virtual environment..."; \
 			uv venv; \
-			echo "✓ Created .venv"; \
-			echo "→ Now run: source .venv/bin/activate"; \
+			echo "Created .venv"; \
+			echo "-> Now run: source .venv/bin/activate"; \
 		else \
 			echo "Virtual environment already exists at .venv"; \
 		fi \
@@ -52,9 +49,7 @@ setup:
 submodules:
 	@git submodule update --init --recursive
 
-# Fast build without DTS type wrappers (for most development)
-# Skips wrapping 13 type definition files, significantly reducing f90wrap time
-# Traditional DataFrame interface works; DTS features will raise clear error
+# Build and install in editable mode
 dev:
 	@# Check for activated virtual environment
 	@if [ -z "$$VIRTUAL_ENV" ]; then \
@@ -70,8 +65,7 @@ dev:
 		exit 1; \
 	fi
 	@$(MAKE) submodules
-	@echo "Installing SUEWS in editable mode (fast build - no DTS type wrappers)..."
-	@echo "Note: DTS features unavailable. Use 'make dev-dts' for full build."
+	@echo "Installing SUEWS in editable mode..."
 	@# Get current Python version tag
 	@PYVER=$$($(PYTHON) -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')") || { \
 		echo "ERROR: Failed to get Python version"; \
@@ -106,95 +100,48 @@ dev:
 	@# Install build dependencies first (required for --no-build-isolation)
 	@if command -v uv >/dev/null 2>&1; then \
 		echo "Using uv for fast installation..."; \
-		uv pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
+		uv pip install wheel pytest "numpy>=2.0" "meson-python>=0.12.0"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
 			echo "Using Homebrew gfortran for macOS compatibility"; \
-			bash -c 'FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=false"'; \
+			bash -c 'PATH="$$HOME/.cargo/bin:$$PATH" FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]"'; \
 		else \
-			uv pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=false"; \
+			uv pip install --no-build-isolation -e ".[dev]"; \
 		fi \
 	else \
-		$(PYTHON) -m pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
+		$(PYTHON) -m pip install wheel pytest "numpy>=2.0" "meson-python>=0.12.0"; \
 		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
-			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=false"; \
+			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation -e ".[dev]"; \
 		else \
-			$(PYTHON) -m pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=false"; \
+			$(PYTHON) -m pip install --no-build-isolation -e ".[dev]"; \
 		fi \
 	fi
 	@# Ensure meson build directory is initialized (fixes post-clean state)
 	@$(MAKE) rebuild-meson
-	@echo "Build complete (fast build - DTS features disabled)"
+	@echo "Build complete"
 
-# Full build with DTS type wrappers (for DTS interface development)
-# Wraps all type definition files for direct Python access to nested Fortran types
-dev-dts:
+# Install docs-only dependencies without re-installing the package
+docs-setup:
 	@# Check for activated virtual environment
 	@if [ -z "$$VIRTUAL_ENV" ]; then \
 		echo ""; \
 		echo "ERROR: No virtual environment activated."; \
 		echo ""; \
 		echo "Please activate a virtual environment first:"; \
-		echo "  make setup && source .venv/bin/activate && make dev-dts"; \
-		echo ""; \
-		echo "Or with conda:"; \
-		echo "  mamba activate suews-dev && make dev-dts"; \
+		echo "  make setup && source .venv/bin/activate && make dev && make docs-setup"; \
 		echo ""; \
 		exit 1; \
 	fi
-	@$(MAKE) submodules
-	@echo "Installing SUEWS in editable mode (full build - with DTS type wrappers)..."
-	@# Get current Python version tag
-	@PYVER=$$($(PYTHON) -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')") || { \
-		echo "ERROR: Failed to get Python version"; \
-		exit 1; \
-	}; \
-	echo "Python version: $$PYVER"; \
-	# Stale build detection: check for builds from different Python versions \
-	if [ -d "build" ]; then \
-		STALE_BUILDS=$$(ls -d build/cp* 2>/dev/null | grep -v "build/$$PYVER" || true); \
-		if [ -n "$$STALE_BUILDS" ]; then \
-			echo ""; \
-			echo "WARNING: Found build directories for different Python versions:"; \
-			echo "$$STALE_BUILDS"; \
-			echo ""; \
-			echo "Cleaning stale builds to avoid import errors..."; \
-			for dir in $$STALE_BUILDS; do \
-				rm -rf "$$dir"; \
-				echo "  Removed: $$dir"; \
-			done; \
-			echo ""; \
-		fi \
-	fi; \
-	# Uninstall first if build directory is missing (post-clean state) \
-	if [ ! -d "build/$$PYVER" ]; then \
-		echo "Build directory missing for $$PYVER - performing clean reinstall..."; \
-		if command -v uv >/dev/null 2>&1; then \
-			uv pip uninstall supy 2>/dev/null || true; \
-		else \
-			$(PYTHON) -m pip uninstall supy -y 2>/dev/null || true; \
-		fi \
-	fi
-	@# Install build dependencies first (required for --no-build-isolation)
-	@if command -v uv >/dev/null 2>&1; then \
-		echo "Using uv for fast installation..."; \
-		uv pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
-		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
-			echo "Using Homebrew gfortran for macOS compatibility"; \
-			bash -c 'FC=/opt/homebrew/bin/gfortran uv pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=true"'; \
-		else \
-			uv pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=true"; \
-		fi \
+	@TMP_REQ=$$(mktemp "$${TMPDIR:-/tmp}/suews-docs.XXXXXX" 2>/dev/null || mktemp -t suews-docs); \
+	trap 'rm -f "$$TMP_REQ"' EXIT; \
+	$(PYTHON) scripts/security/export_pyproject_requirements.py --extra docs > "$$TMP_REQ"; \
+	if command -v uv >/dev/null 2>&1; then \
+		echo "Installing documentation dependencies with uv..."; \
+		uv pip install -r "$$TMP_REQ"; \
 	else \
-		$(PYTHON) -m pip install wheel pytest "f90wrap==0.2.16" "numpy>=2.0" "meson-python>=0.12.0"; \
-		if [ -x "/opt/homebrew/bin/gfortran" ]; then \
-			FC=/opt/homebrew/bin/gfortran $(PYTHON) -m pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=true"; \
-		else \
-			$(PYTHON) -m pip install --no-build-isolation -e ".[dev]" --config-settings=setup-args="-Dwrap_dts_types=true"; \
-		fi \
-	fi
-	@# Ensure meson build directory is initialized (fixes post-clean state)
-	@$(MAKE) rebuild-meson
-	@echo "Build complete (full build - DTS features enabled)"
+		echo "Installing documentation dependencies with pip..."; \
+		$(PYTHON) -m pip install -r "$$TMP_REQ"; \
+	fi; \
+	$(PYTHON) scripts/security/remove_legacy_namespace_pth.py
 
 # Deprecated: use 'make clean && make dev' instead (kept for backwards compatibility)
 reinstall:
@@ -218,15 +165,25 @@ rebuild-meson:
 		echo "Initializing meson build directory for $$PYVER..."; \
 		mkdir -p "build/$$PYVER"; \
 		if cd "build/$$PYVER" && meson setup ../.. --prefix=$$VIRTUAL_ENV; then \
-			echo "✓ Build directory initialized"; \
+			echo "[OK] Build directory initialized"; \
 		else \
 			echo "ERROR: meson setup failed"; \
 			exit 1; \
 		fi; \
 	else \
 		echo "Rebuilding changed Fortran sources..."; \
+		BRIDGE_SO=$$(ls build/$$PYVER/src/supy/suews_bridge.* 2>/dev/null | head -1); \
+		if [ -n "$$BRIDGE_SO" ] && [ -d "src/suews_bridge/src" ]; then \
+			STALE=$$(find src/suews_bridge/src src/suews_bridge/c_api \
+				src/suews_bridge/build.rs src/suews_bridge/Cargo.toml \
+				-newer "$$BRIDGE_SO" 2>/dev/null | head -1); \
+			if [ -n "$$STALE" ]; then \
+				echo "Rust bridge sources changed - forcing rebuild..."; \
+				rm -f build/$$PYVER/src/supy/suews_bridge.* build/$$PYVER/src/supy/bin/suews*; \
+			fi; \
+		fi; \
 		if cd "build/$$PYVER" && ninja; then \
-			echo "✓ Fortran extension rebuilt"; \
+			echo "[OK] Fortran extension rebuilt"; \
 		else \
 			echo "ERROR: ninja build failed"; \
 			exit 1; \
@@ -258,9 +215,35 @@ test-all:
 	@echo ""
 	$(PYTHON) -m pytest test -v --tb=short --durations=10
 
+# Audit installed dependency hooks and declared dependency advisories
+audit-deps:
+	@TMP_REQ=$$(mktemp "$${TMPDIR:-/tmp}/suews-audit.XXXXXX" 2>/dev/null || mktemp -t suews-audit); \
+	TMP_AUDIT_ENV=$$(mktemp -d "$${TMPDIR:-/tmp}/suews-audit-env.XXXXXX" 2>/dev/null || mktemp -d -t suews-audit-env); \
+	trap 'rm -f "$$TMP_REQ"; rm -rf "$$TMP_AUDIT_ENV"' EXIT; \
+	$(PYTHON) scripts/security/export_pyproject_requirements.py --extra dev --extra docs > "$$TMP_REQ"; \
+	echo "Auditing Python startup hooks in the active environment..."; \
+	$(PYTHON) scripts/security/audit_python_startup.py; \
+	echo ""; \
+	echo "Auditing declared dependencies against PyPI advisories..."; \
+	if command -v uv >/dev/null 2>&1; then \
+		uv venv "$$TMP_AUDIT_ENV"; \
+		uv pip install --python "$$TMP_AUDIT_ENV/bin/python" -r "$$TMP_REQ" pip-audit; \
+		"$$TMP_AUDIT_ENV/bin/python" scripts/security/remove_legacy_namespace_pth.py; \
+		"$$TMP_AUDIT_ENV/bin/python" -m pip_audit; \
+	elif $(PYTHON) -c "import pip_audit" >/dev/null 2>&1; then \
+		$(PYTHON) scripts/security/remove_legacy_namespace_pth.py --dry-run; \
+		$(PYTHON) -m pip_audit -r "$$TMP_REQ"; \
+	else \
+		echo "ERROR: pip-audit is required. Install uv or run: $(PYTHON) -m pip install pip-audit"; \
+		exit 1; \
+	fi
+
 # Build documentation
 docs:
 	$(MAKE) -C docs html
+
+livehtml:
+	$(MAKE) -C docs livehtml
 
 # Smart clean - preserves .venv if you're in it
 clean:
@@ -271,15 +254,26 @@ clean:
 	@$(MAKE) -C src/suews clean 2>/dev/null || true
 	@$(MAKE) -C docs clean 2>/dev/null || true
 	@if [ -n "$$VIRTUAL_ENV" ] && [ -d ".venv" ]; then \
-		echo "✓ Cleaned (keeping .venv - you're using it)"; \
-		echo "→ Run 'make dev' to rebuild"; \
+		echo "[OK] Cleaned (keeping .venv - you're using it)"; \
+		echo "-> Run 'make dev' to rebuild"; \
 	elif [ -d ".venv" ]; then \
 		echo "Removing .venv (not active)..."; \
 		rm -rf .venv; \
-		echo "✓ Cleaned everything including .venv"; \
+		echo "[OK] Cleaned everything including .venv"; \
 	else \
-		echo "✓ Cleaned"; \
+		echo "[OK] Cleaned"; \
 	fi
+
+# Build the Rust bridge CLI binary
+bridge:
+	@if ! command -v cargo >/dev/null 2>&1; then \
+		echo "ERROR: cargo not found. Install Rust: https://rustup.rs"; \
+		exit 1; \
+	fi
+	@echo "Building Rust bridge CLI..."
+	cd src/suews_bridge && cargo build --release
+	@echo "Binary at: src/suews_bridge/target/release/suews"
+	@echo "Run: src/suews_bridge/target/release/suews --help"
 
 # Format code
 format:

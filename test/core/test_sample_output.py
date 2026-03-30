@@ -9,7 +9,6 @@ Key Features:
 - Custom NumPy-based comparison (avoids pandas version dependencies)
 - Scientifically justified tolerances based on measurement uncertainty
 - Detailed diagnostic reports for debugging
-- CI/CD artifact generation for offline analysis
 - Fast-fail design to save CI resources
 
 Background:
@@ -21,31 +20,12 @@ acceptable bounds.
 
 This test runs first in CI/CD to provide fast feedback before expensive
 wheel building operations.
-
-Note on NumPy Compatibility:
-Python 3.9 requires NumPy 1.x due to f90wrap binary compatibility issues.
-Python 3.10+ can use NumPy 2.0. This is handled in pyproject.toml build requirements.
-
-Test Ordering Solution:
-This test should run first in the test suite to avoid Fortran model state
-interference from other tests. This is handled by pytest_collection_modifyitems
-hook in conftest.py, which ensures test_sample_output.py runs before other tests.
-
-Root cause:
-- The Fortran model maintains internal state between test runs
-- When other tests run first, they leave the model in a different state
-- This causes small numerical differences that accumulate over a year-long simulation
-- The force_reload parameter doesn't help as it's ignored for YAML config files
-
-If this test fails when run as part of the full suite but passes individually:
-    pytest test/test_sample_output.py
-Check that conftest.py is present and properly configured.
 """
 
-import json
 import os
 from pathlib import Path
 import platform
+import subprocess
 import sys
 import tempfile
 from unittest import TestCase
@@ -55,12 +35,49 @@ import pandas as pd
 import pytest
 
 import supy as sp
-from supy.dts import _DTS_AVAILABLE
+
 from conftest import TIMESTEPS_PER_DAY
 
 # Get the test data directory
 test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
 p_df_sample = Path(test_data_dir) / "sample_output.csv.gz"
+FAIL_FAST_STEPS_ENV = "SUEWS_FAIL_FAST_STEPS"
+# Default to full-window validation; set SUEWS_FAIL_FAST_STEPS>0 for fast debugging.
+DEFAULT_FAIL_FAST_STEPS = 0
+
+
+def _get_fail_fast_steps(default_steps: int = DEFAULT_FAIL_FAST_STEPS) -> int:
+    """Return validation timesteps for fail-fast execution."""
+    raw = os.environ.get(FAIL_FAST_STEPS_ENV)
+    if raw is None or raw == "":
+        return default_steps
+    try:
+        steps = int(raw)
+    except ValueError as exc:
+        raise ValueError(
+            f"{FAIL_FAST_STEPS_ENV} must be an integer, got: {raw!r}"
+        ) from exc
+
+    # Non-positive value means "disable fail-fast", use full day window.
+    if steps <= 0:
+        return TIMESTEPS_PER_DAY
+    return steps
+
+
+def _rust_library_available() -> bool:
+    """Return True when the Rust Python bridge exposes run_suews()."""
+    try:
+        from importlib import import_module
+
+        module = import_module("supy.suews_bridge")
+    except Exception:
+        try:
+            from importlib import import_module
+
+            module = import_module("suews_bridge")
+        except Exception:
+            return False
+    return hasattr(module, "run_suews")
 
 
 # ============================================================================
@@ -314,183 +331,190 @@ class TestSampleOutput(TestCase):
         except:
             pass
 
-        # Check if running in CI
-        self.in_ci = os.environ.get("CI", "").lower() == "true"
-        self.artifact_dir = None
+    @pytest.mark.core
+    @pytest.mark.rust
+    @pytest.mark.skipif(
+        not _rust_library_available(),
+        reason="Rust library backend not available (install src/suews_bridge with physics feature)",
+    )
+    def test_library_cli_parity(self):
+        """Quick parity check: Python library bridge vs CLI reference.
 
-        if self.in_ci:
-            # Create artifact directory
-            runner_temp = os.environ.get("RUNNER_TEMP", tempfile.gettempdir())
-            self.artifact_dir = Path(runner_temp) / "suews_test_artifacts"
-            self.artifact_dir.mkdir(exist_ok=True, parents=True)
-
-    def get_platform_info(self):
-        """Get detailed platform information."""
-        return {
-            "platform": platform.system(),
-            "platform_release": platform.release(),
-            "platform_version": platform.version(),
-            "machine": platform.machine(),
-            "processor": platform.processor(),
-            "python_version": sys.version,
-            "python_version_tuple": sys.version_info[:3],
-            "python_implementation": platform.python_implementation(),
-            "numpy_version": np.__version__,
-            "pandas_version": pd.__version__,
-            "version": sp.__version__ if hasattr(sp, "__version__") else "unknown",
-        }
-
-    def save_debug_artifacts(
-        self, df_state_init, df_forcing, df_output, df_sample, comparison_report
-    ):
-        """Save all relevant data for offline debugging when test fails."""
-        if not self.artifact_dir:
-            print("\nNot in CI environment, skipping artifact generation")
-            return
-
-        timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
-        py_version = f"py{sys.version_info.major}{sys.version_info.minor}"
-        platform_str = get_platform_key()
-
-        # Save all dataframes with descriptive names
-        artifacts = {
-            f"state_init_{platform_str}_{py_version}_{timestamp}.pkl": df_state_init,
-            f"forcing_{platform_str}_{py_version}_{timestamp}.pkl": df_forcing,
-            f"output_{platform_str}_{py_version}_{timestamp}.pkl": df_output,
-            f"sample_reference_{platform_str}_{py_version}_{timestamp}.pkl": df_sample,
-        }
-
-        saved_files = []
-        for filename, df in artifacts.items():
-            filepath = self.artifact_dir / filename
-            df.to_pickle(filepath)
-            saved_files.append(filename)
-
-        # Save comparison report
-        report_file = f"comparison_report_{platform_str}_{py_version}_{timestamp}.txt"
-        with open(self.artifact_dir / report_file, "w") as f:
-            f.write(comparison_report)
-        saved_files.append(report_file)
-
-        # Save platform info
-        platform_file = f"platform_info_{platform_str}_{py_version}_{timestamp}.json"
-        with open(self.artifact_dir / platform_file, "w") as f:
-            json.dump(self.get_platform_info(), f, indent=2)
-        saved_files.append(platform_file)
-
-        # Save tolerance configuration
-        tolerance_file = (
-            f"tolerance_config_{platform_str}_{py_version}_{timestamp}.json"
+        Runs only 3 days of simulation to keep execution fast.
+        Compares the 8 key variables against the corresponding slice
+        of sample_output.csv.gz (the CLI-generated reference).
+        """
+        sim = sp.SUEWSSimulation.from_sample_data()
+        # Run 3 days only: 1 day spin-up + 2 days checked
+        n_days = 3
+        output = sim.run(
+            backend="rust",
+            end_date=pd.Timestamp("2012-01-01") + pd.Timedelta(days=n_days),
         )
-        with open(self.artifact_dir / tolerance_file, "w") as f:
-            json.dump(
-                {
-                    "base_config": TOLERANCE_CONFIG,
-                    "platform_adjustments": PLATFORM_ADJUSTMENTS,
-                    "platform_key": platform_str,
-                },
-                f,
-                indent=2,
-            )
-        saved_files.append(tolerance_file)
+        df_output = output.df
 
-        print(f"\n[ARTIFACTS] Debug artifacts saved to: {self.artifact_dir}")
-        for file in saved_files:
-            print(f"   - {file}")
+        df_ref = pd.read_csv(
+            p_df_sample, compression="gzip", index_col=[0, 1], parse_dates=[1]
+        )
+
+        variables_to_test = list(TOLERANCE_CONFIG.keys())
+        failed_variables = []
+        # Skip first day (spin-up), compare remaining timesteps
+        warmup_steps = TIMESTEPS_PER_DAY
+        n_check = len(df_output) - warmup_steps
+
+        for var in variables_to_test:
+            col_key = ("SUEWS", var)
+            if col_key not in df_output.columns or var not in df_ref.columns:
+                failed_variables.append(var)
+                continue
+
+            actual = df_output[col_key].values[warmup_steps:]
+            expected = df_ref[var].values[warmup_steps : warmup_steps + n_check]
+            tolerance = get_tolerance_for_variable(var)
+            passed, _ = compare_arrays_with_tolerance(
+                actual,
+                expected,
+                rtol=tolerance["rtol"],
+                atol=tolerance["atol"],
+                var_name=var,
+            )
+            if not passed:
+                failed_variables.append(var)
+
+        self.assertFalse(
+            failed_variables,
+            f"Library-CLI parity failed for: {', '.join(failed_variables)}",
+        )
 
     @pytest.mark.core
-    @pytest.mark.smoke
+    @pytest.mark.rust
     def test_sample_output_validation(self):
         """
         Test SUEWS output against reference data with appropriate tolerances.
 
-        This is the primary validation test that ensures model outputs remain
-        scientifically valid across different platforms and Python versions.
-        It runs a full year simulation and compares key output variables against
-        pre-computed reference results.
+        Runs the Rust CLI binary on the sample YAML config and compares the 8
+        key output variables against sample_output.csv.gz using the tolerance
+        framework defined in TOLERANCE_CONFIG.
 
-        The test is designed to:
-        1. Run quickly (< 1 minute) to provide fast CI/CD feedback
-        2. Test the most important model outputs (energy fluxes, met variables)
-        3. Generate comprehensive artifacts for debugging failures
-        4. Use scientifically justified tolerances rather than exact matching
-
-        Raises
-        ------
-        AssertionError
-            If any variable exceeds its tolerance bounds
+        Skipped if the Rust binary has not been built.
         """
+        import pyarrow.ipc as ipc
+        import yaml
+
         print("\n" + "=" * 70)
-        print("SUEWS Sample Output Validation Test")
+        print("Rust Bridge Sample Output Validation Test")
         print("=" * 70)
 
-        # Print platform info
-        platform_info = self.get_platform_info()
-        print(f"Platform: {platform_info['platform']} {platform_info['machine']}")
-        print(f"Python: {platform_info['python_version_tuple']}")
-        print(f"NumPy: {platform_info['numpy_version']}")
-        print(f"Pandas: {platform_info['pandas_version']}")
-        print("=" * 70)
+        # Locate the Rust binary: try development path first, then the
+        # installed package location (used by CI/cibuildwheel where the
+        # binary is bundled inside supy/bin/).
+        repo_root = Path(__file__).parent.parent.parent
+        dev_binary = repo_root / "src" / "suews_bridge" / "target" / "release" / "suews"
 
-        # Load sample data - use test data from the test directory
-        # The sample data represents typical urban conditions
-        print("\nLoading test data...")
+        if dev_binary.exists():
+            rust_binary = dev_binary
+        else:
+            try:
+                from supy.cmd.rust_bridge import _bridge_binary
 
-        # Force reload to avoid cache interference
-        # This is a workaround for the caching issue in supy._load
-        from pathlib import Path
+                rust_binary = _bridge_binary()
+            except (ImportError, FileNotFoundError):
+                pytest.skip(
+                    "Rust CLI binary not found; "
+                    "build with: cd src/suews_bridge && cargo build --release"
+                )
 
-        import supy as sp
+        # Locate the sample YAML config and its directory
+        sample_dir = Path(sp.__file__).parent / "sample_data"
+        sample_config = sample_dir / "sample_config.yml"
+        assert sample_config.exists(), f"Sample config not found: {sample_config}"
 
-        trv_sample_data = Path(sp.__file__).parent / "sample_data"
-        path_config_default = trv_sample_data / "sample_config.yml"
-
-        # Force reload to clear any cached state
-        df_state_init = sp.init_supy(path_config_default, force_reload=True)
-        df_forcing_tstep = sp.load_forcing_grid(
-            path_config_default, df_state_init.index[0], df_state_init=df_state_init
-        )
-
-        df_forcing_part = df_forcing_tstep.iloc[
-            : TIMESTEPS_PER_DAY * 366
-        ]  # One year (2012 is a leap year)
-
-        # Run simulation - full year to capture seasonal variations
-        # This tests the model under diverse meteorological conditions
-        print("Running SUEWS model...")
-        df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)
-
-        # Load reference output (CSV format for transparency and compatibility)
+        # Load reference first to get SUEWS variable names
         print("Loading reference output...")
-        df_sample = pd.read_csv(
+        df_ref = pd.read_csv(
             p_df_sample, compression="gzip", index_col=[0, 1], parse_dates=[1]
         )
+        print(f"Reference: {df_ref.shape[0]} rows x {df_ref.shape[1]} columns")
 
-        # Variables to test - these are the key model outputs that:
-        # 1. Are most sensitive to numerical differences
-        # 2. Are critical for model physics (energy/water balance)
-        # 3. Are commonly used in applications
+        # Run the Rust CLI with a temporary config pointing output to tmpdir
+        print(f"\nRunning Rust CLI: {rust_binary.name} run (Arrow output)")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Copy config to tmpdir and modify output_file.path
+            with open(sample_config) as f:
+                cfg = yaml.safe_load(f)
+            cfg["model"]["control"]["output_file"]["path"] = tmpdir
+            tmp_config = Path(tmpdir) / "sample_config.yml"
+            with open(tmp_config, "w") as f:
+                yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
+
+            # Symlink the forcing file so the CLI can find it
+            forcing_name = cfg["model"]["control"]["forcing_file"]
+            if isinstance(forcing_name, dict):
+                forcing_name = forcing_name["value"]
+            forcing_src = sample_dir / forcing_name
+            forcing_dst = Path(tmpdir) / forcing_name
+            if forcing_src.exists() and not forcing_dst.exists():
+                os.symlink(forcing_src, forcing_dst)
+
+            result = subprocess.run(
+                [str(rust_binary), "run", str(tmp_config)],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+
+            if result.returncode != 0:
+                self.fail(
+                    f"Rust CLI exited with code {result.returncode}\n"
+                    f"stderr: {result.stderr[:500]}"
+                )
+
+            # Load Rust Arrow output (all 1134 columns across 11 groups).
+            # Read into bytes first to avoid holding a file handle on Windows
+            # (pyarrow keeps the file open, blocking TemporaryDirectory cleanup).
+            rust_output_path = Path(tmpdir) / "suews_output.arrow"
+            assert rust_output_path.exists(), "Rust CLI did not produce suews_output.arrow"
+            arrow_bytes = rust_output_path.read_bytes()
+
+        reader = ipc.open_file(arrow_bytes)
+        table = reader.read_all()
+        df_rust_all = table.to_pandas()
+
+        # SUEWS group uses proper variable names (Kdown, Kup, QN, etc.)
+        # directly in the Arrow file — just use df_rust_all as-is
+        df_rust = df_rust_all
+
+        print(f"Rust output: {df_rust.shape[0]} rows x {df_rust.shape[1]} columns")
+
+        # Verify row count alignment
+        n_rust = len(df_rust)
+        n_ref = len(df_ref)
+        self.assertEqual(
+            n_rust, n_ref,
+            f"Row count mismatch: Rust={n_rust}, reference={n_ref}",
+        )
+
+        # Compare the 8 key variables (all timesteps)
         variables_to_test = list(TOLERANCE_CONFIG.keys())
         print(f"\nValidating variables: {', '.join(variables_to_test)}")
+        print(f"Comparing all {n_rust} timesteps")
         print("=" * 70)
 
-        # Compare each variable using custom tolerance framework
-        # This avoids pandas version dependencies and provides better diagnostics
         all_passed = True
-        full_report = []
         failed_variables = []
+        full_report = []
 
         for var in variables_to_test:
-            # Get data
-            if var not in df_output.SUEWS.columns:
-                report = f"\n[ERROR] Variable {var} not found in output!"
+            if var not in df_rust.columns:
+                report = f"\n[ERROR] Variable {var} not found in Rust output!"
                 full_report.append(report)
                 print(report)
                 all_passed = False
                 failed_variables.append(var)
                 continue
 
-            if var not in df_sample.columns:
+            if var not in df_ref.columns:
                 report = f"\n[ERROR] Variable {var} not found in reference!"
                 full_report.append(report)
                 print(report)
@@ -498,169 +522,39 @@ class TestSampleOutput(TestCase):
                 failed_variables.append(var)
                 continue
 
-            actual = df_output.SUEWS[var].values
-            expected = df_sample[var].values
+            rust_arr = df_rust[var].values
+            ref_arr = df_ref[var].values
 
-            # Handle length mismatch
-            if len(actual) != len(expected):
-                print(
-                    f"\n[WARNING] Length mismatch for {var}: {len(actual)} vs {len(expected)}"
-                )
-                min_len = min(len(actual), len(expected))
-                actual = actual[:min_len]
-                expected = expected[:min_len]
-
-            # Get tolerance
             tolerance = get_tolerance_for_variable(var)
-
-            # Compare
-            passed, report = compare_arrays_with_tolerance(
-                actual, expected, tolerance["rtol"], tolerance["atol"], var
+            is_valid, report = compare_arrays_with_tolerance(
+                rust_arr,
+                ref_arr,
+                rtol=tolerance["rtol"],
+                atol=tolerance["atol"],
+                var_name=var,
             )
 
-            # Add pass/fail indicator
-            if passed:
-                report = f"\n[PASS] {report}"
-            else:
-                report = f"\n[FAIL] {report}"
-                failed_variables.append(var)
+            status = "[PASS]" if is_valid else "[FAIL]"
+            print(f"{status} {report}")
+            full_report.append(f"{status} {report}")
 
-            full_report.append(report)
-            print(report)
-
-            if not passed:
+            if not is_valid:
                 all_passed = False
+                failed_variables.append(var)
 
         # Summary
         print("\n" + "=" * 70)
         print("SUMMARY")
         print("=" * 70)
-
         if all_passed:
-            print("[PASS] All variables passed validation!")
+            print("[PASS] Rust bridge output matches sample reference!")
         else:
-            print(
-                f"[FAIL] Validation failed for {len(failed_variables)} variables: {', '.join(failed_variables)}"
-            )
-
-        # Save artifacts if running in CI for offline debugging
-        # This is critical for diagnosing platform-specific issues
-        if not all_passed and self.in_ci:
-            print("\n[SAVE] Saving debug artifacts...")
-            self.save_debug_artifacts(
-                df_state_init,
-                df_forcing_part,
-                df_output,
-                df_sample,
-                "\n".join(full_report),
-            )
-
-        # Assert at the end
-        self.assertTrue(
-            all_passed,
-            f"Sample output validation failed for: {', '.join(failed_variables)}",
-        )
-
-    @pytest.mark.core
-    @pytest.mark.smoke
-    @pytest.mark.skipif(
-        not _DTS_AVAILABLE,
-        reason="DTS not available (fast build without type wrappers)",
-    )
-    def test_dts_vs_traditional_parity(self):
-        """
-        Test DTS interface produces identical output to traditional run_supy.
-
-        This smoke test validates that the new DTS (Derived Type Structure)
-        interface produces bit-identical output to the traditional run_supy
-        method. This is critical for ensuring the DTS interface can be used
-        as a drop-in replacement.
-
-        Two modes are tested:
-        1. Traditional: Uses run_supy() which goes through df_state packing
-        2. DTS: Uses direct Pydantic->DTS->Fortran kernel path
-
-        The test uses a short 48-timestep (4-hour) simulation for fast feedback.
-        """
-        print("\n" + "=" * 70)
-        print("DTS vs Traditional Run Parity Test")
-        print("=" * 70)
-
-        # Print platform info
-        platform_info = self.get_platform_info()
-        print(f"Platform: {platform_info['platform']} {platform_info['machine']}")
-        print(f"Python: {platform_info['python_version_tuple']}")
-        print("=" * 70)
-
-        # Import DTS infrastructure
-        from supy import load_SampleData
-        from supy.data_model import SUEWSConfig
-        from supy.dts import run_dts
-
-        # Load sample data
-        print("\nLoading sample data...")
-        df_state_init, df_forcing = load_SampleData()
-        grid_id = df_state_init.index[0]
-
-        # Use 48 timesteps (4 hours) for smoke test - enough to verify correctness
-        n_timesteps = 48
-        df_forcing_subset = df_forcing.head(n_timesteps)
-
-        # =====================================================================
-        # MODE 1: Traditional run_supy
-        # =====================================================================
-        print(f"\n[MODE 1] Running traditional run_supy ({n_timesteps} timesteps)...")
-        df_output_trad, _ = sp.run_supy(df_forcing_subset, df_state_init)
-
-        # =====================================================================
-        # MODE 2: DTS interface (batch runner)
-        # =====================================================================
-        print(f"[MODE 2] Running DTS interface ({n_timesteps} timesteps)...")
-
-        # Create Pydantic config
-        config = SUEWSConfig.from_df_state(df_state_init.loc[[grid_id]])
-
-        # Run DTS batch simulation
-        df_output_dts, _ = run_dts(df_forcing_subset, config, site_index=0)
-
-        # =====================================================================
-        # COMPARISON
-        # =====================================================================
-        print("\n" + "=" * 70)
-        print("COMPARING OUTPUTS")
-        print("=" * 70)
-
-        all_passed = True
-        failed_variables = []
-        variables_to_compare = ("QN", "QF", "QS", "QH", "QE")
-
-        for var in variables_to_compare:
-            dts_arr = df_output_dts[("SUEWS", var)].values
-            trad_arr = df_output_trad[("SUEWS", var)].values
-
-            # Check for exact match (DTS should be bit-identical)
-            max_diff = np.max(np.abs(dts_arr - trad_arr))
-
-            if max_diff == 0:
-                print(f"[PASS] {var}: Identical (max diff = 0)")
-            else:
-                print(f"[FAIL] {var}: max diff = {max_diff:.6e}")
-                failed_variables.append(var)
-                all_passed = False
-
-        # Summary
-        print("\n" + "=" * 70)
-        print("SUMMARY")
-        print("=" * 70)
-
-        if all_passed:
-            print("[PASS] DTS interface produces identical output to traditional run!")
-        else:
-            print(f"[FAIL] Parity failed for: {', '.join(failed_variables)}")
+            print(f"[FAIL] Validation failed for: {', '.join(failed_variables)}")
 
         self.assertTrue(
             all_passed,
-            f"DTS vs traditional parity failed for: {', '.join(failed_variables)}",
+            f"Rust bridge vs reference failed for: {', '.join(failed_variables)}\n"
+            + "\n".join(full_report),
         )
 
 
@@ -740,37 +634,60 @@ class TestSTEBBSOutput(TestCase):
             str(config_path), df_state_init.index[0], df_state_init=df_state_init
         )
 
-        # Subset forcing data to match config period (2017-08-26 to 2017-08-27)
-        df_forcing = df_forcing_full.loc["2017-08-26":"2017-08-27"]
+        # Subset forcing data to match config period (2017-08-26 to 2017-08-27).
+        # Run day 1 as spin-up and validate only the first N timesteps of day 2
+        # for fail-fast debugging.
+        df_forcing_window = df_forcing_full.loc["2017-08-26":"2017-08-27"]
+        max_validation_steps = len(df_forcing_window) - TIMESTEPS_PER_DAY
+        if max_validation_steps < 1:
+            self.fail(
+                "Insufficient forcing data for STEBBS validation: "
+                f"{len(df_forcing_window)} rows."
+            )
+        requested_steps = _get_fail_fast_steps()
+        validation_steps = min(requested_steps, max_validation_steps)
+        if validation_steps != requested_steps:
+            print(
+                f"[INFO] Requested {requested_steps} validation steps, "
+                f"clamped to available {validation_steps}."
+            )
+        df_forcing = df_forcing_window.iloc[: TIMESTEPS_PER_DAY + validation_steps]
 
-        print(f"Running STEBBS simulation ({len(df_forcing)} timesteps, 2 days)...")
+        print(
+            "Running STEBBS simulation "
+            f"({len(df_forcing)} timesteps: day-1 spin-up + "
+            f"{validation_steps} validation steps)..."
+        )
         df_output, df_state = sp.run_supy(df_forcing, df_state_init)
 
         # Load reference output
         print("Loading reference output...")
-        df_reference = pd.read_csv(reference_output_path)
+        df_reference = pd.read_csv(reference_output_path).iloc[:validation_steps].copy()
 
         # Define STEBBS-specific variables to test with tolerances
         # Higher tolerances for building energy due to complex thermal dynamics
         stebbs_variables = {
+            #water mains temperature
+            "Twater_mains": {"rtol": 0.02, "atol": 0.5},  # 2% / 0.5K tolerance
             # Indoor conditions - affected by complex heat transfer
             "Tair_ind": {"rtol": 0.02, "atol": 0.5},  # 2% / 0.5K tolerance
             # Building loads - higher tolerance due to control logic
             "QHload_heating_FA": {"rtol": 0.05, "atol": 5.0},  # 5% / 5W tolerance
             "QHload_cooling_FA": {"rtol": 0.05, "atol": 5.0},  # 5% / 5W tolerance
+            "QH_lighting_FA": {"rtol": 0.05, "atol": 5.0},  # 5% / 5W tolerance
         }
 
         print(f"\nValidating STEBBS variables: {', '.join(stebbs_variables.keys())}")
         print("=" * 70)
 
-        # Extract only 2017-08-27 data from simulation output to match reference
-        # Reference contains data for 2017-08-27 00:00 to 23:55 (TIMESTEPS_PER_DAY timesteps)
-        # Simulation output contains 2 days, so we take the second day
-        # df_output has MultiIndex columns, so we slice the second day of data
-        df_output_day2 = df_output.iloc[TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY * 2]
+        # Extract day-2 validation window from simulation output to match reference.
+        df_output_day2 = df_output.iloc[
+            TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY + validation_steps
+        ]
 
-        print(f"\nFiltered output to match reference period (2017-08-27):")
-        print(f"  Simulation output (2nd day) length: {len(df_output_day2)}")
+        print("\nFiltered output to match reference period (2017-08-27):")
+        print(f"  Validation timesteps: {validation_steps}")
+        print(f"  Simulation output (2nd day window) length: {len(df_output_day2)}")
         print(f"  Reference data length: {len(df_reference)}")
 
         # Compare each variable

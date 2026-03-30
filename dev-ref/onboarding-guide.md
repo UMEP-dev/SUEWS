@@ -274,7 +274,7 @@ When optimising code:
 
 ### 6.1 Documentation
 
-- **User Documentation**: https://suews.readthedocs.io
+- **User Documentation**: https://docs.suews.io
 - **GitHub Repository**: https://github.com/UMEP-dev/SUEWS
 - **Scientific Papers**: Available in references section
 - **Meeting Notes**: Stored in team repository

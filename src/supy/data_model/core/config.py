@@ -66,7 +66,7 @@ enhanced_to_df_state_validation = None
 import os
 import warnings
 
-SAME_ALB_TOL = 1e-6  # Tolerance for same albedo checks
+SAME_SURFACE_TOL = 1e-6  # Tolerance for same-surface-property checks
 
 class ConditionalValidationWarning(UserWarning):
     """Warning issued when conditional validation is requested but not available.
@@ -169,14 +169,18 @@ class SUEWSConfig(BaseModel):
         "ExternalGroundConductivity",
         "MetabolismThreshold",
         "LatentSensibleRatio",
+        "DaylightControl",
+        "LightingIlluminanceThreshold",
         "ApplianceProfile",
+        "LightingPowerDensity",
         "HeatingSystemEfficiency",
         "MaxCoolingPower",
         "CoolingSystemCOP",
         "VentilationRate",
         "InitialOutdoorTemperature",
         "InitialIndoorTemperature",
-        "DeepSoilTemperature",
+        "AnnualMeanAirTemperature",
+        "MonthMeanAirTemperature_diffmax",
         "WaterTankWallThickness",
         "MainsWaterTemperature",
         "WaterTankSurfaceArea",
@@ -203,8 +207,6 @@ class SUEWSConfig(BaseModel):
         "DHWVesselExternalWallConvectionCoefficient",
         "DHWVesselWallEmissivity",
         "HotWaterHeatingEfficiency",
-        "MinimumVolumeOfDHWinUse",
-        "MaximumVolumeOfDHWinUse",
     ]
 
     ARCHETYPE_REQUIRED_PARAMS: ClassVar[List[str]] = [
@@ -1283,10 +1285,61 @@ class SUEWSConfig(BaseModel):
                 if val is None:
                     missing_params.append(param)
 
+        # Check if WWR (Window-to-Wall Ratio) is present and zero or one
+        wwr = getattr(building_archetype, "WWR", None)
+        wwr_val = _unwrap_value(wwr) if wwr is not None else None
+
+        # Window parameter lists
+        window_params_stebbs = [
+            "WindowInternalConvectionCoefficient",
+            "WindowExternalConvectionCoefficient",
+        ]
+        window_params_bldgarc = [
+            "WindowThickness",
+            "WindowEffectiveConductivity",
+            "WindowDensity",
+            "WindowCp",
+            "WindowExternalEmissivity",
+            "WindowInternalEmissivity",
+            "WindowTransmissivity",
+            "WindowAbsorbtivity",
+            "WindowReflectivity",
+        ]
+
+        # Wall parameter lists for WWR == 1.0
+        wall_params_stebbs = [
+            "WallExternalConvectionCoefficient",
+            "WallInternalConvectionCoefficient",
+            ]
+        wall_params_bldgarc = [
+            "WallExternalEmissivity",
+            "WallInternalEmissivity",
+            "WallTransmissivity",
+            "WallAbsorbtivity",
+            "WallReflectivity",
+            "WallThickness",
+            "WallEffectiveConductivity",
+            "WallDensity",
+            "WallCp",
+        ]
+
+        # Determine which params to require based on WWR
+        if wwr_val == 0.0:
+            # Exclude window params if WWR is zero
+            stebbs_required = [p for p in self.STEBBS_REQUIRED_PARAMS if p not in window_params_stebbs]
+            archetype_required = [p for p in self.ARCHETYPE_REQUIRED_PARAMS if p not in window_params_bldgarc]
+        elif wwr_val == 1.0:
+            # Exclude external wall params if WWR is one
+            stebbs_required = [p for p in self.STEBBS_REQUIRED_PARAMS if p not in wall_params_stebbs]
+            archetype_required = [p for p in self.ARCHETYPE_REQUIRED_PARAMS if p not in wall_params_bldgarc]
+        else:
+            stebbs_required = self.STEBBS_REQUIRED_PARAMS
+            archetype_required = self.ARCHETYPE_REQUIRED_PARAMS
+
         # Validate stebbs required params
-        _check_required(stebbs, self.STEBBS_REQUIRED_PARAMS)
+        _check_required(stebbs, stebbs_required)
         # Validate building_archetype required params
-        _check_required(building_archetype, self.ARCHETYPE_REQUIRED_PARAMS)
+        _check_required(building_archetype, archetype_required)
 
         ## Always list all missing parameters, regardless of count
         if missing_params:
@@ -1317,11 +1370,7 @@ class SUEWSConfig(BaseModel):
 
         # Only validate if method == 2 AND it was explicitly set
         if method == 2:
-            # Check if this is likely a default value by checking if other physics
-            # parameters are also at their defaults, suggesting the entire physics
-            # section was auto-generated rather than user-specified
-            return self._is_physics_explicitly_configured()
-
+            return self._is_physics_explicitly_configured("rslmethod")
         return False
 
     def _validate_rsl(self, site: Site, site_index: int) -> List[str]:
@@ -1374,19 +1423,19 @@ class SUEWSConfig(BaseModel):
 
         # Only validate if method == 6 or 7 AND it was explicitly set
         if shm == 6 or shm == 7:
-            return self._is_physics_explicitly_configured()
+            return self._is_physics_explicitly_configured("storageheatmethod")
         return False
     
-    def _needs_samealbedo_wall_validation(self) -> bool:
-        """Return True if samealbedo_wall option is enabled (==1)."""
-        return self._needs_samealbedo_validation("samealbedo_wall")
+    def _needs_same_albedo_wall_validation(self) -> bool:
+        """Return True if same_albedo_wall option is enabled (==1)."""
+        return self._needs_same_albedo_validation("same_albedo_wall")
 
-    def _needs_samealbedo_roof_validation(self) -> bool:
-        """Return True if samealbedo_roof option is enabled (==1)."""
-        return self._needs_samealbedo_validation("samealbedo_roof")
+    def _needs_same_albedo_roof_validation(self) -> bool:
+        """Return True if same_albedo_roof option is enabled (==1)."""
+        return self._needs_same_albedo_validation("same_albedo_roof")
 
-    def _needs_samealbedo_validation(self, attr: str) -> bool:
-        """Helper for samealbedo_wall/roof validation."""
+    def _needs_same_albedo_validation(self, attr: str) -> bool:
+        """Helper for same_albedo_wall/roof validation."""
         physics = getattr(self.model, "physics", None)
         if not physics or not hasattr(physics, attr):
             return False
@@ -1396,26 +1445,39 @@ class SUEWSConfig(BaseModel):
         except (TypeError, ValueError):
             return False
 
-    def _is_physics_explicitly_configured(self) -> bool:
+    def _needs_same_emissivity_wall_validation(self) -> bool:
+        """Return True if same_emissivity_wall option is enabled (==1)."""
+        return self._needs_same_emissivity_validation("same_emissivity_wall")
+
+    def _needs_same_emissivity_roof_validation(self) -> bool:
+        """Return True if same_emissivity_roof option is enabled (==1)."""
+        return self._needs_same_emissivity_validation("same_emissivity_roof")
+
+    def _needs_same_emissivity_validation(self, attr: str) -> bool:
+        """Helper for same_emissivity_wall/roof validation."""
+        physics = getattr(self.model, "physics", None)
+        if not physics or not hasattr(physics, attr):
+            return False
+        val = getattr(getattr(physics, attr), "value", getattr(physics, attr))
+        try:
+            return int(val) == 1
+        except (TypeError, ValueError):
+            return False
+
+    def _is_physics_explicitly_configured(self, option_name: str) -> bool:
+        """Check whether a physics option was explicitly set by the user.
+
+        Uses Pydantic v2 ``model_fields_set`` to distinguish user-provided
+        values from defaults, so conditional validation only fires when the
+        user actively chose the option.
+
+        Parameters
+        ----------
+        option_name : str
+            Name of the physics field to check (e.g. ``"rslmethod"``).
         """
-        Heuristic to determine if physics parameters were explicitly set by the user
-        rather than using all default values.
-
-        For now, we'll be conservative and assume that if no model section was
-        provided by the user, then conditional validation should not apply.
-
-        Returns True if physics appears to be explicitly configured.
-        """
-        # For now, disable conditional validation entirely for configs that
-        # don't explicitly set the problematic physics methods
-        # This is a conservative approach that avoids breaking existing tests
-
-        # The real solution would be to track whether fields were explicitly set
-        # vs using defaults, but that requires more complex Pydantic handling
-
-        # For now, return False to disable conditional validation unless
-        # explicitly enabled during testing
-        return False
+        physics = getattr(self.model, "physics", None)
+        return bool(physics and hasattr(physics, "model_fields_set") and option_name in physics.model_fields_set)
 
     def _validate_storage(self, site: Site, site_index: int) -> List[str]:
         issues: List[str] = []
@@ -1476,25 +1538,36 @@ class SUEWSConfig(BaseModel):
 
         return issues
 
-    def _validate_samealbedo_surface(
+    def _validate_same_surface_property(
         self,
         site: Site,
         site_index: int,
         surface_type: str,
         layers_attr: str,
-        reflectivity_attr: str,
+        layer_field: str,
+        archetype_attr: str,
         param_name: str,
+        property_name: str,
     ) -> List[str]:
-        """
-        Generic validator for samealbedo_wall and samealbedo_roof.
+        """Validate that a surface property is uniform across layers and matches the archetype.
 
-        - All albedoes in vertical_layers.<layers_attr> must be identical
-        - That common value must equal properties.building_archetype.<reflectivity_attr>
+        Used by same_albedo and same_emissivity validators. Checks that:
+        - All values of ``layer_field`` in vertical_layers.<layers_attr> are identical
+        - That common value equals properties.building_archetype.<archetype_attr>
+
+        Parameters
+        ----------
+        layer_field : str
+            Attribute name on each layer object (e.g. "alb", "emis").
+        archetype_attr : str
+            Attribute name on building_archetype (e.g. "WallReflectivity").
+        property_name : str
+            Human-readable name for messages (e.g. "albedo", "emissivity").
         """
         issues: List[str] = []
         site_name = getattr(site, "name", f"Site {site_index}")
 
-        # --- Get layers and their albedoes ---
+        # --- Get layers ---
         props = getattr(site, "properties", None)
         vl = getattr(props, "vertical_layers", None) if props is not None else None
         layers = getattr(vl, layers_attr, None) if vl is not None else None
@@ -1505,46 +1578,46 @@ class SUEWSConfig(BaseModel):
             )
             return issues
 
-        albs: List[float] = []
+        vals: List[float] = []
 
         for i, layer in enumerate(layers):
-            alb_field = getattr(layer, "alb", None)
-            if alb_field is None:
+            field = getattr(layer, layer_field, None)
+            if field is None:
                 issues.append(
-                    f"{site_name}: {param_name}=1, so {layers_attr}[{i}].alb must be set"
+                    f"{site_name}: {param_name}=1, so {layers_attr}[{i}].{layer_field} must be set"
                 )
                 continue
 
-            val = getattr(alb_field, "value", alb_field)
+            raw = getattr(field, "value", field)
             try:
-                val_float = float(val)
-                albs.append(val_float)
+                val_float = float(raw)
+                vals.append(val_float)
             except (TypeError, ValueError):
                 issues.append(
-                    f"{site_name}: {param_name}=1 but {layers_attr}[{i}].alb ({val!r}) is not numeric"
+                    f"{site_name}: {param_name}=1 but {layers_attr}[{i}].{layer_field} ({raw!r}) is not numeric"
                 )
 
-        if len(albs) == 0:
+        if len(vals) == 0:
             issues.append(
-                f"{site_name}: {param_name}=1 but no valid {layers_attr} albedo values found"
+                f"{site_name}: {param_name}=1 but no valid {layers_attr} {property_name} values found"
             )
             return issues
 
-        # --- Check that all albedoes are identical ---
-        first_alb = albs[0]
-        tol = SAME_ALB_TOL
+        # --- Check that all values are identical ---
+        first_val = vals[0]
+        tol = SAME_SURFACE_TOL
         mismatching = [
-            (i, a) for i, a in enumerate(albs) if abs(a - first_alb) > tol
+            (i, v) for i, v in enumerate(vals) if abs(v - first_val) > tol
         ]
 
         if mismatching:
-            all_alb_str = ", ".join(f"{layers_attr}[{i}]={a}" for i, a in enumerate(albs))
+            all_str = ", ".join(f"{layers_attr}[{i}]={v}" for i, v in enumerate(vals))
             issues.append(
-                f"{site_name}: {param_name}=1, so all {layers_attr} albedoes must be identical; "
-                f"found values: {all_alb_str}"
+                f"{site_name}: {param_name}=1, so all {layers_attr} {property_name} values must be identical; "
+                f"found values: {all_str}"
             )
 
-        # --- Get building_archetype.<reflectivity_attr> ---
+        # --- Get building_archetype.<archetype_attr> ---
         ba = getattr(props, "building_archetype", None)
         if ba is None:
             issues.append(
@@ -1552,42 +1625,227 @@ class SUEWSConfig(BaseModel):
             )
             return issues
 
-        refl_field = getattr(ba, reflectivity_attr, None)
-        if refl_field is None:
+        arch_field = getattr(ba, archetype_attr, None)
+        if arch_field is None:
             issues.append(
-                f"{site_name}: {param_name}=1, so properties.building_archetype.{reflectivity_attr} must be set"
+                f"{site_name}: {param_name}=1, so properties.building_archetype.{archetype_attr} must be set"
             )
             return issues
 
-        refl_val = getattr(refl_field, "value", refl_field)
+        arch_raw = getattr(arch_field, "value", arch_field)
         try:
-            reflectivity = float(refl_val)
+            arch_val = float(arch_raw)
         except (TypeError, ValueError):
             issues.append(
-                f"{site_name}: {param_name}=1 but properties.building_archetype.{reflectivity_attr} "
-                f"({refl_val!r}) is not numeric"
+                f"{site_name}: {param_name}=1 but properties.building_archetype.{archetype_attr} "
+                f"({arch_raw!r}) is not numeric"
             )
             return issues
 
-        # --- Check equality between *common* albedo and reflectivity ---
-        if abs(first_alb - reflectivity) > tol:
-            all_alb_str = ", ".join(f"{layers_attr}[{i}]={a}" for i, a in enumerate(albs))
+        # --- Check equality between common layer value and archetype value ---
+        if abs(first_val - arch_val) > tol:
+            all_str = ", ".join(f"{layers_attr}[{i}]={v}" for i, v in enumerate(vals))
             issues.append(
-                f"{site_name}: {param_name}=1, so common {layers_attr} albedo (found {all_alb_str}) must equal "
-                f"properties.building_archetype.{reflectivity_attr} ({reflectivity})"
+                f"{site_name}: {param_name}=1, so common {layers_attr} {property_name} (found {all_str}) must equal "
+                f"properties.building_archetype.{archetype_attr} ({arch_val})"
             )
 
         return issues
 
-    def _validate_samealbedo_wall(self, site: Site, site_index: int) -> List[str]:
-        return self._validate_samealbedo_surface(
-            site, site_index, "wall", "walls", "WallReflectivity", "samealbedo_wall"
+    def _validate_same_albedo_wall(self, site: Site, site_index: int) -> List[str]:
+        return self._validate_same_surface_property(
+            site, site_index, "wall", "walls", "alb", "WallReflectivity",
+            "same_albedo_wall", "albedo",
         )
 
-    def _validate_samealbedo_roof(self, site: Site, site_index: int) -> List[str]:
-        return self._validate_samealbedo_surface(
-            site, site_index, "roof", "roofs", "RoofReflectivity", "samealbedo_roof"
+    def _validate_same_albedo_roof(self, site: Site, site_index: int) -> List[str]:
+        return self._validate_same_surface_property(
+            site, site_index, "roof", "roofs", "alb", "RoofReflectivity",
+            "same_albedo_roof", "albedo",
         )
+
+    def _validate_same_emissivity_wall(self, site: Site, site_index: int) -> List[str]:
+        return self._validate_same_surface_property(
+            site, site_index, "wall", "walls", "emis", "WallExternalEmissivity",
+            "same_emissivity_wall", "emissivity",
+        )
+
+    def _validate_same_emissivity_roof(self, site: Site, site_index: int) -> List[str]:
+        return self._validate_same_surface_property(
+            site, site_index, "roof", "roofs", "emis", "RoofExternalEmissivity",
+            "same_emissivity_roof", "emissivity",
+        )
+
+    def _needs_spartacus_validation(self) -> bool:
+        """
+        Return True if SPARTACUS is enabled (netradiationmethod 1001, 1002, or 1003).
+        """
+        spartacus_methods = {1001, 1002, 1003}
+        netrad_method = _unwrap_value(getattr(self.model.physics, "netradiationmethod", None))
+        try:
+            netrad_method = int(netrad_method)
+        except (TypeError, ValueError):
+            pass
+        return netrad_method in spartacus_methods
+
+    def _validate_spartacus_building_height(self, site: Site, site_index: int) -> List[str]:
+        """
+        If SPARTACUS is enabled, enforce that bldgh and (if stebbsmethod==1) stebbs_Height do not exceed the domain top (height[nlayer]).
+        Returns a list of issue messages.
+        """
+        issues: List[str] = []
+        site_name = getattr(site, "name", f"Site {site_index}")
+        props = getattr(site, "properties", None)
+        if not props or not hasattr(props, "land_cover") or not props.land_cover:
+            return issues
+
+        bldgs = getattr(props.land_cover, "bldgs", None)
+        bldgh = _unwrap_value(getattr(bldgs, "bldgh", None)) if bldgs else None
+        vertical_layers = getattr(props, "vertical_layers", None)
+        height_arr = _unwrap_value(getattr(vertical_layers, "height", None)) if vertical_layers else None
+        nlayer = _unwrap_value(getattr(vertical_layers, "nlayer", None)) if vertical_layers else None
+
+        if (
+            height_arr is not None and
+            nlayer is not None and
+            isinstance(height_arr, (list, tuple)) and
+            len(height_arr) > nlayer
+        ):
+            spartacus_top = height_arr[nlayer]
+            if bldgh is not None and bldgh > spartacus_top:
+                issues.append(
+                    f"Site '{site_name}' has bldgh={bldgh} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
+                )
+
+            # If stebbsmethod == 1, also check stebbs_Height
+            stebbsmethod = _unwrap_value(getattr(self.model.physics, "stebbsmethod", None))
+
+            try:
+                stebbsmethod_val = int(stebbsmethod)
+            except (TypeError, ValueError):
+                stebbsmethod_val = None
+
+            if stebbsmethod_val == 1:
+                building_archetype = getattr(props, "building_archetype", None)
+                stebbs_height = _unwrap_value(getattr(building_archetype, "stebbs_Height", None)) if building_archetype else None
+                if stebbs_height is not None and stebbs_height > spartacus_top:
+                    issues.append(
+                        f"Site '{site_name}' has stebbs_Height={stebbs_height} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
+                    )
+        return issues
+
+    def _validate_spartacus_sfr(self, site: Site, site_index: int) -> list:
+        """
+        If SPARTACUS is enabled, check that:
+        - bldgs.sfr == building_frac[0]
+        - (evetr.sfr + dectr.sfr) == max(veg_frac[:])
+        Returns a list of issue messages.
+        """
+        issues: list = []
+        site_name = getattr(site, "name", f"Site {site_index}")
+        props = getattr(site, "properties", None)
+        if not props or not hasattr(props, "land_cover") or not props.land_cover:
+            return issues
+
+        lc = props.land_cover
+        bldgs = getattr(lc, "bldgs", None)
+        evetr = getattr(lc, "evetr", None)
+        dectr = getattr(lc, "dectr", None)
+        vertical_layers = getattr(props, "vertical_layers", None)
+        if not vertical_layers:
+            return issues
+
+        # Unwrap values
+        bldgs_sfr = _unwrap_value(getattr(bldgs, "sfr", None)) if bldgs else None
+        evetr_sfr = _unwrap_value(getattr(evetr, "sfr", None)) if evetr else 0.0
+        dectr_sfr = _unwrap_value(getattr(dectr, "sfr", None)) if dectr else 0.0
+        veg_sfr = (evetr_sfr or 0.0) + (dectr_sfr or 0.0)
+
+        building_frac = _unwrap_value(getattr(vertical_layers, "building_frac", None))
+        veg_frac = _unwrap_value(getattr(vertical_layers, "veg_frac", None))
+
+        tol = 1e-6
+
+        # Buildings: surface fraction vs first SPARTACUS layer
+        if (
+            isinstance(building_frac, (list, tuple))
+            and len(building_frac) > 0
+            and bldgs_sfr is not None
+        ):
+            if not np.isclose(bldgs_sfr, building_frac[0], atol=tol):
+                issues.append(
+                    f"{site_name}: bldgs.sfr ({bldgs_sfr}) does not match "
+                    f"vertical_layers.building_frac[0] ({building_frac[0]})"
+                )
+
+        # Vegetation: surface fraction vs maximum veg_frac across layers
+        if isinstance(veg_frac, (list, tuple)) and len(veg_frac) > 0:
+            veg_frac_max = max(veg_frac)
+            if not np.isclose(veg_sfr, veg_frac_max, atol=tol):
+                issues.append(
+                    f"{site_name}: evetr.sfr + dectr.sfr ({veg_sfr}) does not match "
+                    f"max(vertical_layers.veg_frac) ({veg_frac_max})"
+                )
+
+        return issues
+    
+    def _validate_spartacus_veg_dimensions(self, site: Site, site_index: int) -> list:
+        """
+        Check that veg_scale and veg_frac are zero above the layer where max_tree falls.
+        max_tree = max(dectreeh, evetreeh)
+        The first layer where max_tree <= height[layer] (layer index 1..nlayer) is the tree layer.
+        All veg_scale and veg_frac entries from this layer onward (i.e., layer_index to nlayer-1) must be zero.
+        """
+        issues: list = []
+        site_name = getattr(site, "name", f"Site {site_index}")
+
+        vertical_layers = getattr(getattr(site, "properties", None), "vertical_layers", None)
+        land_cover = getattr(getattr(site, "properties", None), "land_cover", None)
+
+        # Get tree heights
+        dectreeh = _unwrap_value(getattr(getattr(land_cover, "dectr", None), "dectreeh", None)) if land_cover and getattr(land_cover, "dectr", None) else None
+        evetreeh = _unwrap_value(getattr(getattr(land_cover, "evetr", None), "evetreeh", None)) if land_cover and getattr(land_cover, "evetr", None) else None
+        
+        # Compute max_tree
+        tree_heights = [h for h in [dectreeh, evetreeh] if h is not None]
+        if not tree_heights:
+            return issues  # No tree heights to check
+
+        max_tree = max(tree_heights)
+
+        # Get height array (should be nlayer+1)
+        height_arr = _unwrap_value(getattr(vertical_layers, "height", None)) if vertical_layers else None
+        if not isinstance(height_arr, (list, tuple)) or len(height_arr) < 2:
+            return issues  # Not enough height info
+
+        # Find the first layer where max_tree <= height[layer] (layer index 1..nlayer)
+        layer_index = None
+        for i in range(1, len(height_arr)):
+            if max_tree <= height_arr[i]:
+                layer_index = i
+                break
+        if layer_index is None:
+            # max_tree exceeds all layers
+            issues.append(
+                f"Site {site_name}: max_tree ({max_tree}) exceeds all vertical_layers heights."
+            )
+            return issues
+
+        # Check veg_scale and veg_frac from the tree layer onward (layer_index to nlayer-1)
+        veg_scale = _unwrap_value(getattr(vertical_layers, "veg_scale", None)) if vertical_layers else None
+        veg_frac = _unwrap_value(getattr(vertical_layers, "veg_frac", None)) if vertical_layers else None
+
+        nlayer = len(height_arr) - 1  # nlayer is height_arr length minus 1
+
+        for arr_name, arr in [("veg_scale", veg_scale), ("veg_frac", veg_frac)]:
+            if isinstance(arr, (list, tuple)):
+                for i in range(layer_index, min(nlayer, len(arr))):
+                    val = arr[i]
+                    if not np.isclose(val, 0, atol=1e-6):
+                        issues.append(
+                            f"Site {site_name}: {arr_name}[{i}] should be zero (provided max tree height {max_tree} does not reach height {height_arr[i+1]} of layer {i+1})."
+                        )
+        return issues
 
     def _validate_conditional_parameters(self) -> List[str]:
         """
@@ -1600,11 +1858,15 @@ class SUEWSConfig(BaseModel):
         needs_stebbs = self._needs_stebbs_validation()
         needs_rsl = self._needs_rsl_validation()
         needs_storage = self._needs_storage_validation()
-        needs_samealbedo_wall = self._needs_samealbedo_wall_validation()
-        needs_samealbedo_roof = self._needs_samealbedo_roof_validation()
+        needs_same_albedo_wall = self._needs_same_albedo_wall_validation()
+        needs_same_albedo_roof = self._needs_same_albedo_roof_validation()
+        needs_same_emissivity_wall = self._needs_same_emissivity_wall_validation()
+        needs_same_emissivity_roof = self._needs_same_emissivity_roof_validation()
+        needs_spartacus = self._needs_spartacus_validation()
 
         # Nothing to do?
-        if not (needs_stebbs or needs_rsl or needs_storage or needs_samealbedo_wall or needs_samealbedo_roof):
+        if not (needs_stebbs or needs_rsl or needs_storage or needs_same_albedo_wall
+                or needs_same_albedo_roof or needs_same_emissivity_wall or needs_same_emissivity_roof or needs_spartacus):
             return all_issues
 
         for idx, site in enumerate(self.sites):
@@ -1639,27 +1901,72 @@ class SUEWSConfig(BaseModel):
                         self._validation_summary["sites_with_issues"].append(site_name)
                     all_issues.extend(storage_issues)
             
-            # samealbedo_wall
-            if needs_samealbedo_wall:
-                samealbedo_wall_issues = self._validate_samealbedo_wall(site, idx)
-                if samealbedo_wall_issues:
+            # same_albedo_wall
+            if needs_same_albedo_wall:
+                same_albedo_wall_issues = self._validate_same_albedo_wall(site, idx)
+                if same_albedo_wall_issues:
                     self._validation_summary["issue_types"].add(
-                        "samealbedo_wall parameters"
+                        "same_albedo_wall parameters"
                     )
                     if site_name not in self._validation_summary["sites_with_issues"]:
                         self._validation_summary["sites_with_issues"].append(site_name)
-                    all_issues.extend(samealbedo_wall_issues)
+                    all_issues.extend(same_albedo_wall_issues)
 
-            # samealbedo_roof
-            if needs_samealbedo_roof:
-                samealbedo_roof_issues = self._validate_samealbedo_roof(site, idx)
-                if samealbedo_roof_issues:
+            # same_albedo_roof
+            if needs_same_albedo_roof:
+                same_albedo_roof_issues = self._validate_same_albedo_roof(site, idx)
+                if same_albedo_roof_issues:
                     self._validation_summary["issue_types"].add(
-                        "samealbedo_roof parameters"
+                        "same_albedo_roof parameters"
                     )
                     if site_name not in self._validation_summary["sites_with_issues"]:
                         self._validation_summary["sites_with_issues"].append(site_name)
-                    all_issues.extend(samealbedo_roof_issues)
+                    all_issues.extend(same_albedo_roof_issues)
+
+            # same_emissivity_wall
+            if needs_same_emissivity_wall:
+                same_emissivity_wall_issues = self._validate_same_emissivity_wall(site, idx)
+                if same_emissivity_wall_issues:
+                    self._validation_summary["issue_types"].add(
+                        "same_emissivity_wall parameters"
+                    )
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(same_emissivity_wall_issues)
+
+            # same_emissivity_roof
+            if needs_same_emissivity_roof:
+                same_emissivity_roof_issues = self._validate_same_emissivity_roof(site, idx)
+                if same_emissivity_roof_issues:
+                    self._validation_summary["issue_types"].add(
+                        "same_emissivity_roof parameters"
+                    )
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(same_emissivity_roof_issues)
+
+            # SPARTACUS building height, sfr, and vegetation consistency checks
+            if needs_spartacus:
+                spartacus_issues = self._validate_spartacus_building_height(site, idx)
+                if spartacus_issues:
+                    self._validation_summary["issue_types"].add("SPARTACUS building height")
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(spartacus_issues)
+
+                spartacus_sfr_issues = self._validate_spartacus_sfr(site, idx)
+                if spartacus_sfr_issues:
+                    self._validation_summary["issue_types"].add("SPARTACUS SFR")
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(spartacus_sfr_issues)
+
+                spartacus_veg_issues = self._validate_spartacus_veg_dimensions(site, idx)
+                if spartacus_veg_issues:
+                    self._validation_summary["issue_types"].add("SPARTACUS vegetation layer consistency")
+                    if site_name not in self._validation_summary["sites_with_issues"]:
+                        self._validation_summary["sites_with_issues"].append(site_name)
+                    all_issues.extend(spartacus_veg_issues)
         return all_issues
 
     def _check_critical_null_physics_params(self) -> List[str]:
@@ -1685,8 +1992,10 @@ class SUEWSConfig(BaseModel):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
-            "samealbedo_wall",
-            "samealbedo_roof",
+            "same_albedo_wall",
+            "same_albedo_roof",
+            "same_emissivity_wall",
+            "same_emissivity_roof",
         ]
 
         critical_issues = []

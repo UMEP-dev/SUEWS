@@ -52,17 +52,18 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0  # Required for sphinx-last-updated-by-git
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.13'
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
 
       - name: Install pandoc
         run: sudo apt-get update && sudo apt-get install -y pandoc
@@ -74,7 +75,8 @@ jobs:
           uv venv
           source .venv/bin/activate
           # Use non-editable install for CI to avoid meson-python cache path issues
-          uv pip install ".[dev]"
+          uv pip install ".[docs]"
+          python scripts/security/remove_legacy_namespace_pth.py
           make docs
 
       - name: Build site
@@ -121,7 +123,7 @@ jobs:
             done
 
             # Inject preview banner into docs pages (Sphinx theme structure)
-            DOCS_BANNER='<div id="preview-banner" style="background:linear-gradient(90deg,#0077B6,#F7B538);color:#fff;padding:8px 16px;text-align:center;font-family:system-ui,-apple-system,sans-serif;font-size:12px;position:fixed;top:0;left:0;right:0;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);"><strong>Docs Preview - PR #'"${PR_NUM}"'</strong> \&nbsp;\| <a href="https://suews.readthedocs.io/" style="color:#fff;text-decoration:underline;">Production Docs</a> \&nbsp;\| <a href="https://github.com/UMEP-dev/SUEWS/pull/'"${PR_NUM}"'" style="color:#fff;text-decoration:underline;">View PR</a></div><style>.bd-header{top:36px !important;}.bd-sidebar-primary{top:calc(var(--pst-header-height) + 36px) !important;}</style>'
+            DOCS_BANNER='<div id="preview-banner" style="background:linear-gradient(90deg,#0077B6,#F7B538);color:#fff;padding:8px 16px;text-align:center;font-family:system-ui,-apple-system,sans-serif;font-size:12px;position:fixed;top:0;left:0;right:0;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);"><strong>Docs Preview - PR #'"${PR_NUM}"'</strong> \&nbsp;\| <a href="https://docs.suews.io/" style="color:#fff;text-decoration:underline;">Production Docs</a> \&nbsp;\| <a href="https://github.com/UMEP-dev/SUEWS/pull/'"${PR_NUM}"'" style="color:#fff;text-decoration:underline;">View PR</a></div><style>.bd-header{top:36px !important;}.bd-sidebar-primary{top:calc(var(--pst-header-height) + 36px) !important;}</style>'
 
             find "_site/${PR_DIR}/docs" -name "*.html" -type f | while read -r f; do
               # Inject banner after <body> tag
@@ -138,10 +140,13 @@ jobs:
       # Detect fork: compare PR head repo with base repo
       - name: Check if fork PR
         id: fork-check
+        env:
+          HEAD_REPO_FULL_NAME: ${{ github.event.pull_request.head.repo.full_name || '' }}
+          BASE_REPO_FULL_NAME: ${{ github.repository }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            HEAD_REPO="${{ github.event.pull_request.head.repo.full_name }}"
-            BASE_REPO="${{ github.repository }}"
+            HEAD_REPO="${HEAD_REPO_FULL_NAME}"
+            BASE_REPO="${BASE_REPO_FULL_NAME}"
             if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
               echo "is_fork=true" >> $GITHUB_OUTPUT
               echo "::notice::Fork PR detected ($HEAD_REPO) - skipping deployment"
@@ -152,22 +157,22 @@ jobs:
             echo "is_fork=false" >> $GITHUB_OUTPUT
           fi
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
         if: steps.fork-check.outputs.is_fork != 'true'
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         if: steps.fork-check.outputs.is_fork != 'true'
         with:
           path: _site
 
-      - uses: actions/deploy-pages@v4
+      - uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
         if: steps.fork-check.outputs.is_fork != 'true'
         id: deployment
 
       - name: Comment fork PR status
         if: github.event_name == 'pull_request' && steps.fork-check.outputs.is_fork == 'true'
         continue-on-error: true  # Token may lack permission for fork PRs
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const prNumber = context.issue.number;
@@ -198,7 +203,7 @@ jobs:
 
       - name: Comment preview URL
         if: github.event_name == 'pull_request' && steps.fork-check.outputs.is_fork != 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const prNumber = context.issue.number;

@@ -33,17 +33,18 @@ CONTAINS
    !   Cp - specific heat capacity [J kg-1 K-1]
    !   vFR - volume Flow Rate [m3 s-1]
    !   Tout - temperature of water in vessel lost to drains [K]
+   !   Tmains - Water mains (cold) temperature [K]
    !   timeResolution - time resolution [s]
    ! Returns:
    !   q_wt - energy lost to drains [J]
    !-------------------------------------------------------------------
-   FUNCTION waterUseEnergyLossToDrains(rho, Cp, vFRo, Tout, timeResolution) RESULT(q_wt)
+   FUNCTION waterUseEnergyLossToDrains(rho, Cp, vFRo, Tout, Tmains, timeResolution) RESULT(q_wt)
       USE module_phys_stebbs_precision
       IMPLICIT NONE
       INTEGER, INTENT(in) :: timeResolution
-      REAL(KIND(1D0)), INTENT(in) :: rho, Cp, vFRo, Tout
+      REAL(KIND(1D0)), INTENT(in) :: rho, Cp, vFRo, Tout, Tmains
       REAL(KIND(1D0)) :: q_wt
-      q_wt = rho*Cp*Tout*(vFRo*timeResolution)
+      q_wt = rho*Cp*(Tout - Tmains)*(vFRo*timeResolution)
    END FUNCTION
    !-------------------------------------------------------------------
    ! Function: indoorConvectionHeatTransfer
@@ -246,19 +247,18 @@ CONTAINS
    ! Parameters:
    !   Ts - set point temperature for heating load [K]
    !   Ti - indoor air node temperature [K]
-   !   epsilon - rated efficiency of the total heating system [-]
    !   P - maximum power rating of the total heating system [W]
    ! Returns:
    !   q_heating - [W]
    !-------------------------------------------------------------------
-   FUNCTION heating(Ts, Ti, epsilon, P) RESULT(q_heating)
+   FUNCTION heating(Ts, Ti, P) RESULT(q_heating)
       USE module_phys_stebbs_precision
       IMPLICIT NONE
-      REAL(KIND(1D0)), INTENT(in) :: Ts, Ti, epsilon, P
+      REAL(KIND(1D0)), INTENT(in) :: Ts, Ti, P
       REAL(KIND(1D0)) :: q_heating
       q_heating = 0.0
       IF (Ti < Ts) THEN
-         q_heating = (P - (P/EXP(Ts - Ti)))*epsilon
+         q_heating = (P - (P/EXP(Ts - Ti)))
       END IF
    END FUNCTION heating
    !-------------------------------------------------------------------
@@ -303,15 +303,14 @@ CONTAINS
    ! Parameters:
    !   Ts - set point temperature for cooling load [K]
    !   Ti -indoor air node temperature [K]
-   !   COP - Rated efficiency of the total heating system [-]
    !   P - maximum power rating of the total heating system [W]
    ! Returns:
    !   q_cooling - [W]
    !-------------------------------------------------------------------
-   FUNCTION cooling(Ts, Ti, COP, P) RESULT(q_cooling)
+   FUNCTION cooling(Ts, Ti, P) RESULT(q_cooling)
       USE module_phys_stebbs_precision
       IMPLICIT NONE
-      REAL(KIND(1D0)), INTENT(in) :: Ts, Ti, COP, P
+      REAL(KIND(1D0)), INTENT(in) :: Ts, Ti, P
       REAL(KIND(1D0)) :: q_cooling
       q_cooling = 0.0
       IF (Ti > Ts) THEN
@@ -397,6 +396,50 @@ CONTAINS
       END IF 
    END FUNCTION int_conv_coeff   
 
+  !-------------------------------------------------------------------
+   ! Function: mainsWaterTemperature
+   ! Description: Calculate daily water mains temperature based on the
+   !              EnergyPlus correlation in SI units
+   ! Parameters:
+   !   dayOfYear   - day of year [-]
+   !   To_annual_C - annual mean outdoor air temperature [degC]
+   !   dTo_month_C - largest difference in monthly mean outdoor air
+   !                 temperature [degC]
+   ! Returns:
+   !   Tmains      - water mains temperature [K]
+   !-------------------------------------------------------------------
+   FUNCTION cal_mainsWaterTemperature(dayOfYear, To_annual_C, dTo_month_C) RESULT(Tmains)
+      USE module_phys_stebbs_precision
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN) :: dayOfYear
+      REAL(KIND(1D0)), INTENT(in) :: To_annual_C
+      REAL(KIND(1D0)), INTENT(in) :: dTo_month_C
+      REAL(KIND(1D0)) :: Tmains
+
+      REAL(KIND(1D0)) :: ratio
+      REAL(KIND(1D0)) :: lag
+      REAL(KIND(1D0)) :: angle_deg
+      REAL(KIND(1D0)) :: angle_rad
+      REAL(KIND(1D0)) :: Tmains_C
+      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793
+
+      ! EnergyPlus empirical coefficients in SI units
+      ratio = 0.28 + 0.018*To_annual_C
+      lag   = 47.0 - 1.8*To_annual_C
+
+      ! Convert angle from degrees to radians for SIN
+      angle_deg = 0.986*(dayOfYear - 15.0 - lag) - 90.0
+      angle_rad = angle_deg*pi/180.0
+
+      ! Water mains temperature in degC
+      Tmains_C = (To_annual_C + 3.33) + ratio*(dTo_month_C/2.0)*SIN(angle_rad)
+
+      ! Convert water mains temperature from degC to K
+      Tmains = Tmains_C + 273.15
+
+   END FUNCTION cal_mainsWaterTemperature
+
    FUNCTION calculate_x1(d, cp, rho, d_ext, cp_ext, rho_ext, k_ext) RESULT(x1)
       IMPLICIT NONE
       ! Input parameters
@@ -480,8 +523,10 @@ CONTAINS
 
       ! Local variable
       INTEGER :: i
-      ! Initialize to zero (not found)
-      i_layer = 0
+      ! Default to the top layer when height exceeds the SPARTACUS domain.
+      ! This avoids index 0 access when buildings are taller than the highest
+      ! layer interface.
+      i_layer = nlayer
       DO i = 1, nlayer
          IF (h <= layer_h(i+1)) THEN
             i_layer = i
@@ -578,7 +623,7 @@ CONTAINS
       modState, & ! Input/Output
       datetimeLine, nlayer, &
       dataOutLineSTEBBS) ! Output
-      USE module_phys_stebbs_func, ONLY: find_layer
+      USE module_phys_stebbs_func, ONLY: find_layer, cal_mainsWaterTemperature
       USE module_phys_stebbs_core, ONLY: cases, resolution
       USE module_phys_stebbs_couple, ONLY: sout ! Defines sout
       USE module_phys_stebbs_precision, ONLY: rprc ! Defines rprc as REAL64
@@ -609,6 +654,7 @@ CONTAINS
       REAL(KIND(1D0)) :: Tair_hbh
       REAL(KIND(1D0)) :: Tsurf_sout
       REAL(KIND(1D0)) :: Tground_deep_sout
+      REAL(KIND(1D0)) :: MonthMeanAirTemperature_diffmax_sout
       REAL(KIND(1D0)) :: Kroof_sout
       REAL(KIND(1D0)) :: Lroof_sout
       REAL(KIND(1D0)) :: Kwall_sout
@@ -639,6 +685,7 @@ CONTAINS
       REAL(KIND(1D0)) :: Qlw_net_exttankwall_to_indoormass_tstepFA
       REAL(KIND(1D0)) :: Qlw_net_extvesselwall_to_indoormass_tstepFA
       REAL(KIND(1D0)) :: QH_appliance_tstepFA
+      REAL(KIND(1D0)) :: QH_lighting_tstepFA
       REAL(KIND(1D0)) :: QH_ventilation_tstepFA
       REAL(KIND(1D0)) :: QHconv_indair_to_intwall_tstepFA
       REAL(KIND(1D0)) :: QHconv_indair_to_introof_tstepFA
@@ -699,13 +746,26 @@ CONTAINS
       REAL(KIND(1D0)) :: QEC_heating_tstepFA
       REAL(KIND(1D0)) :: QEC_cooling_tstepFA
       REAL(KIND(1D0)) :: QEC_dhw_tstepFA
+      REAL(KIND(1D0)) :: Unused_heating_setpoint_C = -100
+      REAL(KIND(1D0)) :: Unused_cooling_setpoint_C = 100
+      REAL(KIND(1D0)) :: T_watermains_K
+      REAL(KIND(1D0)), PARAMETER :: FloorHeightDefault = 2.7D0 ! [m]
+      REAL(KIND(1D0)), PARAMETER :: GlobalLuminousEfficacy = 110.0D0 ! [lm W-1]
+      REAL(KIND(1D0)), PARAMETER :: DefaultDaylightFactor = 0.02D0 ! [-]
+      REAL(KIND(1D0)) :: lighting_floor_area
+      REAL(KIND(1D0)) :: lighting_power_capacity
+      REAL(KIND(1D0)) :: outdoor_illuminance
+      REAL(KIND(1D0)) :: indoor_illuminance
+      LOGICAL :: building_is_active
+      INTEGER :: n_floors
       INTEGER :: iu !type of day: weekday/weekend
       INTEGER :: idx !index of profiles for 10 mins interval
       ASSOCIATE ( &
          timestep => timer%tstep, &
          dt_start => timer%dt_since_start, &
          it => timer%it, &!hour of day
-         imin => timer%imin, & !minute of day
+         id => timer%id, & !day of year
+         imin => timer%imin, & !minute of hour
          dayofWeek_id => timer%dayofWeek_id, & !1 - day of week; 2 - month; 3 - season
          flagstate => modState%flagstate, &
          heatState => modState%heatState, &
@@ -741,6 +801,7 @@ CONTAINS
             Least => stebbsState%Least, &
             Lwest => stebbsState%Lwest, &
             Tground_deep_sout => stebbsState%DeepSoilTemperature, &
+            MonthMeanAirTemperature_diffmax_sout => stebbsState%MonthMeanAirTemperature_diffmax, &
             pres => forcing%pres, &
             RH => forcing%RH, &
             cp_air => atmState%avcp, &
@@ -750,7 +811,7 @@ CONTAINS
             zdm => roughnessState%zdm &
             )
 
-            IF (dt_start < timestep) THEN
+            IF (dt_start <= timestep) THEN
                ! correct wind speed using log law; assuming neutral condition (without stability correction)
                ws = forcing%U * (LOG((10 + z0m) / z0m) / LOG((height_forcing + z0m) / z0m)) !10m 
                Tair_sout = stebbsState%OutdoorAirStartTemperature ! unit degree
@@ -764,7 +825,7 @@ CONTAINS
 
             sout%ntstep = 1
             resolution = 1
-            IF (stebbs_bldg_init == 0) THEN
+            IF (stebbs_bldg_init == 0 .OR. dt_start <= timestep) THEN
                CALL gen_building(stebbsState, stebbsPrm, building_archtype, config, buildings(1), nlayer)
                stebbs_bldg_init = 1
             END IF
@@ -813,7 +874,7 @@ CONTAINS
             sout%cp_air_exch = cp_air
             sout%density_air_exch = density_air
             sout%pres_exch = pres            
-            IF (dt_start < timestep) THEN !initialisation before getting RSL output
+            IF (dt_start <= timestep) THEN !initialisation before getting RSL output
                ws_bh = forcing%U * (LOG((buildings(1)%height_building + z0m) / z0m) / LOG((height_forcing + z0m) / z0m)) !archetype height
                ws_hbh = forcing%U * (LOG((buildings(1)%height_building/2 + z0m) / z0m) / LOG((height_forcing + z0m) / z0m)) !half archetype height
                Tair_bh = stebbsState%OutdoorAirStartTemperature ! unit degree
@@ -833,18 +894,44 @@ CONTAINS
               
             iu = 1 !Set to 1=weekday
             IF (DayofWeek_id(1) == 1 .OR. DayofWeek_id(1) == 7) iu = 2 !Set to 2=weekend
-            idx = imin / 10 !for 10 minutes resolution
+            idx = MIN(143, MAX(0, it*6 + imin/10)) ! 0-based 10-minute slot across the full day
             buildings(1)%metabolic_rate = building_archtype%MetabolismProfile(idx, iu)
             buildings(1)%appliance_power_rating = building_archtype%ApplianceProfile(idx, iu)
             buildings(1)%frac_hotwater = stebbsPrm%HotWaterFlowProfile(idx, iu)
+
             ! determine the occupancy status, active and inactive (sleep, not control heating, cooling, lighting)
-            IF (buildings(1)%metabolic_rate >= buildings(1)%metabolism_threshold * buildings(1)%occupants) THEN
+            building_is_active = buildings(1)%metabolic_rate >= buildings(1)%metabolism_threshold * buildings(1)%occupants
+            IF (building_is_active) THEN
                !active: valid heating cooling setpoint.
                buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperature + 273.15
                buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperature + 273.15
             ELSE
-               buildings(1)%Ts(1) = 10 + 273.15
-               buildings(1)%Ts(2) = 100 + 273.15
+               buildings(1)%Ts(1) = Unused_heating_setpoint_C + 273.15
+               buildings(1)%Ts(2) = Unused_cooling_setpoint_C + 273.15
+            END IF
+            !calculate water mains temperature 
+            T_watermains_K = cal_mainsWaterTemperature(id, Tground_deep_sout, MonthMeanAirTemperature_diffmax_sout)
+            !constrain the temperature between 4 and 20
+            T_watermains_K = min(max(4.0 + 273.15, T_watermains_K), 20.0 + 273.15)
+            buildings(1)%Tincomingwater_tank = T_watermains_K
+            
+            ! Estimate storey count from archetype height using the nearest integer.
+            n_floors = MAX(1, NINT(buildings(1)%height_building/FloorHeightDefault))
+            lighting_floor_area = n_floors * buildings(1)%Afootprint
+            lighting_power_capacity = building_archtype%LightingPowerDensity * lighting_floor_area
+            buildings(1)%lighting_power_rating = 0.0D0
+	            IF (building_is_active) THEN
+	               buildings(1)%lighting_power_rating = lighting_power_capacity
+	               IF (stebbsPrm%DaylightControl == 1) THEN
+	                  ! Apply a simple daylight-factor approximation using roof-level
+	                  ! horizontal irradiance as the outdoor illuminance proxy.
+	                  outdoor_illuminance = GlobalLuminousEfficacy * MAX(Kroof_sout, 0.0D0)
+	                  indoor_illuminance = outdoor_illuminance * DefaultDaylightFactor
+
+                  IF (indoor_illuminance >= stebbsPrm%LightingIlluminanceThreshold) THEN
+                     buildings(1)%lighting_power_rating = 0.0D0
+                  END IF
+               END IF
             END IF
 
             CALL setdatetime(datetimeLine)
@@ -863,7 +950,7 @@ CONTAINS
                QHconv_water_to_intvesselwall_tstepFA, QHconv_extvesselwall_to_indair_tstepFA, &
                QHcond_wall_tstepFA, QHcond_roof_tstepFA, QHcond_window_tstepFA, QHcond_groundfloor_tstepFA, &
                QHcond_ground_tstepFA, QHcond_tankwall_tstepFA, QHcond_vesselwall_tstepFA, &
-               QH_appliance_tstepFA, QH_metabolism_tstepFA, QHwaste_heating_tstepFA, &
+               QH_appliance_tstepFA, QH_lighting_tstepFA, QH_metabolism_tstepFA, QHwaste_heating_tstepFA, &
                QHwaste_dhw_tstepFA, QH_ventilation_tstepFA, QHload_heating_tstepFA, QHload_cooling_tstepFA, &
                QHload_dhw_tstepFA, QHwaste_cooling_tstepFA, Qloss_drain_tstepFA, QS_wall_tstepFA, QS_roof_tstepFA, &
                QS_groundfloor_tstepFA, QS_window_tstepFA, QS_indoormass_tstepFA, QS_air_tstepFA, &
@@ -882,7 +969,7 @@ CONTAINS
             stebbsState%QS_stebbs = QS_bldg_tstepFA 
             dataOutLineSTEBBS = [ &
                                 ! Forcing
-                                ws, ws_bh, ws_hbh, Tair_sout, Tair_bh, Tair_hbh, &
+                                ws, ws_bh, ws_hbh, Tair_sout, Tair_bh, Tair_hbh, T_watermains_K - 273.15, &
                                 Kroof_sout, Lroof_sout, Kwall_sout, Lwall_sout, &
                                 ! energy balance heat flux 
                                 QN_bldg_tstepFA, QEC_bldg_tstepFA, QS_total_tstepFA, QH_bldg_tstepFA, QBAE_bldg_tstepFA, QWaste_bldg_tstepFA, &
@@ -903,7 +990,7 @@ CONTAINS
                                 QHconv_water_to_intvesselwall_tstepFA, QHconv_extvesselwall_to_indair_tstepFA, &
                                 QHcond_wall_tstepFA, QHcond_roof_tstepFA, QHcond_window_tstepFA, QHcond_groundfloor_tstepFA, &
                                 QHcond_ground_tstepFA, QHcond_tankwall_tstepFA, QHcond_vesselwall_tstepFA, &
-                                QH_appliance_tstepFA, QH_metabolism_tstepFA, QHwaste_heating_tstepFA, &
+                                QH_appliance_tstepFA, QH_lighting_tstepFA, QH_metabolism_tstepFA, QHwaste_heating_tstepFA, &
                                 QHwaste_dhw_tstepFA, QH_ventilation_tstepFA, QHload_heating_tstepFA, QHload_cooling_tstepFA, &
                                 QHload_dhw_tstepFA, QHwaste_cooling_tstepFA, Qloss_drain_tstepFA, QS_wall_tstepFA, QS_roof_tstepFA, &
                                 QS_groundfloor_tstepFA, QS_window_tstepFA, QS_indoormass_tstepFA, QS_air_tstepFA, &
@@ -929,7 +1016,7 @@ SUBROUTINE suewsstebbscouple(self, datetimeLine, &
                             QHconv_water_to_intvesselwall_tstepFA, QHconv_extvesselwall_to_indair_tstepFA, &
                             QHcond_wall_tstepFA, QHcond_roof_tstepFA, QHcond_window_tstepFA, QHcond_groundfloor_tstepFA, &
                             QHcond_ground_tstepFA, QHcond_tankwall_tstepFA, QHcond_vesselwall_tstepFA, &
-                            QH_appliance_tstepFA, QH_metabolism_tstepFA, QHwaste_heating_tstepFA, &
+                            QH_appliance_tstepFA, QH_lighting_tstepFA, QH_metabolism_tstepFA, QHwaste_heating_tstepFA, &
                             QHwaste_dhw_tstepFA, QH_ventilation_tstepFA, QHload_heating_tstepFA, QHload_cooling_tstepFA, &
                             QHload_dhw_tstepFA, QHwaste_cooling_tstepFA, Qloss_drain_tstepFA, QS_wall_tstepFA, QS_roof_tstepFA, &
                             QS_groundfloor_tstepFA, QS_window_tstepFA, QS_indoormass_tstepFA, QS_air_tstepFA, &
@@ -1000,6 +1087,7 @@ SUBROUTINE suewsstebbscouple(self, datetimeLine, &
    REAL(KIND(1D0)), INTENT(OUT) :: QHcond_tankwall_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: QHcond_vesselwall_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: QH_appliance_tstepFA
+   REAL(KIND(1D0)), INTENT(OUT) :: QH_lighting_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: QH_metabolism_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: QHwaste_heating_tstepFA
    REAL(KIND(1D0)), INTENT(OUT) :: QHwaste_dhw_tstepFA
@@ -1124,21 +1212,22 @@ SUBROUTINE suewsstebbscouple(self, datetimeLine, &
       QHcond_tankwall_tstepFA                         = self%EnergyExchanges(27)
       QHcond_vesselwall_tstepFA                       = self%EnergyExchanges(28)
       QH_appliance_tstepFA                            = self%EnergyExchanges(29)
-      QH_metabolism_tstepFA                           = self%EnergyExchanges(30)
-      QHwaste_heating_tstepFA                         = self%EnergyExchanges(31)
-      QHwaste_dhw_tstepFA                             = self%EnergyExchanges(32)
-      QH_ventilation_tstepFA                          = self%EnergyExchanges(33)
-      QHload_heating_tstepFA                          = self%EnergyExchanges(34)
-      QHload_cooling_tstepFA                          = self%EnergyExchanges(35)
-      QHload_dhw_tstepFA                              = self%EnergyExchanges(36)
-      QHwaste_cooling_tstepFA                         = self%EnergyExchanges(37)
-      Qloss_drain_tstepFA                             = self%EnergyExchanges(38)
-      QS_wall_tstepFA                                 = self%EnergyExchanges(39)
-      QS_roof_tstepFA                                 = self%EnergyExchanges(40)
-      QS_groundfloor_tstepFA                          = self%EnergyExchanges(41)
-      QS_window_tstepFA                               = self%EnergyExchanges(42)
-      QS_indoormass_tstepFA                           = self%EnergyExchanges(43)
-      QS_air_tstepFA                                  = self%EnergyExchanges(44)
+      QH_lighting_tstepFA                             = self%EnergyExchanges(30)
+      QH_metabolism_tstepFA                           = self%EnergyExchanges(31)
+      QHwaste_heating_tstepFA                         = self%EnergyExchanges(32)
+      QHwaste_dhw_tstepFA                             = self%EnergyExchanges(33)
+      QH_ventilation_tstepFA                          = self%EnergyExchanges(34)
+      QHload_heating_tstepFA                          = self%EnergyExchanges(35)
+      QHload_cooling_tstepFA                          = self%EnergyExchanges(36)
+      QHload_dhw_tstepFA                              = self%EnergyExchanges(37)
+      QHwaste_cooling_tstepFA                         = self%EnergyExchanges(38)
+      Qloss_drain_tstepFA                             = self%EnergyExchanges(39)
+      QS_wall_tstepFA                                 = self%EnergyExchanges(40)
+      QS_roof_tstepFA                                 = self%EnergyExchanges(41)
+      QS_groundfloor_tstepFA                          = self%EnergyExchanges(42)
+      QS_window_tstepFA                               = self%EnergyExchanges(43)
+      QS_indoormass_tstepFA                           = self%EnergyExchanges(44)
+      QS_air_tstepFA                                  = self%EnergyExchanges(45)
       QN_bldg_tstepFA      = self%QN_bldg_tstepFA
       QEC_bldg_tstepFA     = self%QEC_bldg_tstepFA
       QS_total_tstepFA     = self%QS_total_tstepFA
@@ -1229,6 +1318,13 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
                       Qlw_dn_extwall, Qlw_dn_extroof
    REAL(KIND(1D0)), DIMENSION(5), INTENT(in) :: datetimeLine
    TYPE(STEBBS_BLDG) :: self
+   ! Local variables to hold computed flow rates:
+   ! tstep WRITES to flowrate_water_supply and flowrate_water_drain
+   ! (lines 1870/1874), so passing an expression directly is UB
+   ! (gfortran 14 creates a read-only temporary -> SIGSEGV).
+   REAL(KIND(1D0)) :: local_flowrate_supply, local_flowrate_drain
+   local_flowrate_supply = self%flowrate_water_supply * self%frac_hotwater
+   local_flowrate_drain = self%flowrate_water_supply * self%frac_hotwater
    CALL tstep( &
       ! flginit,
       datetimeLine, Tair_out, Tair_out_bh, Tair_out_hbh, Tground_deep, Tsurf, &
@@ -1254,7 +1350,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%wallTransmisivity, self%wallAbsorbtivity, self%wallReflectivity, &
       self%roofTransmisivity, self%roofAbsorbtivity, self%roofReflectivity, &
       self%occupants, self%metabolic_rate, self%ratio_metabolic_latent_sensible, &
-      self%appliance_power_rating, &
+      self%appliance_power_rating, self%lighting_power_rating,&
       self%maxheatingpower_air, self%heating_efficiency_air, &
       self%maxcoolingpower_air, self%coeff_performance_cooling, &
       self%Vair_ind, self%ventilation_rate, self%Awall, self%Aroof, &
@@ -1269,7 +1365,7 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%Vwater_tank, self%Asurf_tank, self%Vwall_tank, self%setTwater_tank, &
       self%Twater_vessel, self%Tintwall_vessel, self%Textwall_vessel, &
       self%thickness_wall_vessel, self%Vwater_vessel, self%Awater_vessel, &
-      self%Vwall_vessel, self%flowrate_water_supply*self%frac_hotwater, self%flowrate_water_supply*self%frac_hotwater, &
+      self%Vwall_vessel, local_flowrate_supply, local_flowrate_drain, &
       self%cp_water, self%cp_wall_tank, self%cp_wall_vessel, &
       self%density_water, self%density_wall_tank, self%density_wall_vessel, &
       self%BVF_tank, self%MVF_tank, self%conductivity_wall_tank, &
@@ -1277,7 +1373,8 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%emissivity_extwall_tank, self%conductivity_wall_vessel, &
       self%conv_coeff_intwall_vessel, self%conv_coeff_extwall_vessel, &
       self%emissivity_extwall_vessel, self%HeatingPower_DHW, &
-      self%heating_efficiency_water, self%minVwater_vessel, self%maxVwater_vessel, &
+      self%heating_efficiency_water, &
+      !self%minVwater_vessel, self%maxVwater_vessel, &
       self%weighting_factor_heatcapacity_wall, self%weighting_factor_heatcapacity_roof, &
       !
       ! Output only variables
@@ -1311,21 +1408,22 @@ SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tgroun
       self%EnergyExchanges(27), & !QHcond_tankwall_tstepFA
       self%EnergyExchanges(28), & !QHcond_vesselwall_tstepFA
       self%EnergyExchanges(29), & !QH_appliance_tstepFA
-      self%EnergyExchanges(30), & !QH_metabolism_tstepFA
-      self%EnergyExchanges(31), & !QHwaste_heating_tstepFA
-      self%EnergyExchanges(32), & !QHwaste_dhw_tstepFA
-      self%EnergyExchanges(33), & !QH_ventilation_tstepFA
-      self%EnergyExchanges(34), & !QHload_heating_tstepFA
-      self%EnergyExchanges(35), & !QHload_cooling_tstepFA
-      self%EnergyExchanges(36), & !QHload_dhw_tstepFA
-      self%EnergyExchanges(37), & !QHwaste_cooling_tstepFA
-      self%EnergyExchanges(38), & !Qloss_drain_tstepFA
-      self%EnergyExchanges(39), & !QS_wall_tstepFA
-      self%EnergyExchanges(40), & !QS_roof_tstepFA
-      self%EnergyExchanges(41), & !QS_groundfloor_tstepFA
-      self%EnergyExchanges(42), & !QS_window_tstepFA
-      self%EnergyExchanges(43), & !QS_indoormass_tstepFA
-      self%EnergyExchanges(44), & !QS_air_tstepFA
+      self%EnergyExchanges(30), & !QH_lighting_tstepFA
+      self%EnergyExchanges(31), & !QH_metabolism_tstepFA
+      self%EnergyExchanges(32), & !QHwaste_heating_tstepFA
+      self%EnergyExchanges(33), & !QHwaste_dhw_tstepFA
+      self%EnergyExchanges(34), & !QH_ventilation_tstepFA
+      self%EnergyExchanges(35), & !QHload_heating_tstepFA
+      self%EnergyExchanges(36), & !QHload_cooling_tstepFA
+      self%EnergyExchanges(37), & !QHload_dhw_tstepFA
+      self%EnergyExchanges(38), & !QHwaste_cooling_tstepFA
+      self%EnergyExchanges(39), & !Qloss_drain_tstepFA
+      self%EnergyExchanges(40), & !QS_wall_tstepFA
+      self%EnergyExchanges(41), & !QS_roof_tstepFA
+      self%EnergyExchanges(42), & !QS_groundfloor_tstepFA
+      self%EnergyExchanges(43), & !QS_window_tstepFA
+      self%EnergyExchanges(44), & !QS_indoormass_tstepFA
+      self%EnergyExchanges(45), & !QS_air_tstepFA
       self%QN_bldg_tstepFA, & ! QN_bldg_tstepFA
       self%QEC_bldg_tstepFA, & ! QEC_bldg_tstepFA
       self%QS_total_tstepFA, & ! QS_total_tstepFA
@@ -1364,7 +1462,7 @@ SUBROUTINE tstep( &
    wallTransmisivity, wallAbsorbtivity, wallReflectivity, &
    roofTransmisivity, roofAbsorbtivity, roofReflectivity, &
    occupants, metabolic_rate, ratio_metabolic_latent_sensible, &
-   appliance_power_rating, &
+   appliance_power_rating, lighting_power_rating, &
    maxheatingpower_air, heating_efficiency_air, &
    maxcoolingpower_air, coeff_performance_cooling, &
    Vair_ind, ventilation_rate, Awall, Aroof, &
@@ -1388,7 +1486,8 @@ SUBROUTINE tstep( &
    emissivity_extwall_tank, conductivity_wall_vessel, &
    conv_coeff_intwall_vessel, conv_coeff_extwall_vessel, &
    emissivity_extwall_vessel, maxheatingpower_water, &
-   heating_efficiency_water, minVwater_vessel, maxVwater_vessel, &
+   heating_efficiency_water, &
+   !minVwater_vessel, maxVwater_vessel, &
    weighting_factor_heatcapacity_wall, weighting_factor_heatcapacity_roof, &
    !
    ! Output only variables
@@ -1422,21 +1521,22 @@ SUBROUTINE tstep( &
    QHcond_tankwall_tstepFA, & !EE(27)
    QHcond_vesselwall_tstepFA, & !EE(28)
    QH_appliance_tstepFA, & !EE(29)
-   QH_metabolism_tstepFA, & !EE(30)
-   QHwaste_heating_tstepFA, & !EE(31)
-   QHwaste_dhw_tstepFA, & !EE(32)
-   QH_ventilation_tstepFA, & !EE(33)
-   QHload_heating_tstepFA, & !EE(34)
-   QHload_cooling_tstepFA, & !EE(35)
-   QHload_dhw_tstepFA, & !EE(36)
-   QHwaste_cooling_tstepFA, & !EE(37)
-   Qloss_drain_tstepFA, & !EE(38)
-   QS_wall_tstepFA, & !EE(39)
-   QS_roof_tstepFA, & !EE(40)
-   QS_groundfloor_tstepFA, & !EE(41)
-   QS_window_tstepFA, & !EE(42)
-   QS_indoormass_tstepFA, & !EE(43)
-   QS_air_tstepFA, & !EE(44)
+   QH_lighting_tstepFA, & !EE(30)
+   QH_metabolism_tstepFA, & !EE(31)
+   QHwaste_heating_tstepFA, & !EE(32)
+   QHwaste_dhw_tstepFA, & !EE(33)
+   QH_ventilation_tstepFA, & !EE(34)
+   QHload_heating_tstepFA, & !EE(35)
+   QHload_cooling_tstepFA, & !EE(36)
+   QHload_dhw_tstepFA, & !EE(37)
+   QHwaste_cooling_tstepFA, & !EE(38)
+   Qloss_drain_tstepFA, & !EE(39)
+   QS_wall_tstepFA, & !EE(40)
+   QS_roof_tstepFA, & !EE(41)
+   QS_groundfloor_tstepFA, & !EE(42)
+   QS_window_tstepFA, & !EE(43)
+   QS_indoormass_tstepFA, & !EE(44)
+   QS_air_tstepFA, & !EE(45)
 
    QN_bldg_tstepFA, &
    QEC_bldg_tstepFA, &
@@ -1462,7 +1562,7 @@ SUBROUTINE tstep( &
    REAL(KIND(1D0)) :: Twater_tank, & ! Water temperature in Hot Water Tank [K]
                       Tintwall_tank, & ! Hot water tank internal wall temperature [K]
                       Textwall_tank ! Hot water tank external wall temperature [K]
-   REAL(KIND(1D0)) :: dTwater_tank = 0.0, dTintwall_tank = 0.0, dTextwall_tank = 0.0
+   REAL(KIND(1D0)) :: dTwater_tank, dTintwall_tank, dTextwall_tank
    REAL(KIND(1D0)) :: thickness_tankwall ! Hot water tank wall thickness [m]
    REAL(KIND(1D0)) :: Tincomingwater_tank ! Water temperature of Water coming into the Water Tank [K]
    REAL(KIND(1D0)) :: Vwater_tank, & ! Volume of Water in Hot Water Tank [m3]
@@ -1472,10 +1572,10 @@ SUBROUTINE tstep( &
    REAL(KIND(1D0)) :: Twater_vessel, & ! Water temperature of water held in use in Building [K]
                       Tintwall_vessel, & ! Hot water tank internal wall temperature [K]
                       Textwall_vessel ! Hot water tank external wall temperature [K]
-   REAL(KIND(1D0)) :: dTwater_vessel = 0.0, dTintwall_vessel = 0.0, dTextwall_vessel = 0.0
+   REAL(KIND(1D0)) :: dTwater_vessel, dTintwall_vessel, dTextwall_vessel
    REAL(KIND(1D0)) :: thickness_wall_vessel ! DHW vessels wall thickness [m]
    REAL(KIND(1D0)) :: Vwater_vessel ! Volume of water held in use in building [m3]
-   REAL(KIND(1D0)) :: dVwater_vessel = 0.0 ! Change in volume of Domestic Hot Water held in use in building [m3]
+   REAL(KIND(1D0)) :: dVwater_vessel
    REAL(KIND(1D0)) :: Awater_vessel, & ! Surface Area of Hot Water in Vessels in Building [m2]
                       Vwall_vessel, & ! Wall volume of Hot water Vessels in Building [m3]
                       flowrate_water_supply, & ! Hot Water Flow Rate [m3 s-1]
@@ -1530,7 +1630,7 @@ SUBROUTINE tstep( &
                  roofTransmisivity, roofAbsorbtivity, roofReflectivity ! [-], [-], [-]
    REAL(KIND(1D0)) :: occupants! Number of occupants [-]
    REAL(KIND(1D0)) :: metabolic_rate, ratio_metabolic_latent_sensible, & ! [W], [-]
-                      appliance_power_rating ! [W]
+                      appliance_power_rating, lighting_power_rating ! [W]
    REAL(KIND(1D0)) :: maxheatingpower_air, heating_efficiency_air, & ! [W], [-]
                       maxcoolingpower_air, coeff_performance_cooling, & ! [W], [-]
                       Vair_ind, ventilation_rate, & ! Fixed at begining to have no natural ventilation.
@@ -1541,45 +1641,45 @@ SUBROUTINE tstep( &
                       Vindoormass, Aindoormass ! Assumed internal mass as a cube [m3], [m2]
    REAL(KIND(1D0)) :: Tair_ind, Tindoormass, Tintwall, Tintroof, Textwall, Textroof, & ! [K], [K], [K], [K], [K], [K]
                       Tintwindow, Textwindow, Tintgroundfloor, Textgroundfloor ! [K], [K], [K], [K]
-   REAL(KIND(1D0)) :: dTair_ind = 0.0, dTindoormass = 0.0, dTintwall = 0.0, dTintroof = 0.0, & ! [K], [K], [K]
-                      dTextwall = 0.0, dTextroof = 0.0, dTintwindow = 0.0, dTextwindow = 0.0, & ! [K], [K], [K], [K]
-                      dTintgroundfloor = 0.0, dTextgroundfloor = 0.0 ! [K], [K]
-   REAL(KIND(1D0)) :: QHconv_water_to_inttankwall = 0.0, & ! heat flux to internal wall of hot water tank
-                      QHconv_exttankwall_to_indair = 0.0, & ! convective heat flux to external wall of hot water tank
-                      Qlw_net_exttankwall_to_indoormass = 0.0, & ! radiative heat flux to external wall of hot water tank
-                      QHcond_tankwall = 0.0, & ! heat flux through wall of hot water tank
-                      QHconv_water_to_intvesselwall = 0.0, & ! heat flux to internal wall of vessels holding DHW in use in building
-                      QHcond_vesselwall = 0.0, & ! heat flux through wall of vessels holding DHW in use in building
-                      QHconv_extvesselwall_to_indair = 0.0, & ! convective heat flux to external wall of vessels holding DHW in use in building
-                      Qlw_net_extvesselwall_to_wall = 0.0, &
-                      Qlw_net_extvesselwall_to_indoormass = 0.0, & ! radiative heat flux to external wall of vessels holding DHW in use in building
-                      Qloss_drain,  & ! Heat loss as water held in use in building drains to sewer
-                      QHwaste_dhw = 0.0 ! additional heat release from efficieny losses/gains of heating hot water
+   REAL(KIND(1D0)) :: dTair_ind, dTindoormass, dTintwall, dTintroof, & ! [K], [K], [K]
+                      dTextwall, dTextroof, dTintwindow, dTextwindow, & ! [K], [K], [K], [K]
+                      dTintgroundfloor, dTextgroundfloor ! [K], [K]
+   REAL(KIND(1D0)) :: QHconv_water_to_inttankwall, & ! heat flux to internal wall of hot water tank
+                      QHconv_exttankwall_to_indair, & ! convective heat flux to external wall of hot water tank
+                      Qlw_net_exttankwall_to_indoormass, & ! radiative heat flux to external wall of hot water tank
+                      QHcond_tankwall, & ! heat flux through wall of hot water tank
+                      QHconv_water_to_intvesselwall, & ! heat flux to internal wall of vessels holding DHW in use in building
+                      QHcond_vesselwall, & ! heat flux through wall of vessels holding DHW in use in building
+                      QHconv_extvesselwall_to_indair, & ! convective heat flux to external wall of vessels holding DHW in use in building
+                      Qlw_net_extvesselwall_to_wall, &
+                      Qlw_net_extvesselwall_to_indoormass, & ! radiative heat flux to external wall of vessels holding DHW in use in building
+                      Qloss_drain, & ! Heat loss as water held in use in building drains to sewer
+                      QHwaste_dhw ! additional heat release from efficieny losses/gains of heating hot water
 
-   REAL(KIND(1D0)) :: Qtotal_net_water_tank = 0.0, Qtotal_net_intwall_tank = 0.0, &
-                      Qtotal_net_extwall_tank = 0.0, Qtotal_net_water_vessel = 0.0, &
-                      Qtotal_net_intwall_vessel = 0.0, Qtotal_net_extwall_vessel = 0.0
-   REAL(KIND(1D0)) :: qhwt_timestep = 0.0
-   REAL(KIND(1D0)) :: VARatio_water_vessel = 0.0
-   REAL(KIND(1D0)) :: minVwater_vessel
-   REAL(KIND(1D0)) :: maxVwater_vessel
+   REAL(KIND(1D0)) :: Qtotal_net_water_tank, Qtotal_net_intwall_tank, &
+                      Qtotal_net_extwall_tank, Qtotal_net_water_vessel, &
+                      Qtotal_net_intwall_vessel, Qtotal_net_extwall_vessel
+   REAL(KIND(1D0)) :: qhwt_timestep
+   REAL(KIND(1D0)) :: VARatio_water_vessel
+   !REAL(KIND(1D0)) :: minVwater_vessel
+   !REAL(KIND(1D0)) :: maxVwater_vessel
    REAL(KIND(1D0)) :: weighting_factor_heatcapacity_wall, weighting_factor_heatcapacity_roof
    REAL(KIND(1D0)), DIMENSION(2) :: Ts ! Heating and Cooling setpoint temperature (K)s, respectively
    REAL(KIND(1D0)), DIMENSION(2) :: Qm ! Metabolic heat, sensible(1) and latent(2)
    INTEGER :: timestep, resolution
-   REAL(KIND(1D0)) :: Qf_ground_timestep = 0.0, &
-                 QHload_heating_timestep = 0.0, &
-                 QHload_cooling_timestep = 0.0
-   REAL(KIND(1D0)) :: Qsw_transmitted_window = 0.0, Qsw_absorbed_window = 0.0, Qsw_absorbed_wall = 0.0, Qsw_absorbed_roof = 0.0, &
-     QHconv_indair_to_indoormass = 0.0, Qlw_net_intwall_to_allotherindoorsurfaces = 0.0, Qlw_net_introof_to_allotherindoorsurfaces = 0.0,&
-                      Qlw_net_intwindow_to_allotherindoorsurfaces = 0.0, Qlw_net_intgroundfloor_to_allotherindoorsurfaces = 0.0
-   REAL(KIND(1D0)) :: QH_appliance = 0.0, QH_ventilation = 0.0, QHconv_indair_to_intwall = 0.0, QHconv_indair_to_introof = 0.0, &
-                      QHconv_indair_to_intwindow = 0.0, QHconv_indair_to_intgroundfloor = 0.0
-   REAL(KIND(1D0)) :: QHwaste_heating = 0.0, QHcond_wall = 0.0, QHcond_roof = 0.0, QHcond_window = 0.0, &
-                      QHcond_groundfloor = 0.0, QHcond_ground = 0.0
-   REAL(KIND(1D0)) :: Qlw_net_wall = 0.0, Qlw_net_roof = 0.0, Qlw_net_window = 0.0, &
-                      QHconv_extwall_to_outair = 0.0, QHconv_extroof_to_outair = 0.0, QHconv_extwindow_to_outair = 0.0
-   REAL(KIND(1D0)) :: QS_bldg = 0.0, QS_wall = 0.0, QS_roof = 0.0, QS_groundfloor = 0.0, QS_window = 0.0, QS_indoormass = 0.0, QS_air = 0.0
+   REAL(KIND(1D0)) :: Qf_ground_timestep, &
+                 QHload_heating_timestep, &
+                 QHload_cooling_timestep
+   REAL(KIND(1D0)) :: Qsw_transmitted_window, Qsw_absorbed_window, Qsw_absorbed_wall, Qsw_absorbed_roof, &
+     QHconv_indair_to_indoormass, Qlw_net_intwall_to_allotherindoorsurfaces, Qlw_net_introof_to_allotherindoorsurfaces, &
+                      Qlw_net_intwindow_to_allotherindoorsurfaces, Qlw_net_intgroundfloor_to_allotherindoorsurfaces
+   REAL(KIND(1D0)) :: QH_appliance, QH_lighting, QH_ventilation, QHconv_indair_to_intwall, QHconv_indair_to_introof, &
+                      QHconv_indair_to_intwindow, QHconv_indair_to_intgroundfloor
+   REAL(KIND(1D0)) :: QHwaste_heating, QHcond_wall, QHcond_roof, QHcond_window, &
+                      QHcond_groundfloor, QHcond_ground
+   REAL(KIND(1D0)) :: Qlw_net_wall, Qlw_net_roof, Qlw_net_window, &
+                      QHconv_extwall_to_outair, QHconv_extroof_to_outair, QHconv_extwindow_to_outair
+   REAL(KIND(1D0)) :: QS_bldg, QS_wall, QS_roof, QS_groundfloor, QS_window, QS_indoormass, QS_air
    REAL(KIND(1D0)) :: Qsw_transmitted_window_tstepTotal, &
                                      Qsw_absorbed_window_tstepTotal, &
                                      Qsw_absorbed_wall_tstepTotal, &
@@ -1589,7 +1689,7 @@ SUBROUTINE tstep( &
                                 Qlw_net_introof_to_allotherindoorsurfaces_tstepTotal, &
                                      Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal, &
                                      Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal
-   REAL(KIND(1D0)) :: QH_appliance_tstepTotal, &
+   REAL(KIND(1D0)) :: QH_appliance_tstepTotal, QH_lighting_tstepTotal,&
                                      QH_ventilation_tstepTotal, &
                                      QHconv_indair_to_intwall_tstepTotal, &
                                 QHconv_indair_to_introof_tstepTotal, &
@@ -1649,6 +1749,7 @@ SUBROUTINE tstep( &
                                     QHcond_tankwall_tstepFA, &
                                     QHcond_vesselwall_tstepFA, &
                                     QH_appliance_tstepFA, &
+                                    QH_lighting_tstepFA, &
                                     QH_metabolism_tstepFA, &
                                     QHwaste_heating_tstepFA, &
                                     QHwaste_dhw_tstepFA, &
@@ -1683,12 +1784,56 @@ SUBROUTINE tstep( &
                         Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepFA, &
                         QE_metabolism_tstepFA
 
-   REAL(KIND(1D0)) :: QH_metabolism = 0.0, QE_metabolism = 0.0
-   REAL(KIND(1D0)) :: QStotal_net_indoormass = 0.0, QStotal_net_indair = 0.0, &
-                      QStotal_net_intwall = 0.0, QStotal_net_introof = 0.0, QStotal_net_extwall = 0.0, QStotal_net_extroof = 0.0, &
-                      QStotal_net_intwindow = 0.0, QStotal_net_extwindow = 0.0, &
-                      QStotal_net_intgroundfloor = 0.0, QStotal_net_extgroundfloor = 0.0
+   REAL(KIND(1D0)) :: QH_metabolism, QE_metabolism
+   REAL(KIND(1D0)) :: QStotal_net_indoormass, QStotal_net_indair, &
+                      QStotal_net_intwall, QStotal_net_introof, QStotal_net_extwall, QStotal_net_extroof, &
+                      QStotal_net_intwindow, QStotal_net_extwindow, &
+                      QStotal_net_intgroundfloor, QStotal_net_extgroundfloor
    CHARACTER(len=256) :: fout
+
+   ! Explicit zero-init for variables that formerly had implicit SAVE
+   ! via `= 0.0` in declarations (Fortran standard: initialiser in
+   ! declaration implies SAVE, so values persisted across calls).
+   dTwater_tank = 0.0; dTintwall_tank = 0.0; dTextwall_tank = 0.0
+   dTwater_vessel = 0.0; dTintwall_vessel = 0.0; dTextwall_vessel = 0.0
+   dVwater_vessel = 0.0
+   dTair_ind = 0.0; dTindoormass = 0.0; dTintwall = 0.0; dTintroof = 0.0
+   dTextwall = 0.0; dTextroof = 0.0; dTintwindow = 0.0; dTextwindow = 0.0
+   dTintgroundfloor = 0.0; dTextgroundfloor = 0.0
+   QHconv_water_to_inttankwall = 0.0; QHconv_exttankwall_to_indair = 0.0
+   Qlw_net_exttankwall_to_indoormass = 0.0; QHcond_tankwall = 0.0
+   QHconv_water_to_intvesselwall = 0.0; QHcond_vesselwall = 0.0
+   QHconv_extvesselwall_to_indair = 0.0
+   Qlw_net_extvesselwall_to_wall = 0.0; Qlw_net_extvesselwall_to_indoormass = 0.0
+   QHwaste_dhw = 0.0
+   Qtotal_net_water_tank = 0.0; Qtotal_net_intwall_tank = 0.0
+   Qtotal_net_extwall_tank = 0.0; Qtotal_net_water_vessel = 0.0
+   Qtotal_net_intwall_vessel = 0.0; Qtotal_net_extwall_vessel = 0.0
+   qhwt_timestep = 0.0; VARatio_water_vessel = 0.0
+   Qf_ground_timestep = 0.0; QHload_heating_timestep = 0.0; QHload_cooling_timestep = 0.0
+   Qsw_transmitted_window = 0.0; Qsw_absorbed_window = 0.0
+   Qsw_absorbed_wall = 0.0; Qsw_absorbed_roof = 0.0
+   QHconv_indair_to_indoormass = 0.0
+   Qlw_net_intwall_to_allotherindoorsurfaces = 0.0
+   Qlw_net_introof_to_allotherindoorsurfaces = 0.0
+   Qlw_net_intwindow_to_allotherindoorsurfaces = 0.0
+   Qlw_net_intgroundfloor_to_allotherindoorsurfaces = 0.0
+   QH_appliance = 0.0; QH_lighting = 0.0;QH_ventilation = 0.0
+   QHconv_indair_to_intwall = 0.0; QHconv_indair_to_introof = 0.0
+   QHconv_indair_to_intwindow = 0.0; QHconv_indair_to_intgroundfloor = 0.0
+   QHwaste_heating = 0.0; QHcond_wall = 0.0; QHcond_roof = 0.0; QHcond_window = 0.0
+   QHcond_groundfloor = 0.0; QHcond_ground = 0.0
+   Qlw_net_wall = 0.0; Qlw_net_roof = 0.0; Qlw_net_window = 0.0
+   QHconv_extwall_to_outair = 0.0; QHconv_extroof_to_outair = 0.0; QHconv_extwindow_to_outair = 0.0
+   QS_bldg = 0.0; QS_wall = 0.0; QS_roof = 0.0; QS_groundfloor = 0.0
+   QS_window = 0.0; QS_indoormass = 0.0; QS_air = 0.0
+   QH_metabolism = 0.0; QE_metabolism = 0.0
+   QStotal_net_indoormass = 0.0; QStotal_net_indair = 0.0
+   QStotal_net_intwall = 0.0; QStotal_net_introof = 0.0
+   QStotal_net_extwall = 0.0; QStotal_net_extroof = 0.0
+   QStotal_net_intwindow = 0.0; QStotal_net_extwindow = 0.0
+   QStotal_net_intgroundfloor = 0.0; QStotal_net_extgroundfloor = 0.0
+
    Qsw_transmitted_window_tstepTotal = 0.0
    Qsw_absorbed_window_tstepTotal = 0.0
    Qsw_absorbed_wall_tstepTotal = 0.0
@@ -1701,6 +1846,7 @@ SUBROUTINE tstep( &
    Qlw_net_intwindow_to_allotherindoorsurfaces_tstepTotal = 0.0
    Qlw_net_intgroundfloor_to_allotherindoorsurfaces_tstepTotal = 0.0
    QH_appliance_tstepTotal = 0.0
+   QH_lighting_tstepTotal = 0.0
    QH_ventilation_tstepTotal = 0.0
    QHconv_indair_to_indoormass_tstepTotal = 0.0
    QHconv_indair_to_intwall_tstepTotal = 0.0
@@ -1755,6 +1901,7 @@ SUBROUTINE tstep( &
          Qlw_net_intwindow_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for window internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
          Qlw_net_intgroundfloor_to_allotherindoorsurfaces = indoorRadiativeHeatTransfer() ! //  for ground floor internal radiative exchange - TODO: currently no distinction in internal radiative exchanges
          QH_appliance = appliance_power_rating
+         QH_lighting = lighting_power_rating
          QH_ventilation = &
             ventilationHeatTransfer(density_air_ind, cp_air_ind, ventilation_rate, Tair_out_hbh, Tair_ind)
          QHconv_indair_to_intwall = &
@@ -1768,8 +1915,8 @@ SUBROUTINE tstep( &
          QHconv_indair_to_indoormass = &
             internalConvectionHeatTransfer(conv_coeff_indoormass, Aindoormass, Tindoormass, Tair_ind)
 
-         QHload_heating_timestep = heating(Ts(1), Tair_ind, heating_efficiency_air, maxheatingpower_air)
-         QHload_cooling_timestep = cooling(Ts(2), Tair_ind, coeff_performance_cooling, maxcoolingpower_air)
+         QHload_heating_timestep = heating(Ts(1), Tair_ind, maxheatingpower_air)
+         QHload_cooling_timestep = cooling(Ts(2), Tair_ind, maxcoolingpower_air)
          !internalOccupancyGains(occupants, metabolic_rate, ratio_metabolic_latent_sensible, Qmetabolic_sensible, Qmetabolic_latent)
          Qm = internalOccupancyGains(metabolic_rate, ratio_metabolic_latent_sensible)
          QH_metabolism = Qm(1)
@@ -1829,7 +1976,7 @@ SUBROUTINE tstep( &
             ! // heat input into water of hot water tank
             qhwt_timestep = &
                heating &
-               (setTwater_tank, Twater_tank, heating_efficiency_water, maxheatingpower_water)
+               (setTwater_tank, Twater_tank, maxheatingpower_water)
 
             ! //Heat release from hot water heating due to efficiency losses
             QHwaste_dhw = &
@@ -1862,14 +2009,14 @@ SUBROUTINE tstep( &
 
             ! Heat transfer due to use and replacement of water
             ! qhwt_v = waterUseHeatTransfer(density_water, cp_water, flowrate_water_supply, Tincomingwater_tank, Twater_tank)
-         ELSEIF (Vwater_vessel == minVwater_vessel .AND. &
-                 flowrate_water_supply < flowrate_water_drain) THEN
+         !ELSEIF (Vwater_vessel == minVwater_vessel .AND. &
+         !        flowrate_water_supply < flowrate_water_drain) THEN
             ! Set drain flow rate to match supply to prevent volume going below minimum (minVwater_vessel)
-            flowrate_water_drain = flowrate_water_supply
-         ELSEIF (maxVwater_vessel > 0.0D0 .AND. Vwater_vessel >= maxVwater_vessel .AND. &
-                 flowrate_water_supply > flowrate_water_drain) THEN
+         !   flowrate_water_drain = flowrate_water_supply
+         !ELSEIF (maxVwater_vessel > 0.0D0 .AND. Vwater_vessel >= maxVwater_vessel .AND. &
+         !        flowrate_water_supply > flowrate_water_drain) THEN
             ! Set supply flow rate to match drain to prevent volume exceeding maximum (maxVwater_vessel) - GH-340
-            flowrate_water_supply = flowrate_water_drain
+         !   flowrate_water_supply = flowrate_water_drain
          END IF ifVwater_vessel
 
          Qtotal_net_water_tank = qhwt_timestep - QHconv_water_to_inttankwall
@@ -1888,7 +2035,7 @@ SUBROUTINE tstep( &
             Qlw_net_intwall_to_allotherindoorsurfaces + Qlw_net_introof_to_allotherindoorsurfaces + &
             Qlw_net_exttankwall_to_indoormass + Qlw_net_extvesselwall_to_indoormass
          QStotal_net_indair = &
-            QH_appliance + QH_metabolism + QH_ventilation + &
+            QH_appliance + QH_lighting + QH_metabolism + QH_ventilation + &
             QHload_heating_timestep - QHload_cooling_timestep - QHconv_indair_to_indoormass - &
             Qlw_net_intwall_to_allotherindoorsurfaces - Qlw_net_introof_to_allotherindoorsurfaces - &
             QHconv_indair_to_intwall - QHconv_indair_to_introof - &
@@ -1963,6 +2110,7 @@ SUBROUTINE tstep( &
             Qlw_net_extvesselwall_to_indoormass_tstepTotal + &
             Qlw_net_extvesselwall_to_indoormass*resolution         
          QH_appliance_tstepTotal = QH_appliance_tstepTotal + QH_appliance*resolution
+         QH_lighting_tstepTotal = QH_lighting_tstepTotal + QH_lighting*resolution
          QH_ventilation_tstepTotal = QH_ventilation_tstepTotal + QH_ventilation*resolution
 
          QHconv_indair_to_intwall_tstepTotal = &
@@ -2056,23 +2204,23 @@ SUBROUTINE tstep( &
             Textwall_vessel = Textwall_vessel + dTextwall_vessel
          END IF
          Qloss_drain = &
-            waterUseEnergyLossToDrains(density_water, cp_water, flowrate_water_drain, Twater_vessel, resolution)
+            waterUseEnergyLossToDrains(density_water, cp_water, flowrate_water_drain, Twater_vessel, Tincomingwater_tank, resolution)
          Qloss_drain_tstepTotal = Qloss_drain_tstepTotal + Qloss_drain * resolution
          dVwater_vessel = (flowrate_water_supply - flowrate_water_drain)*resolution
          Vwater_vessel = Vwater_vessel + dVwater_vessel
-         IF (Vwater_vessel < minVwater_vessel) THEN
-            Vwater_vessel = minVwater_vessel
-         END IF
+         !IF (Vwater_vessel < minVwater_vessel) THEN
+         !   Vwater_vessel = minVwater_vessel
+         !END IF
          ! Maximum volume cap as safety net (GH-340)
-         IF (maxVwater_vessel > 0.0D0 .AND. Vwater_vessel > maxVwater_vessel) THEN
-            Vwater_vessel = maxVwater_vessel
-         END IF
+         !IF (maxVwater_vessel > 0.0D0 .AND. Vwater_vessel > maxVwater_vessel) THEN
+         !   Vwater_vessel = maxVwater_vessel
+         !END IF
          Twater_vessel = &
             (((flowrate_water_supply*resolution)*Twater_tank) + &
              ((Vwater_vessel - (flowrate_water_supply*resolution))*Twater_vessel))/Vwater_vessel
-         IF (Vwater_vessel > 0.0) THEN ! Check volume is positive
+         IF (Vwater_vessel > 0.0 .AND. VARatio_water_vessel > 0.0) THEN
             Awater_vessel = Vwater_vessel/VARatio_water_vessel
-         ELSE ! If volume is zero, set area to zero
+         ELSE
             Awater_vessel = 0.0
          END IF
          Vwall_vessel = Awater_vessel*thickness_wall_vessel
@@ -2160,8 +2308,9 @@ SUBROUTINE tstep( &
       QHcond_tankwall_tstepFA = QHcond_tankwall_tstepTotal / timestep / Afootprint
       QHcond_vesselwall_tstepFA = QHcond_vesselwall_tstepTotal / timestep / Afootprint
       
-      ! Internal heat gains (2)
+      ! Internal heat gains (3)
       QH_appliance_tstepFA = QH_appliance_tstepTotal / timestep / Afootprint
+      QH_lighting_tstepFA = QH_lighting_tstepTotal / timestep / Afootprint
       QH_metabolism_tstepFA = QH_metabolism_tstepTotal / timestep / Afootprint
       !QE_metabolism_tstepFA = QE_metabolism_tstepTotal / timestep / Afootprint
       ! HVAC related (5)
@@ -2189,7 +2338,7 @@ SUBROUTINE tstep( &
       QEC_heating_tstepFA = QHload_heating_tstepFA / heating_efficiency_air
       QEC_cooling_tstepFA = QHload_cooling_tstepFA / coeff_performance_cooling
       QEC_dhw_tstepFA = QHload_dhw_tstepFA / heating_efficiency_air
-      QEC_bldg_tstepFA = QEC_heating_tstepFA + QEC_cooling_tstepFA + QEC_dhw_tstepFA + QH_metabolism_tstepFA + QH_appliance_tstepFA
+      QEC_bldg_tstepFA = QEC_heating_tstepFA + QEC_cooling_tstepFA + QEC_dhw_tstepFA + QH_metabolism_tstepFA + QH_appliance_tstepFA + QH_lighting_tstepFA
       !Convection
       QH_bldg_tstepFA = QHconv_extwall_to_outair_tstepFA + QHconv_extroof_to_outair_tstepFA + QHconv_extwindow_to_outair_tstepFA
       !Building air exchange (ventilation)
@@ -2408,29 +2557,37 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
 
    self%maxheatingpower_water = building_archtype%MaximumHotWaterHeatingPower ! # Watts
    self%heating_efficiency_water = stebbsPrm%HotWaterHeatingEfficiency
-   self%minVwater_vessel = stebbsPrm%MinimumVolumeOfDHWinUse ! # m3
-   self%maxVwater_vessel = stebbsPrm%MaximumVolumeOfDHWinUse ! # m3
 
    self%minHeatingPower_DHW = building_archtype%MaximumHotWaterHeatingPower
    self%HeatingPower_DHW = building_archtype%MaximumHotWaterHeatingPower
 
    self%HWPowerAverage = (/30000, 30000, 30000/)
-   self%weighting_factor_heatcapacity_wall = building_archtype%WallOuterCapFrac
-   self%weighting_factor_heatcapacity_roof = building_archtype%RoofOuterCapFrac
 
-   IF (config%rcmethod  == 2) THEN
-      !recalculate the weighting factor for splitting heat capacity (OuterCapFrac)
+   IF (config%rcmethod  == 0) THEN !default value
+      self%weighting_factor_heatcapacity_wall = 0.5
+      self%weighting_factor_heatcapacity_roof = 0.5
+
+   ELSEIF (config%rcmethod  == 1) THEN !provided fractional value
+      self%weighting_factor_heatcapacity_wall = building_archtype%WallOuterCapFrac
+      self%weighting_factor_heatcapacity_roof = building_archtype%RoofOuterCapFrac  
+
+   ELSEIF (config%rcmethod == 2) THEN !recalculate the weighting factor for splitting heat capacity (OuterCapFrac) by parameterisation
       self%weighting_factor_heatcapacity_wall = calculate_x1(self%thickness_wall, self%cp_wall, self%density_wall, &
                                              self%thickness_wallext, self%cp_wallext, self%density_wallext, self%conductivity_wallext)
       self%weighting_factor_heatcapacity_roof = calculate_x1(self%thickness_roof, self%cp_roof, self%density_roof, &
                                              self%thickness_roofext, self%cp_roofext, self%density_roofext, self%conductivity_roofext)
       IF (self%weighting_factor_heatcapacity_wall > 1) THEN
-         CALL add_supy_warning('STEBBS: Wall_OuterCapFrac > 1, parameterisation should not be used')
+         CALL add_supy_warning('STEBBS: Wall_OuterCapFrac > 1, parameterisation should not be used, check thermal property of material external to insulation layer')
       END IF
       IF (self%weighting_factor_heatcapacity_roof > 1) THEN
-         CALL add_supy_warning('STEBBS: Roof_OuterCapFrac > 1, parameterisation should not be used')
-      END IF  
-   END IF                                                    
+         CALL add_supy_warning('STEBBS: Roof_OuterCapFrac > 1, parameterisation should not be used, check thermal property of material external to insulation layer')
+      END IF
+
+   ELSE
+      CALL add_supy_warning('STEBBS: unrecognised rcmethod value, defaulting to 0.5')
+      self%weighting_factor_heatcapacity_wall = 0.5
+      self%weighting_factor_heatcapacity_roof = 0.5
+   END IF
 END SUBROUTINE gen_building
 
 SUBROUTINE create_building(CASE, self, icase)
@@ -2605,8 +2762,8 @@ SUBROUTINE create_building(CASE, self, icase)
 
    self%maxheatingpower_water = 3000 ! # Watts
    self%heating_efficiency_water = 0.95
-   self%minVwater_vessel = 0.1 ! # m3
-   self%maxVwater_vessel = 100.0 ! # m3 - arbitrary placeholder (GH-340), to be refined with validation
+   !self%minVwater_vessel = 0.1 ! # m3
+   !self%maxVwater_vessel = 100.0 ! # m3 - arbitrary placeholder (GH-340), to be refined with validation
 
    self%minHeatingPower_DHW = 3000
    self%HeatingPower_DHW = 3000

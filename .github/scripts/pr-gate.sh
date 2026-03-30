@@ -21,6 +21,13 @@ echo "needs-build: ${NEEDS_BUILD}"
 echo "needs-umep-build: ${NEEDS_UMEP_BUILD}"
 echo ""
 
+# Handle cancelled detect-changes (e.g. superseded by cancel-in-progress)
+if [[ "${DETECT_CHANGES_RESULT}" == "cancelled" ]]; then
+  echo "Path detection was cancelled (likely superseded by a newer push)"
+  echo "The replacement workflow run will validate this PR."
+  exit 0
+fi
+
 # Verify detect-changes succeeded
 if [[ "${DETECT_CHANGES_RESULT}" != "success" ]]; then
   echo "[X] Path detection failed - cannot verify PR safety"

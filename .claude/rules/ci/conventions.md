@@ -182,21 +182,11 @@ Categories are defined in `.github/path-filters.yml`:
 
 A single file can match multiple categories. The build decision logic ORs categories and picks the strictest platform requirement (fortran triggers multiplatform).
 
-**Key overlap: `_supy_driver_wrapper.py`**
-
-This file appears in both `fortran` and `python` categories. This is intentional:
-
-- **Why fortran?** The file is the Python-side loader for the compiled f90wrap Fortran extension (`_supy_driver`). It handles platform-specific dynamic library loading (`dlopen`/`importlib`), error recovery for missing binaries, and import path resolution. Changes can break on specific OS/arch combinations (e.g., macOS dylib paths vs Linux .so).
-- **Why python?** It is a `.py` file in `src/supy/` and participates in the Python package's import machinery. A syntax error or API change affects all platforms.
-- **Net effect:** Any edit triggers `fortran=true`, which triggers multiplatform builds. This is the desired behaviour -- even a seemingly Python-only edit to this bridge file should be validated across platforms.
-
-Do not attempt to exclude this file from either category using negation patterns (see the negation pitfall above).
-
 ### Testing path filters locally
 
 ```bash
-./scripts/test-detect-changes.sh              # compare HEAD vs origin/master
-./scripts/test-detect-changes.sh abc123       # compare HEAD vs specific commit
+./scripts/suews/test-detect-changes.sh              # compare HEAD vs origin/master
+./scripts/suews/test-detect-changes.sh abc123       # compare HEAD vs specific commit
 ```
 
 Requires Docker and `act` (`brew install act`).
@@ -342,10 +332,6 @@ jobs:
 Use `github.event_name` and ref checks for event-specific behaviour:
 
 ```yaml
-- name: Build with DTS
-  if: github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')
-  run: make build-dts
-
 - name: Upload release artifacts
   if: startsWith(github.ref, 'refs/tags/v')
   uses: actions/upload-artifact@v4

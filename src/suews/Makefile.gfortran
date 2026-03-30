@@ -33,7 +33,16 @@ else
 # --DEBUGGING CONFIGURATION--
 OPTFLAGS = -O0
 WARNFLAGS = -Wall
-DEBUGFLAGS = -ggdb -g -ffpe-trap=invalid,zero,overflow -fcheck=bounds -finit-real=snan
+# When the physics library is loaded as a shared library from Python/Rust:
+# - -ffpe-trap is omitted: on Windows MSYS2, the gfortran runtime enables
+#   hardware FPE traps on library load, causing SIGFPE from legitimate
+#   divisions-by-zero in SPARTACUS night-time paths. On macOS/Linux the
+#   traps stay disabled, masking the same code. Omitting the flag gives
+#   consistent IEEE 754 behaviour (Inf/NaN, no traps) on all platforms.
+# - -finit-real=zero (not snan): sNaN propagates silently without active
+#   FPE traps, producing platform-dependent NaN from uninitialised locals.
+# - -fcheck=all: bounds + pointer + array-temps checks for full coverage.
+DEBUGFLAGS = -ggdb -g -fcheck=all -finit-real=zero
 
 endif
 

@@ -165,7 +165,7 @@ def _run_with_namelist(path_runcontrol):
         "Please migrate to YAML configuration:\n\n"
         f"  1. Convert: suews-convert -i {path_runcontrol.name} -o config.yml\n"
         "  2. Run:     suews-run config.yml\n\n"
-        "For more information, see: https://suews.readthedocs.io/\n"
+        "For more information, see: https://docs.suews.io/\n"
         "=" * 60 + "\n",
         err=True,
     )
@@ -285,7 +285,7 @@ To migrate from namelist to YAML:
     $ suews-convert -i RunControl.nml -o config.yml
     $ suews-run config.yml
 
-For more information, see: https://suews.readthedocs.io/
+For more information, see: https://docs.suews.io/
 """,
 )
 @click.argument(
@@ -308,7 +308,7 @@ def SUEWS(config_file, path_runcontrol):
 ===========================================
 SUEWS version: {_get_version()}
 
-Documentation: https://suews.readthedocs.io/
+Website: https://suews.io/
 ===========================================
     """
     )

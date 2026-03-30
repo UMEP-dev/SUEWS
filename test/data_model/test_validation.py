@@ -15,6 +15,8 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import warnings
+import types
+import copy
 
 import pytest
 
@@ -38,15 +40,26 @@ from supy.data_model.core.state import (
 )
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
-from supy.data_model.validation.pipeline.phase_b import validate_model_option_samealbedo
-
-
+from supy.data_model.validation.pipeline.phase_b import (
+    adjust_seasonal_parameters,
+    adjust_model_option_stebbsmethod,
+    adjust_model_option_rcmethod,
+    RulesRegistry,
+    ValidationContext
+)
+import types
+import copy
 
 # A tiny “site” stub that only carries exactly the properties our validators look at
 class DummySite:
     def __init__(self, properties, name="SiteX"):
         self.properties = properties
         self.name = name
+
+
+@pytest.fixture(scope="module")
+def registry():
+    return RulesRegistry()
 
 
 # Helper to construct a SUEWSConfig without running Pydantic on sites,
@@ -483,7 +496,6 @@ def test_auto_albedo_zero_lai_range():
     )
     land_cover = LandCover(evetr=evetr_props, grass=grass_props)
     site_props = SiteProperties(land_cover=land_cover)
-
     evetr_state = InitialStateEvetr(alb_id=None, lai_id=2.0)
     grass_state = InitialStateGrass(alb_id=None, lai_id=1.5)
     initial_states = InitialStates(evetr=evetr_state, grass=grass_state)
@@ -517,12 +529,12 @@ def test_auto_albedo_with_refvalue_inputs():
     assert config.sites[0].initial_states.evetr.alb_id == pytest.approx(0.2)
 
 
-def test_validate_samealbedo_wall_requires_identical_wall_albedos():
+def test_validate_same_albedo_wall_requires_identical_wall_albedos():
     """
-    When samealbedo_wall is ON but walls have different albedos,
+    When same_albedo_wall is ON but walls have different albedos,
     we should get an error about them needing to be identical.
     """
-    cfg = make_cfg(samealbedo_wall=1)
+    cfg = make_cfg(same_albedo_wall=1)
 
     walls = [
         SimpleNamespace(alb=SimpleNamespace(value=0.5)),
@@ -533,18 +545,18 @@ def test_validate_samealbedo_wall_requires_identical_wall_albedos():
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteWallMismatch")
 
-    msgs = SUEWSConfig._validate_samealbedo_wall(cfg, site, 0)
+    msgs = SUEWSConfig._validate_same_albedo_wall(cfg, site, 0)
     assert len(msgs) == 1
-    assert "so all walls albedoes must be identical;" in msgs[0]
+    assert "so all walls albedo values must be identical;" in msgs[0]
     assert "SiteWallMismatch" in msgs[0]
 
 
-def test_validate_samealbedo_wall_requires_match_with_wallreflectivity():
+def test_validate_same_albedo_wall_requires_match_with_wallreflectivity():
     """
-    When samealbedo_wall is ON, all walls have same alb but it differs
+    When same_albedo_wall is ON, all walls have same alb but it differs
     from building_archetype.WallReflectivity, we should get an error.
     """
-    cfg = make_cfg(samealbedo_wall=1)
+    cfg = make_cfg(same_albedo_wall=1)
 
     walls = [
         SimpleNamespace(alb=SimpleNamespace(value=0.5)),
@@ -555,18 +567,18 @@ def test_validate_samealbedo_wall_requires_match_with_wallreflectivity():
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteRefMismatch")
 
-    msgs = SUEWSConfig._validate_samealbedo_wall(cfg, site, 0)
+    msgs = SUEWSConfig._validate_same_albedo_wall(cfg, site, 0)
     assert len(msgs) == 1
     msg = msgs[0]
     assert "must equal properties.building_archetype.WallReflectivity (0.345)" in msg
     assert "walls[0]=0.5" in msg
 
-def test_validate_samealbedo_roof_requires_match_with_roofreflectivity():
+def test_validate_same_albedo_roof_requires_match_with_roofreflectivity():
     """
-    When samealbedo_roof is ON, all roofs have same alb but it differs
+    When same_albedo_roof is ON, all roofs have same alb but it differs
     from building_archetype.RoofReflectivity, we should get an error.
     """
-    cfg = make_cfg(samealbedo_roof=1)
+    cfg = make_cfg(same_albedo_roof=1)
 
     roofs = [
         SimpleNamespace(alb=SimpleNamespace(value=0.5)),
@@ -577,18 +589,18 @@ def test_validate_samealbedo_roof_requires_match_with_roofreflectivity():
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteRefMismatch")
 
-    msgs = SUEWSConfig._validate_samealbedo_roof(cfg, site, 0)
+    msgs = SUEWSConfig._validate_same_albedo_roof(cfg, site, 0)
     assert len(msgs) == 1
     msg = msgs[0]
     assert "must equal properties.building_archetype.RoofReflectivity (0.345)" in msg
     assert "roofs[0]=0.5" in msg
 
-def test_validate_samealbedo_roof_requires_identical_roof_albedos():
+def test_validate_same_albedo_roof_requires_identical_roof_albedos():
     """
-    When samealbedo_roof is ON but roofs have different albedos,
+    When same_albedo_roof is ON but roofs have different albedos,
     we should get an error about them needing to be identical.
     """
-    cfg = make_cfg(samealbedo_roof=1)
+    cfg = make_cfg(same_albedo_roof=1)
 
     roofs = [
         SimpleNamespace(alb=SimpleNamespace(value=0.5)),
@@ -599,53 +611,1049 @@ def test_validate_samealbedo_roof_requires_identical_roof_albedos():
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteRoofMismatch")
 
-    msgs = SUEWSConfig._validate_samealbedo_roof(cfg, site, 0)
+    msgs = SUEWSConfig._validate_same_albedo_roof(cfg, site, 0)
     assert len(msgs) == 1
-    assert "so all roofs albedoes must be identical;" in msgs[0]
+    assert "so all roofs albedo values must be identical;" in msgs[0]
     assert "SiteRoofMismatch" in msgs[0]
 
-def test_needs_samealbedo_roof_validation_true_and_false():
-    cfg = make_cfg(samealbedo_roof=1)
-    assert cfg._needs_samealbedo_roof_validation() is True
-    cfg2 = make_cfg(samealbedo_roof=0)
-    assert cfg2._needs_samealbedo_roof_validation() is False
+def test_needs_same_albedo_roof_validation_true_and_false():
+    cfg = make_cfg(same_albedo_roof=1)
+    assert cfg._needs_same_albedo_roof_validation() is True
+    cfg2 = make_cfg(same_albedo_roof=0)
+    assert cfg2._needs_same_albedo_roof_validation() is False
 
-def test_needs_samealbedo_wall_validation_true_and_false():
-    cfg = make_cfg(samealbedo_wall=1)
-    assert cfg._needs_samealbedo_wall_validation() is True
-    cfg2 = make_cfg(samealbedo_wall=0)
-    assert cfg2._needs_samealbedo_wall_validation() is False
+def test_needs_same_albedo_wall_validation_true_and_false():
+    cfg = make_cfg(same_albedo_wall=1)
+    assert cfg._needs_same_albedo_wall_validation() is True
+    cfg2 = make_cfg(same_albedo_wall=0)
+    assert cfg2._needs_same_albedo_wall_validation() is False
 
-def test_phase_b_validate_model_option_samealbedo_disabled():
-    """Test validate_model_option_samealbedo returns WARNING when option is disabled (==0)."""
+def test_validate_same_emissivity_wall_requires_identical_wall_emissivities():
+    """
+    When same_emissivity_wall is ON but walls have different emissivities,
+    we should get an error about them needing to be identical.
+    """
+    cfg = make_cfg(same_emissivity_wall=1)
+
+    walls = [
+        SimpleNamespace(emis=SimpleNamespace(value=0.5)),
+        SimpleNamespace(emis=SimpleNamespace(value=0.6)),  # mismatch
+    ]
+    vl = SimpleNamespace(walls=walls)
+    ba = SimpleNamespace(WallExternalEmissivity=SimpleNamespace(value=0.5))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteWallMismatch")
+
+    msgs = SUEWSConfig._validate_same_emissivity_wall(cfg, site, 0)
+    assert len(msgs) == 1
+    assert "so all walls emissivity values must be identical;" in msgs[0]
+    assert "SiteWallMismatch" in msgs[0]
+
+def test_validate_same_emissivity_wall_requires_match_with_wallexternalemissivity():
+    """
+    When same_emissivity_wall is ON, all walls have same emis but it differs
+    from building_archetype.WallExternalEmissivity, we should get an error.
+    """
+    cfg = make_cfg(same_emissivity_wall=1)
+
+    walls = [
+        SimpleNamespace(emis=SimpleNamespace(value=0.9)),
+        SimpleNamespace(emis=SimpleNamespace(value=0.9)),
+    ]
+    vl = SimpleNamespace(walls=walls)
+    ba = SimpleNamespace(WallExternalEmissivity=SimpleNamespace(value=0.8))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteEmisRefMismatch")
+
+    msgs = SUEWSConfig._validate_same_emissivity_wall(cfg, site, 0)
+    assert len(msgs) == 1
+    msg = msgs[0]
+    assert (
+        "must equal properties.building_archetype.WallExternalEmissivity (0.8)" in msg
+    )
+    assert "walls[0]=0.9" in msg
+    assert "SiteEmisRefMismatch" in msg
+
+def test_validate_same_emissivity_roof_requires_match_with_roofexternalemissivity():
+    """
+    When same_emissivity_roof is ON, all roofs have same emis but it differs
+    from building_archetype.RoofExternalEmissivity, we should get an error.
+    """
+    cfg = make_cfg(same_emissivity_roof=1)
+
+    roofs = [
+        SimpleNamespace(emis=SimpleNamespace(value=0.7)),
+        SimpleNamespace(emis=SimpleNamespace(value=0.7)),
+    ]
+    vl = SimpleNamespace(roofs=roofs)
+    ba = SimpleNamespace(RoofExternalEmissivity=SimpleNamespace(value=0.5))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteRoofEmisRefMismatch")
+
+    msgs = SUEWSConfig._validate_same_emissivity_roof(cfg, site, 0)
+    assert len(msgs) == 1
+    msg = msgs[0]
+    assert (
+        "must equal properties.building_archetype.RoofExternalEmissivity (0.5)" in msg
+    )
+    assert "roofs[0]=0.7" in msg
+    assert "SiteRoofEmisRefMismatch" in msg
+
+def test_validate_same_emissivity_roof_requires_identical_roof_emissivities():
+    """
+    When same_emissivity_roof is ON but roofs have different emissivities,
+    we should get an error about them needing to be identical.
+    """
+    cfg = make_cfg(same_emissivity_roof=1)
+
+    roofs = [
+        SimpleNamespace(emis=SimpleNamespace(value=0.8)),
+        SimpleNamespace(emis=SimpleNamespace(value=0.9)),  # mismatch
+    ]
+    vl = SimpleNamespace(roofs=roofs)
+    ba = SimpleNamespace(RoofExternalEmissivity=SimpleNamespace(value=0.8))
+    props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
+    site = DummySite(properties=props, name="SiteRoofEmisMismatch")
+
+    msgs = SUEWSConfig._validate_same_emissivity_roof(cfg, site, 0)
+    assert len(msgs) == 1
+    assert "so all roofs emissivity values must be identical;" in msgs[0]
+    assert "SiteRoofEmisMismatch" in msgs[0]
+
+def test_needs_same_emissivity_roof_validation_true_and_false():
+    cfg = make_cfg(same_emissivity_roof=1)
+    assert cfg._needs_same_emissivity_roof_validation() is True
+    cfg2 = make_cfg(same_emissivity_roof=0)
+    assert cfg2._needs_same_emissivity_roof_validation() is False
+
+def test_needs_same_emissivity_wall_validation_true_and_false():
+    cfg = make_cfg(same_emissivity_wall=1)
+    assert cfg._needs_same_emissivity_wall_validation() is True
+    cfg2 = make_cfg(same_emissivity_wall=0)
+    assert cfg2._needs_same_emissivity_wall_validation() is False
+
+def test_phase_b_validate_model_option_same_albedo_disabled(registry):
+    """Test validate_model_option_same_albedo returns WARNING when option is disabled (==0)."""
 
     yaml_data_wall = {
         "model": {
             "physics": {
-                "samealbedo_wall": {"value": 0}
+                "same_albedo_wall": {"value": 0}
             }
         },
         "sites": [{"name": "site1", "properties": {}}],  
     }
-    results_wall = validate_model_option_samealbedo(yaml_data_wall)
+
+    results_wall = registry["same_albedo"](ValidationContext(yaml_data=yaml_data_wall))
     assert len(results_wall) == 1
     assert results_wall[0].status == "WARNING"
     assert "no check of consistency" in results_wall[0].message.lower()
-    assert "samealbedo_wall == 0" in results_wall[0].message.lower()
+    assert "same_albedo_wall == 0" in results_wall[0].message.lower()
 
     yaml_data_roof = {
         "model": {
             "physics": {
-                "samealbedo_roof": {"value": 0}
+                "same_albedo_roof": {"value": 0}
             }
         },
         "sites": [{"name": "site1", "properties": {}}],  
     }
-    results_roof = validate_model_option_samealbedo(yaml_data_roof)
+    results_roof = registry["same_albedo"](ValidationContext(yaml_data=yaml_data_roof))
     assert len(results_roof) == 1
     assert results_roof[0].status == "WARNING"
     assert "no check of consistency" in results_roof[0].message.lower()
-    assert "samealbedo_roof == 0" in results_roof[0].message.lower()
+    assert "same_albedo_roof == 0" in results_roof[0].message.lower()
+
+def test_phase_b_validate_model_option_same_emissivity_disabled(registry):
+    """Test validate_model_option_same_emissivity returns WARNING when option is disabled (==0)."""
+
+    yaml_data_wall = {
+        "model": {
+            "physics": {
+                "same_emissivity_wall": {"value": 0}
+            }
+        },
+        "sites": [{"name": "site1", "properties": {}}],  
+    }
+    results_wall = registry["same_emissivity"](ValidationContext(yaml_data=yaml_data_wall))
+    assert len(results_wall) == 1
+    assert results_wall[0].status == "WARNING"
+    assert "no check of consistency" in results_wall[0].message.lower()
+    assert "same_emissivity_wall == 0" in results_wall[0].message.lower()
+    yaml_data_roof = {
+        "model": {
+            "physics": {
+                "same_emissivity_roof": {"value": 0}
+            }
+        },
+        "sites": [{"name": "site1", "properties": {}}],  
+    }
+    results_roof = registry["same_emissivity"](ValidationContext(yaml_data=yaml_data_roof))
+    assert len(results_roof) == 1
+    assert results_roof[0].status == "WARNING"
+    assert "no check of consistency" in results_roof[0].message.lower()
+    assert "same_emissivity_roof == 0" in results_roof[0].message.lower()
+    
+def test_validate_model_option_rcmethod_missing_params(registry):
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {},
+            }
+        }],
+    }
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
+    params = [r.parameter for r in results]
+    assert any("RoofOuterCapFrac" in p for p in params)
+    assert any("WallOuterCapFrac" in p for p in params)
+    assert all(r.status == "ERROR" for r in results)
+
+def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "RoofOuterCapFrac": {"value": 1.5},
+                    "WallOuterCapFrac": {"value": -0.2},
+                },
+            }
+        }],
+    }
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
+    assert any("out of valid range" in r.message for r in results)
+    assert all(r.status == "ERROR" for r in results)
+
+def test_validate_model_option_rcmethod_enabled_valid_values(registry):
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "RoofOuterCapFrac": {"value": 0.5},
+                    "WallOuterCapFrac": {"value": 0.5},
+                },
+            }
+        }],
+    }
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
+    assert not results or all(r.status != "ERROR" for r in results)
+
+def test_adjust_model_option_rcmethod_sets_defaults():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 0}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {},
+            }
+        }],
+    }
+    updated_data, adjustments = adjust_model_option_rcmethod(yaml_data)
+    ba = updated_data["sites"][0]["properties"]["building_archetype"]
+    assert ba["RoofOuterCapFrac"]["value"] == 0.5
+    assert ba["WallOuterCapFrac"]["value"] == 0.5
+    assert any(adj.parameter == "building_archetype.RoofOuterCapFrac" for adj in adjustments)
+    assert any(adj.parameter == "building_archetype.WallOuterCapFrac" for adj in adjustments)
+
+def test_adjust_model_option_rcmethod_no_action_when_already_set():
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 0}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "RoofOuterCapFrac": {"value": 0.5},
+                    "WallOuterCapFrac": {"value": 0.5},
+                },
+            }
+        }],
+    }
+    updated_data, adjustments = adjust_model_option_rcmethod(yaml_data)
+    assert len(adjustments) == 0
+
+def test_validate_model_option_rcmethod2_missing_params(registry):
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {"building_archetype": {}},
+        }],
+    }
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
+    required = [
+        "WallextThickness", "WallextEffectiveConductivity", "WallextDensity", "WallextCp",
+        "RoofextThickness", "RoofextEffectiveConductivity", "RoofextDensity", "RoofextCp"
+    ]
+    expected = [f"building_archetype.{p}" for p in required]
+    error_params = [r.parameter for r in results if r.status == "ERROR"]
+    for p in expected:
+        assert p in error_params
+    assert all(r.status == "ERROR" for r in results if r.parameter in expected)
+
+def test_validate_model_option_rcmethod2_all_params_provided(registry):
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "WallextThickness": {"value": 0.2},
+                    "WallextEffectiveConductivity": {"value": 1.0},
+                    "WallextDensity": {"value": 2200},
+                    "WallextCp": {"value": 900},
+                    "RoofextThickness": {"value": 0.18},
+                    "RoofextEffectiveConductivity": {"value": 1.2},
+                    "RoofextDensity": {"value": 2300},
+                    "RoofextCp": {"value": 1000},
+                }
+            }
+        }],
+    }
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert any("wall material parameters will be used for parameterisation" in r.message for r in warnings)
+    assert any("roof material parameters will be used for parameterisation" in r.message for r in warnings)
+    assert all(r.status != "ERROR" for r in results)
+
+def test_validate_model_option_rcmethod2_some_params_missing(registry):
+    yaml_data = {
+        "model": {"physics": {"rcmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "WallextThickness": {"value": 0.2},
+                    "WallextEffectiveConductivity": {},
+                    "WallextDensity": {"value": 2200},
+                    # WallextCp missing
+                    "RoofextThickness": {"value": 0.18},
+                    # RoofextEffectiveConductivity missing
+                    "RoofextDensity": {"value": 2300},
+                    "RoofextCp": {"value": 1000},
+                }
+            }
+        }],
+    }
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
+    error_params = [r.parameter for r in results if r.status == "ERROR"]
+    assert "building_archetype.WallextEffectiveConductivity" in error_params
+    assert "building_archetype.WallextCp" in error_params
+    assert "building_archetype.RoofextEffectiveConductivity" in error_params
+    assert any(r.status == "WARNING" for r in results)
+    assert all("must be provided" in r.message for r in results if r.status == "ERROR")
+
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
+    """Test HotWaterFlowProfile accepts only 0 or 1 values."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "HotWaterFlowProfile": {
+                        "working_day": {"0": 0, "1": 1, "2": 0.0, "3": 1.0},
+                        "holiday": {"0": 1, "1": 0, "2": 1.0, "3": 0.0},
+                    }
+                }
+            }
+        }],
+    }
+    results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for valid HotWaterFlowProfile values"
+
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid(registry):
+    """Test HotWaterFlowProfile returns ERROR for invalid values."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "HotWaterFlowProfile": {
+                        "working_day": {"0": 2, "1": -1, "2": 0.5},
+                        "holiday": {"0": "yes", "1": None},
+                    }
+                }
+            }
+        }],
+    }
+    results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
+    error_params = [r.parameter for r in results]
+    assert "stebbs.HotWaterFlowProfile.working_day.0" in error_params
+    assert "stebbs.HotWaterFlowProfile.working_day.1" in error_params
+    assert "stebbs.HotWaterFlowProfile.working_day.2" in error_params
+    assert "stebbs.HotWaterFlowProfile.holiday.0" in error_params
+    assert "stebbs.HotWaterFlowProfile.holiday.1" in error_params
+    assert all(r.status == "ERROR" for r in results)
+    assert all("must be 0 or 1" in r.message for r in results)
+
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing(registry):
+    """Test HotWaterFlowProfile missing returns no errors."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    # HotWaterFlowProfile missing
+                }
+            }
+        }],
+    }
+    results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors if HotWaterFlowProfile is missing"
+
+def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial(registry):
+    """Test HotWaterFlowProfile with partial valid/invalid values."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "HotWaterFlowProfile": {
+                        "working_day": {"0": 1, "1": 0, "2": 2},
+                        "holiday": {"0": 0, "1": 1, "2": -1},
+                    }
+                }
+            }
+        }],
+    }
+    results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
+    error_params = [r.parameter for r in results]
+    assert "stebbs.HotWaterFlowProfile.working_day.2" in error_params
+    assert "stebbs.HotWaterFlowProfile.holiday.2" in error_params
+    assert all(r.status == "ERROR" for r in results)
+    assert len(results) == 2
+
+def test_validate_model_option_stebbsmethod_daylightcontrol_valid(registry):
+    """Test DaylightControl accepts only 0 or 1 values."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "DaylightControl": {"value": 1}
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for valid DaylightControl value"
+
+    yaml_data["sites"][0]["properties"]["stebbs"]["DaylightControl"]["value"] = 0
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for valid DaylightControl value 0"
+
+def test_validate_model_option_stebbsmethod_daylightcontrol_zero(registry):
+    """Test DaylightControl == 0 is accepted as valid."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "DaylightControl": {"value": 0}
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for DaylightControl == 0"
+
+def test_validate_model_option_stebbsmethod_daylightcontrol_invalid(registry):
+    """Test DaylightControl returns ERROR for invalid values."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "DaylightControl": {"value": 2}
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert len(results) == 1
+    assert results[0].parameter == "stebbs.DaylightControl"
+    assert results[0].status == "ERROR"
+    assert "must be 0 (off) or 1 (on)" in results[0].message
+
+def test_validate_model_option_stebbsmethod_daylightcontrol_string_value(registry):
+    """Test DaylightControl returns ERROR for string or unexpected values."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "DaylightControl": {"value": "yes"}
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert len(results) == 1
+    assert results[0].parameter == "stebbs.DaylightControl"
+    assert results[0].status == "ERROR"
+    assert "must be 0 (off) or 1 (on)" in results[0].message
+
+def test_validate_model_option_stebbsmethod_daylightcontrol_missing(registry):
+    """Test DaylightControl missing returns no errors."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    # DaylightControl missing
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors if DaylightControl is missing"
+
+def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_nonzero(registry):
+    """Test error when Occupants=0.0 but MetabolismProfile has nonzero values."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "Occupants": {"value": 0.0},
+                    "MetabolismProfile": {
+                        "working_day": {"0": 0, "1": 1.2, "2": 0},
+                        "holiday": {"0": 0, "1": 0, "2": 0.5},
+                    },
+                },
+                "stebbs": {},
+            }
+        }],
+    }
+    results = registry["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
+    error_params = [r.parameter for r in results]
+    assert "building_archetype.MetabolismProfile" in error_params
+    assert any("nonzero entries" in r.message for r in results)
+    assert all(r.status == "ERROR" for r in results)
+
+def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_all_zero(registry):
+    """Test no error when Occupants=0.0 and all MetabolismProfile values are zero."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "Occupants": {"value": 0.0},
+                    "MetabolismProfile": {
+                        "working_day": {"0": 0, "1": 0.0, "2": None},
+                        "holiday": {"0": 0, "1": 0.0, "2": None},
+                    },
+                },
+                "stebbs": {},
+            }
+        }],
+    }
+    results = registry["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors when all MetabolismProfile values are zero or None"
+
+def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_nonzero(registry):
+    """Test no error when Occupants>0 and MetabolismProfile has nonzero values."""
+
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "Occupants": {"value": 2.0},
+                    "MetabolismProfile": {
+                        "working_day": {"0": 1.1, "1": 1.2},
+                        "holiday": {"0": 0.9, "1": 1.0},
+                    },
+                },
+                "stebbs": {},
+            }
+        }],
+    }
+    results = registry["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors when Occupants > 0"
+
+@pytest.mark.parametrize(
+    "wwr, nullify, keep",
+    [
+        (0.0,  # WWR==0: nullify window params
+         ["WindowInternalConvectionCoefficient", "WindowExternalConvectionCoefficient"],
+         ["WallExternalConvectionCoefficient", "WallInternalConvectionCoefficient"]),
+        (1.0,  # WWR==1: nullify wall params
+         ["WallExternalConvectionCoefficient", "WallInternalConvectionCoefficient"],
+         ["WindowInternalConvectionCoefficient", "WindowExternalConvectionCoefficient"]),
+        (0.5,  # WWR!=0,1: nullify nothing
+         [], ["WindowInternalConvectionCoefficient", "WindowExternalConvectionCoefficient",
+              "WallExternalConvectionCoefficient", "WallInternalConvectionCoefficient"]),
+    ],
+)
+def test_adjust_model_option_stebbsmethod_nullification(wwr, nullify, keep):
+    """Test adjust_model_option_stebbsmethod nullifies correct params based on WWR."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "properties": {
+                "stebbs": {
+                    "WindowInternalConvectionCoefficient": {"value": 5.0},
+                    "WindowExternalConvectionCoefficient": {"value": 6.0},
+                    "WallExternalConvectionCoefficient": {"value": 8.0},
+                    "WallInternalConvectionCoefficient": {"value": 9.0},
+                },
+                "building_archetype": {
+                    "WWR": {"value": wwr},
+                    "WindowThickness": {"value": 0.2},
+                    "WindowEffectiveConductivity": {"value": 1.1},
+                    "WindowDensity": {"value": 2500},
+                    "WindowCp": {"value": 900},
+                    "WindowExternalEmissivity": {"value": 0.85},
+                    "WindowInternalEmissivity": {"value": 0.9},
+                    "WindowTransmissivity": {"value": 0.7},
+                    "WindowAbsorbtivity": {"value": 0.1},
+                    "WindowReflectivity": {"value": 0.2},
+                    "WallExternalEmissivity": {"value": 0.88},
+                    "WallInternalEmissivity": {"value": 0.89},
+                    "WallTransmissivity": {"value": 0.5},
+                    "WallAbsorbtivity": {"value": 0.15},
+                    "WallReflectivity": {"value": 0.25},
+                    "WallThickness": {"value": 0.35},
+                    "WallEffectiveConductivity": {"value": 1.3},
+                    "WallDensity": {"value": 2400},
+                    "WallCp": {"value": 920},
+                },
+            }
+        }],
+    }
+    updated, adjustments = adjust_model_option_stebbsmethod(yaml_data)
+    stebbs = updated["sites"][0]["properties"]["stebbs"]
+    bldgarc = updated["sites"][0]["properties"]["building_archetype"]
+
+    # Check nullified params
+    for param in nullify:
+        assert stebbs.get(param, {}).get("value") is None
+    # Check kept params
+    for param in keep:
+        assert stebbs.get(param, {}).get("value") == yaml_data["sites"][0]["properties"]["stebbs"].get(param, {}).get("value")
+
+    # Check building_archetype nullification
+    if wwr == 0.0:
+        for param in [
+            "WindowThickness", "WindowEffectiveConductivity", "WindowDensity", "WindowCp",
+            "WindowExternalEmissivity", "WindowInternalEmissivity", "WindowTransmissivity",
+            "WindowAbsorbtivity", "WindowReflectivity"
+        ]:
+            assert bldgarc[param]["value"] is None
+        for param in [
+            "WallExternalEmissivity", "WallInternalEmissivity", "WallTransmissivity",
+            "WallAbsorbtivity", "WallReflectivity", "WallThickness", "WallEffectiveConductivity",
+            "WallDensity", "WallCp"
+        ]:
+            assert bldgarc[param]["value"] == yaml_data["sites"][0]["properties"]["building_archetype"][param]["value"]
+    elif wwr == 1.0:
+        for param in [
+            "WallExternalEmissivity", "WallInternalEmissivity", "WallTransmissivity",
+            "WallAbsorbtivity", "WallReflectivity", "WallThickness", "WallEffectiveConductivity",
+            "WallDensity", "WallCp"
+        ]:
+            assert bldgarc[param]["value"] is None
+        for param in [
+            "WindowThickness", "WindowEffectiveConductivity", "WindowDensity", "WindowCp",
+            "WindowExternalEmissivity", "WindowInternalEmissivity", "WindowTransmissivity",
+            "WindowAbsorbtivity", "WindowReflectivity"
+        ]:
+            assert bldgarc[param]["value"] == yaml_data["sites"][0]["properties"]["building_archetype"][param]["value"]
+    else:
+        # No params nullified
+        for param in bldgarc:
+            assert bldgarc[param]["value"] == yaml_data["sites"][0]["properties"]["building_archetype"][param]["value"]
+
+    # Adjustments
+    if wwr in (0.0, 1.0):
+        assert adjustments
+        assert all(a.new_value == "null" for a in adjustments)
+    else:
+        assert adjustments == []
+
+
+def test_adjust_model_option_stebbsmethod_not_one_no_action():
+    """If stebbsmethod != 1, nothing is changed."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 0}}},
+        "sites": [{
+            "properties": {
+                "stebbs": {
+                    "WindowInternalConvectionCoefficient": {"value": 5.0},
+                    "WallExternalConvectionCoefficient": {"value": 8.0},
+                },
+                "building_archetype": {
+                    "WWR": {"value": 0.0},
+                    "WindowThickness": {"value": 0.2},
+                    "WallThickness": {"value": 0.35},
+                },
+            }
+        }],
+    }
+    updated, adjustments = adjust_model_option_stebbsmethod(yaml_data)
+    props = updated["sites"][0]["properties"]
+    for param in ["WindowInternalConvectionCoefficient", "WallExternalConvectionCoefficient"]:
+        assert props["stebbs"][param]["value"] == yaml_data["sites"][0]["properties"]["stebbs"][param]["value"]
+    for param in ["WindowThickness", "WallThickness"]:
+        assert props["building_archetype"][param]["value"] == yaml_data["sites"][0]["properties"]["building_archetype"][param]["value"]
+    assert adjustments == []
+
+def test_needs_spartacus_validation_true_and_false():
+    
+    cfg = make_cfg()
+    cfg.model.physics.netradiationmethod = 1001
+    assert cfg._needs_spartacus_validation() is True
+
+    cfg2 = make_cfg()
+    cfg2.model.physics.netradiationmethod = 1
+    assert cfg2._needs_spartacus_validation() is False
+
+def test_validate_spartacus_building_height_error():
+    cfg = make_cfg(netradiationmethod=1001, stebbsmethod=1)
+    # _unwrap_value only unwraps RefValue/Enum, not SimpleNamespace;
+    # set stebbsmethod as a raw int so the validator can parse it.
+    cfg.model.physics.stebbsmethod = 1
+
+    # bldgh and stebbs_Height both exceed height[nlayer]
+    bldgs = SimpleNamespace(bldgh=15.0)
+    building_archetype = SimpleNamespace(stebbs_Height=20.0)
+    vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
+    props = SimpleNamespace(
+        land_cover=SimpleNamespace(bldgs=bldgs),
+        vertical_layers=vertical_layers,
+        building_archetype=building_archetype,
+    )
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_building_height(site, 0)
+
+    assert len(msgs) == 2
+    assert any("bldgh=15.0" in m and "height[1]=10.0" in m for m in msgs)
+    assert any("stebbs_Height=20.0" in m and "height[1]=10.0" in m for m in msgs)
+
+
+def test_validate_spartacus_building_height_no_error():
+    cfg = make_cfg(netradiationmethod=1001, stebbsmethod=1)
+    cfg.model.physics.stebbsmethod = 1
+
+    # bldgh and stebbs_Height do not exceed height[nlayer]
+    bldgs = SimpleNamespace(bldgh=8.0)
+    building_archetype = SimpleNamespace(stebbs_Height=9.0)
+    vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
+    props = SimpleNamespace(
+        land_cover=SimpleNamespace(bldgs=bldgs),
+        vertical_layers=vertical_layers,
+        building_archetype=building_archetype,
+    )
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_building_height(site, 0)
+    assert msgs == []
+
+
+def test_validate_spartacus_building_height_stebbs_off():
+    """stebbs_Height should NOT be checked when stebbsmethod != 1."""
+    cfg = make_cfg(netradiationmethod=1001, stebbsmethod=0)
+
+    # stebbs_Height exceeds domain top, but stebbsmethod is off
+    bldgs = SimpleNamespace(bldgh=8.0)
+    building_archetype = SimpleNamespace(stebbs_Height=20.0)
+    vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
+    props = SimpleNamespace(
+        land_cover=SimpleNamespace(bldgs=bldgs),
+        vertical_layers=vertical_layers,
+        building_archetype=building_archetype,
+    )
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_building_height(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_sfr_mismatch_bldgs_frac():
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    bldgs = SimpleNamespace(sfr=0.6)  
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.3],  
+        veg_frac=[0.0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+    assert msgs  
+    assert any(
+        "bldgs.sfr (0.6) does not match vertical_layers.building_frac[0] (0.3)"
+        in m
+        for m in msgs
+    )
+
+def test_validate_spartacus_sfr_consistent_values():
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    bldgs = SimpleNamespace(sfr=0.3)  
+    evetr = SimpleNamespace(sfr=0.1)
+    dectr = SimpleNamespace(sfr=0.2)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=evetr, dectr=dectr)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.3],
+        veg_frac=[0.3],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_sfr_mismatch_veg_frac():
+    """SPARTACUS SFR validation flags mismatch between evetr.sfr + dectr.sfr and max(veg_frac)."""
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+
+    # land_cover vegetation: evetr + dectr = 0.4
+    evetr = SimpleNamespace(sfr=0.1)
+    dectr = SimpleNamespace(sfr=0.3)
+    bldgs = SimpleNamespace(sfr=0.2)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=evetr, dectr=dectr)
+
+    # vertical_layers veg_frac: max = 0.1 -> mismatch with 0.4
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.2],
+        veg_frac=[0.1],  # max(vertical_layers.veg_frac) = 0.1
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+    assert msgs
+    assert any(
+        "evetr.sfr + dectr.sfr (0.4) does not match max(vertical_layers.veg_frac) (0.1)"
+        in m
+        for m in msgs
+    )
+
+def test_validate_spartacus_veg_dimensions_valid():
+    """Test validate_spartacus_veg_dimensions passes with matching veg_frac and nlayer."""
+    cfg = SUEWSConfig.model_construct()
+    vertical_layers = SimpleNamespace(
+        nlayer=2,
+        veg_frac=[0.3, 0.7],
+    )
+    props = SimpleNamespace(vertical_layers=vertical_layers)
+    site = SimpleNamespace(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_too_few_elements():
+    """Test validate_spartacus_veg_dimensions detects too few veg_frac elements."""
+    cfg = SUEWSConfig.model_construct()
+    vertical_layers = SimpleNamespace(
+        nlayer=3,
+        veg_frac=[0.2, 0.8],
+    )
+    props = SimpleNamespace(vertical_layers=vertical_layers)
+    site = SimpleNamespace(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_too_many_elements():
+    """Test validate_spartacus_veg_dimensions detects too many veg_frac elements."""
+    cfg = SUEWSConfig.model_construct()
+    vertical_layers = SimpleNamespace(
+        nlayer=2,
+        veg_frac=[0.1, 0.2, 0.7],
+    )
+    props = SimpleNamespace(vertical_layers=vertical_layers)
+    site = SimpleNamespace(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_missing_veg_frac():
+    """Test validate_spartacus_veg_dimensions handles missing veg_frac gracefully."""
+    cfg = SUEWSConfig.model_construct()
+    vertical_layers = SimpleNamespace(
+        nlayer=2,
+        # veg_frac missing
+    )
+    props = SimpleNamespace(vertical_layers=vertical_layers)
+    site = SimpleNamespace(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_missing_nlayer():
+    """Test validate_spartacus_veg_dimensions handles missing nlayer gracefully."""
+    cfg = SUEWSConfig.model_construct()
+    vertical_layers = SimpleNamespace(
+        veg_frac=[0.5, 0.5],
+        # nlayer missing
+    )
+    props = SimpleNamespace(vertical_layers=vertical_layers)
+    site = SimpleNamespace(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_passing_case():
+    """Passing case: dectreeh=12, height=[0, 5, 10, 15, 20], veg_frac=[0.3, 0.3, 0.2, 0, 0]"""
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    lc = SimpleNamespace(dectr=SimpleNamespace(dectreeh=12.0), evetr=None)
+    vertical_layers = SimpleNamespace(
+        height=[0, 5, 10, 15, 20],
+        veg_frac=[0.3, 0.3, 0.2, 0, 0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_failing_case():
+    """Failing case: dectreeh=12, height=[0, 5, 10, 15, 20], veg_frac=[0.3, 0.3, 0.2, 0.1, 0].
+    Tree at 12 m falls in layer 10-15 m (layer_index=3), so veg_frac[3]=0.1 in the
+    15-20 m layer should be flagged."""
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    lc = SimpleNamespace(dectr=SimpleNamespace(dectreeh=12.0), evetr=None)
+    vertical_layers = SimpleNamespace(
+        height=[0, 5, 10, 15, 20],
+        veg_frac=[0.3, 0.3, 0.2, 0.1, 0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert len(msgs) >= 1
+    assert any("veg_frac[3]" in m for m in msgs)
+
+def test_validate_spartacus_veg_dimensions_boundary_case():
+    """Boundary case: max_tree exactly on a layer boundary."""
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    lc = SimpleNamespace(dectr=SimpleNamespace(dectreeh=15.0), evetr=None)
+    vertical_layers = SimpleNamespace(
+        height=[0, 5, 10, 15, 20],
+        veg_frac=[0.3, 0.3, 0.2, 0, 0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_veg_dimensions_exceeds_all_case():
+    """Exceeds-all case: max_tree=100 with height=[0, 5, 10] — should produce the 'exceeds' message."""
+    cfg = SUEWSConfig.model_construct()
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    # Note: dectrh and evetrh are attributes of land_cover.dectr and land_cover.evetr, not land_cover itself
+    dectr = SimpleNamespace(dectreeh=100.0)
+    lc = SimpleNamespace(dectr=dectr, evetr=None)
+    vertical_layers = SimpleNamespace(
+        height=[0, 5, 10],
+        veg_frac=[0.3, 0.3, 0.2],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+    assert msgs
+    assert any("exceeds all vertical_layers heights" in m for m in msgs)
+
+def make_sample_physics(fields):
+    obj = types.SimpleNamespace()
+    obj.model_fields_set = set(fields)
+    return obj
+
+def make_sample_model(physics):
+    obj = types.SimpleNamespace()
+    obj.physics = physics
+    return obj
+
+class SampleConfig:
+    def __init__(self, model):
+        self.model = model
+
+    def _is_physics_explicitly_configured(self, option_name: str) -> bool:
+        physics = getattr(self.model, "physics", None)
+        return bool(
+            physics
+            and hasattr(physics, "model_fields_set")
+            and option_name in physics.model_fields_set
+        )
+
+def test_is_physics_explicitly_configured_true():
+    """Returns True if the physics field is explicitly set."""
+    model = make_sample_model(make_sample_physics({'rslmethod', 'storageheatmethod'}))
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is True
+
+def test_is_physics_explicitly_configured_false():
+    """Returns False if the specific physics field is not set."""
+    model = make_sample_model(make_sample_physics({'storageheatmethod'}))
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+
+def test_is_physics_explicitly_configured_empty():
+    """Returns False if model_fields_set is empty."""
+    model = make_sample_model(make_sample_physics(set()))
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+
+def test_is_physics_explicitly_configured_no_physics():
+    """Returns False if physics attribute is missing or None."""
+    # model without physics attribute
+    class DummyModel: pass
+    cfg = SampleConfig(DummyModel())
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+
+    # model with physics None
+    class DummyModel2: pass
+    m = DummyModel2()
+    m.physics = None
+    cfg = SampleConfig(m)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+
+def test_is_physics_explicitly_configured_no_model_fields_set():
+    """Returns False if physics object has no model_fields_set attribute."""
+    class DummyPhysics: pass
+    model = make_sample_model(DummyPhysics())
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+
+def test_is_physics_explicitly_configured_non_string_fields():
+    """Handles non-string entries in model_fields_set gracefully."""
+    model = make_sample_model(make_sample_physics({1, None, 'rslmethod'}))
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is True
+    assert cfg._is_physics_explicitly_configured('storageheatmethod') is False
+
+def test_is_physics_explicitly_configured_model_fields_set_list():
+    """Handles model_fields_set as a list instead of set."""
+    obj = types.SimpleNamespace()
+    obj.model_fields_set = ['rslmethod', 'storageheatmethod']
+    model = make_sample_model(obj)
+    cfg = SampleConfig(model)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is True
+    assert cfg._is_physics_explicitly_configured('other') is False
+
+def test_is_physics_explicitly_configured_model_none():
+    """Returns False if model is None."""
+    cfg = SampleConfig(None)
+    assert cfg._is_physics_explicitly_configured('rslmethod') is False
 
 # From test_validation_topdown.py
 class TestTopDownValidation:
@@ -891,11 +1899,8 @@ sites:
         yaml_path.unlink()
 
 
-def test_phase_b_storageheatmethod_ohmincqf_validation():
+def test_phase_b_storageheatmethod_ohmincqf_validation(registry):
     """Test StorageHeatMethod-OhmIncQf validation in Phase B."""
-    from supy.data_model.validation.pipeline.phase_b import (
-        validate_model_option_dependencies,
-    )
 
     # Test incompatible combination: StorageHeatMethod=1 requires OhmIncQf=0
     yaml_data_incompatible = {
@@ -907,7 +1912,7 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
         }
     }
 
-    results = validate_model_option_dependencies(yaml_data_incompatible)
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_incompatible))
 
     # Should find the incompatible combination
     storage_results = [
@@ -931,7 +1936,7 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
         }
     }
 
-    results = validate_model_option_dependencies(yaml_data_compatible)
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_compatible))
 
     # Should pass validation
     storage_results = [
@@ -945,11 +1950,8 @@ def test_phase_b_storageheatmethod_ohmincqf_validation():
     )
 
 
-def test_phase_b_rsl_stabilitymethod_validation():
+def test_phase_b_rsl_stabilitymethod_validation(registry):
     """Test that existing RSL-StabilityMethod validation still works in Phase B."""
-    from supy.data_model.validation.pipeline.phase_b import (
-        validate_model_option_dependencies,
-    )
 
     # Test incompatible combination: rslmethod=2 requires stabilitymethod=3
     yaml_data_incompatible = {
@@ -961,7 +1963,7 @@ def test_phase_b_rsl_stabilitymethod_validation():
         }
     }
 
-    results = validate_model_option_dependencies(yaml_data_incompatible)
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_incompatible))
 
     # Should find the incompatible combination
     rsl_results = [r for r in results if "rslmethod-stabilitymethod" in r.parameter]
@@ -971,12 +1973,8 @@ def test_phase_b_rsl_stabilitymethod_validation():
     assert "stabilitymethod must be 3" in rsl_results[0].message
 
 
-def test_phase_b_model_option_dependencies_comprehensive():
+def test_phase_b_model_option_dependencies_comprehensive(registry):
     """Test validate_model_option_dependencies function with various configurations."""
-    from supy.data_model.validation.pipeline.phase_b import (
-        validate_model_option_dependencies,
-    )
-
     # Test with minimal physics configuration (should all pass)
     yaml_data_minimal = {
         "model": {
@@ -989,7 +1987,7 @@ def test_phase_b_model_option_dependencies_comprehensive():
         }
     }
 
-    results = validate_model_option_dependencies(yaml_data_minimal)
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_minimal))
 
     # All should pass
     error_results = [r for r in results if r.status == "ERROR"]
@@ -1016,7 +2014,7 @@ def test_phase_b_model_option_dependencies_comprehensive():
         }
     }
 
-    results = validate_model_option_dependencies(yaml_data_mixed)
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_mixed))
 
     # Should have one error (RSL) and one pass (storage heat)
     error_results = [r for r in results if r.status == "ERROR"]
@@ -1037,14 +2035,14 @@ def test_phase_b_model_option_dependencies_comprehensive():
     # Test with missing physics section (should handle gracefully)
     yaml_data_no_physics = {"model": {}}
 
-    results = validate_model_option_dependencies(yaml_data_no_physics)
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data_no_physics))
 
     # Should handle gracefully - may have default values or skip validation
     assert isinstance(results, list)  # Should return a list, not crash
 
 
-def test_phase_b_deep_soil_temperature_from_cru():
-    """Test that DeepSoilTemperature is populated from CRU annual mean data."""
+def test_phase_b_annual_mean_air_temperature_from_cru():
+    """Test that AnnualMeanAirTemperature is populated from CRU annual mean data."""
     from supy.data_model.validation.pipeline.phase_b import (
         adjust_surface_temperatures,
         get_mean_annual_air_temperature,
@@ -1071,7 +2069,7 @@ def test_phase_b_deep_soil_temperature_from_cru():
                     "lat": {"value": test_lat},
                     "lng": {"value": test_lon},
                     "stebbs": {
-                        "DeepSoilTemperature": {
+                        "AnnualMeanAirTemperature": {
                             "value": 999.0
                         },  # Wrong value to be updated
                         "InitialOutdoorTemperature": {
@@ -1087,9 +2085,9 @@ def test_phase_b_deep_soil_temperature_from_cru():
     # Run adjustment
     updated_data, adjustments = adjust_surface_temperatures(yaml_data, start_date)
 
-    # Check that DeepSoilTemperature was updated
+    # Check that AnnualMeanAirTemperature was updated
     updated_annual_temp = updated_data["sites"][0]["properties"]["stebbs"][
-        "DeepSoilTemperature"
+        "AnnualMeanAirTemperature"
     ]["value"]
     assert updated_annual_temp == annual_temp, (
         f"Expected {annual_temp}, got {updated_annual_temp}"
@@ -1097,7 +2095,7 @@ def test_phase_b_deep_soil_temperature_from_cru():
 
     # Check that adjustment was recorded
     annual_temp_adjustments = [
-        adj for adj in adjustments if adj.parameter == "stebbs.DeepSoilTemperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.AnnualMeanAirTemperature"
     ]
     assert len(annual_temp_adjustments) == 1
     adj = annual_temp_adjustments[0]
@@ -1107,8 +2105,8 @@ def test_phase_b_deep_soil_temperature_from_cru():
     assert "1991-2020" in adj.reason
 
 
-def test_phase_b_deep_soil_temperature_no_update_if_same():
-    """Test that DeepSoilTemperature is not updated if already correct."""
+def test_phase_b_annual_mean_air_temperature_no_update_if_same():
+    """Test that AnnualMeanAirTemperature is not updated if already correct."""
     from supy.data_model.validation.pipeline.phase_b import (
         adjust_surface_temperatures,
         get_mean_annual_air_temperature,
@@ -1135,7 +2133,7 @@ def test_phase_b_deep_soil_temperature_no_update_if_same():
                     "lat": {"value": test_lat},
                     "lng": {"value": test_lon},
                     "stebbs": {
-                        "DeepSoilTemperature": {
+                        "AnnualMeanAirTemperature": {
                             "value": annual_temp
                         },  # Already correct
                     },
@@ -1150,15 +2148,15 @@ def test_phase_b_deep_soil_temperature_no_update_if_same():
 
     # Check that NO adjustment was made (value already correct)
     annual_temp_adjustments = [
-        adj for adj in adjustments if adj.parameter == "stebbs.DeepSoilTemperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.AnnualMeanAirTemperature"
     ]
     assert len(annual_temp_adjustments) == 0, (
         "Should not adjust if value already correct"
     )
 
 
-def test_phase_b_deep_soil_temperature_missing_stebbs():
-    """Test graceful handling when DeepSoilTemperature is not in stebbs."""
+def test_phase_b_annual_mean_air_temperature_missing_stebbs():
+    """Test graceful handling when AnnualMeanAirTemperature is not in stebbs."""
     from supy.data_model.validation.pipeline.phase_b import adjust_surface_temperatures
 
     # Test coordinates
@@ -1166,7 +2164,7 @@ def test_phase_b_deep_soil_temperature_missing_stebbs():
     test_lon = -0.1
     start_date = "2020-01-15"
 
-    # Create test YAML without DeepSoilTemperature
+    # Create test YAML without AnnualMeanAirTemperature
     yaml_data = {
         "sites": [
             {
@@ -1175,7 +2173,7 @@ def test_phase_b_deep_soil_temperature_missing_stebbs():
                     "lng": {"value": test_lon},
                     "stebbs": {
                         "InitialOutdoorTemperature": {"value": 10.0},
-                        # DeepSoilTemperature NOT present
+                        # AnnualMeanAirTemperature NOT present
                     },
                 },
                 "initial_states": {},
@@ -1186,12 +2184,129 @@ def test_phase_b_deep_soil_temperature_missing_stebbs():
     # Run adjustment - should not crash
     updated_data, adjustments = adjust_surface_temperatures(yaml_data, start_date)
 
-    # Check that no DeepSoilTemperature adjustment was attempted
+    # Check that no AnnualMeanAirTemperature adjustment was attempted
     annual_temp_adjustments = [
-        adj for adj in adjustments if adj.parameter == "stebbs.DeepSoilTemperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.AnnualMeanAirTemperature"
     ]
     assert len(annual_temp_adjustments) == 0
 
+
+def _make_minimal_phase_b_yaml_for_albedo(lat: float) -> dict:
+    """Build a minimal Phase-B-style YAML dict with vegetation albedo ranges and alb_id."""
+    return {
+        "sites": [
+            {
+                "name": "TestSite",
+                "gridiv": 1,
+                "properties": {
+                    "lat": {"value": lat},
+                    "lng": {"value": 0.0},
+                    "land_cover": {
+                        "grass": {
+                            "sfr": {"value": 0.1},
+                            "alb_min": {"value": 0.10},
+                            "alb_max": {"value": 0.20},
+                        },
+                        "dectr": {
+                            "sfr": {"value": 0.1},
+                            "alb_min": {"value": 0.12},
+                            "alb_max": {"value": 0.30},
+                        },
+                        "evetr": {
+                            "sfr": {"value": 0.1},
+                            "alb_min": {"value": 0.14},
+                            "alb_max": {"value": 0.40},
+                        },
+                    },
+                },
+                "initial_states": {
+                    "grass": {"alb_id": {"value": 0.15}},
+                    "dectr": {"alb_id": {"value": 0.18}},
+                    "evetr": {"alb_id": {"value": 0.25}},
+                },
+            }
+        ]
+    }
+
+
+def _get_phase_b_alb_ids(yaml_data: dict):
+    site = yaml_data["sites"][0]
+    ist = site["initial_states"]
+    return (
+        ist["grass"]["alb_id"]["value"],
+        ist["dectr"]["alb_id"]["value"],
+        ist["evetr"]["alb_id"]["value"],
+    )
+
+
+def test_phase_b_seasonal_albedo_summer_updates_alb_id_from_ranges():
+    """Summer: grass.alb_id -> alb_min, dectr/evetr.alb_id -> alb_max."""
+    # Northern Hemisphere, DOY in summer window: 2017-07-15
+    yaml_data = _make_minimal_phase_b_yaml_for_albedo(lat=51.5)
+    yaml_before = copy.deepcopy(yaml_data)
+
+    updated, adjustments = adjust_seasonal_parameters(
+        yaml_data, start_date="2017-07-15", model_year=2017
+    )
+
+    grass_id, dectr_id, evetr_id = _get_phase_b_alb_ids(updated)
+
+    # Expected from ranges defined above
+    assert grass_id == pytest.approx(0.10)  # alb_min(grass)
+    assert dectr_id == pytest.approx(0.30)  # alb_max(dectr)
+    assert evetr_id == pytest.approx(0.40)  # alb_max(evetr)
+
+    # We should have ScientificAdjustment entries for each
+    params = {a.parameter for a in adjustments}
+    assert "grass.alb_id" in params
+    assert "dectr.alb_id" in params
+    assert "evetr.alb_id" in params
+
+    # Land-cover ranges themselves must be unchanged
+    lc_before = yaml_before["sites"][0]["properties"]["land_cover"]
+    lc_after = updated["sites"][0]["properties"]["land_cover"]
+    assert lc_after == lc_before
+
+
+def test_phase_b_seasonal_albedo_winter_updates_alb_id_from_ranges():
+    """Winter: grass.alb_id -> alb_max, dectr/evetr.alb_id -> alb_min."""
+    # Northern Hemisphere, DOY in winter window: 2017-01-15
+    yaml_data = _make_minimal_phase_b_yaml_for_albedo(lat=51.5)
+
+    updated, adjustments = adjust_seasonal_parameters(
+        yaml_data, start_date="2017-01-15", model_year=2017
+    )
+
+    grass_id, dectr_id, evetr_id = _get_phase_b_alb_ids(updated)
+
+    assert grass_id == pytest.approx(0.20)  # alb_max(grass)
+    assert dectr_id == pytest.approx(0.12)  # alb_min(dectr)
+    assert evetr_id == pytest.approx(0.14)  # alb_min(evetr)
+
+    params = {a.parameter for a in adjustments}
+    assert "grass.alb_id" in params
+    assert "dectr.alb_id" in params
+    assert "evetr.alb_id" in params
+
+
+def test_phase_b_seasonal_albedo_midseason_sets_alb_id_midpoint():
+    """Spring/fall: alb_id -> (alb_min + alb_max)/2 for dectr/evetr surfaces."""
+    # Northern Hemisphere, DOY in spring window: 2017-04-01
+    yaml_data = _make_minimal_phase_b_yaml_for_albedo(lat=51.5)
+
+    updated, adjustments = adjust_seasonal_parameters(
+        yaml_data, start_date="2017-04-01", model_year=2017
+    )
+
+    _ , dectr_id, evetr_id = _get_phase_b_alb_ids(updated)
+
+    # Expected midpoints
+    assert dectr_id == pytest.approx((0.12 + 0.30) / 2)  # 0.21
+    assert evetr_id == pytest.approx((0.14 + 0.40) / 2)  # 0.27
+
+    params = {a.parameter for a in adjustments}
+    assert "dectr.alb_id" in params
+    assert "evetr.alb_id" in params
 
 # =====================================================================
 # Phase A: nlayer dimension validation tests
@@ -1995,7 +3110,7 @@ def test_forcing_validation_cli_integration(cli_runner):
 
 def test_irrigation_doy_leap_year():
     """Test DOY 366 validation for leap vs non-leap years."""
-    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+    from supy.data_model.validation.pipeline.phase_b_rules import validate_irrigation_doy
 
     # Leap year: DOY 366 valid
     results = validate_irrigation_doy(120, 366, 51.5, 2024, "test_site")
@@ -2010,7 +3125,7 @@ def test_irrigation_doy_leap_year():
 
 def test_irrigation_doy_disabled():
     """Test irrigation disabled configurations (None/0)."""
-    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+    from supy.data_model.validation.pipeline.phase_b_rules import validate_irrigation_doy
 
     # Both None = valid
     assert len(validate_irrigation_doy(None, None, 51.5, 2023, "test")) == 0
@@ -2027,7 +3142,7 @@ def test_irrigation_doy_disabled():
 
 def test_irrigation_hemisphere_warnings():
     """Test hemisphere and tropical-aware warm season warnings."""
-    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+    from supy.data_model.validation.pipeline.phase_b_rules import validate_irrigation_doy
 
     # NH: warm season (May-Sept, DOY 121-273) = no warning
     results = validate_irrigation_doy(150, 250, 51.5, 2023, "test")
@@ -2081,7 +3196,7 @@ def test_irrigation_hemisphere_warnings():
 
 def test_irrigation_year_wrapping():
     """Test year-wrapping irrigation period validation (ie_start > ie_end)."""
-    from supy.data_model.validation.pipeline.phase_b import validate_irrigation_doy
+    from supy.data_model.validation.pipeline.phase_b_rules import validate_irrigation_doy
 
     # Year-wrapping period in NH (winter irrigation - unusual)
     results = validate_irrigation_doy(300, 50, 51.5, 2023, "test")

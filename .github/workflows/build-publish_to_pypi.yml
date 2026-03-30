@@ -114,6 +114,9 @@ on:
           - cfg
           - smoke
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -126,15 +129,18 @@ jobs:
     outputs:
       on-master: ${{ steps.check.outputs.on-master }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       - id: check
+        env:
+          TAG_NAME: ${{ github.ref_name }}
         run: |
           if git merge-base --is-ancestor $GITHUB_SHA refs/remotes/origin/master; then
             echo "on-master=true" >> $GITHUB_OUTPUT
           else
-            echo "::warning::Tag ${{ github.ref_name }} not on master — skipping release"
+            echo "::warning::Tag ${TAG_NAME} not on master — skipping release"
             echo "on-master=false" >> $GITHUB_OUTPUT
           fi
 
@@ -145,11 +151,14 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Create and push nightly tag
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -e
           YEAR=$(date -u +%Y)
@@ -165,7 +174,7 @@ jobs:
             echo "Tag ${DEV_TAG} already exists on remote, skipping"
           else
             git tag -a "${DEV_TAG}" -m "Nightly build ${YEAR}-${MONTH}-${DAY}"
-            git push origin "${DEV_TAG}"
+            git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "${DEV_TAG}"
             echo "Successfully created and pushed tag ${DEV_TAG}"
           fi
 
@@ -177,6 +186,7 @@ jobs:
       needs-build: ${{ steps.decide.outputs.needs-build }}
       needs-umep-build: ${{ steps.decide.outputs.needs-umep-build }}
       fortran-changed: ${{ steps.filter.outputs.fortran }}
+      rust-changed: ${{ steps.filter.outputs.rust }}
       python-changed: ${{ steps.decide.outputs.python-changed }}
       util-changed: ${{ steps.filter.outputs.util }}
       build-changed: ${{ steps.decide.outputs.build-changed }}
@@ -185,6 +195,7 @@ jobs:
       docs-changed: ${{ steps.filter.outputs.docs }}
       site-changed: ${{ steps.filter.outputs.site }}
       fortran-files: ${{ steps.filter.outputs.fortran_files }}
+      rust-files: ${{ steps.filter.outputs.rust_files }}
       python-files: ${{ steps.filter.outputs.python_files }}
       util-files: ${{ steps.filter.outputs.util_files }}
       build-files: ${{ steps.filter.outputs.build_files }}
@@ -194,11 +205,11 @@ jobs:
       site-files: ${{ steps.filter.outputs.site_files }}
       pyproject-files: ${{ steps.filter.outputs.pyproject_files }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          fetch-depth: 0  # Full history for pyproject.toml content classification
+          persist-credentials: false
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
         id: filter
         with:
           filters: .github/path-filters.yml
@@ -210,32 +221,49 @@ jobs:
         if: steps.filter.outputs.pyproject == 'true'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
-        run: python3 .github/scripts/classify_pyproject.py
+        run: |
+          # Fetch just the base commit for pyproject.toml comparison
+          if [ -n "$BASE_SHA" ]; then
+            git fetch --depth=1 origin "$BASE_SHA" 2>/dev/null || true
+          fi
+          python3 .github/scripts/classify_pyproject.py
 
       - name: Compute build decision
         id: decide
+        env:
+          FILTER_BUILD: ${{ steps.filter.outputs.build }}
+          BUILD_RELEVANT: ${{ steps.classify-pyproject.outputs.build_relevant || 'false' }}
+          FILTER_PYTHON: ${{ steps.filter.outputs.python }}
+          PACKAGE_RELEVANT: ${{ steps.classify-pyproject.outputs.package_relevant || 'false' }}
+          FILTER_FORTRAN: ${{ steps.filter.outputs.fortran }}
+          FILTER_RUST: ${{ steps.filter.outputs.rust }}
+          FILTER_UTIL: ${{ steps.filter.outputs.util }}
+          FILTER_CI: ${{ steps.filter.outputs.ci }}
+          FILTER_TESTS: ${{ steps.filter.outputs.tests }}
         run: |
           BUILD_CHANGED=false
-          if [[ "${{ steps.filter.outputs.build }}" == "true" ]] || \
-             [[ "${{ steps.classify-pyproject.outputs.build_relevant || 'false' }}" == "true" ]]; then
+          if [[ "${FILTER_BUILD}" == "true" ]] || \
+             [[ "${BUILD_RELEVANT}" == "true" ]]; then
             BUILD_CHANGED=true
           fi
           echo "build-changed=$BUILD_CHANGED" >> $GITHUB_OUTPUT
 
           PYTHON_CHANGED=false
-          if [[ "${{ steps.filter.outputs.python }}" == "true" ]] || \
-             [[ "${{ steps.classify-pyproject.outputs.package_relevant || 'false' }}" == "true" ]]; then
+          if [[ "${FILTER_PYTHON}" == "true" ]] || \
+             [[ "${PACKAGE_RELEVANT}" == "true" ]]; then
             PYTHON_CHANGED=true
           fi
           echo "python-changed=$PYTHON_CHANGED" >> $GITHUB_OUTPUT
 
-          FORTRAN="${{ steps.filter.outputs.fortran }}"
-          UTIL="${{ steps.filter.outputs.util }}"
-          CI="${{ steps.filter.outputs.ci }}"
-          TESTS="${{ steps.filter.outputs.tests }}"
+          FORTRAN="${FILTER_FORTRAN}"
+          RUST="${FILTER_RUST}"
+          UTIL="${FILTER_UTIL}"
+          CI="${FILTER_CI}"
+          TESTS="${FILTER_TESTS}"
 
           NEEDS_BUILD=false
           if [[ "$FORTRAN" == "true" ]] || \
+             [[ "$RUST" == "true" ]] || \
              [[ "$PYTHON_CHANGED" == "true" ]] || \
              [[ "$UTIL" == "true" ]] || \
              [[ "$BUILD_CHANGED" == "true" ]] || \
@@ -248,6 +276,7 @@ jobs:
           # UMEP build only when compiled extension ABI may differ
           NEEDS_UMEP_BUILD=false
           if [[ "$FORTRAN" == "true" ]] || \
+             [[ "$RUST" == "true" ]] || \
              [[ "$BUILD_CHANGED" == "true" ]]; then
             NEEDS_UMEP_BUILD=true
           fi
@@ -265,10 +294,11 @@ jobs:
       umep_python: ${{ steps.set-matrix.outputs.umep_python }}
       test_tier: ${{ steps.set-matrix.outputs.test_tier }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           sparse-checkout: .github/scripts
           sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Set matrix based on trigger type
         id: set-matrix
@@ -276,6 +306,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           IS_DRAFT: ${{ github.event.pull_request.draft }}
           FORTRAN_CHANGED: ${{ needs.detect-changes.outputs.fortran-changed || 'false' }}
+          RUST_CHANGED: ${{ needs.detect-changes.outputs.rust-changed || 'false' }}
           PYTHON_CHANGED: ${{ needs.detect-changes.outputs.python-changed || 'false' }}
           UTIL_CHANGED: ${{ needs.detect-changes.outputs.util-changed || 'false' }}
           BUILD_CHANGED: ${{ needs.detect-changes.outputs.build-changed || 'false' }}
@@ -306,15 +337,17 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           sparse-checkout: .github/scripts
           sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Post or update CI summary comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
           FORTRAN_CHANGED: ${{ needs.detect-changes.outputs.fortran-changed }}
+          RUST_CHANGED: ${{ needs.detect-changes.outputs.rust-changed }}
           PYTHON_CHANGED: ${{ needs.detect-changes.outputs.python-changed }}
           UTIL_CHANGED: ${{ needs.detect-changes.outputs.util-changed }}
           BUILD_CHANGED: ${{ needs.detect-changes.outputs.build-changed }}
@@ -323,6 +356,7 @@ jobs:
           DOCS_CHANGED: ${{ needs.detect-changes.outputs.docs-changed }}
           SITE_CHANGED: ${{ needs.detect-changes.outputs.site-changed }}
           FORTRAN_FILES: ${{ needs.detect-changes.outputs.fortran-files || '[]' }}
+          RUST_FILES: ${{ needs.detect-changes.outputs.rust-files || '[]' }}
           PYTHON_FILES: ${{ needs.detect-changes.outputs.python-files || '[]' }}
           UTIL_FILES: ${{ needs.detect-changes.outputs.util-files || '[]' }}
           BUILD_FILES: ${{ needs.detect-changes.outputs.build-files || '[]' }}
@@ -359,7 +393,6 @@ jobs:
       is_umep_variant: 'false'
       wheel_name_suffix: ''
       is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
-      enable_dts: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/') }}
 
   build_umep:
     name: Build UMEP wheels
@@ -380,7 +413,6 @@ jobs:
       is_umep_variant: 'true'
       wheel_name_suffix: '-umep'
       is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
-      enable_dts: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/') }}
 
   # Single consolidated check for branch protection (always runs for PRs/merge queue)
   pr-gate:
@@ -389,10 +421,11 @@ jobs:
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
     needs: [build_wheels, build_umep, detect-changes]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           sparse-checkout: .github/scripts
           sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Check build results
         env:
@@ -428,13 +461,13 @@ jobs:
 
     steps:
       - name: Download all wheels for TestPyPI
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: dist/
           merge-multiple: true
 
       - name: Publish wheels to Test PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1.8
+        uses: pypa/gh-action-pypi-publish@81e9d935c883d0b210363ab89cf05f3894778450 # release/v1.8
         with:
           packages-dir: dist/
           verbose: true
@@ -465,13 +498,13 @@ jobs:
 
     steps:
       - name: Download all wheels (standard + UMEP)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: dist/
           merge-multiple: true
 
       - name: Publish all wheels to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1.8
+        uses: pypa/gh-action-pypi-publish@81e9d935c883d0b210363ab89cf05f3894778450 # release/v1.8
         with:
           packages-dir: dist/
           verbose: true
@@ -487,9 +520,10 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Extract version from tag
         id: get_version
@@ -500,8 +534,9 @@ jobs:
 
       - name: Prepare release notes
         id: release_notes
+        env:
+          VERSION: ${{ steps.get_version.outputs.version }}
         run: |
-          VERSION="${{ steps.get_version.outputs.version }}"
           RELEASE_FILE=".github/releases/${VERSION}.md"
 
           if [ -f "$RELEASE_FILE" ]; then
@@ -545,7 +580,7 @@ jobs:
 
           ## Documentation
 
-          - [User Guide](https://suews.readthedocs.io)
+          - [User Guide](https://docs.suews.io)
           - [CHANGELOG](https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md)
           - [GitHub Repository](https://github.com/UMEP-dev/SUEWS)
           EOF
@@ -554,8 +589,8 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.get_version.outputs.version }}
         run: |
-          VERSION="${{ steps.get_version.outputs.version }}"
           TITLE=$(git tag -l --format='%(contents:subject)' "$VERSION" || echo "SUEWS Release")
           gh release create "$VERSION" \
             --title "SUEWS v$VERSION: $TITLE" \

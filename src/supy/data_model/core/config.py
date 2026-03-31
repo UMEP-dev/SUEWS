@@ -37,6 +37,8 @@ from .model import Model, OutputConfig
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams
 from .type import SurfaceType
 
+from ..validation.core.yaml_helpers import unwrap_value as _unwrap_value
+
 from datetime import datetime
 import pytz
 
@@ -81,38 +83,6 @@ class ConditionalValidationWarning(UserWarning):
     """
 
     pass
-
-
-def _unwrap_value(val):
-    """
-    Unwrap RefValue and Enum values consistently.
-
-    This helper ensures consistent handling of RefValue wrappers and Enum values
-    throughout the validation logic.
-
-    Args:
-        val: The value to unwrap (could be RefValue, Enum, or raw value)
-
-    Returns:
-        The unwrapped raw value
-    """
-    # Handle RefValue wrapper
-    if (
-        hasattr(val, "value")
-        and hasattr(val, "__class__")
-        and "RefValue" in val.__class__.__name__
-    ):
-        val = val.value
-
-    # Handle Enum values (which also have .value attribute)
-    if (
-        hasattr(val, "value")
-        and hasattr(val, "__class__")
-        and "Enum" in str(val.__class__.__bases__)
-    ):
-        val = val.value
-
-    return val
 
 
 def _is_valid_layer_array(field) -> bool:

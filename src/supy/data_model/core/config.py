@@ -1360,14 +1360,14 @@ class SUEWSConfig(BaseModel):
         if setpointmethod_val == 2:
             # Only require the profile params, not the scalar setpoint temps
             archetype_required = [
-            p for p in archetype_required if p not in setpoint_params_bldgarc
+                p for p in archetype_required if p not in setpoint_params_bldgarc
             ]
         else:
             # Only require the scalar setpoint temps, not the profile params
             archetype_required = [
-            p for p in archetype_required if p not in setpoint_profile_params_bldgarc
+                p for p in archetype_required if p not in setpoint_profile_params_bldgarc
             ]
-            
+
         # Validate stebbs required params
         _check_required(stebbs, stebbs_required)
         # Validate building_archetype required params

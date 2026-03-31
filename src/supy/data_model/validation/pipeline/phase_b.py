@@ -1512,12 +1512,12 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
                             if changed_slice:
                                 adjustments.append(
                                     ScientificAdjustment(
-                                    parameter=f"building_archetype.{prof_param}.{daytype}",
-                                    site_index=site_idx,
-                                    site_gridid=site_gridid,
-                                    old_value="all entries are set to null",
-                                    new_value="null",
-                                    reason="setpointmethod == 0 or 1, profile entries not needed"
+                                        parameter=f"building_archetype.{prof_param}.{daytype}",
+                                        site_index=site_idx,
+                                        site_gridid=site_gridid,
+                                        old_value="non-null profile entries",
+                                        new_value="null",
+                                        reason="setpointmethod == 0 or 1, profile entries not needed",
                                     )
                                 )
         props["building_archetype"] = building_archetype

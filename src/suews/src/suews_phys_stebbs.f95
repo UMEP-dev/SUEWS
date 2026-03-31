@@ -913,7 +913,7 @@ CONTAINS
                   buildings(1)%Ts(1) = Unused_heating_setpoint_C + 273.15
                   buildings(1)%Ts(2) = Unused_cooling_setpoint_C + 273.15
                END IF
-            CASE (2) !scheduled setpoinbts
+            CASE (2) !scheduled setpoints
                buildings(1)%Ts(1) = building_archtype%HeatingSetpointTemperatureProfile(idx, iu) + 273.15
                buildings(1)%Ts(2) = building_archtype%CoolingSetpointTemperatureProfile(idx, iu) + 273.15
             CASE DEFAULT
@@ -1652,7 +1652,7 @@ SUBROUTINE tstep( &
                       Afootprint, Vgroundfloor, & ! [m2], [m3]
                       Awindow, Vwindow, & ! [m2], [m3]
                       Vindoormass, Aindoormass ! Assumed internal mass as a cube [m3], [m2]
-   LOGICAL :: wall_surface_active, window_surface_active
+   LOGICAL, INTENT(IN) :: wall_surface_active, window_surface_active
    REAL(KIND(1D0)) :: Tair_ind, Tindoormass, Tintwall, Tintroof, Textwall, Textroof, & ! [K], [K], [K], [K], [K], [K]
                       Tintwindow, Textwindow, Tintgroundfloor, Textgroundfloor ! [K], [K], [K], [K]
    REAL(KIND(1D0)) :: dTair_ind, dTindoormass, dTintwall, dTintroof, & ! [K], [K], [K]

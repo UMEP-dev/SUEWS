@@ -6,8 +6,8 @@ use crate::error::BridgeError;
 use crate::ffi;
 use std::collections::BTreeMap;
 
-pub const SUEWS_CONFIG_FLAT_LEN: usize = 21;
-pub const SUEWS_CONFIG_SCHEMA_VERSION: u32 = 1;
+pub const SUEWS_CONFIG_FLAT_LEN: usize = 22;
+pub const SUEWS_CONFIG_SCHEMA_VERSION: u32 = 2;
 
 pub type SuewsConfigSchema = crate::codec::SimpleSchema;
 
@@ -35,6 +35,7 @@ pub struct SuewsConfig {
     pub rsl_level: i32,
     pub stebbs_method: i32,
     pub rc_method: i32,
+    pub setpoint_method: i32,
     pub flag_test: bool,
 }
 
@@ -61,6 +62,7 @@ impl Default for SuewsConfig {
             rsl_level: 0,
             stebbs_method: 0,
             rc_method: 0,
+            setpoint_method: 0,
             flag_test: false,
         }
     }
@@ -108,7 +110,8 @@ impl SuewsConfig {
             rsl_level: decode_int(flat[17])?,
             stebbs_method: decode_int(flat[18])?,
             rc_method: decode_int(flat[19])?,
-            flag_test: flat[20] >= 0.5,
+            setpoint_method: decode_int(flat[20])?,
+            flag_test: flat[21] >= 0.5,
         })
     }
 
@@ -134,6 +137,7 @@ impl SuewsConfig {
             self.rsl_level as f64,
             self.stebbs_method as f64,
             self.rc_method as f64,
+            self.setpoint_method as f64,
             if self.flag_test { 1.0 } else { 0.0 },
         ]
     }
@@ -211,6 +215,7 @@ pub fn suews_config_field_names() -> Vec<String> {
         "rsl_level".to_string(),
         "stebbs_method".to_string(),
         "rc_method".to_string(),
+        "setpoint_method".to_string(),
         "flag_test".to_string(),
     ]
 }

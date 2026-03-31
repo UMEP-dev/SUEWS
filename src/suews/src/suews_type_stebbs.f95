@@ -72,6 +72,9 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: MaximumHotWaterHeatingPower = 0.0D0 ! Maximum power demand of water heating system [W]
       REAL(KIND(1D0)) :: HeatingSetpointTemperature = 0.0D0 ! Heating setpoint temperature [degC]
       REAL(KIND(1D0)) :: CoolingSetpointTemperature = 0.0D0 ! Cooling setpoint temperature [degC]
+      ! diurnal profiles of heating/cooling setpoint temperature [degC]
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: HeatingSetpointTemperatureProfile = 0.0D0
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: CoolingSetpointTemperatureProfile = 0.0D0
       REAL(KIND(1D0)) :: LightingPowerDensity = 0.0D0 ! Lighting power per building floor area [W m-2]
       REAL(KIND(1D0)), DIMENSION(0:143, 2) :: MetabolismProfile = 0.0D0 ! diurnal profiles of occupant metabolic rate [W]
       REAL(KIND(1D0)), DIMENSION(0:143, 2) :: ApplianceProfile = 0.0D0 ! diurnal profiles of appliance energy power [W]
@@ -314,7 +317,8 @@ module module_type_stebbs
 
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Textwall_C  ! Wall external surface temperature from STEBBS[K]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: Textroof_C ! Roof external surface temperature from STEBBS[K]
-
+      LOGICAL :: wall_surface_active = .TRUE. ! depends on WWR
+      LOGICAL :: window_surface_active = .TRUE.! depends on WWR
       ! flag for iteration safety - YES
       ! all variables are intensive and thus can be used for iteration safety
       LOGICAL :: iter_safe = .FALSE.

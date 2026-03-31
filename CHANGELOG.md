@@ -40,7 +40,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 73 | 79 | 29 | 80 | 40 | 301 |
+| 2026 | 73 | 80 | 29 | 80 | 40 | 303 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -55,6 +55,8 @@ EXAMPLES:
 
 ### 26 Mar 2026
 
+- [feature][experimental] Add `setpointmethod` model option and heating/cooling setpoint profiles in STEBBS, supporting constant, dependent, and scheduled setpoint approaches (PR #1261).
+- [bugfix] Skip STEBBS wall or window surface-temperature calculations for the extreme `WWR` cases, avoiding non-existent surface calculations when `WWR = 0` or `WWR = 1` (PR #1261).
 - [feature][experimental] Added rule to validate forcing height (`z`) against mean building height (`bldgh`) and maximum building height (max of `bldgh`, `stebbs_Height` if STEBBS enabled, and last non-zero `height` if SPARTACUS enabled) (#1255, PR #1266).
 - [maintenance] Moved `unwrap_value` from `config.py` to `yaml_helpers.py` and added `unwrap_nested_value` for array-like YAML structures (PR #1266).
 

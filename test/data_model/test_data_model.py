@@ -15,6 +15,7 @@ import pandas as pd
 import pytest
 
 import supy as sp
+from supy._load import trim_df_state
 from supy.data_model import (
     InitialStates,
     RefValue,
@@ -112,6 +113,56 @@ class TestSUEWSConfig(unittest.TestCase):
         pd.testing.assert_frame_equal(
             df_state_init, df_state_reconst, check_dtype=False, check_like=True
         )
+
+    @pytest.mark.cfg
+    def test_setpoint_profiles_survive_trimmed_df_state_roundtrip(self):
+        """Test scheduled STEBBS setpoint fields persist through trimmed df_state roundtrip."""
+        config = SUEWSConfig(
+            model={"physics": {"setpointmethod": 2}},
+            sites=[
+                {
+                    "properties": {
+                        "building_archetype": {
+                            "HeatingSetpointTemperatureProfile": {
+                                "working_day": {str(i): 18.0 for i in range(1, 145)},
+                                "holiday": {str(i): 17.0 for i in range(1, 145)},
+                            },
+                            "CoolingSetpointTemperatureProfile": {
+                                "working_day": {str(i): 26.0 for i in range(1, 145)},
+                                "holiday": {str(i): 27.0 for i in range(1, 145)},
+                            },
+                        }
+                    }
+                }
+            ],
+        )
+
+        df_state = config.to_df_state()
+        df_state_trimmed = trim_df_state(df_state)
+        config_reconst = SUEWSConfig.from_df_state(df_state_trimmed)
+
+        self.assertEqual(config_reconst.model.physics.setpointmethod.value.value, 2)
+        self.assertEqual(
+            config_reconst.sites[0]
+            .properties.building_archetype.HeatingSetpointTemperatureProfile
+            .working_day["1"],
+            18.0,
+        )
+        self.assertEqual(
+            config_reconst.sites[0]
+            .properties.building_archetype.CoolingSetpointTemperatureProfile
+            .holiday["144"],
+            27.0,
+        )
+
+    def test_setpoint_profile_defaults_use_off_values(self):
+        config = SUEWSConfig(sites=[{}])
+        archetype = config.sites[0].properties.building_archetype
+
+        self.assertEqual(archetype.HeatingSetpointTemperatureProfile.working_day["1"], 0.0)
+        self.assertEqual(archetype.HeatingSetpointTemperatureProfile.holiday["144"], 0.0)
+        self.assertEqual(archetype.CoolingSetpointTemperatureProfile.working_day["1"], 100.0)
+        self.assertEqual(archetype.CoolingSetpointTemperatureProfile.holiday["144"], 100.0)
 
     def test_model_physics_validation(self):
         """Test that SUEWSConfig allows physics combinations - validation moved to Phase B.

@@ -45,6 +45,8 @@ model:
       value: 0
     same_emissivity_roof:
       value: 0
+    setpointmethod:
+      value: 0
 sites:
 - name: KCL
   gridiv: 1
@@ -1186,6 +1188,8 @@ sites:
         value: 18.0
       CoolingSetpointTemperature:
         value: 27.0
+      HeatingSetpointTemperatureProfile: null
+      CoolingSetpointTemperatureProfile: null
     conductance:
       g_max:
         value: 3.5

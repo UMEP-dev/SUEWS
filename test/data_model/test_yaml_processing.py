@@ -3462,7 +3462,8 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",
-            "same_emissivity_roof"
+            "same_emissivity_roof",
+            "setpointmethod",
         }
 
         # Should match the synchronized list from Phase A and B
@@ -3510,7 +3511,8 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",
-            "same_emissivity_roof"
+            "same_emissivity_roof",
+            "setpointmethod",
         }
 
         valid_yaml = {

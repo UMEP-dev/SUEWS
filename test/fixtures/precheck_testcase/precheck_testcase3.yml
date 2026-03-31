@@ -43,6 +43,8 @@ model:
       value: 0
     rcmethod:
       value: 0
+    setpointmethod:
+      value: 0
 sites:
 - name: test site
   gridiv: 09_22_01_02
@@ -317,6 +319,8 @@ sites:
         value: 18.0
       CoolingSetpointTemperature:
         value: 30.0
+      HeatingSetpointTemperatureProfile: null
+      CoolingSetpointTemperatureProfile: null
     conductance:
       g_max:
         value: 3.5

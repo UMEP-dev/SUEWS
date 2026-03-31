@@ -43,6 +43,7 @@ from supy.data_model.validation.core.utils import check_missing_params
 from supy.data_model.validation.pipeline.phase_b import (
     adjust_seasonal_parameters,
     adjust_model_option_stebbsmethod,
+    adjust_model_option_setpointmethod,
     adjust_model_option_rcmethod,
     RulesRegistry,
     ValidationContext
@@ -998,6 +999,104 @@ def test_adjust_model_option_rcmethod_no_action_when_already_set():
     updated_data, adjustments = adjust_model_option_rcmethod(yaml_data)
     assert len(adjustments) == 0
 
+def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_0_or_1():
+    # setpointmethod == 0: should nullify all profile entries
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 0}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperatureProfile": {
+                        "working_day": {"0": 21.0, "1": 22.0},
+                        "holiday": {"0": 20.0, "1": 21.0},
+                    },
+                    "CoolingSetpointTemperatureProfile": {
+                        "working_day": {"0": 25.0, "1": 26.0},
+                        "holiday": {"0": 24.0, "1": 25.0},
+                    },
+                }
+            }
+        }],
+    }
+    updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
+    ba = updated["sites"][0]["properties"]["building_archetype"]
+    for prof in ["HeatingSetpointTemperatureProfile", "CoolingSetpointTemperatureProfile"]:
+        for daytype in ["working_day", "holiday"]:
+            for hour in ba[prof][daytype]:
+                assert ba[prof][daytype][hour] is None
+    assert any(a.parameter == "building_archetype.HeatingSetpointTemperatureProfile.working_day" for a in adjustments)
+    assert any(a.parameter == "building_archetype.CoolingSetpointTemperatureProfile.holiday" for a in adjustments)
+
+def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_1():
+    # setpointmethod == 1: should nullify all profile entries
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperatureProfile": {
+                        "working_day": {"0": 21.0},
+                        "holiday": {"0": 20.0},
+                    },
+                    "CoolingSetpointTemperatureProfile": {
+                        "working_day": {"0": 25.0},
+                        "holiday": {"0": 24.0},
+                    },
+                }
+            }
+        }],
+    }
+    updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
+    ba = updated["sites"][0]["properties"]["building_archetype"]
+    for prof in ["HeatingSetpointTemperatureProfile", "CoolingSetpointTemperatureProfile"]:
+        for daytype in ["working_day", "holiday"]:
+            for hour in ba[prof][daytype]:
+                assert ba[prof][daytype][hour] is None
+    assert any(a.parameter == "building_archetype.HeatingSetpointTemperatureProfile.working_day" for a in adjustments)
+
+def test_adjust_model_option_setpointmethod_sets_temps_to_null_when_2():
+    # setpointmethod == 2: should nullify HeatingSetpointTemperature and CoolingSetpointTemperature
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperature": {"value": 21.0},
+                    "CoolingSetpointTemperature": {"value": 25.0},
+                }
+            }
+        }],
+    }
+    updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
+    ba = updated["sites"][0]["properties"]["building_archetype"]
+    assert ba["HeatingSetpointTemperature"]["value"] is None
+    assert ba["CoolingSetpointTemperature"]["value"] is None
+    assert any(a.parameter == "building_archetype.HeatingSetpointTemperature" for a in adjustments)
+    assert any(a.parameter == "building_archetype.CoolingSetpointTemperature" for a in adjustments)
+
+def test_adjust_model_option_setpointmethod_no_action_when_already_null():
+    # Should not add adjustments if already null
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperature": {"value": None},
+                    "CoolingSetpointTemperature": {"value": None},
+                }
+            }
+        }],
+    }
+    updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
+    ba = updated["sites"][0]["properties"]["building_archetype"]
+    assert ba["HeatingSetpointTemperature"]["value"] is None
+    assert ba["CoolingSetpointTemperature"]["value"] is None
+    assert len(adjustments) == 0
+
 def test_validate_model_option_rcmethod2_missing_params(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 2}}},
@@ -1069,6 +1168,145 @@ def test_validate_model_option_rcmethod2_some_params_missing(registry):
     assert any(r.status == "WARNING" for r in results)
     assert all("must be provided" in r.message for r in results if r.status == "ERROR")
 
+def test_validate_model_option_setpointmethod_0_or_1_all_params(registry):
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 0}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperature": {"value": 21.0},
+                    "CoolingSetpointTemperature": {"value": 25.0},
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    assert not results or all(r.status != "ERROR" for r in results)
+
+def test_validate_model_option_setpointmethod_0_or_1_missing_params(registry):
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    # "HeatingSetpointTemperature" missing
+                    "CoolingSetpointTemperature": {"value": 25.0},
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    error_params = [r.parameter for r in results if r.status == "ERROR"]
+    assert "HeatingSetpointTemperature" in error_params
+    assert all("must be set" in r.message for r in results if r.status == "ERROR")
+
+def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
+    heating_working = {str(i): 20.0 for i in range(1, 145)}
+    heating_holiday = {str(i): 19.0 for i in range(1, 145)}
+    cooling_working = {str(i): 26.0 for i in range(1, 145)}
+    cooling_holiday = {str(i): 25.5 for i in range(1, 145)}
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperatureProfile": {
+                        "working_day": heating_working,
+                        "holiday": heating_holiday,
+                    },
+                    "CoolingSetpointTemperatureProfile": {
+                        "working_day": cooling_working,
+                        "holiday": cooling_holiday,
+                    },
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    assert not results or all(r.status != "ERROR" for r in results)
+
+def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry):
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperatureProfile": {
+                        "working_day": {"0": None, "1": 19.5},
+                        "holiday": {"0": 19.0, "1": None},
+                    },
+                    "CoolingSetpointTemperatureProfile": {
+                        "working_day": {"0": 26.0, "1": None},
+                        "holiday": {"0": None, "1": 26.5},
+                    },
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    error_params = [r.parameter for r in results if r.status == "ERROR"]
+    assert "HeatingSetpointTemperatureProfile" in error_params
+    assert "CoolingSetpointTemperatureProfile" in error_params
+    assert any("null entries" in r.message for r in results if r.status == "ERROR")
+
+def test_validate_model_option_setpointmethod_2_out_of_range(registry):
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperatureProfile": {
+                        "working_day": {"0": 31.0, "1": 19.5},
+                        "holiday": {"0": 19.0, "1": 30.0},
+                    },
+                    "CoolingSetpointTemperatureProfile": {
+                        "working_day": {"0": 14.0, "1": 27.0},
+                        "holiday": {"0": 25.5, "1": 15.0},
+                    },
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    heating_errors = [r for r in results if r.parameter == "HeatingSetpointTemperatureProfile" and r.status == "ERROR"]
+    cooling_errors = [r for r in results if r.parameter == "CoolingSetpointTemperatureProfile" and r.status == "ERROR"]
+    assert any("values >= 30.0" in r.message for r in heating_errors)
+    assert any("values <= 15.0" in r.message for r in cooling_errors)
+
+def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperatureProfile": {
+                        "working_day": {"0": 20.0, "1": 19.5},
+                        "holiday": {"1": 19.0, "2": 18.5},
+                    },
+                    "CoolingSetpointTemperatureProfile": {
+                        "working_day": {"1": 26.0, "145": 27.0},
+                        "holiday": {"1": 25.5, "2": 26.5},
+                    },
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    error_params = [r.parameter for r in results if r.status == "ERROR"]
+    assert "HeatingSetpointTemperatureProfile.working_day" in error_params
+    assert "CoolingSetpointTemperatureProfile.working_day" in error_params
+    assert any(
+        "Only entries 1-144 are valid." in r.message
+        for r in results
+        if r.status == "ERROR"
+    )
+    
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
     """Test HotWaterFlowProfile accepts only 0 or 1 values."""
 

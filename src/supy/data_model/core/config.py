@@ -237,7 +237,24 @@ class SUEWSConfig(BaseModel):
     def validate_parameter_completeness(self) -> "SUEWSConfig":
         """
         Validate all parameters after full construction.
-        This runs AFTER all values have been populated from YAML.
+
+        This method is called after all values have been populated from YAML or other sources.
+        It performs comprehensive validation of the configuration, including:
+            - Summarizing validation issues
+            - Running standard site-by-site checks
+            - Running conditional validations (e.g., STEBBS, RSL, StorageHeat, SPARTACUS)
+            - Checking for critical null physics parameters
+            - Displaying a summary of warnings if present
+
+        Returns
+        -------
+        SUEWSConfig
+            The validated SUEWSConfig instance.
+
+        Raises
+        ------
+        ValueError
+            If any critical validation errors are found (e.g., missing required parameters).
         """
         ### 1) Initialize the summary of validation issues
         self._validation_summary = {
@@ -281,7 +298,20 @@ class SUEWSConfig(BaseModel):
     def validate_schema_compatibility(self) -> "SUEWSConfig":
         """
         Check if the configuration schema version is compatible.
-        Issues warnings when there's a compatibility concern.
+
+        Issues a warning if the schema version used in the configuration
+        does not match the current supported schema version.
+
+        Notes
+        -----
+        - If `schema_version` is not specified, it will be set to the current schema version.
+        - Compatibility is checked using `validate_schema_version` from the schema module.
+        - Any mismatch or compatibility concern will be logged as a warning.
+
+        Returns
+        -------
+        SUEWSConfig
+            The validated SUEWSConfig instance (self).
         """
         from ..schema import validate_schema_version, CURRENT_SCHEMA_VERSION
 
@@ -307,7 +337,22 @@ class SUEWSConfig(BaseModel):
     def validate_model_output_config(self) -> "SUEWSConfig":
         """
         Validate output configuration, especially frequency vs timestep.
-        Migrated from Model class to SUEWSConfig for more comprehensive validation.
+
+        This validator ensures that the output frequency specified in the OutputConfig
+        is positive and an integer multiple of the model timestep. It also warns if
+        a deprecated string value is used for the output_file parameter.
+
+        Returns
+        -------
+        SUEWSConfig
+            The validated SUEWSConfig instance.
+
+        Raises
+        ------
+        ValueError
+            If output frequency is not positive or not a multiple of timestep.
+        DeprecationWarning
+            If a deprecated string value is used for output_file.
         """
         if isinstance(self.model.control.output_file, OutputConfig):
             output_config = self.model.control.output_file
@@ -343,7 +388,21 @@ class SUEWSConfig(BaseModel):
     def validate_model_radiation_method(self) -> "SUEWSConfig":
         """
         Validate radiation method configuration compatibility with forcing file.
-        Migrated from Model class to SUEWSConfig for comprehensive validation.
+
+        This validator checks that the selected net radiation method is compatible
+        with the provided forcing file. Specifically, it warns if
+        `netradiationmethod=1` (which requires observed Ldown) is used with a
+        sample forcing file that typically lacks Ldown data.
+
+        Returns
+        -------
+        SUEWSConfig
+            The validated SUEWSConfig instance.
+
+        Warns
+        -----
+        UserWarning
+            If netradiationmethod=1 is used with a sample forcing file.
         """
         # Use the helper for consistent unwrapping
         netradiationmethod_val = _unwrap_value(self.model.physics.netradiationmethod)
@@ -373,12 +432,33 @@ class SUEWSConfig(BaseModel):
     def validate_site_required_fields(self) -> "SUEWSConfig":
         """
         Validate that all sites have required fields with valid values.
-        Migrated from SiteProperties.validate_required_fields for centralized validation.
 
-        Checks:
-        - Presence of critical site properties like lat, lng, alt, timezone
-        - RefValue wrapper validation
-        - Physical constraint validation (z0m_in < zdm_in)
+        This validator ensures that each site in the configuration has all critical
+        required fields present and valid. It checks for the presence of essential
+        site properties, validates RefValue wrappers, and enforces physical constraints.
+
+        Parameters
+        ----------
+        self : SUEWSConfig
+            The SUEWSConfig instance being validated.
+
+        Returns
+        -------
+        SUEWSConfig
+            The validated SUEWSConfig instance.
+
+        Raises
+        ------
+        ValueError
+            If any required field is missing or invalid, or if physical constraints are violated.
+
+        Notes
+        -----
+        - Required fields include: lat, lng, alt, timezone, surfacearea, z, z0m_in, zdm_in,
+          pipecapacity, runofftowater, narp_trans_site, lumps, spartacus, conductance,
+          irrigation, anthropogenic_emissions, snow, land_cover, vertical_layers.
+        - RefValue wrappers are unwrapped to check for None values.
+        - Enforces z0m_in < zdm_in physical constraint.
         """
         from .type import RefValue  # Import here to avoid circular import
 
@@ -445,14 +525,36 @@ class SUEWSConfig(BaseModel):
     def validate_snow_parameters(self) -> "SUEWSConfig":
         """
         Validate snow parameters for all sites in the configuration.
-        Migrated from SnowParams.validate_all for centralized validation.
 
-        Checks:
-        - crwmin < crwmax (critical water content range)
-        - snowalbmin < snowalbmax (snow albedo range)
+        This validator enforces critical physical constraints on snow parameter values
+        for each site. It is migrated from SnowParams.validate_all for centralized
+        validation.
 
-        These are critical constraints that must be satisfied for proper
-        snow modeling, so they raise ValidationError rather than warnings.
+        Parameters
+        ----------
+        self : SUEWSConfig
+            The SUEWSConfig instance being validated.
+
+        Returns
+        -------
+        SUEWSConfig
+            The validated SUEWSConfig instance.
+
+        Raises
+        ------
+        ValueError
+            If any snow parameter constraint is violated.
+
+        Notes
+        -----
+        The following checks are performed for each site:
+        - crwmin < crwmax : Critical water content minimum must be less than maximum.
+        - 0 <= crwmin <= 1 and 0 <= crwmax <= 1 : Critical water content must be within [0, 1].
+        - snowalbmin < snowalbmax : Minimum snow albedo must be less than maximum.
+        - 0 <= snowalbmin <= 1 and 0 <= snowalbmax <= 1 : Snow albedo must be within [0, 1].
+
+        These constraints are essential for proper snow modeling and will raise
+        a ValueError if violated.
         """
         from .type import RefValue  # Import here to avoid circular import
 
@@ -621,16 +723,23 @@ class SUEWSConfig(BaseModel):
     def validate_albedo_ranges(self) -> "SUEWSConfig":
         """
         Validate albedo ranges for vegetated surfaces in all sites.
-        Migrated from VegetatedSurfaceProperties.validate_albedo_range for centralized validation.
 
-        Checks:
-        - alb_min <= alb_max for all vegetated surfaces (evetr, dectr, grass)
+        This validator enforces that the minimum and maximum albedo values for
+        all vegetated surfaces (evergreen trees, deciduous trees, grass) are
+        within the physical range [0, 1] and that alb_min <= alb_max. It also
+        checks that the initial albedo (alb_id) is within [alb_min, alb_max]
+        when available.
 
-        This ensures proper albedo parameter ranges for vegetation modeling.
+        Notes
+        -----
+        - This validator depends on `set_default_vegetation_albedo` running first.
+          (Pydantic v2 executes model_validators in definition order.)
+        - Do not reorder these validators.
 
-        NOTE: This validator depends on set_default_vegetation_albedo running
-        first (Pydantic v2 executes model_validators in definition order).
-        Do not reorder these validators.
+        Raises
+        ------
+        ValueError
+            If any albedo parameter is out of bounds or inconsistent.
         """
         from .type import RefValue  # Import here to avoid circular import
 
@@ -699,12 +808,20 @@ class SUEWSConfig(BaseModel):
     def validate_deciduous_porosity_ranges(self) -> "SUEWSConfig":
         """
         Validate porosity ranges for deciduous trees in all sites.
-        Migrated from DectrProperties.validate_porosity_range for centralized validation.
 
-        Checks:
-        - pormin_dec < pormax_dec (minimum porosity < maximum porosity)
+        Ensures that the minimum and maximum porosity parameters for deciduous trees
+        are within the physical range [0, 1] and that pormin_dec < pormax_dec.
 
-        This ensures proper porosity parameter ranges for deciduous tree modeling.
+        Notes
+        -----
+        - pormin_dec: Minimum porosity for deciduous trees (should be >= 0 and <= 1)
+        - pormax_dec: Maximum porosity for deciduous trees (should be >= 0 and <= 1)
+        - pormin_dec must be strictly less than pormax_dec
+
+        Raises
+        ------
+        ValueError
+            If any porosity parameter is out of bounds or inconsistent.
         """
         from .type import RefValue  # Import here to avoid circular import
 
@@ -819,7 +936,26 @@ class SUEWSConfig(BaseModel):
                 logger_supy.info(f"Could not generate annotated YAML: {e}")
 
     def _validate_site_parameters(self, site: Site, site_index: int) -> None:
-        """Validate all parameters for a single site."""
+        """
+        Validate all parameters for a single site.
+
+        Parameters
+        ----------
+        site : Site
+            The site object to validate.
+        site_index : int
+            Index of the site in the configuration.
+
+        Notes
+        -----
+        This method performs a series of checks on the provided site, including:
+        - Conductance parameters
+        - CO2 emission parameters
+        - Land cover and surface parameters
+        - LAI (Leaf Area Index) range parameters
+
+        Any issues found are recorded in the validation summary for reporting.
+        """
 
         if not site.properties:
             return
@@ -862,7 +998,27 @@ class SUEWSConfig(BaseModel):
             self._validation_summary["sites_with_issues"].append(site_name)
 
     def _check_conductance(self, conductance, site_name: str) -> bool:
-        """Check for missing conductance parameters. Returns True if issues found."""
+        """
+        Check for missing conductance parameters.
+
+        Parameters
+        ----------
+        conductance : object
+            The conductance object to validate.
+        site_name : str
+            Name of the site being validated.
+
+        Returns
+        -------
+        bool
+            True if any critical conductance parameters are missing, False otherwise.
+
+        Notes
+        -----
+        This method checks for the presence of critical conductance parameters
+        required for evapotranspiration calculations. If any are missing, a warning
+        is recorded in the validation summary.
+        """
         from ..validation.core.utils import check_missing_params
 
         critical_params = {
@@ -889,7 +1045,35 @@ class SUEWSConfig(BaseModel):
         return False
 
     def _check_co2_params(self, co2, site_name: str) -> bool:
-        """Check for missing CO2 parameters. Returns True if issues found."""
+        """
+        Check for missing CO2 emission parameters.
+
+        This method checks for the presence of critical CO2 emission parameters
+        required for accurate model calculations. If any are missing, a warning
+        is recorded in the validation summary.
+
+        Parameters
+        ----------
+        co2 : object
+            The CO2 emissions object to validate.
+        site_name : str
+            Name of the site being validated.
+
+        Returns
+        -------
+        bool
+            True if any critical CO2 emission parameters are missing, otherwise False.
+
+        Notes
+        -----
+        The following parameters are checked:
+        - co2pointsource: CO2 point source emission factor
+        - ef_umolco2perj: CO2 emission factor per unit of fuel energy
+        - frfossilfuel_heat: Fraction of heating energy from fossil fuels
+        - frfossilfuel_nonheat: Fraction of non-heating energy from fossil fuels
+
+        Any missing parameters are added to the validation summary.
+        """
         from ..validation.core.utils import check_missing_params
 
         critical_params = {
@@ -912,7 +1096,24 @@ class SUEWSConfig(BaseModel):
         return False
 
     def _check_land_cover(self, land_cover, site_name: str) -> bool:
-        """Check land cover parameters. Returns True if issues found."""
+        """
+        Check land cover parameters for all surface types.
+
+        This method validates the parameters for each surface type within the land cover.
+        It checks for missing or invalid parameters and records any issues found.
+
+        Returns
+        -------
+        bool
+            True if any issues are found, False otherwise.
+
+        Notes
+        -----
+        - Iterates over all defined surface types (bldgs, grass, dectr, evetr, bsoil, paved, water).
+        - For each surface type present in the land cover, checks for required parameters.
+        - Delegates detailed surface parameter checks to `_check_surface_parameters`.
+        - Accumulates and returns whether any issues were found.
+        """
         # Check each surface type
         surface_types = ["bldgs", "grass", "dectr", "evetr", "bsoil", "paved", "water"]
         has_issues = False
@@ -929,7 +1130,33 @@ class SUEWSConfig(BaseModel):
     def _check_surface_parameters(
         self, surface, surface_type: str, site_name: str
     ) -> bool:
-        """Check parameters for a specific surface type. Returns True if issues found."""
+        """
+        Check parameters for a specific surface type.
+
+        Parameters
+        ----------
+        surface : object
+            The surface object to validate (e.g., bldgs, grass, dectr, etc.).
+        surface_type : str
+            The type of surface being checked (e.g., "bldgs", "grass").
+        site_name : str
+            The name of the site for reporting issues.
+
+        Returns
+        -------
+        bool
+            True if any issues are found for the given surface, False otherwise.
+
+        Notes
+        -----
+        - For building surfaces (bldgs) with sfr > 0.05, checks for required parameters
+          such as building height and frontal area index.
+        - For vegetated surfaces (grass, dectr, evetr), checks for required CO2 and
+          respiration parameters.
+        - For surfaces with thermal layers, checks for completeness of thermal properties.
+        - Only surfaces with a positive surface fraction (sfr > 0) are validated.
+        - Issues found are recorded in the validation summary for reporting.
+        """
         from ..validation.core.utils import check_missing_params
 
         has_issues = False
@@ -1002,7 +1229,34 @@ class SUEWSConfig(BaseModel):
     def _check_thermal_layers(
         self, thermal_layers, surface_type: str, site_name: str
     ) -> bool:
-        """Check thermal layer parameters. Returns True if issues found."""
+        """
+        Check thermal layer parameters for a specific surface type.
+
+        This method validates the presence and completeness of thermal layer parameters
+        (dz, k, rho_cp) for a given surface type (e.g., walls, roofs, etc.) in the
+        configuration. It also detects common YAML naming issues (e.g., 'cp' instead of 'rho_cp').
+
+        Parameters
+        ----------
+        thermal_layers : object
+            The thermal_layers object to validate.
+        surface_type : str
+            The type of surface being checked (e.g., "walls", "roofs").
+        site_name : str
+            The name of the site for reporting issues.
+
+        Returns
+        -------
+        bool
+            True if any issues are found for the given thermal layers, False otherwise.
+
+        Notes
+        -----
+        - Checks that dz (layer thickness), k (thermal conductivity), and rho_cp (volumetric heat capacity)
+          are present and non-empty lists (either as plain lists or RefValue wrappers).
+        - If 'cp' is found instead of 'rho_cp' in the YAML, records a naming issue instead of a missing parameter.
+        - Updates the validation summary with the type of issue found.
+        """
         missing_params = []
 
         def _is_valid_layer_array(field):
@@ -1057,7 +1311,24 @@ class SUEWSConfig(BaseModel):
         return False
 
     def _check_lai_ranges(self, land_cover, site_name: str) -> bool:
-        """Check LAI range parameters for vegetation surfaces. Returns True if issues found."""
+        """
+        Check LAI (Leaf Area Index) range parameters for vegetation surfaces.
+
+        This method validates the LAI parameters for all vegetated surface types
+        (grass, dectr, evetr) within the provided land cover. It checks that:
+        - laimin <= laimax
+        - baset <= gddfull
+
+        Returns
+        -------
+        bool
+            True if any issues are found, False otherwise.
+
+        Notes
+        -----
+        - Issues found are recorded in the validation summary for reporting.
+        - Uses consistent unwrapping of RefValue wrappers.
+        """
         has_issues = False
 
         # Initialize validation summary if it doesn't exist (for testing)
@@ -1211,10 +1482,31 @@ class SUEWSConfig(BaseModel):
 
     def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
         """
-        If stebbsmethod==1, enforce that site.properties.stebbs
-        and site.properties.building_archetype have all
-        required parameters with non-null values.
-        Returns a list of issue messages.
+        Validate required STEBBS and building archetype parameters when stebbsmethod==1.
+
+        If `stebbsmethod==1`, this function enforces that both `site.properties.stebbs`
+        and `site.properties.building_archetype` contain all required parameters with
+        non-null values. The required parameter lists are defined by
+        `STEBBS_REQUIRED_PARAMS` and `ARCHETYPE_REQUIRED_PARAMS`, with dynamic
+        filtering based on the Window-to-Wall Ratio (WWR).
+
+        Parameters
+        ----------
+        site : Site
+            The site object to validate.
+        site_index : int
+            Index of the site in the configuration.
+
+        Returns
+        -------
+        issues : list of str
+            List of issue messages describing any missing required parameters.
+
+        Notes
+        -----
+        - If WWR is 0.0, window parameters are excluded from the required lists.
+        - If WWR is 1.0, external wall parameters are excluded from the required lists.
+        - All missing parameters are reported, regardless of count.
         """
         issues: List[str] = []
 
@@ -1354,9 +1646,19 @@ class SUEWSConfig(BaseModel):
 
     def _needs_rsl_validation(self) -> bool:
         """
-        Return True if RSL diagnostic method is explicitly enabled.
-        Only triggers validation if rslmethod == 2 AND the value was explicitly set
-        (not just the default value).
+        Determine if the RSL method is explicitly enabled.
+
+        Returns
+        -------
+        bool
+            True if `rslmethod` is set to 2 and was explicitly configured by the user,
+            False otherwise.
+
+        Notes
+        -----
+        - Validation is only triggered if `rslmethod == 2` AND the value was explicitly set
+          (not just the default value).
+        - Uses Pydantic's `model_fields_set` to distinguish user-provided values from defaults.
         """
         if not hasattr(self.model, "physics") or not hasattr(
             self.model.physics, "rslmethod"
@@ -1377,8 +1679,28 @@ class SUEWSConfig(BaseModel):
 
     def _validate_rsl(self, site: Site, site_index: int) -> List[str]:
         """
-        If rslmethod==2, then for any site where bldgs.sfr > 0,
-        bldgs.faibldg must be set and non-null.
+        Validate RSL (Roughness Sublayer) method requirements for a site.
+
+        If `rslmethod == 2`, then for any site where `bldgs.sfr > 0`,
+        `bldgs.faibldg` must be set and non-null.
+
+        Parameters
+        ----------
+        site : Site
+            The site object to validate.
+        site_index : int
+            Index of the site in the configuration.
+
+        Returns
+        -------
+        issues : list of str
+            List of issue messages describing any missing required parameters.
+
+        Notes
+        -----
+        - Only applies if `rslmethod == 2` is explicitly set.
+        - Checks that for each site with buildings (`bldgs.sfr > 0`), the
+          frontal area index (`bldgs.faibldg`) is provided.
         """
         issues: List[str] = []
         props = getattr(site, "properties", None)
@@ -1408,9 +1730,19 @@ class SUEWSConfig(BaseModel):
 
     def _needs_storage_validation(self) -> bool:
         """
-        Return True if DyOHM storage-heat method is explicitly enabled.
-        Only triggers validation if storageheatmethod == 6 AND the value was explicitly set
-        (not just the default value).
+        Determine if DyOHM storage-heat method is explicitly enabled.
+
+        Returns
+        -------
+        bool
+            True if `storageheatmethod` is set to 6 or 7 and was explicitly configured by the user,
+            False otherwise.
+
+        Notes
+        -----
+        - Validation is only triggered if `storageheatmethod` is 6 or 7 AND the value was explicitly set
+          (not just the default value).
+        - Uses Pydantic's `model_fields_set` to distinguish user-provided values from defaults.
         """
         if not hasattr(self.model, "physics") or not hasattr(
             self.model.physics, "storageheatmethod"
@@ -1429,15 +1761,60 @@ class SUEWSConfig(BaseModel):
         return False
     
     def _needs_same_albedo_wall_validation(self) -> bool:
-        """Return True if same_albedo_wall option is enabled (==1)."""
+        """
+        Check if the same_albedo_wall option is enabled.
+
+        Returns
+        -------
+        bool
+            True if the 'same_albedo_wall' option is set to 1, False otherwise.
+
+        Notes
+        -----
+        This method determines whether the validation for identical wall albedo
+        across all wall layers should be performed, based on the configuration
+        of the 'same_albedo_wall' parameter in the model physics settings.
+        """
         return self._needs_same_albedo_validation("same_albedo_wall")
 
     def _needs_same_albedo_roof_validation(self) -> bool:
-        """Return True if same_albedo_roof option is enabled (==1)."""
+        """
+        Check if the same_albedo_roof option is enabled.
+
+        Returns
+        -------
+        bool
+            True if the 'same_albedo_roof' option is set to 1, False otherwise.
+
+        Notes
+        -----
+        This method determines whether the validation for identical roof albedo
+        across all roof layers should be performed, based on the configuration
+        of the 'same_albedo_roof' parameter in the model physics settings.
+        """
         return self._needs_same_albedo_validation("same_albedo_roof")
 
     def _needs_same_albedo_validation(self, attr: str) -> bool:
-        """Helper for same_albedo_wall/roof validation."""
+        """
+        Helper for same_albedo_wall/roof validation.
+
+        Parameters
+        ----------
+        attr : str
+            Name of the physics attribute to check (e.g., "same_albedo_wall", "same_albedo_roof").
+
+        Returns
+        -------
+        bool
+            True if the specified attribute is set to 1 (enabled), False otherwise.
+
+        Notes
+        -----
+        This method checks whether the given attribute in the model physics
+        configuration is explicitly enabled (set to 1), which triggers
+        validation for identical surface properties (e.g., albedo or emissivity)
+        across all relevant layers.
+        """
         physics = getattr(self.model, "physics", None)
         if not physics or not hasattr(physics, attr):
             return False
@@ -1448,15 +1825,59 @@ class SUEWSConfig(BaseModel):
             return False
 
     def _needs_same_emissivity_wall_validation(self) -> bool:
-        """Return True if same_emissivity_wall option is enabled (==1)."""
+        """
+        Check if the same_emissivity_wall option is enabled.
+
+        Returns
+        -------
+        bool
+            True if the 'same_emissivity_wall' option is set to 1, False otherwise.
+
+        Notes
+        -----
+        This method determines whether the validation for identical wall emissivity
+        across all wall layers should be performed, based on the configuration
+        of the 'same_emissivity_wall' parameter in the model physics settings.
+        """
         return self._needs_same_emissivity_validation("same_emissivity_wall")
 
     def _needs_same_emissivity_roof_validation(self) -> bool:
-        """Return True if same_emissivity_roof option is enabled (==1)."""
+        """
+        Check if the same_emissivity_roof option is enabled.
+
+        Returns
+        -------
+        bool
+            True if the 'same_emissivity_roof' option is set to 1, False otherwise.
+
+        Notes
+        -----
+        This method determines whether the validation for identical roof emissivity
+        across all roof layers should be performed, based on the configuration
+        of the 'same_emissivity_roof' parameter in the model physics settings.
+        """
         return self._needs_same_emissivity_validation("same_emissivity_roof")
 
     def _needs_same_emissivity_validation(self, attr: str) -> bool:
-        """Helper for same_emissivity_wall/roof validation."""
+        """
+        Helper for same_emissivity_wall/roof validation.
+
+        Parameters
+        ----------
+        attr : str
+            Name of the physics attribute to check (e.g., "same_emissivity_wall", "same_emissivity_roof").
+
+        Returns
+        -------
+        bool
+            True if the specified attribute is set to 1 (enabled), False otherwise.
+
+        Notes
+        -----
+        This method checks whether the given attribute in the model physics
+        configuration is explicitly enabled (set to 1), which triggers
+        validation for identical surface emissivity across all relevant layers.
+        """
         physics = getattr(self.model, "physics", None)
         if not physics or not hasattr(physics, attr):
             return False
@@ -1482,6 +1903,33 @@ class SUEWSConfig(BaseModel):
         return bool(physics and hasattr(physics, "model_fields_set") and option_name in physics.model_fields_set)
 
     def _validate_storage(self, site: Site, site_index: int) -> List[str]:
+        """
+        Validate DyOHM storage-heat method requirements for a site.
+
+        This function checks that all required parameters for the DyOHM storage-heat
+        method (storageheatmethod 6 or 7) are present and valid for the given site.
+        It ensures that vertical_layers.walls, thermal_layers, and initial_states
+        arrays are non-empty and contain only numeric values, and that lambda_c is set.
+
+        Parameters
+        ----------
+        site : Site
+            The site object to validate.
+        site_index : int
+            Index of the site in the configuration.
+
+        Returns
+        -------
+        issues : list of str
+            List of issue messages describing any missing or invalid parameters.
+
+        Notes
+        -----
+        - Checks for presence and validity of vertical_layers.walls and their thermal_layers.
+        - Ensures that dz, k, and rho_cp arrays are non-empty and numeric.
+        - Validates initial_states.qn_surfs and dqndt_surf arrays.
+        - Checks that lambda_c is set and non-null.
+        """
         issues: List[str] = []
 
         site_name = getattr(site, "name", f"Site {site_index}")
@@ -1655,24 +2103,80 @@ class SUEWSConfig(BaseModel):
         return issues
 
     def _validate_same_albedo_wall(self, site: Site, site_index: int) -> List[str]:
+        """
+        Validate that wall albedo is uniform across all wall layers and matches the building archetype.
+
+        Returns
+        -------
+        list of str
+            List of issue messages if validation fails; empty if valid.
+
+        Notes
+        -----
+        - Checks that all wall albedo values in vertical_layers.walls are identical (within tolerance).
+        - Checks that the common wall albedo matches properties.building_archetype.WallReflectivity.
+        - Used when same_albedo_wall option is enabled.
+        """
         return self._validate_same_surface_property(
             site, site_index, "wall", "walls", "alb", "WallReflectivity",
             "same_albedo_wall", "albedo",
         )
 
     def _validate_same_albedo_roof(self, site: Site, site_index: int) -> List[str]:
+        """
+        Validate that roof albedo is uniform across all roof layers and matches the building archetype.
+
+        Returns
+        -------
+        list of str
+            List of issue messages if validation fails; empty if valid.
+
+        Notes
+        -----
+        - Checks that all roof albedo values in vertical_layers.roofs are identical (within tolerance).
+        - Checks that the common roof albedo matches properties.building_archetype.RoofReflectivity.
+        - Used when same_albedo_roof option is enabled.
+        """
         return self._validate_same_surface_property(
             site, site_index, "roof", "roofs", "alb", "RoofReflectivity",
             "same_albedo_roof", "albedo",
         )
 
     def _validate_same_emissivity_wall(self, site: Site, site_index: int) -> List[str]:
+        """
+        Validate that wall emissivity is uniform across all wall layers and matches the building archetype.
+
+        Returns
+        -------
+        list of str
+            List of issue messages if validation fails; empty if valid.
+
+        Notes
+        -----
+        - Checks that all wall emissivity values in vertical_layers.walls are identical (within tolerance).
+        - Checks that the common wall emissivity matches properties.building_archetype.WallExternalEmissivity.
+        - Used when same_emissivity_wall option is enabled.
+        """
         return self._validate_same_surface_property(
             site, site_index, "wall", "walls", "emis", "WallExternalEmissivity",
             "same_emissivity_wall", "emissivity",
         )
 
     def _validate_same_emissivity_roof(self, site: Site, site_index: int) -> List[str]:
+        """
+        Validate that roof emissivity is uniform across all roof layers and matches the building archetype.
+
+        Returns
+        -------
+        list of str
+            List of issue messages if validation fails; empty if valid.
+
+        Notes
+        -----
+        - Checks that all roof emissivity values in vertical_layers.roofs are identical (within tolerance).
+        - Checks that the common roof emissivity matches properties.building_archetype.RoofExternalEmissivity.
+        - Used when same_emissivity_roof option is enabled.
+        """
         return self._validate_same_surface_property(
             site, site_index, "roof", "roofs", "emis", "RoofExternalEmissivity",
             "same_emissivity_roof", "emissivity",
@@ -1680,7 +2184,17 @@ class SUEWSConfig(BaseModel):
 
     def _needs_spartacus_validation(self) -> bool:
         """
-        Return True if SPARTACUS is enabled (netradiationmethod 1001, 1002, or 1003).
+        Determine if SPARTACUS method is enabled.
+
+        Returns
+        -------
+        bool
+            True if SPARTACUS is enabled (i.e., netradiationmethod is 1001, 1002, or 1003), False otherwise.
+
+        Notes
+        -----
+        SPARTACUS is enabled when the model physics parameter `netradiationmethod`
+        is set to one of the following values: 1001, 1002, or 1003.
         """
         spartacus_methods = {1001, 1002, 1003}
         netrad_method = _unwrap_value(getattr(self.model.physics, "netradiationmethod", None))
@@ -1692,8 +2206,29 @@ class SUEWSConfig(BaseModel):
 
     def _validate_spartacus_building_height(self, site: Site, site_index: int) -> List[str]:
         """
-        If SPARTACUS is enabled, enforce that bldgh and (if stebbsmethod==1) stebbs_Height do not exceed the domain top (height[nlayer]).
-        Returns a list of issue messages.
+        Check that building heights do not exceed the SPARTACUS domain top.
+
+        If SPARTACUS is enabled, this function enforces that:
+        - The building height (bldgh) does not exceed the domain top (height[nlayer]).
+        - If stebbsmethod == 1, the archetype's stebbs_Height also does not exceed the domain top.
+
+        Parameters
+        ----------
+        site : Site
+            The site object to validate.
+        site_index : int
+            Index of the site in the configuration.
+
+        Returns
+        -------
+        issues : list of str
+            List of issue messages if validation fails; empty if valid.
+
+        Notes
+        -----
+        - The domain top is defined as the last entry in the vertical_layers.height array (height[nlayer]).
+        - If stebbsmethod == 1, both bldgh and stebbs_Height are checked.
+        - All issues are reported with the site name for clarity.
         """
         issues: List[str] = []
         site_name = getattr(site, "name", f"Site {site_index}")
@@ -1738,10 +2273,22 @@ class SUEWSConfig(BaseModel):
 
     def _validate_spartacus_sfr(self, site: Site, site_index: int) -> list:
         """
-        If SPARTACUS is enabled, check that:
-        - bldgs.sfr == building_frac[0]
-        - (evetr.sfr + dectr.sfr) == max(veg_frac[:])
-        Returns a list of issue messages.
+        Validate SPARTACUS building and vegetation surface fractions for a site.
+
+        If SPARTACUS is enabled, this function checks that:
+        - The building surface fraction (bldgs.sfr) matches the first entry of vertical_layers.building_frac.
+        - The sum of evergreen and deciduous tree surface fractions (evetr.sfr + dectr.sfr)
+          matches the maximum value in vertical_layers.veg_frac.
+
+        Returns
+        -------
+        list of str
+            List of issue messages if validation fails; empty if valid.
+
+        Notes
+        -----
+        - Uses a tolerance of 1e-6 for floating point comparisons.
+        - Returns early if required properties are missing.
         """
         issues: list = []
         site_name = getattr(site, "name", f"Site {site_index}")
@@ -1793,10 +2340,33 @@ class SUEWSConfig(BaseModel):
     
     def _validate_spartacus_veg_dimensions(self, site: Site, site_index: int) -> list:
         """
-        Check that veg_scale and veg_frac are zero above the layer where max_tree falls.
-        max_tree = max(dectreeh, evetreeh)
-        The first layer where max_tree <= height[layer] (layer index 1..nlayer) is the tree layer.
-        All veg_scale and veg_frac entries from this layer onward (i.e., layer_index to nlayer-1) must be zero.
+        Validate that veg_scale and veg_frac are zero above the tree canopy layer.
+
+        This check ensures that vegetation-related arrays (veg_scale and veg_frac)
+        are zero for all layers above the tallest tree in the site. The procedure is:
+
+        1. Determine the maximum tree height (max_tree) from dectr and evetr heights.
+        2. Find the first vertical layer index (layer_index) such that
+           max_tree <= height[layer_index].
+        3. For all layers from layer_index to nlayer-1 (inclusive), check that
+           veg_scale and veg_frac are zero (within a small tolerance).
+
+        Parameters
+        ----------
+        site : Site
+            The site object to validate.
+        site_index : int
+            Index of the site in the configuration.
+
+        Returns
+        -------
+        issues : list of str
+            List of issue messages if validation fails; empty if valid.
+
+        Notes
+        -----
+        - If no tree heights are provided, or height array is too short, no issues are reported.
+        - Uses np.isclose with atol=1e-6 for floating point comparisons.
         """
         issues: list = []
         site_name = getattr(site, "name", f"Site {site_index}")
@@ -1851,8 +2421,34 @@ class SUEWSConfig(BaseModel):
 
     def _validate_conditional_parameters(self) -> List[str]:
         """
-        Run any method‐specific validations (STEBBS, RSL, StorageHeat) in one
-        site-loop. Returns all issue messages.
+        Run conditional, method-specific validations for all sites.
+
+        This method performs additional validation checks that depend on the
+        configuration of specific model options, such as STEBBS, RSL, StorageHeat,
+        same_albedo_wall/roof, same_emissivity_wall/roof, and SPARTACUS. These
+        checks are only executed if the corresponding method is enabled in the
+        model configuration.
+
+        Returns
+        -------
+        list of str
+            List of issue messages describing any validation failures found.
+
+        Notes
+        -----
+        - STEBBS: Validates required STEBBS and building archetype parameters when
+          `stebbsmethod == 1`.
+        - RSL: Validates that `bldgs.faibldg` is set when `rslmethod == 2`.
+        - StorageHeat: Checks DyOHM storage-heat method requirements when
+          `storageheatmethod == 6 or 7`.
+        - same_albedo_wall/roof: Ensures uniform albedo across wall/roof layers and
+          matches the building archetype if enabled.
+        - same_emissivity_wall/roof: Ensures uniform emissivity across wall/roof
+          layers and matches the building archetype if enabled.
+        - SPARTACUS: Validates building height, surface fraction, and vegetation
+          layer consistency when SPARTACUS is enabled.
+
+        All issues found are accumulated and returned as a list of messages.
         """
         all_issues: List[str] = []
 
@@ -1974,7 +2570,22 @@ class SUEWSConfig(BaseModel):
     def _check_critical_null_physics_params(self) -> List[str]:
         """
         Check for critical null physics parameters that would cause runtime crashes.
-        Returns list of error messages for critical nulls.
+
+        This method inspects the model physics parameters that are critical for
+        simulation and must not be set to None. If any of these parameters are
+        missing or set to null, a runtime crash will occur (e.g., when converting
+        to DataFrame state or running the model).
+
+        Returns
+        -------
+        List[str]
+            List of error messages for each critical parameter found to be null.
+
+        Notes
+        -----
+        - The list of critical parameters is defined in CRITICAL_PHYSICS_PARAMS.
+        - Handles both direct values and RefValue wrappers.
+        - Returns an empty list if all critical parameters are set.
         """
         # Critical physics parameters that get converted to int() in df_state
         CRITICAL_PHYSICS_PARAMS = [
@@ -2407,14 +3018,34 @@ class SUEWSConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_building_layers(self) -> "SUEWSConfig":
-        """Validate building layer consistency across all sites.
+        """
+        Validate building layer consistency across all sites.
 
-        Checks that building-related arrays have consistent lengths:
-        - Building heights array must have nlayer+1 elements
-        - Building fractions array must have nlayer elements
-        - Building scales array must have nlayer elements
-        - Roof layers count must match nlayer
-        - Wall layers count must match nlayer
+        Ensures that building-related arrays and lists have consistent lengths
+        with respect to the number of vertical layers (`nlayer`). This is
+        critical for correct model operation and prevents runtime errors.
+
+        Checks performed for each site:
+            - Building heights array (`height`) must have `nlayer + 1` elements.
+            - Building fractions array (`building_frac`) must have `nlayer` elements.
+            - Building scales array (`building_scale`) must have `nlayer` elements.
+            - Roof layers list (`roofs`) must have `nlayer` elements.
+            - Wall layers list (`walls`) must have `nlayer` elements.
+
+        Returns
+        -------
+        SUEWSConfig
+            The validated SUEWSConfig instance.
+
+        Raises
+        ------
+        ValueError
+            If any array or list does not match the expected length for `nlayer`.
+
+        Notes
+        -----
+        - Uses `_unwrap_value` to handle RefValue wrappers.
+        - Skips validation for missing properties or arrays.
         """
         from .type import RefValue  # Import here to avoid circular import
 
@@ -2634,15 +3265,31 @@ class SUEWSConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_hourly_profile_hours(self) -> "SUEWSConfig":
-        """Validate hourly profiles have complete and valid hour coverage.
+        """
+        Validate hourly profiles have complete and valid hour coverage.
 
         Ensures all HourlyProfile instances across all sites have:
-        - All hour keys between 1 and 24 (inclusive)
-        - Exactly hours 1-24 with no missing hours or duplicates
+            - All hour keys between 1 and 24 (inclusive)
+            - Exactly hours 1-24 with no missing or extra hours
 
-        This applies to profiles like snow, irrigation, anthropogenic heat,
+        This applies to profiles such as snow, irrigation, anthropogenic heat,
         population, traffic, and human activity profiles.
-        Migrated from HourlyProfile.validate_hours for centralized validation.
+
+        Notes
+        -----
+        - Migrated from HourlyProfile.validate_hours for centralized validation.
+        - Raises ValueError if any profile is missing required hours or contains invalid hour keys.
+
+        Returns
+        -------
+        SUEWSConfig
+            The validated SUEWSConfig instance.
+
+        Raises
+        ------
+        ValueError
+            If any hourly profile is missing required hours, contains invalid hour keys,
+            or has hours outside the 1-24 range.
         """
         for site_index, site in enumerate(self.sites):
             # Get site name (Site class has name field with default "test site")
@@ -2746,15 +3393,38 @@ class SUEWSConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_dls_parameters(self) -> "SUEWSConfig":
-        """Validate daylight saving time parameters across all sites.
+        """
+        Validate daylight saving time (DLS) parameters across all sites.
 
-        Performs validation checks:
-        1. Consistency: both startdls and enddls set, or both None (ERROR)
-        2. Leap year refinement: DOY 366 only valid in leap years (ERROR)
-        3. Compare user values with calculated DLS: Informs if values differ from location-based calculations (INFO)
+        This validator performs the following checks for each site:
 
-        These validations are particularly useful when Phase C runs standalone
-        or when loading YAML directly via SUEWSConfig.from_yaml().
+        1. Consistency: Ensures that both `startdls` and `enddls` are either set or both None.
+           Raises an error if only one is set.
+
+        2. Leap year validation: Checks that the day-of-year (DOY) values for `startdls` and `enddls`
+           do not exceed 365 for non-leap years or 366 for leap years. Raises an error if invalid.
+
+        3. Informational comparison: If latitude, longitude, and simulation year are available,
+           compares user-provided DLS values with those calculated for the site's location and year.
+           Adds informational messages if they differ.
+
+        These checks help ensure correct DLS configuration, especially when running Phase C
+        standalone or loading YAML directly via `SUEWSConfig.from_yaml()`.
+
+        Returns
+        -------
+        SUEWSConfig
+            The validated SUEWSConfig instance.
+
+        Raises
+        ------
+        ValueError
+            If DLS parameters are inconsistent or out of valid range for the simulation year.
+
+        Notes
+        -----
+        - Leap year is determined from `model.control.start_time`.
+        - Informational messages are added to the validation summary if user values differ from calculated values.
         """
         # Initialize validation summary if not already present
         if not hasattr(self, "_validation_summary"):

@@ -53,6 +53,10 @@ EXAMPLES:
 
 ## 2026
 
+### 29 Mar 2026
+
+- [maintenance] Add and improve docstrings for all relevant validator rules across codebase to follow numpy style project convention (PR #1267).
+
 ### 26 Mar 2026
 
 - [feature][experimental] Add `setpointmethod` model option and heating/cooling setpoint profiles in STEBBS, supporting constant, dependent, and scheduled setpoint approaches (PR #1261).

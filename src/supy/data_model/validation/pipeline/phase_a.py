@@ -720,19 +720,32 @@ def create_null_roof_wall_template(reference_element: dict) -> dict:
 
 
 def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
-    """Validate that vertical layer array dimensions match nlayer value.
+    """
+    Validate that vertical layer array dimensions match the specified nlayer value.
 
-    Pads arrays with null values when dimensions don't match, but records errors
-    so validation fails and user is asked to replace nulls with actual values.
+    This function checks that certain arrays in the user_data dictionary have the correct
+    length according to the nlayer parameter. If arrays are too short, they are padded
+    with null values (None), and if they are too long, an error is recorded but the array
+    is not modified. For nested arrays (e.g., roofs, walls), missing elements are padded
+    with a null template matching the structure of the first element if available.
 
-    Args:
-        user_data: User YAML data (dict)
-        nlayer: Detected nlayer value
+    Parameters
+    ----------
+    user_data : dict
+        The user YAML data as a dictionary.
+    nlayer : int
+        The expected number of vertical layers.
 
-    Returns:
-        Tuple of (modified_user_data, dimension_errors) where dimension_errors is a list of
-        (path, expected_length, actual_length, nulls_added) tuples describing validation errors.
-        User must replace the null values with actual values.
+    Returns
+    -------
+    tuple
+        A tuple (modified_user_data, dimension_errors), where:
+        - modified_user_data : dict
+            The user_data dictionary with arrays padded as needed.
+        - dimension_errors : list of tuple
+            Each tuple is (path, expected_length, actual_length, nulls_added), describing
+            the location and nature of any dimension mismatch. The user must replace any
+            null values with actual values.
     """
     dimension_errors = []
 
@@ -947,9 +960,17 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
 
 def validate_nlayer_limit(user_data: dict) -> list:
     """
-    Validate that nlayer is less than 15 for each site.
+    Validate that the 'nlayer' parameter does not exceed the supported limit (15) for each site.
 
-    Returns a list of (path, nlayer_value, error_message) tuples for each site where nlayer >= 15.
+    Parameters
+    ----------
+    user_data : dict
+        The user YAML data as a dictionary.
+
+    Returns
+    -------
+    errors : list of tuple
+        Each tuple is (path, nlayer_value, error_message) for each site where nlayer > 15 or cannot be interpreted.
     """
     errors = []
     if not user_data or "sites" not in user_data:
@@ -982,15 +1003,28 @@ def validate_nlayer_limit(user_data: dict) -> list:
 def _validate_single_forcing_file(
     forcing_path: Path, yaml_dir: Path, physics: dict = None
 ) -> list:
-    """Validate a single forcing data file.
+    """
+    Validate a single forcing data file.
 
-    Args:
-        forcing_path: Path to forcing file (relative or absolute)
-        yaml_dir: Directory containing the YAML config (for resolving relative paths)
-        physics: Optional physics configuration dict for physics-specific validation
+    Parameters
+    ----------
+    forcing_path : Path
+        Path to the forcing file (can be relative or absolute).
+    yaml_dir : Path
+        Directory containing the YAML configuration file (used to resolve relative paths).
+    physics : dict, optional
+        Physics configuration dictionary for physics-specific validation (default is None).
 
-    Returns:
-        List of error messages (empty if valid)
+    Returns
+    -------
+    list of str
+        List of error messages. Returns an empty list if the file is valid.
+
+    Notes
+    -----
+    - This function attempts to resolve the forcing file path relative to the YAML directory if not absolute.
+    - It loads the forcing data and runs validation using SuPy's `check_forcing` function.
+    - Error messages are cleaned and contextualized with file information.
     """
     import re
     import logging
@@ -1076,15 +1110,31 @@ def _validate_single_forcing_file(
 
 
 def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
-    """Validate forcing data file(s) referenced in user YAML.
+    """
+    Validate forcing data file(s) referenced in the user YAML configuration.
 
-    Args:
-        user_yaml_file: Path to user YAML configuration file
-        physics: Optional physics configuration dict for physics-specific validation
+    Parameters
+    ----------
+    user_yaml_file : str
+        Path to the user YAML configuration file.
+    physics : dict, optional
+        Physics configuration dictionary for physics-specific validation (default is None).
 
-    Returns:
-        Tuple of (forcing_errors, forcing_file_paths) where forcing_errors is a list of error messages
-        and forcing_file_paths is the path(s) to the forcing file(s) (or None if not found).
+    Returns
+    -------
+    tuple
+        A tuple (forcing_errors, forcing_file_paths) where:
+        - forcing_errors : list of str
+            List of error messages encountered during validation. Empty if no errors.
+        - forcing_file_paths : str or list or None
+            The path(s) to the forcing file(s) as specified in the YAML, or None if not found.
+
+    Notes
+    -----
+    This function loads the user YAML file, extracts the forcing file(s) path(s) from
+    `model.control.forcing_file`, and validates each file using SuPy's forcing checker.
+    It supports both single file and list of files. Error messages are contextualized
+    and cleaned for user readability.
     """
     forcing_errors = []
     forcing_file_paths = None

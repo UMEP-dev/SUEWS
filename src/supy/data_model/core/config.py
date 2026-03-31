@@ -754,7 +754,7 @@ class SUEWSConfig(BaseModel):
 
         This validator enforces that the minimum and maximum albedo values for
         all vegetated surfaces (evergreen trees, deciduous trees, grass) are
-        within the physical range [0, 1] and that alb_min ≤ alb_max. It also
+        within the physical range [0, 1] and that alb_min <= alb_max. It also
         checks that the initial albedo (alb_id) is within [alb_min, alb_max]
         when available.
 
@@ -1029,17 +1029,6 @@ class SUEWSConfig(BaseModel):
         """
         Check for missing conductance parameters.
 
-        Returns
-        -------
-        bool
-            True if any critical conductance parameters are missing, otherwise False.
-
-        Notes
-        -----
-        This method checks for the presence of critical conductance parameters
-        required for evapotranspiration calculations. If any are missing, a warning
-        is recorded in the validation summary.
-
         Parameters
         ----------
         conductance : object
@@ -1050,7 +1039,13 @@ class SUEWSConfig(BaseModel):
         Returns
         -------
         bool
-            True if issues are found (missing parameters), False otherwise.
+            True if any critical conductance parameters are missing, False otherwise.
+
+        Notes
+        -----
+        This method checks for the presence of critical conductance parameters
+        required for evapotranspiration calculations. If any are missing, a warning
+        is recorded in the validation summary.
         """
         from ..validation.core.utils import check_missing_params
 
@@ -1349,8 +1344,8 @@ class SUEWSConfig(BaseModel):
 
         This method validates the LAI parameters for all vegetated surface types
         (grass, dectr, evetr) within the provided land cover. It checks that:
-        - laimin ≤ laimax
-        - baset ≤ gddfull
+        - laimin <= laimax
+        - baset <= gddfull
 
         Returns
         -------

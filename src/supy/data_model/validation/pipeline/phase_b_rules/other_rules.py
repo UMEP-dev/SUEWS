@@ -267,21 +267,25 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
 def validate_geographic_parameters(context) -> List[ValidationResult]:
     """
     Validate geographic coordinates and related location parameters for each site.
+
     This function checks the presence, type, and valid range of latitude and longitude
     for each site in the provided context. It also verifies the presence of timezone
     and daylight saving parameters, issuing warnings if they are missing (as they can
     be calculated automatically). Validation results are returned for each issue found,
     and a PASS result is added if no errors are detected.
+
     Parameters
     ----------
     context : object
         An object containing the YAML data to be validated. Must have a `yaml_data`
         attribute with a "sites" key, where each site is a dictionary of properties.
+
     Returns
     -------
     List[ValidationResult]
         A list of ValidationResult objects describing errors, warnings, or a pass
         status for the geographic parameters of each site.
+
     Notes
     -----
     - Latitude must be a numeric value between -90 and 90.
@@ -657,8 +661,8 @@ def check_missing_vegetation_albedo(context) -> List[ValidationResult]:
     This is informational only: SUEWSConfig will auto-calculate alb_id from
     LAI state before the model run.
 
-    Trees use a direct LAI-albedo relationship (higher LAI → higher albedo).
-    Grass uses a reversed relationship (higher LAI → lower albedo).
+    Trees use a direct LAI-albedo relationship (higher LAI -> higher albedo).
+    Grass uses a reversed relationship (higher LAI -> lower albedo).
 
     Returns
     -------

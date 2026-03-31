@@ -221,15 +221,18 @@ def check_daylight_control(context):
 @RulesRegistry.add_rule("stebbs_props")
 def check_stebbs_properties(context):
     """
-    Validates the 'HotWaterFlowProfile' values in the Stebbs properties for each site.
+    Validate the 'HotWaterFlowProfile' values in the STEBBS properties for each site.
+
     Checks that, if the 'stebbsmethod' is set to 1 in the model physics configuration,
     the 'HotWaterFlowProfile' for both 'working_day' and 'holiday' day types contains
     only values of 0 or 1 for each hour. If any value is not 0 or 1, an error is added
     to the results.
+
     Parameters
     ----------
     context : object
         An object containing the parsed YAML data as an attribute `yaml_data`.
+
     Returns
     -------
     list of ValidationResult

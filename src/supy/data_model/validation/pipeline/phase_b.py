@@ -182,7 +182,6 @@ def extract_simulation_parameters(yaml_data: dict) -> Tuple[int, str, str]:
     -----
     All validation errors are collected and reported together in the exception message.
     """
-    """Extract simulation parameters for validation."""
     control = yaml_data.get("model", {}).get("control", {})
 
     start_date = control.get("start_time")
@@ -1526,10 +1525,6 @@ def _get_range_and_id(surf_props: dict, surf_state: dict) -> Tuple[Optional[floa
         - alb_id : float or None
             Current albedo value for the surface (from surf_state).
     """
-    alb_min = get_value_safe(surf_props, "alb_min")
-    alb_max = get_value_safe(surf_props, "alb_max")
-    alb_id = get_value_safe(surf_state, "alb_id")
-    return alb_min, alb_max, alb_id
     alb_min = get_value_safe(surf_props, "alb_min")
     alb_max = get_value_safe(surf_props, "alb_max")
     alb_id = get_value_safe(surf_state, "alb_id")

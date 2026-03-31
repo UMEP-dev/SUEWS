@@ -109,6 +109,7 @@ def get_value_safe(param_dict, param_key, default=None):
     else:
         return param  # Plain format: 1
 
+
 def unwrap_value(val):
     """
     Unwrap RefValue and Enum values consistently.
@@ -142,16 +143,14 @@ def unwrap_value(val):
 
 
 def unwrap_nested_value(x: Any) -> Any:
+    """Unwrap RefValue-like objects or {"value": ...} dicts recursively.
 
-    """
-    Unwrap RefValue-like objects or {"value": ...} dicts recursively.
-
-    Handles dicts with a "value" key nested within other dicts or objects that have a "value" attribute,
-    recursively unwrapping up to 10 levels deep.
+    Handles dicts with a "value" key nested within other dicts or objects
+    that have a "value" attribute, recursively unwrapping up to 10 levels deep.
 
     Args:
-        x (Any): The value to unwrap. Can be a dict with a "value" key, an object with a "value" attribute, 
-        or any other type.
+        x (Any): The value to unwrap. Can be a dict with a "value" key,
+            an object with a "value" attribute, or any other type.
 
     Returns:
         Any: The unwrapped value, or None if input is None.
@@ -166,7 +165,7 @@ def unwrap_nested_value(x: Any) -> Any:
             continue
         # RefValue-like form
         if hasattr(cur, "value"):
-            cur = getattr(cur, "value")
+            cur = cur.value
             continue
         break
     return cur

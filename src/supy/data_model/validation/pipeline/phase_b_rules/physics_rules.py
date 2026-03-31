@@ -470,8 +470,8 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
 
     Notes
     -----
-    - Raises an ERROR if `z` < 2 × mean building height (`land_cover.bldgs.bldgh`).
-    - Raises a WARNING if `z` < 2 × maximum configured building height, where the maximum is the largest of:
+    - Raises an ERROR if `z` < 2 * mean building height (`land_cover.bldgs.bldgh`).
+    - Raises a WARNING if `z` < 2 * maximum configured building height, where the maximum is the largest of:
         - `land_cover.bldgs.bldgh`
         - `building_archetype.stebbs_Height` (if `stebbsmethod == 1`)
         - Last non-zero entry in `vertical_layers.height` (SPARTACUS top height, if enabled)
@@ -500,7 +500,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
     results: List[ValidationResult] = []
 
     physics = yaml_data.get("model", {}).get("physics", {})
-    
+
     stebbsmethod_val = _unwrap_nested_value(physics.get("stebbsmethod"))
     try:
         stebbsmethod_val = int(stebbsmethod_val)
@@ -524,7 +524,8 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
             continue
 
         # mean building height (SUEWS land cover buildings)
-        bldgs = _unwrap_nested_value(_unwrap_nested_value(props.get("land_cover", {})).get("bldgs", {}))
+        land_cover_raw = _unwrap_nested_value(props.get("land_cover") or {})
+        bldgs = _unwrap_nested_value(land_cover_raw.get("bldgs", {})) if isinstance(land_cover_raw, Mapping) else None
         bldgh = _as_float(_unwrap_nested_value(bldgs.get("bldgh"))) if isinstance(bldgs, Mapping) else None
 
         # optional STEBBS archetype height (only when STEBBS is enabled)

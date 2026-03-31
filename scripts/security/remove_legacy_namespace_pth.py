@@ -24,7 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--site-dir",
         action="append",
         default=[],
-        help="Additional site-packages directory to scan. Defaults to the active environment.",
+        help="Specific site-packages directory to scan. Defaults to the active environment when omitted.",
     )
     parser.add_argument(
         "--dry-run",
@@ -40,24 +40,29 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def discover_site_dirs(extra_dirs: list[str] | None = None) -> list[Path]:
-    """Return unique site-package directories for the active environment."""
+    """Return unique site-package directories to scan.
+
+    When explicit directories are provided, scan only those paths. Otherwise,
+    fall back to the active environment's site-package directories.
+    """
     candidates: list[Path] = []
 
-    getsitepackages = getattr(site, "getsitepackages", None)
-    if callable(getsitepackages):
-        for location in getsitepackages():
+    if extra_dirs:
+        for location in extra_dirs:
             candidates.append(Path(location))
+    else:
+        getsitepackages = getattr(site, "getsitepackages", None)
+        if callable(getsitepackages):
+            for location in getsitepackages():
+                candidates.append(Path(location))
 
-    if getattr(site, "ENABLE_USER_SITE", False):
-        try:
-            user_site = site.getusersitepackages()
-        except Exception:
-            user_site = None
-        if user_site:
-            candidates.append(Path(user_site))
-
-    for location in extra_dirs or []:
-        candidates.append(Path(location))
+        if getattr(site, "ENABLE_USER_SITE", False):
+            try:
+                user_site = site.getusersitepackages()
+            except Exception:
+                user_site = None
+            if user_site:
+                candidates.append(Path(user_site))
 
     unique: list[Path] = []
     seen: set[Path] = set()

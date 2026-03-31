@@ -340,3 +340,27 @@ class TenMinuteProfile(BaseModel):
         }
 
         return cls(working_day=working_day, holiday=holiday)
+
+
+class HeatingSetpointProfile(TenMinuteProfile):
+    """10-minute profile for heating setpoints (default: off)."""
+
+    model_config = ConfigDict(title="Heating Setpoint Profile")
+
+    @classmethod
+    def __init_default_values__(cls) -> Dict[str, Dict[str, float]]:
+        off_value = 0.0
+        ten_min_values = {str(i): off_value for i in range(1, 145)}
+        return {"working_day": ten_min_values.copy(), "holiday": ten_min_values.copy()}
+
+
+class CoolingSetpointProfile(TenMinuteProfile):
+    """10-minute profile for cooling setpoints (default: off)."""
+
+    model_config = ConfigDict(title="Cooling Setpoint Profile")
+
+    @classmethod
+    def __init_default_values__(cls) -> Dict[str, Dict[str, float]]:
+        off_value = 100.0
+        ten_min_values = {str(i): off_value for i in range(1, 145)}
+        return {"working_day": ten_min_values.copy(), "holiday": ten_min_values.copy()}

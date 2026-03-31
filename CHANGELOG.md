@@ -40,7 +40,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 72 | 79 | 29 | 79 | 40 | 299 |
+| 2026 | 73 | 80 | 29 | 79 | 40 | 301 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -52,6 +52,11 @@ EXAMPLES:
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 26 Mar 2026
+
+- [feature][experimental] Add `setpointmethod` model option and heating/cooling setpoint profiles in STEBBS, supporting constant, dependent, and scheduled setpoint approaches (PR #1261).
+- [bugfix] Skip STEBBS wall or window surface-temperature calculations for the extreme `WWR` cases, avoiding non-existent surface calculations when `WWR = 0` or `WWR = 1` (PR #1261).
 
 ### 23 Mar 2026
 

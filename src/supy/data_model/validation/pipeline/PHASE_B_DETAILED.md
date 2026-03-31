@@ -159,6 +159,18 @@ Validates the `stebbsmethod` parameter and related STEBBS and building archetype
 
 - **Error Handling**: All validation errors specify the site, parameter, and suggested correction in the validation report.
 
+### Forcing Height vs Building Heights Validation
+
+Validates that the forcing height `z` is physically consistent with the mean building height and maximum building height for each site:
+
+- **Consistency Check**: Validates that the forcing height `z` is at least twice the mean and maximum building heights for each site.
+    - **ERROR** if `z` is less than 2 × mean building height (`land_cover.bldgs.bldgh`).
+    - **WARNING** if `z` is less than 2 × the maximum configured building height, where the maximum is the largest of:
+        - `land_cover.bldgs.bldgh`
+        - `building_archetype.stebbs_Height` (if `stebbsmethod == 1`)
+        - The last non-zero entry in `vertical_layers.height` (SPARTACUS top height, if enabled).
+    - This check ensures the forcing height is physically appropriate relative to the urban morphology.
+- **Error Handling**: If `z` is not above the mean building height, an ERROR is reported; if not above the max building height, a WARNING is reported. Both include site, parameter, and suggested correction.
 
 ### Land Cover Consistency
 

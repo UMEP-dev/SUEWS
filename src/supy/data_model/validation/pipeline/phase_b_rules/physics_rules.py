@@ -3,6 +3,8 @@ from .rules_core import (
     ValidationResult,
 )
 from ...core.yaml_helpers import get_value_safe
+from ...core.yaml_helpers import unwrap_nested_value as _unwrap_nested_value
+
 from collections.abc import Mapping
 from typing import Dict, List, Optional, Union, Any, Tuple
 
@@ -939,4 +941,163 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                             suggested_value="Set all entries in CoolingSetpointTemperatureProfile to values greater than 15.0.",
                         )
                     )
+    return results
+
+
+@RulesRegistry.add_rule("forcing_height")
+def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
+    """
+    Validate that the forcing height (z) is at least twice the mean and maximum building heights.
+
+    Parameters
+    ----------
+    context : object
+        Validation context containing the parsed YAML data.
+
+    Returns
+    -------
+    List[ValidationResult]
+        List of validation results indicating errors or warnings if the forcing height is too low.
+
+    Notes
+    -----
+    - Raises an ERROR if `z` < 2 * mean building height (`land_cover.bldgs.bldgh`).
+    - Raises a WARNING if `z` < 2 * maximum configured building height, where the maximum is the largest of:
+        - `land_cover.bldgs.bldgh`
+        - `building_archetype.stebbs_Height` (if `stebbsmethod == 1`)
+        - Last non-zero entry in `vertical_layers.height` (SPARTACUS top height, if enabled)
+    - This check ensures the forcing height is appropriate relative to the urban morphology.
+    """
+    def _as_float(x: Any) -> Optional[float]:
+        if x is None:
+            return None
+        try:
+            return float(x)
+        except (TypeError, ValueError):
+            return None
+
+    def _last_nonzero_from_height(height_arr: Any) -> Optional[float]:
+        """Given unwrapped height array/list, return last non-zero float, else None."""
+        if not isinstance(height_arr, (list, tuple)) or not height_arr:
+            return None
+        last_nz = None
+        for h in height_arr:
+            hf = _as_float(_unwrap_nested_value(h))
+            if hf is not None and hf != 0.0:
+                last_nz = hf
+        return last_nz
+
+    yaml_data = context.yaml_data
+    results: List[ValidationResult] = []
+
+    physics = yaml_data.get("model", {}).get("physics", {})
+
+    stebbsmethod_val = _unwrap_nested_value(physics.get("stebbsmethod"))
+    try:
+        stebbsmethod_val = int(stebbsmethod_val)
+    except (TypeError, ValueError):
+        stebbsmethod_val = None
+
+    netradiationmethod_val = _unwrap_nested_value(physics.get("netradiationmethod"))
+    try:
+        netradiationmethod_val = int(netradiationmethod_val)
+    except (TypeError, ValueError):
+        netradiationmethod_val = None
+
+    for site_idx, site in enumerate(yaml_data.get("sites", [])):
+        props = site.get("properties", {})
+        site_gridid = get_value_safe(site, "gridiv")
+        site_name = site.get("name", "Unknown")
+
+        # forcing height
+        z = _as_float(_unwrap_nested_value(props.get("z")))
+        if z is None:
+            continue
+
+        # mean building height (SUEWS land cover buildings)
+        land_cover_raw = _unwrap_nested_value(props.get("land_cover") or {})
+        bldgs = _unwrap_nested_value(land_cover_raw.get("bldgs", {})) if isinstance(land_cover_raw, Mapping) else None
+        bldgh = _as_float(_unwrap_nested_value(bldgs.get("bldgh"))) if isinstance(bldgs, Mapping) else None
+
+        # optional STEBBS archetype height (only when STEBBS is enabled)
+        stebbs_height = None
+        if stebbsmethod_val == 1:
+            archetype = _unwrap_nested_value(props.get("building_archetype"))
+            if isinstance(archetype, Mapping):
+                stebbs_height = _as_float(_unwrap_nested_value(archetype.get("stebbs_Height")))
+
+        # SPARTACUS heights (only if SPARTACUS is enabled via netradiationmethod)
+        spartacus_top = None
+
+        if netradiationmethod_val in (1001, 1002, 1003):
+            vertical_layers = _unwrap_nested_value(props.get("vertical_layers"))
+            height_arr = None
+            if isinstance(vertical_layers, Mapping):
+                height_arr = _unwrap_nested_value(vertical_layers.get("height"))
+                spartacus_top = _last_nonzero_from_height(height_arr)
+
+        # --- ERROR: z smaller than 2x mean building height ---
+        if bldgh is None:
+            results.append(
+                ValidationResult(
+                    status="WARNING",
+                    category="FORCING",
+                    parameter="properties.land_cover.bldgs.bldgh",
+                    site_index=site_idx,
+                    site_gridid=site_gridid,
+                    message=(
+                        f"Site '{site_name}': cannot validate forcing height z={z} against "
+                        "2*mean building height because land_cover.bldgs.bldgh is missing."
+                    ),
+                    suggested_value="Provide land_cover.bldgs.bldgh to enable this check.",
+                )
+            )
+        else:
+            threshold_mean = 2.0 * bldgh
+            if z < threshold_mean:
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="FORCING",
+                        parameter="properties.z",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message=(
+                            f"Site '{site_name}': forcing height z={z} is smaller than "
+                            f"2*mean building height (2*bldgh={threshold_mean}; bldgh={bldgh}). "
+                        ),
+                        suggested_value=f"Increase z to >= {threshold_mean} (or reduce bldgh).",
+                    )
+                )
+
+        # --- WARNING: z smaller than 2x max configured building height ---
+        candidates = [h for h in [bldgh, stebbs_height, spartacus_top] if h is not None]
+        if candidates:
+            h_max = max(candidates)
+            threshold_max = 2.0 * h_max
+            if z < threshold_max:
+                parts = []
+                if bldgh is not None:
+                    parts.append(f"bldgh={bldgh}")
+                if stebbs_height is not None:
+                    parts.append(f"stebbs_Height={stebbs_height}")
+                if spartacus_top is not None:
+                    parts.append(f"SPARTACUS top layer height={spartacus_top}")
+
+                results.append(
+                    ValidationResult(
+                        status="WARNING",
+                        category="FORCING",
+                        parameter="properties.z",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message=(
+                            f"Site '{site_name}': forcing height z={z} m is smaller than "
+                            f"2*max building height (2*max building height={threshold_max}; max building height={h_max} "
+                            f"from {', '.join(parts)})."
+                        ),
+                        suggested_value=f"Consider increasing z to >= {threshold_max} if appropriate for your case.",
+                    )
+                )
+
     return results

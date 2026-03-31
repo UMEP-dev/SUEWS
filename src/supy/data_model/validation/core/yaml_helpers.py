@@ -110,6 +110,67 @@ def get_value_safe(param_dict, param_key, default=None):
         return param  # Plain format: 1
 
 
+def unwrap_value(val):
+    """
+    Unwrap RefValue and Enum values consistently.
+
+    This helper ensures consistent handling of RefValue wrappers and Enum values
+    throughout the validation logic.
+
+    Args:
+        val: The value to unwrap (could be RefValue, Enum, or raw value)
+
+    Returns:
+        The unwrapped raw value
+    """
+    # Handle RefValue wrapper
+    if (
+        hasattr(val, "value")
+        and hasattr(val, "__class__")
+        and "RefValue" in val.__class__.__name__
+    ):
+        val = val.value
+
+    # Handle Enum values (which also have .value attribute)
+    if (
+        hasattr(val, "value")
+        and hasattr(val, "__class__")
+        and "Enum" in str(val.__class__.__bases__)
+    ):
+        val = val.value
+
+    return val
+
+
+def unwrap_nested_value(x: Any) -> Any:
+    """Unwrap RefValue-like objects or {"value": ...} dicts recursively.
+
+    Handles dicts with a "value" key nested within other dicts or objects
+    that have a "value" attribute, recursively unwrapping up to 10 levels deep.
+
+    Args:
+        x (Any): The value to unwrap. Can be a dict with a "value" key,
+            an object with a "value" attribute, or any other type.
+
+    Returns:
+        Any: The unwrapped value, or None if input is None.
+    """
+    cur = x
+    for _ in range(10):
+        if cur is None:
+            return None
+        # dict YAML form
+        if isinstance(cur, Mapping) and "value" in cur:
+            cur = cur["value"]
+            continue
+        # RefValue-like form
+        if hasattr(cur, "value"):
+            cur = cur.value
+            continue
+        break
+    return cur
+
+
 class SeasonCheck(BaseModel):
     start_date: str  # Expected format: YYYY-MM-DD
     lat: float

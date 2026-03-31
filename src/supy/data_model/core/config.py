@@ -251,6 +251,8 @@ class SUEWSConfig(BaseModel):
         "MaximumHotWaterHeatingPower",
         "HeatingSetpointTemperature",
         "CoolingSetpointTemperature",
+        "HeatingSetpointTemperatureProfile",
+        "CoolingSetpointTemperatureProfile",
     ]
 
     # Sort the filtered columns numerically
@@ -1615,6 +1617,24 @@ class SUEWSConfig(BaseModel):
             "WallCp",
         ]
 
+        # Check setpointmethod value
+        setpointmethod = getattr(self.model.physics, "setpointmethod", None)
+        setpointmethod_val = _unwrap_value(setpointmethod) if setpointmethod is not None else None
+        try:
+            setpointmethod_val = int(setpointmethod_val)
+        except (TypeError, ValueError):
+            setpointmethod_val = None
+
+        # Setpoint parameter groups
+        setpoint_params_bldgarc = [
+            "HeatingSetpointTemperature",
+            "CoolingSetpointTemperature",
+        ]
+        setpoint_profile_params_bldgarc = [
+            "HeatingSetpointTemperatureProfile",
+            "CoolingSetpointTemperatureProfile",
+        ]
+
         # Determine which params to require based on WWR
         if wwr_val == 0.0:
             # Exclude window params if WWR is zero
@@ -1627,6 +1647,18 @@ class SUEWSConfig(BaseModel):
         else:
             stebbs_required = self.STEBBS_REQUIRED_PARAMS
             archetype_required = self.ARCHETYPE_REQUIRED_PARAMS
+
+        # Exclude setpoint params based on setpointmethod
+        if setpointmethod_val == 2:
+            # Only require the profile params, not the scalar setpoint temps
+            archetype_required = [
+                p for p in archetype_required if p not in setpoint_params_bldgarc
+            ]
+        else:
+            # Only require the scalar setpoint temps, not the profile params
+            archetype_required = [
+                p for p in archetype_required if p not in setpoint_profile_params_bldgarc
+            ]
 
         # Validate stebbs required params
         _check_required(stebbs, stebbs_required)
@@ -2603,6 +2635,7 @@ class SUEWSConfig(BaseModel):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
+            "setpointmethod",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",

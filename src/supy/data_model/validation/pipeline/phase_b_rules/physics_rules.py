@@ -73,6 +73,7 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         "same_albedo_roof",
         "same_emissivity_wall",
         "same_emissivity_roof",
+        "setpointmethod",
     ]
 
     missing_params = [
@@ -677,4 +678,265 @@ def validate_model_option_same_emissivity(context) -> List[ValidationResult]:
                 )
             )
 
+    return results
+
+@RulesRegistry.add_rule("setpointmethod")
+def validate_model_option_setpoint(context) -> List[ValidationResult]:
+    """
+    Validate setpoint temperature configuration for buildings.
+
+    Parameters
+    ----------
+    context : object
+        Validation context containing the parsed YAML data.
+
+    Returns
+    -------
+    List[ValidationResult]
+        List of validation results for setpoint temperature configuration.
+
+    Notes
+    -----
+    - For `setpointmethod` 0 or 1, checks that `HeatingSetpointTemperature` and
+      `CoolingSetpointTemperature` are set in each site's `building_archetype`.
+    - For `setpointmethod` 2, checks that all entries in
+      `HeatingSetpointTemperatureProfile` and `CoolingSetpointTemperatureProfile`
+      are present (not null), that heating values are less than 30.0, and cooling
+      values are greater than 15.0 for all 144 ten-minute slices in both
+      `working_day` and `holiday` profiles.
+    """
+    results = []
+    yaml_data = context.yaml_data
+    physics = yaml_data.get("model", {}).get("physics", {})
+
+    setpointmethod = get_value_safe(physics, "setpointmethod")
+
+    if setpointmethod == 0 or setpointmethod == 1:
+        for site in yaml_data.get("sites", []):
+            site_name = site.get("name", "Unknown")
+            building_archetype = site.get("properties", {}).get("building_archetype", {})
+            heating = get_value_safe(building_archetype, "HeatingSetpointTemperature")
+            cooling = get_value_safe(building_archetype, "CoolingSetpointTemperature")
+            if heating is None:
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter="HeatingSetpointTemperature",
+                        site_gridid=site_name,
+                        site_index=None,
+                        message="HeatingSetpointTemperature must be set when setpointmethod == 0 or 1.",
+                        suggested_value="Set HeatingSetpointTemperature to a valid temperature value."
+                    )
+                )
+            if cooling is None:
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter="CoolingSetpointTemperature",
+                        site_gridid=site_name,
+                        site_index=None,
+                        message="CoolingSetpointTemperature must be set when setpointmethod == 0 or 1.",
+                        suggested_value="Set CoolingSetpointTemperature to a valid temperature value."
+                    )
+                )
+    elif setpointmethod == 2:
+        for site_idx, site in enumerate(yaml_data.get("sites", [])):
+            site_name = site.get("name", "Unknown")
+            building_archetype = site.get("properties", {}).get("building_archetype", {})
+            heating_profile = building_archetype.get("HeatingSetpointTemperatureProfile", {})
+            cooling_profile = building_archetype.get("CoolingSetpointTemperatureProfile", {})
+
+            # Check heating profile
+            heating_missing_entries = []
+            heating_out_of_range = []
+            if not isinstance(heating_profile, Mapping):
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter="HeatingSetpointTemperatureProfile",
+                        site_gridid=site_name,
+                        site_index=site_idx,
+                        message="HeatingSetpointTemperatureProfile must be a mapping with daytype keys when setpointmethod == 2.",
+                        suggested_value="Set HeatingSetpointTemperatureProfile to a mapping with working_day and holiday keys, each mapping ten-minute slices to temperature.",
+                    )
+                )
+            else:
+                for daytype in ("working_day", "holiday"):
+                    profile = heating_profile.get(daytype, {})
+                    if not isinstance(profile, Mapping):
+                        results.append(
+                            ValidationResult(
+                                status="ERROR",
+                                category="MODEL_OPTIONS",
+                                parameter=f"HeatingSetpointTemperatureProfile.{daytype}",
+                                site_gridid=site_name,
+                                site_index=site_idx,
+                                message=f"HeatingSetpointTemperatureProfile.{daytype} must be a mapping of ten-minute slice to value.",
+                                suggested_value="Set each daytype to a mapping of ten-minute slice (as string) to temperature value.",
+                            )
+                        )
+                    else:
+                        # Enforce exactly 144 ten-minute slices per day-type (1-144)
+                        expected_slices = {str(i) for i in range(1, 145)}
+                        actual_slices = set(profile.keys())
+                        missing_slices = expected_slices - actual_slices
+                        extra_slices = actual_slices - expected_slices
+                        for slice_str in expected_slices:
+                            temp_val = profile.get(slice_str)
+                            if temp_val is None:
+                                heating_missing_entries.append(f"{daytype}.{slice_str}")
+                            else:
+                                try:
+                                    if float(temp_val) >= 30.0:
+                                        heating_out_of_range.append(f"{daytype}.{slice_str}={temp_val}")
+                                except Exception:
+                                    heating_out_of_range.append(f"{daytype}.{slice_str}={temp_val}")
+                        if missing_slices:
+                            results.append(
+                                ValidationResult(
+                                    status="ERROR",
+                                    category="MODEL_OPTIONS",
+                                    parameter=f"HeatingSetpointTemperatureProfile.{daytype}",
+                                    site_gridid=site_name,
+                                    site_index=site_idx,
+                                    message=f"HeatingSetpointTemperatureProfile.{daytype} is missing {len(missing_slices)} entries: {', '.join(sorted(missing_slices))}. Must have all 144 entries.",
+                                    suggested_value="Define all 144 ten-minutes slice entries in the profile.",
+                                )
+                            )
+                        if extra_slices:
+                            results.append(
+                                ValidationResult(
+                                    status="ERROR",
+                                    category="MODEL_OPTIONS",
+                                    parameter=f"HeatingSetpointTemperatureProfile.{daytype}",
+                                    site_gridid=site_name,
+                                    site_index=site_idx,
+                                    message=f"HeatingSetpointTemperatureProfile.{daytype} has {len(extra_slices)} unexpected entries: {', '.join(sorted(extra_slices))}. Only entries 1-144 are valid.",
+                                    suggested_value="Remove any keys not in the range 1-144.",
+                                )
+                            )
+
+                if heating_missing_entries:
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="MODEL_OPTIONS",
+                            parameter="HeatingSetpointTemperatureProfile",
+                            site_gridid=site_name,
+                            site_index=site_idx,
+                            message=f"HeatingSetpointTemperatureProfile has null entries at: {', '.join(heating_missing_entries)}. All entries must be set when setpointmethod == 2.",
+                            suggested_value="Set all entries in HeatingSetpointTemperatureProfile to valid temperature values.",
+                        )
+                    )
+                if heating_out_of_range:
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="MODEL_OPTIONS",
+                            parameter="HeatingSetpointTemperatureProfile",
+                            site_gridid=site_name,
+                            site_index=site_idx,
+                            message=f"HeatingSetpointTemperatureProfile has values >= 30.0 at: {', '.join(heating_out_of_range)}. All heating setpoints must be less than 30.0.",
+                            suggested_value="Set all entries in HeatingSetpointTemperatureProfile to values less than 30.0.",
+                        )
+                    )
+
+            # Check cooling profile
+            cooling_missing_entries = []
+            cooling_out_of_range = []
+            if not isinstance(cooling_profile, Mapping):
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter="CoolingSetpointTemperatureProfile",
+                        site_gridid=site_name,
+                        site_index=site_idx,
+                        message="CoolingSetpointTemperatureProfile must be a mapping with daytype keys when setpointmethod == 2.",
+                        suggested_value="Set CoolingSetpointTemperatureProfile to a mapping with working_day and holiday keys, each mapping ten-minutes slice to temperature.",
+                    )
+                )
+            else:
+                for daytype in ("working_day", "holiday"):
+                    profile = cooling_profile.get(daytype, {})
+                    if not isinstance(profile, Mapping):
+                        results.append(
+                            ValidationResult(
+                                status="ERROR",
+                                category="MODEL_OPTIONS",
+                                parameter=f"CoolingSetpointTemperatureProfile.{daytype}",
+                                site_gridid=site_name,
+                                site_index=site_idx,
+                                message=f"CoolingSetpointTemperatureProfile.{daytype} must be a mapping of ten-minute slice to value.",
+                                suggested_value="Set each daytype to a mapping of ten-minute slice (as string) to temperature value.",
+                            )
+                        )
+                    else:
+                        # Enforce exactly 144 ten-minute slices per day-type (1-144)
+                        expected_slices = {str(i) for i in range(1, 145)}
+                        actual_slices = set(profile.keys())
+                        missing_slices = expected_slices - actual_slices
+                        extra_slices = actual_slices - expected_slices
+                        for slice_str in expected_slices:
+                            temp_val = profile.get(slice_str)
+                            if temp_val is None:
+                                cooling_missing_entries.append(f"{daytype}.{slice_str}")
+                            else:
+                                try:
+                                    if float(temp_val) <= 15.0:
+                                        cooling_out_of_range.append(f"{daytype}.{slice_str}={temp_val}")
+                                except Exception:
+                                    cooling_out_of_range.append(f"{daytype}.{slice_str}={temp_val}")
+                        if missing_slices:
+                            results.append(
+                                ValidationResult(
+                                    status="ERROR",
+                                    category="MODEL_OPTIONS",
+                                    parameter=f"CoolingSetpointTemperatureProfile.{daytype}",
+                                    site_gridid=site_name,
+                                    site_index=site_idx,
+                                    message=f"CoolingSetpointTemperatureProfile.{daytype} is missing {len(missing_slices)} entries: {', '.join(sorted(missing_slices))}. Must have all 144 entries.",
+                                    suggested_value="Define all 144 ten-minute slice entries in the profile.",
+                                )
+                            )
+                        if extra_slices:
+                            results.append(
+                                ValidationResult(
+                                    status="ERROR",
+                                    category="MODEL_OPTIONS",
+                                    parameter=f"CoolingSetpointTemperatureProfile.{daytype}",
+                                    site_gridid=site_name,
+                                    site_index=site_idx,
+                                    message=f"CoolingSetpointTemperatureProfile.{daytype} has {len(extra_slices)} unexpected entries: {', '.join(sorted(extra_slices))}. Only entries 1-144 are valid.",
+                                    suggested_value="Remove any keys not in the range 1-144.",
+                                )
+                            )
+
+                if cooling_missing_entries:
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="MODEL_OPTIONS",
+                            parameter="CoolingSetpointTemperatureProfile",
+                            site_gridid=site_name,
+                            site_index=site_idx,
+                            message=f"CoolingSetpointTemperatureProfile has null entries at: {', '.join(cooling_missing_entries)}. All entries must be set when setpointmethod == 2.",
+                            suggested_value="Set all entries in CoolingSetpointTemperatureProfile to valid temperature values.",
+                        )
+                    )
+                if cooling_out_of_range:
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="MODEL_OPTIONS",
+                            parameter="CoolingSetpointTemperatureProfile",
+                            site_gridid=site_name,
+                            site_index=site_idx,
+                            message=f"CoolingSetpointTemperatureProfile has values <= 15.0 at: {', '.join(cooling_out_of_range)}. All cooling setpoints must be greater than 15.0.",
+                            suggested_value="Set all entries in CoolingSetpointTemperatureProfile to values greater than 15.0.",
+                        )
+                    )
     return results

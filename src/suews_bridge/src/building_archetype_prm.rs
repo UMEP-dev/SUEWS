@@ -8,8 +8,8 @@ use std::collections::BTreeMap;
 
 pub const BUILDING_ARCHETYPE_PRM_PROFILE_STEPS: usize = 144;
 pub const BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS: usize = 2;
-pub const BUILDING_ARCHETYPE_PRM_FLAT_LEN: usize = 640;
-pub const BUILDING_ARCHETYPE_PRM_SCHEMA_VERSION: u32 = 2;
+pub const BUILDING_ARCHETYPE_PRM_FLAT_LEN: usize = 1216;
+pub const BUILDING_ARCHETYPE_PRM_SCHEMA_VERSION: u32 = 3;
 
 pub type BuildingArchetypePrmSchema = crate::codec::SimpleSchema;
 
@@ -79,6 +79,10 @@ pub struct BuildingArchetypePrm {
     pub maximumhotwaterheatingpower: f64,
     pub heatingsetpointtemperature: f64,
     pub coolingsetpointtemperature: f64,
+    pub heatingsetpointtemperatureprofile:
+        [[f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS]; BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
+    pub coolingsetpointtemperatureprofile:
+        [[f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS]; BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
     pub metabolismprofile:
         [[f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS]; BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
     pub applianceprofile:
@@ -152,6 +156,10 @@ impl Default for BuildingArchetypePrm {
             maximumhotwaterheatingpower: 0.0,
             heatingsetpointtemperature: 0.0,
             coolingsetpointtemperature: 0.0,
+            heatingsetpointtemperatureprofile: [[0.0; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
+                BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
+            coolingsetpointtemperatureprofile: [[0.0; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
+                BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
             metabolismprofile: [[0.0; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
                 BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
             applianceprofile: [[0.0; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
@@ -236,6 +244,24 @@ impl BuildingArchetypePrm {
         let heatingsetpointtemperature = next();
         let coolingsetpointtemperature = next();
 
+        let mut heatingsetpointtemperatureprofile =
+            [[0.0_f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
+                BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS];
+        for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
+            for step in 0..BUILDING_ARCHETYPE_PRM_PROFILE_STEPS {
+                heatingsetpointtemperatureprofile[day_type][step] = next();
+            }
+        }
+
+        let mut coolingsetpointtemperatureprofile =
+            [[0.0_f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
+                BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS];
+        for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
+            for step in 0..BUILDING_ARCHETYPE_PRM_PROFILE_STEPS {
+                coolingsetpointtemperatureprofile[day_type][step] = next();
+            }
+        }
+
         let mut metabolismprofile = [[0.0_f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
             BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS];
         for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
@@ -317,6 +343,8 @@ impl BuildingArchetypePrm {
             maximumhotwaterheatingpower,
             heatingsetpointtemperature,
             coolingsetpointtemperature,
+            heatingsetpointtemperatureprofile,
+            coolingsetpointtemperatureprofile,
             metabolismprofile,
             applianceprofile,
             lightingpowerdensity,
@@ -389,6 +417,14 @@ impl BuildingArchetypePrm {
         flat.push(self.maximumhotwaterheatingpower);
         flat.push(self.heatingsetpointtemperature);
         flat.push(self.coolingsetpointtemperature);
+
+        for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
+            flat.extend_from_slice(&self.heatingsetpointtemperatureprofile[day_type]);
+        }
+
+        for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
+            flat.extend_from_slice(&self.coolingsetpointtemperatureprofile[day_type]);
+        }
 
         for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
             flat.extend_from_slice(&self.metabolismprofile[day_type]);
@@ -522,6 +558,24 @@ pub fn building_archetype_prm_field_names() -> Vec<String> {
         "heatingsetpointtemperature".to_string(),
         "coolingsetpointtemperature".to_string(),
     ];
+
+    for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
+        for step in 0..BUILDING_ARCHETYPE_PRM_PROFILE_STEPS {
+            names.push(format!(
+                "heatingsetpointtemperatureprofile.{step:03}.{}",
+                day_type + 1
+            ));
+        }
+    }
+
+    for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
+        for step in 0..BUILDING_ARCHETYPE_PRM_PROFILE_STEPS {
+            names.push(format!(
+                "coolingsetpointtemperatureprofile.{step:03}.{}",
+                day_type + 1
+            ));
+        }
+    }
 
     for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
         for step in 0..BUILDING_ARCHETYPE_PRM_PROFILE_STEPS {

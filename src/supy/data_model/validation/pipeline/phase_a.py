@@ -35,6 +35,7 @@ PHYSICS_OPTIONS = {
     "same_albedo_roof",
     "same_emissivity_wall",
     "same_emissivity_roof",
+    "setpointmethod",
 }
 
 

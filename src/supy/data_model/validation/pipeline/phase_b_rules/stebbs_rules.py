@@ -178,7 +178,6 @@ def check_daylight_control(context):
       (accepting both integer and float representations), but only if the 'stebbsmethod' in the model
       physics is set to 1.
     - If 'DaylightControl' is 1, 'LightingIlluminanceThreshold' must be provided by the user in the YAML.
-    - For both 0 and 1, 'LightingPowerDensity' must be provided.
 
     Parameters
     ----------
@@ -237,21 +236,6 @@ def check_daylight_control(context):
                         )
                     )
 
-            # Check LightingPowerDensity for both 0 and 1
-            lpd = stebbs.get("LightingPowerDensity", None)
-            lpd_val = lpd.get("value") if isinstance(lpd, Mapping) else lpd
-            if lpd_val is None:
-                results.append(
-                    ValidationResult(
-                        status="ERROR",
-                        category="MODEL_OPTIONS",
-                        parameter="stebbs.LightingPowerDensity",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        message="LightingPowerDensity must be provided when STEBBS is active.",
-                        suggested_value="Provide a value for LightingPowerDensity in stebbs.",
-                    )
-                )
     return results
 
 

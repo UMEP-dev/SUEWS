@@ -172,11 +172,13 @@ def check_occupants_metabolism(context):
 @RulesRegistry.add_rule("daylight_control")
 def check_daylight_control(context):
     """
-    Validate the 'DaylightControl' flag for each site when STEBBS is active.
+    Validate the 'DaylightControl' flag and related lighting parameters for each site when STEBBS is active.
 
-    Checks that the 'DaylightControl' flag under each site's 'stebbs' properties is set to 0 or 1
-    (accepting both integer and float representations), but only if the 'stebbsmethod' in the model
-    physics is set to 1. If an invalid value is found, a ValidationResult is appended to the results.
+    - Checks that the 'DaylightControl' flag under each site's 'stebbs' properties is set to 0 or 1
+      (accepting both integer and float representations), but only if the 'stebbsmethod' in the model
+      physics is set to 1.
+    - If 'DaylightControl' is 1, 'LightingIlluminanceThreshold' must be provided by the user in the YAML.
+    - For both 0 and 1, 'LightingPowerDensity' must be provided.
 
     Parameters
     ----------
@@ -186,7 +188,7 @@ def check_daylight_control(context):
     Returns
     -------
     results : list of ValidationResult
-        A list of ValidationResult objects for each site with an invalid 'DaylightControl' value.
+        A list of ValidationResult objects for each site with an invalid or missing value.
     """
     yaml_data = context.yaml_data
 
@@ -203,6 +205,8 @@ def check_daylight_control(context):
 
             daylight_control = stebbs.get("DaylightControl", {})
             dc_val = daylight_control.get("value") if isinstance(daylight_control, Mapping) else daylight_control
+
+            # Validate DaylightControl value
             if dc_val not in (0, 1, 0.0, 1.0, None):
                 results.append(
                     ValidationResult(
@@ -213,6 +217,39 @@ def check_daylight_control(context):
                         site_gridid=site_gridid,
                         message=f"DaylightControl flag must be 0 (off) or 1 (on), got '{dc_val}'.",
                         suggested_value="Set DaylightControl to 0 or 1",
+                    )
+                )
+
+            # Check LightingIlluminanceThreshold if DaylightControl is 1
+            if dc_val in (1, 1.0):
+                lit = stebbs.get("LightingIlluminanceThreshold", None)
+                lit_val = lit.get("value") if isinstance(lit, Mapping) else lit
+                if lit_val is None:
+                    results.append(
+                        ValidationResult(
+                            status="ERROR",
+                            category="MODEL_OPTIONS",
+                            parameter="stebbs.LightingIlluminanceThreshold",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message="LightingIlluminanceThreshold must be provided when DaylightControl is 1.",
+                            suggested_value="Provide a value for LightingIlluminanceThreshold in stebbs.",
+                        )
+                    )
+
+            # Check LightingPowerDensity for both 0 and 1
+            lpd = stebbs.get("LightingPowerDensity", None)
+            lpd_val = lpd.get("value") if isinstance(lpd, Mapping) else lpd
+            if lpd_val is None:
+                results.append(
+                    ValidationResult(
+                        status="ERROR",
+                        category="MODEL_OPTIONS",
+                        parameter="stebbs.LightingPowerDensity",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message="LightingPowerDensity must be provided when STEBBS is active.",
+                        suggested_value="Provide a value for LightingPowerDensity in stebbs.",
                     )
                 )
     return results

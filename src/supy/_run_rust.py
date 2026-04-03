@@ -382,30 +382,46 @@ def run_suews_rust_multi(
     len_forcing = len(df_forcing)
 
     # Pre-serialise per-grid config JSON strings
-    list_grid_args = []
+    list_grid_ids = []
+    list_config_jsons = []
     for idx, site_dict in enumerate(list_site_dict):
         grid_id = _normalise_grid_id(sites[idx].gridiv)
+        list_grid_ids.append(grid_id)
         config_dict["sites"] = [site_dict]
-        config_json = json.dumps(config_dict)
-        list_grid_args.append((config_json, forcing_flat, len_forcing, grid_id))
+        list_config_jsons.append(json.dumps(config_dict))
 
-    # --- Execute grids (serial or parallel) ---
-    use_parallel = not serial_mode and len(sites) > 1
+    # --- Execute grids ---
+    # Use Rust Rayon parallelism (shared memory, no IPC overhead) when
+    # multiple grids are present and serial_mode is not forced.
+    use_rayon = not serial_mode and len(sites) > 1
+    has_rayon = hasattr(rust_module, "run_suews_multi")
 
-    if use_parallel:
-        import multiprocessing as mp
-
-        ctx = mp.get_context("spawn")
-        n_workers = max_workers or min(len(sites), mp.cpu_count())
+    if use_rayon and has_rayon:
         logger_supy.info(
-            "Running %d grids in parallel (%d workers)",
+            "Running %d grids in parallel (Rust/Rayon)",
             len(sites),
-            n_workers,
         )
-        with ctx.Pool(processes=n_workers) as pool:
-            results = pool.map(_run_single_grid_worker, list_grid_args)
+        raw_results = rust_module.run_suews_multi(
+            list_config_jsons,
+            forcing_flat,
+            len_forcing,
+        )
+        # raw_results: list of (grid_index, output_flat, state_json, len_sim)
+        # Sort by original index to preserve grid ordering
+        raw_results.sort(key=lambda r: r[0])
+        results = [
+            (list_grid_ids[idx], output_flat, state_json, len_sim)
+            for idx, output_flat, state_json, len_sim in raw_results
+        ]
     else:
-        results = [_run_single_grid_worker(a) for a in list_grid_args]
+        results = []
+        for idx, config_json in enumerate(list_config_jsons):
+            output_flat, state_json, len_sim = rust_module.run_suews(
+                config_json,
+                forcing_flat,
+                len_forcing,
+            )
+            results.append((list_grid_ids[idx], output_flat, state_json, len_sim))
 
     # --- Collect results ---
     list_df_output = []

@@ -26,6 +26,7 @@ EXAMPLES:
 
 ## Table of Contents
 
+- [2026](#2026)
 - [2025](#2025)
 - [2024](#2024)
 - [2023](#2023)
@@ -52,6 +53,10 @@ EXAMPLES:
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 3 Apr 2026
+
+- [doc] Release 2026.4.3: Rust FFI bridge, T2 attribution, RSL physics, STEBBS enhancements, validation improvements (PR #1250)
 
 ### 29 Mar 2026
 

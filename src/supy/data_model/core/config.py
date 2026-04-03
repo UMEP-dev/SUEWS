@@ -1605,6 +1605,16 @@ class SUEWSConfig(BaseModel):
             "CoolingSetpointTemperatureProfile",
         ]
 
+        # Daylight control parameter groups
+        daylightcontrol = getattr(stebbs, "DaylightControl", None)
+        daylightcontrol_val = _unwrap_value(daylightcontrol) if daylightcontrol is not None else None
+        try:
+            daylightcontrol_val = int(daylightcontrol_val)
+        except (TypeError, ValueError):
+            daylightcontrol_val = None
+
+        daylightcontrol_params_stebbs = ["LightingIlluminanceThreshold"]
+
         # Determine which params to require based on WWR
         if wwr_val == 0.0:
             # Exclude window params if WWR is zero
@@ -1622,13 +1632,17 @@ class SUEWSConfig(BaseModel):
         if setpointmethod_val == 2:
             # Only require the profile params, not the scalar setpoint temps
             archetype_required = [
-                p for p in archetype_required if p not in setpoint_params_bldgarc
+            p for p in archetype_required if p not in setpoint_params_bldgarc
             ]
         else:
             # Only require the scalar setpoint temps, not the profile params
             archetype_required = [
-                p for p in archetype_required if p not in setpoint_profile_params_bldgarc
+            p for p in archetype_required if p not in setpoint_profile_params_bldgarc
             ]
+
+        # Exclude daylight control params based on daylightcontrol
+        if daylightcontrol_val == 0:
+            stebbs_required = [p for p in stebbs_required if p not in daylightcontrol_params_stebbs]
 
         # Validate stebbs required params
         _check_required(stebbs, stebbs_required)

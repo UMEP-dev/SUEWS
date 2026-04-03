@@ -1396,7 +1396,42 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial(registry
     assert len(results) == 2
 
 def test_validate_model_option_stebbsmethod_daylightcontrol_valid(registry):
-    """Test DaylightControl accepts only 0 or 1 values."""
+    """Test DaylightControl accepts only 0 or 1 values, and LightingIlluminanceThreshold is required if 1."""
+    # Valid: DaylightControl = 1, LightingIlluminanceThreshold provided
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "DaylightControl": {"value": 1},
+                    "LightingIlluminanceThreshold": {"value": 300}
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for valid DaylightControl=1 with LightingIlluminanceThreshold"
+
+    # Valid: DaylightControl = 0, LightingIlluminanceThreshold not required
+    yaml_data["sites"][0]["properties"]["stebbs"]["DaylightControl"]["value"] = 0
+    yaml_data["sites"][0]["properties"]["stebbs"].pop("LightingIlluminanceThreshold")
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for valid DaylightControl=0"
+
+    # Valid: DaylightControl = 0.0 (float)
+    yaml_data["sites"][0]["properties"]["stebbs"]["DaylightControl"]["value"] = 0.0
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for valid DaylightControl=0.0"
+
+    # Valid: DaylightControl = 1.0 (float), LightingIlluminanceThreshold provided
+    yaml_data["sites"][0]["properties"]["stebbs"]["DaylightControl"]["value"] = 1.0
+    yaml_data["sites"][0]["properties"]["stebbs"]["LightingIlluminanceThreshold"] = {"value": 200}
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for valid DaylightControl=1.0 with LightingIlluminanceThreshold"
+
+def test_validate_model_option_stebbsmethod_daylightcontrol_missing_lit(registry):
+    """Test DaylightControl == 1 but LightingIlluminanceThreshold missing returns error."""
     yaml_data = {
         "model": {"physics": {"stebbsmethod": {"value": 1}}},
         "sites": [{
@@ -1404,32 +1439,16 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_valid(registry):
             "properties": {
                 "stebbs": {
                     "DaylightControl": {"value": 1}
+                    # LightingIlluminanceThreshold missing
                 }
             }
         }],
     }
     results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
-    assert not results, "Should not return errors for valid DaylightControl value"
-
-    yaml_data["sites"][0]["properties"]["stebbs"]["DaylightControl"]["value"] = 0
-    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
-    assert not results, "Should not return errors for valid DaylightControl value 0"
-
-def test_validate_model_option_stebbsmethod_daylightcontrol_zero(registry):
-    """Test DaylightControl == 0 is accepted as valid."""
-    yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
-        "sites": [{
-            "name": "site1",
-            "properties": {
-                "stebbs": {
-                    "DaylightControl": {"value": 0}
-                }
-            }
-        }],
-    }
-    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
-    assert not results, "Should not return errors for DaylightControl == 0"
+    assert len(results) == 1
+    assert results[0].parameter == "stebbs.LightingIlluminanceThreshold"
+    assert results[0].status == "ERROR"
+    assert "must be provided" in results[0].message
 
 def test_validate_model_option_stebbsmethod_daylightcontrol_invalid(registry):
     """Test DaylightControl returns ERROR for invalid values."""
@@ -1484,6 +1503,57 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_missing(registry):
     }
     results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors if DaylightControl is missing"
+
+def test_validate_model_option_stebbsmethod_daylightcontrol_not_active(registry):
+    """Test no validation occurs if stebbsmethod != 1."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 0}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "DaylightControl": {"value": 2}
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors if stebbsmethod != 1"
+
+def test_daylight_control_lightingilluminancethreshold_zero(registry):
+    """Test LightingIlluminanceThreshold=0 is accepted when DaylightControl=1."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "DaylightControl": {"value": 1},
+                    "LightingIlluminanceThreshold": {"value": 0}
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for LightingIlluminanceThreshold=0"
+
+def test_daylight_control_daylightcontrol_zero(registry):
+    """Test DaylightControl=0 is accepted and LightingIlluminanceThreshold is not required."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "DaylightControl": {"value": 0}
+                    # LightingIlluminanceThreshold not provided
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for DaylightControl=0 without LightingIlluminanceThreshold"
+
 
 def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_nonzero(registry):
     """Test error when Occupants=0.0 but MetabolismProfile has nonzero values."""

@@ -8,7 +8,12 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+import json
+
 import yaml
+
+# Use C-based YAML dumper when available (5-10x faster than pure Python)
+_yaml_Dumper = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 
 from ._env import logger_supy
 from ._post import df_var, gen_index
@@ -286,6 +291,7 @@ def run_suews_rust(
         config.model_dump(exclude_none=True, mode="json"),
         default_flow_style=False,
         sort_keys=False,
+        Dumper=_yaml_Dumper,
     )
     forcing_block = _prepare_forcing_block(df_forcing)
     forcing_flat = forcing_block.ravel(order="C").tolist()
@@ -311,9 +317,10 @@ def run_suews_rust_multi(
 ) -> tuple[pd.DataFrame, dict[int, str] | None]:
     """Run SUEWS via Rust bridge for all sites in configuration.
 
-    Iterates over ``config.sites``, creates a single-site config copy for
-    each, calls :func:`run_suews_rust`, and concatenates the results into a
-    single DataFrame with a ``(grid, datetime)`` MultiIndex.
+    Iterates over ``config.sites``, patches the serialised config dict
+    per site, and calls the Rust bridge directly.  Shared data (forcing
+    block, base config dict) is prepared once to avoid redundant deep
+    copies and YAML serialisation.
 
     Returns ``(df_output, dict_state_json)`` where *dict_state_json* maps
     each grid ID to its post-simulation state JSON string.
@@ -326,11 +333,28 @@ def run_suews_rust_multi(
     if list_dupes:
         raise ValueError(f"Duplicate gridiv values in config.sites: {set(list_dupes)}")
 
+    rust_module = _check_rust_available()
+    _validate_output_layout(rust_module)
+    if df_forcing.empty:
+        raise ValueError("forcing data is empty")
+
+    # --- Prepare shared data once ---
+    # Serialise full config to dict (expensive Pydantic step — do once)
+    config_dict = config.model_dump(exclude_none=True, mode="json")
+    # Pre-serialise each site dict for fast per-grid patching
+    list_site_dict = [
+        s.model_dump(exclude_none=True, mode="json") for s in sites
+    ]
+    # Prepare forcing block once (identical for all grids)
+    forcing_block = _prepare_forcing_block(df_forcing)
+    forcing_flat = forcing_block.ravel(order="C").tolist()
+    len_forcing = len(df_forcing)
+
     list_df_output = []
     dict_state_json: dict[int, str] = {}
 
-    for idx, site in enumerate(sites):
-        grid_id = _normalise_grid_id(site.gridiv)
+    for idx, site_dict in enumerate(list_site_dict):
+        grid_id = _normalise_grid_id(sites[idx].gridiv)
         logger_supy.debug(
             "Rust backend: running site %d/%d (gridiv=%d)",
             idx + 1,
@@ -338,16 +362,24 @@ def run_suews_rust_multi(
             grid_id,
         )
 
-        # Create a single-site config copy so the Rust bridge (which
-        # always reads sites[0]) processes the correct site.
-        config_single = config.model_copy(deep=True)
-        config_single.sites = [site.model_copy(deep=True)]
+        # Patch only the sites list — no deep copy of entire config
+        config_dict["sites"] = [site_dict]
+        # JSON is ~30x faster than YAML to serialise and valid JSON parses
+        # as valid YAML (serde_yaml accepts JSON syntax).
+        config_yaml = json.dumps(config_dict)
 
-        df_output, state_json = run_suews_rust(
-            config=config_single,
-            df_forcing=df_forcing,
-            grid_id=grid_id,
+        output_flat, state_json, len_sim = rust_module.run_suews(
+            config_yaml,
+            forcing_flat,
+            len_forcing,
         )
+
+        if len_sim != len_forcing:
+            raise RuntimeError(
+                f"Rust backend length mismatch: forcing={len_forcing}, output={len_sim}"
+            )
+
+        df_output = _parse_output_block(output_flat, len_sim, grid_id)
         list_df_output.append(df_output)
         if state_json is not None:
             dict_state_json[grid_id] = state_json
@@ -374,6 +406,7 @@ def run_suews_rust_with_state(
         config.model_dump(exclude_none=True, mode="json"),
         default_flow_style=False,
         sort_keys=False,
+        Dumper=_yaml_Dumper,
     )
     forcing_block = _prepare_forcing_block(df_forcing)
     forcing_flat = forcing_block.ravel(order="C").tolist()

@@ -8,7 +8,7 @@ Guidance for Claude Code in this repository.
 uv venv && source .venv/bin/activate && make dev && make test-smoke
 ```
 
-Full setup: `/setup-dev` | Style check: `/lint-code` | Build check: `/verify-build`
+Full setup: `/setup-dev` | Style check: `/lint-code` | Build check: `/verify-build` | PR review: `/audit-pr`
 
 ## Essential Rules
 
@@ -37,7 +37,6 @@ Full setup: `/setup-dev` | Style check: `/lint-code` | Build check: `/verify-bui
 - `/audit-pr` - Review pull requests
 - `/log-changes` - Update CHANGELOG
 - `/prep-release` - Prepare releases
-- `/examine-issue` - Analyse GitHub issues (global skill)
 
 ## Auto-Loaded Rules
 

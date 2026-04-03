@@ -12,10 +12,11 @@ ISSUE: src/suews/src/suews_phys_new.f95 not in meson.build
 -> Add to sources in src/suews/meson.build
 ```
 
-### 2. Version Management
+### 2. Version Management and Rust Bridge
 
 - `get_ver_git.py` syntax valid
-- f90wrap version pinned (`==0.2.16`) consistently
+- Rust bridge (`src/suews_bridge/`) builds via maturin/PyO3
+- `Cargo.toml` and `pyproject.toml` versions consistent
 
 ## Warning Checks
 

@@ -12,7 +12,7 @@ Check build configuration consistency.
 | Priority | Check |
 |----------|-------|
 | Critical | Source files in meson.build |
-| Critical | f90wrap version pinned (==0.2.16) |
+| Critical | Rust bridge (suews_bridge) builds cleanly |
 | Warning | Python version matrix alignment |
 | Style | .fprettify.rc, .ruff.toml |
 

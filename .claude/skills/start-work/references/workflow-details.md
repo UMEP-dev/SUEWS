@@ -100,6 +100,51 @@ Stage 7: PR
 
 ---
 
+## Validation Rule
+
+**Requires**: GitHub issue number (optional) or free-text description
+
+```
+Stage 1: Issue Analysis (if issue provided)
+  /examine-issue <N>  -->  extract rule spec from issue body
+  Parse: fields, condition, severity, suggested fix
+
+Stage 2: Workspace Setup  [handled by /start-work]
+  /gh-link <N>  -->  branch linked to issue (or feat/<rule_id> if no issue)
+  make dev  -->  build
+  make test-smoke  -->  baseline
+
+Stage 3: Rule Generation  [handled by /add-rule]
+  /add-rule <N>  -->  7-step workflow:
+    1. Gather spec (from issue or interview)
+    2. Generate rule function + tests
+    3. Round-trip verification (CRITICAL: never skip)
+    4. Write files
+    5. Run tests
+    6. Commit + CHANGELOG entry
+    7. PR description (standalone only)
+
+Stage 4: Quality Gate
+  git commit  -->  pre-commit hook auto-runs file-type checks + smoke tests
+
+Stage 5: Documentation
+  /log-changes  -->  verify CHANGELOG entry ([feature][experimental] category)
+  (Docs build not usually needed for validation rules)
+
+Stage 6: PR Creation
+  /gh-sync  -->  rebase on master (if needed)
+  gh pr create  -->  open PR with generated description
+
+Stage 7: PR Review
+  /audit-pr <N>  -->  review (focus on test coverage + rule correctness)
+```
+
+**Key difference from Feature**: Stage 3 is fully handled by `/add-rule`, which includes its own round-trip verification. The user confirms the rule matches their intent before any files are written. No separate implementation guidance needed.
+
+**Key difference from Bug Fix**: No regression test needed beyond the rule's own tests -- validation rules are pure functions with no side effects.
+
+---
+
 # Review Workflows
 
 ## Examine Issue
@@ -192,6 +237,16 @@ Determines which auto-loaded rules apply and which test tier to use:
 - **Smoke** (`make test-smoke`): Default for Feature, Bug Fix, CI/Build -- fast validation (~30-60s)
 - **Standard** (`make test`): When physics modules or test files change (~2-3 min)
 - **Full** (`make test-all`): Refactoring baseline comparison, release pre-flight (~4-5 min)
+
+## Rule Verification Gate (Validation Rule, Stage 3)
+
+The `/add-rule` skill's round-trip verification is the decision gate for this workflow:
+
+- **Match**: Code summary matches original spec --> proceed to write files
+- **Gap found**: Regenerate code addressing gaps, re-verify
+- **User rejects**: Abort or restart from Step 1
+
+This gate replaces the standard implementation review for validation rules.
 
 ---
 

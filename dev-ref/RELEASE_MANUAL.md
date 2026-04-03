@@ -33,7 +33,7 @@ SUEWS adopts a **rolling release model** that reflects the continuous nature of 
    ```
 4. **Wait ~20 min**: GitHub Actions builds **two versions** in parallel:
    - `2025.10.14` (standard, NumPy ≥2.0)
-   - `2025.10.14rc1` (UMEP/QGIS, NumPy 1.x)
+   - `2025.10.14rc1` (QGIS3 UMEP, NumPy 1.x)
 
    Both deployed to PyPI → GitHub Release → Zenodo DOI
 5. **Verify**: Check [Actions](https://github.com/UMEP-dev/SUEWS/actions), [PyPI](https://pypi.org/project/supy/), [Zenodo dashboard](https://zenodo.org/me/uploads)
@@ -43,19 +43,19 @@ SUEWS adopts a **rolling release model** that reflects the continuous nature of 
 
 ---
 
-## Dual-Build System: Standard + UMEP
+## Dual-Build System: Standard + QGIS3 UMEP
 
 Every SUEWS release automatically creates **two PyPI versions** from a single git tag:
 
 | Version Type | Version | NumPy | Target Users |
 |--------------|---------|-------|--------------|
 | Standard | `2024.10.7` | ≥2.0 | Standalone Python users |
-| UMEP | `2024.10.7rc1` | 1.x | QGIS/UMEP plugin users |
+| QGIS3 UMEP | `2024.10.7rc1` | 1.x | QGIS 3/UMEP plugin users |
 
 ### pip Install Behavior
 
 - `pip install supy` → Gets `2024.10.7` (standard, NumPy 2.0)
-- `pip install supy==2024.10.7rc1` → Gets `2024.10.7rc1` (UMEP, NumPy 1.x)
+- `pip install supy==2024.10.7rc1` → Gets `2024.10.7rc1` (QGIS3 UMEP, NumPy 1.x)
 - rc1 is a pre-release tag, automatically skipped by pip unless explicitly specified
 
 ### Why Two Versions?
@@ -64,11 +64,11 @@ Every SUEWS release automatically creates **two PyPI versions** from a single gi
 
 **Solution**: Automatic parallel builds from single tag:
 - **Standard build** uses NumPy ≥2.0 for modern Python environments
-- **UMEP build** uses `oldest-supported-numpy` and NumPy 1.x for QGIS compatibility
+- **QGIS3 UMEP build** uses `oldest-supported-numpy` and NumPy 1.x for QGIS 3 compatibility
 - Both run in parallel (~20 minutes total)
 - No manual coordination needed
 
-### UMEP Integration
+### QGIS3 UMEP Integration
 
 UMEP requirements file specifies:
 ```python
@@ -97,7 +97,7 @@ From a single tag push:
    - Creates version `2024.10.7`
    - Deployed to PyPI
 
-2. **UMEP Build** (`build_umep` job)
+2. **QGIS3 UMEP Build** (`build_umep` job)
    - Modifies `pyproject.toml` at build time:
      - Build: `oldest-supported-numpy` (instead of `numpy>=2.0`)
      - Runtime: `numpy>=1.22,<2.0` (instead of `numpy>=2.0`)
@@ -501,7 +501,7 @@ Add entry under current date:
 - [bugfix] Fixed issue with... ([#YYY](github.com/UMEP-dev/SUEWS/issues/YYY))
 - [change] Breaking change if any
 
-**Note**: This release includes both `2025.8.15` (NumPy 2.0) and `2025.8.15rc1` (NumPy 1.x for UMEP/QGIS).
+**Note**: This release includes both `2025.8.15` (NumPy 2.0) and `2025.8.15rc1` (NumPy 1.x for QGIS3 UMEP).
 ```
 
 #### 5. Commit Changes
@@ -585,7 +585,7 @@ This release focuses on [main theme: e.g., enhanced validation capabilities, mod
 pip install --upgrade supy
 ```
 
-**UMEP/QGIS Compatible (NumPy 1.x):**
+**QGIS3 UMEP Compatible (NumPy 1.x):**
 ```bash
 pip install supy==YYYY.M.Drc1
 ```
@@ -700,7 +700,7 @@ A: Yes, if you need a stable version for a paper/conference, let us know.
 A: No formal LTS, but older versions remain on PyPI/Zenodo indefinitely.
 
 **Q: Why do I see rc1 versions on PyPI?**
-A: These are UMEP/QGIS-compatible builds with NumPy 1.x. They're automatically created for every release but hidden from `pip install` by default. UMEP users get them via pinned requirements.
+A: These are QGIS3 UMEP-compatible builds with NumPy 1.x. They're automatically created for every release but hidden from `pip install` by default. UMEP users get them via pinned requirements.
 
 **Q: Should I document rc1 versions in release notes?**
 A: No. Release notes describe features/changes. Both versions have identical source - only dependency differs. GitHub workflow handles this automatically.

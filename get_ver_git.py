@@ -95,13 +95,13 @@ def get_version_from_git():
                 f"Output '{describe_output}' does not match the expected pattern."
             )
 
-        # Check for UMEP build variant (NumPy 1.x compatible build)
-        # This is set by CI workflow for QGIS/UMEP compatible releases
+        # Check for QGIS3 UMEP build variant (NumPy 1.x compatible build)
+        # This is set by CI workflow for QGIS 3 compatible releases
         if os.environ.get("BUILD_UMEP_VARIANT") == "true":
             if ".dev" in version:
                 # For dev/nightly builds: increment dev number to avoid version collision
                 # Standard: 2025.10.15.dev0 (NumPy 2.x)
-                # UMEP:     2025.10.15.dev1 (NumPy 1.x)
+                # QGIS3 UMEP: 2025.10.15.dev1 (NumPy 1.x)
                 # This allows both to coexist on TestPyPI for testing
                 base, dev_num = version.rsplit(".dev", 1)
                 version = f"{base}.dev{int(dev_num) + 1}"

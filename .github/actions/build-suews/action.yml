@@ -56,7 +56,7 @@ runs:
       if: inputs.is_umep_variant == 'true'
       shell: bash
       run: |
-        echo "Building UMEP variant with NumPy 1.x compatibility"
+        echo "Building QGIS3 UMEP variant with NumPy 1.x compatibility"
 
         # Use Python for cross-platform TOML modification (BSD sed on macOS differs from GNU sed)
         # Note: Regex approach relies on pyproject.toml structure where [build-system] uses
@@ -93,7 +93,7 @@ runs:
         print("pyproject.toml modified successfully")
         EOF
 
-        echo "Modified pyproject.toml for UMEP build:"
+        echo "Modified pyproject.toml for QGIS3 UMEP build:"
         git diff pyproject.toml || true
 
     - name: Set up Python
@@ -109,7 +109,7 @@ runs:
         # Generate version file on host (where git is available)
         # This file will be copied into the cibuildwheel container
         if [ "${BUILD_UMEP_VARIANT}" = "true" ]; then
-          echo "Generating version for UMEP variant (rc1 suffix)"
+          echo "Generating version for QGIS3 UMEP variant (rc1 suffix)"
           export BUILD_UMEP_VARIANT=true
         fi
         python3 get_ver_git.py
@@ -172,7 +172,7 @@ runs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y &&
           pip install --upgrade pip setuptools wheel &&
           if [[ "${{ inputs.is_umep_variant }}" == "true" ]]; then
-            echo "Installing oldest-supported-numpy for UMEP variant build" &&
+            echo "Installing oldest-supported-numpy for QGIS3 UMEP variant build" &&
             pip install oldest-supported-numpy;
           else
             echo "Installing numpy>=2.0 for standard build" &&

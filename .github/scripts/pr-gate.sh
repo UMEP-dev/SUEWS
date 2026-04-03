@@ -47,22 +47,22 @@ if [[ "${NEEDS_BUILD}" == "true" ]]; then
     VALIDATION_PASSED=false
   fi
 
-  # UMEP build required only when compiled extension changed
+  # QGIS3 UMEP build required only when compiled extension changed
   if [[ "${NEEDS_UMEP_BUILD}" == "true" ]]; then
-    echo "Compiled extension changed - validating UMEP build..."
+    echo "Compiled extension changed - validating QGIS3 UMEP build..."
     if [[ "${BUILD_UMEP_RESULT}" == "success" ]]; then
-      echo "[OK] UMEP build passed"
+      echo "[OK] QGIS3 UMEP build passed"
     else
-      echo "[X] UMEP build failed"
+      echo "[X] QGIS3 UMEP build failed"
       echo "  build_umep: ${BUILD_UMEP_RESULT}"
       VALIDATION_PASSED=false
     fi
   else
-    echo "No compiled extension changes - UMEP build not required"
+    echo "No compiled extension changes - QGIS3 UMEP build not required"
     if [[ "${BUILD_UMEP_RESULT}" == "skipped" ]]; then
-      echo "[OK] UMEP build correctly skipped"
+      echo "[OK] QGIS3 UMEP build correctly skipped"
     else
-      echo "Note: UMEP build ran unexpectedly (result: ${BUILD_UMEP_RESULT})"
+      echo "Note: QGIS3 UMEP build ran unexpectedly (result: ${BUILD_UMEP_RESULT})"
       # Non-fatal: accept success or skipped
       if [[ "${BUILD_UMEP_RESULT}" != "success" ]] && \
          [[ "${BUILD_UMEP_RESULT}" != "skipped" ]]; then

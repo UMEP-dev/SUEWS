@@ -85,14 +85,14 @@ EXAMPLES:
 - [feature][experimental] Add calculation of electrical lighting energy and optional lighting control driven by daylighting STEBBS (PR #1254).
 - [bugfix][experimental] Fix STEBBS 10-minute profile indexing to use the full-day slot (`0-143`) rather than repeating the first hour each hour, correcting metabolism, appliance, and hot water profile application (PR #1254).
 - [change][experimental] Improve STEBBS height, external wall and footprint area descriptions, linking them together (PR #1257).
-- [feature][experimental] Add draft rules registry to the validator with two test rules (#1246)
+- [feature][stable] Add draft rules registry to the validator with two test rules (#1246)
 
 ### 19 Mar 2026
 
 - [feature][experimental] Added `same_emissivity_wall` and `same_emissivity_roof` model options for roof and wall emissivity validation (PR #1253)
   - When enabled (`=1`), enforces all roof/wall emissivity values match their respective external roof/wall STEBBS parameters; errors reported if inconsistent as ACTION NEEDED in the report.
   - When disabled (`=0`), skips consistency checks and issues a user warning listing current emissivities values in NO ACTION NEEDED section of the report.
-- [feature][experimental] Add seasonal adjustment of `alb_id` for vegetated surfaces based on phenology state (#1211)
+- [feature][stable] Add seasonal adjustment of `alb_id` for vegetated surfaces based on phenology state (#1211)
 
 ### 18 Mar 2026
 
@@ -104,7 +104,7 @@ EXAMPLES:
 
 ### 16 Mar 2026
 
-- [feature][experimental] Refine `_is_physics_explicitly_configured` to use Pydantic v2 `model_fields_set`, enabling conditional validation when physics options are explicitly set by user inputs (PR #1247).
+- [feature][stable] Refine `_is_physics_explicitly_configured` to use Pydantic v2 `model_fields_set`, enabling conditional validation when physics options are explicitly set by user inputs (PR #1247).
 - [feature][experimental] Add Occupants/MetabolismProfile consistency validation to STEBBSMethod check (PR #1245)
 - [doc] Updated PHASE_B_DETAILED.md with Occupants/MetabolismProfile validation description (PR #1245)
 
@@ -127,25 +127,25 @@ EXAMPLES:
 
 - [feature][experimental] Add new Pydantic Field ranges and defaults for STEBBS parameters (PR #1233)
 - [bugfix] Fix interpolation bounds error in RSL profiles (GH#1223, #1228)
-- [feature][experimental] Refine RSL c2m/c2h with explicit R=beta*hd/elm parameterisation (GH#1055, #1232)
+- [feature][stable] Refine RSL c2m/c2h with explicit R=beta*hd/elm parameterisation (GH#1055, #1232)
 - [maintenance] Consolidate CLI validation test coverage (#1238)
 - [bugfix] Auto-repair stale refs in fetch_origin conductor (#1239)
 
 ### 10 Mar 2026
 
-- [feature][experimental] Compute c2m/c2h dynamically from Harman and Finnigan (2008) RSL theory (#1116)
+- [feature][stable] Compute c2m/c2h dynamically from Harman and Finnigan (2008) RSL theory (#1116)
 - [bugfix] Fix division-by-zero pitfalls in RSL/resistance chain (GH#1223, #1229)
 - [bugfix] Handle Pydantic dict format in YAML numeric parser (GH#1235, #1236)
 - [doc] Add anthropogenic emission defaults and parameter guidance (GH#138, #1231)
 
 ### 9 Mar 2026
 
-- [feature][experimental] Add upper limit to `nlayer` to avoid run crashes (#1206)
+- [feature][stable] Add upper limit to `nlayer` to avoid run crashes (#1206)
 - [bugfix] Validate Rust output layout against Fortran metadata (#1226)
 
 ### 24 Feb 2026
 
-- [feature][experimental] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS dectreeh/evetreeh and SPARTACUS veg_scale/veg_frac entries (PR #1222).
+- [feature][stable] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS dectreeh/evetreeh and SPARTACUS veg_scale/veg_frac entries (PR #1222).
 - [doc] Updated PHASE_C_DETAILED.md with new conditional validation logic for SPARTACUS (PR #1222).
 
 ### 23 Feb 2026
@@ -162,25 +162,25 @@ EXAMPLES:
 
 ### 20 Feb 2026
 
-- [feature][experimental] Replace f90wrap with Rust FFI bridge as sole simulation backend (#1209)
-- [feature][experimental] Install Rust CLI to PATH and unify CLI interface (#1215)
-- [feature][experimental] Add `_validate_spartacus_sfr` to conditional validation (#1208)
+- [feature][stable] Replace f90wrap with Rust FFI bridge as sole simulation backend (#1209)
+- [feature][stable] Install Rust CLI to PATH and unify CLI interface (#1215)
+- [feature][stable] Add `_validate_spartacus_sfr` to conditional validation (#1208)
 - [bugfix] Guard SPARTACUS LW solver NaN from matrix singularity in certain urban canopy geometries (#1212)
 - [bugfix] Pin pydantic>=2.12 to prevent OSGeo4W version conflict (#1213)
 - [changes] Removed internal-only parameters (diagnose, dqndt, dqnsdt, dt_since_start, lenday_id, qn_av, qn_s_av, tair_av, tmax_id, tmin_id, tstep_prev, snowfallcum) from sample_config.yml. (PR #1216)
 
 ### 19 Feb 2026
 
-- [feature][experimental] Add update logic under seasonal adjustments in phase_b.py to handle different alb_id behaviour across vegetated surface types (PR #1211).
+- [feature][stable] Add update logic under seasonal adjustments in phase_b.py to handle different alb_id behaviour across vegetated surface types (PR #1211).
 - [doc] Updated PHASE_B_DETAILED.md with new seasonal adjustment logic (PR #1211).
 
 ### 18 Feb 2026
 
-- [feature][experimental] Add attribution module for diagnosing T2, q2, and U10 changes by decomposing model output into physical process contributions, with diurnal cycle and heatmap visualisation helpers (#918)
+- [feature][stable] Add attribution module for diagnosing T2, q2, and U10 changes by decomposing model output into physical process contributions, with diurnal cycle and heatmap visualisation helpers (#918)
 
 ### 13 Feb 2026
 
-- [feature][experimental] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS bldgh and SPARTACUS height entries (PR #1205).
+- [feature][stable] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS bldgh and SPARTACUS height entries (PR #1205).
 - [docs] Updated PHASE_C_DETAILED.md with new conditional validation logic for SPARTACUS (PR #1205).
 
 ### 10 Feb 2026
@@ -208,8 +208,8 @@ EXAMPLES:
 
 - [bugfix] Fix conflict in the validation logic when vegetated surfaces are active (sfr > 0) but carbon is disabled (PR #1188)
 - [bugfix] Fix a bug in the phase_b.py required physics options, adding the new same_albedo_roof and same_albedo_wall to the list (PR #1188).
-- [feature][experimental] Add SUEWSOutput index property (#1178)
-- [feature][experimental] Add status tags for changelog entries (governance) (#1181)
+- [feature][stable] Add SUEWSOutput index property (#1178)
+- [feature][stable] Add status tags for changelog entries (governance) (#1181)
 - [bugfix] Correct DTS availability check and remove unsupported param (#1187)
 - [doc] Align 2026.1.28 release notes with stable RTD docs (#1179)
 
@@ -222,13 +222,13 @@ EXAMPLES:
 
 ### 30 Jan 2026
 
-- [feature][experimental] Add chunk_day parameter for long DTS simulations (#1172)
-- [feature][experimental] Add run_dts_multi for multi-grid DTS simulation support (#1173)
+- [feature][stable] Add chunk_day parameter for long DTS simulations (#1172)
+- [feature][stable] Add run_dts_multi for multi-grid DTS simulation support (#1173)
 - [maintenance] Use reusable workflow to fix unresolved matrix names (#1171)
 - [maintenance] Pre-build docs HTML on CI, serve from rtd branch (#1167)
 - [maintenance] Protect rtd branch with PAT auth and file-scope validation (#1165)
 - [maintenance] Allow .gitignore divergence in rtd branch validation (#1166)
-- [change][experimental] Deprecate env.yml and conda/mamba build pathway (#1163)
+- [change][stable] Deprecate env.yml and conda/mamba build pathway (#1163)
 - [maintenance] UMEP build filter for compiled extension ABI changes (#1164)
 - [maintenance] Gate tag-triggered deployments on master ancestry (#1162)
 - [maintenance] Granular path filters and pyproject classification (#1161)
@@ -236,12 +236,12 @@ EXAMPLES:
 
 ### 29 Jan 2026
 
-- [feature][experimental] Auto-initialise vegetation albedo from phenology state (#1133)
+- [feature][stable] Auto-initialise vegetation albedo from phenology state (#1133)
 - [maintenance] Add GitHub workflow skills and pre-commit quality gate (#1160)
 - [bugfix] Update Sphinx and docs dependencies for Sphinx 8 compatibility (#1159)
 - [bugfix] Deduplicate Discourse-to-GitHub issue pipeline (#1153)
 - [maintenance] Pre-built docs branch for RTD (#1137)
-- [feature][experimental] Bridge Discourse topics to GitHub issues with webhook sync (#1138)
+- [feature][stable] Bridge Discourse topics to GitHub issues with webhook sync (#1138)
 
 ### 28 Jan 2026
 

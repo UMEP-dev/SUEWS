@@ -6,15 +6,48 @@
 Version 2026.4.3 (released on 3 April 2026)
 --------------------------------------------
 
-This release focuses on stability improvements, bug fixes across RSL and SPARTACUS physics, STEBBS profile support, CI hardening, and documentation updates.
+This release delivers a major backend migration to Rust FFI, RSL physics refinements, a new temperature attribution module, DTS enhancements, seasonal albedo adjustments, comprehensive validation improvements, and extensive bug fixes.
 
-**Features:**
+**Major Features:**
 
-- **STEBBS Profiles**: Added support for Heating setpoints, Cooling setpoints, Appliance, Occupants, and Hot Water 10-minute profiles in STEBBS, enabling more realistic diurnal variation in building energy simulations. (:pr:`1038`)
+- **Rust FFI Bridge**: Replaced f90wrap with a Rust FFI bridge as the sole simulation backend, improving build reliability and cross-platform support. (:pr:`1209`)
 
-- **Dynamic OHM Surface Separation**: Added separate surfaces for dyOHM (dynamic Objective Hysteresis Model) calculation, allowing more accurate surface heat storage modelling. (:pr:`1122`)
+- **Rust CLI Installation**: Unified CLI interface with automatic PATH installation for the Rust-based ``suews-run`` command. (:pr:`1215`)
 
-- **Albedo Validation**: Added ``same_albedo_wall`` and ``same_albedo_roof`` model options for roof and wall albedo consistency validation against STEBBS reflectivity parameters. (:pr:`1123`)
+- **T2 Attribution Module**: Added module for diagnosing near-surface temperature, humidity, and wind speed changes by decomposing model output into physical process contributions, with diurnal cycle and heatmap visualisation helpers. (:pr:`918`)
+
+- **Dynamic RSL Coefficients**: Compute momentum and heat transfer coefficients (c2m/c2h) dynamically from Harman and Finnigan (2007, 2008) RSL theory, replacing previous static lookup. (:pr:`1116`)
+
+- **Refined RSL Parameterisation**: Explicit ``R = beta * hd / elm`` parameterisation for c2m/c2h with improved numerical stability. (:pr:`1232`)
+
+- **Seasonal Albedo Adjustment**: Added seasonal adjustment of surface albedo (``alb_id``) for vegetated surfaces based on phenology state. (:pr:`1211`)
+
+- **Auto-initialise Vegetation Albedo**: Vegetation albedo now auto-initialises from phenology state. (:pr:`1133`)
+
+- **STEBBS Profiles**: Added support for Heating setpoints, Cooling setpoints, Appliance, Occupants, and Hot Water 10-minute profiles in STEBBS. (:pr:`1038`)
+
+- **Dynamic OHM Surface Separation**: Added separate surfaces for dyOHM (dynamic Objective Hysteresis Model) calculation. (:pr:`1122`)
+
+- **Albedo Validation**: Added ``same_albedo_wall`` and ``same_albedo_roof`` model options for roof and wall albedo consistency validation. (:pr:`1123`)
+
+**DTS Enhancements:**
+
+- Added ``chunk_day`` parameter for long DTS simulations. (:pr:`1172`)
+- Added ``run_dts_multi`` for multi-grid DTS simulation support. (:pr:`1173`)
+
+**Validation Improvements:**
+
+- Added draft rules registry for structured validator rule management. (:pr:`1246`)
+- Added conditional validation via ``_is_physics_explicitly_configured`` using Pydantic v2 ``model_fields_set``. (:pr:`1247`)
+- Added upper limit to ``nlayer`` to prevent run crashes. (:pr:`1206`)
+- Added ``SUEWSOutput`` index property. (:pr:`1178`)
+- Added SPARTACUS surface fraction conditional validation. (:pr:`1208`)
+- Added SPARTACUS building height conditional validation. (:pr:`1205`)
+- Added SPARTACUS vegetation consistency check (``dectreeh``/``evetreeh`` vs ``veg_scale``/``veg_frac``). (:pr:`1222`)
+- Improved error message for timezone and ``startdls``/``enddls``. (:pr:`1174`)
+- Fixed optional ``qn_surfs`` and ``dqndt_surf`` but required in DyOHM settings. (:pr:`1189`)
+- Fixed biogenic parameters not required when carbon is switched off. (:pr:`1188`)
+- Improved error message in ``validate_albedo_ranges``. (:pr:`1193`)
 
 **Bug Fixes:**
 
@@ -25,23 +58,20 @@ This release focuses on stability improvements, bug fixes across RSL and SPARTAC
 - Fixed Pydantic dict format handling in YAML numeric parser. (:pr:`1236`)
 - Validated Rust output layout against Fortran metadata. (:pr:`1226`)
 - Pinned pydantic>=2.12 to prevent OSGeo4W version conflict. (:pr:`1213`)
-- Fixed optional ``qn_surfs`` and ``dqndt_surf`` but required in DyOHM settings. (:pr:`1189`)
-- Fixed biogenic parameters not required when carbon is switched off. (:pr:`1188`)
-- Fixed STEBBS WWR extreme cases (``WWR = 0`` or ``WWR = 1``) to skip non-existent surface calculations. (:pr:`1261`)
+- Fixed STEBBS WWR extreme cases (``WWR = 0`` or ``WWR = 1``). (:pr:`1261`)
 - Fixed biogenic CO2 to use local climate instead of global average temperature. (:pr:`1117`)
 - Fixed missing STEBBS parameters in ``sample_config.yml``. (:pr:`1111`)
-- Fixed missing import in orchestrator.py validator. (:pr:`1094`)
 - Retained ``DatetimeIndex.freq`` after concat in forcing data loading. (:pr:`1105`)
 - Extended nullification logic in validator for ``stebbsmethod==0``. (:pr:`1115`)
-- Auto-repair stale refs in fetch_origin conductor. (:pr:`1239`)
-- Deduplicated Discourse-to-GitHub issue pipeline. (:pr:`1153`)
-- Fixed Sphinx and docs dependencies for Sphinx 8 compatibility. (:pr:`1159`)
 - Serialised Pydantic models across multiprocessing spawn boundaries for DTS. (:pr:`1197`)
 - Hardened parallel multi-grid DTS execution and unified return shape. (:pr:`1176`)
 - Corrected DTS availability check and removed unsupported parameter. (:pr:`1187`)
-- Added information in error message for timezone and ``startdls``/``enddls``. (:pr:`1174`)
-- Improved error message in ``validate_albedo_ranges``. (:pr:`1193`)
+- Auto-repair stale refs in fetch_origin conductor. (:pr:`1239`)
+- Deduplicated Discourse-to-GitHub issue pipeline. (:pr:`1153`)
+- Fixed Sphinx and docs dependencies for Sphinx 8 compatibility. (:pr:`1159`)
+- Fixed missing import in orchestrator.py validator. (:pr:`1094`)
 - Fixed error message in pressure range check. (:pr:`1090`)
+- Fixed macOS UMEP wheel build by replacing sed with Python. (:pr:`1128`)
 
 **Build System and CI:**
 
@@ -49,18 +79,19 @@ This release focuses on stability improvements, bug fixes across RSL and SPARTAC
 - Added Rust change detection and Cargo build caching across all platforms. (:pr:`1217`, :pr:`1219`)
 - Gated tag-triggered deployments on master ancestry. (:pr:`1162`)
 - Pre-built documentation on CI, served from ``rtd`` branch. (:pr:`1167`)
+- Deprecated ``env.yml`` and conda/mamba build pathway. (:pr:`1163`)
 - UMEP build filter for compiled extension ABI changes. (:pr:`1164`)
 - Granular path filters and pyproject classification. (:pr:`1161`)
 - Added GitHub workflow skills and pre-commit quality gate. (:pr:`1160`)
 - Cleaned up Sphinx deps for Sphinx 8 compatibility. (:pr:`1157`)
-- Fixed macOS UMEP wheel build by replacing sed with Python. (:pr:`1128`)
 
 **Other Improvements:**
 
+- Bridge Discourse forum topics to GitHub issues with webhook sync. (:pr:`1138`)
+- Added status tags for changelog entries (governance). (:pr:`1181`)
 - Removed internal-only parameters from ``sample_config.yml``. (:pr:`1216`)
 - Cleaned up STEBBS outputs. (:pr:`1175`)
 - Refactored land cover fraction check to use Phase B as single authority. (:pr:`1099`)
-- Changed STEBBS parameter values in ``sample_config.yml`` to be physically reasonable. (:pr:`1111`)
 
 **Documentation:**
 
@@ -74,6 +105,7 @@ This release focuses on stability improvements, bug fixes across RSL and SPARTAC
 
 **Breaking Changes:**
 
-None. This release maintains backward compatibility with 2026.1.28.
+- f90wrap is no longer supported; the Rust FFI bridge is the sole simulation backend. (:pr:`1209`)
+- Deprecated ``env.yml`` and conda/mamba build pathway. (:pr:`1163`)
 
 For complete details, see the `CHANGELOG <https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md>`_.

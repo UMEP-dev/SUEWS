@@ -23,12 +23,40 @@ This workflow is **workspace-independent** - run from any worktree.
 3. **CHANGELOG analysis** - Use log-changes or manual (current format)
 4. **Update docs** - CHANGELOG.md, version history RST (`:pr:` syntax), toctree
 5. **GitHub Release notes** - Create `.github/releases/YYYY.M.D.md` (Markdown)
-6. **Submit PR** - Create PR, wait for CI, merge to master
-7. **Tag release** - Tag the merge commit on master
-8. **Verify** - Monitor Actions, PyPI, GitHub Release, Zenodo
-9. **Update umep-reqs** - PR to update supy version in UMEP-dev/umep-reqs
+6. **Issue tracking** - Update the release issue, create sub-issues for manual steps
+7. **Submit PR** - Create PR, wait for CI, merge to master
+8. **Tag release** - Tag the merge commit on master
+9. **Verify** - Monitor Actions, PyPI, GitHub Release, Zenodo
+10. **Update umep-reqs** - PR to update supy version in UMEP-dev/umep-reqs
 
 Details: `references/release-steps.md`
+
+## Issue Tracking and Sub-Issues
+
+The release issue (labelled `2-meta:release`) tracks the overall release. Steps 0-6 are automated by the prep-release workflow and the PR. Steps 7-10 are **manual** and must not be closed by the PR merge.
+
+When preparing a release:
+
+1. **Update the release issue** with current version, progress checklist, and governance review results
+2. **Create sub-issues** for each manual post-merge step:
+   - Submit PR and merge to master (closed by the PR itself)
+   - Tag merge commit on master (manual)
+   - Verify PyPI, GitHub Release, Zenodo (manual)
+   - Update umep-reqs with rc1 version (manual, separate repo)
+3. **Link sub-issues** to the parent release issue using GitHub sub-issues
+
+The parent release issue stays open until all sub-issues are closed. The PR should only close the "Submit PR" sub-issue, not the parent.
+
+## Status Tags and Release Notes
+
+CHANGELOG entries use status tags (`[experimental]`, `[stable]`, `[internal]`) on `[feature]` and `[change]` items. These tags control what appears in public-facing release documentation:
+
+- **`[stable]`** and **untagged** entries -> included in release notes (RST and GitHub Release MD)
+- **`[experimental]`** entries -> excluded from release notes; remain only in the CHANGELOG
+- **`[internal]`** entries -> excluded from release notes
+- **`[bugfix]`**, **`[maintenance]`**, **`[doc]`** entries -> always included (no status tag needed)
+
+When writing version history RST and GitHub Release notes, filter the CHANGELOG to include only stable/untagged features and changes alongside all bugfixes, maintenance, and documentation entries. Do not expose experimental features in public release documentation.
 
 ## Release Decision
 
@@ -71,6 +99,7 @@ Selection criteria:
 [PASS/FAIL] Release branch created
 [PASS/FAIL] Docs updated (CHANGELOG, version-history RST)
 [PASS/FAIL] GitHub Release notes created (.github/releases/)
+[PASS/FAIL] Release issue updated, sub-issues created for manual steps
 [PASS/FAIL] PR submitted and CI passed
 [PASS/FAIL] PR merged to master
 [PASS/FAIL] Git tag created on merge commit

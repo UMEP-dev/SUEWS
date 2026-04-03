@@ -1,0 +1,84 @@
+
+.. _new_latest:
+
+.. _new_2026.4.3:
+
+Version 2026.4.3 (released on 3 April 2026)
+--------------------------------------------
+
+This release delivers a major backend migration to Rust FFI, RSL physics refinements, a new temperature attribution module, comprehensive STEBBS enhancements, and extensive validation improvements.
+
+**Major Features:**
+
+- **Rust FFI Bridge**: Replaced f90wrap with a Rust FFI bridge as the sole simulation backend, improving build reliability and cross-platform support. (:pr:`1209`)
+
+- **Rust CLI Installation**: Unified CLI interface with automatic PATH installation for the Rust-based ``suews-run`` command. (:pr:`1215`)
+
+- **T2 Attribution Module**: Added module for diagnosing near-surface temperature, humidity, and wind speed changes by decomposing model output into physical process contributions. (:pr:`918`)
+
+- **Dynamic RSL Coefficients**: Compute momentum and heat transfer coefficients (c2m/c2h) dynamically from Harman and Finnigan (2007, 2008) RSL theory, replacing previous static lookup. (:pr:`1116`)
+
+- **Refined RSL Parameterisation**: Explicit ``R = beta * hd / elm`` parameterisation for c2m/c2h with improved numerical stability. (:pr:`1232`)
+
+- **Seasonal Albedo Adjustment**: Added seasonal adjustment of surface albedo (``alb_id``) for vegetated surfaces based on phenology state. (:pr:`1211`)
+
+**STEBBS Enhancements:**
+
+- Added varied heating/cooling schedule approaches with ``setpointmethod`` model option supporting constant, dependent, and scheduled setpoint profiles. (:pr:`1261`)
+- Added electrical lighting energy calculation and optional lighting control driven by daylighting. (:pr:`1254`)
+- Added dynamic cold water temperature calculation. (:pr:`1249`)
+- Updated ``InitialIndoorTemperature`` with monthly mean air temperature from CRU dataset. (:pr:`1241`)
+- Replaced ``DeepSoilTemperature`` with ``AnnualMeanAirTemperature`` across the codebase. (:pr:`1240`)
+- Fixed double-counted heating efficiency and unused setpoint temperature. (:pr:`1221`)
+- Improved activity profiles replacing ``OccupantsProfile`` with ``MetabolismProfile``. (:pr:`1194`)
+- Added ``same_emissivity_wall`` and ``same_emissivity_roof`` model options for emissivity validation. (:pr:`1253`)
+- Removed ``MinimumVolumeOfDHWinUse`` and ``MaximumVolumeOfDHWinUse`` parameters. (:pr:`1242`)
+- Improved STEBBS parameter descriptions. (:pr:`1257`)
+
+**Validation Improvements:**
+
+- Added draft rules registry for structured validator rule management. (:pr:`1246`)
+- Added checks for ``DaylightControl``. (:pr:`1270`)
+- Added rule for forcing height versus max and mean building heights. (:pr:`1266`)
+- Added guard for ``stebbs_Height`` in SPARTACUS building height validation. (:pr:`1262`)
+- Added conditional validation via ``_is_physics_explicitly_configured`` using Pydantic v2 ``model_fields_set``. (:pr:`1247`)
+- Added STEBBS WWR-related validation rules. (:pr:`1244`)
+- Added ``validate_model_option_stebbsmethod`` when STEBBS is enabled. (:pr:`1243`)
+- Added STEBBS parameter range validation rules. (:pr:`1233`)
+- Added ``RCMethod`` manual and related validation rules. (:pr:`1224`)
+- Added SPARTACUS vegetation consistency check (``dectreeh``/``evetreeh`` vs ``veg_scale``/``veg_frac``). (:pr:`1222`)
+- Added SPARTACUS surface fraction and building height conditional validation. (:pr:`1208`, :pr:`1205`)
+- Added upper limit to ``nlayer`` to prevent run crashes. (:pr:`1206`)
+
+**Bug Fixes:**
+
+- Fixed interpolation bounds error in RSL profiles. (:pr:`1228`)
+- Fixed division-by-zero pitfalls in RSL/resistance chain. (:pr:`1229`)
+- Guarded SPARTACUS LW solver against NaN from matrix singularity. (:pr:`1212`)
+- Fixed SUEWS output packing overflow with fail-fast behaviour. (:pr:`1198`)
+- Fixed Pydantic dict format handling in YAML numeric parser. (:pr:`1236`)
+- Validated Rust output layout against Fortran metadata. (:pr:`1226`)
+- Fixed Pydantic model serialisation across multiprocessing spawn boundaries. (:pr:`1197`)
+- Pinned pydantic>=2.12 to prevent OSGeo4W version conflict. (:pr:`1213`)
+
+**Build System and CI:**
+
+- Hardened CI and dependency supply chain after LiteLLM incident with startup hook auditing. (:pr:`1264`)
+- Added Rust change detection and Cargo build caching across all platforms. (:pr:`1217`, :pr:`1219`)
+- Gated tag-triggered deployments on master ancestry. (:pr:`1162`)
+- Pre-built documentation on CI, served from ``rtd`` branch. (:pr:`1167`)
+- Deprecated ``env.yml`` and conda/mamba build pathway. (:pr:`1163`)
+
+**Documentation:**
+
+- Revised README as science-first landing page. (:pr:`1265`)
+- Improved project branding with logo and favicon. (:pr:`1260`)
+- Added anthropogenic emission defaults and parameter guidance. (:pr:`1231`)
+
+**Breaking Changes:**
+
+- f90wrap is no longer supported; the Rust FFI bridge is the sole simulation backend. (:pr:`1209`)
+- Removed STEBBS parameters ``MinimumVolumeOfDHWinUse``, ``MaximumVolumeOfDHWinUse``, and ``DeepSoilTemperature``. (:pr:`1242`, :pr:`1240`)
+- Deprecated ``env.yml`` and conda/mamba build pathway. (:pr:`1163`)
+
+For complete details, see the `CHANGELOG <https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md>`_.

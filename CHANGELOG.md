@@ -261,7 +261,7 @@ EXAMPLES:
 
 ### 26 Jan 2026
 
-- [feature] Added separate surfaces for dyOHM (dynamic Objective Hysteresis Model) calculation (#1122)
+- [feature][experimental] Added separate surfaces for dyOHM (dynamic Objective Hysteresis Model) calculation (#1122)
 - [maintenance] Refactored albedo handling for vegetated surfaces (#1100)
 - [maintenance] Fixed conductor.json to use current branch instead of hardcoded master (#1124)
 

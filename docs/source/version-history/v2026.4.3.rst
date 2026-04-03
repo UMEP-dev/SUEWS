@@ -26,8 +26,6 @@ This release delivers a major backend migration to Rust FFI, RSL physics refinem
 
 - **STEBBS Profiles**: Added support for Heating setpoints, Cooling setpoints, Appliance, Occupants, and Hot Water 10-minute profiles in STEBBS. (:pr:`1038`)
 
-- **Dynamic OHM Surface Separation**: Added separate surfaces for dyOHM (dynamic Objective Hysteresis Model) calculation. (:pr:`1122`)
-
 - **Albedo Validation**: Added ``same_albedo_wall`` and ``same_albedo_roof`` model options for roof and wall albedo consistency validation. (:pr:`1123`)
 
 **DTS Enhancements:**

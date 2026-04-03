@@ -147,7 +147,8 @@ else
   echo "test_tier=all" >> "$GITHUB_OUTPUT"
 fi
 
-# UMEP: cp312 only (QGIS 3.40 LTR)
+# UMEP: cp312 only (QGIS 3 LTR — Python 3.12, NumPy 1.x)
+# Standard wheels (cp313+) serve QGIS 4 (Python 3.13+, NumPy 2.x)
 # Production tags build all platforms; otherwise Windows only for validation
 if [[ "$GITHUB_REF" == refs/tags/* ]] && [[ "$GITHUB_REF" != *dev* ]]; then
   echo "umep_buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"

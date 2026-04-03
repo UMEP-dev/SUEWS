@@ -10,9 +10,11 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 #   dispatch  -- Manual with configurable matrix, deploy target, UMEP toggle, test tier
 #
 # Dual-build strategy:
-#   Standard -- NumPy >=2.0, all Python versions. pip install supy
-#   UMEP     -- NumPy 1.x (QGIS 3.40 LTR), cp312 only. Version X.Y.Zrc1 (production)
-#               or X.Y.Z.dev1 (nightly). Pre-release tag keeps it hidden from default pip.
+#   Standard -- NumPy >=2.0, all Python versions (cp39-cp314). pip install supy
+#               Serves QGIS 4 (Python 3.13+, NumPy 2.x) and general Python users.
+#   UMEP     -- NumPy 1.x, cp312 only. Version X.Y.Zrc1 (production) or X.Y.Z.dev1 (nightly).
+#               Serves QGIS 3 LTR (3.40: Python 3.12, NumPy 1.26.4).
+#               Pre-release tag keeps it hidden from default pip.
 #
 # Nightly version: Tag YYYY.M.D.dev created BEFORE build for version consistency.
 # See get_ver_git.py for version string logic, .github/path-filters.yml for categories.

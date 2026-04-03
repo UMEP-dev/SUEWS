@@ -69,7 +69,7 @@ runs:
         with open('pyproject.toml', 'r') as f:
             content = f.read()
 
-        # Runtime: Pin to NumPy 1.x (QGIS 3.40 LTR uses 1.26.4)
+        # Runtime: Pin to NumPy 1.x (QGIS 3 LTR — 3.40 ships NumPy 1.26.4)
         # Targets [project].dependencies (not [build-system].requires)
         content = re.sub(
             r'(dependencies\s*=\s*\[.*?)"numpy>=2\.0"',

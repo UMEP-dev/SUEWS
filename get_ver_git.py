@@ -16,10 +16,11 @@ For production releases:
   - At tag: generates 2025.1.0
   - After commits: generates 2025.1.0.dev5 (5 commits after)
 
-For UMEP/QGIS compatible builds (rc1 suffix):
+For UMEP/QGIS 3 compatible builds (rc1 suffix):
   - When BUILD_UMEP_VARIANT=true environment variable is set
   - Tag: 2025.1.0 generates 2025.1.0rc1
-  - These are NumPy 1.x compatible builds for QGIS 3.40 LTR
+  - These are NumPy 1.x compatible builds for QGIS 3 LTR (3.40 ships NumPy 1.26.4)
+  - QGIS 4 (Python 3.13+, NumPy 2.x) uses the standard wheels — no rc1 needed
   - rc1 is a pre-release tag, ensuring pip install gets the stable version by default
   - See .github/workflows/build-publish_to_pypi.yml for build configuration
 

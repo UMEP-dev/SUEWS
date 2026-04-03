@@ -26,7 +26,7 @@ SUEWS is a neighbourhood/local-scale urban land surface model that simulates the
 
 The model represents seven surface types -- paved, buildings, evergreen trees/shrubs, deciduous trees/shrubs, grass, bare soil and water -- and tracks the running water balance of the canopy, soil moisture, and horizontal water movement above and below ground.
 
-**SuPy** (SUEWS in Python) provides the modern interface, wrapping a Fortran physics engine via F2PY and integrating with the scientific Python ecosystem (pandas, NumPy, matplotlib).
+**SuPy** (SUEWS in Python) provides the modern interface, wrapping a Fortran physics engine and integrating with the scientific Python ecosystem (pandas, NumPy, matplotlib).
 
 ## Key Features
 

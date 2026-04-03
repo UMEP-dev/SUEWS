@@ -60,7 +60,7 @@ Every SUEWS release automatically creates **two PyPI versions** from a single gi
 
 ### Why Two Versions?
 
-**Background**: QGIS 3.40 LTR ships with NumPy 1.26.4. NumPy 2.0 introduced ABI breaks requiring separate binary builds.
+**Background**: QGIS 3 LTR (3.40) ships with NumPy 1.26.4. NumPy 2.0 introduced ABI breaks requiring separate binary builds. QGIS 4 (Python 3.13+, NumPy 2.x) uses the standard wheels directly — no special handling needed.
 
 **Solution**: Automatic parallel builds from single tag:
 - **Standard build** uses NumPy ≥2.0 for modern Python environments
@@ -103,7 +103,7 @@ From a single tag push:
      - Runtime: `numpy>=1.22,<2.0` (instead of `numpy>=2.0`)
    - Sets `BUILD_UMEP_VARIANT=true` environment variable
    - Creates version `2024.10.7rc1` (via `get_ver_git.py`)
-   - Binary compatible with NumPy 1.26.4 (QGIS 3.40 LTR)
+   - Binary compatible with NumPy 1.26.4 (QGIS 3 LTR)
    - Deployed to PyPI
 
 3. **Deployment** (`deploy_pypi` job)

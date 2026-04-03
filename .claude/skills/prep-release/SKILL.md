@@ -30,6 +30,17 @@ This workflow is **workspace-independent** - run from any worktree.
 
 Details: `references/release-steps.md`
 
+## Status Tags and Release Notes
+
+CHANGELOG entries use status tags (`[experimental]`, `[stable]`, `[internal]`) on `[feature]` and `[change]` items. These tags control what appears in public-facing release documentation:
+
+- **`[stable]`** and **untagged** entries -> included in release notes (RST and GitHub Release MD)
+- **`[experimental]`** entries -> excluded from release notes; remain only in the CHANGELOG
+- **`[internal]`** entries -> excluded from release notes
+- **`[bugfix]`**, **`[maintenance]`**, **`[doc]`** entries -> always included (no status tag needed)
+
+When writing version history RST and GitHub Release notes, filter the CHANGELOG to include only stable/untagged features and changes alongside all bugfixes, maintenance, and documentation entries. Do not expose experimental features in public release documentation.
+
 ## Release Decision
 
 Release when ready. Scoring is guidance only.

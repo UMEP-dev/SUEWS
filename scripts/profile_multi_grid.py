@@ -84,7 +84,7 @@ def run_with_profile(n_grids: int):
 
 def main():
     parser = argparse.ArgumentParser(description="Profile SUEWS multi-grid execution")
-    parser.add_argument("--grids", type=int, default=10, help="Number of grid cells")
+    parser.add_argument("--grids", type=int, default=4, help="Number of grid cells")
     parser.add_argument("--profile", action="store_true", help="Run cProfile")
     args = parser.parse_args()
 

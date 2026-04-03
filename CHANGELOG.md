@@ -145,7 +145,7 @@ EXAMPLES:
 
 ### 24 Feb 2026
 
-- [feature][stable] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS dectreeh/evetreeh and SPARTACUS veg_scale/veg_frac entries (PR #1222).
+- [feature][experimental] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS dectreeh/evetreeh and SPARTACUS veg_scale/veg_frac entries (PR #1222).
 - [doc] Updated PHASE_C_DETAILED.md with new conditional validation logic for SPARTACUS (PR #1222).
 
 ### 23 Feb 2026
@@ -164,7 +164,7 @@ EXAMPLES:
 
 - [feature][stable] Replace f90wrap with Rust FFI bridge as sole simulation backend (#1209)
 - [feature][stable] Install Rust CLI to PATH and unify CLI interface (#1215)
-- [feature][stable] Add `_validate_spartacus_sfr` to conditional validation (#1208)
+- [feature][experimental] Add `_validate_spartacus_sfr` to conditional validation (#1208)
 - [bugfix] Guard SPARTACUS LW solver NaN from matrix singularity in certain urban canopy geometries (#1212)
 - [bugfix] Pin pydantic>=2.12 to prevent OSGeo4W version conflict (#1213)
 - [changes] Removed internal-only parameters (diagnose, dqndt, dqnsdt, dt_since_start, lenday_id, qn_av, qn_s_av, tair_av, tmax_id, tmin_id, tstep_prev, snowfallcum) from sample_config.yml. (PR #1216)
@@ -180,7 +180,7 @@ EXAMPLES:
 
 ### 13 Feb 2026
 
-- [feature][stable] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS bldgh and SPARTACUS height entries (PR #1205).
+- [feature][experimental] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS bldgh and SPARTACUS height entries (PR #1205).
 - [docs] Updated PHASE_C_DETAILED.md with new conditional validation logic for SPARTACUS (PR #1205).
 
 ### 10 Feb 2026

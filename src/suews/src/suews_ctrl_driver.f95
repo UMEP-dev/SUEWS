@@ -1317,7 +1317,8 @@ CONTAINS
                         LAIMax, LAI_id, gsModel, Kmax, &
                         G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, &
                         unused_gc1, unused_gc2, unused_gc3, unused_gc4, unused_gc5, & ! output: (unused conductances)
-                        gfunc_use, unused_gs, unused_rs) ! output:
+                        gfunc_use, unused_gs, unused_rs, & ! output:
+                        modState)
                   END IF
 
                   IF (gsmodel == 3 .OR. gsmodel == 4) THEN ! With modelled 2 meter temperature
@@ -1342,7 +1343,8 @@ CONTAINS
                         LAIMax, LAI_id, gsModel, Kmax, &
                         G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, &
                         unused_gc1, unused_gc2, unused_gc3, unused_gc4, unused_gc5, & ! output: (unused conductances)
-                        gfunc2, unused_gs, unused_rs) ! output:
+                        gfunc2, unused_gs, unused_rs, & ! output:
+                        modState)
                   ELSEIF ((gsmodel == 1 .OR. gsmodel == 2) .AND. RSLLevel > 0) THEN
                      ! Use local temperature for gsmodel 1/2 with RSL diagnostics
                      t2 = Tair_local
@@ -3390,7 +3392,8 @@ CONTAINS
                   AerodynamicResistanceMethod, &
                   StabilityMethod, &
                   RoughLenHeatMethod, &
-                  RA, z0v) ! output:
+                  RA, z0v, & ! output:
+                  modState)
 
                IF (SnowUse == 1) THEN
                   IF (Diagnose == 1) WRITE (*, *) 'Calling AerodynamicResistance for snow...'
@@ -3404,7 +3407,8 @@ CONTAINS
                      AerodynamicResistanceMethod, &
                      StabilityMethod, &
                      3, &
-                     RASnow, z0vSnow) ! output:
+                     RASnow, z0vSnow, & ! output:
+                     modState)
                END IF
 
                IF (Diagnose == 1) WRITE (*, *) 'Calling SurfaceResistance...'
@@ -3416,7 +3420,8 @@ CONTAINS
                   LAIMax, LAI_id, gsModel, Kmax, &
                   G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, &
                   g_kdown, g_dq, g_ta, g_smd, g_lai, & ! output:
-                  gfunc, gsc, RS) ! output:
+                  gfunc, gsc, RS, & ! output:
+                  modState)
 
                IF (Diagnose == 1) WRITE (*, *) 'Calling BoundaryLayerResistance...'
                CALL BoundaryLayerResistance( &

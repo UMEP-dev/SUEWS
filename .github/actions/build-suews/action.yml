@@ -97,7 +97,7 @@ runs:
         git diff pyproject.toml || true
 
     - name: Set up Python
-      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
       with:
         python-version: 3.12
 
@@ -120,7 +120,7 @@ runs:
       run: mkdir -p .cargo-cache .rust-target-cache
 
     - name: Cache Rust/Cargo dependencies
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
       with:
         path: |
           .cargo-cache
@@ -244,7 +244,7 @@ runs:
         MACOSX_DEPLOYMENT_TARGET: '15.0'
 
     - name: Upload wheels
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
       with:
         name: ${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}${{ inputs.wheel_name_suffix }}
         path: ./wheelhouse/*.whl

@@ -29,9 +29,10 @@ def create_multi_grid_state(n_grids: int):
     return df_state_multi, df_forcing
 
 
-def run_benchmark(n_grids: int):
+def run_benchmark(n_grids: int, serial: bool = True):
     """Run N-grid benchmark and report timing breakdown."""
-    print(f"Setting up {n_grids} grids...")
+    mode = "serial" if serial else "parallel"
+    print(f"Setting up {n_grids} grids ({mode})...")
     t0 = perf_counter()
     df_state_multi, df_forcing = create_multi_grid_state(n_grids)
     t_setup = perf_counter() - t0
@@ -42,12 +43,12 @@ def run_benchmark(n_grids: int):
     n_steps = len(df_forcing_short)
     print(f"  Forcing: {n_steps} timesteps ({n_steps * 5 / 60:.1f} hours)")
 
-    print(f"Running {n_grids} grids x {n_steps} timesteps...")
+    print(f"Running {n_grids} grids x {n_steps} timesteps ({mode})...")
     t0 = perf_counter()
     df_output, df_state = sp.run_supy(
         df_forcing_short,
         df_state_multi,
-        serial_mode=True,  # Serial to measure single-thread baseline
+        serial_mode=serial,
     )
     t_run = perf_counter() - t0
 
@@ -90,9 +91,14 @@ def main():
     if args.profile:
         run_with_profile(args.grids)
     else:
-        # Run scaling test: 1, N/2, N grids
-        for n in [1, max(1, args.grids // 2), args.grids]:
-            run_benchmark(n)
+        n = args.grids
+        print("=== Serial ===")
+        t_serial = run_benchmark(n, serial=True)
+        print()
+        if n > 1:
+            print("=== Parallel ===")
+            t_parallel = run_benchmark(n, serial=False)
+            print(f"\n  Speedup: {t_serial / t_parallel:.2f}x")
             print()
 
 

@@ -311,9 +311,38 @@ def run_suews_rust(
     return df_output, state_json
 
 
+def _run_single_grid_worker(args: tuple) -> tuple[int, list, str | None, int]:
+    """Worker function for parallel multi-grid execution.
+
+    Runs a single grid cell in a child process.  Accepts and returns only
+    serialisable types (no Pydantic models or DataFrames) so it works with
+    multiprocessing.
+
+    Parameters
+    ----------
+    args : tuple
+        (config_json, forcing_flat, len_forcing, grid_id)
+
+    Returns
+    -------
+    tuple
+        (grid_id, output_flat, state_json, len_sim)
+    """
+    config_json, forcing_flat, len_forcing, grid_id = args
+    rust_module = _check_rust_available()
+    output_flat, state_json, len_sim = rust_module.run_suews(
+        config_json,
+        forcing_flat,
+        len_forcing,
+    )
+    return grid_id, output_flat, state_json, len_sim
+
+
 def run_suews_rust_multi(
     config: SUEWSConfig,
     df_forcing: pd.DataFrame,
+    serial_mode: bool = False,
+    max_workers: int | None = None,
 ) -> tuple[pd.DataFrame, dict[int, str] | None]:
     """Run SUEWS via Rust bridge for all sites in configuration.
 
@@ -321,6 +350,11 @@ def run_suews_rust_multi(
     per site, and calls the Rust bridge directly.  Shared data (forcing
     block, base config dict) is prepared once to avoid redundant deep
     copies and YAML serialisation.
+
+    When *serial_mode* is False and there are multiple sites, grids are
+    run in parallel using ``multiprocessing.Pool`` with the ``spawn``
+    context (safe for Fortran SAVE variables — each process gets its
+    own address space).
 
     Returns ``(df_output, dict_state_json)`` where *dict_state_json* maps
     each grid ID to its post-simulation state JSON string.
@@ -339,52 +373,54 @@ def run_suews_rust_multi(
         raise ValueError("forcing data is empty")
 
     # --- Prepare shared data once ---
-    # Serialise full config to dict (expensive Pydantic step — do once)
     config_dict = config.model_dump(exclude_none=True, mode="json")
-    # Pre-serialise each site dict for fast per-grid patching
     list_site_dict = [
         s.model_dump(exclude_none=True, mode="json") for s in sites
     ]
-    # Prepare forcing block once (identical for all grids)
     forcing_block = _prepare_forcing_block(df_forcing)
     forcing_flat = forcing_block.ravel(order="C").tolist()
     len_forcing = len(df_forcing)
 
+    # Pre-serialise per-grid config JSON strings
+    list_grid_args = []
+    for idx, site_dict in enumerate(list_site_dict):
+        grid_id = _normalise_grid_id(sites[idx].gridiv)
+        config_dict["sites"] = [site_dict]
+        config_json = json.dumps(config_dict)
+        list_grid_args.append((config_json, forcing_flat, len_forcing, grid_id))
+
+    # --- Execute grids (serial or parallel) ---
+    use_parallel = not serial_mode and len(sites) > 1
+
+    if use_parallel:
+        import multiprocessing as mp
+
+        ctx = mp.get_context("spawn")
+        n_workers = max_workers or min(len(sites), mp.cpu_count())
+        logger_supy.info(
+            "Running %d grids in parallel (%d workers)",
+            len(sites),
+            n_workers,
+        )
+        with ctx.Pool(processes=n_workers) as pool:
+            results = pool.map(_run_single_grid_worker, list_grid_args)
+    else:
+        results = [_run_single_grid_worker(a) for a in list_grid_args]
+
+    # --- Collect results ---
     list_df_output = []
     dict_state_json: dict[int, str] = {}
 
-    for idx, site_dict in enumerate(list_site_dict):
-        grid_id = _normalise_grid_id(sites[idx].gridiv)
-        logger_supy.debug(
-            "Rust backend: running site %d/%d (gridiv=%d)",
-            idx + 1,
-            len(sites),
-            grid_id,
-        )
-
-        # Patch only the sites list — no deep copy of entire config
-        config_dict["sites"] = [site_dict]
-        # JSON is ~30x faster than YAML to serialise and valid JSON parses
-        # as valid YAML (serde_yaml accepts JSON syntax).
-        config_yaml = json.dumps(config_dict)
-
-        output_flat, state_json, len_sim = rust_module.run_suews(
-            config_yaml,
-            forcing_flat,
-            len_forcing,
-        )
-
+    for grid_id, output_flat, state_json, len_sim in results:
         if len_sim != len_forcing:
             raise RuntimeError(
                 f"Rust backend length mismatch: forcing={len_forcing}, output={len_sim}"
             )
-
         df_output = _parse_output_block(output_flat, len_sim, grid_id)
         list_df_output.append(df_output)
         if state_json is not None:
             dict_state_json[grid_id] = state_json
 
-    # Concatenate all grids -- each df already has (grid, datetime) index
     df_output_all = pd.concat(list_df_output).sort_index()
 
     return df_output_all, dict_state_json or None
@@ -431,6 +467,7 @@ def run_suews_rust_chunked(
     config: SUEWSConfig,
     df_forcing: pd.DataFrame,
     chunk_day: int = 366,
+    serial_mode: bool = False,
 ) -> tuple[pd.DataFrame, dict[int, str] | None]:
     """Run SUEWS via Rust bridge with multi-chunk state chaining.
 
@@ -447,7 +484,9 @@ def run_suews_rust_chunked(
 
     n_chunk = len(grp_forcing_chunk)
     if n_chunk <= 1:
-        return run_suews_rust_multi(config, df_forcing)
+        return run_suews_rust_multi(
+            config, df_forcing, serial_mode=serial_mode
+        )
 
     logger_supy.info(
         "Rust backend: forcing split into %d chunks of <= %d days.",

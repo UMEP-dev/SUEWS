@@ -22,6 +22,7 @@ SUEWS supports two formats for providing input parameters:
    :maxdepth: 1
    :caption: Tools and Utilities
 
+   surface-data-preparation
    converter
    transition_guide
    yaml/validation
@@ -31,4 +32,3 @@ SUEWS supports two formats for providing input parameters:
    :caption: Table-based Input Format (Legacy - Deprecated)
 
    tables/index
-

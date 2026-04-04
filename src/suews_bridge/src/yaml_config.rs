@@ -1586,26 +1586,6 @@ fn apply_building_archetype_overrides(site: &mut SuewsSite, site_root: &Value) -
             continue;
         }
 
-        if field_name == "heating_setpoint_temperature_profile" {
-            apply_day_profile_overrides(
-                &mut mapped,
-                field_value,
-                "heatingsetpointtemperatureprofile",
-                144,
-            );
-            continue;
-        }
-
-        if field_name == "cooling_setpoint_temperature_profile" {
-            apply_day_profile_overrides(
-                &mut mapped,
-                field_value,
-                "coolingsetpointtemperatureprofile",
-                144,
-            );
-            continue;
-        }
-
         if let Some(v) = read_numeric_value(field_value) {
             set_mapped_value(&mut mapped, &field_name, v);
         }

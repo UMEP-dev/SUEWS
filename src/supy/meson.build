@@ -137,6 +137,11 @@ py.install_sources(
         [
             'ext_data/CRU_TS4.06_1991_2020.parquet',
         ],
+        [
+            # Model cards: structured documentation for physics schemes
+            'model_cards/__init__.py',
+            'model_cards/_schema.py',
+        ],
     ],
     subdir: 'supy',
     preserve_path: true,

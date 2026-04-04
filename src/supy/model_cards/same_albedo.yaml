@@ -1,0 +1,65 @@
+identity:
+  scheme_name: same_albedo
+  full_name: Uniform Wall/Roof Albedo Assumption
+  category: radiation
+  purpose: >-
+    Controls whether all walls (or roofs) within the urban canopy share the
+    same albedo value, simplifying the radiation calculation for multi-layer
+    schemes.
+  version_introduced: "v2021a"
+  original_authors:
+    - "SUEWS Development Team"
+  enum_class: SameAlbedoWall
+  enum_values: [0, 1]
+
+scientific_basis:
+  theoretical_basis: >-
+    When enabled, all wall (or roof) surfaces in the multi-layer urban canopy
+    are assigned the same albedo value. This simplifies the radiation transfer
+    calculation in SPARTACUS-Surface by reducing the number of unique surface
+    property combinations. Two separate enums control walls (SameAlbedoWall)
+    and roofs (SameAlbedoRoof) independently.
+  key_publications: []
+  key_assumptions:
+    - "Albedo variation between walls (or roofs) at different levels is negligible"
+
+evaluation_evidence:
+  evaluation_status: internal
+  performance_summary: >-
+    Internal setting primarily used with SPARTACUS-Surface multi-layer
+    radiation. Reduces complexity when vertical variation in surface
+    optical properties is not important.
+
+technical_characteristics:
+  spatial_scale:
+    - neighbourhood
+  temporal_resolution:
+    - sub-hourly
+    - hourly
+  required_inputs:
+    parameters:
+      - "Wall/roof albedo values"
+    forcing: []
+  outputs:
+    - "Simplified albedo input to radiation scheme"
+  computational_demand: low
+  data_preparation_demand: low
+
+operational_status:
+  development_status: stable
+  current_maintainers:
+    - name: SUEWS Development Team
+      affiliation: University of Reading / UCL
+  active_development: maintenance-only
+  test_coverage:
+    - "Smoke tests via make test-smoke"
+
+user_guidance:
+  configuration_notes: >-
+    SameAlbedoWall=1 applies a uniform wall albedo across all layers.
+    SameAlbedoRoof=1 applies a uniform roof albedo. Both default to 0
+    (allowing per-layer variation). Primarily relevant when using
+    SPARTACUS-Surface (NetRadiationMethod 1001-1003).
+
+governance:
+  candidate_for_deprecation: false

@@ -43,6 +43,7 @@ from supy.data_model.validation.core.utils import check_missing_params
 from supy.data_model.validation.pipeline.phase_b import (
     adjust_seasonal_parameters,
     adjust_model_option_stebbsmethod,
+    adjust_model_option_setpointmethod,
     adjust_model_option_rcmethod,
     RulesRegistry,
     ValidationContext
@@ -794,6 +795,128 @@ def test_phase_b_validate_model_option_same_emissivity_disabled(registry):
     assert "no check of consistency" in results_roof[0].message.lower()
     assert "same_emissivity_roof == 0" in results_roof[0].message.lower()
     
+def test_phase_b_forcing_height_error_and_warning(registry):
+    """Test validate_forcing_height_vs_buildings returns ERROR and WARNING for low z."""
+    # z < 2 * bldgh (mean), z < 2 * max(stebbs_Height, spartacus_top)
+    yaml_data = {
+        "model": {
+            "physics": {
+                "stebbsmethod": {"value": 1},
+                "netradiationmethod": {"value": 1001},
+            }
+        },
+        "sites": [
+            {
+                "name": "TestSite",
+                "gridiv": 1,
+                "properties": {
+                    "z": {"value": 10.0},
+                    "land_cover": {
+                        "bldgs": {"bldgh": {"value": 6.0}},
+                    },
+                    "building_archetype": {"stebbs_Height": {"value": 8.0}},
+                    "vertical_layers": {"height": {"value": [0, 5, 12, 0]}},
+                },
+            }
+        ],
+    }
+    results = registry["forcing_height"](ValidationContext(yaml_data=yaml_data))
+    # Should have ERROR for z < 2*bldgh (2*6=12)
+    error = [r for r in results if r.status == "ERROR"]
+    assert error
+    assert "2*mean building height" in error[0].message
+    # Should have WARNING for z < 2*max(12, 8, 6) = 24
+    warning = [r for r in results if r.status == "WARNING"]
+    assert warning
+    assert "2*max building height" in warning[0].message
+    assert "SPARTACUS top layer height=12.0" in warning[0].message
+
+def test_phase_b_forcing_height_valid(registry):
+    """Test validate_forcing_height_vs_buildings passes when z is sufficient."""
+    yaml_data = {
+        "model": {
+            "physics": {
+                "stebbsmethod": {"value": 1},
+                "netradiationmethod": {"value": 1001},
+            }
+        },
+        "sites": [
+            {
+                "name": "TestSite",
+                "gridiv": 1,
+                "properties": {
+                    "z": {"value": 30.0},
+                    "land_cover": {
+                        "bldgs": {"bldgh": {"value": 10.0}},
+                    },
+                    "building_archetype": {"stebbs_Height": {"value": 12.0}},
+                    "vertical_layers": {"height": {"value": [0, 5, 12, 15]}},
+                },
+            }
+        ],
+    }
+    results = registry["forcing_height"](ValidationContext(yaml_data=yaml_data))
+    # No ERROR or WARNING expected
+    assert not results
+
+def test_phase_b_forcing_height_only_stebbs_height(registry):
+    """Test validate_forcing_height_vs_buildings uses stebbs_Height if present."""
+    yaml_data = {
+        "model": {
+            "physics": {
+                "stebbsmethod": {"value": 1},
+            }
+        },
+        "sites": [
+            {
+                "name": "TestSite",
+                "gridiv": 1,
+                "properties": {
+                    "z": {"value": 14.0},
+                    "land_cover": {
+                        "bldgs": {"bldgh": {"value": 7.0}},
+                    },
+                    "building_archetype": {"stebbs_Height": {"value": 7.0}},
+                },
+            }
+        ],
+    }
+    results = registry["forcing_height"](ValidationContext(yaml_data=yaml_data))
+
+    assert not any(r.status == "ERROR" for r in results)
+
+def test_phase_b_forcing_height_only_spartacus_top(registry):
+    """Test validate_forcing_height_vs_buildings uses SPARTACUS top if present, and warns if bldgh is missing."""
+    yaml_data = {
+        "model": {
+            "physics": {
+                "netradiationmethod": {"value": 1001},
+            }
+        },
+        "sites": [
+            {
+                "name": "TestSite",
+                "gridiv": 1,
+                "properties": {
+                    "z": {"value": 5.0},
+                    "vertical_layers": {"height": {"value": [0, 2, 8, 0]}},
+                },
+            }
+        ],
+    }
+    results = registry["forcing_height"](ValidationContext(yaml_data=yaml_data))
+
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert warnings
+    # Check for SPARTACUS top layer warning
+    assert any("SPARTACUS top layer height=8.0" in w.message for w in warnings)
+    # Check for missing bldgh warning
+    assert any(
+        "cannot validate forcing height" in w.message
+        and "land_cover.bldgs.bldgh is missing" in w.message
+        for w in warnings
+    )
+    
 def test_validate_model_option_rcmethod_missing_params(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 1}}},
@@ -876,6 +999,104 @@ def test_adjust_model_option_rcmethod_no_action_when_already_set():
     updated_data, adjustments = adjust_model_option_rcmethod(yaml_data)
     assert len(adjustments) == 0
 
+def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_0_or_1():
+    # setpointmethod == 0: should nullify all profile entries
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 0}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperatureProfile": {
+                        "working_day": {"0": 21.0, "1": 22.0},
+                        "holiday": {"0": 20.0, "1": 21.0},
+                    },
+                    "CoolingSetpointTemperatureProfile": {
+                        "working_day": {"0": 25.0, "1": 26.0},
+                        "holiday": {"0": 24.0, "1": 25.0},
+                    },
+                }
+            }
+        }],
+    }
+    updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
+    ba = updated["sites"][0]["properties"]["building_archetype"]
+    for prof in ["HeatingSetpointTemperatureProfile", "CoolingSetpointTemperatureProfile"]:
+        for daytype in ["working_day", "holiday"]:
+            for hour in ba[prof][daytype]:
+                assert ba[prof][daytype][hour] is None
+    assert any(a.parameter == "building_archetype.HeatingSetpointTemperatureProfile.working_day" for a in adjustments)
+    assert any(a.parameter == "building_archetype.CoolingSetpointTemperatureProfile.holiday" for a in adjustments)
+
+def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_1():
+    # setpointmethod == 1: should nullify all profile entries
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperatureProfile": {
+                        "working_day": {"0": 21.0},
+                        "holiday": {"0": 20.0},
+                    },
+                    "CoolingSetpointTemperatureProfile": {
+                        "working_day": {"0": 25.0},
+                        "holiday": {"0": 24.0},
+                    },
+                }
+            }
+        }],
+    }
+    updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
+    ba = updated["sites"][0]["properties"]["building_archetype"]
+    for prof in ["HeatingSetpointTemperatureProfile", "CoolingSetpointTemperatureProfile"]:
+        for daytype in ["working_day", "holiday"]:
+            for hour in ba[prof][daytype]:
+                assert ba[prof][daytype][hour] is None
+    assert any(a.parameter == "building_archetype.HeatingSetpointTemperatureProfile.working_day" for a in adjustments)
+
+def test_adjust_model_option_setpointmethod_sets_temps_to_null_when_2():
+    # setpointmethod == 2: should nullify HeatingSetpointTemperature and CoolingSetpointTemperature
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperature": {"value": 21.0},
+                    "CoolingSetpointTemperature": {"value": 25.0},
+                }
+            }
+        }],
+    }
+    updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
+    ba = updated["sites"][0]["properties"]["building_archetype"]
+    assert ba["HeatingSetpointTemperature"]["value"] is None
+    assert ba["CoolingSetpointTemperature"]["value"] is None
+    assert any(a.parameter == "building_archetype.HeatingSetpointTemperature" for a in adjustments)
+    assert any(a.parameter == "building_archetype.CoolingSetpointTemperature" for a in adjustments)
+
+def test_adjust_model_option_setpointmethod_no_action_when_already_null():
+    # Should not add adjustments if already null
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperature": {"value": None},
+                    "CoolingSetpointTemperature": {"value": None},
+                }
+            }
+        }],
+    }
+    updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
+    ba = updated["sites"][0]["properties"]["building_archetype"]
+    assert ba["HeatingSetpointTemperature"]["value"] is None
+    assert ba["CoolingSetpointTemperature"]["value"] is None
+    assert len(adjustments) == 0
+
 def test_validate_model_option_rcmethod2_missing_params(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 2}}},
@@ -947,6 +1168,145 @@ def test_validate_model_option_rcmethod2_some_params_missing(registry):
     assert any(r.status == "WARNING" for r in results)
     assert all("must be provided" in r.message for r in results if r.status == "ERROR")
 
+def test_validate_model_option_setpointmethod_0_or_1_all_params(registry):
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 0}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperature": {"value": 21.0},
+                    "CoolingSetpointTemperature": {"value": 25.0},
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    assert not results or all(r.status != "ERROR" for r in results)
+
+def test_validate_model_option_setpointmethod_0_or_1_missing_params(registry):
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    # "HeatingSetpointTemperature" missing
+                    "CoolingSetpointTemperature": {"value": 25.0},
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    error_params = [r.parameter for r in results if r.status == "ERROR"]
+    assert "HeatingSetpointTemperature" in error_params
+    assert all("must be set" in r.message for r in results if r.status == "ERROR")
+
+def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
+    heating_working = {str(i): 20.0 for i in range(1, 145)}
+    heating_holiday = {str(i): 19.0 for i in range(1, 145)}
+    cooling_working = {str(i): 26.0 for i in range(1, 145)}
+    cooling_holiday = {str(i): 25.5 for i in range(1, 145)}
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperatureProfile": {
+                        "working_day": heating_working,
+                        "holiday": heating_holiday,
+                    },
+                    "CoolingSetpointTemperatureProfile": {
+                        "working_day": cooling_working,
+                        "holiday": cooling_holiday,
+                    },
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    assert not results or all(r.status != "ERROR" for r in results)
+
+def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry):
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperatureProfile": {
+                        "working_day": {"0": None, "1": 19.5},
+                        "holiday": {"0": 19.0, "1": None},
+                    },
+                    "CoolingSetpointTemperatureProfile": {
+                        "working_day": {"0": 26.0, "1": None},
+                        "holiday": {"0": None, "1": 26.5},
+                    },
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    error_params = [r.parameter for r in results if r.status == "ERROR"]
+    assert "HeatingSetpointTemperatureProfile" in error_params
+    assert "CoolingSetpointTemperatureProfile" in error_params
+    assert any("null entries" in r.message for r in results if r.status == "ERROR")
+
+def test_validate_model_option_setpointmethod_2_out_of_range(registry):
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperatureProfile": {
+                        "working_day": {"0": 31.0, "1": 19.5},
+                        "holiday": {"0": 19.0, "1": 30.0},
+                    },
+                    "CoolingSetpointTemperatureProfile": {
+                        "working_day": {"0": 14.0, "1": 27.0},
+                        "holiday": {"0": 25.5, "1": 15.0},
+                    },
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    heating_errors = [r for r in results if r.parameter == "HeatingSetpointTemperatureProfile" and r.status == "ERROR"]
+    cooling_errors = [r for r in results if r.parameter == "CoolingSetpointTemperatureProfile" and r.status == "ERROR"]
+    assert any("values >= 30.0" in r.message for r in heating_errors)
+    assert any("values <= 15.0" in r.message for r in cooling_errors)
+
+def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
+    yaml_data = {
+        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "HeatingSetpointTemperatureProfile": {
+                        "working_day": {"0": 20.0, "1": 19.5},
+                        "holiday": {"1": 19.0, "2": 18.5},
+                    },
+                    "CoolingSetpointTemperatureProfile": {
+                        "working_day": {"1": 26.0, "145": 27.0},
+                        "holiday": {"1": 25.5, "2": 26.5},
+                    },
+                }
+            }
+        }],
+    }
+    results = registry["setpointmethod"](ValidationContext(yaml_data=yaml_data))
+    error_params = [r.parameter for r in results if r.status == "ERROR"]
+    assert "HeatingSetpointTemperatureProfile.working_day" in error_params
+    assert "CoolingSetpointTemperatureProfile.working_day" in error_params
+    assert any(
+        "Only entries 1-144 are valid." in r.message
+        for r in results
+        if r.status == "ERROR"
+    )
+    
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
     """Test HotWaterFlowProfile accepts only 0 or 1 values."""
 
@@ -1036,7 +1396,42 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial(registry
     assert len(results) == 2
 
 def test_validate_model_option_stebbsmethod_daylightcontrol_valid(registry):
-    """Test DaylightControl accepts only 0 or 1 values."""
+    """Test DaylightControl accepts only 0 or 1 values, and LightingIlluminanceThreshold is required if 1."""
+    # Valid: DaylightControl = 1, LightingIlluminanceThreshold provided
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "DaylightControl": {"value": 1},
+                    "LightingIlluminanceThreshold": {"value": 300}
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for valid DaylightControl=1 with LightingIlluminanceThreshold"
+
+    # Valid: DaylightControl = 0, LightingIlluminanceThreshold not required
+    yaml_data["sites"][0]["properties"]["stebbs"]["DaylightControl"]["value"] = 0
+    yaml_data["sites"][0]["properties"]["stebbs"].pop("LightingIlluminanceThreshold")
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for valid DaylightControl=0"
+
+    # Valid: DaylightControl = 0.0 (float)
+    yaml_data["sites"][0]["properties"]["stebbs"]["DaylightControl"]["value"] = 0.0
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for valid DaylightControl=0.0"
+
+    # Valid: DaylightControl = 1.0 (float), LightingIlluminanceThreshold provided
+    yaml_data["sites"][0]["properties"]["stebbs"]["DaylightControl"]["value"] = 1.0
+    yaml_data["sites"][0]["properties"]["stebbs"]["LightingIlluminanceThreshold"] = {"value": 200}
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for valid DaylightControl=1.0 with LightingIlluminanceThreshold"
+
+def test_validate_model_option_stebbsmethod_daylightcontrol_missing_lit(registry):
+    """Test DaylightControl == 1 but LightingIlluminanceThreshold missing returns error."""
     yaml_data = {
         "model": {"physics": {"stebbsmethod": {"value": 1}}},
         "sites": [{
@@ -1044,32 +1439,16 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_valid(registry):
             "properties": {
                 "stebbs": {
                     "DaylightControl": {"value": 1}
+                    # LightingIlluminanceThreshold missing
                 }
             }
         }],
     }
     results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
-    assert not results, "Should not return errors for valid DaylightControl value"
-
-    yaml_data["sites"][0]["properties"]["stebbs"]["DaylightControl"]["value"] = 0
-    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
-    assert not results, "Should not return errors for valid DaylightControl value 0"
-
-def test_validate_model_option_stebbsmethod_daylightcontrol_zero(registry):
-    """Test DaylightControl == 0 is accepted as valid."""
-    yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
-        "sites": [{
-            "name": "site1",
-            "properties": {
-                "stebbs": {
-                    "DaylightControl": {"value": 0}
-                }
-            }
-        }],
-    }
-    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
-    assert not results, "Should not return errors for DaylightControl == 0"
+    assert len(results) == 1
+    assert results[0].parameter == "stebbs.LightingIlluminanceThreshold"
+    assert results[0].status == "ERROR"
+    assert "must be provided" in results[0].message
 
 def test_validate_model_option_stebbsmethod_daylightcontrol_invalid(registry):
     """Test DaylightControl returns ERROR for invalid values."""
@@ -1124,6 +1503,57 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_missing(registry):
     }
     results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors if DaylightControl is missing"
+
+def test_validate_model_option_stebbsmethod_daylightcontrol_not_active(registry):
+    """Test no validation occurs if stebbsmethod != 1."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 0}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "DaylightControl": {"value": 2}
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors if stebbsmethod != 1"
+
+def test_daylight_control_lightingilluminancethreshold_zero(registry):
+    """Test LightingIlluminanceThreshold=0 is accepted when DaylightControl=1."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "DaylightControl": {"value": 1},
+                    "LightingIlluminanceThreshold": {"value": 0}
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for LightingIlluminanceThreshold=0"
+
+def test_daylight_control_daylightcontrol_zero(registry):
+    """Test DaylightControl=0 is accepted and LightingIlluminanceThreshold is not required."""
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "stebbs": {
+                    "DaylightControl": {"value": 0}
+                    # LightingIlluminanceThreshold not provided
+                }
+            }
+        }],
+    }
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
+    assert not results, "Should not return errors for DaylightControl=0 without LightingIlluminanceThreshold"
+
 
 def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_nonzero(registry):
     """Test error when Occupants=0.0 but MetabolismProfile has nonzero values."""

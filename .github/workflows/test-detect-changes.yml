@@ -37,7 +37,7 @@ jobs:
       # The real CI workflow classifies pyproject.toml by content (see build-publish_to_pypi.yml).
       # SYNC-NOTE: update if needs-build categories change in build-publish_to_pypi.yml
       needs-build: ${{ steps.filter.outputs.fortran == 'true' || steps.filter.outputs.rust == 'true' || steps.filter.outputs.python == 'true' || steps.filter.outputs.util == 'true' || steps.filter.outputs.build == 'true' || steps.filter.outputs.pyproject == 'true' || steps.filter.outputs.ci == 'true' || steps.filter.outputs.tests == 'true' }}
-      # SYNC-NOTE: UMEP build only needed when compiled extension ABI may differ
+      # SYNC-NOTE: QGIS3 UMEP build only needed when compiled extension ABI may differ
       needs-umep-build: ${{ steps.filter.outputs.fortran == 'true' || steps.filter.outputs.rust == 'true' || steps.filter.outputs.build == 'true' }}
       fortran-changed: ${{ steps.filter.outputs.fortran }}
       rust-changed: ${{ steps.filter.outputs.rust }}
@@ -50,7 +50,7 @@ jobs:
       docs-changed: ${{ steps.filter.outputs.docs }}
       site-changed: ${{ steps.filter.outputs.site }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -136,7 +136,7 @@ jobs:
           echo "=== Build Decision ==="
           echo "needs-build: $NEEDS_BUILD"
 
-          # UMEP build needed only when compiled extension ABI may differ
+          # QGIS3 UMEP build needed only when compiled extension ABI may differ
           NEEDS_UMEP_BUILD=false
           if [[ "$FORTRAN" == "true" ]] || [[ "$RUST" == "true" ]] || [[ "$BUILD" == "true" ]]; then
             NEEDS_UMEP_BUILD=true
@@ -194,9 +194,9 @@ jobs:
             echo "- wheel build (build_wheels)"
             TRIGGERED=true
             if [[ "$FORTRAN" == "true" ]] || [[ "$RUST" == "true" ]] || [[ "$BUILD" == "true" ]]; then
-              echo "- UMEP build (build_umep) [compiled extension changed]"
+              echo "- QGIS3 UMEP build (build_umep) [compiled extension changed]"
             else
-              echo "- UMEP build skipped [no compiled extension changes]"
+              echo "- QGIS3 UMEP build skipped [no compiled extension changes]"
             fi
           fi
           if [[ "$TRIGGERED" == "false" ]]; then echo "- nothing (all skipped)"; fi

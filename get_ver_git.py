@@ -16,10 +16,11 @@ For production releases:
   - At tag: generates 2025.1.0
   - After commits: generates 2025.1.0.dev5 (5 commits after)
 
-For UMEP/QGIS compatible builds (rc1 suffix):
+For UMEP/QGIS 3 compatible builds (rc1 suffix):
   - When BUILD_UMEP_VARIANT=true environment variable is set
   - Tag: 2025.1.0 generates 2025.1.0rc1
-  - These are NumPy 1.x compatible builds for QGIS 3.40 LTR
+  - These are NumPy 1.x compatible builds for QGIS 3 LTR (3.40 ships NumPy 1.26.4)
+  - QGIS 4 (Python 3.13+, NumPy 2.x) uses the standard wheels — no rc1 needed
   - rc1 is a pre-release tag, ensuring pip install gets the stable version by default
   - See .github/workflows/build-publish_to_pypi.yml for build configuration
 
@@ -94,13 +95,13 @@ def get_version_from_git():
                 f"Output '{describe_output}' does not match the expected pattern."
             )
 
-        # Check for UMEP build variant (NumPy 1.x compatible build)
-        # This is set by CI workflow for QGIS/UMEP compatible releases
+        # Check for QGIS3 UMEP build variant (NumPy 1.x compatible build)
+        # This is set by CI workflow for QGIS 3 compatible releases
         if os.environ.get("BUILD_UMEP_VARIANT") == "true":
             if ".dev" in version:
                 # For dev/nightly builds: increment dev number to avoid version collision
                 # Standard: 2025.10.15.dev0 (NumPy 2.x)
-                # UMEP:     2025.10.15.dev1 (NumPy 1.x)
+                # QGIS3 UMEP: 2025.10.15.dev1 (NumPy 1.x)
                 # This allows both to coexist on TestPyPI for testing
                 base, dev_num = version.rsplit(".dev", 1)
                 version = f"{base}.dev{int(dev_num) + 1}"

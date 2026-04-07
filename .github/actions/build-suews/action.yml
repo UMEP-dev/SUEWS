@@ -56,7 +56,7 @@ runs:
       if: inputs.is_umep_variant == 'true'
       shell: bash
       run: |
-        echo "Building UMEP variant with NumPy 1.x compatibility"
+        echo "Building QGIS3 UMEP variant with NumPy 1.x compatibility"
 
         # Use Python for cross-platform TOML modification (BSD sed on macOS differs from GNU sed)
         # Note: Regex approach relies on pyproject.toml structure where [build-system] uses
@@ -69,7 +69,7 @@ runs:
         with open('pyproject.toml', 'r') as f:
             content = f.read()
 
-        # Runtime: Pin to NumPy 1.x (QGIS 3.40 LTR uses 1.26.4)
+        # Runtime: Pin to NumPy 1.x (QGIS 3 LTR — 3.40 ships NumPy 1.26.4)
         # Targets [project].dependencies (not [build-system].requires)
         content = re.sub(
             r'(dependencies\s*=\s*\[.*?)"numpy>=2\.0"',
@@ -93,11 +93,11 @@ runs:
         print("pyproject.toml modified successfully")
         EOF
 
-        echo "Modified pyproject.toml for UMEP build:"
+        echo "Modified pyproject.toml for QGIS3 UMEP build:"
         git diff pyproject.toml || true
 
     - name: Set up Python
-      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
       with:
         python-version: 3.12
 
@@ -109,7 +109,7 @@ runs:
         # Generate version file on host (where git is available)
         # This file will be copied into the cibuildwheel container
         if [ "${BUILD_UMEP_VARIANT}" = "true" ]; then
-          echo "Generating version for UMEP variant (rc1 suffix)"
+          echo "Generating version for QGIS3 UMEP variant (rc1 suffix)"
           export BUILD_UMEP_VARIANT=true
         fi
         python3 get_ver_git.py
@@ -120,7 +120,7 @@ runs:
       run: mkdir -p .cargo-cache .rust-target-cache
 
     - name: Cache Rust/Cargo dependencies
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
       with:
         path: |
           .cargo-cache
@@ -172,7 +172,7 @@ runs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y &&
           pip install --upgrade pip setuptools wheel &&
           if [[ "${{ inputs.is_umep_variant }}" == "true" ]]; then
-            echo "Installing oldest-supported-numpy for UMEP variant build" &&
+            echo "Installing oldest-supported-numpy for QGIS3 UMEP variant build" &&
             pip install oldest-supported-numpy;
           else
             echo "Installing numpy>=2.0 for standard build" &&
@@ -244,7 +244,7 @@ runs:
         MACOSX_DEPLOYMENT_TARGET: '15.0'
 
     - name: Upload wheels
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
       with:
         name: ${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}${{ inputs.wheel_name_suffix }}
         path: ./wheelhouse/*.whl

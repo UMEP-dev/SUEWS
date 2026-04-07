@@ -87,7 +87,7 @@ module.exports = async ({ github, context }) => {
     configSection += `| **Platforms** | ${platforms.join(', ')} |\n`;
     configSection += `| **Python** | ${pyDisplay} |\n`;
     configSection += `| **Test tier** | ${tierDesc[testTier] || testTier} |\n`;
-    configSection += `| **UMEP build** | ${needsUmep ? 'Yes (compiled extension may differ)' : 'Skipped (no ABI changes)'} |\n`;
+    configSection += `| **QGIS3 UMEP build** | ${needsUmep ? 'Yes (compiled extension may differ)' : 'Skipped (no ABI changes)'} |\n`;
     configSection += `| **PR status** | ${isDraft ? 'Draft (reduced matrix)' : 'Ready (standard matrix)'} |\n`;
   }
 
@@ -108,8 +108,8 @@ module.exports = async ({ github, context }) => {
   if (utilChanged) rationale.push('Utility modules changed -> single-platform build');
   if (ciChanged) rationale.push('CI/workflow files changed -> validation build');
   if (testsChanged) rationale.push('Test files changed -> validation build');
-  if (needsUmep) rationale.push('Compiled extension ABI may differ -> UMEP (NumPy 1.x) build included');
-  if (!needsUmep && needsBuild) rationale.push('No compiled extension changes -> UMEP build skipped (nightly provides coverage)');
+  if (needsUmep) rationale.push('Compiled extension ABI may differ -> QGIS3 UMEP (NumPy 1.x) build included');
+  if (!needsUmep && needsBuild) rationale.push('No compiled extension changes -> QGIS3 UMEP build skipped (nightly provides coverage)');
   if (!needsBuild) rationale.push('No build-triggering changes detected -> builds skipped');
 
   const rationaleSection = rationale.map(r => `- ${r}`).join('\n');

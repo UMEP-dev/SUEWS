@@ -39,6 +39,7 @@ Phase B implements a multi-layered scientific validation system that:
 - `extract_simulation_parameters()`: Extract and validate simulation parameters with comprehensive error collection
 - `validate_physics_parameters()`: Required physics parameter validation
 - `validate_model_option_dependencies()`: Physics option consistency checking
+- `validate_model_option_setpointmethod()`: SetpointMethod option related checks
 - `validate_model_option_rcmethod()`: RCMethod option related checks
 - `validate_land_cover_consistency()`: Surface fraction and parameter validation
 - `validate_geographic_parameters()`: Coordinate and location validation
@@ -133,6 +134,14 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
     return results
 ```
 
+### SetpointMethod Validation
+
+Validates the `setpointmethod` parameter and related setpoint temperature options:
+
+- **For `setpointmethod` 0 or 1**: Requires `HeatingSetpointTemperature` and `CoolingSetpointTemperature` to be set in `building_archetype` for each site.
+- **For `setpointmethod` 2**: Requires all entries in `HeatingSetpointTemperatureProfile` and `CoolingSetpointTemperatureProfile` (for both `working_day` and `holiday`) to be set (not null); heating values must be less than 30.0 °C, cooling values must be greater than 15.0 °C.
+- **Error Handling**: Missing or out-of-range values generate ERROR status in the validation report, specifying the site, parameter, and suggested correction.
+
 ### RCMethod Validation
 
 Validates the `rcmethod` parameter and related roof/wall options:
@@ -150,6 +159,18 @@ Validates the `stebbsmethod` parameter and related STEBBS and building archetype
 
 - **Error Handling**: All validation errors specify the site, parameter, and suggested correction in the validation report.
 
+### Forcing Height vs Building Heights Validation
+
+Validates that the forcing height `z` is physically consistent with the mean building height and maximum building height for each site:
+
+- **Consistency Check**: Validates that the forcing height `z` is at least twice the mean and maximum building heights for each site.
+    - **ERROR** if `z` is less than 2 × mean building height (`land_cover.bldgs.bldgh`).
+    - **WARNING** if `z` is less than 2 × the maximum configured building height, where the maximum is the largest of:
+        - `land_cover.bldgs.bldgh`
+        - `building_archetype.stebbs_Height` (if `stebbsmethod == 1`)
+        - The last non-zero entry in `vertical_layers.height` (SPARTACUS top height, if enabled).
+    - This check ensures the forcing height is physically appropriate relative to the urban morphology.
+- **Error Handling**: If `z` is not above the mean building height, an ERROR is reported; if not above the max building height, a WARNING is reported. Both include site, parameter, and suggested correction.
 
 ### Land Cover Consistency
 
@@ -322,6 +343,12 @@ Phase B makes scientific adjustments that improve model realism without changing
 - **Consistency**: Ensures STEBBS configuration matches selected method
 - **Temperature Initialisation**: When `stebbsmethod == 1`, automatically updates `InitialOutdoorTemperature` and `InitialIndoorTemperature` using CRU climatological data
 - **CRU-Based Updates**: Uses location-specific mean monthly air temperature from CRU TS4.06 dataset
+
+### Setpoint Method Integration
+
+- **Conditional Logic**: Applies automatic cleanup of setpoint temperature parameters in `building_archetype` based on `setpointmethod`:
+    - If `setpointmethod == 0` or `1`: All entries in `HeatingSetpointTemperatureProfile` and `CoolingSetpointTemperatureProfile` (for both `working_day` and `holiday`) are set to `null` for all sites.
+    - If `setpointmethod == 2`: The scalar `HeatingSetpointTemperature` and `CoolingSetpointTemperature` parameters are set to `null` for all sites.
 
 ### RC Method Integration
 

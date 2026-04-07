@@ -1,6 +1,6 @@
 # Reusable workflow: build SUEWS wheels with a matrix strategy.
 #
-# Called by build-publish_to_pypi.yml for both standard and UMEP variants.
+# Called by build-publish_to_pypi.yml for both standard and QGIS3 UMEP variants.
 # By isolating the matrix here, the caller jobs can use static names that
 # display cleanly when skipped (no unresolved ${{ matrix.* }} literals).
 
@@ -50,7 +50,7 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           submodules: recursive

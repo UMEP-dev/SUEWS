@@ -28,11 +28,13 @@ Fill CHANGELOG.md gap from last documented date to today.
 
 For `[feature]` and `[change]` entries, add a status tag:
 
-- `[experimental]` - Default for new features, not publicly announced
-- `[stable]` - Governance-approved, included in release notes
-- `[internal]` - Internal tooling, never announced
+- `[experimental]` - Default for new features, **excluded from public release notes**
+- `[stable]` - Governance-approved, **included in public release notes**
+- `[internal]` - Internal tooling, **excluded from public release notes**
 
 **Default behaviour**: New `[feature]` and `[change]` entries get `[experimental]` tag unless explicitly marked otherwise.
+
+**Release impact**: When `prep-release` builds version history RST and GitHub Release notes, only `[stable]` and untagged features/changes are included. `[experimental]` items remain in the CHANGELOG only. `[bugfix]`, `[maintenance]`, and `[doc]` entries are always included regardless of status tags.
 
 ## Key Rules
 

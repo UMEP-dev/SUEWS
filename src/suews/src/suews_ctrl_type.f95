@@ -75,6 +75,7 @@ MODULE module_ctrl_type
       INTEGER :: RSLLevel = 0 ! method to choose local climate variables [-] 0: not use; 1: use local climate variables
       INTEGER :: stebbsmethod = 0 ! method to calculate building energy [-]
       INTEGER :: rcmethod = 0 ! method to split building envelope heat capacity in STEBBS [-]
+      INTEGER :: setpointmethod = 0 ! method to determine heating/cooling setpoints in STEBBS [-]
       LOGICAL :: flag_test = .FALSE. ! FOR DEBUGGING ONLY: boolean to test specific functions [-]
    END TYPE SUEWS_CONFIG
 
@@ -723,4 +724,3 @@ CONTAINS
    END SUBROUTINE check_and_reset_unsafe_states
 
 END MODULE module_ctrl_type
-

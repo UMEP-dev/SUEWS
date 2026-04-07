@@ -7,12 +7,14 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 #   tags      -- Any tag push: full matrix build -> PyPI (non-dev) or TestPyPI (dev)
 #   PR        -- Validation only with adaptive matrix (draft=minimal, ready=reduced)
 #   merge_group -- Merge queue validation (reduced matrix)
-#   dispatch  -- Manual with configurable matrix, deploy target, UMEP toggle, test tier
+#   dispatch  -- Manual with configurable matrix, deploy target, QGIS3 UMEP toggle, test tier
 #
 # Dual-build strategy:
-#   Standard -- NumPy >=2.0, all Python versions. pip install supy
-#   UMEP     -- NumPy 1.x (QGIS 3.40 LTR), cp312 only. Version X.Y.Zrc1 (production)
-#               or X.Y.Z.dev1 (nightly). Pre-release tag keeps it hidden from default pip.
+#   Standard -- NumPy >=2.0, all Python versions (cp39-cp314). pip install supy
+#               Serves QGIS 4 (Python 3.13+, NumPy 2.x) and general Python users.
+#   QGIS3 UMEP -- NumPy 1.x, cp312 only. Version X.Y.Zrc1 (production) or X.Y.Z.dev1 (nightly).
+#                  Serves QGIS 3 LTR (3.40: Python 3.12, NumPy 1.26.4).
+#                  Pre-release tag keeps it hidden from default pip.
 #
 # Nightly version: Tag YYYY.M.D.dev created BEFORE build for version consistency.
 # See get_ver_git.py for version string logic, .github/path-filters.yml for categories.
@@ -98,7 +100,7 @@ on:
           - none
           - testpypi
       include_umep:
-        description: 'Build UMEP variant (NumPy 1.x compatible)'
+        description: 'Build QGIS3 UMEP variant (NumPy 1.x compatible)'
         required: true
         default: true
         type: boolean
@@ -129,7 +131,7 @@ jobs:
     outputs:
       on-master: ${{ steps.check.outputs.on-master }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -151,7 +153,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -205,7 +207,7 @@ jobs:
       site-files: ${{ steps.filter.outputs.site_files }}
       pyproject-files: ${{ steps.filter.outputs.pyproject_files }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
 
@@ -273,7 +275,7 @@ jobs:
           fi
           echo "needs-build=$NEEDS_BUILD" >> $GITHUB_OUTPUT
 
-          # UMEP build only when compiled extension ABI may differ
+          # QGIS3 UMEP build only when compiled extension ABI may differ
           NEEDS_UMEP_BUILD=false
           if [[ "$FORTRAN" == "true" ]] || \
              [[ "$RUST" == "true" ]] || \
@@ -294,7 +296,7 @@ jobs:
       umep_python: ${{ steps.set-matrix.outputs.umep_python }}
       test_tier: ${{ steps.set-matrix.outputs.test_tier }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           sparse-checkout: .github/scripts
           sparse-checkout-cone-mode: false
@@ -337,7 +339,7 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           sparse-checkout: .github/scripts
           sparse-checkout-cone-mode: false
@@ -395,9 +397,9 @@ jobs:
       is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
 
   build_umep:
-    name: Build UMEP wheels
+    name: Build QGIS3 UMEP wheels
     needs: [determine_matrix, create_nightly_tag, detect-changes, verify-release-tag]
-    # PRs skip UMEP unless compiled extension ABI may differ (fortran/build-system)
+    # PRs skip QGIS3 UMEP unless compiled extension ABI may differ (fortran/build-system)
     if: |
       always() &&
       needs.determine_matrix.result == 'success' &&
@@ -421,7 +423,7 @@ jobs:
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
     needs: [build_wheels, build_umep, detect-changes]
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           sparse-checkout: .github/scripts
           sparse-checkout-cone-mode: false
@@ -461,7 +463,7 @@ jobs:
 
     steps:
       - name: Download all wheels for TestPyPI
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: dist/
           merge-multiple: true
@@ -483,7 +485,7 @@ jobs:
       - build_umep
       - create_nightly_tag
       - verify-release-tag
-    # Production tags only: both standard and UMEP builds must succeed
+    # Production tags only: both standard and QGIS3 UMEP builds must succeed
     if: |
       always() &&
       startsWith(github.ref, 'refs/tags') &&
@@ -497,8 +499,8 @@ jobs:
       id-token: write
 
     steps:
-      - name: Download all wheels (standard + UMEP)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - name: Download all wheels (standard + QGIS3 UMEP)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: dist/
           merge-multiple: true
@@ -520,7 +522,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           persist-credentials: false

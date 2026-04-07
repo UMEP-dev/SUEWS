@@ -492,6 +492,24 @@ class RCMethod(Enum):
     def __repr__(self):
         return str(self.value)
 
+class SetpointMethod(Enum):
+    """
+    Method to determine the approach of space heating/cooling setpoints in STEBBS.
+
+    0: Constant - Use the user-provided HeatingSetpointTemperature and CoolingSetpointTemperature throughout the day.
+    1: Dependent - Use the user-provided setpoints; but it depends on occupants activity status and use unrealistic switch-off setpoints when occupant is inactive.
+    2: Scheduled - Use the user-provided HeatingSetpointTemperatureProfile and CoolingSetpointTemperatureProfile.
+    """
+
+    CONSTANT = 0
+    DEPENDENT = 1
+    SCHEDULED = 2
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
 
 class SnowUse(Enum):
     """
@@ -614,6 +632,7 @@ for enum_class in [
     GSModel,
     StebbsMethod,
     RCMethod,
+    SetpointMethod,
     SnowUse,
     OhmIncQf,
     SameAlbedoWall,
@@ -729,6 +748,11 @@ class ModelPhysics(BaseModel):
         description=_enum_description(RCMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
+    setpointmethod: FlexibleRefValue(SetpointMethod) = Field(
+        default=SetpointMethod.CONSTANT,
+        description=_enum_description(SetpointMethod),
+        json_schema_extra={"unit": "dimensionless"},
+    )
     same_albedo_wall: FlexibleRefValue(SameAlbedoWall) = Field(
         default=SameAlbedoWall.DISABLED,
         description=_enum_description(SameAlbedoWall),
@@ -775,6 +799,7 @@ class ModelPhysics(BaseModel):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
+            "setpointmethod",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",
@@ -817,6 +842,7 @@ class ModelPhysics(BaseModel):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
+            "setpointmethod",
         ]
 
         # New options: optional in legacy DataFrames, default if missing

@@ -26,6 +26,7 @@ EXAMPLES:
 
 ## Table of Contents
 
+- [2026](#2026)
 - [2025](#2025)
 - [2024](#2024)
 - [2023](#2023)
@@ -40,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 72 | 79 | 29 | 79 | 40 | 299 |
+| 2026 | 73 | 80 | 29 | 80 | 40 | 303 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -53,28 +54,59 @@ EXAMPLES:
 
 ## 2026
 
+### 3 Apr 2026
+
+- [doc] Release 2026.4.3: Rust FFI bridge, T2 attribution, RSL physics, STEBBS enhancements, validation improvements (PR #1250)
+- [feature][experimental] Add checks for DaylightControl in STEBBS validation (#1270)
+
+### 29 Mar 2026
+
+- [maintenance] Add and improve docstrings for all relevant validator rules across codebase to follow numpy style project convention (PR #1267).
+
+### 26 Mar 2026
+
+- [feature][experimental] Add `setpointmethod` model option and heating/cooling setpoint profiles in STEBBS, supporting constant, dependent, and scheduled setpoint approaches (PR #1261).
+- [bugfix] Skip STEBBS wall or window surface-temperature calculations for the extreme `WWR` cases, avoiding non-existent surface calculations when `WWR = 0` or `WWR = 1` (PR #1261).
+- [feature][experimental] Added rule to validate forcing height (`z`) against mean building height (`bldgh`) and maximum building height (max of `bldgh`, `stebbs_Height` if STEBBS enabled, and last non-zero `height` if SPARTACUS enabled) (#1255, PR #1266).
+- [maintenance] Moved `unwrap_value` from `config.py` to `yaml_helpers.py` and added `unwrap_nested_value` for array-like YAML structures (PR #1266).
+
+### 25 Mar 2026
+
+- [doc] Revise README as science-first landing page (#1265)
+- [maintenance] Harden CI and dependency supply chain after LiteLLM incident with startup hook auditing (#1264)
+
 ### 23 Mar 2026
 
-- [feature][experimental] Add stebbs_Height guard to SPARTACUS building height validation when stebbsmethod is enabled (#1259, PR #1262).
+- [feature][experimental] Add stebbs_Height guard to SPARTACUS building height validation when stebbsmethod is enabled (#1259, PR #1262)
+- [doc] Improve project branding with logo and favicon (#1260).
 
 ### 20 Mar 2026
 
 - [feature][experimental] Add calculation of electrical lighting energy and optional lighting control driven by daylighting STEBBS (PR #1254).
 - [bugfix][experimental] Fix STEBBS 10-minute profile indexing to use the full-day slot (`0-143`) rather than repeating the first hour each hour, correcting metabolism, appliance, and hot water profile application (PR #1254).
 - [change][experimental] Improve STEBBS height, external wall and footprint area descriptions, linking them together (PR #1257).
+- [feature][stable] Add draft rules registry to the validator with two test rules (#1246)
 
 ### 19 Mar 2026
+
 - [feature][experimental] Added `same_emissivity_wall` and `same_emissivity_roof` model options for roof and wall emissivity validation (PR #1253)
   - When enabled (`=1`), enforces all roof/wall emissivity values match their respective external roof/wall STEBBS parameters; errors reported if inconsistent as ACTION NEEDED in the report.
   - When disabled (`=0`), skips consistency checks and issues a user warning listing current emissivities values in NO ACTION NEEDED section of the report.
+- [feature][stable] Add seasonal adjustment of `alb_id` for vegetated surfaces based on phenology state (#1211)
 
 ### 18 Mar 2026
 
 - [feature][experimental] Add dynamic calculation of water mains (cold) temperature in STEBBS and relevant new tests (PR #1249).
 
+### 17 Mar 2026
+
+- [maintenance] Add interaction limits and contribution policy (#1251)
+
 ### 16 Mar 2026
 
-- [feature][experimental] Refine `_is_physics_explicitly_configured` to use Pydantic v2 `model_fields_set`, enabling conditional validation when physics options are explicitly set by user inputs (PR #1247).
+- [feature][stable] Refine `_is_physics_explicitly_configured` to use Pydantic v2 `model_fields_set`, enabling conditional validation when physics options are explicitly set by user inputs (PR #1247).
+- [feature][experimental] Add Occupants/MetabolismProfile consistency validation to STEBBSMethod check (PR #1245)
+- [doc] Updated PHASE_B_DETAILED.md with Occupants/MetabolismProfile validation description (PR #1245)
 
 ### 15 Mar 2026
 
@@ -85,11 +117,6 @@ EXAMPLES:
 - [change][experimental] Remove STEBBS MinimumVolumeOfDHWinUse and MaximumVolumeOfDHWinUse across codebase (PR #1242).
 - [feature][experimental] Add new validation function for STEBBS and implement HotWaterFlowProfile consistency checks when STEBBS method is on (PR #1243).
 
-### 16 Mar 2026
-
-- [feature][experimental] Add Occupants/MetabolismProfile consistency validation to STEBBSMethod check (PR #1245)
-- [doc] Updated PHASE_B_DETAILED.md with Occupants/MetabolismProfile validation description (PR #1245)
-
 ### 12 Mar 2026
 - [feature][experimental] Update STEBBS InitialIndoorTemperature with mean monthly air temperature from CRU dataset (PR #1241)
 - [change][experimental] Replace STEBBS DeepSoilTemperature with AnnualMeanAirTemperature across codebase (PR #1240)
@@ -99,6 +126,22 @@ EXAMPLES:
 ### 11 Mar 2026
 
 - [feature][experimental] Add new Pydantic Field ranges and defaults for STEBBS parameters (PR #1233)
+- [bugfix] Fix interpolation bounds error in RSL profiles (GH#1223, #1228)
+- [feature][stable] Refine RSL c2m/c2h with explicit R=beta*hd/elm parameterisation (GH#1055, #1232)
+- [maintenance] Consolidate CLI validation test coverage (#1238)
+- [bugfix] Auto-repair stale refs in fetch_origin conductor (#1239)
+
+### 10 Mar 2026
+
+- [feature][stable] Compute c2m/c2h dynamically from Harman and Finnigan (2008) RSL theory (#1116)
+- [bugfix] Fix division-by-zero pitfalls in RSL/resistance chain (GH#1223, #1229)
+- [bugfix] Handle Pydantic dict format in YAML numeric parser (GH#1235, #1236)
+- [doc] Add anthropogenic emission defaults and parameter guidance (GH#138, #1231)
+
+### 9 Mar 2026
+
+- [feature][stable] Add upper limit to `nlayer` to avoid run crashes (#1206)
+- [bugfix] Validate Rust output layout against Fortran metadata (#1226)
 
 ### 24 Feb 2026
 
@@ -109,34 +152,96 @@ EXAMPLES:
 
 - [bugfix][experimental] Fix double-counted heating efficiency in STEBBS load calculation; correct unused heating setpoint to prevent spurious activation (PR #1221)
 
+### 22 Feb 2026
+
+- [maintenance] Extend Cargo cache to macOS and Windows builds (#1219)
+
+### 21 Feb 2026
+
+- [maintenance] Remove stale wrap_dts_types flag, add Rust change detection, and cache Cargo builds (#1217)
+
 ### 20 Feb 2026
 
+- [feature][stable] Replace f90wrap with Rust FFI bridge as sole simulation backend (#1209)
+- [feature][stable] Install Rust CLI to PATH and unify CLI interface (#1215)
+- [feature][experimental] Add `_validate_spartacus_sfr` to conditional validation (#1208)
 - [bugfix] Guard SPARTACUS LW solver NaN from matrix singularity in certain urban canopy geometries (#1212)
+- [bugfix] Pin pydantic>=2.12 to prevent OSGeo4W version conflict (#1213)
 - [changes] Removed internal-only parameters (diagnose, dqndt, dqnsdt, dt_since_start, lenday_id, qn_av, qn_s_av, tair_av, tmax_id, tmin_id, tstep_prev, snowfallcum) from sample_config.yml. (PR #1216)
 
 ### 19 Feb 2026
 
-- [feature][experimental] Add update logic under seasonal adjustments in phase_b.py to handle different alb_id behaviour across vegetated surface types (PR #1211).
+- [feature][stable] Add update logic under seasonal adjustments in phase_b.py to handle different alb_id behaviour across vegetated surface types (PR #1211).
 - [doc] Updated PHASE_B_DETAILED.md with new seasonal adjustment logic (PR #1211).
 
 ### 18 Feb 2026
 
-- [feature][experimental] Add attribution module for diagnosing T2, q2, and U10 changes by decomposing model output into physical process contributions, with diurnal cycle and heatmap visualisation helpers (#918)
+- [feature][stable] Add attribution module for diagnosing T2, q2, and U10 changes by decomposing model output into physical process contributions, with diurnal cycle and heatmap visualisation helpers (#918)
 
 ### 13 Feb 2026
 
 - [feature][experimental] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS bldgh and SPARTACUS height entries (PR #1205).
 - [docs] Updated PHASE_C_DETAILED.md with new conditional validation logic for SPARTACUS (PR #1205).
 
+### 10 Feb 2026
+
+- [doc] Link community forum URLs to invite page (#1201)
+
+### 7 Feb 2026
+
+- [bugfix] Fail fast on SUEWS output packing overflow (GH#1191, #1198)
+- [bugfix] Serialise Pydantic models across multiprocessing spawn boundaries for DTS (#1197)
+
+### 6 Feb 2026
+
+- [maintenance] Handle tag update failures in discourse-to-issue workflow (#1196)
+- [maintenance] Skip parallel DTS tests in CI environments (#1192)
+
 ### 5 Feb 2026
 
 - [change][experimental] Replace OccupantsProfile with MetabolismProfile and add metabolism threshold for occupancy activity classification in STEBBS; fix missing appliance energy in QEC_bldg and uninitialised heating/cooling load accumulators (PR #1194)
 - [change] Refactor error message in validate_albedo_ranges to explicitly declare that range comes from alb_min and alb_max (PR #1193)
+- [doc] Add umep-reqs update step to release workflow (#1185)
+- [bugfix] Fix optional qn_surfs and dqndt_surf but required in DyOHM settings (#1189)
 
 ### 4 Feb 2026
 
 - [bugfix] Fix conflict in the validation logic when vegetated surfaces are active (sfr > 0) but carbon is disabled (PR #1188)
 - [bugfix] Fix a bug in the phase_b.py required physics options, adding the new same_albedo_roof and same_albedo_wall to the list (PR #1188).
+- [feature][stable] Add SUEWSOutput index property (#1178)
+- [feature][stable] Add status tags for changelog entries (governance) (#1181)
+- [bugfix] Correct DTS availability check and remove unsupported param (#1187)
+- [doc] Align 2026.1.28 release notes with stable RTD docs (#1179)
+
+### 2 Feb 2026
+
+- [maintenance] Clean up STEBBS outputs (#1175)
+- [bugfix] Harden parallel multi-grid DTS execution and unify return shape (#1176)
+- [maintenance] Use repo label scheme for docs-sync merge conflict issues (#1177)
+- [bugfix] Add information in error message for timezone and startdls/enddls (#1174)
+
+### 30 Jan 2026
+
+- [feature][stable] Add chunk_day parameter for long DTS simulations (#1172)
+- [feature][stable] Add run_dts_multi for multi-grid DTS simulation support (#1173)
+- [maintenance] Use reusable workflow to fix unresolved matrix names (#1171)
+- [maintenance] Pre-build docs HTML on CI, serve from rtd branch (#1167)
+- [maintenance] Protect rtd branch with PAT auth and file-scope validation (#1165)
+- [maintenance] Allow .gitignore divergence in rtd branch validation (#1166)
+- [change][stable] Deprecate env.yml and conda/mamba build pathway (#1163)
+- [maintenance] UMEP build filter for compiled extension ABI changes (#1164)
+- [maintenance] Gate tag-triggered deployments on master ancestry (#1162)
+- [maintenance] Granular path filters and pyproject classification (#1161)
+- [maintenance] Clean up Sphinx deps for Sphinx 8 compatibility (#1157)
+
+### 29 Jan 2026
+
+- [feature][stable] Auto-initialise vegetation albedo from phenology state (#1133)
+- [maintenance] Add GitHub workflow skills and pre-commit quality gate (#1160)
+- [bugfix] Update Sphinx and docs dependencies for Sphinx 8 compatibility (#1159)
+- [bugfix] Deduplicate Discourse-to-GitHub issue pipeline (#1153)
+- [maintenance] Pre-built docs branch for RTD (#1137)
+- [feature][stable] Bridge Discourse topics to GitHub issues with webhook sync (#1138)
 
 ### 28 Jan 2026
 
@@ -156,7 +261,7 @@ EXAMPLES:
 
 ### 26 Jan 2026
 
-- [feature] Added separate surfaces for dyOHM (dynamic Objective Hysteresis Model) calculation (#1122)
+- [feature][experimental] Added separate surfaces for dyOHM (dynamic Objective Hysteresis Model) calculation (#1122)
 - [maintenance] Refactored albedo handling for vegetated surfaces (#1100)
 - [maintenance] Fixed conductor.json to use current branch instead of hardcoded master (#1124)
 

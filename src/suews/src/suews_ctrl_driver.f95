@@ -4140,7 +4140,7 @@ CONTAINS
       veg_fsd_const, veg_contact_fraction_const, &
       ground_albedo_dir_mult_fact, use_sw_direct_albedo, &
       lambda_c, & !input
-      stebbsmethod, rcmethod, & ! stebbs building input
+      stebbsmethod, rcmethod, setpointmethod, & ! stebbs method option input
       buildingname, buildingtype, &
       BuildingCount, Occupants, &
       ! hhs0, age_0_4, age_5_11, age_12_18, age_19_64, age_65plus, ! NOT USED
@@ -4156,7 +4156,8 @@ CONTAINS
       WindowDensity, WindowCp, WindowExternalEmissivity, WindowInternalEmissivity, WindowTransmissivity, &
       WindowAbsorbtivity, WindowReflectivity, InternalMassDensity, InternalMassCp, InternalMassEmissivity, &
       MaxHeatingPower, WaterTankWaterVolume, MaximumHotWaterHeatingPower, HeatingSetpointTemperature, &
-      CoolingSetpointTemperature, MetabolismProfile, &
+      CoolingSetpointTemperature, HeatingSetpointTemperatureProfile, &
+      CoolingSetpointTemperatureProfile, MetabolismProfile, &
       WallInternalConvectionCoefficient, RoofInternalConvectionCoefficient, InternalMassConvectionCoefficient, & ! stebbs general input
       FloorInternalConvectionCoefficient, WindowInternalConvectionCoefficient, &
       WallExternalConvectionCoefficient, RoofExternalConvectionCoefficient, WindowExternalConvectionCoefficient, &
@@ -4263,6 +4264,7 @@ CONTAINS
       ! INTEGER, INTENT(IN) :: nbtype ! number of building types [-] STEBBS
       INTEGER, INTENT(IN) :: stebbsmethod ! method to calculate building energy use [-] STEBBS
       INTEGER, INTENT(IN) :: rcmethod ! method to split building envelope heat capacity in STEBBS [-] STEBBS
+      INTEGER, INTENT(IN) :: setpointmethod ! method to determine heating/cooling setpoints in STEBBS [-]
 
       ! ---lumps-related variables
       TYPE(LUMPS_PRM) :: lumpsPrm
@@ -4683,6 +4685,8 @@ CONTAINS
       REAL(KIND(1D0)) :: MaximumHotWaterHeatingPower
       REAL(KIND(1D0)) :: HeatingSetpointTemperature 
       REAL(KIND(1D0)) :: CoolingSetpointTemperature
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: HeatingSetpointTemperatureProfile
+      REAL(KIND(1D0)), DIMENSION(0:143, 2) :: CoolingSetpointTemperatureProfile
       REAL(KIND(1D0)) :: LightingPowerDensity
       REAL(KIND(1D0)), DIMENSION(0:143, 2) :: MetabolismProfile
       REAL(KIND(1D0)), DIMENSION(0:143, 2) :: ApplianceProfile
@@ -4835,6 +4839,7 @@ CONTAINS
       config%LAImethod = 1
       config%stebbsmethod = stebbsmethod
       config%rcmethod = rcmethod
+      config%setpointmethod = setpointmethod
 
       ! testing flag
       config%flag_test = flag_test
@@ -5593,6 +5598,8 @@ CONTAINS
       building_archtype%MaximumHotWaterHeatingPower = MaximumHotWaterHeatingPower
       building_archtype%HeatingSetpointTemperature = HeatingSetpointTemperature
       building_archtype%CoolingSetpointTemperature = CoolingSetpointTemperature
+      building_archtype%HeatingSetpointTemperatureProfile = HeatingSetpointTemperatureProfile
+      building_archtype%CoolingSetpointTemperatureProfile = CoolingSetpointTemperatureProfile
       building_archtype%MetabolismProfile = MetabolismProfile
       building_archtype%ApplianceProfile = ApplianceProfile
       building_archtype%LightingPowerDensity = LightingPowerDensity

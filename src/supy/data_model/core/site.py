@@ -1,7 +1,14 @@
 from typing import Optional
 from pydantic import ConfigDict, BaseModel, Field, model_validator
 from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
-from .profile import HourlyProfile, DayProfile, WeeklyProfile, TenMinuteProfile
+from .profile import (
+    HourlyProfile,
+    DayProfile,
+    WeeklyProfile,
+    TenMinuteProfile,
+    HeatingSetpointProfile,
+    CoolingSetpointProfile,
+)
 from .timezone_enum import TimezoneOffset
 from ..._env import logger_supy
 from ..validation.core.utils import (
@@ -1741,7 +1748,22 @@ class ArchetypeProperties(BaseModel):
         },
         gt=15.0
     )
-
+    HeatingSetpointTemperatureProfile: Optional[HeatingSetpointProfile] = Field(
+        default_factory=HeatingSetpointProfile,
+        description="10-minute profile of heating setpoints temperature when Setpointmethod equals to 2 [degC]",
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Heating setpoint temperature profile",
+        },
+    )
+    CoolingSetpointTemperatureProfile: Optional[CoolingSetpointProfile] = Field(
+        default_factory=CoolingSetpointProfile,
+        description="10-minute profile of cooling setpoints temperature when Setpointmethod equals to 2 [degC]",
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Cooling setpoint temperature profile",
+        },
+    )
     MetabolismProfile: Optional[TenMinuteProfile] = Field(
         default_factory=TenMinuteProfile,
         description="Profile of occupants metabolism in building [-]",
@@ -1756,7 +1778,8 @@ class ArchetypeProperties(BaseModel):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         string_fields = {"BuildingType", "BuildingName"}
         ten_minute_profile_fields = {
-            "MetabolismProfile",
+            "MetabolismProfile", "HeatingSetpointTemperatureProfile", 
+            "CoolingSetpointTemperatureProfile",
         }
         excluded_fields = string_fields | ten_minute_profile_fields | {"ref"}
 
@@ -1786,7 +1809,12 @@ class ArchetypeProperties(BaseModel):
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ArchetypeProperties":
         string_fields = {"BuildingType", "BuildingName"}
-        ten_minute_profile_fields = {"MetabolismProfile"}
+        ten_minute_profile_fields = {"MetabolismProfile", "HeatingSetpointTemperatureProfile", "CoolingSetpointTemperatureProfile",}
+        ten_minute_profile_classes = {
+            "MetabolismProfile": TenMinuteProfile,
+            "HeatingSetpointTemperatureProfile": HeatingSetpointProfile,
+            "CoolingSetpointTemperatureProfile": CoolingSetpointProfile,
+        }
 
         default_instance = cls()
         params: Dict[str, object] = {}
@@ -1812,7 +1840,7 @@ class ArchetypeProperties(BaseModel):
                 has_profile_columns = any(col[0] == field_name.lower() for col in df.columns)
                 if has_profile_columns:
                     try:
-                        params[field_name] = TenMinuteProfile.from_df_state(
+                        params[field_name] = ten_minute_profile_classes[field_name].from_df_state(
                             df, grid_id, field_name.lower()
                         )
                     except KeyError:

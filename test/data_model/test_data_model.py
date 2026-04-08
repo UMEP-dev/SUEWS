@@ -164,6 +164,31 @@ class TestSUEWSConfig(unittest.TestCase):
         self.assertEqual(archetype.CoolingSetpointTemperatureProfile.working_day["1"], 100.0)
         self.assertEqual(archetype.CoolingSetpointTemperatureProfile.holiday["144"], 100.0)
 
+    def test_internal_mass_area_roundtrip(self):
+        config = SUEWSConfig(
+            sites=[
+                {
+                    "properties": {
+                        "building_archetype": {
+                            "InternalMassArea": {"value": 100.0},
+                        }
+                    }
+                }
+            ]
+        )
+
+        self.assertEqual(
+            config.sites[0].properties.building_archetype.InternalMassArea.value,
+            100.0,
+        )
+
+        config_reconst = SUEWSConfig.from_df_state(config.to_df_state())
+
+        self.assertEqual(
+            config_reconst.sites[0].properties.building_archetype.InternalMassArea.value,
+            100.0,
+        )
+
     def test_model_physics_validation(self):
         """Test that SUEWSConfig allows physics combinations - validation moved to Phase B.
 

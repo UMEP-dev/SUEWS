@@ -1651,7 +1651,7 @@ SUBROUTINE tstep( &
                  Aroof, Vroof, & ! [m2], [m3]
                       Afootprint, Vgroundfloor, & ! [m2], [m3]
                       Awindow, Vwindow, & ! [m2], [m3]
-                      Vindoormass, Aindoormass ! Assumed internal mass as a cube [m3], [m2]
+                      Vindoormass, Aindoormass ! Internal mass volume and prescribed exchange area [m3], [m2]
    LOGICAL, INTENT(IN) :: wall_surface_active, window_surface_active
    REAL(KIND(1D0)) :: Tair_ind, Tindoormass, Tintwall, Tintroof, Textwall, Textroof, & ! [K], [K], [K], [K], [K], [K]
                       Tintwindow, Textwindow, Tintgroundfloor, Textgroundfloor ! [K], [K], [K], [K]
@@ -2448,11 +2448,12 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
 
    ! self%BuildingType = bldgState%BuildingType
    ! self%BuildingName = bldgState%BuildingName
-   self%ratio_window_wall = building_archtype%WWR
    self%Afootprint = building_archtype%FootprintArea
    self%height_building = building_archtype%stebbs_Height
    self%wallExternalArea = building_archtype%WallExternalArea
    self%ratioInternalVolume = building_archtype%RatioInternalVolume
+   self%Aindoormass = building_archtype%InternalMassArea
+   self%ratio_window_wall = building_archtype%WWR
    self%thickness_wall = building_archtype%WallThickness
    self%thickness_wallext = building_archtype%WallextThickness
    self%thickness_roof = building_archtype%RoofThickness
@@ -2534,7 +2535,6 @@ SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self,
       self%window_surface_active = .TRUE.
    END IF
    self%Vindoormass = self%Vair_ind*self%ratioInternalVolume ! # Multiplied by factor that accounts for internal mass as proportion of total air volume
-   self%Aindoormass = 6*(self%Vindoormass**(2./3.)) ! # Assumed internal mass as a cube
    self%h_i = (/self%conv_coeff_intwall, self%conv_coeff_introof, self%conv_coeff_intwindow, self%conv_coeff_intgroundfloor , &
                 self%conv_coeff_indoormass/)
 
@@ -2684,6 +2684,7 @@ SUBROUTINE create_building(CASE, self, icase)
    self%height_building = 15.0
    self%wallExternalArea = 450.0
    self%ratioInternalVolume = 0.1
+   self%Aindoormass = 6.0*((self%Afootprint*self%height_building*(1.0 - self%ratioInternalVolume)*self%ratioInternalVolume)**(2.0/3.0)) ! Legacy cube-equivalent default for standalone setup
    self%thickness_wall = 0.25 ! # wallthickness  (in metres)
    self%thickness_roof = 0.25 ! # roof thickness  (in metres)
    self%thickness_groundfloor = 0.5 ! # ground floor thickness (in metres)
@@ -2761,7 +2762,6 @@ SUBROUTINE create_building(CASE, self, icase)
       self%window_surface_active = .TRUE.
    END IF
    self%Vindoormass = self%Vair_ind*self%ratioInternalVolume ! # Multiplied by factor that accounts for internal mass as proportion of total air volume
-   self%Aindoormass = 6*(self%Vindoormass**(2./3.)) ! # Assumed internal mass as a cube
    self%h_i = (/self%conv_coeff_intwall, self%conv_coeff_introof, self%conv_coeff_intwindow, self%conv_coeff_intgroundfloor , &
                 self%conv_coeff_indoormass/)
 

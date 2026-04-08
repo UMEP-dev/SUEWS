@@ -334,6 +334,29 @@
           "title": "Ratiointernalvolume",
           "unit": "dimensionless"
         },
+        "InternalMassArea": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/RefValue_float_"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "gt": 0.0
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 20,
+          "description": "Surface area of internal mass used for indoor heat exchange [m2]",
+          "display_name": "Internal Mass Area",
+          "title": "Internalmassarea",
+          "unit": "m^2"
+        },
         "WWR": {
           "anyOf": [
             {

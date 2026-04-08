@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 73 | 80 | 29 | 80 | 40 | 303 |
+| 2026 | 73 | 81 | 30 | 80 | 40 | 305 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -53,6 +53,11 @@ EXAMPLES:
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 8 Apr 2026
+
+- [change][experimental] Replace the STEBBS cube-based internal mass area assumption with an explicit `InternalMassArea` building archetype input.
+- [bugfix][experimental] Correct the sign of Q_BAE (heat emission via building air exchange) in STEBBS.
 
 ### 3 Apr 2026
 

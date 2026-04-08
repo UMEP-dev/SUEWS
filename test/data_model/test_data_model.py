@@ -54,8 +54,8 @@ class TestSUEWSConfig(unittest.TestCase):
             self.config.model.control.tstep, config_reconst.model.control.tstep
         )
         self.assertEqual(
-            self.config.model.physics.netradiationmethod.value,
-            config_reconst.model.physics.netradiationmethod.value,
+            self.config.model.physics.net_radiation.value,
+            config_reconst.model.physics.net_radiation.value,
         )
         self.assertEqual(
             self.config.sites[0].properties.lat.value,
@@ -141,7 +141,7 @@ class TestSUEWSConfig(unittest.TestCase):
         df_state_trimmed = trim_df_state(df_state)
         config_reconst = SUEWSConfig.from_df_state(df_state_trimmed)
 
-        self.assertEqual(config_reconst.model.physics.setpointmethod.value.value, 2)
+        self.assertEqual(config_reconst.model.physics.setpoint.value.value, 2)
         self.assertEqual(
             config_reconst.sites[0]
             .properties.building_archetype.HeatingSetpointTemperatureProfile
@@ -493,7 +493,7 @@ def test_flexible_refvalue_with_cleaning():
         ("tstep", lambda c: c.model.control.tstep),
         ("forcing_file", lambda c: c.model.control.forcing_file),
         ("lat", lambda c: c.sites[0].properties.lat),
-        ("emissionsmethod", lambda c: c.model.physics.emissionsmethod),
+        ("emissions", lambda c: c.model.physics.emissions),
         ("raincover", lambda c: c.sites[0].properties.lumps.raincover),
         ("g_max", lambda c: c.sites[0].properties.conductance.g_max),
     ]

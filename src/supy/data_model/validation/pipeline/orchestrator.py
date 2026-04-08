@@ -87,22 +87,22 @@ def detect_pydantic_defaults(
     """Detect where the validation system applied defaults and separate critical nulls from normal defaults."""
     # Critical physics parameters that get converted to int() in df_state
     CRITICAL_PHYSICS_PARAMS = [
-        "netradiationmethod",
-        "emissionsmethod",
-        "storageheatmethod",
-        "ohmincqf",
-        "roughlenmommethod",
-        "roughlenheatmethod",
-        "stabilitymethod",
-        "smdmethod",
-        "waterusemethod",
-        "rslmethod",
-        "faimethod",
-        "rsllevel",
-        "gsmodel",
-        "snowuse",
-        "stebbsmethod",
-        "rcmethod",
+        "net_radiation",
+        "emissions",
+        "storage_heat",
+        "ohm_inc_qf",
+        "roughness_momentum",
+        "roughness_heat",
+        "stability",
+        "smd",
+        "water_use",
+        "rsl",
+        "fai",
+        "rsl_level",
+        "gs_model",
+        "snow_use",
+        "stebbs",
+        "outer_cap_fraction",
     ]
 
     # Internal parameters that are not used by SUEWS and should not be reported to users
@@ -1225,6 +1225,7 @@ Modes:
 
                 # Check STEBBS method restriction
                 stebbs_method = None
+                physics_dict = {}
                 if (
                     user_yaml_data
                     and isinstance(user_yaml_data, dict)
@@ -1232,10 +1233,13 @@ Modes:
                     and isinstance(user_yaml_data["model"], dict)
                     and "physics" in user_yaml_data["model"]
                     and isinstance(user_yaml_data["model"]["physics"], dict)
-                    and "stebbsmethod" in user_yaml_data["model"]["physics"]
                 ):
-                    stebbs_entry = user_yaml_data["model"]["physics"]["stebbsmethod"]
-                    # Handle both direct values and RefValue format
+                    physics_dict = user_yaml_data["model"]["physics"]
+
+                # Accept both canonical and legacy YAML keys
+                stebbs_key = "stebbs" if "stebbs" in physics_dict else "stebbsmethod"
+                if stebbs_key in physics_dict:
+                    stebbs_entry = physics_dict[stebbs_key]
                     if isinstance(stebbs_entry, dict) and "value" in stebbs_entry:
                         stebbs_method = stebbs_entry["value"]
                     else:
@@ -1243,27 +1247,22 @@ Modes:
 
                 if stebbs_method is not None and stebbs_method != 0:
                     restrictions_violated.append(
-                        "STEBBS method is enabled (stebbsmethod != 0)"
+                        "STEBBS method is enabled (stebbs != 0)"
                     )
 
-                # Check Snowuse restriction
-                snowuse = None
-                if (
-                    user_yaml_data
-                    and "model" in user_yaml_data
-                    and "physics" in user_yaml_data["model"]
-                    and "snowuse" in user_yaml_data["model"]["physics"]
-                ):
-                    snowuse_entry = user_yaml_data["model"]["physics"]["snowuse"]
-                    # Handle both direct values and RefValue format
+                # Check snow_use restriction
+                snowuse_val = None
+                snowuse_key = "snow_use" if "snow_use" in physics_dict else "snowuse"
+                if snowuse_key in physics_dict:
+                    snowuse_entry = physics_dict[snowuse_key]
                     if isinstance(snowuse_entry, dict) and "value" in snowuse_entry:
-                        snowuse = snowuse_entry["value"]
+                        snowuse_val = snowuse_entry["value"]
                     else:
-                        snowuse = snowuse_entry
+                        snowuse_val = snowuse_entry
 
-                if snowuse is not None and snowuse != 0:
+                if snowuse_val is not None and snowuse_val != 0:
                     restrictions_violated.append(
-                        "Snow calculations are enabled (snowuse != 0)"
+                        "Snow calculations are enabled (snow_use != 0)"
                     )
 
                 # Add more restriction checks here as needed
@@ -1283,8 +1282,8 @@ Modes:
                     print(
                         "  2. Disable developer features in your YAML file and rerun processor:"
                     )
-                    print("     - Set stebbsmethod = 0 (if enabled)")
-                    print("     - Set snowuse = 0 (if enabled)")
+                    print("     - Set stebbs = 0 (if enabled)")
+                    print("     - Set snow_use = 0 (if enabled)")
                     print()
                     print("Processor halted due to mode restrictions")
                     return 1

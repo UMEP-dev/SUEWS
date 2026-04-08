@@ -1022,9 +1022,13 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
 }
 
 fn apply_conductance_overrides(site: &mut SuewsSite, root: &Value, site_root: &Value) {
-    if let Some(v) = read_i32(root, &["model", "physics", "gsmodel"]) {
+    if let Some(v) = read_i32(root, &["model", "physics", "gs_model"])
+        .or_else(|| read_i32(root, &["model", "physics", "gsmodel"]))
+    {
         site.conductance.gsmodel = v;
-    } else if let Some(v) = read_i32(site_root, &["properties", "conductance", "gsmodel"]) {
+    } else if let Some(v) = read_i32(site_root, &["properties", "conductance", "gs_model"])
+        .or_else(|| read_i32(site_root, &["properties", "conductance", "gsmodel"]))
+    {
         site.conductance.gsmodel = v;
     }
 
@@ -1300,43 +1304,69 @@ fn apply_anthro_emis_overrides(site: &mut SuewsSite, site_root: &Value) {
 }
 
 fn apply_config_overrides(config: &mut SuewsConfig, root: &Value) {
-    if let Some(v) = read_i32(root, &["model", "physics", "rslmethod"]) {
+    // Accept both canonical (new) and legacy (old) YAML field names (#1256).
+    // Canonical names are checked first; legacy names provide backward compat.
+    if let Some(v) = read_i32(root, &["model", "physics", "rsl"])
+        .or_else(|| read_i32(root, &["model", "physics", "rslmethod"]))
+    {
         config.rsl_method = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "emissionsmethod"]) {
+    if let Some(v) = read_i32(root, &["model", "physics", "emissions"])
+        .or_else(|| read_i32(root, &["model", "physics", "emissionsmethod"]))
+    {
         config.emissions_method = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "roughlenheatmethod"]) {
+    if let Some(v) = read_i32(root, &["model", "physics", "roughness_heat"])
+        .or_else(|| read_i32(root, &["model", "physics", "roughlenheatmethod"]))
+    {
         config.rough_len_heat_method = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "roughlenmommethod"]) {
+    if let Some(v) = read_i32(root, &["model", "physics", "roughness_momentum"])
+        .or_else(|| read_i32(root, &["model", "physics", "roughlenmommethod"]))
+    {
         config.rough_len_mom_method = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "faimethod"]) {
+    if let Some(v) = read_i32(root, &["model", "physics", "fai"])
+        .or_else(|| read_i32(root, &["model", "physics", "faimethod"]))
+    {
         config.fai_method = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "smdmethod"]) {
+    if let Some(v) = read_i32(root, &["model", "physics", "smd"])
+        .or_else(|| read_i32(root, &["model", "physics", "smdmethod"]))
+    {
         config.smd_method = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "waterusemethod"]) {
+    if let Some(v) = read_i32(root, &["model", "physics", "water_use"])
+        .or_else(|| read_i32(root, &["model", "physics", "waterusemethod"]))
+    {
         config.water_use_method = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "netradiationmethod"]) {
+    if let Some(v) = read_i32(root, &["model", "physics", "net_radiation"])
+        .or_else(|| read_i32(root, &["model", "physics", "netradiationmethod"]))
+    {
         config.net_radiation_method = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "stabilitymethod"]) {
+    if let Some(v) = read_i32(root, &["model", "physics", "stability"])
+        .or_else(|| read_i32(root, &["model", "physics", "stabilitymethod"]))
+    {
         config.stability_method = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "storageheatmethod"]) {
+    if let Some(v) = read_i32(root, &["model", "physics", "storage_heat"])
+        .or_else(|| read_i32(root, &["model", "physics", "storageheatmethod"]))
+    {
         config.storage_heat_method = v;
     }
     if let Some(v) = read_i32(root, &["model", "control", "diagnose"]) {
         config.diagnose = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "snowuse"]) {
+    if let Some(v) = read_i32(root, &["model", "physics", "snow_use"])
+        .or_else(|| read_i32(root, &["model", "physics", "snowuse"]))
+    {
         config.snow_use = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "ohmincqf"]) {
+    if let Some(v) = read_i32(root, &["model", "physics", "ohm_inc_qf"])
+        .or_else(|| read_i32(root, &["model", "physics", "ohmincqf"]))
+    {
         config.ohm_inc_qf = v;
     }
     // EvapMethod defaults to 2 (Shuttleworth) when not specified.
@@ -1345,16 +1375,24 @@ fn apply_config_overrides(config: &mut SuewsConfig, root: &Value) {
     // LAImethod defaults to 1 (GDD model) when not specified.
     // Matches Python DTS behaviour: supy/dts/_populate.py:275-276
     config.lai_method = read_i32(root, &["model", "physics", "laimethod"]).unwrap_or(1);
-    if let Some(v) = read_i32(root, &["model", "physics", "rsllevel"]) {
+    if let Some(v) = read_i32(root, &["model", "physics", "rsl_level"])
+        .or_else(|| read_i32(root, &["model", "physics", "rsllevel"]))
+    {
         config.rsl_level = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "stebbsmethod"]) {
+    if let Some(v) = read_i32(root, &["model", "physics", "stebbs"])
+        .or_else(|| read_i32(root, &["model", "physics", "stebbsmethod"]))
+    {
         config.stebbs_method = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "rcmethod"]) {
+    if let Some(v) = read_i32(root, &["model", "physics", "outer_cap_fraction"])
+        .or_else(|| read_i32(root, &["model", "physics", "rcmethod"]))
+    {
         config.rc_method = v;
     }
-    if let Some(v) = read_i32(root, &["model", "physics", "setpointmethod"]) {
+    if let Some(v) = read_i32(root, &["model", "physics", "setpoint"])
+        .or_else(|| read_i32(root, &["model", "physics", "setpointmethod"]))
+    {
         config.setpoint_method = v;
     }
     if let Some(v) = read_i32(root, &["model", "control", "flag_test"]) {

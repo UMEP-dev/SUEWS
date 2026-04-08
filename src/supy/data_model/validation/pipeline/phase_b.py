@@ -1248,8 +1248,8 @@ def adjust_model_dependent_nullification(
     Nullify parameters for disabled model options.
 
     This function automatically sets to None (nullifies) parameters that are not relevant
-    when certain model physics options are disabled. For example, if 'stebbsmethod' is 0,
-    all STEBBS and building_archetype parameters are nullified. If 'emissionsmethod' is 0-4,
+    when certain model physics options are disabled. For example, if 'stebbs' is 0,
+    all STEBBS and building_archetype parameters are nullified. If 'emissions' is 0-4,
     all anthropogenic CO2 and biogenic dectr parameters are nullified.
 
     Parameters
@@ -1274,9 +1274,9 @@ def adjust_model_dependent_nullification(
     physics = yaml_data.get("model", {}).get("physics", {})
 
     # --- STEBBS ---
-    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+    stebbs_val = get_value_safe(physics, "stebbs")
 
-    if stebbsmethod == 0:
+    if stebbs_val == 0:
         sites = yaml_data.get("sites", [])
 
         for site_idx, site in enumerate(sites):
@@ -1328,9 +1328,9 @@ def adjust_model_dependent_nullification(
                             parameter=block_name,
                             site_index=site_idx,
                             site_gridid=site_gridid,
-                            old_value=f"stebbsmethod is switched off, nullified {len(nullified_params)} related parameters - {param_list}",
+                            old_value=f"stebbs is switched off, nullified {len(nullified_params)} related parameters - {param_list}",
                             new_value="null",
-                            reason=f"stebbsmethod switched off, nullified {len(nullified_params)} related parameters",
+                            reason=f"stebbs switched off, nullified {len(nullified_params)} related parameters",
                         )
                     )
                     return True
@@ -1349,9 +1349,9 @@ def adjust_model_dependent_nullification(
                 yaml_data["sites"][site_idx] = site
 
     # --- ANTHROPOGENIC CO2 ---
-    emissionsmethod = get_value_safe(physics, "emissionsmethod")
+    emissions_val = get_value_safe(physics, "emissions")
 
-    if emissionsmethod is not None and emissionsmethod in [0, 1, 2, 3, 4]:
+    if emissions_val is not None and emissions_val in [0, 1, 2, 3, 4]:
         sites = yaml_data.get("sites", [])
 
         for site_idx, site in enumerate(sites):
@@ -1377,9 +1377,9 @@ def adjust_model_dependent_nullification(
                             parameter="anthropogenic_emissions.co2",
                             site_index=site_idx,
                             site_gridid=site_gridid,
-                            old_value=f"emissionsmethod 0..4 (CO2 disabled), nullified {len(nullified_params)} related parameters - {param_list}",
+                            old_value=f"emissions 0..4 (CO2 disabled), nullified {len(nullified_params)} related parameters - {param_list}",
                             new_value="null",
-                            reason=f"emissionsmethod 0..4 (CO2 disabled), nullified {len(nullified_params)} related parameters",
+                            reason=f"emissions 0..4 (CO2 disabled), nullified {len(nullified_params)} related parameters",
                         )
                     )
 
@@ -1399,7 +1399,7 @@ def adjust_model_dependent_nullification(
                             site_gridid=site_gridid,
                             old_value="biogenic dectr params present",
                             new_value="null",
-                            reason="emissionsmethod 0..4 (CO2 disabled) – nullified dectr biogenic parameters",
+                            reason="emissions 0..4 (CO2 disabled) – nullified dectr biogenic parameters",
                         )
                     )
             except Exception:
@@ -1785,9 +1785,9 @@ def adjust_seasonal_parameters(
 
 def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
     """
-    Adjust RoofOuterCapFrac and WallOuterCapFrac for all sites if rcmethod == 0.
+    Adjust RoofOuterCapFrac and WallOuterCapFrac for all sites if outer_cap_fraction == 0.
 
-    If the model physics option 'rcmethod' is set to 0, this function sets
+    If the model physics option 'outer_cap_fraction' is set to 0, this function sets
     'RoofOuterCapFrac' and 'WallOuterCapFrac' to 0.5 for all sites' building_archetype
     blocks, as required by the model specification.
 
@@ -1805,12 +1805,12 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
 
     Notes
     -----
-    - Only applies the adjustment if 'rcmethod' is exactly 0.
+    - Only applies the adjustment if 'outer_cap_fraction' is exactly 0.
     - Records each parameter change in the adjustments list for reporting.
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    rcmethod_value = get_value_safe(physics, "rcmethod")
+    rcmethod_value = get_value_safe(physics, "outer_cap_fraction")
 
     if rcmethod_value == 0:
         sites = yaml_data.get("sites", [])
@@ -1831,7 +1831,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
                         site_gridid=site_gridid,
                         old_value=str(old_roof_frac),
                         new_value="0.5",
-                        reason="rcmethod == 0, set RoofOuterCapFrac to 0.5"
+                        reason="outer_cap_fraction == 0, set RoofOuterCapFrac to 0.5"
                     )
                 )
 
@@ -1847,7 +1847,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
                         site_gridid=site_gridid,
                         old_value=str(old_wall_frac),
                         new_value="0.5",
-                        reason="rcmethod == 0, set WallOuterCapFrac to 0.5"
+                        reason="outer_cap_fraction == 0, set WallOuterCapFrac to 0.5"
                     )
                 )
 
@@ -1866,7 +1866,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    setpointmethod = get_value_safe(physics, "setpointmethod")
+    setpointmethod = get_value_safe(physics, "setpoint")
 
     sites = yaml_data.get("sites", [])
     for site_idx, site in enumerate(sites):
@@ -1923,11 +1923,11 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
 
 def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
     """
-    Adjust STEBBS-related parameters based on the 'stebbsmethod' and 'WWR' options.
+    Adjust STEBBS-related parameters based on the 'stebbs' and 'WWR' options.
 
     This function nullifies window or external wall parameters in the STEBBS and
     building_archetype blocks depending on the Window-to-Wall Ratio (WWR) when
-    'stebbsmethod' is set to 1.
+    'stebbs' is set to 1.
 
     Parameters
     ----------
@@ -1943,15 +1943,15 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
 
     Notes
     -----
-    - If 'stebbsmethod' == 1 and 'WWR' == 0.0, all window-related parameters are set to None.
-    - If 'stebbsmethod' == 1 and 'WWR' == 1.0, all external wall-related parameters are set to None.
+    - If 'stebbs' == 1 and 'WWR' == 0.0, all window-related parameters are set to None.
+    - If 'stebbs' == 1 and 'WWR' == 1.0, all external wall-related parameters are set to None.
     - All changes are recorded in the adjustments list for reporting.
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+    stebbs_val = get_value_safe(physics, "stebbs")
 
-    if stebbsmethod == 1:
+    if stebbs_val == 1:
         sites = yaml_data.get("sites", [])
         for site_idx, site in enumerate(sites):
             props = site.get("properties", {})

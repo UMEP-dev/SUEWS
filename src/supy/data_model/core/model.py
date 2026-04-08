@@ -1,7 +1,15 @@
 import yaml
-from typing import Optional, Union, List
+import warnings
+from typing import ClassVar, Dict, Optional, Union, List
 import numpy as np
-from pydantic import ConfigDict, BaseModel, Field, field_validator, model_validator
+from pydantic import (
+    AliasChoices,
+    ConfigDict,
+    BaseModel,
+    Field,
+    field_validator,
+    model_validator,
+)
 import pandas as pd
 from enum import Enum
 import inspect
@@ -648,108 +656,173 @@ class ModelPhysics(BaseModel):
     Model physics configuration options.
     """
 
-    model_config = ConfigDict(title="Physics Methods")
+    model_config = ConfigDict(title="Physics Methods", populate_by_name=True)
 
-    netradiationmethod: FlexibleRefValue(NetRadiationMethod) = Field(
+    # --- Mapping from new canonical field names to legacy DataFrame column names ---
+    # DataFrame columns must match Fortran variable names, so they keep the old names.
+    FIELD_TO_DF_COL: ClassVar[Dict[str, str]] = {
+        "net_radiation": "netradiationmethod",
+        "emissions": "emissionsmethod",
+        "storage_heat": "storageheatmethod",
+        "ohm_inc_qf": "ohmincqf",
+        "roughness_momentum": "roughlenmommethod",
+        "roughness_heat": "roughlenheatmethod",
+        "stability": "stabilitymethod",
+        "smd": "smdmethod",
+        "water_use": "waterusemethod",
+        "rsl": "rslmethod",
+        "fai": "faimethod",
+        "rsl_level": "rsllevel",
+        "gs_model": "gsmodel",
+        "snow_use": "snowuse",
+        "stebbs": "stebbsmethod",
+        "outer_cap_fraction": "rcmethod",
+        "setpoint": "setpointmethod",
+        "same_albedo_wall": "same_albedo_wall",
+        "same_albedo_roof": "same_albedo_roof",
+        "same_emissivity_wall": "same_emissivity_wall",
+        "same_emissivity_roof": "same_emissivity_roof",
+    }
+
+    # Reverse lookup: legacy name -> canonical name (only for renamed fields)
+    LEGACY_TO_CANONICAL: ClassVar[Dict[str, str]] = {
+        v: k for k, v in FIELD_TO_DF_COL.items() if k != v
+    }
+
+    net_radiation: FlexibleRefValue(NetRadiationMethod) = Field(
         default=NetRadiationMethod.LDOWN_AIR,
+        validation_alias=AliasChoices("net_radiation", "netradiationmethod"),
+        serialization_alias="netradiationmethod",
         description=_enum_description(NetRadiationMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    emissionsmethod: FlexibleRefValue(EmissionsMethod) = Field(
+    emissions: FlexibleRefValue(EmissionsMethod) = Field(
         default=EmissionsMethod.J11,
+        validation_alias=AliasChoices("emissions", "emissionsmethod"),
+        serialization_alias="emissionsmethod",
         description=_enum_description(EmissionsMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    storageheatmethod: FlexibleRefValue(StorageHeatMethod) = Field(
+    storage_heat: FlexibleRefValue(StorageHeatMethod) = Field(
         default=StorageHeatMethod.OHM_WITHOUT_QF,
+        validation_alias=AliasChoices("storage_heat", "storageheatmethod"),
+        serialization_alias="storageheatmethod",
         description=_enum_description(StorageHeatMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    ohmincqf: FlexibleRefValue(OhmIncQf) = Field(
+    ohm_inc_qf: FlexibleRefValue(OhmIncQf) = Field(
         default=OhmIncQf.EXCLUDE,
+        validation_alias=AliasChoices("ohm_inc_qf", "ohmincqf"),
+        serialization_alias="ohmincqf",
         description=_enum_description(OhmIncQf),
         json_schema_extra={"unit": "dimensionless"},
     )
-    roughlenmommethod: FlexibleRefValue(MomentumRoughnessMethod) = Field(
+    roughness_momentum: FlexibleRefValue(MomentumRoughnessMethod) = Field(
         default=MomentumRoughnessMethod.VARIABLE,
+        validation_alias=AliasChoices("roughness_momentum", "roughlenmommethod"),
+        serialization_alias="roughlenmommethod",
         description=_enum_description(MomentumRoughnessMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    roughlenheatmethod: FlexibleRefValue(HeatRoughnessMethod) = Field(
+    roughness_heat: FlexibleRefValue(HeatRoughnessMethod) = Field(
         default=HeatRoughnessMethod.KAWAI,
+        validation_alias=AliasChoices("roughness_heat", "roughlenheatmethod"),
+        serialization_alias="roughlenheatmethod",
         description=_enum_description(HeatRoughnessMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    stabilitymethod: FlexibleRefValue(StabilityMethod) = Field(
+    stability: FlexibleRefValue(StabilityMethod) = Field(
         default=StabilityMethod.CAMPBELL_NORMAN,
+        validation_alias=AliasChoices("stability", "stabilitymethod"),
+        serialization_alias="stabilitymethod",
         description=_enum_description(StabilityMethod),
         json_schema_extra={
             "unit": "dimensionless",
-            "provides_to": ["rslmethod"],
-            "note": "Provides stability correction functions used by rslmethod calculations",
+            "provides_to": ["rsl"],
+            "note": "Provides stability correction functions used by RSL calculations",
         },
     )
-    smdmethod: FlexibleRefValue(SMDMethod) = Field(
+    smd: FlexibleRefValue(SMDMethod) = Field(
         default=SMDMethod.MODELLED,
+        validation_alias=AliasChoices("smd", "smdmethod"),
+        serialization_alias="smdmethod",
         description=_enum_description(SMDMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    waterusemethod: FlexibleRefValue(WaterUseMethod) = Field(
+    water_use: FlexibleRefValue(WaterUseMethod) = Field(
         default=WaterUseMethod.MODELLED,
+        validation_alias=AliasChoices("water_use", "waterusemethod"),
+        serialization_alias="waterusemethod",
         description=_enum_description(WaterUseMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    rslmethod: FlexibleRefValue(RSLMethod) = Field(
+    rsl: FlexibleRefValue(RSLMethod) = Field(
         default=RSLMethod.VARIABLE,
+        validation_alias=AliasChoices("rsl", "rslmethod"),
+        serialization_alias="rslmethod",
         description=_enum_description(RSLMethod),
         json_schema_extra={
             "unit": "dimensionless",
-            "depends_on": ["stabilitymethod"],
-            "provides_to": ["rsllevel"],
+            "depends_on": ["stability"],
+            "provides_to": ["rsl_level"],
             "note": "Determines how near-surface values (2m temp, 10m wind) are calculated from forcing data",
         },
     )
-    faimethod: FlexibleRefValue(FAIMethod) = Field(
+    fai: FlexibleRefValue(FAIMethod) = Field(
         default=FAIMethod.USE_PROVIDED,
+        validation_alias=AliasChoices("fai", "faimethod"),
+        serialization_alias="faimethod",
         description=_enum_description(FAIMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    rsllevel: FlexibleRefValue(RSLLevel) = Field(
+    rsl_level: FlexibleRefValue(RSLLevel) = Field(
         default=RSLLevel.NONE,
+        validation_alias=AliasChoices("rsl_level", "rsllevel"),
+        serialization_alias="rsllevel",
         description=_enum_description(RSLLevel),
         json_schema_extra={
             "unit": "dimensionless",
-            "depends_on": ["rslmethod"],
-            "provides_to": ["gsmodel"],
-            "note": "Uses near-surface values from rslmethod to modify vegetation processes",
+            "depends_on": ["rsl"],
+            "provides_to": ["gs_model"],
+            "note": "Uses near-surface values from RSL to modify vegetation processes",
         },
     )
-    gsmodel: FlexibleRefValue(GSModel) = Field(
+    gs_model: FlexibleRefValue(GSModel) = Field(
         default=GSModel.WARD,
+        validation_alias=AliasChoices("gs_model", "gsmodel"),
+        serialization_alias="gsmodel",
         description=_enum_description(GSModel),
         json_schema_extra={
             "unit": "dimensionless",
-            "depends_on": ["rsllevel"],
-            "note": "Stomatal conductance model influenced by rsllevel adjustments",
+            "depends_on": ["rsl_level"],
+            "note": "Stomatal conductance model influenced by rsl_level adjustments",
         },
     )
-    snowuse: FlexibleRefValue(SnowUse) = Field(
+    snow_use: FlexibleRefValue(SnowUse) = Field(
         default=SnowUse.DISABLED,
+        validation_alias=AliasChoices("snow_use", "snowuse"),
+        serialization_alias="snowuse",
         description=_enum_description(SnowUse),
         json_schema_extra={"unit": "dimensionless"},
     )
-    stebbsmethod: FlexibleRefValue(StebbsMethod) = Field(
+    stebbs: FlexibleRefValue(StebbsMethod) = Field(
         default=StebbsMethod.NONE,
+        validation_alias=AliasChoices("stebbs", "stebbsmethod"),
+        serialization_alias="stebbsmethod",
         description=_enum_description(StebbsMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    rcmethod: FlexibleRefValue(RCMethod) = Field(
+    outer_cap_fraction: FlexibleRefValue(RCMethod) = Field(
         default=RCMethod.DEFAULT,
+        validation_alias=AliasChoices("outer_cap_fraction", "rcmethod"),
+        serialization_alias="rcmethod",
         description=_enum_description(RCMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    setpointmethod: FlexibleRefValue(SetpointMethod) = Field(
+    setpoint: FlexibleRefValue(SetpointMethod) = Field(
         default=SetpointMethod.CONSTANT,
+        validation_alias=AliasChoices("setpoint", "setpointmethod"),
+        serialization_alias="setpointmethod",
         description=_enum_description(SetpointMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
@@ -776,39 +849,32 @@ class ModelPhysics(BaseModel):
 
     ref: Optional[Reference] = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _warn_legacy_names(cls, data):
+        """Emit deprecation warnings when legacy field names are used."""
+        if not isinstance(data, dict):
+            return data
+        for legacy, canonical in cls.LEGACY_TO_CANONICAL.items():
+            if legacy in data:
+                warnings.warn(
+                    f"ModelPhysics field '{legacy}' is deprecated. "
+                    f"Use '{canonical}' instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+        return data
+
     # We then need to set to 0 (or None) all the CO2-related parameters or rules
     # in the code and return them accordingly in the yml file.
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model physics properties to DataFrame state format."""
         cols = {("gridiv", "0"): grid_id}
-        list_attr = [
-            "netradiationmethod",
-            "emissionsmethod",
-            "storageheatmethod",
-            "ohmincqf",
-            "roughlenmommethod",
-            "roughlenheatmethod",
-            "stabilitymethod",
-            "smdmethod",
-            "waterusemethod",
-            "rslmethod",
-            "faimethod",
-            "rsllevel",
-            "gsmodel",
-            "snowuse",
-            "stebbsmethod",
-            "rcmethod",
-            "setpointmethod",
-            "same_albedo_wall",
-            "same_albedo_roof",
-            "same_emissivity_wall",
-            "same_emissivity_roof",
-        ]
-        for attr in list_attr:
-            value = getattr(self, attr)
+        for field_name, df_col in self.FIELD_TO_DF_COL.items():
+            value = getattr(self, field_name)
             val = value.value if isinstance(value, RefValue) else value
-            cols[(attr, "0")] = int(val)
+            cols[(df_col, "0")] = int(val)
         return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
@@ -823,9 +889,13 @@ class ModelPhysics(BaseModel):
         Returns:
             ModelPhysics: Instance of ModelPhysics
         """
+        # DataFrame columns use legacy names (matching Fortran variables).
+        # Build properties dict using canonical field names.
+        _DF_COL_TO_FIELD = {v: k for k, v in cls.FIELD_TO_DF_COL.items()}
+
         properties: dict = {}
 
-        required_attrs = [
+        required_df_cols = [
             "netradiationmethod",
             "emissionsmethod",
             "storageheatmethod",
@@ -846,26 +916,28 @@ class ModelPhysics(BaseModel):
         ]
 
         # New options: optional in legacy DataFrames, default if missing
-        optional_new_attrs_with_defaults = {
+        optional_df_cols_with_defaults = {
             "same_albedo_wall": SameAlbedoWall.DISABLED,
             "same_albedo_roof": SameAlbedoRoof.DISABLED,
             "same_emissivity_wall": SameEmissivityWall.DISABLED,
             "same_emissivity_roof": SameEmissivityRoof.DISABLED,
         }
 
-        for attr in required_attrs:
+        for df_col in required_df_cols:
+            field_name = _DF_COL_TO_FIELD[df_col]
             try:
-                properties[attr] = RefValue(int(df.loc[grid_id, (attr, "0")]))
+                properties[field_name] = RefValue(int(df.loc[grid_id, (df_col, "0")]))
             except KeyError:
-                raise ValueError(f"Missing attribute '{attr}' in the DataFrame")
+                raise ValueError(f"Missing attribute '{df_col}' in the DataFrame")
 
         # Optional new attributes
-        for attr, default_enum in optional_new_attrs_with_defaults.items():
+        for df_col, default_enum in optional_df_cols_with_defaults.items():
+            field_name = _DF_COL_TO_FIELD[df_col]
             try:
-                value = df.loc[grid_id, (attr, "0")]
-                properties[attr] = RefValue(int(value))
+                value = df.loc[grid_id, (df_col, "0")]
+                properties[field_name] = RefValue(int(value))
             except KeyError:
-                properties[attr] = RefValue(int(default_enum))
+                properties[field_name] = RefValue(int(default_enum))
 
         return cls(**properties)
 

@@ -33,7 +33,7 @@ from copy import deepcopy
 from pathlib import Path
 import warnings
 
-from .model import Model, OutputConfig
+from .model import Model, ModelPhysics, OutputConfig
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams
 from .type import SurfaceType
 
@@ -270,7 +270,7 @@ class SUEWSConfig(BaseModel):
         for i, site in enumerate(self.sites):
             self._validate_site_parameters(site, site_index=i)
 
-        ### 3) Run any conditional validations (e.g. STEBBS when stebbsmethod==1)
+        ### 3) Run any conditional validations (e.g. STEBBS when stebbs==1)
         cond_issues = self._validate_conditional_parameters()
 
         ### 4) Check for critical null physics parameters
@@ -405,7 +405,7 @@ class SUEWSConfig(BaseModel):
             If netradiationmethod=1 is used with a sample forcing file.
         """
         # Use the helper for consistent unwrapping
-        netradiationmethod_val = _unwrap_value(self.model.physics.netradiationmethod)
+        netradiationmethod_val = _unwrap_value(self.model.physics.net_radiation)
         forcing_file_val = _unwrap_value(self.model.control.forcing_file)
 
         # Check for the sample forcing file - this is still based on filename
@@ -421,7 +421,7 @@ class SUEWSConfig(BaseModel):
             warnings.warn(
                 f"NetRadiationMethod is set to 1 (using observed Ldown) with what appears to be a sample forcing file '{forcing_file_val}'. "
                 "Sample forcing files typically lack observed Ldown data. "
-                "If this is sample data, use netradiationmethod = 3. "
+                "If this is sample data, use net_radiation = 3. "
                 "If this is real data with Ldown, consider renaming the file to avoid this warning.",
                 UserWarning,
                 stacklevel=2,
@@ -1459,32 +1459,30 @@ class SUEWSConfig(BaseModel):
     def _needs_stebbs_validation(self) -> bool:
         """
         Return True if STEBBS should be validated,
-        i.e. physics.stebbsmethod == 1.
+        i.e. physics.stebbs == 1.
         """
 
         if not hasattr(self.model, "physics") or not hasattr(
-            self.model.physics, "stebbsmethod"
+            self.model.physics, "stebbs"
         ):
             return False
 
-        stebbsmethod = self.model.physics.stebbsmethod
+        stebbs_val = self.model.physics.stebbs
 
-        if hasattr(stebbsmethod, "value"):
-            stebbsmethod = stebbsmethod.value
-        if hasattr(stebbsmethod, "__int__"):
-            stebbsmethod = int(stebbsmethod)
-        if isinstance(stebbsmethod, str) and stebbsmethod == "1":
-            stebbsmethod = 1
+        if hasattr(stebbs_val, "value"):
+            stebbs_val = stebbs_val.value
+        if hasattr(stebbs_val, "__int__"):
+            stebbs_val = int(stebbs_val)
+        if isinstance(stebbs_val, str) and stebbs_val == "1":
+            stebbs_val = 1
 
-        # print(f"Final stebbsmethod value for validation: {stebbsmethod} (type: {type(stebbsmethod)})")
-
-        return stebbsmethod == 1
+        return stebbs_val == 1
 
     def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
         """
-        Validate required STEBBS and building archetype parameters when stebbsmethod==1.
+        Validate required STEBBS and building archetype parameters when stebbs==1.
 
-        If `stebbsmethod==1`, this function enforces that both `site.properties.stebbs`
+        If `stebbs==1`, this function enforces that both `site.properties.stebbs`
         and `site.properties.building_archetype` contain all required parameters with
         non-null values. The required parameter lists are defined by
         `STEBBS_REQUIRED_PARAMS` and `ARCHETYPE_REQUIRED_PARAMS`, with dynamic
@@ -1521,7 +1519,7 @@ class SUEWSConfig(BaseModel):
 
         ## Must have a stebbs block
         if not hasattr(props, "stebbs") or props.stebbs is None:
-            issues.append("Missing 'stebbs' section (required when stebbsmethod=1)")
+            issues.append("Missing 'stebbs' section (required when stebbs=1)")
             return issues
 
         ## Must have a building_archetype block
@@ -1587,9 +1585,9 @@ class SUEWSConfig(BaseModel):
             "WallCp",
         ]
 
-        # Check setpointmethod value
-        setpointmethod = getattr(self.model.physics, "setpointmethod", None)
-        setpointmethod_val = _unwrap_value(setpointmethod) if setpointmethod is not None else None
+        # Check setpoint value
+        setpoint_field = getattr(self.model.physics, "setpoint", None)
+        setpointmethod_val = _unwrap_value(setpoint_field) if setpoint_field is not None else None
         try:
             setpointmethod_val = int(setpointmethod_val)
         except (TypeError, ValueError):
@@ -1653,7 +1651,7 @@ class SUEWSConfig(BaseModel):
         if missing_params:
             param_list = ", ".join(missing_params)
             issues.append(
-                f"Missing required STEBBS parameters: {param_list} (required when stebbsmethod=1)"
+                f"Missing required STEBBS parameters: {param_list} (required when stebbs=1)"
             )
 
         return issues
@@ -1665,21 +1663,21 @@ class SUEWSConfig(BaseModel):
         Returns
         -------
         bool
-            True if `rslmethod` is set to 2 and was explicitly configured by the user,
+            True if `rsl` is set to 2 and was explicitly configured by the user,
             False otherwise.
 
         Notes
         -----
-        - Validation is only triggered if `rslmethod == 2` AND the value was explicitly set
+        - Validation is only triggered if `rsl == 2` AND the value was explicitly set
           (not just the default value).
         - Uses Pydantic's `model_fields_set` to distinguish user-provided values from defaults.
         """
         if not hasattr(self.model, "physics") or not hasattr(
-            self.model.physics, "rslmethod"
+            self.model.physics, "rsl"
         ):
             return False
 
-        rm = self.model.physics.rslmethod
+        rm = self.model.physics.rsl
         method = getattr(rm, "value", rm)
         try:
             method = int(method)
@@ -1688,14 +1686,14 @@ class SUEWSConfig(BaseModel):
 
         # Only validate if method == 2 AND it was explicitly set
         if method == 2:
-            return self._is_physics_explicitly_configured("rslmethod")
+            return self._is_physics_explicitly_configured("rsl")
         return False
 
     def _validate_rsl(self, site: Site, site_index: int) -> List[str]:
         """
         Validate RSL (Roughness Sublayer) method requirements for a site.
 
-        If `rslmethod == 2`, then for any site where `bldgs.sfr > 0`,
+        If `rsl == 2`, then for any site where `bldgs.sfr > 0`,
         `bldgs.faibldg` must be set and non-null.
 
         Parameters
@@ -1712,7 +1710,7 @@ class SUEWSConfig(BaseModel):
 
         Notes
         -----
-        - Only applies if `rslmethod == 2` is explicitly set.
+        - Only applies if `rsl == 2` is explicitly set.
         - Checks that for each site with buildings (`bldgs.sfr > 0`), the
           frontal area index (`bldgs.faibldg`) is provided.
         """
@@ -1738,7 +1736,7 @@ class SUEWSConfig(BaseModel):
             if val is None:
                 site_name = getattr(site, "name", f"Site {site_index}")
                 issues.append(
-                    f"{site_name}: for rslmethod=2 and bldgs.sfr={sfr}, bldgs.faibldg must be set"
+                    f"{site_name}: for rsl=2 and bldgs.sfr={sfr}, bldgs.faibldg must be set"
                 )
         return issues
 
@@ -1749,21 +1747,21 @@ class SUEWSConfig(BaseModel):
         Returns
         -------
         bool
-            True if `storageheatmethod` is set to 6 or 7 and was explicitly configured by the user,
+            True if `storage_heat` is set to 6 or 7 and was explicitly configured by the user,
             False otherwise.
 
         Notes
         -----
-        - Validation is only triggered if `storageheatmethod` is 6 or 7 AND the value was explicitly set
+        - Validation is only triggered if `storage_heat` is 6 or 7 AND the value was explicitly set
           (not just the default value).
         - Uses Pydantic's `model_fields_set` to distinguish user-provided values from defaults.
         """
         if not hasattr(self.model, "physics") or not hasattr(
-            self.model.physics, "storageheatmethod"
+            self.model.physics, "storage_heat"
         ):
             return False
 
-        shm = getattr(self.model.physics.storageheatmethod, "value", None)
+        shm = getattr(self.model.physics.storage_heat, "value", None)
         try:
             shm = int(shm)
         except (TypeError, ValueError):
@@ -1771,7 +1769,7 @@ class SUEWSConfig(BaseModel):
 
         # Only validate if method == 6 or 7 AND it was explicitly set
         if shm == 6 or shm == 7:
-            return self._is_physics_explicitly_configured("storageheatmethod")
+            return self._is_physics_explicitly_configured("storage_heat")
         return False
     
     def _needs_same_albedo_wall_validation(self) -> bool:
@@ -1911,7 +1909,7 @@ class SUEWSConfig(BaseModel):
         Parameters
         ----------
         option_name : str
-            Name of the physics field to check (e.g. ``"rslmethod"``).
+            Name of the physics field to check (e.g. ``"rsl"``).
         """
         physics = getattr(self.model, "physics", None)
         return bool(physics and hasattr(physics, "model_fields_set") and option_name in physics.model_fields_set)
@@ -1957,7 +1955,7 @@ class SUEWSConfig(BaseModel):
 
         if not walls or len(walls) == 0:
             issues.append(
-                f"{site_name}: storageheatmethod 6 or 7 (DyOHM) selected → missing vertical_layers.walls"
+                f"{site_name}: storage_heat 6 or 7 (DyOHM) selected → missing vertical_layers.walls"
             )
             return issues
 
@@ -1972,7 +1970,7 @@ class SUEWSConfig(BaseModel):
                 or any(not isinstance(v, (int, float)) for v in vals)
             ):
                 issues.append(
-                    f"{site_name}: storageheatmethod 6 or 7 (DyOHM) selected → "
+                    f"{site_name}: storage_heat 6 or 7 (DyOHM) selected → "
                     f"thermal_layers.{arr} must be a non‐empty list of numeric values (no nulls)"
                 )
 
@@ -1990,14 +1988,14 @@ class SUEWSConfig(BaseModel):
                 or any(not isinstance(v, (int, float)) for v in vals)
             ):
                 issues.append(
-                    f"{site_name}: storageheatmethod 6 or 7 (DyOHM) selected → "
+                    f"{site_name}: storage_heat 6 or 7 (DyOHM) selected → "
                     f"initial_states.{arr} must be a non‐empty list of numeric values (no nulls)"
                 )
 
         lam = getattr(getattr(props, "lambda_c", None), "value", None)
         if lam in (None, ""):
             issues.append(
-                f"{site_name}: storageheatmethod 6 or 7 (DyOHM) selected → properties.lambda_c must be set and non-null"
+                f"{site_name}: storage_heat 6 or 7 (DyOHM) selected → properties.lambda_c must be set and non-null"
             )
 
         return issues
@@ -2203,15 +2201,15 @@ class SUEWSConfig(BaseModel):
         Returns
         -------
         bool
-            True if SPARTACUS is enabled (i.e., netradiationmethod is 1001, 1002, or 1003), False otherwise.
+            True if SPARTACUS is enabled (i.e., net_radiation is 1001, 1002, or 1003), False otherwise.
 
         Notes
         -----
-        SPARTACUS is enabled when the model physics parameter `netradiationmethod`
+        SPARTACUS is enabled when the model physics parameter `net_radiation`
         is set to one of the following values: 1001, 1002, or 1003.
         """
         spartacus_methods = {1001, 1002, 1003}
-        netrad_method = _unwrap_value(getattr(self.model.physics, "netradiationmethod", None))
+        netrad_method = _unwrap_value(getattr(self.model.physics, "net_radiation", None))
         try:
             netrad_method = int(netrad_method)
         except (TypeError, ValueError):
@@ -2224,7 +2222,7 @@ class SUEWSConfig(BaseModel):
 
         If SPARTACUS is enabled, this function enforces that:
         - The building height (bldgh) does not exceed the domain top (height[nlayer]).
-        - If stebbsmethod == 1, the archetype's stebbs_Height also does not exceed the domain top.
+        - If stebbs == 1, the archetype's stebbs_Height also does not exceed the domain top.
 
         Parameters
         ----------
@@ -2241,7 +2239,7 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - The domain top is defined as the last entry in the vertical_layers.height array (height[nlayer]).
-        - If stebbsmethod == 1, both bldgh and stebbs_Height are checked.
+        - If stebbs == 1, both bldgh and stebbs_Height are checked.
         - All issues are reported with the site name for clarity.
         """
         issues: List[str] = []
@@ -2268,15 +2266,15 @@ class SUEWSConfig(BaseModel):
                     f"Site '{site_name}' has bldgh={bldgh} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
                 )
 
-            # If stebbsmethod == 1, also check stebbs_Height
-            stebbsmethod = _unwrap_value(getattr(self.model.physics, "stebbsmethod", None))
+            # If stebbs == 1, also check stebbs_Height
+            stebbs_val = _unwrap_value(getattr(self.model.physics, "stebbs", None))
 
             try:
-                stebbsmethod_val = int(stebbsmethod)
+                stebbs_int = int(stebbs_val)
             except (TypeError, ValueError):
-                stebbsmethod_val = None
+                stebbs_int = None
 
-            if stebbsmethod_val == 1:
+            if stebbs_int == 1:
                 building_archetype = getattr(props, "building_archetype", None)
                 stebbs_height = _unwrap_value(getattr(building_archetype, "stebbs_Height", None)) if building_archetype else None
                 if stebbs_height is not None and stebbs_height > spartacus_top:
@@ -2451,10 +2449,10 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - STEBBS: Validates required STEBBS and building archetype parameters when
-          `stebbsmethod == 1`.
-        - RSL: Validates that `bldgs.faibldg` is set when `rslmethod == 2`.
+          `stebbs == 1`.
+        - RSL: Validates that `bldgs.faibldg` is set when `rsl == 2`.
         - StorageHeat: Checks DyOHM storage-heat method requirements when
-          `storageheatmethod == 6 or 7`.
+          `storage_heat == 6 or 7`.
         - same_albedo_wall/roof: Ensures uniform albedo across wall/roof layers and
           matches the building archetype if enabled.
         - same_emissivity_wall/roof: Ensures uniform emissivity across wall/roof
@@ -2602,29 +2600,8 @@ class SUEWSConfig(BaseModel):
         - Returns an empty list if all critical parameters are set.
         """
         # Critical physics parameters that get converted to int() in df_state
-        CRITICAL_PHYSICS_PARAMS = [
-            "netradiationmethod",
-            "emissionsmethod",
-            "storageheatmethod",
-            "ohmincqf",
-            "roughlenmommethod",
-            "roughlenheatmethod",
-            "stabilitymethod",
-            "smdmethod",
-            "waterusemethod",
-            "rslmethod",
-            "faimethod",
-            "rsllevel",
-            "gsmodel",
-            "snowuse",
-            "stebbsmethod",
-            "rcmethod",
-            "setpointmethod",
-            "same_albedo_wall",
-            "same_albedo_roof",
-            "same_emissivity_wall",
-            "same_emissivity_roof",
-        ]
+        # Use the canonical (new) field names from ModelPhysics.
+        CRITICAL_PHYSICS_PARAMS = list(ModelPhysics.FIELD_TO_DF_COL.keys())
 
         critical_issues = []
 
@@ -3893,7 +3870,7 @@ class SUEWSConfig(BaseModel):
     def to_yaml(self, path: str = "./config-suews.yml"):
         """Convert config to YAML format"""
         # Use mode='json' to serialize enums as their values
-        config_dict = self.model_dump(exclude_none=True, mode="json")
+        config_dict = self.model_dump(exclude_none=True, mode="json", by_alias=True)
         with open(path, "w") as file:
             yaml.dump(
                 config_dict,

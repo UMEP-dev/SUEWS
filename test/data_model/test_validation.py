@@ -76,29 +76,29 @@ def make_cfg(**physics_kwargs):
 
 
 def test_needs_stebbs_validation_true_and_false():
-    cfg = make_cfg(stebbsmethod=1)
+    cfg = make_cfg(stebbs=1)
     assert cfg._needs_stebbs_validation() is True
-    cfg2 = make_cfg(stebbsmethod=0)
+    cfg2 = make_cfg(stebbs=0)
     assert cfg2._needs_stebbs_validation() is False
 
 
 def test_validate_stebbs_missing_properties_block():
-    cfg = make_cfg(stebbsmethod=1)
+    cfg = make_cfg(stebbs=1)
     site = DummySite(properties=None, name="MySite")
     msgs = SUEWSConfig._validate_stebbs(cfg, site, site_index=0)
     assert msgs == ["Missing 'properties' section (required for STEBBS validation)"]
 
 
 def test_validate_stebbs_missing_stebbs_section():
-    cfg = make_cfg(stebbsmethod=1)
+    cfg = make_cfg(stebbs=1)
     props = SimpleNamespace(stebbs=None)
     site = DummySite(properties=props, name="MySite")
     msgs = SUEWSConfig._validate_stebbs(cfg, site, site_index=0)
-    assert msgs == ["Missing 'stebbs' section (required when stebbsmethod=1)"]
+    assert msgs == ["Missing 'stebbs' section (required when stebbs=1)"]
 
 
 def test_validate_stebbs_missing_parameters():
-    cfg = make_cfg(stebbsmethod=1)
+    cfg = make_cfg(stebbs=1)
     # Provide an empty stebbs object
     props = SimpleNamespace(stebbs=SimpleNamespace())
     site = DummySite(properties=props, name="MySite")
@@ -110,14 +110,14 @@ def test_validate_stebbs_missing_parameters():
 def test_needs_rsl_validation_true_and_false():
     # After conditional validation fix, validation is disabled by default
     # unless physics parameters are explicitly configured
-    cfg = make_cfg(rslmethod=2)
+    cfg = make_cfg(rsl=2)
     assert cfg._needs_rsl_validation() is False  # Disabled by default now
-    cfg2 = make_cfg(rslmethod=1)
+    cfg2 = make_cfg(rsl=1)
     assert cfg2._needs_rsl_validation() is False
 
 
 def test_validate_rsl_no_land_cover_or_sfr():
-    cfg = make_cfg(rslmethod=2)
+    cfg = make_cfg(rsl=2)
     site = DummySite(properties=None)
     assert SUEWSConfig._validate_rsl(cfg, site, 0) == []
     # land_cover without bldgs
@@ -126,7 +126,7 @@ def test_validate_rsl_no_land_cover_or_sfr():
 
 
 def test_validate_rsl_requires_faibldg():
-    cfg = make_cfg(rslmethod=2)
+    cfg = make_cfg(rsl=2)
     # build a land_cover.bldgs with sfr>0 but no faibldg
     bldgs = SimpleNamespace(sfr=SimpleNamespace(value=0.5), faibldg=None)
     lc = SimpleNamespace(bldgs=bldgs)
@@ -140,14 +140,14 @@ def test_validate_rsl_requires_faibldg():
 def test_needs_storage_validation_true_and_false():
     # After conditional validation fix, validation is disabled by default
     # unless physics parameters are explicitly configured
-    cfg = make_cfg(storageheatmethod=6)
+    cfg = make_cfg(storage_heat=6)
     assert cfg._needs_storage_validation() is False  # Disabled by default now
-    cfg2 = make_cfg(storageheatmethod=1)
+    cfg2 = make_cfg(storage_heat=1)
     assert cfg2._needs_storage_validation() is False
 
 
 def test_validate_storage_requires_numeric_and_lambda():
-    cfg = make_cfg(storageheatmethod=6)
+    cfg = make_cfg(storage_heat=6)
     # stub thermal_layers: dz has one bad None, k OK, rho_cp missing
     th = SimpleNamespace(
         dz=SimpleNamespace(value=[None]),
@@ -801,8 +801,8 @@ def test_phase_b_forcing_height_error_and_warning(registry):
     yaml_data = {
         "model": {
             "physics": {
-                "stebbsmethod": {"value": 1},
-                "netradiationmethod": {"value": 1001},
+                "stebbs": {"value": 1},
+                "net_radiation": {"value": 1001},
             }
         },
         "sites": [
@@ -836,8 +836,8 @@ def test_phase_b_forcing_height_valid(registry):
     yaml_data = {
         "model": {
             "physics": {
-                "stebbsmethod": {"value": 1},
-                "netradiationmethod": {"value": 1001},
+                "stebbs": {"value": 1},
+                "net_radiation": {"value": 1001},
             }
         },
         "sites": [
@@ -864,7 +864,7 @@ def test_phase_b_forcing_height_only_stebbs_height(registry):
     yaml_data = {
         "model": {
             "physics": {
-                "stebbsmethod": {"value": 1},
+                "stebbs": {"value": 1},
             }
         },
         "sites": [
@@ -890,7 +890,7 @@ def test_phase_b_forcing_height_only_spartacus_top(registry):
     yaml_data = {
         "model": {
             "physics": {
-                "netradiationmethod": {"value": 1001},
+                "net_radiation": {"value": 1001},
             }
         },
         "sites": [
@@ -919,7 +919,7 @@ def test_phase_b_forcing_height_only_spartacus_top(registry):
     
 def test_validate_model_option_rcmethod_missing_params(registry):
     yaml_data = {
-        "model": {"physics": {"rcmethod": {"value": 1}}},
+        "model": {"physics": {"outer_cap_fraction": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -935,7 +935,7 @@ def test_validate_model_option_rcmethod_missing_params(registry):
 
 def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
     yaml_data = {
-        "model": {"physics": {"rcmethod": {"value": 1}}},
+        "model": {"physics": {"outer_cap_fraction": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -952,7 +952,7 @@ def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
 
 def test_validate_model_option_rcmethod_enabled_valid_values(registry):
     yaml_data = {
-        "model": {"physics": {"rcmethod": {"value": 1}}},
+        "model": {"physics": {"outer_cap_fraction": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -968,7 +968,7 @@ def test_validate_model_option_rcmethod_enabled_valid_values(registry):
 
 def test_adjust_model_option_rcmethod_sets_defaults():
     yaml_data = {
-        "model": {"physics": {"rcmethod": {"value": 0}}},
+        "model": {"physics": {"outer_cap_fraction": {"value": 0}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -985,7 +985,7 @@ def test_adjust_model_option_rcmethod_sets_defaults():
 
 def test_adjust_model_option_rcmethod_no_action_when_already_set():
     yaml_data = {
-        "model": {"physics": {"rcmethod": {"value": 0}}},
+        "model": {"physics": {"outer_cap_fraction": {"value": 0}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1002,7 +1002,7 @@ def test_adjust_model_option_rcmethod_no_action_when_already_set():
 def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_0_or_1():
     # setpointmethod == 0: should nullify all profile entries
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 0}}},
+        "model": {"physics": {"setpoint": {"value": 0}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1031,7 +1031,7 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_0_or_1():
 def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_1():
     # setpointmethod == 1: should nullify all profile entries
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 1}}},
+        "model": {"physics": {"setpoint": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1059,7 +1059,7 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_1():
 def test_adjust_model_option_setpointmethod_sets_temps_to_null_when_2():
     # setpointmethod == 2: should nullify HeatingSetpointTemperature and CoolingSetpointTemperature
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "model": {"physics": {"setpoint": {"value": 2}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1080,7 +1080,7 @@ def test_adjust_model_option_setpointmethod_sets_temps_to_null_when_2():
 def test_adjust_model_option_setpointmethod_no_action_when_already_null():
     # Should not add adjustments if already null
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "model": {"physics": {"setpoint": {"value": 2}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1099,7 +1099,7 @@ def test_adjust_model_option_setpointmethod_no_action_when_already_null():
 
 def test_validate_model_option_rcmethod2_missing_params(registry):
     yaml_data = {
-        "model": {"physics": {"rcmethod": {"value": 2}}},
+        "model": {"physics": {"outer_cap_fraction": {"value": 2}}},
         "sites": [{
             "name": "site1",
             "properties": {"building_archetype": {}},
@@ -1118,7 +1118,7 @@ def test_validate_model_option_rcmethod2_missing_params(registry):
 
 def test_validate_model_option_rcmethod2_all_params_provided(registry):
     yaml_data = {
-        "model": {"physics": {"rcmethod": {"value": 2}}},
+        "model": {"physics": {"outer_cap_fraction": {"value": 2}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1143,7 +1143,7 @@ def test_validate_model_option_rcmethod2_all_params_provided(registry):
 
 def test_validate_model_option_rcmethod2_some_params_missing(registry):
     yaml_data = {
-        "model": {"physics": {"rcmethod": {"value": 2}}},
+        "model": {"physics": {"outer_cap_fraction": {"value": 2}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1170,7 +1170,7 @@ def test_validate_model_option_rcmethod2_some_params_missing(registry):
 
 def test_validate_model_option_setpointmethod_0_or_1_all_params(registry):
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 0}}},
+        "model": {"physics": {"setpoint": {"value": 0}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1186,7 +1186,7 @@ def test_validate_model_option_setpointmethod_0_or_1_all_params(registry):
 
 def test_validate_model_option_setpointmethod_0_or_1_missing_params(registry):
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 1}}},
+        "model": {"physics": {"setpoint": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1208,7 +1208,7 @@ def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
     cooling_working = {str(i): 26.0 for i in range(1, 145)}
     cooling_holiday = {str(i): 25.5 for i in range(1, 145)}
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "model": {"physics": {"setpoint": {"value": 2}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1230,7 +1230,7 @@ def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
 
 def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry):
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "model": {"physics": {"setpoint": {"value": 2}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1255,7 +1255,7 @@ def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry
 
 def test_validate_model_option_setpointmethod_2_out_of_range(registry):
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "model": {"physics": {"setpoint": {"value": 2}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1280,7 +1280,7 @@ def test_validate_model_option_setpointmethod_2_out_of_range(registry):
 
 def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "model": {"physics": {"setpoint": {"value": 2}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1311,7 +1311,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
     """Test HotWaterFlowProfile accepts only 0 or 1 values."""
 
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1331,7 +1331,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid(registry
     """Test HotWaterFlowProfile returns ERROR for invalid values."""
 
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1358,7 +1358,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing(registry
     """Test HotWaterFlowProfile missing returns no errors."""
 
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1375,7 +1375,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial(registry
     """Test HotWaterFlowProfile with partial valid/invalid values."""
 
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1399,7 +1399,7 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_valid(registry):
     """Test DaylightControl accepts only 0 or 1 values, and LightingIlluminanceThreshold is required if 1."""
     # Valid: DaylightControl = 1, LightingIlluminanceThreshold provided
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1433,7 +1433,7 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_valid(registry):
 def test_validate_model_option_stebbsmethod_daylightcontrol_missing_lit(registry):
     """Test DaylightControl == 1 but LightingIlluminanceThreshold missing returns error."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1453,7 +1453,7 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_missing_lit(registry
 def test_validate_model_option_stebbsmethod_daylightcontrol_invalid(registry):
     """Test DaylightControl returns ERROR for invalid values."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1472,7 +1472,7 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_invalid(registry):
 def test_validate_model_option_stebbsmethod_daylightcontrol_string_value(registry):
     """Test DaylightControl returns ERROR for string or unexpected values."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1491,7 +1491,7 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_string_value(registr
 def test_validate_model_option_stebbsmethod_daylightcontrol_missing(registry):
     """Test DaylightControl missing returns no errors."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1507,7 +1507,7 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_missing(registry):
 def test_validate_model_option_stebbsmethod_daylightcontrol_not_active(registry):
     """Test no validation occurs if stebbsmethod != 1."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 0}}},
+        "model": {"physics": {"stebbs": {"value": 0}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1523,7 +1523,7 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_not_active(registry)
 def test_daylight_control_lightingilluminancethreshold_zero(registry):
     """Test LightingIlluminanceThreshold=0 is accepted when DaylightControl=1."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1540,7 +1540,7 @@ def test_daylight_control_lightingilluminancethreshold_zero(registry):
 def test_daylight_control_daylightcontrol_zero(registry):
     """Test DaylightControl=0 is accepted and LightingIlluminanceThreshold is not required."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1559,7 +1559,7 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_non
     """Test error when Occupants=0.0 but MetabolismProfile has nonzero values."""
 
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1584,7 +1584,7 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_all
     """Test no error when Occupants=0.0 and all MetabolismProfile values are zero."""
 
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1606,7 +1606,7 @@ def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_
     """Test no error when Occupants>0 and MetabolismProfile has nonzero values."""
 
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1641,7 +1641,7 @@ def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_
 def test_adjust_model_option_stebbsmethod_nullification(wwr, nullify, keep):
     """Test adjust_model_option_stebbsmethod nullifies correct params based on WWR."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "properties": {
                 "stebbs": {
@@ -1728,7 +1728,7 @@ def test_adjust_model_option_stebbsmethod_nullification(wwr, nullify, keep):
 def test_adjust_model_option_stebbsmethod_not_one_no_action():
     """If stebbsmethod != 1, nothing is changed."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 0}}},
+        "model": {"physics": {"stebbs": {"value": 0}}},
         "sites": [{
             "properties": {
                 "stebbs": {
@@ -1754,18 +1754,18 @@ def test_adjust_model_option_stebbsmethod_not_one_no_action():
 def test_needs_spartacus_validation_true_and_false():
     
     cfg = make_cfg()
-    cfg.model.physics.netradiationmethod = 1001
+    cfg.model.physics.net_radiation = 1001
     assert cfg._needs_spartacus_validation() is True
 
     cfg2 = make_cfg()
-    cfg2.model.physics.netradiationmethod = 1
+    cfg2.model.physics.net_radiation = 1
     assert cfg2._needs_spartacus_validation() is False
 
 def test_validate_spartacus_building_height_error():
-    cfg = make_cfg(netradiationmethod=1001, stebbsmethod=1)
+    cfg = make_cfg(net_radiation=1001, stebbsmethod=1)
     # _unwrap_value only unwraps RefValue/Enum, not SimpleNamespace;
     # set stebbsmethod as a raw int so the validator can parse it.
-    cfg.model.physics.stebbsmethod = 1
+    cfg.model.physics.stebbs = 1
 
     # bldgh and stebbs_Height both exceed height[nlayer]
     bldgs = SimpleNamespace(bldgh=15.0)
@@ -1785,8 +1785,8 @@ def test_validate_spartacus_building_height_error():
 
 
 def test_validate_spartacus_building_height_no_error():
-    cfg = make_cfg(netradiationmethod=1001, stebbsmethod=1)
-    cfg.model.physics.stebbsmethod = 1
+    cfg = make_cfg(net_radiation=1001, stebbsmethod=1)
+    cfg.model.physics.stebbs = 1
 
     # bldgh and stebbs_Height do not exceed height[nlayer]
     bldgs = SimpleNamespace(bldgh=8.0)
@@ -1804,7 +1804,7 @@ def test_validate_spartacus_building_height_no_error():
 
 def test_validate_spartacus_building_height_stebbs_off():
     """stebbs_Height should NOT be checked when stebbsmethod != 1."""
-    cfg = make_cfg(netradiationmethod=1001, stebbsmethod=0)
+    cfg = make_cfg(net_radiation=1001, stebbsmethod=0)
 
     # stebbs_Height exceeds domain top, but stebbsmethod is off
     bldgs = SimpleNamespace(bldgh=8.0)
@@ -2336,8 +2336,8 @@ def test_phase_b_storageheatmethod_ohmincqf_validation(registry):
     yaml_data_incompatible = {
         "model": {
             "physics": {
-                "storageheatmethod": {"value": 1},  # OHM_WITHOUT_QF
-                "ohmincqf": {"value": 1},  # INCLUDE - incompatible!
+                "storage_heat": {"value": 1},  # OHM_WITHOUT_QF
+                "ohm_inc_qf": {"value": 1},  # INCLUDE - incompatible!
             }
         }
     }
@@ -2360,8 +2360,8 @@ def test_phase_b_storageheatmethod_ohmincqf_validation(registry):
     yaml_data_compatible = {
         "model": {
             "physics": {
-                "storageheatmethod": {"value": 1},  # OHM_WITHOUT_QF
-                "ohmincqf": {"value": 0},  # EXCLUDE - compatible!
+                "storage_heat": {"value": 1},  # OHM_WITHOUT_QF
+                "ohm_inc_qf": {"value": 0},  # EXCLUDE - compatible!
             }
         }
     }
@@ -2387,8 +2387,8 @@ def test_phase_b_rsl_stabilitymethod_validation(registry):
     yaml_data_incompatible = {
         "model": {
             "physics": {
-                "rslmethod": {"value": 2},
-                "stabilitymethod": {"value": 1},  # Should be 3
+                "rsl": {"value": 2},
+                "stability": {"value": 1},  # Should be 3
             }
         }
     }
@@ -2409,10 +2409,10 @@ def test_phase_b_model_option_dependencies_comprehensive(registry):
     yaml_data_minimal = {
         "model": {
             "physics": {
-                "storageheatmethod": {"value": 0},  # OBSERVED
-                "ohmincqf": {"value": 0},  # EXCLUDE
-                "rslmethod": {"value": 0},
-                "stabilitymethod": {"value": 1},
+                "storage_heat": {"value": 0},  # OBSERVED
+                "ohm_inc_qf": {"value": 0},  # EXCLUDE
+                "rsl": {"value": 0},
+                "stability": {"value": 1},
             }
         }
     }
@@ -2436,10 +2436,10 @@ def test_phase_b_model_option_dependencies_comprehensive(registry):
     yaml_data_mixed = {
         "model": {
             "physics": {
-                "storageheatmethod": {"value": 1},  # OHM_WITHOUT_QF
-                "ohmincqf": {"value": 0},  # EXCLUDE - compatible
-                "rslmethod": {"value": 2},  # Should require stabilitymethod=3
-                "stabilitymethod": {"value": 1},  # Wrong value - incompatible
+                "storage_heat": {"value": 1},  # OHM_WITHOUT_QF
+                "ohm_inc_qf": {"value": 0},  # EXCLUDE - compatible
+                "rsl": {"value": 2},  # Should require stabilitymethod=3
+                "stability": {"value": 1},  # Wrong value - incompatible
             }
         }
     }

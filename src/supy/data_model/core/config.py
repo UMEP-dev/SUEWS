@@ -185,7 +185,7 @@ class SUEWSConfig(BaseModel):
         "BuildingCount",
         "Occupants",
         "MetabolismProfile",
-        "stebbs_Height",
+        "StebbsHeight",
         "FootprintArea",
         "WallExternalArea",
         "RatioInternalVolume",
@@ -405,7 +405,7 @@ class SUEWSConfig(BaseModel):
             If netradiationmethod=1 is used with a sample forcing file.
         """
         # Use the helper for consistent unwrapping
-        netradiationmethod_val = _unwrap_value(self.model.physics.netradiationmethod)
+        netradiationmethod_val = _unwrap_value(self.model.physics.net_radiation)
         forcing_file_val = _unwrap_value(self.model.control.forcing_file)
 
         # Check for the sample forcing file - this is still based on filename
@@ -1459,26 +1459,24 @@ class SUEWSConfig(BaseModel):
     def _needs_stebbs_validation(self) -> bool:
         """
         Return True if STEBBS should be validated,
-        i.e. physics.stebbsmethod == 1.
+        i.e. physics.stebbs == 1.
         """
 
         if not hasattr(self.model, "physics") or not hasattr(
-            self.model.physics, "stebbsmethod"
+            self.model.physics, "stebbs"
         ):
             return False
 
-        stebbsmethod = self.model.physics.stebbsmethod
+        stebbs_val = self.model.physics.stebbs
 
-        if hasattr(stebbsmethod, "value"):
-            stebbsmethod = stebbsmethod.value
-        if hasattr(stebbsmethod, "__int__"):
-            stebbsmethod = int(stebbsmethod)
-        if isinstance(stebbsmethod, str) and stebbsmethod == "1":
-            stebbsmethod = 1
+        if hasattr(stebbs_val, "value"):
+            stebbs_val = stebbs_val.value
+        if hasattr(stebbs_val, "__int__"):
+            stebbs_val = int(stebbs_val)
+        if isinstance(stebbs_val, str) and stebbs_val == "1":
+            stebbs_val = 1
 
-        # print(f"Final stebbsmethod value for validation: {stebbsmethod} (type: {type(stebbsmethod)})")
-
-        return stebbsmethod == 1
+        return stebbs_val == 1
 
     def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
         """
@@ -1587,9 +1585,9 @@ class SUEWSConfig(BaseModel):
             "WallCp",
         ]
 
-        # Check setpointmethod value
-        setpointmethod = getattr(self.model.physics, "setpointmethod", None)
-        setpointmethod_val = _unwrap_value(setpointmethod) if setpointmethod is not None else None
+        # Check setpoint value
+        setpoint_val_raw = getattr(self.model.physics, "setpoint", None)
+        setpointmethod_val = _unwrap_value(setpoint_val_raw) if setpoint_val_raw is not None else None
         try:
             setpointmethod_val = int(setpointmethod_val)
         except (TypeError, ValueError):
@@ -1675,11 +1673,11 @@ class SUEWSConfig(BaseModel):
         - Uses Pydantic's `model_fields_set` to distinguish user-provided values from defaults.
         """
         if not hasattr(self.model, "physics") or not hasattr(
-            self.model.physics, "rslmethod"
+            self.model.physics, "rsl"
         ):
             return False
 
-        rm = self.model.physics.rslmethod
+        rm = self.model.physics.rsl
         method = getattr(rm, "value", rm)
         try:
             method = int(method)
@@ -1688,7 +1686,7 @@ class SUEWSConfig(BaseModel):
 
         # Only validate if method == 2 AND it was explicitly set
         if method == 2:
-            return self._is_physics_explicitly_configured("rslmethod")
+            return self._is_physics_explicitly_configured("rsl")
         return False
 
     def _validate_rsl(self, site: Site, site_index: int) -> List[str]:
@@ -1759,11 +1757,11 @@ class SUEWSConfig(BaseModel):
         - Uses Pydantic's `model_fields_set` to distinguish user-provided values from defaults.
         """
         if not hasattr(self.model, "physics") or not hasattr(
-            self.model.physics, "storageheatmethod"
+            self.model.physics, "storage_heat"
         ):
             return False
 
-        shm = getattr(self.model.physics.storageheatmethod, "value", None)
+        shm = getattr(self.model.physics.storage_heat, "value", None)
         try:
             shm = int(shm)
         except (TypeError, ValueError):
@@ -1771,7 +1769,7 @@ class SUEWSConfig(BaseModel):
 
         # Only validate if method == 6 or 7 AND it was explicitly set
         if shm == 6 or shm == 7:
-            return self._is_physics_explicitly_configured("storageheatmethod")
+            return self._is_physics_explicitly_configured("storage_heat")
         return False
     
     def _needs_same_albedo_wall_validation(self) -> bool:
@@ -2211,7 +2209,7 @@ class SUEWSConfig(BaseModel):
         is set to one of the following values: 1001, 1002, or 1003.
         """
         spartacus_methods = {1001, 1002, 1003}
-        netrad_method = _unwrap_value(getattr(self.model.physics, "netradiationmethod", None))
+        netrad_method = _unwrap_value(getattr(self.model.physics, "net_radiation", None))
         try:
             netrad_method = int(netrad_method)
         except (TypeError, ValueError):
@@ -2268,20 +2266,20 @@ class SUEWSConfig(BaseModel):
                     f"Site '{site_name}' has bldgh={bldgh} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
                 )
 
-            # If stebbsmethod == 1, also check stebbs_Height
-            stebbsmethod = _unwrap_value(getattr(self.model.physics, "stebbsmethod", None))
+            # If stebbs == 1, also check StebbsHeight
+            stebbs_val = _unwrap_value(getattr(self.model.physics, "stebbs", None))
 
             try:
-                stebbsmethod_val = int(stebbsmethod)
+                stebbs_int = int(stebbs_val)
             except (TypeError, ValueError):
-                stebbsmethod_val = None
+                stebbs_int = None
 
-            if stebbsmethod_val == 1:
+            if stebbs_int == 1:
                 building_archetype = getattr(props, "building_archetype", None)
-                stebbs_height = _unwrap_value(getattr(building_archetype, "stebbs_Height", None)) if building_archetype else None
+                stebbs_height = _unwrap_value(getattr(building_archetype, "StebbsHeight", None)) if building_archetype else None
                 if stebbs_height is not None and stebbs_height > spartacus_top:
                     issues.append(
-                        f"Site '{site_name}' has stebbs_Height={stebbs_height} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
+                        f"Site '{site_name}' has StebbsHeight={stebbs_height} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
                     )
         return issues
 
@@ -2603,23 +2601,23 @@ class SUEWSConfig(BaseModel):
         """
         # Critical physics parameters that get converted to int() in df_state
         CRITICAL_PHYSICS_PARAMS = [
-            "netradiationmethod",
-            "emissionsmethod",
-            "storageheatmethod",
-            "ohmincqf",
-            "roughlenmommethod",
-            "roughlenheatmethod",
-            "stabilitymethod",
-            "smdmethod",
-            "waterusemethod",
-            "rslmethod",
-            "faimethod",
-            "rsllevel",
-            "gsmodel",
-            "snowuse",
-            "stebbsmethod",
-            "rcmethod",
-            "setpointmethod",
+            "net_radiation",
+            "emissions",
+            "storage_heat",
+            "ohm_inc_qf",
+            "roughness_length_momentum",
+            "roughness_length_heat",
+            "stability",
+            "smd",
+            "water_use",
+            "rsl",
+            "fai",
+            "rsl_level",
+            "surface_conductance",
+            "snow_use",
+            "stebbs",
+            "outer_cap_fraction",
+            "setpoint",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",
@@ -3724,7 +3722,7 @@ class SUEWSConfig(BaseModel):
         """
         if use_conditional_validation and _validation_available:
             # Pre-validate configuration before conversion
-            config_data = self.model_dump()
+            config_data = self.model_dump(by_alias=True)
             try:
                 enhanced_to_df_state_validation(config_data, strict=strict)
             except ValueError:
@@ -3893,7 +3891,7 @@ class SUEWSConfig(BaseModel):
     def to_yaml(self, path: str = "./config-suews.yml"):
         """Convert config to YAML format"""
         # Use mode='json' to serialize enums as their values
-        config_dict = self.model_dump(exclude_none=True, mode="json")
+        config_dict = self.model_dump(exclude_none=True, mode="json", by_alias=True)
         with open(path, "w") as file:
             yaml.dump(
                 config_dict,

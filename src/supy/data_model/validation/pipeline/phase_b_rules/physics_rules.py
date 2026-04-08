@@ -54,32 +54,36 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         )
         return results
 
-    required_physics_params = [
-        "netradiationmethod",
-        "emissionsmethod",
-        "storageheatmethod",
-        "ohmincqf",
-        "roughlenmommethod",
-        "roughlenheatmethod",
-        "stabilitymethod",
-        "smdmethod",
-        "waterusemethod",
-        "rslmethod",
-        "faimethod",
-        "rsllevel",
-        "gsmodel",
-        "snowuse",
-        "stebbsmethod",
-        "rcmethod",
-        "same_albedo_wall",
-        "same_albedo_roof",
-        "same_emissivity_wall",
-        "same_emissivity_roof",
-        "setpointmethod",
-    ]
+    # Accept both new and legacy (fused) field names for physics parameters
+    _PHYSICS_NEW_TO_LEGACY = {
+        "net_radiation": "netradiationmethod",
+        "emissions": "emissionsmethod",
+        "storage_heat": "storageheatmethod",
+        "ohm_inc_qf": "ohmincqf",
+        "roughness_length_momentum": "roughlenmommethod",
+        "roughness_length_heat": "roughlenheatmethod",
+        "stability": "stabilitymethod",
+        "smd": "smdmethod",
+        "water_use": "waterusemethod",
+        "rsl": "rslmethod",
+        "fai": "faimethod",
+        "rsl_level": "rsllevel",
+        "surface_conductance": "gsmodel",
+        "snow_use": "snowuse",
+        "stebbs": "stebbsmethod",
+        "outer_cap_fraction": "rcmethod",
+        "setpoint": "setpointmethod",
+        "same_albedo_wall": "same_albedo_wall",
+        "same_albedo_roof": "same_albedo_roof",
+        "same_emissivity_wall": "same_emissivity_wall",
+        "same_emissivity_roof": "same_emissivity_roof",
+    }
+
+    required_physics_params = list(_PHYSICS_NEW_TO_LEGACY.keys())
 
     missing_params = [
-        param for param in required_physics_params if param not in physics
+        param for param in required_physics_params
+        if param not in physics and _PHYSICS_NEW_TO_LEGACY[param] not in physics
     ]
     if missing_params:
         for param in missing_params:
@@ -93,10 +97,19 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
                 )
             )
 
+    def _physics_get(name):
+        """Get a physics value by new or legacy name."""
+        legacy = _PHYSICS_NEW_TO_LEGACY.get(name, name)
+        return physics.get(name, physics.get(legacy))
+
     empty_params = [
         param
         for param in required_physics_params
-        if param in physics and physics.get(param, {}).get("value") in ("", None)
+        if (param in physics or _PHYSICS_NEW_TO_LEGACY[param] in physics)
+        and (
+            (isinstance(_physics_get(param), dict) and _physics_get(param).get("value") in ("", None))
+            or _physics_get(param) in ("", None)
+        )
     ]
     if empty_params:
         for param in empty_params:
@@ -457,7 +470,9 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    rcmethod_value = get_value_safe(physics, "rcmethod")
+    rcmethod_value = get_value_safe(physics, "outer_cap_fraction")
+    if rcmethod_value is None:
+        rcmethod_value = get_value_safe(physics, "rcmethod")
 
     sites = yaml_data.get("sites", [])
     for site_idx, site in enumerate(sites):
@@ -475,16 +490,16 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
 
         elif rcmethod_value == 2:
             required_wall_params = [
-                "WallextThickness",
-                "WallextEffectiveConductivity",
-                "WallextDensity",
-                "WallextCp",
+                "WallExternalThickness",
+                "WallExternalEffectiveConductivity",
+                "WallExternalDensity",
+                "WallExternalCp",
             ]
             required_roof_params = [
-                "RoofextThickness",
-                "RoofextEffectiveConductivity",
-                "RoofextDensity",
-                "RoofextCp",
+                "RoofExternalThickness",
+                "RoofExternalEffectiveConductivity",
+                "RoofExternalDensity",
+                "RoofExternalCp",
             ]
             # Collect provided wall params
             for facet, facet_params in zip(
@@ -964,7 +979,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
     - Raises an ERROR if `z` < 2 * mean building height (`land_cover.bldgs.bldgh`).
     - Raises a WARNING if `z` < 2 * maximum configured building height, where the maximum is the largest of:
         - `land_cover.bldgs.bldgh`
-        - `building_archetype.stebbs_Height` (if `stebbsmethod == 1`)
+        - `building_archetype.StebbsHeight` (if stebbs == 1)
         - Last non-zero entry in `vertical_layers.height` (SPARTACUS top height, if enabled)
     - This check ensures the forcing height is appropriate relative to the urban morphology.
     """
@@ -992,13 +1007,17 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
 
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    stebbsmethod_val = _unwrap_nested_value(physics.get("stebbsmethod"))
+    stebbsmethod_val = _unwrap_nested_value(
+        physics.get("stebbs", physics.get("stebbsmethod"))
+    )
     try:
         stebbsmethod_val = int(stebbsmethod_val)
     except (TypeError, ValueError):
         stebbsmethod_val = None
 
-    netradiationmethod_val = _unwrap_nested_value(physics.get("netradiationmethod"))
+    netradiationmethod_val = _unwrap_nested_value(
+        physics.get("net_radiation", physics.get("netradiationmethod"))
+    )
     try:
         netradiationmethod_val = int(netradiationmethod_val)
     except (TypeError, ValueError):
@@ -1024,7 +1043,9 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
         if stebbsmethod_val == 1:
             archetype = _unwrap_nested_value(props.get("building_archetype"))
             if isinstance(archetype, Mapping):
-                stebbs_height = _as_float(_unwrap_nested_value(archetype.get("stebbs_Height")))
+                stebbs_height = _as_float(
+                    _unwrap_nested_value(archetype.get("StebbsHeight", archetype.get("stebbs_Height")))
+                )
 
         # SPARTACUS heights (only if SPARTACUS is enabled via netradiationmethod)
         spartacus_top = None
@@ -1080,7 +1101,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
                 if bldgh is not None:
                     parts.append(f"bldgh={bldgh}")
                 if stebbs_height is not None:
-                    parts.append(f"stebbs_Height={stebbs_height}")
+                    parts.append(f"StebbsHeight={stebbs_height}")
                 if spartacus_top is not None:
                     parts.append(f"SPARTACUS top layer height={spartacus_top}")
 

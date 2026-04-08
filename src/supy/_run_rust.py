@@ -283,7 +283,7 @@ def run_suews_rust(
         raise ValueError("forcing data is empty")
 
     config_yaml = yaml.dump(
-        config.model_dump(exclude_none=True, mode="json"),
+        config.model_dump(exclude_none=True, mode="json", by_alias=True),
         default_flow_style=False,
         sort_keys=False,
     )
@@ -371,7 +371,7 @@ def run_suews_rust_with_state(
         raise ValueError("forcing data is empty")
 
     config_yaml = yaml.dump(
-        config.model_dump(exclude_none=True, mode="json"),
+        config.model_dump(exclude_none=True, mode="json", by_alias=True),
         default_flow_style=False,
         sort_keys=False,
     )

@@ -159,7 +159,7 @@ class ThermalLayers(BaseModel):
 class SurfaceProperties(BaseModel):
     """Base properties for all surface types"""
 
-    model_config = ConfigDict(title="Surface Properties")
+    model_config = ConfigDict(title="Surface Properties", populate_by_name=True)
 
     sfr: FlexibleRefValue(float) = Field(
         ge=0,
@@ -205,13 +205,15 @@ class SurfaceProperties(BaseModel):
         },
     )
     # k_anohm is named as kkanohm in sample_data/sample_config.yml, version 08/08/2025 - consider renaming to avoid issues
-    ohm_threshsw: Optional[FlexibleRefValue(float)] = Field(
+    ohm_thresh_sw: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
+        alias="ohm_threshsw",
         description="Summer/winter threshold based on temperature for OHM calculation",
         json_schema_extra={"unit": "degC", "display_name": "OHM Summer Wet Threshold"},
     )
-    ohm_threshwd: Optional[FlexibleRefValue(float)] = Field(
+    ohm_thresh_wd: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
+        alias="ohm_threshwd",
         description="Soil moisture threshold determining whether wet/dry OHM coefficients are applied",
         json_schema_extra={
             "unit": "dimensionless",
@@ -221,39 +223,45 @@ class SurfaceProperties(BaseModel):
     ohm_coef: Optional[OHM_Coefficient_season_wetness] = Field(
         default_factory=OHM_Coefficient_season_wetness
     )
-    soildepth: Optional[FlexibleRefValue(float)] = Field(
+    soil_depth: Optional[FlexibleRefValue(float)] = Field(
         default=None,
+        alias="soildepth",
         description="Depth of soil layer below surface for hydrological calculations, controlling sub-surface water storage and drainage processes. Site-specific value typically determined from soil surveys or borehole data",
         json_schema_extra={"unit": "mm", "display_name": "Soil Depth"},
     )
-    soilstorecap: Optional[FlexibleRefValue(float)] = Field(
+    soil_store_cap: Optional[FlexibleRefValue(float)] = Field(
         default=None,
+        alias="soilstorecap",
         description="Maximum water storage capacity of soil layer, representing total water holding capacity between field capacity and wilting point. Site-specific value dependent on soil texture, structure, and depth",
         json_schema_extra={"unit": "mm", "display_name": "Soil Store Capacity"},
     )
-    statelimit: FlexibleRefValue(float) = Field(
+    state_limit: FlexibleRefValue(float) = Field(
         default=10.0,  # TODO: Check if this is an appropriate default
+        alias="statelimit",
         description="Minimum water storage capacity for state change",
         json_schema_extra={"unit": "mm", "display_name": "State Limit"},
     )
-    wetthresh: FlexibleRefValue(float) = Field(
+    wet_thresh: FlexibleRefValue(float) = Field(
         default=0.5,
+        alias="wetthresh",
         description="Surface wetness threshold for OHM calculations",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Wetness Threshold",
         },
     )
-    sathydraulicconduct: Optional[FlexibleRefValue(float)] = Field(
+    sat_hydraulic_conduct: Optional[FlexibleRefValue(float)] = Field(
         default=None,
+        alias="sathydraulicconduct",
         description="Saturated hydraulic conductivity of soil layer, controlling water drainage rate through fully saturated soil. Site-specific value determined from soil texture (higher for sandy, lower for clay); typically measured via laboratory or field infiltration tests",
         json_schema_extra={
             "unit": "mm s^-1",
             "display_name": "Saturated Hydraulic Conductivity",
         },
     )
-    soildensity: Optional[FlexibleRefValue(float)] = Field(
+    soil_density: Optional[FlexibleRefValue(float)] = Field(
         default=None,
+        alias="soildensity",
         description="Bulk soil density",
         json_schema_extra={
             "unit": "g cm^-3",
@@ -268,8 +276,9 @@ class SurfaceProperties(BaseModel):
         default_factory=StorageDrainParams,
         description="Storage and drain parameters",
     )
-    snowpacklimit: Optional[FlexibleRefValue(float)] = Field(
+    snow_pack_limit: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,
+        alias="snowpacklimit",
         description="Limit of snow that can be held on surface",
         json_schema_extra={"unit": "mm", "display_name": "Snow Pack Limit"},
     )
@@ -318,6 +327,24 @@ class SurfaceProperties(BaseModel):
         }
         return dict_surface_type[self._surface_type]
 
+    # Mapping from Python field name to DataFrame column name (Fortran interface).
+    # Only fields that were renamed need entries; unchanged names map to themselves.
+    _FIELD_TO_COL = {
+        "ohm_thresh_sw": "ohm_threshsw",
+        "ohm_thresh_wd": "ohm_threshwd",
+        "soil_depth": "soildepth",
+        "soil_store_cap": "soilstorecap",
+        "state_limit": "statelimit",
+        "wet_thresh": "wetthresh",
+        "sat_hydraulic_conduct": "sathydraulicconduct",
+        "soil_density": "soildensity",
+        "snow_pack_limit": "snowpacklimit",
+    }
+
+    def _col_name(self, field_name: str) -> str:
+        """Get the DataFrame column name for a Python field name."""
+        return self._FIELD_TO_COL.get(field_name, field_name)
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert surface properties to DataFrame state format.
         This is the base implementation that handles common surface properties."""
@@ -337,17 +364,17 @@ class SurfaceProperties(BaseModel):
             "rho_cp_anohm",
             "k_anohm",
             "ohm_coef",
-            "ohm_threshsw",
-            "ohm_threshwd",
-            "soildepth",
-            "soilstorecap",
-            "statelimit",
-            "wetthresh",
-            "sathydraulicconduct",
-            "soildensity",
+            "ohm_thresh_sw",
+            "ohm_thresh_wd",
+            "soil_depth",
+            "soil_store_cap",
+            "state_limit",
+            "wet_thresh",
+            "sat_hydraulic_conduct",
+            "soil_density",
             "waterdist",
             "storedrainprm",
-            "snowpacklimit",
+            "snow_pack_limit",
             "thermal_layers",
             "irrfrac",
         ]
@@ -360,6 +387,7 @@ class SurfaceProperties(BaseModel):
         dfs = []
 
         for property in properties:
+            col = self._col_name(property)
             # Handle nested properties with their own to_df_state methods
             if property in [
                 "waterdist",
@@ -379,18 +407,18 @@ class SurfaceProperties(BaseModel):
             elif property == "irrfrac":
                 value = getattr(self, property)
                 value = value.value if isinstance(value, RefValue) else value
-                cols[(f"{property}{surf_name}", "0")] = value
-            elif property in ["sfr", "soilstorecap", "statelimit", "wetthresh"]:
+                cols[(f"{col}{surf_name}", "0")] = value
+            elif property in ["sfr", "soil_store_cap", "state_limit", "wet_thresh"]:
                 value = getattr(self, property)
                 if value is not None:
                     value = value.value if isinstance(value, RefValue) else value
                 else:
                     # Default values for None surface parameters
                     defaults = {
-                        "soilstorecap": 150.0,
+                        "soil_store_cap": 150.0,
                     }
                     value = defaults.get(property, 0.0)
-                cols[(f"{property}_surf", f"({surf_idx},)")] = value
+                cols[(f"{col}_surf", f"({surf_idx},)")] = value
             elif property == "rho_cp_anohm":  # Moved to cp in df_state
                 value = getattr(self, property)
                 value = value.value if isinstance(value, RefValue) else value
@@ -410,12 +438,12 @@ class SurfaceProperties(BaseModel):
                 else:
                     # Default values for None surface parameters
                     defaults = {
-                        "soildepth": 150.0,
-                        "sathydraulicconduct": 0.0001,
-                        "soildensity": -999.0,
+                        "soil_depth": 150.0,
+                        "sat_hydraulic_conduct": 0.0001,
+                        "soil_density": -999.0,
                     }
                     value = defaults.get(property, 0.0)
-                cols[(property, f"({surf_idx},)")] = value
+                cols[(col, f"({surf_idx},)")] = value
             # except Exception as e:
             #     print(f"Warning: Could not set property {property}: {str(e)}")
             #     continue
@@ -458,17 +486,17 @@ class SurfaceProperties(BaseModel):
             "rho_cp_anohm",
             "k_anohm",
             "ohm_coef",
-            "ohm_threshsw",
-            "ohm_threshwd",
-            "soildepth",
-            "soilstorecap",
-            "statelimit",
-            "wetthresh",
-            "sathydraulicconduct",
-            "soildensity",
+            "ohm_thresh_sw",
+            "ohm_thresh_wd",
+            "soil_depth",
+            "soil_store_cap",
+            "state_limit",
+            "wet_thresh",
+            "sat_hydraulic_conduct",
+            "soil_density",
             "waterdist",
             "storedrainprm",
-            "snowpacklimit",
+            "snow_pack_limit",
             "thermal_layers",
             "irrfrac",
         ]
@@ -483,6 +511,7 @@ class SurfaceProperties(BaseModel):
 
         # Process each property
         for property in properties:
+            col = cls._FIELD_TO_COL.get(property, property)
             # Handle nested properties with their own from_df_state methods
             if property in [
                 "waterdist",
@@ -508,10 +537,10 @@ class SurfaceProperties(BaseModel):
                     "thermal_layers"
                 ].annotation.from_df_state(df, grid_id, surf_idx, surf_name)
             elif property == "irrfrac":
-                value = df.loc[grid_id, (f"{property}{surf_name}", "0")]
+                value = df.loc[grid_id, (f"{col}{surf_name}", "0")]
                 property_values[property] = RefValue(value)
-            elif property in ["sfr", "soilstorecap", "statelimit", "wetthresh"]:
-                value = df.loc[grid_id, (f"{property}_surf", f"({surf_idx},)")]
+            elif property in ["sfr", "soil_store_cap", "state_limit", "wet_thresh"]:
+                value = df.loc[grid_id, (f"{col}_surf", f"({surf_idx},)")]
                 property_values[property] = RefValue(value)
             elif property == "rho_cp_anohm":  # Moved to cp in df_state
                 value = df.loc[grid_id, ("cpanohm", f"({surf_idx},)")]
@@ -524,7 +553,7 @@ class SurfaceProperties(BaseModel):
                 property_values["k_anohm"] = RefValue(value)
             else:
                 # Check if column exists (for backwards compatibility with old tables)
-                col_key = (property, f"({surf_idx},)")
+                col_key = (col, f"({surf_idx},)")
                 if col_key in df.columns:
                     value = df.loc[grid_id, col_key]
                     property_values[property] = RefValue(value)
@@ -673,6 +702,8 @@ class PavedProperties(
 class BuildingLayer(
     BaseModel
 ):  # May need to move VWD for thermal layers here for referencing
+    model_config = ConfigDict(populate_by_name=True)
+
     alb: FlexibleRefValue(float) = Field(
         ge=0,
         le=1,
@@ -691,18 +722,21 @@ class BuildingLayer(
         default_factory=ThermalLayers,
         description="Thermal layers for the surface",
     )
-    statelimit: FlexibleRefValue(float) = Field(
+    state_limit: FlexibleRefValue(float) = Field(
         default=10.0,
+        alias="statelimit",
         description="Minimum water storage capacity for state change",
         json_schema_extra={"unit": "mm", "display_name": "State Limit"},
     )
-    soilstorecap: Optional[FlexibleRefValue(float)] = Field(
+    soil_store_cap: Optional[FlexibleRefValue(float)] = Field(
         default=None,
+        alias="soilstorecap",
         description="Maximum water storage capacity of soil",
         json_schema_extra={"unit": "mm", "display_name": "Soil Store Capacity"},
     )
-    wetthresh: FlexibleRefValue(float) = Field(
+    wet_thresh: FlexibleRefValue(float) = Field(
         default=0.5,
+        alias="wetthresh",
         description="Surface wetness threshold for OHM calculations",
         json_schema_extra={
             "unit": "dimensionless",
@@ -755,21 +789,21 @@ class BuildingLayer(
                 self.emis.value if isinstance(self.emis, RefValue) else self.emis
             ),
             (f"statelimit_{facet_type}", f"({layer_idx},)"): (
-                self.statelimit.value
-                if isinstance(self.statelimit, RefValue)
-                else self.statelimit
+                self.state_limit.value
+                if isinstance(self.state_limit, RefValue)
+                else self.state_limit
             ),
             (f"soilstorecap_{facet_type}", f"({layer_idx},)"): (
-                self.soilstorecap.value
-                if isinstance(self.soilstorecap, RefValue)
-                else self.soilstorecap
-                if self.soilstorecap is not None
+                self.soil_store_cap.value
+                if isinstance(self.soil_store_cap, RefValue)
+                else self.soil_store_cap
+                if self.soil_store_cap is not None
                 else 150.0
             ),
             (f"wetthresh_{facet_type}", f"({layer_idx},)"): (
-                self.wetthresh.value
-                if isinstance(self.wetthresh, RefValue)
-                else self.wetthresh
+                self.wet_thresh.value
+                if isinstance(self.wet_thresh, RefValue)
+                else self.wet_thresh
             ),
         }
 
@@ -834,9 +868,9 @@ class BuildingLayer(
         params = {
             "alb": df.loc[grid_id, (f"alb_{prefix}", layer_idx_str)],
             "emis": df.loc[grid_id, (f"emis_{prefix}", layer_idx_str)],
-            "statelimit": df.loc[grid_id, (f"statelimit_{prefix}", layer_idx_str)],
-            "soilstorecap": df.loc[grid_id, (f"soilstorecap_{prefix}", layer_idx_str)],
-            "wetthresh": df.loc[grid_id, (f"wetthresh_{prefix}", layer_idx_str)],
+            "state_limit": df.loc[grid_id, (f"statelimit_{prefix}", layer_idx_str)],
+            "soil_store_cap": df.loc[grid_id, (f"soilstorecap_{prefix}", layer_idx_str)],
+            "wet_thresh": df.loc[grid_id, (f"wetthresh_{prefix}", layer_idx_str)],
         }
 
         # Extract optional parameters

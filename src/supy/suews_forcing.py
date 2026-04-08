@@ -520,7 +520,7 @@ class SUEWSForcing:
         physics_dict = None
         if physics is not None:
             if hasattr(physics, "model_dump"):
-                physics_dict = physics.model_dump()
+                physics_dict = physics.model_dump(by_alias=True)
             elif isinstance(physics, dict):
                 physics_dict = physics
 

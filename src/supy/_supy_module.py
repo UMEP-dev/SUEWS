@@ -697,9 +697,9 @@ def _run_supy(
     try:
         # SMDMethod is a physics option in the validated config schema.
         # Keep a fallback to legacy `model.options` for compatibility.
-        smd_val = getattr(config.model.physics, "smdmethod", None)
+        smd_val = getattr(config.model.physics, "smd", None)
         if smd_val is None:
-            smd_val = getattr(getattr(config.model, "options", None), "smdmethod", None)
+            smd_val = getattr(getattr(config.model, "options", None), "smd", None)
         if hasattr(smd_val, "value"):
             smd_val = smd_val.value
         smd_int = int(smd_val) if smd_val is not None else 0

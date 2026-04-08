@@ -572,8 +572,9 @@ class VegetatedSurfaceProperties(SurfaceProperties):
             "display_name": "Biogenic CO2 Theta Parameter",
         },
     )
-    maxconductance: FlexibleRefValue(float) = Field(
+    max_conductance: FlexibleRefValue(float) = Field(
         default=0.5,
+        alias="maxconductance",
         description="Maximum surface conductance",
         json_schema_extra={"unit": "mm s^-1", "display_name": "Maximum Conductance"},
     )
@@ -616,20 +617,22 @@ class VegetatedSurfaceProperties(SurfaceProperties):
         surf_idx = self.get_surface_index()
 
         # add ordinary float properties
+        # Tuples of (python_field_name, df_column_name)
         cols = {}
-        for attr in [
-            "beta_bioco2",
-            "beta_enh_bioco2",
-            "alpha_bioco2",
-            "alpha_enh_bioco2",
-            "resp_a",
-            "resp_b",
-            "theta_bioco2",
-            "maxconductance",
-            "min_res_bioco2",
-            "ie_a",
-            "ie_m",
-        ]:
+        veg_attrs = [
+            ("beta_bioco2", "beta_bioco2"),
+            ("beta_enh_bioco2", "beta_enh_bioco2"),
+            ("alpha_bioco2", "alpha_bioco2"),
+            ("alpha_enh_bioco2", "alpha_enh_bioco2"),
+            ("resp_a", "resp_a"),
+            ("resp_b", "resp_b"),
+            ("theta_bioco2", "theta_bioco2"),
+            ("max_conductance", "maxconductance"),
+            ("min_res_bioco2", "min_res_bioco2"),
+            ("ie_a", "ie_a"),
+            ("ie_m", "ie_m"),
+        ]
+        for attr, col_name in veg_attrs:
             field_val = getattr(self, attr)
             if field_val is not None:
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
@@ -643,7 +646,7 @@ class VegetatedSurfaceProperties(SurfaceProperties):
                     "theta_bioco2": 1.2,
                 }
                 val = defaults.get(attr, 0.0)
-            cols[(attr, f"({surf_idx - 2},)")] = val
+            cols[(col_name, f"({surf_idx - 2},)")] = val
 
         df_veg = df_from_cols(cols, index=df_state.index)
         df_lai = self.lai.to_df_state(grid_id, surf_idx)
@@ -657,22 +660,23 @@ class VegetatedSurfaceProperties(SurfaceProperties):
     ) -> "VegetatedSurfaceProperties":
         """Reconstruct vegetated surface properties from DataFrame state format."""
         instance = super().from_df_state(df, grid_id, surf_idx)
-        # add ordinary float properties
-        for attr in [
-            "beta_bioco2",
-            "beta_enh_bioco2",
-            "alpha_bioco2",
-            "alpha_enh_bioco2",
-            "resp_a",
-            "resp_b",
-            "theta_bioco2",
-            "maxconductance",
-            "min_res_bioco2",
-            "ie_a",
-            "ie_m",
-        ]:
+        # add ordinary float properties: (python_field_name, df_column_name)
+        veg_attrs = [
+            ("beta_bioco2", "beta_bioco2"),
+            ("beta_enh_bioco2", "beta_enh_bioco2"),
+            ("alpha_bioco2", "alpha_bioco2"),
+            ("alpha_enh_bioco2", "alpha_enh_bioco2"),
+            ("resp_a", "resp_a"),
+            ("resp_b", "resp_b"),
+            ("theta_bioco2", "theta_bioco2"),
+            ("max_conductance", "maxconductance"),
+            ("min_res_bioco2", "min_res_bioco2"),
+            ("ie_a", "ie_a"),
+            ("ie_m", "ie_m"),
+        ]
+        for attr, col_name in veg_attrs:
             setattr(
-                instance, attr, RefValue(df.loc[grid_id, (attr, f"({surf_idx - 2},)")])
+                instance, attr, RefValue(df.loc[grid_id, (col_name, f"({surf_idx - 2},)")])
             )
 
         instance.lai = LAIParams.from_df_state(df, grid_id, surf_idx)
@@ -1259,7 +1263,7 @@ class LandCover(BaseModel):
 class ArchetypeProperties(BaseModel):
     """Urban morphology and archetype properties."""
 
-    model_config = ConfigDict(title="Archetype Properties")
+    model_config = ConfigDict(title="Archetype Properties", populate_by_name=True)
 
     # Not used in STEBBS - DAVE only
     # BuildingCode='1'
@@ -1303,21 +1307,22 @@ class ArchetypeProperties(BaseModel):
     # age_19_64: int = Field(default=0, description="")
     # age_65plus: int = Field(default=0, description="")
 
-    stebbs_Height: Optional[FlexibleRefValue(float)] = Field(
+    StebbsHeight: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,
+        alias="stebbs_Height",
         description="Building height. This should be consistent with WallExternalArea and FootprintArea. [m]",
         json_schema_extra={"unit": "m", "display_name": "Stebbs Height"},
         gt=0.0,
     )
     FootprintArea: Optional[FlexibleRefValue(float)] = Field(
         default=64.0,
-        description="Building footprint area. This should be consistent with stebbs_Height and WallExternalArea. [m2]",
+        description="Building footprint area. This should be consistent with StebbsHeight and WallExternalArea. [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Footprint Area"},
         gt=0.0,
     )
     WallExternalArea: Optional[FlexibleRefValue(float)] = Field(
         default=80.0,
-        description="External wall area (including window area). This should be consistent with stebbs_Height and FootprintArea. [m2]",
+        description="External wall area (including window area). This should be consistent with StebbsHeight and FootprintArea. [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Wall External Area"},
         gt=0.0,
     )
@@ -1367,33 +1372,37 @@ class ArchetypeProperties(BaseModel):
         description="Effective specific heat capacity of walls [J kg-1 K-1]",
         gt=0.0,
     )
-    WallextThickness: Optional[FlexibleRefValue(float)] = Field(
+    WallExternalThickness: Optional[FlexibleRefValue(float)] = Field(
         default=20.0,
+        alias="WallextThickness",
         description="Thickness of layers external to insulation in external wall [m]",
-        json_schema_extra={"unit": "m", "display_name": "Wall Ext Thickness"},
+        json_schema_extra={"unit": "m", "display_name": "Wall External Thickness"},
         gt=0.0,
     )
-    WallextEffectiveConductivity: Optional[FlexibleRefValue(float)] = Field(
+    WallExternalEffectiveConductivity: Optional[FlexibleRefValue(float)] = Field(
         default=60.0,
+        alias="WallextEffectiveConductivity",
         description="Effective thermal conductivity of layers external to insulation in walls [W m-1 K-1]",
         json_schema_extra={
             "unit": "W m^-1 K^-1",
-            "display_name": "Wall Ext Effective Conductivity",
+            "display_name": "Wall External Effective Conductivity",
         },
         gt=0.0,
     )
-    WallextDensity: Optional[FlexibleRefValue(float)] = Field(
+    WallExternalDensity: Optional[FlexibleRefValue(float)] = Field(
         default=1600.0,
+        alias="WallextDensity",
         description="Effective density of layers external to insulation in the walls [kg m-3]",
-        json_schema_extra={"unit": "kg m^-3", "display_name": "Wall Ext Density"},
+        json_schema_extra={"unit": "kg m^-3", "display_name": "Wall External Density"},
         gt=0.0,
     )
-    WallextCp: Optional[FlexibleRefValue(float)] = Field(
+    WallExternalCp: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
+        alias="WallextCp",
         description="Effective specific heat capacity of layers external to insulation in walls [J kg-1 K-1]",
         json_schema_extra={
             "unit": "J kg^-1 K^-1",
-            "display_name": "Wall Ext Specific Heat",
+            "display_name": "Wall External Specific Heat",
         },
         gt=0.0,
     )
@@ -1483,33 +1492,37 @@ class ArchetypeProperties(BaseModel):
         description="Effective specific heat capacity of roof [J kg-1 K-1]",
         gt=0.0,
     )
-    RoofextThickness: Optional[FlexibleRefValue(float)] = Field(
+    RoofExternalThickness: Optional[FlexibleRefValue(float)] = Field(
         default=20.0,
+        alias="RoofextThickness",
         description="Thickness of layers external to insulation in roof [m]",
-        json_schema_extra={"unit": "m", "display_name": "Roof Ext Thickness"},
+        json_schema_extra={"unit": "m", "display_name": "Roof External Thickness"},
         gt=0.0,
     )
-    RoofextEffectiveConductivity: Optional[FlexibleRefValue(float)] = Field(
+    RoofExternalEffectiveConductivity: Optional[FlexibleRefValue(float)] = Field(
         default=60.0,
+        alias="RoofextEffectiveConductivity",
         description="Effective thermal conductivity of layers external to insulation in roof [W m-1 K-1]",
         json_schema_extra={
             "unit": "W m^-1 K^-1",
-            "display_name": "Roof Ext Effective Conductivity",
+            "display_name": "Roof External Effective Conductivity",
         },
         gt=0.0,
     )
-    RoofextDensity: Optional[FlexibleRefValue(float)] = Field(
+    RoofExternalDensity: Optional[FlexibleRefValue(float)] = Field(
         default=1600.0,
+        alias="RoofextDensity",
         description="Effective density of layers external to insulation in the roof [kg m-3]",
-        json_schema_extra={"unit": "kg m^-3", "display_name": "Roof Ext Density"},
+        json_schema_extra={"unit": "kg m^-3", "display_name": "Roof External Density"},
         gt=0.0,
     )
-    RoofextCp: Optional[FlexibleRefValue(float)] = Field(
+    RoofExternalCp: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
+        alias="RoofextCp",
         description="Effective specific heat capacity of layers external to insulation in roof [J kg-1 K-1]",
         json_schema_extra={
             "unit": "J kg^-1 K^-1",
-            "display_name": "Roof Ext Specific Heat",
+            "display_name": "Roof External Specific Heat",
         },
         gt=0.0,
     )
@@ -1775,25 +1788,33 @@ class ArchetypeProperties(BaseModel):
 
     ref: Optional[Reference] = None
 
+    @staticmethod
+    def _df_col_name(field_name: str, field_info) -> str:
+        """Get the DataFrame column name, using alias for backward compatibility."""
+        alias = getattr(field_info, "alias", None) if field_info else None
+        return (alias.lower() if alias else field_name.lower())
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         string_fields = {"BuildingType", "BuildingName"}
         ten_minute_profile_fields = {
-            "MetabolismProfile", "HeatingSetpointTemperatureProfile", 
+            "MetabolismProfile", "HeatingSetpointTemperatureProfile",
             "CoolingSetpointTemperatureProfile",
         }
         excluded_fields = string_fields | ten_minute_profile_fields | {"ref"}
 
         cols = {("gridiv", "0"): grid_id}
-        for field_name in self.model_fields:
+        for field_name, field_info in type(self).model_fields.items():
             if field_name in excluded_fields:
                 continue
             field_val = getattr(self, field_name)
             value = field_val.value if isinstance(field_val, RefValue) else field_val
-            cols[(field_name.lower(), "0")] = value
+            col = self._df_col_name(field_name, field_info)
+            cols[(col, "0")] = value
 
         for field_name in string_fields:
             value = getattr(self, field_name)
-            cols[(field_name.lower(), "0")] = value
+            col = self._df_col_name(field_name, type(self).model_fields.get(field_name))
+            cols[(col, "0")] = value
 
         df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
@@ -1823,8 +1844,10 @@ class ArchetypeProperties(BaseModel):
             if field_name == "ref":
                 continue
 
+            col_base = cls._df_col_name(field_name, field_info)
+
             if field_name in string_fields:
-                col = (field_name.lower(), "0")
+                col = (col_base, "0")
                 if col in df.columns:
                     value = df.loc[grid_id, col]
                     params[field_name] = (
@@ -1837,11 +1860,11 @@ class ArchetypeProperties(BaseModel):
                 continue
 
             if field_name in ten_minute_profile_fields:
-                has_profile_columns = any(col[0] == field_name.lower() for col in df.columns)
+                has_profile_columns = any(col[0] == col_base for col in df.columns)
                 if has_profile_columns:
                     try:
                         params[field_name] = ten_minute_profile_classes[field_name].from_df_state(
-                            df, grid_id, field_name.lower()
+                            df, grid_id, col_base
                         )
                     except KeyError:
                         params[field_name] = getattr(default_instance, field_name)
@@ -1849,7 +1872,7 @@ class ArchetypeProperties(BaseModel):
                     params[field_name] = getattr(default_instance, field_name)
                 continue
 
-            col = (field_name.lower(), "0")
+            col = (col_base, "0")
             if col in df.columns:
                 value = df.loc[grid_id, col]
                 if pd.isna(value):

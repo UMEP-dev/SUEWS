@@ -32,6 +32,14 @@ class ValidationResult:
         self.skipped_methods = skipped_methods or set()
 
 
+def _get_physics(physics: Dict, new_name: str, old_name: str, default=0):
+    """Get a physics value supporting both new and legacy field names."""
+    val = physics.get(new_name, physics.get(old_name, default))
+    if isinstance(val, dict):
+        val = val.get("value", default)
+    return val
+
+
 def analyze_config_methods(config_data: Dict[str, Any]) -> Dict[str, bool]:
     """
     Analyze configuration to determine which methods are enabled.
@@ -45,26 +53,12 @@ def analyze_config_methods(config_data: Dict[str, Any]) -> Dict[str, bool]:
     try:
         physics = config_data.get("model", {}).get("physics", {})
 
-        # Extract method values
-        rslmethod_val = physics.get("rslmethod", 0)
-        if isinstance(rslmethod_val, dict):
-            rslmethod_val = rslmethod_val.get("value", 0)
-
-        roughmethod_val = physics.get("roughlenmommethod", 1)
-        if isinstance(roughmethod_val, dict):
-            roughmethod_val = roughmethod_val.get("value", 1)
-
-        netrad_val = physics.get("netradiationmethod", 0)
-        if isinstance(netrad_val, dict):
-            netrad_val = netrad_val.get("value", 0)
-
-        emissions_val = physics.get("emissionsmethod", 0)
-        if isinstance(emissions_val, dict):
-            emissions_val = emissions_val.get("value", 0)
-
-        storage_val = physics.get("storageheatmethod", 0)
-        if isinstance(storage_val, dict):
-            storage_val = storage_val.get("value", 0)
+        # Extract method values (support both new and legacy field names)
+        rslmethod_val = _get_physics(physics, "rsl", "rslmethod", 0)
+        roughmethod_val = _get_physics(physics, "roughness_length_momentum", "roughlenmommethod", 1)
+        netrad_val = _get_physics(physics, "net_radiation", "netradiationmethod", 0)
+        emissions_val = _get_physics(physics, "emissions", "emissionsmethod", 0)
+        storage_val = _get_physics(physics, "storage_heat", "storageheatmethod", 0)
 
         # Determine active methods
         methods = {
@@ -180,8 +174,8 @@ def validate_storage_heat_parameters(
     """Validate storage heat method parameters based on method type."""
     errors = []
 
-    storage_method_val = _extract_value(physics.get("storageheatmethod", 0))
-    ohmincqf_val = _extract_value(physics.get("ohmincqf", 0))
+    storage_method_val = _extract_value(_get_physics(physics, "storage_heat", "storageheatmethod", 0))
+    ohmincqf_val = _extract_value(_get_physics(physics, "ohm_inc_qf", "ohmincqf", 0))
 
     if method_type == "ESTM":
         # ESTM methods (4, 5) - advanced parameter validation would go here
@@ -211,7 +205,7 @@ def validate_netradiation_parameters(
     """Validate net radiation method parameters."""
     errors = []
 
-    netrad_val = _extract_value(physics.get("netradiationmethod", 0))
+    netrad_val = _extract_value(_get_physics(physics, "net_radiation", "netradiationmethod", 0))
 
     if method_type == "SPARTACUS":
         # SPARTACUS methods (≥1000) - validate SPARTACUS-specific parameters
@@ -242,7 +236,7 @@ def validate_emissions_parameters(
     """Validate emissions method parameters."""
     errors = []
 
-    emissions_val = _extract_value(physics.get("emissionsmethod", 0))
+    emissions_val = _extract_value(_get_physics(physics, "emissions", "emissionsmethod", 0))
 
     if method_type == "ADVANCED":
         # Advanced emissions methods (≥4)
@@ -258,7 +252,7 @@ def validate_snow_parameters(physics: Dict[str, Any], sites: List[Dict]) -> List
     """Validate snow calculation parameters."""
     errors = []
 
-    snow_use = _extract_value(physics.get("snowuse", 0))
+    snow_use = _extract_value(_get_physics(physics, "snow_use", "snowuse", 0))
 
     if snow_use == 1:
         # Snow calculations are enabled - validate snow-related parameters
@@ -396,7 +390,7 @@ def validate_suews_config_conditional(
         skipped_methods.add("EMISSIONS_ADVANCED")
 
     # Snow method validation
-    snow_enabled = _extract_value(physics.get("snowuse", 0)) == 1
+    snow_enabled = _extract_value(_get_physics(physics, "snow_use", "snowuse", 0)) == 1
     if snow_enabled:
         if verbose:
             print("Snow calculations: validating snow parameters")

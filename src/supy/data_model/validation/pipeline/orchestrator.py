@@ -704,7 +704,7 @@ def run_phase_c(
                 config = SUEWSConfig.from_yaml(input_yaml_file)
 
                 # Get the Pydantic-processed data (with defaults applied)
-                processed_data = config.model_dump()
+                processed_data = config.model_dump(by_alias=True)
 
                 # Load standard config for comparison
                 try:

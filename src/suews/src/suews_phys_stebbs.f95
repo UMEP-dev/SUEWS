@@ -2396,7 +2396,7 @@ SUBROUTINE tstep( &
       !Convection
       QH_bldg_tstepFA = QHconv_extwall_to_outair_tstepFA + QHconv_extroof_to_outair_tstepFA + QHconv_extwindow_to_outair_tstepFA
       !Building air exchange (ventilation)
-      QBAE_bldg_tstepFA = QH_ventilation_tstepFA
+      QBAE_bldg_tstepFA = - QH_ventilation_tstepFA !QBAE is heat emission, opposite sign to QH_ventilation
       !Waste heat from HVAC (currenly only cooling is rejected to outdoor)
       QWaste_bldg_tstepFA = QHwaste_cooling_tstepFA
       !Net storage heat flux, including building, soil and hot water and building

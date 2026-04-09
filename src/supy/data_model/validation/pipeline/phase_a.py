@@ -38,6 +38,54 @@ PHYSICS_OPTIONS = {
     "setpointmethod",
 }
 
+ALLOWED_REF_KEYS = {"desc", "DOI", "ID"}
+
+def _strip_ref_blocks(obj):
+    """
+    Recursively transform the config tree for structural checks.
+
+    This function processes the configuration tree to handle 'ref' sections and their keys
+    according to the following rules:
+
+    - 'ref' sections are allowed anywhere in the tree.
+    - Inside a 'ref' section, keys listed in ALLOWED_REF_KEYS are ignored (not compared).
+    - Any other key under 'ref' is kept so it can be flagged as extra.
+
+    Parameters
+    ----------
+    obj : Any
+        The configuration object (dict, list, or other) to process.
+
+    Returns
+    -------
+    Any
+        The processed configuration object with allowed 'ref' keys removed, 
+        so they can pass structural checks against sample config.
+    """
+    if isinstance(obj, dict):
+        new = {}
+        for k, v in obj.items():
+            if k == "ref":
+                if isinstance(v, dict):
+                    invalid = {}
+                    for subk, subv in v.items():
+                        if subk in ALLOWED_REF_KEYS:
+                            continue
+                        invalid[subk] = _strip_ref_blocks(subv)
+                    if invalid:
+                        new["ref"] = invalid
+                else:
+                    new["ref"] = _strip_ref_blocks(v)
+            else:
+                new[k] = _strip_ref_blocks(v)
+        return new
+
+    if isinstance(obj, list):
+        return [_strip_ref_blocks(v) for v in obj]
+
+    return obj
+
+
 
 def handle_renamed_parameters(yaml_content: str):
     lines = yaml_content.split("\n")
@@ -1634,8 +1682,11 @@ def annotate_missing_parameters(
             physics_config = user_data["model"]["physics"]
         forcing_errors, _ = validate_forcing_data(user_file, physics=physics_config)
 
-    missing_params = find_missing_parameters(user_data, standard_data)
-    extra_params = find_extra_parameters(user_data, standard_data)
+    user_data_no_ref = _strip_ref_blocks(user_data)
+    standard_data_no_ref = _strip_ref_blocks(standard_data)
+
+    missing_params = find_missing_parameters(user_data_no_ref, standard_data_no_ref)
+    extra_params = find_extra_parameters(user_data_no_ref, standard_data_no_ref)
 
     # Generate content for both files
     if (

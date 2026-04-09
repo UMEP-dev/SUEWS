@@ -189,6 +189,7 @@ class SUEWSConfig(BaseModel):
         "FootprintArea",
         "WallExternalArea",
         "RatioInternalVolume",
+        "InternalMassArea",
         "WWR",
         "WallThickness",
         "WallEffectiveConductivity",

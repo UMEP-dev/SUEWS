@@ -1331,6 +1331,12 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
         lt=1.0,
     )
+    InternalMassArea: Optional[FlexibleRefValue(float)] = Field(
+        default=100,
+        description="Surface area of internal mass used for indoor heat exchange [m2]",
+        json_schema_extra={"unit": "m^2", "display_name": "Internal Mass Area"},
+        gt=0.0,
+    )
     WWR: Optional[FlexibleRefValue(float)] = Field(
         default=0.20,
         description="window to wall ratio [-]",

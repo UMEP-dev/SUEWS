@@ -1111,6 +1111,8 @@ sites:
         value: 186.7
       RatioInternalVolume:
         value: 0.1
+      InternalMassArea:
+        value: 100
       WWR:
         value: 0.25
       WallThickness:

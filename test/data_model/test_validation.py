@@ -796,8 +796,14 @@ def test_phase_b_validate_model_option_same_emissivity_disabled(registry):
     assert "same_emissivity_roof == 0" in results_roof[0].message.lower()
     
 def test_phase_b_forcing_height_error_and_warning(registry):
-    """Test validate_forcing_height_vs_buildings returns ERROR and WARNING for low z."""
-    # z < 2 * bldgh (mean), z < 2 * max(stebbs_Height, spartacus_top)
+    """
+    Test validate_forcing_height_vs_buildings returns WARNING and ERROR correctly 
+    for a site where z is below max building height threshold but above min mean height threshold.
+    
+    According to Apoud (1999) Fig. 1:
+    - sfr > 0.35 then min_factor = 1.5 for mean building height
+    - max_factor = 5 for both mean and max building heights
+    """
     yaml_data = {
         "model": {
             "physics": {
@@ -810,9 +816,9 @@ def test_phase_b_forcing_height_error_and_warning(registry):
                 "name": "TestSite",
                 "gridiv": 1,
                 "properties": {
-                    "z": {"value": 10.0},
+                    "z": {"value": 10.0},  # forcing height
                     "land_cover": {
-                        "bldgs": {"bldgh": {"value": 6.0}},
+                        "bldgs": {"bldgh": {"value": 6.0}, "sfr": {"value": 0.4}},
                     },
                     "building_archetype": {"stebbs_Height": {"value": 8.0}},
                     "vertical_layers": {"height": {"value": [0, 5, 12, 0]}},
@@ -820,16 +826,21 @@ def test_phase_b_forcing_height_error_and_warning(registry):
             }
         ],
     }
+
     results = registry["forcing_height"](ValidationContext(yaml_data=yaml_data))
-    # Should have ERROR for z < 2*bldgh (2*6=12)
-    error = [r for r in results if r.status == "ERROR"]
-    assert error
-    assert "2*mean building height" in error[0].message
-    # Should have WARNING for z < 2*max(12, 8, 6) = 24
-    warning = [r for r in results if r.status == "WARNING"]
-    assert warning
-    assert "2*max building height" in warning[0].message
-    assert "SPARTACUS top layer height=12.0" in warning[0].message
+
+    # --- Check ERRORs ---
+    errors = [r for r in results if r.status == "ERROR"]
+    # ERROR should NOT exist because z=10.0 >= min_factor*mean_height (1.5*6=9.0)
+    assert not errors, f"Expected no ERRORs, got {errors}"
+
+    # --- Check WARNINGs ---
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert warnings, "Expected at least one WARNING for z < min_factor*max_height"
+    
+    # Max building height should be SPARTACUS top = 12.0
+    assert any("1.5* max building height" in w.message for w in warnings)
+    assert any("max building height=12.0" in w.suggested_value for w in warnings)
 
 def test_phase_b_forcing_height_valid(registry):
     """Test validate_forcing_height_vs_buildings passes when z is sufficient."""
@@ -847,7 +858,7 @@ def test_phase_b_forcing_height_valid(registry):
                 "properties": {
                     "z": {"value": 30.0},
                     "land_cover": {
-                        "bldgs": {"bldgh": {"value": 10.0}},
+                        "bldgs": {"bldgh": {"value": 10.0}, "sfr": {"value": 0.3}},
                     },
                     "building_archetype": {"stebbs_Height": {"value": 12.0}},
                     "vertical_layers": {"height": {"value": [0, 5, 12, 15]}},
@@ -886,11 +897,17 @@ def test_phase_b_forcing_height_only_stebbs_height(registry):
     assert not any(r.status == "ERROR" for r in results)
 
 def test_phase_b_forcing_height_only_spartacus_top(registry):
-    """Test validate_forcing_height_vs_buildings uses SPARTACUS top if present, and warns if bldgh is missing."""
+    """
+    Test that validate_forcing_height_vs_buildings uses SPARTACUS top height if present,
+    and raises a WARNING when z is below min_factor*max building height.
+    
+    The function should compute h_max = max(bldgh, STEBBS, SPARTACUS top) correctly,
+    and produce an ERROR for mean height and WARNING for max height.
+    """
     yaml_data = {
         "model": {
             "physics": {
-                "netradiationmethod": {"value": 1001},
+                "netradiationmethod": {"value": 1001},  # enable SPARTACUS
             }
         },
         "sites": [
@@ -898,24 +915,35 @@ def test_phase_b_forcing_height_only_spartacus_top(registry):
                 "name": "TestSite",
                 "gridiv": 1,
                 "properties": {
-                    "z": {"value": 5.0},
-                    "vertical_layers": {"height": {"value": [0, 2, 8, 0]}},
+                    "z": {"value": 5.0},  # forcing height below thresholds
+                    "land_cover": {
+                        "bldgs": {"bldgh": {"value": 3.0}, "sfr": {"value": 0.3}}
+                    },
+                    "vertical_layers": {"height": {"value": [0, 2, 8, 0]}},  # SPARTACUS top = 8
                 },
             }
         ],
     }
+
     results = registry["forcing_height"](ValidationContext(yaml_data=yaml_data))
 
+    # --- Check that a WARNING exists for z < min_factor * max building height ---
     warnings = [r for r in results if r.status == "WARNING"]
-    assert warnings
-    # Check for SPARTACUS top layer warning
-    assert any("SPARTACUS top layer height=8.0" in w.message for w in warnings)
-    # Check for missing bldgh warning
-    assert any(
-        "cannot validate forcing height" in w.message
-        and "land_cover.bldgs.bldgh is missing" in w.message
-        for w in warnings
-    )
+    assert warnings, "Expected WARNING for z below max building height threshold"
+    
+    # SPARTACUS top = 8, sfr = 0.3 → min_factor = 2.0 → min_z_max = 16.0
+    expected_min_z_max = 2.0 * 8.0
+    assert any(str(expected_min_z_max) in w.suggested_value for w in warnings)
+    assert any("max building height" in w.message for w in warnings)
+
+    # --- Check that an ERROR exists for z < min_factor * mean building height ---
+    errors = [r for r in results if r.status == "ERROR"]
+    assert errors, "Expected ERROR for z below mean building height threshold"
+
+    # mean building height = 3.0, sfr = 0.3 → min_factor = 2 → min_z_mean = 6
+    expected_min_z_mean = 2.0 * 3.0
+    assert any(str(expected_min_z_mean) in e.suggested_value for e in errors)
+    assert any("mean building height" in e.message for e in errors)
     
 def test_validate_model_option_rcmethod_missing_params(registry):
     yaml_data = {

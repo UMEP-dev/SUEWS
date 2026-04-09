@@ -4145,7 +4145,7 @@ CONTAINS
       BuildingCount, Occupants, &
       ! hhs0, age_0_4, age_5_11, age_12_18, age_19_64, age_65plus, ! NOT USED
       stebbs_Height, &
-      FootprintArea, WallExternalArea, RatioInternalVolume, WWR, WallThickness, WallEffectiveConductivity, &
+      FootprintArea, WallExternalArea, RatioInternalVolume, InternalMassArea, WWR, WallThickness, WallEffectiveConductivity, &
       WallDensity, WallCp, WallextThickness, WallextEffectiveConductivity, WallextDensity, WallextCp, WallOuterCapFrac, WallExternalEmissivity, WallInternalEmissivity, WallTransmissivity, &
       WallAbsorbtivity, WallReflectivity, &
       RoofThickness, RoofEffectiveConductivity, RoofDensity, RoofCp, RoofextThickness, RoofextEffectiveConductivity, RoofextDensity, RoofextCp,&
@@ -4635,6 +4635,7 @@ CONTAINS
       REAL(KIND(1D0)) :: FootprintArea
       REAL(KIND(1D0)) :: WallExternalArea
       REAL(KIND(1D0)) :: RatioInternalVolume
+      REAL(KIND(1D0)) :: InternalMassArea
       REAL(KIND(1D0)) :: WWR
       REAL(KIND(1D0)) :: WallThickness
       REAL(KIND(1D0)) :: WallEffectiveConductivity
@@ -5548,6 +5549,7 @@ CONTAINS
       building_archtype%FootprintArea = FootprintArea
       building_archtype%WallExternalArea = WallExternalArea
       building_archtype%RatioInternalVolume = RatioInternalVolume
+      building_archtype%InternalMassArea = InternalMassArea
       building_archtype%WWR = WWR
       building_archtype%WallThickness = WallThickness
       building_archtype%WallEffectiveConductivity = WallEffectiveConductivity

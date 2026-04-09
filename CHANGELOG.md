@@ -59,6 +59,11 @@ EXAMPLES:
 - [bugfix][experimental] Fix missing if branch in setpointmethod rule, and move setpointmethod rule in stebbs_rules.py (PR #1284)
 - [bugfix] Allow ref and ref sub-keys in user YAML for both public and dev validator modes (PR #1286)
 
+### 8 Apr 2026
+
+- [change][experimental] Replace the STEBBS cube-based internal mass area assumption with an explicit `InternalMassArea` building archetype input.
+- [bugfix][experimental] Correct the sign of Q_BAE (heat emission via building air exchange) in STEBBS.
+
 ### 3 Apr 2026
 
 - [doc] Release 2026.4.3: Rust FFI bridge, T2 attribution, RSL physics, STEBBS enhancements, validation improvements (PR #1250)

@@ -964,9 +964,9 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
     -----
     - The minimum allowed factor depends on building plan area fraction (equal to bldgs.sfr):
         - If bldgs.sfr >= 0.35:
-            - z must be between 2* and 5* building mean/max height
+            - z must be between 1.5* and 5* building mean height
         - If bldgs.sfr < 0.35:
-            - z must be between 1.5* and 5* building mean/max height
+            - z must be between 2* and 5* building mean height
     For forcing height ranges reference, see Apoud, 1999, Fig. 1.
 
     - Two reference heights are used:
@@ -1091,7 +1091,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
         h_mean = bldgh  # mean building height is always bldgh
 
         # --- Determine allowed z range based on sfr ---
-        if sfr >= 0.35:
+        if sfr <= 0.35:
             min_factor = 2.0
         else:
             min_factor = 1.5

@@ -945,6 +945,67 @@ def test_phase_b_forcing_height_only_spartacus_top(registry):
     assert any(str(expected_min_z_mean) in e.suggested_value for e in errors)
     assert any("mean building height" in e.message for e in errors)
     
+def test_phase_b_forcing_height_missing_bldgh_or_sfr(registry):
+    yaml_data = {
+        "model": {"physics": {}},
+        "sites": [
+            {
+                "name": "NoBldghSite",
+                "gridiv": 1,
+                "properties": {
+                    "z": {"value": 5.0},
+                    "land_cover": {"bldgs": {"sfr": {"value": 0.4}}},  # bldgh missing
+                },
+            }
+        ],
+    }
+    results = registry["forcing_height"](ValidationContext(yaml_data=yaml_data))
+    assert results
+    assert results[0].status == "WARNING"
+    assert "cannot validate" in results[0].message
+
+def test_phase_b_forcing_height_above_max(registry):
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [
+            {
+                "name": "HighZSite",
+                "gridiv": 1,
+                "properties": {
+                    "z": {"value": 100.0},  # way above
+                    "land_cover": {"bldgs": {"bldgh": {"value": 10.0}, "sfr": {"value": 0.4}}},
+                    "building_archetype": {"stebbs_Height": {"value": 15.0}},
+                },
+            }
+        ],
+    }
+    results = registry["forcing_height"](ValidationContext(yaml_data=yaml_data))
+    errors = [r for r in results if r.status == "ERROR"]
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert errors
+    assert warnings
+    assert any("above the maximum allowed" in e.message for e in errors)
+    assert any("above the maximum allowed" in w.message for w in warnings)
+
+def test_phase_b_forcing_height_sfr_boundary(registry):
+    yaml_data = {
+        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "sites": [
+            {
+                "name": "BoundarySFR",
+                "gridiv": 1,
+                "properties": {
+                    "z": {"value": 6.0},
+                    "land_cover": {"bldgs": {"bldgh": {"value": 4.0}, "sfr": {"value": 0.35}}},
+                },
+            }
+        ],
+    }
+    results = registry["forcing_height"](ValidationContext(yaml_data=yaml_data))
+    # min_factor should be 1.5 → min_z_mean = 6.0 → z == min allowed → no ERROR
+    errors = [r for r in results if r.status == "ERROR"]
+    assert not errors
+
 def test_validate_model_option_rcmethod_missing_params(registry):
     yaml_data = {
         "model": {"physics": {"rcmethod": {"value": 1}}},

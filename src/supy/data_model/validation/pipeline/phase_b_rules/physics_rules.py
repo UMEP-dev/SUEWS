@@ -1093,7 +1093,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
         h_mean = bldgh  # mean building height is always bldgh
 
         # --- Determine allowed z range based on sfr ---
-        if sfr <= 0.35:
+        if sfr < 0.35:
             min_factor = 2.0
         else:
             min_factor = 1.5

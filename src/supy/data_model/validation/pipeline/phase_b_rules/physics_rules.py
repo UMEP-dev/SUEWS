@@ -706,12 +706,17 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
       are present (not null), that heating values are less than 30.0, and cooling
       values are greater than 15.0 for all 144 ten-minute slices in both
       `working_day` and `holiday` profiles.
+    - All checks are only performed if stebbsmethod == 1.
     """
     results = []
     yaml_data = context.yaml_data
     physics = yaml_data.get("model", {}).get("physics", {})
 
     setpointmethod = get_value_safe(physics, "setpointmethod")
+    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+
+    if stebbsmethod != 1:
+        return results
 
     if setpointmethod == 0 or setpointmethod == 1:
         for site in yaml_data.get("sites", []):

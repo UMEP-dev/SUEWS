@@ -967,7 +967,9 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
             - z must be between 1.5* and 5* building mean height
         - If bldgs.sfr < 0.35:
             - z must be between 2* and 5* building mean height
-    For forcing height ranges reference, see Apoud, 1999, Fig. 1.
+    For forcing height ranges reference, see Grimmond, C. S. B., and T. R. Oke, 1999: Aerodynamic 
+    Properties of Urban Areas Derived from Analysis of Surface Form. J. Appl. Meteor. 
+    Climatol., 38, 1262–1292, Fig. 1.
 
     - Two reference heights are used:
         - Mean building height (land_cover.bldgs.bldgh) - ERROR if violated

@@ -1186,7 +1186,7 @@ def test_validate_model_option_setpointmethod_0_or_1_all_params(registry):
 
 def test_validate_model_option_setpointmethod_0_or_1_missing_params(registry):
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 1}}},
+        "model": {"physics": {"setpointmethod": {"value": 1}, "stebbsmethod": {"value":1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1230,7 +1230,7 @@ def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
 
 def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry):
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "model": {"physics": {"setpointmethod": {"value": 2}, "stebbsmethod": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1255,7 +1255,7 @@ def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry
 
 def test_validate_model_option_setpointmethod_2_out_of_range(registry):
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "model": {"physics": {"setpointmethod": {"value": 2}, "stebbsmethod": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1280,7 +1280,7 @@ def test_validate_model_option_setpointmethod_2_out_of_range(registry):
 
 def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 2}}},
+        "model": {"physics": {"setpointmethod": {"value": 2}, "stebbsmethod": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {

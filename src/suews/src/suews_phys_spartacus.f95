@@ -134,6 +134,8 @@ CONTAINS
       INTEGER(kind=jpim), ALLOCATABLE :: nlay(:)
       INTEGER :: istartcol, iendcol
       INTEGER :: jrepeat, ilay, jlay, jcol
+      INTEGER :: nlay_veg, max_idx     ! NEW: helpers for veg_abs extraction
+      REAL(KIND(1D0)) :: veg_abs_sw_per_veg, A_veg_sw
 
       ! --------------------------------------------------------------------------------
       ! output variables
@@ -178,6 +180,13 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_roof_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_wall_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: veg_abs_sw_spc ! SW vegetation absorption per layer
+      REAL(KIND(1D0)), DIMENSION(15) :: veg_abs_lw_spc ! LW vegetation absorption per layer
+      REAL(KIND(1D0)), DIMENSION(15) :: veg_in_sw_spc ! SW incoming vegetation
+      REAL(KIND(1D0)), DIMENSION(15) :: veg_out_sw_spc ! SW outcoming vegetation
+      ! Optionally:
+      ! REAL(KIND(1D0)), DIMENSION(15) :: veg_in_lw_spc
+      ! REAL(KIND(1D0)), DIMENSION(15) :: veg_out_lw_spc
       ! --------------------------------------------------------------------------------
 
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS - 5), INTENT(OUT) :: dataOutLineSPARTACUS
@@ -615,6 +624,82 @@ CONTAINS
          END IF
       END IF
 
+      !-----------------------------------------------------------------
+      ! Shortwave vegetation absorption per layer (W m-2), from sw_flux
+      !-----------------------------------------------------------------
+      veg_abs_sw_spc = -999.0D0
+
+      ! Only attempt extraction when SW is active and there is at least one SPARTACUS layer
+      IF (config%do_sw .AND. canopy_props%nlay(1) > 0) THEN
+         ! Some configurations do not allocate sw_flux%veg_abs at all:
+         ! in that case, skip extraction and keep fill values.
+         IF (ALLOCATED(sw_flux%veg_abs)) THEN
+            ! Number of available layers in veg_abs (second dimension)
+            nlay_veg = SIZE(sw_flux%veg_abs, 2)
+
+            ! Required maximum index in veg_abs for this column
+            max_idx = canopy_props%istartlay(1) + MIN(canopy_props%nlay(1), 15) - 1
+
+            IF (nlay_veg >= max_idx) THEN
+               ilay = canopy_props%istartlay(1)
+               DO jlay = 1, MIN(canopy_props%nlay(1), 15)
+                  ! nspec=1, so use first spectral index
+                  veg_abs_sw_spc(jlay) = sw_flux%veg_abs(1, ilay + jlay - 1)
+               END DO
+            END IF
+         END IF
+      END IF
+
+      !-----------------------------------------------------------------
+      ! Longwave vegetation absorption per layer (W m-2), from lw_flux
+      !-----------------------------------------------------------------
+      veg_abs_lw_spc = -999.0D0
+
+      ! Only attempt extraction when LW is active and there is at least one SPARTACUS layer
+      IF (config%do_lw .AND. canopy_props%nlay(1) > 0) THEN
+         ! Some configurations do not allocate lw_flux%veg_abs at all:
+         ! in that case, skip extraction and keep fill values.
+         IF (ALLOCATED(lw_flux%veg_abs)) THEN
+            ! Number of available layers in veg_abs (second dimension)
+            nlay_veg = SIZE(lw_flux%veg_abs, 2)
+
+            ! Required maximum index in veg_abs for this column
+            max_idx = canopy_props%istartlay(1) + MIN(canopy_props%nlay(1), 15) - 1
+
+            IF (nlay_veg >= max_idx) THEN
+               ilay = canopy_props%istartlay(1)
+               DO jlay = 1, MIN(canopy_props%nlay(1), 15)
+                  ! nspec=1, so use first spectral index
+                  veg_abs_lw_spc(jlay) = lw_flux%veg_abs(1, ilay + jlay - 1)
+               END DO
+            END IF
+         END IF
+      END IF
+
+      !-----------------------------------------------------------------
+      ! Vegetation incident and outgoing SW per layer (W m-2 per veg area)
+      ! Approximated from veg_abs_sw_spc and veg_frac using an effective
+      ! absorptance A_veg_sw = 1 - veg_ssa_sw.
+      !-----------------------------------------------------------------
+      veg_in_sw_spc  = -999.0D0
+      veg_out_sw_spc = -999.0D0
+
+      IF (config%do_sw .AND. canopy_props%nlay(1) > 0) THEN
+         DO jlay = 1, MIN(canopy_props%nlay(1), 15)
+            IF (veg_frac(jlay) > 0.0D0 .AND. veg_abs_sw_spc(jlay) > -900.0D0) THEN
+
+               ! Absorption per vegetated plan area (W m-2 veg area)
+               veg_abs_sw_per_veg = veg_abs_sw_spc(jlay) / veg_frac(jlay)
+
+               ! Effective shortwave absorptance of vegetation
+               A_veg_sw = MAX(1.0D-3, 1.0D0 - veg_ssa_sw)
+
+               veg_in_sw_spc(jlay)  = veg_abs_sw_per_veg / A_veg_sw
+               veg_out_sw_spc(jlay) = veg_in_sw_spc(jlay) - veg_abs_sw_per_veg
+            END IF
+         END DO
+      END IF
+
       ! albedo
       IF (config%do_sw) THEN
          IF (top_flux_dn_diffuse_sw + top_flux_dn_direct_sw(nspec, ncol) > 0.1) THEN
@@ -790,8 +875,11 @@ CONTAINS
           wall_net_lw_spc, &
           sfr_roof_spc, &
           sfr_wall_spc, &
-          clear_air_abs_lw_spc &
-          ]
+          clear_air_abs_lw_spc, &
+          veg_abs_sw_spc, &
+          veg_abs_lw_spc, &
+          veg_in_sw_spc, &
+          veg_out_sw_spc ]
 
       !!!!!!!!!!!!!! Clear from memory !!!!!!!!!!!!!
 

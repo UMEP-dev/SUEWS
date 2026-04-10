@@ -18,8 +18,8 @@ public :: SUEWS_CAPI_BAD_STATE
 
 integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_STEPS = 144_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS = 2_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_LEN = 1216_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_SCHEMA_VERSION = 3_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_LEN = 1217_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_BUILDING_ARCHETYPE_PRM_SCHEMA_VERSION = 4_c_int
 
 type :: building_archetype_prm_shadow
    real(c_double) :: buildingcount = 0.0_c_double
@@ -34,6 +34,7 @@ type :: building_archetype_prm_shadow
    real(c_double) :: footprintarea = 0.0_c_double
    real(c_double) :: wallexternalarea = 0.0_c_double
    real(c_double) :: ratiointernalvolume = 0.0_c_double
+   real(c_double) :: internalmassarea = 0.0_c_double
    real(c_double) :: wwr = 0.0_c_double
    real(c_double) :: wallthickness = 0.0_c_double
    real(c_double) :: walleffectiveconductivity = 0.0_c_double
@@ -166,6 +167,7 @@ subroutine building_archetype_prm_pack(state, flat, n_flat, err)
    flat(idx) = state%footprintarea; idx = idx + 1_c_int
    flat(idx) = state%wallexternalarea; idx = idx + 1_c_int
    flat(idx) = state%ratiointernalvolume; idx = idx + 1_c_int
+   flat(idx) = state%internalmassarea; idx = idx + 1_c_int
    flat(idx) = state%wwr; idx = idx + 1_c_int
    flat(idx) = state%wallthickness; idx = idx + 1_c_int
    flat(idx) = state%walleffectiveconductivity; idx = idx + 1_c_int
@@ -283,6 +285,7 @@ subroutine building_archetype_prm_unpack(flat, n_flat, state, err)
    state%footprintarea = flat(idx); idx = idx + 1_c_int
    state%wallexternalarea = flat(idx); idx = idx + 1_c_int
    state%ratiointernalvolume = flat(idx); idx = idx + 1_c_int
+   state%internalmassarea = flat(idx); idx = idx + 1_c_int
    state%wwr = flat(idx); idx = idx + 1_c_int
    state%wallthickness = flat(idx); idx = idx + 1_c_int
    state%walleffectiveconductivity = flat(idx); idx = idx + 1_c_int

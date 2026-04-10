@@ -8,8 +8,8 @@ use std::collections::BTreeMap;
 
 pub const BUILDING_ARCHETYPE_PRM_PROFILE_STEPS: usize = 144;
 pub const BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS: usize = 2;
-pub const BUILDING_ARCHETYPE_PRM_FLAT_LEN: usize = 1216;
-pub const BUILDING_ARCHETYPE_PRM_SCHEMA_VERSION: u32 = 3;
+pub const BUILDING_ARCHETYPE_PRM_FLAT_LEN: usize = 1217;
+pub const BUILDING_ARCHETYPE_PRM_SCHEMA_VERSION: u32 = 4;
 
 pub type BuildingArchetypePrmSchema = crate::codec::SimpleSchema;
 
@@ -29,6 +29,7 @@ pub struct BuildingArchetypePrm {
     pub footprintarea: f64,
     pub wallexternalarea: f64,
     pub ratiointernalvolume: f64,
+    pub internalmassarea: f64,
     pub wwr: f64,
     pub wallthickness: f64,
     pub walleffectiveconductivity: f64,
@@ -106,6 +107,7 @@ impl Default for BuildingArchetypePrm {
             footprintarea: 0.0,
             wallexternalarea: 0.0,
             ratiointernalvolume: 0.0,
+            internalmassarea: 0.0,
             wwr: 0.0,
             wallthickness: 0.0,
             walleffectiveconductivity: 0.0,
@@ -193,6 +195,7 @@ impl BuildingArchetypePrm {
         let footprintarea = next();
         let wallexternalarea = next();
         let ratiointernalvolume = next();
+        let internalmassarea = next();
         let wwr = next();
         let wallthickness = next();
         let walleffectiveconductivity = next();
@@ -293,6 +296,7 @@ impl BuildingArchetypePrm {
             footprintarea,
             wallexternalarea,
             ratiointernalvolume,
+            internalmassarea,
             wwr,
             wallthickness,
             walleffectiveconductivity,
@@ -367,6 +371,7 @@ impl BuildingArchetypePrm {
         flat.push(self.footprintarea);
         flat.push(self.wallexternalarea);
         flat.push(self.ratiointernalvolume);
+        flat.push(self.internalmassarea);
         flat.push(self.wwr);
         flat.push(self.wallthickness);
         flat.push(self.walleffectiveconductivity);
@@ -507,6 +512,7 @@ pub fn building_archetype_prm_field_names() -> Vec<String> {
         "footprintarea".to_string(),
         "wallexternalarea".to_string(),
         "ratiointernalvolume".to_string(),
+        "internalmassarea".to_string(),
         "wwr".to_string(),
         "wallthickness".to_string(),
         "walleffectiveconductivity".to_string(),

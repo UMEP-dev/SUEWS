@@ -4099,6 +4099,42 @@ mod python_bindings {
         Ok((output_block, state_json_out, actual_len))
     }
 
+    /// Run multiple grid cells in parallel using Rayon thread pool.
+    ///
+    /// Each element of `config_jsons` is a JSON config string for one grid.
+    /// `forcing_block` and `len_sim` are shared across all grids.
+    /// Returns a list of `(grid_index, output_block, state_json, len_sim)`.
+    #[cfg(feature = "physics")]
+    #[pyfunction(name = "run_suews_multi")]
+    fn run_suews_multi_py(
+        config_jsons: Vec<String>,
+        forcing_block: Vec<f64>,
+        len_sim: usize,
+    ) -> PyResult<Vec<(usize, Vec<f64>, String, usize)>> {
+        use rayon::prelude::*;
+
+        let results: Vec<Result<(usize, Vec<f64>, String, usize), _>> = config_jsons
+            .par_iter()
+            .enumerate()
+            .map(|(idx, config_json)| {
+                // Each thread gets its own copy of forcing (Fortran mutates it)
+                let forcing_copy = forcing_block.clone();
+                let (output_block, state, actual_len) =
+                    run_from_config_str_and_forcing(config_json, forcing_copy, len_sim)
+                        .map_err(|e| e.to_string())?;
+                let state_json = serde_json::to_string(&suews_state_to_nested_payload(&state))
+                    .map_err(|e| e.to_string())?;
+                Ok((idx, output_block, state_json, actual_len))
+            })
+            .collect();
+
+        // Convert errors to PyResult
+        results
+            .into_iter()
+            .collect::<Result<Vec<_>, String>>()
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))
+    }
+
     /// Return the output group layout as a list of (name, ncols) tuples.
     /// Order matches the concatenated flat buffer from Fortran.
     #[cfg(feature = "physics")]
@@ -5335,6 +5371,8 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(run_suews_py, m)?)?;
         #[cfg(feature = "physics")]
         m.add_function(wrap_pyfunction!(run_suews_with_state_py, m)?)?;
+        #[cfg(feature = "physics")]
+        m.add_function(wrap_pyfunction!(run_suews_multi_py, m)?)?;
         #[cfg(feature = "physics")]
         m.add_function(wrap_pyfunction!(output_group_layout_py, m)?)?;
         #[cfg(feature = "physics")]

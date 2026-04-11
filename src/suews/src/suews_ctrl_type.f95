@@ -352,13 +352,17 @@ CONTAINS
    END FUNCTION has_error_state
 
    SUBROUTINE report_error_impl(self, message, location, is_fatal, timer)
-      !> Report an error/warning to the error log
+      !> Report an error/warning to the error log.
+      !> Non-fatal warnings are capped at MAX_WARNING_LOG entries to prevent
+      !> unbounded memory growth in long simulations.  Fatal entries are
+      !> always stored regardless of the cap.
       CLASS(error_state), INTENT(INOUT) :: self
       CHARACTER(LEN=*), INTENT(IN) :: message
       CHARACTER(LEN=*), INTENT(IN) :: location
       LOGICAL, INTENT(IN), OPTIONAL :: is_fatal
       TYPE(SUEWS_TIMER), INTENT(IN), OPTIONAL :: timer
 
+      INTEGER, PARAMETER :: MAX_WARNING_LOG = 512
       TYPE(error_entry), ALLOCATABLE :: temp(:)
       TYPE(SUEWS_TIMER) :: timer_use
       INTEGER :: new_size
@@ -366,6 +370,15 @@ CONTAINS
 
       fatal = .FALSE.
       IF (PRESENT(is_fatal)) fatal = is_fatal
+
+      IF (fatal) THEN
+         self%has_fatal = .TRUE.
+         self%flag = .TRUE.
+         self%message = message
+      END IF
+
+      ! Cap non-fatal entries to avoid unbounded allocation in year-long runs
+      IF (.NOT. fatal .AND. self%count >= MAX_WARNING_LOG) RETURN
 
       ! Use provided timer or default to zeros
       IF (PRESENT(timer)) THEN
@@ -393,12 +406,6 @@ CONTAINS
       self%log(self%count)%message = message
       self%log(self%count)%location = location
       self%log(self%count)%is_fatal = fatal
-
-      IF (fatal) THEN
-         self%has_fatal = .TRUE.
-         self%flag = .TRUE.
-         self%message = message
-      END IF
    END SUBROUTINE report_error_impl
 
    SUBROUTINE clear_error_log(self)

@@ -800,7 +800,7 @@ def test_phase_b_forcing_height_error_and_warning(registry):
     Test validate_forcing_height_vs_buildings returns WARNING and ERROR correctly 
     for a site where z is below max building height threshold but above min mean height threshold.
     
-    According to Apoud (1999) Fig. 1:
+    According to Grimmond & Oke (1999) Fig. 1:
     - sfr > 0.35 then min_factor = 1.5 for mean building height
     - max_factor = 5 for both mean and max building heights
     """
@@ -885,7 +885,7 @@ def test_phase_b_forcing_height_only_stebbs_height(registry):
                 "properties": {
                     "z": {"value": 14.0},
                     "land_cover": {
-                        "bldgs": {"bldgh": {"value": 7.0}},
+                        "bldgs": {"bldgh": {"value": 7.0}, "sfr": {"value": 0.4}},
                     },
                     "building_archetype": {"stebbs_Height": {"value": 7.0}},
                 },

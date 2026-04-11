@@ -707,7 +707,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
             - z must be between 2* and 5* building mean height
     For forcing height ranges reference, see Grimmond, C. S. B., and T. R. Oke, 1999: Aerodynamic 
     Properties of Urban Areas Derived from Analysis of Surface Form. J. Appl. Meteor. 
-    Climatol., 38, 1262–1292, Fig. 1.
+    Climatol., 38, 1262-1292, Fig. 1.
 
     - Two reference heights are used:
         - Mean building height (land_cover.bldgs.bldgh) - ERROR if violated
@@ -810,23 +810,8 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
             continue
 
         # --- Determine max building height ---
+        # bldgh is guaranteed non-None here (checked above), so candidates is never empty
         candidates = [h for h in [bldgh, stebbs_height, spartacus_top] if h is not None]
-        if not candidates:
-            results.append(
-                ValidationResult(
-                    status="WARNING",
-                    category="FORCING",
-                    parameter="properties.land_cover.bldgs.bldgh",
-                    site_index=site_idx,
-                    site_gridid=site_gridid,
-                    message=(
-                        f"Site '{site_name}': cannot validate forcing height z={z} because no building heights are available."
-                    ),
-                    suggested_value="Provide at least one building height (bldgh, stebbs_Height, or SPARTACUS top layer height).",
-                )
-            )
-            continue
-
         h_max = max(candidates)
         h_mean = bldgh  # mean building height is always bldgh
 

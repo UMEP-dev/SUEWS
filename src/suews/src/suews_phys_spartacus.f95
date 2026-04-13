@@ -254,6 +254,7 @@ CONTAINS
       ! REAL(KIND(1D0)) :: debug1, debug2
       LOGICAL, SAVE :: did_print = .FALSE.
       INTEGER :: first_veg_idx
+      REAL(KIND(1D0)) :: lai_remain, sum_dz_rest
 
       IF (DiagQN == 1) PRINT *, 'in SPARTACUS, starting ...'
       ! initialize the output variables
@@ -388,9 +389,10 @@ CONTAINS
       END DO
 
       ! Define LAI_eff_z for veg_ext:
-      ! - start from the old LAI_av_z
-      ! - then force the first vegetated layer in each column to 0.1
-      LAI_eff_z(:) = LAI_av_z(:)
+      ! - first vegetated layer in each column gets LAI = 0.1
+      ! - remaining vegetated layers share (LAI_av - 0.1)
+      !   proportionally to dz
+      LAI_eff_z(:) = 0.0D0
 
       DO jcol = 1, ncol
          ilay = canopy_props%istartlay(jcol)
@@ -405,55 +407,66 @@ CONTAINS
          END DO
 
          IF (first_veg_idx > 0) THEN
+
+            ! First vegetated layer fixed to 0.1
             LAI_eff_z(first_veg_idx) = 0.1D0
+
+            ! Sum dz of remaining vegetated layers
+            sum_dz_rest = 0.0D0
+            DO jlay = first_veg_idx - ilay + 1, nlay(jcol) - 1
+               IF (veg_frac(ilay + jlay) > 0.0D0) THEN
+                  sum_dz_rest = sum_dz_rest + canopy_props%dz(ilay + jlay)
+               END IF
+            END DO
+
+            ! Distribute remaining LAI
+            lai_remain = MAX(0.0D0, LAI_av(jcol) - 0.1D0)
+
+            IF (sum_dz_rest > 0.0D0) THEN
+               DO jlay = first_veg_idx - ilay + 1, nlay(jcol) - 1
+                  IF (veg_frac(ilay + jlay) > 0.0D0) THEN
+                     LAI_eff_z(ilay + jlay) = &
+                        lai_remain * canopy_props%dz(ilay + jlay) / sum_dz_rest
+                  END IF
+               END DO
+            END IF
+
          END IF
       END DO
-      
-      ! ! find LAV_av_z and veg_ext. Assume the LAI is uniform with height within the vegetation layer.
-      ! IF (.NOT. did_print) THEN
-      !    DO jcol = 1, ncol
-      !       ilay = canopy_props%istartlay(jcol)
-      !       DO jlay = 0, nlay(jcol) - 1
-      !          PRINT *, 'jlay veg_frac(ilay+jlay) LAI_av(jcol) canopy_props%dz(ilay+jlay) veg_ext(ilay+jlay)'
-      !          IF (veg_frac(ilay + jlay) > 0.) THEN
-      !             LAI_av_z(ilay + jlay) = LAI_av(jcol)*canopy_props%dz(ilay + jlay)/veg_depth(jcol)
-      !             veg_ext(ilay + jlay)  = LAI_av_z(ilay + jlay)/(2*canopy_props%dz(ilay))
-      !             PRINT *, jlay, veg_frac(ilay + jlay), LAI_av(jcol), canopy_props%dz(ilay + jlay), veg_ext(ilay + jlay)
-      !          ELSE
-      !             PRINT *, jlay, veg_frac(ilay + jlay), LAI_av(jcol), canopy_props%dz(ilay + jlay), 0.0
-      !          END IF
-      !       END DO
-      !    END DO
-      !    did_print = .TRUE.
-      ! END IF
 
       ! Compute veg_ext using LAI_eff_z (modified LAI)
       IF (.NOT. did_print) THEN
          DO jcol = 1, ncol
-         ilay = canopy_props%istartlay(jcol)
-         DO jlay = 0, nlay(jcol) - 1
-            IF (jlay == 0) THEN
-            PRINT *, 'jlay veg_frac LAI_av LAI_av_z dz LAI_eff_z veg_ext'
-            END IF
-            IF (veg_frac(ilay + jlay) > 0.0D0) THEN
-            veg_ext(ilay + jlay) = LAI_eff_z(ilay + jlay) / (2.0D0 * canopy_props%dz(ilay))
-            PRINT *, jlay, &
-                  veg_frac(ilay + jlay), &
-                  LAI_av(jcol), &
-                  LAI_av_z(ilay + jlay), &
-                  canopy_props%dz(ilay + jlay), &
-                  LAI_eff_z(ilay + jlay), &
-                  veg_ext(ilay + jlay)
-            ELSE
-            PRINT *, jlay, &
-                  veg_frac(ilay + jlay), &
-                  LAI_av(jcol), &
-                  LAI_av_z(ilay + jlay), &
-                  canopy_props%dz(ilay + jlay), &
-                  0.0D0, 0.0D0
-            END IF
+            ilay = canopy_props%istartlay(jcol)
+
+            DO jlay = 0, nlay(jcol) - 1
+               IF (jlay == 0) THEN
+                  PRINT *, 'jlay veg_frac LAI_av LAI_av_z dz LAI_eff_z veg_ext'
+               END IF
+
+               IF (veg_frac(ilay + jlay) > 0.0D0) THEN
+                  veg_ext(ilay + jlay) = &
+                     LAI_eff_z(ilay + jlay) / &
+                     (2.0D0 * canopy_props%dz(ilay))
+
+                  PRINT *, jlay, &
+                        veg_frac(ilay + jlay), &
+                        LAI_av(jcol), &
+                        LAI_av_z(ilay + jlay), &
+                        canopy_props%dz(ilay + jlay), &
+                        LAI_eff_z(ilay + jlay), &
+                        veg_ext(ilay + jlay)
+               ELSE
+                  PRINT *, jlay, &
+                        veg_frac(ilay + jlay), &
+                        LAI_av(jcol), &
+                        LAI_av_z(ilay + jlay), &
+                        canopy_props%dz(ilay + jlay), &
+                        0.0D0, 0.0D0
+               END IF
+            END DO
          END DO
-         END DO
+
          did_print = .TRUE.
       END IF
 

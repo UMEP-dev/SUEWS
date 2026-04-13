@@ -226,6 +226,7 @@ CONTAINS
       REAL(KIND(1D0)), ALLOCATABLE :: veg_ext(:)
       ! depth of the vegetated layer
       REAL(KIND(1D0)), ALLOCATABLE :: veg_depth(:)
+      REAL(KIND(1D0)), ALLOCATABLE :: LAI_eff_z(:)
 
       LOGICAL, INTENT(IN) :: use_sw_direct_albedo
 
@@ -251,6 +252,8 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nlayer) :: veg_fsd, veg_contact_fraction
       ! INTEGER :: i
       ! REAL(KIND(1D0)) :: debug1, debug2
+      LOGICAL, SAVE :: did_print = .FALSE.
+      INTEGER :: first_veg_idx
 
       IF (DiagQN == 1) PRINT *, 'in SPARTACUS, starting ...'
       ! initialize the output variables
@@ -349,6 +352,8 @@ CONTAINS
       LAI_av = 0.0D0
       veg_depth = 0.0D0
       LAI_av_z = 0.0D0
+      ALLOCATE (LAI_eff_z(nlayer))
+      LAI_eff_z = 0.0D0
       !Calculate the area weighted LAI of trees
       DO jcol = 1, ncol
          ! the 10.**-10 stops the equation blowing up when there are no trees
@@ -371,22 +376,86 @@ CONTAINS
             END IF
          END DO
       END DO
-      ! find LAV_av_z and veg_ext. Assume the LAI is uniform with height within the vegetation layer.
+
+      ! Original LAI profile LAI_av_z: uniform LAI over vegetated depth
       DO jcol = 1, ncol
          ilay = canopy_props%istartlay(jcol)
-         ! PRINT *, 'jcol', jcol
-         ! PRINT *, 'ilay', ilay
          DO jlay = 0, nlay(jcol) - 1
-            ! PRINT *, 'jlay', jlay
-            ! PRINT *, 'veg_frac(ilay + jlay)', veg_frac(ilay + jlay)
-            ! PRINT *, 'LAI_av(jcol)', LAI_av(jcol)
-            ! PRINT *, 'canopy_props%dz(ilay + jlay)', canopy_props%dz(ilay + jlay)
-            IF (veg_frac(ilay + jlay) > 0.) THEN
-               LAI_av_z(ilay + jlay) = LAI_av(jcol)*canopy_props%dz(ilay + jlay)/veg_depth(jcol)
-               veg_ext(ilay + jlay) = LAI_av_z(ilay + jlay)/(2*canopy_props%dz(ilay))
+            IF (veg_frac(ilay + jlay) > 0.0D0 .AND. veg_depth(jcol) > 0.0D0) THEN
+               LAI_av_z(ilay + jlay) = LAI_av(jcol) * canopy_props%dz(ilay + jlay) / veg_depth(jcol)
             END IF
          END DO
       END DO
+
+      ! Define LAI_eff_z for veg_ext:
+      ! - start from the old LAI_av_z
+      ! - then force the first vegetated layer in each column to 0.1
+      LAI_eff_z(:) = LAI_av_z(:)
+
+      DO jcol = 1, ncol
+         ilay = canopy_props%istartlay(jcol)
+
+         ! Find first vegetated layer in this column, if any
+         first_veg_idx = -1
+         DO jlay = 0, nlay(jcol) - 1
+            IF (veg_frac(ilay + jlay) > 0.0D0) THEN
+               first_veg_idx = ilay + jlay
+               EXIT
+            END IF
+         END DO
+
+         IF (first_veg_idx > 0) THEN
+            LAI_eff_z(first_veg_idx) = 0.1D0
+         END IF
+      END DO
+      
+      ! ! find LAV_av_z and veg_ext. Assume the LAI is uniform with height within the vegetation layer.
+      ! IF (.NOT. did_print) THEN
+      !    DO jcol = 1, ncol
+      !       ilay = canopy_props%istartlay(jcol)
+      !       DO jlay = 0, nlay(jcol) - 1
+      !          PRINT *, 'jlay veg_frac(ilay+jlay) LAI_av(jcol) canopy_props%dz(ilay+jlay) veg_ext(ilay+jlay)'
+      !          IF (veg_frac(ilay + jlay) > 0.) THEN
+      !             LAI_av_z(ilay + jlay) = LAI_av(jcol)*canopy_props%dz(ilay + jlay)/veg_depth(jcol)
+      !             veg_ext(ilay + jlay)  = LAI_av_z(ilay + jlay)/(2*canopy_props%dz(ilay))
+      !             PRINT *, jlay, veg_frac(ilay + jlay), LAI_av(jcol), canopy_props%dz(ilay + jlay), veg_ext(ilay + jlay)
+      !          ELSE
+      !             PRINT *, jlay, veg_frac(ilay + jlay), LAI_av(jcol), canopy_props%dz(ilay + jlay), 0.0
+      !          END IF
+      !       END DO
+      !    END DO
+      !    did_print = .TRUE.
+      ! END IF
+
+      ! Compute veg_ext using LAI_eff_z (modified LAI)
+      IF (.NOT. did_print) THEN
+         DO jcol = 1, ncol
+         ilay = canopy_props%istartlay(jcol)
+         DO jlay = 0, nlay(jcol) - 1
+            IF (jlay == 0) THEN
+            PRINT *, 'jlay veg_frac LAI_av LAI_av_z dz LAI_eff_z veg_ext'
+            END IF
+            IF (veg_frac(ilay + jlay) > 0.0D0) THEN
+            veg_ext(ilay + jlay) = LAI_eff_z(ilay + jlay) / (2.0D0 * canopy_props%dz(ilay))
+            PRINT *, jlay, &
+                  veg_frac(ilay + jlay), &
+                  LAI_av(jcol), &
+                  LAI_av_z(ilay + jlay), &
+                  canopy_props%dz(ilay + jlay), &
+                  LAI_eff_z(ilay + jlay), &
+                  veg_ext(ilay + jlay)
+            ELSE
+            PRINT *, jlay, &
+                  veg_frac(ilay + jlay), &
+                  LAI_av(jcol), &
+                  LAI_av_z(ilay + jlay), &
+                  canopy_props%dz(ilay + jlay), &
+                  0.0D0, 0.0D0
+            END IF
+         END DO
+         END DO
+         did_print = .TRUE.
+      END IF
 
       ! set temperature
       tsfc_surf_K = tsfc_surf + 273.15 ! convert surface temperature to Kelvin

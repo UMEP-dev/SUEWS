@@ -3717,16 +3717,6 @@ sites:
         value: 0.0
       soilstore:
         value: 20.0
-      snowfrac:
-        value: 0.0
-      snowpack:
-        value: 0.0
-      icefrac:
-        value: 0.0
-      snowwater:
-        value: 0.0
-      snowdens:
-        value: 0.0
       temperature:
         value:
         - 5.0
@@ -3742,16 +3732,6 @@ sites:
         value: 0.0
       soilstore:
         value: 20.0
-      snowfrac:
-        value: 0.0
-      snowpack:
-        value: 0.0
-      icefrac:
-        value: 0.0
-      snowwater:
-        value: 0.0
-      snowdens:
-        value: 0.0
       temperature:
         value:
         - 5.0
@@ -3767,16 +3747,6 @@ sites:
         value: 0.0
       soilstore:
         value: 20.0
-      snowfrac:
-        value: 0.0
-      snowpack:
-        value: 0.0
-      icefrac:
-        value: 0.0
-      snowwater:
-        value: 0.0
-      snowdens:
-        value: 0.0
       temperature:
         value:
         - 6.0
@@ -3793,16 +3763,6 @@ sites:
         value: 0.0
       soilstore:
         value: 20.0
-      snowfrac:
-        value: 0.0
-      snowpack:
-        value: 0.0
-      icefrac:
-        value: 0.0
-      snowwater:
-        value: 0.0
-      snowdens:
-        value: 0.0
       temperature:
         value:
         - 5.0
@@ -3818,16 +3778,6 @@ sites:
         value: 0.0
       soilstore:
         value: 20.0
-      snowfrac:
-        value: 0.0
-      snowpack:
-        value: 0.0
-      icefrac:
-        value: 0.0
-      snowwater:
-        value: 0.0
-      snowdens:
-        value: 0.0
       temperature:
         value:
         - 5.0
@@ -3843,16 +3793,6 @@ sites:
         value: 0.0
       soilstore:
         value: 20.0
-      snowfrac:
-        value: 0.0
-      snowpack:
-        value: 0.0
-      icefrac:
-        value: 0.0
-      snowwater:
-        value: 0.0
-      snowdens:
-        value: 0.0
       temperature:
         value:
         - 5.0

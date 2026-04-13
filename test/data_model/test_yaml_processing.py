@@ -3431,7 +3431,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             assert "not allowed extra parameter name(s)" in report_content, (
                 "Report should warn about extra parameters"
             )
-            assert "You selected Public mode" in report_content, (
+            assert "You are in Public mode" in report_content, (
                 "Report should mention public mode suggestion"
             )
         else:  # preserves_extra_params (dev mode)

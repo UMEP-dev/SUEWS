@@ -97,6 +97,7 @@ Selection criteria:
 [PASS/FAIL] CI status: All workflows passed
 [PASS/FAIL] On master lineage
 [PASS/FAIL] Release branch created
+[PASS/FAIL] Schema version sync (run /verify-build check)
 [PASS/FAIL] Docs updated (CHANGELOG, version-history RST)
 [PASS/FAIL] GitHub Release notes created (.github/releases/)
 [PASS/FAIL] Release issue updated, sub-issues created for manual steps

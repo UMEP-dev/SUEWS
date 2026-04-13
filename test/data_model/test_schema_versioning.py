@@ -66,7 +66,6 @@ class TestSchemaVersioning:
         config = SUEWSConfig(**config_data)
         assert config.schema_version == "1.0"
 
-    @pytest.mark.skip(reason="Schema versioning needs fix - see GH-991")
     def test_config_without_schema_version_gets_default(self):
         """Test that SUEWSConfig gets default schema version when not specified."""
         config_data = {
@@ -305,8 +304,9 @@ class TestSampleConfig:
 
         # Schema version is optional - if omitted, latest version is assumed
         if "schema_version" in config:
-            assert config["schema_version"] == "1.0", (
-                f"If schema_version is present, it should be '1.0', got {config['schema_version']}"
+            assert config["schema_version"] == CURRENT_SCHEMA_VERSION, (
+                "If schema_version is present, it should match "
+                f"CURRENT_SCHEMA_VERSION ({CURRENT_SCHEMA_VERSION}), got {config['schema_version']}"
             )
             print(
                 f"✓ sample_config.yml has explicit schema_version: {config['schema_version']}"

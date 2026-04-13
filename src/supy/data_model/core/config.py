@@ -93,10 +93,86 @@ def _is_valid_layer_array(field) -> bool:
     )
 
 
+def _get_basemodel_type(annotation):
+    """Extract BaseModel subclass from a type annotation, unwrapping Optional/Union/List."""
+    from typing import get_origin, get_args
+
+    # Direct class check
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return annotation
+
+    origin = get_origin(annotation)
+    args = get_args(annotation)
+
+    # Union (includes Optional)
+    if origin is Union:
+        for arg in args:
+            if arg is type(None):
+                continue
+            result = _get_basemodel_type(arg)
+            if result is not None:
+                return result
+        return None
+
+    # List
+    if origin is list:
+        if args:
+            return _get_basemodel_type(args[0])
+        return None
+
+    # Generic BaseModel subclass (e.g. RefValue[int])
+    if isinstance(origin, type) and issubclass(origin, BaseModel):
+        return origin
+
+    return None
+
+
+def _strip_internal_fields(data, model_cls):
+    """Recursively remove fields marked with internal_only=True from a model_dump dict.
+
+    Modifies data in-place.
+
+    Parameters
+    ----------
+    data : dict
+        Dictionary from model_dump() to strip internal fields from.
+    model_cls : type
+        The Pydantic model class corresponding to data.
+    """
+    if not isinstance(data, dict) or not hasattr(model_cls, "model_fields"):
+        return
+
+    keys_to_remove = []
+
+    for field_name, field_info in model_cls.model_fields.items():
+        extra = field_info.json_schema_extra
+        if isinstance(extra, dict) and extra.get("internal_only"):
+            keys_to_remove.append(field_name)
+            continue
+
+        if field_name not in data:
+            continue
+
+        inner_cls = _get_basemodel_type(field_info.annotation)
+        if inner_cls is None:
+            continue
+
+        value = data[field_name]
+        if isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    _strip_internal_fields(item, inner_cls)
+        elif isinstance(value, dict):
+            _strip_internal_fields(value, inner_cls)
+
+    for key in keys_to_remove:
+        data.pop(key, None)
+
+
 class SUEWSConfig(BaseModel):
     """Main SUEWS configuration."""
 
-    model_config = ConfigDict(title="SUEWS Configuration")
+    model_config = ConfigDict(title="SUEWS Configuration", extra="allow")
 
     name: str = Field(
         default="sample config",
@@ -104,8 +180,8 @@ class SUEWSConfig(BaseModel):
         json_schema_extra={"display_name": "Configuration Name"},
     )
     schema_version: Optional[str] = Field(
-        default="0.1",
-        description="Configuration schema version (e.g., '0.1', '1.0', '1.1'). Only changes when configuration structure changes.",
+        default=None,
+        description="Configuration schema version (for example, '2025.12'). Only changes when configuration structure changes.",
         json_schema_extra={"display_name": "Schema Version"},
     )
     description: str = Field(
@@ -124,8 +200,6 @@ class SUEWSConfig(BaseModel):
         min_length=1,
         json_schema_extra={"display_name": "Sites"},
     )
-
-    model_config = ConfigDict(extra="allow")
 
     # Class-level constant for STEBBS validation parameters
     STEBBS_REQUIRED_PARAMS: ClassVar[List[str]] = [
@@ -3891,11 +3965,30 @@ class SUEWSConfig(BaseModel):
 
         return config
 
-    def to_yaml(self, path: str = "./config-suews.yml"):
-        """Convert config to YAML format"""
+    def to_yaml(
+        self, path: str = "./config-suews.yml", include_internal: bool = True
+    ):
+        """Convert config to YAML format.
+
+        Parameters
+        ----------
+        path : str
+            Output YAML file path.
+        include_internal : bool
+            If True, preserve internal-only fields for lossless round-tripping.
+            Set to False to produce a clean user-facing YAML export.
+        """
         # Use mode='json' to serialize enums as their values
         config_dict = self.model_dump(exclude_none=True, mode="json")
-        with open(path, "w") as file:
+
+        # Strip private implementation fields
+        for key in ("_yaml_path", "_auto_generate_annotated"):
+            config_dict.pop(key, None)
+
+        if not include_internal:
+            _strip_internal_fields(config_dict, type(self))
+
+        with open(path, "w", encoding="utf-8") as file:
             yaml.dump(
                 config_dict,
                 file,

@@ -255,7 +255,7 @@ def convert_to_yaml(
 
         # Save to YAML
         click.echo(f"Saving to: {output_path}")
-        config.to_yaml(output_path)
+        config.to_yaml(output_path, include_internal=True)
 
     finally:
         if temp_dir_obj:

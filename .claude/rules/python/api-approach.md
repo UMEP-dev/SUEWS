@@ -125,10 +125,10 @@ This hybrid approach is acceptable for:
 |---------------|----------|-------|
 | Quick start | Pure OOP | `from_sample_data()`, `run()`, `results` |
 | Site setup | Hybrid | DataFrame extraction for parameter modification |
-| Impact studies | Hybrid | DataFrame for scenario construction |
+| Impact studies | Config-level | Config modification for scenario construction |
 | External coupling | Hybrid | DataFrame for forcing modification |
 
-Always include a docstring note explaining why DataFrame extraction is used when applicable.
+Always include a docstring note explaining the API approach used (why DataFrame extraction or config-level modification is chosen).
 
 ---
 

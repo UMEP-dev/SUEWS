@@ -10,14 +10,14 @@ to investigate the impacts on urban climate of:
 1. **Surface properties**: Physical attributes of land covers (e.g., albedo)
 2. **Background climate**: Long-term meteorological conditions (e.g., air temperature)
 
-**API approach**: This tutorial uses the :class:`~supy.SUEWSSimulation` OOP interface but
-extracts DataFrames for scenario construction. This hybrid pattern is appropriate
-for multi-scenario sensitivity analysis where you need to programmatically
-modify parameters across many test cases.
+**API approach**: This tutorial uses the :class:`~supy.SUEWSSimulation` OOP interface
+throughout. Scenarios are constructed by modifying the configuration directly --
+no DataFrame manipulation is needed. This config-level approach scales naturally
+from single-site to multi-site setups.
 
 **Tutorial structure**:
 
-- Part 1 (Albedo): Build scenario matrix with DataFrame, run all at once
+- Part 1 (Albedo): Sweep building albedo via config modification
 - Part 2 (Climate): Modify forcing in a loop, combine results for analysis
 """
 
@@ -55,73 +55,52 @@ print(f"Simulation period: {forcing_sliced.df.index[0]} to {forcing_sliced.df.in
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # First, let's look at the default albedo values from the sample dataset.
-# We access the initial state via the simulation object.
+# We access the site configuration directly via the config object.
 
+site = sim.config.sites[0]
+lc = site.properties.land_cover
 print("Default albedo values by surface type:")
-print(sim.state_init.alb)
+print(f"  Paved:    {lc.paved.alb}")
+print(f"  Building: {lc.bldgs.alb}")
 
 # %%
-# Configure Test Surface
-# ~~~~~~~~~~~~~~~~~~~~~~
+# Run Albedo Scenarios
+# ~~~~~~~~~~~~~~~~~~~~
 #
-# Create a test surface with 99% buildings and 1% paved area to isolate
-# the effect of building albedo. We extract the DataFrame for modification.
-
-# Extract state for scenario construction (DataFrame needed for pd.concat)
-df_state_init = sim.state_init.copy()
-
-# Create a modified state for testing
-df_state_test = df_state_init.copy()
-
-# Set surface fractions: 99% buildings, 1% paved
-df_state_test.sfr_surf = 0.0  # Use float to preserve dtype
-df_state_test.loc[:, ("sfr_surf", "(1,)")] = 0.99  # Buildings
-df_state_test.loc[:, ("sfr_surf", "(0,)")] = 0.01  # Paved
-
-# Verify fractions sum to 1.0
-assert abs(df_state_test.sfr_surf.sum(axis=1).iloc[0] - 1.0) < 1e-6, "Surface fractions must sum to 1.0"
-
-print("Modified surface fractions:")
-print(df_state_test.sfr_surf)
-
-# %%
-# Build Albedo Scenario Matrix
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# To isolate the effect of building albedo, each scenario sets surface
+# fractions to 99% buildings and 1% paved, then varies the building albedo.
+# Each iteration creates a fresh simulation to avoid state accumulation
+# between runs.
 #
-# Construct a multi-scenario DataFrame with different albedo values.
-# This is the key step where DataFrame manipulation is necessary.
+# This pattern works identically for multi-site configurations -- all sites
+# in the config are modified in the inner loop.
 
 # Test 3 albedo values (0.1 to 0.8) for faster tutorial execution
 n_albedo = 3
 list_albedo = np.linspace(0.1, 0.8, n_albedo).round(2)
 
-# Create scenario matrix by concatenating copies with integer grid IDs
-df_state_scenarios = (
-    pd.concat(
-        {i: df_state_test.copy() for i in range(n_albedo)},
-        names=["scenario", "grid"],
-    )
-    .droplevel("grid", axis=0)
-    .rename_axis(index="grid")
-)
+# Run scenarios and collect results
+dict_outputs = {}
 
-# Set building albedo for each scenario (explicit per-row assignment for safety)
-for idx, alb_val in zip(df_state_scenarios.index, list_albedo):
-    df_state_scenarios.loc[idx, ("alb", "(1,)")] = alb_val
+for alb_val in list_albedo:
+    # Fresh load each time to avoid state leakage
+    sim_alb = SUEWSSimulation.from_sample_data()
 
-print(f"Created {n_albedo} albedo scenarios:")
-print(df_state_scenarios.alb)
+    # Modify building albedo for all sites
+    for site in sim_alb.config.sites:
+        site.properties.land_cover.bldgs.sfr = 0.99
+        site.properties.land_cover.paved.sfr = 0.01
+        site.properties.land_cover.evetr.sfr = 0.0
+        site.properties.land_cover.dectr.sfr = 0.0
+        site.properties.land_cover.grass.sfr = 0.0
+        site.properties.land_cover.bsoil.sfr = 0.0
+        site.properties.land_cover.water.sfr = 0.0
+        site.properties.land_cover.bldgs.alb = alb_val
 
-# %%
-# Run Albedo Simulations
-# ~~~~~~~~~~~~~~~~~~~~~~
-#
-# Create a simulation from the scenario matrix and run all scenarios at once.
-# This demonstrates efficient batch execution.
-
-# Create simulation from scenario matrix and run
-sim_albedo = SUEWSSimulation.from_state(df_state_scenarios).update_forcing(forcing_sliced)
-output_albedo = sim_albedo.run(logging_level=90)
+    # Update forcing and run
+    sim_alb.update_forcing(forcing_sliced)
+    output = sim_alb.run(logging_level=90)
+    dict_outputs[alb_val] = output
 
 print(f"Completed {n_albedo} albedo simulations")
 
@@ -131,15 +110,16 @@ print(f"Completed {n_albedo} albedo simulations")
 #
 # Examine the temperature response to albedo changes using the OOP output interface.
 
-# Access results via output.SUEWS (OOP interface)
-df_results = output_albedo.SUEWS.unstack(0)
+# Combine T2 results from all scenarios
+dict_T2 = {alb: output.SUEWS.T2.droplevel("grid") for alb, output in dict_outputs.items()}
+df_T2_all = pd.concat(dict_T2, axis=1, names=["albedo"])
 
 # Select last month for analysis
-last_month = f"{df_results.index[-1].year}-{df_results.index[-1].month:02d}"
-df_month = df_results.loc[last_month]
+last_month = f"{df_T2_all.index[-1].year}-{df_T2_all.index[-1].month:02d}"
+df_month = df_T2_all.loc[last_month]
 
 # Calculate temperature statistics across scenarios
-df_T2_stats = df_month.T2.describe()
+df_T2_stats = df_month.describe()
 
 # Calculate temperature difference from baseline (lowest albedo)
 df_T2_diff = df_T2_stats.transform(lambda x: x - df_T2_stats.iloc[:, 0])
@@ -218,9 +198,8 @@ for temp_offset in list_temp_offset:
     df_forcing_modified["Tair"] += temp_offset
 
     # Run simulation using OOP interface
-    sim_climate = SUEWSSimulation.from_state(df_state_init).update_forcing(
-        df_forcing_modified
-    )
+    sim_climate = SUEWSSimulation.from_sample_data()
+    sim_climate.update_forcing(df_forcing_modified)
     output = sim_climate.run(logging_level=90)
 
     # Store results with scenario label
@@ -290,9 +269,10 @@ plt.tight_layout()
 #    - All metrics (min, mean, max) increase with warming
 #    - The relationship is approximately linear within the tested range
 #
-# These sensitivity analyses demonstrate how SUEWS can evaluate both mitigation
-# strategies (surface property changes) and climate change impacts (background
-# warming scenarios).
+# Both parts use the same pattern: **loop over scenarios, modify the config or
+# forcing, run, collect results**. This approach scales naturally to multi-site
+# configurations -- for example, a YAML with 15 spatial grids can be swept
+# identically by iterating over ``sim.config.sites`` in the inner loop.
 #
 # **Next steps:**
 #

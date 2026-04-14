@@ -144,6 +144,7 @@ See `rules/python/api-approach.md` for full guidance.
 ### Required Patterns
 
 - **Pure OOP**: Quick-start tutorials use only :class:`~supy.SUEWSSimulation` methods
+- **Config-level**: Impact study tutorials modify ``sim.config`` directly for scenario construction
 - **Hybrid with context**: Tutorials extracting DataFrames must include a docstring note
 
 ### Docstring Notes for Hybrid Tutorials

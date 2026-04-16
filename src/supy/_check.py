@@ -161,7 +161,7 @@ FORCING_REQUIREMENTS = {
     ("emissionsmethod", 0): ["qf"],  # Uses observed anthropogenic heat flux
     ("smdmethod", 1): ["xsmd"],  # Uses observed volumetric soil moisture
     ("smdmethod", 2): ["xsmd"],  # Uses observed gravimetric soil moisture
-    ("laimethod", 0): ["lai"],  # Uses observed LAI from forcing (issue #1291)
+    ("laimethod", 0): ["lai"],  # Uses observed LAI from forcing
 }
 
 

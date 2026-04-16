@@ -80,7 +80,7 @@ CONTAINS
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
 
 
-      INTEGER, PARAMETER :: LAICalcYes = 1 ! boolean to determine if calculate LAI [-]
+      INTEGER :: LAICalcYes ! 1 = calculate LAI internally (GDD), 0 = use forcing%LAI_obs [-]
 
       REAL(KIND(1D0)), DIMENSION(2) :: BaseT_Heating
 
@@ -108,6 +108,10 @@ CONTAINS
 
          ! save initial values
          phenState_prev = phenState
+
+         ! LAI calculation switch: pulled from config (model.physics.laimethod in YAML).
+         ! 0 = use forcing%LAI_obs (observed/prescribed), 1 = compute internally via GDD/SDD.
+         LAICalcYes = config%LAImethod
 
          ASSOCIATE ( &
             lat => siteInfo%lat, &
@@ -680,8 +684,11 @@ CONTAINS
 
       END DO !End of loop over veg surfaces
 
-      IF (LAICalcYes == 0) THEN ! moved to SUEWS_cal_DailyState, TS 18 Sep 2017
-         ! LAI(id-1,:)=LAI_obs ! check -- this is going to be a problem as it is not for each vegetation class
+      ! Observed-LAI override: when LAICalcYes == 0 and the forcing column carries a
+      ! valid value (> 0), use forcing%LAI_obs for every vegetation class. A non-positive
+      ! value (e.g. the -999 sentinel) is treated as "no observation this day" and the
+      ! calculated LAI is kept. The scalar-to-all-veg-classes limitation is tracked in #1292.
+      IF (LAICalcYes == 0 .AND. LAI_obs > 0.0D0) THEN
          LAI_id_next = LAI_obs
       END IF
       !------------------------------------------------------------------------------

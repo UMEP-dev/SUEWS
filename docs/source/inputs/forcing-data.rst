@@ -223,7 +223,7 @@ These additional variables can enhance model performance but are not required:
    * - Leaf area index
      - m²/m²
      - lai
-     - If not modeled
+     - If ``model.physics.laimethod = 0`` (see :ref:`prescribed-lai`)
    * - Diffuse radiation
      - W/m²
      - kdiff
@@ -236,6 +236,28 @@ These additional variables can enhance model performance but are not required:
      - degrees
      - wdir
      - Currently not used
+
+.. _prescribed-lai:
+
+Prescribing Observed LAI
+------------------------
+
+By default SUEWS computes leaf area index (LAI) internally using growing-degree-day (GDD) and
+senescence-degree-day (SDD) thresholds on daily mean air temperature. For sites where the
+observed LAI cycle is driven by rainfall (monsoon grasslands, semi-arid sites) or where a
+remote-sensing product is available, users can bypass the internal scheme by:
+
+1. Setting ``model.physics.laimethod: 0`` in the YAML configuration (0 = OBSERVED,
+   1 = CALCULATED; default is 1).
+2. Populating the ``lai`` column of the meteorological forcing file with the observed
+   values (valid range: 0 - 15 m²/m²; ``-999`` means "no observation for this timestep"
+   and the calculated LAI is kept for that day).
+
+.. note::
+   When ``laimethod: 0`` is set, the single scalar ``lai`` value from the forcing file is
+   applied uniformly to all three vegetation classes (evergreen trees, deciduous trees,
+   grass) each day. Per-vegetation-class LAI forcing and moisture-aware phenology are
+   tracked in `issue #1292 <https://github.com/UMEP-dev/SUEWS/issues/1292>`__.
 
 Generating Forcing Data from ERA5
 ----------------------------------
@@ -477,7 +499,8 @@ SUEWS provides the ``check_forcing()`` function to validate your forcing data fi
      - Volumetric soil moisture
    * - lai
      - 0 - 15 m²/m²
-     - Leaf area index
+     - Observed leaf area index (consumed only when ``model.physics.laimethod: 0``;
+       otherwise ignored — see :ref:`prescribed-lai`)
    * - kdiff, kdir
      - 0 - 1400 W/m²
      - Radiation components

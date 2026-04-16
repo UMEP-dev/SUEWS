@@ -94,7 +94,12 @@
 .. option:: lai
 
     :Description:
-        Observed leaf area index [|m^-2| |m^-2|]
+        Observed leaf area index [|m^-2| |m^-2|]. Used only when
+        ``model.physics.laimethod`` is set to ``0``; otherwise ignored. When active,
+        the scalar value is applied to every vegetation class each day; ``-999`` (or any
+        value ``<= 0``) is treated as "no observation" and the internally calculated
+        LAI is kept for that day. See :ref:`prescribed-lai` and issue
+        `#1292 <https://github.com/UMEP-dev/SUEWS/issues/1292>`__.
 
 
 .. option:: ldown

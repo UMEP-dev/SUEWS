@@ -364,6 +364,24 @@ class WaterUseMethod(Enum):
         return str(self.value)
 
 
+class LAIMethod(Enum):
+    """
+    Method for determining leaf area index (LAI).
+
+    0: OBSERVED - Uses observed LAI values from the forcing file (lai column); same value applied to every vegetation class each day. Missing values (<=0) fall back to the calculated LAI for that day.
+    1: CALCULATED - LAI calculated internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.
+    """
+
+    OBSERVED = 0
+    CALCULATED = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
 class RSLMethod(Enum):
     """
     Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).
@@ -626,6 +644,7 @@ for enum_class in [
     StabilityMethod,
     SMDMethod,
     WaterUseMethod,
+    LAIMethod,
     RSLMethod,
     FAIMethod,
     RSLLevel,
@@ -698,6 +717,14 @@ class ModelPhysics(BaseModel):
         default=WaterUseMethod.MODELLED,
         description=_enum_description(WaterUseMethod),
         json_schema_extra={"unit": "dimensionless"},
+    )
+    laimethod: FlexibleRefValue(LAIMethod) = Field(
+        default=LAIMethod.CALCULATED,
+        description=_enum_description(LAIMethod),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "note": "Set to 0 (OBSERVED) to prescribe LAI from the lai column of the meteorological forcing. See issue #1292 for the planned per-vegetation-class extension.",
+        },
     )
     rslmethod: FlexibleRefValue(RSLMethod) = Field(
         default=RSLMethod.VARIABLE,
@@ -792,6 +819,7 @@ class ModelPhysics(BaseModel):
             "stabilitymethod",
             "smdmethod",
             "waterusemethod",
+            "laimethod",
             "rslmethod",
             "faimethod",
             "rsllevel",
@@ -851,6 +879,7 @@ class ModelPhysics(BaseModel):
             "same_albedo_roof": SameAlbedoRoof.DISABLED,
             "same_emissivity_wall": SameEmissivityWall.DISABLED,
             "same_emissivity_roof": SameEmissivityRoof.DISABLED,
+            "laimethod": LAIMethod.CALCULATED,
         }
 
         for attr in required_attrs:

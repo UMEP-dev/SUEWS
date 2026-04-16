@@ -388,87 +388,58 @@ CONTAINS
          END DO
       END DO
 
-      ! Define LAI_eff_z for veg_ext:
-      ! - first vegetated layer in each column gets LAI = 0.1
-      ! - remaining vegetated layers share (LAI_av - 0.1)
-      !   proportionally to dz
-      LAI_eff_z(:) = 0.0D0
-
+      ! find LAV_av_z and veg_ext. Assume the LAI is uniform with height within the vegetation layer.
       DO jcol = 1, ncol
          ilay = canopy_props%istartlay(jcol)
-
-         ! Find first vegetated layer in this column, if any
-         first_veg_idx = -1
+         ! PRINT *, 'jcol', jcol
+         ! PRINT *, 'ilay', ilay
          DO jlay = 0, nlay(jcol) - 1
-            IF (veg_frac(ilay + jlay) > 0.0D0) THEN
-               first_veg_idx = ilay + jlay
-               EXIT
+            ! PRINT *, 'jlay', jlay
+            ! PRINT *, 'veg_frac(ilay + jlay)', veg_frac(ilay + jlay)
+            ! PRINT *, 'LAI_av(jcol)', LAI_av(jcol)
+            ! PRINT *, 'canopy_props%dz(ilay + jlay)', canopy_props%dz(ilay + jlay)
+            IF (veg_frac(ilay + jlay) > 0.) THEN
+               LAI_av_z(ilay + jlay) = LAI_av(jcol)*canopy_props%dz(ilay + jlay)/veg_depth(jcol)
+               veg_ext(ilay + jlay) = LAI_av_z(ilay + jlay)/(2*canopy_props%dz(ilay))
             END IF
          END DO
-
-         IF (first_veg_idx > 0) THEN
-
-            ! First vegetated layer fixed to 0.1
-            LAI_eff_z(first_veg_idx) = 0.1D0
-
-            ! Sum dz of remaining vegetated layers
-            sum_dz_rest = 0.0D0
-            DO jlay = first_veg_idx - ilay + 1, nlay(jcol) - 1
-               IF (veg_frac(ilay + jlay) > 0.0D0) THEN
-                  sum_dz_rest = sum_dz_rest + canopy_props%dz(ilay + jlay)
-               END IF
-            END DO
-
-            ! Distribute remaining LAI
-            lai_remain = MAX(0.0D0, LAI_av(jcol) - 0.1D0)
-
-            IF (sum_dz_rest > 0.0D0) THEN
-               DO jlay = first_veg_idx - ilay + 1, nlay(jcol) - 1
-                  IF (veg_frac(ilay + jlay) > 0.0D0) THEN
-                     LAI_eff_z(ilay + jlay) = &
-                        lai_remain * canopy_props%dz(ilay + jlay) / sum_dz_rest
-                  END IF
-               END DO
-            END IF
-
-         END IF
       END DO
 
-      ! Compute veg_ext using LAI_eff_z (modified LAI)
+      ! Print diagnostics for old LAI_av_z-based veg_ext (once)
       IF (.NOT. did_print) THEN
          DO jcol = 1, ncol
             ilay = canopy_props%istartlay(jcol)
 
             DO jlay = 0, nlay(jcol) - 1
                IF (jlay == 0) THEN
-                  PRINT *, 'jlay veg_frac LAI_av LAI_av_z dz LAI_eff_z veg_ext'
+                  PRINT *, 'jlay veg_frac LAI_av LAI_av_z dz veg_ext veg_fsd veg_contact'
                END IF
 
                IF (veg_frac(ilay + jlay) > 0.0D0) THEN
-                  veg_ext(ilay + jlay) = &
-                     LAI_eff_z(ilay + jlay) / &
-                     (2.0D0 * canopy_props%dz(ilay))
-
                   PRINT *, jlay, &
                         veg_frac(ilay + jlay), &
                         LAI_av(jcol), &
                         LAI_av_z(ilay + jlay), &
                         canopy_props%dz(ilay + jlay), &
-                        LAI_eff_z(ilay + jlay), &
-                        veg_ext(ilay + jlay)
+                        veg_ext(ilay + jlay), &
+                        veg_fsd(ilay + jlay), &
+                        veg_contact_fraction(ilay + jlay)
                ELSE
                   PRINT *, jlay, &
                         veg_frac(ilay + jlay), &
                         LAI_av(jcol), &
                         LAI_av_z(ilay + jlay), &
                         canopy_props%dz(ilay + jlay), &
-                        0.0D0, 0.0D0
+                        0.0D0, &
+                        veg_fsd(ilay + jlay), &
+                        veg_contact_fraction(ilay + jlay)
                END IF
             END DO
          END DO
 
          did_print = .TRUE.
       END IF
+
 
       ! set temperature
       tsfc_surf_K = tsfc_surf + 273.15 ! convert surface temperature to Kelvin
@@ -763,17 +734,18 @@ CONTAINS
       ! Approximated from veg_abs_sw_spc and veg_frac using an effective
       ! absorptance A_veg_sw = 1 - veg_ssa_sw.
       !-----------------------------------------------------------------
+
       veg_in_sw_spc  = -999.0D0
       veg_out_sw_spc = -999.0D0
 
       IF (config%do_sw .AND. canopy_props%nlay(1) > 0) THEN
+         ilay = canopy_props%istartlay(1)
+
          DO jlay = 1, MIN(canopy_props%nlay(1), 15)
-            IF (veg_frac(jlay) > 0.0D0 .AND. veg_abs_sw_spc(jlay) > -900.0D0) THEN
 
-               ! Absorption per vegetated plan area (W m-2 veg area)
-               veg_abs_sw_per_veg = veg_abs_sw_spc(jlay) / veg_frac(jlay)
+            IF (veg_frac(ilay + jlay - 1) > 0.0D0 .AND. veg_abs_sw_spc(jlay) > -900.0D0) THEN
+               veg_abs_sw_per_veg = veg_abs_sw_spc(jlay) / veg_frac(ilay + jlay - 1)
 
-               ! Effective shortwave absorptance of vegetation
                A_veg_sw = MAX(1.0D-3, 1.0D0 - veg_ssa_sw)
 
                veg_in_sw_spc(jlay)  = veg_abs_sw_per_veg / A_veg_sw

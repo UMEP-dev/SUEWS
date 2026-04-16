@@ -723,7 +723,7 @@ class ModelPhysics(BaseModel):
         description=_enum_description(LAIMethod),
         json_schema_extra={
             "unit": "dimensionless",
-            "note": "Set to 0 (OBSERVED) to prescribe LAI from the lai column of the meteorological forcing. See issue #1292 for the planned per-vegetation-class extension.",
+            "note": "Set to 0 (OBSERVED) to prescribe LAI from the lai column of the meteorological forcing.",
         },
     )
     rslmethod: FlexibleRefValue(RSLMethod) = Field(

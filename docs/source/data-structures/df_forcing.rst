@@ -99,9 +99,7 @@
         the scalar value is applied uniformly to all three vegetation classes
         (evergreen trees, deciduous trees, grass) each day; ``-999`` (or any value
         ``<= 0``) is treated as "no observation" and the internally calculated LAI is
-        kept for that day. See :ref:`prescribed-lai`; per-vegetation-class LAI forcing
-        and moisture-aware phenology are tracked in
-        `issue #1292 <https://github.com/UMEP-dev/SUEWS/issues/1292>`__.
+        kept for that day. See :ref:`prescribed-lai`.
 
 
 .. option:: ldown

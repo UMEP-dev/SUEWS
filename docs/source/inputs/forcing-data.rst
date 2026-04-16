@@ -250,14 +250,13 @@ remote-sensing product is available, users can bypass the internal scheme by:
 1. Setting ``model.physics.laimethod: 0`` in the YAML configuration (0 = OBSERVED,
    1 = CALCULATED; default is 1).
 2. Populating the ``lai`` column of the meteorological forcing file with the observed
-   values (valid range: 0 - 15 m²/m²; ``-999`` means "no observation for this timestep"
-   and the calculated LAI is kept for that day).
+   values in m²/m². Use ``-999`` for timesteps with no observation; the calculated LAI
+   is then kept for that day.
 
 .. note::
    When ``laimethod: 0`` is set, the single scalar ``lai`` value from the forcing file is
    applied uniformly to all three vegetation classes (evergreen trees, deciduous trees,
-   grass) each day. Per-vegetation-class LAI forcing and moisture-aware phenology are
-   tracked in `issue #1292 <https://github.com/UMEP-dev/SUEWS/issues/1292>`__.
+   grass) each day.
 
 Generating Forcing Data from ERA5
 ----------------------------------

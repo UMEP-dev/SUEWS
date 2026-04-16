@@ -1548,7 +1548,7 @@ def create_analysis_report(
             param_name = param_path.split(".")[-1]
             report_lines.append(f"-- {param_name} at level {param_path}")
             report_lines.append(
-                f"   Suggested fix: You selected Public mode. Consider either to switch to Dev mode, or remove this extra parameter since this is not in the standard yaml."
+                f"   Suggested fix: You are in Public mode. Consider switching to Dev mode, or remove this extra parameter as it is not in the standard yaml."
             )
         report_lines.append("")
 

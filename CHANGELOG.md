@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 73 | 82 | 29 | 80 | 40 | 305 |
+| 2026 | 74 | 82 | 29 | 80 | 40 | 306 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -58,6 +58,7 @@ EXAMPLES:
 
 - [bugfix][experimental] Fix missing if branch in setpointmethod rule, and move setpointmethod rule in stebbs_rules.py (PR #1284)
 - [bugfix] Allow ref and ref sub-keys in user YAML for both public and dev validator modes (PR #1286)
+- [feature][experimental] Refine forcing height (z) rule to use building surface fraction (sfr) as plan area fraction, applying regime-based ranges from Grimmond & Oke, 1999, Fig. 1 (PR #1287).
 
 ### 8 Apr 2026
 

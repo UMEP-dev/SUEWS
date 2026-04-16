@@ -685,7 +685,8 @@ def validate_model_option_same_emissivity(context) -> List[ValidationResult]:
 @RulesRegistry.add_rule("forcing_height")
 def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
     """
-    Validate that the forcing height (z) is at least twice the mean and maximum building heights.
+    Validate that the forcing height (z) lies within an acceptable range
+    relative to urban morphology.
 
     Parameters
     ----------
@@ -695,16 +696,28 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
     Returns
     -------
     List[ValidationResult]
-        List of validation results indicating errors or warnings if the forcing height is too low.
+        List of validation results indicating errors or warnings if the forcing height is out of the allowed range.
 
     Notes
     -----
-    - Raises an ERROR if `z` < 2 * mean building height (`land_cover.bldgs.bldgh`).
-    - Raises a WARNING if `z` < 2 * maximum configured building height, where the maximum is the largest of:
-        - `land_cover.bldgs.bldgh`
-        - `building_archetype.stebbs_Height` (if `stebbsmethod == 1`)
-        - Last non-zero entry in `vertical_layers.height` (SPARTACUS top height, if enabled)
-    - This check ensures the forcing height is appropriate relative to the urban morphology.
+    - The minimum allowed factor depends on building plan area fraction (equal to bldgs.sfr):
+        - If bldgs.sfr >= 0.35:
+            - z must be between 1.5* and 5* building mean height
+        - If bldgs.sfr < 0.35:
+            - z must be between 2* and 5* building mean height
+    For forcing height ranges reference, see Grimmond, C. S. B., and T. R. Oke, 1999: Aerodynamic 
+    Properties of Urban Areas Derived from Analysis of Surface Form. J. Appl. Meteor. 
+    Climatol., 38, 1262-1292, Fig. 1.
+
+    - Two reference heights are used:
+        - Mean building height (land_cover.bldgs.bldgh) - ERROR if violated
+        - Maximum building height - WARNING if violated
+
+    - The maximum building height is defined as the largest of:
+        - land_cover.bldgs.bldgh
+        - building_archetype.stebbs_Height (if stebbsmethod == 1)
+        - The last non-zero value in vertical_layers.height
+          (SPARTACUS top height, if enabled)
     """
     def _as_float(x: Any) -> Optional[float]:
         if x is None:
@@ -756,6 +769,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
         land_cover_raw = _unwrap_nested_value(props.get("land_cover") or {})
         bldgs = _unwrap_nested_value(land_cover_raw.get("bldgs", {})) if isinstance(land_cover_raw, Mapping) else None
         bldgh = _as_float(_unwrap_nested_value(bldgs.get("bldgh"))) if isinstance(bldgs, Mapping) else None
+        sfr = _as_float(_unwrap_nested_value(bldgs.get("sfr"))) if isinstance(bldgs, Mapping) else None
 
         # optional STEBBS archetype height (only when STEBBS is enabled)
         stebbs_height = None
@@ -766,7 +780,6 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
 
         # SPARTACUS heights (only if SPARTACUS is enabled via netradiationmethod)
         spartacus_top = None
-
         if netradiationmethod_val in (1001, 1002, 1003):
             vertical_layers = _unwrap_nested_value(props.get("vertical_layers"))
             height_arr = None
@@ -774,68 +787,104 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
                 height_arr = _unwrap_nested_value(vertical_layers.get("height"))
                 spartacus_top = _last_nonzero_from_height(height_arr)
 
-        # --- ERROR: z smaller than 2x mean building height ---
-        if bldgh is None:
+        # --- Check for missing bldgh or sfr ---
+        if bldgh is None or sfr is None:
+            missing = []
+            if bldgh is None:
+                missing.append("land_cover.bldgs.bldgh")
+            if sfr is None:
+                missing.append("land_cover.bldgs.sfr")
             results.append(
                 ValidationResult(
                     status="WARNING",
                     category="FORCING",
-                    parameter="properties.land_cover.bldgs.bldgh",
+                    parameter="properties.land_cover.bldgs",
                     site_index=site_idx,
                     site_gridid=site_gridid,
                     message=(
-                        f"Site '{site_name}': cannot validate forcing height z={z} against "
-                        "2*mean building height because land_cover.bldgs.bldgh is missing."
+                        f"Site '{site_name}': cannot validate forcing height z={z} against building height and sfr because {', '.join(missing)} is missing."
                     ),
-                    suggested_value="Provide land_cover.bldgs.bldgh to enable this check.",
+                    suggested_value="Provide both land_cover.bldgs.bldgh and land_cover.bldgs.sfr to enable this check.",
                 )
             )
-        else:
-            threshold_mean = 2.0 * bldgh
-            if z < threshold_mean:
-                results.append(
-                    ValidationResult(
-                        status="ERROR",
-                        category="FORCING",
-                        parameter="properties.z",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        message=(
-                            f"Site '{site_name}': forcing height z={z} is smaller than "
-                            f"2*mean building height (2*bldgh={threshold_mean}; bldgh={bldgh}). "
-                        ),
-                        suggested_value=f"Increase z to >= {threshold_mean} (or reduce bldgh).",
-                    )
-                )
+            continue
 
-        # --- WARNING: z smaller than 2x max configured building height ---
+        # --- Determine max building height ---
+        # bldgh is guaranteed non-None here (checked above), so candidates is never empty
         candidates = [h for h in [bldgh, stebbs_height, spartacus_top] if h is not None]
-        if candidates:
-            h_max = max(candidates)
-            threshold_max = 2.0 * h_max
-            if z < threshold_max:
-                parts = []
-                if bldgh is not None:
-                    parts.append(f"bldgh={bldgh}")
-                if stebbs_height is not None:
-                    parts.append(f"stebbs_Height={stebbs_height}")
-                if spartacus_top is not None:
-                    parts.append(f"SPARTACUS top layer height={spartacus_top}")
+        h_max = max(candidates)
+        h_mean = bldgh  # mean building height is always bldgh
 
-                results.append(
-                    ValidationResult(
-                        status="WARNING",
-                        category="FORCING",
-                        parameter="properties.z",
-                        site_index=site_idx,
-                        site_gridid=site_gridid,
-                        message=(
-                            f"Site '{site_name}': forcing height z={z} m is smaller than "
-                            f"2*max building height (2*max building height={threshold_max}; max building height={h_max} "
-                            f"from {', '.join(parts)})."
-                        ),
-                        suggested_value=f"Consider increasing z to >= {threshold_max} if appropriate for your case.",
-                    )
+        # --- Determine allowed z range based on sfr ---
+        if sfr < 0.35:
+            min_factor = 2.0
+        else:
+            min_factor = 1.5
+        max_factor = 5.0
+
+        min_z_mean = min_factor * h_mean
+        max_z_mean = max_factor * h_mean
+        min_z_max = min_factor * h_max
+        max_z_max = max_factor * h_max
+
+        # --- Check z against allowed range for mean height (ERROR) ---
+        if z < min_z_mean:
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="FORCING",
+                    parameter="properties.z",
+                    site_index=site_idx,
+                    site_gridid=site_gridid,
+                    message=(
+                        f"Site '{site_name}': forcing height z={z} is below the minimum allowed ({min_factor}* mean building height = {min_z_mean}) for sfr={sfr}."
+                    ),
+                    suggested_value=f"Increase z to >= {min_z_mean} (mean building height={h_mean}, sfr={sfr})",
                 )
+            )
+        elif z > max_z_mean:
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="FORCING",
+                    parameter="properties.z",
+                    site_index=site_idx,
+                    site_gridid=site_gridid,
+                    message=(
+                        f"Site '{site_name}': forcing height z={z} is above the maximum allowed ({max_factor}* mean building height = {max_z_mean})."
+                    ),
+                    suggested_value=f"Reduce z to <= {max_z_mean} (mean building height={h_mean}).",
+                )
+            )
+
+        # --- Check z against allowed range for max height (WARNING) ---
+        if z < min_z_max:
+            results.append(
+                ValidationResult(
+                    status="WARNING",
+                    category="FORCING",
+                    parameter="properties.z",
+                    site_index=site_idx,
+                    site_gridid=site_gridid,
+                    message=(
+                        f"Site '{site_name}': forcing height z={z} is below the minimum allowed ({min_factor}* max building height = {min_z_max}) for sfr={sfr}."
+                    ),
+                    suggested_value=f"Increase z to >= {min_z_max} (max building height={h_max}, sfr={sfr}).",
+                )
+            )
+        elif z > max_z_max:
+            results.append(
+                ValidationResult(
+                    status="WARNING",
+                    category="FORCING",
+                    parameter="properties.z",
+                    site_index=site_idx,
+                    site_gridid=site_gridid,
+                    message=(
+                        f"Site '{site_name}': forcing height z={z} is above the maximum allowed ({max_factor}* max building height = {max_z_max})."
+                    ),
+                    suggested_value=f"Reduce z to <= {max_z_max} (max building height={h_max}).",
+                )
+            )
 
     return results

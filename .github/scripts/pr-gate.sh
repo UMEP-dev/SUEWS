@@ -8,6 +8,7 @@
 #   DETECT_CHANGES_RESULT -- needs.detect-changes.result
 #   BUILD_WHEELS_RESULT   -- needs.build_wheels.result
 #   RETAG_UMEP_RESULT     -- needs.retag_umep.result
+#   TEST_BRIDGE_RESULT    -- needs.test_bridge_loading.result
 #   NEEDS_BUILD           -- needs.detect-changes.outputs.needs-build
 
 set -euo pipefail
@@ -16,6 +17,7 @@ echo "=== Job Results ==="
 echo "detect-changes: ${DETECT_CHANGES_RESULT}"
 echo "build_wheels: ${BUILD_WHEELS_RESULT}"
 echo "retag_umep: ${RETAG_UMEP_RESULT}"
+echo "test_bridge_loading: ${TEST_BRIDGE_RESULT}"
 echo "needs-build: ${NEEDS_BUILD}"
 echo ""
 
@@ -54,18 +56,29 @@ if [[ "${NEEDS_BUILD}" == "true" ]]; then
     VALIDATION_PASSED=false
   fi
 
+  echo "Validating bridge-load smoke (cross-CPython)..."
+  if [[ "${TEST_BRIDGE_RESULT}" == "success" ]]; then
+    echo "[OK] Bridge-load smoke passed on all matrix cells"
+  else
+    echo "[X] Bridge-load smoke failed"
+    echo "  test_bridge_loading: ${TEST_BRIDGE_RESULT}"
+    VALIDATION_PASSED=false
+  fi
+
 else
   echo "No code changes - builds not required"
 
   if [[ "${BUILD_WHEELS_RESULT}" == "skipped" ]] && \
-     [[ "${RETAG_UMEP_RESULT}" == "skipped" ]]; then
+     [[ "${RETAG_UMEP_RESULT}" == "skipped" ]] && \
+     [[ "${TEST_BRIDGE_RESULT}" == "skipped" ]]; then
     echo "[OK] Code builds correctly skipped"
   else
     echo "Note: Unexpected build activity for non-code PR"
     echo "  build_wheels: ${BUILD_WHEELS_RESULT}"
     echo "  retag_umep: ${RETAG_UMEP_RESULT}"
+    echo "  test_bridge_loading: ${TEST_BRIDGE_RESULT}"
     # Still pass if builds succeeded (conservative)
-    for result in "${BUILD_WHEELS_RESULT}" "${RETAG_UMEP_RESULT}"; do
+    for result in "${BUILD_WHEELS_RESULT}" "${RETAG_UMEP_RESULT}" "${TEST_BRIDGE_RESULT}"; do
       if [[ "$result" != "success" ]] && [[ "$result" != "skipped" ]]; then
         VALIDATION_PASSED=false
       fi

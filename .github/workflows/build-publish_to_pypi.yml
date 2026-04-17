@@ -282,6 +282,7 @@ jobs:
     outputs:
       buildplat: ${{ steps.set-matrix.outputs.buildplat }}
       python: ${{ steps.set-matrix.outputs.python }}
+      test_python: ${{ steps.set-matrix.outputs.test_python }}
       test_tier: ${{ steps.set-matrix.outputs.test_tier }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -414,12 +415,56 @@ jobs:
           name: umep-retagged-wheels
           path: dist-umep/*.whl
 
+  test_bridge_loading:
+    # Cross-version verification: install the single cp39-abi3 wheel into
+    # each supported CPython version and exercise the FFI boundary with
+    # pytest -m smoke_bridge. Catches any stable-ABI regression across the
+    # cp39..cp3xx range that the build-time matrix no longer covers.
+    name: Bridge load ${{ matrix.python_version }} ${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
+    needs: [determine_matrix, build_wheels]
+    if: always() && needs.build_wheels.result == 'success'
+    runs-on: ${{ matrix.buildplat[0] }}
+    strategy:
+      fail-fast: false
+      matrix:
+        buildplat: ${{ fromJson(needs.determine_matrix.outputs.buildplat) }}
+        python_version: ${{ fromJson(needs.determine_matrix.outputs.test_python) }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Resolve Python version (cp39 -> 3.9)
+        id: pyver
+        shell: bash
+        run: |
+          PV="${{ matrix.python_version }}"
+          echo "spec=3.${PV#cp3}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: ${{ steps.pyver.outputs.spec }}
+
+      - name: Download wheel for this platform
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: cp39-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+          path: wheelhouse/
+
+      - name: Install wheel and run bridge-load smoke tests
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+          python -m pip install wheelhouse/*.whl
+          python -m pytest test -m smoke_bridge -v --tb=short
+
   # Single consolidated check for branch protection (always runs for PRs/merge queue)
   pr-gate:
     name: PR build validation
     runs-on: ubuntu-latest
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
-    needs: [build_wheels, retag_umep, detect-changes]
+    needs: [build_wheels, retag_umep, test_bridge_loading, detect-changes]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -432,6 +477,7 @@ jobs:
           DETECT_CHANGES_RESULT: ${{ needs.detect-changes.result }}
           BUILD_WHEELS_RESULT: ${{ needs.build_wheels.result }}
           RETAG_UMEP_RESULT: ${{ needs.retag_umep.result }}
+          TEST_BRIDGE_RESULT: ${{ needs.test_bridge_loading.result }}
           NEEDS_BUILD: ${{ needs.detect-changes.outputs.needs-build }}
         run: bash .github/scripts/pr-gate.sh
 

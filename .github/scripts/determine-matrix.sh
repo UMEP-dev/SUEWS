@@ -2,10 +2,14 @@
 # Determine the cibuildwheel build matrix based on trigger type and change detection.
 #
 # Called from build-publish_to_pypi.yml determine_matrix job.
-# Writes buildplat, python, test_tier to GITHUB_OUTPUT.
+# Writes buildplat, python, test_python, test_tier to GITHUB_OUTPUT.
 #
 # The UMEP (NumPy<2) variant is no longer built separately — it is produced
 # post-build by .github/scripts/retag_umep_wheel.py from the same abi3 wheels.
+#
+# "python" is the cibuildwheel build matrix (always cp39 — emits one abi3
+# wheel per platform). "test_python" is the cross-version bridge-loading
+# matrix (BOOKEND for PRs, ALL for nightly/tag).
 #
 # Required environment variables:
 #   EVENT_NAME           -- github.event_name
@@ -54,6 +58,8 @@ if [[ "${FORTRAN_CHANGED}" == "true" ]] || [[ "${RUST_CHANGED}" == "true" ]] || 
   NEEDS_MULTIPLATFORM=true
 fi
 
+TEST_PYTHON="$BOOKEND_PYTHON"
+
 if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${IS_DRAFT}" == "true" ]]; then
   if [[ "${FORTRAN_CHANGED}" == "true" ]] || [[ "${RUST_CHANGED}" == "true" ]]; then
     echo "Draft PR with fortran/rust changes - reduced platforms, core tests"
@@ -97,6 +103,7 @@ elif [[ "${EVENT_NAME}" == "schedule" ]]; then
   echo "buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=all" >> "$GITHUB_OUTPUT"
+  TEST_PYTHON="$ALL_PYTHON"
 
 elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
   case "${INPUT_MATRIX_CONFIG}" in
@@ -104,6 +111,7 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
       echo "Manual dispatch: full matrix"
       echo "buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
       echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
+      TEST_PYTHON="$ALL_PYTHON"
       ;;
     pr)
       echo "Manual dispatch: PR-style reduced matrix"
@@ -142,5 +150,11 @@ else
   echo "buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=all" >> "$GITHUB_OUTPUT"
+  TEST_PYTHON="$ALL_PYTHON"
 fi
+
+# Cross-version bridge-loading matrix: BOOKEND for PRs/merge queue, ALL for
+# nightly/tag/dispatch-full. The same single abi3 wheel is installed into
+# each Python version and exercised with -m smoke_bridge.
+echo "test_python=$TEST_PYTHON" >> "$GITHUB_OUTPUT"
 

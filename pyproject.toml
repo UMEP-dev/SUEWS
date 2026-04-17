@@ -137,6 +137,7 @@ filterwarnings = [
 # Test markers for tiered CI testing
 markers = [
     "smoke: Minimal wheel validation (~6 tests, ~60s)",
+    "smoke_bridge: Bridge-loading subset run across cp39..cp3xx after a single abi3 build",
     "core: Core physics & logic tests (Fortran, driver)",
     "rust: Rust bridge backend tests (requires suews_bridge with physics feature)",
     "util: Utility function tests (non-critical)",

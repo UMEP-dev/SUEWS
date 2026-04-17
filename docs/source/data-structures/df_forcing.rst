@@ -97,9 +97,11 @@
         Observed leaf area index [|m^-2| |m^-2|]. Used only when
         ``model.physics.laimethod`` is set to ``0``; otherwise ignored. When active,
         the scalar value is applied uniformly to all three vegetation classes
-        (evergreen trees, deciduous trees, grass) each day. Use the ``-999`` missing
-        sentinel (any value ``<= -900``) for timesteps with no observation; the
-        internally calculated LAI is kept for that day. Observed values are
+        (evergreen trees, deciduous trees, grass) each day, and every timestep
+        must carry a non-missing, non-negative observation. The ``-999`` missing
+        sentinel (and other negative placeholders) is not permitted on this path;
+        if observations are unavailable, either switch back to calculated LAI or
+        gap-fill the forcing with non-negative values first. Observed values are
         clamped into each vegetation class's ``[laimin, laimax]`` envelope at
         runtime — see :ref:`prescribed-lai` for the rationale (downstream
         rescaling requires ``LAI <= laimax``) and guidance on configuring
@@ -171,4 +173,3 @@
 
     :Description:
         Observed soil moisture [|m^3| |m^-3|] or [kg |kg^-1|]
-

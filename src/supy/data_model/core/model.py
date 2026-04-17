@@ -368,7 +368,7 @@ class LAIMethod(Enum):
     """
     Method for determining leaf area index (LAI).
 
-    0: OBSERVED - Uses observed LAI values from the forcing file (lai column); same value applied to every vegetation class each day. Use the -999 missing sentinel (any value <= -900) for timesteps with no observation; the calculated LAI is kept for that day. Genuine zero observations are honoured.
+    0: OBSERVED - Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.
     1: CALCULATED - LAI calculated internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.
     """
 

@@ -170,18 +170,7 @@ runs:
           PATH="/cargo-cache/bin:$PATH"
         CIBW_BEFORE_ALL_LINUX: >
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y &&
-          pip install --upgrade pip setuptools wheel &&
-          if [[ "${{ inputs.is_umep_variant }}" == "true" ]]; then
-            echo "Installing oldest-supported-numpy for QGIS3 UMEP variant build" &&
-            pip install oldest-supported-numpy;
-          else
-            echo "Installing numpy>=2.0 for standard build" &&
-            pip install 'numpy>=2.0';
-          fi &&
-          if [[ "${{ inputs.python }}" == "cp313" ]] || [[ "${{ inputs.python }}" == "cp314" ]]; then
-            echo "Installing numpy for Python ${{ inputs.python }} build" &&
-            pip install numpy;
-          fi
+          pip install --upgrade pip setuptools wheel
         CIBW_BEFORE_ALL_MACOS: >
           brew install gfortran &&
           brew unlink gfortran &&

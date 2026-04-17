@@ -97,6 +97,16 @@ logger_supy.info("Processing %s", path_file)
 
 ## Docstring Format
 
+NumPy-style is **machine-enforced** via `ruff check --select D` with
+`convention = "numpy"` in `.ruff.toml`. New offenders fail ruff; any finding
+surfaced under `/lint-code`'s `=== Docstrings ===` section is new debt.
+
+Legacy debt is parked per-file in `[lint.per-file-ignores]` in `.ruff.toml`
+(see the `# --- BEGIN legacy docstring debt (gh1294) ---` block). To clean a
+file: fix its docstrings, delete its line from that block, then confirm
+`ruff check --select D <file>` exits 0. Regenerate the block end-to-end via
+`uv run python scripts/lint/audit_docstrings.py` if many files change at once.
+
 ```python
 def calculate_flux(
     df_input: pd.DataFrame,

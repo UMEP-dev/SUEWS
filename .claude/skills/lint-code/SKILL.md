@@ -10,12 +10,14 @@ Check code against project conventions in `.claude/rules/`.
 ## Workflow
 
 1. Run standard tools: `ruff check`, `fprettify --diff`
-2. For changed Python files in `src/supy/`, run `ruff check --select D` to surface
-   numpy-style docstring violations (the global `ruff check` already enforces `D`,
-   but this scoped call keeps docstring findings separated in the report).
-   - File scope: `git diff --name-only origin/master...HEAD -- 'src/supy/*.py' 'src/supy/**/*.py'`
-   - Legacy debt is parked in `[lint.per-file-ignores]` in `.ruff.toml`; any finding
-     reported here is new debt introduced on this branch.
+2. For changed Python files anywhere in the repo, run `ruff check --select D` to
+   surface numpy-style docstring violations (the global `ruff check` already
+   enforces `D`, but this scoped call keeps docstring findings separated in
+   the report).
+   - File scope: `git diff --name-only origin/master...HEAD -- '*.py'`
+   - Legacy debt is parked in `[lint.per-file-ignores]` in `.ruff.toml` (seeded
+     from the whole repo, not just `src/supy/`); any finding reported here is
+     new debt introduced on this branch.
 3. Apply SUEWS-specific checks from `.claude/rules/`
 4. Report issues by file and priority
 

@@ -2,9 +2,10 @@
 """Emit the TOML per-file-ignores seed that freezes existing D-rule debt.
 
 Runs ``ruff check --select D`` with the numpy pydocstyle convention against
-``src/supy/``, groups the reported codes by file, and prints a commented TOML
-fragment on stdout suitable for splicing into the ``[lint.per-file-ignores]``
-table in ``.ruff.toml``. Use it to seed or refresh the legacy-debt block.
+the whole repository, groups the reported codes by file, and prints a
+commented TOML fragment on stdout suitable for splicing into the
+``[lint.per-file-ignores]`` table in ``.ruff.toml``. Use it to seed or
+refresh the legacy-debt block.
 
 Usage
 -----
@@ -26,7 +27,26 @@ from collections import defaultdict
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TARGET = "src/supy/"
+TARGET = "."
+# Mirror the project's ruff excludes plus the ``test/`` per-file-ignore
+# (tests opt out of D rules in .ruff.toml). ``--isolated`` below disables
+# those project-level rules, so we have to replicate them explicitly.
+EXCLUDES = ",".join([
+    ".git",
+    ".ruff_cache",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "*.egg-info",
+    "docs/_build",
+    "worktrees",
+    "src/supy/_suews_driver.py",
+    "src/supy/_version.py",
+    "*_wrap.f90",
+    "test",
+])
 LINE_RE = re.compile(r"^(?P<file>[^:]+):\d+:\d+:\s+(?P<code>D\d+)\b")
 
 
@@ -34,8 +54,8 @@ def collect_failures() -> dict[str, list[str]]:
     """Run ruff and return ``{relative_file: sorted_unique_codes}``.
 
     Runs with ``--isolated`` so the existing per-file-ignores in ``.ruff.toml``
-    do not suppress the very debt this helper is trying to measure. The
-    ``_version.py`` generated file is excluded explicitly to match the
+    do not suppress the very debt this helper is trying to measure. Generated
+    files and the ``test/`` tree are excluded explicitly to match the
     project's ruff config.
     """
     result = subprocess.run(
@@ -48,7 +68,7 @@ def collect_failures() -> dict[str, list[str]]:
             "--config",
             'lint.pydocstyle.convention = "numpy"',
             "--exclude",
-            "src/supy/_version.py,src/supy/_suews_driver.py",
+            EXCLUDES,
             "--output-format=concise",
             TARGET,
         ],

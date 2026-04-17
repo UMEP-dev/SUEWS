@@ -53,14 +53,39 @@ cd docs && make livehtml     # Live-reload development server
    :math:`Q_F` model
    ```
 
-2. **Scientific notation**: Use `:math:` role for subscripts and symbols
+2. **Units and powers**: Use the project substitution macros defined in
+   ``docs/source/conf.py`` (``rst_prolog``). **Never** write Unicode superscripts
+   (``m²``, ``m³``, ``km⁻¹``) in prose or option descriptions — they render
+   inconsistently across Sphinx themes and break the docs' house style.
+
+   Available substitutions (see `conf.py` `rst_prolog` for the full list):
+
+   - Lengths/areas/volumes: ``|m^2|``, ``|m^3|``, ``|m^-1|``, ``|m^-2|``, ``|m^-3|``
+   - Other units: ``|km^-1|``, ``|mm^-1|``, ``|s^-1|``, ``|kg^-1|``, ``|K^-1|``, ``|J^-1|``, ``|W^-1|``, ``|h^-1|``, ``|day^-1|``, ``|d^-1|``, ``|d^-2|``, ``|cap^-1|``, ``|ha^-1|``
+   - Variables: ``|QF|``, ``|Qstar|``
+
+   ```rst
+   .. WRONG
+   Observed LAI values in m²/m².
+   Radiation in W m⁻².
+
+   .. CORRECT
+   Observed LAI values in |m^2| |m^-2|.
+   Radiation in W |m^-2|.
+   ```
+
+   If a needed substitution is missing, add it to ``rst_prolog`` in
+   ``docs/source/conf.py`` rather than inlining ``\ :sup:`` or Unicode.
+
+3. **Scientific notation** (prose): Use `:math:` role for subscripts, compound
+   symbols, or expressions that don't fit a unit substitution
    - `:math:`Q_F`` renders properly as Q with subscript F
    - Works in all contexts (lists, paragraphs, headings)
    - Avoid `Q\ :sub:`F`` which breaks in nested contexts
 
-3. **Images require `:alt:`**: All figures must have alt text
+4. **Images require `:alt:`**: All figures must have alt text
 
-4. **Image path**: Must be `/assets/img/` (absolute from docs/source)
+5. **Image path**: Must be `/assets/img/` (absolute from docs/source)
 
 ---
 

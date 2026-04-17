@@ -165,7 +165,89 @@ FORCING_REQUIREMENTS = {
 }
 
 
-def check_forcing(df_forcing: pd.DataFrame, fix=False, physics=None):
+def _matches_option_value(actual_value, option_value) -> bool:
+    """Return True if ``actual_value`` selects ``option_value``.
+
+    ``actual_value`` is typically a scalar (single-grid or global config) but
+    can also be an iterable of per-grid values produced by
+    ``_physics_dict_from_df_state`` when the legacy multi-grid df_state path is
+    validated. The trigger applies if any grid sets the option to the value
+    that requires the forcing column.
+    """
+    if isinstance(actual_value, (list, tuple, set, frozenset)):
+        return option_value in actual_value
+    return actual_value == option_value
+
+
+def _warn_observed_lai_clamping(
+    df_forcing: pd.DataFrame, lai_bounds: dict
+) -> None:
+    """Emit a warning if forcing ``lai`` values would be clamped at runtime.
+
+    ``lai_bounds`` is a mapping with per-grid arrays of per-veg-class bounds::
+
+        {'laimin': [[eve, dec, grass], ...], 'laimax': [[eve, dec, grass], ...]}
+
+    The Fortran runtime clamps observed LAI into each vegetation class's
+    ``[LAImin, LAImax]`` envelope. This function pre-computes the tightest
+    thresholds across every grid/class pair and warns when the forcing column
+    strays outside them — users see once that their observations are being
+    silently altered instead of discovering it through unexpected outputs.
+    """
+    from .util._missing import SUEWS_MISSING_THRESHOLD
+
+    if "lai" not in df_forcing.columns:
+        return
+
+    laimin_nested = lai_bounds.get("laimin") or []
+    laimax_nested = lai_bounds.get("laimax") or []
+    laimin_flat = [float(v) for row in laimin_nested for v in row]
+    laimax_flat = [float(v) for row in laimax_nested for v in row]
+    if not laimin_flat or not laimax_flat:
+        return
+
+    # Any class's lower bound activates when forcing < highest LAImin across
+    # grids/classes; any class's upper bound activates when forcing > lowest
+    # LAImax across grids/classes.
+    warn_below = max(laimin_flat)
+    warn_above = min(laimax_flat)
+
+    ser_lai = df_forcing["lai"]
+    mask_valid = ser_lai > SUEWS_MISSING_THRESHOLD
+    ser_valid = ser_lai[mask_valid]
+    if ser_valid.empty:
+        return
+
+    n_below = int((ser_valid < warn_below).sum())
+    n_above = int((ser_valid > warn_above).sum())
+    if n_below == 0 and n_above == 0:
+        return
+
+    parts = []
+    if n_below > 0:
+        parts.append(
+            f"{n_below} value(s) below the highest LAImin "
+            f"({warn_below:g}) across configured vegetation classes"
+        )
+    if n_above > 0:
+        parts.append(
+            f"{n_above} value(s) above the lowest LAImax "
+            f"({warn_above:g}) across configured vegetation classes"
+        )
+    logger_supy.warning(
+        "Observed LAI forcing will be clamped at runtime: %s. "
+        "Adjust per-class laimin/laimax in the site configuration if the "
+        "observations are intended to pass through unchanged.",
+        "; ".join(parts),
+    )
+
+
+def check_forcing(
+    df_forcing: pd.DataFrame,
+    fix=False,
+    physics=None,
+    lai_bounds=None,
+):
     if fix:
         df_forcing_fix = df_forcing.copy()
     logger_supy.info("SuPy is validating `df_forcing`...")
@@ -257,13 +339,29 @@ def check_forcing(df_forcing: pd.DataFrame, fix=False, physics=None):
                     if "Enum" in str(actual_value.__class__.__bases__):
                         actual_value = actual_value.value
 
-                # Check if this physics option requires specific columns
-                if actual_value == option_value:
+                # Check if this physics option requires specific columns.
+                # ``actual_value`` is a scalar for single-grid configs but can be
+                # an iterable of per-grid values on the legacy df_state path —
+                # treat the requirement as active if any grid selects the
+                # option value that triggers it.
+                if _matches_option_value(actual_value, option_value):
+                    # Pre-flight warning: observed LAI will be clamped into
+                    # each vegetation class's ``[LAImin, LAImax]`` envelope.
+                    if (
+                        option_name == "laimethod"
+                        and option_value == 0
+                        and lai_bounds is not None
+                    ):
+                        _warn_observed_lai_clamping(df_forcing, lai_bounds)
                     for col in required_cols:
                         if col in df_forcing.columns:
-                            # Check if column contains only missing data (-999)
+                            # Treat any value at or below the missing
+                            # threshold (-900) as missing, matching the Fortran
+                            # runtime's defensive sentinel handling.
                             col_data = df_forcing[col]
-                            is_all_missing = (col_data == -999).all()
+                            from .util._missing import SUEWS_MISSING_THRESHOLD
+
+                            is_all_missing = (col_data <= SUEWS_MISSING_THRESHOLD).all()
 
                             if is_all_missing:
                                 # Add helpful note for emissionsmethod about setting to zero

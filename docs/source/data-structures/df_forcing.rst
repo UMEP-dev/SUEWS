@@ -99,8 +99,12 @@
         the scalar value is applied uniformly to all three vegetation classes
         (evergreen trees, deciduous trees, grass) each day. Use the ``-999`` missing
         sentinel (any value ``<= -900``) for timesteps with no observation; the
-        internally calculated LAI is kept for that day. Genuine zero observations
-        (e.g. complete winter dieback) are honoured. See :ref:`prescribed-lai`.
+        internally calculated LAI is kept for that day. Observed values are
+        clamped into each vegetation class's ``[laimin, laimax]`` envelope at
+        runtime — see :ref:`prescribed-lai` for the rationale (downstream
+        rescaling requires ``LAI <= laimax``) and guidance on configuring
+        ``laimin``/``laimax`` so legitimate observations (e.g. zero-LAI winter
+        dieback) are not clipped.
 
 
 .. option:: ldown

@@ -259,6 +259,26 @@ remote-sensing product is available, users can bypass the internal scheme by:
    applied uniformly to all three vegetation classes (evergreen trees, deciduous trees,
    grass) each day.
 
+.. important::
+   Observed LAI values are clamped into each vegetation class's
+   ``[laimin, laimax]`` envelope at runtime. The same clamp is applied to the
+   parameterised branch (``laimethod: 1``); the observed branch enforces it too
+   for consistency and because the downstream conductance and active-vegetation
+   fraction calculations (``LAI / laimax`` in ``suews_phys_resist`` and
+   ``suews_phys_biogenco2``) require ``LAI <= laimax`` to stay physically
+   meaningful.
+
+   If you supply observations that should pass through unchanged — e.g. a
+   genuine winter dieback with ``LAI = 0`` — configure the corresponding
+   class's ``laimin`` to zero in the site configuration. Similarly, widen
+   ``laimax`` if observations legitimately exceed the default site canopy
+   capacity.
+
+   The pre-flight validator (:func:`~supy._check.check_forcing`) issues a
+   warning when any forcing value would be clamped, so the user sees once that
+   observations are being modified rather than discovering it through
+   unexpected outputs.
+
 Generating Forcing Data from ERA5
 ----------------------------------
 

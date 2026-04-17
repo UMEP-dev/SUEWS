@@ -54,6 +54,14 @@ EXAMPLES:
 
 ## 2026
 
+### 17 Apr 2026
+
+- [maintenance] Enforce numpy-style docstrings via ruff `D` rules (#1294)
+  - Removed D100-D105/D107 from the global gradual-adoption ignore list in `.ruff.toml`
+  - Parked legacy docstring debt in `[lint.per-file-ignores]` (78 files) so new code is held to the rule
+  - Added `scripts/lint/audit_docstrings.py` helper to regenerate the per-file-ignores seed
+  - Wired `ruff check --select D` into the `/lint-code` skill under a `=== Docstrings ===` section
+
 ### 9 Apr 2026
 
 - [bugfix][experimental] Fix missing if branch in setpointmethod rule, and move setpointmethod rule in stebbs_rules.py (PR #1284)

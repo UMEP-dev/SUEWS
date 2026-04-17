@@ -70,15 +70,6 @@ ignore = [
     # Line length handled by formatter
     "E501",   # Line too long
     
-    # Documentation (gradual adoption)
-    "D100",   # Missing docstring in public module
-    "D101",   # Missing docstring in public class
-    "D102",   # Missing docstring in public method
-    "D103",   # Missing docstring in public function
-    "D104",   # Missing docstring in public package
-    "D105",   # Missing docstring in magic method
-    "D107",   # Missing docstring in __init__
-    
     # NumPy style docstrings
     "D203",   # 1 blank line required before class docstring
     "D212",   # Multi-line docstring summary should start at the first line
@@ -127,6 +118,89 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 # Generated files
 "src/supy/_version.py" = ["ALL"]
+
+# --- BEGIN legacy docstring debt (gh1294) ---
+# Regenerated via: uv run python scripts/lint/audit_docstrings.py
+# Remove a file's entry once its docstrings are cleaned.
+"src/supy/__init__.py" = ["D104"]
+"src/supy/_check.py" = ["D205", "D406", "D407"]
+"src/supy/_load.py" = ["D202", "D400", "D403"]
+"src/supy/_misc.py" = ["D200", "D202", "D205", "D400", "D401"]
+"src/supy/_post.py" = ["D406", "D407"]
+"src/supy/_save.py" = ["D202", "D400", "D403"]
+"src/supy/_var_metadata.py" = ["D200"]
+"src/supy/build_rust_bridge.py" = ["D103"]
+"src/supy/cmd/SUEWS.py" = ["D100", "D202"]
+"src/supy/cmd/__init__.py" = ["D104"]
+"src/supy/cmd/json_output.py" = ["D406", "D407"]
+"src/supy/cmd/schema_cli.py" = ["D200", "D400", "D401", "D406", "D407"]
+"src/supy/cmd/table_converter.py" = ["D100", "D406", "D407"]
+"src/supy/cmd/to_yaml.py" = ["D100", "D205", "D401", "D404"]
+"src/supy/cmd/validate_config.py" = ["D202", "D400", "D401", "D406", "D407"]
+"src/supy/data_model/__init__.py" = ["D400"]
+"src/supy/data_model/core/__init__.py" = ["D400"]
+"src/supy/data_model/core/config.py" = ["D100", "D102", "D202", "D205", "D400", "D401", "D406", "D407"]
+"src/supy/data_model/core/human_activity.py" = ["D100", "D101", "D202", "D406", "D407"]
+"src/supy/data_model/core/hydro.py" = ["D100", "D400", "D406", "D407"]
+"src/supy/data_model/core/model.py" = ["D100", "D101", "D102", "D105", "D200", "D400", "D406", "D407"]
+"src/supy/data_model/core/ohm.py" = ["D100", "D202", "D406", "D407"]
+"src/supy/data_model/core/profile.py" = ["D100", "D102", "D105", "D202", "D406", "D407"]
+"src/supy/data_model/core/site.py" = ["D100", "D101", "D102", "D202", "D400", "D406", "D407"]
+"src/supy/data_model/core/state.py" = ["D100", "D101", "D102", "D200", "D400", "D406", "D407"]
+"src/supy/data_model/core/surface.py" = ["D100", "D101", "D102", "D202", "D205", "D209", "D400", "D406", "D407"]
+"src/supy/data_model/core/type.py" = ["D100", "D101", "D103", "D400", "D401", "D406", "D407"]
+"src/supy/data_model/doc_utils.py" = ["D406", "D407"]
+"src/supy/data_model/output/ehc_vars.py" = ["D400"]
+"src/supy/data_model/output/estm_vars.py" = ["D401", "D406", "D407"]
+"src/supy/data_model/output/rsl_vars.py" = ["D401"]
+"src/supy/data_model/output/snow_vars.py" = ["D401", "D406", "D407"]
+"src/supy/data_model/output/spartacus_vars.py" = ["D400"]
+"src/supy/data_model/output/variables.py" = ["D406", "D407"]
+"src/supy/data_model/schema/__init__.py" = ["D400"]
+"src/supy/data_model/schema/exporter.py" = ["D401", "D406", "D407"]
+"src/supy/data_model/schema/migration.py" = ["D400", "D401", "D406", "D407"]
+"src/supy/data_model/schema/publisher.py" = ["D400", "D401", "D406", "D407"]
+"src/supy/data_model/schema/registry.py" = ["D406", "D407"]
+"src/supy/data_model/schema/updater.py" = ["D401", "D406", "D407"]
+"src/supy/data_model/validation/__init__.py" = ["D400"]
+"src/supy/data_model/validation/core/__init__.py" = ["D400"]
+"src/supy/data_model/validation/core/controller.py" = ["D400", "D401", "D406", "D407"]
+"src/supy/data_model/validation/core/feedback.py" = ["D406", "D407"]
+"src/supy/data_model/validation/core/utils.py" = ["D401", "D406", "D407"]
+"src/supy/data_model/validation/core/yaml_helpers.py" = ["D100", "D101", "D102", "D105", "D202", "D205", "D401", "D406", "D407"]
+"src/supy/data_model/validation/pipeline/__init__.py" = ["D400"]
+"src/supy/data_model/validation/pipeline/orchestrator.py" = ["D400", "D401", "D406", "D407"]
+"src/supy/data_model/validation/pipeline/phase_a.py" = ["D100", "D103", "D406", "D407"]
+"src/supy/data_model/validation/pipeline/phase_b.py" = ["D205", "D400", "D401"]
+"src/supy/data_model/validation/pipeline/phase_b_rules/__init__.py" = ["D104"]
+"src/supy/data_model/validation/pipeline/phase_b_rules/other_rules.py" = ["D100", "D401"]
+"src/supy/data_model/validation/pipeline/phase_b_rules/physics_rules.py" = ["D100", "D202", "D205", "D400", "D410", "D411"]
+"src/supy/data_model/validation/pipeline/phase_b_rules/rules_core.py" = ["D101", "D102", "D105", "D400"]
+"src/supy/data_model/validation/pipeline/phase_b_rules/stebbs_rules.py" = ["D100", "D202", "D401"]
+"src/supy/data_model/validation/pipeline/phase_c.py" = ["D406", "D407"]
+"src/supy/run_make.py" = ["D103"]
+"src/supy/suews_forcing.py" = ["D105", "D401"]
+"src/supy/suews_output.py" = ["D401"]
+"src/supy/util/_UMEP2epw.py" = ["D205", "D400", "D401"]
+"src/supy/util/__init__.py" = ["D104", "D401"]
+"src/supy/util/_atm.py" = ["D400", "D403"]
+"src/supy/util/_attribution/__init__.py" = ["D401"]
+"src/supy/util/_era5.py" = ["D400", "D401", "D403"]
+"src/supy/util/_forcing.py" = ["D202"]
+"src/supy/util/_gap_filler.py" = ["D202", "D400", "D403"]
+"src/supy/util/_gs.py" = ["D202"]
+"src/supy/util/_io.py" = ["D202", "D403"]
+"src/supy/util/_ohm.py" = ["D202", "D205", "D400", "D401", "D404"]
+"src/supy/util/_plot.py" = ["D202", "D205", "D400", "D403"]
+"src/supy/util/_roughness.py" = ["D202", "D205", "D400", "D401"]
+"src/supy/util/_state_io.py" = ["D406", "D407"]
+"src/supy/util/_tmy.py" = ["D202", "D301", "D403"]
+"src/supy/util/conversion_engine.py" = ["D406", "D407"]
+"src/supy/util/converter/__init__.py" = ["D406", "D407"]
+"src/supy/util/converter/table/profile_manager.py" = ["D406", "D407"]
+"src/supy/util/converter/table/table.py" = ["D100", "D103"]
+"src/supy/validation.py" = ["D400", "D401", "D406", "D407"]
+# --- END legacy docstring debt (gh1294) ---
 
 [lint.isort]
 # Configure import sorting to match project style

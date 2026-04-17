@@ -196,3 +196,46 @@ class TestLAIMethodRuntime:
                 f"{column}: laimethod=1 output (RMSE {rmse_calc:.3f}) should diverge "
                 f"from forcing more than laimethod=0 ({rmse_obs:.3f})"
             )
+
+    def test_run_rejects_all_missing_lai(self):
+        """SUEWSSimulation.run() must surface the `lai`-required validator
+        error when `laimethod=0` and the forcing column is all -999."""
+        sim = SUEWSSimulation.from_sample_data()
+
+        end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
+        df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
+        df_forcing["lai"] = -999.0  # all-missing sentinel
+
+        sim._config.model.physics.laimethod = LAIMethod.OBSERVED
+        sim._df_state_init = sim._config.to_df_state()
+        sim.update_forcing(df_forcing)
+
+        with pytest.raises(ValueError, match="laimethod=0"):
+            sim.run(end_date=df_forcing.index[-1])
+
+    def test_zero_lai_observation_honoured(self):
+        """A genuine zero observation must drive LAI to zero, not fall back
+        to the calculated value (guards the -999 sentinel boundary)."""
+        sim = SUEWSSimulation.from_sample_data()
+
+        end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
+        df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
+        df_forcing["lai"] = 0.0  # genuine observation of bare canopy
+
+        sim._config.model.physics.laimethod = LAIMethod.OBSERVED
+        sim._df_state_init = sim._config.to_df_state()
+        sim.update_forcing(df_forcing)
+        results = sim.run(end_date=df_forcing.index[-1])
+
+        df_dailystate = results.xs("DailyState", level="group", axis=1)
+        df_lai = df_dailystate.xs(1, level="grid")[[
+            "LAI_EveTr",
+            "LAI_DecTr",
+            "LAI_Grass",
+        ]].dropna(how="all")
+        # Skip the first day (initial state inherited from the config).
+        df_lai_tail = df_lai.iloc[1:]
+        np.testing.assert_allclose(
+            df_lai_tail.values, 0.0, atol=1e-9,
+            err_msg="lai=0.0 observation should drive LAI outputs to zero",
+        )

@@ -97,9 +97,10 @@
         Observed leaf area index [|m^-2| |m^-2|]. Used only when
         ``model.physics.laimethod`` is set to ``0``; otherwise ignored. When active,
         the scalar value is applied uniformly to all three vegetation classes
-        (evergreen trees, deciduous trees, grass) each day; ``-999`` (or any value
-        ``<= 0``) is treated as "no observation" and the internally calculated LAI is
-        kept for that day. See :ref:`prescribed-lai`.
+        (evergreen trees, deciduous trees, grass) each day. Use the ``-999`` missing
+        sentinel (any value ``<= -900``) for timesteps with no observation; the
+        internally calculated LAI is kept for that day. Genuine zero observations
+        (e.g. complete winter dieback) are honoured. See :ref:`prescribed-lai`.
 
 
 .. option:: ldown

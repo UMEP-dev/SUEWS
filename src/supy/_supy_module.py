@@ -26,7 +26,7 @@ import numpy as np
 import pandas
 import pandas as pd
 
-from ._check import check_forcing, check_state
+from ._check import FORCING_REQUIREMENTS, check_forcing, check_state
 from ._env import logger_supy, trv_supy_module
 from ._load import (
     load_df_state,
@@ -581,6 +581,24 @@ def init_config(df_state: pd.DataFrame = None):
 ##############################################################################
 
 
+def _physics_dict_from_df_state(df_state: pd.DataFrame) -> dict:
+    """Extract physics-option values from a df_state_init DataFrame.
+
+    Returns a dict keyed by option name (e.g. ``"laimethod"``) with scalar
+    integer values, suitable for `check_forcing(..., physics=...)`. Only the
+    options referenced by `FORCING_REQUIREMENTS` are considered.
+    """
+    physics_dict: dict = {}
+    top_level = set(df_state.columns.get_level_values(0))
+    option_names = {option for option, _ in FORCING_REQUIREMENTS.keys()}
+    for option in option_names:
+        if option in top_level:
+            values = df_state[option].values.ravel()
+            if len(values) > 0:
+                physics_dict[option] = int(values[0])
+    return physics_dict
+
+
 ##############################################################################
 # 2. compact wrapper for running a whole simulation
 # # main calculation
@@ -641,8 +659,11 @@ def _run_supy(
     """
     # validate input dataframes
     if check_input:
-        # forcing:
-        list_issues_forcing = check_forcing(df_forcing)
+        # Build a physics dict from df_state_init so physics-gated forcing
+        # requirements (see `FORCING_REQUIREMENTS`) are enforced on the legacy
+        # path as well as the modern SUEWSSimulation path.
+        physics_dict = _physics_dict_from_df_state(df_state_init)
+        list_issues_forcing = check_forcing(df_forcing, physics=physics_dict)
         if isinstance(list_issues_forcing, list):
             logger_supy.critical("`df_forcing` is NOT valid to drive SuPy!")
             raise RuntimeError(

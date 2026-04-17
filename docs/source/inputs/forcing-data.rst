@@ -250,8 +250,9 @@ remote-sensing product is available, users can bypass the internal scheme by:
 1. Setting ``model.physics.laimethod: 0`` in the YAML configuration (0 = OBSERVED,
    1 = CALCULATED; default is 1).
 2. Populating the ``lai`` column of the meteorological forcing file with the observed
-   values in m²/m². Use ``-999`` for timesteps with no observation; the calculated LAI
-   is then kept for that day.
+   values in m²/m². Use the ``-999`` missing sentinel for timesteps with no
+   observation; the calculated LAI is then kept for that day. A genuine zero
+   observation (e.g. complete winter dieback) is a valid input and will be honoured.
 
 .. note::
    When ``laimethod: 0`` is set, the single scalar ``lai`` value from the forcing file is

@@ -685,10 +685,12 @@ CONTAINS
       END DO !End of loop over veg surfaces
 
       ! Observed-LAI override: when LAICalcYes == 0 and the forcing column carries a
-      ! valid value (> 0), use forcing%LAI_obs for every vegetation class. A non-positive
-      ! value (e.g. the -999 sentinel) is treated as "no observation this day" and the
-      ! calculated LAI is kept. The scalar-to-all-veg-classes limitation is tracked in #1292.
-      IF (LAICalcYes == 0 .AND. LAI_obs > 0.0D0) THEN
+      ! non-sentinel value, use forcing%LAI_obs for every vegetation class. Only the
+      ! -999 missing sentinel (matched defensively as ``LAI_obs <= -900``) is treated
+      ! as "no observation this day" and the calculated LAI is kept; a genuine
+      ! observation of LAI = 0 (e.g. complete winter dieback) is honoured.
+      ! The scalar-to-all-veg-classes limitation is tracked in #1292.
+      IF (LAICalcYes == 0 .AND. LAI_obs > -900.0D0) THEN
          LAI_id_next = LAI_obs
       END IF
       !------------------------------------------------------------------------------

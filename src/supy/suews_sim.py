@@ -515,8 +515,14 @@ class SUEWSSimulation:
         # Slice forcing data
         df_forcing_slice = self._df_forcing.loc[start_date:end_date]
 
-        # Validate forcing data
-        list_issues = check_forcing(df_forcing_slice)
+        # Validate forcing data, including physics-specific forcing requirements
+        # (e.g. laimethod=0 requires a populated `lai` column).
+        physics_dict = None
+        if self._config is not None and hasattr(self._config, "model"):
+            physics = getattr(self._config.model, "physics", None)
+            if physics is not None and hasattr(physics, "model_dump"):
+                physics_dict = physics.model_dump(mode="python")
+        list_issues = check_forcing(df_forcing_slice, physics=physics_dict)
         if isinstance(list_issues, list) and len(list_issues) > 0:
             issues_summary = list_issues[:3] if len(list_issues) > 3 else list_issues
             suffix = (

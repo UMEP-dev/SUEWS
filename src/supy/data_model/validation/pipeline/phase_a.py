@@ -1,6 +1,7 @@
 import yaml
 import os
 import subprocess
+from typing import Optional
 import pandas as pd
 from pathlib import Path
 
@@ -1048,7 +1049,7 @@ def validate_nlayer_limit(user_data: dict) -> list:
                 errors.append((path, nlayer, "Could not interpret nlayer value for limit check."))
     return errors
 
-def _extract_lai_bounds_from_user_data(user_data: dict) -> dict | None:
+def _extract_lai_bounds_from_user_data(user_data: dict) -> Optional[dict]:
     """Collect per-site per-veg-class LAI bounds from a parsed YAML config.
 
     Returns ``{'laimin': [[eve, dec, grass], ...], 'laimax': [[...], ...]}`` or

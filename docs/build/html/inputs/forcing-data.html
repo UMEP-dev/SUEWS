@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-04-17T11:28:59+00:00" />
-    <title>4.2. Meteorological Forcing Data &#8212; SUEWS 2026.4.17.dev176 documentation</title>
+    <meta property="article:modified_time" content="2026-04-17T21:57:41+00:00" />
+    <title>4.2. Meteorological Forcing Data &#8212; SUEWS 2026.4.17.dev179 documentation</title>
   
   
   
@@ -44,7 +44,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=e00fd2cc"></script>
+    <script src="../_static/documentation_options.js?v=aaa95332"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,7 +57,7 @@
     <link rel="prev" title="4.1. YAML Configuration Format" href="yaml/index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.17.dev176" />
+  <meta name="docsearch:version" content="2026.4.17.dev179" />
     <meta name="docbuild:last-update" content="2026-04-17"/>
   </head>
   
@@ -100,7 +100,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.17.dev176, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/551f7dd146d60b7fae4dc5b4ffcc98a08aaafba1" style="color: #31708f;">551f7dd</a>).
+        (2026.4.17.dev179, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b073352c0346868001011db3c9b1ddc14e04483a" style="color: #31708f;">b073352</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +147,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.17.dev176 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.17.dev176 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.17.dev179 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.17.dev179 documentation - Home"/>
   
   
 </a></div>
@@ -890,10 +890,15 @@ remote-sensing product is available, users can bypass the internal scheme by:</p
 <ol class="arabic simple">
 <li><p>Setting <code class="docutils literal notranslate"><span class="pre">model.physics.laimethod:</span> <span class="pre">0</span></code> in the YAML configuration (0 = OBSERVED,
 1 = CALCULATED; default is 1).</p></li>
-<li><p>Populating the <code class="docutils literal notranslate"><span class="pre">lai</span></code> column of the meteorological forcing file with the observed
-values in m<sup>2</sup> m<sup>-2</sup>. Use the <code class="docutils literal notranslate"><span class="pre">-999</span></code> missing sentinel for timesteps with no
-observation; the calculated LAI is then kept for that day. A genuine zero
-observation (e.g. complete winter dieback) is a valid input and will be honoured.</p></li>
+<li><p>Populating the <code class="docutils literal notranslate"><span class="pre">lai</span></code> column of the meteorological forcing file with a <strong>non-negative</strong>
+observation at every timestep, in m<sup>2</sup> m<sup>-2</sup>. A genuine zero observation (e.g.
+complete winter dieback) is valid. Choosing the observed path commits the user to
+providing an observation for every timestep; the <code class="docutils literal notranslate"><span class="pre">-999</span></code> missing sentinel is
+<strong>not</strong> a permitted fallback here and the pre-flight validator rejects any strictly
+negative value (including <code class="docutils literal notranslate"><span class="pre">-999</span></code> and other sentinels). If observations are
+unavailable for part of the run, either switch to <code class="docutils literal notranslate"><span class="pre">laimethod:</span> <span class="pre">1</span></code> (internally
+calculated) or gap-fill the <code class="docutils literal notranslate"><span class="pre">lai</span></code> column with non-negative values before feeding
+it to SUEWS.</p></li>
 </ol>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -910,13 +915,12 @@ for consistency and because the downstream conductance and active-vegetation
 fraction calculations (<code class="docutils literal notranslate"><span class="pre">LAI</span> <span class="pre">/</span> <span class="pre">laimax</span></code> in <code class="docutils literal notranslate"><span class="pre">suews_phys_resist</span></code> and
 <code class="docutils literal notranslate"><span class="pre">suews_phys_biogenco2</span></code>) require <code class="docutils literal notranslate"><span class="pre">LAI</span> <span class="pre">&lt;=</span> <span class="pre">laimax</span></code> to stay physically
 meaningful.</p>
-<p>If you supply observations that should pass through unchanged — e.g. a
-genuine winter dieback with <code class="docutils literal notranslate"><span class="pre">LAI</span> <span class="pre">=</span> <span class="pre">0</span></code> — configure the corresponding
-class’s <code class="docutils literal notranslate"><span class="pre">laimin</span></code> to zero in the site configuration. Similarly, widen
-<code class="docutils literal notranslate"><span class="pre">laimax</span></code> if observations legitimately exceed the default site canopy
-capacity.</p>
-<p>The pre-flight validator (<code class="xref py py-func docutils literal notranslate"><span class="pre">check_forcing()</span></code>) issues a
-warning when any forcing value would be clamped, so the user sees once that
+<p>If you supply observations that should pass through unchanged — e.g. a genuine
+winter dieback with <code class="docutils literal notranslate"><span class="pre">LAI</span> <span class="pre">=</span> <span class="pre">0</span></code> — configure the corresponding class’s
+<code class="docutils literal notranslate"><span class="pre">laimin</span></code> to zero in the site configuration. Similarly, widen <code class="docutils literal notranslate"><span class="pre">laimax</span></code> if
+observations legitimately exceed the default site canopy capacity. The
+pre-flight validator (<code class="xref py py-func docutils literal notranslate"><span class="pre">check_forcing()</span></code>) issues a warning
+when any forcing value would be clamped, so the user sees once that
 observations are being modified rather than discovering it through
 unexpected outputs.</p>
 </div>
@@ -1393,8 +1397,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.17.dev176 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/551f7dd146d60b7fae4dc5b4ffcc98a08aaafba1">551f7dd</a> |
+  <p>Version: 2026.4.17.dev179 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b073352c0346868001011db3c9b1ddc14e04483a">b073352</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

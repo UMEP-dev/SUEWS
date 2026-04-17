@@ -182,12 +182,13 @@ def _matches_option_value(actual_value, option_value) -> bool:
 def _check_observed_lai_nonneg(
     df_forcing: pd.DataFrame, list_issues: list
 ) -> bool:
-    """Reject negative ``lai`` rows when ``laimethod=0`` is active.
+    """Reject missing or negative ``lai`` rows when ``laimethod=0`` is active.
 
-    Under the observed-LAI path every timestep must carry a non-negative
-    observation (``lai >= 0``). A genuine zero observation is valid and
-    is clamped to each vegetation class's ``laimin`` at runtime. Any
-    strictly negative value — including the ``-999`` missing sentinel
+    Under the observed-LAI path every timestep must carry a non-missing,
+    non-negative observation (``lai >= 0``). A genuine zero observation
+    is valid and is clamped to each vegetation class's ``laimin`` at
+    runtime. Any missing value, strictly negative value, or sentinel
+    placeholder — including ``NaN`` and the ``-999`` missing sentinel
     (and anything at or below ``SUEWS_MISSING_THRESHOLD``) — is refused:
     users who cannot observe every timestep should use ``laimethod=1``
     or gap-fill their forcing.
@@ -212,15 +213,21 @@ def _check_observed_lai_nonneg(
         return False
 
     ser_lai = df_forcing["lai"]
-    mask_invalid = ser_lai < 0.0
+    mask_missing = ser_lai.isna()
+    mask_negative = ser_lai < 0.0
+    mask_invalid = mask_missing | mask_negative
     n_invalid = int(mask_invalid.sum())
     if n_invalid == 0:
         return False
 
-    n_sentinel = int((ser_lai <= SUEWS_MISSING_THRESHOLD).sum())
-    n_physically_invalid = n_invalid - n_sentinel
+    mask_sentinel = (ser_lai <= SUEWS_MISSING_THRESHOLD).fillna(False)
+    n_missing = int(mask_missing.sum())
+    n_sentinel = int(mask_sentinel.sum())
+    n_physically_invalid = int((mask_negative & ~mask_sentinel).sum())
 
     parts = []
+    if n_missing > 0:
+        parts.append(f"{n_missing} row(s) with missing/NaN values")
     if n_sentinel > 0:
         parts.append(f"{n_sentinel} row(s) at/below the missing sentinel (-999)")
     if n_physically_invalid > 0:
@@ -230,7 +237,7 @@ def _check_observed_lai_nonneg(
         )
 
     sample_rows = [
-        f"{ts}={val:g}"
+        f"{ts}={'nan' if pd.isna(val) else f'{val:g}'}"
         for ts, val in ser_lai[mask_invalid].head(5).items()
     ]
     sample_note = ", ".join(sample_rows)
@@ -239,8 +246,9 @@ def _check_observed_lai_nonneg(
 
     str_issue = (
         f"Physics option 'laimethod=0' requires every 'lai' forcing value "
-        f"to be non-negative (>= 0); -999 and other sentinels are not "
-        f"permitted on this path. Found {n_invalid} invalid row(s): "
+        f"to be a non-missing, non-negative observation (>= 0); "
+        f"NaN, -999 and other sentinels are not permitted on this path. "
+        f"Found {n_invalid} invalid row(s): "
         f"{'; '.join(parts)}. First offenders: {sample_note}. "
         f"Use 'laimethod=1' or gap-fill the 'lai' column with non-negative "
         f"observations. See documentation: "
@@ -419,10 +427,10 @@ def check_forcing(
                     is_observed_lai = (
                         option_name == "laimethod" and option_value == 0
                     )
-                    # Under laimethod=0 the non-negative check is strictly
-                    # stronger than the generic "all-missing" rejection —
-                    # it runs first and shadows the per-column loop for
-                    # the ``lai`` column.
+                    # Under laimethod=0 the completeness/non-negative check
+                    # is strictly stronger than the generic "all-missing"
+                    # rejection — it runs first and shadows the per-column
+                    # loop for the ``lai`` column.
                     lai_nonneg_issue = False
                     if is_observed_lai:
                         lai_nonneg_issue = _check_observed_lai_nonneg(
@@ -440,9 +448,9 @@ def check_forcing(
                             _warn_observed_lai_clamping(df_forcing, lai_bounds)
                     for col in required_cols:
                         if col in df_forcing.columns:
-                            # Under laimethod=0 the non-negative helper
-                            # already diagnoses the ``lai`` column — skip
-                            # the generic "all-missing" check to avoid
+                            # Under laimethod=0 the completeness/non-negative
+                            # helper already diagnoses the ``lai`` column —
+                            # skip the generic "all-missing" check to avoid
                             # duplicate issues.
                             if is_observed_lai and col == "lai":
                                 continue

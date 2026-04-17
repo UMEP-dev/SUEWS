@@ -23,6 +23,7 @@ These tests guard against regression in:
 import numpy as np
 import pandas as pd
 import pytest
+import supy as sp
 
 from supy import SUEWSSimulation
 from supy._check import FORCING_REQUIREMENTS, check_forcing
@@ -180,6 +181,20 @@ class TestLAIMethodNegativeRejected:
         assert matching, issues
         # Invalid-row count in the message should reflect the 3 sentinels.
         assert "3" in matching[0], matching[0]
+
+    def test_validator_rejects_nan_gap(self):
+        """A NaN gap still breaks the every-timestep observed-LAI contract."""
+        df_forcing = _base_forcing_df()
+        df_forcing["lai"] = 3.5
+        df_forcing.iloc[3, df_forcing.columns.get_loc("lai")] = np.nan
+        issues = check_forcing(
+            df_forcing, fix=False, physics={"laimethod": 0}
+        )
+        matching = [
+            issue for issue in issues
+            if "laimethod=0" in issue and "missing/NaN" in issue
+        ]
+        assert matching, issues
 
     def test_validator_accepts_all_positive_lai(self):
         """Strictly positive ``lai`` values pass the non-negative check."""
@@ -452,6 +467,36 @@ class TestLAIMethodRuntime:
 
         with pytest.raises(ValueError, match="laimethod=0"):
             sim.run(end_date=df_forcing.index[-1])
+
+    def test_nan_lai_gap_rejected(self):
+        """Missing ``lai`` values are rejected before the run starts."""
+        sim = SUEWSSimulation.from_sample_data()
+
+        end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
+        df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
+        df_forcing["lai"] = 3.5
+        df_forcing.iloc[0, df_forcing.columns.get_loc("lai")] = np.nan
+
+        sim._config.model.physics.laimethod = LAIMethod.OBSERVED
+        sim._df_state_init = sim._config.to_df_state()
+        sim.update_forcing(df_forcing)
+
+        with pytest.raises(ValueError, match="laimethod=0"):
+            sim.run(end_date=df_forcing.index[-1])
+
+    def test_legacy_run_supy_unchecked_rejects_nan_gap(self):
+        """Legacy ``run_supy(..., check_input=False)`` still rejects NaN ``lai``."""
+        with pytest.deprecated_call():
+            df_state_init, df_forcing = sp.load_sample_data()
+
+        end_index = TIMESTEPS_PER_DAY * 2 - 1
+        df_forcing = df_forcing.iloc[: end_index + 1].copy()
+        df_forcing["lai"] = 3.5
+        df_forcing.iloc[0, df_forcing.columns.get_loc("lai")] = np.nan
+        df_state_init.loc[:, ("laimethod", "0")] = 0
+
+        with pytest.raises(Exception, match="laimethod=0"):
+            sp.run_supy(df_forcing, df_state_init, check_input=False)
 
 
 class TestLAIBoundsPreflightWarning:

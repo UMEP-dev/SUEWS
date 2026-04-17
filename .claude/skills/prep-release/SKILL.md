@@ -183,7 +183,7 @@ Each tag triggers two PyPI uploads via GitHub Actions:
 - `YYYY.M.D` - Standard build (NumPy ≥2.0, modern environments)
 - `YYYY.M.Drc1` - UMEP build (NumPy 1.x compatibility for QGIS plugin)
 
-The `rc1` variant is created automatically by the `build_umep` workflow - no manual RC tagging required for standard releases.
+The `rc1` variant is created automatically by the `retag_umep` workflow (metadata surgery on the same abi3 wheels) - no manual RC tagging required for standard releases.
 
 ## References
 

@@ -7,18 +7,16 @@
 # Required environment variables:
 #   DETECT_CHANGES_RESULT -- needs.detect-changes.result
 #   BUILD_WHEELS_RESULT   -- needs.build_wheels.result
-#   BUILD_UMEP_RESULT     -- needs.build_umep.result
+#   RETAG_UMEP_RESULT     -- needs.retag_umep.result
 #   NEEDS_BUILD           -- needs.detect-changes.outputs.needs-build
-#   NEEDS_UMEP_BUILD      -- needs.detect-changes.outputs.needs-umep-build
 
 set -euo pipefail
 
 echo "=== Job Results ==="
 echo "detect-changes: ${DETECT_CHANGES_RESULT}"
 echo "build_wheels: ${BUILD_WHEELS_RESULT}"
-echo "build_umep: ${BUILD_UMEP_RESULT}"
+echo "retag_umep: ${RETAG_UMEP_RESULT}"
 echo "needs-build: ${NEEDS_BUILD}"
-echo "needs-umep-build: ${NEEDS_UMEP_BUILD}"
 echo ""
 
 # Handle cancelled detect-changes (e.g. superseded by cancel-in-progress)
@@ -47,49 +45,31 @@ if [[ "${NEEDS_BUILD}" == "true" ]]; then
     VALIDATION_PASSED=false
   fi
 
-  # QGIS3 UMEP build required only when compiled extension changed
-  if [[ "${NEEDS_UMEP_BUILD}" == "true" ]]; then
-    echo "Compiled extension changed - validating QGIS3 UMEP build..."
-    if [[ "${BUILD_UMEP_RESULT}" == "success" ]]; then
-      echo "[OK] QGIS3 UMEP build passed"
-    else
-      echo "[X] QGIS3 UMEP build failed"
-      echo "  build_umep: ${BUILD_UMEP_RESULT}"
-      VALIDATION_PASSED=false
-    fi
+  echo "Validating UMEP (NumPy<2) retag..."
+  if [[ "${RETAG_UMEP_RESULT}" == "success" ]]; then
+    echo "[OK] UMEP retag passed"
   else
-    echo "No compiled extension changes - QGIS3 UMEP build not required"
-    if [[ "${BUILD_UMEP_RESULT}" == "skipped" ]]; then
-      echo "[OK] QGIS3 UMEP build correctly skipped"
-    else
-      echo "Note: QGIS3 UMEP build ran unexpectedly (result: ${BUILD_UMEP_RESULT})"
-      # Non-fatal: accept success or skipped
-      if [[ "${BUILD_UMEP_RESULT}" != "success" ]] && \
-         [[ "${BUILD_UMEP_RESULT}" != "skipped" ]]; then
-        VALIDATION_PASSED=false
-      fi
-    fi
+    echo "[X] UMEP retag failed"
+    echo "  retag_umep: ${RETAG_UMEP_RESULT}"
+    VALIDATION_PASSED=false
   fi
 
 else
   echo "No code changes - builds not required"
 
   if [[ "${BUILD_WHEELS_RESULT}" == "skipped" ]] && \
-     [[ "${BUILD_UMEP_RESULT}" == "skipped" ]]; then
+     [[ "${RETAG_UMEP_RESULT}" == "skipped" ]]; then
     echo "[OK] Code builds correctly skipped"
   else
     echo "Note: Unexpected build activity for non-code PR"
     echo "  build_wheels: ${BUILD_WHEELS_RESULT}"
-    echo "  build_umep: ${BUILD_UMEP_RESULT}"
+    echo "  retag_umep: ${RETAG_UMEP_RESULT}"
     # Still pass if builds succeeded (conservative)
-    if [[ "${BUILD_WHEELS_RESULT}" != "success" ]] && \
-       [[ "${BUILD_WHEELS_RESULT}" != "skipped" ]]; then
-      VALIDATION_PASSED=false
-    fi
-    if [[ "${BUILD_UMEP_RESULT}" != "success" ]] && \
-       [[ "${BUILD_UMEP_RESULT}" != "skipped" ]]; then
-      VALIDATION_PASSED=false
-    fi
+    for result in "${BUILD_WHEELS_RESULT}" "${RETAG_UMEP_RESULT}"; do
+      if [[ "$result" != "success" ]] && [[ "$result" != "skipped" ]]; then
+        VALIDATION_PASSED=false
+      fi
+    done
   fi
 fi
 

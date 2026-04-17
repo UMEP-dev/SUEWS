@@ -61,8 +61,10 @@ When triggering via Actions tab → "Run workflow", you can configure:
   - `minimal` - Linux only, Python 3.9 + 3.14
   - `custom` - Use individual platform/Python toggles
 - **deploy_target**: `none` (validation) or `testpypi` (PyPI restricted to tags)
-- **include_umep**: Build QGIS3 UMEP variant (NumPy 1.x compatible)
 - **test_tier**: `smoke`, `core`, `cfg`, `standard`, or `all`
+
+UMEP (NumPy<2) wheels are produced automatically by the `retag_umep` job —
+metadata surgery on the same abi3 wheels, no separate build toggle.
 
 ### 4. GitHub Pages Deploy (`pages-deploy.yml`)
 Deploys static site content to GitHub Pages at suews.io:

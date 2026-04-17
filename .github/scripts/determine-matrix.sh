@@ -2,7 +2,10 @@
 # Determine the cibuildwheel build matrix based on trigger type and change detection.
 #
 # Called from build-publish_to_pypi.yml determine_matrix job.
-# Writes buildplat, python, umep_buildplat, umep_python, test_tier to GITHUB_OUTPUT.
+# Writes buildplat, python, test_tier to GITHUB_OUTPUT.
+#
+# The UMEP (NumPy<2) variant is no longer built separately — it is produced
+# post-build by .github/scripts/retag_umep_wheel.py from the same abi3 wheels.
 #
 # Required environment variables:
 #   EVENT_NAME           -- github.event_name
@@ -141,12 +144,3 @@ else
   echo "test_tier=all" >> "$GITHUB_OUTPUT"
 fi
 
-# UMEP: cp312 only (QGIS 3 LTR — Python 3.12, NumPy 1.x)
-# Standard wheels (cp313+) serve QGIS 4 (Python 3.13+, NumPy 2.x)
-# Production tags build all platforms; otherwise Windows only for validation
-if [[ "$GITHUB_REF" == refs/tags/* ]] && [[ "$GITHUB_REF" != *dev* ]]; then
-  echo "umep_buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
-else
-  echo 'umep_buildplat=[["windows-2025", "win", "AMD64"]]' >> "$GITHUB_OUTPUT"
-fi
-echo 'umep_python=["cp312"]' >> "$GITHUB_OUTPUT"

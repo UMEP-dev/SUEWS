@@ -93,25 +93,25 @@ They never see version details - it just works.
 From a single tag push:
 
 1. **Standard Build** (`build_wheels` job)
-   - Builds wheels with NumPy ≥2.0
+   - Builds one `cp39-abi3` wheel per (OS, arch) via cibuildwheel
+   - The Rust bridge uses PyO3 `abi3-py39`, so the wheel installs on cp39..cp3xx
    - Creates version `2024.10.7`
    - Deployed to PyPI
 
-2. **QGIS3 UMEP Build** (`build_umep` job)
-   - Modifies `pyproject.toml` at build time:
-     - Build: `oldest-supported-numpy` (instead of `numpy>=2.0`)
-     - Runtime: `numpy>=1.22,<2.0` (instead of `numpy>=2.0`)
-   - Sets `BUILD_UMEP_VARIANT=true` environment variable
-   - Creates version `2024.10.7rc1` (via `get_ver_git.py`)
-   - Binary compatible with NumPy 1.26.4 (QGIS 3 LTR)
-   - Deployed to PyPI
+2. **UMEP Retag** (`retag_umep` job)
+   - Runs `.github/scripts/retag_umep_wheel.py` on each standard abi3 wheel
+   - Rewrites `METADATA` (`Requires-Dist: numpy<2.0,>=1.22`)
+   - Rewrites `supy/_version_scm.py` to report `2024.10.7rc1`
+   - Regenerates `RECORD` with fresh SHA-256 hashes
+   - Keeps the `cp39-abi3-<plat>` wheel tag (binary is identical; metadata only)
+   - Deployed to PyPI alongside the standard wheels
 
 3. **Deployment** (`deploy_pypi` job)
-   - Waits for both build jobs
+   - Waits for both jobs
    - Collects wheels from both
    - Publishes all wheels to PyPI together
 
-**Timeline**: Both builds run in parallel (~20 minutes total)
+**Timeline**: Retag runs in seconds on a single runner after the standard build completes.
 
 **See Also**:
 - `.github/workflows/build-publish_to_pypi.yml` - CI configuration with detailed comments

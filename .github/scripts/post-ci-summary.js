@@ -8,7 +8,7 @@
 //   CI_CHANGED, TESTS_CHANGED, DOCS_CHANGED, SITE_CHANGED
 //   FORTRAN_FILES, RUST_FILES, PYTHON_FILES, UTIL_FILES, BUILD_FILES,
 //   CI_FILES, TESTS_FILES, DOCS_FILES, SITE_FILES, PYPROJECT_FILES
-//   NEEDS_BUILD, NEEDS_UMEP_BUILD, TEST_TIER
+//   NEEDS_BUILD, TEST_TIER
 //   BUILDPLAT_JSON, PYTHON_JSON
 //   COMMIT_SHA
 
@@ -55,7 +55,6 @@ module.exports = async ({ github, context }) => {
 
   // Build the "Build Configuration" section
   const needsBuild = env.NEEDS_BUILD === 'true';
-  const needsUmep = env.NEEDS_UMEP_BUILD === 'true';
   const testTier = env.TEST_TIER;
 
   const buildplat = JSON.parse(env.BUILDPLAT_JSON || '[]');
@@ -87,7 +86,7 @@ module.exports = async ({ github, context }) => {
     configSection += `| **Platforms** | ${platforms.join(', ')} |\n`;
     configSection += `| **Python** | ${pyDisplay} |\n`;
     configSection += `| **Test tier** | ${tierDesc[testTier] || testTier} |\n`;
-    configSection += `| **QGIS3 UMEP build** | ${needsUmep ? 'Yes (compiled extension may differ)' : 'Skipped (no ABI changes)'} |\n`;
+    configSection += `| **UMEP (NumPy<2) wheels** | Retagged post-build (abi3 metadata surgery) |\n`;
     configSection += `| **PR status** | ${isDraft ? 'Draft (reduced matrix)' : 'Ready (standard matrix)'} |\n`;
   }
 
@@ -108,8 +107,7 @@ module.exports = async ({ github, context }) => {
   if (utilChanged) rationale.push('Utility modules changed -> single-platform build');
   if (ciChanged) rationale.push('CI/workflow files changed -> validation build');
   if (testsChanged) rationale.push('Test files changed -> validation build');
-  if (needsUmep) rationale.push('Compiled extension ABI may differ -> QGIS3 UMEP (NumPy 1.x) build included');
-  if (!needsUmep && needsBuild) rationale.push('No compiled extension changes -> QGIS3 UMEP build skipped (nightly provides coverage)');
+  if (needsBuild) rationale.push('UMEP (NumPy<2) wheels retagged from the same abi3 build (no second compile)');
   if (!needsBuild) rationale.push('No build-triggering changes detected -> builds skipped');
 
   const rationaleSection = rationale.map(r => `- ${r}`).join('\n');

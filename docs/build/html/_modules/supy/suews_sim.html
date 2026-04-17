@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.suews_sim &#8212; SUEWS 2026.4.14.dev171 documentation</title>
+    <title>supy.suews_sim &#8212; SUEWS 2026.4.17.dev176 documentation</title>
   
   
   
@@ -42,7 +42,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=42501433"></script>
+    <script src="../../_static/documentation_options.js?v=e00fd2cc"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -53,7 +53,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.14.dev171" />
+  <meta name="docsearch:version" content="2026.4.17.dev176" />
   </head>
   
   
@@ -95,7 +95,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.14.dev171, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b54b8d108a5918a9dbc5fd49602aed694fb56620" style="color: #31708f;">b54b8d1</a>).
+        (2026.4.17.dev176, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/551f7dd146d60b7fae4dc5b4ffcc98a08aaafba1" style="color: #31708f;">551f7dd</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -144,8 +144,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.14.dev171 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.14.dev171 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.17.dev176 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.17.dev176 documentation - Home"/>
   
   
 </a></div>
@@ -1053,8 +1053,23 @@
         <span class="c1"># Slice forcing data</span>
         <span class="n">df_forcing_slice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">start_date</span><span class="p">:</span><span class="n">end_date</span><span class="p">]</span>
 
-        <span class="c1"># Validate forcing data</span>
-        <span class="n">list_issues</span> <span class="o">=</span> <span class="n">check_forcing</span><span class="p">(</span><span class="n">df_forcing_slice</span><span class="p">)</span>
+        <span class="c1"># Validate forcing data, including physics-specific forcing requirements</span>
+        <span class="c1"># (e.g. laimethod=0 requires a populated `lai` column). When observed</span>
+        <span class="c1"># LAI is selected, pass per-site LAI bounds so the validator can warn</span>
+        <span class="c1"># about forcing values that will be clamped at runtime.</span>
+        <span class="n">physics_dict</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">lai_bounds</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">):</span>
+            <span class="n">physics</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;physics&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">physics</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">physics</span><span class="p">,</span> <span class="s2">&quot;model_dump&quot;</span><span class="p">):</span>
+                <span class="n">physics_dict</span> <span class="o">=</span> <span class="n">physics</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;python&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">._supy_module</span><span class="w"> </span><span class="kn">import</span> <span class="n">_lai_bounds_from_df_state</span>
+
+            <span class="n">lai_bounds</span> <span class="o">=</span> <span class="n">_lai_bounds_from_df_state</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="p">)</span>
+        <span class="n">list_issues</span> <span class="o">=</span> <span class="n">check_forcing</span><span class="p">(</span>
+            <span class="n">df_forcing_slice</span><span class="p">,</span> <span class="n">physics</span><span class="o">=</span><span class="n">physics_dict</span><span class="p">,</span> <span class="n">lai_bounds</span><span class="o">=</span><span class="n">lai_bounds</span>
+        <span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">list_issues</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">issues_summary</span> <span class="o">=</span> <span class="n">list_issues</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="k">else</span> <span class="n">list_issues</span>
             <span class="n">suffix</span> <span class="o">=</span> <span class="p">(</span>
@@ -1895,8 +1910,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.14.dev171 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b54b8d108a5918a9dbc5fd49602aed694fb56620">b54b8d1</a> |
+  <p>Version: 2026.4.17.dev176 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/551f7dd146d60b7fae4dc5b4ffcc98a08aaafba1">551f7dd</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

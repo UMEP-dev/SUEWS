@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2025-12-15T16:39:04+00:00" />
-    <title>4.2. Meteorological Forcing Data &#8212; SUEWS 2026.4.14.dev171 documentation</title>
+    <meta property="article:modified_time" content="2026-04-17T11:28:59+00:00" />
+    <title>4.2. Meteorological Forcing Data &#8212; SUEWS 2026.4.17.dev176 documentation</title>
   
   
   
@@ -44,7 +44,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=42501433"></script>
+    <script src="../_static/documentation_options.js?v=e00fd2cc"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,8 +57,8 @@
     <link rel="prev" title="4.1. YAML Configuration Format" href="yaml/index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.14.dev171" />
-    <meta name="docbuild:last-update" content="2025-12-15"/>
+  <meta name="docsearch:version" content="2026.4.17.dev176" />
+    <meta name="docbuild:last-update" content="2026-04-17"/>
   </head>
   
   
@@ -100,7 +100,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.14.dev171, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b54b8d108a5918a9dbc5fd49602aed694fb56620" style="color: #31708f;">b54b8d1</a>).
+        (2026.4.17.dev176, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/551f7dd146d60b7fae4dc5b4ffcc98a08aaafba1" style="color: #31708f;">551f7dd</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +147,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.14.dev171 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.14.dev171 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.17.dev176 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.17.dev176 documentation - Home"/>
   
   
 </a></div>
@@ -596,12 +596,13 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#important-requirements">4.2.3. Important Requirements</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-configuration">4.2.4. YAML Configuration</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-variables">4.2.5. Optional Variables</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generating-forcing-data-from-era5">4.2.6. Generating Forcing Data from ERA5</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-epw-weather-files">4.2.7. Using EPW Weather Files</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-preparation-tips">4.2.8. Data Preparation Tips</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validating-forcing-data">4.2.9. Validating Forcing Data</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#physics-specific-data-requirements">4.2.10. Physics-Specific Data Requirements</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.2.11. See Also</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescribing-observed-lai">4.2.6. Prescribing Observed LAI</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generating-forcing-data-from-era5">4.2.7. Generating Forcing Data from ERA5</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-epw-weather-files">4.2.8. Using EPW Weather Files</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-preparation-tips">4.2.9. Data Preparation Tips</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validating-forcing-data">4.2.10. Validating Forcing Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#physics-specific-data-requirements">4.2.11. Physics-Specific Data Requirements</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.2.12. See Also</a></li>
 </ul>
             </nav>
         </div>
@@ -859,7 +860,7 @@
 <tr class="row-odd"><td><p>Leaf area index</p></td>
 <td><p>m²/m²</p></td>
 <td><p>lai</p></td>
-<td><p>If not modeled</p></td>
+<td><p>If <code class="docutils literal notranslate"><span class="pre">model.physics.laimethod</span> <span class="pre">=</span> <span class="pre">0</span></code> (see <a class="reference internal" href="#prescribed-lai"><span class="std std-ref">Prescribing Observed LAI</span></a>)</p></td>
 </tr>
 <tr class="row-even"><td><p>Diffuse radiation</p></td>
 <td><p>W/m²</p></td>
@@ -880,8 +881,48 @@
 </table>
 </div>
 </section>
+<section id="prescribing-observed-lai">
+<span id="prescribed-lai"></span><h2><span class="section-number">4.2.6. </span>Prescribing Observed LAI<a class="headerlink" href="#prescribing-observed-lai" title="Link to this heading">#</a></h2>
+<p>By default SUEWS computes leaf area index (LAI) internally using growing-degree-day (GDD) and
+senescence-degree-day (SDD) thresholds on daily mean air temperature. For sites where the
+observed LAI cycle is driven by rainfall (monsoon grasslands, semi-arid sites) or where a
+remote-sensing product is available, users can bypass the internal scheme by:</p>
+<ol class="arabic simple">
+<li><p>Setting <code class="docutils literal notranslate"><span class="pre">model.physics.laimethod:</span> <span class="pre">0</span></code> in the YAML configuration (0 = OBSERVED,
+1 = CALCULATED; default is 1).</p></li>
+<li><p>Populating the <code class="docutils literal notranslate"><span class="pre">lai</span></code> column of the meteorological forcing file with the observed
+values in m<sup>2</sup> m<sup>-2</sup>. Use the <code class="docutils literal notranslate"><span class="pre">-999</span></code> missing sentinel for timesteps with no
+observation; the calculated LAI is then kept for that day. A genuine zero
+observation (e.g. complete winter dieback) is a valid input and will be honoured.</p></li>
+</ol>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">laimethod:</span> <span class="pre">0</span></code> is set, the single scalar <code class="docutils literal notranslate"><span class="pre">lai</span></code> value from the forcing file is
+applied uniformly to all three vegetation classes (evergreen trees, deciduous trees,
+grass) each day.</p>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Observed LAI values are clamped into each vegetation class’s
+<code class="docutils literal notranslate"><span class="pre">[laimin,</span> <span class="pre">laimax]</span></code> envelope at runtime. The same clamp is applied to the
+parameterised branch (<code class="docutils literal notranslate"><span class="pre">laimethod:</span> <span class="pre">1</span></code>); the observed branch enforces it too
+for consistency and because the downstream conductance and active-vegetation
+fraction calculations (<code class="docutils literal notranslate"><span class="pre">LAI</span> <span class="pre">/</span> <span class="pre">laimax</span></code> in <code class="docutils literal notranslate"><span class="pre">suews_phys_resist</span></code> and
+<code class="docutils literal notranslate"><span class="pre">suews_phys_biogenco2</span></code>) require <code class="docutils literal notranslate"><span class="pre">LAI</span> <span class="pre">&lt;=</span> <span class="pre">laimax</span></code> to stay physically
+meaningful.</p>
+<p>If you supply observations that should pass through unchanged — e.g. a
+genuine winter dieback with <code class="docutils literal notranslate"><span class="pre">LAI</span> <span class="pre">=</span> <span class="pre">0</span></code> — configure the corresponding
+class’s <code class="docutils literal notranslate"><span class="pre">laimin</span></code> to zero in the site configuration. Similarly, widen
+<code class="docutils literal notranslate"><span class="pre">laimax</span></code> if observations legitimately exceed the default site canopy
+capacity.</p>
+<p>The pre-flight validator (<code class="xref py py-func docutils literal notranslate"><span class="pre">check_forcing()</span></code>) issues a
+warning when any forcing value would be clamped, so the user sees once that
+observations are being modified rather than discovering it through
+unexpected outputs.</p>
+</div>
+</section>
 <section id="generating-forcing-data-from-era5">
-<h2><span class="section-number">4.2.6. </span>Generating Forcing Data from ERA5<a class="headerlink" href="#generating-forcing-data-from-era5" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.2.7. </span>Generating Forcing Data from ERA5<a class="headerlink" href="#generating-forcing-data-from-era5" title="Link to this heading">#</a></h2>
 <p>SUEWS provides built-in support for downloading and processing ERA5 reanalysis data into forcing files using the <a class="reference internal" href="../api/_autosummary/supy.util.gen_forcing_era5.html#supy.util.gen_forcing_era5" title="supy.util.gen_forcing_era5"><code class="xref py py-func docutils literal notranslate"><span class="pre">gen_forcing_era5()</span></code></a> function.</p>
 <p><strong>Quick Start (Recommended - Fast Method)</strong></p>
 <p>By default, SUEWS uses the fast ERA5 timeseries dataset via CDS API:</p>
@@ -922,7 +963,7 @@
 <p>See <a class="reference internal" href="../api/_autosummary/supy.util.gen_forcing_era5.html#supy.util.gen_forcing_era5" title="supy.util.gen_forcing_era5"><code class="xref py py-func docutils literal notranslate"><span class="pre">gen_forcing_era5()</span></code></a> API documentation for all options.</p>
 </section>
 <section id="using-epw-weather-files">
-<h2><span class="section-number">4.2.7. </span>Using EPW Weather Files<a class="headerlink" href="#using-epw-weather-files" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.2.8. </span>Using EPW Weather Files<a class="headerlink" href="#using-epw-weather-files" title="Link to this heading">#</a></h2>
 <p>EPW (EnergyPlus Weather) files are a common format for building energy simulation, often derived from Typical Meteorological Year (TMY) data. SUEWS can read EPW data via the <a class="reference internal" href="../api/_autosummary/supy.util.read_epw.html#supy.util.read_epw" title="supy.util.read_epw"><code class="xref py py-func docutils literal notranslate"><span class="pre">read_epw()</span></code></a> utility function.</p>
 <p><strong>Important: Measurement Height Assumptions</strong></p>
 <p>EPW files follow standard meteorological station conventions with fixed measurement heights:</p>
@@ -1039,7 +1080,7 @@
 </div>
 </section>
 <section id="data-preparation-tips">
-<h2><span class="section-number">4.2.8. </span>Data Preparation Tips<a class="headerlink" href="#data-preparation-tips" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.2.9. </span>Data Preparation Tips<a class="headerlink" href="#data-preparation-tips" title="Link to this heading">#</a></h2>
 <p><strong>Gap Filling</strong></p>
 <p>If your data has gaps, you must fill them before use. SuPy provides <a class="reference internal" href="../api/_autosummary/supy.util.fill_gap_all.html#supy.util.fill_gap_all" title="supy.util.fill_gap_all"><code class="xref py py-func docutils literal notranslate"><span class="pre">fill_gap_all()</span></code></a> for automatic gap filling using neighbouring time periods. Common approaches:</p>
 <ul class="simple">
@@ -1065,7 +1106,7 @@
 </ul>
 </section>
 <section id="validating-forcing-data">
-<h2><span class="section-number">4.2.9. </span>Validating Forcing Data<a class="headerlink" href="#validating-forcing-data" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.2.10. </span>Validating Forcing Data<a class="headerlink" href="#validating-forcing-data" title="Link to this heading">#</a></h2>
 <p>SUEWS provides the <code class="docutils literal notranslate"><span class="pre">check_forcing()</span></code> function to validate your forcing data files before running simulations. The validation performs four main checks:</p>
 <ol class="arabic simple">
 <li><p><strong>Column completeness</strong>: Verifies all expected columns are present</p></li>
@@ -1133,7 +1174,8 @@
 </tr>
 <tr class="row-odd"><td><p>lai</p></td>
 <td><p>0 - 15 m²/m²</p></td>
-<td><p>Leaf area index</p></td>
+<td><p>Observed leaf area index (consumed only when <code class="docutils literal notranslate"><span class="pre">model.physics.laimethod:</span> <span class="pre">0</span></code>;
+otherwise ignored — see <a class="reference internal" href="#prescribed-lai"><span class="std std-ref">Prescribing Observed LAI</span></a>)</p></td>
 </tr>
 <tr class="row-even"><td><p>kdiff, kdir</p></td>
 <td><p>0 - 1400 W/m²</p></td>
@@ -1189,7 +1231,7 @@ suews-validate<span class="w"> </span>--forcing<span class="w"> </span>off<span 
 <p>For comprehensive quality control, combine <code class="docutils literal notranslate"><span class="pre">check_forcing()</span></code> with visual inspection of time series plots.</p>
 </section>
 <section id="physics-specific-data-requirements">
-<h2><span class="section-number">4.2.10. </span>Physics-Specific Data Requirements<a class="headerlink" href="#physics-specific-data-requirements" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.2.11. </span>Physics-Specific Data Requirements<a class="headerlink" href="#physics-specific-data-requirements" title="Link to this heading">#</a></h2>
 <p>Certain model physics options require specific forcing data columns to contain valid (non-missing) values.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <colgroup>
@@ -1241,7 +1283,7 @@ suews-validate<span class="w"> </span>--forcing<span class="w"> </span>off<span 
 </div>
 </section>
 <section id="see-also">
-<h2><span class="section-number">4.2.11. </span>See Also<a class="headerlink" href="#see-also" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.2.12. </span>See Also<a class="headerlink" href="#see-also" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><a class="reference internal" href="yaml/index.html"><span class="doc">YAML Configuration Format</span></a> - YAML configuration including forcing file specification</p></li>
 <li><p><a class="reference internal" href="yaml/validation.html"><span class="doc">Validation Tool Reference</span></a> - Complete validation system documentation</p></li>
@@ -1303,12 +1345,13 @@ suews-validate<span class="w"> </span>--forcing<span class="w"> </span>off<span 
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#important-requirements">4.2.3. Important Requirements</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-configuration">4.2.4. YAML Configuration</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-variables">4.2.5. Optional Variables</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generating-forcing-data-from-era5">4.2.6. Generating Forcing Data from ERA5</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-epw-weather-files">4.2.7. Using EPW Weather Files</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-preparation-tips">4.2.8. Data Preparation Tips</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validating-forcing-data">4.2.9. Validating Forcing Data</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#physics-specific-data-requirements">4.2.10. Physics-Specific Data Requirements</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.2.11. See Also</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescribing-observed-lai">4.2.6. Prescribing Observed LAI</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generating-forcing-data-from-era5">4.2.7. Generating Forcing Data from ERA5</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-epw-weather-files">4.2.8. Using EPW Weather Files</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-preparation-tips">4.2.9. Data Preparation Tips</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validating-forcing-data">4.2.10. Validating Forcing Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#physics-specific-data-requirements">4.2.11. Physics-Specific Data Requirements</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.2.12. See Also</a></li>
 </ul>
   </nav></div>
 
@@ -1342,7 +1385,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2025-12-15.
+  Last updated on 2026-04-17.
   <br/>
 </p>
   </div>
@@ -1350,8 +1393,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.14.dev171 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b54b8d108a5918a9dbc5fd49602aed694fb56620">b54b8d1</a> |
+  <p>Version: 2026.4.17.dev176 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/551f7dd146d60b7fae4dc5b4ffcc98a08aaafba1">551f7dd</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

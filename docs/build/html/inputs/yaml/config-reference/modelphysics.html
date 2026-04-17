@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for physics methods parameters" name="description" />
 <meta content="SUEWS, YAML, modelphysics, parameters, configuration" name="keywords" />
 
-    <title>4.3.32. Physics Methods &#8212; SUEWS 2026.4.14.dev171 documentation</title>
+    <title>4.3.32. Physics Methods &#8212; SUEWS 2026.4.17.dev176 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=42501433"></script>
+    <script src="../../../_static/documentation_options.js?v=e00fd2cc"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -58,7 +58,7 @@
     <link rel="prev" title="4.3.31. Model Control" href="modelcontrol.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.14.dev171" />
+  <meta name="docsearch:version" content="2026.4.17.dev176" />
   </head>
   
   
@@ -100,7 +100,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.14.dev171, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b54b8d108a5918a9dbc5fd49602aed694fb56620" style="color: #31708f;">b54b8d1</a>).
+        (2026.4.17.dev176, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/551f7dd146d60b7fae4dc5b4ffcc98a08aaafba1" style="color: #31708f;">551f7dd</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +147,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.14.dev171 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.14.dev171 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.17.dev176 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.17.dev176 documentation - Home"/>
   
   
 </a></div>
@@ -729,8 +729,29 @@
 </dl>
 </dd></dl>
 
+<dl class="input option" id="index-10">
+<dt class="sig sig-object input" id="input-option-laimethod">
+<span class="sig-name descname"><span class="pre">laimethod</span></span><a class="headerlink" href="#input-option-laimethod" title="Link to this definition">#</a></dt>
+<dd><p>Method for determining leaf area index (LAI).</p>
+<dl class="field-list">
+<dt class="field-odd">Options<span class="colon">:</span></dt>
+<dd class="field-odd"><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">0</span></code> (OBSERVED) = Uses observed LAI values from the forcing file (lai column)</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">1</span></code> (CALCULATED) = LAI calculated internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.</div>
+</div>
+</dd>
+<dt class="field-even">Example<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">1</span></code> (CALCULATED)</p>
+</dd>
+</dl>
+<div class="note admonition">
+<p class="admonition-title">Method Interactions</p>
+<p>Set to 0 (OBSERVED) to prescribe LAI from the lai column of the meteorological forcing.</p>
+</div>
+</dd></dl>
+
 <dl class="input option" id="rslmethod">
-<span id="index-10"></span><dt class="sig sig-object input" id="input-option-rslmethod">
+<span id="index-11"></span><dt class="sig sig-object input" id="input-option-rslmethod">
 <span class="sig-name descname"><span class="pre">rslmethod</span></span><a class="headerlink" href="#input-option-rslmethod" title="Link to this definition">#</a></dt>
 <dd><p>Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).</p>
 <dl class="field-list">
@@ -751,7 +772,7 @@
 </div>
 </dd></dl>
 
-<dl class="input option" id="index-11">
+<dl class="input option" id="index-12">
 <dt class="sig sig-object input" id="input-option-faimethod">
 <span class="sig-name descname"><span class="pre">faimethod</span></span><a class="headerlink" href="#input-option-faimethod" title="Link to this definition">#</a></dt>
 <dd><p>Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.</p>
@@ -768,7 +789,7 @@
 </dd></dl>
 
 <dl class="input option" id="rsllevel">
-<span id="index-12"></span><dt class="sig sig-object input" id="input-option-rsllevel">
+<span id="index-13"></span><dt class="sig sig-object input" id="input-option-rsllevel">
 <span class="sig-name descname"><span class="pre">rsllevel</span></span><a class="headerlink" href="#input-option-rsllevel" title="Link to this definition">#</a></dt>
 <dd><p>Method for incorporating local environmental feedbacks on surface processes, particularly vegetation phenology and evapotranspiration responses to urban heat island effects.</p>
 <dl class="field-list">
@@ -792,7 +813,7 @@
 </dd></dl>
 
 <dl class="input option" id="gsmodel">
-<span id="index-13"></span><dt class="sig sig-object input" id="input-option-gsmodel">
+<span id="index-14"></span><dt class="sig sig-object input" id="input-option-gsmodel">
 <span class="sig-name descname"><span class="pre">gsmodel</span></span><a class="headerlink" href="#input-option-gsmodel" title="Link to this definition">#</a></dt>
 <dd><p>Stomatal conductance parameterisation method for vegetation surfaces.</p>
 <dl class="field-list">
@@ -813,7 +834,7 @@
 </div>
 </dd></dl>
 
-<dl class="input option" id="index-14">
+<dl class="input option" id="index-15">
 <dt class="sig sig-object input" id="input-option-snowuse">
 <span class="sig-name descname"><span class="pre">snowuse</span></span><a class="headerlink" href="#input-option-snowuse" title="Link to this definition">#</a></dt>
 <dd><p>Controls snow process calculations (Järvi et al. 2014).</p>
@@ -830,7 +851,7 @@
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-15">
+<dl class="input option" id="index-16">
 <dt class="sig sig-object input" id="input-option-stebbsmethod">
 <span class="sig-name descname"><span class="pre">stebbsmethod</span></span><a class="headerlink" href="#input-option-stebbsmethod" title="Link to this definition">#</a></dt>
 <dd><p>Surface Temperature Energy Balance Based Scheme (STEBBS) for facet temperatures.</p>
@@ -848,7 +869,7 @@
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-16">
+<dl class="input option" id="index-17">
 <dt class="sig sig-object input" id="input-option-rcmethod">
 <span class="sig-name descname"><span class="pre">rcmethod</span></span><a class="headerlink" href="#input-option-rcmethod" title="Link to this definition">#</a></dt>
 <dd><p>Method to determine the two weighting factors (WallOuterCapFrac and RoofOuterCapFrac) splitting heat capacity of building envelope into two nodes in STEBBS.</p>
@@ -866,7 +887,7 @@
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-17">
+<dl class="input option" id="index-18">
 <dt class="sig sig-object input" id="input-option-setpointmethod">
 <span class="sig-name descname"><span class="pre">setpointmethod</span></span><a class="headerlink" href="#input-option-setpointmethod" title="Link to this definition">#</a></dt>
 <dd><p>Method to determine the approach of space heating/cooling setpoints in STEBBS.</p>
@@ -884,7 +905,7 @@
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-18">
+<dl class="input option" id="index-19">
 <dt class="sig sig-object input" id="input-option-same_albedo_wall">
 <span class="sig-name descname"><span class="pre">same_albedo_wall</span></span><a class="headerlink" href="#input-option-same_albedo_wall" title="Link to this definition">#</a></dt>
 <dd><p>Controls assumption of same albedoes for walls.</p>
@@ -898,7 +919,7 @@
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-19">
+<dl class="input option" id="index-20">
 <dt class="sig sig-object input" id="input-option-same_albedo_roof">
 <span class="sig-name descname"><span class="pre">same_albedo_roof</span></span><a class="headerlink" href="#input-option-same_albedo_roof" title="Link to this definition">#</a></dt>
 <dd><p>Controls assumption of same albedoes for roofs.</p>
@@ -912,7 +933,7 @@
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-20">
+<dl class="input option" id="index-21">
 <dt class="sig sig-object input" id="input-option-same_emissivity_wall">
 <span class="sig-name descname"><span class="pre">same_emissivity_wall</span></span><a class="headerlink" href="#input-option-same_emissivity_wall" title="Link to this definition">#</a></dt>
 <dd><p>Controls assumption of same emissivities for walls.</p>
@@ -926,7 +947,7 @@
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-21">
+<dl class="input option" id="index-22">
 <dt class="sig sig-object input" id="input-option-same_emissivity_roof">
 <span class="sig-name descname"><span class="pre">same_emissivity_roof</span></span><a class="headerlink" href="#input-option-same_emissivity_roof" title="Link to this definition">#</a></dt>
 <dd><p>Controls assumption of same emissivities for roofs.</p>
@@ -940,7 +961,7 @@
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-22">
+<dl class="input option" id="index-23">
 <dt class="sig sig-object input" id="input-option-ref">
 <span class="sig-name descname"><span class="pre">ref</span></span><a class="headerlink" href="#input-option-ref" title="Link to this definition">#</a></dt>
 <dd><p>The <code class="docutils literal notranslate"><span class="pre">ref</span></code> parameter group is defined by the <a class="reference internal" href="reference.html"><span class="doc">Reference Info</span></a> structure.</p>
@@ -1017,8 +1038,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.14.dev171 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b54b8d108a5918a9dbc5fd49602aed694fb56620">b54b8d1</a> |
+  <p>Version: 2026.4.17.dev176 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/551f7dd146d60b7fae4dc5b4ffcc98a08aaafba1">551f7dd</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

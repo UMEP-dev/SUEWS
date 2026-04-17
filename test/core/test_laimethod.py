@@ -442,14 +442,15 @@ class TestLAIBoundsYAMLExtraction:
 
     def test_extract_lai_bounds_from_sample_config(self):
         """The sample YAML is parsed into a bounds dict matching df_state."""
+        from pathlib import Path
+
         import yaml
         from supy.data_model.validation.pipeline.phase_a import (
             _extract_lai_bounds_from_user_data,
         )
 
         sample_yaml = (
-            "/Users/tingsun/conductor/workspaces/suews/riyadh/"
-            "src/supy/sample_data/sample_config.yml"
+            Path(__file__).parent.parent / "fixtures" / "benchmark1" / "benchmark1.yml"
         )
         with open(sample_yaml) as f:
             user_data = yaml.safe_load(f)

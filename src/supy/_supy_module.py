@@ -26,7 +26,12 @@ import numpy as np
 import pandas
 import pandas as pd
 
-from ._check import FORCING_REQUIREMENTS, check_forcing, check_state
+from ._check import (
+    FORCING_REQUIREMENTS,
+    _check_observed_lai_nonneg,
+    check_forcing,
+    check_state,
+)
 from ._env import logger_supy, trv_supy_module
 from ._load import (
     load_df_state,
@@ -736,6 +741,23 @@ def _run_supy(
     from .util._forcing import convert_observed_soil_moisture
 
     config = SUEWSConfig.from_df_state(df_state_init)
+
+    try:
+        lai_val = getattr(config.model.physics, "laimethod", None)
+        if hasattr(lai_val, "value"):
+            lai_val = lai_val.value
+        lai_int = int(lai_val) if lai_val is not None else 1
+    except (AttributeError, TypeError, ValueError):
+        lai_int = 1
+
+    if lai_int == 0:
+        lai_issues = []
+        if _check_observed_lai_nonneg(df_forcing, lai_issues):
+            logger_supy.critical(
+                "`df_forcing` violates the observed-LAI contract under "
+                "`laimethod=0`."
+            )
+            raise RuntimeError(lai_issues[0])
 
     # Preprocess forcing for observed soil moisture if needed
     try:

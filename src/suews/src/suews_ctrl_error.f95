@@ -10,6 +10,7 @@
 !   102: STEBBS - Invalid thermal parameters (d, cp, rho must be positive; x1 in [0,1])
 !   103: RSL - Interpolation bounds error in interp_z
 !   104: Build/ABI mismatch - output array size disagreement across compilation units
+!   105: DailyState - laimethod=0 requires non-missing lai >= 0 at every timestep (GH#1296)
 !
 ! Note: Error state uses SAVE variables, so is NOT thread-safe.
 !       Do not call SUEWS from multiple threads simultaneously.

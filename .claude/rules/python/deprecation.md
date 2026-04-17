@@ -77,6 +77,8 @@ def old_function(...):
 5. **Update docs**: Change references to point to new API
 6. **Remove from exports** (optional): Remove from `supy.util` etc. if appropriate
 
+Deprecated APIs remain part of the supported public surface until removal. Bug fixes and contract changes must be applied and tested there too; do not assume the modern OOP path is sufficient coverage.
+
 ---
 
 ## Standard Warning Format

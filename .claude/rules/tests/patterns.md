@@ -108,6 +108,18 @@ test/
 
 ---
 
+## Validation Edge Cases
+
+When a change tightens an input contract, add explicit regressions for all relevant invalid forms, not just the obvious one:
+
+- Negative values
+- Canonical sentinel values (for example `-999`)
+- `NaN` / missing values
+
+If the feature is available through more than one public API, include at least one regression per API path. Covering only the modern interface is not enough if deprecated or legacy entry points still exist.
+
+---
+
 ## Centralisation Patterns
 
 ### Shared Utilities in conftest.py

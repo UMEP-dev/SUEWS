@@ -2,6 +2,8 @@
 MODULE module_phys_dailystate
    USE module_ctrl_const_allocate, ONLY: &
       ndays, nsurf, nvegsurf, ivConif, ivDecid, ivGrass, DecidSurf, ncolumnsDataOutDailyState
+   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
+   USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN
 
    IMPLICIT NONE
 
@@ -337,6 +339,7 @@ CONTAINS
                         LAI_id_prev, &
                         GDD_id, SDD_id, & !inout
                         LAI_id) !output
+                     IF (supy_error_flag) RETURN
 
                      CALL update_Veg( &
                         LAImax, LAIMin, & !input
@@ -581,6 +584,17 @@ CONTAINS
 
       critDays = 50 !Critical limit for GDD when GDD or SDD is set to zero
 
+      IF (LAICalcYes == 0 .AND. (IEEE_IS_NAN(LAI_obs) .OR. LAI_obs < 0.0D0)) THEN
+         ! Invalid LAI_obs slipped past pre-flight — raise an error via the
+         ! SuPy error-state channel before mutating phenology state.
+         ! Assign a safe sentinel to the INTENT(OUT) array before RETURN.
+         LAI_id_next = -999.0D0
+         CALL set_supy_error( &
+            105, &
+            'update_GDDLAI: laimethod=0 requires a non-missing lai >= 0 at every timestep')
+         RETURN
+      END IF
+
       ! Loop through vegetation types (iv)
       DO iv = 1, NVegSurf
          ! Calculate GDD for each day from the minimum and maximum air temperature
@@ -684,24 +698,28 @@ CONTAINS
 
       END DO !End of loop over veg surfaces
 
-      ! Observed-LAI override: when LAICalcYes == 0 and the forcing column carries a
-      ! non-sentinel value, use forcing%LAI_obs for every vegetation class. Only the
-      ! -999 missing sentinel (matched defensively as ``LAI_obs <= -900``) is treated
-      ! as "no observation this day" and the calculated LAI is kept.
+      ! Observed-LAI override: when LAICalcYes == 0, every timestep's forcing
+      ! value must be a non-missing, non-negative observation (LAI_obs >= 0).
+      ! A genuine
+      ! zero observation (e.g. complete winter dieback) is valid — the
+      ! site-specific clamp then raises it to LAImin if the configuration
+      ! retains a positive floor. Missing/NaN values and strictly negative
+      ! values — including the -999 missing sentinel — are rejected;
+      ! choosing this path commits the user to providing an observation for
+      ! every timestep.
+      ! The Python pre-flight validator (supy._check.check_forcing) enforces
+      ! this contract before a run starts; the guard below is a defensive
+      ! backstop for callers that bypass preflight. Reports via
+      ! module_ctrl_error_state so SuPy can surface a clean exception —
+      ! never WRITE(*,...) + STOP, which kills the embedding Python process.
       ! The scalar-to-all-veg-classes limitation is tracked in #1292.
-      IF (LAICalcYes == 0 .AND. LAI_obs > -900.0D0) THEN
+      IF (LAICalcYes == 0) THEN
          LAI_id_next = LAI_obs
          ! Clamp observed LAI to each vegetation class's [LAImin, LAImax]
-         ! envelope. The same clamp is applied to the parameterised branch
-         ! above; the observed branch honours it too so that:
-         !   * Downstream rescaling ratios ``LAI_id / LAImax`` in
-         !     ``suews_phys_resist`` and ``suews_phys_biogenco2`` stay <= 1.
-         !   * Observations cannot violate the site-specific canopy envelope
-         !     encoded in ``LAImin`` / ``LAImax``.
-         ! Users who expect genuine zero observations (e.g. winter dieback of
-         ! deciduous canopy) must set the corresponding class's ``LAImin`` to
-         ! zero in the site configuration — the pre-flight validator warns
-         ! when forcing values would be clamped.
+         ! envelope so that downstream ``LAI_id / LAImax`` ratios in
+         ! ``suews_phys_resist`` and ``suews_phys_biogenco2`` stay within
+         ! the site-specific canopy envelope. The pre-flight validator
+         ! warns when forcing values would be clamped.
          DO iv = 1, NVegSurf
             IF (LAI_id_next(iv) > LAImax(iv)) THEN
                LAI_id_next(iv) = LAImax(iv)

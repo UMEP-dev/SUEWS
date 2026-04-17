@@ -2,6 +2,7 @@
 MODULE module_phys_dailystate
    USE module_ctrl_const_allocate, ONLY: &
       ndays, nsurf, nvegsurf, ivConif, ivDecid, ivGrass, DecidSurf, ncolumnsDataOutDailyState
+   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
 
    IMPLICIT NONE
 
@@ -684,31 +685,43 @@ CONTAINS
 
       END DO !End of loop over veg surfaces
 
-      ! Observed-LAI override: when LAICalcYes == 0 and the forcing column carries a
-      ! non-sentinel value, use forcing%LAI_obs for every vegetation class. Only the
-      ! -999 missing sentinel (matched defensively as ``LAI_obs <= -900``) is treated
-      ! as "no observation this day" and the calculated LAI is kept.
+      ! Observed-LAI override: when LAICalcYes == 0, every timestep's forcing
+      ! value must be a non-negative observation (LAI_obs >= 0). A genuine
+      ! zero observation (e.g. complete winter dieback) is valid — the
+      ! site-specific clamp then raises it to LAImin if the configuration
+      ! retains a positive floor. Strictly negative values — including the
+      ! -999 missing sentinel — are rejected; choosing this path commits
+      ! the user to providing an observation for every timestep.
+      ! The Python pre-flight validator (supy._check.check_forcing) enforces
+      ! this contract before a run starts; the guard below is a defensive
+      ! backstop for callers that bypass preflight. Reports via
+      ! module_ctrl_error_state so SuPy can surface a clean exception —
+      ! never WRITE(*,...) + STOP, which kills the embedding Python process.
       ! The scalar-to-all-veg-classes limitation is tracked in #1292.
-      IF (LAICalcYes == 0 .AND. LAI_obs > -900.0D0) THEN
-         LAI_id_next = LAI_obs
-         ! Clamp observed LAI to each vegetation class's [LAImin, LAImax]
-         ! envelope. The same clamp is applied to the parameterised branch
-         ! above; the observed branch honours it too so that:
-         !   * Downstream rescaling ratios ``LAI_id / LAImax`` in
-         !     ``suews_phys_resist`` and ``suews_phys_biogenco2`` stay <= 1.
-         !   * Observations cannot violate the site-specific canopy envelope
-         !     encoded in ``LAImin`` / ``LAImax``.
-         ! Users who expect genuine zero observations (e.g. winter dieback of
-         ! deciduous canopy) must set the corresponding class's ``LAImin`` to
-         ! zero in the site configuration — the pre-flight validator warns
-         ! when forcing values would be clamped.
-         DO iv = 1, NVegSurf
-            IF (LAI_id_next(iv) > LAImax(iv)) THEN
-               LAI_id_next(iv) = LAImax(iv)
-            ELSEIF (LAI_id_next(iv) < LAImin(iv)) THEN
-               LAI_id_next(iv) = LAImin(iv)
-            END IF
-         END DO
+      IF (LAICalcYes == 0) THEN
+         IF (LAI_obs >= 0.0D0) THEN
+            LAI_id_next = LAI_obs
+            ! Clamp observed LAI to each vegetation class's [LAImin, LAImax]
+            ! envelope so that downstream ``LAI_id / LAImax`` ratios in
+            ! ``suews_phys_resist`` and ``suews_phys_biogenco2`` stay within
+            ! the site-specific canopy envelope. The pre-flight validator
+            ! warns when forcing values would be clamped.
+            DO iv = 1, NVegSurf
+               IF (LAI_id_next(iv) > LAImax(iv)) THEN
+                  LAI_id_next(iv) = LAImax(iv)
+               ELSEIF (LAI_id_next(iv) < LAImin(iv)) THEN
+                  LAI_id_next(iv) = LAImin(iv)
+               END IF
+            END DO
+         ELSE
+            ! Negative LAI_obs slipped past pre-flight — raise an error
+            ! via the SuPy error-state channel. Do NOT STOP: the driver
+            ! reads the flag and surfaces the message to Python.
+            CALL set_supy_error( &
+               105, &
+               'update_GDDLAI: laimethod=0 requires lai >= 0 at every timestep')
+            RETURN
+         END IF
       END IF
       !------------------------------------------------------------------------------
 

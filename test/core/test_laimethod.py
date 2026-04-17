@@ -1,4 +1,4 @@
-"""Regression tests for laimethod (issue #1291).
+"""Regression tests for laimethod (issues #1291, #1296).
 
 The `model.physics.laimethod` option controls whether SUEWS computes LAI
 internally via GDD/SDD thresholds (laimethod=1, default) or uses observed
@@ -6,8 +6,16 @@ values from the `lai` forcing column (laimethod=0). Issue #1291 reported
 that the forcing column was silently ignored because the dailystate routine
 hard-coded the local switch to `LAICalcYes = 1`.
 
+Issue #1296 tightened the contract for the observed path: under
+`laimethod=0` every row of the `lai` forcing column must be
+**non-negative** (`lai >= 0`). Zero observations are valid (and clamped
+to `laimin` when the site configuration retains a positive floor);
+**negative** values — including the `-999` missing sentinel — are
+rejected at pre-flight. Do not reintroduce sentinel-based fallback
+tests for the observed path.
+
 These tests guard against regression in:
-  * Validator plumbing (FORCING_REQUIREMENTS entry).
+  * Validator plumbing (FORCING_REQUIREMENTS entry, non-negative check).
   * Fortran/Python wiring (the switch actually routes `forcing%LAI_obs`
     through to `LAI_id_next`).
 """
@@ -103,6 +111,87 @@ class TestLAIMethodValidator:
         assert any(
             "laimethod=0" in issue and "lai" in issue for issue in issues
         )
+
+
+class TestLAIMethodNegativeRejected:
+    """Validator rejects every negative ``lai`` value under ``laimethod=0``.
+
+    Issue #1296 contract: the observed path requires a non-negative
+    observation (``lai >= 0``) at every timestep. Zero is valid (and
+    clamped to ``laimin`` at runtime when the site configuration retains
+    a positive floor). Sentinels (``-999``) and other negative values are
+    all rejected at pre-flight so the user sees a clear error before the
+    run starts.
+    """
+
+    def test_validator_accepts_lai_zero(self):
+        """``lai == 0`` across all rows is a valid observation."""
+        df_forcing = _base_forcing_df()
+        df_forcing["lai"] = 0.0
+        issues = check_forcing(
+            df_forcing, fix=False, physics={"laimethod": 0}
+        )
+        if issues:
+            assert not any(
+                "non-negative" in issue for issue in issues
+            ), issues
+
+    def test_validator_rejects_small_negative_lai(self):
+        """Small negative values (above the -900 threshold) are rejected."""
+        df_forcing = _base_forcing_df()
+        df_forcing["lai"] = -5.0
+        issues = check_forcing(
+            df_forcing, fix=False, physics={"laimethod": 0}
+        )
+        assert any(
+            "laimethod=0" in issue and "non-negative" in issue
+            for issue in issues
+        ), issues
+
+    def test_validator_rejects_missing_sentinel(self):
+        """``lai == -999`` is not a permitted fallback under laimethod=0."""
+        df_forcing = _base_forcing_df()  # lai column already set to -999
+        issues = check_forcing(
+            df_forcing, fix=False, physics={"laimethod": 0}
+        )
+        # Exactly one non-negative issue is emitted for this column — the
+        # generic all-missing check must be suppressed to avoid duplicates.
+        matching = [
+            issue for issue in issues
+            if "laimethod=0" in issue and "non-negative" in issue
+        ]
+        assert len(matching) == 1, (
+            f"Expected one non-negative issue; got {len(matching)}: {issues}"
+        )
+        assert "missing sentinel" in matching[0], matching[0]
+
+    def test_validator_rejects_partial_missing(self):
+        """A mix of valid observations and -999 fill-ins is still rejected."""
+        df_forcing = _base_forcing_df()
+        df_forcing["lai"] = 3.5
+        df_forcing.iloc[3:6, df_forcing.columns.get_loc("lai")] = -999.0
+        issues = check_forcing(
+            df_forcing, fix=False, physics={"laimethod": 0}
+        )
+        matching = [
+            issue for issue in issues
+            if "laimethod=0" in issue and "non-negative" in issue
+        ]
+        assert matching, issues
+        # Invalid-row count in the message should reflect the 3 sentinels.
+        assert "3" in matching[0], matching[0]
+
+    def test_validator_accepts_all_positive_lai(self):
+        """Strictly positive ``lai`` values pass the non-negative check."""
+        df_forcing = _base_forcing_df()
+        df_forcing["lai"] = 3.5
+        issues = check_forcing(
+            df_forcing, fix=False, physics={"laimethod": 0}
+        )
+        if issues:
+            assert not any(
+                "non-negative" in issue for issue in issues
+            ), issues
 
 
 @pytest.mark.core
@@ -230,20 +319,18 @@ class TestLAIMethodRuntime:
             surf.lai.laimax = laimax
 
     def test_zero_lai_observation_honoured(self):
-        """A genuine zero observation drives LAI to zero only when the site's
-        ``laimin`` is configured to 0 — otherwise the runtime clamp kicks in.
+        """A genuine zero observation drives LAI to zero when ``laimin = 0``.
 
-        This guards the documented contract: observations are clamped into the
-        per-class ``[LAImin, LAImax]`` envelope. Users who want zero
-        observations (e.g. winter dieback of deciduous canopy) must set
-        ``laimin`` accordingly in their site configuration.
+        Issue #1296 keeps zero as a valid observation: users who expect
+        complete canopy dieback (winter, browning) can set ``laimin`` to
+        zero in the site configuration and the observation is honoured.
         """
         sim = SUEWSSimulation.from_sample_data()
         self._set_lai_bounds(sim, laimin=0.0, laimax=10.0)
 
         end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
         df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
-        df_forcing["lai"] = 0.0  # genuine observation of bare canopy
+        df_forcing["lai"] = 0.0
 
         sim._config.model.physics.laimethod = LAIMethod.OBSERVED
         sim._df_state_init = sim._config.to_df_state()
@@ -265,8 +352,9 @@ class TestLAIMethodRuntime:
 
     def test_zero_lai_observation_clamped_to_laimin(self):
         """Zero observations are clamped up to ``laimin`` when the site
-        configuration retains a positive floor. This is the default behaviour
-        of the sample config (``laimin`` > 0 for all classes)."""
+        configuration retains a positive floor. This is the default
+        behaviour of the sample config (``laimin`` > 0 for all classes).
+        """
         sim = SUEWSSimulation.from_sample_data()
 
         df_state = sim._config.to_df_state()
@@ -342,23 +430,26 @@ class TestLAIMethodRuntime:
                 f"{df_lai_tail[column].max()}"
             )
 
-    def test_negative_sentinel_accepted_as_missing(self):
-        """Forcing values <= -900 must be treated as missing at the validator
-        level, matching the Fortran runtime's defensive sentinel handling."""
+    def test_negative_sentinel_rejected(self):
+        """Non-canonical sentinels (e.g. ``-950``) are still rejected.
+
+        Issue #1296 contract: under ``laimethod=0`` every ``lai`` row
+        must be non-negative (``>= 0``). Any strictly negative value —
+        the canonical ``-999`` sentinel and defensive variants such as
+        ``-950`` alike — is refused, because the observed path does not
+        permit falling back to the calculated branch on a per-timestep
+        basis.
+        """
         sim = SUEWSSimulation.from_sample_data()
 
         end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
         df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
-        df_forcing["lai"] = -950.0  # non-canonical but valid missing sentinel
+        df_forcing["lai"] = -950.0
 
         sim._config.model.physics.laimethod = LAIMethod.OBSERVED
         sim._df_state_init = sim._config.to_df_state()
         sim.update_forcing(df_forcing)
 
-        # The forcing is entirely missing, so the validator must raise exactly
-        # as it does for the canonical -999 sentinel (covered by
-        # ``test_run_rejects_all_missing_lai``). It must NOT fail because of a
-        # spurious "range" error on -950 values.
         with pytest.raises(ValueError, match="laimethod=0"):
             sim.run(end_date=df_forcing.index[-1])
 

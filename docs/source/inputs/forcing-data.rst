@@ -249,10 +249,15 @@ remote-sensing product is available, users can bypass the internal scheme by:
 
 1. Setting ``model.physics.laimethod: 0`` in the YAML configuration (0 = OBSERVED,
    1 = CALCULATED; default is 1).
-2. Populating the ``lai`` column of the meteorological forcing file with the observed
-   values in |m^2| |m^-2|. Use the ``-999`` missing sentinel for timesteps with no
-   observation; the calculated LAI is then kept for that day. A genuine zero
-   observation (e.g. complete winter dieback) is a valid input and will be honoured.
+2. Populating the ``lai`` column of the meteorological forcing file with a **non-negative**
+   observation at every timestep, in |m^2| |m^-2|. A genuine zero observation (e.g.
+   complete winter dieback) is valid. Choosing the observed path commits the user to
+   providing an observation for every timestep; the ``-999`` missing sentinel is
+   **not** a permitted fallback here and the pre-flight validator rejects any strictly
+   negative value (including ``-999`` and other sentinels). If observations are
+   unavailable for part of the run, either switch to ``laimethod: 1`` (internally
+   calculated) or gap-fill the ``lai`` column with non-negative values before feeding
+   it to SUEWS.
 
 .. note::
    When ``laimethod: 0`` is set, the single scalar ``lai`` value from the forcing file is
@@ -268,14 +273,12 @@ remote-sensing product is available, users can bypass the internal scheme by:
    ``suews_phys_biogenco2``) require ``LAI <= laimax`` to stay physically
    meaningful.
 
-   If you supply observations that should pass through unchanged — e.g. a
-   genuine winter dieback with ``LAI = 0`` — configure the corresponding
-   class's ``laimin`` to zero in the site configuration. Similarly, widen
-   ``laimax`` if observations legitimately exceed the default site canopy
-   capacity.
-
-   The pre-flight validator (:func:`~supy._check.check_forcing`) issues a
-   warning when any forcing value would be clamped, so the user sees once that
+   If you supply observations that should pass through unchanged — e.g. a genuine
+   winter dieback with ``LAI = 0`` — configure the corresponding class's
+   ``laimin`` to zero in the site configuration. Similarly, widen ``laimax`` if
+   observations legitimately exceed the default site canopy capacity. The
+   pre-flight validator (:func:`~supy._check.check_forcing`) issues a warning
+   when any forcing value would be clamped, so the user sees once that
    observations are being modified rather than discovering it through
    unexpected outputs.
 

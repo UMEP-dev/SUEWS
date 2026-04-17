@@ -38,6 +38,13 @@ MINIMAL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"]]'
 BOOKEND_PYTHON='["cp39", "cp314"]'
 ALL_PYTHON='["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]'
 
+# Build-side Python: always cp39 to emit cp39-abi3 wheels that cover all
+# supported CPython versions. The bridge is PyO3 abi3-py39 and meson-python
+# is configured with limited-api=true in pyproject.toml, so one wheel per
+# (OS, arch) covers cp39..cp3xx. BOOKEND_PYTHON / ALL_PYTHON are retained
+# for test-side matrices, not wheel builds.
+BUILD_PYTHON='["cp39"]'
+
 # Multiplatform needed when compiled extension might change
 NEEDS_MULTIPLATFORM=false
 if [[ "${FORTRAN_CHANGED}" == "true" ]] || [[ "${RUST_CHANGED}" == "true" ]] || [[ "${BUILD_CHANGED}" == "true" ]]; then
@@ -58,7 +65,7 @@ if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${IS_DRAFT}" == "true" ]]; the
     echo "buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
     echo "test_tier=smoke" >> "$GITHUB_OUTPUT"
   fi
-  echo "python=$BOOKEND_PYTHON" >> "$GITHUB_OUTPUT"
+  echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
 
 elif [[ "${EVENT_NAME}" == "pull_request" ]]; then
   TIER=standard
@@ -73,19 +80,19 @@ elif [[ "${EVENT_NAME}" == "pull_request" ]]; then
     echo "buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
     TIER=smoke
   fi
-  echo "python=$BOOKEND_PYTHON" >> "$GITHUB_OUTPUT"
+  echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=$TIER" >> "$GITHUB_OUTPUT"
 
 elif [[ "${EVENT_NAME}" == "merge_group" ]]; then
   echo "Merge queue validation - reduced platforms, standard tests"
   echo "buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
-  echo "python=$BOOKEND_PYTHON" >> "$GITHUB_OUTPUT"
+  echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=standard" >> "$GITHUB_OUTPUT"
 
 elif [[ "${EVENT_NAME}" == "schedule" ]]; then
   echo "Nightly - full matrix, all tests"
   echo "buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
-  echo "python=$ALL_PYTHON" >> "$GITHUB_OUTPUT"
+  echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=all" >> "$GITHUB_OUTPUT"
 
 elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
@@ -93,20 +100,20 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
     full)
       echo "Manual dispatch: full matrix"
       echo "buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
-      echo "python=$ALL_PYTHON" >> "$GITHUB_OUTPUT"
+      echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
       ;;
     pr)
       echo "Manual dispatch: PR-style reduced matrix"
       echo "buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
-      echo "python=$BOOKEND_PYTHON" >> "$GITHUB_OUTPUT"
+      echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
       ;;
     minimal)
       echo "Manual dispatch: minimal matrix"
       echo "buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
-      echo "python=$BOOKEND_PYTHON" >> "$GITHUB_OUTPUT"
+      echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
       ;;
     custom)
-      echo "Manual dispatch: custom matrix from toggles"
+      echo "Manual dispatch: custom platform matrix (Python toggles ignored — abi3 build)"
 
       PLATFORMS="["
       [[ "${INPUT_PLAT_LINUX}" == "true" ]] && PLATFORMS+='["ubuntu-latest", "manylinux", "x86_64"],'
@@ -115,26 +122,13 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
       [[ "${INPUT_PLAT_WINDOWS}" == "true" ]] && PLATFORMS+='["windows-2025", "win", "AMD64"],'
       PLATFORMS="${PLATFORMS%,}]"
 
-      PYTHONS="["
-      [[ "${INPUT_PY39}" == "true" ]] && PYTHONS+='"cp39",'
-      [[ "${INPUT_PY310}" == "true" ]] && PYTHONS+='"cp310",'
-      [[ "${INPUT_PY311}" == "true" ]] && PYTHONS+='"cp311",'
-      [[ "${INPUT_PY312}" == "true" ]] && PYTHONS+='"cp312",'
-      [[ "${INPUT_PY313}" == "true" ]] && PYTHONS+='"cp313",'
-      [[ "${INPUT_PY314}" == "true" ]] && PYTHONS+='"cp314",'
-      PYTHONS="${PYTHONS%,}]"
-
       if [[ "$PLATFORMS" == "[]" ]]; then
         echo "::error::Custom matrix requires at least one platform"
         exit 1
       fi
-      if [[ "$PYTHONS" == "[]" ]]; then
-        echo "::error::Custom matrix requires at least one Python version"
-        exit 1
-      fi
 
       echo "buildplat=$PLATFORMS" >> "$GITHUB_OUTPUT"
-      echo "python=$PYTHONS" >> "$GITHUB_OUTPUT"
+      echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
       ;;
   esac
   echo "test_tier=${INPUT_TEST_TIER}" >> "$GITHUB_OUTPUT"
@@ -143,7 +137,7 @@ else
   # Tag pushes - full matrix for releases
   echo "Tag release - full matrix, all tests"
   echo "buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
-  echo "python=$ALL_PYTHON" >> "$GITHUB_OUTPUT"
+  echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=all" >> "$GITHUB_OUTPUT"
 fi
 

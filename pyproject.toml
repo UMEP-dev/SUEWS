@@ -1,9 +1,18 @@
 [build-system]
 requires = [
     "wheel",
-    "meson-python>=0.12.0",
+    "meson-python>=0.17",
 ]
 build-backend = 'mesonpy'
+
+[tool.meson-python]
+# Emit cp39-abi3 wheel tag when built under CPython 3.9.
+# The Rust bridge uses PyO3 with abi3-py39 (stable ABI), so one wheel
+# covers cp39..cp3xx. See src/suews_bridge/Cargo.toml.
+limited-api = true
+
+[tool.meson-python.args]
+setup = ["-Dpython.allow_limited_api=true"]
 
 [project]
 name = "supy"

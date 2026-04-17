@@ -2,8 +2,8 @@ use crate::codec::{validate_flat_len, StateCodec, TypeSchema, ValuesPayload};
 use crate::error::BridgeError;
 use crate::ffi;
 
-pub const LAI_PRM_FLAT_LEN: usize = 11;
-pub const LAI_PRM_SCHEMA_VERSION: u32 = 1;
+pub const LAI_PRM_FLAT_LEN: usize = 17;
+pub const LAI_PRM_SCHEMA_VERSION: u32 = 2;
 
 pub type LaiPrmSchema = crate::codec::SimpleSchema;
 
@@ -19,6 +19,14 @@ pub struct LaiPrm {
     pub laimax: f64,
     pub laipower: [f64; 4],
     pub laitype: i32,
+    // GH-1292 moisture-aware phenology parameters (laitype=2); thresholds operate on
+    // dimensionless relative soil water w = 1 - smd/smdcap, except tau_w which is days.
+    pub w_wilt: f64,
+    pub w_opt: f64,
+    pub f_shape: f64,
+    pub w_on: f64,
+    pub w_off: f64,
+    pub tau_w: f64,
 }
 
 impl Default for LaiPrm {
@@ -32,6 +40,12 @@ impl Default for LaiPrm {
             laimax: 0.0,
             laipower: [0.0; 4],
             laitype: 0,
+            w_wilt: 0.15,
+            w_opt: 0.40,
+            f_shape: 1.0,
+            w_on: 0.35,
+            w_off: 0.20,
+            tau_w: 15.0,
         }
     }
 }
@@ -65,6 +79,12 @@ impl LaiPrm {
             laimax: flat[5],
             laipower: [flat[6], flat[7], flat[8], flat[9]],
             laitype: decode_int(flat[10])?,
+            w_wilt: flat[11],
+            w_opt: flat[12],
+            f_shape: flat[13],
+            w_on: flat[14],
+            w_off: flat[15],
+            tau_w: flat[16],
         })
     }
 
@@ -81,6 +101,12 @@ impl LaiPrm {
             self.laipower[2],
             self.laipower[3],
             self.laitype as f64,
+            self.w_wilt,
+            self.w_opt,
+            self.f_shape,
+            self.w_on,
+            self.w_off,
+            self.tau_w,
         ]
     }
 }
@@ -117,6 +143,12 @@ pub fn lai_prm_field_names() -> Vec<String> {
         "laipower_3".to_string(),
         "laipower_4".to_string(),
         "laitype".to_string(),
+        "w_wilt".to_string(),
+        "w_opt".to_string(),
+        "f_shape".to_string(),
+        "w_on".to_string(),
+        "w_off".to_string(),
+        "tau_w".to_string(),
     ]
 }
 
@@ -186,5 +218,30 @@ mod tests {
         flat[10] = 1.5;
         let err = LaiPrm::from_flat(&flat).expect_err("fractional integer should fail");
         assert_eq!(err, BridgeError::BadState);
+    }
+
+    #[test]
+    fn moisture_fields_roundtrip() {
+        // GH-1292 PR1: verify the six new LAI_PRM moisture slots serialise through to_flat/from_flat.
+        let original = LaiPrm {
+            w_wilt: 0.12,
+            w_opt: 0.48,
+            f_shape: 1.3,
+            w_on: 0.38,
+            w_off: 0.18,
+            tau_w: 20.0,
+            ..LaiPrm::default()
+        };
+        let flat = original.to_flat();
+        assert_eq!(flat.len(), LAI_PRM_FLAT_LEN);
+        let decoded = LaiPrm::from_flat(&flat).expect("round-trip should succeed");
+        assert_eq!(original, decoded);
+    }
+
+    #[test]
+    fn schema_version_is_two() {
+        // GH-1292 PR1: schema bumped because LAI_PRM layout changed.
+        assert_eq!(LAI_PRM_SCHEMA_VERSION, 2);
+        assert_eq!(LAI_PRM_FLAT_LEN, 17);
     }
 }

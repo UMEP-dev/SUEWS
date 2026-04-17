@@ -17,8 +17,8 @@ public :: SUEWS_CAPI_OK
 public :: SUEWS_CAPI_BAD_BUFFER
 public :: SUEWS_CAPI_BAD_STATE
 
-integer(c_int), parameter, public :: SUEWS_CAPI_PHENOLOGY_STATE_LEN = 76_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_PHENOLOGY_STATE_SCHEMA_VERSION = 1_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_PHENOLOGY_STATE_LEN = 85_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_PHENOLOGY_STATE_SCHEMA_VERSION = 2_c_int
 
 type :: phenology_state_shadow
    real(c_double), dimension(nsurf) :: alb = 0.0_c_double
@@ -43,6 +43,10 @@ type :: phenology_state_shadow
    real(c_double) :: g_ta = 0.0_c_double
    real(c_double) :: g_smd = 0.0_c_double
    real(c_double) :: g_lai = 0.0_c_double
+   ! GH-1292 moisture-aware phenology state (laitype=2). leaf_on_permitted encoded as 0.0/1.0 on the wire.
+   real(c_double), dimension(nvegsurf) :: wbar_id = 0.0_c_double
+   real(c_double), dimension(nvegsurf) :: w_id_prev = 0.0_c_double
+   logical, dimension(nvegsurf) :: leaf_on_permitted = .false.
    logical :: iter_safe = .false.
 end type phenology_state_shadow
 
@@ -153,6 +157,22 @@ subroutine phenology_state_pack(state, flat, n_flat, err)
    flat(idx) = state%g_ta; idx = idx + 1
    flat(idx) = state%g_smd; idx = idx + 1
    flat(idx) = state%g_lai; idx = idx + 1
+
+   do i = 1, nvegsurf
+      flat(idx) = state%wbar_id(i)
+      idx = idx + 1
+   end do
+
+   do i = 1, nvegsurf
+      flat(idx) = state%w_id_prev(i)
+      idx = idx + 1
+   end do
+
+   do i = 1, nvegsurf
+      flat(idx) = merge(1.0_c_double, 0.0_c_double, state%leaf_on_permitted(i))
+      idx = idx + 1
+   end do
+
    flat(idx) = merge(1.0_c_double, 0.0_c_double, state%iter_safe)
 
    err = SUEWS_CAPI_OK
@@ -222,6 +242,22 @@ subroutine phenology_state_unpack(flat, n_flat, state, err)
    state%g_ta = flat(idx); idx = idx + 1_c_int
    state%g_smd = flat(idx); idx = idx + 1_c_int
    state%g_lai = flat(idx); idx = idx + 1_c_int
+
+   do i = 1_c_int, int(nvegsurf, c_int)
+      state%wbar_id(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
+
+   do i = 1_c_int, int(nvegsurf, c_int)
+      state%w_id_prev(i) = flat(idx)
+      idx = idx + 1_c_int
+   end do
+
+   do i = 1_c_int, int(nvegsurf, c_int)
+      state%leaf_on_permitted(i) = flat(idx)>=0.5_c_double
+      idx = idx + 1_c_int
+   end do
+
    state%iter_safe = flat(idx)>=0.5_c_double
 
    err = SUEWS_CAPI_OK

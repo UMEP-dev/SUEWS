@@ -15,8 +15,8 @@ MODULE module_c_api_lai
    PUBLIC :: SUEWS_CAPI_BAD_BUFFER
    PUBLIC :: SUEWS_CAPI_BAD_STATE
 
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_LAI_PRM_LEN = 11_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_LAI_PRM_SCHEMA_VERSION = 1_c_int
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_LAI_PRM_LEN = 17_c_int
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_LAI_PRM_SCHEMA_VERSION = 2_c_int
 
    TYPE :: lai_prm_shadow
       REAL(c_double) :: baset = 0.0_c_double
@@ -27,6 +27,13 @@ MODULE module_c_api_lai
       REAL(c_double) :: laimax = 0.0_c_double
       REAL(c_double), DIMENSION(4) :: laipower = 0.0_c_double
       INTEGER(c_int) :: laitype = 0_c_int
+      ! GH-1292 moisture-aware phenology parameters (laitype=2); relative soil water thresholds + days.
+      REAL(c_double) :: w_wilt = 0.15_c_double
+      REAL(c_double) :: w_opt = 0.40_c_double
+      REAL(c_double) :: f_shape = 1.0_c_double
+      REAL(c_double) :: w_on = 0.35_c_double
+      REAL(c_double) :: w_off = 0.20_c_double
+      REAL(c_double) :: tau_w = 15.0_c_double
    END TYPE lai_prm_shadow
 
    PUBLIC :: suews_lai_prm_len
@@ -98,6 +105,12 @@ CONTAINS
       flat(9) = state%laipower(3)
       flat(10) = state%laipower(4)
       flat(11) = REAL(state%laitype, c_double)
+      flat(12) = state%w_wilt
+      flat(13) = state%w_opt
+      flat(14) = state%f_shape
+      flat(15) = state%w_on
+      flat(16) = state%w_off
+      flat(17) = state%tau_w
 
       err = SUEWS_CAPI_OK
 

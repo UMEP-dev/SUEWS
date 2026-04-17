@@ -5,8 +5,9 @@ use crate::NSURF;
 
 pub const PHENOLOGY_STATE_NVEGSURF: usize = 3;
 pub const PHENOLOGY_STATE_STORE_DRAIN_ROWS: usize = 6;
-pub const PHENOLOGY_STATE_FLAT_LEN: usize = 76;
-pub const PHENOLOGY_STATE_SCHEMA_VERSION: u32 = 1;
+// GH-1292 PR1: +3 per-veg-surface slots (wbar_id, w_id_prev, leaf_on_permitted) -> 76 + 9 = 85.
+pub const PHENOLOGY_STATE_FLAT_LEN: usize = 85;
+pub const PHENOLOGY_STATE_SCHEMA_VERSION: u32 = 2;
 
 pub type PhenologyStateSchema = crate::codec::SimpleSchema;
 
@@ -36,6 +37,11 @@ pub struct PhenologyState {
     pub g_ta: f64,
     pub g_smd: f64,
     pub g_lai: f64,
+    // GH-1292 moisture-aware phenology state (laitype=2); relative soil water (dimensionless)
+    // and a per-surface logical latch. Wire format: each bool is encoded as f64 0.0/1.0.
+    pub wbar_id: [f64; PHENOLOGY_STATE_NVEGSURF],
+    pub w_id_prev: [f64; PHENOLOGY_STATE_NVEGSURF],
+    pub leaf_on_permitted: [bool; PHENOLOGY_STATE_NVEGSURF],
     pub iter_safe: bool,
 }
 
@@ -64,6 +70,9 @@ impl Default for PhenologyState {
             g_ta: 0.0,
             g_smd: 0.0,
             g_lai: 0.0,
+            wbar_id: [0.0; PHENOLOGY_STATE_NVEGSURF],
+            w_id_prev: [0.0; PHENOLOGY_STATE_NVEGSURF],
+            leaf_on_permitted: [false; PHENOLOGY_STATE_NVEGSURF],
             iter_safe: false,
         }
     }
@@ -122,6 +131,19 @@ impl PhenologyState {
         state.g_ta = next();
         state.g_smd = next();
         state.g_lai = next();
+
+        for i in 0..PHENOLOGY_STATE_NVEGSURF {
+            state.wbar_id[i] = next();
+        }
+
+        for i in 0..PHENOLOGY_STATE_NVEGSURF {
+            state.w_id_prev[i] = next();
+        }
+
+        for i in 0..PHENOLOGY_STATE_NVEGSURF {
+            state.leaf_on_permitted[i] = next() >= 0.5;
+        }
+
         state.iter_safe = next() >= 0.5;
 
         Ok(state)
@@ -157,6 +179,13 @@ impl PhenologyState {
         flat.push(self.g_ta);
         flat.push(self.g_smd);
         flat.push(self.g_lai);
+
+        flat.extend_from_slice(&self.wbar_id);
+        flat.extend_from_slice(&self.w_id_prev);
+        for permitted in &self.leaf_on_permitted {
+            flat.push(if *permitted { 1.0 } else { 0.0 });
+        }
+
         flat.push(if self.iter_safe { 1.0 } else { 0.0 });
 
         flat
@@ -233,6 +262,19 @@ pub fn phenology_state_field_names() -> Vec<String> {
     names.push("g_ta".to_string());
     names.push("g_smd".to_string());
     names.push("g_lai".to_string());
+
+    for veg_surface in veg_surface_names() {
+        names.push(format!("wbar_id.{veg_surface}"));
+    }
+
+    for veg_surface in veg_surface_names() {
+        names.push(format!("w_id_prev.{veg_surface}"));
+    }
+
+    for veg_surface in veg_surface_names() {
+        names.push(format!("leaf_on_permitted.{veg_surface}"));
+    }
+
     names.push("iter_safe".to_string());
 
     names
@@ -302,5 +344,27 @@ mod tests {
         let err = phenology_state_from_values_payload(&bad_payload)
             .expect_err("payload with schema mismatch should fail");
         assert_eq!(err, BridgeError::BadState);
+    }
+
+    #[test]
+    fn moisture_aware_state_roundtrip() {
+        // GH-1292 PR1: verify wbar_id, w_id_prev and leaf_on_permitted round-trip through to_flat/from_flat.
+        let original = PhenologyState {
+            wbar_id: [0.30, 0.45, 0.12],
+            w_id_prev: [0.33, 0.48, 0.09],
+            leaf_on_permitted: [true, false, true],
+            ..PhenologyState::default()
+        };
+        let flat = original.to_flat();
+        assert_eq!(flat.len(), PHENOLOGY_STATE_FLAT_LEN);
+        let decoded = PhenologyState::from_flat(&flat).expect("round-trip should succeed");
+        assert_eq!(original, decoded);
+    }
+
+    #[test]
+    fn schema_version_is_two() {
+        // GH-1292 PR1: schema bumped because PHENOLOGY_STATE gained three per-veg-surface slots.
+        assert_eq!(PHENOLOGY_STATE_SCHEMA_VERSION, 2);
+        assert_eq!(PHENOLOGY_STATE_FLAT_LEN, 85);
     }
 }

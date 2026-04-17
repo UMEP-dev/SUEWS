@@ -101,7 +101,7 @@ integer(c_int), parameter :: SUEWS_CAPI_ANTHROEMIS_STATE_LEN = 22_c_int
 integer(c_int), parameter :: SUEWS_CAPI_OHM_STATE_LEN = 53_c_int
 integer(c_int), parameter :: SUEWS_CAPI_SOLAR_STATE_LEN = 3_c_int
 integer(c_int), parameter :: SUEWS_CAPI_ATM_STATE_LEN = 39_c_int
-integer(c_int), parameter :: SUEWS_CAPI_PHENOLOGY_STATE_LEN = 76_c_int
+integer(c_int), parameter :: SUEWS_CAPI_PHENOLOGY_STATE_LEN = 85_c_int
 integer(c_int), parameter :: SUEWS_CAPI_SNOW_STATE_LEN = 79_c_int
 integer(c_int), parameter :: SUEWS_CAPI_HYDRO_STATE_BASE_LEN = 10_c_int * int(nsurf, c_int) + 34_c_int
 integer(c_int), parameter :: SUEWS_CAPI_HEAT_STATE_BASE_LEN = 7_c_int * int(nsurf, c_int) + 79_c_int
@@ -1594,6 +1594,23 @@ subroutine pack_phenology_state(s, flat, n_flat, err)
    flat(idx) = s%g_ta; idx = idx + 1_c_int
    flat(idx) = s%g_smd; idx = idx + 1_c_int
    flat(idx) = s%g_lai; idx = idx + 1_c_int
+
+   ! GH-1292 moisture-aware state: wbar_id, w_id_prev, leaf_on_permitted (per veg surface).
+   do i = 1_c_int, int(nvegsurf, c_int)
+      flat(idx) = s%wbar_id(i)
+      idx = idx + 1_c_int
+   end do
+
+   do i = 1_c_int, int(nvegsurf, c_int)
+      flat(idx) = s%w_id_prev(i)
+      idx = idx + 1_c_int
+   end do
+
+   do i = 1_c_int, int(nvegsurf, c_int)
+      flat(idx) = merge(1.0_c_double, 0.0_c_double, s%leaf_on_permitted(i))
+      idx = idx + 1_c_int
+   end do
+
    flat(idx) = merge(1.0_c_double, 0.0_c_double, s%iter_safe)
 
    err = SUEWS_CAPI_OK

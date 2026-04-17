@@ -492,6 +492,25 @@ fn apply_lai_overrides(lai: &mut crate::lai::LaiPrm, lc_root: &Value) {
     if let Some(v) = read_i32(lc_root, &["lai", "laitype"]) {
         lai.laitype = v;
     }
+    // GH-1292: moisture-aware phenology parameters (laitype=2).
+    if let Some(v) = read_numeric(lc_root, &["lai", "w_wilt"]) {
+        lai.w_wilt = v;
+    }
+    if let Some(v) = read_numeric(lc_root, &["lai", "w_opt"]) {
+        lai.w_opt = v;
+    }
+    if let Some(v) = read_numeric(lc_root, &["lai", "f_shape"]) {
+        lai.f_shape = v;
+    }
+    if let Some(v) = read_numeric(lc_root, &["lai", "w_on"]) {
+        lai.w_on = v;
+    }
+    if let Some(v) = read_numeric(lc_root, &["lai", "w_off"]) {
+        lai.w_off = v;
+    }
+    if let Some(v) = read_numeric(lc_root, &["lai", "tau_w"]) {
+        lai.tau_w = v;
+    }
 }
 
 fn apply_bioco2_overrides(bioco2: &mut crate::bioco2::BioCo2Prm, lc_root: &Value) {

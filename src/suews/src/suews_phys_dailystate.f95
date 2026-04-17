@@ -614,6 +614,7 @@ CONTAINS
       REAL(KIND(1D0)) :: w !Current-step relative soil water [-]
       REAL(KIND(1D0)) :: f_w !Jarvis water-stress multiplier on delta_GDD [-]
       LOGICAL :: persistence_ok !Whether wbar_id crosses the leaf-on threshold
+      LOGICAL :: thermal_ok !Whether delta_GDD > 0 (Tbar >= BaseT_GDD); companion to persistence_ok
 
       INTEGER :: critDays
       INTEGER :: iv
@@ -651,21 +652,57 @@ CONTAINS
 
          IF (delta_SDD > 0) delta_SDD = 0 !SDD cannot be positive
 
-         ! --- GH-1292 PR1: moisture-aware phenology scaffolding (laitype=2, no-op branch) -----------
+         ! --- GH-1292 PR2: moisture-aware phenology (laitype=2, Design C) --------------------------
          ! Inputs are SMD (mm); internal thresholds operate on relative soil water w = 1 - smd/smdcap.
-         ! In PR1 f_w is hard-coded to 1.0 and leaf_on_permitted is unconditionally true so this
-         ! branch is bit-identical to laitype=0. PR2 replaces the TODO markers with Design C numerics.
+         ! Hybrid scheme: Jarvis-style continuous stress factor on delta_GDD plus a CLM5-style
+         ! persistence latch (Lawrence et al. 2019 §14) that freezes thermal accumulation when the
+         ! tau_w-day running mean of relative soil water sits below the leaf-off threshold.
          IF (LAIType(iv) == 2) THEN
+            ! Convert previous-day SMD (mm) to dimensionless relative soil water.
             w = 1.0D0 - smd_veg_prev(iv)/MAX(smdcap_veg(iv), 1.0D-6)
             IF (w < 0.0D0) w = 0.0D0
             IF (w > 1.0D0) w = 1.0D0
-            wbar_id(iv) = wbar_id(iv) + (w - wbar_id(iv))/MAX(tau_w(iv), 1.0D0)
-            ! TODO(GH-1292/PR2): replace with f_w = MIN(1.0D0, ((w - w_wilt(iv)) / MAX(w_opt(iv) - w_wilt(iv), 1.0D-6))**f_shape(iv))
-            f_w = 1.0D0
+
+            ! Seed the running mean on first activation so well-watered sites do not spend
+            ! tau_w days ramping up from the zero-default (signalled by a still-unset w_id_prev).
+            IF (w_id_prev(iv) == 0.0D0 .AND. wbar_id(iv) == 0.0D0) THEN
+               wbar_id(iv) = w
+            ELSE
+               wbar_id(iv) = wbar_id(iv) + (w - wbar_id(iv))/MAX(tau_w(iv), 1.0D0)
+            END IF
+
+            ! Jarvis piecewise-power water-stress factor on delta_GDD.
+            IF (w <= w_wilt(iv)) THEN
+               f_w = 0.0D0
+            ELSE IF (w >= w_opt(iv)) THEN
+               f_w = 1.0D0
+            ELSE
+               f_w = ((w - w_wilt(iv))/MAX(w_opt(iv) - w_wilt(iv), 1.0D-6))**f_shape(iv)
+            END IF
+
+            ! CLM5-style persistence latch: flips ON when the tau_w-day running mean crosses the
+            ! leaf-on threshold AND the thermal gate (delta_GDD > 0, i.e. Tbar >= BaseT_GDD) is
+            ! satisfied; flips OFF when the running mean drops below the leaf-off threshold.
+            thermal_ok = (delta_GDD > 0.0D0)
             persistence_ok = (wbar_id(iv) >= w_on(iv))
-            ! TODO(GH-1292/PR2): gate on persistence_ok and a thermal_ok companion; for now the latch is always open.
-            leaf_on_permitted(iv) = .TRUE.
-            delta_GDD = delta_GDD*f_w
+            IF (leaf_on_permitted(iv)) THEN
+               IF (wbar_id(iv) < w_off(iv)) THEN
+                  leaf_on_permitted(iv) = .FALSE.
+               END IF
+            ELSE
+               IF (persistence_ok .AND. thermal_ok) THEN
+                  leaf_on_permitted(iv) = .TRUE.
+               END IF
+            END IF
+
+            ! Apply the moisture gate. When the latch is open, delta_GDD is modulated continuously
+            ! by f_w; when the latch is closed (drought regime) thermal accumulation halts entirely.
+            IF (leaf_on_permitted(iv)) THEN
+               delta_GDD = delta_GDD*f_w
+            ELSE
+               delta_GDD = 0.0D0
+            END IF
+
             w_id_prev(iv) = w
          END IF
 

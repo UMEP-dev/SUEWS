@@ -72,7 +72,9 @@ impl Default for PhenologyState {
             g_lai: 0.0,
             wbar_id: [0.0; PHENOLOGY_STATE_NVEGSURF],
             w_id_prev: [0.0; PHENOLOGY_STATE_NVEGSURF],
-            leaf_on_permitted: [false; PHENOLOGY_STATE_NVEGSURF],
+            // GH-1292 PR2: default latch to true so well-watered sites do not
+            // wait for the tau-day running-mean trigger to ramp up.
+            leaf_on_permitted: [true; PHENOLOGY_STATE_NVEGSURF],
             iter_safe: false,
         }
     }

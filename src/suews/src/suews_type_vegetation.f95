@@ -62,7 +62,7 @@ module module_type_vegetation
       ! Carried as dimensionless relative soil water w = 1 - smd/smdcap; SMD->w conversion lives in update_GDDLAI.
       REAL(KIND(1D0)), DIMENSION(nvegsurf) :: wbar_id = 0.0D0 ! Running-mean relative soil water for phenology [-]
       REAL(KIND(1D0)), DIMENSION(nvegsurf) :: w_id_prev = 0.0D0 ! Previous-day relative soil water snapshot [-]
-      LOGICAL, DIMENSION(nvegsurf) :: leaf_on_permitted = .FALSE. ! CLM5-style stress-deciduous leaf-on latch
+      LOGICAL, DIMENSION(nvegsurf) :: leaf_on_permitted = .TRUE. ! CLM5-style leaf-on latch; default permitted so well-watered sites do not wait for the trigger
       ! flag for iteration safety - NO
       ! GDD_id, SDD_id are extensive quantities and thus cannot be used for iteration safety
       LOGICAL :: iter_safe = .FALSE.

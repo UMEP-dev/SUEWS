@@ -46,7 +46,7 @@ type :: phenology_state_shadow
    ! GH-1292 moisture-aware phenology state (laitype=2). leaf_on_permitted encoded as 0.0/1.0 on the wire.
    real(c_double), dimension(nvegsurf) :: wbar_id = 0.0_c_double
    real(c_double), dimension(nvegsurf) :: w_id_prev = 0.0_c_double
-   logical, dimension(nvegsurf) :: leaf_on_permitted = .false.
+   logical, dimension(nvegsurf) :: leaf_on_permitted = .true.
    logical :: iter_safe = .false.
 end type phenology_state_shadow
 

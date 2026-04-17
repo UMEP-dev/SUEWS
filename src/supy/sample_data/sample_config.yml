@@ -41,6 +41,8 @@ model:
       value: 1
     gsmodel:
         value: 2
+    laimethod:
+      value: 1
     snowuse:
       value: 0
     stebbsmethod:

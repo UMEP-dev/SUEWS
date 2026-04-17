@@ -80,7 +80,7 @@ CONTAINS
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
 
 
-      INTEGER, PARAMETER :: LAICalcYes = 1 ! boolean to determine if calculate LAI [-]
+      INTEGER :: LAICalcYes ! 1 = calculate LAI internally (GDD), 0 = use forcing%LAI_obs [-]
 
       REAL(KIND(1D0)), DIMENSION(2) :: BaseT_Heating
 
@@ -108,6 +108,10 @@ CONTAINS
 
          ! save initial values
          phenState_prev = phenState
+
+         ! LAI calculation switch: pulled from config (model.physics.laimethod in YAML).
+         ! 0 = use forcing%LAI_obs (observed/prescribed), 1 = compute internally via GDD/SDD.
+         LAICalcYes = config%LAImethod
 
          ASSOCIATE ( &
             lat => siteInfo%lat, &
@@ -680,9 +684,31 @@ CONTAINS
 
       END DO !End of loop over veg surfaces
 
-      IF (LAICalcYes == 0) THEN ! moved to SUEWS_cal_DailyState, TS 18 Sep 2017
-         ! LAI(id-1,:)=LAI_obs ! check -- this is going to be a problem as it is not for each vegetation class
+      ! Observed-LAI override: when LAICalcYes == 0 and the forcing column carries a
+      ! non-sentinel value, use forcing%LAI_obs for every vegetation class. Only the
+      ! -999 missing sentinel (matched defensively as ``LAI_obs <= -900``) is treated
+      ! as "no observation this day" and the calculated LAI is kept.
+      ! The scalar-to-all-veg-classes limitation is tracked in #1292.
+      IF (LAICalcYes == 0 .AND. LAI_obs > -900.0D0) THEN
          LAI_id_next = LAI_obs
+         ! Clamp observed LAI to each vegetation class's [LAImin, LAImax]
+         ! envelope. The same clamp is applied to the parameterised branch
+         ! above; the observed branch honours it too so that:
+         !   * Downstream rescaling ratios ``LAI_id / LAImax`` in
+         !     ``suews_phys_resist`` and ``suews_phys_biogenco2`` stay <= 1.
+         !   * Observations cannot violate the site-specific canopy envelope
+         !     encoded in ``LAImin`` / ``LAImax``.
+         ! Users who expect genuine zero observations (e.g. winter dieback of
+         ! deciduous canopy) must set the corresponding class's ``LAImin`` to
+         ! zero in the site configuration — the pre-flight validator warns
+         ! when forcing values would be clamped.
+         DO iv = 1, NVegSurf
+            IF (LAI_id_next(iv) > LAImax(iv)) THEN
+               LAI_id_next(iv) = LAImax(iv)
+            ELSEIF (LAI_id_next(iv) < LAImin(iv)) THEN
+               LAI_id_next(iv) = LAImin(iv)
+            END IF
+         END DO
       END IF
       !------------------------------------------------------------------------------
 

@@ -223,7 +223,7 @@ These additional variables can enhance model performance but are not required:
    * - Leaf area index
      - m²/m²
      - lai
-     - If not modeled
+     - If ``model.physics.laimethod = 0`` (see :ref:`prescribed-lai`)
    * - Diffuse radiation
      - W/m²
      - kdiff
@@ -236,6 +236,51 @@ These additional variables can enhance model performance but are not required:
      - degrees
      - wdir
      - Currently not used
+
+.. _prescribed-lai:
+
+Prescribing Observed LAI
+------------------------
+
+By default SUEWS computes leaf area index (LAI) internally using growing-degree-day (GDD) and
+senescence-degree-day (SDD) thresholds on daily mean air temperature. For sites where the
+observed LAI cycle is driven by rainfall (monsoon grasslands, semi-arid sites) or where a
+remote-sensing product is available, users can bypass the internal scheme by:
+
+1. Setting ``model.physics.laimethod: 0`` in the YAML configuration (0 = OBSERVED,
+   1 = CALCULATED; default is 1).
+2. Populating the ``lai`` column of the meteorological forcing file with a **non-negative**
+   observation at every timestep, in |m^2| |m^-2|. A genuine zero observation (e.g.
+   complete winter dieback) is valid. Choosing the observed path commits the user to
+   providing an observation for every timestep; the ``-999`` missing sentinel is
+   **not** a permitted fallback here and the pre-flight validator rejects any strictly
+   negative value (including ``-999`` and other sentinels). If observations are
+   unavailable for part of the run, either switch to ``laimethod: 1`` (internally
+   calculated) or gap-fill the ``lai`` column with non-negative values before feeding
+   it to SUEWS.
+
+.. note::
+   When ``laimethod: 0`` is set, the single scalar ``lai`` value from the forcing file is
+   applied uniformly to all three vegetation classes (evergreen trees, deciduous trees,
+   grass) each day.
+
+.. important::
+   Observed LAI values are clamped into each vegetation class's
+   ``[laimin, laimax]`` envelope at runtime. The same clamp is applied to the
+   parameterised branch (``laimethod: 1``); the observed branch enforces it too
+   for consistency and because the downstream conductance and active-vegetation
+   fraction calculations (``LAI / laimax`` in ``suews_phys_resist`` and
+   ``suews_phys_biogenco2``) require ``LAI <= laimax`` to stay physically
+   meaningful.
+
+   If you supply observations that should pass through unchanged — e.g. a genuine
+   winter dieback with ``LAI = 0`` — configure the corresponding class's
+   ``laimin`` to zero in the site configuration. Similarly, widen ``laimax`` if
+   observations legitimately exceed the default site canopy capacity. The
+   pre-flight validator (:func:`~supy._check.check_forcing`) issues a warning
+   when any forcing value would be clamped, so the user sees once that
+   observations are being modified rather than discovering it through
+   unexpected outputs.
 
 Generating Forcing Data from ERA5
 ----------------------------------
@@ -477,7 +522,8 @@ SUEWS provides the ``check_forcing()`` function to validate your forcing data fi
      - Volumetric soil moisture
    * - lai
      - 0 - 15 m²/m²
-     - Leaf area index
+     - Observed leaf area index (consumed only when ``model.physics.laimethod: 0``;
+       otherwise ignored — see :ref:`prescribed-lai`)
    * - kdiff, kdir
      - 0 - 1400 W/m²
      - Radiation components

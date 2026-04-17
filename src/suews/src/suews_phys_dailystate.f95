@@ -2,6 +2,8 @@
 MODULE module_phys_dailystate
    USE module_ctrl_const_allocate, ONLY: &
       ndays, nsurf, nvegsurf, ivConif, ivDecid, ivGrass, DecidSurf, ncolumnsDataOutDailyState
+   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
+   USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN
 
    IMPLICIT NONE
 
@@ -80,7 +82,7 @@ CONTAINS
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
 
 
-      INTEGER, PARAMETER :: LAICalcYes = 1 ! boolean to determine if calculate LAI [-]
+      INTEGER :: LAICalcYes ! 1 = calculate LAI internally (GDD), 0 = use forcing%LAI_obs [-]
 
       REAL(KIND(1D0)), DIMENSION(2) :: BaseT_Heating
 
@@ -108,6 +110,10 @@ CONTAINS
 
          ! save initial values
          phenState_prev = phenState
+
+         ! LAI calculation switch: pulled from config (model.physics.laimethod in YAML).
+         ! 0 = use forcing%LAI_obs (observed/prescribed), 1 = compute internally via GDD/SDD.
+         LAICalcYes = config%LAImethod
 
          ASSOCIATE ( &
             lat => siteInfo%lat, &
@@ -347,6 +353,7 @@ CONTAINS
                         GDD_id, SDD_id, & !inout
                         wbar_id, w_id_prev, leaf_on_permitted, & !inout
                         LAI_id) !output
+                     IF (supy_error_flag) RETURN
 
                      CALL update_Veg( &
                         LAImax, LAIMin, & !input
@@ -618,6 +625,17 @@ CONTAINS
 
       critDays = 50 !Critical limit for GDD when GDD or SDD is set to zero
 
+      IF (LAICalcYes == 0 .AND. (IEEE_IS_NAN(LAI_obs) .OR. LAI_obs < 0.0D0)) THEN
+         ! Invalid LAI_obs slipped past pre-flight — raise an error via the
+         ! SuPy error-state channel before mutating phenology state.
+         ! Assign a safe sentinel to the INTENT(OUT) array before RETURN.
+         LAI_id_next = -999.0D0
+         CALL set_supy_error( &
+            105, &
+            'update_GDDLAI: laimethod=0 requires a non-missing lai >= 0 at every timestep')
+         RETURN
+      END IF
+
       ! Loop through vegetation types (iv)
       DO iv = 1, NVegSurf
          ! Calculate GDD for each day from the minimum and maximum air temperature
@@ -742,9 +760,35 @@ CONTAINS
 
       END DO !End of loop over veg surfaces
 
-      IF (LAICalcYes == 0) THEN ! moved to SUEWS_cal_DailyState, TS 18 Sep 2017
-         ! LAI(id-1,:)=LAI_obs ! check -- this is going to be a problem as it is not for each vegetation class
+      ! Observed-LAI override: when LAICalcYes == 0, every timestep's forcing
+      ! value must be a non-missing, non-negative observation (LAI_obs >= 0).
+      ! A genuine
+      ! zero observation (e.g. complete winter dieback) is valid — the
+      ! site-specific clamp then raises it to LAImin if the configuration
+      ! retains a positive floor. Missing/NaN values and strictly negative
+      ! values — including the -999 missing sentinel — are rejected;
+      ! choosing this path commits the user to providing an observation for
+      ! every timestep.
+      ! The Python pre-flight validator (supy._check.check_forcing) enforces
+      ! this contract before a run starts; the guard below is a defensive
+      ! backstop for callers that bypass preflight. Reports via
+      ! module_ctrl_error_state so SuPy can surface a clean exception —
+      ! never WRITE(*,...) + STOP, which kills the embedding Python process.
+      ! The scalar-to-all-veg-classes limitation is tracked in #1292.
+      IF (LAICalcYes == 0) THEN
          LAI_id_next = LAI_obs
+         ! Clamp observed LAI to each vegetation class's [LAImin, LAImax]
+         ! envelope so that downstream ``LAI_id / LAImax`` ratios in
+         ! ``suews_phys_resist`` and ``suews_phys_biogenco2`` stay within
+         ! the site-specific canopy envelope. The pre-flight validator
+         ! warns when forcing values would be clamped.
+         DO iv = 1, NVegSurf
+            IF (LAI_id_next(iv) > LAImax(iv)) THEN
+               LAI_id_next(iv) = LAImax(iv)
+            ELSEIF (LAI_id_next(iv) < LAImin(iv)) THEN
+               LAI_id_next(iv) = LAImin(iv)
+            END IF
+         END DO
       END IF
       !------------------------------------------------------------------------------
 

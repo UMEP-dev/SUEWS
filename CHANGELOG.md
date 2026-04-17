@@ -57,6 +57,11 @@ EXAMPLES:
 ### 17 Apr 2026
 
 - [feature][experimental] Added scaffolding for moisture-aware LAI phenology (`LAIType = 2`) behind a new per-vegetation-surface switch (#1292). Extends `LAI_PRM` with six parameter slots (`w_wilt`, `w_opt`, `f_shape`, `w_on`, `w_off`, `tau_w`) and `PHENOLOGY_STATE` with three per-veg-surface state slots (`wbar_id`, `w_id_prev`, `leaf_on_permitted`); bumps the Rust/C bridge schema for `LAI_PRM`, `PHENOLOGY_STATE`, `LC_DECTR_PRM`, `LC_EVETR_PRM`, `LC_GRASS_PRM` to version 2. The `LAIType = 2` branch is a no-op that reproduces `LAIType = 0` bit-identically in this release -- Design C numerics (Jarvis water-stress factor plus CLM5-style persistence trigger) land in a later PR. Internal design note: `dev-ref/design-notes/gh1292-moisture-phenology.md`.
+- [maintenance] Enforce numpy-style docstrings via ruff `D` rules (#1294)
+  - Removed D100-D105/D107 from the global gradual-adoption ignore list in `.ruff.toml`
+  - Parked legacy docstring debt in `[lint.per-file-ignores]` (78 files) so new code is held to the rule
+  - Added `scripts/lint/audit_docstrings.py` helper to regenerate the per-file-ignores seed
+  - Wired `ruff check --select D` into the `/lint-code` skill under a `=== Docstrings ===` section
 
 ### 9 Apr 2026
 

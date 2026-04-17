@@ -26,7 +26,12 @@ import numpy as np
 import pandas
 import pandas as pd
 
-from ._check import check_forcing, check_state
+from ._check import (
+    FORCING_REQUIREMENTS,
+    _check_observed_lai_nonneg,
+    check_forcing,
+    check_state,
+)
 from ._env import logger_supy, trv_supy_module
 from ._load import (
     load_df_state,
@@ -581,6 +586,44 @@ def init_config(df_state: pd.DataFrame = None):
 ##############################################################################
 
 
+def _physics_dict_from_df_state(df_state: pd.DataFrame) -> dict:
+    """Extract physics-option values from a df_state_init DataFrame.
+
+    Returns a dict keyed by option name (e.g. ``"laimethod"``). A single-grid
+    state stores a scalar ``int`` so existing callers continue to work; a
+    multi-grid state stores a sorted list of the unique per-grid values so
+    ``check_forcing`` can enforce the forcing requirement whenever any grid
+    selects the triggering value. Only the options referenced by
+    ``FORCING_REQUIREMENTS`` are considered.
+    """
+    physics_dict: dict = {}
+    top_level = set(df_state.columns.get_level_values(0))
+    option_names = {option for option, _ in FORCING_REQUIREMENTS.keys()}
+    for option in option_names:
+        if option in top_level:
+            values = df_state[option].values.ravel()
+            if len(values) > 0:
+                unique = sorted({int(v) for v in values})
+                physics_dict[option] = unique[0] if len(unique) == 1 else unique
+    return physics_dict
+
+
+def _lai_bounds_from_df_state(df_state: pd.DataFrame) -> dict:
+    """Extract per-grid per-veg-class LAI bounds from a df_state DataFrame.
+
+    Returns a dict ``{'laimin': [...], 'laimax': [...]}`` where each value is a
+    list-of-lists (outer = per grid row, inner = per vegetation class). Returns
+    ``None`` if the expected columns are missing.
+    """
+    top_level = set(df_state.columns.get_level_values(0))
+    if "laimin" not in top_level or "laimax" not in top_level:
+        return None
+    return {
+        "laimin": df_state["laimin"].astype(float).values.tolist(),
+        "laimax": df_state["laimax"].astype(float).values.tolist(),
+    }
+
+
 ##############################################################################
 # 2. compact wrapper for running a whole simulation
 # # main calculation
@@ -641,8 +684,14 @@ def _run_supy(
     """
     # validate input dataframes
     if check_input:
-        # forcing:
-        list_issues_forcing = check_forcing(df_forcing)
+        # Build a physics dict from df_state_init so physics-gated forcing
+        # requirements (see `FORCING_REQUIREMENTS`) are enforced on the legacy
+        # path as well as the modern SUEWSSimulation path.
+        physics_dict = _physics_dict_from_df_state(df_state_init)
+        lai_bounds = _lai_bounds_from_df_state(df_state_init)
+        list_issues_forcing = check_forcing(
+            df_forcing, physics=physics_dict, lai_bounds=lai_bounds
+        )
         if isinstance(list_issues_forcing, list):
             logger_supy.critical("`df_forcing` is NOT valid to drive SuPy!")
             raise RuntimeError(
@@ -692,6 +741,23 @@ def _run_supy(
     from .util._forcing import convert_observed_soil_moisture
 
     config = SUEWSConfig.from_df_state(df_state_init)
+
+    try:
+        lai_val = getattr(config.model.physics, "laimethod", None)
+        if hasattr(lai_val, "value"):
+            lai_val = lai_val.value
+        lai_int = int(lai_val) if lai_val is not None else 1
+    except (AttributeError, TypeError, ValueError):
+        lai_int = 1
+
+    if lai_int == 0:
+        lai_issues = []
+        if _check_observed_lai_nonneg(df_forcing, lai_issues):
+            logger_supy.critical(
+                "`df_forcing` violates the observed-LAI contract under "
+                "`laimethod=0`."
+            )
+            raise RuntimeError(lai_issues[0])
 
     # Preprocess forcing for observed soil moisture if needed
     try:

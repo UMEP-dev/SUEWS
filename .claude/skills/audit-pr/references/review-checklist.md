@@ -95,6 +95,71 @@ Detailed checklist for comprehensive PR review.
 
 ---
 
+## Scientific PR Dev-Note Demo Checklist
+
+Applies to any PR that introduces or materially changes a scientific
+component (physics, numerics, calibration, benchmark). Missing artefacts
+are a **blocking** review finding — flag and request the author add them
+before approving merge, unless a maintainer explicitly agrees the change
+is not scientific.
+
+### Triggers — a PR is "scientific" if it touches
+
+- [ ] Any file matching `src/suews/src/suews_phys_*.f95`
+- [ ] `src/suews/src/suews_ctrl_daily_state.f95`
+- [ ] `src/supy/data_model/` (new physics-facing fields, enums, validators)
+- [ ] New YAML parameters that alter model output
+- [ ] A CHANGELOG entry tagged `[feature]` or `[change]` that is not pure
+      tooling / build / docs
+- [ ] Benchmark additions or regressions against published reference runs
+
+### Required artefacts
+
+- [ ] Summary RST at `docs/source/development/<slug>.rst`
+- [ ] Dashboard HTML at `docs/source/_extra/dev-notes/<slug>/dashboard.html`
+- [ ] Figures sit alongside the dashboard HTML (self-contained by default),
+      referenced via plain relative paths such as `src="fig.png"`
+- [ ] `development/index.rst` toctree updated to include the new page
+
+### Only when the dev-note ships with genuinely heavy assets
+
+A GitHub Release is only required when individual figures exceed ~5 MB
+or when the dev-note ships with videos, NetCDF, or large PDFs. In that
+case additionally:
+
+- [ ] Heavy assets uploaded to a GitHub Release tagged `dev-notes-<slug>`
+- [ ] Committed HTML references those assets via release URLs of the form
+      `https://github.com/UMEP-dev/SUEWS/releases/download/dev-notes-<slug>/<file>`
+- [ ] Spot-check 1–2 release URLs return HTTP 200 (release uploaded, not
+      just created as a draft)
+
+For the common case (small figures), none of the release-related items
+apply and the dev-note is fully self-contained.
+
+### Content expectations for the dashboard
+
+- [ ] Scope — which issue / which PRs this archives
+- [ ] Evidence — at least one sensitivity sweep OR before/after comparison
+      OR calibration table that substantiates the scientific claim
+- [ ] Governing equations or algorithmic description where applicable
+- [ ] Test-run status at branch-head (pass count, tier)
+- [ ] Known follow-ups or limitations flagged explicitly
+
+### How to handle a missing dev-note
+
+When a scientific PR arrives without a dev-note:
+
+1. Flag the omission in the review summary with "Dev-note archive: FAIL"
+2. Post a blocking review comment pointing the author at
+   `scripts/suews/build_dev_note.py` and the
+   `docs/source/development/index.rst` index for prior examples
+3. Do not approve the PR for merge until the dev-note lands, unless a
+   maintainer explicitly confirms the change is non-scientific
+4. If the scope is ambiguous, ask the author to classify in the PR
+   description and have a maintainer confirm rather than guess
+
+---
+
 ## Documentation Checklist
 
 ### CHANGELOG
@@ -176,6 +241,7 @@ PR can be merged when ALL of:
 - [ ] CI tests pass
 - [ ] Code review approved
 - [ ] Scientific review approved (if physics changes)
+- [ ] Dev-note archived under `docs/source/development/` (if scientific change)
 - [ ] Documentation updated
 - [ ] CHANGELOG entry present
 - [ ] No blocking issues

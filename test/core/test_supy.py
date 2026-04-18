@@ -39,6 +39,7 @@ flag_full_test = True
 class TestSuPy(TestCase):
     # test if single-tstep mode can run
     @pytest.mark.smoke
+    @pytest.mark.smoke_bridge
     def test_is_supy_running_single_step(self):
         print("\n========================================")
         print("Testing if single-tstep mode can run...")

@@ -21,9 +21,9 @@ The tool is a calibration **scaffold**, not a full parameter fit:
 
 * Single-site, single-parameter-per-invocation (serialised; nested
   scans are available via ``--all`` or repeated calls).
-* Uses the bundled Swindon sample by default; ``--dry-start`` depletes
+* Uses the bundled London sample by default; ``--dry-start`` depletes
   the vegetation soil store on day 1 so the moisture gate is actually
-  engaged during the year (Swindon is otherwise well-watered).
+  engaged during the year (London is otherwise well-watered).
 * Reports RMSE and mean-difference against the ``LAIType = 0``
   baseline, plus seasonal amplitude and estimated green-up DOY.
 
@@ -47,7 +47,7 @@ from typing import Dict, Iterable, List, Optional, Sequence
 import numpy as np
 import pandas as pd
 
-DEFAULT_SITE = "Swindon"  # placeholder tag for the bundled sample
+DEFAULT_SITE = "London"  # bundled sample is central London (lat 51.51, lng -0.12; Ward et al. 2016 KCL benchmark)
 PARAM_NAMES = ("w_wilt", "w_opt", "f_shape", "w_on", "w_off", "tau_w")
 DEFAULT_SWEEP_VALUES: Dict[str, Sequence[float]] = {
     "w_wilt": (0.05, 0.15, 0.30, 0.50, 0.70),
@@ -91,7 +91,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--site",
         default=DEFAULT_SITE,
-        help="Site tag used in output paths (default Swindon, i.e. the bundled sample)",
+        help="Site tag used in output paths (default London, i.e. the bundled sample based on the KCL King's Cross benchmark)",
     )
     parser.add_argument(
         "--dry-start",

@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GH-1292 Moisture-aware LAI phenology</title>
+<style>
+  :root {
+    --bg: #1a1714;
+    --surface: #242019;
+    --surface-2: #2c271f;
+    --rule: #3a342d;
+    --fg: #e8e2d5;
+    --fg-dim: #9c9285;
+    --fg-faint: #6c6456;
+    --accent: #c4841d;
+    --urgent: #d94922;
+    --warn: #cf8a1e;
+    --info: #5a9db5;
+    --ok: #6da33a;
+    --mono: "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: "Avenir Next", system-ui, sans-serif; font-size: 15px; line-height: 1.45; }
+  body { padding: 32px 48px 64px; max-width: 1100px; margin: 0 auto; }
+  a { color: var(--info); text-decoration: none; border-bottom: 1px dotted var(--info); }
+  a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .label { font-family: "Avenir Next", sans-serif; text-transform: uppercase; font-weight: 700; letter-spacing: 0.13em; font-size: 0.78rem; color: var(--fg-dim); }
+  h1 { font-family: Georgia, serif; font-weight: 400; font-size: 2.4rem; letter-spacing: -0.02em; margin: 0 0 4px 0; color: var(--fg); }
+  h2 { font-family: "Avenir Next", sans-serif; text-transform: uppercase; font-weight: 700; letter-spacing: 0.14em; font-size: 0.95rem; color: var(--accent); margin: 48px 0 12px 0; padding-bottom: 8px; border-bottom: 1px solid var(--rule); }
+  .hero { padding: 24px 0 12px; border-bottom: 1px solid var(--rule); }
+  .hero-sub { color: var(--fg-dim); font-size: 1rem; margin-top: 10px; max-width: 780px; }
+  .meta-strip { display: flex; gap: 32px; margin-top: 20px; flex-wrap: wrap; font-size: 0.92rem; }
+  .meta-strip > div { display: flex; flex-direction: column; gap: 2px; }
+  .meta-val { font-family: var(--mono); color: var(--fg); font-size: 1.05rem; }
+  code, .mono { font-family: var(--mono); font-size: 0.9em; }
+  code { background: var(--surface-2); padding: 1px 6px; border-radius: 2px; color: var(--accent); }
+  .big-count { font-family: Georgia, serif; font-size: 3.2rem; letter-spacing: -0.02em; line-height: 1; color: var(--accent); }
+
+  /* Three-column metric strip */
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin: 24px 0 32px; }
+  .metric { padding: 18px 20px; background: var(--surface); border-left: 3px solid var(--accent); }
+  .metric .big-count { font-size: 2.4rem; }
+  .metric .label { margin-top: 6px; }
+  .metric-sub { color: var(--fg-dim); font-size: 0.85rem; margin-top: 4px; }
+
+  /* PR timeline */
+  .pr-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .pr-card { background: var(--surface); padding: 20px 22px; border-top: 2px solid var(--info); }
+  .pr-card.pr2 { border-top-color: var(--accent); }
+  .pr-card.pr3 { border-top-color: var(--ok); }
+  .pr-card h3 { font-family: "Avenir Next", sans-serif; text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.85rem; margin: 0 0 2px 0; color: var(--fg-dim); }
+  .pr-card .pr-title { font-family: Georgia, serif; font-size: 1.15rem; margin: 0 0 10px; color: var(--fg); line-height: 1.25; }
+  .pr-card .pr-sha { font-family: var(--mono); font-size: 0.82rem; color: var(--fg-faint); margin-bottom: 12px; }
+  .pr-card ul { margin: 0; padding-left: 18px; color: var(--fg); font-size: 0.92rem; }
+  .pr-card ul li { margin-bottom: 5px; }
+  .pr-card .delta { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 0.82rem; color: var(--fg-dim); }
+
+  /* Sensitivity grid (sweep PNGs) */
+  .sweep-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .sweep-card { background: var(--surface); padding: 12px; }
+  .sweep-card img { width: 100%; height: auto; display: block; }
+  .sweep-card .sweep-label { font-family: var(--mono); font-size: 0.82rem; color: var(--fg-dim); padding: 6px 2px 2px; }
+  .sensitivity-verdict { background: var(--surface-2); padding: 18px 22px; margin-top: 18px; font-size: 0.95rem; border-left: 3px solid var(--warn); }
+  .sensitivity-verdict strong { color: var(--accent); }
+
+  /* Diagnostic (AU-ASM) */
+  .diagnostic { background: var(--surface); padding: 18px; }
+  .diagnostic img { width: 100%; height: auto; display: block; }
+  .diagnostic .caption { font-size: 0.9rem; color: var(--fg-dim); margin-top: 12px; }
+
+  /* Commit table */
+  .commits { border-top: 1px solid var(--rule); }
+  .commit-row { display: grid; grid-template-columns: 90px 1fr 100px; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--rule); font-size: 0.9rem; align-items: baseline; }
+  .commit-sha { font-family: var(--mono); color: var(--accent); }
+  .commit-msg { color: var(--fg); }
+  .commit-date { font-family: var(--mono); color: var(--fg-faint); font-size: 0.82rem; text-align: right; }
+
+  /* File list */
+  .files { display: grid; grid-template-columns: 1fr 1fr; gap: 28px 40px; font-size: 0.92rem; }
+  .files ul { margin: 0; padding-left: 18px; }
+  .files li { margin-bottom: 4px; color: var(--fg); }
+  .files h4 { font-family: "Avenir Next", sans-serif; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.78rem; color: var(--fg-dim); margin: 0 0 8px; font-weight: 700; }
+
+  /* Design space side-by-side */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .quote { background: var(--surface); padding: 16px 22px; font-family: Georgia, serif; font-style: italic; color: var(--fg); border-left: 3px solid var(--info); margin: 14px 0; font-size: 1.02rem; line-height: 1.55; }
+  .quote small { font-family: "Avenir Next", sans-serif; font-style: normal; color: var(--fg-dim); display: block; margin-top: 6px; font-size: 0.82rem; }
+
+  /* Equation block */
+  .equation { background: var(--surface-2); padding: 14px 18px; font-family: var(--mono); color: var(--fg); font-size: 0.92rem; line-height: 1.7; margin: 10px 0; }
+  .equation em { color: var(--accent); font-style: normal; }
+
+  /* Links row */
+  .links-row { display: flex; gap: 32px; flex-wrap: wrap; margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--rule); font-size: 0.92rem; }
+  .links-row a { font-family: var(--mono); }
+
+  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--rule); color: var(--fg-faint); font-size: 0.82rem; font-family: var(--mono); }
+
+  /* Zoomable figures */
+  .zoomable { cursor: zoom-in; transition: opacity 0.15s; }
+  .zoomable:hover { opacity: 0.85; }
+
+  /* Lightbox overlay */
+  .lightbox {
+    position: fixed; inset: 0; background: rgba(12, 10, 8, 0.94);
+    display: none; align-items: center; justify-content: center;
+    padding: 40px; z-index: 1000; cursor: zoom-out;
+    backdrop-filter: blur(6px);
+  }
+  .lightbox.open { display: flex; }
+  .lightbox-inner {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 20px; max-width: 95vw; max-height: 95vh;
+    animation: lightbox-in 0.18s ease-out;
+  }
+  @keyframes lightbox-in {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .lightbox img {
+    max-width: 95vw; max-height: 80vh; object-fit: contain;
+    background: var(--surface); padding: 8px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  }
+  .lightbox-caption {
+    max-width: 900px; color: var(--fg); font-size: 1.02rem; line-height: 1.55;
+    background: var(--surface); padding: 18px 28px; border-left: 3px solid var(--accent);
+    font-family: "Avenir Next", sans-serif;
+  }
+  .lightbox-caption strong { color: var(--accent); }
+  .lightbox-caption code { background: var(--surface-2); }
+  .lightbox-close {
+    position: fixed; top: 20px; right: 28px;
+    color: var(--fg-dim); font-size: 1.4rem; font-family: var(--mono);
+    cursor: zoom-out; user-select: none;
+    padding: 6px 12px; border: 1px solid var(--rule);
+    background: var(--surface); border-radius: 2px;
+  }
+  .lightbox-close:hover { color: var(--accent); border-color: var(--accent); }
+  .lightbox-hint {
+    color: var(--fg-faint); font-size: 0.82rem; font-family: var(--mono);
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+
+  @media (max-width: 760px) {
+    body { padding: 20px; }
+    .metrics { grid-template-columns: repeat(2, 1fr); }
+    .pr-grid { grid-template-columns: 1fr; }
+    .sweep-grid { grid-template-columns: 1fr; }
+    .two-col, .files { grid-template-columns: 1fr; }
+  }
+
+  /* GH-1292 inline-SVG sensitivity charts */
+
+  /* GH-1292 inline-SVG drought demo */
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="label">GH-1292 &nbsp;/&nbsp; branch: sunt05/gh1292-lai-moisture</div>
+  <h1>Moisture-aware LAI phenology</h1>
+  <div class="hero-sub">
+    Extends the SUEWS thermal-only GDD/SDD scheme with a Jarvis-style soil-water stress factor and a CLM5-style persistence latch so rainfall-driven sites (monsoon grasslands, semi-arid savannas) can reproduce observed LAI seasonality. Three PRs shipped in this session on branch <code>sunt05/gh1292-lai-moisture</code>: scaffolding, numerics, calibration tool.
+  </div>
+  <div class="meta-strip">
+    <div><span class="label">Issue</span><span class="meta-val">GH-1292 (OPEN, needs-science)</span></div>
+    <div><span class="label">Prereq</span><span class="meta-val">GH-1291 &mdash; merged</span></div>
+    <div><span class="label">Base</span><span class="meta-val">origin/master &rarr; 6368af507</span></div>
+    <div><span class="label">Status</span><span class="meta-val" style="color: var(--ok);">pushed, tests green</span></div>
+  </div>
+</header>
+
+<section class="metrics">
+  <div class="metric">
+    <div class="big-count">3</div>
+    <div class="label">PRs shipped</div>
+    <div class="metric-sub">design note + PR1 + PR2 + PR3</div>
+  </div>
+  <div class="metric">
+    <div class="big-count">16 / 16</div>
+    <div class="label">tests passing</div>
+    <div class="metric-sub">4 data-model, 4 e2e, 1 sweep smoke, 7 LAI bridge, 6 phenology bridge + 9 supy smoke</div>
+  </div>
+  <div class="metric">
+    <div class="big-count">v2</div>
+    <div class="label">bridge schema</div>
+    <div class="metric-sub">LAI_PRM, PHENOLOGY_STATE, LC_*_PRM</div>
+  </div>
+  <div class="metric">
+    <div class="big-count">0</div>
+    <div class="label">public comments</div>
+    <div class="metric-sub">internal design record only &mdash; per Ting's directive</div>
+  </div>
+</section>
+
+<h2>Two control branches in action (end-to-end demo)</h2>
+<p style="color: var(--fg-dim); margin: 0 0 12px; font-size: 0.95rem;">
+  LAI responds to two drivers: temperature (via GDD/SDD) and moisture (via the new Jarvis+latch). The figure below holds the temperature forcing fixed and perturbs only the rainfall &mdash; any LAI divergence between the two runs is therefore the moisture control acting alone.
+</p>
+
+<div class="diagnostic">
+  <img class="zoomable" src="moisture_control.png" alt="Moisture-aware LAI phenology drought demo, four panels" data-caption="Four panels, one year on the London sample (lat 51.51) with a synthetic drought imposed by zeroing rainfall from DOY 30 to 130 (red-shaded window). Panel letters A/B/C/D at the upper-left of each subplot; phase band P1 P2 P3 P4 at the top of panel D. <strong>A</strong> moisture input (daily rain, baseline vs drought). <strong>B</strong> moisture state (SMD + Jarvis thresholds). <strong>C</strong> thermal state (T2 + GDD/SDD; identical between runs). <strong>D</strong> LAI outcome with phase labels naming the dominant control in each stretch. Demo parameters are tightened (<code>w_wilt = 0.65</code>, <code>w_opt = 0.95</code>) because London&#39;s SoilStoreCap = 150 mm leaves default-threshold runs saturated -- the demo setup, not a recommended default.">
+  <div class="caption">
+    Four panels, one year on the London sample (lat 51.51) with a synthetic drought imposed by zeroing rainfall from DOY 30 to 130 (red-shaded window). Panel letters <strong>A / B / C / D</strong> at upper-left of each subplot; phase band <strong>P1 P2 P3 P4</strong> at the top of D.
+    <ul style="margin: 8px 0 10px; padding-left: 22px;">
+      <li><strong>Panel A &middot; moisture input</strong>: daily rainfall, baseline vs drought forcing.</li>
+      <li><strong>Panel B &middot; moisture state</strong>: SMD with Jarvis threshold markers (w_opt and w_wilt on London's SoilStoreCap = 150 mm).</li>
+      <li><strong>Panel C &middot; thermal state</strong>: daily mean air temperature (left axis) + GDD / SDD accumulators (right axis). Identical between the two LAIType runs &mdash; any LAI divergence in D is therefore entirely the moisture control's doing.</li>
+      <li><strong>Panel D &middot; LAI outcome</strong> with four phase labels:
+        <ul style="margin: 4px 0 0; padding-left: 16px;">
+          <li><strong style="color: var(--info);">P1 winter</strong> &mdash; CONTROL: thermal (T &lt; BaseT_GDD). Both curves at LAImin.</li>
+          <li><strong style="color: var(--urgent);">P2 spring drought</strong> &mdash; CONTROL: <strong>moisture</strong>. Panel C says "leaf out" and LAI0 obeys (rises to 5.74); LAI2 stays at LAImin because wbar &lt; w_off and the CLM5 latch forces &Delta;GDD = 0.</li>
+          <li><strong style="color: var(--ok);">P3 recovery</strong> &mdash; CONTROL: moisture release. Rain returns, latch reopens, LAI2 catches up to ~5.51.</li>
+          <li><strong style="color: #a07050;">P4 summer &rarr; autumn</strong> &mdash; CONTROL: thermal (SDD). Both curves plateau then senesce together.</li>
+        </ul>
+      </li>
+    </ul>
+    Click to zoom.
+  </div>
+</div>
+
+<h2>The three-PR story</h2>
+
+<div class="pr-grid">
+  <div class="pr-card">
+    <h3>PR1 &mdash; Scaffolding</h3>
+    <div class="pr-title">Plumb <code>LAIType = 2</code> through all layers as a no-op</div>
+    <div class="pr-sha">02b90f927 &middot; 17 Apr</div>
+    <ul>
+      <li>6 new moisture params on <code>LAI_PRM</code></li>
+      <li>3 per-veg-surface slots on <code>PHENOLOGY_STATE</code></li>
+      <li>Fortran &rarr; Rust/C bridge &rarr; Python data model &rarr; checker rules all propagated</li>
+      <li>Sample run bit-identical to <code>LAIType = 0</code></li>
+    </ul>
+    <div class="delta">20 files &nbsp; +978 / &minus;34</div>
+  </div>
+  <div class="pr-card pr2">
+    <h3>PR2 &mdash; Numerics (Design C)</h3>
+    <div class="pr-title">Activate Jarvis stress factor + CLM5 persistence latch</div>
+    <div class="pr-sha">ff80f8767 &middot; 17 Apr</div>
+    <ul>
+      <li>Jarvis <code>f_w</code> piecewise-power on relative soil water</li>
+      <li>Latch flips on thermal+persistence thresholds, closes on drought</li>
+      <li>Seed <code>wbar_id</code> from first <code>w</code> to avoid <code>tau</code>-day ramp</li>
+      <li>Well-watered sites &rarr; graceful degradation to LAIType=0</li>
+    </ul>
+    <div class="delta">6 files &nbsp; +162 / &minus;42</div>
+  </div>
+  <div class="pr-card pr3">
+    <h3>PR3 &mdash; Calibration scaffolding</h3>
+    <div class="pr-title">Parameter-sweep tool + sensitivity demonstration</div>
+    <div class="pr-sha">6368af507 &middot; 18 Apr</div>
+    <ul>
+      <li><code>moisture_phenology_sweep.py</code> with <code>--all</code>, <code>--dry-start</code></li>
+      <li>Pairwise-validator co-adjustment for extreme sweep values</li>
+      <li>Design note Appendix A on calibration methodology + roadmap</li>
+      <li>Full FLUXNET calibration flagged as follow-up</li>
+    </ul>
+    <div class="delta">4 files &nbsp; +429</div>
+  </div>
+</div>
+
+<h2>Design C: governing equations (PR2)</h2>
+
+<div class="two-col">
+<div>
+<div class="equation">
+w = clamp(1 &minus; smd<sub>prev</sub> / smdcap, 0, 1)<br>
+wbar = wbar + (w &minus; wbar) / tau_w<br><br>
+<em>Jarvis:</em><br>
+&nbsp;&nbsp;f_w = 0 &nbsp; if w &le; w_wilt<br>
+&nbsp;&nbsp;f_w = 1 &nbsp; if w &ge; w_opt<br>
+&nbsp;&nbsp;f_w = ((w &minus; w_wilt)/(w_opt &minus; w_wilt))<sup>f_shape</sup> &nbsp; else<br><br>
+<em>CLM5 latch:</em><br>
+&nbsp;&nbsp;if latch on AND wbar &lt; w_off &rarr; flip off<br>
+&nbsp;&nbsp;if latch off AND wbar &ge; w_on AND Tbar &ge; BaseT_GDD &rarr; flip on<br><br>
+<em>Apply gate:</em><br>
+&nbsp;&nbsp;if latch on &rarr; &Delta;GDD *= f_w<br>
+&nbsp;&nbsp;if latch off &rarr; &Delta;GDD = 0
+</div>
+</div>
+<div>
+<div class="quote">
+Thresholds operate on the dimensionless relative soil water <em>w</em>, not on SMD in mm directly &mdash; SMD enters the routine in millimetres and is converted internally so the six parameters stay unitless (except <code>tau_w</code>, in days).
+<small>Design note &sect;6.1, PR2 implementation notes</small>
+</div>
+<p style="color: var(--fg-dim); font-size: 0.92rem; line-height: 1.55;">
+Follows <strong>CLM5 stress-deciduous</strong> (Lawrence et al. 2019 &sect;14), adapted to SUEWS' daily-state loop. Uses SUEWS' native water balance (<code>soilstore_surf</code>, <code>SoilStoreCap</code>) without introducing new hydrology state. Latch default is <code>.TRUE.</code> so well-watered sites don't wait for the running-mean trigger.
+</p>
+</div>
+</div>
+
+<h2>Parameter sensitivity (PR3 calibration detail)</h2>
+<p style="color: var(--fg-dim); margin: 0 0 12px; font-size: 0.95rem;">Dry-start parameter sweep on the London sample, rendered as inline SVG (scales crisply, hover for exact values). Of the six moisture parameters exposed in <code>LAI_PRM</code>, three move LAI measurably; the other three stay silent on a well-watered site. This section is for people doing calibration.</p>
+
+<div class="diagnostic">
+  <img class="zoomable" src="sensitivity_summary.png" alt="Moisture-aware LAI parameter sensitivity, two-panel summary" data-caption="Dry-start parameter sweep on the London sample. <strong>Panel A</strong> ranks the six moisture parameters by max |mean-LAI deviation from the LAIType=0 baseline| across their swept value range. Three parameters (<code>w_wilt</code>, <code>w_opt</code>, <code>w_off</code>) sit above the 0.02 m² m⁻² noise floor; three (<code>f_shape</code>, <code>w_on</code>, <code>tau_w</code>) sit below. <strong>Panel B</strong> overlays the dose-response lines for all six (sensitive trio in colour, silent trio greyed) against the LAIType=0 baseline (dashed). The silent trio is silent because at London wbar stays above w_off year-round after the initial transient, so the latch-timing parameters are never consulted. Real dryland sites will exercise all six -- this London demo characterises the pipeline.">
+  <div class="caption">
+    Dry-start parameter sweep, two stacked panels:
+    <ul style="margin: 8px 0 10px; padding-left: 22px;">
+      <li><strong>Panel A</strong> &mdash; bar chart of worst-case |mean-LAI deviation from baseline| per parameter. Three bars (<code>w_wilt</code>, <code>w_opt</code>, <code>w_off</code>) cross the noise-floor line at 0.02 m²&nbsp;m⁻²; three are essentially zero (<code>f_shape</code>, <code>w_on</code>, <code>tau_w</code>).</li>
+      <li><strong>Panel B</strong> &mdash; dose-response lines across the normalised sweep range. Sensitive trio in colour, silent trio greyed, LAIType=0 baseline dashed.</li>
+    </ul>
+    <strong>Finding</strong>: at a well-watered site like London, the Jarvis magnitude parameters (<code>w_wilt</code>, <code>w_opt</code>) and the drought-senescence trigger (<code>w_off</code>) drive LAI. The latch-timing parameters stay silent because once the spring transient clears, wbar sits comfortably above w_off and the latch is never consulted. Real dryland sites will exercise all six &mdash; this sweep validates the calibration pipeline.
+  </div>
+</div>
+
+<h2>Commit timeline (this branch)</h2>
+
+<div class="commits">
+  <div class="commit-row">
+    <span class="commit-sha">6368af507</span>
+    <span class="commit-msg">PR3: calibration scaffolding for moisture-aware LAI (GH-1292)</span>
+    <span class="commit-date">18 Apr 2026</span>
+  </div>
+  <div class="commit-row">
+    <span class="commit-sha">ff80f8767</span>
+    <span class="commit-msg">PR2: activate Design C numerics for moisture-aware LAI (GH-1292)</span>
+    <span class="commit-date">17 Apr 2026</span>
+  </div>
+  <div class="commit-row">
+    <span class="commit-sha">01b0b4c71</span>
+    <span class="commit-msg">Merge remote-tracking branch 'origin/master' (&num;1298 NumPy cleanup)</span>
+    <span class="commit-date">17 Apr 2026</span>
+  </div>
+  <div class="commit-row">
+    <span class="commit-sha">1e1d4fcbe</span>
+    <span class="commit-msg">Merge remote-tracking branch 'origin/master' (&num;1291/&num;1294/&num;1296)</span>
+    <span class="commit-date">17 Apr 2026</span>
+  </div>
+  <div class="commit-row">
+    <span class="commit-sha">02b90f927</span>
+    <span class="commit-msg">PR1: moisture-aware LAI phenology scaffolding (GH-1292)</span>
+    <span class="commit-date">17 Apr 2026</span>
+  </div>
+  <div class="commit-row">
+    <span class="commit-sha">2a019bac5</span>
+    <span class="commit-msg">Docs: internal design note for moisture-aware LAI phenology (GH-1292)</span>
+    <span class="commit-date">17 Apr 2026</span>
+  </div>
+</div>
+
+<h2>Key files</h2>
+
+<div class="files">
+  <div>
+    <h4>Fortran physics</h4>
+    <ul>
+      <li><code>src/suews/src/suews_phys_dailystate.f95</code> &mdash; <code>update_GDDLAI</code> + LAIType=2 branch (PR1 + PR2)</li>
+      <li><code>src/suews/src/suews_type_vegetation.f95</code> &mdash; <code>LAI_PRM</code> +6 fields, <code>PHENOLOGY_STATE</code> +3 slots</li>
+    </ul>
+    <h4>Rust / C bridge (schema v2)</h4>
+    <ul>
+      <li><code>src/suews_bridge/src/lai.rs</code>, <code>c_api/lai.f95</code></li>
+      <li><code>src/suews_bridge/src/phenology.rs</code>, <code>c_api/phenology.f95</code></li>
+      <li><code>src/suews_bridge/src/lc_{dectr,evetr,grass}_prm.rs</code> + shadows</li>
+      <li><code>src/suews_bridge/c_api/driver.f95</code> (aggregate constant + pack)</li>
+    </ul>
+  </div>
+  <div>
+    <h4>Python data model</h4>
+    <ul>
+      <li><code>src/supy/data_model/core/site.py</code> &mdash; <code>LAIParams</code> +6 fields, laitype=2 validator</li>
+      <li><code>src/supy/checker_rules_indiv.json</code> &mdash; +6 entries</li>
+    </ul>
+    <h4>Tools &amp; tests</h4>
+    <ul>
+      <li><code>scripts/verify/moisture_phenology_site.py</code> &mdash; single-site diagnostic (PR1)</li>
+      <li><code>scripts/verify/moisture_phenology_sweep.py</code> &mdash; parameter sweep (PR3)</li>
+      <li><code>test/data_model/test_laiparams_moisture_fields.py</code> &mdash; 4 tests</li>
+      <li><code>test/test_phenology_lai_type_scaffolding.py</code> &mdash; 4 tests</li>
+      <li><code>test/test_moisture_phenology_sweep.py</code> &mdash; 1 slow test</li>
+      <li><code>dev-ref/design-notes/gh1292-moisture-phenology.md</code> &mdash; 13 sections + Appendix A</li>
+    </ul>
+  </div>
+</div>
+
+<h2>What's not in this session</h2>
+<ul style="color: var(--fg); font-size: 0.95rem; padding-left: 22px;">
+  <li><strong>Full FLUXNET per-IGBP calibration</strong> &mdash; needs dedicated per-site SUEWS configs (lat/lon, land-cover fractions, soil-store caps from Omidvar et al. 2022). Primary tier: AU-ASM, AU-DaS, AU-DaP, US-SRG, US-Wkg, US-Ton. Roadmap in design note Appendix A.3.</li>
+  <li><strong>Optional moisture-stress SDD term</strong> (ORCHIDEE-style additive drought senescence) &mdash; deferred until empirical evidence says the latch alone is insufficient. Design note Appendix A.4.</li>
+  <li><strong>GH-1291 observed-LAI forcing path</strong> &mdash; already fixed upstream (merged into this branch), not revisited.</li>
+</ul>
+
+<div class="links-row">
+  <a href="https://github.com/UMEP-dev/SUEWS/issues/1292">GH-1292 issue</a>
+  <a href="https://github.com/UMEP-dev/SUEWS/tree/sunt05/gh1292-lai-moisture">Branch on GitHub</a>
+  <a href="dev-ref/design-notes/gh1292-moisture-phenology.md">Design note (local)</a>
+  <a href="CHANGELOG.md">CHANGELOG entries (17 &amp; 18 Apr)</a>
+  <a href="https://doi.org/10.5194/gmd-15-3041-2022">Omidvar et al. 2022 (GMD)</a>
+  <a href="https://doi.org/10.1029/2018MS001583">Lawrence et al. 2019 (CLM5)</a>
+</div>
+
+<footer>
+  Generated 18 Apr 2026 &middot; workspace: <code>~/conductor/workspaces/suews/hanoi-v1</code> &middot; dashboard path: <code>dashboard.html</code>
+</footer>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Enlarged figure">
+  <div class="lightbox-close" id="lightboxClose" title="Close (Esc)">&times; &nbsp; close</div>
+  <div class="lightbox-inner">
+    <img id="lightboxImg" src="" alt="">
+    <div class="lightbox-caption" id="lightboxCaption"></div>
+    <div class="lightbox-hint">click anywhere or press Esc to close &middot; &larr; &rarr; to navigate</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const lightbox = document.getElementById('lightbox');
+  const lightboxImg = document.getElementById('lightboxImg');
+  const lightboxCaption = document.getElementById('lightboxCaption');
+  const lightboxClose = document.getElementById('lightboxClose');
+
+  // Collect every zoomable image paired with its caption text.
+  // For sweep cards the caption lives in a sibling .sweep-label div;
+  // for the diagnostic figure it's explicitly on `data-caption`.
+  const figures = Array.from(document.querySelectorAll('img.zoomable')).map(img => {
+    const explicit = img.getAttribute('data-caption');
+    if (explicit) return { img, html: explicit };
+    const card = img.closest('.sweep-card');
+    const label = card ? card.querySelector('.sweep-label') : null;
+    return { img, html: label ? label.innerHTML : img.alt || '' };
+  });
+
+  let currentIndex = -1;
+
+  function openAt(i) {
+    if (i < 0 || i >= figures.length) return;
+    currentIndex = i;
+    const { img, html } = figures[i];
+    lightboxImg.src = img.src;
+    lightboxImg.alt = img.alt;
+    lightboxCaption.innerHTML = html;
+    lightbox.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function close() {
+    lightbox.classList.remove('open');
+    document.body.style.overflow = '';
+    currentIndex = -1;
+  }
+
+  figures.forEach(({ img }, i) => {
+    img.addEventListener('click', () => openAt(i));
+  });
+
+  lightbox.addEventListener('click', (e) => {
+    // Click on the backdrop or the explicit close button closes the overlay;
+    // clicks on the image or caption are left alone so the user can inspect them.
+    if (e.target === lightbox || e.target === lightboxClose) close();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!lightbox.classList.contains('open')) return;
+    if (e.key === 'Escape') close();
+    else if (e.key === 'ArrowRight') openAt((currentIndex + 1) % figures.length);
+    else if (e.key === 'ArrowLeft') openAt((currentIndex - 1 + figures.length) % figures.length);
+  });
+})();
+</script>
+
+</body>
+</html>

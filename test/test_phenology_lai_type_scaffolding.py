@@ -16,7 +16,7 @@ water. Two invariants define correctness:
 
 Under PR1 the branch was a documented no-op; PR2 activates the
 numerics and the bit-identity assertion now holds only because the
-bundled Swindon sample is well-watered.
+bundled London sample is well-watered.
 """
 
 from __future__ import annotations
@@ -71,7 +71,7 @@ def lai_baseline_0() -> pd.DataFrame:
 def test_laitype_2_matches_laitype_0_in_well_watered_regime(
     lai_baseline_0: pd.DataFrame,
 ) -> None:
-    """Default moisture thresholds + well-watered Swindon sample -> bit-identical to LAIType=0."""
+    """Default moisture thresholds + well-watered London sample -> bit-identical to LAIType=0."""
 
     lai_variant_2 = _run_with_state_override(2)
     assert lai_baseline_0.shape == lai_variant_2.shape

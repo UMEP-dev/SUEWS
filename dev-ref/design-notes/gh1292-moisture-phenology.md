@@ -323,18 +323,18 @@ uv run python scripts/verify/moisture_phenology_sweep.py \
 uv run python scripts/verify/moisture_phenology_sweep.py --all --dry-start
 ```
 
-The `--dry-start` flag depletes `soilstore_surf` for the three vegetation surfaces to 10 mm on day 1 (the minimum the data model allows). Without it the bundled Swindon sample is well-watered and the moisture gate never engages, so every sweep value collapses onto the thermal baseline. For a real dryland calibration the flag is unnecessary because the site is dry by construction.
+The `--dry-start` flag depletes `soilstore_surf` for the three vegetation surfaces to 10 mm on day 1 (the minimum the data model allows). Without it the bundled London sample is well-watered and the moisture gate never engages, so every sweep value collapses onto the thermal baseline. For a real dryland calibration the flag is unnecessary because the site is dry by construction.
 
 Outputs land in `.context/gh1292/<site>/sweep_<param>.json` (tabular dose-response: mean LAI, RMSE vs baseline, seasonal amplitude, green-up DOY) and `.context/gh1292/<site>/sweep_<param>.png` (dual-axis sensitivity plot). A pairwise-validator co-adjustment in the tool ensures `w_opt > w_wilt` and `w_on > w_off` remain satisfied during extreme sweep values.
 
-### A.2 Swindon sensitivity results (PR3 demo, depleted soil initial state)
+### A.2 London sensitivity results (PR3 demo, depleted soil initial state)
 
-From the `--all --dry-start` scan on the bundled Swindon sample with default `LAIType = 0` baseline mean LAI = 4.546 m2/m2 (note Swindon is a UK suburban site, not a dryland; the depleted soil gives a short "synthetic drought" pulse for ~30 days before winter recharge):
+From the `--all --dry-start` scan on the bundled London sample with default `LAIType = 0` baseline mean LAI = 4.546 m2/m2 (note London is a UK suburban site, not a dryland; the depleted soil gives a short "synthetic drought" pulse for ~30 days before winter recharge):
 
 - `w_wilt` strong effect: raising from 0.15 to 0.70 drops mean LAI from 4.545 to 4.435 (~2.4%) and delays green-up from DOY 104 to DOY 109. The Jarvis lower bound is the most influential parameter under transient drought.
 - `w_opt` moderate: raising from 0.40 to 0.90 drops mean LAI from 4.545 to 4.470 (~1.6%) and delays green-up by five days. Tightening `w_opt` while keeping `w_wilt` unchanged narrows the Jarvis transition and can eclipse `w_wilt` for high values.
 - `w_off` asymmetric: values below the default 0.20 are silent (the latch stays open); raising to 0.45 drops mean LAI 4.546 -> 4.483 (~1.4%) and lags green-up to DOY 106 by triggering the CLM5 off-latch early after the initial dry pulse.
-- `w_on`, `tau_w`, `f_shape`: **no measurable effect** on the Swindon synthetic-drought scenario with all other parameters at default. This is consistent with the latch mechanics: once the initial transient clears and the soil recharges, `wbar_id` sits comfortably above `w_off` and the leaf-on latch is never consulted again, so `w_on` / `tau_w` / `f_shape` stay off the integration.
+- `w_on`, `tau_w`, `f_shape`: **no measurable effect** on the London synthetic-drought scenario with all other parameters at default. This is consistent with the latch mechanics: once the initial transient clears and the soil recharges, `wbar_id` sits comfortably above `w_off` and the leaf-on latch is never consulted again, so `w_on` / `tau_w` / `f_shape` stay off the integration.
 
 The practical implication for calibration: **start with `w_wilt`, `w_opt`, and `w_off`** as the sensitive trio; treat `w_on`, `tau_w`, and `f_shape` as fine-tuning parameters that only matter when the run actually experiences sustained drought transitions. Real dryland sites (AU-ASM, US-SRG, AU-DaS) will almost certainly exercise all six.
 

@@ -23,7 +23,7 @@ SWEEP_SCRIPT = REPO_ROOT / "scripts" / "verify" / "moisture_phenology_sweep.py"
 
 @pytest.mark.slow
 def test_sweep_cli_emits_expected_json() -> None:
-    out_path = REPO_ROOT / ".context" / "gh1292" / "Swindon-test" / "sweep_w_opt.json"
+    out_path = REPO_ROOT / ".context" / "gh1292" / "London-test" / "sweep_w_opt.json"
     if out_path.exists():
         out_path.unlink()
 
@@ -36,7 +36,7 @@ def test_sweep_cli_emits_expected_json() -> None:
             "--values",
             "0.40",
             "--site",
-            "Swindon-test",
+            "London-test",
             "--dry-start",
         ],
         cwd=str(REPO_ROOT),

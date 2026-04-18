@@ -4,9 +4,6 @@
 # Called from build-publish_to_pypi.yml determine_matrix job.
 # Writes buildplat, python, test_python, test_tier to GITHUB_OUTPUT.
 #
-# The UMEP (NumPy<2) variant is no longer built separately — it is produced
-# post-build by .github/scripts/retag_umep_wheel.py from the same abi3 wheels.
-#
 # "python" is the cibuildwheel build matrix (always cp39 — emits one abi3
 # wheel per platform). "test_python" is the cross-version bridge-loading
 # matrix (BOOKEND for PRs, ALL for nightly/tag).

@@ -133,7 +133,6 @@ jobs:
         run: |
           echo "=== Build Decision ==="
           echo "needs-build: $NEEDS_BUILD"
-          echo "(UMEP wheels are retagged post-build; no separate build flag)"
           echo ""
 
           # Determine multiplatform requirement
@@ -184,7 +183,6 @@ jobs:
           if [[ "$SITE" == "true" ]]; then echo "- site deploy (pages-deploy.yml)"; TRIGGERED=true; fi
           if [[ "$NEEDS_BUILD" == "true" ]]; then
             echo "- wheel build (build_wheels) — cp39-abi3 wheel per platform"
-            echo "- UMEP retag (retag_umep) — metadata surgery on the same wheels"
             TRIGGERED=true
           fi
           if [[ "$TRIGGERED" == "false" ]]; then echo "- nothing (all skipped)"; fi

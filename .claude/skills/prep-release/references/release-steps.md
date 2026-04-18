@@ -303,8 +303,8 @@ git push origin "$VERSION"
 ## Step 7: Post-Release Verification
 
 **Monitor (~20 min):**
-- GitHub Actions: build_wheels, retag_umep, publish
-- PyPI: supy `YYYY.M.D` and `YYYY.M.Drc1` both appear
+- GitHub Actions: build_wheels, test_bridge_loading, publish
+- PyPI: supy `YYYY.M.D` appears (one cp39-abi3 wheel per platform)
 - GitHub Release: created automatically after successful publish
 - Zenodo DOI appears on the dashboard
 - ReadTheDocs build succeeds

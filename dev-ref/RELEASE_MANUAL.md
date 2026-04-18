@@ -32,10 +32,9 @@ SUEWS adopts a **rolling release model** that reflects the continuous nature of 
    git push origin $VERSION
    ```
 4. **Wait ~20 min**: GitHub Actions builds **two versions** in parallel:
-   - `2025.10.14` (standard, NumPy ≥2.0)
-   - `2025.10.14rc1` (QGIS3 UMEP, NumPy 1.x)
+   - `2025.10.14` (one cp39-abi3 wheel per platform, installs on cp39..cp3xx and any NumPy 1.22+/2.x)
 
-   Both deployed to PyPI → GitHub Release → Zenodo DOI
+   Deployed to PyPI → GitHub Release → Zenodo DOI
 5. **Verify**: Check [Actions](https://github.com/UMEP-dev/SUEWS/actions), [PyPI](https://pypi.org/project/supy/), [Zenodo dashboard](https://zenodo.org/me/uploads)
 6. **Announce**: [SUEWS Discussions](https://github.com/UMEP-dev/SUEWS/discussions) (optional)
 
@@ -43,80 +42,47 @@ SUEWS adopts a **rolling release model** that reflects the continuous nature of 
 
 ---
 
-## Dual-Build System: Standard + QGIS3 UMEP
+## Single Wheel Covers All Environments
 
-Every SUEWS release automatically creates **two PyPI versions** from a single git tag:
+Every SUEWS release produces **one cp39-abi3 wheel per (OS, arch)** from a single git tag. That wheel installs and runs on:
 
-| Version Type | Version | NumPy | Target Users |
-|--------------|---------|-------|--------------|
-| Standard | `2024.10.7` | ≥2.0 | Standalone Python users |
-| QGIS3 UMEP | `2024.10.7rc1` | 1.x | QGIS 3/UMEP plugin users |
+- CPython 3.9 through 3.14 (Rust bridge via PyO3 `abi3-py39`)
+- NumPy 1.22+ (including QGIS 3 LTR's NumPy 1.26.4) through NumPy 2.x
 
-### pip Install Behavior
+### pip Install Behaviour
 
-- `pip install supy` → Gets `2024.10.7` (standard, NumPy 2.0)
-- `pip install supy==2024.10.7rc1` → Gets `2024.10.7rc1` (QGIS3 UMEP, NumPy 1.x)
-- rc1 is a pre-release tag, automatically skipped by pip unless explicitly specified
+- `pip install supy` → Gets `2024.10.7` (the single wheel for the platform)
+- QGIS 3 (NumPy 1.26.4) and QGIS 4 (NumPy 2.x) both consume the same wheel
 
-### Why Two Versions?
+### Why One Version Now?
 
-**Background**: QGIS 3 LTR (3.40) ships with NumPy 1.26.4. NumPy 2.0 introduced ABI breaks requiring separate binary builds. QGIS 4 (Python 3.13+, NumPy 2.x) uses the standard wheels directly — no special handling needed.
+**History**: Before the Rust bridge replaced f90wrap/f2py, the compiled extension linked against NumPy's C-ABI, which changed in NumPy 2.0. That forced a separate `rc1` variant (`numpy<2.0`) for QGIS 3 LTR users.
 
-**Solution**: Automatic parallel builds from single tag:
-- **Standard build** uses NumPy ≥2.0 for modern Python environments
-- **QGIS3 UMEP build** uses `oldest-supported-numpy` and NumPy 1.x for QGIS 3 compatibility
-- Both run in parallel (~20 minutes total)
-- No manual coordination needed
+**Now**: `src/suews_bridge/` uses PyO3 with no NumPy C-ABI dependency; all NumPy work happens in pure Python against APIs that exist from 1.22 onwards. The runtime pin is `numpy>=1.22`, so the standard wheel installs cleanly into QGIS 3.40 LTR with no retag step.
 
-### QGIS3 UMEP Integration
-
-UMEP requirements file specifies:
-```python
-supy==2024.10.7rc1
-```
-
-UMEP users run:
-```bash
-pip install -r umep-requirements.txt
-```
-
-They never see version details - it just works.
-
-**Why rc1?**
-- rc1 = "release candidate 1" (PEP 440 pre-release tag)
-- pip skips pre-releases by default
-- Ensures `pip install supy` gets the standard version (2024.10.7)
-- UMEP users get rc1 via explicit pin in requirements
+The UMEP (`rc1`) variant was retired in 2026-04 together with `.github/scripts/retag_umep_wheel.py` and the `BUILD_UMEP_VARIANT` code path in `get_ver_git.py`.
 
 ### What Happens Automatically
 
 From a single tag push:
 
-1. **Standard Build** (`build_wheels` job)
+1. **Build** (`build_wheels` job)
    - Builds one `cp39-abi3` wheel per (OS, arch) via cibuildwheel
    - The Rust bridge uses PyO3 `abi3-py39`, so the wheel installs on cp39..cp3xx
    - Creates version `2024.10.7`
-   - Deployed to PyPI
 
-2. **UMEP Retag** (`retag_umep` job)
-   - Runs `.github/scripts/retag_umep_wheel.py` on each standard abi3 wheel
-   - Rewrites `METADATA` (`Requires-Dist: numpy<2.0,>=1.22`)
-   - Rewrites `supy/_version_scm.py` to report `2024.10.7rc1`
-   - Regenerates `RECORD` with fresh SHA-256 hashes
-   - Keeps the `cp39-abi3-<plat>` wheel tag (binary is identical; metadata only)
-   - Deployed to PyPI alongside the standard wheels
+2. **Cross-CPython smoke** (`test_bridge_loading` job)
+   - Installs the single wheel into each test CPython (BOOKEND for PRs, ALL for tags)
+   - Runs `pytest -m smoke_bridge` to confirm the FFI boundary is intact
 
 3. **Deployment** (`deploy_pypi` job)
-   - Waits for both jobs
-   - Collects wheels from both
-   - Publishes all wheels to PyPI together
-
-**Timeline**: Retag runs in seconds on a single runner after the standard build completes.
+   - Waits for the build job
+   - Publishes all platform wheels to PyPI
 
 **See Also**:
 - `.github/workflows/build-publish_to_pypi.yml` - CI configuration with detailed comments
-- `get_ver_git.py` - Version string logic including rc1 suffix
-- GitHub issue #724 - Original UMEP compatibility discussion
+- `get_ver_git.py` - Version string logic
+- GitHub issue #724 - Original UMEP compatibility discussion (now resolved by the Rust bridge)
 
 ---
 
@@ -500,8 +466,6 @@ Add entry under current date:
   - Detailed point 2
 - [bugfix] Fixed issue with... ([#YYY](github.com/UMEP-dev/SUEWS/issues/YYY))
 - [change] Breaking change if any
-
-**Note**: This release includes both `2025.8.15` (NumPy 2.0) and `2025.8.15rc1` (NumPy 1.x for QGIS3 UMEP).
 ```
 
 #### 5. Commit Changes
@@ -580,15 +544,12 @@ This release focuses on [main theme: e.g., enhanced validation capabilities, mod
 
 ## Installation
 
-**Standard (NumPy 2.x):**
 ```bash
 pip install --upgrade supy
 ```
 
-**QGIS3 UMEP Compatible (NumPy 1.x):**
-```bash
-pip install supy==YYYY.M.Drc1
-```
+The cp39-abi3 wheel installs on any CPython 3.9+ with NumPy 1.22+,
+covering QGIS 3 LTR (NumPy 1.26.4), QGIS 4, and standalone Python.
 
 ## Citation
 
@@ -649,26 +610,16 @@ git push origin --delete $VERSION
 - Verify PyPI credentials in repository secrets
 - Manual upload: `python -m build && twine upload dist/*`
 
-#### Dual-Build Issues
+#### Build Issues
 
-**Q: What if one build fails?**
-A: Deployment proceeds with available wheels. Independent builds mean one failure doesn't block the other.
-
-**Q: How to verify both versions are on PyPI?**
-A: Check PyPI release history:
-```bash
-pip index versions supy
-# Should show both 2025.8.15 and 2025.8.15rc1
-```
-
-**Q: UMEP users reporting NumPy 2.0 conflict?**
-A: Verify UMEP requirements file specifies rc1 version exactly: `supy==2025.8.15rc1`
-
-**Q: Version ordering on PyPI?**
-A: `2025.8.15rc1` sorts before `2025.8.15` but after `2025.8.14`. Latest stable version preferred by pip unless exact version specified.
+**Q: What if one platform build fails?**
+A: Deployment proceeds with the wheels that did succeed (`fail-fast: false`). Platforms are independent.
 
 **Q: How to test before production release?**
-A: Use test tag (e.g., `v2025.10.test`) to trigger builds and check TestPyPI.
+A: Use a dev tag (e.g., `2025.10.8.dev`) to trigger a build and publish to TestPyPI.
+
+**Q: UMEP users reporting NumPy conflicts?**
+A: The runtime pin is `numpy>=1.22`; QGIS 3 LTR's NumPy 1.26.4 satisfies it. Ask users for their full `pip install` output if conflicts appear — the issue is almost certainly elsewhere in their dependency graph (e.g. another package pinning `numpy<2`).
 
 ## 13. Release Decision Matrix
 
@@ -700,10 +651,7 @@ A: Yes, if you need a stable version for a paper/conference, let us know.
 A: No formal LTS, but older versions remain on PyPI/Zenodo indefinitely.
 
 **Q: Why do I see rc1 versions on PyPI?**
-A: These are QGIS3 UMEP-compatible builds with NumPy 1.x. They're automatically created for every release but hidden from `pip install` by default. UMEP users get them via pinned requirements.
-
-**Q: Should I document rc1 versions in release notes?**
-A: No. Release notes describe features/changes. Both versions have identical source - only dependency differs. GitHub workflow handles this automatically.
+A: Historical. Pre-2026-04 releases included an `rc1` variant with a `numpy<2.0` pin for QGIS 3 LTR. That variant was retired once the Rust bridge made the compiled artefact NumPy-ABI-free; the standard wheel now satisfies both QGIS 3 and QGIS 4. `rc1` tags going forward are only used for beta/RC testing (see Appendix E), not for NumPy variants.
 
 ## Appendix A: Quick Reference Card
 

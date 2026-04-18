@@ -86,7 +86,6 @@ module.exports = async ({ github, context }) => {
     configSection += `| **Platforms** | ${platforms.join(', ')} |\n`;
     configSection += `| **Python** | ${pyDisplay} |\n`;
     configSection += `| **Test tier** | ${tierDesc[testTier] || testTier} |\n`;
-    configSection += `| **UMEP (NumPy<2) wheels** | Retagged post-build (abi3 metadata surgery) |\n`;
     configSection += `| **PR status** | ${isDraft ? 'Draft (reduced matrix)' : 'Ready (standard matrix)'} |\n`;
   }
 
@@ -107,7 +106,6 @@ module.exports = async ({ github, context }) => {
   if (utilChanged) rationale.push('Utility modules changed -> single-platform build');
   if (ciChanged) rationale.push('CI/workflow files changed -> validation build');
   if (testsChanged) rationale.push('Test files changed -> validation build');
-  if (needsBuild) rationale.push('UMEP (NumPy<2) wheels retagged from the same abi3 build (no second compile)');
   if (!needsBuild) rationale.push('No build-triggering changes detected -> builds skipped');
 
   const rationaleSection = rationale.map(r => `- ${r}`).join('\n');

@@ -54,6 +54,13 @@ EXAMPLES:
 
 ## 2026
 
+### 18 Apr 2026
+
+- [change][experimental] Retire UMEP (NumPy<2) wheel variant (#1299)
+  - Loosened runtime pin to `numpy>=1.22` so the standard cp39-abi3 wheel installs cleanly into QGIS 3 LTR (NumPy 1.26.4), QGIS 4 (NumPy 2.x), and modern Python environments alike
+  - Removed `.github/scripts/retag_umep_wheel.py`, the `retag_umep` CI job, and the `BUILD_UMEP_VARIANT` / `rc1` code path in `get_ver_git.py` — the Rust bridge (PyO3 `abi3-py39`) has no NumPy C-ABI dependency, so a single wheel now covers both ecosystems
+  - `deploy_pypi` publishes one wheel per platform; `pr-gate` and release docs simplified accordingly
+
 ### 17 Apr 2026
 
 - [maintenance] Remove NumPy build-time dependency (post-f2py cleanup) (#1298)

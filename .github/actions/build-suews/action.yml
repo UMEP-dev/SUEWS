@@ -53,8 +53,7 @@ runs:
       shell: bash
       run: |
         # Generate version file on host (where git is available).
-        # This file is copied into the cibuildwheel container. UMEP's rc1/.dev+1
-        # version suffix is applied later by .github/scripts/retag_umep_wheel.py.
+        # This file is copied into the cibuildwheel container.
         python3 get_ver_git.py
         echo "Generated version: $(cat src/supy/_version_scm.py | grep __version__)"
 

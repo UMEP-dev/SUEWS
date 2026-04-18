@@ -63,8 +63,8 @@ When triggering via Actions tab → "Run workflow", you can configure:
 - **deploy_target**: `none` (validation) or `testpypi` (PyPI restricted to tags)
 - **test_tier**: `smoke`, `core`, `cfg`, `standard`, or `all`
 
-UMEP (NumPy<2) wheels are produced automatically by the `retag_umep` job —
-metadata surgery on the same abi3 wheels, no separate build toggle.
+Every cp39-abi3 wheel also covers QGIS 3 LTR (NumPy 1.26.4) — the runtime
+pin is `numpy>=1.22` and the Rust bridge has no NumPy C-ABI dependency.
 
 ### 4. GitHub Pages Deploy (`pages-deploy.yml`)
 Deploys static site content to GitHub Pages at suews.io:

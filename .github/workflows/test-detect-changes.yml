@@ -182,7 +182,7 @@ jobs:
           if [[ "$DOCS" == "true" ]]; then echo "- docs build (pages-deploy.yml)"; TRIGGERED=true; fi
           if [[ "$SITE" == "true" ]]; then echo "- site deploy (pages-deploy.yml)"; TRIGGERED=true; fi
           if [[ "$NEEDS_BUILD" == "true" ]]; then
-            echo "- wheel build (build_wheels) — cp39-abi3 wheel per platform"
+            echo "- wheel build (build_wheels): cp39-abi3 wheel per platform"
             TRIGGERED=true
           fi
           if [[ "$TRIGGERED" == "false" ]]; then echo "- nothing (all skipped)"; fi

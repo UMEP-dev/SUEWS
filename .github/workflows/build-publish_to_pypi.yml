@@ -419,13 +419,14 @@ jobs:
       - test_bridge_loading
       - create_nightly_tag
       - verify-release-tag
-    # Deploy for nightly/dev-tag/manual-dispatch even if some platforms fail.
-    # test_bridge_loading is the only signal the cp39-abi3 wheel imports on
-    # cp310..cp314, so a failing bridge run must block publication.
+    # Publish only when every platform wheel built AND the cross-CPython
+    # bridge smoke passed on every matrix cell. A partial build (one leg
+    # fails) would leave test_bridge_loading skipped; allowing that would
+    # ship un-validated wheels, so both must be explicit successes.
     if: |
       always() &&
-      needs.build_wheels.result != 'cancelled' &&
-      (needs.test_bridge_loading.result == 'success' || needs.test_bridge_loading.result == 'skipped') &&
+      needs.build_wheels.result == 'success' &&
+      needs.test_bridge_loading.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true') &&
       (

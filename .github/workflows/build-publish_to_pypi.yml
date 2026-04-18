@@ -65,29 +65,32 @@ on:
         type: boolean
         default: true
 
-      # Python toggles (custom only)
+      # Python toggles drive the cross-CPython bridge-loading test matrix.
+      # The build is always cp39-abi3 (one wheel covers all supported CPythons),
+      # so these toggles only affect which interpreters install and import the
+      # wheel under -m smoke_bridge.
       py39:
-        description: '[custom] Python 3.9'
+        description: '[custom] Test on Python 3.9 (build is always cp39-abi3)'
         type: boolean
         default: true
       py310:
-        description: '[custom] Python 3.10'
+        description: '[custom] Test on Python 3.10'
         type: boolean
         default: false
       py311:
-        description: '[custom] Python 3.11'
+        description: '[custom] Test on Python 3.11'
         type: boolean
         default: false
       py312:
-        description: '[custom] Python 3.12'
+        description: '[custom] Test on Python 3.12'
         type: boolean
         default: false
       py313:
-        description: '[custom] Python 3.13'
+        description: '[custom] Test on Python 3.13'
         type: boolean
         default: false
       py314:
-        description: '[custom] Python 3.14'
+        description: '[custom] Test on Python 3.14'
         type: boolean
         default: true
 
@@ -413,12 +416,16 @@ jobs:
     needs:
       - determine_matrix
       - build_wheels
+      - test_bridge_loading
       - create_nightly_tag
       - verify-release-tag
-    # Deploy for nightly/dev-tag/manual-dispatch even if some platforms fail
+    # Deploy for nightly/dev-tag/manual-dispatch even if some platforms fail.
+    # test_bridge_loading is the only signal the cp39-abi3 wheel imports on
+    # cp310..cp314, so a failing bridge run must block publication.
     if: |
       always() &&
       needs.build_wheels.result != 'cancelled' &&
+      (needs.test_bridge_loading.result == 'success' || needs.test_bridge_loading.result == 'skipped') &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true') &&
       (
@@ -451,14 +458,18 @@ jobs:
     needs:
       - determine_matrix
       - build_wheels
+      - test_bridge_loading
       - create_nightly_tag
       - verify-release-tag
-    # Production tags only: all platform wheels must succeed
+    # Production tags only: all platform wheels must succeed AND the cross-CPython
+    # bridge-loading smoke must pass (the only signal the cp39-abi3 wheel imports
+    # on cp310..cp314 after the build matrix collapse).
     if: |
       always() &&
       startsWith(github.ref, 'refs/tags') &&
       !contains(github.ref, 'dev') &&
       needs.build_wheels.result == 'success' &&
+      needs.test_bridge_loading.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true')
 

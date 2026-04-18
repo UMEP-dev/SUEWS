@@ -121,7 +121,8 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
       echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
       ;;
     custom)
-      echo "Manual dispatch: custom platform matrix (Python toggles ignored — abi3 build)"
+      echo "Manual dispatch: custom platform matrix"
+      echo "  Build is always cp39-abi3; py3X toggles select the bridge-test matrix"
 
       PLATFORMS="["
       [[ "${INPUT_PLAT_LINUX}" == "true" ]] && PLATFORMS+='["ubuntu-latest", "manylinux", "x86_64"],'
@@ -135,8 +136,24 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
         exit 1
       fi
 
+      # Build py3X test matrix from dispatch toggles
+      TEST_PYS="["
+      [[ "${INPUT_PY39:-false}"  == "true" ]] && TEST_PYS+='"cp39",'
+      [[ "${INPUT_PY310:-false}" == "true" ]] && TEST_PYS+='"cp310",'
+      [[ "${INPUT_PY311:-false}" == "true" ]] && TEST_PYS+='"cp311",'
+      [[ "${INPUT_PY312:-false}" == "true" ]] && TEST_PYS+='"cp312",'
+      [[ "${INPUT_PY313:-false}" == "true" ]] && TEST_PYS+='"cp313",'
+      [[ "${INPUT_PY314:-false}" == "true" ]] && TEST_PYS+='"cp314",'
+      TEST_PYS="${TEST_PYS%,}]"
+
+      if [[ "$TEST_PYS" == "[]" ]]; then
+        echo "::error::Custom matrix requires at least one Python version for bridge tests"
+        exit 1
+      fi
+
       echo "buildplat=$PLATFORMS" >> "$GITHUB_OUTPUT"
       echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
+      TEST_PYTHON="$TEST_PYS"
       ;;
   esac
   echo "test_tier=${INPUT_TEST_TIER}" >> "$GITHUB_OUTPUT"

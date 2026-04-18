@@ -56,19 +56,16 @@ EXAMPLES:
 
 ### 18 Apr 2026
 
-- [change][experimental] Retire UMEP (NumPy<2) wheel variant (#1299)
-  - Loosened runtime pin to `numpy>=1.22` so the standard cp39-abi3 wheel installs cleanly into QGIS 3 LTR (NumPy 1.26.4), QGIS 4 (NumPy 2.x), and modern Python environments alike
-  - Removed `.github/scripts/retag_umep_wheel.py`, the `retag_umep` CI job, and the `BUILD_UMEP_VARIANT` / `rc1` code path in `get_ver_git.py` — the Rust bridge (PyO3 `abi3-py39`) has no NumPy C-ABI dependency, so a single wheel now covers both ecosystems
-  - `deploy_pypi` publishes one wheel per platform; `pr-gate` and release docs simplified accordingly
+- [change][experimental] Collapse wheel-build matrix via abi3 and retire the UMEP (NumPy<2) variant (#1299)
+  - One cp39-abi3 wheel per (OS, arch) now covers cp39..cp3xx (standard nightly: 24 → 4 build jobs); enabled by `tool.meson-python.limited-api = true` plus the Rust bridge's PyO3 `abi3-py39` ABI
+  - Loosened runtime pin to `numpy>=1.22` so the same wheel installs cleanly into QGIS 3 LTR (NumPy 1.26.4), QGIS 4 (NumPy 2.x), and modern Python environments — the compiled extension has no NumPy C-ABI dependency, so the separate UMEP variant is no longer needed
+  - Removed the `BUILD_UMEP_VARIANT` / `rc1` code path in `get_ver_git.py` and the `retag_umep` CI job; `deploy_pypi` now publishes one wheel per platform
+  - Pinned `meson>=1.3.0` in `[build-system].requires` and `meson_version` (root `meson.build`) so a stale local meson fails fast rather than silently dropping the abi3 tag
+  - Added `test_bridge_loading` CI job that installs the single abi3 wheel into cp39..cp3xx and runs `pytest -m smoke_bridge`; gated into `pr-gate`, `deploy_testpypi`, and `deploy_pypi` so a failing cross-CPython smoke blocks publication
 
 ### 17 Apr 2026
 
 - [maintenance] Remove NumPy build-time dependency (post-f2py cleanup) (#1298)
-- [change][experimental] Collapse wheel-build matrix via abi3 stable-ABI tagging (#1299)
-  - One cp39-abi3 wheel per (OS, arch) now covers cp39..cp3xx (standard nightly: 24 → 4 build jobs)
-  - UMEP (NumPy<2) wheels produced by post-build metadata surgery (`retag_umep_wheel.py`) rather than a second cibuildwheel pass
-  - **Scope expansion**: UMEP variant now available on all 4 platforms × cp39..cp3xx (was cp312 + Windows only). Existing QGIS 3 LTR users remain fully supported; other environments needing NumPy<2 now have a first-class wheel
-  - Added `test_bridge_loading` CI job that installs the single abi3 wheel into cp39..cp3xx and runs `pytest -m smoke_bridge` — decoupled cross-version coverage to compensate for the collapsed build matrix
 - [maintenance] Enforce numpy-style docstrings via ruff `D` rules (#1294)
   - Removed D100-D105/D107 from the global gradual-adoption ignore list in `.ruff.toml`
   - Parked legacy docstring debt in `[lint.per-file-ignores]` (78 files) so new code is held to the rule

@@ -2,6 +2,8 @@ from importlib import import_module
 
 import pytest
 
+pytestmark = pytest.mark.api
+
 _run_rust = import_module("supy._run_rust")
 
 

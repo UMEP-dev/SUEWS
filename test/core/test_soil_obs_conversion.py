@@ -7,7 +7,7 @@ import pytest
 from supy.util._forcing import convert_observed_soil_moisture
 
 # All tests in this module are core physics tests
-pytestmark = pytest.mark.core
+pytestmark = [pytest.mark.core, pytest.mark.physics]
 FAIL_FAST_STEPS_ENV = "SUEWS_FAIL_FAST_STEPS"
 # Default to full-window validation; set SUEWS_FAIL_FAST_STEPS>0 for fast debugging.
 DEFAULT_FAIL_FAST_STEPS = 0

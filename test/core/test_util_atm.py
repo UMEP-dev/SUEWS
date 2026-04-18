@@ -22,6 +22,8 @@ from supy.util._atm import (
     correct_wind_height,
 )
 
+pytestmark = pytest.mark.api
+
 
 class TestAtmosphericCalculations(TestCase):
     """Test atmospheric calculation functions."""

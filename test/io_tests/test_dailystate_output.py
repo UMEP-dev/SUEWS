@@ -10,6 +10,8 @@ import pytest
 import supy as sp
 from conftest import TIMESTEPS_PER_DAY
 
+pytestmark = pytest.mark.physics
+
 
 class TestDailyStateOutput:
     """Test suite for DailyState output handling."""

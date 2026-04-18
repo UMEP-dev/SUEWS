@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.api
+
 # Files to skip when scanning for imports
 _SKIP_FILES = {"conftest.py", "debug_utils.py", "__init__.py"}
 

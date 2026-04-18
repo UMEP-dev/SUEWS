@@ -7,6 +7,8 @@ import pytest
 import supy as sp
 from conftest import TIMESTEPS_PER_DAY
 
+pytestmark = pytest.mark.api
+
 
 class TestGenEpwResample:
     """Tests for gen_epw with frequency parameter and resample_output exposure."""

@@ -56,6 +56,11 @@ EXAMPLES:
 
 ### 18 Apr 2026
 
+- [maintenance] Register `physics` / `api` pytest markers as an orthogonal axis to the existing tier markers (#1300)
+  - `physics` covers numerical / binary correctness (one canonical Python per `(OS, arch)` suffices post-abi3); `api` covers Python wrapper surface (pandas / numpy / pydantic, CLI, `SUEWSSimulation`) and needs full `(platform x Python)` coverage
+  - Applied module-level `pytestmark` to all 43 non-UMEP test files; the 5 UMEP test files pick up `api` via the existing `pytest_collection_modifyitems` hook
+  - Added a collection-time lint in `test/conftest.py` that fails any full-tree run where a test file lacks both markers; subset runs (`pytest test/core/test_x.py`) are unaffected
+  - `.github/actions/build-suews/action.yml` carries a breadcrumb for the follow-up CI matrix split; this PR registers and applies markers only, no CI behaviour change
 - [change][experimental] Collapse wheel-build matrix via abi3 and retire the UMEP (NumPy<2) variant (#1299)
   - One cp39-abi3 wheel per (OS, arch) now covers cp39..cp3xx (standard nightly: 24 → 4 build jobs); enabled by `tool.meson-python.limited-api = true` plus the Rust bridge's PyO3 `abi3-py39` ABI
   - Loosened runtime pin to `numpy>=1.22` so the same wheel installs cleanly into QGIS 3 LTR (NumPy 1.26.4), QGIS 4 (NumPy 2.x), and modern Python environments — the compiled extension has no NumPy C-ABI dependency, so the separate UMEP variant is no longer needed

@@ -135,8 +135,17 @@ suews-schema = "supy.cmd.schema_cli:main"
 filterwarnings = [
     "ignore::UserWarning:pydantic.main",
 ]
-# Test markers for tiered CI testing
+# Test markers.
+# Two orthogonal axes (gh#1300):
+#   nature:  physics | api   -- what the test actually exercises
+#   tier:    smoke | core | cfg | slow | util -- how fast/expensive it is
+# Every test file must carry at least one of {physics, api}; tier markers
+# compose with the nature axis.
 markers = [
+    # Nature axis (gh#1300) -- orthogonal to tier.
+    "physics: Numerical/binary correctness; sufficient to run once per (OS, arch) on the canonical Python",
+    "api: Python wrapper correctness; run across (platform x Python) because pandas/numpy/pydantic surface varies",
+    # Tier axis
     "smoke: Minimal wheel validation (~6 tests, ~60s)",
     "smoke_bridge: Bridge-loading subset run across cp39..cp3xx after a single abi3 build",
     "core: Core physics & logic tests (Fortran, driver)",

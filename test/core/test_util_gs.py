@@ -6,6 +6,8 @@ import pytest
 
 from supy.util._gs import cal_rs_FG, cal_rs_iPM, cal_rs_obs
 
+pytestmark = pytest.mark.api
+
 
 class TestSurfaceConductance:
     """Test surface conductance/resistance calculation functions."""

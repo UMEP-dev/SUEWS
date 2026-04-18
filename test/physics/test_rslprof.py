@@ -13,6 +13,8 @@ import pytest
 
 import supy as sp
 
+pytestmark = pytest.mark.physics
+
 
 class TestWindProfiles:
     """Test suite for wind profile calculations."""

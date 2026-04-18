@@ -13,6 +13,8 @@ except ImportError:
 
 from supy.suews_sim import SUEWSSimulation
 
+pytestmark = pytest.mark.api
+
 
 @contextmanager
 def temp_config_setup(config_content, forcing_location="next_to_config"):

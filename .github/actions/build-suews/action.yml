@@ -162,6 +162,13 @@ runs:
         # After pytest, enforce bridge-manifest coverage of public Fortran types.
         # Uses run_ci_tests.py wrapper to avoid shell-level && chaining,
         # which breaks on Windows cmd.exe with quoted marker expressions.
+        # gh#1300: the expressions below compose tier markers only. A
+        # follow-up PR splits the matrix on the `physics` vs `api` nature
+        # axis — `physics` runs once per (OS, arch) on the canonical
+        # Python while `api` runs per (platform x Python). No behaviour
+        # change here yet; the new markers are registered in
+        # pyproject.toml and applied to every test file, ready to be
+        # consumed when the matrix split lands.
         CIBW_TEST_COMMAND: >-
           python {project}/scripts/suews/run_ci_tests.py {project}
           -v --tb=short --durations=10

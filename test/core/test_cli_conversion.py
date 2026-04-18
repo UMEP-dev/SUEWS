@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.api
+
 # Import shared CLI testing utilities from conftest
 from conftest import run_cli_command
 

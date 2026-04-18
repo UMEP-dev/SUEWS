@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.api
+
 # Add src/supy/data_model directly to path to avoid importing full supy package
 # This allows testing the output variable definitions without building the Fortran components
 _DATA_MODEL_PATH = (

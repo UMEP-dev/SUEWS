@@ -67,6 +67,70 @@ pytest test/core/test_sample_output.py -v    # Fast validation
 pytest test/physics/test_core_physics.py -v  # Physics checks
 ```
 
+## Markers
+
+Markers sit on two orthogonal axes (gh#1300). Every test file must carry at
+least one marker from the **nature** axis; markers from the **tier** axis
+compose on top.
+
+### Nature axis — what is the test actually exercising?
+
+- `physics` — numerical / binary correctness. Outputs are determined by the
+  compiled artefact and CPU floating-point, so running once per
+  `(OS, arch)` on the canonical Python is sufficient. Examples: mass /
+  energy balance, DailyState accumulation, surface-temperature regression.
+- `api` — Python wrapper correctness. Exercises the pandas / numpy /
+  pydantic surface, config validation, CLI UX, or `SUEWSSimulation`
+  methods. Runs across `(platform × Python)` because the dependency
+  surface varies per interpreter.
+
+Rare files belong on **both** axes (e.g. the main integration test that
+runs the model *and* heavily exercises the wrapper). Use list form:
+
+```python
+pytestmark = [pytest.mark.physics, pytest.mark.api]
+```
+
+UMEP tests pick up `api` automatically via `test/umep/conftest.py`; they
+are gated to Windows + Python 3.12 by the existing `qgis` marker.
+
+### Tier axis — how fast or expensive is the test?
+
+- `smoke` — minimal wheel validation (~6 tests, ~60s).
+- `smoke_bridge` — bridge-loading subset run across cp39..cp3xx after a
+  single abi3 build.
+- `core` — core physics and logic tests (Fortran, driver).
+- `rust` — Rust bridge backend tests (requires `suews_bridge` with the
+  `physics` feature).
+- `util` — utility function tests (non-critical).
+- `cfg` — config / schema validation tests.
+- `slow` — tests taking more than 30s individually.
+- `qgis` — UMEP plugin tests in `test/umep/` (Windows + Python 3.12).
+
+### Selecting a subset
+
+```bash
+pytest -m physics                  # numerical / binary correctness only
+pytest -m api                      # wrapper surface only
+pytest -m "physics and smoke"      # physics tests in the smoke tier
+pytest -m "api and not slow"       # wrapper surface, skip slow tests
+pytest -m "physics and api"        # files that straddle both axes
+```
+
+### Adding a new test file
+
+Decide which axis the file belongs on, then add one of:
+
+```python
+pytestmark = pytest.mark.api        # or pytest.mark.physics
+# or, for a file that straddles both axes:
+pytestmark = [pytest.mark.physics, pytest.mark.api]
+```
+
+A collection-time lint in `test/conftest.py` fails any full-tree
+invocation that encounters a test file lacking both `physics` and `api`.
+Subset runs (`pytest test/core/test_x.py`) are unaffected.
+
 ## Test Order
 
 The test suite uses `conftest.py` to ensure `test_sample_output.py` runs first. This is necessary because the Fortran model maintains internal state between test runs, and running this benchmark test first ensures consistent results.

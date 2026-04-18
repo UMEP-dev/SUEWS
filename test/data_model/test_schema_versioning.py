@@ -324,5 +324,67 @@ class TestSampleConfig:
         )
 
 
+class TestLegacyShapeErrorMessage:
+    """``from_yaml`` should turn a raw ``RefValue`` TypeError into a helpful error.
+
+    A YAML produced against an older schema (e.g. a scalar field authored as a
+    day/hourly profile ``{working_day: ..., holiday: ...}``) surfaces as a raw
+    ``TypeError`` from ``RefValue.__init__`` during Pydantic's Union dispatch.
+    ``from_yaml`` must catch it and raise a ``ValueError`` that names the
+    offending field and points users at ``suews-convert``.
+    """
+
+    def _write_yaml(self, tmp_path, mutator):
+        """Load sample_config.yml, apply mutator, write to tmp_path."""
+        config_content = load_supy_resource("sample_data/sample_config.yml")
+        config = yaml.safe_load(config_content)
+        mutator(config)
+        yaml_file = tmp_path / "legacy_shape.yml"
+        yaml_file.write_text(yaml.safe_dump(config))
+        return yaml_file
+
+    def test_profile_shape_on_physics_scalar_names_the_field(self, tmp_path):
+        """Profile-shaped ``laimethod`` -> error names ``model.physics.laimethod``."""
+        profile_like = {"working_day": 1.0, "holiday": 1.0}
+        yaml_file = self._write_yaml(
+            tmp_path,
+            lambda cfg: cfg["model"]["physics"].__setitem__(
+                "laimethod", profile_like
+            ),
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            SUEWSConfig.from_yaml(str(yaml_file))
+
+        message = str(exc_info.value)
+        assert "model.physics.laimethod" in message
+        assert "profile-shaped value" in message
+        assert "suews-convert" in message
+        # Must not be the raw TypeError wording the user saw on the forum.
+        assert "RefValue.__init__" not in message
+
+    def test_profile_shape_on_site_scalar_names_the_field(self, tmp_path):
+        """Profile-shaped ``lat`` -> error names ``sites.0.properties.lat``.
+
+        Ensures the walker skips legitimate profile fields (e.g. ``fcef_v_kgkm``
+        elsewhere in the same config) and finds the scalar offender.
+        """
+        profile_like = {"working_day": 51.5, "holiday": 51.5}
+        yaml_file = self._write_yaml(
+            tmp_path,
+            lambda cfg: cfg["sites"][0]["properties"].__setitem__(
+                "lat", profile_like
+            ),
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            SUEWSConfig.from_yaml(str(yaml_file))
+
+        message = str(exc_info.value)
+        assert "sites.0.properties.lat" in message
+        # Must not mis-identify a legitimate DayProfile field as the offender.
+        assert "fcef_v_kgkm" not in message
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

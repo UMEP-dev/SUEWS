@@ -3713,6 +3713,162 @@ class SUEWSConfig(BaseModel):
         error_msg = "\n".join(error_lines)
         raise ValueError(f"SUEWS Configuration Validation Error:\n{error_msg}")
 
+    @staticmethod
+    def _explain_legacy_shape_error(
+        error: TypeError, config_data: dict, path: str
+    ) -> ValueError:
+        """Turn a ``RefValue.__init__`` TypeError into a user-friendly error.
+
+        Pydantic's Union dispatch on ``FlexibleRefValue(T) = Union[RefValue[T], T]``
+        surfaces unexpected dict keys from YAML as a raw ``TypeError`` from
+        ``RefValue.__init__``. That error names the key (e.g. ``working_day``)
+        but not the field that carried it, so the user cannot see what to fix.
+
+        This helper parses the offending kwarg out of the TypeError message,
+        walks ``config_data`` to locate a scalar field whose value is a
+        profile-shaped dict containing that key, and returns a ``ValueError``
+        with the field path, the problematic value, and concrete guidance on
+        migrating the YAML (``suews-convert`` for legacy table-based configs;
+        manual reshape for hand-edited YAMLs).
+        """
+        # Extract the offending kwarg from messages like:
+        #   RefValue.__init__() got an unexpected keyword argument 'working_day'
+        import re
+
+        match = re.search(r"unexpected keyword argument '([^']+)'", str(error))
+        offender_key = match.group(1) if match else None
+
+        # Drop the bookkeeping keys that ``from_yaml`` injects before validation
+        # so they do not appear in the walk.
+        search_root = {
+            k: v
+            for k, v in config_data.items()
+            if k not in {"_yaml_path", "_auto_generate_annotated"}
+        }
+
+        # Profile-shaped dicts (DayProfile / HourlyProfile / WeeklyProfile /
+        # HourlySplitProfile) all use these keys as top-level children.
+        profile_keys = {
+            "working_day",
+            "holiday",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+        }
+
+        # Field names whose schema type is legitimately a profile
+        # (HourlyProfile / DayProfile / WeeklyProfile / STEBBS activity profiles).
+        # Walking the config, we must not flag these as offenders — they are
+        # expected to carry profile-shaped dicts. Any *other* field that does
+        # is the real culprit.
+        known_profile_fields = {
+            # human_activity.py — anthropogenic heat / population / traffic
+            "ahprof_24hr",
+            "popprof_24hr",
+            "traffprof_24hr",
+            "humactivity_24hr",
+            "wuprofa_24hr",
+            "wuprofm_24hr",
+            "popdensdaytime",
+            "qf0_beu",
+            "qf_a",
+            "qf_b",
+            "qf_c",
+            "baset_cooling",
+            "baset_heating",
+            "ah_min",
+            "ah_slope_cooling",
+            "ah_slope_heating",
+            "fcef_v_kgkm",
+            "trafficrate",
+            # human_activity.py — irrigation weekly profiles
+            "daywatper",
+            "daywat",
+            # site.py — snow
+            "snowprof_24hr",
+            # STEBBS activity profiles (profile.py / stebbs_rules)
+            "HeatingSetpointTemperatureProfile",
+            "CoolingSetpointTemperatureProfile",
+            "ApplianceProfile",
+            "HotWaterFlowProfile",
+            "MetabolismProfile",
+        }
+
+        def _walk(node, loc):
+            if isinstance(node, dict):
+                # Only flag dicts that look like profiles but sit where a
+                # scalar is expected. We detect the "scalar-expected" context
+                # by the absence of a ``value`` key combined with the presence
+                # of one or more profile keys; and we skip keys that the
+                # schema legitimately types as profiles.
+                leaf_key = loc[-1] if loc else None
+                has_profile_key = any(k in node for k in profile_keys)
+                if offender_key is not None:
+                    matches_offender = offender_key in node
+                else:
+                    matches_offender = has_profile_key
+                if (
+                    has_profile_key
+                    and "value" not in node
+                    and matches_offender
+                    and leaf_key not in known_profile_fields
+                ):
+                    return loc, node
+                for key, value in node.items():
+                    found = _walk(value, loc + [str(key)])
+                    if found is not None:
+                        return found
+            elif isinstance(node, list):
+                for idx, value in enumerate(node):
+                    found = _walk(value, loc + [str(idx)])
+                    if found is not None:
+                        return found
+            return None
+
+        located = _walk(search_root, [])
+
+        lines = ["SUEWS Configuration Validation Error:"]
+        if located is not None:
+            field_path, profile_dict = located
+            profile_keys_present = sorted(
+                k for k in profile_dict.keys() if k in profile_keys
+            )
+            lines.append(
+                f"  {'.'.join(field_path)} carries a profile-shaped value "
+                f"(keys: {profile_keys_present}) but the current schema expects "
+                f"a scalar wrapped in {{value: ...}}."
+            )
+            lines.append(f"  Offending value: {profile_dict!r}")
+        elif offender_key is not None:
+            lines.append(
+                f"  A field in '{path}' carries a profile-shaped value with "
+                f"key '{offender_key}' where the current schema expects a "
+                "scalar (``{{value: ...}}``)."
+            )
+        else:
+            lines.append(f"  {error}")
+
+        lines.extend([
+            "",
+            "This usually means the YAML was produced against an older schema "
+            "and has not been migrated to the current version.",
+            "",
+            "How to fix:",
+            "  * If this YAML was generated from a legacy SUEWS table "
+            "(RunControl.nml + SUEWS_*.txt), regenerate it with `suews-convert "
+            "to-yaml` so the output matches the current schema.",
+            "  * If you edited the YAML by hand, replace the profile-shaped "
+            "dict at the reported path with a scalar of the form "
+            "`{value: <number>}` (see sample_config.yml for an example).",
+            "  * See docs: "
+            "https://suews.readthedocs.io/en/latest/inputs/yaml/index.html",
+        ])
+        return ValueError("\n".join(lines))
+
     @classmethod
     def from_yaml(
         cls,
@@ -3767,6 +3923,14 @@ class SUEWSConfig(BaseModel):
                 # Transform Pydantic validation error messages to use GRIDID instead of array indices
                 transformed_error = cls._transform_validation_error(e, config_data)
                 raise transformed_error
+            except TypeError as e:
+                # Pydantic's Union dispatch for FlexibleRefValue fields surfaces a
+                # raw TypeError from RefValue.__init__ when a YAML carries a legacy
+                # shape (e.g. a {"working_day": ..., "holiday": ...} profile dict
+                # where the current schema expects a scalar RefValue). Re-raise as
+                # a clean ValueError that names the offending field and points
+                # users at the right migration tool.
+                raise cls._explain_legacy_shape_error(e, config_data, path) from e
         else:
             logger_supy.info("Validation disabled by user. Loading without checks.")
             return cls.model_construct(**config_data)

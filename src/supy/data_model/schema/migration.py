@@ -35,6 +35,16 @@ class SchemaMigrator:
             # ("1.1", "2.0"): self._migrate_1_1_to_2_0,
         }
 
+        # Pull in handlers from the YAML-upgrade registry so the migrator
+        # knows about every structural (from, to) pair covered by the CLI.
+        # Imported lazily to avoid a circular import at module load time.
+        try:
+            from ...util.converter.yaml_upgrade import register_with_migrator
+
+            register_with_migrator(self)
+        except Exception:  # noqa: BLE001 - optional wiring, keep migrator usable
+            pass
+
     def auto_detect_version(self, config_dict: Dict[str, Any]) -> str:
         """
         Automatically detect the schema version from configuration structure.

@@ -15,7 +15,18 @@ except ImportError:
     CURRENT_VERSION = None
 
 
-@click.command(context_settings=dict(show_default=True))
+@click.group(
+    invoke_without_command=True,
+    context_settings=dict(show_default=True),
+    help=(
+        "Convert between SUEWS input formats.\n\n"
+        "Subcommands:\n"
+        "  yaml-upgrade    Upgrade an existing YAML to the current schema.\n\n"
+        "Default (no subcommand) converts legacy tables or df_state to YAML, "
+        "preserving backward-compatibility with earlier releases. Run "
+        "`suews-convert COMMAND --help` for subcommand-specific help."
+    ),
+)
 @click.option(
     "-f",
     "--from",
@@ -31,7 +42,7 @@ except ImportError:
     "input_file",
     help="Input file: RunControl.nml for tables, or df_state.csv/.pkl",
     type=click.Path(exists=True, dir_okay=False, file_okay=True),
-    required=True,
+    required=False,
 )
 @click.option(
     "-o",
@@ -39,7 +50,7 @@ except ImportError:
     "output_file",
     help="Output YAML file path",
     type=click.Path(dir_okay=False),
-    required=True,
+    required=False,
 )
 @click.option(
     "-d",
@@ -57,32 +68,41 @@ except ImportError:
     default=False,
     help="Disable automatic profile validation and creation of missing profiles",
 )
+@click.pass_context
 def convert_table_cmd(
+    ctx: click.Context,
     fromVer: str,
     input_file: str,
     output_file: str,
     debug_dir: str = None,
     no_validate_profiles: bool = False,
 ):
-    """Convert SUEWS inputs to YAML configuration.
+    """Convert SUEWS inputs to YAML configuration, or upgrade an existing YAML.
 
+    Default (no subcommand): converts legacy tables or df_state format to YAML.
     Input must be a specific file:
     - RunControl.nml: Converts table-based SUEWS input
     - *.csv or *.pkl: Converts df_state format
 
     Examples:
-        # Convert tables to YAML
+        # Convert tables to YAML (legacy path)
         suews-convert -i path/to/RunControl.nml -o config.yml
 
         # Convert old df_state CSV to YAML
         suews-convert -i df_state.csv -o config.yml
 
-        # Convert df_state pickle to YAML
-        suews-convert -i state.pkl -o config.yml
-
-        # Specify table version explicitly
-        suews-convert -f 2024a -i RunControl.nml -o config.yml
+        # Upgrade an existing YAML to the current schema
+        suews-convert yaml-upgrade -i old.yml -o new.yml
     """
+    if ctx.invoked_subcommand is not None:
+        # A subcommand (e.g. `yaml-upgrade`) handles its own logic; drop
+        # through so Click can dispatch to it.
+        return
+
+    if input_file is None or output_file is None:
+        click.echo(ctx.get_help())
+        sys.exit(0 if (input_file is None and output_file is None) else 2)
+
     # Import here to avoid circular imports
     from ..util.converter import (
         convert_to_yaml,
@@ -149,6 +169,76 @@ def convert_table_cmd(
     except Exception as e:
         click.secho(f"\n[ERROR] Conversion failed: {e}", fg="red", err=True)
         sys.exit(1)
+
+
+@convert_table_cmd.command("yaml-upgrade")
+@click.option(
+    "-i",
+    "--input",
+    "input_file",
+    help="Existing YAML configuration to upgrade.",
+    type=click.Path(exists=True, dir_okay=False, file_okay=True),
+    required=True,
+)
+@click.option(
+    "-o",
+    "--output",
+    "output_file",
+    help="Destination for the upgraded YAML.",
+    type=click.Path(dir_okay=False),
+    required=True,
+)
+@click.option(
+    "-f",
+    "--from-ver",
+    "from_ver",
+    help=(
+        "Source release tag or schema version (e.g. '2026.4.3'). "
+        "Omit to auto-detect from the YAML's schema_version field."
+    ),
+    required=False,
+    default=None,
+)
+@click.option(
+    "-y",
+    "--assume-yes",
+    "assume_yes",
+    is_flag=True,
+    default=False,
+    help="Skip confirmation prompts (for CI use).",
+)
+def yaml_upgrade_cmd(
+    input_file: str,
+    output_file: str,
+    from_ver: str,
+    assume_yes: bool,
+):
+    """Upgrade a YAML config from an earlier release to the current schema.
+
+    Examples:
+        # Auto-detect source schema from the YAML's schema_version field
+        suews-convert yaml-upgrade -i old.yml -o new.yml
+
+        # Or specify the release tag explicitly when the file has no signature
+        suews-convert yaml-upgrade -i old.yml -o new.yml -f 2026.4.3
+    """
+    from ..util.converter.yaml_upgrade import YamlUpgradeError, upgrade_yaml
+
+    try:
+        upgrade_yaml(
+            input_path=input_file,
+            output_path=output_file,
+            from_ver=from_ver,
+            assume_yes=assume_yes,
+        )
+    except YamlUpgradeError as e:
+        click.secho(f"[ERROR] {e}", fg="red", err=True)
+        sys.exit(1)
+    except Exception as e:  # noqa: BLE001 - surface unexpected failures verbatim
+        click.secho(f"[ERROR] yaml-upgrade failed: {e}", fg="red", err=True)
+        sys.exit(1)
+
+    click.secho(f"[OK] Upgraded YAML written to {output_file}", fg="green")
 
 
 if __name__ == "__main__":

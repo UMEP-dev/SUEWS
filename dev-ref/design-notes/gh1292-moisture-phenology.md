@@ -303,3 +303,63 @@ Internal references:
 - Developer workflow: `dev-ref/FEATURE_DEVELOPMENT_WORKFLOW.md`
 - Repository style: `.claude/rules/00-project-essentials.md`
 - Ting's prior FLUXNET2015 work: `/Users/tingsun/Dropbox (Personal)/6.Repos/SUEWS-FLUXNET2015/`, `/Users/tingsun/Dropbox (Personal)/6.Repos/LAI-model/`, `/Users/tingsun/Dropbox (Personal)/6.Repos/AmeriFluxEvaluation/` (read-only; see `ref_dropbox-legacy-repos` memory for handling rules)
+
+---
+
+## Appendix A. Calibration methodology (PR3)
+
+The moisture-aware scheme exposes six parameters per vegetation surface: `w_wilt`, `w_opt`, `f_shape`, `w_on`, `w_off`, `tau_w`. PR3 ships the calibration **scaffolding**: a parameter-sweep tool that scans any one of these over a list of candidate values, reruns the sample, and reports RMSE vs an `LAIType = 0` baseline plus seasonal amplitude and green-up DOY. PR3 does not ship calibrated per-IGBP defaults -- that requires dedicated FLUXNET site configurations (lat/lon, land cover fractions, soil-store capacity, thermal GDD fits from Omidvar et al. 2022 Table S1), which live outside this repo. See A.3 below.
+
+### A.1 Sweep tool
+
+`scripts/verify/moisture_phenology_sweep.py` exposes two invocations:
+
+```
+# Scan one parameter with user-supplied values:
+uv run python scripts/verify/moisture_phenology_sweep.py \
+    --param w_opt --values 0.25 0.40 0.55 0.70 0.90 --dry-start
+
+# Scan all six with the bundled default ranges:
+uv run python scripts/verify/moisture_phenology_sweep.py --all --dry-start
+```
+
+The `--dry-start` flag depletes `soilstore_surf` for the three vegetation surfaces to 10 mm on day 1 (the minimum the data model allows). Without it the bundled Swindon sample is well-watered and the moisture gate never engages, so every sweep value collapses onto the thermal baseline. For a real dryland calibration the flag is unnecessary because the site is dry by construction.
+
+Outputs land in `.context/gh1292/<site>/sweep_<param>.json` (tabular dose-response: mean LAI, RMSE vs baseline, seasonal amplitude, green-up DOY) and `.context/gh1292/<site>/sweep_<param>.png` (dual-axis sensitivity plot). A pairwise-validator co-adjustment in the tool ensures `w_opt > w_wilt` and `w_on > w_off` remain satisfied during extreme sweep values.
+
+### A.2 Swindon sensitivity results (PR3 demo, depleted soil initial state)
+
+From the `--all --dry-start` scan on the bundled Swindon sample with default `LAIType = 0` baseline mean LAI = 4.546 m2/m2 (note Swindon is a UK suburban site, not a dryland; the depleted soil gives a short "synthetic drought" pulse for ~30 days before winter recharge):
+
+- `w_wilt` strong effect: raising from 0.15 to 0.70 drops mean LAI from 4.545 to 4.435 (~2.4%) and delays green-up from DOY 104 to DOY 109. The Jarvis lower bound is the most influential parameter under transient drought.
+- `w_opt` moderate: raising from 0.40 to 0.90 drops mean LAI from 4.545 to 4.470 (~1.6%) and delays green-up by five days. Tightening `w_opt` while keeping `w_wilt` unchanged narrows the Jarvis transition and can eclipse `w_wilt` for high values.
+- `w_off` asymmetric: values below the default 0.20 are silent (the latch stays open); raising to 0.45 drops mean LAI 4.546 -> 4.483 (~1.4%) and lags green-up to DOY 106 by triggering the CLM5 off-latch early after the initial dry pulse.
+- `w_on`, `tau_w`, `f_shape`: **no measurable effect** on the Swindon synthetic-drought scenario with all other parameters at default. This is consistent with the latch mechanics: once the initial transient clears and the soil recharges, `wbar_id` sits comfortably above `w_off` and the leaf-on latch is never consulted again, so `w_on` / `tau_w` / `f_shape` stay off the integration.
+
+The practical implication for calibration: **start with `w_wilt`, `w_opt`, and `w_off`** as the sensitive trio; treat `w_on`, `tau_w`, and `f_shape` as fine-tuning parameters that only matter when the run actually experiences sustained drought transitions. Real dryland sites (AU-ASM, US-SRG, AU-DaS) will almost certainly exercise all six.
+
+Raw sweep outputs are checked into the `.context/` cache and can be regenerated with the command in A.1. PR3 does not check those outputs into the repo because they depend on the specific supy version and sample configuration.
+
+### A.3 Roadmap for real FLUXNET2015 calibration (out of scope for PR3)
+
+Full per-IGBP calibration requires:
+
+- Per-site SUEWS YAML configurations matching the FLUXNET2015 tower locations -- latitude, land-cover fractions, soil-store capacity, roughness, and the thermal fits already derived in `SUEWS-FLUXNET2015/data/csv-prm/prm-LAI-Albedo.csv`. These do not ship with SUEWS; recreating them from the Omidvar et al. (2022) pipeline is a half-day of work per site.
+- MODIS LAI time series aligned to the simulation output at daily aggregation; the `h5-lsm/df_LSM_<site>.h5` files in the Dropbox archive carry the MODIS fields already.
+- An optimiser wrapper around the sweep tool. The natural choice is a bounded Nelder-Mead or differential-evolution run in the 6-dimensional parameter space minimising RMSE(MODIS, simulated) subject to the pairwise validators. Default IGBP priors from the literature (Sitch et al. 2003 raingreen `0.35`, CLM5 stress-deciduous `~15 d` persistence window) bracket the starting point.
+- Primary tier (dryland + monsoon): AU-ASM, AU-DaS, AU-DaP, US-SRG, US-Wkg, US-Ton, AU-Stp.
+- Control tier (non-regression at temperate sites): US-MMS, DE-Hai, US-Syv, DK-Sor.
+
+Acceptance bars (from section 8.3): dryland amplitude recovery >= 60 % of MODIS, monsoon green-up DOY error <= 21 days, temperate-site RMSE degradation <= 0.15 m2/m2, monthly flux (Qh, Qe) deviation <= 10 W/m2 outside the growing season.
+
+This calibration is genuinely scientific work, not engineering, and is recommended as a follow-up issue under the same GH-1292 umbrella (or a new issue that cites the fitted parameters).
+
+### A.4 Optional moisture-stress senescence term (deferred)
+
+Design C Section 5 option (d) proposes an **additive** SDD drought-stress term `delta_SDD_eff = delta_SDD - mu * max(0, w_off - wbar_id)` that accelerates senescence during sustained drought. In the CLM5-style latch implementation shipped with PR2, drought already shuts off thermal accumulation entirely via the latch, so the additive SDD term is scientifically optional rather than strictly necessary. PR3 does not add it because:
+
+- The PR2 latch captures the dominant effect (drought halts leaf-on) without new parameters.
+- Adding the term would cascade through the bridge (LAI_PRM schema 2 -> 3, LC_*_PRM +1) and warrants its own review.
+- Whether the additive term is needed is a calibration outcome: if the latch-only scheme under-predicts brown-down at monsoon sites (Liu et al. 2022 would suggest it might), add the term; if not, the cleaner single-mechanism scheme wins.
+
+The term is tracked as future work and will be revisited after A.3 calibration delivers empirical evidence.

@@ -25,6 +25,14 @@ from .surface import (
     WaterProperties,
     VerticalLayers,
 )
+from .field_renames import (
+    LAIPARAMS_RENAMES,
+    VEGETATEDSURFACEPROPERTIES_RENAMES,
+    EVETRPROPERTIES_RENAMES,
+    DECTRPROPERTIES_RENAMES,
+    SNOWPARAMS_RENAMES,
+    apply_field_renames,
+)
 from .human_activity import AnthropogenicEmissions, IrrigationParams
 from .hydro import (
     WaterDistribution,
@@ -352,7 +360,7 @@ class LAIParams(BaseModel):
     # Used by to_df_state() and config-level auto-albedo calculation.
     LAIMAX_DF_DEFAULT: ClassVar[float] = 10.0
 
-    baset: Optional[FlexibleRefValue(float)] = Field(
+    base_temperature: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Base temperature for initiating growing degree days (GDD) for leaf growth",
         json_schema_extra={
@@ -360,7 +368,7 @@ class LAIParams(BaseModel):
             "display_name": "Base Temperature for Growing Degree Days",
         },
     )
-    gddfull: Optional[FlexibleRefValue(float)] = Field(
+    gdd_full: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Growing degree days (GDD) needed for full capacity of LAI",
         json_schema_extra={
@@ -368,7 +376,7 @@ class LAIParams(BaseModel):
             "display_name": "Growing Degree Days for Full LAI",
         },
     )
-    basete: Optional[FlexibleRefValue(float)] = Field(
+    base_temperature_senescence: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Base temperature for initiating senescence degree days (SDD) for leaf off",
         json_schema_extra={
@@ -376,7 +384,7 @@ class LAIParams(BaseModel):
             "display_name": "Base Temperature for Senescence Degree Days",
         },
     )
-    sddfull: Optional[FlexibleRefValue(float)] = Field(
+    sdd_full: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Senescence degree days (SDD) needed to initiate leaf off",
         json_schema_extra={
@@ -384,21 +392,21 @@ class LAIParams(BaseModel):
             "display_name": "Senescence Degree Days for Leaf Off",
         },
     )
-    laimin: FlexibleRefValue(float) = Field(
+    lai_min: FlexibleRefValue(float) = Field(
         default=0.1,
         description="Leaf-off wintertime LAI value",
         json_schema_extra={"unit": "m^2 m^-2", "display_name": "Minimum LAI"},
     )
-    laimax: Optional[FlexibleRefValue(float)] = Field(
+    lai_max: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Full leaf-on summertime LAI value",
         json_schema_extra={"unit": "m^2 m^-2", "display_name": "Maximum LAI"},
     )
-    laipower: LAIPowerCoefficients = Field(
+    lai_power: LAIPowerCoefficients = Field(
         default_factory=LAIPowerCoefficients,
         description="LAI calculation power parameters for growth and senescence",
     )
-    laitype: FlexibleRefValue(int) = Field(
+    lai_type: FlexibleRefValue(int) = Field(
         default=0,
         description="LAI calculation choice (0: original, 1: new high latitude)",
         json_schema_extra={
@@ -408,6 +416,13 @@ class LAIParams(BaseModel):
     )
 
     ref: Optional[Reference] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _rename_lai_fields(cls, values):
+        if isinstance(values, dict):
+            return apply_field_renames(values, LAIPARAMS_RENAMES, cls.__name__)
+        return values
 
     def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:
         """Convert LAI parameters to DataFrame state format.
@@ -424,13 +439,13 @@ class LAIParams(BaseModel):
 
         # Set basic LAI parameters
         lai_params = {
-            "baset": self.baset,
-            "gddfull": self.gddfull,
-            "basete": self.basete,
-            "sddfull": self.sddfull,
-            "laimin": self.laimin,
-            "laimax": self.laimax,
-            "laitype": self.laitype,
+            "baset": self.base_temperature,
+            "gddfull": self.gdd_full,
+            "basete": self.base_temperature_senescence,
+            "sddfull": self.sdd_full,
+            "laimin": self.lai_min,
+            "laimax": self.lai_max,
+            "laitype": self.lai_type,
         }
 
         cols = {("gridiv", "0"): grid_id}
@@ -453,8 +468,8 @@ class LAIParams(BaseModel):
         df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
         # Add LAI power coefficients using the LAIPowerCoefficients to_df_state method
-        if self.laipower:
-            df_power = self.laipower.to_df_state(grid_id, veg_idx)
+        if self.lai_power:
+            df_power = self.lai_power.to_df_state(grid_id, veg_idx)
             if ("gridiv", "0") in df_power.columns:
                 df_power = df_power.drop(columns=[("gridiv", "0")])
             df_state = pd.concat([df_state, df_power], axis=1)
@@ -499,9 +514,9 @@ class LAIParams(BaseModel):
         lai_params = {key: RefValue(value) for key, value in lai_params.items()}
 
         # Extract LAI power coefficients
-        laipower = LAIPowerCoefficients.from_df_state(df, grid_id, veg_idx)
+        lai_power = LAIPowerCoefficients.from_df_state(df, grid_id, veg_idx)
 
-        return cls(**lai_params, laipower=laipower)
+        return cls(**lai_params, lai_power=lai_power)
 
 
 class VegetatedSurfaceProperties(SurfaceProperties):
@@ -519,7 +534,7 @@ class VegetatedSurfaceProperties(SurfaceProperties):
         json_schema_extra={"unit": "dimensionless", "display_name": "Maximum Albedo"},
         default=0.3,
     )
-    beta_bioco2: Optional[FlexibleRefValue(float)] = Field(
+    beta_bio_co2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Light-saturated gross photosynthesis rate of the canopy",
         json_schema_extra={
@@ -535,7 +550,7 @@ class VegetatedSurfaceProperties(SurfaceProperties):
             "display_name": "Biogenic CO2 Enhanced Beta",
         },
     )
-    alpha_bioco2: Optional[FlexibleRefValue(float)] = Field(
+    alpha_bio_co2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Mean apparent ecosystem quantum yield (initial slope of light-response curve)",
         json_schema_extra={
@@ -564,7 +579,7 @@ class VegetatedSurfaceProperties(SurfaceProperties):
         description="Respiration temperature sensitivity coefficient",
         json_schema_extra={"unit": "K^-1", "display_name": "Respiration Coefficient B"},
     )
-    theta_bioco2: Optional[FlexibleRefValue(float)] = Field(
+    theta_bio_co2: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Curvature parameter for non-rectangular hyperbola at light saturation",
         json_schema_extra={
@@ -572,7 +587,7 @@ class VegetatedSurfaceProperties(SurfaceProperties):
             "display_name": "Biogenic CO2 Theta Parameter",
         },
     )
-    maxconductance: FlexibleRefValue(float) = Field(
+    max_conductance: FlexibleRefValue(float) = Field(
         default=0.5,
         description="Maximum surface conductance",
         json_schema_extra={"unit": "mm s^-1", "display_name": "Maximum Conductance"},
@@ -607,6 +622,13 @@ class VegetatedSurfaceProperties(SurfaceProperties):
 
     ref: Optional[Reference] = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _rename_vegetation_fields(cls, values):
+        if isinstance(values, dict):
+            return apply_field_renames(values, VEGETATEDSURFACEPROPERTIES_RENAMES, cls.__name__)
+        return values
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert vegetated surface properties to DataFrame state format."""
         # Get base properties
@@ -617,18 +639,18 @@ class VegetatedSurfaceProperties(SurfaceProperties):
 
         # add ordinary float properties
         cols = {}
-        for attr in [
-            "beta_bioco2",
-            "beta_enh_bioco2",
-            "alpha_bioco2",
-            "alpha_enh_bioco2",
-            "resp_a",
-            "resp_b",
-            "theta_bioco2",
-            "maxconductance",
-            "min_res_bioco2",
-            "ie_a",
-            "ie_m",
+        for attr, col_name in [
+            ("beta_bio_co2", "beta_bioco2"),
+            ("beta_enh_bioco2", "beta_enh_bioco2"),
+            ("alpha_bio_co2", "alpha_bioco2"),
+            ("alpha_enh_bioco2", "alpha_enh_bioco2"),
+            ("resp_a", "resp_a"),
+            ("resp_b", "resp_b"),
+            ("theta_bio_co2", "theta_bioco2"),
+            ("max_conductance", "maxconductance"),
+            ("min_res_bioco2", "min_res_bioco2"),
+            ("ie_a", "ie_a"),
+            ("ie_m", "ie_m"),
         ]:
             field_val = getattr(self, attr)
             if field_val is not None:
@@ -642,8 +664,8 @@ class VegetatedSurfaceProperties(SurfaceProperties):
                     "resp_b": 1.1,
                     "theta_bioco2": 1.2,
                 }
-                val = defaults.get(attr, 0.0)
-            cols[(attr, f"({surf_idx - 2},)")] = val
+                val = defaults.get(col_name, 0.0)
+            cols[(col_name, f"({surf_idx - 2},)")] = val
 
         df_veg = df_from_cols(cols, index=df_state.index)
         df_lai = self.lai.to_df_state(grid_id, surf_idx)
@@ -658,21 +680,21 @@ class VegetatedSurfaceProperties(SurfaceProperties):
         """Reconstruct vegetated surface properties from DataFrame state format."""
         instance = super().from_df_state(df, grid_id, surf_idx)
         # add ordinary float properties
-        for attr in [
-            "beta_bioco2",
-            "beta_enh_bioco2",
-            "alpha_bioco2",
-            "alpha_enh_bioco2",
-            "resp_a",
-            "resp_b",
-            "theta_bioco2",
-            "maxconductance",
-            "min_res_bioco2",
-            "ie_a",
-            "ie_m",
+        for new_attr, col_name in [
+            ("beta_bio_co2", "beta_bioco2"),
+            ("beta_enh_bioco2", "beta_enh_bioco2"),
+            ("alpha_bio_co2", "alpha_bioco2"),
+            ("alpha_enh_bioco2", "alpha_enh_bioco2"),
+            ("resp_a", "resp_a"),
+            ("resp_b", "resp_b"),
+            ("theta_bio_co2", "theta_bioco2"),
+            ("max_conductance", "maxconductance"),
+            ("min_res_bioco2", "min_res_bioco2"),
+            ("ie_a", "ie_a"),
+            ("ie_m", "ie_m"),
         ]:
             setattr(
-                instance, attr, RefValue(df.loc[grid_id, (attr, f"({surf_idx - 2},)")])
+                instance, new_attr, RefValue(df.loc[grid_id, (col_name, f"({surf_idx - 2},)")])
             )
 
         instance.lai = LAIParams.from_df_state(df, grid_id, surf_idx)
@@ -689,7 +711,7 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
     """
 
     model_config = ConfigDict(title="Evergreen Trees")
-    faievetree: Optional[FlexibleRefValue(float)] = Field(
+    fai_evergreen_tree: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Frontal area index of evergreen trees",
         json_schema_extra={
@@ -697,7 +719,7 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
             "display_name": "Evergreen Tree Frontal Area Index",
         },
     )
-    evetreeh: Optional[FlexibleRefValue(float)] = Field(
+    evergreen_tree_height: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Evergreen tree height",
         json_schema_extra={"unit": "m", "display_name": "Evergreen Tree Height"},
@@ -711,6 +733,13 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
 
     ref: Optional[Reference] = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _rename_evetr_fields(cls, values):
+        if isinstance(values, dict):
+            return apply_field_renames(values, EVETRPROPERTIES_RENAMES, cls.__name__)
+        return values
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert evergreen tree properties to DataFrame state format."""
         df_state = super().to_df_state(grid_id)
@@ -719,13 +748,13 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
         defaults = {"faievetree": 0.1, "evetreeh": 15.0}
         values_to_assign = {}
 
-        for attr in ["faievetree", "evetreeh"]:
+        for attr, col_name in [("fai_evergreen_tree", "faievetree"), ("evergreen_tree_height", "evetreeh")]:
             field_val = getattr(self, attr)
             if field_val is not None:
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
-                val = defaults.get(attr, 0.0)
-            values_to_assign[(attr, "0")] = val
+                val = defaults.get(col_name, 0.0)
+            values_to_assign[(col_name, "0")] = val
 
         values_to_assign[("albmin_evetr", "0")] = (
             self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
@@ -753,8 +782,8 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
         surf_idx = 2
         instance = super().from_df_state(df, grid_id, surf_idx)
 
-        instance.faievetree = RefValue(df.loc[grid_id, ("faievetree", "0")])
-        instance.evetreeh = RefValue(df.loc[grid_id, ("evetreeh", "0")])
+        instance.fai_evergreen_tree = RefValue(df.loc[grid_id, ("faievetree", "0")])
+        instance.evergreen_tree_height = RefValue(df.loc[grid_id, ("evetreeh", "0")])
 
         instance.alb_min = RefValue(df.loc[grid_id, ("albmin_evetr", "0")])
         instance.alb_max = RefValue(df.loc[grid_id, ("albmax_evetr", "0")])
@@ -771,7 +800,7 @@ class DectrProperties(VegetatedSurfaceProperties):
     """
 
     model_config = ConfigDict(title="Deciduous Trees")
-    faidectree: Optional[FlexibleRefValue(float)] = Field(
+    fai_deciduous_tree: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Frontal area index of deciduous trees",
         json_schema_extra={
@@ -779,12 +808,12 @@ class DectrProperties(VegetatedSurfaceProperties):
             "display_name": "Deciduous Tree Frontal Area Index",
         },
     )
-    dectreeh: Optional[FlexibleRefValue(float)] = Field(
+    deciduous_tree_height: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Deciduous tree height",
         json_schema_extra={"unit": "m", "display_name": "Deciduous Tree Height"},
     )
-    pormin_dec: FlexibleRefValue(float) = Field(
+    porosity_min_deciduous: FlexibleRefValue(float) = Field(
         ge=0.1,
         le=0.9,
         default=0.2,
@@ -793,8 +822,8 @@ class DectrProperties(VegetatedSurfaceProperties):
             "unit": "dimensionless",
             "display_name": "Deciduous Minimum Porosity",
         },
-    )  # pormin_dec cannot be less than 0.1 and greater than 0.9
-    pormax_dec: FlexibleRefValue(float) = Field(
+    )  # porosity_min_deciduous cannot be less than 0.1 and greater than 0.9
+    porosity_max_deciduous: FlexibleRefValue(float) = Field(
         ge=0.1,
         le=0.9,
         default=0.6,
@@ -803,13 +832,13 @@ class DectrProperties(VegetatedSurfaceProperties):
             "unit": "dimensionless",
             "display_name": "Deciduous Maximum Porosity",
         },
-    )  # pormax_dec cannot be less than 0.1 and greater than 0.9
-    capmax_dec: FlexibleRefValue(float) = Field(
+    )  # porosity_max_deciduous cannot be less than 0.1 and greater than 0.9
+    capacity_max_deciduous: FlexibleRefValue(float) = Field(
         default=100.0,
         description="Maximum water capacity",
         json_schema_extra={"unit": "mm", "display_name": "Deciduous Maximum Capacity"},
     )
-    capmin_dec: FlexibleRefValue(float) = Field(
+    capacity_min_deciduous: FlexibleRefValue(float) = Field(
         default=10.0,
         description="Minimum water capacity",
         json_schema_extra={"unit": "mm", "display_name": "Deciduous Minimum Capacity"},
@@ -823,6 +852,13 @@ class DectrProperties(VegetatedSurfaceProperties):
 
     ref: Optional[Reference] = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _rename_dectr_fields(cls, values):
+        if isinstance(values, dict):
+            return apply_field_renames(values, DECTRPROPERTIES_RENAMES, cls.__name__)
+        return values
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert deciduous tree properties to DataFrame state format."""
         df_state = super().to_df_state(grid_id)
@@ -831,20 +867,20 @@ class DectrProperties(VegetatedSurfaceProperties):
         defaults = {"faidectree": 0.1, "dectreeh": 15.0}
         values_to_assign = {}
 
-        for attr in [
-            "faidectree",
-            "dectreeh",
-            "pormin_dec",
-            "pormax_dec",
-            "capmax_dec",
-            "capmin_dec",
+        for attr, col_name in [
+            ("fai_deciduous_tree", "faidectree"),
+            ("deciduous_tree_height", "dectreeh"),
+            ("porosity_min_deciduous", "pormin_dec"),
+            ("porosity_max_deciduous", "pormax_dec"),
+            ("capacity_max_deciduous", "capmax_dec"),
+            ("capacity_min_deciduous", "capmin_dec"),
         ]:
             field_val = getattr(self, attr)
             if field_val is not None:
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
-                val = defaults.get(attr, field_val)
-            values_to_assign[(attr, "0")] = val
+                val = defaults.get(col_name, field_val)
+            values_to_assign[(col_name, "0")] = val
 
         values_to_assign[("albmin_dectr", "0")] = (
             self.alb_min.value if isinstance(self.alb_min, RefValue) else self.alb_min
@@ -872,12 +908,12 @@ class DectrProperties(VegetatedSurfaceProperties):
         surf_idx = 3
         instance = super().from_df_state(df, grid_id, surf_idx)
 
-        instance.faidectree = RefValue(df.loc[grid_id, ("faidectree", "0")])
-        instance.dectreeh = RefValue(df.loc[grid_id, ("dectreeh", "0")])
-        instance.pormin_dec = RefValue(df.loc[grid_id, ("pormin_dec", "0")])
-        instance.pormax_dec = RefValue(df.loc[grid_id, ("pormax_dec", "0")])
-        instance.capmax_dec = RefValue(df.loc[grid_id, ("capmax_dec", "0")])
-        instance.capmin_dec = RefValue(df.loc[grid_id, ("capmin_dec", "0")])
+        instance.fai_deciduous_tree = RefValue(df.loc[grid_id, ("faidectree", "0")])
+        instance.deciduous_tree_height = RefValue(df.loc[grid_id, ("dectreeh", "0")])
+        instance.porosity_min_deciduous = RefValue(df.loc[grid_id, ("pormin_dec", "0")])
+        instance.porosity_max_deciduous = RefValue(df.loc[grid_id, ("pormax_dec", "0")])
+        instance.capacity_max_deciduous = RefValue(df.loc[grid_id, ("capmax_dec", "0")])
+        instance.capacity_min_deciduous = RefValue(df.loc[grid_id, ("capmin_dec", "0")])
 
         instance.alb_min = RefValue(df.loc[grid_id, ("albmin_dectr", "0")])
         instance.alb_max = RefValue(df.loc[grid_id, ("albmax_dectr", "0")])
@@ -947,7 +983,7 @@ class GrassProperties(VegetatedSurfaceProperties):
 class SnowParams(BaseModel):
     model_config = ConfigDict(title="Snow")
 
-    crwmax: FlexibleRefValue(float) = Field(
+    water_holding_capacity_max: FlexibleRefValue(float) = Field(
         default=0.1,
         description="Maximum water holding capacity of snow",
         json_schema_extra={
@@ -955,7 +991,7 @@ class SnowParams(BaseModel):
             "display_name": "Maximum Water Retention Capacity",
         },
     )
-    crwmin: FlexibleRefValue(float) = Field(
+    water_holding_capacity_min: FlexibleRefValue(float) = Field(
         default=0.05,
         description="Minimum water holding capacity of snow",
         json_schema_extra={
@@ -970,7 +1006,7 @@ class SnowParams(BaseModel):
         le=1.0,
         json_schema_extra={"unit": "dimensionless", "display_name": "Narp Emis Snow"},
     )
-    preciplimit: Optional[FlexibleRefValue(float)] = Field(
+    precip_limit: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Temperature threshold for snow vs rain precipitation",
         json_schema_extra={
@@ -978,13 +1014,13 @@ class SnowParams(BaseModel):
             "display_name": "Precipitation Temperature Limit",
         },
     )
-    preciplimitalb: FlexibleRefValue(float) = Field(
+    precip_limit_albedo: FlexibleRefValue(float) = Field(
         default=0.1,
         description="Precipitation threshold for snow albedo aging",
         json_schema_extra={"unit": "mm", "display_name": "Precipitation Albedo Limit"},
         ge=0.0,
     )
-    snowalbmax: FlexibleRefValue(float) = Field(
+    snow_albedo_max: FlexibleRefValue(float) = Field(
         default=0.85,
         description="Maximum snow albedo",
         json_schema_extra={
@@ -992,7 +1028,7 @@ class SnowParams(BaseModel):
             "display_name": "Maximum Snow Albedo",
         },
     )
-    snowalbmin: FlexibleRefValue(float) = Field(
+    snow_albedo_min: FlexibleRefValue(float) = Field(
         default=0.4,
         description="Minimum snow albedo",
         json_schema_extra={
@@ -1000,22 +1036,22 @@ class SnowParams(BaseModel):
             "display_name": "Minimum Snow Albedo",
         },
     )
-    snowdensmin: Optional[FlexibleRefValue(float)] = Field(
+    snow_density_min: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Minimum snow density",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Minimum Snow Density"},
     )
-    snowdensmax: Optional[FlexibleRefValue(float)] = Field(
+    snow_density_max: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Maximum snow density",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Maximum Snow Density"},
     )
-    snowlimbldg: FlexibleRefValue(float) = Field(
+    snow_limit_building: FlexibleRefValue(float) = Field(
         default=0.1,
         description="Maximum snow depth limit on buildings",
         json_schema_extra={"unit": "m", "display_name": "Snow Limit Building"},
     )
-    snowlimpaved: FlexibleRefValue(float) = Field(
+    snow_limit_paved: FlexibleRefValue(float) = Field(
         default=0.1,
         description="Maximum snow depth limit on paved surfaces",
         json_schema_extra={"unit": "m", "display_name": "Snow Limit Paved"},
@@ -1047,7 +1083,7 @@ class SnowParams(BaseModel):
             "display_name": "Snow Albedo Ageing Time (Refreezing)",
         },
     )
-    tempmeltfact: FlexibleRefValue(float) = Field(
+    temp_melt_factor: FlexibleRefValue(float) = Field(
         default=0.12,
         description="Hourly temperature melt factor of snow",
         json_schema_extra={
@@ -1055,7 +1091,7 @@ class SnowParams(BaseModel):
             "display_name": "Temperature Melt Factor",
         },
     )
-    radmeltfact: FlexibleRefValue(float) = Field(
+    rad_melt_factor: FlexibleRefValue(float) = Field(
         default=0.0016,
         description="Hourly radiation melt factor of snow",
         json_schema_extra={
@@ -1065,6 +1101,13 @@ class SnowParams(BaseModel):
     )
 
     ref: Optional[Reference] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _rename_snow_fields(cls, values):
+        if isinstance(values, dict):
+            return apply_field_renames(values, SNOWPARAMS_RENAMES, cls.__name__)
+        return values
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """
@@ -1078,22 +1121,22 @@ class SnowParams(BaseModel):
         """
 
         scalar_params = {
-            "crwmax": self.crwmax,
-            "crwmin": self.crwmin,
+            "crwmax": self.water_holding_capacity_max,
+            "crwmin": self.water_holding_capacity_min,
             "narp_emis_snow": self.narp_emis_snow,
-            "preciplimit": self.preciplimit,
-            "preciplimitalb": self.preciplimitalb,
-            "snowalbmax": self.snowalbmax,
-            "snowalbmin": self.snowalbmin,
-            "snowdensmin": self.snowdensmin,
-            "snowdensmax": self.snowdensmax,
-            "snowlimbldg": self.snowlimbldg,
-            "snowlimpaved": self.snowlimpaved,
+            "preciplimit": self.precip_limit,
+            "preciplimitalb": self.precip_limit_albedo,
+            "snowalbmax": self.snow_albedo_max,
+            "snowalbmin": self.snow_albedo_min,
+            "snowdensmin": self.snow_density_min,
+            "snowdensmax": self.snow_density_max,
+            "snowlimbldg": self.snow_limit_building,
+            "snowlimpaved": self.snow_limit_paved,
             "tau_a": self.tau_a,
             "tau_f": self.tau_f,
             "tau_r": self.tau_r,
-            "tempmeltfact": self.tempmeltfact,
-            "radmeltfact": self.radmeltfact,
+            "tempmeltfact": self.temp_melt_factor,
+            "radmeltfact": self.rad_melt_factor,
         }
         cols = {("gridiv", "0"): grid_id}
         for param_name, value in scalar_params.items():

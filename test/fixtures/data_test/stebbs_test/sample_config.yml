@@ -13,37 +13,37 @@ model:
         - SUEWS
         - STEBBS
   physics:
-    netradiationmethod:
+    net_radiation_method:
       value: 1003
-    emissionsmethod:
+    emissions_method:
       value: 2
-    storageheatmethod:
+    storage_heat_method:
       value: 7
-    ohmincqf:
+    ohm_inc_qf:
       value: 0
-    roughlenmommethod:
+    roughness_length_momentum_method:
       value: 1
-    roughlenheatmethod:
+    roughness_length_heat_method:
       value: 2
-    stabilitymethod:
+    stability_method:
       value: 3
-    smdmethod:
+    smd_method:
       value: 0
-    waterusemethod:
+    water_use_method:
       value: 0
-    rslmethod:
+    rsl_method:
       value: 2
-    faimethod:
+    fai_method:
       value: 0
-    rsllevel:
+    rsl_level:
       value: 1
-    snowuse:
+    snow_use:
       value: 0
-    stebbsmethod:
+    stebbs_method:
       value: 1
-    rcmethod:
+    rc_method:
       value: 2
-    gsmodel:
+    gs_model:
       value: 2
     same_albedo_wall:
       value: 0
@@ -2212,27 +2212,27 @@ sites:
             '23': 0.8
             '24': 0.7
     snow:
-      crwmax:
+      water_holding_capacity_max:
         value: 0.1
-      crwmin:
+      water_holding_capacity_min:
         value: 0.03
       narp_emis_snow:
         value: 0.99
-      preciplimit:
+      precip_limit:
         value: 2.2
-      preciplimitalb:
+      precip_limit_albedo:
         value: 2.0
-      snowalbmax:
+      snow_albedo_max:
         value: 0.8
-      snowalbmin:
+      snow_albedo_min:
         value: 0.18
-      snowdensmin:
+      snow_density_min:
         value: 100.0
-      snowdensmax:
+      snow_density_max:
         value: 450.0
-      snowlimbldg:
+      snow_limit_building:
         value: -999.0
-      snowlimpaved:
+      snow_limit_paved:
         value: -999.0
       snowprof_24hr:
         working_day:
@@ -2291,9 +2291,9 @@ sites:
         value: 0.1
       tau_r:
         value: 0.02
-      tempmeltfact:
+      temp_melt_factor:
         value: 0.14
-      radmeltfact:
+      rad_melt_factor:
         value: 0.001
     land_cover:
       paved:
@@ -2307,9 +2307,9 @@ sites:
           value: 20000000.0
         k_anohm:
           value: 1.2
-        ohm_threshsw:
+        ohm_threshold_summer_winter:
           value: 10.0
-        ohm_threshwd:
+        ohm_threshold_wet_dry:
           value: 0.9
         ohm_coef:
           summer_dry:
@@ -2340,15 +2340,15 @@ sites:
               value: 0.3
             a3:
               value: 14.16
-        soildepth:
+        soil_depth:
           value: 350.0
-        soilstorecap:
+        soil_store_capacity:
           value: 150.0
-        statelimit:
+        state_limit:
           value: 0.48
-        wetthresh:
+        wet_threshold:
           value: 0.6
-        sathydraulicconduct:
+        saturated_hydraulic_conductivity:
           value: 0.0005
         waterdist:
           to_bldgs:
@@ -2365,7 +2365,7 @@ sites:
             value: 0.0
           to_runoff:
             value: 0.98
-        storedrainprm:
+        storage_drain_params:
           store_min:
             value: 0.48
           store_max:
@@ -2378,7 +2378,7 @@ sites:
             value: 10.0
           drain_coef_2:
             value: 3.0
-        snowpacklimit:
+        snowpack_limit:
           value: -999.0
         thermal_layers:
           dz:
@@ -2402,7 +2402,7 @@ sites:
             - 1230000.0
             - 1230000.0
             - 1230000.0
-        irrfrac:
+        irrigation_fraction:
           value: 0.0
         alb:
           value: 0.1
@@ -2417,9 +2417,9 @@ sites:
           value: 20000000.0
         k_anohm:
           value: 1.2
-        ohm_threshsw:
+        ohm_threshold_summer_winter:
           value: 10.0
-        ohm_threshwd:
+        ohm_threshold_wet_dry:
           value: 0.9
         ohm_coef:
           summer_dry:
@@ -2450,15 +2450,15 @@ sites:
               value: 0.337
             a3:
               value: 11.3
-        soildepth:
+        soil_depth:
           value: 350.0
-        soilstorecap:
+        soil_store_capacity:
           value: 150.0
-        statelimit:
+        state_limit:
           value: 0.25
-        wetthresh:
+        wet_threshold:
           value: 0.6
-        sathydraulicconduct:
+        saturated_hydraulic_conductivity:
           value: 0.0005
         waterdist:
           to_paved:
@@ -2475,7 +2475,7 @@ sites:
             value: 0.0
           to_runoff:
             value: 0.9
-        storedrainprm:
+        storage_drain_params:
           store_min:
             value: 0.25
           store_max:
@@ -2488,7 +2488,7 @@ sites:
             value: 10.0
           drain_coef_2:
             value: 3.0
-        snowpacklimit:
+        snowpack_limit:
           value: -999.0
         thermal_layers:
           dz:
@@ -2512,7 +2512,7 @@ sites:
             - 1100000.0
             - 1500000.0
             - 1600000.0
-        irrfrac:
+        irrigation_fraction:
           value: 0.0
         alb:
           value: 0.12
@@ -2531,9 +2531,9 @@ sites:
           value: 100000.0
         k_anohm:
           value: 1.2
-        ohm_threshsw:
+        ohm_threshold_summer_winter:
           value: 10.0
-        ohm_threshwd:
+        ohm_threshold_wet_dry:
           value: 0.9
         ohm_coef:
           summer_dry:
@@ -2564,15 +2564,15 @@ sites:
               value: 0.325
             a3:
               value: 6.62
-        soildepth:
+        soil_depth:
           value: 350.0
-        soilstorecap:
+        soil_store_capacity:
           value: 150.0
-        statelimit:
+        state_limit:
           value: 0.8
-        wetthresh:
+        wet_threshold:
           value: 1.0
-        sathydraulicconduct:
+        saturated_hydraulic_conductivity:
           value: 0.0005
         waterdist:
           to_paved:
@@ -2589,7 +2589,7 @@ sites:
             value: 0.0
           to_soilstore:
             value: 0.9
-        storedrainprm:
+        storage_drain_params:
           store_min:
             value: 0.3
           store_max:
@@ -2602,7 +2602,7 @@ sites:
             value: 0.013
           drain_coef_2:
             value: 1.71
-        snowpacklimit:
+        snowpack_limit:
           value: -999.0
         thermal_layers:
           dz:
@@ -2626,17 +2626,17 @@ sites:
             - 1100000.0
             - 1500000.0
             - 1600000.0
-        irrfrac:
+        irrigation_fraction:
           value: 0.0
         alb_min:
           value: 0.12
         alb_max:
           value: 0.18
-        beta_bioco2:
+        beta_bio_co2:
           value: 8.747
         beta_enh_bioco2:
           value: 33.353
-        alpha_bioco2:
+        alpha_bio_co2:
           value: 0.004
         alpha_enh_bioco2:
           value: 0.016
@@ -2644,26 +2644,26 @@ sites:
           value: 2.43
         resp_b:
           value: 0.0
-        theta_bioco2:
+        theta_bio_co2:
           value: 0.96
-        maxconductance:
+        max_conductance:
           value: 11.7
         min_res_bioco2:
           value: 0.6
         lai:
-          baset:
+          base_temperature:
             value: 6.0
-          gddfull:
+          gdd_full:
             value: 300.0
-          basete:
+          base_temperature_senescence:
             value: 11.0
-          sddfull:
+          sdd_full:
             value: -450.0
-          laimin:
+          lai_min:
             value: 1.0
-          laimax:
+          lai_max:
             value: 5.5
-          laipower:
+          lai_power:
             growth_lai:
               value: 0.04
             growth_gdd:
@@ -2672,23 +2672,23 @@ sites:
               value: -1.5
             senescence_sdd:
               value: 0.0015
-          laitype:
+          lai_type:
             value: 1
         ie_a:
           value: 0.0
         ie_m:
           value: 0.0
-        faidectree:
+        fai_deciduous_tree:
           value: 0.3
-        dectreeh:
+        deciduous_tree_height:
           value: 13.1
-        pormin_dec:
+        porosity_min_deciduous:
           value: 0.1
-        pormax_dec:
+        porosity_max_deciduous:
           value: 0.9
-        capmax_dec:
+        capacity_max_deciduous:
           value: 0.8
-        capmin_dec:
+        capacity_min_deciduous:
           value: 0.3
       evetr:
         sfr:
@@ -2701,9 +2701,9 @@ sites:
           value: 100000.0
         k_anohm:
           value: 1.2
-        ohm_threshsw:
+        ohm_threshold_summer_winter:
           value: 10.0
-        ohm_threshwd:
+        ohm_threshold_wet_dry:
           value: 0.9
         ohm_coef:
           summer_dry:
@@ -2734,15 +2734,15 @@ sites:
               value: 0.325
             a3:
               value: 6.62
-        soildepth:
+        soil_depth:
           value: 350.0
-        soilstorecap:
+        soil_store_capacity:
           value: 150.0
-        statelimit:
+        state_limit:
           value: 1.3
-        wetthresh:
+        wet_threshold:
           value: 1.8
-        sathydraulicconduct:
+        saturated_hydraulic_conductivity:
           value: 0.0005
         waterdist:
           to_paved:
@@ -2759,7 +2759,7 @@ sites:
             value: 0.0
           to_soilstore:
             value: 0.9
-        storedrainprm:
+        storage_drain_params:
           store_min:
             value: 1.3
           store_max:
@@ -2772,7 +2772,7 @@ sites:
             value: 0.013
           drain_coef_2:
             value: 1.71
-        snowpacklimit:
+        snowpack_limit:
           value: -999.0
         thermal_layers:
           dz:
@@ -2796,17 +2796,17 @@ sites:
             - 1100000.0
             - 1500000.0
             - 1600000.0
-        irrfrac:
+        irrigation_fraction:
           value: 0.0
         alb_min:
           value: 0.1
         alb_max:
           value: 0.1
-        beta_bioco2:
+        beta_bio_co2:
           value: 8.747
         beta_enh_bioco2:
           value: 33.353
-        alpha_bioco2:
+        alpha_bio_co2:
           value: 0.004
         alpha_enh_bioco2:
           value: 0.016
@@ -2814,26 +2814,26 @@ sites:
           value: 2.43
         resp_b:
           value: 0.0
-        theta_bioco2:
+        theta_bio_co2:
           value: 0.96
-        maxconductance:
+        max_conductance:
           value: 7.4
         min_res_bioco2:
           value: 0.6
         lai:
-          baset:
+          base_temperature:
             value: 6.0
-          gddfull:
+          gdd_full:
             value: 300.0
-          basete:
+          base_temperature_senescence:
             value: 11.0
-          sddfull:
+          sdd_full:
             value: -450.0
-          laimin:
+          lai_min:
             value: 4.0
-          laimax:
+          lai_max:
             value: 5.1
-          laipower:
+          lai_power:
             growth_lai:
               value: 0.04
             growth_gdd:
@@ -2842,15 +2842,15 @@ sites:
               value: -1.5
             senescence_sdd:
               value: 0.0015
-          laitype:
+          lai_type:
             value: 1
         ie_a:
           value: 0.0
         ie_m:
           value: 0.0
-        faievetree:
+        fai_evergreen_tree:
           value: 0.3
-        evetreeh:
+        evergreen_tree_height:
           value: 13.1
       grass:
         sfr:
@@ -2863,9 +2863,9 @@ sites:
           value: 100000.0
         k_anohm:
           value: 1.2
-        ohm_threshsw:
+        ohm_threshold_summer_winter:
           value: 10.0
-        ohm_threshwd:
+        ohm_threshold_wet_dry:
           value: 0.9
         ohm_coef:
           summer_dry:
@@ -2896,15 +2896,15 @@ sites:
               value: 0.325
             a3:
               value: 6.62
-        soildepth:
+        soil_depth:
           value: 350.0
-        soilstorecap:
+        soil_store_capacity:
           value: 150.0
-        statelimit:
+        state_limit:
           value: 1.9
-        wetthresh:
+        wet_threshold:
           value: 2.0
-        sathydraulicconduct:
+        saturated_hydraulic_conductivity:
           value: 0.0005
         waterdist:
           to_paved:
@@ -2921,7 +2921,7 @@ sites:
             value: 0.0
           to_soilstore:
             value: 1.0
-        storedrainprm:
+        storage_drain_params:
           store_min:
             value: 1.9
           store_max:
@@ -2934,7 +2934,7 @@ sites:
             value: 0.013
           drain_coef_2:
             value: 1.71
-        snowpacklimit:
+        snowpack_limit:
           value: -999.0
         thermal_layers:
           dz:
@@ -2958,17 +2958,17 @@ sites:
             - 1860000.0
             - 1860000.0
             - 1860000.0
-        irrfrac:
+        irrigation_fraction:
           value: 0.0
         alb_min:
           value: 0.18
         alb_max:
           value: 0.21
-        beta_bioco2:
+        beta_bio_co2:
           value: 8.747
         beta_enh_bioco2:
           value: 33.353
-        alpha_bioco2:
+        alpha_bio_co2:
           value: 0.004
         alpha_enh_bioco2:
           value: 0.016
@@ -2976,26 +2976,26 @@ sites:
           value: 2.43
         resp_b:
           value: 0.0
-        theta_bioco2:
+        theta_bio_co2:
           value: 0.96
-        maxconductance:
+        max_conductance:
           value: 33.1
         min_res_bioco2:
           value: 0.6
         lai:
-          baset:
+          base_temperature:
             value: 6.0
-          gddfull:
+          gdd_full:
             value: 300.0
-          basete:
+          base_temperature_senescence:
             value: 11.0
-          sddfull:
+          sdd_full:
             value: -450.0
-          laimin:
+          lai_min:
             value: 1.6
-          laimax:
+          lai_max:
             value: 5.9
-          laipower:
+          lai_power:
             growth_lai:
               value: 0.04
             growth_gdd:
@@ -3004,7 +3004,7 @@ sites:
               value: -1.5
             senescence_sdd:
               value: 0.0015
-          laitype:
+          lai_type:
             value: 1
         ie_a:
           value: 0.0
@@ -3021,9 +3021,9 @@ sites:
           value: 20000000.0
         k_anohm:
           value: 1.2
-        ohm_threshsw:
+        ohm_threshold_summer_winter:
           value: 10.0
-        ohm_threshwd:
+        ohm_threshold_wet_dry:
           value: 0.9
         ohm_coef:
           summer_dry:
@@ -3054,15 +3054,15 @@ sites:
               value: 0.335
             a3:
               value: 11.77
-        soildepth:
+        soil_depth:
           value: 350.0
-        soilstorecap:
+        soil_store_capacity:
           value: 150.0
-        statelimit:
+        state_limit:
           value: 0.8
-        wetthresh:
+        wet_threshold:
           value: 1.0
-        sathydraulicconduct:
+        saturated_hydraulic_conductivity:
           value: 0.0005
         waterdist:
           to_paved:
@@ -3079,7 +3079,7 @@ sites:
             value: 0.0
           to_soilstore:
             value: 1.0
-        storedrainprm:
+        storage_drain_params:
           store_min:
             value: 0.8
           store_max:
@@ -3092,7 +3092,7 @@ sites:
             value: 10.0
           drain_coef_2:
             value: 3.0
-        snowpacklimit:
+        snowpack_limit:
           value: -999.0
         thermal_layers:
           dz:
@@ -3116,7 +3116,7 @@ sites:
             - 1100000.0
             - 1500000.0
             - 1600000.0
-        irrfrac:
+        irrigation_fraction:
           value: 0.0
         alb:
           value: 0.18
@@ -3131,9 +3131,9 @@ sites:
           value: 100000.0
         k_anohm:
           value: 1.2
-        ohm_threshsw:
+        ohm_threshold_summer_winter:
           value: 10.0
-        ohm_threshwd:
+        ohm_threshold_wet_dry:
           value: 0.9
         ohm_coef:
           summer_dry:
@@ -3164,17 +3164,17 @@ sites:
               value: 0.21
             a3:
               value: 13.05
-        soildepth:
+        soil_depth:
           value: 0.0
-        soilstorecap:
+        soil_store_capacity:
           value: 0.0
-        statelimit:
+        state_limit:
           value: 30000.0
-        wetthresh:
+        wet_threshold:
           value: 0.5
-        sathydraulicconduct:
+        saturated_hydraulic_conductivity:
           value: 0.0
-        storedrainprm:
+        storage_drain_params:
           store_min:
             value: 0.5
           store_max:
@@ -3187,7 +3187,7 @@ sites:
             value: -999.0
           drain_coef_2:
             value: -999.0
-        snowpacklimit:
+        snowpack_limit:
           value: 0.0
         thermal_layers:
           dz:
@@ -3211,7 +3211,7 @@ sites:
             - 1100000.0
             - 1500000.0
             - 1600000.0
-        irrfrac:
+        irrigation_fraction:
           value: 0.0
         alb:
           value: 0.1
@@ -3273,11 +3273,11 @@ sites:
             - 997274.2
             - 997274.2
             - 997274.2
-        statelimit:
+        state_limit:
           value: 5.0
-        soilstorecap:
+        soil_store_capacity:
           value: 120.0
-        wetthresh:
+        wet_threshold:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 1.0
@@ -3309,11 +3309,11 @@ sites:
             - 997274.2
             - 997274.2
             - 997274.2
-        statelimit:
+        state_limit:
           value: 5.0
-        soilstorecap:
+        soil_store_capacity:
           value: 120.0
-        wetthresh:
+        wet_threshold:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 1.0
@@ -3345,11 +3345,11 @@ sites:
             - 997274.2
             - 997274.2
             - 997274.2
-        statelimit:
+        state_limit:
           value: 5.0
-        soilstorecap:
+        soil_store_capacity:
           value: 120.0
-        wetthresh:
+        wet_threshold:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 1.0
@@ -3382,11 +3382,11 @@ sites:
             - 1724700.0
             - 1724700.0
             - 1724700.0
-        statelimit:
+        state_limit:
           value: 5.0
-        soilstorecap:
+        soil_store_capacity:
           value: 120.0
-        wetthresh:
+        wet_threshold:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 0.1
@@ -3418,11 +3418,11 @@ sites:
             - 1724700.0
             - 1724700.0
             - 1724700.0
-        statelimit:
+        state_limit:
           value: 5.0
-        soilstorecap:
+        soil_store_capacity:
           value: 120.0
-        wetthresh:
+        wet_threshold:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 0.1
@@ -3454,11 +3454,11 @@ sites:
             - 1724700.0
             - 1724700.0
             - 1724700.0
-        statelimit:
+        state_limit:
           value: 5.0
-        soilstorecap:
+        soil_store_capacity:
           value: 120.0
-        wetthresh:
+        wet_threshold:
           value: 5.0
         roof_albedo_dir_mult_fact:
           value: 0.1

@@ -12,6 +12,7 @@ import yaml
 
 from ._env import logger_supy
 from ._post import df_var, gen_index
+from .data_model.core.field_renames import reverse_field_renames
 
 if TYPE_CHECKING:
     from .data_model import SUEWSConfig
@@ -283,7 +284,7 @@ def run_suews_rust(
         raise ValueError("forcing data is empty")
 
     config_yaml = yaml.dump(
-        config.model_dump(exclude_none=True, mode="json"),
+        reverse_field_renames(config.model_dump(exclude_none=True, mode="json")),
         default_flow_style=False,
         sort_keys=False,
     )
@@ -371,7 +372,7 @@ def run_suews_rust_with_state(
         raise ValueError("forcing data is empty")
 
     config_yaml = yaml.dump(
-        config.model_dump(exclude_none=True, mode="json"),
+        reverse_field_renames(config.model_dump(exclude_none=True, mode="json")),
         default_flow_style=False,
         sort_keys=False,
     )

@@ -54,8 +54,8 @@ class TestSUEWSConfig(unittest.TestCase):
             self.config.model.control.tstep, config_reconst.model.control.tstep
         )
         self.assertEqual(
-            self.config.model.physics.netradiationmethod.value,
-            config_reconst.model.physics.netradiationmethod.value,
+            self.config.model.physics.net_radiation_method.value,
+            config_reconst.model.physics.net_radiation_method.value,
         )
         self.assertEqual(
             self.config.sites[0].properties.lat.value,
@@ -200,8 +200,8 @@ class TestSUEWSConfig(unittest.TestCase):
             sites=[{}],
             model={
                 "physics": {
-                    "storageheatmethod": {"value": 1},
-                    "ohmincqf": {
+                    "storage_heat_method": {"value": 1},
+                    "ohm_inc_qf": {
                         "value": 1
                     },  # This incompatible combination is now allowed at config level
                 }
@@ -209,7 +209,7 @@ class TestSUEWSConfig(unittest.TestCase):
         )
         self.assertIsInstance(config1, SUEWSConfig)
 
-        config2 = SUEWSConfig(sites=[{}], model={"physics": {"snowuse": {"value": 1}}})
+        config2 = SUEWSConfig(sites=[{}], model={"physics": {"snow_use": {"value": 1}}})
         self.assertIsInstance(config2, SUEWSConfig)
 
         # Note: These physics compatibility checks now happen in Phase B validation
@@ -518,7 +518,7 @@ def test_flexible_refvalue_with_cleaning():
         ("tstep", lambda c: c.model.control.tstep),
         ("forcing_file", lambda c: c.model.control.forcing_file),
         ("lat", lambda c: c.sites[0].properties.lat),
-        ("emissionsmethod", lambda c: c.model.physics.emissionsmethod),
+        ("emissions_method", lambda c: c.model.physics.emissions_method),
         ("raincover", lambda c: c.sites[0].properties.lumps.raincover),
         ("g_max", lambda c: c.sites[0].properties.conductance.g_max),
     ]

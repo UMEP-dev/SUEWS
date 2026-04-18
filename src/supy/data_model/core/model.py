@@ -7,6 +7,7 @@ from enum import Enum
 import inspect
 
 from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
+from .field_renames import MODELPHYSICS_RENAMES, apply_field_renames
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -669,51 +670,58 @@ class ModelPhysics(BaseModel):
 
     model_config = ConfigDict(title="Physics Methods")
 
-    netradiationmethod: FlexibleRefValue(NetRadiationMethod) = Field(
+    @model_validator(mode="before")
+    @classmethod
+    def _rename_physics_fields(cls, values):
+        if isinstance(values, dict):
+            return apply_field_renames(values, MODELPHYSICS_RENAMES, cls.__name__)
+        return values
+
+    net_radiation_method: FlexibleRefValue(NetRadiationMethod) = Field(
         default=NetRadiationMethod.LDOWN_AIR,
         description=_enum_description(NetRadiationMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    emissionsmethod: FlexibleRefValue(EmissionsMethod) = Field(
+    emissions_method: FlexibleRefValue(EmissionsMethod) = Field(
         default=EmissionsMethod.J11,
         description=_enum_description(EmissionsMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    storageheatmethod: FlexibleRefValue(StorageHeatMethod) = Field(
+    storage_heat_method: FlexibleRefValue(StorageHeatMethod) = Field(
         default=StorageHeatMethod.OHM_WITHOUT_QF,
         description=_enum_description(StorageHeatMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    ohmincqf: FlexibleRefValue(OhmIncQf) = Field(
+    ohm_inc_qf: FlexibleRefValue(OhmIncQf) = Field(
         default=OhmIncQf.EXCLUDE,
         description=_enum_description(OhmIncQf),
         json_schema_extra={"unit": "dimensionless"},
     )
-    roughlenmommethod: FlexibleRefValue(MomentumRoughnessMethod) = Field(
+    roughness_length_momentum_method: FlexibleRefValue(MomentumRoughnessMethod) = Field(
         default=MomentumRoughnessMethod.VARIABLE,
         description=_enum_description(MomentumRoughnessMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    roughlenheatmethod: FlexibleRefValue(HeatRoughnessMethod) = Field(
+    roughness_length_heat_method: FlexibleRefValue(HeatRoughnessMethod) = Field(
         default=HeatRoughnessMethod.KAWAI,
         description=_enum_description(HeatRoughnessMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    stabilitymethod: FlexibleRefValue(StabilityMethod) = Field(
+    stability_method: FlexibleRefValue(StabilityMethod) = Field(
         default=StabilityMethod.CAMPBELL_NORMAN,
         description=_enum_description(StabilityMethod),
         json_schema_extra={
             "unit": "dimensionless",
-            "provides_to": ["rslmethod"],
-            "note": "Provides stability correction functions used by rslmethod calculations",
+            "provides_to": ["rsl_method"],
+            "note": "Provides stability correction functions used by rsl_method calculations",
         },
     )
-    smdmethod: FlexibleRefValue(SMDMethod) = Field(
+    smd_method: FlexibleRefValue(SMDMethod) = Field(
         default=SMDMethod.MODELLED,
         description=_enum_description(SMDMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    waterusemethod: FlexibleRefValue(WaterUseMethod) = Field(
+    water_use_method: FlexibleRefValue(WaterUseMethod) = Field(
         default=WaterUseMethod.MODELLED,
         description=_enum_description(WaterUseMethod),
         json_schema_extra={"unit": "dimensionless"},
@@ -726,51 +734,51 @@ class ModelPhysics(BaseModel):
             "note": "Set to 0 (OBSERVED) to prescribe LAI from the lai column of the meteorological forcing.",
         },
     )
-    rslmethod: FlexibleRefValue(RSLMethod) = Field(
+    rsl_method: FlexibleRefValue(RSLMethod) = Field(
         default=RSLMethod.VARIABLE,
         description=_enum_description(RSLMethod),
         json_schema_extra={
             "unit": "dimensionless",
-            "depends_on": ["stabilitymethod"],
-            "provides_to": ["rsllevel"],
+            "depends_on": ["stability_method"],
+            "provides_to": ["rsl_level"],
             "note": "Determines how near-surface values (2m temp, 10m wind) are calculated from forcing data",
         },
     )
-    faimethod: FlexibleRefValue(FAIMethod) = Field(
+    fai_method: FlexibleRefValue(FAIMethod) = Field(
         default=FAIMethod.USE_PROVIDED,
         description=_enum_description(FAIMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    rsllevel: FlexibleRefValue(RSLLevel) = Field(
+    rsl_level: FlexibleRefValue(RSLLevel) = Field(
         default=RSLLevel.NONE,
         description=_enum_description(RSLLevel),
         json_schema_extra={
             "unit": "dimensionless",
-            "depends_on": ["rslmethod"],
-            "provides_to": ["gsmodel"],
-            "note": "Uses near-surface values from rslmethod to modify vegetation processes",
+            "depends_on": ["rsl_method"],
+            "provides_to": ["gs_model"],
+            "note": "Uses near-surface values from rsl_method to modify vegetation processes",
         },
     )
-    gsmodel: FlexibleRefValue(GSModel) = Field(
+    gs_model: FlexibleRefValue(GSModel) = Field(
         default=GSModel.WARD,
         description=_enum_description(GSModel),
         json_schema_extra={
             "unit": "dimensionless",
-            "depends_on": ["rsllevel"],
-            "note": "Stomatal conductance model influenced by rsllevel adjustments",
+            "depends_on": ["rsl_level"],
+            "note": "Stomatal conductance model influenced by rsl_level adjustments",
         },
     )
-    snowuse: FlexibleRefValue(SnowUse) = Field(
+    snow_use: FlexibleRefValue(SnowUse) = Field(
         default=SnowUse.DISABLED,
         description=_enum_description(SnowUse),
         json_schema_extra={"unit": "dimensionless"},
     )
-    stebbsmethod: FlexibleRefValue(StebbsMethod) = Field(
+    stebbs_method: FlexibleRefValue(StebbsMethod) = Field(
         default=StebbsMethod.NONE,
         description=_enum_description(StebbsMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    rcmethod: FlexibleRefValue(RCMethod) = Field(
+    rc_method: FlexibleRefValue(RCMethod) = Field(
         default=RCMethod.DEFAULT,
         description=_enum_description(RCMethod),
         json_schema_extra={"unit": "dimensionless"},
@@ -806,37 +814,39 @@ class ModelPhysics(BaseModel):
     # We then need to set to 0 (or None) all the CO2-related parameters or rules
     # in the code and return them accordingly in the yml file.
 
+    # (Python field name, DataFrame column name for Fortran bridge)
+    _FIELD_COL_PAIRS = [
+        ("net_radiation_method", "netradiationmethod"),
+        ("emissions_method", "emissionsmethod"),
+        ("storage_heat_method", "storageheatmethod"),
+        ("ohm_inc_qf", "ohmincqf"),
+        ("roughness_length_momentum_method", "roughlenmommethod"),
+        ("roughness_length_heat_method", "roughlenheatmethod"),
+        ("stability_method", "stabilitymethod"),
+        ("smd_method", "smdmethod"),
+        ("water_use_method", "waterusemethod"),
+        ("laimethod", "laimethod"),
+        ("rsl_method", "rslmethod"),
+        ("fai_method", "faimethod"),
+        ("rsl_level", "rsllevel"),
+        ("gs_model", "gsmodel"),
+        ("snow_use", "snowuse"),
+        ("stebbs_method", "stebbsmethod"),
+        ("rc_method", "rcmethod"),
+        ("setpointmethod", "setpointmethod"),
+        ("same_albedo_wall", "same_albedo_wall"),
+        ("same_albedo_roof", "same_albedo_roof"),
+        ("same_emissivity_wall", "same_emissivity_wall"),
+        ("same_emissivity_roof", "same_emissivity_roof"),
+    ]
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model physics properties to DataFrame state format."""
         cols = {("gridiv", "0"): grid_id}
-        list_attr = [
-            "netradiationmethod",
-            "emissionsmethod",
-            "storageheatmethod",
-            "ohmincqf",
-            "roughlenmommethod",
-            "roughlenheatmethod",
-            "stabilitymethod",
-            "smdmethod",
-            "waterusemethod",
-            "laimethod",
-            "rslmethod",
-            "faimethod",
-            "rsllevel",
-            "gsmodel",
-            "snowuse",
-            "stebbsmethod",
-            "rcmethod",
-            "setpointmethod",
-            "same_albedo_wall",
-            "same_albedo_roof",
-            "same_emissivity_wall",
-            "same_emissivity_roof",
-        ]
-        for attr in list_attr:
-            value = getattr(self, attr)
+        for field_name, col_name in self._FIELD_COL_PAIRS:
+            value = getattr(self, field_name)
             val = value.value if isinstance(value, RefValue) else value
-            cols[(attr, "0")] = int(val)
+            cols[(col_name, "0")] = int(val)
         return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod

@@ -7,14 +7,14 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 #   tags      -- Any tag push: full matrix build -> PyPI (non-dev) or TestPyPI (dev)
 #   PR        -- Validation only with adaptive matrix (draft=minimal, ready=reduced)
 #   merge_group -- Merge queue validation (reduced matrix)
-#   dispatch  -- Manual with configurable matrix, deploy target, QGIS3 UMEP toggle, test tier
+#   dispatch  -- Manual with configurable matrix, deploy target, test tier
 #
-# Dual-build strategy:
-#   Standard -- NumPy >=2.0, all Python versions (cp39-cp314). pip install supy
-#               Serves QGIS 4 (Python 3.13+, NumPy 2.x) and general Python users.
-#   QGIS3 UMEP -- NumPy 1.x, cp312 only. Version X.Y.Zrc1 (production) or X.Y.Z.dev1 (nightly).
-#                  Serves QGIS 3 LTR (3.40: Python 3.12, NumPy 1.26.4).
-#                  Pre-release tag keeps it hidden from default pip.
+# Build strategy:
+#   One cp39-abi3 wheel per (OS, arch). The Rust bridge (PyO3 abi3-py39)
+#   makes the binary ABI-stable, so a single wheel installs on cp39..cp3xx.
+#   Covers QGIS 3 LTR (NumPy 1.26.4), QGIS 4 (NumPy 2.x), and general users
+#   — the runtime pin is numpy>=1.22 (Rust bridge has no NumPy C-ABI
+#   dependency; pure-Python code uses only NumPy 1.22-compatible APIs).
 #
 # Nightly version: Tag YYYY.M.D.dev created BEFORE build for version consistency.
 # See get_ver_git.py for version string logic, .github/path-filters.yml for categories.
@@ -65,29 +65,32 @@ on:
         type: boolean
         default: true
 
-      # Python toggles (custom only)
+      # Python toggles drive the cross-CPython bridge-loading test matrix.
+      # The build is always cp39-abi3 (one wheel covers all supported CPythons),
+      # so these toggles only affect which interpreters install and import the
+      # wheel under -m smoke_bridge.
       py39:
-        description: '[custom] Python 3.9'
+        description: '[custom] Test on Python 3.9 (build is always cp39-abi3)'
         type: boolean
         default: true
       py310:
-        description: '[custom] Python 3.10'
+        description: '[custom] Test on Python 3.10'
         type: boolean
         default: false
       py311:
-        description: '[custom] Python 3.11'
+        description: '[custom] Test on Python 3.11'
         type: boolean
         default: false
       py312:
-        description: '[custom] Python 3.12'
+        description: '[custom] Test on Python 3.12'
         type: boolean
         default: false
       py313:
-        description: '[custom] Python 3.13'
+        description: '[custom] Test on Python 3.13'
         type: boolean
         default: false
       py314:
-        description: '[custom] Python 3.14'
+        description: '[custom] Test on Python 3.14'
         type: boolean
         default: true
 
@@ -99,11 +102,6 @@ on:
         options:
           - none
           - testpypi
-      include_umep:
-        description: 'Build QGIS3 UMEP variant (NumPy 1.x compatible)'
-        required: true
-        default: true
-        type: boolean
       test_tier:
         description: 'Test suite level'
         required: true
@@ -186,7 +184,6 @@ jobs:
     if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     outputs:
       needs-build: ${{ steps.decide.outputs.needs-build }}
-      needs-umep-build: ${{ steps.decide.outputs.needs-umep-build }}
       fortran-changed: ${{ steps.filter.outputs.fortran }}
       rust-changed: ${{ steps.filter.outputs.rust }}
       python-changed: ${{ steps.decide.outputs.python-changed }}
@@ -275,15 +272,6 @@ jobs:
           fi
           echo "needs-build=$NEEDS_BUILD" >> $GITHUB_OUTPUT
 
-          # QGIS3 UMEP build only when compiled extension ABI may differ
-          NEEDS_UMEP_BUILD=false
-          if [[ "$FORTRAN" == "true" ]] || \
-             [[ "$RUST" == "true" ]] || \
-             [[ "$BUILD_CHANGED" == "true" ]]; then
-            NEEDS_UMEP_BUILD=true
-          fi
-          echo "needs-umep-build=$NEEDS_UMEP_BUILD" >> $GITHUB_OUTPUT
-
   determine_matrix:
     name: Determine build matrix
     runs-on: ubuntu-latest
@@ -292,8 +280,7 @@ jobs:
     outputs:
       buildplat: ${{ steps.set-matrix.outputs.buildplat }}
       python: ${{ steps.set-matrix.outputs.python }}
-      umep_buildplat: ${{ steps.set-matrix.outputs.umep_buildplat }}
-      umep_python: ${{ steps.set-matrix.outputs.umep_python }}
+      test_python: ${{ steps.set-matrix.outputs.test_python }}
       test_tier: ${{ steps.set-matrix.outputs.test_tier }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -368,7 +355,6 @@ jobs:
           SITE_FILES: ${{ needs.detect-changes.outputs.site-files || '[]' }}
           PYPROJECT_FILES: ${{ needs.detect-changes.outputs.pyproject-files || '[]' }}
           NEEDS_BUILD: ${{ needs.detect-changes.outputs.needs-build }}
-          NEEDS_UMEP_BUILD: ${{ needs.detect-changes.outputs.needs-umep-build }}
           TEST_TIER: ${{ needs.determine_matrix.outputs.test_tier }}
           BUILDPLAT_JSON: ${{ needs.determine_matrix.outputs.buildplat }}
           PYTHON_JSON: ${{ needs.determine_matrix.outputs.python }}
@@ -392,36 +378,23 @@ jobs:
       buildplat_json: ${{ needs.determine_matrix.outputs.buildplat }}
       python_json: ${{ needs.determine_matrix.outputs.python }}
       test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
-      is_umep_variant: 'false'
-      wheel_name_suffix: ''
       is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
 
-  build_umep:
-    name: Build QGIS3 UMEP wheels
-    needs: [determine_matrix, create_nightly_tag, detect-changes, verify-release-tag]
-    # PRs skip QGIS3 UMEP unless compiled extension ABI may differ (fortran/build-system)
-    if: |
-      always() &&
-      needs.determine_matrix.result == 'success' &&
-      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
-      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-umep-build == 'true') &&
-      (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true') &&
-      (github.event_name != 'workflow_dispatch' || inputs.include_umep == true)
-    uses: ./.github/workflows/build-wheels-reusable.yml
+  test_bridge_loading:
+    name: Cross-CPython bridge tests
+    needs: [determine_matrix, build_wheels]
+    if: always() && needs.build_wheels.result == 'success'
+    uses: ./.github/workflows/test-bridge-reusable.yml
     with:
-      buildplat_json: ${{ needs.determine_matrix.outputs.umep_buildplat }}
-      python_json: ${{ needs.determine_matrix.outputs.umep_python }}
-      test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
-      is_umep_variant: 'true'
-      wheel_name_suffix: '-umep'
-      is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
+      buildplat_json: ${{ needs.determine_matrix.outputs.buildplat }}
+      test_python_json: ${{ needs.determine_matrix.outputs.test_python }}
 
   # Single consolidated check for branch protection (always runs for PRs/merge queue)
   pr-gate:
     name: PR build validation
     runs-on: ubuntu-latest
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
-    needs: [build_wheels, build_umep, detect-changes]
+    needs: [build_wheels, test_bridge_loading, detect-changes]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -433,9 +406,8 @@ jobs:
         env:
           DETECT_CHANGES_RESULT: ${{ needs.detect-changes.result }}
           BUILD_WHEELS_RESULT: ${{ needs.build_wheels.result }}
-          BUILD_UMEP_RESULT: ${{ needs.build_umep.result }}
+          TEST_BRIDGE_RESULT: ${{ needs.test_bridge_loading.result }}
           NEEDS_BUILD: ${{ needs.detect-changes.outputs.needs-build }}
-          NEEDS_UMEP_BUILD: ${{ needs.detect-changes.outputs.needs-umep-build }}
         run: bash .github/scripts/pr-gate.sh
 
   deploy_testpypi:
@@ -444,12 +416,17 @@ jobs:
     needs:
       - determine_matrix
       - build_wheels
+      - test_bridge_loading
       - create_nightly_tag
       - verify-release-tag
-    # Deploy for nightly/dev-tag/manual-dispatch even if some platforms fail
+    # Publish only when every platform wheel built AND the cross-CPython
+    # bridge smoke passed on every matrix cell. A partial build (one leg
+    # fails) would leave test_bridge_loading skipped; allowing that would
+    # ship un-validated wheels, so both must be explicit successes.
     if: |
       always() &&
-      needs.build_wheels.result != 'cancelled' &&
+      needs.build_wheels.result == 'success' &&
+      needs.test_bridge_loading.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true') &&
       (
@@ -482,16 +459,18 @@ jobs:
     needs:
       - determine_matrix
       - build_wheels
-      - build_umep
+      - test_bridge_loading
       - create_nightly_tag
       - verify-release-tag
-    # Production tags only: both standard and QGIS3 UMEP builds must succeed
+    # Production tags only: all platform wheels must succeed AND the cross-CPython
+    # bridge-loading smoke must pass (the only signal the cp39-abi3 wheel imports
+    # on cp310..cp314 after the build matrix collapse).
     if: |
       always() &&
       startsWith(github.ref, 'refs/tags') &&
       !contains(github.ref, 'dev') &&
       needs.build_wheels.result == 'success' &&
-      needs.build_umep.result == 'success' &&
+      needs.test_bridge_loading.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true')
 
@@ -499,7 +478,7 @@ jobs:
       id-token: write
 
     steps:
-      - name: Download all wheels (standard + QGIS3 UMEP)
+      - name: Download all wheels
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: dist/

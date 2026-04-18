@@ -437,8 +437,9 @@ jobs:
       - name: Resolve Python version (cp39 -> 3.9)
         id: pyver
         shell: bash
+        env:
+          PV: ${{ matrix.python_version }}
         run: |
-          PV="${{ matrix.python_version }}"
           echo "spec=3.${PV#cp3}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6

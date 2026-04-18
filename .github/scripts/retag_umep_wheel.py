@@ -36,7 +36,7 @@ from pathlib import Path
 
 WHEEL_NAME_RE = re.compile(
     r"^(?P<name>[^-]+)-(?P<version>[^-]+)-(?P<build>[^-]*-)?"
-    r"(?P<python>[^-]+)-(?P<abi>[^-]+)-(?P<platform>[^.]+)\.whl$"
+    r"(?P<python>[^-]+)-(?P<abi>[^-]+)-(?P<platform>[^-]+)\.whl$"
 )
 
 UMEP_NUMPY_CONSTRAINT = "numpy<2.0,>=1.22"

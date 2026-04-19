@@ -97,8 +97,10 @@ are gated to Windows + Python 3.12 by the existing `qgis` marker.
 ### Tier axis — how fast or expensive is the test?
 
 - `smoke` — minimal wheel validation (~6 tests, ~60s).
-- `smoke_bridge` — bridge-loading subset run across cp39..cp3xx after a
-  single abi3 build.
+- `smoke_bridge` — legacy marker for the bridge-loading subset; still
+  registered, but CI no longer selects on it directly. Post-gh#1300,
+  cross-CPython coverage is driven by `-m "api and <tier>"` in the
+  `test_api_cross_python` job.
 - `core` — core physics and logic tests (Fortran, driver).
 - `rust` — Rust bridge backend tests (requires `suews_bridge` with the
   `physics` feature).

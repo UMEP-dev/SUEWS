@@ -1,8 +1,17 @@
 from typing import TypeVar, Optional, Generic, Union, Any
-from pydantic import ConfigDict, BaseModel, Field, model_validator, field_serializer
+from pydantic import (
+    ConfigDict,
+    BaseModel,
+    Field,
+    field_validator,
+    model_validator,
+    field_serializer,
+)
 import numpy as np
 import pandas as pd
 from enum import Enum
+
+_REF_VALUE_UNSET = object()
 
 
 class SurfaceType(str, Enum):
@@ -60,15 +69,35 @@ class RefValue(BaseModel, Generic[T]):
     model_config = ConfigDict(
         # Configure serialization to handle the value field properly
         ser_json_inf_nan="constants",
+        # Reject unknown keys as ValidationError so Pydantic's union fall-through
+        # can try the other branch instead of bubbling up a TypeError (gh#1303).
+        extra="forbid",
     )
 
-    def __init__(self, value: T, ref: Optional[Reference] = None):
-        # Convert numpy numeric types to Python native types
-        if isinstance(value, (np.float64, np.float32)):
-            value = float(value)
-        elif isinstance(value, (np.int64, np.int32)):
-            value = int(value)
-        super().__init__(value=value, ref=ref)
+    def __init__(self, value=_REF_VALUE_UNSET, ref=None, **data):
+        # Two call shapes are supported:
+        # 1. Direct construction: `RefValue(3.0)` or `RefValue(value=3.0, ref=...)`.
+        # 2. Pydantic-driven validation: `RefValue(**dict_from_yaml)`, which may
+        #    carry profile-shaped keys when a union falls through. In that case
+        #    let the base class's validators run so extras become a
+        #    ValidationError that the union can catch, rather than a TypeError
+        #    that aborts validation.
+        if value is _REF_VALUE_UNSET:
+            super().__init__(**data)
+            return
+        data["value"] = value
+        data["ref"] = ref
+        super().__init__(**data)
+
+    @field_validator("value", mode="before")
+    @classmethod
+    def _convert_numpy_scalar(cls, v):
+        """Convert numpy scalar types to Python natives before validation."""
+        if isinstance(v, (np.float64, np.float32)):
+            return float(v)
+        if isinstance(v, (np.int64, np.int32)):
+            return int(v)
+        return v
 
     def model_dump(self, **kwargs):
         """Override model_dump to handle JSON mode properly."""

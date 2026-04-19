@@ -31,6 +31,8 @@ from supy.data_model.core.model import LAIMethod
 
 from conftest import TIMESTEPS_PER_DAY
 
+pytestmark = pytest.mark.physics
+
 
 def _base_forcing_df(n_timesteps: int = 24) -> pd.DataFrame:
     """Build a minimal hourly forcing DataFrame (mirrors the pattern in

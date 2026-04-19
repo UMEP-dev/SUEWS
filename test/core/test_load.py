@@ -17,6 +17,8 @@ import supy as sp
 from conftest import TIMESTEPS_PER_DAY
 from supy.util.converter import convert_table, detect_table_version
 
+pytestmark = pytest.mark.api
+
 
 class TestInitSuPy(TestCase):
     """Test init_supy functionality."""

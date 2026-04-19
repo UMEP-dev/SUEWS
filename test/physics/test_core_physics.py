@@ -23,9 +23,12 @@ from unittest import TestCase, skipIf
 
 import numpy as np
 import pandas as pd
+import pytest
 
 import supy as sp
 from conftest import TIMESTEPS_PER_DAY
+
+pytestmark = pytest.mark.physics
 
 
 class TestPhysicalValidation(TestCase):

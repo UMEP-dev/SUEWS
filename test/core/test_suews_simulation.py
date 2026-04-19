@@ -13,6 +13,8 @@ except ImportError:
 import supy as sp
 from supy.suews_sim import SUEWSSimulation
 
+pytestmark = pytest.mark.api
+
 
 class TestInit:
     """Test initialization."""

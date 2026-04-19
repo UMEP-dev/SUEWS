@@ -54,14 +54,35 @@ EXAMPLES:
 
 ## 2026
 
+### 19 Apr 2026
+
+- [maintenance] Split CI matrix on the physics/api marker axis (#1300)
+  - `CIBW_TEST_COMMAND` now runs `-m "physics and <tier>"` on the build Python only; physics tests are binary-determined, so one run per `(OS, arch)` is sufficient
+  - New reusable workflow `test-api-cross-python-reusable.yml` runs `-m "api and <tier>"` across the cross-CPython matrix (BOOKEND for PRs, ALL for nightly/tag); picks up the Python wrapper surface variations that vary per interpreter
+  - Renamed job `test_bridge_loading` → `test_api_cross_python`, workflow file `test-bridge-reusable.yml` → `test-api-cross-python-reusable.yml`, and `determine-matrix.sh` output `test_python` → `api_python`
+  - Added standalone `check_test_markers` CI job (AST-based lint in `scripts/lint/check_test_markers.py`) that fails any PR whose test tree has a file lacking both `physics` and `api`; gated into `pr-gate` alongside build and API checks
+  - Updated `pr-gate.sh` and release docs (`RELEASE_MANUAL.md`, `prep-release` skill) to reflect the renamed job
+
 ### 18 Apr 2026
 
 - [feature][experimental] Added parameter-sweep calibration tool for moisture-aware LAI (#1292). `scripts/verify/moisture_phenology_sweep.py` scans any of the six moisture parameters (`w_wilt`, `w_opt`, `f_shape`, `w_on`, `w_off`, `tau_w`) over a user-supplied or default value list, reruns SUEWS per value, and writes a dose-response summary (mean LAI, RMSE vs `LAIType = 0` baseline, seasonal amplitude, green-up DOY) plus a dual-axis sensitivity plot to `.context/gh1292/<site>/sweep_<param>.{json,png}`. The `--dry-start` flag depletes vegetation `soilstore_surf` so the moisture gate engages at otherwise well-watered samples. Includes a pairwise-validator co-adjustment that keeps `w_opt > w_wilt` and `w_on > w_off` satisfied during extreme sweep values. Design note extended with a new calibration-methodology appendix (London sensitivity results, FLUXNET calibration roadmap, status of the optional SDD term).
+- [maintenance] Register `physics` / `api` pytest markers as an orthogonal axis to the existing tier markers (#1300)
+  - `physics` covers numerical / binary correctness (one canonical Python per `(OS, arch)` suffices post-abi3); `api` covers Python wrapper surface (pandas / numpy / pydantic, CLI, `SUEWSSimulation`) and needs full `(platform x Python)` coverage
+  - Applied module-level `pytestmark` to all 43 non-UMEP test files; the 5 UMEP test files pick up `api` via the existing `pytest_collection_modifyitems` hook
+  - Added a collection-time lint in `test/conftest.py` that fails any full-tree run where a test file lacks both markers; subset runs (`pytest test/core/test_x.py`) are unaffected
+  - `.github/actions/build-suews/action.yml` carries a breadcrumb for the follow-up CI matrix split; this PR registers and applies markers only, no CI behaviour change
+- [change][experimental] Collapse wheel-build matrix via abi3 and retire the UMEP (NumPy<2) variant (#1299)
+  - One cp39-abi3 wheel per (OS, arch) now covers cp39..cp3xx (standard nightly: 24 → 4 build jobs); enabled by `tool.meson-python.limited-api = true` plus the Rust bridge's PyO3 `abi3-py39` ABI
+  - Loosened runtime pin to `numpy>=1.22` so the same wheel installs cleanly into QGIS 3 LTR (NumPy 1.26.4), QGIS 4 (NumPy 2.x), and modern Python environments — the compiled extension has no NumPy C-ABI dependency, so the separate UMEP variant is no longer needed
+  - Removed the `BUILD_UMEP_VARIANT` / `rc1` code path in `get_ver_git.py` and the `retag_umep` CI job; `deploy_pypi` now publishes one wheel per platform
+  - Pinned `meson>=1.3.0` in `[build-system].requires` and `meson_version` (root `meson.build`) so a stale local meson fails fast rather than silently dropping the abi3 tag
+  - Added `test_bridge_loading` CI job that installs the single abi3 wheel into cp39..cp3xx and runs `pytest -m smoke_bridge`; gated into `pr-gate`, `deploy_testpypi`, and `deploy_pypi` so a failing cross-CPython smoke blocks publication
 
 ### 17 Apr 2026
 
 - [feature][experimental] Activated moisture-aware LAI phenology numerics (`LAIType = 2`) with the Design C formulation (#1292). Replaces the PR1 no-op branch with (a) a Jarvis-style water-stress factor on `delta_GDD` parametrised by `w_wilt`, `w_opt`, and `f_shape` on dimensionless relative soil water `w = 1 - smd/smdcap`, and (b) a CLM5-style persistence latch (Lawrence et al. 2019) that freezes thermal accumulation when the `tau_w`-day running mean of `w` drops below `w_off` and reopens when it rises above `w_on` while a thermal companion (Tbar >= BaseT_GDD) is met. `PHENOLOGY_STATE.leaf_on_permitted` now defaults to true so well-watered sites do not spend `tau_w` days ramping up, and `wbar_id` is seeded from the first measured `w` on the first call. Default moisture thresholds (`w_wilt = 0.15`, `w_opt = 0.40`, `w_on = 0.35`, `w_off = 0.20`) degrade gracefully to thermal-only behaviour at well-watered sites -- the bundled London sample is bit-identical to `LAIType = 0`. Aggressive thresholds or depleted soil-store initial conditions produce the expected strictly lower LAI; a dry-start regression test locks in the spring green-up delay. Calibration against FLUXNET2015 dryland / monsoon sites is deferred to a follow-up. Internal design note: `dev-ref/design-notes/gh1292-moisture-phenology.md`.
 - [feature][experimental] Added scaffolding for moisture-aware LAI phenology (`LAIType = 2`) behind a new per-vegetation-surface switch (#1292). Extends `LAI_PRM` with six parameter slots (`w_wilt`, `w_opt`, `f_shape`, `w_on`, `w_off`, `tau_w`) and `PHENOLOGY_STATE` with three per-veg-surface state slots (`wbar_id`, `w_id_prev`, `leaf_on_permitted`); bumps the Rust/C bridge schema for `LAI_PRM`, `PHENOLOGY_STATE`, `LC_DECTR_PRM`, `LC_EVETR_PRM`, `LC_GRASS_PRM` to version 2. The `LAIType = 2` branch is a no-op that reproduces `LAIType = 0` bit-identically in this release -- Design C numerics (Jarvis water-stress factor plus CLM5-style persistence trigger) land in a later PR. Internal design note: `dev-ref/design-notes/gh1292-moisture-phenology.md`.
+- [maintenance] Remove NumPy build-time dependency (post-f2py cleanup) (#1298)
 - [maintenance] Enforce numpy-style docstrings via ruff `D` rules (#1294)
   - Removed D100-D105/D107 from the global gradual-adoption ignore list in `.ruff.toml`
   - Parked legacy docstring debt in `[lint.per-file-ignores]` (78 files) so new code is held to the rule

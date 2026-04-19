@@ -66,6 +66,7 @@ py.install_sources(
             'util/converter/table/profile_manager.py',
             'util/converter/table/rules.csv',
             'util/converter/yaml.py',
+            'util/converter/yaml_upgrade.py',
         ],
         [
             'sample_data/sample_config.yml',
@@ -195,16 +196,16 @@ build_suews = custom_target(
 rust_bridge_enabled = get_option('with_rust_bridge')
 if rust_bridge_enabled
     find_program('cargo', required: true)
-    rust_bridge_ext_suffix = run_command(
-        py,
-        '-c',
-        'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX") or ".so")',
-        check: true,
-    ).stdout().strip()
-    rust_bridge_ext_name = 'suews_bridge' + rust_bridge_ext_suffix
-    rust_bridge_cli_name = 'suews'
+    # abi3 filename: one wheel covers cp39..cp3xx. The PyO3 feature
+    # abi3-py39 makes the cargo artefact itself ABI-stable; the filename
+    # just needs to be Python-version-agnostic so meson-python tags the
+    # wheel cp39-abi3-<plat> rather than cp313-cp313-<plat>.
     if host_machine.system() == 'windows'
+        rust_bridge_ext_name = 'suews_bridge.pyd'
         rust_bridge_cli_name = 'suews.exe'
+    else
+        rust_bridge_ext_name = 'suews_bridge.abi3.so'
+        rust_bridge_cli_name = 'suews'
     endif
 
     rust_bridge_artifacts = custom_target(

@@ -14,6 +14,8 @@ from conftest import (
     debug_on_ci,
 )
 
+pytestmark = pytest.mark.api
+
 
 class TestResampleOutput:
     """Test suite for resample_output functionality."""

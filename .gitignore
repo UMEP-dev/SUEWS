@@ -582,6 +582,7 @@ quick-test.py
 # Only ignore local settings and truly temporary files
 .claude/settings.local.json
 .claude/workspace/temp-*
+.claude/scheduled_tasks.lock
 
 # auto-generated files for building docs
 docs/schema.json

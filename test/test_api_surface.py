@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.api
+
 # Files to skip when scanning for imports
 _SKIP_FILES = {"conftest.py", "debug_utils.py", "__init__.py"}
 
@@ -64,6 +66,7 @@ def _format_report(failures):
 
 
 @pytest.mark.smoke
+@pytest.mark.smoke_bridge
 def test_all_test_imports_resolve():
     """Verify every supy import used in tests actually exists."""
     test_root = Path(__file__).parent

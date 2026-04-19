@@ -25,6 +25,8 @@ from supy.data_model import (
 )
 from supy.data_model.core.model import ModelControl
 
+pytestmark = pytest.mark.api
+
 
 class TestSUEWSConfig(unittest.TestCase):
     def setUp(self):

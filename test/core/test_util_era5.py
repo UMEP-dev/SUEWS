@@ -7,6 +7,8 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 from supy.util._era5 import gen_forcing_era5, download_era5_timeseries
 
+pytestmark = pytest.mark.api
+
 
 def has_cds_credentials():
     """Check if CDS API credentials are configured."""

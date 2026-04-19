@@ -177,13 +177,15 @@ git push origin "$VERSION"
 git tag -d "$VERSION" && git push origin ":refs/tags/$VERSION"
 ```
 
-## Dual-Build System
+## Single Wheel per Platform
 
-Each tag triggers two PyPI uploads via GitHub Actions:
-- `YYYY.M.D` - Standard build (NumPy ≥2.0, modern environments)
-- `YYYY.M.Drc1` - UMEP build (NumPy 1.x compatibility for QGIS plugin)
+Each tag triggers one PyPI upload per platform via GitHub Actions:
+- `YYYY.M.D` - cp39-abi3 wheel (installs on cp39..cp3xx)
 
-The `rc1` variant is created automatically by the `build_umep` workflow - no manual RC tagging required for standard releases.
+The runtime pin is `numpy>=1.22`, so the same wheel works in QGIS 3 LTR
+(NumPy 1.26.4), QGIS 4 (NumPy 2.x), and any modern Python environment.
+The UMEP (`rc1`) variant was retired in 2026-04 once the Rust bridge
+removed all NumPy C-ABI dependencies.
 
 ## References
 

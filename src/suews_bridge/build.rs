@@ -149,6 +149,10 @@ fn main() {
             "-O2",
             "-fPIC",
             "-ffree-line-length-none",
+            // Each subroutine call gets its own stack frame, enabling
+            // concurrent calls from Rayon threads without "Recursive call
+            // to nonrecursive procedure" errors.
+            "-frecursive",
             // Initialise all local variables to zero/false: prevents segfaults
             // from uninitialised derived-type descriptors under gfortran 14+
             // which uses a different stack layout than gfortran 10.

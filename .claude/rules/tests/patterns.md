@@ -62,6 +62,47 @@ with pytest.raises(ValueError, match="must be positive"):
 
 ## Pytest Markers
 
+Markers sit on two orthogonal axes (gh#1300). Every new test file **must**
+declare the nature axis at module level; tier markers compose on top as
+per-test decorators.
+
+### Nature axis — REQUIRED on every file
+
+Pick exactly one (or both, rarely) and declare at module level:
+
+```python
+import pytest
+
+pytestmark = pytest.mark.api        # Python wrapper surface
+# or:
+pytestmark = pytest.mark.physics    # numerical / binary correctness
+# or (file straddles both):
+pytestmark = [pytest.mark.physics, pytest.mark.api]
+```
+
+- `physics` — outputs determined by the compiled artefact + CPU
+  floating-point. CI runs these once per `(OS, arch)` on the build
+  Python. Typical: mass/energy balance, DailyState accumulation, Fortran
+  state persistence.
+- `api` — exercises the pandas / numpy / pydantic / click surface. CI
+  runs these across `(platform x Python)` because the dependency
+  surface varies per interpreter. Typical: config validation, CLI, YAML
+  round-trip, `SUEWSSimulation` methods.
+
+When unsure, pick `api` — it's the broader coverage axis and safer if
+the test is genuinely mixed.
+
+UMEP tests (`test/umep/*.py`) pick up `api` automatically via
+`test/umep/conftest.py`; no file-level declaration needed there.
+
+**A static CI lint (`scripts/lint/check_test_markers.py`) and a
+`pytest_collection_finish` hook in `test/conftest.py` both fail any PR
+that introduces a test file without a nature marker.** If you see the
+lint fire, add a `pytestmark = pytest.mark.api` (or physics) line — do
+not bypass.
+
+### Tier axis — per-test decorators
+
 ```python
 @pytest.mark.smoke   # Critical, fast tests (~60s total)
 @pytest.mark.core    # Core physics/logic tests
@@ -69,6 +110,10 @@ with pytest.raises(ValueError, match="must be positive"):
 @pytest.mark.util    # Utility function tests (non-critical)
 @pytest.mark.cfg     # Config/schema validation tests
 ```
+
+The tier axis composes with the nature axis. CI expressions like
+`-m "api and smoke"` and `-m "physics and not slow"` select the right
+subset per matrix cell.
 
 ---
 

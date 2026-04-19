@@ -493,11 +493,15 @@ CONTAINS
                zd_RSL = zdm
                IF (IEEE_IS_NAN(z0_RSL) .OR. z0_RSL <= 0D0) THEN
                   z0_RSL = MAX(z0m_in, 0.03D0)
-                  CALL add_supy_warning('RSLProfile: invalid MOST roughness length, using site z0m_in')
+                  CALL modState%errorstate%report( &
+                     message='RSLProfile: invalid MOST roughness length, using site z0m_in', &
+                     location='RSLProfile', is_fatal=.FALSE.)
                END IF
                IF (IEEE_IS_NAN(zd_RSL) .OR. zd_RSL < 0D0) THEN
                   zd_RSL = MAX(zdm_in, 0D0)
-                  CALL add_supy_warning('RSLProfile: invalid MOST displacement height, using site zdm_in')
+                  CALL modState%errorstate%report( &
+                     message='RSLProfile: invalid MOST displacement height, using site zdm_in', &
+                     location='RSLProfile', is_fatal=.FALSE.)
                END IF
 
                ! Generate MOST height array from sanitised roughness values

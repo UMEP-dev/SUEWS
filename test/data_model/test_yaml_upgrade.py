@@ -24,6 +24,8 @@ from supy.util.converter.yaml_upgrade import (
     upgrade_yaml,
 )
 
+pytestmark = pytest.mark.api
+
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 RELEASE_FIXTURE = (
     REPO_ROOT / "test" / "fixtures" / "release_configs" / "2026.4.3.yml"

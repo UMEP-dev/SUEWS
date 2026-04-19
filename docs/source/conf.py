@@ -522,13 +522,6 @@ else:
 # so a file named "default.css" will overwrite the builtin "default.css".
 #
 html_static_path = ["_static"]
-
-# Extra files copied verbatim into the output root (e.g. dev-note dashboards).
-# Anything under _extra/ appears at the site root preserving its path,
-# e.g. docs/source/_extra/dev-notes/<slug>/dashboard.html ->
-#      docs.suews.io/dev-notes/<slug>/dashboard.html
-html_extra_path = ["_extra"]
-
 # html_context = {
 #     'css_files': [
 #         '_static/theme_overrides.css',  # override wide tables in RTD theme

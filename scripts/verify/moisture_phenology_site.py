@@ -96,19 +96,13 @@ def ensure_cached_forcing(site: str, archive: Path) -> Path:
 
 
 def load_forcing(path: Path, year: int | None) -> pd.DataFrame:
-    """Read the whitespace-separated FLUXNET forcing file into a DataFrame."""
+    """Read the FLUXNET forcing file using SuPy's datetime-aware parser."""
 
-    df = pd.read_csv(path, sep=r"\s+")
-    df["datetime"] = pd.to_datetime(
-        df["iy"].astype(int) * 100000
-        + df["id"].astype(int) * 100
-        + df["it"].astype(int)
-        + df["imin"].astype(int) / 60.0,
-        format="%Y%j%H",
-        errors="coerce",
-    )
+    from supy.util import read_forcing
+
+    df = read_forcing(str(path), tstep_mod=300).copy()
     if year is not None:
-        df = df[df["iy"] == year]
+        df = df[df.index.year == year]
     if df.empty:
         raise ValueError(
             "forcing file has no rows for the requested year; check --year value"
@@ -116,8 +110,13 @@ def load_forcing(path: Path, year: int | None) -> pd.DataFrame:
     return df
 
 
-def run_scenario(laitype: int) -> pd.DataFrame:
-    """Run SUEWS with the bundled sample config after overriding laitype on all veg surfaces."""
+def run_scenario(
+    laitype: int,
+    forcing: pd.DataFrame,
+    start_date: pd.Timestamp,
+    end_date: pd.Timestamp,
+) -> pd.DataFrame:
+    """Run SUEWS with the requested forcing after overriding laitype on all veg surfaces."""
 
     # Imported lazily so this script can surface a clean error if supy is missing.
     from supy import SUEWSSimulation
@@ -127,8 +126,8 @@ def run_scenario(laitype: int) -> pd.DataFrame:
     for col in LAI_TYPE_COLS:
         state.loc[:, col] = laitype
     scenario = SUEWSSimulation.from_state(state)
-    scenario.update_forcing(sim.forcing)
-    output = scenario.run()
+    scenario.update_forcing(forcing)
+    output = scenario.run(start_date=start_date, end_date=end_date)
     df = output.SUEWS[["LAI"]].copy()
     df.columns = ["LAI"]
     return df
@@ -177,13 +176,15 @@ def main() -> int:
     archive = args.archive
     forcing_path = ensure_cached_forcing(args.site, archive)
     forcing = load_forcing(forcing_path, args.year)
-    obs_lai = forcing.set_index("datetime")["lai"].replace(-999.0, np.nan)
+    start_date = forcing.index.min()
+    end_date = forcing.index.max()
+    obs_lai = forcing["lai"].replace(-999.0, np.nan)
     obs_lai = obs_lai[~obs_lai.index.duplicated(keep="first")].dropna()
 
     results: Dict[str, pd.Series] = {}
     metrics: Dict[str, Dict[str, float]] = {}
     for laitype in LAI_TYPE_VARIANTS:
-        lai_df = run_scenario(laitype)
+        lai_df = run_scenario(laitype, forcing, start_date, end_date)
         lai_series = lai_df["LAI"]
         # Drop pandas multi-index grid level if present so we can align with observations.
         if isinstance(lai_series.index, pd.MultiIndex):

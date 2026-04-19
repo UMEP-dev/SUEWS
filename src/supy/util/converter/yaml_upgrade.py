@@ -28,7 +28,16 @@ from ...data_model.schema.migration import SchemaMigrator
 # they shipped with. Extend when a release bumps `CURRENT_SCHEMA_VERSION`.
 # ---------------------------------------------------------------------------
 
+# Pre-#1261 releases (2026.1.x, 2026.2.x, 2026.3.x) labelled their shape
+# under the same `2025.12` schema umbrella but used the pre-split
+# `HeatingSetpointTemperature` / `CoolingSetpointTemperature` profile-shaped
+# fields. We retrofit a dedicated `2026.1` schema label so the dispatch can
+# distinguish those YAMLs from the post-#1261 shape that ships in 2026.4.x.
+_SCHEMA_PRE_SETPOINT_SPLIT = "2026.1"
+
 _PACKAGE_TO_SCHEMA: dict[str, str] = {
+    "2026.1.28": _SCHEMA_PRE_SETPOINT_SPLIT,
+    "2026.1.28.dev0": _SCHEMA_PRE_SETPOINT_SPLIT,
     "2026.4.3": "2025.12",
 }
 
@@ -70,11 +79,78 @@ def _identity(cfg: dict) -> dict:
     return _strip_internal_only_fields(cfg)
 
 
+_PROFILE_RENAME_PAIRS: tuple[tuple[str, float], ...] = (
+    ("HeatingSetpointTemperature", 18.0),
+    ("CoolingSetpointTemperature", 27.0),
+)
+
+
+def _split_profile_fields(building_archetype: dict) -> dict:
+    """Split pre-#1261 profile-shaped setpoint fields into scalar + Profile.
+
+    Before PR #1261, `HeatingSetpointTemperature` / `CoolingSetpointTemperature`
+    held a `{working_day, holiday}` day-profile dict. After the split the
+    scalar field carries a single temperature and the schedule moves to a new
+    `*Profile` sibling. This function keeps the user's hourly values intact by
+    relocating them and synthesising a scalar from the first working-day
+    value (falling back to a schema-default if the profile is absent).
+    """
+    if not isinstance(building_archetype, dict):
+        return building_archetype
+    for name, default_scalar in _PROFILE_RENAME_PAIRS:
+        old = building_archetype.get(name)
+        if not isinstance(old, dict):
+            continue
+        if "working_day" not in old and "holiday" not in old:
+            continue
+        building_archetype[name + "Profile"] = old
+        scalar = default_scalar
+        working_day = old.get("working_day")
+        if isinstance(working_day, dict) and working_day:
+            first_value = next(iter(working_day.values()), None)
+            if isinstance(first_value, (int, float)):
+                scalar = float(first_value)
+        building_archetype[name] = {"value": scalar}
+    return building_archetype
+
+
+def _migrate_pre_setpoint_split_to_2025_12(cfg: dict) -> dict:
+    """Upgrade pre-#1261 YAMLs to the current `2025.12` schema.
+
+    The STEBBS setpoint split (gh#1261) renamed two building-archetype
+    day-profile fields. This handler:
+
+    * moves each profile-shaped `HeatingSetpointTemperature` /
+      `CoolingSetpointTemperature` into a new `*Profile` sibling,
+    * replaces the original key with the scalar form now required by the
+      validator (seeded from the first working-day entry so downstream
+      `setpointmethod=0` users get a sensible constant), and
+    * records `model.physics.setpointmethod = 2` (SCHEDULED) so the migrated
+      run honours the supplied hourly profile by default.
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    for site in cfg.get("sites", []) or []:
+        if not isinstance(site, dict):
+            continue
+        props = site.get("properties")
+        if not isinstance(props, dict):
+            continue
+        arch = props.get("building_archetype")
+        if isinstance(arch, dict):
+            _split_profile_fields(arch)
+    physics = cfg.setdefault("model", {}).setdefault("physics", {})
+    physics["setpointmethod"] = {"value": 2}
+    return cfg
+
+
 _HANDLERS: dict[tuple[str, str], Handler] = {
     # Identity at the current schema is explicit so the dispatch completes
     # even when no real upgrade is needed. Future (from, to) handlers go
     # alongside this entry keyed by their schema versions.
     (CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION): _identity,
+    (_SCHEMA_PRE_SETPOINT_SPLIT, CURRENT_SCHEMA_VERSION): (
+        _migrate_pre_setpoint_split_to_2025_12
+    ),
 }
 
 

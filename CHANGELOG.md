@@ -56,6 +56,10 @@ EXAMPLES:
 
 ### 19 Apr 2026
 
+- [feature][experimental] Register `2026.1.28 -> 2025.12` YAML upgrade handler (#1304)
+  - New handler `_migrate_pre_setpoint_split_to_2025_12` in `src/supy/util/converter/yaml_upgrade.py` migrates profile-shaped `HeatingSetpointTemperature` / `CoolingSetpointTemperature` fields (pre-#1261) into the post-split `*Profile` + scalar pair, and sets `model.physics.setpointmethod = 2` (SCHEDULED) to preserve the user's profile intent
+  - Added vendored release fixture `test/fixtures/release_configs/2026.1.28.yml` (captured from tag `2026.1.28`) and a new `TestReleaseCompat.test_pre_drift_release_upgrades_and_parses` guard that asserts every pre-drift fixture upgrades cleanly and then parses under the current validator
+  - Retrofit schema label `2026.1` for pre-#1261 YAMLs; registered in `_PACKAGE_TO_SCHEMA` for release tags `2026.1.28` and `2026.1.28.dev0`
 - [maintenance] Split CI matrix on the physics/api marker axis (#1300)
   - `CIBW_TEST_COMMAND` now runs `-m "physics and <tier>"` on the build Python only; physics tests are binary-determined, so one run per `(OS, arch)` is sufficient
   - New reusable workflow `test-api-cross-python-reusable.yml` runs `-m "api and <tier>"` across the cross-CPython matrix (BOOKEND for PRs, ALL for nightly/tag); picks up the Python wrapper surface variations that vary per interpreter

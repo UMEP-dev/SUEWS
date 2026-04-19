@@ -30,6 +30,9 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 RELEASE_FIXTURE = (
     REPO_ROOT / "test" / "fixtures" / "release_configs" / "2026.4.3.yml"
 )
+PRE_DRIFT_FIXTURE = (
+    REPO_ROOT / "test" / "fixtures" / "release_configs" / "2026.1.28.yml"
+)
 
 
 @pytest.fixture
@@ -208,3 +211,47 @@ class TestYamlUpgradeCli:
         # legacy flags are given.
         assert result.exit_code == 0
         assert "yaml-upgrade" in result.output
+
+
+@pytest.mark.cfg
+class TestPreSetpointSplitMigration:
+    """Handler behaviour for the gh#1261 STEBBS setpoint split (release 2026.1.28)."""
+
+    def test_pre_drift_fixture_upgrades_to_current_schema(self, tmp_path: Path):
+        """The vendored 2026.1.28 fixture must upgrade cleanly under the handler."""
+        # ARRANGE
+        assert PRE_DRIFT_FIXTURE.exists(), PRE_DRIFT_FIXTURE
+        upgraded = tmp_path / "upgraded.yml"
+
+        # ACT
+        upgrade_yaml(
+            input_path=PRE_DRIFT_FIXTURE,
+            output_path=upgraded,
+            from_ver="2026.1.28",
+        )
+
+        # ASSERT: stamped schema version + renamed profile fields present
+        payload = yaml.safe_load(upgraded.read_text(encoding="utf-8"))
+        assert payload["schema_version"] == CURRENT_SCHEMA_VERSION
+        arch = payload["sites"][0]["properties"]["building_archetype"]
+        assert "HeatingSetpointTemperatureProfile" in arch
+        assert "CoolingSetpointTemperatureProfile" in arch
+        assert isinstance(arch["HeatingSetpointTemperature"], dict)
+        assert "value" in arch["HeatingSetpointTemperature"]
+        # Profile intent is preserved by defaulting setpointmethod to SCHEDULED=2
+        assert payload["model"]["physics"]["setpointmethod"]["value"] == 2
+
+    def test_upgraded_pre_drift_fixture_validates(self, tmp_path: Path):
+        """Running the handler's output through SUEWSConfig.from_yaml must succeed."""
+        # ARRANGE
+        upgraded = tmp_path / "upgraded.yml"
+
+        # ACT
+        upgrade_yaml(
+            input_path=PRE_DRIFT_FIXTURE,
+            output_path=upgraded,
+            from_ver="2026.1.28",
+        )
+
+        # ASSERT
+        SUEWSConfig.from_yaml(str(upgraded))

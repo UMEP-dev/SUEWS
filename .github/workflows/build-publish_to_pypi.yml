@@ -65,10 +65,10 @@ on:
         type: boolean
         default: true
 
-      # Python toggles drive the cross-CPython bridge-loading test matrix.
+      # Python toggles drive the cross-CPython api-test matrix (gh#1300).
       # The build is always cp39-abi3 (one wheel covers all supported CPythons),
-      # so these toggles only affect which interpreters install and import the
-      # wheel under -m smoke_bridge.
+      # so these toggles only affect which interpreters install the wheel and
+      # run `-m "api and <tier>"` in test_api_cross_python.
       py39:
         description: '[custom] Test on Python 3.9 (build is always cp39-abi3)'
         type: boolean
@@ -280,7 +280,7 @@ jobs:
     outputs:
       buildplat: ${{ steps.set-matrix.outputs.buildplat }}
       python: ${{ steps.set-matrix.outputs.python }}
-      test_python: ${{ steps.set-matrix.outputs.test_python }}
+      api_python: ${{ steps.set-matrix.outputs.api_python }}
       test_tier: ${{ steps.set-matrix.outputs.test_tier }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -380,21 +380,50 @@ jobs:
       test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
       is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
 
-  test_bridge_loading:
-    name: Cross-CPython bridge tests
+  test_api_cross_python:
+    name: API cross-CPython tests
     needs: [determine_matrix, build_wheels]
     if: always() && needs.build_wheels.result == 'success'
-    uses: ./.github/workflows/test-bridge-reusable.yml
+    uses: ./.github/workflows/test-api-cross-python-reusable.yml
     with:
       buildplat_json: ${{ needs.determine_matrix.outputs.buildplat }}
-      test_python_json: ${{ needs.determine_matrix.outputs.test_python }}
+      api_python_json: ${{ needs.determine_matrix.outputs.api_python }}
+      test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
+
+  # Standalone lint: every test file must declare `physics` or `api`
+  # (gh#1300). Uses a static AST-based script so CI can verify marker
+  # coverage without building supy — keeps the check cheap for
+  # test-only PRs. The runtime counterpart is a pytest_collection_finish
+  # hook in test/conftest.py, which catches the same thing during normal
+  # full-tree pytest runs.
+  check_test_markers:
+    name: Check pytest marker axis
+    runs-on: ubuntu-latest
+    if: >-
+      always() &&
+      (github.event_name == 'pull_request' ||
+       github.event_name == 'merge_group' ||
+       github.event_name == 'schedule' ||
+       github.event_name == 'workflow_dispatch')
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Lint physics/api marker coverage
+        shell: bash
+        run: python scripts/lint/check_test_markers.py
 
   # Single consolidated check for branch protection (always runs for PRs/merge queue)
   pr-gate:
     name: PR build validation
     runs-on: ubuntu-latest
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
-    needs: [build_wheels, test_bridge_loading, detect-changes]
+    needs: [build_wheels, test_api_cross_python, check_test_markers, detect-changes]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -406,7 +435,8 @@ jobs:
         env:
           DETECT_CHANGES_RESULT: ${{ needs.detect-changes.result }}
           BUILD_WHEELS_RESULT: ${{ needs.build_wheels.result }}
-          TEST_BRIDGE_RESULT: ${{ needs.test_bridge_loading.result }}
+          TEST_BRIDGE_RESULT: ${{ needs.test_api_cross_python.result }}
+          CHECK_MARKERS_RESULT: ${{ needs.check_test_markers.result }}
           NEEDS_BUILD: ${{ needs.detect-changes.outputs.needs-build }}
         run: bash .github/scripts/pr-gate.sh
 
@@ -416,17 +446,17 @@ jobs:
     needs:
       - determine_matrix
       - build_wheels
-      - test_bridge_loading
+      - test_api_cross_python
       - create_nightly_tag
       - verify-release-tag
     # Publish only when every platform wheel built AND the cross-CPython
-    # bridge smoke passed on every matrix cell. A partial build (one leg
-    # fails) would leave test_bridge_loading skipped; allowing that would
-    # ship un-validated wheels, so both must be explicit successes.
+    # api tests passed on every matrix cell. A partial build (one leg
+    # fails) would leave test_api_cross_python skipped; allowing that
+    # would ship un-validated wheels, so both must be explicit successes.
     if: |
       always() &&
       needs.build_wheels.result == 'success' &&
-      needs.test_bridge_loading.result == 'success' &&
+      needs.test_api_cross_python.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true') &&
       (
@@ -459,18 +489,18 @@ jobs:
     needs:
       - determine_matrix
       - build_wheels
-      - test_bridge_loading
+      - test_api_cross_python
       - create_nightly_tag
       - verify-release-tag
-    # Production tags only: all platform wheels must succeed AND the cross-CPython
-    # bridge-loading smoke must pass (the only signal the cp39-abi3 wheel imports
-    # on cp310..cp314 after the build matrix collapse).
+    # Production tags only: all platform wheels must succeed AND the
+    # cross-CPython api tests must pass (the only signal the cp39-abi3
+    # wheel imports on cp310..cp314 after the build matrix collapse).
     if: |
       always() &&
       startsWith(github.ref, 'refs/tags') &&
       !contains(github.ref, 'dev') &&
       needs.build_wheels.result == 'success' &&
-      needs.test_bridge_loading.result == 'success' &&
+      needs.test_api_cross_python.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true')
 

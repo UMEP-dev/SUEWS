@@ -157,26 +157,24 @@ runs:
           pip install delvewheel
         CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
         CIBW_TEST_REQUIRES: pytest
-        # Test tiers: choose subset based on path detection and trigger
-        # Always include --durations=10 to show slowest tests in output
+        # Test tiers: choose subset based on path detection and trigger.
+        # gh#1300: physics tests are binary-determined, so one run per
+        # (OS, arch) on the build Python is sufficient. API tests (Python
+        # wrapper surface) run separately per (platform x Python) via
+        # test-api-cross-python-reusable.yml.
+        # Always include --durations=10 to show slowest tests in output.
         # After pytest, enforce bridge-manifest coverage of public Fortran types.
         # Uses run_ci_tests.py wrapper to avoid shell-level && chaining,
         # which breaks on Windows cmd.exe with quoted marker expressions.
-        # gh#1300: the expressions below compose tier markers only. A
-        # follow-up PR splits the matrix on the `physics` vs `api` nature
-        # axis — `physics` runs once per (OS, arch) on the canonical
-        # Python while `api` runs per (platform x Python). No behaviour
-        # change here yet; the new markers are registered in
-        # pyproject.toml and applied to every test file, ready to be
-        # consumed when the matrix split lands.
         CIBW_TEST_COMMAND: >-
           python {project}/scripts/suews/run_ci_tests.py {project}
           -v --tb=short --durations=10
-          ${{ inputs.test_tier == 'smoke' && '-m smoke' ||
-              inputs.test_tier == 'core' && '-m "smoke or core"' ||
-              inputs.test_tier == 'cfg' && '-m "smoke or cfg"' ||
-              inputs.test_tier == 'standard' && '-m "not slow"' ||
-              '' }}
+          ${{ inputs.test_tier == 'smoke' && '-m "physics and smoke"' ||
+              inputs.test_tier == 'core' && '-m "physics and (smoke or core)"' ||
+              inputs.test_tier == 'cfg' && '-m "physics and (smoke or cfg)"' ||
+              inputs.test_tier == 'standard' && '-m "physics and not slow"' ||
+              inputs.test_tier == 'all' && '-m physics' ||
+              '-m physics' }}
         MACOSX_DEPLOYMENT_TARGET: '15.0'
 
     - name: Upload wheels

@@ -2,11 +2,15 @@
 # Determine the cibuildwheel build matrix based on trigger type and change detection.
 #
 # Called from build-publish_to_pypi.yml determine_matrix job.
-# Writes buildplat, python, test_python, test_tier to GITHUB_OUTPUT.
+# Writes buildplat, python, api_python, test_tier to GITHUB_OUTPUT.
 #
 # "python" is the cibuildwheel build matrix (always cp39 — emits one abi3
-# wheel per platform). "test_python" is the cross-version bridge-loading
-# matrix (BOOKEND for PRs, ALL for nightly/tag).
+# wheel per platform). Physics tests run during the build step on the
+# build Python only, since they're binary-determined (gh#1300).
+# "api_python" is the cross-version matrix used by test-api-cross-python;
+# the api marker covers the Python wrapper surface (pandas/numpy/pydantic,
+# CLI, SUEWSSimulation) and needs full (platform x Python) coverage
+# (BOOKEND for PRs, ALL for nightly/tag).
 #
 # Required environment variables:
 #   EVENT_NAME           -- github.event_name
@@ -55,7 +59,7 @@ if [[ "${FORTRAN_CHANGED}" == "true" ]] || [[ "${RUST_CHANGED}" == "true" ]] || 
   NEEDS_MULTIPLATFORM=true
 fi
 
-TEST_PYTHON="$BOOKEND_PYTHON"
+API_PYTHON="$BOOKEND_PYTHON"
 
 if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${IS_DRAFT}" == "true" ]]; then
   if [[ "${FORTRAN_CHANGED}" == "true" ]] || [[ "${RUST_CHANGED}" == "true" ]]; then
@@ -100,7 +104,7 @@ elif [[ "${EVENT_NAME}" == "schedule" ]]; then
   echo "buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=all" >> "$GITHUB_OUTPUT"
-  TEST_PYTHON="$ALL_PYTHON"
+  API_PYTHON="$ALL_PYTHON"
 
 elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
   case "${INPUT_MATRIX_CONFIG}" in
@@ -108,7 +112,7 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
       echo "Manual dispatch: full matrix"
       echo "buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
       echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
-      TEST_PYTHON="$ALL_PYTHON"
+      API_PYTHON="$ALL_PYTHON"
       ;;
     pr)
       echo "Manual dispatch: PR-style reduced matrix"
@@ -122,7 +126,7 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
       ;;
     custom)
       echo "Manual dispatch: custom platform matrix"
-      echo "  Build is always cp39-abi3; py3X toggles select the bridge-test matrix"
+      echo "  Build is always cp39-abi3; py3X toggles select the api cross-CPython matrix"
 
       PLATFORMS="["
       [[ "${INPUT_PLAT_LINUX}" == "true" ]] && PLATFORMS+='["ubuntu-latest", "manylinux", "x86_64"],'
@@ -147,13 +151,13 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
       TEST_PYS="${TEST_PYS%,}]"
 
       if [[ "$TEST_PYS" == "[]" ]]; then
-        echo "::error::Custom matrix requires at least one Python version for bridge tests"
+        echo "::error::Custom matrix requires at least one Python version for api tests"
         exit 1
       fi
 
       echo "buildplat=$PLATFORMS" >> "$GITHUB_OUTPUT"
       echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
-      TEST_PYTHON="$TEST_PYS"
+      API_PYTHON="$TEST_PYS"
       ;;
   esac
   echo "test_tier=${INPUT_TEST_TIER}" >> "$GITHUB_OUTPUT"
@@ -164,11 +168,12 @@ else
   echo "buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=all" >> "$GITHUB_OUTPUT"
-  TEST_PYTHON="$ALL_PYTHON"
+  API_PYTHON="$ALL_PYTHON"
 fi
 
-# Cross-version bridge-loading matrix: BOOKEND for PRs/merge queue, ALL for
-# nightly/tag/dispatch-full. The same single abi3 wheel is installed into
-# each Python version and exercised with -m smoke_bridge.
-echo "test_python=$TEST_PYTHON" >> "$GITHUB_OUTPUT"
+# Cross-version api-test matrix (gh#1300): BOOKEND for PRs/merge queue,
+# ALL for nightly/tag/dispatch-full. The same single abi3 wheel is
+# installed into each Python version and exercised with
+# `-m "api and <tier>"` by test-api-cross-python-reusable.yml.
+echo "api_python=$API_PYTHON" >> "$GITHUB_OUTPUT"
 

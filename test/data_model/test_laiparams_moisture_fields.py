@@ -21,6 +21,8 @@ from supy._check import check_state
 from supy.data_model.core.site import LAIParams
 from supy.data_model.core.type import RefValue
 
+pytestmark = pytest.mark.api
+
 VEG_IDX_EVETR = 0  # LAIParams.to_df_state uses surf_idx - 2, so veg_idx=0 maps to EVETR.
 
 

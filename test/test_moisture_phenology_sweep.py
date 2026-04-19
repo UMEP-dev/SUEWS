@@ -17,6 +17,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.api
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SWEEP_SCRIPT = REPO_ROOT / "scripts" / "verify" / "moisture_phenology_sweep.py"
 

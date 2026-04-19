@@ -27,6 +27,8 @@ import pytest
 
 from supy import SUEWSSimulation
 
+pytestmark = pytest.mark.physics
+
 LAI_TYPE_COLS = [
     ("laitype", "(0,)"),
     ("laitype", "(1,)"),

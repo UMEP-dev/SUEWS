@@ -9,6 +9,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
+
+pytestmark = pytest.mark.api
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "verify" / "moisture_phenology_site.py"

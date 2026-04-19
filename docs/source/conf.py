@@ -293,6 +293,8 @@ extensions = [
     "sphinx.ext.extlinks",
     "input_domain",  # Custom domain for input configuration options (see GH#1031)
     "output_domain",  # Custom domain for output variables (see GH#1031)
+    "publications_topic_annotate",  # Tags bibliography <li>s with keyword classes for the client-side topic filter
+
     "sphinx_design",  # For collapsible sections, tabs, and dropdowns in YAML config reference
     "sphinx_last_updated_by_git",
     "sphinx_click.ext",
@@ -537,6 +539,16 @@ html_static_path = ["_static"]
 #         '_static/theme_overrides.css',  # override wide tables in RTD theme
 #         ],
 #      }
+
+# Chip-based topic filter for related_publications / community_publications.
+# Paired with the `publications_topic_annotate` extension, which stamps each
+# bibliography <li> with pub-entry + pub-kw-<slug> classes the JS reads.
+html_css_files = [
+    "publications-filter.css",
+]
+html_js_files = [
+    ("publications-filter.js", {"defer": "defer"}),
+]
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.

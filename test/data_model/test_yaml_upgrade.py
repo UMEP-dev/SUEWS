@@ -1,14 +1,14 @@
 """
-Tests for `supy.util.converter.yaml_upgrade` and the `suews-convert yaml-upgrade`
-CLI subcommand (#1304).
+Tests for `supy.util.converter.yaml_upgrade` and the unified
+`suews-convert` CLI (#1304).
 
 Covers:
-  * auto-detect path: no `--from-ver`, source schema read from the file
-  * explicit-override path: `--from-ver` supplied, disagreement warning
-  * missing-signature path: no schema_version in file, no `--from-ver` -> error
+  * auto-detect path: no `-f/--from`, source schema read from the file
+  * explicit-override path: `-f/--from` supplied, disagreement warning
+  * missing-signature path: no schema_version in file, no `-f/--from` -> error
   * round-trip: upgrade then parse under the current validator
-  * CLI wiring: `suews-convert yaml-upgrade --help` lists the subcommand and
-    the legacy `suews-convert -i ... -o ... -f ...` path still dispatches.
+  * CLI wiring: `suews-convert` auto-dispatches YAML input to the upgrader
+    via the shared `-i/-o/-f` flag set.
 """
 
 from pathlib import Path
@@ -104,7 +104,7 @@ class TestYamlUpgradeModule:
 
         # ASSERT
         captured = capsys.readouterr().err
-        assert f"Using user-supplied --from-ver={CURRENT_SCHEMA_VERSION}" in captured
+        assert f"Using user-supplied --from={CURRENT_SCHEMA_VERSION}" in captured
 
     def test_explicit_override_warns_on_disagreement(
         self, signed_yaml: Path, tmp_path: Path, capsys
@@ -134,6 +134,23 @@ class TestYamlUpgradeModule:
         assert "WARNING" in captured
         assert "disagrees with file signature 9.9" in captured
 
+
+    def test_missing_signature_raises_error_message_points_at_from_flag(
+        self, release_yaml: Path, tmp_path: Path
+    ):
+        """The error when no signature is present must point at the `-f` flag."""
+        # ARRANGE
+        cfg = yaml.safe_load(release_yaml.read_text(encoding="utf-8"))
+        for key in ("schema_version", "version", "config_version"):
+            cfg.pop(key, None)
+        release_yaml.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+        out = tmp_path / "upgraded.yml"
+
+        # ACT / ASSERT
+        with pytest.raises(YamlUpgradeError) as excinfo:
+            upgrade_yaml(input_path=release_yaml, output_path=out)
+        assert "-f/--from" in str(excinfo.value)
+
     def test_missing_signature_raises(
         self, release_yaml: Path, tmp_path: Path
     ):
@@ -152,32 +169,22 @@ class TestYamlUpgradeModule:
 
 
 @pytest.mark.cfg
-class TestYamlUpgradeCli:
-    """`suews-convert yaml-upgrade` CLI wiring."""
+class TestSuewsConvertYamlPath:
+    """Unified `suews-convert` CLI routing for YAML inputs."""
 
-    def test_yaml_upgrade_subcommand_in_help(self):
-        """Root `suews-convert --help` must list the new subcommand."""
+    def test_help_describes_yaml_input(self):
+        """Root `suews-convert --help` must advertise the YAML upgrade path."""
         # ARRANGE / ACT
         runner = CliRunner()
         result = runner.invoke(convert_table_cmd, ["--help"])
 
         # ASSERT
         assert result.exit_code == 0
-        assert "yaml-upgrade" in result.output
+        assert ".yml" in result.output
+        assert "YAML" in result.output or "cross-release" in result.output
 
-    def test_yaml_upgrade_subcommand_help(self):
-        """Subcommand `--help` should describe the flags."""
-        # ARRANGE / ACT
-        runner = CliRunner()
-        result = runner.invoke(convert_table_cmd, ["yaml-upgrade", "--help"])
-
-        # ASSERT
-        assert result.exit_code == 0
-        assert "--from-ver" in result.output
-        assert "--assume-yes" in result.output
-
-    def test_yaml_upgrade_end_to_end(self, signed_yaml: Path, tmp_path: Path):
-        """Full CLI invocation: signed YAML in -> upgraded YAML out."""
+    def test_yaml_input_end_to_end(self, signed_yaml: Path, tmp_path: Path):
+        """`suews-convert -i old.yml -o new.yml` routes via `upgrade_yaml`."""
         # ARRANGE
         out = tmp_path / "upgraded.yml"
         runner = CliRunner()
@@ -186,7 +193,6 @@ class TestYamlUpgradeCli:
         result = runner.invoke(
             convert_table_cmd,
             [
-                "yaml-upgrade",
                 "--input",
                 str(signed_yaml),
                 "--output",
@@ -199,18 +205,40 @@ class TestYamlUpgradeCli:
         assert out.exists()
         SUEWSConfig.from_yaml(str(out))  # must still parse
 
-    def test_legacy_invocation_without_subcommand_still_shows_help_for_bare_call(
-        self,
-    ):
+    def test_yaml_input_with_explicit_from(self, tmp_path: Path):
+        """`suews-convert -f <release-tag>` drives the upgrade path for YAML."""
+        # ARRANGE
+        assert PRE_DRIFT_FIXTURE.exists()
+        out = tmp_path / "upgraded.yml"
+        runner = CliRunner()
+
+        # ACT
+        result = runner.invoke(
+            convert_table_cmd,
+            [
+                "--input",
+                str(PRE_DRIFT_FIXTURE),
+                "--output",
+                str(out),
+                "--from",
+                "2026.1.28",
+            ],
+        )
+
+        # ASSERT
+        assert result.exit_code == 0, result.output
+        SUEWSConfig.from_yaml(str(out))
+
+    def test_bare_invocation_shows_help(self):
         """`suews-convert` with no flags should exit cleanly showing help."""
         # ARRANGE / ACT
         runner = CliRunner()
         result = runner.invoke(convert_table_cmd, [])
 
-        # ASSERT: the group prints help and exits 0 when no subcommand and no
-        # legacy flags are given.
+        # ASSERT: the command prints help and exits 0 when no flags are given.
         assert result.exit_code == 0
-        assert "yaml-upgrade" in result.output
+        assert "-i" in result.output
+        assert ".yml" in result.output
 
 
 @pytest.mark.cfg

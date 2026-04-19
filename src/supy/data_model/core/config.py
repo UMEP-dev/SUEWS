@@ -3667,8 +3667,8 @@ class SUEWSConfig(BaseModel):
 
         `had_signature` carries whether the source YAML actually shipped a
         `schema_version` field. It is forwarded to `_drift_hint` so unsigned
-        YAMLs get a hint that asks for `-f/--from-ver <release-tag>` rather
-        than a bare `yaml-upgrade` command that the CLI would reject.
+        YAMLs get a hint that asks for `-f/--from <release-tag>` rather
+        than a bare `suews-convert` invocation that the CLI would reject.
         """
 
         # Extract GRIDID mapping from sites
@@ -3765,17 +3765,14 @@ class SUEWSConfig(BaseModel):
             except Exception:  # noqa: BLE001 - detection is best-effort
                 detected = "unspecified"
             detected_line = f"  Detected schema version: {detected}\n"
-            upgrade_cmd = (
-                "suews-convert yaml-upgrade -i <old.yml> -o <new.yml>"
-            )
+            upgrade_cmd = "suews-convert -i <old.yml> -o <new.yml>"
         else:
             detected_line = (
                 "  No schema_version field in YAML "
                 "(predates schema versioning).\n"
             )
             upgrade_cmd = (
-                "suews-convert yaml-upgrade -i <old.yml> -o <new.yml> "
-                "-f <release-tag>"
+                "suews-convert -i <old.yml> -o <new.yml> -f <release-tag>"
             )
 
         return (

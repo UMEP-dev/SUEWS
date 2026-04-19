@@ -56,6 +56,10 @@ EXAMPLES:
 
 ### 19 Apr 2026
 
+- [change][experimental] Consolidate `suews-convert` under a single unified entry point (#1304)
+  - Dropped the `yaml-upgrade` subcommand introduced in #1306; the top-level `suews-convert -i <in> -o <out> [-f <from>]` now auto-detects the input type from the file extension and dispatches to the table/`df_state`/YAML-upgrade path accordingly. Output is always a current-schema YAML, regardless of the source format
+  - `-f/--from` loses the `click.Choice(list_ver_from)` constraint so the same flag can carry a table release (`2024a`), a supy release tag (`2026.1.28`) or a schema version (`2025.12`); per-input validation moved into the command body
+  - Loader drift hint in `SUEWSConfig.from_yaml` updated to `suews-convert -i <old.yml> -o <new.yml> [-f <release-tag>]`
 - [feature][experimental] Register `2026.1.28 -> 2025.12` YAML upgrade handler (#1304)
   - New handler `_migrate_pre_setpoint_split_to_2025_12` in `src/supy/util/converter/yaml_upgrade.py` migrates profile-shaped `HeatingSetpointTemperature` / `CoolingSetpointTemperature` fields (pre-#1261) into the post-split `*Profile` + scalar pair, and sets `model.physics.setpointmethod = 2` (SCHEDULED) to preserve the user's profile intent
   - Added vendored release fixture `test/fixtures/release_configs/2026.1.28.yml` (captured from tag `2026.1.28`) and a new `TestReleaseCompat.test_pre_drift_release_upgrades_and_parses` guard that asserts every pre-drift fixture upgrades cleanly and then parses under the current validator

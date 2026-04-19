@@ -206,7 +206,6 @@ def upgrade_yaml(
     input_path: str | Path,
     output_path: str | Path,
     from_ver: str | None = None,
-    assume_yes: bool = False,
 ) -> None:
     """Upgrade a YAML configuration written for an earlier release.
 
@@ -219,9 +218,6 @@ def upgrade_yaml(
     from_ver : str, optional
         Source schema version or release tag. When omitted, the source version
         is auto-detected from the YAML's `schema_version` / `version` field.
-    assume_yes : bool, default False
-        When False and the upgrade path is a no-op, emit a brief status and
-        still write the output. Reserved for future confirmation prompts.
     """
     input_path = Path(input_path)
     output_path = Path(output_path)
@@ -235,7 +231,7 @@ def upgrade_yaml(
         if signature is None:
             raise YamlUpgradeError(
                 "No schema_version field found. This YAML predates the "
-                f"v{CURRENT_SCHEMA_VERSION} schema. Re-run with -f/--from-ver "
+                f"v{CURRENT_SCHEMA_VERSION} schema. Re-run with -f/--from "
                 "<tag> to specify the source version explicitly."
             )
         source_schema = _resolve_package_to_schema(signature)
@@ -244,12 +240,12 @@ def upgrade_yaml(
         source_schema = _resolve_package_to_schema(from_ver)
         if signature is not None and _resolve_package_to_schema(signature) != source_schema:
             _log(
-                f"[yaml-upgrade] WARNING: user-supplied --from-ver={from_ver} "
+                f"[yaml-upgrade] WARNING: user-supplied --from={from_ver} "
                 f"(schema {source_schema}) disagrees with file signature "
                 f"{signature}. Respecting user override."
             )
         else:
-            _log(f"[yaml-upgrade] Using user-supplied --from-ver={from_ver}")
+            _log(f"[yaml-upgrade] Using user-supplied --from={from_ver}")
 
     target_schema = CURRENT_SCHEMA_VERSION
     _log(

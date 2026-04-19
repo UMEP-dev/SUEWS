@@ -1,4 +1,4 @@
-"""GH-1292 PR1 diagnostic harness for moisture-aware LAI scaffolding.
+"""GH-1292 forcing-driven diagnostic harness for moisture-aware LAI.
 
 Usage
 -----
@@ -6,9 +6,10 @@ Usage
 
 Purpose
 -------
-Runs SUEWS at a FLUXNET2015 site for all three vegetation ``LAItype``
-values (0 = thermal original, 1 = thermal high-latitude, 2 = moisture-
-aware scaffolding) and writes a diagnostic under
+Runs SUEWS under the bundled sample configuration while swapping in a
+FLUXNET2015 forcing series for all three vegetation ``LAItype`` values
+(0 = thermal original, 1 = thermal high-latitude, 2 = moisture-aware)
+and writes a diagnostic under
 ``.context/gh1292/<site>/``:
 
 * ``lai_timeseries.png`` -- simulated LAI per variant, plus the observed
@@ -16,10 +17,10 @@ aware scaffolding) and writes a diagnostic under
 * ``metrics.json`` -- RMSE (vs MODIS), seasonal amplitude, green-up and
   brown-down day-of-year estimates per variant and per vegetation
   surface.
-* ``summary.txt`` -- one-line verdict against the design-note
-  acceptance criteria (V2.4). In PR1 the V0 and V2 traces are expected
-  to match bit-identically; PR2 will replace the no-op and this script
-  becomes the scientific acceptance harness.
+* ``summary.txt`` -- one-line verdict for the forcing-driven diagnostic.
+  The forcing comes from the requested FLUXNET site, but the static
+  site/state configuration remains the bundled sample unless the script
+  grows explicit per-site configs in a future follow-up.
 
 The forcing text file is read from Ting's local FLUXNET2015 archive
 (``/Users/tingsun/Dropbox (Personal)/6.Repos/SUEWS-FLUXNET2015/``,
@@ -28,8 +29,7 @@ copies the file into ``.context/gh1292/<site>/`` on first run and uses
 the cached copy thereafter.
 
 This script is intentionally kept out of pytest: it depends on external
-data that does not ship with the repo and is meant to be run by hand
-while developing PR2.
+data that does not ship with the repo and is meant to be run by hand.
 """
 
 from __future__ import annotations
@@ -62,13 +62,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--site",
         default=DEFAULT_SITE,
-        help="FLUXNET2015 site identifier (e.g. AU-ASM, AU-DaS, US-MMS)",
+        help="FLUXNET2015 forcing-site identifier (e.g. AU-ASM, AU-DaS, US-MMS)",
     )
     parser.add_argument(
         "--year",
         type=int,
         default=None,
-        help="Optional year filter; default uses the first full year in the forcing",
+        help="Optional year filter; default uses the first full year in the forcing record",
     )
     parser.add_argument(
         "--archive",
@@ -95,14 +95,39 @@ def ensure_cached_forcing(site: str, archive: Path) -> Path:
     return dest
 
 
+def _datetime_index(df: pd.DataFrame) -> pd.DatetimeIndex:
+    """Return the datetime axis regardless of whether forcing uses a flat or multi-index."""
+
+    if isinstance(df.index, pd.MultiIndex):
+        return df.index.get_level_values("datetime")
+    return pd.DatetimeIndex(df.index)
+
+
+def _infer_first_full_year(dt_index: pd.DatetimeIndex) -> int:
+    """Pick the first full calendar year, falling back to the first year present."""
+
+    years = sorted(dt_index.year.unique())
+    for year in years:
+        year_index = dt_index[dt_index.year == year]
+        if year_index.empty:
+            continue
+        if (
+            year_index.min() <= pd.Timestamp(year=year, month=1, day=1)
+            and year_index.max() >= pd.Timestamp(year=year, month=12, day=31)
+        ):
+            return year
+    return int(years[0])
+
+
 def load_forcing(path: Path, year: int | None) -> pd.DataFrame:
     """Read the FLUXNET forcing file using SuPy's datetime-aware parser."""
 
     from supy.util import read_forcing
 
     df = read_forcing(str(path), tstep_mod=300).copy()
-    if year is not None:
-        df = df[df.index.year == year]
+    dt_index = _datetime_index(df)
+    target_year = year if year is not None else _infer_first_full_year(dt_index)
+    df = df[dt_index.year == target_year]
     if df.empty:
         raise ValueError(
             "forcing file has no rows for the requested year; check --year value"
@@ -116,7 +141,7 @@ def run_scenario(
     start_date: pd.Timestamp,
     end_date: pd.Timestamp,
 ) -> pd.DataFrame:
-    """Run SUEWS with the requested forcing after overriding laitype on all veg surfaces."""
+    """Run SUEWS with the bundled sample state and the requested external forcing."""
 
     # Imported lazily so this script can surface a clean error if supy is missing.
     from supy import SUEWSSimulation
@@ -137,21 +162,21 @@ def compute_metrics(lai_sim: pd.Series, lai_obs: pd.Series) -> Dict[str, float]:
     """Compute RMSE vs observed and seasonal amplitude / onset / offset DOY."""
 
     aligned = pd.concat([lai_sim, lai_obs], axis=1).dropna()
-    if aligned.empty:
+    rmse = float("nan")
+    if not aligned.empty:
+        sim_aligned = aligned.iloc[:, 0]
+        obs = aligned.iloc[:, 1]
+        rmse = float(np.sqrt(((sim_aligned - obs) ** 2).mean()))
+
+    sim = lai_sim.dropna()
+    daily = sim.resample("1D").mean()
+    if daily.empty:
         return {
-            "rmse_vs_obs": float("nan"),
+            "rmse_vs_obs": rmse,
             "amplitude": float("nan"),
             "green_up_doy": float("nan"),
             "brown_down_doy": float("nan"),
         }
-    sim = aligned.iloc[:, 0]
-    obs = aligned.iloc[:, 1]
-    rmse = float(np.sqrt(((sim - obs) ** 2).mean()))
-
-    daily = sim.resample("1D").mean()
-    if daily.empty:
-        return {"rmse_vs_obs": rmse, "amplitude": float("nan"),
-                "green_up_doy": float("nan"), "brown_down_doy": float("nan")}
     peak = float(daily.max())
     trough = float(daily.min())
     amplitude = peak - trough
@@ -228,7 +253,9 @@ def main() -> int:
             )
         ax.set_xlabel("Date")
         ax.set_ylabel("LAI")
-        ax.set_title(f"GH-1292 moisture-aware phenology diagnostic -- {args.site}")
+        ax.set_title(
+            f"GH-1292 moisture-aware forcing diagnostic -- {args.site} forcing"
+        )
         ax.legend(loc="upper right")
         fig.tight_layout()
         fig.savefig(out_dir / "lai_timeseries.png", dpi=160)
@@ -241,9 +268,9 @@ def main() -> int:
     aligned = pd.concat([lai0, lai2], axis=1, join="inner").dropna()
     max_abs_diff = float(np.max(np.abs(aligned.iloc[:, 0].values - aligned.iloc[:, 1].values)))
     verdict = (
-        "PR1 contract OK: LAIType=2 reproduces LAIType=0 bit-identically."
+        "Forcing diagnostic OK: LAIType=2 reproduces LAIType=0 for this forcing."
         if max_abs_diff == 0.0
-        else f"PR1 contract FAILED: max |LAI0 - LAI2| = {max_abs_diff:.6e}."
+        else f"Forcing diagnostic diverged: max |LAI0 - LAI2| = {max_abs_diff:.6e}."
     )
     (out_dir / "summary.txt").write_text(verdict + "\n", encoding="utf-8")
     print(f"[{args.site}] {verdict}")

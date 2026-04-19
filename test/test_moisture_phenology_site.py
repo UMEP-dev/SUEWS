@@ -7,6 +7,7 @@ import sys
 import types
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -40,6 +41,36 @@ def test_load_forcing_preserves_subhourly_index_and_filters_year(monkeypatch) ->
 
     assert loaded.index.tolist() == idx[:2].tolist()
     assert loaded.index[1].minute == 30
+
+
+def test_load_forcing_defaults_to_first_full_year(monkeypatch) -> None:
+    """Without --year, load_forcing() should select the first full calendar year."""
+
+    idx = pd.DatetimeIndex(
+        [
+            "2009-12-31 23:55:00",
+            "2010-01-01 00:00:00",
+            "2010-06-01 00:00:00",
+            "2010-12-31 23:55:00",
+            "2011-01-01 00:00:00",
+        ],
+        name="datetime",
+    )
+    fake_df = pd.DataFrame({"lai": [0.5, 1.0, 1.2, 1.4, 0.8]}, index=idx)
+
+    fake_util = types.ModuleType("supy.util")
+    fake_util.read_forcing = lambda path, tstep_mod=300: fake_df
+    fake_supy = types.ModuleType("supy")
+    fake_supy.util = fake_util
+
+    monkeypatch.setitem(sys.modules, "supy", fake_supy)
+    monkeypatch.setitem(sys.modules, "supy.util", fake_util)
+
+    loaded = moisture_phenology_site.load_forcing(Path("dummy.txt"), year=None)
+
+    assert loaded.index.tolist() == idx[1:4].tolist()
+    assert loaded.index.min().year == 2010
+    assert loaded.index.max().year == 2010
 
 
 def test_run_scenario_uses_requested_forcing_and_dates(monkeypatch) -> None:
@@ -101,3 +132,23 @@ def test_run_scenario_uses_requested_forcing_and_dates(monkeypatch) -> None:
     assert calls["end_date"] == end_date
     assert (calls["state"].loc[:, moisture_phenology_site.LAI_TYPE_COLS] == 2).all().all()
     assert list(result.columns) == ["LAI"]
+
+
+def test_compute_metrics_uses_full_simulation_series_for_seasonality() -> None:
+    """Amplitude and timing should come from the full simulated LAI series, not obs gaps."""
+
+    lai_sim = pd.Series(
+        [0.0, 5.0, 0.0],
+        index=pd.date_range("2012-01-01", periods=3, freq="1D"),
+    )
+    lai_obs = pd.Series(
+        [0.0, 0.0],
+        index=pd.DatetimeIndex(["2012-01-01", "2012-01-03"]),
+    )
+
+    metrics = moisture_phenology_site.compute_metrics(lai_sim, lai_obs)
+
+    assert metrics["rmse_vs_obs"] == 0.0
+    assert metrics["amplitude"] == 5.0
+    assert metrics["green_up_doy"] == 2.0
+    assert np.isfinite(metrics["brown_down_doy"])

@@ -741,7 +741,7 @@ CONTAINS
 
             ! GH-1292: LAItype=2 shares the original power-law (0). In PR1 this makes laitype=2 a no-op
             ! equivalent to laitype=0; PR2 layers the SMD gate on top of the same curve.
-            IF (LAItype(iv) == 0 .OR. LAItype(iv) == 2) THEN !Original LAI type (and GH-1292 scaffold)
+            IF (LAItype(iv) == 0 .OR. LAItype(iv) == 2 .OR. LAItype(iv) < 0) THEN !Original LAI type (and GH-1292 scaffold)
                IF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN !Leaves can still grow
                   LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
                ELSEIF (SDD_id(iv) < 0 .AND. SDD_id(iv) > SDDFull(iv)) THEN !Start senescence
@@ -749,7 +749,10 @@ CONTAINS
                ELSE
                   LAI_id_next(iv) = LAI_id_prev(iv)
                END IF
-            ELSEIF (LAItype(iv) == 1) THEN
+            ELSE
+               ! Preserve the pre-GH-1292 behaviour for unsupported positive integers:
+               ! any non-zero value other than LAItype=2 falls back to the legacy
+               ! high-latitude branch instead of leaving LAI_id_next unset.
                IF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN !Leaves can still grow
                   LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
                   !! Use day length to start senescence at high latitudes (N hemisphere)
@@ -769,7 +772,7 @@ CONTAINS
             IF (SDD_id(iv) < -critDays .AND. id < 250) GDD_id(iv) = 0
 
             ! GH-1292: LAItype=2 shares the original southern-hemisphere power-law (0) in PR1.
-            IF (LAItype(iv) == 0 .OR. LAItype(iv) == 2) THEN !Original LAI type (and GH-1292 scaffold)
+            IF (LAItype(iv) == 0 .OR. LAItype(iv) == 2 .OR. LAItype(iv) < 0) THEN !Original LAI type (and GH-1292 scaffold)
                IF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN
                   LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
                ELSEIF (SDD_id(iv) < 0 .AND. SDD_id(iv) > SDDFull(iv)) THEN
@@ -778,6 +781,9 @@ CONTAINS
                   LAI_id_next(iv) = LAI_id_prev(iv)
                END IF
             ELSE
+               ! Preserve the pre-GH-1292 behaviour for unsupported positive integers:
+               ! any non-zero value other than LAItype=2 falls back to the legacy
+               ! high-latitude branch instead of leaving LAI_id_next unset.
                IF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN
                   LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
                   !! Day length not used to start senescence in S hemisphere (not much land)

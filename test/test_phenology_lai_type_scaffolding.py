@@ -113,6 +113,16 @@ def test_sample_run_laitype_1_completes_without_nan() -> None:
     assert not lai.isna().any().any()
 
 
+def test_unsupported_positive_laitype_falls_back_to_legacy_nonzero_branch() -> None:
+    """Unsupported positive laitype values should retain the pre-GH-1292 fallback semantics."""
+
+    lai_type_1 = _run_with_state_override(1)
+    lai_type_3 = _run_with_state_override(3)
+
+    assert lai_type_1.shape == lai_type_3.shape
+    np.testing.assert_array_equal(lai_type_1.values, lai_type_3.values)
+
+
 def test_laitype_2_dry_start_delays_spring_green_up() -> None:
     """Zeroing the vegetation soil store at init forces the latch off; spring green-up must lag.
 

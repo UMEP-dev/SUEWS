@@ -16,6 +16,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from supy import SUEWSSimulation
+from supy._check import check_state
 from supy.data_model.core.site import LAIParams
 from supy.data_model.core.type import RefValue
 
@@ -93,3 +95,22 @@ def test_checker_rules_cover_new_columns() -> None:
     rules = json.loads(rules_path.read_text(encoding="utf-8"))
     for field in ("w_wilt", "w_opt", "f_shape", "w_on", "w_off", "tau_w"):
         assert field in rules, f"checker_rules_indiv.json missing entry for {field}"
+
+
+def test_check_state_accepts_legacy_df_without_moisture_columns() -> None:
+    """Legacy df_state inputs may omit the new moisture columns without failing validation."""
+
+    sim = SUEWSSimulation.from_sample_data()
+    df_state = sim._config.to_df_state()
+    moisture_cols = [
+        (field, f"({veg_idx},)")
+        for field in ("w_wilt", "w_opt", "f_shape", "w_on", "w_off", "tau_w")
+        for veg_idx in range(3)
+    ]
+    df_legacy = df_state.drop(columns=moisture_cols)
+
+    issues = check_state(df_legacy, fix=False)
+    issues_text = "\n".join(issues)
+    assert "Mandatory columns missing from df_state" not in issues_text
+    for field in ("w_wilt", "w_opt", "f_shape", "w_on", "w_off", "tau_w"):
+        assert field not in issues_text, issues_text

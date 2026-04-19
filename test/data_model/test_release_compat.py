@@ -15,6 +15,8 @@ import pytest
 
 from supy.data_model.core.config import SUEWSConfig
 
+pytestmark = pytest.mark.api
+
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 RELEASE_FIXTURES = REPO_ROOT / "test" / "fixtures" / "release_configs"
 DOCS_EXAMPLES = REPO_ROOT / "docs" / "source" / "inputs" / "yaml" / "examples"

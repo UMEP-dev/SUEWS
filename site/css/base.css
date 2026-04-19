@@ -187,11 +187,10 @@ a:hover {
 
 .footer-nav li + li::before {
   content: '';
-  width: 3px;
-  height: 3px;
-  margin: 0 14px;
+  width: 1px;
+  height: 12px;
+  margin: 0 16px;
   background: var(--border-medium);
-  border-radius: 50%;
   flex-shrink: 0;
 }
 

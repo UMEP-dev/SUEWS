@@ -303,7 +303,7 @@ git push origin "$VERSION"
 ## Step 7: Post-Release Verification
 
 **Monitor (~20 min):**
-- GitHub Actions: build_wheels, test_bridge_loading, publish
+- GitHub Actions: build_wheels, test_api_cross_python, publish
 - PyPI: supy `YYYY.M.D` appears (one cp39-abi3 wheel per platform)
 - GitHub Release: created automatically after successful publish
 - Zenodo DOI appears on the dashboard

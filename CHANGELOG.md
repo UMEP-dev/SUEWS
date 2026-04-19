@@ -54,6 +54,15 @@ EXAMPLES:
 
 ## 2026
 
+### 19 Apr 2026
+
+- [maintenance] Split CI matrix on the physics/api marker axis (#1300)
+  - `CIBW_TEST_COMMAND` now runs `-m "physics and <tier>"` on the build Python only; physics tests are binary-determined, so one run per `(OS, arch)` is sufficient
+  - New reusable workflow `test-api-cross-python-reusable.yml` runs `-m "api and <tier>"` across the cross-CPython matrix (BOOKEND for PRs, ALL for nightly/tag); picks up the Python wrapper surface variations that vary per interpreter
+  - Renamed job `test_bridge_loading` → `test_api_cross_python`, workflow file `test-bridge-reusable.yml` → `test-api-cross-python-reusable.yml`, and `determine-matrix.sh` output `test_python` → `api_python`
+  - Added standalone `check_test_markers` CI job (AST-based lint in `scripts/lint/check_test_markers.py`) that fails any PR whose test tree has a file lacking both `physics` and `api`; gated into `pr-gate` alongside build and API checks
+  - Updated `pr-gate.sh` and release docs (`RELEASE_MANUAL.md`, `prep-release` skill) to reflect the renamed job
+
 ### 18 Apr 2026
 
 - [maintenance] Register `physics` / `api` pytest markers as an orthogonal axis to the existing tier markers (#1300)

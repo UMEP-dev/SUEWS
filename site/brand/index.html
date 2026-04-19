@@ -564,13 +564,23 @@
       </div>
     </div>
 
-    <footer>
-      <p style="margin-bottom: 0.5rem;">
-        <a href="../">Home</a> ·
-        <a href="brand-workshop.html">Brand Workshop</a>
-      </p>
-      <p>&copy; 2025 SUEWS Development Team. Licensed under <a href="https://www.mozilla.org/en-US/MPL/2.0/">MPL-2.0</a>.</p>
+    <footer class="footer">
+      <div class="container">
+        <nav class="footer-nav" aria-label="Secondary navigation">
+          <ul>
+            <li><a href="/team/">Team</a></li>
+            <li><a href="/funding/">Funding</a></li>
+            <li><a href="/dependencies/">Dependencies</a></li>
+            <li><a href="/brand/">Brand</a></li>
+          </ul>
+        </nav>
+        <p class="footer-legal">&copy; 2025&ndash;<span id="current-year"></span> SUEWS</p>
+      </div>
     </footer>
+
+    <script>
+      document.getElementById('current-year').textContent = new Date().getFullYear();
+    </script>
   </div>
 
   <script>

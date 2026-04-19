@@ -640,7 +640,7 @@ Getting Support and Community
 
 **Recent Applications:**
 
-See `Recent Publications <Recent_publications>`__ for the latest research using SUEWS and SuPy.
+See :ref:`Recent_publications` for the latest research using SUEWS and SuPy.
 
 **Training and Workshops:**
 

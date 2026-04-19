@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dependencies &mdash; SUEWS</title>
+    <meta name="description" content="Open-source libraries that SUEWS builds on.">
+    <link rel="canonical" href="https://suews.io/dependencies/">
+
+    <link rel="icon" type="image/svg+xml" href="/brand/assets/icon/suews-icon-dark.svg">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/tokens.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/subpage.css">
+
+    <style>
+        body { overflow-x: hidden; }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+        <svg class="icon-sun" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+    </button>
+
+    <div class="signature-ring" aria-hidden="true"></div>
+
+    <main>
+        <header class="subpage-header">
+            <div class="container">
+                <a href="/" class="back-link">
+                    <span class="arrow" aria-hidden="true">&larr;</span>
+                    Back to suews.io
+                </a>
+                <div class="subpage-label">Dependencies</div>
+                <h1 class="subpage-title">Built on the <em>work of others</em></h1>
+                <p class="subpage-lede">
+                    SUEWS gratefully acknowledges the open-source libraries and code that its Fortran core depends on.
+                </p>
+                <p class="subpage-intro">
+                    The libraries below are Fortran-side dependencies of the SUEWS core. Python dependencies for SuPy
+                    and the broader SuPy ecosystem live in
+                    <a href="https://github.com/UMEP-dev/SUEWS/blob/master/pyproject.toml"><code>pyproject.toml</code></a>.
+                    Please let us know if any use here is inappropriate and we will adjust accordingly.
+                </p>
+            </div>
+        </header>
+
+        <section class="subpage-group">
+            <div class="container">
+                <div class="subpage-group-header">
+                    <span class="subpage-group-label">Fortran libraries</span>
+                    <span class="subpage-group-line"></span>
+                </div>
+                <div class="subpage-list">
+                    <article class="entry">
+                        <h2 class="entry-name">
+                            <a href="https://wavebitscientific.github.io/datetime-fortran/" rel="noopener">datetime-fortran</a>
+                        </h2>
+                        <p class="entry-detail">Date and time processing for the SUEWS core.</p>
+                    </article>
+
+                    <article class="entry">
+                        <h2 class="entry-name">
+                            <a href="https://people.sc.fsu.edu/~jburkardt/f_src/minpack/minpack.html" rel="noopener">minpack</a>
+                        </h2>
+                        <p class="entry-detail">Non-linear least-squares fitting &mdash; used by AnOHM for sinusoidal curve fitting.</p>
+                    </article>
+
+                    <article class="entry">
+                        <h2 class="entry-name">
+                            <a href="http://www.fortran.com/qsort_c.f95" rel="noopener">Recursive Fortran 95 quicksort</a>
+                        </h2>
+                        <p class="entry-detail">Sorting routine &mdash; used for QGIS-compliant grid layout in netCDF output.</p>
+                    </article>
+
+                    <article class="entry">
+                        <h2 class="entry-name">
+                            <a href="http://gbenthien.net/strings/str-index.html" rel="noopener">Fortran Strings Module</a>
+                        </h2>
+                        <p class="entry-subtitle">by Dr George Benthien</p>
+                        <p class="entry-detail">String manipulation utilities for the Fortran core.</p>
+                    </article>
+
+                    <article class="entry">
+                        <h2 class="entry-name">
+                            <a href="https://github.com/jameskermode/f90wrap" rel="noopener">f90wrap</a>
+                        </h2>
+                        <p class="entry-subtitle">by Dr James Kermode</p>
+                        <p class="entry-detail">Fortran-to-Python interface generator with derived-type support &mdash; used to build the SuPy bindings.</p>
+                        <p class="entry-meta">LGPL-3.0</p>
+                    </article>
+
+                    <article class="entry">
+                        <h2 class="entry-name">
+                            <a href="https://github.com/ecmwf/spartacus-surface" rel="noopener">SPARTACUS-Surface</a>
+                        </h2>
+                        <p class="entry-subtitle">ECMWF</p>
+                        <p class="entry-detail">3-D radiative transfer for the urban canopy &mdash; used for radiation in complex urban geometry.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="subpage-notes">
+            <div class="container">
+                <p>
+                    For the current Python dependency list (pandas, xarray, supy_driver, and others) see
+                    <a href="https://github.com/UMEP-dev/SUEWS/blob/master/pyproject.toml"><code>pyproject.toml</code></a>
+                    in the repository. This page focuses on the Fortran-side libraries that ship with the SUEWS core
+                    and underlie the compiled solver.
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <nav class="footer-nav" aria-label="Secondary navigation">
+                <ul>
+                    <li><a href="/team/">Team</a></li>
+                    <li><a href="/funding/">Funding</a></li>
+                    <li><a href="/dependencies/">Dependencies</a></li>
+                    <li><a href="/brand/">Brand</a></li>
+                </ul>
+            </nav>
+            <p class="footer-legal">&copy; 2025&ndash;<span id="current-year"></span> SUEWS</p>
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+
+        const toggle = document.getElementById('themeToggle');
+        const root = document.documentElement;
+
+        function getPreferredTheme() {
+            const saved = localStorage.getItem('theme');
+            if (saved) return saved;
+            return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+
+        function setTheme(theme) {
+            root.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+            localStorage.setItem('theme', theme);
+        }
+
+        setTheme(getPreferredTheme());
+
+        toggle.addEventListener('click', () => {
+            const current = root.getAttribute('data-theme') ||
+                (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            setTheme(current === 'light' ? 'dark' : 'light');
+        });
+
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) {
+                setTheme(e.matches ? 'light' : 'dark');
+            }
+        });
+    </script>
+</body>
+</html>

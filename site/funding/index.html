@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Funding &mdash; SUEWS</title>
+    <meta name="description" content="Grants and institutional support that funded SUEWS model development and supportive observations.">
+    <link rel="canonical" href="https://suews.io/funding/">
+
+    <link rel="icon" type="image/svg+xml" href="/brand/assets/icon/suews-icon-dark.svg">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/tokens.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/subpage.css">
+
+    <style>
+        body { overflow-x: hidden; }
+
+        /* Funding-specific: flatter list with funder / project / code / role. */
+        .funding-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .funding-entry {
+            display: grid;
+            grid-template-columns: 1.3fr 1.7fr auto;
+            gap: 16px 28px;
+            align-items: baseline;
+            padding: 18px 0;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .funding-entry:last-child { border-bottom: 1px solid var(--border-light); }
+
+        .funding-funder {
+            font-family: 'Crimson Pro', Georgia, serif;
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .funding-project {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .funding-project code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-left: 6px;
+        }
+
+        .funding-role {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--accent-highlight);
+            white-space: nowrap;
+            justify-self: end;
+        }
+
+        @media (max-width: 720px) {
+            .funding-entry {
+                grid-template-columns: 1fr auto;
+                gap: 4px 20px;
+            }
+            .funding-project { grid-column: 1 / -1; }
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+        <svg class="icon-sun" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+    </button>
+
+    <div class="signature-ring" aria-hidden="true"></div>
+
+    <main>
+        <header class="subpage-header">
+            <div class="container">
+                <a href="/" class="back-link">
+                    <span class="arrow" aria-hidden="true">&larr;</span>
+                    Back to suews.io
+                </a>
+                <div class="subpage-label">Funding</div>
+                <h1 class="subpage-title">Supported by <em>research grants and universities</em></h1>
+                <p class="subpage-lede">
+                    SUEWS has been funded by UK research councils, European programmes, international
+                    collaborations, and host universities across more than a decade.
+                </p>
+                <p class="subpage-intro">
+                    Each grant is tagged <strong>D</strong> (supported model development),
+                    <strong>O</strong> (supported observations), or both. Full historical detail, including
+                    grant numbers and project scopes, is maintained in the
+                    <a href="https://docs.suews.io/stable/acknowledgement.html#funding">funding section</a>
+                    of the documentation.
+                </p>
+            </div>
+        </header>
+
+        <section class="subpage-group">
+            <div class="container">
+                <div class="subpage-group-header">
+                    <span class="subpage-group-label">European programmes</span>
+                    <span class="subpage-group-line"></span>
+                </div>
+                <div class="funding-list">
+                    <div class="funding-entry">
+                        <span class="funding-funder">ERC Synergy</span>
+                        <span class="funding-project">urbisphere <code>855005</code></span>
+                        <span class="funding-role">D &middot; O</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">H2020</span>
+                        <span class="funding-project">UrbanFluxes <code>637519</code></span>
+                        <span class="funding-role">D &middot; O</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">EU FP7</span>
+                        <span class="funding-project">BRIDGE <code>211345</code></span>
+                        <span class="funding-role">D &middot; O</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">EU FP7</span>
+                        <span class="funding-project">emBRACE <code>283201</code></span>
+                        <span class="funding-role">D &middot; O</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">EU FP7</span>
+                        <span class="funding-project">MEGAPOLI <code>212520</code></span>
+                        <span class="funding-role">D</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="subpage-group">
+            <div class="container">
+                <div class="subpage-group-header">
+                    <span class="subpage-group-label">UK research councils</span>
+                    <span class="subpage-group-line"></span>
+                </div>
+                <div class="funding-list">
+                    <div class="funding-entry">
+                        <span class="funding-funder">NERC</span>
+                        <span class="funding-project">APEx</span>
+                        <span class="funding-role">D</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">NERC</span>
+                        <span class="funding-project">COSMA <code>NE/S005889/</code></span>
+                        <span class="funding-role">D</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">NERC</span>
+                        <span class="funding-project">ClearfLo &mdash; Clean Air for London <code>NE/H003231/1</code></span>
+                        <span class="funding-role">O</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">NERC / Belmont</span>
+                        <span class="funding-project">TRUC <code>NE/L008971/1</code> &middot; <code>G8MUREFU3FP-2201-075</code></span>
+                        <span class="funding-role">D &middot; O</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">NERC</span>
+                        <span class="funding-project">Independent Research Fellowship</span>
+                        <span class="funding-role">D</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">NERC</span>
+                        <span class="funding-project">Field Spectroscopy Facility (FSF) <code>616.1110</code></span>
+                        <span class="funding-role">O</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">NERC</span>
+                        <span class="funding-project">Airborne Remote Sensing &amp; Field Spectroscopy <code>GB08/19</code></span>
+                        <span class="funding-role">O</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">EPSRC</span>
+                        <span class="funding-project">LoHCool &mdash; Low-carbon climate-responsive heating and cooling <code>EP/N009797/1</code></span>
+                        <span class="funding-role">D</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">EPSRC</span>
+                        <span class="funding-project">DARE &mdash; Data Assimilation for the Resilient City <code>EP/P002331/1</code></span>
+                        <span class="funding-role">O</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">EPSRC</span>
+                        <span class="funding-project">Materials Innovation Hub <code>EP/I00159X/1</code> &middot; <code>EP/I00159X/2</code></span>
+                        <span class="funding-role">O</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">UKRI</span>
+                        <span class="funding-project">GCRF Urban Disaster Risk Hub</span>
+                        <span class="funding-role">D</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="subpage-group">
+            <div class="container">
+                <div class="subpage-group-header">
+                    <span class="subpage-group-label">International &amp; partner funders</span>
+                    <span class="subpage-group-line"></span>
+                </div>
+                <div class="funding-list">
+                    <div class="funding-entry">
+                        <span class="funding-funder">NSF</span>
+                        <span class="funding-project"><code>BCS-0095284</code> &middot; <code>ATM-0710631</code> &middot; <code>BCS-0221105</code></span>
+                        <span class="funding-role">D &middot; O</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">Newton Fund &middot; Met Office</span>
+                        <span class="funding-project">CSSP-China (<code>AJYG-DX4P1V HRC</code>, <code>AJYF-2GLAMK EUN</code>, others)</span>
+                        <span class="funding-role">D &middot; O</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">CFCAS</span>
+                        <span class="funding-project">Environmental Prediction for Canadian Cities</span>
+                        <span class="funding-role">D &middot; O</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">Royal Society / Newton</span>
+                        <span class="funding-project">Mobility funding</span>
+                        <span class="funding-role">O</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="subpage-group">
+            <div class="container">
+                <div class="subpage-group-header">
+                    <span class="subpage-group-label">Institutional support</span>
+                    <span class="subpage-group-line"></span>
+                </div>
+                <div class="funding-list">
+                    <div class="funding-entry">
+                        <span class="funding-funder">University of Reading</span>
+                        <span class="funding-project">Sue Grimmond (PI)</span>
+                        <span class="funding-role">D &middot; O</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">King&rsquo;s College London</span>
+                        <span class="funding-project">Sue Grimmond (prior)</span>
+                        <span class="funding-role">O</span>
+                    </div>
+                    <div class="funding-entry">
+                        <span class="funding-funder">UCL</span>
+                        <span class="funding-project">Open Source Software Sustainability Grant</span>
+                        <span class="funding-role">D</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <nav class="footer-nav" aria-label="Secondary navigation">
+                <ul>
+                    <li><a href="/team/">Team</a></li>
+                    <li><a href="/funding/">Funding</a></li>
+                    <li><a href="/dependencies/">Dependencies</a></li>
+                    <li><a href="/brand/">Brand</a></li>
+                </ul>
+            </nav>
+            <p class="footer-legal">&copy; 2025&ndash;<span id="current-year"></span> SUEWS</p>
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+
+        const toggle = document.getElementById('themeToggle');
+        const root = document.documentElement;
+
+        function getPreferredTheme() {
+            const saved = localStorage.getItem('theme');
+            if (saved) return saved;
+            return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+
+        function setTheme(theme) {
+            root.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+            localStorage.setItem('theme', theme);
+        }
+
+        setTheme(getPreferredTheme());
+
+        toggle.addEventListener('click', () => {
+            const current = root.getAttribute('data-theme') ||
+                (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            setTheme(current === 'light' ? 'dark' : 'light');
+        });
+
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) {
+                setTheme(e.matches ? 'light' : 'dark');
+            }
+        });
+    </script>
+</body>
+</html>

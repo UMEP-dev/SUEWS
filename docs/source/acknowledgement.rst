@@ -59,7 +59,7 @@ Contributors
     - Wind speed profile parameterisation, RSL
     - v2024a – onwards
     -
-  * - Dr Yuanyuan Liu
+  * - Dr Yiqing Liu
     - University of Reading, UK
     - OHM improvements
     - v2024a – onwards

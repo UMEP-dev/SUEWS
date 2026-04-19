@@ -60,8 +60,8 @@ module module_type_vegetation
       REAL(KIND(1D0)) :: g_lai = 0.0D0 ! Surface conductance function for LAI [-]
       ! --- Moisture-aware phenology state (laitype=2) -------------------------------------------
       ! Carried as dimensionless relative soil water w = 1 - smd/smdcap; SMD->w conversion lives in update_GDDLAI.
-      REAL(KIND(1D0)), DIMENSION(nvegsurf) :: wbar_id = 0.0D0 ! Running-mean relative soil water for phenology [-]
-      REAL(KIND(1D0)), DIMENSION(nvegsurf) :: w_id_prev = 0.0D0 ! Previous-day relative soil water snapshot [-]
+      REAL(KIND(1D0)), DIMENSION(nvegsurf) :: wbar_id = -1.0D0 ! Running-mean relative soil water for phenology [-]; negative marks an unset moisture history
+      REAL(KIND(1D0)), DIMENSION(nvegsurf) :: w_id_prev = -1.0D0 ! Previous-day relative soil water snapshot [-]; negative marks an unset moisture history
       LOGICAL, DIMENSION(nvegsurf) :: leaf_on_permitted = .TRUE. ! CLM5-style leaf-on latch; default permitted so well-watered sites do not wait for the trigger
       ! flag for iteration safety - NO
       ! GDD_id, SDD_id are extensive quantities and thus cannot be used for iteration safety

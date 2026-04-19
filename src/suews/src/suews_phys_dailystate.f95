@@ -664,8 +664,9 @@ CONTAINS
             IF (w > 1.0D0) w = 1.0D0
 
             ! Seed the running mean on first activation so well-watered sites do not spend
-            ! tau_w days ramping up from the zero-default (signalled by a still-unset w_id_prev).
-            IF (w_id_prev(iv) == 0.0D0 .AND. wbar_id(iv) == 0.0D0) THEN
+            ! tau_w days ramping up from an unset moisture history. Negative values are reserved
+            ! for this sentinel; w itself is clamped to the physical interval [0, 1].
+            IF (w_id_prev(iv) < 0.0D0 .OR. wbar_id(iv) < 0.0D0) THEN
                wbar_id(iv) = w
             ELSE
                wbar_id(iv) = wbar_id(iv) + (w - wbar_id(iv))/MAX(tau_w(iv), 1.0D0)

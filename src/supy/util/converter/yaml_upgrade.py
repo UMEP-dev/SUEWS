@@ -28,16 +28,16 @@ from ...data_model.schema.migration import SchemaMigrator
 # they shipped with. Extend when a release bumps `CURRENT_SCHEMA_VERSION`.
 # ---------------------------------------------------------------------------
 
-# Pre-#1261 releases (2026.1.x, 2026.2.x, 2026.3.x) labelled their shape
-# under the same `2025.12` schema umbrella but used the pre-split
-# `HeatingSetpointTemperature` / `CoolingSetpointTemperature` profile-shaped
-# fields. We retrofit a dedicated `2026.1` schema label so the dispatch can
-# distinguish those YAMLs from the post-#1261 shape that ships in 2026.4.x.
+# The `2026.1.28` release shipped the pre-#1261 setpoint shape under the
+# same `2025.12` schema umbrella, so we retrofit a dedicated `2026.1` schema
+# label for the dispatch to distinguish it from the post-#1261 shape. Older
+# formal releases (`2025.10.15`, `2025.11.20`) and the post-split
+# `2026.4.3` sample configs still parse directly under the current
+# validator - no package-to-schema remap needed for them.
 _SCHEMA_PRE_SETPOINT_SPLIT = "2026.1"
 
 _PACKAGE_TO_SCHEMA: dict[str, str] = {
     "2026.1.28": _SCHEMA_PRE_SETPOINT_SPLIT,
-    "2026.1.28.dev0": _SCHEMA_PRE_SETPOINT_SPLIT,
     "2026.4.3": "2025.12",
 }
 

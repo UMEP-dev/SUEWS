@@ -7,15 +7,26 @@ releases - see [#1301](https://github.com/UMEP-dev/SUEWS/issues/1301) and
 
 ## Contents
 
-- `2026.1.28.yml` - captured verbatim from tag
-  [`2026.1.28`](https://github.com/UMEP-dev/SUEWS/releases/tag/2026.1.28) via
-  `git show 2026.1.28:src/supy/sample_data/sample_config.yml`. Predates the
-  STEBBS setpoint split ([#1261](https://github.com/UMEP-dev/SUEWS/pull/1261));
-  upgraded by the `2026.1 -> 2025.12` handler in
-  `src/supy/util/converter/yaml_upgrade.py`.
-- `2026.4.3.yml` - captured verbatim from tag
-  [`2026.4.3`](https://github.com/UMEP-dev/SUEWS/releases/tag/2026.4.3) via
-  `git show 2026.4.3:src/supy/sample_data/sample_config.yml`.
+One fixture per formal supy release tag, vendored verbatim via
+`git show <tag>:src/supy/sample_data/sample_config.yml`.
+`test_release_compat.py` asserts each fixture either parses directly
+under the current validator (identity path) or upgrades cleanly via the
+registered handler in `src/supy/util/converter/yaml_upgrade.py`.
+
+- `2025.10.15.yml` - tag
+  [`2025.10.15`](https://github.com/UMEP-dev/SUEWS/releases/tag/2025.10.15).
+  Identity path (parses unchanged).
+- `2025.11.20.yml` - tag
+  [`2025.11.20`](https://github.com/UMEP-dev/SUEWS/releases/tag/2025.11.20).
+  Identity path (parses unchanged).
+- `2026.1.28.yml` - tag
+  [`2026.1.28`](https://github.com/UMEP-dev/SUEWS/releases/tag/2026.1.28).
+  Predates the STEBBS setpoint split
+  ([#1261](https://github.com/UMEP-dev/SUEWS/pull/1261)); upgraded by the
+  `2026.1 -> 2025.12` handler in `src/supy/util/converter/yaml_upgrade.py`.
+- `2026.4.3.yml` - tag
+  [`2026.4.3`](https://github.com/UMEP-dev/SUEWS/releases/tag/2026.4.3).
+  Identity path (parses unchanged).
 
 ## Policy
 

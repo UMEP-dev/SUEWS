@@ -15,7 +15,8 @@ CONTAINS
       AerodynamicResistanceMethod, &
       StabilityMethod, &
       RoughLenHeatMethod, &
-      RA_h, z0V) ! output:
+      RA_h, z0V, & ! output:
+      modState) ! optional: thread-safe error state
 
       ! Returns Aerodynamic resistance (RA) to the main program SUEWS_Calculations
       ! All RA equations reported in Thom & Oliver (1977)
@@ -41,6 +42,7 @@ CONTAINS
 
       USE module_phys_atmmoiststab, ONLY: stab_psi_heat, stab_psi_mom
       USE module_ctrl_const_sues, ONLY: psih
+      USE module_ctrl_type, ONLY: SUEWS_STATE
 
       IMPLICIT NONE
 
@@ -57,6 +59,7 @@ CONTAINS
 
       REAL(KIND(1D0)), INTENT(out) :: RA_h !Aerodynamic resistance for heat/vapour [s m^-1]
       REAL(KIND(1D0)), INTENT(out) :: z0V
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       INTEGER, PARAMETER :: notUsedI = -55
 
@@ -103,10 +106,10 @@ CONTAINS
 
       !If RA outside permitted range, adjust extreme values !!Check whether these thresholds are suitable over a range of z0
       IF (RA_h > 120) THEN !was 175
-         CALL errorHint(7, 'In AerodynamicResistance.f95, calculated RA > 200 s m-1; RA set to 200 s m-1', RA_h, notUsed, notUsedI)
+         CALL errorHint(7, 'In AerodynamicResistance.f95, calculated RA > 200 s m-1; RA set to 200 s m-1', RA_h, notUsed, notUsedI, modState)
          RA_h = 120
       ELSEIF (RA_h < 10) THEN !found  By Shiho - fix Dec 2012  !Threshold changed from 2 to 10 s m-1 (HCW 03 Dec 2015)
-         CALL errorHint(7, 'In AerodynamicResistance.f95, calculated RA < 10 s m-1; RA set to 10 s m-1', RA_h, notUsed, notUsedI)
+         CALL errorHint(7, 'In AerodynamicResistance.f95, calculated RA < 10 s m-1; RA set to 10 s m-1', RA_h, notUsed, notUsedI, modState)
          RA_h = 10
          ! RA=(log(ZZD/z0m))**2/(k2*AVU1)
       END IF
@@ -120,7 +123,8 @@ CONTAINS
       LAIMax, LAI_id, gsModel, Kmax, &
       G_max, G_k, g_q_base, g_q_shape, G_t, G_sm, TH, TL, S1, S2, &
       g_kdown, g_dq, g_ta, g_smd, g_lai, & ! output:
-      gfunc, gsc, RS) ! output:
+      gfunc, gsc, RS, & ! output:
+      modState) ! optional: thread-safe error state
       ! Calculates bulk surface resistance (ResistSurf [s m-1]) based on Jarvis 1976 approach
       ! Last modified -----------------------------------------------------
       ! MH  01 Feb 2019: gsModel choices to model with air temperature or 2 meter temperature. Added gfunc for photosynthesis calculations
@@ -133,13 +137,7 @@ CONTAINS
       ! LJ  24 Apr 2013: Added impact of snow fraction in LAI and in soil moisture deficit
       ! -------------------------------------------------------------------
 
-      ! USE module_ctrl_const_allocate
-      ! USE module_ctrl_const_datain
-      ! USE module_ctrl_const_default
-      ! USE module_ctrl_const_gis
-      ! USE module_ctrl_const_moist
-      ! USE module_ctrl_const_resist
-      ! USE module_ctrl_const_sues
+      USE module_ctrl_type, ONLY: SUEWS_STATE
 
       IMPLICIT NONE
       ! INTEGER,PARAMETER::BldgSurf=2
@@ -196,6 +194,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: gfunc !gdq*gtemp*gs*gq for photosynthesis calculations
       REAL(KIND(1D0)), INTENT(out) :: gsc !Surface Layer Conductance
       REAL(KIND(1D0)), INTENT(out) :: RS !Surface resistance
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
       REAL(KIND(1D0)), PARAMETER :: gsc_min = 0.1 !Minimum surface conductance
 
       REAL(KIND(1D0)) :: &
@@ -249,12 +248,12 @@ CONTAINS
             !  IF (MIN(SnowFrac(1),SnowFrac(2),SnowFrac(3),SnowFrac(4),SnowFrac(5),SnowFrac(6))/=1) THEN
             IF (MINVAL(SnowFrac(1:6)) /= 1) THEN
                CALL errorHint(29, 'subroutine SurfaceResistance.f95: T changed to fit limits TL=0.1,Temp_c,id,it', &
-                              REAL(Tair, KIND(1D0)), id_real, it)
+                              REAL(Tair, KIND(1D0)), id_real, it, modState)
             END IF
          ELSEIF (Tair >= th) THEN
             g_ta = ((th - 0.1) - tl)*(th - (th - 0.1))**tc/tc2
             CALL errorHint(29, 'subroutine SurfaceResistance.f95: T changed to fit limits TH=39.9,Temp_c,id,it', &
-                           REAL(Tair, KIND(1D0)), id_real, it)
+                           REAL(Tair, KIND(1D0)), id_real, it, modState)
          ELSE
             g_ta = (Tair - tl)*(th - Tair)**tc/tc2
          END IF
@@ -304,7 +303,7 @@ CONTAINS
          IF (g_smd < 0) THEN
             CALL errorHint(65, &
                            'subroutine SurfaceResistance.f95 (gsModel=1): g(smd) < 0 calculated, setting to 0.0001', &
-                           g_smd, id_real, it)
+                           g_smd, id_real, it, modState)
             g_smd = 0.0001
          END IF
 
@@ -330,7 +329,7 @@ CONTAINS
          END IF
 
          IF (gsc <= 0) THEN
-            CALL errorHint(65, 'subroutine SurfaceResistance.f95 (gsModel=1): gs <= 0, setting to 0.1 mm s-1', gsc, id_real, it)
+            CALL errorHint(65, 'subroutine SurfaceResistance.f95 (gsModel=1): gs <= 0, setting to 0.1 mm s-1', gsc, id_real, it, modState)
             gsc = gsc_min
          END IF
 
@@ -358,12 +357,12 @@ CONTAINS
             ! Call error only if no snow on ground
             IF (MIN(SnowFrac(1), SnowFrac(2), SnowFrac(3), SnowFrac(4), SnowFrac(5), SnowFrac(6)) /= 1) THEN
                CALL errorHint(29, 'subroutine SurfaceResistance.f95: T changed to fit limits TL+0.1,Temp_C,id,it', &
-                              REAL(Tair, KIND(1D0)), id_real, it)
+                              REAL(Tair, KIND(1D0)), id_real, it, modState)
             END IF
          ELSEIF (Tair >= TH) THEN
             g_ta = ((TH - 0.1) - TL)*(TH - (TH - 0.1))**Tc/Tc2
             CALL errorHint(29, 'subroutine SurfaceResistance.f95: T changed to fit limits TH-0.1,Temp_C,id,it', &
-                           REAL(Tair, KIND(1D0)), id_real, it)
+                           REAL(Tair, KIND(1D0)), id_real, it, modState)
          ELSE
             g_ta = (Tair - TL)*(TH - Tair)**Tc/Tc2
          END IF
@@ -384,7 +383,7 @@ CONTAINS
          IF (g_smd < 0) THEN
             CALL errorHint(65, &
                            'subroutine SurfaceResistance.f95 (gsModel=2): gs < 0 calculated, setting to 0.0001', &
-                           g_smd, id_real, it)
+                           g_smd, id_real, it, modState)
             g_smd = 0.0001
          END IF
 
@@ -405,12 +404,12 @@ CONTAINS
          END IF
 
          IF (gsc <= 0) THEN
-            CALL errorHint(65, 'subroutine SurfaceResistance.f95 (gsModel=2): gsc <= 0, setting to 0.1 mm s-1', gsc, id_real, it)
+            CALL errorHint(65, 'subroutine SurfaceResistance.f95 (gsModel=2): gsc <= 0, setting to 0.1 mm s-1', gsc, id_real, it, modState)
             gsc = gsc_min
          END IF
 
       ELSEIF (gsModel < 1 .OR. gsModel > 4) THEN
-         CALL errorHint(71, 'Value of gsModel not recognised.', notUsed, NotUsed, gsModel)
+         CALL errorHint(71, 'Value of gsModel not recognised.', notUsed, NotUsed, gsModel, modState)
       END IF
 
       RS = 1./(gsc/1000.) ![s m-1]

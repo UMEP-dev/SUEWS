@@ -66,6 +66,56 @@ Detailed checklist for comprehensive PR review.
 
 ---
 
+## Scientific PR Description Rigour Checklist
+
+Applies to any PR that introduces or materially changes a scientific
+component. The evidence lives in the PR itself — description and
+thread comments — not in a sidecar artefact. Missing pieces are a
+**blocking** finding: ask the author to expand the body or post
+follow-up comments before approving.
+
+### Triggers — a PR is "scientific" if it touches
+
+- [ ] Any file matching `src/suews/src/suews_phys_*.f95`
+- [ ] `src/suews/src/suews_ctrl_daily_state.f95`
+- [ ] `src/supy/data_model/` (new physics-facing fields, enums, validators)
+- [ ] New YAML parameters that alter model output
+- [ ] A CHANGELOG entry tagged `[feature]` or `[change]` that is not pure
+      tooling / build / docs
+- [ ] Benchmark additions or regressions against published reference runs
+
+### Required in the PR description / thread
+
+- [ ] **Methodology** — what was changed and how it was developed or
+      validated (governing equation, numerical approach, calibration
+      procedure, data source)
+- [ ] **Scientific decisions** — the key choices made and why: which
+      parameterisation, which threshold, which alternatives were
+      considered and rejected
+- [ ] **Results** — quantitative evidence that the change works, posted
+      in the PR as numbers, figures, or comparison tables. Plots can be
+      embedded via `draft-post`'s figure upload or linked from a
+      comment. A bare "tests pass" is not sufficient for a scientific
+      change
+- [ ] **Scope** — which issue this resolves, which follow-ups remain
+
+### How to handle a thin or mechanical PR description
+
+When a scientific PR arrives with a description that only names files
+changed, or says "refactored X / added Y" without scientific narrative:
+
+1. Flag it as "Description rigour: FAIL" in the review summary
+2. Post a blocking review comment listing which of the four items above
+   are missing, and invite the author to either edit the PR body or
+   post the missing content as a follow-up comment in the thread
+3. Do not approve the PR for merge until the description covers
+   methodology, decisions, and quantitative results
+4. If scope is ambiguous (is this really scientific, or is it tooling?),
+   ask the author to classify in the PR description and defer to a
+   maintainer rather than guess
+
+---
+
 ## Testing Checklist
 
 ### Coverage Requirements
@@ -176,6 +226,7 @@ PR can be merged when ALL of:
 - [ ] CI tests pass
 - [ ] Code review approved
 - [ ] Scientific review approved (if physics changes)
+- [ ] PR description covers methodology, scientific decisions, and results (if scientific change)
 - [ ] Documentation updated
 - [ ] CHANGELOG entry present
 - [ ] No blocking issues

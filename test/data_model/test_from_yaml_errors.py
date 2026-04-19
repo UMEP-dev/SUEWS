@@ -19,6 +19,8 @@ from supy._env import trv_supy_module
 from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.schema import CURRENT_SCHEMA_VERSION
 
+pytestmark = pytest.mark.api
+
 
 @pytest.fixture
 def sample_config_dict() -> dict:

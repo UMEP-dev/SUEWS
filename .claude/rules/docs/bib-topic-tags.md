@@ -2,7 +2,7 @@
 
 Rules for the `keywords` field on entries in `docs/source/assets/refs/refs-SUEWS.bib` and `docs/source/assets/refs/refs-community.bib`.
 
-These bib files drive `docs/source/related_publications.rst` and `docs/source/community_publications.rst`, which render per-topic subsections with stable `.. _pub-<slug>:` anchors for external deep-linking. The auditor at `.claude/skills/audit-refs/` enforces this convention.
+These bib files drive `docs/source/related_publications.rst` and `docs/source/community_publications.rst`, which render per-topic subsections with stable `.. _pub-<slug>:` anchors for external deep-linking. The curator at `.claude/skills/curate-refs/` enforces this convention and backfills missing metadata.
 
 ---
 
@@ -45,21 +45,21 @@ When adding a new slug:
 
 1. Update the vocabulary list above.
 2. Update the header comment of both bib files.
-3. Update `VOCAB` in `.claude/skills/audit-refs/scripts/audit.py`.
+3. Update `VOCAB` in `.claude/skills/curate-refs/scripts/audit.py`.
 4. Add a new topic section in `docs/source/related_publications.rst` with a `.. _pub-<slug>:` anchor and filtered bibliography directive.
-5. Rerun `/audit-refs` to confirm all entries still pass.
+5. Rerun `/curate-refs` to confirm all entries still pass.
 
 ## Programmatic enforcement
 
 Run before committing any bib change:
 
 ```
-/audit-refs
+/curate-refs
 ```
 
-The skill documentation at `.claude/skills/audit-refs/SKILL.md` covers:
+The skill documentation at `.claude/skills/curate-refs/SKILL.md` covers:
 
 - Base audit (no network, no API key required) — convention check only.
-- `/audit-refs --enrich` — optionally fetch missing `abstract` fields via WoS/Crossref cascade (requires `WOS_EXPANDED_API_KEY` or `WOS_API_KEY`; `--crossref-only` fallback for collaborators without a WoS key).
+- `/curate-refs --enrich` — optionally fetch missing `abstract` fields via WoS/Crossref cascade (requires `WOS_EXPANDED_API_KEY` or `WOS_API_KEY`; `--crossref-only` fallback for collaborators without a WoS key).
 
 The existing user-level `refs-checker` skill handles DOI-to-metadata verification against Crossref/WoS — complementary and different purpose.

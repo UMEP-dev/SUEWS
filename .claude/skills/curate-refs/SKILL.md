@@ -1,17 +1,17 @@
 ---
-name: audit-refs
-description: Audit SUEWS bib files for topic-tag convention compliance. Base mode checks every entry for a valid topic slug from the controlled vocabulary; optional --enrich mode fetches missing abstracts via WoS/Crossref. Use before committing any change to docs/source/assets/refs/refs-SUEWS.bib or refs-community.bib, or whenever asked to "audit refs", "check bib tags", "verify topic slugs". Complementary to the user-level refs-checker skill which verifies DOI-to-metadata correctness.
+name: curate-refs
+description: Curate SUEWS bib files — enforce topic-tag convention and backfill missing metadata. Base mode checks every entry for a valid topic slug from the controlled vocabulary; optional --enrich mode fetches missing abstracts via WoS/Crossref. Use before committing any change to docs/source/assets/refs/refs-SUEWS.bib or refs-community.bib, or whenever asked to "curate refs", "check bib tags", "verify topic slugs". Complementary to the user-level refs-checker skill which verifies DOI-to-metadata correctness.
 ---
 
-# audit-refs
+# curate-refs
 
-Convention auditor for SUEWS publication bib files. Ensures every entry carries a valid topic slug from the controlled vocabulary defined in `.claude/rules/docs/bib-topic-tags.md`. Pairs with `docs/source/related_publications.rst` which renders per-topic subsections via `sphinxcontrib-bibtex`'s `:filter:` directive on the `keywords` field.
+Reference-library curator for SUEWS publication bib files. Enforces the topic-tag convention (every entry carries a valid slug from the controlled vocabulary defined in `.claude/rules/docs/bib-topic-tags.md`) and backfills missing metadata. Pairs with `docs/source/related_publications.rst` which renders per-topic subsections via `sphinxcontrib-bibtex`'s `:filter:` directive on the `keywords` field.
 
 ## When to run
 
 - Before committing any change to `refs-SUEWS.bib` or `refs-community.bib`.
 - After adding a new bib entry or expanding the vocabulary.
-- Whenever the user asks to "audit refs", "check bib tags", "verify topic slugs".
+- Whenever the user asks to "curate refs", "check bib tags", "verify topic slugs".
 
 ## Scope
 
@@ -21,7 +21,7 @@ Convention auditor for SUEWS publication bib files. Ensures every entry carries 
 ## Base invocation (no network, no API key)
 
 ```bash
-uv run --no-project --with requests python .claude/skills/audit-refs/scripts/audit.py \
+uv run --no-project --with requests python .claude/skills/curate-refs/scripts/audit.py \
     docs/source/assets/refs/refs-SUEWS.bib \
     docs/source/assets/refs/refs-community.bib
 ```
@@ -34,12 +34,12 @@ Populate missing `abstract` fields in place. Idempotent — entries already carr
 
 ```bash
 # With Ting's WoS key (set WOS_EXPANDED_API_KEY or WOS_API_KEY in env)
-uv run --no-project --with requests python .claude/skills/audit-refs/scripts/enrich.py \
+uv run --no-project --with requests python .claude/skills/curate-refs/scripts/enrich.py \
     docs/source/assets/refs/refs-SUEWS.bib \
     docs/source/assets/refs/refs-community.bib
 
 # Without a WoS key (for collaborators)
-uv run --no-project --with requests python .claude/skills/audit-refs/scripts/enrich.py \
+uv run --no-project --with requests python .claude/skills/curate-refs/scripts/enrich.py \
     docs/source/assets/refs/refs-SUEWS.bib \
     docs/source/assets/refs/refs-community.bib \
     --crossref-only
@@ -70,4 +70,4 @@ Source of truth: `.claude/rules/docs/bib-topic-tags.md`. Kept in sync with the h
 - `sync-docs` (project): checks doc-code content consistency.
 - `lint-code` (project): checks code style.
 
-Run `refs-checker` for citation correctness, `audit-refs` for topic-tag convention, `sync-docs` for doc-code consistency.
+Run `refs-checker` for citation correctness, `curate-refs` for topic-tag convention and metadata backfill, `sync-docs` for doc-code consistency.

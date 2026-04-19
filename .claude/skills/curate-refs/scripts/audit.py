@@ -111,7 +111,7 @@ def audit_entry(entry: dict, file_path: str, all_keys: dict[str, str],
     # Abstract (warning only — collaborators without WoS access can still pass)
     abstract = extract_field(body, "abstract")
     if abstract is None or not abstract.strip():
-        warnings.append(f"{prefix}: missing `abstract` (run `/audit-refs --enrich` if you have WoS/Crossref access)")
+        warnings.append(f"{prefix}: missing `abstract` (run `/curate-refs --enrich` if you have WoS/Crossref access)")
 
 
 def find_entries(text: str) -> list[dict]:

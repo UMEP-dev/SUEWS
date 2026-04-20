@@ -812,7 +812,7 @@ class TestContinuationRuns:
         assert sim2.is_complete() is True
 
     @pytest.mark.skip(
-        reason="Parquet format parameter not being passed correctly - pre-existing issue"
+        reason="from_state(parquet) round-trip drops metadata; needs a tracking issue and investigation"
     )
     def test_from_state_parquet(self, tmp_path):
         """Test loading state from Parquet for continuation."""

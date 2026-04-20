@@ -3667,8 +3667,8 @@ class SUEWSConfig(BaseModel):
 
         `had_signature` carries whether the source YAML actually shipped a
         `schema_version` field. It is forwarded to `_drift_hint` so unsigned
-        YAMLs get a hint that asks for `-f/--from-ver <release-tag>` rather
-        than a bare `yaml-upgrade` command that the CLI would reject.
+        YAMLs get a hint that asks for `-f/--from <release-tag>` rather
+        than a bare `suews-convert` invocation that the CLI would reject.
         """
 
         # Extract GRIDID mapping from sites
@@ -3746,8 +3746,8 @@ class SUEWSConfig(BaseModel):
 
         Returns a multi-line string naming the detected schema version (or
         noting its absence), the current schema version, and the
-        `suews-convert yaml-upgrade` command the user should run. Kept in
-        one place so the loader's `TypeError`/`AttributeError` path and the
+        `suews-convert` command the user should run. Kept in one place so
+        the loader's `TypeError`/`AttributeError` path and the
         `extra_forbidden` branch in `_transform_validation_error` agree.
 
         When `had_signature` is False the YAML predates schema versioning,
@@ -3765,17 +3765,14 @@ class SUEWSConfig(BaseModel):
             except Exception:  # noqa: BLE001 - detection is best-effort
                 detected = "unspecified"
             detected_line = f"  Detected schema version: {detected}\n"
-            upgrade_cmd = (
-                "suews-convert yaml-upgrade -i <old.yml> -o <new.yml>"
-            )
+            upgrade_cmd = "suews-convert -i <old.yml> -o <new.yml>"
         else:
             detected_line = (
                 "  No schema_version field in YAML "
                 "(predates schema versioning).\n"
             )
             upgrade_cmd = (
-                "suews-convert yaml-upgrade -i <old.yml> -o <new.yml> "
-                "-f <release-tag>"
+                "suews-convert -i <old.yml> -o <new.yml> -f <release-tag>"
             )
 
         return (

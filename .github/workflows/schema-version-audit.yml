@@ -42,16 +42,21 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Fetch base ref
         if: steps.bypass.outputs.bypass != 'true'
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           set -eu
-          git fetch --no-tags origin "${{ github.event.pull_request.base.ref }}"
+          git fetch --no-tags origin "$BASE_REF"
 
       - name: Run schema-bump audit
         if: steps.bypass.outputs.bypass != 'true'
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           set -eu
           python scripts/lint/check_schema_version_bump.py \
-            --base "origin/${{ github.event.pull_request.base.ref }}"
+            --base "origin/$BASE_REF"

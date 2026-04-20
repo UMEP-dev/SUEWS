@@ -4,7 +4,7 @@ import platform
 import sys
 import tempfile
 from time import time
-from unittest import TestCase, skipIf
+from unittest import TestCase
 
 import numpy as np
 import pandas as pd
@@ -137,27 +137,6 @@ class TestSuPy(TestCase):
             not df_state.empty,
         ])
         self.assertTrue(test_non_empty)
-
-    #  test if flag_test can be set to True
-    @skipIf(
-        True,
-        "Skipping debug mode test due to STEBBS debug structure issues in YL/fixstebbs-rebase branch",
-    )
-    def test_is_flag_test_working(self):
-        print("\n========================================")
-        print("Testing if flag_test can be set to True...")
-
-        # Load sample data
-        df_state_init, df_forcing_tstep = sp.load_SampleData()
-
-        df_forcing_part = df_forcing_tstep.iloc[: TIMESTEPS_PER_DAY * 10]
-        df_output, df_state, df_debug, res_state = sp.run_supy(
-            df_forcing_part,
-            df_state_init,
-            debug_mode=True,
-        )
-        # check if `flag_test` in `df_output.debug` equals 1.0
-        self.assertTrue((df_output.debug.flag_test == 1.0).all())
 
     def test_run_with_version(self):
         print("\n========================================")

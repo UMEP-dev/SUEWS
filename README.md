@@ -64,10 +64,10 @@ Full documentation: **[docs.suews.io](https://docs.suews.io)**
 
 ## Documentation
 
-* **[Getting Started](https://docs.suews.io/en/latest/getting-started.html)** -- installation and first simulation
-* **[Tutorials](https://docs.suews.io/en/latest/tutorials.html)** -- hands-on guides with sample data
-* **[Input/Output Reference](https://docs.suews.io/en/latest/inputs.html)** -- configuration and data formats
-* **[Scientific Background](https://docs.suews.io/en/latest/parameterisations-and-sub-models.html)** -- physics schemes and parameterisations
+* **[Getting Started](https://docs.suews.io/stable/workflow.html)** -- installation and first simulation
+* **[Tutorials](https://docs.suews.io/stable/auto_examples/index.html)** -- hands-on guides with sample data
+* **[Input/Output Reference](https://docs.suews.io/stable/inputs/index.html)** -- configuration and data formats
+* **[Scientific Background](https://docs.suews.io/stable/parameterisations-and-sub-models.html)** -- physics schemes and parameterisations
 * **[Community Forum](https://community.suews.io)** -- questions, discussion, and support
 
 ## Citation

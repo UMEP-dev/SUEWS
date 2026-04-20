@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2025-08-20T13:17:55+00:00" />
-    <title>Schema Management CLI &#8212; SUEWS 2026.4.18.dev210 documentation</title>
+    <meta property="article:modified_time" content="2026-04-20T21:40:19+00:00" />
+    <title>Schema Management CLI &#8212; SUEWS 2026.4.18.dev213 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=6866b978"></script>
+    <script src="../../_static/documentation_options.js?v=7f12391e"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,8 +57,8 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.18.dev210" />
-    <meta name="docbuild:last-update" content="2025-08-20"/>
+  <meta name="docsearch:version" content="2026.4.18.dev213" />
+    <meta name="docbuild:last-update" content="2026-04-20"/>
   </head>
   
   
@@ -100,7 +100,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.18.dev210, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6075efa7e68474efe8eae6ecdd1d9f2c0cc0d5eb" style="color: #31708f;">6075efa</a>).
+        (2026.4.18.dev213, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4d0f1b4b2b06eceab8cc69e6a4a697850d7ab35b" style="color: #31708f;">4d0f1b4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +147,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.18.dev210 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.18.dev210 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.18.dev213 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.18.dev213 documentation - Home"/>
   
   
 </a></div>
@@ -689,7 +689,7 @@ suews-schema<span class="w"> </span>version<span class="w"> </span>configs/*.yml
 suews-schema<span class="w"> </span>version<span class="w"> </span>config.yml<span class="w"> </span>--update
 
 <span class="c1"># Update to specific version</span>
-suews-schema<span class="w"> </span>version<span class="w"> </span>config.yml<span class="w"> </span>--update<span class="w"> </span>--target-version<span class="w"> </span><span class="m">1</span>.0
+suews-schema<span class="w"> </span>version<span class="w"> </span>config.yml<span class="w"> </span>--update<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.4
 
 <span class="c1"># Update without backup (not recommended)</span>
 suews-schema<span class="w"> </span>version<span class="w"> </span>config.yml<span class="w"> </span>--update<span class="w"> </span>--no-backup
@@ -715,7 +715,7 @@ suews-schema<span class="w"> </span>validate<span class="w"> </span>configs/*.ym
 </div>
 <p><strong>Advanced options:</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Validate against specific schema version</span>
-suews-schema<span class="w"> </span>validate<span class="w"> </span>config.yml<span class="w"> </span>--schema-version<span class="w"> </span><span class="m">1</span>.0
+suews-schema<span class="w"> </span>validate<span class="w"> </span>config.yml<span class="w"> </span>--schema-version<span class="w"> </span><span class="m">2026</span>.4
 
 <span class="c1"># Strict mode (exit with error code on failure)</span>
 suews-schema<span class="w"> </span>validate<span class="w"> </span>config.yml<span class="w"> </span>--strict
@@ -740,7 +740,7 @@ suews-schema<span class="w"> </span>validate<span class="w"> </span>config.yml<s
 suews-schema<span class="w"> </span>migrate<span class="w"> </span>old_config.yml
 
 <span class="c1"># Migrate to specific version</span>
-suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2</span>.0
+suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.4
 </pre></div>
 </div>
 <p><strong>Batch migration:</strong></p>
@@ -767,7 +767,7 @@ suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.yml<sp
 suews-schema<span class="w"> </span><span class="nb">export</span><span class="w"> </span>-o<span class="w"> </span>schema.json
 
 <span class="c1"># Export specific version</span>
-suews-schema<span class="w"> </span><span class="nb">export</span><span class="w"> </span>--version<span class="w"> </span><span class="m">1</span>.0<span class="w"> </span>-o<span class="w"> </span>schema-v1.0.json
+suews-schema<span class="w"> </span><span class="nb">export</span><span class="w"> </span>--version<span class="w"> </span><span class="m">2026</span>.4<span class="w"> </span>-o<span class="w"> </span>schema-2026.4.json
 
 <span class="c1"># Export as YAML</span>
 suews-schema<span class="w"> </span><span class="nb">export</span><span class="w"> </span>--format<span class="w"> </span>yaml<span class="w"> </span>-o<span class="w"> </span>schema.yaml
@@ -915,9 +915,9 @@ suews-schema<span class="w"> </span>validate<span class="w"> </span>config.yml<s
 </div>
 <p><strong>Issue: Migration fails</strong></p>
 <p>Try step-by-step migration if jumping multiple versions:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Instead of 0.1 -&gt; 2.0 directly</span>
-suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">1</span>.0
-suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.migrated.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2</span>.0
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Instead of 2025.12 -&gt; 2026.4 directly</span>
+suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.1
+suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.migrated.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.4
 </pre></div>
 </div>
 </section>
@@ -925,7 +925,7 @@ suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.migrat
 <h2>See Also<a class="headerlink" href="#see-also" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><span class="xref std std-ref">yaml_config</span> - YAML configuration documentation</p></li>
-<li><p><span class="xref std std-ref">schema_versioning</span> - Schema versioning details</p></li>
+<li><p><a class="reference internal" href="schema_versioning.html#schema-versioning"><span class="std std-ref">YAML Configuration Schema Versioning</span></a> - Schema versioning details</p></li>
 <li><p><a class="reference internal" href="../../inputs/yaml/validation.html#validation"><span class="std std-ref">Validation Tool Reference</span></a> - Configuration validation guide</p></li>
 </ul>
 </section>
@@ -1014,7 +1014,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2025-08-20.
+  Last updated on 2026-04-20.
   <br/>
 </p>
   </div>
@@ -1022,8 +1022,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.18.dev210 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6075efa7e68474efe8eae6ecdd1d9f2c0cc0d5eb">6075efa</a> |
+  <p>Version: 2026.4.18.dev213 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4d0f1b4b2b06eceab8cc69e6a4a697850d7ab35b">4d0f1b4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

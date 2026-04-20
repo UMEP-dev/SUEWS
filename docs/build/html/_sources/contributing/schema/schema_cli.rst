@@ -74,7 +74,7 @@ Check or update schema versions in configuration files.
    suews-schema version config.yml --update
 
    # Update to specific version
-   suews-schema version config.yml --update --target-version 1.0
+   suews-schema version config.yml --update --target-version 2026.4
 
    # Update without backup (not recommended)
    suews-schema version config.yml --update --no-backup
@@ -105,7 +105,7 @@ Validate configuration files against their schema.
 .. code-block:: bash
 
    # Validate against specific schema version
-   suews-schema validate config.yml --schema-version 1.0
+   suews-schema validate config.yml --schema-version 2026.4
 
    # Strict mode (exit with error code on failure)
    suews-schema validate config.yml --strict
@@ -133,7 +133,7 @@ Migrate configuration files between schema versions.
    suews-schema migrate old_config.yml
 
    # Migrate to specific version
-   suews-schema migrate config.yml --target-version 2.0
+   suews-schema migrate config.yml --target-version 2026.4
 
 **Batch migration:**
 
@@ -165,7 +165,7 @@ Export the JSON Schema for SUEWS configurations.
    suews-schema export -o schema.json
 
    # Export specific version
-   suews-schema export --version 1.0 -o schema-v1.0.json
+   suews-schema export --version 2026.4 -o schema-2026.4.json
 
    # Export as YAML
    suews-schema export --format yaml -o schema.yaml
@@ -334,9 +334,9 @@ Try step-by-step migration if jumping multiple versions:
 
 .. code-block:: bash
 
-   # Instead of 0.1 -> 2.0 directly
-   suews-schema migrate config.yml --target-version 1.0
-   suews-schema migrate config.migrated.yml --target-version 2.0
+   # Instead of 2025.12 -> 2026.4 directly
+   suews-schema migrate config.yml --target-version 2026.1
+   suews-schema migrate config.migrated.yml --target-version 2026.4
 
 See Also
 --------

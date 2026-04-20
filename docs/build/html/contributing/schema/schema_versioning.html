@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2025-11-20T13:50:51+00:00" />
-    <title>YAML Configuration Schema Versioning &#8212; SUEWS 2026.4.18.dev210 documentation</title>
+    <meta property="article:modified_time" content="2026-04-20T21:40:19+00:00" />
+    <title>YAML Configuration Schema Versioning &#8212; SUEWS 2026.4.18.dev213 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=6866b978"></script>
+    <script src="../../_static/documentation_options.js?v=7f12391e"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,8 +57,8 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.18.dev210" />
-    <meta name="docbuild:last-update" content="2025-11-20"/>
+  <meta name="docsearch:version" content="2026.4.18.dev213" />
+    <meta name="docbuild:last-update" content="2026-04-20"/>
   </head>
   
   
@@ -100,7 +100,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.18.dev210, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6075efa7e68474efe8eae6ecdd1d9f2c0cc0d5eb" style="color: #31708f;">6075efa</a>).
+        (2026.4.18.dev213, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4d0f1b4b2b06eceab8cc69e6a4a697850d7ab35b" style="color: #31708f;">4d0f1b4</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +147,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.18.dev210 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.18.dev210 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.18.dev213 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.18.dev213 documentation - Home"/>
   
   
 </a></div>
@@ -592,16 +592,14 @@
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-versioning-overview">Schema Versioning Overview</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#key-concept">Key Concept</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-version-field">Schema Version Field</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-version-policy">Schema Version Policy</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#compatibility-checking">Compatibility Checking</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#migration">Migration</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#command-line-migration">Command-Line Migration</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#versioning-python-api">Versioning Python API</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#command-line-migration-preferred-entry-point">Command-line migration (preferred entry point)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-api">Python API</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#managing-schema-versions">Managing Schema Versions</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-history">Version History</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#versioning-best-practices">Versioning Best Practices</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#faq">FAQ</a></li>
@@ -625,31 +623,42 @@
 </ol>
 </div>
 <section id="yaml-configuration-schema-versioning">
-<h1>YAML Configuration Schema Versioning<a class="headerlink" href="#yaml-configuration-schema-versioning" title="Link to this heading">#</a></h1>
+<span id="schema-versioning"></span><h1>YAML Configuration Schema Versioning<a class="headerlink" href="#yaml-configuration-schema-versioning" title="Link to this heading">#</a></h1>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Schema versioning was introduced in SUEWS v2025.8 to track configuration structure changes independently of model versions.</p>
+<p>Schema versioning was introduced in SUEWS v2025.8 to track changes to
+the YAML configuration <em>structure</em> independently of model code
+releases. The concrete version labels use SUEWS’ CalVer convention
+(<code class="docutils literal notranslate"><span class="pre">YYYY.M</span></code>), aligned with the release that first shipped each
+shape.</p>
 </div>
 <section id="schema-versioning-overview">
 <h2>Schema Versioning Overview<a class="headerlink" href="#schema-versioning-overview" title="Link to this heading">#</a></h2>
-<p>SUEWS YAML configurations use a <strong>schema version</strong> to track the structure and format of configuration files. This versioning system:</p>
+<p>SUEWS YAML configurations carry a <code class="docutils literal notranslate"><span class="pre">schema_version</span></code> field that tracks
+the structure and format of the configuration file:</p>
 <ul class="simple">
-<li><p><strong>Tracks structure only</strong>: Schema versions change when fields are added, removed, or renamed</p></li>
-<li><p><strong>Independent of model versions</strong>: SUEWS can be updated without changing the schema</p></li>
-<li><p><strong>Enables migration</strong>: Provides clear paths for updating older configurations</p></li>
-<li><p><strong>Simplifies compatibility</strong>: One version number instead of complex version matrices</p></li>
+<li><p><strong>Tracks structure only</strong>: schema versions change when public fields
+are added, removed, renamed, restructured, or have their type
+changed.</p></li>
+<li><p><strong>Independent of model versions</strong>: SUEWS can ship many model updates
+without disturbing the schema; conversely one schema version usually
+spans several model releases.</p></li>
+<li><p><strong>Enables migration</strong>: each transition is backed by a concrete
+migration handler that upgrades older YAMLs to the current shape.</p></li>
+<li><p><strong>Simplifies compatibility checks</strong>: a single label, not a
+compatibility matrix.</p></li>
 </ul>
-</section>
-<section id="key-concept">
-<h2>Key Concept<a class="headerlink" href="#key-concept" title="Link to this heading">#</a></h2>
-<p><strong>Schema version ≠ SUEWS version</strong></p>
-<p>The schema version (e.g., <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) tracks the configuration structure, while SUEWS versions (e.g., <code class="docutils literal notranslate"><span class="pre">2025.8.15</span></code>) track the model code. A single schema version may work with many SUEWS releases.</p>
+<p>Schema version is distinct from the SUEWS model version. A line such as
+<code class="docutils literal notranslate"><span class="pre">schema_version:</span> <span class="pre">&quot;2026.4&quot;</span></code> describes the shape of the configuration
+file, while the SUEWS version you installed (for example
+<code class="docutils literal notranslate"><span class="pre">2026.4.3</span></code>) describes the model code. One schema may validate many
+model releases.</p>
 </section>
 <section id="schema-version-field">
 <h2>Schema Version Field<a class="headerlink" href="#schema-version-field" title="Link to this heading">#</a></h2>
-<p>Add the <code class="docutils literal notranslate"><span class="pre">schema_version</span></code> field to your configuration:</p>
+<p>Add the <code class="docutils literal notranslate"><span class="pre">schema_version</span></code> field to the top level of your configuration:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_urban_config</span>
-<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1.0&quot;</span><span class="w">    </span><span class="c1"># Configuration structure version</span>
+<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2026.4&quot;</span>
 <span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Urban climate simulation for central London</span>
 <span class="nt">model</span><span class="p">:</span>
 <span class="w">  </span><span class="c1"># ... model configuration ...</span>
@@ -657,44 +666,68 @@
 <span class="w">  </span><span class="c1"># ... site configuration ...</span>
 </pre></div>
 </div>
-<p>If no schema version is specified, SUEWS assumes the current schema version.</p>
+<p>If no <code class="docutils literal notranslate"><span class="pre">schema_version</span></code> is specified, SUEWS assumes the current schema
+version and suppresses the compatibility warning. For reproducible
+runs you should always set the field explicitly so future readers can
+tell which shape the file targets.</p>
 </section>
 <section id="schema-version-policy">
 <h2>Schema Version Policy<a class="headerlink" href="#schema-version-policy" title="Link to this heading">#</a></h2>
-<p>Schema versions follow a simple <strong>major.minor</strong> format:</p>
-<dl class="simple">
-<dt><strong>Minor Version Changes (1.0 → 1.1)</strong></dt><dd><ul class="simple">
-<li><p>New optional fields added</p></li>
-<li><p>Backward compatible</p></li>
-<li><p>Old configs work without modification</p></li>
-<li><p>Example: Adding optional <code class="docutils literal notranslate"><span class="pre">new_parameter</span></code> field</p></li>
+<p>Schema labels use <strong>CalVer</strong> (<code class="docutils literal notranslate"><span class="pre">YYYY.M</span></code>, occasionally <code class="docutils literal notranslate"><span class="pre">YYYY.M.D</span></code>),
+aligned with the SUEWS release in which that shape first shipped. The
+next label is chosen from the current month, not incremented as a
+floating-point number — <code class="docutils literal notranslate"><span class="pre">2026.4</span></code> comes after <code class="docutils literal notranslate"><span class="pre">2026.1</span></code>, which comes
+after <code class="docutils literal notranslate"><span class="pre">2025.12</span></code>.</p>
+<p>A bump happens when a PR to <code class="docutils literal notranslate"><span class="pre">src/supy/data_model/</span></code> makes a previously
+valid user YAML no longer round-trip. In practice that means any of:</p>
+<ul class="simple">
+<li><p>a public field is <strong>renamed</strong> (for example <code class="docutils literal notranslate"><span class="pre">DeepSoilTemperature</span></code> →
+<code class="docutils literal notranslate"><span class="pre">AnnualMeanAirTemperature</span></code>)</p></li>
+<li><p>a public field is <strong>removed</strong> (for example
+<code class="docutils literal notranslate"><span class="pre">MinimumVolumeOfDHWinUse</span></code>)</p></li>
+<li><p>a public field <strong>changes type or shape</strong> (scalar becomes profile
+dict; optional becomes required-with-no-default)</p></li>
+<li><p>a <strong>new required field</strong> without a sensible default is added</p></li>
+<li><p>a nested section is <strong>restructured</strong> (split, merged, or re-keyed)</p></li>
+<li><p>an enum or literal is <strong>tightened</strong> so that a previously accepted
+value is now rejected</p></li>
 </ul>
-</dd>
-<dt><strong>Major Version Changes (1.0 → 2.0)</strong></dt><dd><ul class="simple">
-<li><p>Breaking changes (field renames, restructuring)</p></li>
-<li><p>Migration required</p></li>
-<li><p>Clear migration documentation provided</p></li>
-<li><p>Example: Renaming <code class="docutils literal notranslate"><span class="pre">old_field</span></code> to <code class="docutils literal notranslate"><span class="pre">new_field</span></code></p></li>
-</ul>
-</dd>
-</dl>
+<p>Additive, backward-compatible changes (new <code class="docutils literal notranslate"><span class="pre">Optional</span></code> fields with
+defaults, new output variables, tightened validator ranges) do <em>not</em>
+bump the schema — the YAML shape is unchanged.</p>
 <div class="admonition important">
 <p class="admonition-title">Important</p>
-<p>Schema versions change rarely (perhaps once per year), unlike SUEWS versions which may have hundreds of development builds.</p>
+<p>Schema versions change when the code needs them to. If you are
+pinning to a specific SUEWS release, pin <code class="docutils literal notranslate"><span class="pre">schema_version</span></code> to the
+label listed for that release in the <a class="reference internal" href="#schema-version-history"><span class="std std-ref">version history</span></a> below.</p>
 </div>
 </section>
 <section id="compatibility-checking">
 <h2>Compatibility Checking<a class="headerlink" href="#compatibility-checking" title="Link to this heading">#</a></h2>
-<p>SUEWS automatically checks schema compatibility when loading configurations:</p>
+<p>SUEWS checks schema compatibility when loading a configuration.
+Compatibility is derived from the <strong>migration handler registry</strong>
+(<code class="xref py py-data docutils literal notranslate"><span class="pre">supy.util.converter.yaml_upgrade._HANDLERS</span></code>) rather than a
+static compatibility table: a version is compatible with the current
+one if and only if it equals the current version or a
+<code class="docutils literal notranslate"><span class="pre">(config_version,</span> <span class="pre">current_version)</span></code> handler is registered. Adding a
+handler is what makes the previous schema compatible; there is no
+separate table to update (gh#1304).</p>
+<p>The three outcomes users see:</p>
 <dl>
-<dt><strong>Compatible Versions</strong></dt><dd><p>No warnings - configuration loads normally</p>
+<dt><strong>Current version</strong></dt><dd><p>Configuration loads with no warning.</p>
 </dd>
-<dt><strong>Older Schema</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>WARNING: Configuration uses older schema 0.9, current is 1.0.
+<dt><strong>Older schema with a registered migration</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Configuration uses schema 2026.1, current is 2026.4 (compatible)
+</pre></div>
+</div>
+<p>The YAML loads via the chained migration. Regenerate the file with
+<a class="reference internal" href="../../inputs/converter.html"><span class="doc">SUEWS Format Converter</span></a> if you want to persist the upgrade.</p>
+</dd>
+<dt><strong>Older schema with no registered migration</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>WARNING: Configuration uses older schema 2025.8, current is 2026.4.
 Consider updating your configuration.
 </pre></div>
 </div>
 </dd>
-<dt><strong>Newer Schema</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>WARNING: Configuration uses newer schema 2.0, this version supports 1.0.
+<dt><strong>Newer schema than this SUEWS knows about</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>WARNING: Configuration uses newer schema 2027.1, this version supports 2026.4.
 Please update SUEWS or use an older configuration.
 </pre></div>
 </div>
@@ -703,72 +736,108 @@ Please update SUEWS or use an older configuration.
 </section>
 <section id="migration">
 <h2>Migration<a class="headerlink" href="#migration" title="Link to this heading">#</a></h2>
-<p>When schema versions change, migration tools help update your configurations:</p>
-<section id="command-line-migration">
-<h3>Command-Line Migration<a class="headerlink" href="#command-line-migration" title="Link to this heading">#</a></h3>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Migrate a single file</span>
-python<span class="w"> </span>-m<span class="w"> </span>supy.util.schema_migration<span class="w"> </span>config.yml
+<p>When schema versions change, migration tools upgrade existing YAMLs to
+the current shape. See <a class="reference internal" href="../../inputs/transition_guide.html#transition-guide"><span class="std std-ref">Transitioning to YAML-based Configuration</span></a> for a user-facing walk
+through of each release’s delta, and <a class="reference internal" href="../../inputs/converter.html"><span class="doc">SUEWS Format Converter</span></a> for
+conversions that combine version migration with legacy table-to-YAML
+rewriting.</p>
+<section id="command-line-migration-preferred-entry-point">
+<h3>Command-line migration (preferred entry point)<a class="headerlink" href="#command-line-migration-preferred-entry-point" title="Link to this heading">#</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Upgrade a YAML to the current schema in place-safely (creates a .bak)</span>
+suews-schema<span class="w"> </span>migrate<span class="w"> </span>old_config.yml
 
-<span class="c1"># Migrate to specific version</span>
-python<span class="w"> </span>-m<span class="w"> </span>supy.util.schema_migration<span class="w"> </span>config.yml<span class="w"> </span>--to-version<span class="w"> </span><span class="m">1</span>.0
+<span class="c1"># Migrate to a specific target schema</span>
+suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.4
+
+<span class="c1"># Dry-run to preview the rename/drop deltas</span>
+suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.yml<span class="w"> </span>--dry-run
 </pre></div>
 </div>
 </section>
-<section id="versioning-python-api">
-<h3>Versioning Python API<a class="headerlink" href="#versioning-python-api" title="Link to this heading">#</a></h3>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy.util.schema_migration</span><span class="w"> </span><span class="kn">import</span> <span class="n">migrate_config_file</span>
+<section id="python-api">
+<h3>Python API<a class="headerlink" href="#python-api" title="Link to this heading">#</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy.data_model.schema.migration</span><span class="w"> </span><span class="kn">import</span> <span class="n">SchemaMigrator</span>
 
-<span class="c1"># Migrate to current schema</span>
-<span class="n">migrate_config_file</span><span class="p">(</span><span class="s1">&#39;old_config.yml&#39;</span><span class="p">,</span> <span class="s1">&#39;new_config.yml&#39;</span><span class="p">)</span>
+<span class="n">migrator</span> <span class="o">=</span> <span class="n">SchemaMigrator</span><span class="p">()</span>
+<span class="n">upgraded</span> <span class="o">=</span> <span class="n">migrator</span><span class="o">.</span><span class="n">migrate</span><span class="p">(</span><span class="n">old_config</span><span class="p">,</span> <span class="n">to_version</span><span class="o">=</span><span class="s2">&quot;2026.4&quot;</span><span class="p">)</span>
 
-<span class="c1"># Check if migration needed</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">supy.util.schema_migration</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_migration_needed</span>
-<span class="k">if</span> <span class="n">check_migration_needed</span><span class="p">(</span><span class="s1">&#39;config.yml&#39;</span><span class="p">):</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Configuration needs migration&quot;</span><span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">supy.data_model.schema.version</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_schema_compatible</span>
+<span class="k">if</span> <span class="n">is_schema_compatible</span><span class="p">(</span><span class="s2">&quot;2026.1&quot;</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;2026.1 has a registered migration path to current&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
-</section>
-<section id="managing-schema-versions">
-<h2>Managing Schema Versions<a class="headerlink" href="#managing-schema-versions" title="Link to this heading">#</a></h2>
-<p>Update schema versions in your configurations:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Set to current schema version</span>
-python<span class="w"> </span>-m<span class="w"> </span>supy.util.update_schema_version<span class="w"> </span>config.yml<span class="w"> </span>--current
-
-<span class="c1"># Set specific version</span>
-python<span class="w"> </span>-m<span class="w"> </span>supy.util.update_schema_version<span class="w"> </span>config.yml<span class="w"> </span>--schema-version<span class="w"> </span><span class="m">1</span>.0
-
-<span class="c1"># Update all configs in directory</span>
-python<span class="w"> </span>-m<span class="w"> </span>supy.util.update_schema_version<span class="w"> </span>--directory<span class="w"> </span>./configs<span class="w"> </span>--current
-</pre></div>
-</div>
 </section>
 <section id="version-history">
-<h2>Version History<a class="headerlink" href="#version-history" title="Link to this heading">#</a></h2>
+<span id="schema-version-history"></span><h2>Version History<a class="headerlink" href="#version-history" title="Link to this heading">#</a></h2>
+<p>The lineage below mirrors <code class="docutils literal notranslate"><span class="pre">SCHEMA_VERSIONS</span></code> in
+<code class="docutils literal notranslate"><span class="pre">src/supy/data_model/schema/version.py</span></code>. Each release tag maps to
+the schema that shipped with it via
+<code class="docutils literal notranslate"><span class="pre">supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA</span></code>.</p>
 <dl class="simple">
-<dt><strong>Schema 1.0</strong> (2025.8)</dt><dd><p>Initial YAML schema with full Pydantic data model. Includes all parameters from the table-based format in a hierarchical structure.</p>
+<dt><strong>Schema 2026.4</strong> (current; shipped with 2026.4.3)</dt><dd><p>Renamed <code class="docutils literal notranslate"><span class="pre">DeepSoilTemperature</span></code> to <code class="docutils literal notranslate"><span class="pre">AnnualMeanAirTemperature</span></code>
+(#1240); removed <code class="docutils literal notranslate"><span class="pre">MinimumVolumeOfDHWinUse</span></code> and
+<code class="docutils literal notranslate"><span class="pre">MaximumVolumeOfDHWinUse</span></code> (#1242); split STEBBS
+<code class="docutils literal notranslate"><span class="pre">HeatingSetpointTemperature</span></code> and <code class="docutils literal notranslate"><span class="pre">CoolingSetpointTemperature</span></code>
+into scalar + <code class="docutils literal notranslate"><span class="pre">*Profile</span></code> siblings gated on
+<code class="docutils literal notranslate"><span class="pre">model.physics.setpointmethod</span></code> (#1261); added daylight-control
+and lighting/metabolism fields.</p>
+</dd>
+<dt><strong>Schema 2026.1</strong> (shipped with 2026.1.28)</dt><dd><p>STEBBS clean-up (#879): <code class="docutils literal notranslate"><span class="pre">Wallx1</span></code>/<code class="docutils literal notranslate"><span class="pre">Roofx1</span></code> replaced with
+<code class="docutils literal notranslate"><span class="pre">WallOuterCapFrac</span></code>/<code class="docutils literal notranslate"><span class="pre">RoofOuterCapFrac</span></code>;
+<code class="docutils literal notranslate"><span class="pre">IndoorAirStartTemperature</span></code>/<code class="docutils literal notranslate"><span class="pre">OutdoorAirStartTemperature</span></code> renamed
+to <code class="docutils literal notranslate"><span class="pre">InitialIndoorTemperature</span></code>/<code class="docutils literal notranslate"><span class="pre">InitialOutdoorTemperature</span></code>;
+<code class="docutils literal notranslate"><span class="pre">DHWVesselEmissivity</span></code> and runtime-state view-factor fields
+dropped. STEBBS hourly profiles added for setpoints, appliance,
+occupants and hot water (#1038). <code class="docutils literal notranslate"><span class="pre">DeepSoilTemperature</span></code> and DHW
+volume bounds still present.</p>
+</dd>
+<dt><strong>Schema 2025.12</strong> (shipped with 2025.10.15 and 2025.11.20)</dt><dd><p>Initial formal YAML schema. Pre-#879 STEBBS layout: <code class="docutils literal notranslate"><span class="pre">Wallx1</span></code> /
+<code class="docutils literal notranslate"><span class="pre">Roofx1</span></code> wall/roof compositions, <code class="docutils literal notranslate"><span class="pre">DHWVesselEmissivity</span></code>,
+standalone appliance/occupant fields, explicit initial-state and
+runtime-state slots.</p>
 </dd>
 </dl>
+<p>For developer-side guidance on when a bump is required and which docs
+must move with it, see <a class="reference internal" href="schema-developer.html"><span class="doc">Schema Development Documentation</span></a> and the
+<code class="docutils literal notranslate"><span class="pre">.claude/rules/python/schema-versioning.md</span></code> rule shipped with the
+repository.</p>
 </section>
 <section id="versioning-best-practices">
 <h2>Versioning Best Practices<a class="headerlink" href="#versioning-best-practices" title="Link to this heading">#</a></h2>
 <ol class="arabic simple">
-<li><p><strong>Let SUEWS handle it</strong>: If you don’t specify a schema version, SUEWS assumes the current version</p></li>
-<li><p><strong>Check compatibility</strong>: Use migration tools when updating old configurations</p></li>
-<li><p><strong>Don’t modify manually</strong>: Use the provided tools to update schema versions</p></li>
-<li><p><strong>Document your version</strong>: When sharing configs, note the SUEWS version tested with</p></li>
+<li><p><strong>Pin</strong> <code class="docutils literal notranslate"><span class="pre">schema_version</span></code> in shared configurations so the target
+shape is explicit.</p></li>
+<li><p><strong>Upgrade via ``suews-schema migrate``</strong> rather than hand-editing;
+the tool preserves user-supplied values through rename chains and
+logs dropped fields so you can recover intent.</p></li>
+<li><p><strong>Re-validate after migration</strong>: <code class="docutils literal notranslate"><span class="pre">suews-schema</span> <span class="pre">validate</span>
+<span class="pre">new_config.yml</span></code> catches any downstream field that tightened at the
+same time.</p></li>
+<li><p><strong>Quote the SUEWS release</strong> when sharing a config — the release
+tag anchors the schema label via <code class="docutils literal notranslate"><span class="pre">_PACKAGE_TO_SCHEMA</span></code> even if the
+reader has not internalised the CalVer policy.</p></li>
 </ol>
 </section>
 <section id="faq">
 <h2>FAQ<a class="headerlink" href="#faq" title="Link to this heading">#</a></h2>
 <dl class="simple">
-<dt><strong>Q: Do I need to add schema_version to my configs?</strong></dt><dd><p>No, it’s optional. SUEWS assumes the current version if not specified.</p>
+<dt><strong>Q: Do I need to add ``schema_version`` to my configs?</strong></dt><dd><p>It is optional; if absent, SUEWS assumes the current version. For
+anything you intend to keep or share, add it.</p>
 </dd>
-<dt><strong>Q: How often do schema versions change?</strong></dt><dd><p>Rarely - perhaps once per year for minor updates, less often for major changes.</p>
+<dt><strong>Q: How often do schema versions change?</strong></dt><dd><p>At most once per SUEWS release, and usually less often — 2025.10.15
+and 2025.11.20 share schema <code class="docutils literal notranslate"><span class="pre">2025.12</span></code> because no breaking changes
+landed between them.</p>
 </dd>
-<dt><strong>Q: What if I use the wrong schema version?</strong></dt><dd><p>SUEWS will warn you and may still work if changes are minor. Use migration tools for major differences.</p>
+<dt><strong>Q: What if I pin a schema that this SUEWS does not know about?</strong></dt><dd><p>If the label is <em>older</em> and a migration handler is registered, the
+configuration loads transparently. If the label is <em>newer</em> (you are
+running an old SUEWS against a new YAML) or older with no handler,
+you get a warning and may need to upgrade SUEWS or regenerate the
+YAML.</p>
 </dd>
-<dt><strong>Q: Is this the same as the SUEWS model version?</strong></dt><dd><p>No, schema versions track configuration structure. Model versions track SUEWS code changes.</p>
+<dt><strong>Q: Is this the same as the SUEWS model version?</strong></dt><dd><p>No. The schema version tracks the YAML shape. The model version
+tracks the SUEWS code. One schema typically spans several model
+releases.</p>
 </dd>
 </dl>
 </section>
@@ -804,16 +873,14 @@ python<span class="w"> </span>-m<span class="w"> </span>supy.util.update_schema_
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-versioning-overview">Schema Versioning Overview</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#key-concept">Key Concept</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-version-field">Schema Version Field</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-version-policy">Schema Version Policy</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#compatibility-checking">Compatibility Checking</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#migration">Migration</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#command-line-migration">Command-Line Migration</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#versioning-python-api">Versioning Python API</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#command-line-migration-preferred-entry-point">Command-line migration (preferred entry point)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-api">Python API</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#managing-schema-versions">Managing Schema Versions</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#version-history">Version History</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#versioning-best-practices">Versioning Best Practices</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#faq">FAQ</a></li>
@@ -850,7 +917,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2025-11-20.
+  Last updated on 2026-04-20.
   <br/>
 </p>
   </div>
@@ -858,8 +925,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.18.dev210 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6075efa7e68474efe8eae6ecdd1d9f2c0cc0d5eb">6075efa</a> |
+  <p>Version: 2026.4.18.dev213 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4d0f1b4b2b06eceab8cc69e6a4a697850d7ab35b">4d0f1b4</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

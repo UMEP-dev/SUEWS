@@ -102,5 +102,6 @@ This release delivers a major backend migration to Rust FFI, RSL physics refinem
 
 - f90wrap is no longer supported; the Rust FFI bridge is the sole simulation backend. (:pr:`1209`)
 - Deprecated ``env.yml`` and conda/mamba build pathway. (:pr:`1163`)
+- YAML schema bumped ``2025.12 -> 2026.1 -> 2026.4`` (retrospectively via gh#1304). Breaking field-level changes include ``DeepSoilTemperature`` -> ``AnnualMeanAirTemperature`` (:pr:`1240`), removal of ``MinimumVolumeOfDHWinUse`` / ``MaximumVolumeOfDHWinUse`` (:pr:`1242`), and STEBBS setpoint scalar/profile split gated on ``model.physics.setpointmethod`` (:pr:`1261`). Migration handlers cover the full chain; run ``suews-schema migrate your_config.yml`` to upgrade existing YAMLs. See :ref:`transition_guide` for the user-facing upgrade summary.
 
 For complete details, see the `CHANGELOG <https://github.com/UMEP-dev/SUEWS/blob/master/CHANGELOG.md>`_.

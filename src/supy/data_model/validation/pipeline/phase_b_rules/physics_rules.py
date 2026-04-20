@@ -106,7 +106,7 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
                     category="PHYSICS",
                     parameter=f"model.physics.{param}",
                     message=f"Physics parameter '{param}' has null value. This parameter controls critical model behaviour and must be set for proper simulation.",
-                    suggested_value=f"Set '{param}' to an appropriate non-null value. Check documentation for parameter details: https://docs.suews.io/en/latest",
+                    suggested_value=f"Set '{param}' to an appropriate non-null value. Check documentation for parameter details: https://docs.suews.io/stable",
                 )
             )
 

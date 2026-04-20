@@ -56,6 +56,10 @@ EXAMPLES:
 
 ### 20 Apr 2026
 
+- [maintenance] Fold `COMPATIBLE_VERSIONS` into the migration handler registry (#1304)
+  - Deleted the hand-maintained `COMPATIBLE_VERSIONS` dict in `src/supy/data_model/schema/version.py`; it had degenerated into a parallel line to `_HANDLERS` in `src/supy/util/converter/yaml_upgrade.py`, encoding the same `(from -> current)` edges in a less expressive form and prone to drifting out of sync (the root cause of the gap gh#1304 originally retrofitted)
+  - `is_schema_compatible` now consults `SchemaMigrator.migration_handlers` directly: a version is compatible iff it equals the current schema or a `(from, current)` handler is registered that actually migrates the YAML forward. Registering a handler is what grants compatibility — no second table to update
+  - Updated `.claude/rules/python/schema-versioning.md`, `scripts/lint/check_schema_version_bump.py`, and the `prep-release` skill to stop asking contributors to edit `COMPATIBLE_VERSIONS`; the audit now terminates at `_HANDLERS`
 - [maintenance] Guardrails against schema-version drift (#1304)
   - New pytest regression `test/data_model/test_schema_version_sync.py` asserts `src/supy/sample_data/sample_config.yml::schema_version` equals `CURRENT_SCHEMA_VERSION` on every test run; the `verify-build` shell recipe is no longer the only line of defence
   - New CI gate `.github/workflows/schema-version-audit.yml` runs on every PR that touches `src/supy/data_model/**` or `src/supy/sample_data/sample_config.yml` and fails unless `src/supy/data_model/schema/version.py` is also modified. Backed by `scripts/lint/check_schema_version_bump.py`. Maintainers can add the `schema-audit-ok` label to bypass the gate for genuinely cosmetic diffs

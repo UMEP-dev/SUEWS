@@ -368,6 +368,66 @@ class TestPre2026_1ReleaseTagMigration:
         # ASSERT
         SUEWSConfig.from_yaml(str(upgraded))
 
+    @pytest.mark.parametrize(
+        "release_tag", ["2025.10.15", "2025.11.20"]
+    )
+    def test_scalar_only_release_keeps_setpoint_constant(
+        self, release_tag: str, tmp_path: Path
+    ):
+        """Scalar-only YAMLs must NOT be flipped to setpointmethod=2.
+
+        2025.10.15 / 2025.11.20 YAMLs carry scalar
+        `HeatingSetpointTemperature` / `CoolingSetpointTemperature` and no
+        `*Profile` siblings. If the upgrader forces
+        `setpointmethod = 2` (SCHEDULED) on them, Phase B validation nulls
+        the scalar values and the missing profiles fall back to their
+        off-defaults (heating 0 C, cooling 100 C) — silently disabling
+        heating/cooling for users migrating from those releases. Regression
+        guard for the gh#1304 follow-up that gated the flip on actual
+        profile relocation.
+        """
+        # ARRANGE
+        fixture = (
+            REPO_ROOT
+            / "test"
+            / "fixtures"
+            / "release_configs"
+            / f"{release_tag}.yml"
+        )
+        upgraded = tmp_path / "upgraded.yml"
+
+        # ACT
+        upgrade_yaml(
+            input_path=fixture,
+            output_path=upgraded,
+            from_ver=release_tag,
+        )
+
+        # ASSERT: scalar setpoints preserved, no *Profile synthesised,
+        # setpointmethod NOT forced to SCHEDULED (stays at its default of
+        # CONSTANT=0 so the user's scalars drive the run).
+        payload = yaml.safe_load(upgraded.read_text(encoding="utf-8"))
+        arch = payload["sites"][0]["properties"]["building_archetype"]
+        assert isinstance(arch.get("HeatingSetpointTemperature"), dict)
+        assert arch["HeatingSetpointTemperature"].get("value") is not None
+        assert isinstance(arch.get("CoolingSetpointTemperature"), dict)
+        assert arch["CoolingSetpointTemperature"].get("value") is not None
+        assert "HeatingSetpointTemperatureProfile" not in arch
+        assert "CoolingSetpointTemperatureProfile" not in arch
+        physics = payload.get("model", {}).get("physics", {})
+        setpointmethod = physics.get("setpointmethod")
+        # Either absent (use enum default CONSTANT=0) or explicitly 0/1.
+        if setpointmethod is not None:
+            value = (
+                setpointmethod.get("value")
+                if isinstance(setpointmethod, dict)
+                else setpointmethod
+            )
+            assert value in (0, 1), (
+                f"setpointmethod must not be flipped to SCHEDULED=2 for "
+                f"scalar-only {release_tag} YAMLs; got {value!r}"
+            )
+
 
 @pytest.mark.cfg
 class TestPreSetpointSplitMigration:

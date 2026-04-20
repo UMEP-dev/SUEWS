@@ -261,7 +261,7 @@ def _identity(cfg: dict) -> dict:
     return _strip_internal_only_fields(cfg)
 
 
-def _split_profile_fields(building_archetype: dict) -> dict:
+def _split_profile_fields(building_archetype: dict) -> bool:
     """Split pre-#1261 profile-shaped setpoint fields into scalar + Profile.
 
     Before PR #1261, `HeatingSetpointTemperature` / `CoolingSetpointTemperature`
@@ -270,9 +270,18 @@ def _split_profile_fields(building_archetype: dict) -> dict:
     `*Profile` sibling. This function keeps the user's hourly values intact by
     relocating them and synthesising a scalar from the first working-day
     value (falling back to a schema-default if the profile is absent).
+
+    Returns True iff at least one profile-shaped field was actually relocated
+    into a `*Profile` sibling. Callers use this signal to decide whether the
+    upgraded config should be flipped to `setpointmethod = 2` (SCHEDULED):
+    pre-2026.1 YAMLs only carry scalar setpoints, and flipping their
+    `setpointmethod` silently replaces the user's constant setpoints with the
+    off-default profiles baked into `HeatingSetpointProfile` /
+    `CoolingSetpointProfile` (heating 0 C, cooling 100 C).
     """
     if not isinstance(building_archetype, dict):
-        return building_archetype
+        return False
+    split_any = False
     for name, default_scalar in _PROFILE_RENAME_PAIRS:
         old = building_archetype.get(name)
         if not isinstance(old, dict):
@@ -291,7 +300,8 @@ def _split_profile_fields(building_archetype: dict) -> dict:
             f"[yaml-upgrade]   split {name!r} profile -> {name + 'Profile'!r} "
             f"(scalar seeded to {scalar})"
         )
-    return building_archetype
+        split_any = True
+    return split_any
 
 
 def _migrate_2025_12_to_2026_1(cfg: dict) -> dict:
@@ -334,21 +344,30 @@ def _migrate_2026_1_to_current(cfg: dict) -> dict:
       `building_archetype` into a scalar plus a `*Profile` sibling and
       gated the schedule on `model.physics.setpointmethod`.
 
-    The handler relocates the user's hourly values into the new `*Profile`
-    keys (seeding the scalar from the first working-day entry) and sets
-    `setpointmethod = 2` (SCHEDULED) so the migrated run honours the
-    supplied schedule by default.
+    When the input carries profile-shaped setpoints (2026.1 source), the
+    handler relocates the hourly values into the new `*Profile` keys (seeding
+    the scalar from the first working-day entry) and sets
+    `setpointmethod = 2` (SCHEDULED) so the migrated run honours the supplied
+    schedule. When the input carries only scalar setpoints (the chained
+    2025.12 path — see `_migrate_2025_12_to_current`), `setpointmethod` is
+    left at its default of 0 (CONSTANT) so the user-supplied scalars continue
+    to drive the run; flipping to SCHEDULED here would null the scalars in
+    Phase B validation and replace them with the off-default profiles
+    (heating 0 C, cooling 100 C), silently disabling heating/cooling.
     """
     cfg = _strip_internal_only_fields(cfg)
+    any_profile_split = False
     for arch in _walk_site_container(cfg, "building_archetype"):
-        _split_profile_fields(arch)
+        if _split_profile_fields(arch):
+            any_profile_split = True
     for stebbs in _walk_site_container(cfg, "stebbs"):
         for old, new in _STEBBS_RENAMES_2026_1_TO_CURRENT:
             _rename_field(stebbs, old, new)
         for name, reason in _STEBBS_DROPS_2026_1_TO_CURRENT:
             _drop_obsolete_field(stebbs, name, reason)
-    physics = cfg.setdefault("model", {}).setdefault("physics", {})
-    physics["setpointmethod"] = {"value": 2}
+    if any_profile_split:
+        physics = cfg.setdefault("model", {}).setdefault("physics", {})
+        physics["setpointmethod"] = {"value": 2}
     return cfg
 
 

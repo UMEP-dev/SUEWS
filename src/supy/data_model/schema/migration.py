@@ -143,10 +143,19 @@ class SchemaMigrator:
         Returns:
             List of intermediate versions, or None if no path exists
         """
-        # For now, simple direct path
-        # In future, could implement graph traversal for complex paths
+        # Prefer a directly-registered handler. The CalVer schema labels
+        # (`2025.12`, `2026.1`, `2026.4`) are not contiguous integers, so the
+        # generic parse-and-enumerate fallback below invents synthetic hops
+        # like `2026.0` / `2026.2` / `2026.3` that no registered handler
+        # matches — those runs silently fell through to `_generic_migration`
+        # and stamped the new schema label without applying the real renames
+        # or drops. Checking the handler table first keeps registered edges
+        # authoritative and reserves the numeric fallback for legacy
+        # pre-release hops (e.g. `0.0 -> 0.1`) that still use that shape.
+        if (from_version, to_version) in self.migration_handlers:
+            return [to_version]
 
-        # Parse versions
+        # Parse versions for the numeric-fallback path.
         try:
             from_major, from_minor = self._parse_version(from_version)
             to_major, to_minor = self._parse_version(to_version)

@@ -20,7 +20,7 @@ This workflow is **workspace-independent** - run from any worktree.
 0. **Assess necessity** - Use assessment criteria, check timing and user needs
 1. **Select dev tag** - Pick a CI-verified dev tag as release base
 2. **Create release branch** - `git checkout -b release/YYYY.M.D origin/master`
-3. **Schema version audit** - `git log <last-release-tag>..HEAD -- src/supy/data_model/`. If any commit is a structural change (see `.claude/rules/python/schema-versioning.md` for triggers), confirm that `CURRENT_SCHEMA_VERSION` was bumped, `SCHEMA_VERSIONS` + `COMPATIBLE_VERSIONS` are up to date, `sample_config.yml` carries the new version, and `yaml_upgrade.py::_HANDLERS` has a matching handler. Stop and fix if any are missing — this was the gap closed in gh#1304.
+3. **Schema version audit** - `git log <last-release-tag>..HEAD -- src/supy/data_model/`. If any commit is a structural change (see `.claude/rules/python/schema-versioning.md` for triggers), confirm that `CURRENT_SCHEMA_VERSION` was bumped, `SCHEMA_VERSIONS` has a matching entry, `sample_config.yml` carries the new version, and `yaml_upgrade.py::_HANDLERS` has a `(previous_schema -> current_schema)` handler (the handler registry is the single source of truth for compatibility; `is_schema_compatible` derives from it). Stop and fix if any are missing — this was the gap closed in gh#1304.
 4. **CHANGELOG analysis** - Use log-changes or manual (current format)
 5. **Update docs** - CHANGELOG.md, version history RST (`:pr:` syntax), toctree
 6. **GitHub Release notes** - Create `.github/releases/YYYY.M.D.md` (Markdown)

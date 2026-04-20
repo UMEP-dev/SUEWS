@@ -52,40 +52,47 @@ SCHEMA_VERSIONS: dict[str, str] = {
     ),
 }
 
-# Compatibility matrix: which schema versions are accepted (possibly via
-# auto-migration) by a given target. Older shapes listed here upgrade
-# through `src/supy/util/converter/yaml_upgrade.py` before validation.
-COMPATIBLE_VERSIONS = {
-    "0.1": ["0.1"],  # Legacy pre-release version
-    "2025.12": ["0.1", "2025.12"],
-    "2026.1": ["0.1", "2025.12", "2026.1"],
-    "2026.4": ["0.1", "2025.12", "2026.1", "2026.4"],
-}
-
-
 def is_schema_compatible(
     config_version: str, current_version: str = CURRENT_SCHEMA_VERSION
 ) -> bool:
     """
     Check if a configuration schema version is compatible with the current version.
 
+    Compatibility is derived from the migration handler registry on
+    :class:`~supy.data_model.schema.migration.SchemaMigrator`, which is
+    seeded from ``_HANDLERS`` in
+    :mod:`supy.util.converter.yaml_upgrade`. A version is compatible
+    with ``current_version`` iff it is the same version, or a
+    ``(config_version, current_version)`` handler is registered that
+    actually migrates the YAML forward.
+
+    There is deliberately no hand-maintained compatibility table: the
+    handler registry is the single source of truth. Adding an entry to
+    ``_HANDLERS`` is what makes an older schema compatible — keeping
+    the two in sync used to be a silent failure mode (gh#1304).
+
     Args:
-        config_version: Schema version from the configuration
-        current_version: Current supported schema version (default: CURRENT_SCHEMA_VERSION)
+        config_version: Schema version from the configuration.
+        current_version: Current supported schema version
+            (default: :data:`CURRENT_SCHEMA_VERSION`).
 
     Returns
     -------
-        True if versions are compatible, False otherwise
+        True if versions are compatible, False otherwise.
     """
-    # Same version is always compatible
+    # Same version is always compatible.
     if config_version == current_version:
         return True
 
-    # Check compatibility matrix
-    if current_version not in COMPATIBLE_VERSIONS:
-        return False
+    # Lazy import: `migration` imports from this module for
+    # `CURRENT_SCHEMA_VERSION` / `SCHEMA_VERSIONS`, so pulling it in at
+    # module load time would cycle. Instantiation is cheap (one dict
+    # plus the `register_with_migrator` side-effect) and gives us the
+    # handler registry populated from `yaml_upgrade._HANDLERS`.
+    from .migration import SchemaMigrator
 
-    return config_version in COMPATIBLE_VERSIONS.get(current_version, [])
+    migrator = SchemaMigrator()
+    return (config_version, current_version) in migrator.migration_handlers
 
 
 def get_schema_compatibility_message(config_version: Optional[str]) -> Optional[str]:  # noqa: PLR0911

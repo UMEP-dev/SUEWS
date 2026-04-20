@@ -56,8 +56,9 @@ need to bump.
      `"2026.5"`, not `"2026.05"`).
    - Add one entry to `SCHEMA_VERSIONS` describing precisely what
      changed, with issue / PR references.
-   - Extend `COMPATIBLE_VERSIONS` so the new version lists every prior
-     schema it can migrate forward from.
+   - (There is no separate compatibility table to update.
+     `is_schema_compatible` derives the answer from the migration
+     handler registry — step 3 is what makes older schemas compatible.)
 2. Update `src/supy/sample_data/sample_config.yml` so its
    `schema_version` field matches the new `CURRENT_SCHEMA_VERSION`.
 3. Add a migration handler in
@@ -68,6 +69,10 @@ need to bump.
    - Every drop must carry a human-readable `reason` — Pydantic's
      default `extra="ignore"` will otherwise silently swallow the
      user's value.
+   - Adding this handler is what makes the previous schema
+     compatible with the new one: `SchemaMigrator` pulls `_HANDLERS`
+     into its registry at construction time, and
+     `is_schema_compatible` consults that registry directly.
 4. Vendor a regression fixture under
    `test/fixtures/release_configs/<release-tag>.yml` capturing the
    outgoing shape. `test_release_compat.py` picks these up
@@ -94,7 +99,8 @@ above), confirm that:
 - `SCHEMA_VERSIONS` has a corresponding entry for the new version,
 - `sample_config.yml` carries the current schema version,
 - `_HANDLERS` in `yaml_upgrade.py` has a handler from the previous
-  schema to the current one,
+  schema to the current one — this is the single source of truth for
+  compatibility; `is_schema_compatible` reads it directly,
 - A vendored fixture for the previous release exists under
   `test/fixtures/release_configs/`.
 

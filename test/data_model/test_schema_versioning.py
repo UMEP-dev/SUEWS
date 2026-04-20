@@ -204,6 +204,79 @@ class TestSchemaMigration:
         path = migrator._find_migration_path("0.1", "0.1")
         assert path is None or path == []
 
+    def test_calver_path_uses_registered_handler(self):
+        """CalVer hops resolve to the directly-registered handler, not a
+        synthesised numeric-fallback path (gh#1304).
+        """
+        migrator = SchemaMigrator()
+
+        assert migrator._find_migration_path("2025.12", "2026.4") == ["2026.4"]
+        assert migrator._find_migration_path("2026.1", "2026.4") == ["2026.4"]
+
+    def test_intermediate_calver_target_rejected_when_unregistered(self):
+        """A CalVer target without a registered handler chain must not
+        silently fall through to `_generic_migration` (gh#1304 follow-up).
+
+        Before this guard, `2025.12 -> 2026.1` walked a synthesised
+        `[2026.0]` path with no registered handler, the generic fallback
+        no-op'd, and the caller got a config stamped with `2026.1` but
+        still carrying 2025.12 field names.
+        """
+        migrator = SchemaMigrator()
+
+        # Path discovery rejects the synthetic hop.
+        assert migrator._find_migration_path("2025.12", "2026.1") is None
+        assert migrator._find_migration_path("2026.4", "2027.0") is None
+
+        # `migrate()` raises rather than returning a half-migrated dict.
+        payload = {
+            "schema_version": "2025.12",
+            "sites": [
+                {
+                    "properties": {
+                        "building_archetype": {"Wallx1": {"value": 0.25}},
+                    }
+                }
+            ],
+        }
+        with pytest.raises(ValueError, match="No migration path available"):
+            migrator.migrate(payload, from_version="2025.12", to_version="2026.1")
+
+    def test_calver_migration_applies_structural_renames(self):
+        """Migrating 2025.12 -> 2026.4 applies the registered renames rather
+        than falling through to the generic label-only migration (gh#1304).
+        """
+        migrator = SchemaMigrator()
+        payload = {
+            "schema_version": "2025.12",
+            "sites": [
+                {
+                    "properties": {
+                        "building_archetype": {
+                            "Wallx1": {"value": 0.25},
+                            "Roofx1": {"value": 0.25},
+                        },
+                        "stebbs": {
+                            "DHWVesselEmissivity": {"value": 0.9},
+                        },
+                    }
+                }
+            ],
+        }
+
+        migrated = migrator.migrate(
+            payload, from_version="2025.12", to_version="2026.4"
+        )
+
+        arch = migrated["sites"][0]["properties"]["building_archetype"]
+        stebbs = migrated["sites"][0]["properties"]["stebbs"]
+        assert "Wallx1" not in arch
+        assert "Roofx1" not in arch
+        assert arch["WallOuterCapFrac"] == {"value": 0.25}
+        assert arch["RoofOuterCapFrac"] == {"value": 0.25}
+        assert "DHWVesselEmissivity" not in stebbs
+        assert migrated["schema_version"] == "2026.4"
+
 
 class TestSchemaVersionUtility:
     """Test schema version update utility."""

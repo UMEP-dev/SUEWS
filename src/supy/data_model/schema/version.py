@@ -11,51 +11,86 @@ Schema Version Policy:
 - Schema versions are independent of SUEWS release versions
 """
 
+from functools import lru_cache
 from typing import Optional
 import warnings
 
 # Current supported schema version (aligned with SUEWS CalVer: YYYY.MM)
-CURRENT_SCHEMA_VERSION = "2025.12"
+CURRENT_SCHEMA_VERSION = "2026.4"
 
-# Schema version history and descriptions
+# Schema version history and descriptions.
+#
+# Retrospectively populated (gh#1304) after auditing structural changes to
+# `src/supy/data_model/` between each formal supy release. Prior to that
+# audit, `CURRENT_SCHEMA_VERSION` remained at "2025.12" through several
+# breaking changes; the lineage below anchors each YAML shape to the release
+# that shipped it, so the YAML-upgrade dispatcher can reason about real
+# schema identities rather than synthetic labels.
 SCHEMA_VERSIONS: dict[str, str] = {
-    "2025.12": "Initial YAML schema with full Pydantic data model",
-    # Future examples:
-    # "2026.1": "Added optional field X for feature Y"
-    # "2026.6": "Breaking change: Renamed field A to B, restructured C"
+    "2025.12": (
+        "Initial formal YAML schema for the 2025.10.15 / 2025.11.20 releases "
+        "(pre-#879 STEBBS layout: Wallx1 / Roofx1, DHWVesselEmissivity, "
+        "standalone appliance/occupant fields, explicit initial-state and "
+        "runtime-state slots)."
+    ),
+    "2026.1": (
+        "2026.1.28 release shape: #879 STEBBS clean-up landed "
+        "(Wallx1/Roofx1 -> WallOuterCapFrac/RoofOuterCapFrac, "
+        "IndoorAirStartTemperature/OutdoorAirStartTemperature -> "
+        "InitialIndoorTemperature/InitialOutdoorTemperature, drop of "
+        "DHWVesselEmissivity and the runtime-state temperature/view-factor "
+        "fields), STEBBS hourly profiles added for setpoints/appliance/"
+        "occupants/hot water (#1038), DeepSoilTemperature and volume bounds "
+        "present."
+    ),
+    "2026.4": (
+        "2026.4.3 release shape (current): DeepSoilTemperature renamed to "
+        "AnnualMeanAirTemperature (#1240), MinimumVolumeOfDHWinUse / "
+        "MaximumVolumeOfDHWinUse removed (#1242), STEBBS "
+        "HeatingSetpointTemperature / CoolingSetpointTemperature split into "
+        "scalar + *Profile siblings gated on model.physics.setpointmethod "
+        "(#1261), daylight-control and lighting/metabolism fields added."
+    ),
 }
 
-# Compatibility matrix: which schema versions are compatible
-COMPATIBLE_VERSIONS = {
-    "0.1": ["0.1"],  # Legacy pre-release version
-    "2025.12": ["0.1", "2025.12"],  # 2025.12 accepts 0.1 configs (auto-migrated)
-    # Future: "2026.1": ["2025.12", "2026.1"],  # backward compatible
-}
+@lru_cache(maxsize=1)
+def _migration_pair_registry() -> frozenset:
+    """Snapshot of registered ``(from, to)`` migration edges.
+
+    Lazy-imported to break the cycle with :mod:`.migration` (which imports
+    ``CURRENT_SCHEMA_VERSION`` from this module). Cached because the
+    underlying ``_HANDLERS`` table in
+    :mod:`supy.util.converter.yaml_upgrade` is populated at import time
+    and does not change thereafter.
+    """
+    from .migration import SchemaMigrator
+
+    return frozenset(SchemaMigrator().migration_handlers.keys())
 
 
 def is_schema_compatible(
     config_version: str, current_version: str = CURRENT_SCHEMA_VERSION
 ) -> bool:
-    """
-    Check if a configuration schema version is compatible with the current version.
+    """Check if a configuration schema version is compatible with the current version.
+
+    Compatibility is derived from the migration handler registry — a
+    version is compatible iff it equals ``current_version`` or a
+    ``(config_version, current_version)`` handler is registered. Adding
+    an entry to ``_HANDLERS`` in ``yaml_upgrade.py`` is what grants
+    compatibility; there is no separate table (gh#1304).
 
     Args:
-        config_version: Schema version from the configuration
-        current_version: Current supported schema version (default: CURRENT_SCHEMA_VERSION)
+        config_version: Schema version from the configuration.
+        current_version: Current supported schema version
+            (default: :data:`CURRENT_SCHEMA_VERSION`).
 
     Returns
     -------
-        True if versions are compatible, False otherwise
+        True if versions are compatible, False otherwise.
     """
-    # Same version is always compatible
     if config_version == current_version:
         return True
-
-    # Check compatibility matrix
-    if current_version not in COMPATIBLE_VERSIONS:
-        return False
-
-    return config_version in COMPATIBLE_VERSIONS.get(current_version, [])
+    return (config_version, current_version) in _migration_pair_registry()
 
 
 def get_schema_compatibility_message(config_version: Optional[str]) -> Optional[str]:  # noqa: PLR0911

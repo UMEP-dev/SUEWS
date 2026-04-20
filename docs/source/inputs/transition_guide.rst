@@ -165,6 +165,92 @@ The converter intelligently handles various directory structures by reading the 
   
 This ensures compatibility with various SUEWS installation structures while respecting user configurations.
 
+YAML Schema Migrations
+----------------------
+
+Once your configuration is in YAML, subsequent SUEWS releases may bump
+the YAML *schema* — the structure of the file itself. Each bump is
+backed by a registered migration handler, so ``suews-convert`` (for
+combined legacy+schema upgrades) and ``suews-schema migrate`` (for
+schema-only upgrades) will move old YAMLs onto the current shape
+without losing data. Every drop is logged with a human-readable
+reason so you can reconstruct intent if needed.
+
+The sections below summarise what users see change between schemas.
+The authoritative lineage (including release-tag to schema mapping)
+lives in :ref:`schema_version_history`.
+
+Upgrading to Schema 2026.4 (SUEWS 2026.4.3)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.4`` is the current shape. Upgrading from ``2026.1``
+(shipped with 2026.1.28) or earlier applies the following deltas:
+
+- ``DeepSoilTemperature`` → ``AnnualMeanAirTemperature``
+  (rename; user-supplied value preserved, #1240).
+- ``MinimumVolumeOfDHWinUse`` and ``MaximumVolumeOfDHWinUse`` dropped;
+  DHW volume is no longer bounded in the config (#1242). Any values
+  present in your YAML are discarded with a logged reason.
+- STEBBS setpoint fields split: the scalar
+  ``HeatingSetpointTemperature`` and ``CoolingSetpointTemperature``
+  continue to work, but are now gated on
+  ``model.physics.setpointmethod``. When the profile branch is
+  selected, use the new ``HeatingSetpointTemperatureProfile`` and
+  ``CoolingSetpointTemperatureProfile`` siblings (#1261).
+- New daylight-control and lighting/metabolism fields are available
+  as optional additions — they default to sensible values if absent.
+
+Run:
+
+.. code-block:: bash
+
+   suews-schema migrate your_config.yml --target-version 2026.4
+
+The migrator accepts any registered intermediate (for example
+``2025.12``) and walks the chain to the current schema in one call.
+
+Upgrading to Schema 2026.1 (SUEWS 2026.1.28)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Landed with the STEBBS clean-up (#879). If you are moving from the
+``2025.12`` shape (2025.10.15 or 2025.11.20):
+
+- Building archetype wall/roof fields: ``Wallx1`` →
+  ``WallOuterCapFrac`` and ``Roofx1`` → ``RoofOuterCapFrac``.
+- Initial temperature fields renamed: ``IndoorAirStartTemperature`` →
+  ``InitialIndoorTemperature``; ``OutdoorAirStartTemperature`` →
+  ``InitialOutdoorTemperature``.
+- ``DHWVesselEmissivity`` removed — the vessel emissivity is now
+  derived internally rather than carried in the config.
+- Runtime-state view-factor and temperature slots removed from user
+  YAML (they were never user-tunable; #879 finally cleaned them up).
+- STEBBS hourly profiles added for setpoints, appliance, occupants and
+  hot water (#1038). Existing configs that omit them continue to
+  work; the profiles default to previous scalar behaviour.
+
+If you are targeting 2026.1.28 exactly:
+
+.. code-block:: bash
+
+   suews-schema migrate your_config.yml --target-version 2026.1
+
+Otherwise the 2026.4 chain above is applied in one pass.
+
+Preserving Your Values Through Renames
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The rename handlers preserve the user's value. When both the old and
+the new key happen to be present in the same YAML (for example if
+you've partially hand-edited), the newer value wins and the stale
+key is logged and dropped so you can spot the intent conflict.
+
+For a dry-run that shows every rename and drop without writing the
+upgraded file, pass ``--dry-run``:
+
+.. code-block:: bash
+
+   suews-schema migrate your_config.yml --dry-run
+
 Troubleshooting
 ~~~~~~~~~~~~~~~
 

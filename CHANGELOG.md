@@ -56,6 +56,15 @@ EXAMPLES:
 
 ### 20 Apr 2026
 
+- [doc] Sync user-facing schema documentation with the retrospective 2026.1 / 2026.4 bumps (#1304)
+  - Rewrote `docs/source/contributing/schema/schema_versioning.rst` from the outdated major.minor policy (`1.0` / `1.1` / `2.0`) to the actual CalVer lineage, with the `SCHEMA_VERSIONS` entries for `2025.12` / `2026.1` / `2026.4` and compatibility now described via the migration-registry model introduced in #1304
+  - Added a `YAML Schema Migrations` section to `docs/source/inputs/transition_guide.rst` walking users through the 2026.1 (STEBBS clean-up #879) and 2026.4 (DeepSoilTemperature rename #1240, DHW volume-bound removal #1242, setpoint split #1261) upgrades with the exact `suews-schema migrate` invocations
+  - Refreshed `docs/source/contributing/schema/schema-developer.rst` and `schema_cli.rst` to match the new audit gate (`schema-version-audit.yml`) and the unified `suews-convert` entry point; CLI examples rebased onto CalVer labels
+  - Added the migration chain as a Breaking Change line in `docs/source/version-history/v2026.4.3.rst`
+- [maintenance] Extend schema-version audit to enforce docs synchronisation (#1304)
+  - `scripts/lint/check_schema_version_bump.py` now fails when `CURRENT_SCHEMA_VERSION` moves without a matching edit to `docs/source/contributing/schema/schema_versioning.rst` or `docs/source/inputs/transition_guide.rst`; the workflow's path filter picks up schema doc changes too so the gate still fires
+  - `.claude/rules/python/schema-versioning.md` gains a Step 6 listing the exact RST files that must move with every bump; PR review gate and CI gate sections updated to flag silent documentation as a review blocker
+  - `.claude/skills/audit-pr/references/review-checklist.md` and `workflow-steps.md` now carry a trigger-specific schema bump checklist mirroring the rule
 - [maintenance] Fold `COMPATIBLE_VERSIONS` into the migration handler registry (#1304)
   - Deleted the hand-maintained `COMPATIBLE_VERSIONS` dict in `src/supy/data_model/schema/version.py`; it had degenerated into a parallel line to `_HANDLERS` in `src/supy/util/converter/yaml_upgrade.py`, encoding the same `(from -> current)` edges in a less expressive form and prone to drifting out of sync (the root cause of the gap gh#1304 originally retrofitted)
   - `is_schema_compatible` now consults `SchemaMigrator.migration_handlers` directly: a version is compatible iff it equals the current schema or a `(from, current)` handler is registered that actually migrates the YAML forward. Registering a handler is what grants compatibility — no second table to update

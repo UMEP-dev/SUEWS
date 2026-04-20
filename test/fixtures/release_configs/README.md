@@ -23,7 +23,7 @@ registered handler in `src/supy/util/converter/yaml_upgrade.py`.
   [`2026.1.28`](https://github.com/UMEP-dev/SUEWS/releases/tag/2026.1.28).
   Predates the STEBBS setpoint split
   ([#1261](https://github.com/UMEP-dev/SUEWS/pull/1261)); upgraded by the
-  `2026.1 -> 2025.12` handler in `src/supy/util/converter/yaml_upgrade.py`.
+  `2026.1 -> 2026.4` handler in `src/supy/util/converter/yaml_upgrade.py`.
 - `2026.4.3.yml` - tag
   [`2026.4.3`](https://github.com/UMEP-dev/SUEWS/releases/tag/2026.4.3).
   Identity path (parses unchanged).

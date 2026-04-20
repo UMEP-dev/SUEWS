@@ -374,17 +374,10 @@ class TestPre2026_1ReleaseTagMigration:
     def test_scalar_only_release_keeps_setpoint_constant(
         self, release_tag: str, tmp_path: Path
     ):
-        """Scalar-only YAMLs must NOT be flipped to setpointmethod=2.
-
-        2025.10.15 / 2025.11.20 YAMLs carry scalar
-        `HeatingSetpointTemperature` / `CoolingSetpointTemperature` and no
-        `*Profile` siblings. If the upgrader forces
-        `setpointmethod = 2` (SCHEDULED) on them, Phase B validation nulls
-        the scalar values and the missing profiles fall back to their
-        off-defaults (heating 0 C, cooling 100 C) — silently disabling
-        heating/cooling for users migrating from those releases. Regression
-        guard for the gh#1304 follow-up that gated the flip on actual
-        profile relocation.
+        """Scalar-only YAMLs (2025.10.15 / 2025.11.20, no *Profile siblings)
+        must not be flipped to setpointmethod=SCHEDULED; otherwise Phase B
+        validation nulls the scalars and heating/cooling fall back to off
+        defaults (gh#1304).
         """
         # ARRANGE
         fixture = (

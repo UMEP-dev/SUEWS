@@ -80,6 +80,29 @@ need to bump.
 5. If the bump coincides with a formal release, add the release tag ->
    schema version mapping in
    `src/supy/util/converter/yaml_upgrade.py::_PACKAGE_TO_SCHEMA`.
+6. **Sync the user-facing documentation.** A schema bump is a
+   user-visible change, so the docs must move with the code. In the
+   same PR, touch every file below that the change actually affects:
+   - `docs/source/contributing/schema/schema_versioning.rst` — keep
+     the "Version History" list and the illustrative schema tags in
+     sync with `SCHEMA_VERSIONS`; the CalVer / compatibility-registry
+     narrative on that page is the authoritative user explanation.
+   - `docs/source/inputs/transition_guide.rst` — add (or extend) the
+     "YAML schema migrations" section with a per-release entry
+     describing what users see change (renames, removals, profile
+     splits) and the exact `suews-convert` / `suews-schema migrate`
+     invocation that upgrades their YAML.
+   - `docs/source/version-history/v<release-tag>.rst` — when the bump
+     ships in a formal release, list the migration chain under
+     "Breaking Changes" and link to the transition guide anchor.
+   - `docs/source/contributing/schema/schema-developer.rst` and
+     `schema_cli.rst` — only if the bump changes the developer
+     workflow (e.g. new flag, new CLI behaviour). Cosmetic bumps
+     don't need this.
+
+   Cosmetic version-file edits (pure docstring/comment changes in
+   `version.py`) that do not change the literal `CURRENT_SCHEMA_VERSION`
+   value are not bumps and don't trigger this step.
 
 ---
 
@@ -120,6 +143,11 @@ When reviewing a PR that touches `src/supy/data_model/`:
   `src/supy/util/converter/yaml_upgrade.py` that covers the new delta.
 - `TestNoSilentFieldDrops` in `test/data_model/test_yaml_upgrade.py`
   should still pass against every vendored fixture.
+- If `CURRENT_SCHEMA_VERSION` moved, confirm the PR also touches
+  `docs/source/contributing/schema/schema_versioning.rst` and
+  `docs/source/inputs/transition_guide.rst` (see step 6 above).
+  A schema bump without matching doc updates is a review blocker
+  unless a maintainer applies the `schema-audit-ok` label.
 
 ## CI gate and bypass label
 
@@ -129,6 +157,14 @@ The `.github/workflows/schema-version-audit.yml` workflow runs
 If those paths changed but
 `src/supy/data_model/schema/version.py` did not, the job fails with
 remediation guidance pointing at this rule.
+
+The same script also enforces the docs sync from step 6: when
+`CURRENT_SCHEMA_VERSION` does move, at least one of
+`docs/source/contributing/schema/schema_versioning.rst` and
+`docs/source/inputs/transition_guide.rst` must be touched in the same
+PR. This closes the loop opened by gh#1304 (where the version number
+was the missing piece) — now the user-facing explanation of what
+changed has to move with it, or CI blocks the merge.
 
 Bypass (for genuinely cosmetic diffs — docstrings, comments,
 formatting, non-structural value tweaks): a maintainer adds the

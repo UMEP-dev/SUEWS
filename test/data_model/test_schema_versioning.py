@@ -205,31 +205,46 @@ class TestSchemaMigration:
         assert path is None or path == []
 
     def test_calver_path_uses_registered_handler(self):
-        """CalVer schema hops must route through the registered handler.
-
-        Regression guard for the gh#1304 follow-up: the generic numeric
-        fallback used to synthesise non-existent intermediate labels like
-        `2026.0`, `2026.2`, `2026.3` when asked for `2025.12 -> 2026.4` or
-        `2026.1 -> 2026.4`. None of those synthetic hops match a registered
-        handler, so `migrate()` silently fell through to `_generic_migration`
-        (which just stamps the target version without applying the real
-        renames or drops). When a handler is registered for the direct
-        `(from, to)` pair, the resolver must return a single-hop path that
-        actually reaches it.
+        """CalVer hops resolve to the directly-registered handler, not a
+        synthesised numeric-fallback path (gh#1304).
         """
         migrator = SchemaMigrator()
 
         assert migrator._find_migration_path("2025.12", "2026.4") == ["2026.4"]
         assert migrator._find_migration_path("2026.1", "2026.4") == ["2026.4"]
 
-    def test_calver_migration_applies_structural_renames(self):
-        """Migrating a 2025.12 YAML through SchemaMigrator must run renames.
+    def test_intermediate_calver_target_rejected_when_unregistered(self):
+        """A CalVer target without a registered handler chain must not
+        silently fall through to `_generic_migration` (gh#1304 follow-up).
 
-        Before the fix, `SchemaMigrator.migrate()` left `Wallx1` in place
-        (a pre-#879 STEBBS field) and still stamped `schema_version: 2026.4`,
-        producing a YAML that the current validator rejects but whose version
-        label lied about that. This test pins the fix by checking the
-        structural rename actually propagates.
+        Before this guard, `2025.12 -> 2026.1` walked a synthesised
+        `[2026.0]` path with no registered handler, the generic fallback
+        no-op'd, and the caller got a config stamped with `2026.1` but
+        still carrying 2025.12 field names.
+        """
+        migrator = SchemaMigrator()
+
+        # Path discovery rejects the synthetic hop.
+        assert migrator._find_migration_path("2025.12", "2026.1") is None
+        assert migrator._find_migration_path("2026.4", "2027.0") is None
+
+        # `migrate()` raises rather than returning a half-migrated dict.
+        payload = {
+            "schema_version": "2025.12",
+            "sites": [
+                {
+                    "properties": {
+                        "building_archetype": {"Wallx1": {"value": 0.25}},
+                    }
+                }
+            ],
+        }
+        with pytest.raises(ValueError, match="No migration path available"):
+            migrator.migrate(payload, from_version="2025.12", to_version="2026.1")
+
+    def test_calver_migration_applies_structural_renames(self):
+        """Migrating 2025.12 -> 2026.4 applies the registered renames rather
+        than falling through to the generic label-only migration (gh#1304).
         """
         migrator = SchemaMigrator()
         payload = {

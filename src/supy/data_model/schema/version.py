@@ -11,6 +11,7 @@ Schema Version Policy:
 - Schema versions are independent of SUEWS release versions
 """
 
+from functools import lru_cache
 from typing import Optional
 import warnings
 
@@ -52,24 +53,31 @@ SCHEMA_VERSIONS: dict[str, str] = {
     ),
 }
 
+@lru_cache(maxsize=1)
+def _migration_pair_registry() -> frozenset:
+    """Snapshot of registered ``(from, to)`` migration edges.
+
+    Lazy-imported to break the cycle with :mod:`.migration` (which imports
+    ``CURRENT_SCHEMA_VERSION`` from this module). Cached because the
+    underlying ``_HANDLERS`` table in
+    :mod:`supy.util.converter.yaml_upgrade` is populated at import time
+    and does not change thereafter.
+    """
+    from .migration import SchemaMigrator
+
+    return frozenset(SchemaMigrator().migration_handlers.keys())
+
+
 def is_schema_compatible(
     config_version: str, current_version: str = CURRENT_SCHEMA_VERSION
 ) -> bool:
-    """
-    Check if a configuration schema version is compatible with the current version.
+    """Check if a configuration schema version is compatible with the current version.
 
-    Compatibility is derived from the migration handler registry on
-    :class:`~supy.data_model.schema.migration.SchemaMigrator`, which is
-    seeded from ``_HANDLERS`` in
-    :mod:`supy.util.converter.yaml_upgrade`. A version is compatible
-    with ``current_version`` iff it is the same version, or a
-    ``(config_version, current_version)`` handler is registered that
-    actually migrates the YAML forward.
-
-    There is deliberately no hand-maintained compatibility table: the
-    handler registry is the single source of truth. Adding an entry to
-    ``_HANDLERS`` is what makes an older schema compatible — keeping
-    the two in sync used to be a silent failure mode (gh#1304).
+    Compatibility is derived from the migration handler registry — a
+    version is compatible iff it equals ``current_version`` or a
+    ``(config_version, current_version)`` handler is registered. Adding
+    an entry to ``_HANDLERS`` in ``yaml_upgrade.py`` is what grants
+    compatibility; there is no separate table (gh#1304).
 
     Args:
         config_version: Schema version from the configuration.
@@ -80,19 +88,9 @@ def is_schema_compatible(
     -------
         True if versions are compatible, False otherwise.
     """
-    # Same version is always compatible.
     if config_version == current_version:
         return True
-
-    # Lazy import: `migration` imports from this module for
-    # `CURRENT_SCHEMA_VERSION` / `SCHEMA_VERSIONS`, so pulling it in at
-    # module load time would cycle. Instantiation is cheap (one dict
-    # plus the `register_with_migrator` side-effect) and gives us the
-    # handler registry populated from `yaml_upgrade._HANDLERS`.
-    from .migration import SchemaMigrator
-
-    migrator = SchemaMigrator()
-    return (config_version, current_version) in migrator.migration_handlers
+    return (config_version, current_version) in _migration_pair_registry()
 
 
 def get_schema_compatibility_message(config_version: Optional[str]) -> Optional[str]:  # noqa: PLR0911

@@ -11,6 +11,8 @@ on:
     paths:
       - 'src/supy/data_model/**'
       - 'src/supy/sample_data/sample_config.yml'
+      - 'docs/source/contributing/schema/schema_versioning.rst'
+      - 'docs/source/inputs/transition_guide.rst'
       - 'scripts/lint/check_schema_version_bump.py'
       - '.github/workflows/schema-version-audit.yml'
 

@@ -28,17 +28,25 @@ from ...data_model.schema.migration import SchemaMigrator
 # they shipped with. Extend when a release bumps `CURRENT_SCHEMA_VERSION`.
 # ---------------------------------------------------------------------------
 
-# The `2026.1.28` release shipped the pre-#1261 setpoint shape under the
-# same `2025.12` schema umbrella, so we retrofit a dedicated `2026.1` schema
-# label for the dispatch to distinguish it from the post-#1261 shape. Older
-# formal releases (`2025.10.15`, `2025.11.20`) and the post-split
-# `2026.4.3` sample configs still parse directly under the current
-# validator - no package-to-schema remap needed for them.
-_SCHEMA_PRE_SETPOINT_SPLIT = "2026.1"
-
+# Retrospectively-assigned schema versions per formal release tag. The
+# `SCHEMA_VERSIONS` lineage in `src/supy/data_model/schema/version.py`
+# anchors each value here — see that file's docstring for the history of
+# why the schema version was frozen at "2025.12" through several structural
+# changes (gh#1304) and how the retrospective audit settled on these
+# labels.
+#
+# * `2025.12` covers the 2025.10.15 / 2025.11.20 shape (pre-#879 STEBBS
+#   layout). 2025.10.15 lacks a few fields present in 2025.11.20, but
+#   those are additive so both tags share the schema.
+# * `2026.1` covers the 2026.1.28 shape (post-#879 STEBBS clean-up; still
+#   pre-#1261 setpoint split, still carries DeepSoilTemperature and the
+#   DHW volume bounds).
+# * `2026.4` is the current schema (post-#1240 / #1242 / #1261).
 _PACKAGE_TO_SCHEMA: dict[str, str] = {
-    "2026.1.28": _SCHEMA_PRE_SETPOINT_SPLIT,
-    "2026.4.3": "2025.12",
+    "2025.10.15": "2025.12",
+    "2025.11.20": "2025.12",
+    "2026.1.28": "2026.1",
+    "2026.4.3": CURRENT_SCHEMA_VERSION,
 }
 
 
@@ -55,10 +63,184 @@ def _resolve_package_to_schema(version: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Handler registry
+# Logging helper (used by handlers; defined before handler module-level
+# constants so any import-time wiring stays self-contained).
+# ---------------------------------------------------------------------------
+
+
+def _log(message: str) -> None:
+    # Dereference sys.stderr at call time so pytest capsys / CliRunner can
+    # intercept. Binding it in the signature would cache the original
+    # stream and bypass capture fixtures.
+    print(message, file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# Generic handler utilities
 # ---------------------------------------------------------------------------
 
 Handler = Callable[[dict], dict]
+
+
+def _walk_site_container(cfg: dict, name: str) -> Iterable[dict]:
+    """Yield each `sites[*].properties.<name>` mapping in `cfg`.
+
+    Defensively skips sites or properties that are missing or non-dict so
+    handlers can iterate without re-implementing the same guards. STEBBS
+    parameters split across `building_archetype` (wall/roof, setpoints) and
+    `stebbs` (DHW volumes, soil temperature, emissivity), so migration
+    deltas are expressed per container.
+    """
+    for site in cfg.get("sites", []) or []:
+        if not isinstance(site, dict):
+            continue
+        props = site.get("properties")
+        if not isinstance(props, dict):
+            continue
+        container = props.get(name)
+        if isinstance(container, dict):
+            yield container
+
+
+def _rename_field(arch: dict, old_name: str, new_name: str) -> bool:
+    """Rename `old_name` to `new_name` in-place on `arch`.
+
+    Logs the rename when it fires (so the user sees their value followed
+    the rename instead of disappearing). Returns True iff a rename happened.
+    No-op when `old_name` is absent. If `new_name` already exists, the
+    user-supplied `new_name` wins (fresh value preserved over stale one).
+    """
+    if old_name not in arch:
+        return False
+    value = arch.pop(old_name)
+    if new_name in arch:
+        _log(
+            f"[yaml-upgrade]   rename {old_name!r} -> {new_name!r} skipped "
+            f"(target already present, dropping stale {old_name!r} value)"
+        )
+        return False
+    arch[new_name] = value
+    _log(f"[yaml-upgrade]   renamed {old_name!r} -> {new_name!r}")
+    return True
+
+
+def _drop_obsolete_field(arch: dict, name: str, reason: str) -> bool:
+    """Drop `name` from `arch` and log the removal with `reason`.
+
+    Use when the current schema no longer carries the field at all. Logging
+    is the contract: the alternative (Pydantic `extra="ignore"`) silently
+    swallows user data without trace, which is exactly the bug this helper
+    exists to make impossible.
+    """
+    if name not in arch:
+        return False
+    arch.pop(name)
+    _log(f"[yaml-upgrade]   dropped {name!r} ({reason})")
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Migration field tables
+#
+# Each table is a sequence of (source_field, ...) tuples consumed by the
+# helpers above. Keeping them at module level makes the schema deltas
+# auditable in one place and reusable across handlers that share a delta.
+# ---------------------------------------------------------------------------
+
+# 2025.12 -> 2026.1 (the #879 "clean-up of STEBBS parameters" delta, Nov 2025):
+#
+# `building_archetype`:
+#   * Wallx1 -> WallOuterCapFrac, Roofx1 -> RoofOuterCapFrac (commits 770a7db9,
+#     45b512b6).
+#
+# `stebbs`:
+#   * IndoorAirStartTemperature -> InitialIndoorTemperature
+#     OutdoorAirStartTemperature -> InitialOutdoorTemperature (semantic
+#     renames in #879).
+#   * DHWVesselEmissivity dropped (commit ae53cd31d, "clean up of dead code").
+#   * Runtime-state / view-factor / start-temperature fields moved out of
+#     user input (#879); kept here as explicit drops with a generic reason
+#     so users see their values have not silently vanished.
+_ARCH_RENAMES_2025_12_TO_2026_1: tuple[tuple[str, str], ...] = (
+    ("Wallx1", "WallOuterCapFrac"),
+    ("Roofx1", "RoofOuterCapFrac"),
+)
+_STEBBS_RENAMES_2025_12_TO_2026_1: tuple[tuple[str, str], ...] = (
+    ("IndoorAirStartTemperature", "InitialIndoorTemperature"),
+    ("OutdoorAirStartTemperature", "InitialOutdoorTemperature"),
+)
+_STEBBS_DROPS_2025_12_TO_2026_1: tuple[tuple[str, str], ...] = (
+    (
+        "DHWVesselEmissivity",
+        "removed during STEBBS clean-up Nov 2025 (commit ae53cd31d)",
+    ),
+    # Physical constants previously exposed as user input, now internal.
+    ("IndoorAirDensity", "moved to internal constant (#879)"),
+    ("IndoorAirCp", "moved to internal constant (#879)"),
+    # STEBBS view-factor fields absorbed into the runtime solver.
+    ("WallBuildingViewFactor", "moved to runtime solver state (#879)"),
+    ("WallGroundViewFactor", "moved to runtime solver state (#879)"),
+    ("WallSkyViewFactor", "moved to runtime solver state (#879)"),
+    # Legacy initial-mass temperature: superseded by InitialIndoorTemperature.
+    ("IndoorMassStartTemperature", "merged into InitialIndoorTemperature (#879)"),
+    # Runtime-state surface temperatures (now solver-driven, not user input).
+    ("WallIndoorSurfaceTemperature", "moved to runtime solver state (#879)"),
+    ("WallOutdoorSurfaceTemperature", "moved to runtime solver state (#879)"),
+    ("RoofIndoorSurfaceTemperature", "moved to runtime solver state (#879)"),
+    ("RoofOutdoorSurfaceTemperature", "moved to runtime solver state (#879)"),
+    ("GroundFloorIndoorSurfaceTemperature", "moved to runtime solver state (#879)"),
+    ("GroundFloorOutdoorSurfaceTemperature", "moved to runtime solver state (#879)"),
+    ("WindowIndoorSurfaceTemperature", "moved to runtime solver state (#879)"),
+    ("WindowOutdoorSurfaceTemperature", "moved to runtime solver state (#879)"),
+    ("InternalWallDHWVesselTemperature", "moved to runtime solver state (#879)"),
+    ("ExternalWallDHWVesselTemperature", "moved to runtime solver state (#879)"),
+    ("InternalWallWaterTankTemperature", "moved to runtime solver state (#879)"),
+    ("ExternalWallWaterTankTemperature", "moved to runtime solver state (#879)"),
+    ("WaterTankTemperature", "moved to runtime solver state (#879)"),
+    # Replaced by profile-based fields in #1038.
+    ("ApplianceUsageFactor", "replaced by ApplianceProfile (#1038)"),
+    ("TotalNumberofAppliances", "replaced by ApplianceProfile (#1038)"),
+    ("DHWDrainFlowRate", "replaced by HotWaterFlowProfile (#1038)"),
+    (
+        "DomesticHotWaterTemperatureInUseInBuilding",
+        "removed during STEBBS clean-up (#879)",
+    ),
+    (
+        "OutdoorAirAnnualTemperature",
+        "no longer a user input (#879)",
+    ),
+)
+
+# 2026.1 -> 2026.4 (current):
+# * #1240 renamed `stebbs.DeepSoilTemperature` to
+#   `stebbs.AnnualMeanAirTemperature`,
+# * #1242 removed `stebbs.MinimumVolumeOfDHWinUse` and
+#   `stebbs.MaximumVolumeOfDHWinUse`,
+# * #1261 split `building_archetype.HeatingSetpointTemperature` /
+#   `CoolingSetpointTemperature` into scalar + `*Profile` (handled
+#   separately via `_split_profile_fields` below).
+# * Additional drops from the same window (#1245 / replaced by new
+#   profile-based inputs).
+_STEBBS_RENAMES_2026_1_TO_CURRENT: tuple[tuple[str, str], ...] = (
+    ("DeepSoilTemperature", "AnnualMeanAirTemperature"),
+)
+_STEBBS_DROPS_2026_1_TO_CURRENT: tuple[tuple[str, str], ...] = (
+    ("MinimumVolumeOfDHWinUse", "removed in #1242"),
+    ("MaximumVolumeOfDHWinUse", "removed in #1242"),
+    ("ApplianceRating", "replaced by lighting/metabolism profiles"),
+    ("MetabolicRate", "replaced by MetabolismProfile"),
+    ("OccupantsProfile", "replaced by MetabolismProfile"),
+)
+
+_PROFILE_RENAME_PAIRS: tuple[tuple[str, float], ...] = (
+    ("HeatingSetpointTemperature", 18.0),
+    ("CoolingSetpointTemperature", 27.0),
+)
+
+
+# ---------------------------------------------------------------------------
+# Handlers
+# ---------------------------------------------------------------------------
 
 
 def _strip_internal_only_fields(cfg: dict) -> dict:
@@ -77,12 +259,6 @@ def _strip_internal_only_fields(cfg: dict) -> dict:
 def _identity(cfg: dict) -> dict:
     """Return the config after the defensive strip (schema version matches)."""
     return _strip_internal_only_fields(cfg)
-
-
-_PROFILE_RENAME_PAIRS: tuple[tuple[str, float], ...] = (
-    ("HeatingSetpointTemperature", 18.0),
-    ("CoolingSetpointTemperature", 27.0),
-)
 
 
 def _split_profile_fields(building_archetype: dict) -> dict:
@@ -111,46 +287,83 @@ def _split_profile_fields(building_archetype: dict) -> dict:
             if isinstance(first_value, (int, float)):
                 scalar = float(first_value)
         building_archetype[name] = {"value": scalar}
+        _log(
+            f"[yaml-upgrade]   split {name!r} profile -> {name + 'Profile'!r} "
+            f"(scalar seeded to {scalar})"
+        )
     return building_archetype
 
 
-def _migrate_pre_setpoint_split_to_2025_12(cfg: dict) -> dict:
-    """Upgrade pre-#1261 YAMLs to the current `2025.12` schema.
+def _migrate_2025_12_to_2026_1(cfg: dict) -> dict:
+    """Bring a 2025.12-shaped YAML to the 2026.1 shape (the #879 delta).
 
-    The STEBBS setpoint split (gh#1261) renamed two building-archetype
-    day-profile fields. This handler:
+    Applies the `building_archetype.Wallx1`/`Roofx1` -> `*OuterCapFrac`
+    renames and the STEBBS clean-up that ran on 2025-11-26 (semantic
+    renames to `InitialIndoorTemperature` / `InitialOutdoorTemperature`,
+    plus drops of DHWVesselEmissivity, the view-factor fields, the
+    surface-temperature runtime state, the split-profile precursors, and
+    the physical-constant slots moved internal).
 
-    * moves each profile-shaped `HeatingSetpointTemperature` /
-      `CoolingSetpointTemperature` into a new `*Profile` sibling,
-    * replaces the original key with the scalar form now required by the
-      validator (seeded from the first working-day entry so downstream
-      `setpointmethod=0` users get a sensible constant), and
-    * records `model.physics.setpointmethod = 2` (SCHEDULED) so the migrated
-      run honours the supplied hourly profile by default.
+    2025.10.15 YAMLs are a subset of 2025.11.20 YAMLs (only additive
+    differences between them), so both route through this handler and
+    pick up the same delta; rename/drop helpers no-op when the source
+    field is absent.
     """
     cfg = _strip_internal_only_fields(cfg)
-    for site in cfg.get("sites", []) or []:
-        if not isinstance(site, dict):
-            continue
-        props = site.get("properties")
-        if not isinstance(props, dict):
-            continue
-        arch = props.get("building_archetype")
-        if isinstance(arch, dict):
-            _split_profile_fields(arch)
+    for arch in _walk_site_container(cfg, "building_archetype"):
+        for old, new in _ARCH_RENAMES_2025_12_TO_2026_1:
+            _rename_field(arch, old, new)
+    for stebbs in _walk_site_container(cfg, "stebbs"):
+        for old, new in _STEBBS_RENAMES_2025_12_TO_2026_1:
+            _rename_field(stebbs, old, new)
+        for name, reason in _STEBBS_DROPS_2025_12_TO_2026_1:
+            _drop_obsolete_field(stebbs, name, reason)
+    return cfg
+
+
+def _migrate_2026_1_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.1-shaped YAMLs to the current `2026.4` schema.
+
+    Covers the structural deltas that landed between 2026.1.28 and 2026.4.3:
+
+    * #1240 renamed `stebbs.DeepSoilTemperature` to
+      `stebbs.AnnualMeanAirTemperature`,
+    * #1242 removed `stebbs.MinimumVolumeOfDHWinUse` and
+      `stebbs.MaximumVolumeOfDHWinUse`,
+    * #1261 split the STEBBS heating/cooling setpoint fields under
+      `building_archetype` into a scalar plus a `*Profile` sibling and
+      gated the schedule on `model.physics.setpointmethod`.
+
+    The handler relocates the user's hourly values into the new `*Profile`
+    keys (seeding the scalar from the first working-day entry) and sets
+    `setpointmethod = 2` (SCHEDULED) so the migrated run honours the
+    supplied schedule by default.
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    for arch in _walk_site_container(cfg, "building_archetype"):
+        _split_profile_fields(arch)
+    for stebbs in _walk_site_container(cfg, "stebbs"):
+        for old, new in _STEBBS_RENAMES_2026_1_TO_CURRENT:
+            _rename_field(stebbs, old, new)
+        for name, reason in _STEBBS_DROPS_2026_1_TO_CURRENT:
+            _drop_obsolete_field(stebbs, name, reason)
     physics = cfg.setdefault("model", {}).setdefault("physics", {})
     physics["setpointmethod"] = {"value": 2}
     return cfg
 
 
+def _migrate_2025_12_to_current(cfg: dict) -> dict:
+    """Chain the #879 clean-up into the 2026.1->current handler."""
+    cfg = _migrate_2025_12_to_2026_1(cfg)
+    return _migrate_2026_1_to_current(cfg)
+
+
 _HANDLERS: dict[tuple[str, str], Handler] = {
     # Identity at the current schema is explicit so the dispatch completes
-    # even when no real upgrade is needed. Future (from, to) handlers go
-    # alongside this entry keyed by their schema versions.
+    # even when no real upgrade is needed.
     (CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION): _identity,
-    (_SCHEMA_PRE_SETPOINT_SPLIT, CURRENT_SCHEMA_VERSION): (
-        _migrate_pre_setpoint_split_to_2025_12
-    ),
+    ("2026.1", CURRENT_SCHEMA_VERSION): _migrate_2026_1_to_current,
+    ("2025.12", CURRENT_SCHEMA_VERSION): _migrate_2025_12_to_current,
 }
 
 
@@ -163,20 +376,13 @@ class YamlUpgradeError(RuntimeError):
     """Raised when a YAML cannot be upgraded (no handler, missing signature, ...)."""
 
 
-def _log(message: str) -> None:
-    # Dereference sys.stderr at call time so pytest capsys / CliRunner can
-    # intercept. Binding it in the signature would cache the original
-    # stream and bypass capture fixtures.
-    print(message, file=sys.stderr)
-
-
 def _detect_signature(cfg: dict) -> str | None:
     """Return the raw schema signature from the YAML dict, or None if missing.
 
     Distinct from `SchemaMigrator.auto_detect_version`, which falls back to
     the current schema when no signature is found. Here we want to know
     whether a signature is *actually present* so the CLI can nudge the user
-    to supply `--from-ver` when it isn't.
+    to supply `--from` when it isn't.
     """
     for key in ("schema_version", "version", "config_version"):
         if key in cfg:

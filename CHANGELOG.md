@@ -54,6 +54,23 @@ EXAMPLES:
 
 ## 2026
 
+### 20 Apr 2026
+
+- [maintenance] Guardrails against schema-version drift (#1304)
+  - New pytest regression `test/data_model/test_schema_version_sync.py` asserts `src/supy/sample_data/sample_config.yml::schema_version` equals `CURRENT_SCHEMA_VERSION` on every test run; the `verify-build` shell recipe is no longer the only line of defence
+  - New CI gate `.github/workflows/schema-version-audit.yml` runs on every PR that touches `src/supy/data_model/**` or `src/supy/sample_data/sample_config.yml` and fails unless `src/supy/data_model/schema/version.py` is also modified. Backed by `scripts/lint/check_schema_version_bump.py`. Maintainers can add the `schema-audit-ok` label to bypass the gate for genuinely cosmetic diffs
+  - New rule `.claude/rules/python/schema-versioning.md` documents when to bump, how to bump, pre-release audit, PR review gate, and the bypass-label workflow; `prep-release` skill gained a schema-audit step, `audit-pr` skill acknowledges the CI gate
+- [change][experimental] Retrospective schema version bump closes the gap from #1240 / #1242 / #1261 (#1304)
+  - `CURRENT_SCHEMA_VERSION` stayed at `2025.12` through the STEBBS clean-up (#879 Nov 2025), the `DeepSoilTemperature` rename (#1240), the DHW volume-bound removal (#1242), and the setpoint split (#1261); the YAML upgrade dispatcher had no real schema versions to key on and had to fall back on synthetic labels that sorted numerically below `CURRENT_SCHEMA_VERSION`
+  - Bumped `CURRENT_SCHEMA_VERSION` to `2026.4`, populated `SCHEMA_VERSIONS` with the three real shapes (`2025.12` = 2025.10.15 / 2025.11.20 release shape, `2026.1` = 2026.1.28 release shape, `2026.4` = 2026.4.3 release shape = current), and extended `COMPATIBLE_VERSIONS` so every vendored release maps forward through migration
+  - `src/supy/sample_data/sample_config.yml` restamped to `schema_version: '2026.4'`
+- [bugfix][experimental] Broaden YAML upgrade coverage so pre-drift fixtures migrate structurally instead of silently dropping fields (#1304)
+  - `StebbsProperties` uses Pydantic default `extra="ignore"`, so older YAMLs that still carried `Wallx1` / `Roofx1`, `DHWVesselEmissivity`, `DeepSoilTemperature`, the DHW volume bounds, or any of the #879-era runtime-state temperature / view-factor fields passed validation but lost the user's values without trace; the upgrade handler now surfaces every rename or drop on stderr
+  - `_PACKAGE_TO_SCHEMA` maps release tags to their real schema versions (`2025.10.15` / `2025.11.20` -> `2025.12`, `2026.1.28` -> `2026.1`, `2026.4.3` -> `2026.4`) and `_HANDLERS` keys on real schema versions monotonically
+  - New handler `_migrate_2025_12_to_2026_1` absorbs the full #879 STEBBS clean-up (`Wallx1`/`Roofx1` -> `WallOuterCapFrac`/`RoofOuterCapFrac`; `IndoorAirStartTemperature` / `OutdoorAirStartTemperature` -> `InitialIndoorTemperature` / `InitialOutdoorTemperature`; drops `DHWVesselEmissivity`, the runtime-state surface temperatures, view-factor fields, appliance-usage fields, and internal constants, all with logged reason lines)
+  - Extended `_migrate_2026_1_to_current` to cover #1240 (rename `DeepSoilTemperature` -> `AnnualMeanAirTemperature`), #1242 (drop `MinimumVolumeOfDHWinUse` / `MaximumVolumeOfDHWinUse`), and the incidental `ApplianceRating` / `MetabolicRate` / `OccupantsProfile` drops
+  - `TestNoSilentFieldDrops` asserts that for every vendored pre-drift fixture, each STEBBS source key either survives to the upgraded YAML or appears in a rename/drop/split log line — a new schema delta without a matching handler now fails CI instead of silently swallowing data
+
 ### 19 Apr 2026
 
 - [change][experimental] Consolidate `suews-convert` under a single unified entry point (#1304)
@@ -61,7 +78,7 @@ EXAMPLES:
   - `-f/--from` loses the `click.Choice(list_ver_from)` constraint so the same flag can carry a table release (`2024a`), a supy release tag (`2026.1.28`) or a schema version (`2025.12`); per-input validation moved into the command body
   - Loader drift hint in `SUEWSConfig.from_yaml` updated to `suews-convert -i <old.yml> -o <new.yml> [-f <release-tag>]`
 - [feature][experimental] Register `2026.1.28 -> 2025.12` YAML upgrade handler (#1304)
-  - New handler `_migrate_pre_setpoint_split_to_2025_12` in `src/supy/util/converter/yaml_upgrade.py` migrates profile-shaped `HeatingSetpointTemperature` / `CoolingSetpointTemperature` fields (pre-#1261) into the post-split `*Profile` + scalar pair, and sets `model.physics.setpointmethod = 2` (SCHEDULED) to preserve the user's profile intent
+  - New handler `_migrate_2026_1_to_current` in `src/supy/util/converter/yaml_upgrade.py` migrates profile-shaped `HeatingSetpointTemperature` / `CoolingSetpointTemperature` fields (pre-#1261) into the post-split `*Profile` + scalar pair, and sets `model.physics.setpointmethod = 2` (SCHEDULED) to preserve the user's profile intent
   - Vendored every formal supy release sample_config under `test/fixtures/release_configs/` (`2025.10.15`, `2025.11.20`, `2026.1.28`, `2026.4.3`); `test_release_compat.py` now covers identity-path fixtures alongside the `2026.1.28` pre-drift upgrade regression
   - Retrofit schema label `2026.1` for pre-#1261 YAMLs; registered in `_PACKAGE_TO_SCHEMA` for release tag `2026.1.28`
 - [maintenance] Split CI matrix on the physics/api marker axis (#1300)

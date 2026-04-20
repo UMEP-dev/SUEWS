@@ -3746,8 +3746,8 @@ class SUEWSConfig(BaseModel):
 
         Returns a multi-line string naming the detected schema version (or
         noting its absence), the current schema version, and the
-        `suews-convert yaml-upgrade` command the user should run. Kept in
-        one place so the loader's `TypeError`/`AttributeError` path and the
+        `suews-convert` command the user should run. Kept in one place so
+        the loader's `TypeError`/`AttributeError` path and the
         `extra_forbidden` branch in `_transform_validation_error` agree.
 
         When `had_signature` is False the YAML predates schema versioning,

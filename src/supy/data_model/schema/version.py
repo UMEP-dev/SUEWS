@@ -15,21 +15,51 @@ from typing import Optional
 import warnings
 
 # Current supported schema version (aligned with SUEWS CalVer: YYYY.MM)
-CURRENT_SCHEMA_VERSION = "2025.12"
+CURRENT_SCHEMA_VERSION = "2026.4"
 
-# Schema version history and descriptions
+# Schema version history and descriptions.
+#
+# Retrospectively populated (gh#1304) after auditing structural changes to
+# `src/supy/data_model/` between each formal supy release. Prior to that
+# audit, `CURRENT_SCHEMA_VERSION` remained at "2025.12" through several
+# breaking changes; the lineage below anchors each YAML shape to the release
+# that shipped it, so the YAML-upgrade dispatcher can reason about real
+# schema identities rather than synthetic labels.
 SCHEMA_VERSIONS: dict[str, str] = {
-    "2025.12": "Initial YAML schema with full Pydantic data model",
-    # Future examples:
-    # "2026.1": "Added optional field X for feature Y"
-    # "2026.6": "Breaking change: Renamed field A to B, restructured C"
+    "2025.12": (
+        "Initial formal YAML schema for the 2025.10.15 / 2025.11.20 releases "
+        "(pre-#879 STEBBS layout: Wallx1 / Roofx1, DHWVesselEmissivity, "
+        "standalone appliance/occupant fields, explicit initial-state and "
+        "runtime-state slots)."
+    ),
+    "2026.1": (
+        "2026.1.28 release shape: #879 STEBBS clean-up landed "
+        "(Wallx1/Roofx1 -> WallOuterCapFrac/RoofOuterCapFrac, "
+        "IndoorAirStartTemperature/OutdoorAirStartTemperature -> "
+        "InitialIndoorTemperature/InitialOutdoorTemperature, drop of "
+        "DHWVesselEmissivity and the runtime-state temperature/view-factor "
+        "fields), STEBBS hourly profiles added for setpoints/appliance/"
+        "occupants/hot water (#1038), DeepSoilTemperature and volume bounds "
+        "present."
+    ),
+    "2026.4": (
+        "2026.4.3 release shape (current): DeepSoilTemperature renamed to "
+        "AnnualMeanAirTemperature (#1240), MinimumVolumeOfDHWinUse / "
+        "MaximumVolumeOfDHWinUse removed (#1242), STEBBS "
+        "HeatingSetpointTemperature / CoolingSetpointTemperature split into "
+        "scalar + *Profile siblings gated on model.physics.setpointmethod "
+        "(#1261), daylight-control and lighting/metabolism fields added."
+    ),
 }
 
-# Compatibility matrix: which schema versions are compatible
+# Compatibility matrix: which schema versions are accepted (possibly via
+# auto-migration) by a given target. Older shapes listed here upgrade
+# through `src/supy/util/converter/yaml_upgrade.py` before validation.
 COMPATIBLE_VERSIONS = {
     "0.1": ["0.1"],  # Legacy pre-release version
-    "2025.12": ["0.1", "2025.12"],  # 2025.12 accepts 0.1 configs (auto-migrated)
-    # Future: "2026.1": ["2025.12", "2026.1"],  # backward compatible
+    "2025.12": ["0.1", "2025.12"],
+    "2026.1": ["0.1", "2025.12", "2026.1"],
+    "2026.4": ["0.1", "2025.12", "2026.1", "2026.4"],
 }
 
 

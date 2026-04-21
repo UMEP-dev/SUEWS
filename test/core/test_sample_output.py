@@ -446,6 +446,11 @@ class TestSampleOutput(TestCase):
             with open(sample_config) as f:
                 cfg = yaml.safe_load(f)
             cfg["model"]["control"]["output_file"]["path"] = tmpdir
+            # Rust parser still reads legacy (fused) field names; translate
+            # Python-side new names back before handing the YAML to the CLI.
+            from supy.data_model.core.field_renames import reverse_field_renames
+
+            cfg = reverse_field_renames(cfg)
             tmp_config = Path(tmpdir) / "sample_config.yml"
             with open(tmp_config, "w") as f:
                 yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)

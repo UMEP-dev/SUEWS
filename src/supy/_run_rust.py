@@ -17,6 +17,7 @@ _yaml_Dumper = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 
 from ._env import logger_supy
 from ._post import df_var, gen_index
+from .data_model.core.field_renames import reverse_field_renames
 
 if TYPE_CHECKING:
     from .data_model import SUEWSConfig
@@ -288,7 +289,7 @@ def run_suews_rust(
         raise ValueError("forcing data is empty")
 
     config_yaml = yaml.dump(
-        config.model_dump(exclude_none=True, mode="json"),
+        reverse_field_renames(config.model_dump(exclude_none=True, mode="json")),
         default_flow_style=False,
         sort_keys=False,
         Dumper=_yaml_Dumper,
@@ -373,9 +374,15 @@ def run_suews_rust_multi(
         raise ValueError("forcing data is empty")
 
     # --- Prepare shared data once ---
-    config_dict = config.model_dump(exclude_none=True, mode="json")
+    # Apply reverse_field_renames so the Rust bridge receives legacy fused
+    # field names (netradiationmethod, soildepth, ...) that yaml_config.rs
+    # expects. The single-grid path applies the same wrapper at L291/L458.
+    config_dict = reverse_field_renames(
+        config.model_dump(exclude_none=True, mode="json")
+    )
     list_site_dict = [
-        s.model_dump(exclude_none=True, mode="json") for s in sites
+        reverse_field_renames(s.model_dump(exclude_none=True, mode="json"))
+        for s in sites
     ]
     forcing_block = _prepare_forcing_block(df_forcing)
     forcing_flat = forcing_block.ravel(order="C").tolist()
@@ -455,7 +462,7 @@ def run_suews_rust_with_state(
         raise ValueError("forcing data is empty")
 
     config_yaml = yaml.dump(
-        config.model_dump(exclude_none=True, mode="json"),
+        reverse_field_renames(config.model_dump(exclude_none=True, mode="json")),
         default_flow_style=False,
         sort_keys=False,
         Dumper=_yaml_Dumper,

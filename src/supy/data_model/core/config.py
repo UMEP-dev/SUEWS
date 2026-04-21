@@ -345,7 +345,7 @@ class SUEWSConfig(BaseModel):
         for i, site in enumerate(self.sites):
             self._validate_site_parameters(site, site_index=i)
 
-        ### 3) Run any conditional validations (e.g. STEBBS when stebbsmethod==1)
+        ### 3) Run any conditional validations (e.g. STEBBS when stebbs_method==1)
         cond_issues = self._validate_conditional_parameters()
 
         ### 4) Check for critical null physics parameters
@@ -466,7 +466,7 @@ class SUEWSConfig(BaseModel):
 
         This validator checks that the selected net radiation method is compatible
         with the provided forcing file. Specifically, it warns if
-        `netradiationmethod=1` (which requires observed Ldown) is used with a
+        `net_radiation_method=1` (which requires observed Ldown) is used with a
         sample forcing file that typically lacks Ldown data.
 
         Returns
@@ -477,10 +477,10 @@ class SUEWSConfig(BaseModel):
         Warns
         -----
         UserWarning
-            If netradiationmethod=1 is used with a sample forcing file.
+            If net_radiation_method=1 is used with a sample forcing file.
         """
         # Use the helper for consistent unwrapping
-        netradiationmethod_val = _unwrap_value(self.model.physics.netradiationmethod)
+        net_radiation_method_val = _unwrap_value(self.model.physics.net_radiation_method)
         forcing_file_val = _unwrap_value(self.model.control.forcing_file)
 
         # Check for the sample forcing file - this is still based on filename
@@ -488,7 +488,7 @@ class SUEWSConfig(BaseModel):
         # For now, we check both common sample forcing filenames
         sample_forcing_names = ["forcing.txt", "sample_forcing.txt", "test_forcing.txt"]
 
-        if netradiationmethod_val == 1 and any(
+        if net_radiation_method_val == 1 and any(
             name in str(forcing_file_val).lower() for name in sample_forcing_names
         ):
             import warnings
@@ -496,7 +496,7 @@ class SUEWSConfig(BaseModel):
             warnings.warn(
                 f"NetRadiationMethod is set to 1 (using observed Ldown) with what appears to be a sample forcing file '{forcing_file_val}'. "
                 "Sample forcing files typically lack observed Ldown data. "
-                "If this is sample data, use netradiationmethod = 3. "
+                "If this is sample data, use net_radiation_method = 3. "
                 "If this is real data with Ldown, consider renaming the file to avoid this warning.",
                 UserWarning,
                 stacklevel=2,
@@ -643,10 +643,10 @@ class SUEWSConfig(BaseModel):
             snow_params = site.properties.snow
 
             # Extract values using helper for consistent unwrapping
-            crwmin_val = _unwrap_value(snow_params.crwmin)
-            crwmax_val = _unwrap_value(snow_params.crwmax)
-            snowalbmin_val = _unwrap_value(snow_params.snowalbmin)
-            snowalbmax_val = _unwrap_value(snow_params.snowalbmax)
+            crwmin_val = _unwrap_value(snow_params.water_holding_capacity_min)
+            crwmax_val = _unwrap_value(snow_params.water_holding_capacity_max)
+            snowalbmin_val = _unwrap_value(snow_params.snow_albedo_min)
+            snowalbmax_val = _unwrap_value(snow_params.snow_albedo_max)
 
             # Validate critical water content range
             if crwmin_val >= crwmax_val:
@@ -758,13 +758,13 @@ class SUEWSConfig(BaseModel):
                 if lai_params is None:
                     continue
 
-                lai_min_val = _unwrap_value(getattr(lai_params, "laimin", None))
-                lai_max_val = _unwrap_value(getattr(lai_params, "laimax", None))
-                # Fallback: LAIParams.laimin defaults to 0.1; LAIParams.laimax
+                lai_min_val = _unwrap_value(getattr(lai_params, "lai_min", None))
+                lai_max_val = _unwrap_value(getattr(lai_params, "lai_max", None))
+                # Fallback: LAIParams.lai_min defaults to 0.1; LAIParams.lai_max
                 # defaults to None (the DataFrame serialisation path in
                 # LAIParams.to_df_state uses 10.0 as its fallback).
                 if lai_min_val is None:
-                    lai_min_val = LAIParams.model_fields["laimin"].default
+                    lai_min_val = LAIParams.model_fields["lai_min"].default
                 if lai_max_val is None:
                     lai_max_val = LAIParams.LAIMAX_DF_DEFAULT
 
@@ -914,8 +914,8 @@ class SUEWSConfig(BaseModel):
             dectr_props = site.properties.land_cover.dectr
 
             # Extract porosity values using helper for consistent unwrapping
-            pormin_dec_val = _unwrap_value(dectr_props.pormin_dec)
-            pormax_dec_val = _unwrap_value(dectr_props.pormax_dec)
+            pormin_dec_val = _unwrap_value(dectr_props.porosity_min_deciduous)
+            pormax_dec_val = _unwrap_value(dectr_props.porosity_max_deciduous)
 
             # Validate physical bounds for porosity
             if not (0 <= pormin_dec_val <= 1):
@@ -1262,8 +1262,8 @@ class SUEWSConfig(BaseModel):
             # Check vegetation parameters for grass, dectr, evetr
             if surface_type in ["grass", "dectr", "evetr"]:
                 vegetation_params = {
-                    "beta_bioco2": "Biogenic CO2 exchange coefficient",
-                    "alpha_bioco2": "Biogenic CO2 exchange coefficient",
+                    "beta_bio_co2": "Biogenic CO2 exchange coefficient",
+                    "alpha_bio_co2": "Biogenic CO2 exchange coefficient",
                     "resp_a": "Respiration coefficient",
                     "resp_b": "Respiration coefficient",
                 }
@@ -1391,8 +1391,8 @@ class SUEWSConfig(BaseModel):
 
         This method validates the LAI parameters for all vegetated surface types
         (grass, dectr, evetr) within the provided land cover. It checks that:
-        - laimin <= laimax
-        - baset <= gddfull
+        - lai_min <= lai_max
+        - base_temperature <= gddfull
 
         Returns
         -------
@@ -1430,50 +1430,50 @@ class SUEWSConfig(BaseModel):
                 if surface and hasattr(surface, "lai"):
                     lai = surface.lai
                     if lai:
-                        # Check laimin vs laimax
+                        # Check lai_min vs lai_max
                         if (
-                            hasattr(lai, "laimin")
-                            and lai.laimin is not None
-                            and hasattr(lai, "laimax")
-                            and lai.laimax is not None
+                            hasattr(lai, "lai_min")
+                            and lai.lai_min is not None
+                            and hasattr(lai, "lai_max")
+                            and lai.lai_max is not None
                         ):
-                            laimin_val = (
-                                lai.laimin.value
-                                if hasattr(lai.laimin, "value")
-                                else lai.laimin
+                            lai_min_val = (
+                                lai.lai_min.value
+                                if hasattr(lai.lai_min, "value")
+                                else lai.lai_min
                             )
-                            laimax_val = (
-                                lai.laimax.value
-                                if hasattr(lai.laimax, "value")
-                                else lai.laimax
+                            lai_max_val = (
+                                lai.lai_max.value
+                                if hasattr(lai.lai_max, "value")
+                                else lai.lai_max
                             )
 
-                            if laimin_val > laimax_val:
+                            if lai_min_val > lai_max_val:
                                 self._validation_summary["total_warnings"] += 1
                                 self._validation_summary["issue_types"].add(
                                     "LAI range validation"
                                 )
                                 self._validation_summary["detailed_messages"].append(
-                                    f"{site_name} {surface_type}: laimin ({laimin_val}) must be <= laimax ({laimax_val})"
+                                    f"{site_name} {surface_type}: lai_min ({lai_min_val}) must be <= lai_max ({lai_max_val})"
                                 )
                                 has_issues = True
 
-                        # Check baset vs gddfull
+                        # Check base_temperature vs gddfull
                         if (
-                            hasattr(lai, "baset")
-                            and lai.baset is not None
-                            and hasattr(lai, "gddfull")
-                            and lai.gddfull is not None
+                            hasattr(lai, "base_temperature")
+                            and lai.base_temperature is not None
+                            and hasattr(lai, "gdd_full")
+                            and lai.gdd_full is not None
                         ):
                             baset_val = (
-                                lai.baset.value
-                                if hasattr(lai.baset, "value")
-                                else lai.baset
+                                lai.base_temperature.value
+                                if hasattr(lai.base_temperature, "value")
+                                else lai.base_temperature
                             )
                             gddfull_val = (
-                                lai.gddfull.value
-                                if hasattr(lai.gddfull, "value")
-                                else lai.gddfull
+                                lai.gdd_full.value
+                                if hasattr(lai.gdd_full, "value")
+                                else lai.gdd_full
                             )
 
                             if baset_val > gddfull_val:
@@ -1482,7 +1482,7 @@ class SUEWSConfig(BaseModel):
                                     "LAI range validation"
                                 )
                                 self._validation_summary["detailed_messages"].append(
-                                    f"{site_name} {surface_type}: baset ({baset_val}) must be <= gddfull ({gddfull_val})"
+                                    f"{site_name} {surface_type}: base_temperature ({baset_val}) must be <= gddfull ({gddfull_val})"
                                 )
                                 has_issues = True
 
@@ -1534,32 +1534,32 @@ class SUEWSConfig(BaseModel):
     def _needs_stebbs_validation(self) -> bool:
         """
         Return True if STEBBS should be validated,
-        i.e. physics.stebbsmethod == 1.
+        i.e. physics.stebbs_method == 1.
         """
 
         if not hasattr(self.model, "physics") or not hasattr(
-            self.model.physics, "stebbsmethod"
+            self.model.physics, "stebbs_method"
         ):
             return False
 
-        stebbsmethod = self.model.physics.stebbsmethod
+        stebbs_method = self.model.physics.stebbs_method
 
-        if hasattr(stebbsmethod, "value"):
-            stebbsmethod = stebbsmethod.value
-        if hasattr(stebbsmethod, "__int__"):
-            stebbsmethod = int(stebbsmethod)
-        if isinstance(stebbsmethod, str) and stebbsmethod == "1":
-            stebbsmethod = 1
+        if hasattr(stebbs_method, "value"):
+            stebbs_method = stebbs_method.value
+        if hasattr(stebbs_method, "__int__"):
+            stebbs_method = int(stebbs_method)
+        if isinstance(stebbs_method, str) and stebbs_method == "1":
+            stebbs_method = 1
 
-        # print(f"Final stebbsmethod value for validation: {stebbsmethod} (type: {type(stebbsmethod)})")
+        # print(f"Final stebbs_method value for validation: {stebbs_method} (type: {type(stebbs_method)})")
 
-        return stebbsmethod == 1
+        return stebbs_method == 1
 
     def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
         """
-        Validate required STEBBS and building archetype parameters when stebbsmethod==1.
+        Validate required STEBBS and building archetype parameters when stebbs_method==1.
 
-        If `stebbsmethod==1`, this function enforces that both `site.properties.stebbs`
+        If `stebbs_method==1`, this function enforces that both `site.properties.stebbs`
         and `site.properties.building_archetype` contain all required parameters with
         non-null values. The required parameter lists are defined by
         `STEBBS_REQUIRED_PARAMS` and `ARCHETYPE_REQUIRED_PARAMS`, with dynamic
@@ -1596,7 +1596,7 @@ class SUEWSConfig(BaseModel):
 
         ## Must have a stebbs block
         if not hasattr(props, "stebbs") or props.stebbs is None:
-            issues.append("Missing 'stebbs' section (required when stebbsmethod=1)")
+            issues.append("Missing 'stebbs' section (required when stebbs_method=1)")
             return issues
 
         ## Must have a building_archetype block
@@ -1728,7 +1728,7 @@ class SUEWSConfig(BaseModel):
         if missing_params:
             param_list = ", ".join(missing_params)
             issues.append(
-                f"Missing required STEBBS parameters: {param_list} (required when stebbsmethod=1)"
+                f"Missing required STEBBS parameters: {param_list} (required when stebbs_method=1)"
             )
 
         return issues
@@ -1740,21 +1740,21 @@ class SUEWSConfig(BaseModel):
         Returns
         -------
         bool
-            True if `rslmethod` is set to 2 and was explicitly configured by the user,
+            True if `rsl_method` is set to 2 and was explicitly configured by the user,
             False otherwise.
 
         Notes
         -----
-        - Validation is only triggered if `rslmethod == 2` AND the value was explicitly set
+        - Validation is only triggered if `rsl_method == 2` AND the value was explicitly set
           (not just the default value).
         - Uses Pydantic's `model_fields_set` to distinguish user-provided values from defaults.
         """
         if not hasattr(self.model, "physics") or not hasattr(
-            self.model.physics, "rslmethod"
+            self.model.physics, "rsl_method"
         ):
             return False
 
-        rm = self.model.physics.rslmethod
+        rm = self.model.physics.rsl_method
         method = getattr(rm, "value", rm)
         try:
             method = int(method)
@@ -1763,14 +1763,14 @@ class SUEWSConfig(BaseModel):
 
         # Only validate if method == 2 AND it was explicitly set
         if method == 2:
-            return self._is_physics_explicitly_configured("rslmethod")
+            return self._is_physics_explicitly_configured("rsl_method")
         return False
 
     def _validate_rsl(self, site: Site, site_index: int) -> List[str]:
         """
         Validate RSL (Roughness Sublayer) method requirements for a site.
 
-        If `rslmethod == 2`, then for any site where `bldgs.sfr > 0`,
+        If `rsl_method == 2`, then for any site where `bldgs.sfr > 0`,
         `bldgs.faibldg` must be set and non-null.
 
         Parameters
@@ -1787,7 +1787,7 @@ class SUEWSConfig(BaseModel):
 
         Notes
         -----
-        - Only applies if `rslmethod == 2` is explicitly set.
+        - Only applies if `rsl_method == 2` is explicitly set.
         - Checks that for each site with buildings (`bldgs.sfr > 0`), the
           frontal area index (`bldgs.faibldg`) is provided.
         """
@@ -1813,7 +1813,7 @@ class SUEWSConfig(BaseModel):
             if val is None:
                 site_name = getattr(site, "name", f"Site {site_index}")
                 issues.append(
-                    f"{site_name}: for rslmethod=2 and bldgs.sfr={sfr}, bldgs.faibldg must be set"
+                    f"{site_name}: for rsl_method=2 and bldgs.sfr={sfr}, bldgs.faibldg must be set"
                 )
         return issues
 
@@ -1824,21 +1824,21 @@ class SUEWSConfig(BaseModel):
         Returns
         -------
         bool
-            True if `storageheatmethod` is set to 6 or 7 and was explicitly configured by the user,
+            True if `storage_heat_method` is set to 6 or 7 and was explicitly configured by the user,
             False otherwise.
 
         Notes
         -----
-        - Validation is only triggered if `storageheatmethod` is 6 or 7 AND the value was explicitly set
+        - Validation is only triggered if `storage_heat_method` is 6 or 7 AND the value was explicitly set
           (not just the default value).
         - Uses Pydantic's `model_fields_set` to distinguish user-provided values from defaults.
         """
         if not hasattr(self.model, "physics") or not hasattr(
-            self.model.physics, "storageheatmethod"
+            self.model.physics, "storage_heat_method"
         ):
             return False
 
-        shm = getattr(self.model.physics.storageheatmethod, "value", None)
+        shm = getattr(self.model.physics.storage_heat_method, "value", None)
         try:
             shm = int(shm)
         except (TypeError, ValueError):
@@ -1846,7 +1846,7 @@ class SUEWSConfig(BaseModel):
 
         # Only validate if method == 6 or 7 AND it was explicitly set
         if shm == 6 or shm == 7:
-            return self._is_physics_explicitly_configured("storageheatmethod")
+            return self._is_physics_explicitly_configured("storage_heat_method")
         return False
     
     def _needs_same_albedo_wall_validation(self) -> bool:
@@ -1986,7 +1986,7 @@ class SUEWSConfig(BaseModel):
         Parameters
         ----------
         option_name : str
-            Name of the physics field to check (e.g. ``"rslmethod"``).
+            Name of the physics field to check (e.g. ``"rsl_method"``).
         """
         physics = getattr(self.model, "physics", None)
         return bool(physics and hasattr(physics, "model_fields_set") and option_name in physics.model_fields_set)
@@ -1996,7 +1996,7 @@ class SUEWSConfig(BaseModel):
         Validate DyOHM storage-heat method requirements for a site.
 
         This function checks that all required parameters for the DyOHM storage-heat
-        method (storageheatmethod 6 or 7) are present and valid for the given site.
+        method (storage_heat_method 6 or 7) are present and valid for the given site.
         It ensures that vertical_layers.walls, thermal_layers, and initial_states
         arrays are non-empty and contain only numeric values, and that lambda_c is set.
 
@@ -2032,7 +2032,7 @@ class SUEWSConfig(BaseModel):
 
         if not walls or len(walls) == 0:
             issues.append(
-                f"{site_name}: storageheatmethod 6 or 7 (DyOHM) selected → missing vertical_layers.walls"
+                f"{site_name}: storage_heat_method 6 or 7 (DyOHM) selected → missing vertical_layers.walls"
             )
             return issues
 
@@ -2047,7 +2047,7 @@ class SUEWSConfig(BaseModel):
                 or any(not isinstance(v, (int, float)) for v in vals)
             ):
                 issues.append(
-                    f"{site_name}: storageheatmethod 6 or 7 (DyOHM) selected → "
+                    f"{site_name}: storage_heat_method 6 or 7 (DyOHM) selected → "
                     f"thermal_layers.{arr} must be a non‐empty list of numeric values (no nulls)"
                 )
 
@@ -2065,14 +2065,14 @@ class SUEWSConfig(BaseModel):
                 or any(not isinstance(v, (int, float)) for v in vals)
             ):
                 issues.append(
-                    f"{site_name}: storageheatmethod 6 or 7 (DyOHM) selected → "
+                    f"{site_name}: storage_heat_method 6 or 7 (DyOHM) selected → "
                     f"initial_states.{arr} must be a non‐empty list of numeric values (no nulls)"
                 )
 
         lam = getattr(getattr(props, "lambda_c", None), "value", None)
         if lam in (None, ""):
             issues.append(
-                f"{site_name}: storageheatmethod 6 or 7 (DyOHM) selected → properties.lambda_c must be set and non-null"
+                f"{site_name}: storage_heat_method 6 or 7 (DyOHM) selected → properties.lambda_c must be set and non-null"
             )
 
         return issues
@@ -2278,15 +2278,15 @@ class SUEWSConfig(BaseModel):
         Returns
         -------
         bool
-            True if SPARTACUS is enabled (i.e., netradiationmethod is 1001, 1002, or 1003), False otherwise.
+            True if SPARTACUS is enabled (i.e., net_radiation_method is 1001, 1002, or 1003), False otherwise.
 
         Notes
         -----
-        SPARTACUS is enabled when the model physics parameter `netradiationmethod`
+        SPARTACUS is enabled when the model physics parameter `net_radiation_method`
         is set to one of the following values: 1001, 1002, or 1003.
         """
         spartacus_methods = {1001, 1002, 1003}
-        netrad_method = _unwrap_value(getattr(self.model.physics, "netradiationmethod", None))
+        netrad_method = _unwrap_value(getattr(self.model.physics, "net_radiation_method", None))
         try:
             netrad_method = int(netrad_method)
         except (TypeError, ValueError):
@@ -2299,7 +2299,7 @@ class SUEWSConfig(BaseModel):
 
         If SPARTACUS is enabled, this function enforces that:
         - The building height (bldgh) does not exceed the domain top (height[nlayer]).
-        - If stebbsmethod == 1, the archetype's stebbs_Height also does not exceed the domain top.
+        - If stebbs_method == 1, the archetype's stebbs_Height also does not exceed the domain top.
 
         Parameters
         ----------
@@ -2316,7 +2316,7 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - The domain top is defined as the last entry in the vertical_layers.height array (height[nlayer]).
-        - If stebbsmethod == 1, both bldgh and stebbs_Height are checked.
+        - If stebbs_method == 1, both bldgh and stebbs_Height are checked.
         - All issues are reported with the site name for clarity.
         """
         issues: List[str] = []
@@ -2343,15 +2343,15 @@ class SUEWSConfig(BaseModel):
                     f"Site '{site_name}' has bldgh={bldgh} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
                 )
 
-            # If stebbsmethod == 1, also check stebbs_Height
-            stebbsmethod = _unwrap_value(getattr(self.model.physics, "stebbsmethod", None))
+            # If stebbs_method == 1, also check stebbs_Height
+            stebbs_method = _unwrap_value(getattr(self.model.physics, "stebbs_method", None))
 
             try:
-                stebbsmethod_val = int(stebbsmethod)
+                stebbs_method_val = int(stebbs_method)
             except (TypeError, ValueError):
-                stebbsmethod_val = None
+                stebbs_method_val = None
 
-            if stebbsmethod_val == 1:
+            if stebbs_method_val == 1:
                 building_archetype = getattr(props, "building_archetype", None)
                 stebbs_height = _unwrap_value(getattr(building_archetype, "stebbs_Height", None)) if building_archetype else None
                 if stebbs_height is not None and stebbs_height > spartacus_top:
@@ -2464,11 +2464,11 @@ class SUEWSConfig(BaseModel):
         land_cover = getattr(getattr(site, "properties", None), "land_cover", None)
 
         # Get tree heights
-        dectreeh = _unwrap_value(getattr(getattr(land_cover, "dectr", None), "dectreeh", None)) if land_cover and getattr(land_cover, "dectr", None) else None
-        evetreeh = _unwrap_value(getattr(getattr(land_cover, "evetr", None), "evetreeh", None)) if land_cover and getattr(land_cover, "evetr", None) else None
-        
+        height_deciduous_tree = _unwrap_value(getattr(getattr(land_cover, "dectr", None), "height_deciduous_tree", None)) if land_cover and getattr(land_cover, "dectr", None) else None
+        height_evergreen_tree = _unwrap_value(getattr(getattr(land_cover, "evetr", None), "height_evergreen_tree", None)) if land_cover and getattr(land_cover, "evetr", None) else None
+
         # Compute max_tree
-        tree_heights = [h for h in [dectreeh, evetreeh] if h is not None]
+        tree_heights = [h for h in [height_deciduous_tree, height_evergreen_tree] if h is not None]
         if not tree_heights:
             return issues  # No tree heights to check
 
@@ -2526,10 +2526,10 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - STEBBS: Validates required STEBBS and building archetype parameters when
-          `stebbsmethod == 1`.
-        - RSL: Validates that `bldgs.faibldg` is set when `rslmethod == 2`.
+          `stebbs_method == 1`.
+        - RSL: Validates that `bldgs.faibldg` is set when `rsl_method == 2`.
         - StorageHeat: Checks DyOHM storage-heat method requirements when
-          `storageheatmethod == 6 or 7`.
+          `storage_heat_method == 6 or 7`.
         - same_albedo_wall/roof: Ensures uniform albedo across wall/roof layers and
           matches the building archetype if enabled.
         - same_emissivity_wall/roof: Ensures uniform emissivity across wall/roof
@@ -2678,22 +2678,22 @@ class SUEWSConfig(BaseModel):
         """
         # Critical physics parameters that get converted to int() in df_state
         CRITICAL_PHYSICS_PARAMS = [
-            "netradiationmethod",
-            "emissionsmethod",
-            "storageheatmethod",
-            "ohmincqf",
-            "roughlenmommethod",
-            "roughlenheatmethod",
-            "stabilitymethod",
-            "smdmethod",
-            "waterusemethod",
-            "rslmethod",
-            "faimethod",
-            "rsllevel",
-            "gsmodel",
-            "snowuse",
-            "stebbsmethod",
-            "rcmethod",
+            "net_radiation_method",
+            "emissions_method",
+            "storage_heat_method",
+            "ohm_inc_qf",
+            "roughness_length_momentum_method",
+            "roughness_length_heat_method",
+            "stability_method",
+            "smd_method",
+            "water_use_method",
+            "rsl_method",
+            "fai_method",
+            "rsl_level",
+            "gs_model",
+            "snow_use",
+            "stebbs_method",
+            "rc_method",
             "setpointmethod",
             "same_albedo_wall",
             "same_albedo_roof",
@@ -2954,47 +2954,47 @@ class SUEWSConfig(BaseModel):
                         ):
                             lai = surface.lai
 
-                            # Check laimin vs laimax
-                            if lai.laimin is not None and lai.laimax is not None:
-                                laimin_val = (
-                                    lai.laimin.value
-                                    if hasattr(lai.laimin, "value")
-                                    else lai.laimin
+                            # Check lai_min vs lai_max
+                            if lai.lai_min is not None and lai.lai_max is not None:
+                                lai_min_val = (
+                                    lai.lai_min.value
+                                    if hasattr(lai.lai_min, "value")
+                                    else lai.lai_min
                                 )
-                                laimax_val = (
-                                    lai.laimax.value
-                                    if hasattr(lai.laimax, "value")
-                                    else lai.laimax
+                                lai_max_val = (
+                                    lai.lai_max.value
+                                    if hasattr(lai.lai_max, "value")
+                                    else lai.lai_max
                                 )
 
-                                if laimin_val > laimax_val:
+                                if lai_min_val > lai_max_val:
                                     annotator.add_issue(
                                         path=f"{path}/lai",
-                                        param="laimin_laimax",
-                                        message=f"LAI range invalid: laimin ({laimin_val}) > laimax ({laimax_val})",
-                                        fix="Set laimin <= laimax (typical values: laimin=0.1-1.0, laimax=3.0-8.0)",
+                                        param="lai_min_lai_max",
+                                        message=f"LAI range invalid: lai_min ({lai_min_val}) > lai_max ({lai_max_val})",
+                                        fix="Set lai_min <= lai_max (typical values: lai_min=0.1-1.0, lai_max=3.0-8.0)",
                                         level="WARNING",
                                     )
 
-                            # Check baset vs gddfull
-                            if lai.baset is not None and lai.gddfull is not None:
+                            # Check base_temperature vs gddfull
+                            if lai.base_temperature is not None and lai.gdd_full is not None:
                                 baset_val = (
-                                    lai.baset.value
-                                    if hasattr(lai.baset, "value")
-                                    else lai.baset
+                                    lai.base_temperature.value
+                                    if hasattr(lai.base_temperature, "value")
+                                    else lai.base_temperature
                                 )
                                 gddfull_val = (
-                                    lai.gddfull.value
-                                    if hasattr(lai.gddfull, "value")
-                                    else lai.gddfull
+                                    lai.gdd_full.value
+                                    if hasattr(lai.gdd_full, "value")
+                                    else lai.gdd_full
                                 )
 
                                 if baset_val > gddfull_val:
                                     annotator.add_issue(
                                         path=f"{path}/lai",
-                                        param="baset_gddfull",
-                                        message=f"GDD range invalid: baset ({baset_val}) > gddfull ({gddfull_val})",
-                                        fix="Set baset <= gddfull (typical values: baset=5-10 C, gddfull=200-1000 C.day)",
+                                        param="base_temperature_gddfull",
+                                        message=f"GDD range invalid: base_temperature ({baset_val}) > gddfull ({gddfull_val})",
+                                        fix="Set base_temperature <= gddfull (typical values: base_temperature=5-10 C, gddfull=200-1000 C.day)",
                                         level="WARNING",
                                     )
 
@@ -3006,8 +3006,8 @@ class SUEWSConfig(BaseModel):
                             from ..validation.core.utils import check_missing_params
 
                             vegetation_params = {
-                                "beta_bioco2": "Biogenic CO2 exchange coefficient",
-                                "alpha_bioco2": "Biogenic CO2 exchange coefficient",
+                                "beta_bio_co2": "Biogenic CO2 exchange coefficient",
+                                "alpha_bio_co2": "Biogenic CO2 exchange coefficient",
                                 "resp_a": "Respiration coefficient",
                                 "resp_b": "Respiration coefficient",
                             }
@@ -3093,14 +3093,14 @@ class SUEWSConfig(BaseModel):
     #             surface_is = getattr(site.initial_states, surf_type)
     #             surface_props =getattr(site.properties.land_cover, surf_type)
     #             if first_day_precip:
-    #                 surface_is.state.value = surface_props.statelimit
-    #                 surface_is.soilstore.value = surface_props.soilstorecap
+    #                 surface_is.state.value = surface_props.state_limit
+    #                 surface_is.soilstore.value = surface_props.soil_store_capacity
     #                 if first_day_min_temp < 4:
-    #                     surface_is.snowpack.value = surface_props.snowpacklimit
+    #                     surface_is.snowpack.value = surface_props.snowpack_limit
     #                     surface_is.snowfrac.value = 0.5 # Can these sum to greater than 1?
     #                     surface_is.icefrac.value = 0.5 # Can these sum to greater than 1?
     #                     surface_is.snowwater.value = 1 # TODO: What is the limit to this?
-    #                     surface_is.snowdens.value = surface_props.snowdensmax
+    #                     surface_is.snowdens.value = surface_props.snow_density_max
     #             else:
     #                 surface_is.state.value = 0
     #     return self

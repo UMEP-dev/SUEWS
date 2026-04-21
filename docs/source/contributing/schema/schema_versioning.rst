@@ -28,7 +28,7 @@ the structure and format of the configuration file:
   compatibility matrix.
 
 Schema version is distinct from the SUEWS model version. A line such as
-``schema_version: "2026.4"`` describes the shape of the configuration
+``schema_version: "2026.5"`` describes the shape of the configuration
 file, while the SUEWS version you installed (for example
 ``2026.4.3``) describes the model code. One schema may validate many
 model releases.
@@ -41,7 +41,7 @@ Add the ``schema_version`` field to the top level of your configuration:
 .. code-block:: yaml
 
    name: my_urban_config
-   schema_version: "2026.4"
+   schema_version: "2026.5"
    description: Urban climate simulation for central London
    model:
      # ... model configuration ...
@@ -59,8 +59,8 @@ Schema Version Policy
 Schema labels use **CalVer** (``YYYY.M``, occasionally ``YYYY.M.D``),
 aligned with the SUEWS release in which that shape first shipped. The
 next label is chosen from the current month, not incremented as a
-floating-point number — ``2026.4`` comes after ``2026.1``, which comes
-after ``2025.12``.
+floating-point number — ``2026.5`` comes after ``2026.4``, which comes
+after ``2026.1``, which comes after ``2025.12``.
 
 A bump happens when a PR to ``src/supy/data_model/`` makes a previously
 valid user YAML no longer round-trip. In practice that means any of:
@@ -106,7 +106,7 @@ The three outcomes users see:
 **Older schema with a registered migration**
    .. code-block:: text
 
-      Configuration uses schema 2026.1, current is 2026.4 (compatible)
+      Configuration uses schema 2026.4, current is 2026.5 (compatible)
 
    The YAML loads via the chained migration. Regenerate the file with
    :doc:`/inputs/converter` if you want to persist the upgrade.
@@ -114,13 +114,13 @@ The three outcomes users see:
 **Older schema with no registered migration**
    .. code-block:: text
 
-      WARNING: Configuration uses older schema 2025.8, current is 2026.4.
+      WARNING: Configuration uses older schema 2025.8, current is 2026.5.
       Consider updating your configuration.
 
 **Newer schema than this SUEWS knows about**
    .. code-block:: text
 
-      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.4.
+      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.5.
       Please update SUEWS or use an older configuration.
 
 Migration
@@ -141,7 +141,7 @@ Command-line migration (preferred entry point)
    suews-schema migrate old_config.yml
 
    # Migrate to a specific target schema
-   suews-schema migrate config.yml --target-version 2026.4
+   suews-schema migrate config.yml --target-version 2026.5
 
    # Dry-run to preview the rename/drop deltas
    suews-schema migrate config.yml --dry-run
@@ -154,11 +154,11 @@ Python API
    from supy.data_model.schema.migration import SchemaMigrator
 
    migrator = SchemaMigrator()
-   upgraded = migrator.migrate(old_config, to_version="2026.4")
+   upgraded = migrator.migrate(old_config, to_version="2026.5")
 
    from supy.data_model.schema.version import is_schema_compatible
-   if is_schema_compatible("2026.1"):
-       print("2026.1 has a registered migration path to current")
+   if is_schema_compatible("2026.4"):
+       print("2026.4 has a registered migration path to current")
 
 .. _schema_version_history:
 
@@ -170,7 +170,20 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.4** (current; shipped with 2026.4.3)
+**Schema 2026.5** (current)
+   Category 1 of #1256: 59 fused compound field names in
+   ``ModelPhysics``, ``SurfaceProperties``, ``LAIParams``,
+   ``VegetatedSurfaceProperties``, ``EvetrProperties``,
+   ``DectrProperties``, and ``SnowParams`` renamed to ``snake_case``
+   (for example ``netradiationmethod`` ->
+   ``net_radiation_method``, ``soildepth`` -> ``soil_depth``,
+   ``baset`` -> ``base_temperature``, ``crwmax`` ->
+   ``water_holding_capacity_max``). Legacy spellings continue to load
+   via a ``@model_validator(mode='before')`` shim that emits
+   ``DeprecationWarning``; the authoritative mapping lives in
+   ``src/supy/data_model/core/field_renames.py``.
+
+**Schema 2026.4** (shipped with 2026.4.3)
    Renamed ``DeepSoilTemperature`` to ``AnnualMeanAirTemperature``
    (#1240); removed ``MinimumVolumeOfDHWinUse`` and
    ``MaximumVolumeOfDHWinUse`` (#1242); split STEBBS

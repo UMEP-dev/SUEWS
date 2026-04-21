@@ -13,6 +13,8 @@ from supy._env import trv_supy_module
 from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.validation.pipeline.phase_a import find_extra_parameters
 
+pytestmark = pytest.mark.api
+
 
 @pytest.fixture
 def standard_data():

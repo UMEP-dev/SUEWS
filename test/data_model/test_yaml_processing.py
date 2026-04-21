@@ -32,8 +32,11 @@ from pathlib import Path
 import tempfile
 import unittest
 
+import pytest
 import yaml
 from supy._env import trv_supy_module
+
+pytestmark = pytest.mark.api
 
 try:
     from importlib.resources import as_file

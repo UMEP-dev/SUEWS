@@ -12,6 +12,8 @@ MPI/OpenMP).
 
 import pytest
 
+pytestmark = pytest.mark.api
+
 
 # =============================================================================
 # State-based error handling tests

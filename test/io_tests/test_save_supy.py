@@ -8,6 +8,8 @@ import tempfile
 import shutil
 import supy as sp
 
+pytestmark = pytest.mark.api
+
 
 class TestSaveSuPy:
     """Test saving functionality of SuPy outputs."""

@@ -779,7 +779,9 @@ def _run_supy(
         )
 
     # Run via Rust bridge
-    df_output, _ = run_suews_rust_chunked(config, df_forcing_processed, chunk_day)
+    df_output, _ = run_suews_rust_chunked(
+        config, df_forcing_processed, chunk_day, serial_mode=serial_mode
+    )
 
     # Build state_final: copy initial state + version metadata
     df_state_final = df_state_init.copy()

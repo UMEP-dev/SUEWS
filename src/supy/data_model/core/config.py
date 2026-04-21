@@ -3654,12 +3654,21 @@ class SUEWSConfig(BaseModel):
 
     @classmethod
     def _transform_validation_error(
-        cls, error: ValidationError, config_data: dict
+        cls,
+        error: ValidationError,
+        config_data: dict,
+        *,
+        had_signature: bool = True,
     ) -> ValidationError:
         """Transform Pydantic validation errors to use GRIDID instead of array indices.
 
         Uses structured error data to avoid string replacement collisions when
         GRIDID values overlap with array indices (e.g., site 0 has GRIDID=1).
+
+        `had_signature` carries whether the source YAML actually shipped a
+        `schema_version` field. It is forwarded to `_drift_hint` so unsigned
+        YAMLs get a hint that asks for `-f/--from <release-tag>` rather
+        than a bare `suews-convert` invocation that the CLI would reject.
         """
 
         # Extract GRIDID mapping from sites
@@ -3710,8 +3719,95 @@ class SUEWSConfig(BaseModel):
             if "url" in err:
                 error_lines.append(f"    For further information visit {err['url']}")
 
+        # If any key failed with `extra_forbidden`, the error is very likely
+        # YAML schema drift (a field from an older release that has been
+        # removed, renamed, or moved). Append the drift hint so users know
+        # where to look. `extra_forbidden` at the SUEWSConfig root is not
+        # possible (it uses `extra="allow"`), but nested models (e.g.
+        # SiteProperties, RefValue, and others) do enforce `extra="forbid"`
+        # and surface the smell when a drifted YAML reaches them.
+        has_extra_forbidden = any(
+            err.get("type") == "extra_forbidden" for err in modified_errors
+        )
+        if has_extra_forbidden:
+            error_lines.append("")
+            error_lines.append(
+                cls._drift_hint(config_data, had_signature=had_signature)
+            )
+
         error_msg = "\n".join(error_lines)
         raise ValueError(f"SUEWS Configuration Validation Error:\n{error_msg}")
+
+    @classmethod
+    def _drift_hint(
+        cls, config_data: dict, *, had_signature: bool = True
+    ) -> str:
+        """Build the actionable hint shown when YAML schema drift is suspected.
+
+        Returns a multi-line string naming the detected schema version (or
+        noting its absence), the current schema version, and the
+        `suews-convert` command the user should run. Kept in one place so
+        the loader's `TypeError`/`AttributeError` path and the
+        `extra_forbidden` branch in `_transform_validation_error` agree.
+
+        When `had_signature` is False the YAML predates schema versioning,
+        so the recommended command includes an explicit `-f/--from-ver` flag
+        (the CLI rejects unsigned YAMLs without one). This avoids the
+        self-contradictory hint that pointed users at a command that could
+        not work.
+        """
+        from ..schema import CURRENT_SCHEMA_VERSION
+        from ..schema.migration import SchemaMigrator
+
+        if had_signature:
+            try:
+                detected = SchemaMigrator().auto_detect_version(config_data)
+            except Exception:  # noqa: BLE001 - detection is best-effort
+                detected = "unspecified"
+            detected_line = f"  Detected schema version: {detected}\n"
+            upgrade_cmd = "suews-convert -i <old.yml> -o <new.yml>"
+        else:
+            detected_line = (
+                "  No schema_version field in YAML "
+                "(predates schema versioning).\n"
+            )
+            upgrade_cmd = (
+                "suews-convert -i <old.yml> -o <new.yml> -f <release-tag>"
+            )
+
+        return (
+            "This usually means the YAML was produced by an older supy release "
+            "and no longer matches the current schema.\n"
+            f"{detected_line}"
+            f"  Current schema version:  {CURRENT_SCHEMA_VERSION}\n"
+            f"  Try: {upgrade_cmd}\n"
+            "  (see https://github.com/UMEP-dev/SUEWS/issues/1304)\n"
+            "  Or share the YAML on the community forum for migration guidance."
+        )
+
+    @classmethod
+    def _build_drift_error(
+        cls,
+        exc: Exception,
+        config_data: dict,
+        *,
+        had_signature: bool = True,
+    ) -> ValueError:
+        """Wrap a raw `TypeError`/`AttributeError` from validation with drift context.
+
+        Pydantic union validation can raise low-level Python exceptions when a
+        dict with drifted keys reaches a model whose `__init__` rejects them.
+        The bare traceback is opaque, so we re-raise as a `ValueError` that
+        names the detected/current schema versions and points at the upgrade
+        tool. `had_signature` is forwarded to `_drift_hint`.
+        """
+        original = f"{type(exc).__name__}: {exc}"
+        hint = cls._drift_hint(config_data, had_signature=had_signature)
+        return ValueError(
+            "SUEWS Configuration Validation Error (suspected schema drift):\n"
+            f"  {original}\n\n"
+            f"{hint}"
+        )
 
     @classmethod
     def from_yaml(
@@ -3742,7 +3838,12 @@ class SUEWSConfig(BaseModel):
         # Log schema version information if present
         from ..schema import CURRENT_SCHEMA_VERSION, get_schema_compatibility_message
 
-        if "schema_version" in config_data:
+        # Remember whether the source YAML carried a schema_version field so the
+        # drift-hint builder does not report the default-stamped CURRENT_SCHEMA_VERSION
+        # as "detected". Unsigned YAMLs need a hint that asks for -f/--from-ver.
+        had_signature = "schema_version" in config_data
+
+        if had_signature:
             logger_supy.info(
                 f"Loading config with schema version: {config_data['schema_version']}"
             )
@@ -3765,8 +3866,18 @@ class SUEWSConfig(BaseModel):
                 return cls(**config_data)
             except ValidationError as e:
                 # Transform Pydantic validation error messages to use GRIDID instead of array indices
-                transformed_error = cls._transform_validation_error(e, config_data)
+                transformed_error = cls._transform_validation_error(
+                    e, config_data, had_signature=had_signature
+                )
                 raise transformed_error
+            except (TypeError, AttributeError) as e:
+                # Raw Python exceptions (e.g. TypeError from a custom __init__ or
+                # AttributeError from an unexpected attribute access) can escape
+                # Pydantic's union validation when the YAML has drifted. Wrap
+                # them with actionable schema-drift context (gh#1303).
+                raise cls._build_drift_error(
+                    e, config_data, had_signature=had_signature
+                ) from e
         else:
             logger_supy.info("Validation disabled by user. Loading without checks.")
             return cls.model_construct(**config_data)

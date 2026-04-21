@@ -6,6 +6,8 @@ import sys
 
 import pytest
 
+pytestmark = pytest.mark.api
+
 
 # Locate the CLI; skip tests if not available
 @pytest.fixture(scope="module")

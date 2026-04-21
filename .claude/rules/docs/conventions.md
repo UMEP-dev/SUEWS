@@ -1,11 +1,27 @@
 ---
 paths:
   - docs/**/*
+  - site/**/*
+  - README.md
 ---
 
 # Documentation Conventions
 
 Conventions for SUEWS documentation (Sphinx, RST, Markdown).
+
+---
+
+## Links to docs.suews.io — URL format
+
+**Always** use the `/stable/` or `/latest/` prefix. **Never** use `/en/latest/`.
+
+- Correct: `https://docs.suews.io/stable/acknowledgement.html`, `https://docs.suews.io/stable/getting-started.html`
+- Correct (dev version): `https://docs.suews.io/latest/acknowledgement.html`
+- Wrong (stale, 404s today): `https://docs.suews.io/en/latest/acknowledgement.html`
+
+The `en/latest/` pattern is an old ReadTheDocs language-prefixed layout. The SUEWS docs site now serves at `/stable/` (production) and `/latest/` (development). `https://docs.suews.io/` itself 302-redirects to `/stable/`.
+
+All known `/en/latest/` occurrences in the repo were swept to `/stable/` on 2026-04-19. If this pattern reappears in a PR, block it — it will 404 for users.
 
 ---
 

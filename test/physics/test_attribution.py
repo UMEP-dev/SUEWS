@@ -36,6 +36,8 @@ from supy.util._attribution._physics import (
     decompose_flux_budget,
 )
 
+pytestmark = pytest.mark.physics
+
 
 class TestShapleyDecomposition(TestCase):
     """Test Shapley value calculations for exact closure."""

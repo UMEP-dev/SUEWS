@@ -66,6 +66,7 @@ py.install_sources(
             'util/converter/table/profile_manager.py',
             'util/converter/table/rules.csv',
             'util/converter/yaml.py',
+            'util/converter/yaml_upgrade.py',
         ],
         [
             'sample_data/sample_config.yml',

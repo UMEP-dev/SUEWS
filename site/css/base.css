@@ -64,6 +64,23 @@ a:hover {
   text-decoration: underline;
 }
 
+/* ========== Focus (keyboard users) ========== */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.resource-card:focus-visible,
+.card:focus-visible {
+  outline-offset: 4px;
+  border-radius: 14px;
+}
+
 /* ========== Container ========== */
 .container {
   max-width: 1200px;
@@ -134,32 +151,80 @@ a:hover {
 .light-default[data-theme="dark"] .theme-toggle .icon-sun { opacity: 1; transform: rotate(0deg); }
 .light-default[data-theme="dark"] .theme-toggle .icon-moon { opacity: 0; transform: rotate(-90deg); }
 
-/* ========== Footer ========== */
+/* ========== Footer ==========
+   Two-part structure applied site-wide:
+     1. Secondary navigation (small uppercase links, dot-separated)
+     2. Minimal legal line
+   Institutional attribution lives on the /team/ page, not here —
+   the footer's job is navigation + copyright, not mini team credits. */
 .footer {
   border-top: 1px solid var(--border-light);
-  padding: 60px 0;
-  text-align: center;
+  padding: 40px 0 32px;
   background: var(--bg-secondary);
   transition: background-color var(--transition-standard), border-color var(--transition-standard);
 }
 
-.footer-institutions {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  margin-bottom: 24px;
-  line-height: 1.8;
+.footer-nav {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.footer-nav ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 4px;
+  padding: 0;
+  margin: 0;
+}
+
+.footer-nav li {
+  display: flex;
+  align-items: center;
+}
+
+.footer-nav li + li::before {
+  content: '';
+  width: 1px;
+  height: 12px;
+  margin: 0 16px;
+  background: var(--border-medium);
+  flex-shrink: 0;
+}
+
+.footer-nav a {
+  font-family: 'Instrument Sans', system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 4px 2px;
+  transition: color var(--transition-standard);
+}
+
+.footer-nav a:hover,
+.footer-nav a:focus-visible {
+  color: var(--accent-highlight);
+  text-decoration: none;
 }
 
 .footer-legal {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
+  text-align: center;
+  letter-spacing: 0.02em;
 }
 
 .footer a {
   color: var(--text-muted);
 }
 
-.footer a:hover {
+.footer a:hover,
+.footer a:focus-visible {
   color: var(--text-secondary);
 }
 
@@ -260,5 +325,19 @@ a:hover {
     right: 16px;
     width: 40px;
     height: 40px;
+  }
+}
+
+/* ========== Reduced Motion ========== */
+/* Respect the user's OS-level motion preference. Keep crossfades but drop
+   all looping, decorative, or transform-based animation. WCAG 2.2 AA. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 150ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -51,6 +51,8 @@ from supy.data_model.validation.pipeline.phase_b import (
 import types
 import copy
 
+pytestmark = pytest.mark.api
+
 # A tiny “site” stub that only carries exactly the properties our validators look at
 class DummySite:
     def __init__(self, properties, name="SiteX"):

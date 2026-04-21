@@ -71,9 +71,11 @@ From a single tag push:
    - The Rust bridge uses PyO3 `abi3-py39`, so the wheel installs on cp39..cp3xx
    - Creates version `2024.10.7`
 
-2. **Cross-CPython smoke** (`test_bridge_loading` job)
+2. **Cross-CPython API tests** (`test_api_cross_python` job)
    - Installs the single wheel into each test CPython (BOOKEND for PRs, ALL for tags)
-   - Runs `pytest -m smoke_bridge` to confirm the FFI boundary is intact
+   - Runs `pytest -m "api and <tier>"` — the api marker (gh#1300) covers
+     the Python wrapper surface (pandas/numpy/pydantic, CLI,
+     SUEWSSimulation) that varies per interpreter
 
 3. **Deployment** (`deploy_pypi` job)
    - Waits for the build job

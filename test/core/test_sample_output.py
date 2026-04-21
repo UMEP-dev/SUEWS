@@ -38,6 +38,8 @@ import supy as sp
 
 from conftest import TIMESTEPS_PER_DAY
 
+pytestmark = pytest.mark.physics
+
 # Get the test data directory
 test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
 p_df_sample = Path(test_data_dir) / "sample_output.csv.gz"

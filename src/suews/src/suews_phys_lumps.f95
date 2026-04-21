@@ -174,7 +174,7 @@ CONTAINS
 
                ! Calculate slope of the saturation vapour pressure vs air temp.
                s_hPa = slope_svp(Temp_C)
-               psyc_hPa = psyc_const(avcp, Press_hPa, lv_J_kg)
+               psyc_hPa = psyc_const(avcp, Press_hPa, lv_J_kg, modState)
                psyc_s = psyc_hPa/s_hPa
 
                !Calculate also sublimation ones if snow calculations are made.

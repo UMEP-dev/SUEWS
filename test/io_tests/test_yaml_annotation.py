@@ -13,6 +13,8 @@ import tempfile
 from pathlib import Path
 from supy.data_model import SUEWSConfig
 
+pytestmark = pytest.mark.api
+
 
 def test_json_based_yaml_annotation():
     """Test JSON-based YAML annotation for precise positioning."""

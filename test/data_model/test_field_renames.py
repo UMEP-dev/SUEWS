@@ -17,6 +17,7 @@ pytestmark = pytest.mark.api
 
 from supy.data_model.core.field_renames import (
     ALL_FIELD_RENAMES,
+    ARCHETYPEPROPERTIES_RENAMES,
     DECTRPROPERTIES_RENAMES,
     EVETRPROPERTIES_RENAMES,
     LAIPARAMS_RENAMES,
@@ -27,6 +28,7 @@ from supy.data_model.core.field_renames import (
 )
 from supy.data_model.core.model import ModelPhysics
 from supy.data_model.core.site import (
+    ArchetypeProperties,
     DectrProperties,
     EvetrProperties,
     LAIParams,
@@ -44,6 +46,7 @@ _RENAMED_CLASSES = [
     (EvetrProperties, EVETRPROPERTIES_RENAMES),
     (DectrProperties, DECTRPROPERTIES_RENAMES),
     (SnowParams, SNOWPARAMS_RENAMES),
+    (ArchetypeProperties, ARCHETYPEPROPERTIES_RENAMES),
     # VEGETATEDSURFACEPROPERTIES_RENAMES is covered by subclasses EvetrProperties
     # and DectrProperties (both inherit from VegetatedSurfaceProperties).
 ]
@@ -63,6 +66,7 @@ class TestRegistryIntegrity:
             + len(VEGETATEDSURFACEPROPERTIES_RENAMES)
             + len(EVETRPROPERTIES_RENAMES)
             + len(DECTRPROPERTIES_RENAMES)
+            + len(ARCHETYPEPROPERTIES_RENAMES)
             + len(SNOWPARAMS_RENAMES)
         )
         assert len(ALL_FIELD_RENAMES) == expected
@@ -72,7 +76,12 @@ class TestRegistryIntegrity:
         assert len(set(values)) == len(values), "Duplicate new names detected"
 
     def test_snake_case_outputs(self):
+        # STEBBS ArchetypeProperties keeps PascalCase by design (matches the
+        # Fortran-side STEBBS interface, see .claude/rules/00-project-essentials.md).
+        archetype_new_names = set(ARCHETYPEPROPERTIES_RENAMES.values())
         for new in ALL_FIELD_RENAMES.values():
+            if new in archetype_new_names:
+                continue
             assert new.islower(), f"New name must be lowercase: {new!r}"
             assert "_" in new or new.isalpha(), (
                 f"New name expected to be snake_case: {new!r}"
@@ -109,6 +118,18 @@ class TestBackwardCompat:
         assert _unwrap(snow.water_holding_capacity_max) == 0.2
         assert _unwrap(snow.temp_melt_factor) == 0.15
 
+    def test_old_stebbs_ext_names_populate_new_attributes(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            archetype = ArchetypeProperties(
+                WallextThickness=0.25,
+                WallextDensity=1800.0,
+                RoofextCp=920.0,
+            )
+        assert _unwrap(archetype.WallExternalThickness) == 0.25
+        assert _unwrap(archetype.WallExternalDensity) == 1800.0
+        assert _unwrap(archetype.RoofExternalCp) == 920.0
+
 
 class TestDeprecationWarnings:
     @pytest.mark.parametrize(
@@ -120,6 +141,8 @@ class TestDeprecationWarnings:
             (SnowParams, "crwmax", "water_holding_capacity_max", 0.2),
             (EvetrProperties, "evetreeh", "height_evergreen_tree", 12.0),
             (DectrProperties, "capmax_dec", "capacity_max_deciduous", 90.0),
+            (ArchetypeProperties, "WallextThickness", "WallExternalThickness", 0.25),
+            (ArchetypeProperties, "RoofextDensity", "RoofExternalDensity", 1900.0),
         ],
     )
     def test_old_name_emits_deprecation_warning(
@@ -217,3 +240,19 @@ class TestDataFrameColumnsPreserveLegacyNames:
         }
         for old_name in scalar_old_names:
             assert old_name in flat_cols, f"Missing legacy column {old_name!r}"
+
+    def test_archetype_ext_columns(self):
+        # The Fortran bridge (src/suews_bridge/src/building_archetype_prm.rs)
+        # reads these columns by their pre-gh#1327 fused spellings; the
+        # to_df_state path must preserve them even though the Python
+        # attributes are now spelt out as WallExternalThickness etc.
+        df = ArchetypeProperties().to_df_state(grid_id=1)
+        flat_cols = {col[0] for col in df.columns}
+        for old_name in ARCHETYPEPROPERTIES_RENAMES:
+            assert old_name.lower() in flat_cols, (
+                f"Missing legacy column {old_name.lower()!r}"
+            )
+        for new_name in ARCHETYPEPROPERTIES_RENAMES.values():
+            assert new_name.lower() not in flat_cols, (
+                f"Unexpected new-name column {new_name.lower()!r} in bridge output"
+            )

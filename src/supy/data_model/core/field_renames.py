@@ -89,6 +89,24 @@ DECTRPROPERTIES_RENAMES: Dict[str, str] = {
     "capmin_dec": "capacity_min_deciduous",
 }
 
+# -- ArchetypeProperties (site.py) -------------------------------------------
+#
+# STEBBS keeps PascalCase (to match the Fortran-side STEBBS interface), but
+# the exemplar in `.claude/rules/00-project-essentials.md` spells "External"
+# out in full (`RoofExternalEmissivity`). These pairs bring the fused
+# `ext` cluster into line with that exemplar (gh#1327).
+
+ARCHETYPEPROPERTIES_RENAMES: Dict[str, str] = {
+    "WallextThickness": "WallExternalThickness",
+    "WallextEffectiveConductivity": "WallExternalEffectiveConductivity",
+    "WallextDensity": "WallExternalDensity",
+    "WallextCp": "WallExternalCp",
+    "RoofextThickness": "RoofExternalThickness",
+    "RoofextEffectiveConductivity": "RoofExternalEffectiveConductivity",
+    "RoofextDensity": "RoofExternalDensity",
+    "RoofextCp": "RoofExternalCp",
+}
+
 # -- SnowParams (site.py) ----------------------------------------------------
 
 SNOWPARAMS_RENAMES: Dict[str, str] = {
@@ -115,6 +133,7 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **VEGETATEDSURFACEPROPERTIES_RENAMES,
     **EVETRPROPERTIES_RENAMES,
     **DECTRPROPERTIES_RENAMES,
+    **ARCHETYPEPROPERTIES_RENAMES,
     **SNOWPARAMS_RENAMES,
 }
 

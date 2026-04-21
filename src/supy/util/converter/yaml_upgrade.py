@@ -17,6 +17,7 @@ from typing import Callable
 
 import yaml
 
+from ...data_model.core.field_renames import ALL_FIELD_RENAMES
 from ...data_model.schema import CURRENT_SCHEMA_VERSION
 from ...data_model.schema.migration import SchemaMigrator
 
@@ -46,7 +47,11 @@ _PACKAGE_TO_SCHEMA: dict[str, str] = {
     "2025.10.15": "2025.12",
     "2025.11.20": "2025.12",
     "2026.1.28": "2026.1",
-    "2026.4.3": CURRENT_SCHEMA_VERSION,
+    # 2026.4.3 pinned to the literal "2026.4" schema it shipped under; when
+    # CURRENT_SCHEMA_VERSION bumps, the previous release tag keeps its
+    # original schema label and upgrades to the new one via the registered
+    # handler below, not by silent remapping.
+    "2026.4.3": "2026.4",
 }
 
 
@@ -371,16 +376,87 @@ def _migrate_2026_1_to_current(cfg: dict) -> dict:
     return cfg
 
 
-def _migrate_2025_12_to_current(cfg: dict) -> dict:
-    """Chain the #879 clean-up into the 2026.1->current handler."""
+def _apply_field_renames_recursive(data, renames: dict) -> object:
+    """Recursively rename dict keys using `renames` ({old: new}).
+
+    Walks the YAML tree and replaces any key matching `renames` with its
+    mapped value. Used by the 2026.4 -> 2026.5 handler to apply the
+    Category 1 fused-identifier rename sweep (#1256) across every
+    nested section without having to enumerate the YAML nesting.
+    """
+    if isinstance(data, dict):
+        return {
+            renames.get(k, k): _apply_field_renames_recursive(v, renames)
+            for k, v in data.items()
+        }
+    if isinstance(data, list):
+        return [_apply_field_renames_recursive(item, renames) for item in data]
+    return data
+
+
+def _migrate_2026_4_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.4-shaped YAMLs to the current `2026.5` schema.
+
+    Applies the Category 1 fused-identifier rename sweep from #1256: 59
+    compound field names (e.g. `netradiationmethod` ->
+    `net_radiation_method`, `soildepth` -> `soil_depth`, `baset` ->
+    `base_temperature`, `crwmax` -> `water_holding_capacity_max`) are
+    rewritten to snake_case. Full mapping in
+    ``src/supy/data_model/core/field_renames.py``. The Pydantic
+    backward-compat shim still accepts the legacy names at load time,
+    but YAMLs that round-trip through the migrator come out in the new
+    spelling and no longer emit deprecation warnings.
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    return _apply_field_renames_recursive(cfg, ALL_FIELD_RENAMES)
+
+
+def _migrate_2026_1_to_2026_4(cfg: dict) -> dict:
+    """Pure #1240/#1242/#1261 delta, without the Category 1 renames."""
+    cfg = _strip_internal_only_fields(cfg)
+    any_profile_split = False
+    for arch in _walk_site_container(cfg, "building_archetype"):
+        if _split_profile_fields(arch):
+            any_profile_split = True
+    for stebbs in _walk_site_container(cfg, "stebbs"):
+        for old, new in _STEBBS_RENAMES_2026_1_TO_CURRENT:
+            _rename_field(stebbs, old, new)
+        for name, reason in _STEBBS_DROPS_2026_1_TO_CURRENT:
+            _drop_obsolete_field(stebbs, name, reason)
+    if any_profile_split:
+        physics = cfg.setdefault("model", {}).setdefault("physics", {})
+        physics["setpointmethod"] = {"value": 2}
+    return cfg
+
+
+def _migrate_2025_12_to_2026_4(cfg: dict) -> dict:
+    """Chain #879 clean-up -> 2026.1 delta, stopping at 2026.4."""
     cfg = _migrate_2025_12_to_2026_1(cfg)
-    return _migrate_2026_1_to_current(cfg)
+    return _migrate_2026_1_to_2026_4(cfg)
+
+
+def _migrate_2025_12_to_current(cfg: dict) -> dict:
+    """Chain #879 clean-up -> 2026.1 delta -> Category 1 renames."""
+    cfg = _migrate_2025_12_to_2026_4(cfg)
+    return _migrate_2026_4_to_current(cfg)
+
+
+def _migrate_2026_1_to_current(cfg: dict) -> dict:
+    """Chain 2026.1 delta -> Category 1 renames."""
+    cfg = _migrate_2026_1_to_2026_4(cfg)
+    return _migrate_2026_4_to_current(cfg)
 
 
 _HANDLERS: dict[tuple[str, str], Handler] = {
     # Identity at the current schema is explicit so the dispatch completes
     # even when no real upgrade is needed.
     (CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION): _identity,
+    # Intermediate stops at 2026.4 (used by callers pinning an older
+    # target, e.g. migrate(..., to_version="2026.4")).
+    ("2026.1", "2026.4"): _migrate_2026_1_to_2026_4,
+    ("2025.12", "2026.4"): _migrate_2025_12_to_2026_4,
+    # Chains to the current schema.
+    ("2026.4", CURRENT_SCHEMA_VERSION): _migrate_2026_4_to_current,
     ("2026.1", CURRENT_SCHEMA_VERSION): _migrate_2026_1_to_current,
     ("2025.12", CURRENT_SCHEMA_VERSION): _migrate_2025_12_to_current,
 }

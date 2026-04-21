@@ -162,6 +162,27 @@ def apply_field_renames(
     return values
 
 
+def read_physics_key(physics: dict, new_name: str):
+    """Read a physics key from raw YAML, accepting either the new name or its legacy alias.
+
+    Public-mode gates and other preflight checks inspect the raw user YAML
+    before Phase A has renamed keys. The Pydantic backward-compat shim
+    accepts both spellings, so these gates must as well, or users on either
+    spelling can silently bypass them.
+
+    Unwraps RefValue-style ``{"value": X}`` wrappers.
+    """
+    entry = physics.get(new_name) if isinstance(physics, dict) else None
+    if entry is None and isinstance(physics, dict):
+        for legacy, renamed in MODELPHYSICS_RENAMES.items():
+            if renamed == new_name and legacy in physics:
+                entry = physics[legacy]
+                break
+    if isinstance(entry, dict) and "value" in entry:
+        return entry["value"]
+    return entry
+
+
 def reverse_field_renames(data: dict) -> dict:
     """Recursively replace new field names with old ones for serialisation.
 

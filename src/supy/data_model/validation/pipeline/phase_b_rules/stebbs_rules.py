@@ -326,7 +326,7 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
     physics = yaml_data.get("model", {}).get("physics", {})
 
     setpointmethod = get_value_safe(physics, "setpointmethod")
-    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+    stebbsmethod = get_value_safe(physics, "stebbs_method")
 
     if stebbsmethod != 1:
         return results

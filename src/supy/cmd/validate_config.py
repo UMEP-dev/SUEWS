@@ -703,33 +703,25 @@ def _check_experimental_features_restriction(user_yaml_file, mode):
         console.print(f"[red]✗ Error reading YAML file: {e}[/red]")
         return False
 
+    # Read physics keys via read_physics_key, which accepts both the new
+    # snake_case name and its legacy alias — the Pydantic shim accepts both,
+    # so this gate must as well.
+    from ..data_model.core.field_renames import read_physics_key
+
+    physics = (
+        user_yaml_data.get("model", {}).get("physics", {})
+        if isinstance(user_yaml_data, dict)
+        else {}
+    )
     restrictions_violated = []
 
-    # Check STEBBS method restriction
-    stebbs_method = None
-    if (
-        user_yaml_data
-        and isinstance(user_yaml_data, dict)
-        and "model" in user_yaml_data
-        and isinstance(user_yaml_data["model"], dict)
-        and "physics" in user_yaml_data["model"]
-        and isinstance(user_yaml_data["model"]["physics"], dict)
-        and "stebbsmethod" in user_yaml_data["model"]["physics"]
-    ):
-        stebbs_entry = user_yaml_data["model"]["physics"]["stebbsmethod"]
-        # Handle both direct values and RefValue format
-        if isinstance(stebbs_entry, dict) and "value" in stebbs_entry:
-            stebbs_method = stebbs_entry["value"]
-        else:
-            stebbs_method = stebbs_entry
-
+    stebbs_method = read_physics_key(physics, "stebbs_method")
     if stebbs_method is not None and stebbs_method != 0:
-        restrictions_violated.append("STEBBS method is enabled (stebbsmethod != 0)")
+        restrictions_violated.append("STEBBS method is enabled (stebbs_method != 0)")
 
-    # Add more restriction checks here as needed
-    # Example for future experimental features:
-    # if other_experimental_feature_enabled:
-    #     restrictions_violated.append("Other experimental feature is enabled")
+    snowuse = read_physics_key(physics, "snow_use")
+    if snowuse is not None and snowuse != 0:
+        restrictions_violated.append("Snow calculations are enabled (snow_use != 0)")
 
     # If any restrictions are violated, halt execution
     if restrictions_violated:
@@ -741,7 +733,7 @@ def _check_experimental_features_restriction(user_yaml_file, mode):
         console.print("\n[yellow]Options to resolve:[/yellow]")
         console.print("  1. Switch to dev mode: [cyan]--mode dev[/cyan]")
         console.print("  2. Disable experimental features in your YAML file and rerun")
-        console.print("     Example: Set [cyan]stebbsmethod: {value: 0}[/cyan]")
+        console.print("     Example: Set [cyan]stebbs_method: {value: 0}[/cyan]")
         return False
 
     return True

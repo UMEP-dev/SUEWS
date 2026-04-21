@@ -1028,8 +1028,12 @@ def precheck_site_season_adjustments(
 
         if sfr > 0:
             lai = dectr.get("lai", {})
-            laimin = get_value_safe(lai, "laimin")
-            laimax = get_value_safe(lai, "laimax")
+            laimin = get_value_safe(lai, "lai_min")
+            if laimin is None:
+                laimin = get_value_safe(lai, "laimin")
+            laimax = get_value_safe(lai, "lai_max")
+            if laimax is None:
+                laimax = get_value_safe(lai, "laimax")
             lai_val = None
 
             if laimin is not None and laimax is not None:

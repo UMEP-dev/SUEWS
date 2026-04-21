@@ -374,9 +374,15 @@ def run_suews_rust_multi(
         raise ValueError("forcing data is empty")
 
     # --- Prepare shared data once ---
-    config_dict = config.model_dump(exclude_none=True, mode="json")
+    # Apply reverse_field_renames so the Rust bridge receives legacy fused
+    # field names (netradiationmethod, soildepth, ...) that yaml_config.rs
+    # expects. The single-grid path applies the same wrapper at L291/L458.
+    config_dict = reverse_field_renames(
+        config.model_dump(exclude_none=True, mode="json")
+    )
     list_site_dict = [
-        s.model_dump(exclude_none=True, mode="json") for s in sites
+        reverse_field_renames(s.model_dump(exclude_none=True, mode="json"))
+        for s in sites
     ]
     forcing_block = _prepare_forcing_block(df_forcing)
     forcing_flat = forcing_block.ravel(order="C").tolist()

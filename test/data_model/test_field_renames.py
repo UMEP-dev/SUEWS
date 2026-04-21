@@ -12,6 +12,8 @@ import warnings
 
 import pytest
 
+pytestmark = pytest.mark.api
+
 from supy.data_model.core.field_renames import (
     ALL_FIELD_RENAMES,
     DECTRPROPERTIES_RENAMES,

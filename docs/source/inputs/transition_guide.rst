@@ -180,11 +180,44 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5 (Category 1 fused-identifier rename)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5`` is the current shape. It applies the Category 1
+fused-identifier rename sweep from #1256: 59 compound field names in
+``ModelPhysics``, ``SurfaceProperties``, ``LAIParams``,
+``VegetatedSurfaceProperties``, ``EvetrProperties``,
+``DectrProperties``, and ``SnowParams`` are rewritten to
+``snake_case``. Examples:
+
+- ``netradiationmethod`` -> ``net_radiation_method``
+- ``storageheatmethod`` -> ``storage_heat_method``
+- ``soildepth`` -> ``soil_depth``
+- ``soilstorecap`` -> ``soil_store_capacity``
+- ``baset`` -> ``base_temperature``
+- ``crwmax`` -> ``water_holding_capacity_max``
+- ``laimin`` / ``laimax`` -> ``lai_min`` / ``lai_max``
+
+The full mapping lives in
+``src/supy/data_model/core/field_renames.py``. Legacy spellings
+continue to load under a ``DeprecationWarning`` so existing YAMLs
+are not broken, but new configurations should use the new names and
+persisted YAMLs should be migrated. Run:
+
+.. code-block:: bash
+
+   suews-schema migrate your_config.yml --target-version 2026.5
+
+The migrator accepts any registered intermediate (for example
+``2025.12`` or ``2026.4``) and walks the chain to the current schema
+in one call. Your values survive the rename untouched — only the
+key names change.
+
 Upgrading to Schema 2026.4 (SUEWS 2026.4.3)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.4`` is the current shape. Upgrading from ``2026.1``
-(shipped with 2026.1.28) or earlier applies the following deltas:
+Upgrading from ``2026.1`` (shipped with 2026.1.28) or earlier applies
+the following deltas:
 
 - ``DeepSoilTemperature`` → ``AnnualMeanAirTemperature``
   (rename; user-supplied value preserved, #1240).
@@ -207,7 +240,9 @@ Run:
    suews-schema migrate your_config.yml --target-version 2026.4
 
 The migrator accepts any registered intermediate (for example
-``2025.12``) and walks the chain to the current schema in one call.
+``2025.12``) and walks the chain to the 2026.4 schema. To upgrade
+further to the current 2026.5 schema, use
+``--target-version 2026.5`` (or omit the flag to reach the latest).
 
 Upgrading to Schema 2026.1 (SUEWS 2026.1.28)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -234,7 +269,7 @@ If you are targeting 2026.1.28 exactly:
 
    suews-schema migrate your_config.yml --target-version 2026.1
 
-Otherwise the 2026.4 chain above is applied in one pass.
+Otherwise the 2026.4 -> 2026.5 chain above is applied in one pass.
 
 Preserving Your Values Through Renames
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

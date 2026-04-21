@@ -135,6 +135,27 @@ class TestYamlUpgradeModule:
         assert "WARNING" in captured
         assert "disagrees with file signature 9.9" in captured
 
+    def test_raises_on_old_and_new_key_conflict(self, tmp_path: Path):
+        """Upgrade should not silently drop one side of an old/new key clash."""
+        source = tmp_path / "conflict.yml"
+        target = tmp_path / "upgraded.yml"
+        payload = {
+            "schema_version": "2026.4",
+            "model": {
+                "physics": {
+                    "snowuse": {"value": 0},
+                    "snow_use": {"value": 1},
+                }
+            },
+        }
+        source.write_text(
+            yaml.safe_dump(payload, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(YamlUpgradeError, match=r"Both 'snowuse'.*'snow_use'"):
+            upgrade_yaml(input_path=source, output_path=target)
+
     def test_missing_signature_raises_error_message_points_at_from_flag(
         self, release_yaml: Path, tmp_path: Path
     ):

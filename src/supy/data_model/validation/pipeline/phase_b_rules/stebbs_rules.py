@@ -82,7 +82,7 @@ def check_archetype_properties(context):
 
     Notes
     -----
-    - The rule only applies if the "stebbsmethod" in the physics model is set to 1.
+    - The rule only applies if the "stebbs_method" in the physics model is set to 1.
     - For each site, the function checks the "Wall" and "Roof" facets of the building archetype properties.
     - If a validation result is found, it is annotated with the site's index and grid ID before being added to the results list.
     """
@@ -90,7 +90,7 @@ def check_archetype_properties(context):
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+    stebbsmethod = get_value_safe(physics, "stebbs_method")
 
     if stebbsmethod == 1:
         sites = yaml_data.get("sites", [])
@@ -132,7 +132,7 @@ def check_occupants_metabolism(context):
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+    stebbsmethod = get_value_safe(physics, "stebbs_method")
 
     if stebbsmethod == 1:
         sites = yaml_data.get("sites", [])
@@ -175,7 +175,7 @@ def check_daylight_control(context):
     Validate the 'DaylightControl' flag and related lighting parameters for each site when STEBBS is active.
 
     - Checks that the 'DaylightControl' flag under each site's 'stebbs' properties is set to 0 or 1
-      (accepting both integer and float representations), but only if the 'stebbsmethod' in the model
+      (accepting both integer and float representations), but only if the 'stebbs_method' in the model
       physics is set to 1.
     - If 'DaylightControl' is 1, 'LightingIlluminanceThreshold' must be provided by the user in the YAML.
 
@@ -193,7 +193,7 @@ def check_daylight_control(context):
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+    stebbsmethod = get_value_safe(physics, "stebbs_method")
 
     if stebbsmethod == 1:
         sites = yaml_data.get("sites", [])
@@ -244,7 +244,7 @@ def check_stebbs_properties(context):
     """
     Validate the 'HotWaterFlowProfile' values in the STEBBS properties for each site.
 
-    Checks that, if the 'stebbsmethod' is set to 1 in the model physics configuration,
+    Checks that, if the 'stebbs_method' is set to 1 in the model physics configuration,
     the 'HotWaterFlowProfile' for both 'working_day' and 'holiday' day types contains
     only values of 0 or 1 for each hour. If any value is not 0 or 1, an error is added
     to the results.
@@ -265,7 +265,7 @@ def check_stebbs_properties(context):
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+    stebbsmethod = get_value_safe(physics, "stebbs_method")
 
     if stebbsmethod == 1:
         sites = yaml_data.get("sites", [])
@@ -326,7 +326,7 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
     physics = yaml_data.get("model", {}).get("physics", {})
 
     setpointmethod = get_value_safe(physics, "setpointmethod")
-    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+    stebbsmethod = get_value_safe(physics, "stebbs_method")
 
     if stebbsmethod != 1:
         return results

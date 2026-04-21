@@ -6,32 +6,35 @@ import pandas as pd
 from pathlib import Path
 
 from .report_writer import REPORT_WRITER
+from ...core.field_renames import ALL_FIELD_RENAMES
 
 RENAMED_PARAMS = {
     "cp": "rho_cp",
-    "diagmethod": "rslmethod",
-    "localclimatemethod": "rsllevel",
+    "diagmethod": "rsl_method",
+    "localclimatemethod": "rsl_level",
     "chanohm": "ch_anohm",
     "cpanohm": "rho_cp_anohm",
     "kkanohm": "k_anohm",
+    # Phase 2 renames: fused -> snake_case (#1256)
+    **ALL_FIELD_RENAMES,
 }
 PHYSICS_OPTIONS = {
-    "netradiationmethod",
-    "emissionsmethod",
-    "storageheatmethod",
-    "ohmincqf",
-    "roughlenmommethod",
-    "roughlenheatmethod",
-    "stabilitymethod",
-    "smdmethod",
-    "waterusemethod",
-    "rslmethod",
-    "faimethod",
-    "rsllevel",
-    "gsmodel",
-    "snowuse",
-    "stebbsmethod",
-    "rcmethod",
+    "net_radiation_method",
+    "emissions_method",
+    "storage_heat_method",
+    "ohm_inc_qf",
+    "roughness_length_momentum_method",
+    "roughness_length_heat_method",
+    "stability_method",
+    "smd_method",
+    "water_use_method",
+    "rsl_method",
+    "fai_method",
+    "rsl_level",
+    "gs_model",
+    "snow_use",
+    "stebbs_method",
+    "rc_method",
     "same_albedo_wall",
     "same_albedo_roof",
     "same_emissivity_wall",
@@ -1084,8 +1087,8 @@ def _extract_lai_bounds_from_user_data(user_data: dict) -> Optional[dict]:
             lai_params = params.get("lai", {}) if isinstance(params, dict) else {}
             if not isinstance(lai_params, dict):
                 continue
-            laimin = _unwrap(lai_params.get("laimin"))
-            laimax = _unwrap(lai_params.get("laimax"))
+            laimin = _unwrap(lai_params.get("lai_min", lai_params.get("laimin")))
+            laimax = _unwrap(lai_params.get("lai_max", lai_params.get("laimax")))
             if laimin is None or laimax is None:
                 continue
             try:

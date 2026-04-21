@@ -16,7 +16,7 @@ from typing import Optional
 import warnings
 
 # Current supported schema version (aligned with SUEWS CalVer: YYYY.MM)
-CURRENT_SCHEMA_VERSION = "2026.4"
+CURRENT_SCHEMA_VERSION = "2026.5"
 
 # Schema version history and descriptions.
 #
@@ -44,12 +44,21 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "present."
     ),
     "2026.4": (
-        "2026.4.3 release shape (current): DeepSoilTemperature renamed to "
+        "2026.4.3 release shape: DeepSoilTemperature renamed to "
         "AnnualMeanAirTemperature (#1240), MinimumVolumeOfDHWinUse / "
         "MaximumVolumeOfDHWinUse removed (#1242), STEBBS "
         "HeatingSetpointTemperature / CoolingSetpointTemperature split into "
         "scalar + *Profile siblings gated on model.physics.setpointmethod "
         "(#1261), daylight-control and lighting/metabolism fields added."
+    ),
+    "2026.5": (
+        "Category 1 of #1256: 59 fused compound field names in "
+        "ModelPhysics, SurfaceProperties, LAIParams, "
+        "VegetatedSurfaceProperties, EvetrProperties, DectrProperties, "
+        "and SnowParams renamed to snake_case (e.g. netradiationmethod "
+        "-> net_radiation_method, soildepth -> soil_depth, baset -> "
+        "base_temperature, crwmax -> water_holding_capacity_max). Full "
+        "mapping lives in src/supy/data_model/core/field_renames.py."
     ),
 }
 

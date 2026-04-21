@@ -421,3 +421,51 @@ class TestObservedSoilMoistureIntegration:
         # Verify xsmd was converted (not raw 0.20 in the output)
         # The conversion should have happened: deficit = (0.35-0.20)*150*0.85 = 19.125mm
         # We can't easily check the internal xsmd, but we verified the run succeeded
+
+    def test_run_supy_reads_renamed_smd_method(self, monkeypatch):
+        """Observed-soil-moisture preprocessing should still run after the rename."""
+        import supy as sp
+        import supy._run_rust as rust_module
+        import supy._supy_module as supy_module
+        import supy.util._forcing as forcing_module
+
+        df_state, df_forcing = sp.load_sample_data()
+        df_state_obs = df_state.copy()
+        df_state_obs[("smdmethod", "0")] = 1
+        df_state_obs[("obs_sm_depth", "0")] = 150.0
+        df_state_obs[("obs_sm_smcap", "0")] = 0.35
+        df_state_obs[("obs_sm_soil_not_rocks", "0")] = 0.85
+        df_state_obs[("obs_sm_bulk_density", "0")] = 1.2
+        df_forcing_short = df_forcing.iloc[:12].copy()
+        df_forcing_short["xsmd"] = 0.20
+
+        called = {"convert": False}
+
+        def fake_convert(df_forcing_in, df_state_in):
+            called["convert"] = True
+            return df_forcing_in
+
+        def fake_run_suews_rust_chunked(
+            config, df_forcing_in, chunk_day, serial_mode=False
+        ):
+            return pd.DataFrame(index=df_forcing_in.index), None
+
+        monkeypatch.setattr(
+            forcing_module,
+            "convert_observed_soil_moisture",
+            fake_convert,
+        )
+        monkeypatch.setattr(
+            rust_module,
+            "run_suews_rust_chunked",
+            fake_run_suews_rust_chunked,
+        )
+
+        supy_module._run_supy(
+            df_forcing=df_forcing_short,
+            df_state_init=df_state_obs,
+            save_state=False,
+            serial_mode=True,
+        )
+
+        assert called["convert"] is True

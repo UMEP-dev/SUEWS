@@ -31,6 +31,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from copy import deepcopy
 
 import pytest
 import yaml
@@ -90,9 +91,9 @@ class TestUptodateYaml(unittest.TestCase):
             "model": {
                 "control": {"tstep": 300},
                 "physics": {
-                    "emissionsmethod": {"value": 2},
-                    # netradiationmethod missing - URGENT!
-                    "storageheatmethod": {"value": 1},
+                    "emissions_method": {"value": 2},
+                    # net_radiation_method missing - URGENT!
+                    "storage_heat_method": {"value": 1},
                 },
             },
             "sites": [{"name": "test", "gridiv": 1}],
@@ -104,8 +105,8 @@ class TestUptodateYaml(unittest.TestCase):
             "model": {
                 "control": {"tstep": 300},
                 "physics": {
-                    "netradiationmethod": {"value": 3},
-                    "emissionsmethod": {"value": 2},
+                    "net_radiation_method": {"value": 3},
+                    "emissions_method": {"value": 2},
                 },
             },
             "sites": [
@@ -135,7 +136,7 @@ model:
       value: 3
     emissionsmethod:
       value: 2
-    diagmethod:  # OLD NAME - should be rslmethod
+    diagmethod:  # OLD NAME - should be rsl_method
       value: 2
     cp:  # OLD NAME - should be rho_cp
       value: 1005
@@ -154,7 +155,7 @@ sites:
                     "tstep": 300,
                     "custom_param": "hello",  # NOT IN STANDARD
                 },
-                "physics": {"netradiationmethod": {"value": 3}},
+                "physics": {"net_radiation_method": {"value": 3}},
             },
             "sites": [
                 {
@@ -183,9 +184,9 @@ sites:
     def test_physics_option_classification(self):
         """Test that physics options are correctly identified as URGENT."""
         # Test known physics options
-        self.assertTrue(is_physics_option("model.physics.netradiationmethod"))
-        self.assertTrue(is_physics_option("model.physics.emissionsmethod"))
-        self.assertTrue(is_physics_option("model.physics.gsmodel"))
+        self.assertTrue(is_physics_option("model.physics.net_radiation_method"))
+        self.assertTrue(is_physics_option("model.physics.emissions_method"))
+        self.assertTrue(is_physics_option("model.physics.gs_model"))
 
         # Test non-physics options
         self.assertFalse(is_physics_option("model.control.tstep"))
@@ -209,23 +210,23 @@ sites:
             if is_physics
         ]
 
-        # Should find netradiationmethod as missing and URGENT
+        # Should find net_radiation_method as missing and URGENT
         physics_paths = [path for path, _, _ in physics_missing]
-        self.assertIn("model.physics.netradiationmethod", physics_paths)
+        self.assertIn("model.physics.net_radiation_method", physics_paths)
 
         # Verify it's marked as physics (URGENT)
         netradiationmethod_entry = next(
             (
                 item
                 for item in missing_params
-                if item[0] == "model.physics.netradiationmethod"
+                if item[0] == "model.physics.net_radiation_method"
             ),
             None,
         )
         self.assertIsNotNone(netradiationmethod_entry)
         self.assertTrue(
             netradiationmethod_entry[2],
-            "netradiationmethod should be marked as physics/URGENT",
+            "net_radiation_method should be marked as physics/URGENT",
         )
 
     def test_missing_parameter_detection_optional(self):
@@ -262,13 +263,66 @@ sites:
         replacement_dict = dict(replacements)
         self.assertIn("diagmethod", replacement_dict)
         self.assertIn("cp", replacement_dict)
-        self.assertEqual(replacement_dict["diagmethod"], "rslmethod")
+        self.assertEqual(replacement_dict["diagmethod"], "rsl_method")
         self.assertEqual(replacement_dict["cp"], "rho_cp")
 
         # Updated content should contain new names
-        self.assertIn("rslmethod:", updated_content)
+        self.assertIn("rsl_method:", updated_content)
         self.assertIn("rho_cp:", updated_content)
         self.assertIn("#RENAMED IN STANDARD", updated_content)
+
+    def test_nested_renamed_parameter_handling(self):
+        """Nested legacy keys should be rewritten before missing/extra checks."""
+        legacy_data = deepcopy(self.standard_data)
+
+        evetr_lai = legacy_data["sites"][0]["properties"]["land_cover"]["evetr"]["lai"]
+        evetr_lai["laimin"] = evetr_lai.pop("lai_min")
+
+        paved = legacy_data["sites"][0]["properties"]["land_cover"]["paved"]
+        paved["soildepth"] = paved.pop("soil_depth")
+
+        snow = legacy_data["sites"][0]["properties"]["snow"]
+        snow["crwmax"] = snow.pop("water_holding_capacity_max")
+
+        updated_content, replacements = handle_renamed_parameters(
+            yaml.safe_dump(legacy_data, sort_keys=False)
+        )
+        replacement_dict = dict(replacements)
+
+        self.assertEqual(replacement_dict["laimin"], "lai_min")
+        self.assertEqual(replacement_dict["soildepth"], "soil_depth")
+        self.assertEqual(replacement_dict["crwmax"], "water_holding_capacity_max")
+
+        updated_data = yaml.safe_load(updated_content)
+        missing_paths = {
+            path for path, _, _ in find_missing_parameters(updated_data, self.standard_data)
+        }
+        extra_paths = set(find_extra_parameters(updated_data, self.standard_data))
+
+        self.assertNotIn(
+            "sites[0].properties.land_cover.evetr.lai.lai_min",
+            missing_paths,
+        )
+        self.assertNotIn(
+            "sites[0].properties.land_cover.evetr.lai.laimin",
+            extra_paths,
+        )
+        self.assertNotIn(
+            "sites[0].properties.land_cover.paved.soil_depth",
+            missing_paths,
+        )
+        self.assertNotIn(
+            "sites[0].properties.land_cover.paved.soildepth",
+            extra_paths,
+        )
+        self.assertNotIn(
+            "sites[0].properties.snow.water_holding_capacity_max",
+            missing_paths,
+        )
+        self.assertNotIn(
+            "sites[0].properties.snow.crwmax",
+            extra_paths,
+        )
 
     def test_extra_parameter_detection(self):
         """Test detection of NOT IN STANDARD parameters."""
@@ -282,7 +336,7 @@ sites:
         standard_paths = [
             path
             for path in extra_params
-            if "tstep" in path or "netradiationmethod" in path
+            if "tstep" in path or "net_radiation_method" in path
         ]
         self.assertEqual(
             len(standard_paths), 0, "Standard parameters should not be marked as extra"
@@ -308,10 +362,10 @@ sites:
     def test_uptodate_yaml_generation(self):
         """Test generation of clean uptodate YAML."""
         # Create test missing parameters
-        missing_params = [("model.physics.netradiationmethod", {"value": 3}, True)]
+        missing_params = [("model.physics.net_radiation_method", {"value": 3}, True)]
 
         yaml_content = (
-            "name: test\nmodel:\n  physics:\n    emissionsmethod:\n      value: 2"
+            "name: test\nmodel:\n  physics:\n    emissions_method:\n      value: 2"
         )
 
         result = create_uptodate_yaml_with_missing_params(yaml_content, missing_params)
@@ -322,7 +376,7 @@ sites:
         self.assertIn("SUEWS processor", result)
 
         # Should contain null value for missing parameter
-        self.assertIn("netradiationmethod:", result)
+        self.assertIn("net_radiation_method:", result)
         self.assertIn("value: null", result)
 
         # Should not contain inline comments in clean output
@@ -331,10 +385,10 @@ sites:
     def test_analysis_report_generation(self):
         """Test generation of analysis report."""
         missing_params = [
-            ("model.physics.netradiationmethod", {"value": 3}, True),  # URGENT
+            ("model.physics.net_radiation_method", {"value": 3}, True),  # URGENT
             ("sites[0].properties.irrigation.holiday", {"1": -999}, False),  # Optional
         ]
-        renamed_params = [("diagmethod", "rslmethod")]
+        renamed_params = [("diagmethod", "rsl_method")]
         extra_params = ["model.control.custom_param"]
 
         report = create_analysis_report(missing_params, renamed_params, extra_params)
@@ -353,10 +407,10 @@ sites:
         # Should properly categorize URGENT vs optional
         # In public mode uses "critical" not "URGENT"
         self.assertIn("critical", report)
-        self.assertIn("netradiationmethod", report)
+        self.assertIn("net_radiation_method", report)
 
         # Should contain renamed parameter info
-        self.assertIn("diagmethod changed to rslmethod", report)
+        self.assertIn("diagmethod changed to rsl_method", report)
 
         # Should contain extra parameter info
         self.assertIn("custom_param", report)
@@ -390,7 +444,7 @@ sites:
                 uptodate_content = f.read()
 
             self.assertIn("Updated YAML", uptodate_content)
-            self.assertIn("netradiationmethod:", uptodate_content)
+            self.assertIn("net_radiation_method:", uptodate_content)
             self.assertIn("value: null", uptodate_content)
 
             # Verify report file content
@@ -400,7 +454,7 @@ sites:
             self.assertIn("# SUEWS Validation Report", report_content)
             # In public mode, uses "critical" not "URGENT"
             self.assertIn("critical", report_content)
-            self.assertIn("netradiationmethod", report_content)
+            self.assertIn("net_radiation_method", report_content)
 
     def test_no_missing_parameters_scenario(self):
         """Test behavior when no parameters are missing."""
@@ -461,7 +515,7 @@ sites:
             )
 
         # Should contain expected mappings
-        expected_mappings = {"cp": "rho_cp", "diagmethod": "rslmethod"}
+        expected_mappings = {"cp": "rho_cp", "diagmethod": "rsl_method"}
 
         for old, new in expected_mappings.items():
             self.assertIn(old, RENAMED_PARAMS)
@@ -471,11 +525,11 @@ sites:
         """Test that PHYSICS_OPTIONS set contains expected physics parameters."""
         # Should contain key physics options that we know exist in sample_config
         expected_physics_options = {
-            "netradiationmethod",
-            "emissionsmethod",
-            "storageheatmethod",
-            "gsmodel",
-            "snowuse",
+            "net_radiation_method",
+            "emissions_method",
+            "storage_heat_method",
+            "gs_model",
+            "snow_use",
         }
 
         for option in expected_physics_options:
@@ -519,8 +573,8 @@ class TestRealWorldScenarios(unittest.TestCase):
                 },
                 "physics": {
                     # Missing some physics parameters to test detection
-                    "emissionsmethod": {"value": 2},
-                    "storageheatmethod": {"value": 1},
+                    "emissions_method": {"value": 2},
+                    "storage_heat_method": {"value": 1},
                     # netradiationmethod missing - should be detected as URGENT
                 },
             },
@@ -548,9 +602,9 @@ class TestRealWorldScenarios(unittest.TestCase):
         urgent_paths = [path for path, _, _ in urgent_params]
 
         self.assertIn(
-            "model.physics.netradiationmethod",
+            "model.physics.net_radiation_method",
             urgent_paths,
-            "Should detect missing netradiationmethod as URGENT",
+            "Should detect missing net_radiation_method as URGENT",
         )
 
         # Should find many optional parameters
@@ -574,9 +628,9 @@ class TestRealWorldScenarios(unittest.TestCase):
         # Verify physics section exists and contains expected parameters
         physics = self.standard_data["model"]["physics"]
         for physics_param in [
-            "netradiationmethod",
-            "emissionsmethod",
-            "storageheatmethod",
+            "net_radiation_method",
+            "emissions_method",
+            "storage_heat_method",
         ]:
             self.assertIn(
                 physics_param,
@@ -621,7 +675,7 @@ model:
       value: 2
     storageheatmethod:
       value: 1
-    diagmethod:  # OLD NAME - should be rslmethod
+    diagmethod:  # OLD NAME - should be rsl_method
       value: 2
     cp:  # OLD NAME - should be rho_cp
       value: 1005
@@ -690,7 +744,7 @@ sites:
             )
             self.assertNotIn("cp", uptodate_yaml.get("model", {}).get("physics", {}))
             self.assertIn(
-                "rslmethod:", uptodate_content, "New parameter name should be present"
+                "rsl_method:", uptodate_content, "New parameter name should be present"
             )
             self.assertIn(
                 "rho_cp:", uptodate_content, "New parameter name should be present"
@@ -698,13 +752,13 @@ sites:
 
             # Should have MISSING parameters added with null values
             self.assertIn(
-                "netradiationmethod:",
+                "net_radiation_method:",
                 uptodate_content,
                 "Missing URGENT parameter should be added",
             )
             uptodate_yaml_data = yaml.safe_load(uptodate_content)
             self.assertEqual(
-                uptodate_yaml_data["model"]["physics"]["netradiationmethod"]["value"],
+                uptodate_yaml_data["model"]["physics"]["net_radiation_method"]["value"],
                 None,
                 "Missing parameter should have null value",
             )
@@ -766,7 +820,7 @@ sites:
                 "Should identify critical physics parameters",
             )
             self.assertIn(
-                "netradiationmethod",
+                "net_radiation_method",
                 report_content,
                 "Should list missing physics parameter",
             )
@@ -776,9 +830,9 @@ sites:
             )
 
             # Should list renamed parameters with old -> new mapping
-            # Report uses "diagmethod changed to rslmethod" format
+            # Report uses "diagmethod changed to rsl_method" format
             self.assertIn(
-                "diagmethod changed to rslmethod",
+                "diagmethod changed to rsl_method",
                 report_content,
                 "Should show parameter renaming",
             )
@@ -852,7 +906,7 @@ sites:
                 "Old parameter should be removed",
             )
             self.assertIn(
-                "rslmethod",
+                "rsl_method",
                 updated_data["model"]["physics"],
                 "New parameter should be added",
             )
@@ -863,17 +917,17 @@ sites:
             )
 
             # Values should be preserved during renaming
-            self.assertEqual(updated_data["model"]["physics"]["rslmethod"]["value"], 2)
+            self.assertEqual(updated_data["model"]["physics"]["rsl_method"]["value"], 2)
             self.assertEqual(updated_data["model"]["physics"]["rho_cp"]["value"], 1005)
 
             # MISSING parameters should be added with null values
             self.assertIn(
-                "netradiationmethod",
+                "net_radiation_method",
                 updated_data["model"]["physics"],
                 "Missing parameter should be added",
             )
             self.assertIsNone(
-                updated_data["model"]["physics"]["netradiationmethod"]["value"],
+                updated_data["model"]["physics"]["net_radiation_method"]["value"],
                 "Missing parameter should have null value",
             )
 
@@ -941,8 +995,8 @@ sites:
                 "model": {
                     "control": {"tstep": 300},
                     "physics": {
-                        "emissionsmethod": {"value": 2},
-                        # netradiationmethod missing (URGENT)
+                        "emissions_method": {"value": 2},
+                        # net_radiation_method missing (URGENT)
                     },
                 },
                 "sites": [],
@@ -1008,7 +1062,7 @@ sites:
                 )
 
             # Should still add missing URGENT parameter
-            self.assertIn("netradiationmethod:", uptodate_content)
+            self.assertIn("net_radiation_method:", uptodate_content)
 
             print("\n✅ Performance test completed!")
             print(f"   - Processing time: {processing_time:.3f} seconds")
@@ -1076,20 +1130,20 @@ def test_model_physics_check_passes():
             "physics": {
                 k: {"value": 1 if "use" not in k else 0}
                 for k in [
-                    "netradiationmethod",
-                    "emissionsmethod",
-                    "storageheatmethod",
-                    "ohmincqf",
-                    "roughlenmommethod",
-                    "roughlenheatmethod",
-                    "stabilitymethod",
-                    "smdmethod",
-                    "waterusemethod",
-                    "rslmethod",
-                    "faimethod",
-                    "rsllevel",
-                    "snowuse",
-                    "stebbsmethod",
+                    "net_radiation_method",
+                    "emissions_method",
+                    "storage_heat_method",
+                    "ohm_inc_qf",
+                    "roughness_length_momentum_method",
+                    "roughness_length_heat_method",
+                    "stability_method",
+                    "smd_method",
+                    "water_use_method",
+                    "rsl_method",
+                    "fai_method",
+                    "rsl_level",
+                    "snow_use",
+                    "stebbs_method",
                 ]
             }
         }
@@ -1104,24 +1158,50 @@ def test_model_physics_missing_key_raises():
         precheck_model_physics_params(yaml_input)
 
 
-def test_model_physics_empty_value_raises():
+def test_model_physics_legacy_keys_pass():
     yaml_input = {
         "model": {
             "physics": {
-                "rslmethod": {"value": 2},
-                "stabilitymethod": {"value": None},
                 "netradiationmethod": {"value": 1},
                 "emissionsmethod": {"value": 1},
                 "storageheatmethod": {"value": 1},
                 "ohmincqf": {"value": 1},
                 "roughlenmommethod": {"value": 1},
                 "roughlenheatmethod": {"value": 1},
+                "stabilitymethod": {"value": 3},
                 "smdmethod": {"value": 1},
                 "waterusemethod": {"value": 1},
+                "rslmethod": {"value": 2},
                 "faimethod": {"value": 1},
                 "rsllevel": {"value": 1},
                 "snowuse": {"value": 0},
                 "stebbsmethod": {"value": 0},
+            }
+        }
+    }
+
+    result = precheck_model_physics_params(yaml_input)
+    assert isinstance(result, dict)
+
+
+def test_model_physics_empty_value_raises():
+    yaml_input = {
+        "model": {
+            "physics": {
+                "rsl_method": {"value": 2},
+                "stability_method": {"value": None},
+                "net_radiation_method": {"value": 1},
+                "emissions_method": {"value": 1},
+                "storage_heat_method": {"value": 1},
+                "ohm_inc_qf": {"value": 1},
+                "roughness_length_momentum_method": {"value": 1},
+                "roughness_length_heat_method": {"value": 1},
+                "smd_method": {"value": 1},
+                "water_use_method": {"value": 1},
+                "fai_method": {"value": 1},
+                "rsl_level": {"value": 1},
+                "snow_use": {"value": 0},
+                "stebbs_method": {"value": 0},
             }
         }
     }
@@ -1134,26 +1214,26 @@ def test_rslmethod_stability_constraint_fails():
         "model": {
             "control": {"start_time": "2025-01-01", "end_time": "2025-12-31"},
             "physics": {
-                "rslmethod": {"value": 2},
-                "stabilitymethod": {"value": 1},
-                "storageheatmethod": {"value": 1},
-                "netradiationmethod": {"value": 1},
-                "emissionsmethod": {"value": 1},
-                "ohmincqf": {"value": 1},
-                "roughlenmommethod": {"value": 1},
-                "roughlenheatmethod": {"value": 1},
-                "smdmethod": {"value": 1},
-                "waterusemethod": {"value": 1},
-                "faimethod": {"value": 1},
-                "rsllevel": {"value": 1},
-                "snowuse": {"value": 0},
-                "stebbsmethod": {"value": 0},
+                "rsl_method": {"value": 2},
+                "stability_method": {"value": 1},
+                "storage_heat_method": {"value": 1},
+                "net_radiation_method": {"value": 1},
+                "emissions_method": {"value": 1},
+                "ohm_inc_qf": {"value": 1},
+                "roughness_length_momentum_method": {"value": 1},
+                "roughness_length_heat_method": {"value": 1},
+                "smd_method": {"value": 1},
+                "water_use_method": {"value": 1},
+                "fai_method": {"value": 1},
+                "rsl_level": {"value": 1},
+                "snow_use": {"value": 0},
+                "stebbs_method": {"value": 0},
             },
         },
         "sites": [{}],
     }
 
-    with pytest.raises(ValueError, match=r"If rslmethod == 2.*must be 3"):
+    with pytest.raises(ValueError, match=r"If rsl_method == 2.*must be 3"):
         precheck_model_options_constraints(yaml_input)
 
 
@@ -1165,20 +1245,20 @@ def test_model_physics_not_touched_by_empty_string_cleanup():
                 "end_time": "2025-12-31",
             },
             "physics": {
-                "rslmethod": {"value": ""},
-                "stabilitymethod": {"value": 3},
-                "storageheatmethod": {"value": 3},
-                "netradiationmethod": {"value": 1},
-                "emissionsmethod": {"value": 1},
-                "ohmincqf": {"value": 1},
-                "roughlenmommethod": {"value": 1},
-                "roughlenheatmethod": {"value": 1},
-                "smdmethod": {"value": 1},
-                "waterusemethod": {"value": 1},
-                "faimethod": {"value": 1},
-                "rsllevel": {"value": 1},
-                "snowuse": {"value": 0},
-                "stebbsmethod": {"value": 0},
+                "rsl_method": {"value": ""},
+                "stability_method": {"value": 3},
+                "storage_heat_method": {"value": 3},
+                "net_radiation_method": {"value": 1},
+                "emissions_method": {"value": 1},
+                "ohm_inc_qf": {"value": 1},
+                "roughness_length_momentum_method": {"value": 1},
+                "roughness_length_heat_method": {"value": 1},
+                "smd_method": {"value": 1},
+                "water_use_method": {"value": 1},
+                "fai_method": {"value": 1},
+                "rsl_level": {"value": 1},
+                "snow_use": {"value": 0},
+                "stebbs_method": {"value": 0},
             },
         },
         "sites": [{"gridiv": 1, "properties": {"lat": {"value": 51.5}}}],
@@ -1197,20 +1277,20 @@ def test_empty_string_becomes_none():
                 "end_time": "2025-12-31",
             },
             "physics": {
-                "rslmethod": {"value": 1},
-                "stabilitymethod": {"value": 3},
-                "storageheatmethod": {"value": 1},
-                "netradiationmethod": {"value": 1},
-                "emissionsmethod": {"value": 1},
-                "ohmincqf": {"value": 1},
-                "roughlenmommethod": {"value": 1},
-                "roughlenheatmethod": {"value": 1},
-                "smdmethod": {"value": 1},
-                "waterusemethod": {"value": 1},
-                "faimethod": {"value": 1},
-                "rsllevel": {"value": 1},
-                "snowuse": {"value": 0},
-                "stebbsmethod": {"value": 0},
+                "rsl_method": {"value": 1},
+                "stability_method": {"value": 3},
+                "storage_heat_method": {"value": 1},
+                "net_radiation_method": {"value": 1},
+                "emissions_method": {"value": 1},
+                "ohm_inc_qf": {"value": 1},
+                "roughness_length_momentum_method": {"value": 1},
+                "roughness_length_heat_method": {"value": 1},
+                "smd_method": {"value": 1},
+                "water_use_method": {"value": 1},
+                "fai_method": {"value": 1},
+                "rsl_level": {"value": 1},
+                "snow_use": {"value": 0},
+                "stebbs_method": {"value": 0},
             },
         },
         "sites": [
@@ -1242,20 +1322,20 @@ def test_empty_string_in_list_of_floats():
                 "end_time": "2025-12-31",
             },
             "physics": {
-                "rslmethod": {"value": 1},
-                "stabilitymethod": {"value": 3},
-                "storageheatmethod": {"value": 1},
-                "netradiationmethod": {"value": 1},
-                "emissionsmethod": {"value": 1},
-                "ohmincqf": {"value": 1},
-                "roughlenmommethod": {"value": 1},
-                "roughlenheatmethod": {"value": 1},
-                "smdmethod": {"value": 1},
-                "waterusemethod": {"value": 1},
-                "faimethod": {"value": 1},
-                "rsllevel": {"value": 1},
-                "snowuse": {"value": 0},
-                "stebbsmethod": {"value": 0},
+                "rsl_method": {"value": 1},
+                "stability_method": {"value": 3},
+                "storage_heat_method": {"value": 1},
+                "net_radiation_method": {"value": 1},
+                "emissions_method": {"value": 1},
+                "ohm_inc_qf": {"value": 1},
+                "roughness_length_momentum_method": {"value": 1},
+                "roughness_length_heat_method": {"value": 1},
+                "smd_method": {"value": 1},
+                "water_use_method": {"value": 1},
+                "fai_method": {"value": 1},
+                "rsl_level": {"value": 1},
+                "snow_use": {"value": 0},
+                "stebbs_method": {"value": 0},
             },
         },
         "sites": [
@@ -1284,20 +1364,20 @@ def test_empty_string_in_nested_dict():
                 "end_time": "2025-12-31",
             },
             "physics": {
-                "rslmethod": {"value": 1},
-                "stabilitymethod": {"value": 3},
-                "storageheatmethod": {"value": 1},
-                "netradiationmethod": {"value": 1},
-                "emissionsmethod": {"value": 1},
-                "ohmincqf": {"value": 1},
-                "roughlenmommethod": {"value": 1},
-                "roughlenheatmethod": {"value": 1},
-                "smdmethod": {"value": 1},
-                "waterusemethod": {"value": 1},
-                "faimethod": {"value": 1},
-                "rsllevel": {"value": 1},
-                "snowuse": {"value": 0},
-                "stebbsmethod": {"value": 0},
+                "rsl_method": {"value": 1},
+                "stability_method": {"value": 3},
+                "storage_heat_method": {"value": 1},
+                "net_radiation_method": {"value": 1},
+                "emissions_method": {"value": 1},
+                "ohm_inc_qf": {"value": 1},
+                "roughness_length_momentum_method": {"value": 1},
+                "roughness_length_heat_method": {"value": 1},
+                "smd_method": {"value": 1},
+                "water_use_method": {"value": 1},
+                "fai_method": {"value": 1},
+                "rsl_level": {"value": 1},
+                "snow_use": {"value": 0},
+                "stebbs_method": {"value": 0},
             },
         },
         "sites": [
@@ -1334,20 +1414,20 @@ def test_empty_string_in_surface_type_dict():
                 "end_time": "2025-12-31",
             },
             "physics": {
-                "rslmethod": {"value": 1},
-                "stabilitymethod": {"value": 3},
-                "storageheatmethod": {"value": 1},
-                "netradiationmethod": {"value": 1},
-                "emissionsmethod": {"value": 1},
-                "ohmincqf": {"value": 1},
-                "roughlenmommethod": {"value": 1},
-                "roughlenheatmethod": {"value": 1},
-                "smdmethod": {"value": 1},
-                "waterusemethod": {"value": 1},
-                "faimethod": {"value": 1},
-                "rsllevel": {"value": 1},
-                "snowuse": {"value": 0},
-                "stebbsmethod": {"value": 0},
+                "rsl_method": {"value": 1},
+                "stability_method": {"value": 3},
+                "storage_heat_method": {"value": 1},
+                "net_radiation_method": {"value": 1},
+                "emissions_method": {"value": 1},
+                "ohm_inc_qf": {"value": 1},
+                "roughness_length_momentum_method": {"value": 1},
+                "roughness_length_heat_method": {"value": 1},
+                "smd_method": {"value": 1},
+                "water_use_method": {"value": 1},
+                "fai_method": {"value": 1},
+                "rsl_level": {"value": 1},
+                "snow_use": {"value": 0},
+                "stebbs_method": {"value": 0},
             },
         },
         "sites": [
@@ -1910,7 +1990,7 @@ def test_nonzero_sfr_with_list_containing_none_raises():
 
 def build_minimal_yaml(stebbsmethod_value: int, stebbs_block: dict):
     return {
-        "model": {"physics": {"stebbsmethod": {"value": stebbsmethod_value}}},
+        "model": {"physics": {"stebbs_method": {"value": stebbsmethod_value}}},
         "sites": [{"properties": {"stebbs": deepcopy(stebbs_block)}}],
     }
 
@@ -1943,7 +2023,7 @@ def test_stebbsmethod1_leaves_stebbs_untouched():
 
 def test_stebbsmethod0_nullifies_building_archetype_values():
     yaml_input = {
-        "model": {"physics": {"stebbsmethod": {"value": 0}}},
+        "model": {"physics": {"stebbs_method": {"value": 0}}},
         "sites": [
             {
                 "properties": {
@@ -1966,7 +2046,7 @@ def test_stebbsmethod0_nullifies_ten_minute_profiles():
         "holiday": {str(i): 18.0 for i in range(1, 145)},
     }
     yaml_input = {
-        "model": {"physics": {"stebbsmethod": {"value": 0}}},
+        "model": {"physics": {"stebbs_method": {"value": 0}}},
         "sites": [
             {
                 "properties": {
@@ -1995,7 +2075,7 @@ def test_emissionsmethod_less_than_5_nullifies_co2_block():
         "nested": {"ef_umolco2perj": {"value": 2.0}},
     }
     data = {
-        "model": {"physics": {"emissionsmethod": 0}},  # < 5 => CO2 disabled
+        "model": {"physics": {"emissions_method": 0}},  # < 5 => CO2 disabled
         "sites": [_build_site_with_co2(co2_block)],
     }
     result = precheck_model_option_rules(deepcopy(data))
@@ -2007,7 +2087,7 @@ def test_emissionsmethod_less_than_5_nullifies_co2_block():
 
 def test_empty_co2_block_is_handled_gracefully():
     data = {
-        "model": {"physics": {"emissionsmethod": 0}},
+        "model": {"physics": {"emissions_method": 0}},
         "sites": [_build_site_with_co2({})],
     }
     out = precheck_model_option_rules(deepcopy(data))
@@ -2021,7 +2101,7 @@ def test_empty_co2_block_is_handled_gracefully():
 def test_emissionsmethod_none_leaves_co2_untouched():
     co2_block = {"co2pointsource": {"value": 0.1}}
     data = {
-        "model": {"physics": {"emissionsmethod": None}},
+        "model": {"physics": {"emissions_method": None}},
         "sites": [_build_site_with_co2(co2_block)],
     }
     out = precheck_model_option_rules(deepcopy(data))
@@ -2042,7 +2122,7 @@ def test_deeply_nested_co2_structures_get_nullified():
         "arr": {"value": [0.1, 0.2, 0.3]},
     }
     data = {
-        "model": {"physics": {"emissionsmethod": 0}},
+        "model": {"physics": {"emissions_method": 0}},
         "sites": [_build_site_with_co2(co2_block)],
     }
     out = precheck_model_option_rules(deepcopy(data))
@@ -2070,7 +2150,7 @@ def test_deeply_nested_co2_structures_get_nullified():
 def test_phase_b_adjust_model_dependent_nullification_reports_changes():
     co2_block = {"co2pointsource": {"value": 0.5}, "nested": {"x": {"value": 1.0}}}
     data = {
-        "model": {"physics": {"emissionsmethod": 0}},
+        "model": {"physics": {"emissions_method": 0}},
         "sites": [_build_site_with_co2(co2_block)],
     }
     yaml_after, adjustments = adjust_model_dependent_nullification(deepcopy(data))
@@ -2454,25 +2534,25 @@ class TestPrecheckRefValueHandling:
 
         # Simulate physics dict with plain values (user's YAML format)
         physics_plain = {
-            "netradiationmethod": 1,
-            "emissionsmethod": 2,
-            "stabilitymethod": 3,
-            "rslmethod": 1,
+            "net_radiation_method": 1,
+            "emissions_method": 2,
+            "stability_method": 3,
+            "rsl_method": 1,
         }
 
         # Simulate physics dict with RefValue format
         physics_refvalue = {
-            "netradiationmethod": {"value": 1},
-            "emissionsmethod": {"value": 2},
-            "stabilitymethod": {"value": 3},
-            "rslmethod": {"value": 1},
+            "net_radiation_method": {"value": 1},
+            "emissions_method": {"value": 2},
+            "stability_method": {"value": 3},
+            "rsl_method": {"value": 1},
         }
 
         required_params = [
-            "netradiationmethod",
-            "emissionsmethod",
-            "stabilitymethod",
-            "rslmethod",
+            "net_radiation_method",
+            "emissions_method",
+            "stability_method",
+            "rsl_method",
         ]
 
         # Test the fixed validation logic (line 481 in precheck.py)
@@ -2490,10 +2570,10 @@ class TestPrecheckRefValueHandling:
 
         # Test with some empty values
         physics_with_empty = {
-            "netradiationmethod": 1,
-            "emissionsmethod": "",  # Empty string
-            "stabilitymethod": None,  # None value
-            "rslmethod": {"value": 1},
+            "net_radiation_method": 1,
+            "emissions_method": "",  # Empty string
+            "stability_method": None,  # None value
+            "rsl_method": {"value": 1},
         }
 
         empty_mixed = [
@@ -2501,7 +2581,7 @@ class TestPrecheckRefValueHandling:
             for k in required_params
             if get_value_safe(physics_with_empty, k) in ("", None)
         ]
-        expected_empty = ["emissionsmethod", "stabilitymethod"]
+        expected_empty = ["emissions_method", "stability_method"]
         assert sorted(empty_mixed) == sorted(expected_empty), (
             f"Expected {expected_empty}, got {empty_mixed}"
         )
@@ -2799,21 +2879,21 @@ class TestProcessorFixtures:
                     },
                 },
                 "physics": {
-                    "netradiationmethod": {"value": None},
-                    "emissionsmethod": {"value": None},
-                    "storageheatmethod": {"value": None},
-                    "ohmincqf": {"value": None},
-                    "roughlenmommethod": {"value": None},
-                    "roughlenheatmethod": {"value": None},
-                    "stabilitymethod": {"value": None},
-                    "smdmethod": {"value": None},
-                    "waterusemethod": {"value": None},
-                    "rslmethod": {"value": None},
-                    "faimethod": {"value": None},
-                    "rsllevel": {"value": None},
-                    "gsmodel": {"value": None},
-                    "snowuse": {"value": None},
-                    "stebbsmethod": {"value": None},
+                    "net_radiation_method": {"value": None},
+                    "emissions_method": {"value": None},
+                    "storage_heat_method": {"value": None},
+                    "ohm_inc_qf": {"value": None},
+                    "roughness_length_momentum_method": {"value": None},
+                    "roughness_length_heat_method": {"value": None},
+                    "stability_method": {"value": None},
+                    "smd_method": {"value": None},
+                    "water_use_method": {"value": None},
+                    "rsl_method": {"value": None},
+                    "fai_method": {"value": None},
+                    "rsl_level": {"value": None},
+                    "gs_model": {"value": None},
+                    "snow_use": {"value": None},
+                    "stebbs_method": {"value": None},
                 },
             },
             "sites": [
@@ -2849,8 +2929,8 @@ class TestProcessorFixtures:
             "model": {
                 "control": {"start_time": "2025-01-01", "end_time": "2025-12-31"},
                 "physics": {
-                    "netradiationmethod": {"value": 1},
-                    "emissionsmethod": {"value": 2},
+                    "net_radiation_method": {"value": 1},
+                    "emissions_method": {"value": 2},
                     # Missing other physics parameters
                 },
             },
@@ -2914,16 +2994,16 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         # Should detect missing physics parameters
         missing_param_paths = [path for path, value, urgent in missing_params]
 
-        assert "model.physics.storageheatmethod" in missing_param_paths
-        assert "model.physics.stabilitymethod" in missing_param_paths
+        assert "model.physics.storage_heat_method" in missing_param_paths
+        assert "model.physics.stability_method" in missing_param_paths
         assert "sites[0].properties.alt" in missing_param_paths
 
     def test_physics_parameter_classification(self):
         """Test that physics parameters are correctly classified as critical."""
         # Test known physics options
-        assert uptodate_yaml.is_physics_option("model.physics.netradiationmethod")
-        assert uptodate_yaml.is_physics_option("model.physics.gsmodel")
-        assert uptodate_yaml.is_physics_option("model.physics.rsllevel")
+        assert uptodate_yaml.is_physics_option("model.physics.net_radiation_method")
+        assert uptodate_yaml.is_physics_option("model.physics.gs_model")
+        assert uptodate_yaml.is_physics_option("model.physics.rsl_level")
 
         # Test non-physics parameters
         assert not uptodate_yaml.is_physics_option("sites[0].properties.lat")
@@ -2945,7 +3025,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         modified_content, renamed_list = result
 
         # Should have renamed the parameters in the content
-        assert "rslmethod:" in modified_content  # diagmethod -> rslmethod (as YAML key)
+        assert "rsl_method:" in modified_content  # diagmethod -> rsl_method (as YAML key)
         assert "rho_cp:" in modified_content  # cp -> rho_cp (as YAML key)
         # Old names should not appear as YAML keys (may appear in comments)
         import re
@@ -2959,7 +3039,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         # Should also track the renamings
         assert len(renamed_list) == 2, "Should detect 2 renamed parameters"
         renamed_dict = dict(renamed_list)
-        assert renamed_dict.get("diagmethod") == "rslmethod"
+        assert renamed_dict.get("diagmethod") == "rsl_method"
         assert renamed_dict.get("cp") == "rho_cp"
 
     def test_extra_parameters_categorization(self):
@@ -3365,22 +3445,22 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
     def test_physics_options_completeness(self):
         """Test that PHYSICS_OPTIONS set contains all required physics parameters."""
         expected_physics = {
-            "netradiationmethod",
-            "emissionsmethod",
-            "storageheatmethod",
-            "ohmincqf",
-            "roughlenmommethod",
-            "roughlenheatmethod",
-            "stabilitymethod",
-            "smdmethod",
-            "waterusemethod",
-            "rslmethod",
-            "faimethod",
-            "rsllevel",
-            "gsmodel",
-            "snowuse",
-            "stebbsmethod",
-            "rcmethod",
+            "net_radiation_method",
+            "emissions_method",
+            "storage_heat_method",
+            "ohm_inc_qf",
+            "roughness_length_momentum_method",
+            "roughness_length_heat_method",
+            "stability_method",
+            "smd_method",
+            "water_use_method",
+            "rsl_method",
+            "fai_method",
+            "rsl_level",
+            "gs_model",
+            "snow_use",
+            "stebbs_method",
+            "rc_method",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",
@@ -3395,8 +3475,8 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         """Test that RENAMED_PARAMS contains expected legacy mappings."""
         expected_renames = {
             "cp": "rho_cp",
-            "diagmethod": "rslmethod",
-            "localclimatemethod": "rsllevel",
+            "diagmethod": "rsl_method",
+            "localclimatemethod": "rsl_level",
         }
 
         for old_name, new_name in expected_renames.items():
@@ -3411,22 +3491,22 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         """Test successful physics parameter validation."""
         # Use a known set of physics options for testing
         physics_options = {
-            "netradiationmethod",
-            "emissionsmethod",
-            "storageheatmethod",
-            "ohmincqf",
-            "roughlenmommethod",
-            "roughlenheatmethod",
-            "stabilitymethod",
-            "smdmethod",
-            "waterusemethod",
-            "rslmethod",
-            "faimethod",
-            "rsllevel",
-            "gsmodel",
-            "snowuse",
-            "stebbsmethod",
-            "rcmethod",
+            "net_radiation_method",
+            "emissions_method",
+            "storage_heat_method",
+            "ohm_inc_qf",
+            "roughness_length_momentum_method",
+            "roughness_length_heat_method",
+            "stability_method",
+            "smd_method",
+            "water_use_method",
+            "rsl_method",
+            "fai_method",
+            "rsl_level",
+            "gs_model",
+            "snow_use",
+            "stebbs_method",
+            "rc_method",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",
@@ -3453,7 +3533,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         incomplete_yaml = {
             "model": {
                 "physics": {
-                    "netradiationmethod": {"value": 1}
+                    "net_radiation_method": {"value": 1}
                     # Missing other required parameters
                 }
             }
@@ -3481,28 +3561,28 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
     def test_physics_parameters_validation_null_values(self, registry):
         """Test physics parameter validation with null values."""
         physics_options = {
-            "netradiationmethod",
-            "emissionsmethod",
-            "storageheatmethod",
-            "ohmincqf",
-            "roughlenmommethod",
-            "roughlenheatmethod",
-            "stabilitymethod",
-            "smdmethod",
-            "waterusemethod",
-            "rslmethod",
-            "faimethod",
-            "rsllevel",
-            "gsmodel",
-            "snowuse",
-            "stebbsmethod",
-            "rcmethod",
+            "net_radiation_method",
+            "emissions_method",
+            "storage_heat_method",
+            "ohm_inc_qf",
+            "roughness_length_momentum_method",
+            "roughness_length_heat_method",
+            "stability_method",
+            "smd_method",
+            "water_use_method",
+            "rsl_method",
+            "fai_method",
+            "rsl_level",
+            "gs_model",
+            "snow_use",
+            "stebbs_method",
+            "rc_method",
         }
 
         null_yaml = {
             "model": {
                 "physics": {
-                    param: {"value": 1 if param != "netradiationmethod" else None}
+                    param: {"value": 1 if param != "net_radiation_method" else None}
                     for param in physics_options
                 }
             }
@@ -3528,8 +3608,8 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         invalid_yaml = {
             "model": {
                 "physics": {
-                    "rslmethod": {"value": 2},
-                    "stabilitymethod": {"value": 1},  # Should be 3 when rslmethod=2
+                    "rsl_method": {"value": 2},
+                    "stability_method": {"value": 1},  # Should be 3 when rsl_method=2
                 }
             },
             "sites": [{}],
@@ -3893,22 +3973,22 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
     def test_pydantic_validation_success(self):
         """Test successful Pydantic validation with complete configuration."""
         physics_options = {
-            "netradiationmethod",
-            "emissionsmethod",
-            "storageheatmethod",
-            "ohmincqf",
-            "roughlenmommethod",
-            "roughlenheatmethod",
-            "stabilitymethod",
-            "smdmethod",
-            "waterusemethod",
-            "rslmethod",
-            "faimethod",
-            "rsllevel",
-            "gsmodel",
-            "snowuse",
-            "stebbsmethod",
-            "rcmethod",
+            "net_radiation_method",
+            "emissions_method",
+            "storage_heat_method",
+            "ohm_inc_qf",
+            "roughness_length_momentum_method",
+            "roughness_length_heat_method",
+            "stability_method",
+            "smd_method",
+            "water_use_method",
+            "rsl_method",
+            "fai_method",
+            "rsl_level",
+            "gs_model",
+            "snow_use",
+            "stebbs_method",
+            "rc_method",
         }
 
         complete_config = {
@@ -3923,7 +4003,7 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
                     "diagnose": 0,
                 },
                 "physics": {
-                    param: {"value": 0 if param in ["snowuse", "ohmincqf"] else 1}
+                    param: {"value": 0 if param in ["snow_use", "ohm_inc_qf"] else 1}
                     for param in physics_options
                 },
             },
@@ -3974,22 +4054,22 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
     def test_conditional_validation_rsl_method(self):
         """Test RSL method conditional validation."""
         physics_options = {
-            "netradiationmethod",
-            "emissionsmethod",
-            "storageheatmethod",
-            "ohmincqf",
-            "roughlenmommethod",
-            "roughlenheatmethod",
-            "stabilitymethod",
-            "smdmethod",
-            "waterusemethod",
-            "rslmethod",
-            "faimethod",
-            "rsllevel",
-            "gsmodel",
-            "snowuse",
-            "stebbsmethod",
-            "rcmethod",
+            "net_radiation_method",
+            "emissions_method",
+            "storage_heat_method",
+            "ohm_inc_qf",
+            "roughness_length_momentum_method",
+            "roughness_length_heat_method",
+            "stability_method",
+            "smd_method",
+            "water_use_method",
+            "rsl_method",
+            "fai_method",
+            "rsl_level",
+            "gs_model",
+            "snow_use",
+            "stebbs_method",
+            "rc_method",
         }
 
         rsl_config = {
@@ -4004,13 +4084,13 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
                     "diagnose": 0,
                 },
                 "physics": {
-                    "rslmethod": {"value": 2},
-                    "ohmincqf": {"value": 0},  # Compatible with storageheatmethod
-                    "snowuse": {"value": 0},  # Avoid snowuse validation error
+                    "rsl_method": {"value": 2},
+                    "ohm_inc_qf": {"value": 0},  # Compatible with storage_heat_method
+                    "snow_use": {"value": 0},  # Avoid snow_use validation error
                     **{
                         param: {"value": 1}
                         for param in physics_options
-                        if param not in ["rslmethod", "ohmincqf", "snowuse"]
+                        if param not in ["rsl_method", "ohm_inc_qf", "snow_use"]
                     },
                 },
             },
@@ -4061,7 +4141,7 @@ class TestPhaseCReporting(TestProcessorFixtures):
         mock_error.errors.return_value = [
             {
                 "type": "missing",
-                "loc": ("model", "physics", "netradiationmethod"),
+                "loc": ("model", "physics", "net_radiation_method"),
                 "msg": "Field required",
                 "input": None,
             }
@@ -4084,7 +4164,7 @@ class TestPhaseCReporting(TestProcessorFixtures):
 
         assert "# SUEWS Validation Report" in report_content
         assert "ACTION NEEDED" in report_content
-        assert "netradiationmethod" in report_content
+        assert "net_radiation_method" in report_content
 
     def test_report_consolidation_with_previous_phases(self, temp_directory):
         """Test report consolidation with Phase A and B information."""
@@ -4165,12 +4245,12 @@ class TestSuewsYamlProcessorOrchestrator(TestProcessorFixtures):
     def test_pydantic_defaults_detection(self):
         """Test detection of Pydantic defaults in configuration."""
         original_data = {
-            "model": {"physics": {"netradiationmethod": 1}},
+            "model": {"physics": {"net_radiation_method": 1}},
             "sites": [{"properties": {"lat": 51.5}}],
         }
 
         updated_data = {
-            "model": {"physics": {"netradiationmethod": 1, "emissionsmethod": 2}},
+            "model": {"physics": {"net_radiation_method": 1, "emissions_method": 2}},
             "sites": [{"properties": {"lat": 51.5, "lng": -0.12}}],
         }
 
@@ -4179,7 +4259,7 @@ class TestSuewsYamlProcessorOrchestrator(TestProcessorFixtures):
         )
 
         # Should detect added fields
-        assert "emissionsmethod" in str(defaults) or len(defaults) > 0
+        assert "emissions_method" in str(defaults) or len(defaults) > 0
         assert "lng" in str(defaults) or len(defaults) > 0
 
     @pytest.mark.parametrize("workflow", ["A", "B", "C", "AB", "AC", "BC", "ABC"])

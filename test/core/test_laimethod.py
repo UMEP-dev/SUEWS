@@ -246,8 +246,8 @@ class TestLAIMethodRuntime:
         # about bound enforcement.
         for surf_type in ("evetr", "dectr", "grass"):
             surf = getattr(sim._config.sites[0].properties.land_cover, surf_type)
-            surf.lai.laimin = 0.0
-            surf.lai.laimax = 10.0
+            surf.lai.lai_min = 0.0
+            surf.lai.lai_max = 10.0
 
         df_forcing = sim.forcing.df.copy()
         end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
@@ -332,8 +332,8 @@ class TestLAIMethodRuntime:
         """Override LAImin / LAImax for every vegetation class in the config."""
         for surf_type in ("evetr", "dectr", "grass"):
             surf = getattr(sim._config.sites[0].properties.land_cover, surf_type)
-            surf.lai.laimin = laimin
-            surf.lai.laimax = laimax
+            surf.lai.lai_min = laimin
+            surf.lai.lai_max = laimax
 
     def test_zero_lai_observation_honoured(self):
         """A genuine zero observation drives LAI to zero when ``laimin = 0``.

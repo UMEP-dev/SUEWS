@@ -78,29 +78,29 @@ def make_cfg(**physics_kwargs):
 
 
 def test_needs_stebbs_validation_true_and_false():
-    cfg = make_cfg(stebbsmethod=1)
+    cfg = make_cfg(stebbs_method=1)
     assert cfg._needs_stebbs_validation() is True
-    cfg2 = make_cfg(stebbsmethod=0)
+    cfg2 = make_cfg(stebbs_method=0)
     assert cfg2._needs_stebbs_validation() is False
 
 
 def test_validate_stebbs_missing_properties_block():
-    cfg = make_cfg(stebbsmethod=1)
+    cfg = make_cfg(stebbs_method=1)
     site = DummySite(properties=None, name="MySite")
     msgs = SUEWSConfig._validate_stebbs(cfg, site, site_index=0)
     assert msgs == ["Missing 'properties' section (required for STEBBS validation)"]
 
 
 def test_validate_stebbs_missing_stebbs_section():
-    cfg = make_cfg(stebbsmethod=1)
+    cfg = make_cfg(stebbs_method=1)
     props = SimpleNamespace(stebbs=None)
     site = DummySite(properties=props, name="MySite")
     msgs = SUEWSConfig._validate_stebbs(cfg, site, site_index=0)
-    assert msgs == ["Missing 'stebbs' section (required when stebbsmethod=1)"]
+    assert msgs == ["Missing 'stebbs' section (required when stebbs_method=1)"]
 
 
 def test_validate_stebbs_missing_parameters():
-    cfg = make_cfg(stebbsmethod=1)
+    cfg = make_cfg(stebbs_method=1)
     # Provide an empty stebbs object
     props = SimpleNamespace(stebbs=SimpleNamespace())
     site = DummySite(properties=props, name="MySite")
@@ -112,14 +112,14 @@ def test_validate_stebbs_missing_parameters():
 def test_needs_rsl_validation_true_and_false():
     # After conditional validation fix, validation is disabled by default
     # unless physics parameters are explicitly configured
-    cfg = make_cfg(rslmethod=2)
+    cfg = make_cfg(rsl_method=2)
     assert cfg._needs_rsl_validation() is False  # Disabled by default now
-    cfg2 = make_cfg(rslmethod=1)
+    cfg2 = make_cfg(rsl_method=1)
     assert cfg2._needs_rsl_validation() is False
 
 
 def test_validate_rsl_no_land_cover_or_sfr():
-    cfg = make_cfg(rslmethod=2)
+    cfg = make_cfg(rsl_method=2)
     site = DummySite(properties=None)
     assert SUEWSConfig._validate_rsl(cfg, site, 0) == []
     # land_cover without bldgs
@@ -128,7 +128,7 @@ def test_validate_rsl_no_land_cover_or_sfr():
 
 
 def test_validate_rsl_requires_faibldg():
-    cfg = make_cfg(rslmethod=2)
+    cfg = make_cfg(rsl_method=2)
     # build a land_cover.bldgs with sfr>0 but no faibldg
     bldgs = SimpleNamespace(sfr=SimpleNamespace(value=0.5), faibldg=None)
     lc = SimpleNamespace(bldgs=bldgs)
@@ -142,14 +142,14 @@ def test_validate_rsl_requires_faibldg():
 def test_needs_storage_validation_true_and_false():
     # After conditional validation fix, validation is disabled by default
     # unless physics parameters are explicitly configured
-    cfg = make_cfg(storageheatmethod=6)
+    cfg = make_cfg(storage_heat_method=6)
     assert cfg._needs_storage_validation() is False  # Disabled by default now
-    cfg2 = make_cfg(storageheatmethod=1)
+    cfg2 = make_cfg(storage_heat_method=1)
     assert cfg2._needs_storage_validation() is False
 
 
 def test_validate_storage_requires_numeric_and_lambda():
-    cfg = make_cfg(storageheatmethod=6)
+    cfg = make_cfg(storage_heat_method=6)
     # stub thermal_layers: dz has one bad None, k OK, rho_cp missing
     th = SimpleNamespace(
         dz=SimpleNamespace(value=[None]),
@@ -196,7 +196,7 @@ def test_validate_lai_ranges_invalid_laimin_laimax():
     cfg = SUEWSConfig.model_construct()
     # Create vegetation surface with invalid LAI range
     lai = SimpleNamespace(
-        laimin=SimpleNamespace(value=5.0), laimax=SimpleNamespace(value=3.0)
+        lai_min=SimpleNamespace(value=5.0), lai_max=SimpleNamespace(value=3.0)
     )
     grass = SimpleNamespace(lai=lai)
     lc = SimpleNamespace(grass=grass)
@@ -206,7 +206,7 @@ def test_validate_lai_ranges_invalid_laimin_laimax():
     assert cfg._validation_summary["total_warnings"] >= 1
     assert "LAI range validation" in cfg._validation_summary["issue_types"]
     assert any(
-        "laimin (5.0) must be <= laimax (3.0)" in msg
+        "lai_min (5.0) must be <= lai_max (3.0)" in msg
         for msg in cfg._validation_summary["detailed_messages"]
     )
 
@@ -214,12 +214,17 @@ def test_validate_lai_ranges_invalid_laimin_laimax():
 def test_validate_lai_ranges_invalid_baset_gddfull():
     """Test LAI validation detects invalid baset > gddfull."""
     cfg = SUEWSConfig.model_construct()
-    # Create vegetation surface with invalid baset/gddfull range
+    # Create vegetation surface with invalid baset/gddfull range.
+    # Provide both legacy and new attribute aliases so _check_lai_ranges
+    # sees the gddfull guard while reading the gdd_full value (source
+    # code uses the old attribute name in the hasattr guard).
+    gdd = SimpleNamespace(value=10.0)
     lai = SimpleNamespace(
-        laimin=SimpleNamespace(value=1.0),
-        laimax=SimpleNamespace(value=5.0),
-        baset=SimpleNamespace(value=15.0),
-        gddfull=SimpleNamespace(value=10.0),
+        lai_min=SimpleNamespace(value=1.0),
+        lai_max=SimpleNamespace(value=5.0),
+        base_temperature=SimpleNamespace(value=15.0),
+        gdd_full=gdd,
+        gddfull=gdd,
     )
     dectr = SimpleNamespace(lai=lai)
     lc = SimpleNamespace(dectr=dectr)
@@ -229,7 +234,7 @@ def test_validate_lai_ranges_invalid_baset_gddfull():
     assert cfg._validation_summary["total_warnings"] >= 1
     assert "LAI range validation" in cfg._validation_summary["issue_types"]
     assert any(
-        "baset (15.0) must be <= gddfull (10.0)" in msg
+        "base_temperature (15.0) must be <= gddfull (10.0)" in msg
         for msg in cfg._validation_summary["detailed_messages"]
     )
 
@@ -239,7 +244,7 @@ def test_validate_lai_ranges_multiple_vegetation_surfaces():
     cfg = SUEWSConfig.model_construct()
     # Create multiple vegetation surfaces with invalid LAI ranges
     lai_invalid = SimpleNamespace(
-        laimin=SimpleNamespace(value=5.0), laimax=SimpleNamespace(value=3.0)
+        lai_min=SimpleNamespace(value=5.0), lai_max=SimpleNamespace(value=3.0)
     )
 
     grass = SimpleNamespace(lai=lai_invalid)
@@ -264,10 +269,10 @@ def test_validate_lai_ranges_valid_ranges():
     cfg = SUEWSConfig.model_construct()
     # Create vegetation surface with valid LAI ranges
     lai = SimpleNamespace(
-        laimin=SimpleNamespace(value=1.0),
-        laimax=SimpleNamespace(value=5.0),
-        baset=SimpleNamespace(value=5.0),
-        gddfull=SimpleNamespace(value=200.0),
+        lai_min=SimpleNamespace(value=1.0),
+        lai_max=SimpleNamespace(value=5.0),
+        base_temperature=SimpleNamespace(value=5.0),
+        gdd_full=SimpleNamespace(value=200.0),
     )
     grass = SimpleNamespace(lai=lai)
     lc = SimpleNamespace(grass=grass)
@@ -292,7 +297,7 @@ def test_validate_lai_ranges_none_values():
     """Test LAI validation handles None values gracefully."""
     cfg = SUEWSConfig.model_construct()
     # Create vegetation surface with None LAI values
-    lai = SimpleNamespace(laimin=None, laimax=None, baset=None, gddfull=None)
+    lai = SimpleNamespace(lai_min=None, lai_max=None, base_temperature=None, gdd_full=None)
     grass = SimpleNamespace(lai=lai)
     lc = SimpleNamespace(grass=grass)
 
@@ -315,12 +320,12 @@ def test_auto_albedo_trees_follow_lai_relation():
     evetr_props = EvetrProperties(
         alb_min=0.1,
         alb_max=0.3,
-        lai=LAIParams(laimin=1.0, laimax=3.0),
+        lai=LAIParams(lai_min=1.0, lai_max=3.0),
     )
     dectr_props = DectrProperties(
         alb_min=0.2,
         alb_max=0.4,
-        lai=LAIParams(laimin=2.0, laimax=4.0),
+        lai=LAIParams(lai_min=2.0, lai_max=4.0),
     )
     land_cover = LandCover(evetr=evetr_props, dectr=dectr_props)
     site_props = SiteProperties(land_cover=land_cover)
@@ -351,7 +356,7 @@ def test_auto_albedo_grass_reversed_relation():
     grass_props = GrassProperties(
         alb_min=0.2,
         alb_max=0.4,
-        lai=LAIParams(laimin=0.5, laimax=2.5),
+        lai=LAIParams(lai_min=0.5, lai_max=2.5),
     )
     land_cover = LandCover(grass=grass_props)
     site_props = SiteProperties(land_cover=land_cover)
@@ -379,7 +384,7 @@ def test_auto_albedo_preserves_user_value():
     evetr_props = EvetrProperties(
         alb_min=0.1,
         alb_max=0.3,
-        lai=LAIParams(laimin=1.0, laimax=3.0),
+        lai=LAIParams(lai_min=1.0, lai_max=3.0),
     )
     site_props = SiteProperties(land_cover=LandCover(evetr=evetr_props))
     evetr_state = InitialStateEvetr(alb_id=0.28, lai_id=2.0)
@@ -398,7 +403,7 @@ def test_validate_albedo_id_within_range():
     evetr_props = EvetrProperties(
         alb_min=0.1,
         alb_max=0.2,
-        lai=LAIParams(laimin=1.0, laimax=3.0),
+        lai=LAIParams(lai_min=1.0, lai_max=3.0),
     )
     site_props = SiteProperties(land_cover=LandCover(evetr=evetr_props))
     evetr_state = InitialStateEvetr(alb_id=0.5, lai_id=2.0)
@@ -425,12 +430,12 @@ def test_auto_albedo_midrange_interpolation():
     evetr_props = EvetrProperties(
         alb_min=0.1,
         alb_max=0.3,
-        lai=LAIParams(laimin=1.0, laimax=3.0),
+        lai=LAIParams(lai_min=1.0, lai_max=3.0),
     )
     grass_props = GrassProperties(
         alb_min=0.2,
         alb_max=0.4,
-        lai=LAIParams(laimin=0.5, laimax=2.5),
+        lai=LAIParams(lai_min=0.5, lai_max=2.5),
     )
     land_cover = LandCover(evetr=evetr_props, grass=grass_props)
     site_props = SiteProperties(land_cover=land_cover)
@@ -455,7 +460,7 @@ def test_auto_albedo_clamps_lai_outside_range():
     evetr_props = EvetrProperties(
         alb_min=0.1,
         alb_max=0.3,
-        lai=LAIParams(laimin=2.0, laimax=4.0),
+        lai=LAIParams(lai_min=2.0, lai_max=4.0),
     )
     land_cover = LandCover(evetr=evetr_props)
     site_props = SiteProperties(land_cover=land_cover)
@@ -490,12 +495,12 @@ def test_auto_albedo_zero_lai_range():
     evetr_props = EvetrProperties(
         alb_min=0.1,
         alb_max=0.3,
-        lai=LAIParams(laimin=2.0, laimax=2.0),
+        lai=LAIParams(lai_min=2.0, lai_max=2.0),
     )
     grass_props = GrassProperties(
         alb_min=0.2,
         alb_max=0.4,
-        lai=LAIParams(laimin=1.5, laimax=1.5),
+        lai=LAIParams(lai_min=1.5, lai_max=1.5),
     )
     land_cover = LandCover(evetr=evetr_props, grass=grass_props)
     site_props = SiteProperties(land_cover=land_cover)
@@ -515,7 +520,7 @@ def test_auto_albedo_with_refvalue_inputs():
     evetr_props = EvetrProperties(
         alb_min=RefValue(value=0.1),
         alb_max=RefValue(value=0.3),
-        lai=LAIParams(laimin=1.0, laimax=3.0),
+        lai=LAIParams(lai_min=1.0, lai_max=3.0),
     )
     land_cover = LandCover(evetr=evetr_props)
     site_props = SiteProperties(land_cover=land_cover)
@@ -809,8 +814,8 @@ def test_phase_b_forcing_height_error_and_warning(registry):
     yaml_data = {
         "model": {
             "physics": {
-                "stebbsmethod": {"value": 1},
-                "netradiationmethod": {"value": 1001},
+                "stebbs_method": {"value": 1},
+                "net_radiation_method": {"value": 1001},
             }
         },
         "sites": [
@@ -849,8 +854,8 @@ def test_phase_b_forcing_height_valid(registry):
     yaml_data = {
         "model": {
             "physics": {
-                "stebbsmethod": {"value": 1},
-                "netradiationmethod": {"value": 1001},
+                "stebbs_method": {"value": 1},
+                "net_radiation_method": {"value": 1001},
             }
         },
         "sites": [
@@ -877,7 +882,7 @@ def test_phase_b_forcing_height_only_stebbs_height(registry):
     yaml_data = {
         "model": {
             "physics": {
-                "stebbsmethod": {"value": 1},
+                "stebbs_method": {"value": 1},
             }
         },
         "sites": [
@@ -909,7 +914,7 @@ def test_phase_b_forcing_height_only_spartacus_top(registry):
     yaml_data = {
         "model": {
             "physics": {
-                "netradiationmethod": {"value": 1001},  # enable SPARTACUS
+                "net_radiation_method": {"value": 1001},  # enable SPARTACUS
             }
         },
         "sites": [
@@ -968,7 +973,7 @@ def test_phase_b_forcing_height_missing_bldgh_or_sfr(registry):
 
 def test_phase_b_forcing_height_above_max(registry):
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs_method": {"value": 1}}},
         "sites": [
             {
                 "name": "HighZSite",
@@ -991,7 +996,7 @@ def test_phase_b_forcing_height_above_max(registry):
 
 def test_phase_b_forcing_height_sfr_boundary(registry):
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs_method": {"value": 1}}},
         "sites": [
             {
                 "name": "BoundarySFR",
@@ -1010,7 +1015,7 @@ def test_phase_b_forcing_height_sfr_boundary(registry):
 
 def test_validate_model_option_rcmethod_missing_params(registry):
     yaml_data = {
-        "model": {"physics": {"rcmethod": {"value": 1}}},
+        "model": {"physics": {"rc_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1026,7 +1031,7 @@ def test_validate_model_option_rcmethod_missing_params(registry):
 
 def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
     yaml_data = {
-        "model": {"physics": {"rcmethod": {"value": 1}}},
+        "model": {"physics": {"rc_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1043,7 +1048,7 @@ def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
 
 def test_validate_model_option_rcmethod_enabled_valid_values(registry):
     yaml_data = {
-        "model": {"physics": {"rcmethod": {"value": 1}}},
+        "model": {"physics": {"rc_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1059,7 +1064,7 @@ def test_validate_model_option_rcmethod_enabled_valid_values(registry):
 
 def test_adjust_model_option_rcmethod_sets_defaults():
     yaml_data = {
-        "model": {"physics": {"rcmethod": {"value": 0}}},
+        "model": {"physics": {"rc_method": {"value": 0}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1076,7 +1081,7 @@ def test_adjust_model_option_rcmethod_sets_defaults():
 
 def test_adjust_model_option_rcmethod_no_action_when_already_set():
     yaml_data = {
-        "model": {"physics": {"rcmethod": {"value": 0}}},
+        "model": {"physics": {"rc_method": {"value": 0}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1190,7 +1195,7 @@ def test_adjust_model_option_setpointmethod_no_action_when_already_null():
 
 def test_validate_model_option_rcmethod2_missing_params(registry):
     yaml_data = {
-        "model": {"physics": {"rcmethod": {"value": 2}}},
+        "model": {"physics": {"rc_method": {"value": 2}}},
         "sites": [{
             "name": "site1",
             "properties": {"building_archetype": {}},
@@ -1209,7 +1214,7 @@ def test_validate_model_option_rcmethod2_missing_params(registry):
 
 def test_validate_model_option_rcmethod2_all_params_provided(registry):
     yaml_data = {
-        "model": {"physics": {"rcmethod": {"value": 2}}},
+        "model": {"physics": {"rc_method": {"value": 2}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1234,7 +1239,7 @@ def test_validate_model_option_rcmethod2_all_params_provided(registry):
 
 def test_validate_model_option_rcmethod2_some_params_missing(registry):
     yaml_data = {
-        "model": {"physics": {"rcmethod": {"value": 2}}},
+        "model": {"physics": {"rc_method": {"value": 2}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1277,7 +1282,7 @@ def test_validate_model_option_setpointmethod_0_or_1_all_params(registry):
 
 def test_validate_model_option_setpointmethod_0_or_1_missing_params(registry):
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 1}, "stebbsmethod": {"value":1}}},
+        "model": {"physics": {"setpointmethod": {"value": 1}, "stebbs_method": {"value":1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1321,7 +1326,7 @@ def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
 
 def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry):
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 2}, "stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"setpointmethod": {"value": 2}, "stebbs_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1346,7 +1351,7 @@ def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry
 
 def test_validate_model_option_setpointmethod_2_out_of_range(registry):
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 2}, "stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"setpointmethod": {"value": 2}, "stebbs_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1371,7 +1376,7 @@ def test_validate_model_option_setpointmethod_2_out_of_range(registry):
 
 def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
     yaml_data = {
-        "model": {"physics": {"setpointmethod": {"value": 2}, "stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"setpointmethod": {"value": 2}, "stebbs_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1402,7 +1407,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
     """Test HotWaterFlowProfile accepts only 0 or 1 values."""
 
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1422,7 +1427,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid(registry
     """Test HotWaterFlowProfile returns ERROR for invalid values."""
 
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1449,7 +1454,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing(registry
     """Test HotWaterFlowProfile missing returns no errors."""
 
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1466,7 +1471,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial(registry
     """Test HotWaterFlowProfile with partial valid/invalid values."""
 
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1490,7 +1495,7 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_valid(registry):
     """Test DaylightControl accepts only 0 or 1 values, and LightingIlluminanceThreshold is required if 1."""
     # Valid: DaylightControl = 1, LightingIlluminanceThreshold provided
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1524,7 +1529,7 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_valid(registry):
 def test_validate_model_option_stebbsmethod_daylightcontrol_missing_lit(registry):
     """Test DaylightControl == 1 but LightingIlluminanceThreshold missing returns error."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1544,7 +1549,7 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_missing_lit(registry
 def test_validate_model_option_stebbsmethod_daylightcontrol_invalid(registry):
     """Test DaylightControl returns ERROR for invalid values."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1563,7 +1568,7 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_invalid(registry):
 def test_validate_model_option_stebbsmethod_daylightcontrol_string_value(registry):
     """Test DaylightControl returns ERROR for string or unexpected values."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1582,7 +1587,7 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_string_value(registr
 def test_validate_model_option_stebbsmethod_daylightcontrol_missing(registry):
     """Test DaylightControl missing returns no errors."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1598,7 +1603,7 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_missing(registry):
 def test_validate_model_option_stebbsmethod_daylightcontrol_not_active(registry):
     """Test no validation occurs if stebbsmethod != 1."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 0}}},
+        "model": {"physics": {"stebbs_method": {"value": 0}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1614,7 +1619,7 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_not_active(registry)
 def test_daylight_control_lightingilluminancethreshold_zero(registry):
     """Test LightingIlluminanceThreshold=0 is accepted when DaylightControl=1."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1631,7 +1636,7 @@ def test_daylight_control_lightingilluminancethreshold_zero(registry):
 def test_daylight_control_daylightcontrol_zero(registry):
     """Test DaylightControl=0 is accepted and LightingIlluminanceThreshold is not required."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1650,7 +1655,7 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_non
     """Test error when Occupants=0.0 but MetabolismProfile has nonzero values."""
 
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1675,7 +1680,7 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_all
     """Test no error when Occupants=0.0 and all MetabolismProfile values are zero."""
 
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1697,7 +1702,7 @@ def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_
     """Test no error when Occupants>0 and MetabolismProfile has nonzero values."""
 
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs_method": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1732,7 +1737,7 @@ def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_
 def test_adjust_model_option_stebbsmethod_nullification(wwr, nullify, keep):
     """Test adjust_model_option_stebbsmethod nullifies correct params based on WWR."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 1}}},
+        "model": {"physics": {"stebbs_method": {"value": 1}}},
         "sites": [{
             "properties": {
                 "stebbs": {
@@ -1819,7 +1824,7 @@ def test_adjust_model_option_stebbsmethod_nullification(wwr, nullify, keep):
 def test_adjust_model_option_stebbsmethod_not_one_no_action():
     """If stebbsmethod != 1, nothing is changed."""
     yaml_data = {
-        "model": {"physics": {"stebbsmethod": {"value": 0}}},
+        "model": {"physics": {"stebbs_method": {"value": 0}}},
         "sites": [{
             "properties": {
                 "stebbs": {
@@ -1845,18 +1850,18 @@ def test_adjust_model_option_stebbsmethod_not_one_no_action():
 def test_needs_spartacus_validation_true_and_false():
     
     cfg = make_cfg()
-    cfg.model.physics.netradiationmethod = 1001
+    cfg.model.physics.net_radiation_method =1001
     assert cfg._needs_spartacus_validation() is True
 
     cfg2 = make_cfg()
-    cfg2.model.physics.netradiationmethod = 1
+    cfg2.model.physics.net_radiation_method = 1
     assert cfg2._needs_spartacus_validation() is False
 
 def test_validate_spartacus_building_height_error():
-    cfg = make_cfg(netradiationmethod=1001, stebbsmethod=1)
+    cfg = make_cfg(net_radiation_method=1001, stebbs_method=1)
     # _unwrap_value only unwraps RefValue/Enum, not SimpleNamespace;
     # set stebbsmethod as a raw int so the validator can parse it.
-    cfg.model.physics.stebbsmethod = 1
+    cfg.model.physics.stebbs_method = 1
 
     # bldgh and stebbs_Height both exceed height[nlayer]
     bldgs = SimpleNamespace(bldgh=15.0)
@@ -1876,8 +1881,8 @@ def test_validate_spartacus_building_height_error():
 
 
 def test_validate_spartacus_building_height_no_error():
-    cfg = make_cfg(netradiationmethod=1001, stebbsmethod=1)
-    cfg.model.physics.stebbsmethod = 1
+    cfg = make_cfg(net_radiation_method=1001, stebbs_method=1)
+    cfg.model.physics.stebbs_method = 1
 
     # bldgh and stebbs_Height do not exceed height[nlayer]
     bldgs = SimpleNamespace(bldgh=8.0)
@@ -1895,7 +1900,7 @@ def test_validate_spartacus_building_height_no_error():
 
 def test_validate_spartacus_building_height_stebbs_off():
     """stebbs_Height should NOT be checked when stebbsmethod != 1."""
-    cfg = make_cfg(netradiationmethod=1001, stebbsmethod=0)
+    cfg = make_cfg(net_radiation_method=1001, stebbs_method=0)
 
     # stebbs_Height exceeds domain top, but stebbsmethod is off
     bldgs = SimpleNamespace(bldgh=8.0)
@@ -1912,7 +1917,7 @@ def test_validate_spartacus_building_height_stebbs_off():
 
 def test_validate_spartacus_sfr_mismatch_bldgs_frac():
     cfg = SUEWSConfig.model_construct()
-    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation_method=1001))
     bldgs = SimpleNamespace(sfr=0.6)  
     lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
     vertical_layers = SimpleNamespace(
@@ -1931,7 +1936,7 @@ def test_validate_spartacus_sfr_mismatch_bldgs_frac():
 
 def test_validate_spartacus_sfr_consistent_values():
     cfg = SUEWSConfig.model_construct()
-    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation_method=1001))
     bldgs = SimpleNamespace(sfr=0.3)  
     evetr = SimpleNamespace(sfr=0.1)
     dectr = SimpleNamespace(sfr=0.2)
@@ -1948,7 +1953,7 @@ def test_validate_spartacus_sfr_consistent_values():
 def test_validate_spartacus_sfr_mismatch_veg_frac():
     """SPARTACUS SFR validation flags mismatch between evetr.sfr + dectr.sfr and max(veg_frac)."""
     cfg = SUEWSConfig.model_construct()
-    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation_method=1001))
 
     # land_cover vegetation: evetr + dectr = 0.4
     evetr = SimpleNamespace(sfr=0.1)
@@ -2035,8 +2040,8 @@ def test_validate_spartacus_veg_dimensions_missing_nlayer():
 def test_validate_spartacus_veg_dimensions_passing_case():
     """Passing case: dectreeh=12, height=[0, 5, 10, 15, 20], veg_frac=[0.3, 0.3, 0.2, 0, 0]"""
     cfg = SUEWSConfig.model_construct()
-    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
-    lc = SimpleNamespace(dectr=SimpleNamespace(dectreeh=12.0), evetr=None)
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation_method=1001))
+    lc = SimpleNamespace(dectr=SimpleNamespace(height_deciduous_tree=12.0), evetr=None)
     vertical_layers = SimpleNamespace(
         height=[0, 5, 10, 15, 20],
         veg_frac=[0.3, 0.3, 0.2, 0, 0],
@@ -2051,8 +2056,8 @@ def test_validate_spartacus_veg_dimensions_failing_case():
     Tree at 12 m falls in layer 10-15 m (layer_index=3), so veg_frac[3]=0.1 in the
     15-20 m layer should be flagged."""
     cfg = SUEWSConfig.model_construct()
-    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
-    lc = SimpleNamespace(dectr=SimpleNamespace(dectreeh=12.0), evetr=None)
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation_method=1001))
+    lc = SimpleNamespace(dectr=SimpleNamespace(height_deciduous_tree=12.0), evetr=None)
     vertical_layers = SimpleNamespace(
         height=[0, 5, 10, 15, 20],
         veg_frac=[0.3, 0.3, 0.2, 0.1, 0],
@@ -2066,8 +2071,8 @@ def test_validate_spartacus_veg_dimensions_failing_case():
 def test_validate_spartacus_veg_dimensions_boundary_case():
     """Boundary case: max_tree exactly on a layer boundary."""
     cfg = SUEWSConfig.model_construct()
-    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
-    lc = SimpleNamespace(dectr=SimpleNamespace(dectreeh=15.0), evetr=None)
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation_method=1001))
+    lc = SimpleNamespace(dectr=SimpleNamespace(height_deciduous_tree=15.0), evetr=None)
     vertical_layers = SimpleNamespace(
         height=[0, 5, 10, 15, 20],
         veg_frac=[0.3, 0.3, 0.2, 0, 0],
@@ -2080,9 +2085,9 @@ def test_validate_spartacus_veg_dimensions_boundary_case():
 def test_validate_spartacus_veg_dimensions_exceeds_all_case():
     """Exceeds-all case: max_tree=100 with height=[0, 5, 10] — should produce the 'exceeds' message."""
     cfg = SUEWSConfig.model_construct()
-    cfg.model = SimpleNamespace(physics=SimpleNamespace(netradiationmethod=1001))
+    cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation_method=1001))
     # Note: dectrh and evetrh are attributes of land_cover.dectr and land_cover.evetr, not land_cover itself
-    dectr = SimpleNamespace(dectreeh=100.0)
+    dectr = SimpleNamespace(height_deciduous_tree=100.0)
     lc = SimpleNamespace(dectr=dectr, evetr=None)
     vertical_layers = SimpleNamespace(
         height=[0, 5, 10],
@@ -2118,63 +2123,63 @@ class SampleConfig:
 
 def test_is_physics_explicitly_configured_true():
     """Returns True if the physics field is explicitly set."""
-    model = make_sample_model(make_sample_physics({'rslmethod', 'storageheatmethod'}))
+    model = make_sample_model(make_sample_physics({'rsl_method', 'storage_heat_method'}))
     cfg = SampleConfig(model)
-    assert cfg._is_physics_explicitly_configured('rslmethod') is True
+    assert cfg._is_physics_explicitly_configured('rsl_method') is True
 
 def test_is_physics_explicitly_configured_false():
     """Returns False if the specific physics field is not set."""
-    model = make_sample_model(make_sample_physics({'storageheatmethod'}))
+    model = make_sample_model(make_sample_physics({'storage_heat_method'}))
     cfg = SampleConfig(model)
-    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+    assert cfg._is_physics_explicitly_configured('rsl_method') is False
 
 def test_is_physics_explicitly_configured_empty():
     """Returns False if model_fields_set is empty."""
     model = make_sample_model(make_sample_physics(set()))
     cfg = SampleConfig(model)
-    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+    assert cfg._is_physics_explicitly_configured('rsl_method') is False
 
 def test_is_physics_explicitly_configured_no_physics():
     """Returns False if physics attribute is missing or None."""
     # model without physics attribute
     class DummyModel: pass
     cfg = SampleConfig(DummyModel())
-    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+    assert cfg._is_physics_explicitly_configured('rsl_method') is False
 
     # model with physics None
     class DummyModel2: pass
     m = DummyModel2()
     m.physics = None
     cfg = SampleConfig(m)
-    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+    assert cfg._is_physics_explicitly_configured('rsl_method') is False
 
 def test_is_physics_explicitly_configured_no_model_fields_set():
     """Returns False if physics object has no model_fields_set attribute."""
     class DummyPhysics: pass
     model = make_sample_model(DummyPhysics())
     cfg = SampleConfig(model)
-    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+    assert cfg._is_physics_explicitly_configured('rsl_method') is False
 
 def test_is_physics_explicitly_configured_non_string_fields():
     """Handles non-string entries in model_fields_set gracefully."""
-    model = make_sample_model(make_sample_physics({1, None, 'rslmethod'}))
+    model = make_sample_model(make_sample_physics({1, None, 'rsl_method'}))
     cfg = SampleConfig(model)
-    assert cfg._is_physics_explicitly_configured('rslmethod') is True
-    assert cfg._is_physics_explicitly_configured('storageheatmethod') is False
+    assert cfg._is_physics_explicitly_configured('rsl_method') is True
+    assert cfg._is_physics_explicitly_configured('storage_heat_method') is False
 
 def test_is_physics_explicitly_configured_model_fields_set_list():
     """Handles model_fields_set as a list instead of set."""
     obj = types.SimpleNamespace()
-    obj.model_fields_set = ['rslmethod', 'storageheatmethod']
+    obj.model_fields_set = ['rsl_method', 'storage_heat_method']
     model = make_sample_model(obj)
     cfg = SampleConfig(model)
-    assert cfg._is_physics_explicitly_configured('rslmethod') is True
+    assert cfg._is_physics_explicitly_configured('rsl_method') is True
     assert cfg._is_physics_explicitly_configured('other') is False
 
 def test_is_physics_explicitly_configured_model_none():
     """Returns False if model is None."""
     cfg = SampleConfig(None)
-    assert cfg._is_physics_explicitly_configured('rslmethod') is False
+    assert cfg._is_physics_explicitly_configured('rsl_method') is False
 
 # From test_validation_topdown.py
 class TestTopDownValidation:
@@ -2427,8 +2432,8 @@ def test_phase_b_storageheatmethod_ohmincqf_validation(registry):
     yaml_data_incompatible = {
         "model": {
             "physics": {
-                "storageheatmethod": {"value": 1},  # OHM_WITHOUT_QF
-                "ohmincqf": {"value": 1},  # INCLUDE - incompatible!
+                "storage_heat_method": {"value": 1},  # OHM_WITHOUT_QF
+                "ohm_inc_qf": {"value": 1},  # INCLUDE - incompatible!
             }
         }
     }
@@ -2451,8 +2456,8 @@ def test_phase_b_storageheatmethod_ohmincqf_validation(registry):
     yaml_data_compatible = {
         "model": {
             "physics": {
-                "storageheatmethod": {"value": 1},  # OHM_WITHOUT_QF
-                "ohmincqf": {"value": 0},  # EXCLUDE - compatible!
+                "storage_heat_method": {"value": 1},  # OHM_WITHOUT_QF
+                "ohm_inc_qf": {"value": 0},  # EXCLUDE - compatible!
             }
         }
     }
@@ -2478,8 +2483,8 @@ def test_phase_b_rsl_stabilitymethod_validation(registry):
     yaml_data_incompatible = {
         "model": {
             "physics": {
-                "rslmethod": {"value": 2},
-                "stabilitymethod": {"value": 1},  # Should be 3
+                "rsl_method": {"value": 2},
+                "stability_method": {"value": 1},  # Should be 3
             }
         }
     }
@@ -2500,10 +2505,10 @@ def test_phase_b_model_option_dependencies_comprehensive(registry):
     yaml_data_minimal = {
         "model": {
             "physics": {
-                "storageheatmethod": {"value": 0},  # OBSERVED
-                "ohmincqf": {"value": 0},  # EXCLUDE
-                "rslmethod": {"value": 0},
-                "stabilitymethod": {"value": 1},
+                "storage_heat_method": {"value": 0},  # OBSERVED
+                "ohm_inc_qf": {"value": 0},  # EXCLUDE
+                "rsl_method": {"value": 0},
+                "stability_method": {"value": 1},
             }
         }
     }
@@ -2527,10 +2532,10 @@ def test_phase_b_model_option_dependencies_comprehensive(registry):
     yaml_data_mixed = {
         "model": {
             "physics": {
-                "storageheatmethod": {"value": 1},  # OHM_WITHOUT_QF
-                "ohmincqf": {"value": 0},  # EXCLUDE - compatible
-                "rslmethod": {"value": 2},  # Should require stabilitymethod=3
-                "stabilitymethod": {"value": 1},  # Wrong value - incompatible
+                "storage_heat_method": {"value": 1},  # OHM_WITHOUT_QF
+                "ohm_inc_qf": {"value": 0},  # EXCLUDE - compatible
+                "rsl_method": {"value": 2},  # Should require stabilitymethod=3
+                "stability_method": {"value": 1},  # Wrong value - incompatible
             }
         }
     }
@@ -3019,7 +3024,7 @@ def test_nlayer_roofs_walls_dimension_error_with_templates():
     roof2 = roofs_arr[1]
     assert roof2["alb"]["value"] is None
     assert roof2["emis"]["value"] is None
-    assert roof2["statelimit"]["value"] is None
+    assert roof2["state_limit"]["value"] is None
 
     # Check thermal_layers structure
     thermal = roof2["thermal_layers"]

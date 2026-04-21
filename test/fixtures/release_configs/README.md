@@ -26,7 +26,10 @@ registered handler in `src/supy/util/converter/yaml_upgrade.py`.
   `2026.1 -> 2026.4` handler in `src/supy/util/converter/yaml_upgrade.py`.
 - `2026.4.3.yml` - tag
   [`2026.4.3`](https://github.com/UMEP-dev/SUEWS/releases/tag/2026.4.3).
-  Identity path (parses unchanged).
+  Predates the Category 1 fused-identifier rename sweep
+  ([#1256](https://github.com/UMEP-dev/SUEWS/issues/1256)); upgraded by
+  the `2026.4 -> 2026.5` handler in
+  `src/supy/util/converter/yaml_upgrade.py`.
 
 ## Policy
 

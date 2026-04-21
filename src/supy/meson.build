@@ -82,6 +82,7 @@ py.install_sources(
             'data_model/doc_utils.py',
             'data_model/core/__init__.py',
             'data_model/core/config.py',
+            'data_model/core/field_renames.py',
             'data_model/core/human_activity.py',
             'data_model/core/hydro.py',
             'data_model/core/model.py',

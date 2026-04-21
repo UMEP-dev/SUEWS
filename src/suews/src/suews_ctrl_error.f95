@@ -11,6 +11,10 @@
 !   103: RSL - Interpolation bounds error in interp_z
 !   104: Build/ABI mismatch - output array size disagreement across compilation units
 !   105: DailyState - laimethod=0 requires non-missing lai >= 0 at every timestep (GH#1296)
+!   106: Farquhar  - invalid physiological parameters (Vcmax25/Jmax25/Rd25)
+!   107: Medlyn    - invalid stomatal parameters (g_0, g_1, c_s)
+!   108: LeafEB    - invalid pressure / boundary conductance
+!   109: AgsSolver - invalid c_s / boundary conductance
 !
 ! Thread Safety:
 !   Fatal errors use module-level SAVE variables (supy_error_flag/code/message).

@@ -76,6 +76,12 @@ MODULE module_ctrl_type
       INTEGER :: stebbsmethod = 0 ! method to calculate building energy [-]
       INTEGER :: rcmethod = 0 ! method to split building envelope heat capacity in STEBBS [-]
       INTEGER :: setpointmethod = 0 ! method to determine heating/cooling setpoints in STEBBS [-]
+      ! A-gs coupling selector (1 = JARVIS legacy, 2 = MEDLYN_FVCB). Default 0 is treated
+      ! as JARVIS to preserve the historical behaviour on pre-wiring configs. The follow-up
+      ! driver PR will (a) extend SUEWS_CAPI_CONFIG_LEN and the Rust bridge to populate
+      ! this field from YAML / df_state, and (b) add the SELECT CASE dispatch in
+      ! SUEWS_cal_Resistance that activates module_phys_ags_solver when AgsMethod == 2.
+      INTEGER :: AgsMethod = 0 ! top-level A-gs method selector [-]
       LOGICAL :: flag_test = .FALSE. ! FOR DEBUGGING ONLY: boolean to test specific functions [-]
    END TYPE SUEWS_CONFIG
 

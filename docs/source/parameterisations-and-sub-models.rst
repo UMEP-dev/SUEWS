@@ -119,6 +119,80 @@ Whether the turbulent heat fluxes are calculated using LUMPS or SUEWS can have a
 For SUEWS, an appropriate surface conductance parameterisation is also critical :cite:`J11` :cite:`W16`.
 For more details see ``Differences_between_SUEWS_LUMPS_and_FRAISE``.
 
+A-gs coupling (Farquhar-Medlyn)
+-------------------------------
+
+.. warning::
+
+   The A-gs scheme is experimental. The Fortran modules compile and are
+   unit-tested at the leaf level, but the driver-level dispatch (used when
+   ``ags_method = MEDLYN_FVCB`` in the model configuration) is still being
+   wired up. Until that lands, ``ags_method`` defaults to ``JARVIS`` and
+   runs are unchanged.
+
+SUEWS historically couples latent heat to the Jarvis-style multiplicative
+surface conductance :cite:`J11` :cite:`W16`. That empirical form is
+structurally insensitive to atmospheric CO\ :sub:`2` concentration — the
+same multiplicative factors apply regardless of ``c_a`` — which makes it
+unsuitable for CO\ :sub:`2`-rising scenario studies and for heat-stress
+events where stomatal closure is governed by the biochemistry of the leaf.
+
+The **A-gs coupling** replaces Jarvis with a physically grounded pair of
+equations:
+
+-  **Farquhar-von Caemmerer-Berry (FvCB) biochemistry** (:cite:`F80`,
+   :cite:`M02`, :cite:`B01`) computes net leaf photosynthesis
+   :math:`A_n` from light, CO\ :sub:`2` concentration, leaf temperature
+   and the enzyme kinetics :math:`V_{cmax}`, :math:`J_{max}`.
+-  **Medlyn optimal stomatal conductance** (:cite:`CF77`, :cite:`M11`)
+   closes the loop via
+
+   .. math::
+
+      g_s = g_0 + 1.6 \left(1 + \frac{g_1}{\sqrt{\mathrm{VPD}}}\right) \frac{A_n}{c_s},
+
+   which falls out of the Cowan-Farquhar optimisation that maximises
+   carbon gain per unit water loss.
+-  A **leaf energy balance** produces the leaf-surface temperature
+   :math:`T_{leaf}` needed by the Arrhenius temperature response of
+   :math:`V_{cmax}` and :math:`J_{max}`.
+
+The three sub-problems are coupled through :math:`(A_n, c_i, T_{leaf})`
+and solved by a damped fixed-point iteration with a 0.1 ppm tolerance on
+:math:`c_i` and 0.01 K on :math:`T_{leaf}`. Newton typically converges in
+3-5 iterations; the iteration cap is 15 with fallback on non-convergence.
+
+Urban relevance
+^^^^^^^^^^^^^^^
+
+Urban vegetation sits in a CO\ :sub:`2` dome elevated 20-50 ppm above the
+rural background :cite:`I02`. The Medlyn-FvCB scheme predicts, as a
+direct consequence, that urban leaf intrinsic water-use efficiency
+(:math:`iWUE = A_n / g_{s,CO_2}`) is systematically higher than rural —
+a testable urban-specific signal. Under heat stress the scheme captures
+the positive-feedback spiral (stomatal closure, transpirational cooling
+collapse, :math:`T_{leaf}` overshoot, :math:`V_{cmax}` denaturation)
+that a Jarvis scheme cannot produce.
+
+Parameters and switches
+^^^^^^^^^^^^^^^^^^^^^^^
+
+-  ``model.physics.ags_method``: ``JARVIS`` (default) or ``MEDLYN_FVCB``.
+-  Per-vegetation-surface additions (consumed when ``ags_method =
+   MEDLYN_FVCB``; default ``None`` so existing configs are unaffected):
+
+   -  ``v_cmax25`` :math:`[\mu\mathrm{mol}\,m^{-2}\,s^{-1}]`
+   -  ``j_max25`` :math:`[\mu\mathrm{mol}\,m^{-2}\,s^{-1}]`
+   -  ``g_1``      :math:`[\mathrm{kPa}^{0.5}]`
+   -  ``g_0``      :math:`[\mathrm{mol}\,m^{-2}\,s^{-1}]`
+   -  ``c3c4_flag`` (1 = C3, 2 = C4)
+
+   Suggested PFT-level defaults from :cite:t:`Lin15`: EveTr
+   :math:`g_1 \approx 2.3`, DecTr :math:`\approx 4.6`, Grass C3
+   :math:`\approx 5.3`, Grass C4 :math:`\approx 1.6`. :cite:t:`Kattge09`
+   gives :math:`V_{cmax25}` PFT ranges (EveTr 40-60, DecTr 50-80, Grass
+   C3 60-100, Grass C4 30-50).
+
 Water balance
 -------------
 

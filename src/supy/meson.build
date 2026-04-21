@@ -34,6 +34,7 @@ py.install_sources(
         [
             'util/_UMEP2epw.py',
             'util/__init__.py',
+            'util/_ags_reference.py',
             'util/_atm.py',
             'util/_attribution/__init__.py',
             'util/_attribution/_core.py',
@@ -169,6 +170,10 @@ src_f95_all = [
   'suews_phys_ohm.f95',
   'suews_phys_spartacus.f95',
   'suews_phys_stebbs.f95',
+  'suews_phys_farquhar.f95',
+  'suews_phys_medlyn.f95',
+  'suews_phys_leafeb.f95',
+  'suews_phys_ags_solver.f95',
   'suews_ctrl_driver.f95',
 ]
 

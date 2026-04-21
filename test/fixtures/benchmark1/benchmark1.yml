@@ -51,6 +51,8 @@ model:
       value: 0
     setpointmethod:
       value: 0
+    ags_method:
+      value: 1
 sites:
 - name: KCL
   gridiv: 1

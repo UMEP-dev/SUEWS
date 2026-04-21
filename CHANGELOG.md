@@ -54,6 +54,17 @@ EXAMPLES:
 
 ## 2026
 
+### 20 Apr 2026
+
+- [feature][experimental] Scaffold the A-gs coupling (Farquhar-Medlyn replacement for Jarvis stomatal conductance)
+  - Python data model: new `AgsMethod` enum (`JARVIS`=1 default, `MEDLYN_FVCB`=2 internal) on `ModelPhysics`, and five per-vegetation-surface physiological parameters (`v_cmax25`, `j_max25`, `g_1`, `g_0`, `c3c4_flag`) on `VegetatedSurfaceProperties`; all optional with Kattge 2009 / Lin 2015 fallback constants so existing YAML configs and legacy `df_state` round-trips are unaffected
+  - Fortran physics (compiled into `libsuewsdriver.a`; not yet wired into the driver): `suews_phys_farquhar.f95` (FvCB C3/C4 leaf biochemistry with peaked Arrhenius temperature response), `suews_phys_medlyn.f95` (Medlyn 2011 optimal `g_s`), `suews_phys_leafeb.f95` (leaf energy balance for `T_leaf`), `suews_phys_ags_solver.f95` (coupled Newton iteration over `(A_n, c_i, T_leaf)` with 15-step cap and `add_supy_warning` on non-convergence); error codes 106-109 registered
+  - NumPy reference `src/supy/util/_ags_reference.py` mirrors every Fortran equation, providing a testable oracle today and a cross-check once the Fortran path is exposed to Python
+  - 44 new Tier A unit tests (`test/core/test_ags_method.py`, `test/core/test_farquhar_reference.py`): data-model round-trip, `AgsMethod` defaults, FvCB textbook magnitudes, peaked-Arrhenius peak window 30-40 C, Medlyn VPD / CO2 monotonicity, leaf-EB energy partitioning, coupled solver convergence, CO2 fertilisation (`iWUE` rises and `g_s` falls with `c_a`), heat-stress collapse to `g_s = g_0`
+  - Docs: new "A-gs coupling (Farquhar-Medlyn)" subsection in `parameterisations-and-sub-models.rst`; foundational bib entries F80, M02, M11, CF77, B01, Lin15, Kattge09, I02, C92 added to `refs-others.bib` (non-SUEWS supporting literature; `Kattge09` renamed from `K09` to avoid collision with pre-existing Kawai et al. 2009 entry), flagged for `/refs-checker` verification before public release
+  - `make test-smoke` 9/9 passes; Jarvis path is bit-exact unchanged because the new dispatch and output columns are deferred to the follow-up PR that extends `ncolumnsDataOutSUEWS` and `dataOutLine*` in lockstep
+  - Deferred to follow-up PR: driver `SELECT CASE(ags_method)` dispatch; CO2 forcing column plus converter migration; output registry entries for `A_net` / `GPP_fvcb` / `Ci` / `Tleaf` / `iWUE` / `WUE` / `uWUE` (placeholder comment in `suews_vars.py`); Tiers B-D validation workflow
+
 ### 19 Apr 2026
 
 - [maintenance] Split CI matrix on the physics/api marker axis (#1300)

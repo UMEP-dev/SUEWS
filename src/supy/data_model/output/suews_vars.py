@@ -5,12 +5,11 @@ output variables from SUEWS.
 """
 
 from .variables import (
-    OutputVariable,
     AggregationMethod,
     OutputGroup,
     OutputLevel,
+    OutputVariable,
 )
-
 
 SUEWS_VARIABLES = [
     # Radiation components
@@ -933,4 +932,11 @@ SUEWS_VARIABLES = [
         group=OutputGroup.SUEWS,
         level=OutputLevel.EXTENDED,
     ),
+    # NOTE: The seven A-gs diagnostic columns (A_net, GPP_fvcb, Ci, Tleaf,
+    # iWUE, WUE, uWUE) are intentionally NOT registered here. Registering
+    # them enlarges the expected Python column count, which the bridge
+    # validates against the Fortran-side ncolumnsDataOutSUEWS; the counts
+    # must be changed together. They will be added in the same PR that
+    # wires the ags_solver into the driver and extends dataOutLine*, so the
+    # two counts move in lockstep.
 ]

@@ -585,6 +585,48 @@ class VegetatedSurfaceProperties(SurfaceProperties):
             "display_name": "Biogenic CO2 Minimum Respiration",
         },
     )
+    # Farquhar-von Caemmerer-Berry + Medlyn A-gs parameters (used when
+    # ModelPhysics.ags_method = MEDLYN_FVCB; ignored for the JARVIS default).
+    v_cmax25: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="Maximum Rubisco carboxylation rate at 25 C (FvCB). Typical: EveTr 40-60, DecTr 50-80, Grass C3 60-100, Grass C4 30-50 (Kattge et al. 2009).",
+        json_schema_extra={
+            "unit": "umol m^-2 s^-1",
+            "display_name": "Vcmax at 25 C",
+        },
+    )
+    j_max25: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="Maximum electron transport rate at 25 C (FvCB). Commonly ~1.67 x V_cmax25 (Medlyn et al. 2002).",
+        json_schema_extra={
+            "unit": "umol m^-2 s^-1",
+            "display_name": "Jmax at 25 C",
+        },
+    )
+    g_1: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="Medlyn stomatal slope parameter g1 (Medlyn et al. 2011). PFT-level values: EveTr ~2.3, DecTr ~4.6, Grass C3 ~5.3, Grass C4 ~1.6 (Lin et al. 2015).",
+        json_schema_extra={
+            "unit": "kPa^0.5",
+            "display_name": "Medlyn g1",
+        },
+    )
+    g_0: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description="Medlyn residual stomatal conductance g0 (non-zero intercept). Typically 0.01-0.05 mol m^-2 s^-1.",
+        json_schema_extra={
+            "unit": "mol m^-2 s^-1",
+            "display_name": "Medlyn g0",
+        },
+    )
+    c3c4_flag: Optional[FlexibleRefValue(int)] = Field(
+        default=None,
+        description="Photosynthetic pathway flag: 1 = C3, 2 = C4. Most UK/NW Europe turf is C3; Bermuda grass and many warm-climate lawns are C4.",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "C3/C4 pathway",
+        },
+    )
     lai: LAIParams = Field(
         default_factory=LAIParams, description="Leaf area index parameters"
     )
@@ -629,6 +671,12 @@ class VegetatedSurfaceProperties(SurfaceProperties):
             "min_res_bioco2",
             "ie_a",
             "ie_m",
+            # FvCB + Medlyn A-gs parameters (consumed when ags_method=MEDLYN_FVCB)
+            "v_cmax25",
+            "j_max25",
+            "g_1",
+            "g_0",
+            "c3c4_flag",
         ]:
             field_val = getattr(self, attr)
             if field_val is not None:
@@ -641,6 +689,14 @@ class VegetatedSurfaceProperties(SurfaceProperties):
                     "resp_a": 1.0,
                     "resp_b": 1.1,
                     "theta_bioco2": 1.2,
+                    # FvCB/Medlyn fallbacks are permissive generic PFT means
+                    # (Kattge 2009, Lin 2015); users must override per surface
+                    # type when ags_method=MEDLYN_FVCB is enabled.
+                    "v_cmax25": 60.0,
+                    "j_max25": 100.0,
+                    "g_1": 3.8,
+                    "g_0": 0.01,
+                    "c3c4_flag": 1,
                 }
                 val = defaults.get(attr, 0.0)
             cols[(attr, f"({surf_idx - 2},)")] = val
@@ -657,7 +713,7 @@ class VegetatedSurfaceProperties(SurfaceProperties):
     ) -> "VegetatedSurfaceProperties":
         """Reconstruct vegetated surface properties from DataFrame state format."""
         instance = super().from_df_state(df, grid_id, surf_idx)
-        # add ordinary float properties
+        # Legacy biogenic/irrigation attributes (required)
         for attr in [
             "beta_bioco2",
             "beta_enh_bioco2",
@@ -674,6 +730,20 @@ class VegetatedSurfaceProperties(SurfaceProperties):
             setattr(
                 instance, attr, RefValue(df.loc[grid_id, (attr, f"({surf_idx - 2},)")])
             )
+
+        # FvCB + Medlyn A-gs attributes (optional; legacy DataFrames predating
+        # ags_method land without these columns and fall back to None so the
+        # JARVIS path is unaffected).
+        for attr in ["v_cmax25", "j_max25", "g_1", "g_0", "c3c4_flag"]:
+            try:
+                value = df.loc[grid_id, (attr, f"({surf_idx - 2},)")]
+            except KeyError:
+                setattr(instance, attr, None)
+                continue
+            if attr == "c3c4_flag":
+                setattr(instance, attr, RefValue(int(value)))
+            else:
+                setattr(instance, attr, RefValue(float(value)))
 
         instance.lai = LAIParams.from_df_state(df, grid_id, surf_idx)
 

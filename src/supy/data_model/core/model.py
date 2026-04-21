@@ -471,6 +471,35 @@ class GSModel(Enum):
         return str(self.value)
 
 
+class AgsMethod(Enum):
+    """
+    Top-level photosynthesis-stomatal coupling method.
+
+    1: JARVIS - Legacy Jarvis multiplicative surface conductance with the existing biogenic hyperbola for A (structurally insensitive to atmospheric CO2). The Jarvis-variant selector stays on ``gsmodel``.
+    2: MEDLYN_FVCB - Coupled Farquhar-von Caemmerer-Berry biochemistry with Medlyn optimal stomatal conductance; responds to atmospheric CO2 and temperature through physically grounded equations.
+    """
+
+    JARVIS = 1
+    MEDLYN_FVCB = 2
+
+    def __new__(cls, value):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        # MEDLYN_FVCB is under active development; keep it internal until the
+        # coupled solver, forcing-column CO2 and Tier B validation have landed.
+        if value == 2:
+            obj._internal = True
+        else:
+            obj._internal = False
+        return obj
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
 class StebbsMethod(Enum):
     """
     Surface Temperature Energy Balance Based Scheme (STEBBS) for facet temperatures.
@@ -658,6 +687,7 @@ for enum_class in [
     SameAlbedoRoof,
     SameEmissivityWall,
     SameEmissivityRoof,
+    AgsMethod,
 ]:
     yaml.add_representer(enum_class, yaml_equivalent_of_default)
 
@@ -760,6 +790,14 @@ class ModelPhysics(BaseModel):
             "note": "Stomatal conductance model influenced by rsllevel adjustments",
         },
     )
+    ags_method: FlexibleRefValue(AgsMethod) = Field(
+        default=AgsMethod.JARVIS,
+        description=_enum_description(AgsMethod),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "note": "Top-level switch between legacy Jarvis (default, unchanged behaviour) and the coupled Farquhar-Medlyn A-gs path. The gsmodel field remains the Jarvis-variant selector when ags_method=JARVIS.",
+        },
+    )
     snowuse: FlexibleRefValue(SnowUse) = Field(
         default=SnowUse.DISABLED,
         description=_enum_description(SnowUse),
@@ -832,6 +870,7 @@ class ModelPhysics(BaseModel):
             "same_albedo_roof",
             "same_emissivity_wall",
             "same_emissivity_roof",
+            "ags_method",
         ]
         for attr in list_attr:
             value = getattr(self, attr)
@@ -880,6 +919,7 @@ class ModelPhysics(BaseModel):
             "same_emissivity_wall": SameEmissivityWall.DISABLED,
             "same_emissivity_roof": SameEmissivityRoof.DISABLED,
             "laimethod": LAIMethod.CALCULATED,
+            "ags_method": AgsMethod.JARVIS,
         }
 
         for attr in required_attrs:

@@ -197,7 +197,11 @@ PHYS =	\
 	suews_phys_biogenco2.o \
 	suews_phys_solweig.o \
 	suews_phys_beers.o \
-	suews_phys_stebbs.o
+	suews_phys_stebbs.o \
+	suews_phys_farquhar.o \
+	suews_phys_medlyn.o \
+	suews_phys_leafeb.o \
+	suews_phys_ags_solver.o
 
 # SUEWS driver module (wrapper of all main calculations)
 DRIVER = suews_ctrl_driver.o

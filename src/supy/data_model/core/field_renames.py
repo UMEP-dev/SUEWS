@@ -8,6 +8,7 @@ the Phase A validation pipeline, and raw-dict compatibility helpers.
 from __future__ import annotations
 
 import warnings
+from collections.abc import Mapping
 from typing import Any, Dict
 
 
@@ -215,7 +216,7 @@ def read_renamed_key(
     default : Any, optional
         Value returned when neither spelling is present.
     """
-    if not isinstance(data, dict):
+    if not isinstance(data, Mapping):
         return default
 
     reverse = reverse_renames or (

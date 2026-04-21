@@ -11,6 +11,7 @@ Verifies:
 import warnings
 
 import pytest
+from supy.validation import analyze_config_methods
 
 pytestmark = pytest.mark.api
 
@@ -32,6 +33,7 @@ from supy.data_model.core.site import (
     SnowParams,
 )
 from supy.data_model.core.surface import SurfaceProperties
+from supy.data_model.validation.core.controller import ValidationController
 
 
 # (ModelClass, rename_dict) pairs covering every class that got renames.
@@ -144,6 +146,49 @@ class TestConflictDetection:
     def test_both_old_and_new_raises(self):
         with pytest.raises(ValueError, match="both .* and .* are present"):
             ModelPhysics(netradiationmethod=3, net_radiation_method=2)
+
+
+class TestRawDictCompatibility:
+    def test_analyze_config_methods_accepts_snake_case(self):
+        config = {
+            "model": {
+                "physics": {
+                    "rsl_method": {"value": 2},
+                    "roughness_length_momentum_method": {"value": 2},
+                    "net_radiation_method": {"value": 1001},
+                    "emissions_method": {"value": 4},
+                    "storage_heat_method": {"value": 4},
+                }
+            }
+        }
+
+        methods = analyze_config_methods(config)
+
+        assert methods["rslmethod_variable"] is True
+        assert methods["roughness_variable"] is True
+        assert methods["netradiation_spartacus"] is True
+        assert methods["emissions_advanced"] is True
+        assert methods["storage_estm"] is True
+
+    def test_validation_controller_accepts_legacy_physics_names(self):
+        config = {
+            "model": {
+                "physics": {
+                    "roughlenmommethod": {"value": 2},
+                    "netradiationmethod": {"value": 1001},
+                    "emissionsmethod": {"value": 4},
+                    "storageheatmethod": {"value": 4},
+                }
+            }
+        }
+
+        controller = ValidationController(config_data=config)
+        active_methods = controller.get_active_methods()
+
+        assert active_methods["roughness_variable"] is True
+        assert active_methods["netradiation_spartacus"] is True
+        assert active_methods["emissions_advanced"] is True
+        assert active_methods["storage_estm"] is True
 
 
 class TestDataFrameColumnsPreserveLegacyNames:

@@ -31,6 +31,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from copy import deepcopy
 
 import pytest
 import yaml
@@ -269,6 +270,59 @@ sites:
         self.assertIn("rsl_method:", updated_content)
         self.assertIn("rho_cp:", updated_content)
         self.assertIn("#RENAMED IN STANDARD", updated_content)
+
+    def test_nested_renamed_parameter_handling(self):
+        """Nested legacy keys should be rewritten before missing/extra checks."""
+        legacy_data = deepcopy(self.standard_data)
+
+        evetr_lai = legacy_data["sites"][0]["properties"]["land_cover"]["evetr"]["lai"]
+        evetr_lai["laimin"] = evetr_lai.pop("lai_min")
+
+        paved = legacy_data["sites"][0]["properties"]["land_cover"]["paved"]
+        paved["soildepth"] = paved.pop("soil_depth")
+
+        snow = legacy_data["sites"][0]["properties"]["snow"]
+        snow["crwmax"] = snow.pop("water_holding_capacity_max")
+
+        updated_content, replacements = handle_renamed_parameters(
+            yaml.safe_dump(legacy_data, sort_keys=False)
+        )
+        replacement_dict = dict(replacements)
+
+        self.assertEqual(replacement_dict["laimin"], "lai_min")
+        self.assertEqual(replacement_dict["soildepth"], "soil_depth")
+        self.assertEqual(replacement_dict["crwmax"], "water_holding_capacity_max")
+
+        updated_data = yaml.safe_load(updated_content)
+        missing_paths = {
+            path for path, _, _ in find_missing_parameters(updated_data, self.standard_data)
+        }
+        extra_paths = set(find_extra_parameters(updated_data, self.standard_data))
+
+        self.assertNotIn(
+            "sites[0].properties.land_cover.evetr.lai.lai_min",
+            missing_paths,
+        )
+        self.assertNotIn(
+            "sites[0].properties.land_cover.evetr.lai.laimin",
+            extra_paths,
+        )
+        self.assertNotIn(
+            "sites[0].properties.land_cover.paved.soil_depth",
+            missing_paths,
+        )
+        self.assertNotIn(
+            "sites[0].properties.land_cover.paved.soildepth",
+            extra_paths,
+        )
+        self.assertNotIn(
+            "sites[0].properties.snow.water_holding_capacity_max",
+            missing_paths,
+        )
+        self.assertNotIn(
+            "sites[0].properties.snow.crwmax",
+            extra_paths,
+        )
 
     def test_extra_parameter_detection(self):
         """Test detection of NOT IN STANDARD parameters."""
@@ -1102,6 +1156,32 @@ def test_model_physics_missing_key_raises():
     yaml_input = {"model": {"physics": {"rslmethod": {"value": 2}}}}
     with pytest.raises(ValueError, match=r"Missing required params"):
         precheck_model_physics_params(yaml_input)
+
+
+def test_model_physics_legacy_keys_pass():
+    yaml_input = {
+        "model": {
+            "physics": {
+                "netradiationmethod": {"value": 1},
+                "emissionsmethod": {"value": 1},
+                "storageheatmethod": {"value": 1},
+                "ohmincqf": {"value": 1},
+                "roughlenmommethod": {"value": 1},
+                "roughlenheatmethod": {"value": 1},
+                "stabilitymethod": {"value": 3},
+                "smdmethod": {"value": 1},
+                "waterusemethod": {"value": 1},
+                "rslmethod": {"value": 2},
+                "faimethod": {"value": 1},
+                "rsllevel": {"value": 1},
+                "snowuse": {"value": 0},
+                "stebbsmethod": {"value": 0},
+            }
+        }
+    }
+
+    result = precheck_model_physics_params(yaml_input)
+    assert isinstance(result, dict)
 
 
 def test_model_physics_empty_value_raises():

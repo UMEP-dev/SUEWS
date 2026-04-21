@@ -17,7 +17,7 @@ from typing import Callable
 
 import yaml
 
-from ...data_model.core.field_renames import ALL_FIELD_RENAMES
+from ...data_model.core.field_renames import ALL_FIELD_RENAMES, rename_keys_recursive
 from ...data_model.schema import CURRENT_SCHEMA_VERSION
 from ...data_model.schema.migration import SchemaMigrator
 
@@ -376,24 +376,6 @@ def _migrate_2026_1_to_current(cfg: dict) -> dict:
     return cfg
 
 
-def _apply_field_renames_recursive(data, renames: dict) -> object:
-    """Recursively rename dict keys using `renames` ({old: new}).
-
-    Walks the YAML tree and replaces any key matching `renames` with its
-    mapped value. Used by the 2026.4 -> 2026.5 handler to apply the
-    Category 1 fused-identifier rename sweep (#1256) across every
-    nested section without having to enumerate the YAML nesting.
-    """
-    if isinstance(data, dict):
-        return {
-            renames.get(k, k): _apply_field_renames_recursive(v, renames)
-            for k, v in data.items()
-        }
-    if isinstance(data, list):
-        return [_apply_field_renames_recursive(item, renames) for item in data]
-    return data
-
-
 def _migrate_2026_4_to_current(cfg: dict) -> dict:
     """Upgrade 2026.4-shaped YAMLs to the current `2026.5` schema.
 
@@ -408,7 +390,10 @@ def _migrate_2026_4_to_current(cfg: dict) -> dict:
     spelling and no longer emit deprecation warnings.
     """
     cfg = _strip_internal_only_fields(cfg)
-    return _apply_field_renames_recursive(cfg, ALL_FIELD_RENAMES)
+    try:
+        return rename_keys_recursive(cfg, ALL_FIELD_RENAMES)
+    except ValueError as exc:
+        raise YamlUpgradeError(str(exc)) from exc
 
 
 def _migrate_2026_1_to_2026_4(cfg: dict) -> dict:

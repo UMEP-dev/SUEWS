@@ -6,6 +6,7 @@ import pandas as pd
 from pathlib import Path
 
 from .report_writer import REPORT_WRITER
+from ...core.field_renames import ALL_FIELD_RENAMES
 
 RENAMED_PARAMS = {
     "cp": "rho_cp",
@@ -15,22 +16,7 @@ RENAMED_PARAMS = {
     "cpanohm": "rho_cp_anohm",
     "kkanohm": "k_anohm",
     # Phase 2 renames: fused -> snake_case (#1256)
-    "netradiationmethod": "net_radiation_method",
-    "emissionsmethod": "emissions_method",
-    "storageheatmethod": "storage_heat_method",
-    "ohmincqf": "ohm_inc_qf",
-    "roughlenmommethod": "roughness_length_momentum_method",
-    "roughlenheatmethod": "roughness_length_heat_method",
-    "stabilitymethod": "stability_method",
-    "smdmethod": "smd_method",
-    "waterusemethod": "water_use_method",
-    "rslmethod": "rsl_method",
-    "faimethod": "fai_method",
-    "rsllevel": "rsl_level",
-    "gsmodel": "gs_model",
-    "snowuse": "snow_use",
-    "stebbsmethod": "stebbs_method",
-    "rcmethod": "rc_method",
+    **ALL_FIELD_RENAMES,
 }
 PHYSICS_OPTIONS = {
     "net_radiation_method",

@@ -1,12 +1,14 @@
 """Central registry of deprecated field name mappings.
 
 Each dict maps old (fused) field names to new (snake_case) names.
-Used by ``@model_validator(mode='before')`` on affected Pydantic models
-and by the Phase A validation pipeline.
+Used by ``@model_validator(mode='before')`` on affected Pydantic models,
+the Phase A validation pipeline, and raw-dict compatibility helpers.
 """
 
+from __future__ import annotations
+
 import warnings
-from typing import Dict
+from typing import Any, Dict
 
 
 # -- ModelPhysics (model.py) -------------------------------------------------
@@ -117,6 +119,10 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
 
 # Reverse mapping: new_name -> old_name (for serialisation to Fortran bridge)
 _REVERSE_RENAMES: Dict[str, str] = {v: k for k, v in ALL_FIELD_RENAMES.items()}
+_REVERSE_MODELPHYSICS_RENAMES: Dict[str, str] = {
+    v: k for k, v in MODELPHYSICS_RENAMES.items()
+}
+_MISSING = object()
 
 
 def apply_field_renames(
@@ -162,7 +168,7 @@ def apply_field_renames(
     return values
 
 
-def read_physics_key(physics: dict, new_name: str):
+def read_physics_key(physics: dict, new_name: str, default: Any = None):
     """Read a physics key from raw YAML, accepting either the new name or its legacy alias.
 
     Public-mode gates and other preflight checks inspect the raw user YAML
@@ -170,17 +176,149 @@ def read_physics_key(physics: dict, new_name: str):
     accepts both spellings, so these gates must as well, or users on either
     spelling can silently bypass them.
 
-    Unwraps RefValue-style ``{"value": X}`` wrappers.
+    Unwraps RefValue-style ``{"value": X}`` wrappers. Returns ``default``
+    when neither spelling is present.
     """
-    entry = physics.get(new_name) if isinstance(physics, dict) else None
-    if entry is None and isinstance(physics, dict):
-        for legacy, renamed in MODELPHYSICS_RENAMES.items():
-            if renamed == new_name and legacy in physics:
-                entry = physics[legacy]
-                break
+    entry = read_renamed_key(
+        physics,
+        new_name,
+        renames=MODELPHYSICS_RENAMES,
+        reverse_renames=_REVERSE_MODELPHYSICS_RENAMES,
+        default=default,
+    )
     if isinstance(entry, dict) and "value" in entry:
         return entry["value"]
     return entry
+
+
+def read_renamed_key(
+    data: dict,
+    name: str,
+    *,
+    renames: Dict[str, str] = ALL_FIELD_RENAMES,
+    reverse_renames: Dict[str, str] | None = None,
+    default: Any = None,
+):
+    """Read a renamed key from a raw dict, accepting both spellings.
+
+    Parameters
+    ----------
+    data : dict
+        Raw mapping to inspect.
+    name : str
+        Preferred key name. Can be either the new name or the legacy name.
+    renames : dict, optional
+        ``{old_name: new_name}`` rename mapping.
+    reverse_renames : dict, optional
+        Precomputed ``{new_name: old_name}`` mapping. If omitted, it is built
+        from ``renames``.
+    default : Any, optional
+        Value returned when neither spelling is present.
+    """
+    if not isinstance(data, dict):
+        return default
+
+    reverse = reverse_renames or (
+        _REVERSE_RENAMES if renames is ALL_FIELD_RENAMES else {v: k for k, v in renames.items()}
+    )
+
+    entry = data.get(name, _MISSING)
+    if entry is not _MISSING:
+        return entry
+
+    legacy_name = reverse.get(name)
+    if legacy_name is not None and legacy_name in data:
+        return data[legacy_name]
+
+    renamed_name = renames.get(name)
+    if renamed_name is not None and renamed_name in data:
+        return data[renamed_name]
+
+    return default
+
+
+def has_renamed_key(
+    data: dict,
+    name: str,
+    *,
+    renames: Dict[str, str] = ALL_FIELD_RENAMES,
+    reverse_renames: Dict[str, str] | None = None,
+) -> bool:
+    """Return True if either the preferred or legacy spelling is present."""
+    return read_renamed_key(
+        data,
+        name,
+        renames=renames,
+        reverse_renames=reverse_renames,
+        default=_MISSING,
+    ) is not _MISSING
+
+
+def rename_keys_recursive(
+    data: Any,
+    renames: Dict[str, str] = ALL_FIELD_RENAMES,
+    *,
+    reverse_renames: Dict[str, str] | None = None,
+    path: str = "",
+) -> Any:
+    """Recursively rewrite legacy keys to their preferred names.
+
+    Raises
+    ------
+    ValueError
+        If a dict contains both the legacy and preferred spellings for the
+        same logical field.
+    """
+    reverse = reverse_renames or (
+        _REVERSE_RENAMES if renames is ALL_FIELD_RENAMES else {v: k for k, v in renames.items()}
+    )
+
+    if isinstance(data, dict):
+        result = {}
+        source_keys: Dict[str, str] = {}
+        for key, value in data.items():
+            out_key = renames.get(key, key)
+            if out_key in source_keys and source_keys[out_key] != key:
+                prev_key = source_keys[out_key]
+                location = path or "<root>"
+                legacy_key = None
+                if renames.get(prev_key) == out_key and key == out_key:
+                    legacy_key = prev_key
+                elif renames.get(key) == out_key and prev_key == out_key:
+                    legacy_key = key
+
+                if legacy_key is not None:
+                    raise ValueError(
+                        f"Both '{legacy_key}' (deprecated) and '{out_key}' are present at {location}. "
+                        f"Use only '{out_key}'."
+                    )
+
+                raise ValueError(
+                    f"Conflicting keys '{prev_key}' and '{key}' both resolve to '{out_key}' at {location}."
+                )
+
+            child_path = f"{path}.{out_key}" if path else out_key
+            result[out_key] = rename_keys_recursive(
+                value,
+                renames,
+                reverse_renames=reverse,
+                path=child_path,
+            )
+            source_keys[out_key] = key
+        return result
+
+    if isinstance(data, list):
+        return [
+            rename_keys_recursive(
+                item,
+                renames,
+                reverse_renames=reverse,
+                path=f"{path}[{idx}]",
+            )
+            for idx, item in enumerate(data)
+        ]
+
+    return data
 
 
 def reverse_field_renames(data: dict) -> dict:

@@ -29,6 +29,13 @@ import os
 from copy import deepcopy
 from datetime import datetime
 import pytz
+from ...core.field_renames import (
+    ALL_FIELD_RENAMES,
+    has_renamed_key,
+    read_physics_key,
+    read_renamed_key,
+    rename_keys_recursive,
+)
 
 # Use tzfpy instead of timezonefinder for Windows compatibility
 # tzfpy has pre-built Windows wheels and provides similar functionality
@@ -103,7 +110,7 @@ def get_value_safe(param_dict, param_key, default=None):
     Returns:
         The parameter value, handling both RefValue {"value": X} and plain X formats
     """
-    param = param_dict.get(param_key, default)
+    param = read_renamed_key(param_dict, param_key, default=default)
     if isinstance(param, Mapping) and "value" in param:
         return param["value"]  # RefValue format: {"value": 1}
     else:
@@ -878,11 +885,11 @@ def precheck_model_physics_params(data: dict) -> dict:
         "stebbs_method",
     ]
 
-    missing = [k for k in required if k not in physics]
+    missing = [k for k in required if not has_renamed_key(physics, k)]
     if missing:
         raise ValueError(f"[model.physics] Missing required params: {missing}")
 
-    empty = [k for k in required if get_value_safe(physics, k) in ("", None)]
+    empty = [k for k in required if read_physics_key(physics, k) in ("", None)]
     if empty:
         raise ValueError(f"[model.physics] Empty or null values for: {empty}")
 
@@ -910,8 +917,8 @@ def precheck_model_options_constraints(data: dict) -> dict:
 
     physics = data.get("model", {}).get("physics", {})
 
-    diag = get_value_safe(physics, "rsl_method")
-    stability = get_value_safe(physics, "stability_method")
+    diag = read_physics_key(physics, "rsl_method")
+    stability = read_physics_key(physics, "stability_method")
 
     if diag == 2 and stability != 3:
         raise ValueError(
@@ -1029,11 +1036,7 @@ def precheck_site_season_adjustments(
         if sfr > 0:
             lai = dectr.get("lai", {})
             laimin = get_value_safe(lai, "lai_min")
-            if laimin is None:
-                laimin = get_value_safe(lai, "laimin")
             laimax = get_value_safe(lai, "lai_max")
-            if laimax is None:
-                laimax = get_value_safe(lai, "laimax")
             lai_val = None
 
             if laimin is not None and laimax is not None:
@@ -1634,6 +1637,7 @@ def run_precheck(path: str) -> dict:
         data = yaml.load(file, Loader=yaml.FullLoader)
 
     original_data = deepcopy(data)
+    data = rename_keys_recursive(data, ALL_FIELD_RENAMES)
 
     # ---- Step 1: Print start message ----
     data = precheck_printing(data)

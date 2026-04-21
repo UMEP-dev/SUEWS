@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for lai parameters" name="description" />
 <meta content="SUEWS, YAML, laiparams, parameters, configuration" name="keywords" />
 
-    <title>4.3.26. LAI &#8212; SUEWS 2026.4.18.dev213 documentation</title>
+    <title>4.3.26. LAI &#8212; SUEWS 2026.4.18.dev216 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=7f12391e"></script>
+    <script src="../../../_static/documentation_options.js?v=468fb9b4"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="4.3.25. Irrigation" href="irrigationparams.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.18.dev213" />
+  <meta name="docsearch:version" content="2026.4.18.dev216" />
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.18.dev213, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4d0f1b4b2b06eceab8cc69e6a4a697850d7ab35b" style="color: #31708f;">4d0f1b4</a>).
+        (2026.4.18.dev216, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a1de87d3443763d3e1c7d65669f3465925643f75" style="color: #31708f;">a1de87d</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.18.dev213 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.18.dev213 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.18.dev216 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.18.dev216 documentation - Home"/>
   
   
 </a></div>
@@ -542,8 +542,8 @@
 <span id="index-0"></span><span id="laiparams"></span><h1><span class="section-number">4.3.26. </span>LAI<a class="headerlink" href="#lai" title="Link to this heading">#</a></h1>
 <p><strong>Parameters:</strong></p>
 <dl class="input option" id="index-1">
-<dt class="sig sig-object input" id="input-option-baset">
-<span class="sig-name descname"><span class="pre">baset</span></span><a class="headerlink" href="#input-option-baset" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-base_temperature">
+<span class="sig-name descname"><span class="pre">base_temperature</span></span><a class="headerlink" href="#input-option-base_temperature" title="Link to this definition">#</a></dt>
 <dd><p>Base temperature for initiating growing degree days (GDD) for leaf growth</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -556,8 +556,8 @@
 </dd></dl>
 
 <dl class="input option" id="index-2">
-<dt class="sig sig-object input" id="input-option-gddfull">
-<span class="sig-name descname"><span class="pre">gddfull</span></span><a class="headerlink" href="#input-option-gddfull" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-gdd_full">
+<span class="sig-name descname"><span class="pre">gdd_full</span></span><a class="headerlink" href="#input-option-gdd_full" title="Link to this definition">#</a></dt>
 <dd><p>Growing degree days (GDD) needed for full capacity of LAI</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -570,8 +570,8 @@
 </dd></dl>
 
 <dl class="input option" id="index-3">
-<dt class="sig sig-object input" id="input-option-basete">
-<span class="sig-name descname"><span class="pre">basete</span></span><a class="headerlink" href="#input-option-basete" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-base_temperature_senescence">
+<span class="sig-name descname"><span class="pre">base_temperature_senescence</span></span><a class="headerlink" href="#input-option-base_temperature_senescence" title="Link to this definition">#</a></dt>
 <dd><p>Base temperature for initiating senescence degree days (SDD) for leaf off</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -584,8 +584,8 @@
 </dd></dl>
 
 <dl class="input option" id="index-4">
-<dt class="sig sig-object input" id="input-option-sddfull">
-<span class="sig-name descname"><span class="pre">sddfull</span></span><a class="headerlink" href="#input-option-sddfull" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-sdd_full">
+<span class="sig-name descname"><span class="pre">sdd_full</span></span><a class="headerlink" href="#input-option-sdd_full" title="Link to this definition">#</a></dt>
 <dd><p>Senescence degree days (SDD) needed to initiate leaf off</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -598,8 +598,8 @@
 </dd></dl>
 
 <dl class="input option" id="index-5">
-<dt class="sig sig-object input" id="input-option-laimin">
-<span class="sig-name descname"><span class="pre">laimin</span></span><a class="headerlink" href="#input-option-laimin" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-lai_min">
+<span class="sig-name descname"><span class="pre">lai_min</span></span><a class="headerlink" href="#input-option-lai_min" title="Link to this definition">#</a></dt>
 <dd><p>Leaf-off wintertime LAI value</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -612,8 +612,8 @@
 </dd></dl>
 
 <dl class="input option" id="index-6">
-<dt class="sig sig-object input" id="input-option-laimax">
-<span class="sig-name descname"><span class="pre">laimax</span></span><a class="headerlink" href="#input-option-laimax" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-lai_max">
+<span class="sig-name descname"><span class="pre">lai_max</span></span><a class="headerlink" href="#input-option-lai_max" title="Link to this definition">#</a></dt>
 <dd><p>Full leaf-on summertime LAI value</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -626,15 +626,15 @@
 </dd></dl>
 
 <dl class="input option" id="index-7">
-<dt class="sig sig-object input" id="input-option-laipower">
-<span class="sig-name descname"><span class="pre">laipower</span></span><a class="headerlink" href="#input-option-laipower" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-lai_power">
+<span class="sig-name descname"><span class="pre">lai_power</span></span><a class="headerlink" href="#input-option-lai_power" title="Link to this definition">#</a></dt>
 <dd><p>LAI calculation power parameters for growth and senescence</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">laipower</span></code> parameter group is defined by the <a class="reference internal" href="laipowercoefficients.html"><span class="doc">LAI Power Coefficients</span></a> structure.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">lai_power</span></code> parameter group is defined by the <a class="reference internal" href="laipowercoefficients.html"><span class="doc">LAI Power Coefficients</span></a> structure.</p>
 </dd></dl>
 
 <dl class="input option" id="index-8">
-<dt class="sig sig-object input" id="input-option-laitype">
-<span class="sig-name descname"><span class="pre">laitype</span></span><a class="headerlink" href="#input-option-laitype" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-lai_type">
+<span class="sig-name descname"><span class="pre">lai_type</span></span><a class="headerlink" href="#input-option-lai_type" title="Link to this definition">#</a></dt>
 <dd><p>LAI calculation choice (0: original, 1: new high latitude)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -723,8 +723,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.18.dev213 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4d0f1b4b2b06eceab8cc69e6a4a697850d7ab35b">4d0f1b4</a> |
+  <p>Version: 2026.4.18.dev216 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a1de87d3443763d3e1c7d65669f3465925643f75">a1de87d</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

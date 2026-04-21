@@ -41,12 +41,15 @@ from ...data_model.schema.migration import SchemaMigrator
 # * `2026.1` covers the 2026.1.28 shape (post-#879 STEBBS clean-up; still
 #   pre-#1261 setpoint split, still carries DeepSoilTemperature and the
 #   DHW volume bounds).
-# * `2026.4` is the current schema (post-#1240 / #1242 / #1261).
+# * `2026.4` covers the 2026.4.3 release shape (post-#1240 / #1242 / #1261).
+# * `2026.5` is the current schema (additive-only: GH-1292 LAIParams moisture
+#   fields; unreleased, so no package tag maps to it yet — a future release
+#   tag will claim it when the bump ships).
 _PACKAGE_TO_SCHEMA: dict[str, str] = {
     "2025.10.15": "2025.12",
     "2025.11.20": "2025.12",
     "2026.1.28": "2026.1",
-    "2026.4.3": CURRENT_SCHEMA_VERSION,
+    "2026.4.3": "2026.4",
 }
 
 
@@ -331,10 +334,26 @@ def _migrate_2025_12_to_2026_1(cfg: dict) -> dict:
     return cfg
 
 
-def _migrate_2026_1_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.1-shaped YAMLs to the current `2026.4` schema.
+def _migrate_2026_4_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.4-shaped YAMLs to the current `2026.5` schema.
 
-    Covers the structural deltas that landed between 2026.1.28 and 2026.4.3:
+    The 2026.4 -> 2026.5 delta is additive only: GH-1292 introduced six
+    optional `LAIParams` fields (`w_wilt`, `w_opt`, `f_shape`, `w_on`,
+    `w_off`, `tau_w`), all defaulting to `None`. A valid 2026.4 YAML is
+    already a valid 2026.5 YAML, so this handler is effectively an identity
+    after the standard internal-field strip. Kept as a named entry (rather
+    than pointing `_HANDLERS` at `_identity`) so future 2026.5 deltas slot
+    in without re-wiring the registry.
+    """
+    return _strip_internal_only_fields(cfg)
+
+
+def _migrate_2026_1_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.1-shaped YAMLs to the current `2026.5` schema.
+
+    Covers the structural deltas that landed between 2026.1.28 and 2026.4.3
+    (the 2026.4 shape); the 2026.4 -> 2026.5 hop is additive (see
+    `_migrate_2026_4_to_current`) and needs no extra reshaping here.
 
     * #1240 renamed `stebbs.DeepSoilTemperature` to
       `stebbs.AnnualMeanAirTemperature`,
@@ -381,6 +400,7 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # Identity at the current schema is explicit so the dispatch completes
     # even when no real upgrade is needed.
     (CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION): _identity,
+    ("2026.4", CURRENT_SCHEMA_VERSION): _migrate_2026_4_to_current,
     ("2026.1", CURRENT_SCHEMA_VERSION): _migrate_2026_1_to_current,
     ("2025.12", CURRENT_SCHEMA_VERSION): _migrate_2025_12_to_current,
 }

@@ -16,7 +16,7 @@ from typing import Optional
 import warnings
 
 # Current supported schema version (aligned with SUEWS CalVer: YYYY.MM)
-CURRENT_SCHEMA_VERSION = "2026.4"
+CURRENT_SCHEMA_VERSION = "2026.5"
 
 # Schema version history and descriptions.
 #
@@ -44,12 +44,18 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "present."
     ),
     "2026.4": (
-        "2026.4.3 release shape (current): DeepSoilTemperature renamed to "
+        "2026.4.3 release shape: DeepSoilTemperature renamed to "
         "AnnualMeanAirTemperature (#1240), MinimumVolumeOfDHWinUse / "
         "MaximumVolumeOfDHWinUse removed (#1242), STEBBS "
         "HeatingSetpointTemperature / CoolingSetpointTemperature split into "
         "scalar + *Profile siblings gated on model.physics.setpointmethod "
         "(#1261), daylight-control and lighting/metabolism fields added."
+    ),
+    "2026.5": (
+        "Current (unreleased): additive-only. GH-1292 moisture-aware LAI "
+        "phenology (laitype=2) introduces six optional fields on LAIParams "
+        "(w_wilt, w_opt, f_shape, w_on, w_off, tau_w), all Optional with "
+        "None defaults. Existing 2026.4 YAMLs round-trip unchanged."
     ),
 }
 

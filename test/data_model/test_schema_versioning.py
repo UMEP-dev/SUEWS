@@ -210,8 +210,15 @@ class TestSchemaMigration:
         """
         migrator = SchemaMigrator()
 
-        assert migrator._find_migration_path("2025.12", "2026.4") == ["2026.4"]
-        assert migrator._find_migration_path("2026.1", "2026.4") == ["2026.4"]
+        assert migrator._find_migration_path("2025.12", CURRENT_SCHEMA_VERSION) == [
+            CURRENT_SCHEMA_VERSION
+        ]
+        assert migrator._find_migration_path("2026.1", CURRENT_SCHEMA_VERSION) == [
+            CURRENT_SCHEMA_VERSION
+        ]
+        assert migrator._find_migration_path("2026.4", CURRENT_SCHEMA_VERSION) == [
+            CURRENT_SCHEMA_VERSION
+        ]
 
     def test_intermediate_calver_target_rejected_when_unregistered(self):
         """A CalVer target without a registered handler chain must not
@@ -226,7 +233,7 @@ class TestSchemaMigration:
 
         # Path discovery rejects the synthetic hop.
         assert migrator._find_migration_path("2025.12", "2026.1") is None
-        assert migrator._find_migration_path("2026.4", "2027.0") is None
+        assert migrator._find_migration_path(CURRENT_SCHEMA_VERSION, "2027.0") is None
 
         # `migrate()` raises rather than returning a half-migrated dict.
         payload = {
@@ -243,7 +250,7 @@ class TestSchemaMigration:
             migrator.migrate(payload, from_version="2025.12", to_version="2026.1")
 
     def test_calver_migration_applies_structural_renames(self):
-        """Migrating 2025.12 -> 2026.4 applies the registered renames rather
+        """Migrating 2025.12 -> current applies the registered renames rather
         than falling through to the generic label-only migration (gh#1304).
         """
         migrator = SchemaMigrator()
@@ -265,7 +272,7 @@ class TestSchemaMigration:
         }
 
         migrated = migrator.migrate(
-            payload, from_version="2025.12", to_version="2026.4"
+            payload, from_version="2025.12", to_version=CURRENT_SCHEMA_VERSION
         )
 
         arch = migrated["sites"][0]["properties"]["building_archetype"]
@@ -275,7 +282,7 @@ class TestSchemaMigration:
         assert arch["WallOuterCapFrac"] == {"value": 0.25}
         assert arch["RoofOuterCapFrac"] == {"value": 0.25}
         assert "DHWVesselEmissivity" not in stebbs
-        assert migrated["schema_version"] == "2026.4"
+        assert migrated["schema_version"] == CURRENT_SCHEMA_VERSION
 
 
 class TestSchemaVersionUtility:

@@ -96,12 +96,12 @@ class TestSchemaVersioning:
         # No message for None (assumes current)
         assert get_schema_compatibility_message(None) is None
 
-        # Compatible legacy version (0.1 is in COMPATIBLE_VERSIONS[2025.12])
-        msg = get_schema_compatibility_message("0.1")
+        # Compatible legacy CalVer (registered migration handler 2025.12 -> 2026.4)
+        msg = get_schema_compatibility_message("2025.12")
         assert msg is not None
         assert "compatible" in msg
 
-        # Older incompatible version (0.9 < 2025.12 by float comparison)
+        # Older incompatible version (no migration handler; float-compare fallback)
         msg = get_schema_compatibility_message("0.9")
         assert msg is not None
         assert "older schema" in msg

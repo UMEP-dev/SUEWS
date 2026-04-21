@@ -20,7 +20,13 @@ Publications and projects using SUEWS from the community.
    - Technical reports
    - Educational materials
 
-The following publications have been submitted by the SUEWS community:
+The following publications have been submitted by the SUEWS community. Use the
+chips below to filter by research area; multi-select is supported.
+
+.. raw:: html
+
+   <div id="pub-filter-mount" class="pub-filter" role="group" aria-label="Filter publications by topic"></div>
+
 
 .. bibliography:: assets/refs/refs-community.bib
    :style: refs_recent

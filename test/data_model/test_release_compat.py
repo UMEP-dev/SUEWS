@@ -14,6 +14,11 @@ from pathlib import Path
 import pytest
 
 from supy.data_model.core.config import SUEWSConfig
+from supy.data_model.schema import CURRENT_SCHEMA_VERSION
+from supy.util.converter.yaml_upgrade import (
+    _PACKAGE_TO_SCHEMA,  # noqa: PLC2701 - test introspects the registry
+    upgrade_yaml,
+)
 
 pytestmark = pytest.mark.api
 
@@ -36,7 +41,15 @@ def _collect_yaml(directory: Path) -> list[Path]:
     return sorted(p for p in directory.iterdir() if p.suffix in {".yml", ".yaml"})
 
 
+def _needs_upgrade(path: Path) -> bool:
+    """True if the fixture's release tag maps to a pre-current schema."""
+    mapped = _PACKAGE_TO_SCHEMA.get(path.stem)
+    return mapped is not None and mapped != CURRENT_SCHEMA_VERSION
+
+
 _RELEASE_YAMLS = _collect_yaml(RELEASE_FIXTURES)
+_CURRENT_RELEASE_YAMLS = [p for p in _RELEASE_YAMLS if not _needs_upgrade(p)]
+_PRE_DRIFT_RELEASE_YAMLS = [p for p in _RELEASE_YAMLS if _needs_upgrade(p)]
 _DOCS_YAMLS = _collect_yaml(DOCS_EXAMPLES)
 
 
@@ -46,14 +59,17 @@ class TestReleaseCompat:
 
     @pytest.mark.parametrize(
         "yaml_path",
-        _RELEASE_YAMLS,
-        ids=[p.stem for p in _RELEASE_YAMLS] or ["no-release-fixtures"],
+        _CURRENT_RELEASE_YAMLS,
+        ids=[p.stem for p in _CURRENT_RELEASE_YAMLS] or ["no-current-fixtures"],
     )
     def test_last_release_sample_parses(self, yaml_path: Path):
-        """Each vendored release YAML must parse under the current validator."""
+        """Each current-schema release YAML must parse under the current validator."""
         # ARRANGE
-        if not _RELEASE_YAMLS:
-            pytest.skip("No release fixtures vendored under test/fixtures/release_configs")
+        if not _CURRENT_RELEASE_YAMLS:
+            pytest.skip(
+                "No current-schema release fixtures vendored under "
+                "test/fixtures/release_configs"
+            )
 
         # ACT / ASSERT
         try:
@@ -62,6 +78,41 @@ class TestReleaseCompat:
             pytest.fail(
                 f"Release fixture {yaml_path.name} no longer parses under current "
                 f"schema: {type(exc).__name__}: {exc}\n\n{_REMEDIATION_HINT}"
+            )
+
+    @pytest.mark.parametrize(
+        "yaml_path",
+        _PRE_DRIFT_RELEASE_YAMLS,
+        ids=[p.stem for p in _PRE_DRIFT_RELEASE_YAMLS] or ["no-pre-drift-fixtures"],
+    )
+    def test_pre_drift_release_upgrades_and_parses(
+        self, yaml_path: Path, tmp_path: Path
+    ):
+        """Each pre-drift fixture must upgrade cleanly and then parse.
+
+        Fixtures whose release tag maps to a pre-current schema in
+        `_PACKAGE_TO_SCHEMA` are expected to fail direct parsing - that is
+        the whole point of the upgrade handler. This guard asserts the
+        handler still produces a config that the current validator accepts.
+        """
+        # ARRANGE
+        if not _PRE_DRIFT_RELEASE_YAMLS:
+            pytest.skip("No pre-drift release fixtures registered yet")
+        upgraded = tmp_path / f"{yaml_path.stem}-upgraded.yml"
+
+        # ACT
+        try:
+            upgrade_yaml(
+                input_path=yaml_path,
+                output_path=upgraded,
+                from_ver=yaml_path.stem,
+            )
+            SUEWSConfig.from_yaml(str(upgraded))
+        except Exception as exc:
+            pytest.fail(
+                f"Pre-drift fixture {yaml_path.name} no longer upgrades cleanly "
+                f"to the current schema: {type(exc).__name__}: {exc}\n\n"
+                f"{_REMEDIATION_HINT}"
             )
 
     @pytest.mark.parametrize(

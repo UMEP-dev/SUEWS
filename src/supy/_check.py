@@ -147,8 +147,8 @@ list_col_forcing = list(dict_var_type_forcing.keys())
 
 # Requirements mapping: links physics options to required forcing columns
 # Format: (physics_option_name, option_value): [list of required columns]
-# Reference: https://docs.suews.io/en/latest/input_files/RunControl/RunControl.html#scheme-options
-# and https://docs.suews.io/en/latest/input_files/met_forcing.html
+# Reference: https://docs.suews.io/stable/inputs/tables/RunControl/RunControl.html
+# and https://docs.suews.io/stable/inputs/forcing-data.html
 FORCING_REQUIREMENTS = {
     ("netradiationmethod", 0): ["qn"],  # Uses observed Q*
     ("netradiationmethod", 1): ["ldown"],  # Q* modelled with L↓ observations
@@ -252,7 +252,7 @@ def _check_observed_lai_nonneg(
         f"{'; '.join(parts)}. First offenders: {sample_note}. "
         f"Use 'laimethod=1' or gap-fill the 'lai' column with non-negative "
         f"observations. See documentation: "
-        f"https://docs.suews.io/en/latest/input_files/RunControl/RunControl.html#scheme-options"
+        f"https://docs.suews.io/stable/inputs/tables/RunControl/scheme_options.html"
     )
     list_issues.append(str_issue)
     return True
@@ -478,7 +478,7 @@ def check_forcing(
                                     f"values (-999). Please provide valid forcing data or change "
                                     f"the physics option.{extra_help} "
                                     f"See documentation: "
-                                    f"https://docs.suews.io/en/latest/input_files/RunControl/RunControl.html#scheme-options"
+                                    f"https://docs.suews.io/stable/inputs/tables/RunControl/scheme_options.html"
                                 )
                                 list_issues.append(str_issue)
                                 flag_valid = False

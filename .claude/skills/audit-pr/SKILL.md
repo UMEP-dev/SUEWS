@@ -22,10 +22,11 @@ gh pr diff {pr} --name-only
 - **Step 4 - Testing**: Coverage, FIRST principles
 - **Step 5 - Docs**: CHANGELOG, PR description
 - **Step 6 - Governance**: Check feature status tags (see below)
-- **Step 7 - Build**: CI status, meson.build
-- **Step 8 - Draft**: Comments for approval
-- **Step 9 - Approval**: Wait for human confirmation
-- **Step 10 - Post**: Only after approval
+- **Step 7 - Schema version audit**: If the PR touches `src/supy/data_model/`, apply the triggers in `.claude/rules/python/schema-versioning.md`. Field rename, removal, type change, or required-field addition should be accompanied by a bump to `CURRENT_SCHEMA_VERSION`, a new `SCHEMA_VERSIONS` entry, a matching handler in `src/supy/util/converter/yaml_upgrade.py`, and a `sample_config.yml` resync. Flag any of these that are missing. CI gate `.github/workflows/schema-version-audit.yml` runs the automated check; if the PR carries the `schema-audit-ok` bypass label, verify from the diff yourself that the reason is genuinely cosmetic before approving.
+- **Step 8 - Build**: CI status, meson.build
+- **Step 9 - Draft**: Comments for approval
+- **Step 10 - Approval**: Wait for human confirmation
+- **Step 11 - Post**: Only after approval
 
 ## Scientific PR Description Rigour (Step 3)
 

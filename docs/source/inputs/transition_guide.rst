@@ -180,28 +180,12 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
-Upgrading to Schema 2026.5 (rename sweep: Categories 1 and 5 of #1256)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Upgrading to Schema 2026.6 (Category 5 of #1256: STEBBS `ext` split)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5`` is the current shape. It bundles two rename deltas
-from #1256 that ship together under this label.
-
-*Category 1* — 59 fused compound field names in ``ModelPhysics``,
-``SurfaceProperties``, ``LAIParams``,
-``VegetatedSurfaceProperties``, ``EvetrProperties``,
-``DectrProperties``, and ``SnowParams`` are rewritten to
-``snake_case``. Examples:
-
-- ``netradiationmethod`` -> ``net_radiation_method``
-- ``storageheatmethod`` -> ``storage_heat_method``
-- ``soildepth`` -> ``soil_depth``
-- ``soilstorecap`` -> ``soil_store_capacity``
-- ``baset`` -> ``base_temperature``
-- ``crwmax`` -> ``water_holding_capacity_max``
-- ``laimin`` / ``laimax`` -> ``lai_min`` / ``lai_max``
-
-*Category 5* (gh#1327) — eight STEBBS ``ArchetypeProperties`` fields
-with the fused ``ext`` fragment are rewritten to the spelt-out
+Schema ``2026.6`` is the current shape. It applies Category 5 of
+#1256 (gh#1327): eight STEBBS ``ArchetypeProperties`` fields with
+the fused ``ext`` fragment are rewritten to the spelt-out
 ``External`` form, bringing them into line with sibling
 ``WallExternalEmissivity`` / ``RoofExternalEmissivity``:
 
@@ -222,18 +206,40 @@ Python-to-Fortran bridge reverses the rename before handoff.
 
 The full mapping lives in
 ``src/supy/data_model/core/field_renames.py``. Legacy spellings
-continue to load under a ``DeprecationWarning`` so existing YAMLs are
-not broken, but new configurations should use the new names and
+continue to load under a ``DeprecationWarning`` so existing YAMLs
+are not broken, but new configurations should use the new names and
 persisted YAMLs should be migrated. Run:
 
 .. code-block:: bash
 
-   suews-schema migrate your_config.yml --target-version 2026.5
+   suews-schema migrate your_config.yml --target-version 2026.6
 
 The migrator accepts any registered intermediate (for example
-``2025.12``, ``2026.1`` or ``2026.4``) and walks the chain to the
-current schema in one call. Your values survive the rename untouched
-— only the key names change.
+``2025.12``, ``2026.1``, ``2026.4`` or ``2026.5``) and walks the
+chain to the current schema in one call. Your values survive the
+rename untouched — only the key names change.
+
+Upgrading to Schema 2026.5 (Category 1 of #1256: snake_case sweep)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5`` is an intermediate stop on the way to ``2026.6``.
+It applies Category 1 of #1256: 59 fused compound field names in
+``ModelPhysics``, ``SurfaceProperties``, ``LAIParams``,
+``VegetatedSurfaceProperties``, ``EvetrProperties``,
+``DectrProperties``, and ``SnowParams`` are rewritten to
+``snake_case``. Examples:
+
+- ``netradiationmethod`` -> ``net_radiation_method``
+- ``storageheatmethod`` -> ``storage_heat_method``
+- ``soildepth`` -> ``soil_depth``
+- ``soilstorecap`` -> ``soil_store_capacity``
+- ``baset`` -> ``base_temperature``
+- ``crwmax`` -> ``water_holding_capacity_max``
+- ``laimin`` / ``laimax`` -> ``lai_min`` / ``lai_max``
+
+Callers pinning ``--target-version 2026.5`` stop here; the default
+``--target-version 2026.6`` picks up the STEBBS ``ext`` rename on
+top.
 
 Upgrading to Schema 2026.4 (SUEWS 2026.4.3)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

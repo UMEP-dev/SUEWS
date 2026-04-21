@@ -16,7 +16,7 @@ from typing import Optional
 import warnings
 
 # Current supported schema version (aligned with SUEWS CalVer: YYYY.MM)
-CURRENT_SCHEMA_VERSION = "2026.5"
+CURRENT_SCHEMA_VERSION = "2026.6"
 
 # Schema version history and descriptions.
 #
@@ -52,13 +52,16 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "(#1261), daylight-control and lighting/metabolism fields added."
     ),
     "2026.5": (
-        "Categories 1 and 5 of #1256 (the next release's schema). "
-        "Category 1: 59 fused compound field names in ModelPhysics, "
-        "SurfaceProperties, LAIParams, VegetatedSurfaceProperties, "
-        "EvetrProperties, DectrProperties, and SnowParams renamed to "
-        "snake_case (e.g. netradiationmethod -> net_radiation_method, "
-        "soildepth -> soil_depth, baset -> base_temperature, crwmax -> "
-        "water_holding_capacity_max). Category 5 (gh#1327): eight STEBBS "
+        "Category 1 of #1256: 59 fused compound field names in "
+        "ModelPhysics, SurfaceProperties, LAIParams, "
+        "VegetatedSurfaceProperties, EvetrProperties, DectrProperties, "
+        "and SnowParams renamed to snake_case (e.g. netradiationmethod "
+        "-> net_radiation_method, soildepth -> soil_depth, baset -> "
+        "base_temperature, crwmax -> water_holding_capacity_max). Full "
+        "mapping lives in src/supy/data_model/core/field_renames.py."
+    ),
+    "2026.6": (
+        "Category 5 of #1256 (gh#1327): eight STEBBS "
         "ArchetypeProperties fields with the fused `ext` fragment "
         "renamed to the spelt-out `External` form, bringing them into "
         "line with sibling `WallExternalEmissivity` / "
@@ -68,8 +71,10 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "Roofext{Thickness, EffectiveConductivity, Density, Cp} -> "
         "RoofExternal{Thickness, EffectiveConductivity, Density, Cp}. "
         "STEBBS PascalCase itself is kept; Fortran-side identifiers are "
-        "unchanged (reverse rename maps back for the bridge). Full "
-        "mapping lives in src/supy/data_model/core/field_renames.py."
+        "unchanged (reverse rename maps back for the bridge). Rename "
+        "table lives in src/supy/data_model/core/field_renames.py; the "
+        "(2026.5 -> 2026.6) migration is registered in "
+        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS."
     ),
 }
 

@@ -54,6 +54,21 @@ EXAMPLES:
 
 ## 2026
 
+### 21 Apr 2026
+
+- [bugfix] Honour explicit `format=` kwarg in `SUEWSSimulation.save` against `OutputConfig.format` (#1318)
+  - `_save_supy` was unconditionally overwriting the caller-supplied `output_format` with `output_config.format` whenever a config was attached, so `sim.save(path, format="parquet")` silently wrote text when the config declared `format: txt` (the default in `sample_config.yml`). This was the root cause behind the `test_from_state_parquet` skip re-surfaced by gh#912; the parquet round-trip itself works — only the dispatcher was wrong
+  - Defaults for `output_format` in `_save_supy` and the deprecated `save_supy` shim move from `"txt"` to `None`, and `output_config.format` only fills in when the caller did not pass an explicit format. Legacy callers that rely on the config's format (no explicit kwarg) are unchanged
+  - Re-enabled `test_from_state_parquet` in `test/core/test_suews_simulation.py`; the test now exercises save-parquet → `from_state` → continuation end-to-end
+- [maintenance] Resolve skipped-test debt (#1318, closes #912)
+  - Deleted `TestCodeQualityAndCleanup` from `test/data_model/test_yaml_processing.py` (four `assert True`/`assert > 0` "documentation" tests already covered by ruff F401/F811)
+  - Deleted `test_is_flag_test_working` in `test/core/test_supy.py` (permanently gated behind a stale `YL/fixstebbs-rebase` branch reference)
+  - Replaced per-test `try/except ImportError: pytest.skip(...)` in `test/io_tests/test_gen_epw_resample.py` with a module-level `pytest.importorskip("pvlib", reason=...)`
+  - Replaced per-test `try/except FileNotFoundError` around CRU helpers in `test/data_model/test_validation.py` and `test/data_model/test_yaml_processing.py` with a single `cru_data_available` fixture in `test/conftest.py`
+  - Removed the `has_<module>` optional-import scaffolding in `test_yaml_processing.py` (masked real regressions after the `yaml_processor` → `validation/pipeline` rename) and the seven blanket `try/except Exception: pytest.skip(...)` wrappers in robustness/regression tests
+  - Un-skipped `test_compatibility_messages` and rewrote assertions against the current `_HANDLERS` registry (#1304); rewrote the `test_from_state_parquet` skip reason to describe the real failure mode before fixing it above
+- [maintenance] New test-patterns rule: `.claude/rules/tests/patterns.md` §Skipping Tests requires every `pytest.skip`/`skipif`/`importorskip` to carry a concrete `reason=`, mandates `pytest.importorskip` for optional imports and `conftest.py` fixtures for shared resource probes, and forbids blanket `try/except Exception: pytest.skip(...)` (#1318)
+
 ### 20 Apr 2026
 
 - [doc] Sync user-facing schema documentation with the retrospective 2026.1 / 2026.4 bumps (#1304)

@@ -63,11 +63,7 @@ def cru_data_available():
         get_mean_annual_air_temperature,
     )
 
-    try:
-        result = get_mean_annual_air_temperature(45.0, 10.0)
-    except FileNotFoundError:
-        pytest.skip("CRU climatology data not available")
-    if result is None:
+    if get_mean_annual_air_temperature(45.0, 10.0) is None:
         pytest.skip("CRU climatology data not available")
 
 

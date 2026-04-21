@@ -811,9 +811,6 @@ class TestContinuationRuns:
         sim2.run()
         assert sim2.is_complete() is True
 
-    @pytest.mark.skip(
-        reason="from_state(parquet) round-trip drops metadata; needs a tracking issue and investigation"
-    )
     def test_from_state_parquet(self, tmp_path):
         """Test loading state from Parquet for continuation."""
         pytest.importorskip("pyarrow", reason="Parquet support requires pyarrow")

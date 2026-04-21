@@ -9,9 +9,10 @@ from conftest import TIMESTEPS_PER_DAY
 
 pytestmark = pytest.mark.api
 
-# gen_epw delegates to pvlib for solar geometry. Skip the whole module if the
-# optional dependency is missing, rather than wrapping every test in try/except.
-pytest.importorskip("pvlib")
+pytest.importorskip(
+    "pvlib",
+    reason="gen_epw delegates to pvlib for solar geometry; skip the module when the optional dependency is missing rather than wrapping every test in try/except",
+)
 
 
 class TestGenEpwResample:

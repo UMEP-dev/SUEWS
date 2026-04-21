@@ -37,13 +37,16 @@ class SchemaMigrator:
 
         # Pull in handlers from the YAML-upgrade registry so the migrator
         # knows about every structural (from, to) pair covered by the CLI.
-        # Imported lazily to avoid a circular import at module load time.
+        # Imported lazily to avoid a circular import at module load time;
+        # only ImportError is swallowed (e.g. during a partial import chain
+        # while the data_model package is still being built), so a genuine
+        # registration bug surfaces instead of silently emptying the table.
         try:
             from ...util.converter.yaml_upgrade import register_with_migrator
-
-            register_with_migrator(self)
-        except Exception:  # noqa: BLE001 - optional wiring, keep migrator usable
+        except ImportError:
             pass
+        else:
+            register_with_migrator(self)
 
     def auto_detect_version(self, config_dict: Dict[str, Any]) -> str:
         """
@@ -143,10 +146,19 @@ class SchemaMigrator:
         Returns:
             List of intermediate versions, or None if no path exists
         """
-        # For now, simple direct path
-        # In future, could implement graph traversal for complex paths
+        # Prefer a directly-registered handler. The CalVer schema labels
+        # (`2025.12`, `2026.1`, `2026.4`) are not contiguous integers, so the
+        # generic parse-and-enumerate fallback below invents synthetic hops
+        # like `2026.0` / `2026.2` / `2026.3` that no registered handler
+        # matches — those runs silently fell through to `_generic_migration`
+        # and stamped the new schema label without applying the real renames
+        # or drops. Checking the handler table first keeps registered edges
+        # authoritative and reserves the numeric fallback for legacy
+        # pre-release hops (e.g. `0.0 -> 0.1`) that still use that shape.
+        if (from_version, to_version) in self.migration_handlers:
+            return [to_version]
 
-        # Parse versions
+        # Parse versions for the numeric-fallback path.
         try:
             from_major, from_minor = self._parse_version(from_version)
             to_major, to_minor = self._parse_version(to_version)
@@ -170,7 +182,23 @@ class SchemaMigrator:
             for minor in range(from_minor + 1, to_minor + 1):
                 path.append(f"{from_major}.{minor}")
 
-        return path if path else None
+        if not path:
+            return None
+
+        # Reject any synthetic path that contains a hop without a
+        # registered handler. The numeric fallback above can invent
+        # non-existent CalVer labels (e.g. `2025.12 -> 2026.1` walks
+        # through the imaginary `2026.0`), and without this guard the
+        # unregistered hop silently drops through to `_generic_migration`
+        # — which just stamps `schema_version` without applying any
+        # rename or drop. That would hand the caller a "migrated" config
+        # that still carries the old field names.
+        current = from_version
+        for next_version in path:
+            if (current, next_version) not in self.migration_handlers:
+                return None
+            current = next_version
+        return path
 
     def _parse_version(self, version: str) -> tuple:
         """Parse version string into major and minor components."""

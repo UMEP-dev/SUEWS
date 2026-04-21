@@ -14,7 +14,6 @@ This provides a single, cohesive interface for schema operations.
 from .version import (
     CURRENT_SCHEMA_VERSION,
     SCHEMA_VERSIONS,
-    COMPATIBLE_VERSIONS,
     is_schema_compatible,
     get_schema_compatibility_message,
     validate_schema_version,
@@ -47,7 +46,6 @@ __all__ = [
     # Version management
     "CURRENT_SCHEMA_VERSION",
     "SCHEMA_VERSIONS",
-    "COMPATIBLE_VERSIONS",
     "is_schema_compatible",
     "get_schema_compatibility_message",
     "validate_schema_version",

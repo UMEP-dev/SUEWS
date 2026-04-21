@@ -325,11 +325,8 @@ def rename_keys_recursive(
 def reverse_field_renames(data: dict) -> dict:
     """Recursively replace new field names with old ones for serialisation.
 
-    As of gh#1322 the Rust bridge's YAML parser accepts both spellings via
-    an in-process preprocessor (``src/suews_bridge/src/field_renames.rs``),
-    so this function is no longer load-bearing on the Rust/Python boundary.
-    Retained for diagnostic tooling that stashes legacy-spelling YAML
-    payloads and for callers outside the main run pipeline.
+    Used before passing ``model_dump()`` output to the Rust/Fortran bridge,
+    which expects the legacy (fused) field names.
     """
     result = {}
     for key, value in data.items():

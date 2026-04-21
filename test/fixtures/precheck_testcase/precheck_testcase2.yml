@@ -1795,7 +1795,7 @@ sites:
           value: 0.0
         fai_deciduous_tree:
           value: 0.06
-        deciduous_tree_height:
+        height_deciduous_tree:
           value: 5.0
         porosity_min_deciduous:
           value: 0.1
@@ -1965,7 +1965,7 @@ sites:
           value: 0.0
         fai_evergreen_tree:
           value: 0.06
-        evergreen_tree_height:
+        height_evergreen_tree:
           value: 5.0
       grass:
         sfr:

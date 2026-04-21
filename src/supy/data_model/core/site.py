@@ -719,7 +719,7 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
             "display_name": "Evergreen Tree Frontal Area Index",
         },
     )
-    evergreen_tree_height: Optional[FlexibleRefValue(float)] = Field(
+    height_evergreen_tree: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Evergreen tree height",
         json_schema_extra={"unit": "m", "display_name": "Evergreen Tree Height"},
@@ -748,7 +748,7 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
         defaults = {"faievetree": 0.1, "evetreeh": 15.0}
         values_to_assign = {}
 
-        for attr, col_name in [("fai_evergreen_tree", "faievetree"), ("evergreen_tree_height", "evetreeh")]:
+        for attr, col_name in [("fai_evergreen_tree", "faievetree"), ("height_evergreen_tree", "evetreeh")]:
             field_val = getattr(self, attr)
             if field_val is not None:
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
@@ -783,7 +783,7 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
         instance = super().from_df_state(df, grid_id, surf_idx)
 
         instance.fai_evergreen_tree = RefValue(df.loc[grid_id, ("faievetree", "0")])
-        instance.evergreen_tree_height = RefValue(df.loc[grid_id, ("evetreeh", "0")])
+        instance.height_evergreen_tree = RefValue(df.loc[grid_id, ("evetreeh", "0")])
 
         instance.alb_min = RefValue(df.loc[grid_id, ("albmin_evetr", "0")])
         instance.alb_max = RefValue(df.loc[grid_id, ("albmax_evetr", "0")])
@@ -808,7 +808,7 @@ class DectrProperties(VegetatedSurfaceProperties):
             "display_name": "Deciduous Tree Frontal Area Index",
         },
     )
-    deciduous_tree_height: Optional[FlexibleRefValue(float)] = Field(
+    height_deciduous_tree: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="Deciduous tree height",
         json_schema_extra={"unit": "m", "display_name": "Deciduous Tree Height"},
@@ -869,7 +869,7 @@ class DectrProperties(VegetatedSurfaceProperties):
 
         for attr, col_name in [
             ("fai_deciduous_tree", "faidectree"),
-            ("deciduous_tree_height", "dectreeh"),
+            ("height_deciduous_tree", "dectreeh"),
             ("porosity_min_deciduous", "pormin_dec"),
             ("porosity_max_deciduous", "pormax_dec"),
             ("capacity_max_deciduous", "capmax_dec"),
@@ -909,7 +909,7 @@ class DectrProperties(VegetatedSurfaceProperties):
         instance = super().from_df_state(df, grid_id, surf_idx)
 
         instance.fai_deciduous_tree = RefValue(df.loc[grid_id, ("faidectree", "0")])
-        instance.deciduous_tree_height = RefValue(df.loc[grid_id, ("dectreeh", "0")])
+        instance.height_deciduous_tree = RefValue(df.loc[grid_id, ("dectreeh", "0")])
         instance.porosity_min_deciduous = RefValue(df.loc[grid_id, ("pormin_dec", "0")])
         instance.porosity_max_deciduous = RefValue(df.loc[grid_id, ("pormax_dec", "0")])
         instance.capacity_max_deciduous = RefValue(df.loc[grid_id, ("capmax_dec", "0")])

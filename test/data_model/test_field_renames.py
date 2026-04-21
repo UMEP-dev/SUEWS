@@ -116,7 +116,7 @@ class TestDeprecationWarnings:
             (SurfaceProperties, "soildepth", "soil_depth", 150.0),
             (LAIParams, "baset", "base_temperature", 5.0),
             (SnowParams, "crwmax", "water_holding_capacity_max", 0.2),
-            (EvetrProperties, "evetreeh", "evergreen_tree_height", 12.0),
+            (EvetrProperties, "evetreeh", "height_evergreen_tree", 12.0),
             (DectrProperties, "capmax_dec", "capacity_max_deciduous", 90.0),
         ],
     )

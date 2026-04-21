@@ -72,14 +72,14 @@ VEGETATEDSURFACEPROPERTIES_RENAMES: Dict[str, str] = {
 
 EVETRPROPERTIES_RENAMES: Dict[str, str] = {
     "faievetree": "fai_evergreen_tree",
-    "evetreeh": "evergreen_tree_height",
+    "evetreeh": "height_evergreen_tree",
 }
 
 # -- DectrProperties (site.py) -----------------------------------------------
 
 DECTRPROPERTIES_RENAMES: Dict[str, str] = {
     "faidectree": "fai_deciduous_tree",
-    "dectreeh": "deciduous_tree_height",
+    "dectreeh": "height_deciduous_tree",
     "pormin_dec": "porosity_min_deciduous",
     "pormax_dec": "porosity_max_deciduous",
     "capmax_dec": "capacity_max_deciduous",

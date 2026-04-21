@@ -2464,11 +2464,11 @@ class SUEWSConfig(BaseModel):
         land_cover = getattr(getattr(site, "properties", None), "land_cover", None)
 
         # Get tree heights
-        deciduous_tree_height = _unwrap_value(getattr(getattr(land_cover, "dectr", None), "deciduous_tree_height", None)) if land_cover and getattr(land_cover, "dectr", None) else None
-        evergreen_tree_height = _unwrap_value(getattr(getattr(land_cover, "evetr", None), "evergreen_tree_height", None)) if land_cover and getattr(land_cover, "evetr", None) else None
+        height_deciduous_tree = _unwrap_value(getattr(getattr(land_cover, "dectr", None), "height_deciduous_tree", None)) if land_cover and getattr(land_cover, "dectr", None) else None
+        height_evergreen_tree = _unwrap_value(getattr(getattr(land_cover, "evetr", None), "height_evergreen_tree", None)) if land_cover and getattr(land_cover, "evetr", None) else None
 
         # Compute max_tree
-        tree_heights = [h for h in [deciduous_tree_height, evergreen_tree_height] if h is not None]
+        tree_heights = [h for h in [height_deciduous_tree, height_evergreen_tree] if h is not None]
         if not tree_heights:
             return issues  # No tree heights to check
 

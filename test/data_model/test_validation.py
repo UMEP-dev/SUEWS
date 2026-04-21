@@ -2041,7 +2041,7 @@ def test_validate_spartacus_veg_dimensions_passing_case():
     """Passing case: dectreeh=12, height=[0, 5, 10, 15, 20], veg_frac=[0.3, 0.3, 0.2, 0, 0]"""
     cfg = SUEWSConfig.model_construct()
     cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation_method=1001))
-    lc = SimpleNamespace(dectr=SimpleNamespace(deciduous_tree_height=12.0), evetr=None)
+    lc = SimpleNamespace(dectr=SimpleNamespace(height_deciduous_tree=12.0), evetr=None)
     vertical_layers = SimpleNamespace(
         height=[0, 5, 10, 15, 20],
         veg_frac=[0.3, 0.3, 0.2, 0, 0],
@@ -2057,7 +2057,7 @@ def test_validate_spartacus_veg_dimensions_failing_case():
     15-20 m layer should be flagged."""
     cfg = SUEWSConfig.model_construct()
     cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation_method=1001))
-    lc = SimpleNamespace(dectr=SimpleNamespace(deciduous_tree_height=12.0), evetr=None)
+    lc = SimpleNamespace(dectr=SimpleNamespace(height_deciduous_tree=12.0), evetr=None)
     vertical_layers = SimpleNamespace(
         height=[0, 5, 10, 15, 20],
         veg_frac=[0.3, 0.3, 0.2, 0.1, 0],
@@ -2072,7 +2072,7 @@ def test_validate_spartacus_veg_dimensions_boundary_case():
     """Boundary case: max_tree exactly on a layer boundary."""
     cfg = SUEWSConfig.model_construct()
     cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation_method=1001))
-    lc = SimpleNamespace(dectr=SimpleNamespace(deciduous_tree_height=15.0), evetr=None)
+    lc = SimpleNamespace(dectr=SimpleNamespace(height_deciduous_tree=15.0), evetr=None)
     vertical_layers = SimpleNamespace(
         height=[0, 5, 10, 15, 20],
         veg_frac=[0.3, 0.3, 0.2, 0, 0],
@@ -2087,7 +2087,7 @@ def test_validate_spartacus_veg_dimensions_exceeds_all_case():
     cfg = SUEWSConfig.model_construct()
     cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation_method=1001))
     # Note: dectrh and evetrh are attributes of land_cover.dectr and land_cover.evetr, not land_cover itself
-    dectr = SimpleNamespace(deciduous_tree_height=100.0)
+    dectr = SimpleNamespace(height_deciduous_tree=100.0)
     lc = SimpleNamespace(dectr=dectr, evetr=None)
     vertical_layers = SimpleNamespace(
         height=[0, 5, 10],

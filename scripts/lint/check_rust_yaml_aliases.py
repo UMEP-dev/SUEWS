@@ -30,34 +30,125 @@ Exit codes
 from __future__ import annotations
 
 import argparse
+import ast
 import os
 from pathlib import Path
 import re
 import sys
 
 
-_PY_REGISTRY_MODULE = "supy.data_model.core.field_renames"
+_PY_REGISTRY_FILE = Path("src/supy/data_model/core/field_renames.py")
 _RUST_REGISTRY_FILE = Path("src/suews_bridge/src/field_renames.rs")
+
+
+def _collect_str_dict_assignments(tree: ast.Module) -> dict[str, dict[str, str]]:
+    """Return every top-level ``NAME = {str: str, ...}`` assignment.
+
+    Walks the module's top-level body (not nested scopes) and collects
+    any assignment whose value is a flat mapping from string literals
+    to string literals. Handles both ``Assign`` and ``AnnAssign`` nodes
+    so the ``NAME: Dict[str, str] = {...}`` idiom used in the registry
+    is picked up.
+    """
+    result: dict[str, dict[str, str]] = {}
+    for node in tree.body:
+        if isinstance(node, ast.AnnAssign):
+            target, value = node.target, node.value
+        elif isinstance(node, ast.Assign) and len(node.targets) == 1:
+            target, value = node.targets[0], node.value
+        else:
+            continue
+        if not isinstance(target, ast.Name) or not isinstance(value, ast.Dict):
+            continue
+        pairs: dict[str, str] = {}
+        literal = True
+        for key_node, value_node in zip(value.keys, value.values):
+            if (
+                isinstance(key_node, ast.Constant)
+                and isinstance(key_node.value, str)
+                and isinstance(value_node, ast.Constant)
+                and isinstance(value_node.value, str)
+            ):
+                pairs[key_node.value] = value_node.value
+            else:
+                literal = False
+                break
+        if literal:
+            result[target.id] = pairs
+    return result
 
 
 def _load_python_registry() -> dict[str, str]:
     """Return Python ALL_FIELD_RENAMES as a {new_name: old_name} dict.
 
-    The Python dict is ``{old_name: new_name}``; this function inverts
-    it so both sides of the comparison speak the same direction as the
-    Rust constant (`(new_name, old_name)` pairs).
+    Parses ``src/supy/data_model/core/field_renames.py`` with :mod:`ast`
+    rather than importing ``supy``. Importing the package pulls in
+    ``supy._version_scm`` (generated at build time via ``make dev``),
+    which is absent in a bare CI checkout and would make this lint
+    depend on a full Rust+Fortran build — well out of scope for a
+    registry-parity check.
+
+    The Python registry stores ``{old_name: new_name}`` and composes
+    ``ALL_FIELD_RENAMES`` from per-class sub-dicts via ``**`` unpacking.
+    This function resolves each ``**SUBDICT`` reference and inverts
+    the combined mapping to ``{new_name: old_name}`` to match the
+    Rust constant's pair direction.
     """
-    # The repo root is pinned by the caller (see `__main__`).
-    sys.path.insert(0, str(Path("src").resolve()))
     try:
-        module = __import__(_PY_REGISTRY_MODULE, fromlist=["ALL_FIELD_RENAMES"])
-    except ImportError as exc:
+        source = _PY_REGISTRY_FILE.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
         raise SystemExit(
-            f"[rust-yaml-aliases-audit] could not import {_PY_REGISTRY_MODULE}: {exc}"
+            f"[rust-yaml-aliases-audit] missing Python registry file: {_PY_REGISTRY_FILE}"
         ) from exc
-    python_renames: dict[str, str] = module.ALL_FIELD_RENAMES
+
+    tree = ast.parse(source, filename=str(_PY_REGISTRY_FILE))
+    subdicts = _collect_str_dict_assignments(tree)
+
+    all_renames_node: ast.Dict | None = None
+    for node in tree.body:
+        if (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "ALL_FIELD_RENAMES"
+            and isinstance(node.value, ast.Dict)
+        ):
+            all_renames_node = node.value
+            break
+    if all_renames_node is None:
+        raise SystemExit(
+            f"[rust-yaml-aliases-audit] could not locate ALL_FIELD_RENAMES in "
+            f"{_PY_REGISTRY_FILE}."
+        )
+
+    combined: dict[str, str] = {}
+    for key_node, value_node in zip(all_renames_node.keys, all_renames_node.values):
+        if key_node is not None:
+            raise SystemExit(
+                "[rust-yaml-aliases-audit] unexpected direct entry in "
+                "ALL_FIELD_RENAMES — the lint only supports the documented "
+                "`**SUBDICT` unpacking pattern."
+            )
+        if not isinstance(value_node, ast.Name):
+            raise SystemExit(
+                "[rust-yaml-aliases-audit] ALL_FIELD_RENAMES must unpack "
+                "named sub-dicts only."
+            )
+        sub_pairs = subdicts.get(value_node.id)
+        if sub_pairs is None:
+            raise SystemExit(
+                f"[rust-yaml-aliases-audit] could not resolve sub-dict "
+                f"{value_node.id!r} referenced from ALL_FIELD_RENAMES."
+            )
+        combined.update(sub_pairs)
+
+    if not combined:
+        raise SystemExit(
+            "[rust-yaml-aliases-audit] ALL_FIELD_RENAMES resolved to an empty "
+            "mapping — check the Python registry source."
+        )
+
     # Invert: Python stores {old: new}; we want {new: old}.
-    return {new: old for old, new in python_renames.items()}
+    return {new: old for old, new in combined.items()}
 
 
 _RUST_CONST_PATTERN = re.compile(
@@ -167,9 +258,9 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    # Pin CWD to the repo root so the relative path to the Rust file and
-    # the `src/` entry pushed onto `sys.path` resolve correctly even when
-    # the script is invoked from a subdirectory.
+    # Pin CWD to the repo root so the relative paths to the Python and
+    # Rust registry files resolve correctly even when the script is
+    # invoked from a subdirectory.
     repo_root = Path(__file__).resolve().parent.parent.parent
     os.chdir(repo_root)
     sys.exit(main())

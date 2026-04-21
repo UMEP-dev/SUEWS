@@ -213,6 +213,15 @@ The migrator accepts any registered intermediate (for example
 in one call. Your values survive the rename untouched — only the
 key names change.
 
+.. note::
+
+   The standalone Rust CLI (``suews run config.yml``) accepts both the
+   new ``snake_case`` spellings and the legacy fused spellings
+   transparently (gh#1322). You do not need to run ``suews-schema
+   migrate`` purely to use the CLI — migration is only required when
+   persisting a canonical 2026.5-shaped YAML, for example alongside a
+   release fixture or before sharing a config with collaborators.
+
 Upgrading to Schema 2026.4 (SUEWS 2026.4.3)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

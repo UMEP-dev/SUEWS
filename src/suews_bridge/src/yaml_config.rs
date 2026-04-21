@@ -3,6 +3,7 @@ use crate::building_archetype_prm::{
 };
 use crate::config::{suews_config_default_from_fortran, SuewsConfig};
 use crate::core::NSURF;
+use crate::field_renames::normalize_field_names;
 use crate::sim::SiteScalars;
 use crate::stebbs_prm::{stebbs_prm_from_map, stebbs_prm_to_map};
 use crate::suews_site::{suews_site_default_from_fortran, SuewsSite};
@@ -2046,31 +2047,38 @@ fn read_forcing_rel(root: &Value) -> Option<String> {
         .or_else(|| read_string(root, &["model", "control", "forcing_file", "value"]))
 }
 
-pub fn load_run_config_from_value(root: &Value) -> Result<RunConfig, String> {
+pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String> {
+    // Accept Python-side snake_case spellings by folding every renamed key
+    // back to the legacy fused spelling the parser below still indexes by.
+    // Callers of the Rust CLI bypass Python's `@model_validator` shim; this
+    // is the single seam that makes `suews run config.yml` tolerate both
+    // spellings end-to-end. See `field_renames.rs` for the registry.
+    normalize_field_names(root);
+
     let mut timer = suews_timer_default_from_fortran().map_err(|e| e.to_string())?;
     let mut config = suews_config_default_from_fortran().map_err(|e| e.to_string())?;
     let mut site = suews_site_default_from_fortran().map_err(|e| e.to_string())?;
     let mut site_scalars = SiteScalars::default();
     let mut state = suews_state_default_from_fortran().map_err(|e| e.to_string())?;
 
-    let site_root = read_sites_indexed(&root, 0)
+    let site_root = read_sites_indexed(root, 0)
         .ok_or_else(|| "config must contain at least one site under `sites`".to_string())?;
 
-    apply_config_overrides(&mut config, &root);
+    apply_config_overrides(&mut config, root);
 
     let nlayer = read_i32(site_root, &["properties", "vertical_layers", "nlayer"]).unwrap_or(5);
     let ndepth = read_i32(site_root, &["properties", "vertical_layers", "ndepth"]).unwrap_or(5);
 
     apply_site_overrides(
         &mut site,
-        &root,
+        root,
         site_root,
         nlayer as usize,
         ndepth as usize,
     )?;
     apply_site_scalar_overrides(&mut site_scalars, site_root);
 
-    if let Some(tstep) = read_i32(&root, &["model", "control", "tstep"]) {
+    if let Some(tstep) = read_i32(root, &["model", "control", "tstep"]) {
         timer.tstep = tstep;
         timer.tstep_prev = tstep;
     }
@@ -2103,8 +2111,9 @@ pub fn load_run_config_from_value(root: &Value) -> Result<RunConfig, String> {
 pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
     let yaml_text = fs::read_to_string(path)
         .map_err(|e| format!("failed to read config {}: {e}", path.display()))?;
-    let root: Value = serde_yaml::from_str(&yaml_text).map_err(|e| format!("invalid YAML: {e}"))?;
-    let mut run_cfg = load_run_config_from_value(&root)?;
+    let mut root: Value =
+        serde_yaml::from_str(&yaml_text).map_err(|e| format!("invalid YAML: {e}"))?;
+    let mut run_cfg = load_run_config_from_value(&mut root)?;
 
     let forcing_rel = read_forcing_rel(&root)
         .ok_or_else(|| "`model.control.forcing_file` is missing".to_string())?;
@@ -2126,8 +2135,9 @@ pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
 }
 
 pub fn load_run_config_from_str(yaml_str: &str) -> Result<RunConfig, String> {
-    let root: Value = serde_yaml::from_str(yaml_str).map_err(|e| format!("invalid YAML: {e}"))?;
-    load_run_config_from_value(&root)
+    let mut root: Value =
+        serde_yaml::from_str(yaml_str).map_err(|e| format!("invalid YAML: {e}"))?;
+    load_run_config_from_value(&mut root)
 }
 
 /// Resize variable-length arrays in HydroState and HeatState to match nlayer/ndepth.
@@ -2202,8 +2212,9 @@ mod tests {
     fn parses_stebbs_and_building_archetype_sections() {
         let yaml_str =
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
-        let root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
-        let run_cfg = load_run_config_from_value(&root).expect("run config should parse");
+        let mut root: Value =
+            serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
 
         assert!(run_cfg.site.building_archtype.wallthickness > 0.0);
         assert!(run_cfg.site.building_archtype.wallextthickness > 0.0);
@@ -2221,8 +2232,9 @@ mod tests {
     fn parses_ohm_legacy_surface_field_names() {
         let yaml_str =
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
-        let root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
-        let run_cfg = load_run_config_from_value(&root).expect("run config should parse");
+        let mut root: Value =
+            serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
 
         // Legacy yaml uses ch_anohm/rho_cp_anohm/k_anohm in land_cover.
         assert!(run_cfg.site.lc_paved.ohm.chanohm > 0.0);
@@ -2234,8 +2246,9 @@ mod tests {
     fn maps_vertical_layer_thermal_parameters_into_ehc() {
         let yaml_str =
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
-        let root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
-        let run_cfg = load_run_config_from_value(&root).expect("run config should parse");
+        let mut root: Value =
+            serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
 
         let ndepth = run_cfg.ndepth as usize;
         assert!(ndepth > 0);
@@ -2283,7 +2296,8 @@ mod tests {
         };
         working_day_map.remove(Value::String("144".to_string()));
 
-        let err = load_run_config_from_value(&root).expect_err("incomplete profile should fail");
+        let err =
+            load_run_config_from_value(&mut root).expect_err("incomplete profile should fail");
         assert!(err.contains("HeatingSetpointTemperatureProfile.working_day is missing 1 entries: 144"));
     }
 
@@ -2312,7 +2326,126 @@ mod tests {
             .expect("fixture should contain slice 1");
         working_day_map.insert(Value::String("0".to_string()), valid_value);
 
-        let err = load_run_config_from_value(&root).expect_err("out-of-range step should fail");
+        let err =
+            load_run_config_from_value(&mut root).expect_err("out-of-range step should fail");
         assert!(err.contains("CoolingSetpointTemperatureProfile.working_day has invalid step `0`"));
+    }
+
+    // --- Integration tests for YAML key preprocessor (gh#1322) --------------
+    //
+    // The four tests below exercise the end-to-end CLI load path
+    // (`load_run_config_from_value`) with YAML inputs that use the new
+    // snake_case spellings (#1308), the legacy fused spellings (pre-#1308),
+    // and a mix of both. They pin the CLI contract: `suews run config.yml`
+    // accepts either spelling transparently and returns the same
+    // `RunConfig` regardless of which one the user wrote.
+    //
+    // The fixture already carries new-style names; the legacy variant is
+    // produced by running `normalize_field_names` on a cloned tree first.
+
+    const FIXTURE_NEW_NAMES: &str =
+        include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+
+    #[test]
+    fn load_run_config_accepts_new_names() {
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("new-spelling YAML should parse without error");
+
+        // Physics fields — sourced from `model.physics.<new_name>` in the
+        // fixture. Without the preprocessor these fall back to Fortran
+        // defaults (0 / 1) and the simulation runs wrong physics.
+        assert_eq!(run_cfg.config.net_radiation_method, 1003);
+        assert_eq!(run_cfg.config.storage_heat_method, 7);
+        assert_eq!(run_cfg.config.emissions_method, 2);
+
+        // Surface fields — paved `state_limit` = 0.48 in the fixture.
+        assert!((run_cfg.site.lc_paved.statelimit - 0.48).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn load_run_config_accepts_old_names() {
+        // Pre-normalise to produce a legacy-spelling tree, then let the
+        // preprocessor run idempotently at the top of
+        // `load_run_config_from_value`.
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        normalize_field_names(&mut root);
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("legacy-spelling YAML should parse without error");
+
+        assert_eq!(run_cfg.config.net_radiation_method, 1003);
+        assert_eq!(run_cfg.config.storage_heat_method, 7);
+        assert_eq!(run_cfg.config.emissions_method, 2);
+        assert!((run_cfg.site.lc_paved.statelimit - 0.48).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn load_run_config_accepts_mixed_names() {
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+
+        // Hand-rename a handful of keys to their legacy spellings so the
+        // tree ends up mixed. The preprocessor must leave the legacy ones
+        // alone and fold the remaining new ones back.
+        let physics = get_path_mut(&mut root, &["model", "physics"])
+            .expect("fixture should contain model.physics");
+        if let Value::Mapping(map) = physics {
+            if let Some(v) = map.remove(Value::String("net_radiation_method".into())) {
+                map.insert(Value::String("netradiationmethod".into()), v);
+            }
+            if let Some(v) = map.remove(Value::String("storage_heat_method".into())) {
+                map.insert(Value::String("storageheatmethod".into()), v);
+            }
+        }
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("mixed-spelling YAML should parse without error");
+
+        // The two keys we flipped to legacy must still be read.
+        assert_eq!(run_cfg.config.net_radiation_method, 1003);
+        assert_eq!(run_cfg.config.storage_heat_method, 7);
+        // The rest remain in new spelling and must still be read.
+        assert_eq!(run_cfg.config.emissions_method, 2);
+        assert!((run_cfg.site.lc_paved.statelimit - 0.48).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn load_run_config_new_and_old_parse_identically() {
+        let mut root_new: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        let mut root_old: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        normalize_field_names(&mut root_old);
+
+        let cfg_new = load_run_config_from_value(&mut root_new).expect("parse new-spelling");
+        let cfg_old = load_run_config_from_value(&mut root_old).expect("parse legacy-spelling");
+
+        // Representative sample across rename categories in FIELD_RENAMES —
+        // if these agree, the preprocessor walks the tree consistently
+        // regardless of which spelling the caller submitted.
+        assert_eq!(
+            cfg_new.config.net_radiation_method,
+            cfg_old.config.net_radiation_method
+        );
+        assert_eq!(
+            cfg_new.config.storage_heat_method,
+            cfg_old.config.storage_heat_method
+        );
+        assert_eq!(
+            cfg_new.config.emissions_method,
+            cfg_old.config.emissions_method
+        );
+        assert_eq!(cfg_new.config.snow_use, cfg_old.config.snow_use);
+        assert!(
+            (cfg_new.site.lc_paved.statelimit - cfg_old.site.lc_paved.statelimit).abs() < 1.0e-12
+        );
+        assert!(
+            (cfg_new.site.lc_paved.soil.soilstorecap - cfg_old.site.lc_paved.soil.soilstorecap)
+                .abs()
+                < 1.0e-12
+        );
     }
 }

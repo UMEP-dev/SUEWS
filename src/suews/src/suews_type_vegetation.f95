@@ -24,7 +24,15 @@ module module_type_vegetation
       REAL(KIND(1D0)) :: laimin = 0.0D0 ! Minimum LAI [m2 m-2]
       REAL(KIND(1D0)) :: laimax = 0.0D0 ! Maximum LAI [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(4) :: laipower = 0.0D0 ! Coefficients for LAI equation: 1,2 - leaf growth; 3,4 - leaf off [-]
-      INTEGER :: laitype = 0 ! LAI equation to use: original (0) or new (1) [-]
+      INTEGER :: laitype = 0 ! LAI equation to use: 0 original, 1 high-latitude, 2 moisture-aware (GH-1292; PR1 no-op) [-]
+      ! --- Moisture-aware phenology parameters (laitype=2) -------------------------------------------
+      ! Thresholds operate on dimensionless relative soil water w = 1 - smd/smdcap (not on SMD in mm).
+      REAL(KIND(1D0)) :: w_wilt = 0.15D0 ! Lower bound of Jarvis water-stress factor; relative soil water [-]
+      REAL(KIND(1D0)) :: w_opt = 0.40D0 ! Upper bound of Jarvis water-stress factor; relative soil water [-]
+      REAL(KIND(1D0)) :: f_shape = 1.0D0 ! Shape exponent on the Jarvis water-stress factor [-]
+      REAL(KIND(1D0)) :: w_on = 0.35D0 ! Leaf-on persistence threshold (CLM5-style); relative soil water [-]
+      REAL(KIND(1D0)) :: w_off = 0.20D0 ! Leaf-off persistence threshold; relative soil water [-]
+      REAL(KIND(1D0)) :: tau_w = 15.0D0 ! Persistence window for running-mean relative soil water [days]
    END TYPE LAI_PRM
 
    TYPE, PUBLIC :: PHENOLOGY_STATE
@@ -50,6 +58,11 @@ module module_type_vegetation
       REAL(KIND(1D0)) :: g_ta = 0.0D0 ! Surface conductance function for air temperature [-]
       REAL(KIND(1D0)) :: g_smd = 0.0D0 ! Surface conductance function for soil moisture deficit [-]
       REAL(KIND(1D0)) :: g_lai = 0.0D0 ! Surface conductance function for LAI [-]
+      ! --- Moisture-aware phenology state (laitype=2) -------------------------------------------
+      ! Carried as dimensionless relative soil water w = 1 - smd/smdcap; SMD->w conversion lives in update_GDDLAI.
+      REAL(KIND(1D0)), DIMENSION(nvegsurf) :: wbar_id = -1.0D0 ! Running-mean relative soil water for phenology [-]; negative marks an unset moisture history
+      REAL(KIND(1D0)), DIMENSION(nvegsurf) :: w_id_prev = -1.0D0 ! Previous-day relative soil water snapshot [-]; negative marks an unset moisture history
+      LOGICAL, DIMENSION(nvegsurf) :: leaf_on_permitted = .TRUE. ! CLM5-style leaf-on latch; default permitted so well-watered sites do not wait for the trigger
       ! flag for iteration safety - NO
       ! GDD_id, SDD_id are extensive quantities and thus cannot be used for iteration safety
       LOGICAL :: iter_safe = .FALSE.

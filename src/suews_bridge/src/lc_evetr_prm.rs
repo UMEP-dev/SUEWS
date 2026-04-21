@@ -7,8 +7,9 @@ use crate::ohm_prm::{ohm_prm_field_names, OhmPrm};
 use crate::soil::{soil_prm_field_names, SoilPrm};
 use crate::water_dist::{water_dist_prm_field_names, WaterDistPrm};
 
-pub const LC_EVETR_PRM_FLAT_LEN: usize = 57;
-pub const LC_EVETR_PRM_SCHEMA_VERSION: u32 = 1;
+// GH-1292 PR1: LAI_PRM grew by six moisture fields (11 -> 17).
+pub const LC_EVETR_PRM_FLAT_LEN: usize = 63;
+pub const LC_EVETR_PRM_SCHEMA_VERSION: u32 = 2;
 
 pub type LcEvetrPrmSchema = crate::codec::SimpleSchema;
 
@@ -73,8 +74,8 @@ impl LcEvetrPrm {
             wetthresh: flat[28],
             bioco2: BioCo2Prm::from_flat(&flat[29..37])?,
             maxconductance: flat[37],
-            lai: LaiPrm::from_flat(&flat[38..49])?,
-            waterdist: WaterDistPrm::from_flat(&flat[49..57])?,
+            lai: LaiPrm::from_flat(&flat[38..55])?,
+            waterdist: WaterDistPrm::from_flat(&flat[55..63])?,
         })
     }
 

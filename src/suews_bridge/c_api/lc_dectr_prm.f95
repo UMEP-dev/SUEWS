@@ -16,8 +16,8 @@ public :: SUEWS_CAPI_OK
 public :: SUEWS_CAPI_BAD_BUFFER
 public :: SUEWS_CAPI_BAD_STATE
 
-integer(c_int), parameter, public :: SUEWS_CAPI_LC_DECTR_PRM_LEN = 61_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_LC_DECTR_PRM_SCHEMA_VERSION = 1_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_LC_DECTR_PRM_LEN = 67_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_LC_DECTR_PRM_SCHEMA_VERSION = 2_c_int
 
 type :: ohm_coef_lc_shadow
    real(c_double) :: summer_dry = 0.0_c_double
@@ -61,6 +61,13 @@ type :: lai_prm_shadow
    real(c_double) :: laimax = 0.0_c_double
    real(c_double), dimension(4) :: laipower = 0.0_c_double
    integer(c_int) :: laitype = 0_c_int
+   ! GH-1292 moisture-aware phenology parameters (laitype=2).
+   real(c_double) :: w_wilt = 0.15_c_double
+   real(c_double) :: w_opt = 0.40_c_double
+   real(c_double) :: f_shape = 1.0_c_double
+   real(c_double) :: w_on = 0.35_c_double
+   real(c_double) :: w_off = 0.20_c_double
+   real(c_double) :: tau_w = 15.0_c_double
 end type lai_prm_shadow
 
 type :: water_dist_prm_shadow
@@ -208,6 +215,13 @@ subroutine lc_dectr_prm_pack(state, flat, n_flat, err)
       flat(idx) = state%lai%laipower(i); idx = idx + 1
    end do
    flat(idx) = real(state%lai%laitype, c_double); idx = idx + 1
+   ! GH-1292 moisture-aware phenology parameters (laitype=2).
+   flat(idx) = state%lai%w_wilt; idx = idx + 1
+   flat(idx) = state%lai%w_opt; idx = idx + 1
+   flat(idx) = state%lai%f_shape; idx = idx + 1
+   flat(idx) = state%lai%w_on; idx = idx + 1
+   flat(idx) = state%lai%w_off; idx = idx + 1
+   flat(idx) = state%lai%tau_w; idx = idx + 1
 
    flat(idx) = state%waterdist%to_paved; idx = idx + 1
    flat(idx) = state%waterdist%to_bldg; idx = idx + 1
@@ -292,6 +306,13 @@ subroutine lc_dectr_prm_unpack(flat, n_flat, state, err)
       idx = idx + 1_c_int
    end do
    state%lai%laitype = int(nint(flat(idx))); idx = idx + 1_c_int
+   ! GH-1292 moisture-aware phenology parameters (laitype=2).
+   state%lai%w_wilt = flat(idx); idx = idx + 1_c_int
+   state%lai%w_opt = flat(idx); idx = idx + 1_c_int
+   state%lai%f_shape = flat(idx); idx = idx + 1_c_int
+   state%lai%w_on = flat(idx); idx = idx + 1_c_int
+   state%lai%w_off = flat(idx); idx = idx + 1_c_int
+   state%lai%tau_w = flat(idx); idx = idx + 1_c_int
 
    state%waterdist%to_paved = flat(idx); idx = idx + 1_c_int
    state%waterdist%to_bldg = flat(idx); idx = idx + 1_c_int

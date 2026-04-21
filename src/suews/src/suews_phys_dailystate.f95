@@ -168,6 +168,10 @@ CONTAINS
                LAI_id => phenState%LAI_id, &
                GDD_id => phenState%GDD_id, &
                SDD_id => phenState%SDD_id, &
+               ! --- GH-1292: moisture-aware phenology state (laitype=2) ---
+               wbar_id => phenState%wbar_id, &
+               w_id_prev => phenState%w_id_prev, &
+               leaf_on_permitted => phenState%leaf_on_permitted, &
                albDecTr_id => phenState%albDecTr_id, &
                albEveTr_id => phenState%albEveTr_id, &
                albGrass_id => phenState%albGrass_id, &
@@ -336,8 +340,18 @@ CONTAINS
                         BaseT, BaseTe, &
                         GDDFull, SDDFull, &
                         LAIMin, LAIMax, LAIPower, LAIType, &
+                        ! --- GH-1292: SMD inputs (mm); caller computes smd = SoilStoreCap - soilstore_surf for veg (surfaces 3-5) ---
+                        SoilStoreCap(3:5) - soilstore_surf(3:5), SoilStoreCap(3:5), &
+                        ! --- GH-1292: moisture-aware parameters (per-veg-surface arrays) ---
+                        [evetrPrm%lai%w_wilt, dectrPrm%lai%w_wilt, grassPrm%lai%w_wilt], &
+                        [evetrPrm%lai%w_opt, dectrPrm%lai%w_opt, grassPrm%lai%w_opt], &
+                        [evetrPrm%lai%f_shape, dectrPrm%lai%f_shape, grassPrm%lai%f_shape], &
+                        [evetrPrm%lai%w_on, dectrPrm%lai%w_on, grassPrm%lai%w_on], &
+                        [evetrPrm%lai%w_off, dectrPrm%lai%w_off, grassPrm%lai%w_off], &
+                        [evetrPrm%lai%tau_w, dectrPrm%lai%tau_w, grassPrm%lai%tau_w], &
                         LAI_id_prev, &
                         GDD_id, SDD_id, & !inout
+                        wbar_id, w_id_prev, leaf_on_permitted, & !inout
                         LAI_id) !output
                      IF (supy_error_flag) RETURN
 
@@ -532,8 +546,12 @@ CONTAINS
       BaseT_GDD, BaseT_SDD, &
       GDDFull, SDDFull, &
       LAIMin, LAIMax, LAIPower, LAIType, &
+      ! --- GH-1292 PR1: moisture-aware phenology scaffolding (no-op for laitype=2) ---
+      smd_veg_prev, smdcap_veg, & !input [mm]
+      w_wilt, w_opt, f_shape, w_on, w_off, tau_w, & !input (LAI_PRM moisture params; tau_w in days, rest dimensionless)
       LAI_id_prev, &
       GDD_id, SDD_id, & !inout
+      wbar_id, w_id_prev, leaf_on_permitted, & !inout (PHENOLOGY_STATE moisture-aware slots)
       LAI_id_next) !output
       IMPLICIT NONE
 
@@ -561,10 +579,28 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: LAIMax !Max LAI [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(4, nvegsurf), INTENT(IN) :: LAIPower !Coeffs for LAI equation: 1,2 - leaf growth; 3,4 - leaf off
       !! N.B. currently DecTr only, although input provided for all veg types
-      INTEGER, DIMENSION(nvegsurf), INTENT(IN) :: LAIType !LAI equation to use: original (0) or new (1)
+      INTEGER, DIMENSION(nvegsurf), INTENT(IN) :: LAIType !LAI equation to use: 0 original, 1 high-latitude, 2 moisture-aware (PR1 no-op)
+
+      ! --- GH-1292 moisture-aware inputs (SMD framing, mm) -------------------------------------------
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: smd_veg_prev !Previous-day vegetation soil moisture deficit [mm]
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: smdcap_veg !SMD capacity for vegetation surfaces [mm]
+
+      ! --- GH-1292 moisture-aware parameters (thresholds on dimensionless w = 1 - smd/smdcap) --------
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: w_wilt !Jarvis lower bound on relative soil water [-]
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: w_opt !Jarvis upper bound on relative soil water [-]
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: f_shape !Jarvis shape exponent [-]
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: w_on !Leaf-on persistence threshold [-]
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: w_off !Leaf-off persistence threshold [-]
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: tau_w !Persistence window for running-mean relative soil water [days]
 
       REAL(KIND(1D0)), DIMENSION(3), INTENT(INOUT) :: GDD_id !Growing Degree Days (see SUEWS_DailyState.f95)
       REAL(KIND(1D0)), DIMENSION(3), INTENT(INOUT) :: SDD_id !Senescence Degree Days (see SUEWS_DailyState.f95)
+
+      ! --- GH-1292 moisture-aware state (relative soil water, dimensionless; logical latch) ---------
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(INOUT) :: wbar_id !Running-mean relative soil water [-]
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(INOUT) :: w_id_prev !Previous-day relative soil water snapshot [-]
+      LOGICAL, DIMENSION(nvegsurf), INTENT(INOUT) :: leaf_on_permitted !CLM5-style leaf-on latch
+
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(OUT) :: LAI_id_next !LAI for each veg surface [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: LAI_id_prev ! LAI of previous day
 
@@ -573,6 +609,12 @@ CONTAINS
       REAL(KIND(1D0)) :: indHelp !Switches and checks for GDD
       REAL(KIND(1D0)), DIMENSION(3) :: GDD_id_prev ! GDD of previous day
       REAL(KIND(1D0)), DIMENSION(3) :: SDD_id_prev ! SDD of previous day
+
+      ! --- GH-1292 local moisture-aware working variables ------------------------------------------
+      REAL(KIND(1D0)) :: w !Current-step relative soil water [-]
+      REAL(KIND(1D0)) :: f_w !Jarvis water-stress multiplier on delta_GDD [-]
+      LOGICAL :: persistence_ok !Whether wbar_id crosses the leaf-on threshold
+      LOGICAL :: thermal_ok !Whether delta_GDD > 0 (Tbar >= BaseT_GDD); companion to persistence_ok
 
       INTEGER :: critDays
       INTEGER :: iv
@@ -610,6 +652,61 @@ CONTAINS
 
          IF (delta_SDD > 0) delta_SDD = 0 !SDD cannot be positive
 
+         ! --- GH-1292 PR2: moisture-aware phenology (laitype=2, Design C) --------------------------
+         ! Inputs are SMD (mm); internal thresholds operate on relative soil water w = 1 - smd/smdcap.
+         ! Hybrid scheme: Jarvis-style continuous stress factor on delta_GDD plus a CLM5-style
+         ! persistence latch (Lawrence et al. 2019 §14) that freezes thermal accumulation when the
+         ! tau_w-day running mean of relative soil water sits below the leaf-off threshold.
+         IF (LAIType(iv) == 2) THEN
+            ! Convert previous-day SMD (mm) to dimensionless relative soil water.
+            w = 1.0D0 - smd_veg_prev(iv)/MAX(smdcap_veg(iv), 1.0D-6)
+            IF (w < 0.0D0) w = 0.0D0
+            IF (w > 1.0D0) w = 1.0D0
+
+            ! Seed the running mean on first activation so well-watered sites do not spend
+            ! tau_w days ramping up from an unset moisture history. Negative values are reserved
+            ! for this sentinel; w itself is clamped to the physical interval [0, 1].
+            IF (w_id_prev(iv) < 0.0D0 .OR. wbar_id(iv) < 0.0D0) THEN
+               wbar_id(iv) = w
+            ELSE
+               wbar_id(iv) = wbar_id(iv) + (w - wbar_id(iv))/MAX(tau_w(iv), 1.0D0)
+            END IF
+
+            ! Jarvis piecewise-power water-stress factor on delta_GDD.
+            IF (w <= w_wilt(iv)) THEN
+               f_w = 0.0D0
+            ELSE IF (w >= w_opt(iv)) THEN
+               f_w = 1.0D0
+            ELSE
+               f_w = ((w - w_wilt(iv))/MAX(w_opt(iv) - w_wilt(iv), 1.0D-6))**f_shape(iv)
+            END IF
+
+            ! CLM5-style persistence latch: flips ON when the tau_w-day running mean crosses the
+            ! leaf-on threshold AND the thermal gate (delta_GDD > 0, i.e. Tbar >= BaseT_GDD) is
+            ! satisfied; flips OFF when the running mean drops below the leaf-off threshold.
+            thermal_ok = (delta_GDD > 0.0D0)
+            persistence_ok = (wbar_id(iv) >= w_on(iv))
+            IF (leaf_on_permitted(iv)) THEN
+               IF (wbar_id(iv) < w_off(iv)) THEN
+                  leaf_on_permitted(iv) = .FALSE.
+               END IF
+            ELSE
+               IF (persistence_ok .AND. thermal_ok) THEN
+                  leaf_on_permitted(iv) = .TRUE.
+               END IF
+            END IF
+
+            ! Apply the moisture gate. When the latch is open, delta_GDD is modulated continuously
+            ! by f_w; when the latch is closed (drought regime) thermal accumulation halts entirely.
+            IF (leaf_on_permitted(iv)) THEN
+               delta_GDD = delta_GDD*f_w
+            ELSE
+               delta_GDD = 0.0D0
+            END IF
+
+            w_id_prev(iv) = w
+         END IF
+
          ! Calculate cumulative growing and senescence degree days
          GDD_id(iv) = GDD_id_prev(iv) + delta_GDD
          SDD_id(iv) = SDD_id_prev(iv) + delta_SDD
@@ -642,7 +739,9 @@ CONTAINS
             ! Set GDD zero in winter time
             IF (SDD_id(iv) < -critDays .AND. id > 170) GDD_id(iv) = 0
 
-            IF (LAItype(iv) < 0.5) THEN !Original LAI type
+            ! GH-1292: LAItype=2 shares the original power-law (0). In PR1 this makes laitype=2 a no-op
+            ! equivalent to laitype=0; PR2 layers the SMD gate on top of the same curve.
+            IF (LAItype(iv) == 0 .OR. LAItype(iv) == 2 .OR. LAItype(iv) < 0) THEN !Original LAI type (and GH-1292 scaffold)
                IF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN !Leaves can still grow
                   LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
                ELSEIF (SDD_id(iv) < 0 .AND. SDD_id(iv) > SDDFull(iv)) THEN !Start senescence
@@ -650,7 +749,10 @@ CONTAINS
                ELSE
                   LAI_id_next(iv) = LAI_id_prev(iv)
                END IF
-            ELSEIF (LAItype(iv) >= 0.5) THEN
+            ELSE
+               ! Preserve the pre-GH-1292 behaviour for unsupported positive integers:
+               ! any non-zero value other than LAItype=2 falls back to the legacy
+               ! high-latitude branch instead of leaving LAI_id_next unset.
                IF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN !Leaves can still grow
                   LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
                   !! Use day length to start senescence at high latitudes (N hemisphere)
@@ -669,7 +771,8 @@ CONTAINS
             ! Set GDD zero in winter time
             IF (SDD_id(iv) < -critDays .AND. id < 250) GDD_id(iv) = 0
 
-            IF (LAItype(iv) < 0.5) THEN !Original LAI type
+            ! GH-1292: LAItype=2 shares the original southern-hemisphere power-law (0) in PR1.
+            IF (LAItype(iv) == 0 .OR. LAItype(iv) == 2 .OR. LAItype(iv) < 0) THEN !Original LAI type (and GH-1292 scaffold)
                IF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN
                   LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
                ELSEIF (SDD_id(iv) < 0 .AND. SDD_id(iv) > SDDFull(iv)) THEN
@@ -678,6 +781,9 @@ CONTAINS
                   LAI_id_next(iv) = LAI_id_prev(iv)
                END IF
             ELSE
+               ! Preserve the pre-GH-1292 behaviour for unsupported positive integers:
+               ! any non-zero value other than LAItype=2 falls back to the legacy
+               ! high-latitude branch instead of leaving LAI_id_next unset.
                IF (GDD_id(iv) > 0 .AND. GDD_id(iv) < GDDFull(iv)) THEN
                   LAI_id_next(iv) = (LAI_id_prev(iv)**LAIPower(1, iv)*GDD_id(iv)*LAIPower(2, iv)) + LAI_id_prev(iv)
                   !! Day length not used to start senescence in S hemisphere (not much land)

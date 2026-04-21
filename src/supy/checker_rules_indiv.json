@@ -954,6 +954,48 @@
         "param": {},
         "unit": "1"
     },
+    "w_wilt": {
+        "cat": "grid",
+        "logic": "NA",
+        "optional": true,
+        "param": {},
+        "unit": "1"
+    },
+    "w_opt": {
+        "cat": "grid",
+        "logic": "NA",
+        "optional": true,
+        "param": {},
+        "unit": "1"
+    },
+    "f_shape": {
+        "cat": "grid",
+        "logic": "NA",
+        "optional": true,
+        "param": {},
+        "unit": "1"
+    },
+    "w_on": {
+        "cat": "grid",
+        "logic": "NA",
+        "optional": true,
+        "param": {},
+        "unit": "1"
+    },
+    "w_off": {
+        "cat": "grid",
+        "logic": "NA",
+        "optional": true,
+        "param": {},
+        "unit": "1"
+    },
+    "tau_w": {
+        "cat": "grid",
+        "logic": "NA",
+        "optional": true,
+        "param": {},
+        "unit": "1"
+    },
     "lat": {
         "cat": "grid",
         "logic": "range",

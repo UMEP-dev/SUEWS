@@ -180,11 +180,32 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5 (unreleased)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5`` is the current shape. The delta from ``2026.4`` is
+**purely additive** — GH-1292 introduced six optional ``LAIParams``
+fields gating the new moisture-aware phenology (``laitype=2``):
+``w_wilt``, ``w_opt``, ``f_shape``, ``w_on``, ``w_off``, ``tau_w``.
+All default to ``None`` and are ignored unless ``laitype=2`` is set,
+so any 2026.4 YAML parses unchanged under 2026.5.
+
+If you want to bump the ``schema_version`` label in-place without
+editing anything else:
+
+.. code-block:: bash
+
+   suews-schema migrate your_config.yml --target-version 2026.5
+
+To start using the moisture-aware phenology, set ``laitype: 2`` on the
+vegetation you want to enable it for and (optionally) override any of
+the six fields from their defaults.
+
 Upgrading to Schema 2026.4 (SUEWS 2026.4.3)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.4`` is the current shape. Upgrading from ``2026.1``
-(shipped with 2026.1.28) or earlier applies the following deltas:
+Upgrading from ``2026.1`` (shipped with 2026.1.28) or earlier applies
+the following deltas:
 
 - ``DeepSoilTemperature`` → ``AnnualMeanAirTemperature``
   (rename; user-supplied value preserved, #1240).
@@ -208,6 +229,8 @@ Run:
 
 The migrator accepts any registered intermediate (for example
 ``2025.12``) and walks the chain to the current schema in one call.
+Omit ``--target-version`` to land on the current schema (``2026.5``)
+directly.
 
 Upgrading to Schema 2026.1 (SUEWS 2026.1.28)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

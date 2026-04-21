@@ -152,7 +152,7 @@ Python API
    # Migrate between versions via the registered handler chain
    from supy.data_model.schema.migration import SchemaMigrator
    migrator = SchemaMigrator()
-   upgraded = migrator.migrate(old_config, to_version="2026.4")
+   upgraded = migrator.migrate(old_config, to_version="2026.5")
 
 Implementation Map
 ------------------

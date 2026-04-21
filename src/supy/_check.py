@@ -514,6 +514,9 @@ def check_state(df_state: pd.DataFrame, fix=True) -> List:
     list_col_rule = set(dict_rules_indiv.keys()).difference([
         x.lower() for x in list_col_forcing
     ])
+    list_col_rule_required = {
+        key for key in list_col_rule if not dict_rules_indiv[key].get("optional", False)
+    }
 
     # check the following:
     # 0. mandatory variables for the Fortran interface
@@ -526,7 +529,7 @@ def check_state(df_state: pd.DataFrame, fix=True) -> List:
     # 1. correct columns
     col_df_state = df_state.columns.get_level_values("var")
     # 1.1 if all columns are present
-    set_diff = set(list_col_rule).difference(col_df_state)
+    set_diff = set(list_col_rule_required).difference(col_df_state)
     if len(set_diff) > 0:
         str_issue = f"Mandatory columns missing from df_state: {set_diff}"
         list_issues.append(str_issue)

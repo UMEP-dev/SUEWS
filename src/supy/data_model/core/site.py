@@ -400,14 +400,133 @@ class LAIParams(BaseModel):
     )
     laitype: FlexibleRefValue(int) = Field(
         default=0,
-        description="LAI calculation choice (0: original, 1: new high latitude)",
+        description=(
+            "LAI calculation choice: 0 original (thermal-only), 1 new high latitude, "
+            "2 moisture-aware (Jarvis stress factor + CLM5-style persistence trigger; "
+            "PR1 scaffolding, no-op until PR2). See GH-1292."
+        ),
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "LAI Calculation Method",
         },
     )
+    # --- GH-1292 moisture-aware phenology parameters (laitype=2) -------------------------------
+    # Thresholds operate on dimensionless relative soil water w = 1 - smd/smdcap, not on SMD (mm).
+    w_wilt: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description=(
+            "Lower bound of Jarvis water-stress factor on relative soil water (moisture-aware LAI). "
+            "Effective only when laitype == 2; PR1 no-op."
+        ),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Jarvis lower relative soil water (w_wilt)",
+        },
+    )
+    w_opt: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description=(
+            "Upper bound of Jarvis water-stress factor on relative soil water. "
+            "Effective only when laitype == 2; PR1 no-op."
+        ),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Jarvis upper relative soil water (w_opt)",
+        },
+    )
+    f_shape: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description=(
+            "Shape exponent on the Jarvis water-stress factor. "
+            "Effective only when laitype == 2; PR1 no-op."
+        ),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Jarvis shape exponent (f_shape)",
+        },
+    )
+    w_on: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description=(
+            "Leaf-on persistence threshold on relative soil water (CLM5-style stress-deciduous). "
+            "Effective only when laitype == 2; PR1 no-op."
+        ),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Leaf-on persistence threshold (w_on)",
+        },
+    )
+    w_off: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description=(
+            "Leaf-off persistence threshold on relative soil water. "
+            "Effective only when laitype == 2; PR1 no-op."
+        ),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Leaf-off persistence threshold (w_off)",
+        },
+    )
+    tau_w: Optional[FlexibleRefValue(float)] = Field(
+        default=None,
+        description=(
+            "Persistence window for running-mean relative soil water. "
+            "Effective only when laitype == 2; PR1 no-op."
+        ),
+        json_schema_extra={
+            "unit": "days",
+            "display_name": "Soil-water persistence window (tau_w)",
+        },
+    )
 
     ref: Optional[Reference] = None
+
+    # Defaults for the six moisture-aware fields; mirrored in Fortran LAI_PRM and Rust LaiPrm.
+    MOISTURE_DEFAULTS: ClassVar[Dict[str, float]] = {
+        "w_wilt": 0.15,
+        "w_opt": 0.40,
+        "f_shape": 1.0,
+        "w_on": 0.35,
+        "w_off": 0.20,
+        "tau_w": 15.0,
+    }
+
+    @model_validator(mode="after")
+    def _check_moisture_thresholds(self) -> "LAIParams":
+        """GH-1292: moisture-aware threshold consistency; only enforced when laitype == 2."""
+
+        laitype_value = self.laitype.value if isinstance(self.laitype, RefValue) else self.laitype
+        if int(laitype_value) != 2:
+            return self
+
+        def _resolve(field_name: str) -> float:
+            raw = getattr(self, field_name)
+            if raw is None:
+                return self.MOISTURE_DEFAULTS[field_name]
+            return raw.value if isinstance(raw, RefValue) else raw
+
+        w_wilt_val = _resolve("w_wilt")
+        w_opt_val = _resolve("w_opt")
+        w_on_val = _resolve("w_on")
+        w_off_val = _resolve("w_off")
+
+        if w_opt_val <= w_wilt_val:
+            raise ValueError(
+                f"LAIParams (laitype=2): w_opt ({w_opt_val}) must be greater than w_wilt ({w_wilt_val})"
+            )
+        if w_off_val >= w_on_val:
+            raise ValueError(
+                f"LAIParams (laitype=2): w_off ({w_off_val}) must be less than w_on ({w_on_val})"
+            )
+
+        missing = [name for name in self.MOISTURE_DEFAULTS if getattr(self, name) is None]
+        if missing:
+            logger_supy.info(
+                "LAIParams (laitype=2): using defaults for unset moisture fields: %s",
+                ", ".join(missing),
+            )
+
+        return self
 
     def to_df_state(self, grid_id: int, surf_idx: int) -> pd.DataFrame:
         """Convert LAI parameters to DataFrame state format.
@@ -422,7 +541,7 @@ class LAIParams(BaseModel):
         # Adjust index for vegetation surfaces (surface index - 2)
         veg_idx = surf_idx - 2
 
-        # Set basic LAI parameters
+        # Set basic LAI parameters (plus GH-1292 moisture-aware fields when laitype == 2).
         lai_params = {
             "baset": self.baset,
             "gddfull": self.gddfull,
@@ -431,6 +550,12 @@ class LAIParams(BaseModel):
             "laimin": self.laimin,
             "laimax": self.laimax,
             "laitype": self.laitype,
+            "w_wilt": self.w_wilt,
+            "w_opt": self.w_opt,
+            "f_shape": self.f_shape,
+            "w_on": self.w_on,
+            "w_off": self.w_off,
+            "tau_w": self.tau_w,
         }
 
         cols = {("gridiv", "0"): grid_id}
@@ -446,6 +571,7 @@ class LAIParams(BaseModel):
                     "sddfull": 100.0,
                     "laimax": self.LAIMAX_DF_DEFAULT,
                     "laitype": 0,
+                    **self.MOISTURE_DEFAULTS,
                 }
                 val = defaults.get(param, 0.0)
             cols[(param, f"({veg_idx},)")] = val
@@ -497,6 +623,12 @@ class LAIParams(BaseModel):
 
         # Convert scalar parameters to RefValue
         lai_params = {key: RefValue(value) for key, value in lai_params.items()}
+
+        # GH-1292: pick up moisture-aware fields if present in df_state; legacy columns may be absent.
+        for field_name in ("w_wilt", "w_opt", "f_shape", "w_on", "w_off", "tau_w"):
+            col = (field_name, f"({veg_idx},)")
+            if col in df.columns:
+                lai_params[field_name] = RefValue(df.loc[grid_id, col])
 
         # Extract LAI power coefficients
         laipower = LAIPowerCoefficients.from_df_state(df, grid_id, veg_idx)

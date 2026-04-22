@@ -1036,9 +1036,9 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
 
 fn apply_conductance_overrides(site: &mut SuewsSite, root: &Value, site_root: &Value) {
     if let Some(v) = read_i32(root, &["model", "physics", "gsmodel"]) {
-        site.conductance.gsmodel = v;
+        site.conductance.gs_model = v;
     } else if let Some(v) = read_i32(site_root, &["properties", "conductance", "gsmodel"]) {
-        site.conductance.gsmodel = v;
+        site.conductance.gs_model = v;
     }
 
     if let Some(v) = read_numeric(site_root, &["properties", "conductance", "g_max"]) {

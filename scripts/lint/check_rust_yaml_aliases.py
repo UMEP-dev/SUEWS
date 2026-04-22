@@ -7,7 +7,7 @@ Usage
 -----
     python scripts/lint/check_rust_yaml_aliases.py
 
-Check 1 — preprocessor parity (gh#1322)
+Check 1 -- preprocessor parity (gh#1322)
 ......................................
 
 The Rust bridge (`src/suews_bridge/src/field_renames.rs`) keeps a
@@ -17,7 +17,7 @@ hand-written parser indexes by. That constant must stay in lockstep
 with the Python-side source of truth, `ALL_FIELD_RENAMES` in
 `src/supy/data_model/core/field_renames.py`. If either side drifts,
 the CLI and the SuPy/Pydantic pipeline disagree about which YAML
-spellings are accepted — exactly the silent-fallback hole gh#1322
+spellings are accepted -- exactly the silent-fallback hole gh#1322
 closes.
 
 This check imports the Python registry directly (no regex) and
@@ -25,7 +25,7 @@ regex-parses the Rust constant (no `cargo` required). It compares
 the two as sets of ``(new_name, old_name)`` pairs and exits non-zero
 with a per-pair diff when they differ.
 
-Check 2 — Rust struct identifier parity (gh#1324)
+Check 2 -- Rust struct identifier parity (gh#1324)
 ................................................
 
 With the preprocessor layer in place, the next cognitive-tax source
@@ -33,14 +33,14 @@ is Rust parameter structs still exposing legacy fused identifiers
 (``pub soildepth: f64``, ``pub laimax: f64``, etc.). Any `pub <ident>`
 that appears in the Python registry as an ``old_name`` is a failure:
 the Rust internals should use the canonical snake_case name instead.
-The preprocessor keeps YAML keys tolerant — this check keeps Rust
+The preprocessor keeps YAML keys tolerant -- this check keeps Rust
 source-reading honest.
 
 Exit codes
 ----------
-* 0 — both checks pass.
-* 1 — drift detected in either check.
-* 2 — script failure (Python import error, Rust constant missing).
+* 0 -- both checks pass.
+* 1 -- drift detected in either check.
+* 2 -- script failure (Python import error, Rust constant missing).
 """
 
 from __future__ import annotations
@@ -101,7 +101,7 @@ def _load_python_registry() -> dict[str, str]:
     rather than importing ``supy``. Importing the package pulls in
     ``supy._version_scm`` (generated at build time via ``make dev``),
     which is absent in a bare CI checkout and would make this lint
-    depend on a full Rust+Fortran build — well out of scope for a
+    depend on a full Rust+Fortran build -- well out of scope for a
     registry-parity check.
 
     The Python registry stores ``{old_name: new_name}`` and composes
@@ -141,7 +141,7 @@ def _load_python_registry() -> dict[str, str]:
         if key_node is not None:
             raise SystemExit(
                 "[rust-yaml-aliases-audit] unexpected direct entry in "
-                "ALL_FIELD_RENAMES — the lint only supports the documented "
+                "ALL_FIELD_RENAMES -- the lint only supports the documented "
                 "`**SUBDICT` unpacking pattern."
             )
         if not isinstance(value_node, ast.Name):
@@ -160,7 +160,7 @@ def _load_python_registry() -> dict[str, str]:
     if not combined:
         raise SystemExit(
             "[rust-yaml-aliases-audit] ALL_FIELD_RENAMES resolved to an empty "
-            "mapping — check the Python registry source."
+            "mapping -- check the Python registry source."
         )
 
     # Invert: Python stores {old: new}; we want {new: old}.
@@ -179,7 +179,7 @@ _RUST_PAIR_PATTERN = re.compile(
 def _load_rust_registry() -> dict[str, str]:
     """Return the Rust FIELD_RENAMES constant as a {new_name: old_name} dict.
 
-    The constant body is parsed with a regex rather than executed — that
+    The constant body is parsed with a regex rather than executed -- that
     keeps the lint free of a Rust toolchain dependency and unambiguous
     for CI environments that only ship Python.
     """
@@ -217,6 +217,7 @@ _RUST_PARAM_MODULES = (
     "src/suews_bridge/src/snow_prm.rs",
     "src/suews_bridge/src/ohm_prm.rs",
     "src/suews_bridge/src/bioco2.rs",
+    "src/suews_bridge/src/conductance.rs",
     "src/suews_bridge/src/lc_paved_prm.rs",
     "src/suews_bridge/src/lc_bldg_prm.rs",
     "src/suews_bridge/src/lc_evetr_prm.rs",
@@ -240,7 +241,7 @@ def _collect_rust_struct_fields(
 ) -> dict[str, list[tuple[str, int]]]:
     """Return ``{module_path: [(field_ident, line_no), ...]}``.
 
-    Skips files that do not exist — the check should tolerate the module
+    Skips files that do not exist -- the check should tolerate the module
     list drifting ahead of the repository layout during refactoring.
     Identifiers matching Rust keywords or types (``self``, ``Self``, ...)
     would never survive the ``pub <ident>:`` shape so no extra filtering
@@ -327,7 +328,7 @@ def _format_diff(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """CLI entry point — returns a process exit code (0/1/2)."""
+    """CLI entry point -- returns a process exit code (0/1/2)."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.parse_args(argv)
 
@@ -353,7 +354,7 @@ def main(argv: list[str] | None = None) -> int:
     if not registries_match:
         diff = _format_diff(python_renames, rust_renames)
         print(
-            "[rust-yaml-aliases-audit] FAILED — Python ALL_FIELD_RENAMES "
+            "[rust-yaml-aliases-audit] FAILED -- Python ALL_FIELD_RENAMES "
             "and Rust FIELD_RENAMES are out of sync.\n"
             "\n"
             f"{diff}\n"
@@ -368,7 +369,7 @@ def main(argv: list[str] | None = None) -> int:
     if not structs_clean:
         struct_diff = _format_struct_diff(struct_findings)
         print(
-            "[rust-yaml-aliases-audit] FAILED — Rust parameter structs "
+            "[rust-yaml-aliases-audit] FAILED -- Rust parameter structs "
             "still expose legacy fused field identifiers.\n"
             "\n"
             f"{struct_diff}\n"

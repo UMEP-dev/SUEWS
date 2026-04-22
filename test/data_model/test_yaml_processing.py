@@ -29,6 +29,7 @@ Tests cover:
 
 import os
 from pathlib import Path
+import re
 import tempfile
 import unittest
 from copy import deepcopy
@@ -323,6 +324,37 @@ sites:
             "sites[0].properties.snow.crwmax",
             extra_paths,
         )
+
+    def test_intermediate_modelphysics_names_are_rewritten_before_structure_checks(self):
+        """Schema 2026.5 intermediate physics names should survive Phase A unchanged in meaning."""
+        legacy_data = deepcopy(self.standard_data)
+        physics = legacy_data["model"]["physics"]
+
+        physics["net_radiation_method"] = physics.pop("net_radiation")
+        physics["rsl_method"] = physics.pop("roughness_sublayer")
+        physics["gs_model"] = physics.pop("surface_conductance")
+
+        updated_content, replacements = handle_renamed_parameters(
+            yaml.safe_dump(legacy_data, sort_keys=False)
+        )
+        replacement_dict = dict(replacements)
+
+        self.assertEqual(replacement_dict["net_radiation_method"], "net_radiation")
+        self.assertEqual(replacement_dict["rsl_method"], "roughness_sublayer")
+        self.assertEqual(replacement_dict["gs_model"], "surface_conductance")
+
+        updated_data = yaml.safe_load(updated_content)
+        missing_paths = {
+            path for path, _, _ in find_missing_parameters(updated_data, self.standard_data)
+        }
+        extra_paths = set(find_extra_parameters(updated_data, self.standard_data))
+
+        self.assertNotIn("model.physics.net_radiation", missing_paths)
+        self.assertNotIn("model.physics.roughness_sublayer", missing_paths)
+        self.assertNotIn("model.physics.surface_conductance", missing_paths)
+        self.assertNotIn("model.physics.net_radiation_method", extra_paths)
+        self.assertNotIn("model.physics.rsl_method", extra_paths)
+        self.assertNotIn("model.physics.gs_model", extra_paths)
 
     def test_extra_parameter_detection(self):
         """Test detection of NOT IN STANDARD parameters."""
@@ -3041,6 +3073,36 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         renamed_dict = dict(renamed_list)
         assert renamed_dict.get("diagmethod") == "roughness_sublayer"
         assert renamed_dict.get("cp") == "rho_cp"
+
+    def test_intermediate_modelphysics_names_detection(self):
+        """Schema 2026.5 intermediate physics aliases should be rewritten in Phase A."""
+        yaml_content = """
+        model:
+          physics:
+            net_radiation_method:
+              value: 3
+            rsl_method:
+              value: 2
+            gs_model:
+              value: 1
+        """
+
+        modified_content, renamed_list = uptodate_yaml.handle_renamed_parameters(
+            yaml_content
+        )
+
+        yaml_keys = re.findall(r"^\s*(\w+):", modified_content, re.MULTILINE)
+        assert "net_radiation" in yaml_keys
+        assert "roughness_sublayer" in yaml_keys
+        assert "surface_conductance" in yaml_keys
+        assert "net_radiation_method" not in yaml_keys
+        assert "rsl_method" not in yaml_keys
+        assert "gs_model" not in yaml_keys
+
+        renamed_dict = dict(renamed_list)
+        assert renamed_dict.get("net_radiation_method") == "net_radiation"
+        assert renamed_dict.get("rsl_method") == "roughness_sublayer"
+        assert renamed_dict.get("gs_model") == "surface_conductance"
 
     def test_extra_parameters_categorization(self):
         """Test categorization of extra (not in standard) parameters."""

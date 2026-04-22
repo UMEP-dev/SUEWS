@@ -6,7 +6,7 @@ import pandas as pd
 from pathlib import Path
 
 from .report_writer import REPORT_WRITER
-from ...core.field_renames import ALL_FIELD_RENAMES
+from ...core.field_renames import RAW_YAML_FIELD_RENAMES
 
 RENAMED_PARAMS = {
     "cp": "rho_cp",
@@ -16,7 +16,7 @@ RENAMED_PARAMS = {
     "cpanohm": "rho_cp_anohm",
     "kkanohm": "k_anohm",
     # Phase 2 + 3 renames: fused -> snake_case -> final (#1256, #1321)
-    **ALL_FIELD_RENAMES,
+    **RAW_YAML_FIELD_RENAMES,
 }
 PHYSICS_OPTIONS = {
     "net_radiation",

@@ -30,7 +30,7 @@ from copy import deepcopy
 from datetime import datetime
 import pytz
 from ...core.field_renames import (
-    ALL_FIELD_RENAMES,
+    RAW_YAML_FIELD_RENAMES,
     has_renamed_key,
     read_physics_key,
     read_renamed_key,
@@ -1637,7 +1637,7 @@ def run_precheck(path: str) -> dict:
         data = yaml.load(file, Loader=yaml.FullLoader)
 
     original_data = deepcopy(data)
-    data = rename_keys_recursive(data, ALL_FIELD_RENAMES)
+    data = rename_keys_recursive(data, RAW_YAML_FIELD_RENAMES)
 
     # ---- Step 1: Print start message ----
     data = precheck_printing(data)

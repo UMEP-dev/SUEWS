@@ -189,6 +189,17 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **SNOWPARAMS_RENAMES,
 }
 
+# Raw-YAML structural checks (Phase A / precheck) need a wider view than the
+# one-to-one public registry above: they must accept both the final public
+# names and the short-lived Schema 2026.5 intermediate ModelPhysics aliases.
+# Keeping this separate preserves the bridge-safe one-to-one contract of
+# ``ALL_FIELD_RENAMES`` while letting raw-dict callers normalise older YAMLs
+# before they compare against the current sample schema.
+RAW_YAML_FIELD_RENAMES: Dict[str, str] = {
+    **MODELPHYSICS_SUFFIX_RENAMES,
+    **ALL_FIELD_RENAMES,
+}
+
 # Reverse mapping: new_name -> old_name (for serialisation to Fortran bridge).
 # The Fortran bridge still indexes state by fused spellings, so `_REVERSE_*`
 # maps each final public name back to its original fused form.

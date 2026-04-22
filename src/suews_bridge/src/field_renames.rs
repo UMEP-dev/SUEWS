@@ -34,10 +34,7 @@ use serde_yaml::Value;
 /// Grouped to match the Python registry sections in
 /// `src/supy/data_model/core/field_renames.py`. Each pair maps the
 /// current final name to its legacy fused spelling (what the Fortran
-/// state is keyed by). Category 1 intermediate spellings from Schema
-/// 2026.5 (e.g. `net_radiation_method`) are NOT aliased here — users
-/// still running a 2026.5 YAML through `suews run` should migrate via
-/// `suews-schema migrate --target-version 2026.5.dev2` first.
+/// state is keyed by).
 /// Total: 68 pairs.
 pub const FIELD_RENAMES: &[(&str, &str)] = &[
     // ModelPhysics (17) — fused -> final (Cat 2+3, gh#1321) + flags
@@ -118,6 +115,37 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("rad_melt_factor", "radmeltfact"),
 ];
 
+/// Additional compatibility aliases for the short-lived Schema 2026.5
+/// ModelPhysics shape (`net_radiation_method`, `gs_model`, ...).
+///
+/// These are intentionally kept separate from `FIELD_RENAMES` so the
+/// Rust/Python parity lint can continue to compare the one-to-one
+/// final-name registry against Python `ALL_FIELD_RENAMES`.
+pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
+    ("net_radiation_method", "netradiationmethod"),
+    ("emissions_method", "emissionsmethod"),
+    ("storage_heat_method", "storageheatmethod"),
+    ("roughness_length_momentum_method", "roughlenmommethod"),
+    ("roughness_length_heat_method", "roughlenheatmethod"),
+    ("stability_method", "stabilitymethod"),
+    ("water_use_method", "waterusemethod"),
+    ("stebbs_method", "stebbsmethod"),
+    ("smd_method", "smdmethod"),
+    ("rsl_method", "rslmethod"),
+    ("rsl_level", "rsllevel"),
+    ("fai_method", "faimethod"),
+    ("rc_method", "rcmethod"),
+    ("gs_model", "gsmodel"),
+];
+
+fn legacy_name_for(key: &str) -> Option<(&'static str, &'static str)> {
+    FIELD_RENAMES
+        .iter()
+        .chain(FIELD_COMPAT_ALIASES.iter())
+        .find(|(new_name, _)| *new_name == key)
+        .map(|(new_name, old_name)| (*new_name, *old_name))
+}
+
 /// Recursively rewrite new snake_case keys to their legacy fused spellings
 /// so the downstream parser in `yaml_config.rs` keeps seeing the keys it
 /// has always read.
@@ -146,10 +174,11 @@ fn normalize_field_names_at(root: &mut Value, path: &str) -> Result<(), String> 
             let rename_candidates: Vec<(Value, &'static str, &'static str)> = map
                 .iter()
                 .filter_map(|(key, _)| match key {
-                    Value::String(k) => FIELD_RENAMES
-                        .iter()
-                        .find(|(new_name, _)| *new_name == k.as_str())
-                        .map(|(new_name, old_name)| (key.clone(), *new_name, *old_name)),
+                    Value::String(k) => {
+                        legacy_name_for(k.as_str()).map(|(new_name, old_name)| {
+                            (key.clone(), new_name, old_name)
+                        })
+                    }
                     _ => None,
                 })
                 .collect();
@@ -217,6 +246,17 @@ mod tests {
     }
 
     #[test]
+    fn field_compat_aliases_entries_are_unique() {
+        use std::collections::HashSet;
+        let new_names: HashSet<&str> = FIELD_COMPAT_ALIASES.iter().map(|(n, _)| *n).collect();
+        assert_eq!(
+            new_names.len(),
+            FIELD_COMPAT_ALIASES.len(),
+            "duplicate compat alias names"
+        );
+    }
+
+    #[test]
     fn renames_top_level_new_key_to_legacy() {
         let mut root: Value =
             from_str("model:\n  physics:\n    net_radiation: {value: 3}\n").unwrap();
@@ -244,6 +284,16 @@ mod tests {
         assert!(physics.get("netradiationmethod").is_some());
         assert!(physics.get("storageheatmethod").is_some());
         assert!(physics.get("net_radiation").is_none());
+    }
+
+    #[test]
+    fn renames_intermediate_physics_key_to_legacy() {
+        let mut root: Value =
+            from_str("model:\n  physics:\n    net_radiation_method: {value: 3}\n").unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let physics = &root["model"]["physics"];
+        assert!(physics.get("netradiationmethod").is_some());
+        assert!(physics.get("net_radiation_method").is_none());
     }
 
     #[test]
@@ -303,5 +353,17 @@ mod tests {
         let after_first = root.clone();
         normalize_field_names(&mut root).unwrap();
         assert_eq!(root, after_first);
+    }
+
+    #[test]
+    fn rejects_when_old_and_intermediate_spellings_present() {
+        let yaml =
+            "model:\n  physics:\n    netradiationmethod: {value: 3}\n    net_radiation_method: {value: 2}\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("duplicate spellings must fail");
+        assert_eq!(
+            err,
+            "Both 'netradiationmethod' (deprecated) and 'net_radiation_method' are present at model.physics. Use only 'net_radiation_method'."
+        );
     }
 }
